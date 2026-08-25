@@ -1,0 +1,91 @@
+<div class="wrapper" [class.is-condensed]="layout.isCondensed()">
+  <aside id="app-menu" class="app-menu" [class.is-open]="layout.mobileMenuOpen()" aria-label="Navegación principal">
+    <a class="logo-box" routerLink="/" (click)="layout.closeMobileNavigation()" aria-label="Ir al inicio de GestIA">
+      <span class="logo-mark" aria-hidden="true">G</span>
+      <span class="logo-copy">
+        <strong>GestIA</strong>
+        <small>Gestión inteligente</small>
+      </span>
+    </a>
+
+    <nav class="side-nav">
+      @for (group of navigation; track group.label) {
+        <section class="menu-group">
+          <p class="menu-title">{{ group.label }}</p>
+          @for (item of group.items; track item.label) {
+            @if (item.route) {
+              <a
+                class="menu-link"
+                [routerLink]="item.route"
+                routerLinkActive="active"
+                [routerLinkActiveOptions]="{ exact: true }"
+                [title]="layout.isCondensed() ? item.label : ''"
+                (click)="layout.closeMobileNavigation()"
+              >
+                <span class="menu-icon"><app-icon [name]="item.icon" /></span>
+                <span class="menu-text">{{ item.label }}</span>
+              </a>
+            } @else {
+              <span class="menu-link is-disabled" [title]="layout.isCondensed() ? item.label : 'Módulo planificado'">
+                <span class="menu-icon"><app-icon [name]="item.icon" /></span>
+                <span class="menu-text">{{ item.label }}</span>
+                @if (item.planned) { <span class="menu-badge">Pronto</span> }
+              </span>
+            }
+          }
+        </section>
+      }
+    </nav>
+
+    <div class="sidebar-foot">
+      <span class="environment-dot" aria-hidden="true"></span>
+      <span class="sidebar-foot__copy">
+        <strong>Entorno local</strong>
+        <small>SQL Server · API · Web</small>
+      </span>
+    </div>
+  </aside>
+
+  @if (layout.mobileMenuOpen()) {
+    <button class="menu-backdrop" type="button" aria-label="Cerrar navegación" (click)="layout.closeMobileNavigation()"></button>
+  }
+
+  <div class="page-content">
+    <header class="app-header">
+      <div class="topbar-start">
+        <button
+          class="menu-toggle"
+          type="button"
+          aria-label="Alternar navegación"
+          [attr.aria-expanded]="layout.mobileMenuOpen()"
+          aria-controls="app-menu"
+          (click)="layout.toggleNavigation()"
+        >
+          <span></span><span></span><span></span>
+        </button>
+        <div class="topbar-title">
+          <span>GestIA</span>
+          <strong>Consola operativa</strong>
+        </div>
+      </div>
+
+      <div class="topbar-actions">
+        <span class="environment"><i></i> Entorno local</span>
+        <button class="profile" type="button" aria-label="Cuenta de usuario">
+          <span class="profile-avatar">GI</span>
+          <span class="profile-copy"><strong>Equipo GestIA</strong><small>Administrador</small></span>
+          <span class="profile-chevron" aria-hidden="true">⌄</span>
+        </button>
+      </div>
+    </header>
+
+    <main>
+      <router-outlet />
+    </main>
+
+    <footer class="app-footer">
+      <span>GestIA · Gestión inteligente</span>
+      <span>.NET 10 · Angular 22 · SQL Server</span>
+    </footer>
+  </div>
+</div>

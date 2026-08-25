@@ -1,0 +1,39 @@
+# Backend
+
+API de GestIA construida con .NET 10 como monolito modular y persistencia SQL Server mediante EF Core 10.
+
+## Dependencias permitidas
+
+```text
+Api -> Application + Infrastructure
+Infrastructure -> Application + Domain
+Application -> Domain
+Domain -> ninguna otra capa de GestIA
+```
+
+EF Core, `DbContext`, configuraciones físicas y migraciones permanecen en Infrastructure. Los módulos de negocio se agregan verticalmente dentro de las capas existentes; no se crea un proyecto por tabla ni se colocan reglas de negocio en endpoints.
+
+## Ejecución directa
+
+La cadena no se almacena en Git. Antes de iniciar la API:
+
+```powershell
+$env:ConnectionStrings__GestIa = 'Server=localhost,1433;Database=GestIA_Dev;User Id=sa;Password=<local>;Encrypt=True;TrustServerCertificate=True'
+dotnet run --project .\src\GestIA.Api
+```
+
+Para crear migraciones, `GestIaDbContextFactory` exige una variable separada:
+
+```powershell
+$env:GESTIA_SQL_CONNECTION = $env:ConnectionStrings__GestIa
+dotnet ef migrations add <Nombre> --project .\src\GestIA.Infrastructure --startup-project .\src\GestIA.Api
+```
+
+No debe crearse la primera migración de negocio hasta aprobar el corte correspondiente del modelo.
+
+## Endpoints iniciales
+
+- `GET /health`: liveness compatible.
+- `GET /health/live`: proceso activo.
+- `GET /health/ready`: proceso y SQL Server disponibles.
+- `GET /api/v1/system/info`: información básica del servicio.

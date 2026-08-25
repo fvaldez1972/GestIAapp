@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/backend/" />
+  <Folder Name="/backend/src/">
+    <Project Path="backend/src/GestIA.Api/GestIA.Api.csproj" />
+    <Project Path="backend/src/GestIA.Application/GestIA.Application.csproj" />
+    <Project Path="backend/src/GestIA.Domain/GestIA.Domain.csproj" />
+    <Project Path="backend/src/GestIA.Infrastructure/GestIA.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/backend/tests/">
+    <Project Path="backend/tests/GestIA.Application.UnitTests/GestIA.Application.UnitTests.csproj" />
+    <Project Path="backend/tests/GestIA.Architecture.Tests/GestIA.Architecture.Tests.csproj" />
+    <Project Path="backend/tests/GestIA.Domain.UnitTests/GestIA.Domain.UnitTests.csproj" />
+    <Project Path="backend/tests/GestIA.IntegrationTests/GestIA.IntegrationTests.csproj" />
+  </Folder>
+</Solution>

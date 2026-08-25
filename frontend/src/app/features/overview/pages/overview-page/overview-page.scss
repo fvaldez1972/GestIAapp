@@ -1,0 +1,97 @@
+.intro {
+  max-width: 52rem;
+}
+
+.kicker {
+  color: var(--gestia-cyan-dark);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+h1 {
+  max-width: 48rem;
+  margin: 0.75rem 0 1rem;
+  color: var(--gestia-navy);
+  font-size: clamp(2rem, 4vw, 3.75rem);
+  line-height: 1.02;
+  letter-spacing: -0.045em;
+}
+
+.intro p {
+  max-width: 43rem;
+  margin: 0;
+  color: var(--gestia-muted);
+  line-height: 1.7;
+}
+
+.overview-grid {
+  display: grid;
+  gap: 1rem;
+  margin-top: 2.5rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.overview-card,
+.next-step {
+  border: 1px solid var(--gestia-border);
+  border-radius: 1rem;
+  background: #fff;
+  box-shadow: 0 0.75rem 2rem rgb(16 16 78 / 5%);
+}
+
+.overview-card {
+  padding: 1.25rem;
+}
+
+.overview-card span {
+  color: var(--gestia-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.overview-card strong {
+  display: block;
+  margin-top: 1.5rem;
+  color: var(--gestia-navy);
+  font-size: 1.35rem;
+}
+
+.overview-card p {
+  margin: 0.4rem 0 0;
+  color: var(--gestia-muted);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.next-step {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding: 1.25rem;
+}
+
+.next-step h2 {
+  margin: 0.4rem 0 0;
+  color: var(--gestia-navy);
+  font-size: 1.05rem;
+}
+
+.badge {
+  padding: 0.45rem 0.7rem;
+  border-radius: 99rem;
+  color: #7a4d08;
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: #fff2d8;
+}
+
+@media (max-width: 920px) {
+  .overview-grid {
+    grid-template-columns: 1fr;
+  }
+}

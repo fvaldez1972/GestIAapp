@@ -1,0 +1,25 @@
+<article class="intro">
+  <span class="kicker">Plataforma operativa</span>
+  <h1>Centraliza la planeación y operación de tus servicios.</h1>
+  <p>
+    GestIA conectará clientes, personal, turnos, asistencia, incidencias y coberturas en un solo flujo trazable.
+  </p>
+</article>
+
+<section class="overview-grid" aria-label="Áreas operativas de GestIA">
+  @for (area of operationalAreas; track area.label) {
+    <article class="overview-card">
+      <span>{{ area.label }}</span>
+      <strong>{{ area.value }}</strong>
+      <p>{{ area.detail }}</p>
+    </article>
+  }
+</section>
+
+<section class="next-step">
+  <div>
+    <span class="kicker">Próximo módulo</span>
+    <h2>Empresas, clientes, sedes y personal</h2>
+  </div>
+  <span class="badge">Por desarrollar</span>
+</section>

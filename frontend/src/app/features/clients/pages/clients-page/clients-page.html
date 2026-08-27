@@ -1,0 +1,475 @@
+<section class="page-heading">
+  <div>
+    <span class="eyebrow">Gestión comercial</span>
+    <h1>Clientes</h1>
+    <p>Administra la ficha fiscal, sedes y contactos que después alimentarán contratos y servicios.</p>
+  </div>
+  <button class="button button--primary" type="button" [disabled]="!selectedOrganizationId()" (click)="openCreateClient()">
+    <span aria-hidden="true">＋</span> Nuevo cliente
+  </button>
+</section>
+
+<section class="context-card" aria-label="Contexto de organización">
+  <label>
+    <span>Organización</span>
+    <select [value]="selectedOrganizationId()" (change)="selectOrganization($any($event.target).value)">
+      @if (!organizations().length) {
+        <option value="">Sin organizaciones registradas</option>
+      }
+      @for (organization of organizations(); track organization.idOrganization) {
+        <option [value]="organization.idOrganization">{{ organization.legalName }}</option>
+      }
+    </select>
+  </label>
+  <button class="button button--secondary" type="button" (click)="openCreateOrganization()">Agregar organización</button>
+</section>
+
+@if (message()) {
+  <div class="alert alert--success" role="status">{{ message() }}</div>
+}
+@if (error()) {
+  <div class="alert alert--error" role="alert">{{ error() }}</div>
+}
+
+<section class="workbench">
+  <article class="table-card">
+    <header class="table-toolbar">
+      <div>
+        <h2>Directorio</h2>
+        <span>{{ result().totalCount }} cliente(s)</span>
+      </div>
+      <div class="search-box">
+        <input
+          type="search"
+          placeholder="Buscar por código, nombre o RFC"
+          [value]="search()"
+          (input)="updateSearch($any($event.target).value)"
+          (keyup.enter)="loadClients(1)"
+        />
+        <button class="button button--secondary" type="button" (click)="loadClients(1)">Buscar</button>
+      </div>
+    </header>
+
+    @if (loading()) {
+      <div class="state-panel"><span class="spinner"></span> Cargando información…</div>
+    } @else if (!selectedOrganizationId()) {
+      <div class="state-panel state-panel--empty">
+        <strong>Crea la primera organización</strong>
+        <p>La organización delimita clientes y operación.</p>
+        <button class="button button--primary" type="button" (click)="openCreateOrganization()">Crear organización</button>
+      </div>
+    } @else if (!result().items.length) {
+      <div class="state-panel state-panel--empty">
+        <strong>No hay clientes que mostrar</strong>
+        <p>Registra el primer cliente o cambia la búsqueda.</p>
+        <button class="button button--primary" type="button" (click)="openCreateClient()">Nuevo cliente</button>
+      </div>
+    } @else {
+      <div class="client-list">
+        @for (client of result().items; track client.idClient) {
+          <button
+            type="button"
+            class="client-row"
+            [class.is-active]="selectedClient()?.idClient === client.idClient"
+            (click)="selectClient(client)"
+          >
+            <span class="code">{{ client.codeClient }}</span>
+            <span>
+              <strong>{{ client.legalName }}</strong>
+              <small>{{ client.rfc }} · {{ client.tradeName || 'Sin nombre comercial' }}</small>
+            </span>
+          </button>
+        }
+      </div>
+      <footer class="pagination">
+        <span>Página {{ result().page }} de {{ result().totalPages || 1 }}</span>
+        <div>
+          <button type="button" [disabled]="result().page <= 1" (click)="loadClients(result().page - 1)">Anterior</button>
+          <button type="button" [disabled]="result().page >= result().totalPages" (click)="loadClients(result().page + 1)">Siguiente</button>
+        </div>
+      </footer>
+    }
+  </article>
+
+  <article class="detail-card">
+    <header class="detail-header">
+      <div>
+        <span class="eyebrow">Expediente del cliente</span>
+        <h2>{{ selectedClientName() }}</h2>
+        @if (selectedClient()) {
+          <p>{{ selectedClient()?.rfc }} · {{ selectedClient()?.employerRegistrationNumber || 'Sin registro patronal' }}</p>
+        }
+      </div>
+      @if (selectedClient()) {
+        <div class="detail-actions">
+          <button type="button" (click)="openEditClient(selectedClient()!)">Editar ficha</button>
+          <button class="danger" type="button" (click)="deactivate(selectedClient()!)">Desactivar</button>
+        </div>
+      }
+    </header>
+
+    @if (!selectedClient()) {
+      <div class="state-panel state-panel--empty">
+        <strong>Selecciona un cliente</strong>
+        <p>Sus sedes y contactos aparecerán aquí.</p>
+      </div>
+    } @else {
+      <section class="detail-section">
+        <header>
+          <div>
+            <h3>Sedes</h3>
+            <span>{{ sites().length }} registro(s)</span>
+          </div>
+          <button class="button button--secondary" type="button" (click)="openCreateSite()">Nueva sede</button>
+        </header>
+
+        @if (loadingDetail()) {
+          <div class="compact-state">Cargando expediente…</div>
+        } @else if (!sites().length) {
+          <div class="compact-state">Sin sedes registradas.</div>
+        } @else {
+          <div class="cards-list">
+            @for (site of sites(); track site.idClientSite) {
+              <article class="mini-card">
+                <div>
+                  <span class="code">{{ site.codeClientSite }}</span>
+                  <strong>{{ site.name }}</strong>
+                  <small>{{ address(site) }}</small>
+                </div>
+                <div class="mini-actions">
+                  <button type="button" (click)="openEditSite(site)">Editar</button>
+                  <button class="danger" type="button" (click)="deactivateSite(site)">Desactivar</button>
+                </div>
+              </article>
+            }
+          </div>
+        }
+      </section>
+
+      <section class="detail-section">
+        <header>
+          <div>
+            <h3>Contactos</h3>
+            <span>{{ contacts().length }} registro(s)</span>
+          </div>
+          <button class="button button--secondary" type="button" (click)="openCreateContact()">Nuevo contacto</button>
+        </header>
+
+        @if (!contacts().length) {
+          <div class="compact-state">Sin contactos registrados.</div>
+        } @else {
+          <div class="cards-list">
+            @for (contact of contacts(); track contact.idClientContact) {
+              <article class="mini-card">
+                <div>
+                  <span class="pill">{{ purposeLabel(contact.purpose) }}{{ contact.isPrimary ? ' · Principal' : '' }}</span>
+                  <strong>{{ contact.fullName }}</strong>
+                  <small>{{ contact.jobTitle || 'Sin puesto' }} · {{ contact.clientSiteName || 'Cliente general' }}</small>
+                  <small>{{ contact.email || contact.phone || contact.mobilePhone }}</small>
+                </div>
+                <div class="mini-actions">
+                  <button type="button" (click)="openEditContact(contact)">Editar</button>
+                  <button class="danger" type="button" (click)="deactivateContact(contact)">Desactivar</button>
+                </div>
+              </article>
+            }
+          </div>
+        }
+      </section>
+
+      <section class="detail-section">
+        <header>
+          <div>
+            <h3>Contratos de servicio</h3>
+            <span>{{ contracts().length }} registro(s)</span>
+          </div>
+          <button class="button button--secondary" type="button" (click)="openCreateContract()">Nuevo contrato</button>
+        </header>
+
+        @if (!contracts().length) {
+          <div class="compact-state">Sin contratos registrados.</div>
+        } @else {
+          <div class="cards-list">
+            @for (contract of contracts(); track contract.idServiceContract) {
+              <article class="mini-card">
+                <div>
+                  <span class="code">{{ contract.codeServiceContract }}</span>
+                  <strong>{{ contractStatusLabel(contract.status) }}</strong>
+                  <small>Vigencia: {{ contract.effectiveFromDate }} - {{ contract.effectiveToDate || 'indefinida' }}</small>
+                  <small>{{ contract.paymentTermDays }} días crédito · {{ contract.currencyCode }}</small>
+                </div>
+                <div class="mini-actions">
+                  <button type="button" (click)="openEditContract(contract)">Editar</button>
+                  <button class="danger" type="button" (click)="deactivateContract(contract)">Desactivar</button>
+                </div>
+              </article>
+            }
+          </div>
+        }
+      </section>
+
+      <section class="detail-section">
+        <header>
+          <div>
+            <h3>Servicios</h3>
+            <span>{{ services().length }} registro(s)</span>
+          </div>
+          <button class="button button--secondary" type="button" [disabled]="!sites().length" (click)="openCreateService()">Nuevo servicio</button>
+        </header>
+
+        @if (!sites().length) {
+          <div class="compact-state">Primero registra una sede para poder configurar servicios.</div>
+        } @else if (!services().length) {
+          <div class="compact-state">Sin servicios registrados.</div>
+        } @else {
+          <div class="cards-list">
+            @for (service of services(); track service.idService) {
+              <article class="mini-card selectable" [class.is-active]="selectedService()?.idService === service.idService">
+                <button class="mini-card__main" type="button" (click)="selectService(service)">
+                  <span class="code">{{ service.codeService }}</span>
+                  <strong>{{ service.name }}</strong>
+                  <small>{{ service.clientSiteName || siteName(service.idClientSite) }} · {{ service.serviceContractCode || 'Sin contrato ligado' }}</small>
+                  <small>{{ service.description }}</small>
+                </button>
+                <div class="mini-actions">
+                  <button type="button" (click)="openEditService(service)">Editar</button>
+                  <button class="danger" type="button" (click)="deactivateService(service)">Desactivar</button>
+                </div>
+              </article>
+            }
+          </div>
+        }
+      </section>
+
+      <section class="detail-section">
+        <header>
+          <div>
+            <h3>Configuración del servicio</h3>
+            <span>{{ selectedServiceName() }}</span>
+          </div>
+          <button class="button button--secondary" type="button" [disabled]="!selectedService()" (click)="openCreateConfiguration()">Nueva configuración</button>
+        </header>
+
+        @if (!selectedService()) {
+          <div class="compact-state">Selecciona un servicio para ver su configuración operativa y comercial.</div>
+        } @else if (!configurations().length) {
+          <div class="compact-state">Sin configuraciones registradas para este servicio.</div>
+        } @else {
+          <div class="cards-list">
+            @for (configuration of configurations(); track configuration.idServiceConfiguration) {
+              <article class="mini-card">
+                <div>
+                  <span class="pill">{{ configuration.requiredWorkerCount }} elemento(s) · {{ configuration.hoursPerDay }} h/día</span>
+                  <strong>{{ money(configuration.monthlyPrice, configuration.currencyCode) }} mensual</strong>
+                  <small>{{ configuration.daysPerWeek }} días/semana · {{ configuration.averageMonthlyHours }} h/mes · {{ configuration.isTaxIncluded ? 'IVA incluido' : 'IVA no incluido' }}</small>
+                  <small>{{ configuration.workScheduleDescription }}</small>
+                </div>
+                <div class="mini-actions">
+                  <button type="button" (click)="openEditConfiguration(configuration)">Editar</button>
+                  <button class="danger" type="button" (click)="deactivateConfiguration(configuration)">Desactivar</button>
+                </div>
+              </article>
+            }
+          </div>
+        }
+      </section>
+    }
+  </article>
+</section>
+
+@if (clientEditorOpen()) {
+  <div class="modal-backdrop" (click)="closeEditors()">
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="client-editor-title" (click)="$event.stopPropagation()">
+      <header>
+        <div><span class="eyebrow">Ficha fiscal</span><h2 id="client-editor-title">{{ editingClient() ? 'Editar cliente' : 'Nuevo cliente' }}</h2></div>
+        <button type="button" aria-label="Cerrar" (click)="closeEditors()">×</button>
+      </header>
+      <form [formGroup]="clientForm" (ngSubmit)="saveClient()">
+        <div class="form-grid">
+          <label><span>Código *</span><input formControlName="codeClient" [readOnly]="!!editingClient()" /></label>
+          <label><span>RFC *</span><input formControlName="rfc" maxlength="13" /></label>
+          <label class="wide"><span>Razón social *</span><input formControlName="legalName" /></label>
+          <label class="wide"><span>Nombre comercial</span><input formControlName="tradeName" /></label>
+          <label><span>Nacionalidad</span><input formControlName="nationality" /></label>
+          <label><span>Registro patronal</span><input formControlName="employerRegistrationNumber" /></label>
+          <label class="wide"><span>Actividad fiscal</span><textarea formControlName="taxActivity" rows="2"></textarea></label>
+          <label class="wide"><span>Domicilio fiscal</span><textarea formControlName="taxAddress" rows="3"></textarea></label>
+        </div>
+        @if (clientForm.invalid && clientForm.touched) {
+          <p class="form-error">Revisa los campos obligatorios y sus longitudes.</p>
+        }
+        <footer>
+          <button class="button button--secondary" type="button" (click)="closeEditors()">Cancelar</button>
+          <button class="button button--primary" type="submit" [disabled]="saving()">{{ saving() ? 'Guardando…' : 'Guardar cliente' }}</button>
+        </footer>
+      </form>
+    </section>
+  </div>
+}
+
+@if (siteEditorOpen()) {
+  <div class="modal-backdrop" (click)="closeEditors()">
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="site-editor-title" (click)="$event.stopPropagation()">
+      <header>
+        <div><span class="eyebrow">Sede operativa</span><h2 id="site-editor-title">{{ editingSite() ? 'Editar sede' : 'Nueva sede' }}</h2></div>
+        <button type="button" aria-label="Cerrar" (click)="closeEditors()">×</button>
+      </header>
+      <form [formGroup]="siteForm" (ngSubmit)="saveSite()">
+        <div class="form-grid">
+          <label><span>Código *</span><input formControlName="codeClientSite" [readOnly]="!!editingSite()" /></label>
+          <label><span>Nombre *</span><input formControlName="name" /></label>
+          <label class="wide"><span>Calle *</span><input formControlName="street" /></label>
+          <label><span>No. exterior</span><input formControlName="exteriorNumber" /></label>
+          <label><span>No. interior</span><input formControlName="interiorNumber" /></label>
+          <label><span>Colonia</span><input formControlName="neighborhood" /></label>
+          <label><span>Municipio *</span><input formControlName="municipality" /></label>
+          <label><span>Estado *</span><input formControlName="state" /></label>
+          <label><span>Código postal *</span><input formControlName="postalCode" /></label>
+          <label><span>País</span><input formControlName="countryCode" maxlength="2" /></label>
+          <label><span>Zona horaria</span><input formControlName="timeZoneId" /></label>
+          <label class="wide"><span>Instrucciones de acceso</span><textarea rows="3" formControlName="accessInstructions"></textarea></label>
+        </div>
+        <footer>
+          <button class="button button--secondary" type="button" (click)="closeEditors()">Cancelar</button>
+          <button class="button button--primary" type="submit" [disabled]="saving()">{{ saving() ? 'Guardando…' : 'Guardar sede' }}</button>
+        </footer>
+      </form>
+    </section>
+  </div>
+}
+
+@if (contactEditorOpen()) {
+  <div class="modal-backdrop" (click)="closeEditors()">
+    <section class="modal modal--small" role="dialog" aria-modal="true" aria-labelledby="contact-editor-title" (click)="$event.stopPropagation()">
+      <header>
+        <div><span class="eyebrow">Contacto</span><h2 id="contact-editor-title">{{ editingContact() ? 'Editar contacto' : 'Nuevo contacto' }}</h2></div>
+        <button type="button" aria-label="Cerrar" (click)="closeEditors()">×</button>
+      </header>
+      <form [formGroup]="contactForm" (ngSubmit)="saveContact()">
+        <div class="form-grid">
+          <label><span>Tipo *</span><select formControlName="purpose">@for (purpose of contactPurposes; track purpose.value) { <option [value]="purpose.value">{{ purpose.label }}</option> }</select></label>
+          <label><span>Sede</span><select formControlName="idClientSite"><option value="">Cliente general</option>@for (site of sites(); track site.idClientSite) { <option [value]="site.idClientSite">{{ site.name }}</option> }</select></label>
+          <label class="wide"><span>Nombre completo *</span><input formControlName="fullName" /></label>
+          <label class="wide"><span>Puesto</span><input formControlName="jobTitle" /></label>
+          <label><span>Correo</span><input type="email" formControlName="email" /></label>
+          <label><span>Teléfono</span><input formControlName="phone" /></label>
+          <label><span>Móvil</span><input formControlName="mobilePhone" /></label>
+          <label class="check"><input type="checkbox" formControlName="isPrimary" /><span>Contacto principal</span></label>
+        </div>
+        <footer>
+          <button class="button button--secondary" type="button" (click)="closeEditors()">Cancelar</button>
+          <button class="button button--primary" type="submit" [disabled]="saving()">{{ saving() ? 'Guardando…' : 'Guardar contacto' }}</button>
+        </footer>
+      </form>
+    </section>
+  </div>
+}
+
+@if (contractEditorOpen()) {
+  <div class="modal-backdrop" (click)="closeEditors()">
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="contract-editor-title" (click)="$event.stopPropagation()">
+      <header>
+        <div><span class="eyebrow">Contrato de servicio</span><h2 id="contract-editor-title">{{ editingContract() ? 'Editar contrato' : 'Nuevo contrato' }}</h2></div>
+        <button type="button" aria-label="Cerrar" (click)="closeEditors()">×</button>
+      </header>
+      <form [formGroup]="contractForm" (ngSubmit)="saveContract()">
+        <div class="form-grid">
+          <label><span>Código *</span><input formControlName="codeServiceContract" [readOnly]="!!editingContract()" /></label>
+          <label><span>Estatus *</span><select formControlName="status">@for (status of contractStatuses; track status.value) { <option [value]="status.value">{{ status.label }}</option> }</select></label>
+          <label><span>Fecha firma</span><input type="date" formControlName="signedDate" /></label>
+          <label><span>Inicio vigencia *</span><input type="date" formControlName="effectiveFromDate" /></label>
+          <label><span>Fin vigencia</span><input type="date" formControlName="effectiveToDate" /></label>
+          <label><span>Días crédito *</span><input type="number" formControlName="paymentTermDays" min="0" /></label>
+          <label><span>Preaviso baja *</span><input type="number" formControlName="terminationNoticeDays" min="0" /></label>
+          <label><span>Moneda *</span><input formControlName="currencyCode" maxlength="3" /></label>
+          <label class="wide"><span>Referencia documental</span><input formControlName="documentReference" /></label>
+          <label class="wide"><span>Notas</span><textarea rows="3" formControlName="notes"></textarea></label>
+        </div>
+        <footer>
+          <button class="button button--secondary" type="button" (click)="closeEditors()">Cancelar</button>
+          <button class="button button--primary" type="submit" [disabled]="saving()">{{ saving() ? 'Guardando…' : 'Guardar contrato' }}</button>
+        </footer>
+      </form>
+    </section>
+  </div>
+}
+
+@if (serviceEditorOpen()) {
+  <div class="modal-backdrop" (click)="closeEditors()">
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="service-editor-title" (click)="$event.stopPropagation()">
+      <header>
+        <div><span class="eyebrow">Servicio contratado</span><h2 id="service-editor-title">{{ editingService() ? 'Editar servicio' : 'Nuevo servicio' }}</h2></div>
+        <button type="button" aria-label="Cerrar" (click)="closeEditors()">×</button>
+      </header>
+      <form [formGroup]="serviceForm" (ngSubmit)="saveService()">
+        <div class="form-grid">
+          <label><span>Código *</span><input formControlName="codeService" [readOnly]="!!editingService()" /></label>
+          <label><span>Sede *</span><select formControlName="idClientSite">@for (site of sites(); track site.idClientSite) { <option [value]="site.idClientSite">{{ site.name }}</option> }</select></label>
+          <label><span>Contrato</span><select formControlName="idServiceContract"><option value="">Sin contrato ligado</option>@for (contract of contracts(); track contract.idServiceContract) { <option [value]="contract.idServiceContract">{{ contract.codeServiceContract }}</option> }</select></label>
+          <label><span>Inicio *</span><input type="date" formControlName="startDate" /></label>
+          <label><span>Fin</span><input type="date" formControlName="endDate" /></label>
+          <label class="wide"><span>Nombre *</span><input formControlName="name" /></label>
+          <label class="wide"><span>Descripción *</span><textarea rows="3" formControlName="description"></textarea></label>
+          <label class="wide"><span>Descripción para factura</span><input formControlName="invoiceDescription" /></label>
+        </div>
+        <footer>
+          <button class="button button--secondary" type="button" (click)="closeEditors()">Cancelar</button>
+          <button class="button button--primary" type="submit" [disabled]="saving()">{{ saving() ? 'Guardando…' : 'Guardar servicio' }}</button>
+        </footer>
+      </form>
+    </section>
+  </div>
+}
+
+@if (configurationEditorOpen()) {
+  <div class="modal-backdrop" (click)="closeEditors()">
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="configuration-editor-title" (click)="$event.stopPropagation()">
+      <header>
+        <div><span class="eyebrow">Configuración operativa</span><h2 id="configuration-editor-title">{{ editingConfiguration() ? 'Editar configuración' : 'Nueva configuración' }}</h2></div>
+        <button type="button" aria-label="Cerrar" (click)="closeEditors()">×</button>
+      </header>
+      <form [formGroup]="configurationForm" (ngSubmit)="saveConfiguration()">
+        <div class="form-grid">
+          <label><span>Inicio vigencia *</span><input type="date" formControlName="effectiveFromDate" /></label>
+          <label><span>Fin vigencia</span><input type="date" formControlName="effectiveToDate" /></label>
+          <label><span>Elementos *</span><input type="number" formControlName="requiredWorkerCount" min="1" /></label>
+          <label><span>Horas/día *</span><input type="number" formControlName="hoursPerDay" min="0.5" step="0.5" /></label>
+          <label><span>Días/semana *</span><input type="number" formControlName="daysPerWeek" min="1" max="7" /></label>
+          <label><span>Horas/mes *</span><input type="number" formControlName="averageMonthlyHours" min="1" step="0.5" /></label>
+          <label><span>Días preparación *</span><input type="number" formControlName="preparationLeadDays" min="0" /></label>
+          <label><span>Precio mensual *</span><input type="number" formControlName="monthlyPrice" min="0" step="0.01" /></label>
+          <label><span>Moneda *</span><input formControlName="currencyCode" maxlength="3" /></label>
+          <label class="check"><input type="checkbox" formControlName="isTaxIncluded" /><span>IVA incluido</span></label>
+          <label class="wide"><span>Horario / jornada *</span><textarea rows="3" formControlName="workScheduleDescription"></textarea></label>
+          <label class="wide"><span>Instrucciones específicas</span><textarea rows="3" formControlName="specificInstructions"></textarea></label>
+        </div>
+        <footer>
+          <button class="button button--secondary" type="button" (click)="closeEditors()">Cancelar</button>
+          <button class="button button--primary" type="submit" [disabled]="saving()">{{ saving() ? 'Guardando…' : 'Guardar configuración' }}</button>
+        </footer>
+      </form>
+    </section>
+  </div>
+}
+
+@if (organizationEditorOpen()) {
+  <div class="modal-backdrop" (click)="closeEditors()">
+    <section class="modal modal--small" role="dialog" aria-modal="true" aria-labelledby="organization-editor-title" (click)="$event.stopPropagation()">
+      <header>
+        <div><span class="eyebrow">Contexto empresarial</span><h2 id="organization-editor-title">Nueva organización</h2></div>
+        <button type="button" aria-label="Cerrar" (click)="closeEditors()">×</button>
+      </header>
+      <form [formGroup]="organizationForm" (ngSubmit)="saveOrganization()">
+        <div class="form-grid">
+          <label><span>Código *</span><input formControlName="codeOrganization" /></label>
+          <label><span>RFC</span><input formControlName="rfc" maxlength="13" /></label>
+          <label class="wide"><span>Razón social *</span><input formControlName="legalName" /></label>
+        </div>
+        <footer>
+          <button class="button button--secondary" type="button" (click)="closeEditors()">Cancelar</button>
+          <button class="button button--primary" type="submit" [disabled]="saving()">{{ saving() ? 'Guardando…' : 'Crear organización' }}</button>
+        </footer>
+      </form>
+    </section>
+  </div>
+}

@@ -30,7 +30,7 @@ export const GESTIA_NAVIGATION: readonly NavigationGroup[] = [
     label: 'Gestión',
     items: [
       { label: 'Solicitudes', icon: 'request', planned: true },
-      { label: 'Clientes y servicios', icon: 'customer', planned: true },
+      { label: 'Clientes', icon: 'customer', route: '/clientes' },
       { label: 'Personal', icon: 'people', planned: true },
       { label: 'Planeación', icon: 'calendar', planned: true },
     ],

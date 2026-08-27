@@ -17,7 +17,7 @@ El frontend usa la misma procedencia para interfaz y API: cualquier solicitud a 
 Copy-Item .env.example .env
 ```
 
-Cambiar `GESTIA_SQL_PASSWORD` en `.env`. El archivo está ignorado por Git. `GESTIA_SQL_DATABASE=GestIA_Dev` es un nombre local provisional y puede cambiarse sin afectar el código.
+Cambiar `GESTIA_SQL_PASSWORD` en `.env`. El archivo está ignorado por Git. El nombre local estándar es `GESTIA_SQL_DATABASE=db-gestia-dev`.
 
 ## Inicio
 
@@ -37,12 +37,23 @@ La secuencia es:
 
 ```text
 SQL Server saludable
-        -> creación idempotente de la base local vacía
+        -> creación idempotente de la base local
+        -> aplicación manual/controlada de migraciones
         -> backend listo y conectado
         -> frontend listo
 ```
 
 No se generan tablas con `EnsureCreated` ni se aplican migraciones automáticamente al arrancar la API.
+
+Después del primer inicio local, aplicar las migraciones desde el repositorio:
+
+```powershell
+dotnet tool restore
+$env:GESTIA_SQL_CONNECTION = "Server=localhost,1433;Database=db-gestia-dev;User Id=sa;Password=<la misma de .env>;Encrypt=True;TrustServerCertificate=True"
+dotnet tool run dotnet-ef database update `
+  --project .\backend\src\GestIA.Infrastructure `
+  --startup-project .\backend\src\GestIA.Infrastructure
+```
 
 ## Diagnóstico
 

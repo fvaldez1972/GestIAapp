@@ -36,7 +36,7 @@
 - Solución .NET y Angular.
 - Documentación, reglas de dependencias y CI.
 - OpenAPI, health checks y configuración local segura.
-- SQL Server y EF Core configurados sin migración de negocio prematura.
+- SQL Server y EF Core configurados; primera migración generada después de revisar las fuentes del negocio.
 - Decisión de autenticación pendiente.
 
 ### 1. Acceso e interfaz principal
@@ -51,7 +51,7 @@
 - Validar glosario y diccionario mínimo.
 - Multiempresa y permisos base.
 - Clientes, sedes, perfiles y empleados.
-- Primera migración revisada del corte aprobado.
+- Primera migración revisada del corte aprobado, implementada como `InitialBusinessModel`.
 - Validaciones de duplicados y estatus.
 
 ### 3. Servicios, posiciones y turnos

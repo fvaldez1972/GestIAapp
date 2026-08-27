@@ -31,6 +31,7 @@ GestIAapp/
 |- frontend/
 |- docs/
 |  |- architecture/
+|  |- database/
 |  `- adr/
 |- PLAN_MAESTRO_GESTIA.md
 |- compose.yaml
@@ -58,6 +59,9 @@ GestIAapp/
 - `docs/architecture/05-migration-plan.md`
 - `docs/architecture/06-dependency-map.md`
 - `docs/architecture/07-model-evolution.md`
+- `docs/architecture/08-source-model-analysis.md`
+- `docs/database/DATABASE_STANDARDS.md`
+- `docs/adr/0005-database-standards.md`
 - `docs/adr/0003-sql-server.md`
 - `docs/integrations/inspinia-5.md`
 - `docs/deployment/containers.md`
@@ -66,6 +70,7 @@ GestIAapp/
 
 ```powershell
 dotnet restore GestIA.slnx
+dotnet tool restore
 dotnet build GestIA.slnx
 dotnet test GestIA.slnx
 

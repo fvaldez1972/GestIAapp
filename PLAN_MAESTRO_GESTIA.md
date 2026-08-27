@@ -1,7 +1,7 @@
 # Plan maestro de GestIA
 
-- Versión: 1.0
-- Fecha de actualización: 2026-08-25
+- Versión: 1.1
+- Fecha de actualización: 2026-08-26
 - Estado: documento rector de planeación
 
 ## 1. Propósito
@@ -31,7 +31,10 @@ Los ADR dentro de `docs/adr` siguen siendo la evidencia de decisiones técnicas 
 - Shell visual adaptado de INSPINIA 5.
 - Navegación responsive y pantalla de inicio.
 - SQL Server configurado mediante EF Core 10.
-- `GestIaDbContext` y fábrica para futuras migraciones.
+- `GestIaDbContext`, convenciones obligatorias y fábrica de migraciones.
+- Análisis de contrato, carta de inicio y ficha técnica para clientes, servicios y empleados.
+- Primer modelo físico de 11 tablas con auditoría, borrado lógico, integridad e índices.
+- Primera migración SQL Server del modelo de negocio.
 - SQL Server 2025 Developer, API y frontend integrados con Docker Compose.
 - Health checks de proceso, SQL Server, API y frontend.
 - Nginx como servidor del frontend y proxy de `/api`.
@@ -42,11 +45,10 @@ Los ADR dentro de `docs/adr` siguen siendo la evidencia de decisiones técnicas 
 
 - Autenticación real, recuperación de acceso y administración de sesión.
 - Usuarios, roles, permisos y alcance por empresa.
-- Entidades y primera migración de negocio.
 - Catálogos y CRUD funcionales.
-- Solicitudes, clientes, sedes y servicios.
-- Personal, perfiles, disponibilidad y documentos.
-- Posiciones, patrones de turno y asignaciones.
+- Endpoints y pantallas para clientes, sedes, contactos, servicios y contratos.
+- Endpoints y pantallas para empleados, documentos, evaluaciones y asignaciones.
+- Solicitudes, posiciones, patrones de turno y planeación detallada.
 - Planeación versionada y publicación.
 - Asistencia, incidencias, coberturas y evidencias.
 - Auditoría funcional consultable.
@@ -192,15 +194,15 @@ Está confirmado el motor SQL Server. Todavía son provisionales:
 - Longitudes, precisiones e índices finales.
 - Varias relaciones y reglas de eliminación.
 
-`GestIA_Dev` es únicamente el nombre de la base local. No se generará una migración masiva basándose sólo en este bosquejo.
+La nomenclatura de base ya está aprobada: `db-gestia-dev`, `db-gestia-qa`, `db-gestia-beta`, `db-gestia-staging` y `db-gestia` para producción. No se generará una migración masiva basándose sólo en este bosquejo.
 
-### 7.2 Convenciones propuestas
+### 7.2 Convenciones obligatorias
 
 | Uso | SQL Server propuesto | Nota |
 | --- | --- | --- |
 | Identificador técnico | `uniqueidentifier` | Generado por la aplicación |
 | Fecha de negocio | `date` | Sin zona horaria |
-| Instante | `datetime2(7)` | Almacenado en UTC |
+| Instante | `datetime2(0)` | Almacenado en UTC |
 | Texto | `nvarchar(n)` | Longitud explícita por dato |
 | Texto amplio | `nvarchar(max)` | Sólo cuando exista justificación |
 | Importe | `decimal(19,4)` | Precisión por confirmar |
@@ -212,30 +214,35 @@ Está confirmado el motor SQL Server. Todavía son provisionales:
 Campos transversales candidatos:
 
 ```text
-Id uniqueidentifier PK
-OrganizationId uniqueidentifier   -- cuando aplique aislamiento
-CreatedAtUtc datetime2(7)
+Id{Entidad} uniqueidentifier PK
+IdOrganization uniqueidentifier   -- cuando aplique aislamiento
+CreatedAt datetime2(0)
 CreatedBy uniqueidentifier
-UpdatedAtUtc datetime2(7) null
+CreatedByName nvarchar(100)
+UpdatedAt datetime2(0) null
 UpdatedBy uniqueidentifier null
+UpdatedByName nvarchar(100) null
+Active bit NOT NULL DEFAULT (1)
 Version rowversion
 ```
 
-`OrganizationId` también es provisional; podría terminar como `CompanyId` cuando el término sea validado.
+`Organization` sigue siendo un término funcional provisional, pero cualquier clave física seguirá el patrón `Id{Entidad}`. Todos los campos `At` de auditoría se almacenan en UTC. La norma completa y sus listas de revisión están en `docs/database/DATABASE_STANDARDS.md`.
 
 ### 7.3 Esquemas físicos candidatos
 
 | Esquema provisional | Responsabilidad |
 | --- | --- |
-| `Platform` | Empresas, usuarios, permisos, auditoría y outbox |
-| `Commercial` | Clientes, sedes, solicitudes y servicios |
-| `Workforce` | Personal, perfiles, disponibilidad y requisitos |
-| `Operations` | Posiciones, turnos, asignaciones, planeación y ejecución |
-| `Reporting` | Proyecciones de lectura reconstruibles |
+| `dbo` | Datos transaccionales mientras un módulo no justifique un esquema propio |
+| `audit` | Auditoría, trazabilidad e histórico técnico |
+| `config` | Configuración y catálogos administrables |
+| `report` | Vistas y proyecciones de lectura reconstruibles |
+| `archive` | Archivo histórico cuando exista una política aprobada |
 
-Los esquemas se confirmarán antes de la primera migración que los utilice.
+Los esquemas son minúsculos y sólo se ampliarán mediante una decisión de arquitectura antes de la migración que los utilice.
 
-### 7.4 Tablas candidatas
+### 7.4 Tablas implementadas y candidatas
+
+El primer corte físico implementa `Organizations`, `Clients`, `ClientSites`, `ClientContacts`, `ServiceContracts`, `Services`, `ServiceConfigurations`, `Employees`, `EmployeeDocuments`, `EmployeeEvaluations` y `ServiceAssignments`. Su justificación y mapeo a las fuentes están en `docs/architecture/08-source-model-analysis.md`. Las demás tablas de esta sección continúan como candidatas.
 
 #### Platform
 
@@ -351,7 +358,9 @@ No se usará `EnsureCreated` ni se aplicarán migraciones automáticamente al in
 - [x] Solución .NET y separación por capas.
 - [x] OpenAPI inicial.
 - [x] Health checks de proceso y SQL Server.
-- [x] EF Core SQL Server y contexto vacío evolutivo.
+- [x] EF Core SQL Server y primer modelo físico evolutivo.
+- [x] Convenciones ejecutables de nomenclatura, auditoría y borrado lógico.
+- [x] Primera migración de clientes, servicios y empleados.
 - [ ] Manejo uniforme de errores con Problem Details.
 - [ ] Validación de comandos y contratos.
 - [ ] Autenticación y autorización.
@@ -460,12 +469,12 @@ Cada módulo debe incluir pruebas proporcionales al riesgo. Las reglas de negoci
 
 ### Entrega 1: acceso, empresas, clientes y personal
 
-- Confirmar glosario mínimo.
+- [x] Analizar fuentes y confirmar un glosario/modelo mínimo de trabajo.
 - Definir autenticación.
-- Implementar empresa/organización y aislamiento.
-- Implementar clientes, sedes y contactos mínimos.
-- Implementar personal y perfiles mínimos.
-- Crear primera migración SQL Server revisada.
+- [x] Implementar el modelo de empresa/organización y alcance por identificador.
+- [x] Implementar el modelo de clientes, sedes y contactos mínimos.
+- [x] Implementar el modelo de personal, documentos y evaluaciones mínimas.
+- [x] Crear la primera migración SQL Server revisada.
 - Construir pantallas, endpoints y pruebas.
 
 ### Entrega 2: solicitudes, servicios, posiciones y turnos
@@ -542,12 +551,12 @@ Las respuestas deben incorporarse al glosario y al modelo antes de materializar 
 
 ## 16. Próximo trabajo recomendado
 
-1. Realizar sesión de glosario para empresa, cliente, sede, persona, servicio y posición.
-2. Recopilar ejemplos reales anonimizados de esos conceptos.
-3. Definir autenticación y matriz inicial de permisos.
-4. Aprobar el diccionario mínimo de la Entrega 1.
-5. Implementar el primer recorrido vertical completo.
-6. Generar entonces la primera migración de SQL Server.
+1. Validar con Oscar el glosario y las decisiones pendientes de `08-source-model-analysis.md`.
+2. Definir autenticación, matriz inicial de permisos y contexto de organización.
+3. Implementar el primer recorrido vertical de alta y consulta de cliente.
+4. Continuar con sede, contactos, contrato, servicio y configuración.
+5. Incorporar empleado, expediente documental, evaluaciones y asignación con permisos reforzados.
+6. Diseñar posiciones y turnos antes de modelar la planeación operativa.
 
 ## 17. Ejecución local
 

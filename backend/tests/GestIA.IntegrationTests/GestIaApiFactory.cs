@@ -9,7 +9,7 @@ public sealed class GestIaApiFactory : WebApplicationFactory<Program>
     {
         builder.UseSetting(
             "ConnectionStrings:GestIa",
-            "Server=localhost,1433;Database=GestIA_Tests;User Id=sa;" +
+            "Server=localhost,1433;Database=db-gestia-test;User Id=sa;" +
             "Password=Only_for_configuration_tests_2026!;Encrypt=True;TrustServerCertificate=True");
     }
 }

@@ -22,6 +22,10 @@ public sealed class ProblemDetailsExceptionHandler(
                 StatusCodes.Status400BadRequest,
                 "Solicitud inválida",
                 exception.Message),
+            UnauthorizedAccessException => (
+                StatusCodes.Status401Unauthorized,
+                "No autenticado",
+                exception.Message),
             ResourceNotFoundException => (
                 StatusCodes.Status404NotFound,
                 "Recurso no encontrado",

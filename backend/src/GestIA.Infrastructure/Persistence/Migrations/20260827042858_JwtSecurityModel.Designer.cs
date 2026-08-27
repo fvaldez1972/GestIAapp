@@ -4,6 +4,7 @@ using GestIA.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GestIA.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(GestIaDbContext))]
-    partial class GestIaDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260827042858_JwtSecurityModel")]
+    partial class JwtSecurityModel
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

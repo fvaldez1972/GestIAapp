@@ -71,9 +71,9 @@
 
       <div class="topbar-actions">
         <span class="environment"><i></i> Entorno local</span>
-        <button class="profile" type="button" aria-label="Cuenta de usuario">
+        <button class="profile" type="button" aria-label="Cerrar sesión" (click)="logout()">
           <span class="profile-avatar">GI</span>
-          <span class="profile-copy"><strong>Equipo GestIA</strong><small>Administrador</small></span>
+          <span class="profile-copy"><strong>{{ auth.displayName() || 'GestIA' }}</strong><small>Salir</small></span>
           <span class="profile-chevron" aria-hidden="true">⌄</span>
         </button>
       </div>

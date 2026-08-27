@@ -39,6 +39,7 @@ Los ADR dentro de `docs/adr` siguen siendo la evidencia de decisiones técnicas 
 - Primer recorrido vertical de clientes con alta, consulta paginada, búsqueda, edición y baja lógica.
 - DTO, validaciones de entrada, detección de duplicados y Problem Details en la API.
 - Pantalla Angular de clientes integrada con la API y el contexto de organización.
+- Autenticación JWT local para MVP con login, usuario administrador bootstrap, permisos base y rutas protegidas.
 - SQL Server 2025 Developer, API y frontend integrados con Docker Compose.
 - Health checks de proceso, SQL Server, API y frontend.
 - Nginx como servidor del frontend y proxy de `/api`.
@@ -47,8 +48,8 @@ Los ADR dentro de `docs/adr` siguen siendo la evidencia de decisiones técnicas 
 
 ### Todavía no desarrollado
 
-- Autenticación real, recuperación de acceso y administración de sesión.
-- Usuarios, roles, permisos y alcance por empresa.
+- Recuperación de acceso, refresh token y administración completa de sesión.
+- Administración funcional de usuarios, roles, permisos y alcance por empresa.
 - Catálogos y CRUD funcionales adicionales al primer módulo de clientes.
 - Endpoints y pantallas para sedes, contactos, servicios y contratos.
 - Endpoints y pantallas para empleados, documentos, evaluaciones y asignaciones.
@@ -367,8 +368,10 @@ No se usará `EnsureCreated` ni se aplicarán migraciones automáticamente al in
 - [x] Primera migración de clientes, servicios y empleados.
 - [x] Manejo uniforme de errores con Problem Details.
 - [x] Validación inicial de comandos y contratos.
-- [ ] Autenticación y autorización.
-- [ ] Contexto de usuario, organización y correlación.
+- [x] Autenticación JWT local y autorización inicial por permiso.
+- [x] Contexto de usuario autenticado para auditoría.
+- [ ] Selector y alcance activo por organización.
+- [ ] Correlación de solicitudes.
 - [ ] Auditoría automática y funcional.
 - [x] Primer patrón de paginación, filtros y ordenamiento en clientes.
 - [ ] Control de concurrencia.
@@ -399,7 +402,8 @@ No se usará `EnsureCreated` ni se aplicarán migraciones automáticamente al in
 
 ### Pendiente
 
-- [ ] Autenticación, sesión y rutas protegidas.
+- [x] Login JWT, sesión local y rutas protegidas.
+- [ ] Expiración/renovación controlada de sesión.
 - [ ] Cliente TypeScript generado desde OpenAPI.
 - [ ] Manejo global de errores y estado de carga.
 - [ ] Sistema de notificaciones.
@@ -485,7 +489,7 @@ Cada módulo debe incluir pruebas proporcionales al riesgo. Las reglas de negoci
 ### Entrega 1: acceso, empresas, clientes y personal
 
 - [x] Analizar fuentes y confirmar un glosario/modelo mínimo de trabajo.
-- Definir autenticación.
+- [x] Definir autenticación JWT local para MVP.
 - [x] Implementar el modelo de empresa/organización y alcance por identificador.
 - [x] Implementar el modelo de clientes, sedes y contactos mínimos.
 - [x] Implementar el modelo de personal, documentos y evaluaciones mínimas.
@@ -568,7 +572,7 @@ Las respuestas deben incorporarse al glosario y al modelo antes de materializar 
 ## 16. Próximo trabajo recomendado
 
 1. Validar con Oscar el glosario y las decisiones pendientes de `08-source-model-analysis.md`.
-2. Definir autenticación, matriz inicial de permisos y reemplazar el actor local por identidad real.
+2. Completar administracion de usuarios/roles y selector de organización activa.
 3. Continuar el expediente de cliente con sedes y contactos.
 4. Incorporar contrato, servicio y configuración versionada.
 5. Incorporar empleado, expediente documental, evaluaciones y asignación con permisos reforzados.

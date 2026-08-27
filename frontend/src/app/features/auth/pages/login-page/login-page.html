@@ -1,0 +1,36 @@
+<main class="login-shell">
+  <section class="login-panel" aria-labelledby="login-title">
+    <div class="brand">
+      <span class="brand-mark">G</span>
+      <div>
+        <strong>GestIA</strong>
+        <span>Consola operativa</span>
+      </div>
+    </div>
+
+    <form [formGroup]="form" (ngSubmit)="submit()" class="login-form">
+      <div class="form-heading">
+        <p>Acceso MVP</p>
+        <h1 id="login-title">Inicia sesión</h1>
+      </div>
+
+      @if (error()) {
+        <p class="alert">{{ error() }}</p>
+      }
+
+      <label>
+        <span>Correo</span>
+        <input type="email" autocomplete="username" formControlName="email" />
+      </label>
+
+      <label>
+        <span>Contraseña</span>
+        <input type="password" autocomplete="current-password" formControlName="password" />
+      </label>
+
+      <button type="submit" [disabled]="!canSubmit()">
+        {{ loading() ? 'Entrando...' : 'Entrar' }}
+      </button>
+    </form>
+  </section>
+</main>

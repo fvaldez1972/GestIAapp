@@ -18,5 +18,7 @@ public sealed class HttpActorContext(IHttpContextAccessor httpContextAccessor) :
     }
 
     public string ActorName =>
-        httpContextAccessor.HttpContext?.User.Identity?.Name ?? "GestIA Local";
+        httpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.Name)
+        ?? httpContextAccessor.HttpContext?.User.Identity?.Name
+        ?? "GestIA Local";
 }

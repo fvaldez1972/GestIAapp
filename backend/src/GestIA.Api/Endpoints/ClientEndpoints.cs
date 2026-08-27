@@ -1,4 +1,6 @@
+using GestIA.Api.Security;
 using GestIA.Application.Clients;
+using GestIA.Application.Security;
 
 namespace GestIA.Api.Endpoints;
 
@@ -25,7 +27,9 @@ public static class ClientEndpoints
                     pageSize ?? 20),
                 cancellationToken);
             return Results.Ok(result);
-        }).WithName("ListClients");
+        })
+            .RequirePermission(SecurityPermissions.ClientsRead)
+            .WithName("ListClients");
 
         group.MapGet("/{idClient:guid}", async (
             Guid idClient,
@@ -35,7 +39,9 @@ public static class ClientEndpoints
         {
             var client = await service.GetAsync(organizationId, idClient, cancellationToken);
             return Results.Ok(client);
-        }).WithName("GetClient");
+        })
+            .RequirePermission(SecurityPermissions.ClientsRead)
+            .WithName("GetClient");
 
         group.MapPost("", async (
             CreateClientRequest request,
@@ -46,7 +52,9 @@ public static class ClientEndpoints
             return Results.Created(
                 $"/api/v1/clients/{client.IdClient}?organizationId={client.IdOrganization}",
                 client);
-        }).WithName("CreateClient");
+        })
+            .RequirePermission(SecurityPermissions.ClientsWrite)
+            .WithName("CreateClient");
 
         group.MapPut("/{idClient:guid}", async (
             Guid idClient,
@@ -56,7 +64,9 @@ public static class ClientEndpoints
         {
             var client = await service.UpdateAsync(idClient, request, cancellationToken);
             return Results.Ok(client);
-        }).WithName("UpdateClient");
+        })
+            .RequirePermission(SecurityPermissions.ClientsWrite)
+            .WithName("UpdateClient");
 
         group.MapDelete("/{idClient:guid}", async (
             Guid idClient,
@@ -66,7 +76,9 @@ public static class ClientEndpoints
         {
             await service.DeactivateAsync(organizationId, idClient, cancellationToken);
             return Results.NoContent();
-        }).WithName("DeactivateClient");
+        })
+            .RequirePermission(SecurityPermissions.ClientsWrite)
+            .WithName("DeactivateClient");
 
         return endpoints;
     }

@@ -1,10 +1,21 @@
 import { Routes } from '@angular/router';
+import { authGuard } from './core/auth/auth.guard';
 import { AppShell } from './core/layout/app-shell/app-shell';
 
 export const routes: Routes = [
   {
+    path: 'login',
+    title: 'GestIA | Acceso',
+    loadComponent: () =>
+      import('./features/auth/pages/login-page/login-page').then(
+        (component) => component.LoginPage,
+      ),
+  },
+  {
     path: '',
     component: AppShell,
+    canActivate: [authGuard],
+    canActivateChild: [authGuard],
     children: [
       {
         path: '',

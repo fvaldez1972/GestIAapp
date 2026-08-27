@@ -1,4 +1,6 @@
+using GestIA.Api.Security;
 using GestIA.Application.Organizations;
+using GestIA.Application.Security;
 
 namespace GestIA.Api.Endpoints;
 
@@ -15,7 +17,9 @@ public static class OrganizationEndpoints
         {
             var organizations = await service.ListAsync(cancellationToken);
             return Results.Ok(organizations);
-        }).WithName("ListOrganizations");
+        })
+            .RequirePermission(SecurityPermissions.OrganizationsRead)
+            .WithName("ListOrganizations");
 
         group.MapGet("/{idOrganization:guid}", async (
             Guid idOrganization,
@@ -24,7 +28,9 @@ public static class OrganizationEndpoints
         {
             var organization = await service.GetAsync(idOrganization, cancellationToken);
             return Results.Ok(organization);
-        }).WithName("GetOrganization");
+        })
+            .RequirePermission(SecurityPermissions.OrganizationsRead)
+            .WithName("GetOrganization");
 
         group.MapPost("", async (
             CreateOrganizationRequest request,
@@ -32,10 +38,10 @@ public static class OrganizationEndpoints
             CancellationToken cancellationToken) =>
         {
             var organization = await service.CreateAsync(request, cancellationToken);
-            return Results.Created(
-                $"/api/v1/organizations/{organization.IdOrganization}",
-                organization);
-        }).WithName("CreateOrganization");
+            return Results.Created($"/api/v1/organizations/{organization.IdOrganization}", organization);
+        })
+            .RequirePermission(SecurityPermissions.OrganizationsWrite)
+            .WithName("CreateOrganization");
 
         return endpoints;
     }

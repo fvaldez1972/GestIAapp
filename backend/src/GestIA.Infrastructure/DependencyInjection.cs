@@ -1,4 +1,8 @@
+using GestIA.Application.Clients;
+using GestIA.Application.Common;
+using GestIA.Application.Organizations;
 using GestIA.Infrastructure.Persistence;
+using GestIA.Infrastructure.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -25,6 +29,10 @@ public static class DependencyInjection
 
         services.AddDbContext<GestIaDbContext>(options =>
             SqlServerDbContextOptions.Configure(options, connectionString));
+
+        services.AddScoped<IUnitOfWork, EfUnitOfWork>();
+        services.AddScoped<IOrganizationRepository, OrganizationRepository>();
+        services.AddScoped<IClientRepository, ClientRepository>();
 
         services
             .AddHealthChecks()

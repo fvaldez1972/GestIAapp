@@ -14,6 +14,14 @@ export const routes: Routes = [
             (component) => component.OverviewPage,
           ),
       },
+      {
+        path: 'clientes',
+        title: 'GestIA | Clientes',
+        loadComponent: () =>
+          import('./features/clients/pages/clients-page/clients-page').then(
+            (component) => component.ClientsPage,
+          ),
+      },
     ],
   },
   { path: '**', redirectTo: '' },

@@ -29,6 +29,44 @@ public sealed class BusinessEntityTests
     }
 
     [Fact]
+    public void ClientProfileUpdateNormalizesValuesAndRegistersAuditData()
+    {
+        var client = Client.Create(
+            Guid.NewGuid(),
+            "cli-002",
+            "Cliente inicial",
+            "EXA010101AA1",
+            ActorId,
+            "Dany",
+            OccurredAt);
+        var updateAt = OccurredAt.AddHours(1);
+
+        client.UpdateProfile(
+            new ClientProfile(
+                " Cliente actualizado ",
+                " Nombre comercial ",
+                "exa010101aa1",
+                " Mexicana ",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null),
+            ActorId,
+            "Dany",
+            updateAt);
+
+        Assert.Equal("CLI-002", client.CodeClient);
+        Assert.Equal("Cliente actualizado", client.LegalName);
+        Assert.Equal("Nombre comercial", client.TradeName);
+        Assert.Equal("EXA010101AA1", client.Rfc);
+        Assert.Equal(updateAt, client.UpdatedAt);
+    }
+
+    [Fact]
     public void ServiceConfigurationKeepsTheContractedMonthlyHours()
     {
         var configuration = ServiceConfiguration.Create(

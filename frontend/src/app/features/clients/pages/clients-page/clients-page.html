@@ -1,0 +1,258 @@
+<section class="page-heading">
+  <div>
+    <span class="eyebrow">Gestión comercial</span>
+    <h1>Clientes</h1>
+    <p>
+      Administra la información fiscal y operativa que dará origen a contratos, sedes y servicios.
+    </p>
+  </div>
+  <button
+    class="button button--primary"
+    type="button"
+    [disabled]="!selectedOrganizationId()"
+    (click)="openCreateClient()"
+  >
+    <span aria-hidden="true">＋</span> Nuevo cliente
+  </button>
+</section>
+
+<section class="context-card" aria-label="Contexto de organización">
+  <label>
+    <span>Organización</span>
+    <select
+      [value]="selectedOrganizationId()"
+      (change)="selectOrganization($any($event.target).value)"
+    >
+      @if (!organizations().length) {
+        <option value="">Sin organizaciones registradas</option>
+      }
+      @for (organization of organizations(); track organization.idOrganization) {
+        <option [value]="organization.idOrganization">{{ organization.legalName }}</option>
+      }
+    </select>
+  </label>
+  <button class="button button--secondary" type="button" (click)="openCreateOrganization()">
+    Agregar organización
+  </button>
+</section>
+
+@if (message()) {
+  <div class="alert alert--success" role="status">{{ message() }}</div>
+}
+@if (error()) {
+  <div class="alert alert--error" role="alert">{{ error() }}</div>
+}
+
+<section class="summary-grid" aria-label="Resumen de clientes">
+  <article>
+    <span>Clientes activos</span><strong>{{ result().totalCount }}</strong
+    ><small>En la organización seleccionada</small>
+  </article>
+  <article>
+    <span>Información central</span><strong>Fiscal</strong
+    ><small>RFC, razón social y registro patronal</small>
+  </article>
+  <article>
+    <span>Siguiente relación</span><strong>Servicios</strong
+    ><small>Sedes, contratos y configuración operativa</small>
+  </article>
+</section>
+
+<section class="table-card">
+  <header class="table-toolbar">
+    <div>
+      <h2>Directorio de clientes</h2>
+      <span>{{ result().totalCount }} registro(s)</span>
+    </div>
+    <div class="search-box">
+      <input
+        type="search"
+        placeholder="Buscar por código, nombre o RFC"
+        [value]="search()"
+        (input)="updateSearch($any($event.target).value)"
+        (keyup.enter)="loadClients(1)"
+      />
+      <button class="button button--secondary" type="button" (click)="loadClients(1)">
+        Buscar
+      </button>
+    </div>
+  </header>
+
+  @if (loading()) {
+    <div class="state-panel"><span class="spinner"></span> Cargando información…</div>
+  } @else if (!selectedOrganizationId()) {
+    <div class="state-panel state-panel--empty">
+      <strong>Crea la primera organización</strong>
+      <p>
+        La organización delimita los clientes y los datos que pertenecen a cada empresa operadora.
+      </p>
+      <button class="button button--primary" type="button" (click)="openCreateOrganization()">
+        Crear organización
+      </button>
+    </div>
+  } @else if (!result().items.length) {
+    <div class="state-panel state-panel--empty">
+      <strong>No hay clientes que mostrar</strong>
+      <p>Registra el primer cliente o cambia los criterios de búsqueda.</p>
+      <button class="button button--primary" type="button" (click)="openCreateClient()">
+        Nuevo cliente
+      </button>
+    </div>
+  } @else {
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Código</th>
+            <th>Cliente</th>
+            <th>RFC</th>
+            <th>Registro patronal</th>
+            <th>Estado</th>
+            <th><span class="sr-only">Acciones</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (client of result().items; track client.idClient) {
+            <tr>
+              <td>
+                <span class="code">{{ client.codeClient }}</span>
+              </td>
+              <td>
+                <strong>{{ client.legalName }}</strong
+                ><small>{{ client.tradeName || 'Sin nombre comercial' }}</small>
+              </td>
+              <td>{{ client.rfc }}</td>
+              <td>{{ client.employerRegistrationNumber || '—' }}</td>
+              <td>
+                <span class="status"><i></i> Activo</span>
+              </td>
+              <td class="actions">
+                <button type="button" (click)="openEditClient(client)">Editar</button>
+                <button class="danger" type="button" (click)="deactivate(client)">
+                  Desactivar
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <footer class="pagination">
+      <span>Página {{ result().page }} de {{ result().totalPages || 1 }}</span>
+      <div>
+        <button
+          type="button"
+          [disabled]="result().page <= 1"
+          (click)="loadClients(result().page - 1)"
+        >
+          Anterior
+        </button>
+        <button
+          type="button"
+          [disabled]="result().page >= result().totalPages"
+          (click)="loadClients(result().page + 1)"
+        >
+          Siguiente
+        </button>
+      </div>
+    </footer>
+  }
+</section>
+
+@if (editorOpen()) {
+  <div class="modal-backdrop" (click)="closeEditors()">
+    <section
+      class="modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="client-editor-title"
+      (click)="$event.stopPropagation()"
+    >
+      <header>
+        <div>
+          <span class="eyebrow">Ficha fiscal</span>
+          <h2 id="client-editor-title">
+            {{ editingClient() ? 'Editar cliente' : 'Nuevo cliente' }}
+          </h2>
+        </div>
+        <button type="button" aria-label="Cerrar" (click)="closeEditors()">×</button>
+      </header>
+      <form [formGroup]="clientForm" (ngSubmit)="saveClient()">
+        <div class="form-grid">
+          <label
+            ><span>Código *</span
+            ><input formControlName="codeClient" [readOnly]="!!editingClient()"
+          /></label>
+          <label><span>RFC *</span><input formControlName="rfc" maxlength="13" /></label>
+          <label class="wide"
+            ><span>Razón social *</span><input formControlName="legalName"
+          /></label>
+          <label class="wide"
+            ><span>Nombre comercial</span><input formControlName="tradeName"
+          /></label>
+          <label><span>Nacionalidad</span><input formControlName="nationality" /></label>
+          <label
+            ><span>Registro patronal</span><input formControlName="employerRegistrationNumber"
+          /></label>
+          <label class="wide"
+            ><span>Actividad fiscal</span
+            ><textarea formControlName="taxActivity" rows="2"></textarea>
+          </label>
+          <label class="wide"
+            ><span>Domicilio fiscal</span
+            ><textarea formControlName="taxAddress" rows="3"></textarea>
+          </label>
+        </div>
+        @if (clientForm.invalid && clientForm.touched) {
+          <p class="form-error">Revisa los campos obligatorios y sus longitudes.</p>
+        }
+        <footer>
+          <button class="button button--secondary" type="button" (click)="closeEditors()">
+            Cancelar</button
+          ><button class="button button--primary" type="submit" [disabled]="saving()">
+            {{ saving() ? 'Guardando…' : 'Guardar cliente' }}
+          </button>
+        </footer>
+      </form>
+    </section>
+  </div>
+}
+
+@if (organizationEditorOpen()) {
+  <div class="modal-backdrop" (click)="closeEditors()">
+    <section
+      class="modal modal--small"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="organization-editor-title"
+      (click)="$event.stopPropagation()"
+    >
+      <header>
+        <div>
+          <span class="eyebrow">Contexto empresarial</span>
+          <h2 id="organization-editor-title">Nueva organización</h2>
+        </div>
+        <button type="button" aria-label="Cerrar" (click)="closeEditors()">×</button>
+      </header>
+      <form [formGroup]="organizationForm" (ngSubmit)="saveOrganization()">
+        <div class="form-grid">
+          <label><span>Código *</span><input formControlName="codeOrganization" /></label>
+          <label><span>RFC</span><input formControlName="rfc" maxlength="13" /></label>
+          <label class="wide"
+            ><span>Razón social *</span><input formControlName="legalName"
+          /></label>
+        </div>
+        @if (organizationForm.invalid && organizationForm.touched) {
+          <p class="form-error">Completa los campos obligatorios.</p>
+        }
+        <footer>
+          <button class="button button--secondary" type="button" (click)="closeEditors()">
+            Cancelar</button
+          ><button class="button button--primary" type="submit" [disabled]="saving()">
+            {{ saving() ? 'Guardando…' : 'Crear organización' }}
+          </button>
+        </footer>
+      </form>
+    </section>
+  </div>
+}

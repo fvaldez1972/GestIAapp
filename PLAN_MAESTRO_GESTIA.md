@@ -1,7 +1,7 @@
 # Plan maestro de GestIA
 
-- Versión: 1.1
-- Fecha de actualización: 2026-08-26
+- Versión: 1.2
+- Fecha de actualización: 2026-08-27
 - Estado: documento rector de planeación
 
 ## 1. Propósito
@@ -35,6 +35,10 @@ Los ADR dentro de `docs/adr` siguen siendo la evidencia de decisiones técnicas 
 - Análisis de contrato, carta de inicio y ficha técnica para clientes, servicios y empleados.
 - Primer modelo físico de 11 tablas con auditoría, borrado lógico, integridad e índices.
 - Primera migración SQL Server del modelo de negocio.
+- Módulo inicial de organizaciones con alta y consulta.
+- Primer recorrido vertical de clientes con alta, consulta paginada, búsqueda, edición y baja lógica.
+- DTO, validaciones de entrada, detección de duplicados y Problem Details en la API.
+- Pantalla Angular de clientes integrada con la API y el contexto de organización.
 - SQL Server 2025 Developer, API y frontend integrados con Docker Compose.
 - Health checks de proceso, SQL Server, API y frontend.
 - Nginx como servidor del frontend y proxy de `/api`.
@@ -45,8 +49,8 @@ Los ADR dentro de `docs/adr` siguen siendo la evidencia de decisiones técnicas 
 
 - Autenticación real, recuperación de acceso y administración de sesión.
 - Usuarios, roles, permisos y alcance por empresa.
-- Catálogos y CRUD funcionales.
-- Endpoints y pantallas para clientes, sedes, contactos, servicios y contratos.
+- Catálogos y CRUD funcionales adicionales al primer módulo de clientes.
+- Endpoints y pantallas para sedes, contactos, servicios y contratos.
 - Endpoints y pantallas para empleados, documentos, evaluaciones y asignaciones.
 - Solicitudes, posiciones, patrones de turno y planeación detallada.
 - Planeación versionada y publicación.
@@ -361,12 +365,12 @@ No se usará `EnsureCreated` ni se aplicarán migraciones automáticamente al in
 - [x] EF Core SQL Server y primer modelo físico evolutivo.
 - [x] Convenciones ejecutables de nomenclatura, auditoría y borrado lógico.
 - [x] Primera migración de clientes, servicios y empleados.
-- [ ] Manejo uniforme de errores con Problem Details.
-- [ ] Validación de comandos y contratos.
+- [x] Manejo uniforme de errores con Problem Details.
+- [x] Validación inicial de comandos y contratos.
 - [ ] Autenticación y autorización.
 - [ ] Contexto de usuario, organización y correlación.
 - [ ] Auditoría automática y funcional.
-- [ ] Paginación, filtros y ordenamiento estándar.
+- [x] Primer patrón de paginación, filtros y ordenamiento en clientes.
 - [ ] Control de concurrencia.
 - [ ] Idempotencia para operaciones sensibles.
 - [ ] Observabilidad con logs estructurados, métricas y trazas.
@@ -408,6 +412,17 @@ No se usará `EnsureCreated` ni se aplicarán migraciones automáticamente al in
 - [ ] Dashboard y reportes.
 - [ ] Accesibilidad y navegación por teclado.
 - [ ] Pruebas de componentes y recorridos críticos.
+
+### Módulo de clientes implementado
+
+- [x] Selección y alta de organización operadora.
+- [x] Listado paginado y búsqueda de clientes.
+- [x] Alta y edición de perfil fiscal básico.
+- [x] Validación de RFC, longitudes y campos obligatorios.
+- [x] Prevención de códigos y RFC duplicados por organización.
+- [x] Baja lógica con conservación de auditoría.
+- [x] Estados de carga, vacío, éxito y error en la pantalla.
+- [x] Pruebas unitarias de dominio, aplicación y cliente HTTP Angular.
 
 Se usarán componentes standalone, formularios tipados, signals para estado local y RxJS para flujos asíncronos. El estado del servidor no se duplicará sin justificación.
 
@@ -475,7 +490,8 @@ Cada módulo debe incluir pruebas proporcionales al riesgo. Las reglas de negoci
 - [x] Implementar el modelo de clientes, sedes y contactos mínimos.
 - [x] Implementar el modelo de personal, documentos y evaluaciones mínimas.
 - [x] Crear la primera migración SQL Server revisada.
-- Construir pantallas, endpoints y pruebas.
+- [x] Construir el primer recorrido de organizaciones y clientes con pantallas, endpoints y pruebas.
+- Construir sedes, contactos y el expediente completo del cliente.
 
 ### Entrega 2: solicitudes, servicios, posiciones y turnos
 
@@ -552,9 +568,9 @@ Las respuestas deben incorporarse al glosario y al modelo antes de materializar 
 ## 16. Próximo trabajo recomendado
 
 1. Validar con Oscar el glosario y las decisiones pendientes de `08-source-model-analysis.md`.
-2. Definir autenticación, matriz inicial de permisos y contexto de organización.
-3. Implementar el primer recorrido vertical de alta y consulta de cliente.
-4. Continuar con sede, contactos, contrato, servicio y configuración.
+2. Definir autenticación, matriz inicial de permisos y reemplazar el actor local por identidad real.
+3. Continuar el expediente de cliente con sedes y contactos.
+4. Incorporar contrato, servicio y configuración versionada.
 5. Incorporar empleado, expediente documental, evaluaciones y asignación con permisos reforzados.
 6. Diseñar posiciones y turnos antes de modelar la planeación operativa.
 

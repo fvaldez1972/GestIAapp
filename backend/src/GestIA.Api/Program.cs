@@ -1,3 +1,8 @@
+using GestIA.Api.Endpoints;
+using GestIA.Api.ErrorHandling;
+using GestIA.Api.Security;
+using GestIA.Application;
+using GestIA.Application.Common;
 using GestIA.Infrastructure;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -5,9 +10,17 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
+builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<ProblemDetailsExceptionHandler>();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<IActorContext, HttpActorContext>();
+builder.Services.AddSingleton<IClock, SystemClock>();
+builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 
 var app = builder.Build();
+
+app.UseExceptionHandler();
 
 if (app.Environment.IsDevelopment())
 {
@@ -28,14 +41,17 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
 });
 
 app.MapGet("/api/v1/system/info", () => Results.Ok(new
-    {
-        application = "GestIA",
-        apiVersion = "v1",
-        status = "ready",
-        persistence = "SQL Server"
-    }))
+{
+    application = "GestIA",
+    apiVersion = "v1",
+    status = "ready",
+    persistence = "SQL Server"
+}))
     .WithName("GetSystemInfo")
     .WithTags("System");
+
+app.MapOrganizationEndpoints();
+app.MapClientEndpoints();
 
 app.Run();
 

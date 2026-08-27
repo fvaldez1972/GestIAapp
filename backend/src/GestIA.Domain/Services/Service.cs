@@ -17,9 +17,7 @@ public sealed class Service : AuditableEntity
         Guid idClientSite,
         Guid? idServiceContract,
         string codeService,
-        string name,
-        string description,
-        DateOnly startDate,
+        ServiceProfile profile,
         Guid actorId,
         string actorName,
         DateTime occurredAt)
@@ -28,10 +26,8 @@ public sealed class Service : AuditableEntity
         IdClient = idClient;
         IdClientSite = idClientSite;
         IdServiceContract = idServiceContract;
-        CodeService = Required(codeService, nameof(codeService));
-        Name = Required(name, nameof(name));
-        Description = Required(description, nameof(description));
-        StartDate = startDate;
+        CodeService = Required(codeService, nameof(codeService)).ToUpperInvariant();
+        ApplyProfile(profile);
         RegisterCreation(actorId, actorName, occurredAt);
     }
 
@@ -61,22 +57,70 @@ public sealed class Service : AuditableEntity
         Guid actorId,
         string actorName,
         DateTime occurredAt) =>
-        new(
-            Guid.NewGuid(),
+        Create(
             idClient,
             idClientSite,
             idServiceContract,
             codeService,
-            name,
-            description,
-            startDate,
+            new ServiceProfile(name, description, null, startDate, null),
             actorId,
             actorName,
             occurredAt);
+
+    public static Service Create(
+        Guid idClient,
+        Guid idClientSite,
+        Guid? idServiceContract,
+        string codeService,
+        ServiceProfile profile,
+        Guid actorId,
+        string actorName,
+        DateTime occurredAt) =>
+        new(Guid.NewGuid(), idClient, idClientSite, idServiceContract, codeService, profile, actorId, actorName, occurredAt);
+
+    public void UpdateProfile(
+        Guid idClientSite,
+        Guid? idServiceContract,
+        ServiceProfile profile,
+        Guid actorId,
+        string actorName,
+        DateTime occurredAt)
+    {
+        IdClientSite = idClientSite;
+        IdServiceContract = idServiceContract;
+        ApplyProfile(profile);
+        RegisterUpdate(actorId, actorName, occurredAt);
+    }
+
+    private void ApplyProfile(ServiceProfile profile)
+    {
+        ArgumentNullException.ThrowIfNull(profile);
+
+        if (profile.EndDate < profile.StartDate)
+        {
+            throw new ArgumentOutOfRangeException(nameof(profile));
+        }
+
+        Name = Required(profile.Name, nameof(profile.Name));
+        Description = Required(profile.Description, nameof(profile.Description));
+        InvoiceDescription = Optional(profile.InvoiceDescription);
+        StartDate = profile.StartDate;
+        EndDate = profile.EndDate;
+    }
 
     private static string Required(string value, string parameterName)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(value, parameterName);
         return value.Trim();
     }
+
+    private static string? Optional(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }
+
+public sealed record ServiceProfile(
+    string Name,
+    string Description,
+    string? InvoiceDescription,
+    DateOnly StartDate,
+    DateOnly? EndDate);

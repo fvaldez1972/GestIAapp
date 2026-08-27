@@ -7,11 +7,15 @@ using GestIA.Application.Security;
 using GestIA.Infrastructure;
 using GestIA.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.Http.Json;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
+builder.Services.Configure<JsonOptions>(options =>
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<ProblemDetailsExceptionHandler>();
 builder.Services.AddHttpContextAccessor();
@@ -69,6 +73,9 @@ app.MapGet("/api/v1/system/info", () => Results.Ok(new
 app.MapAuthEndpoints();
 app.MapOrganizationEndpoints();
 app.MapClientEndpoints();
+app.MapClientSiteEndpoints();
+app.MapClientContactEndpoints();
+app.MapServiceManagementEndpoints();
 
 app.Run();
 

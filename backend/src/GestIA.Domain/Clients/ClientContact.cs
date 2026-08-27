@@ -12,26 +12,14 @@ public sealed class ClientContact : AuditableEntity
         Guid idClientContact,
         Guid idClient,
         Guid? idClientSite,
-        ClientContactPurpose purpose,
-        string fullName,
-        string? email,
-        string? phone,
-        string? mobilePhone,
-        bool isPrimary,
+        ClientContactDetails details,
         Guid actorId,
         string actorName,
         DateTime occurredAt)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(fullName);
         IdClientContact = idClientContact;
         IdClient = idClient;
-        IdClientSite = idClientSite;
-        Purpose = purpose;
-        FullName = fullName.Trim();
-        Email = Optional(email);
-        Phone = Optional(phone);
-        MobilePhone = Optional(mobilePhone);
-        IsPrimary = isPrimary;
+        ApplyDetails(idClientSite, details);
         RegisterCreation(actorId, actorName, occurredAt);
     }
 
@@ -60,20 +48,57 @@ public sealed class ClientContact : AuditableEntity
         Guid actorId,
         string actorName,
         DateTime occurredAt) =>
-        new(
-            Guid.NewGuid(),
+        Create(
             idClient,
             idClientSite,
-            purpose,
-            fullName,
-            email,
-            phone,
-            mobilePhone,
-            isPrimary,
+            new ClientContactDetails(purpose, fullName, null, email, phone, mobilePhone, isPrimary),
             actorId,
             actorName,
             occurredAt);
 
+    public static ClientContact Create(
+        Guid idClient,
+        Guid? idClientSite,
+        ClientContactDetails details,
+        Guid actorId,
+        string actorName,
+        DateTime occurredAt) =>
+        new(Guid.NewGuid(), idClient, idClientSite, details, actorId, actorName, occurredAt);
+
+    public void UpdateDetails(
+        Guid? idClientSite,
+        ClientContactDetails details,
+        Guid actorId,
+        string actorName,
+        DateTime occurredAt)
+    {
+        ApplyDetails(idClientSite, details);
+        RegisterUpdate(actorId, actorName, occurredAt);
+    }
+
+    private void ApplyDetails(Guid? idClientSite, ClientContactDetails details)
+    {
+        ArgumentNullException.ThrowIfNull(details);
+        ArgumentException.ThrowIfNullOrWhiteSpace(details.FullName);
+        IdClientSite = idClientSite;
+        Purpose = details.Purpose;
+        FullName = details.FullName.Trim();
+        JobTitle = Optional(details.JobTitle);
+        Email = Optional(details.Email)?.ToLowerInvariant();
+        Phone = Optional(details.Phone);
+        MobilePhone = Optional(details.MobilePhone);
+        IsPrimary = details.IsPrimary;
+    }
+
     private static string? Optional(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }
+
+public sealed record ClientContactDetails(
+    ClientContactPurpose Purpose,
+    string FullName,
+    string? JobTitle,
+    string? Email,
+    string? Phone,
+    string? MobilePhone,
+    bool IsPrimary);

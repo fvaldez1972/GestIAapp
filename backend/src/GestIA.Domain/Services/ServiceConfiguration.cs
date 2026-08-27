@@ -11,47 +11,14 @@ public sealed class ServiceConfiguration : AuditableEntity
     private ServiceConfiguration(
         Guid idServiceConfiguration,
         Guid idService,
-        DateOnly effectiveFromDate,
-        short requiredWorkerCount,
-        decimal hoursPerDay,
-        byte daysPerWeek,
-        decimal averageMonthlyHours,
-        short preparationLeadDays,
-        string workScheduleDescription,
-        decimal monthlyPrice,
-        bool isTaxIncluded,
+        ServiceConfigurationProfile profile,
         Guid actorId,
         string actorName,
         DateTime occurredAt)
     {
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(requiredWorkerCount);
-        if (hoursPerDay <= 0 || hoursPerDay > 24)
-        {
-            throw new ArgumentOutOfRangeException(nameof(hoursPerDay));
-        }
-
-        if (daysPerWeek is < 1 or > 7)
-        {
-            throw new ArgumentOutOfRangeException(nameof(daysPerWeek));
-        }
-
-        ArgumentOutOfRangeException.ThrowIfNegative(preparationLeadDays);
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(averageMonthlyHours);
-        ArgumentOutOfRangeException.ThrowIfNegative(monthlyPrice);
-        ArgumentException.ThrowIfNullOrWhiteSpace(workScheduleDescription);
-
         IdServiceConfiguration = idServiceConfiguration;
         IdService = idService;
-        EffectiveFromDate = effectiveFromDate;
-        RequiredWorkerCount = requiredWorkerCount;
-        HoursPerDay = hoursPerDay;
-        DaysPerWeek = daysPerWeek;
-        AverageWeeklyHours = hoursPerDay * daysPerWeek;
-        AverageMonthlyHours = averageMonthlyHours;
-        PreparationLeadDays = preparationLeadDays;
-        WorkScheduleDescription = workScheduleDescription.Trim();
-        MonthlyPrice = monthlyPrice;
-        IsTaxIncluded = isTaxIncluded;
+        ApplyProfile(profile);
         RegisterCreation(actorId, actorName, occurredAt);
     }
 
@@ -86,19 +53,102 @@ public sealed class ServiceConfiguration : AuditableEntity
         Guid actorId,
         string actorName,
         DateTime occurredAt) =>
-        new(
-            Guid.NewGuid(),
+        Create(
             idService,
-            effectiveFromDate,
-            requiredWorkerCount,
-            hoursPerDay,
-            daysPerWeek,
-            averageMonthlyHours,
-            preparationLeadDays,
-            workScheduleDescription,
-            monthlyPrice,
-            isTaxIncluded,
+            new ServiceConfigurationProfile(
+                effectiveFromDate,
+                null,
+                requiredWorkerCount,
+                hoursPerDay,
+                daysPerWeek,
+                averageMonthlyHours,
+                preparationLeadDays,
+                workScheduleDescription,
+                null,
+                monthlyPrice,
+                "MXN",
+                isTaxIncluded),
             actorId,
             actorName,
             occurredAt);
+
+    public static ServiceConfiguration Create(
+        Guid idService,
+        ServiceConfigurationProfile profile,
+        Guid actorId,
+        string actorName,
+        DateTime occurredAt) =>
+        new(Guid.NewGuid(), idService, profile, actorId, actorName, occurredAt);
+
+    public void UpdateProfile(
+        ServiceConfigurationProfile profile,
+        Guid actorId,
+        string actorName,
+        DateTime occurredAt)
+    {
+        ApplyProfile(profile);
+        RegisterUpdate(actorId, actorName, occurredAt);
+    }
+
+    private void ApplyProfile(ServiceConfigurationProfile profile)
+    {
+        ArgumentNullException.ThrowIfNull(profile);
+
+        if (profile.EffectiveToDate < profile.EffectiveFromDate)
+        {
+            throw new ArgumentOutOfRangeException(nameof(profile));
+        }
+
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(profile.RequiredWorkerCount);
+        if (profile.HoursPerDay <= 0 || profile.HoursPerDay > 24)
+        {
+            throw new ArgumentOutOfRangeException(nameof(profile));
+        }
+
+        if (profile.DaysPerWeek is < 1 or > 7)
+        {
+            throw new ArgumentOutOfRangeException(nameof(profile));
+        }
+
+        ArgumentOutOfRangeException.ThrowIfNegative(profile.PreparationLeadDays);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(profile.AverageMonthlyHours);
+        ArgumentOutOfRangeException.ThrowIfNegative(profile.MonthlyPrice);
+
+        EffectiveFromDate = profile.EffectiveFromDate;
+        EffectiveToDate = profile.EffectiveToDate;
+        RequiredWorkerCount = profile.RequiredWorkerCount;
+        HoursPerDay = profile.HoursPerDay;
+        DaysPerWeek = profile.DaysPerWeek;
+        AverageWeeklyHours = profile.HoursPerDay * profile.DaysPerWeek;
+        AverageMonthlyHours = profile.AverageMonthlyHours;
+        PreparationLeadDays = profile.PreparationLeadDays;
+        WorkScheduleDescription = Required(profile.WorkScheduleDescription, nameof(profile.WorkScheduleDescription));
+        SpecificInstructions = Optional(profile.SpecificInstructions);
+        MonthlyPrice = profile.MonthlyPrice;
+        CurrencyCode = Required(profile.CurrencyCode, nameof(profile.CurrencyCode)).ToUpperInvariant();
+        IsTaxIncluded = profile.IsTaxIncluded;
+    }
+
+    private static string Required(string value, string parameterName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(value, parameterName);
+        return value.Trim();
+    }
+
+    private static string? Optional(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }
+
+public sealed record ServiceConfigurationProfile(
+    DateOnly EffectiveFromDate,
+    DateOnly? EffectiveToDate,
+    short RequiredWorkerCount,
+    decimal HoursPerDay,
+    byte DaysPerWeek,
+    decimal AverageMonthlyHours,
+    short PreparationLeadDays,
+    string WorkScheduleDescription,
+    string? SpecificInstructions,
+    decimal MonthlyPrice,
+    string CurrencyCode,
+    bool IsTaxIncluded);

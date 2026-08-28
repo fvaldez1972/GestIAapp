@@ -49,5 +49,12 @@ public interface ISchedulingRepository
         Guid? excludedScheduleVersionId,
         CancellationToken cancellationToken);
 
+    Task<IReadOnlyList<ScheduleVersion>> ListOverlappingPublishedVersionsAsync(
+        Guid idService,
+        DateOnly periodStartDate,
+        DateOnly periodEndDate,
+        Guid excludedScheduleVersionId,
+        CancellationToken cancellationToken);
+
     Task AddScheduledShiftAsync(ScheduledShift scheduledShift, CancellationToken cancellationToken);
 }

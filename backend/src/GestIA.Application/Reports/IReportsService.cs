@@ -9,4 +9,8 @@ public interface IReportsService
     Task<IReadOnlyList<OperationsServiceSummaryResponse>> GetOperationsByServiceAsync(
         OperationsSummaryQuery query,
         CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<WorkforceEligibilityResponse>> GetWorkforceEligibilityAsync(
+        WorkforceEligibilityQuery query,
+        CancellationToken cancellationToken);
 }

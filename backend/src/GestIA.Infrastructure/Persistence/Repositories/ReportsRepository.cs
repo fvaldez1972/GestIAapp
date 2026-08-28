@@ -1,5 +1,6 @@
 using GestIA.Application.Reports;
 using GestIA.Domain.Operations;
+using GestIA.Domain.Workforce;
 using Microsoft.EntityFrameworkCore;
 
 namespace GestIA.Infrastructure.Persistence.Repositories;
@@ -262,5 +263,88 @@ public sealed class ReportsRepository(GestIaDbContext dbContext) : IReportsRepos
         }
 
         return rows;
+    }
+
+    public async Task<IReadOnlyList<WorkforceEligibilityResponse>> GetWorkforceEligibilityAsync(
+        WorkforceEligibilityQuery query,
+        CancellationToken cancellationToken)
+    {
+        var employeesQuery = dbContext.Employees
+            .AsNoTracking()
+            .Where(employee => employee.IdOrganization == query.IdOrganization);
+
+        if (!string.IsNullOrWhiteSpace(query.Search))
+        {
+            var search = query.Search.Trim();
+            employeesQuery = employeesQuery.Where(employee =>
+                employee.CodeEmployee.Contains(search) ||
+                employee.FullName.Contains(search) ||
+                (employee.JobTitle != null && employee.JobTitle.Contains(search)));
+        }
+
+        var employees = await employeesQuery
+            .OrderBy(employee => employee.FullName)
+            .Take(250)
+            .ToArrayAsync(cancellationToken);
+        var employeeIds = employees.Select(employee => employee.IdEmployee).ToArray();
+
+        var documents = await dbContext.EmployeeDocuments
+            .AsNoTracking()
+            .Where(document => employeeIds.Contains(document.IdEmployee))
+            .ToArrayAsync(cancellationToken);
+        var evaluations = await dbContext.EmployeeEvaluations
+            .AsNoTracking()
+            .Where(evaluation => employeeIds.Contains(evaluation.IdEmployee))
+            .ToArrayAsync(cancellationToken);
+
+        return employees.Select(employee =>
+        {
+            var employeeDocuments = documents.Where(document => document.IdEmployee == employee.IdEmployee).ToArray();
+            var employeeEvaluations = evaluations.Where(evaluation => evaluation.IdEmployee == employee.IdEmployee).ToArray();
+            var expiredDocuments = employeeDocuments.Count(document =>
+                document.Status == EmployeeDocumentStatus.Expired ||
+                (document.ExpiresDate.HasValue && document.ExpiresDate.Value < query.ReferenceDate));
+            var rejectedDocuments = employeeDocuments.Count(document => document.Status == EmployeeDocumentStatus.Rejected);
+            var invalidEvaluations = employeeEvaluations.Count(evaluation =>
+                evaluation.Result is EmployeeEvaluationResult.NotApproved or EmployeeEvaluationResult.Inconclusive ||
+                (evaluation.ExpiresDate.HasValue && evaluation.ExpiresDate.Value < query.ReferenceDate));
+            var reasons = new List<string>();
+
+            if (employee.Status != EmployeeStatus.Active)
+            {
+                reasons.Add($"Estatus {employee.Status}.");
+            }
+
+            if (expiredDocuments > 0)
+            {
+                reasons.Add($"{expiredDocuments} documento(s) vencido(s).");
+            }
+
+            if (rejectedDocuments > 0)
+            {
+                reasons.Add($"{rejectedDocuments} documento(s) rechazado(s).");
+            }
+
+            if (invalidEvaluations > 0)
+            {
+                reasons.Add($"{invalidEvaluations} evaluación(es) vencida(s) o no aprobada(s).");
+            }
+
+            if (reasons.Count == 0)
+            {
+                reasons.Add("Elegible con las reglas actuales.");
+            }
+
+            return new WorkforceEligibilityResponse(
+                employee.IdEmployee,
+                employee.CodeEmployee,
+                employee.FullName,
+                employee.JobTitle,
+                reasons.Count == 1 && reasons[0] == "Elegible con las reglas actuales.",
+                reasons,
+                expiredDocuments,
+                rejectedDocuments,
+                invalidEvaluations);
+        }).ToArray();
     }
 }

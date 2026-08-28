@@ -71,7 +71,8 @@ h1 {
 
 .overview-card,
 .quick-actions a,
-.next-step {
+.next-step,
+.focus-panel {
   border: 1px solid var(--gestia-border);
   border-radius: 1rem;
   background: #fff;
@@ -147,10 +148,92 @@ h1 {
 }
 
 .quick-actions span,
-.next-step p {
+.next-step p,
+.focus-panel p {
   color: var(--gestia-muted);
   font-size: 0.8rem;
   line-height: 1.5;
+}
+
+.operations-focus {
+  margin-top: 1rem;
+}
+
+.focus-panel {
+  display: grid;
+  gap: 1rem;
+  padding: 1.25rem;
+}
+
+.focus-panel h2 {
+  margin-top: 0.35rem;
+  color: var(--gestia-navy);
+  font-size: 1.05rem;
+}
+
+.focus-panel p {
+  margin-top: 0.35rem;
+}
+
+.focus-list {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.focus-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border: 1px solid #e1eaf6;
+  border-radius: 1rem;
+  padding: 0.9rem;
+  color: inherit;
+  text-decoration: none;
+  background: linear-gradient(180deg, #fff, #f8fbff);
+}
+
+.focus-item:hover {
+  border-color: color-mix(in srgb, var(--gestia-cyan) 45%, var(--gestia-border));
+}
+
+.focus-item strong,
+.focus-item small {
+  display: block;
+}
+
+.focus-item strong,
+.focus-empty strong {
+  color: var(--gestia-navy);
+}
+
+.focus-item small,
+.focus-empty span {
+  margin-top: 0.15rem;
+  color: var(--gestia-muted);
+  font-size: 0.78rem;
+}
+
+.focus-item em {
+  min-width: max-content;
+  border-radius: 999rem;
+  padding: 0.35rem 0.6rem;
+  color: #815700;
+  font-size: 0.68rem;
+  font-style: normal;
+  font-weight: 850;
+  background: #fff8e7;
+}
+
+.focus-empty {
+  display: grid;
+  gap: 0.25rem;
+  grid-column: 1 / -1;
+  border: 1px dashed var(--gestia-border);
+  border-radius: 1rem;
+  padding: 1.25rem;
+  text-align: center;
 }
 
 .next-step {
@@ -189,7 +272,8 @@ h1 {
   }
 
   .overview-grid,
-  .quick-actions {
+  .quick-actions,
+  .focus-list {
     grid-template-columns: 1fr;
   }
 }

@@ -37,6 +37,7 @@ export class PlanningPage implements OnInit {
   protected readonly assignments = signal<readonly ServiceAssignment[]>([]);
   protected readonly versions = signal<readonly ScheduleVersion[]>([]);
   protected readonly shifts = signal<readonly ScheduledShift[]>([]);
+  protected readonly publishedShifts = signal<readonly ScheduledShift[]>([]);
   protected readonly employees = signal<readonly Employee[]>([]);
   protected readonly selectedOrganizationId = signal('');
   protected readonly selectedClientId = signal('');
@@ -79,6 +80,50 @@ export class PlanningPage implements OnInit {
   protected readonly plannedHours = computed(() =>
     Math.round((this.shifts().reduce((total, shift) => total + shift.durationMinutes, 0) / 60) * 10) / 10,
   );
+  protected readonly publishedHours = computed(() =>
+    Math.round((this.publishedShifts().reduce((total, shift) => total + shift.durationMinutes, 0) / 60) * 10) / 10,
+  );
+  protected readonly weeklyPlanning = computed<readonly PlanningDay[]>(() => {
+    const selectedVersion = this.selectedVersion();
+    const sortedShifts = [...this.shifts()].sort((left, right) =>
+      `${left.shiftDate}${left.startTime}${left.employeeName}`.localeCompare(
+        `${right.shiftDate}${right.startTime}${right.employeeName}`,
+      ),
+    );
+    const dates = selectedVersion
+      ? this.dateRange(selectedVersion.periodStartDate, selectedVersion.periodEndDate).slice(0, 14)
+      : [...new Set(sortedShifts.map((shift) => shift.shiftDate))];
+
+    return dates.map((date) => {
+      const dayShifts = sortedShifts.filter((shift) => shift.shiftDate === date);
+      return {
+        date,
+        label: this.weekdayLabel(date),
+        shifts: dayShifts,
+        totalHours: Math.round((dayShifts.reduce((total, shift) => total + shift.durationMinutes, 0) / 60) * 10) / 10,
+        coveredPositions: new Set(dayShifts.map((shift) => shift.idPosition)).size,
+      };
+    });
+  });
+  protected readonly planningComparison = computed(() => {
+    const selectedVersion = this.selectedVersion();
+    const publishedVersion = this.publishedVersion();
+
+    if (!selectedVersion || !publishedVersion || selectedVersion.idScheduleVersion === publishedVersion.idScheduleVersion) {
+      return null;
+    }
+
+    return {
+      draftName: selectedVersion.name,
+      publishedName: publishedVersion.name,
+      draftShifts: this.shifts().length,
+      publishedShifts: this.publishedShifts().length,
+      draftHours: this.plannedHours(),
+      publishedHours: this.publishedHours(),
+      shiftDelta: this.shifts().length - this.publishedShifts().length,
+      hourDelta: Math.round((this.plannedHours() - this.publishedHours()) * 10) / 10,
+    };
+  });
 
   protected readonly assignmentTypes: readonly { value: ServiceAssignmentType; label: string }[] = [
     { value: 'Primary', label: 'Titular' },
@@ -493,7 +538,7 @@ export class PlanningPage implements OnInit {
 
     this.api.publishScheduleVersion(context.idOrganization, context.idClient, context.idService, versionId).subscribe({
       next: () => {
-        this.message.set('Planeación publicada correctamente. Operación ya puede usar estos turnos.');
+        this.message.set('Planeación publicada correctamente. Si había una versión publicada traslapada, quedó reemplazada.');
         this.loadPlanningData(undefined, versionId);
       },
       error: (error: HttpErrorResponse) => this.setError(error, 'No se pudo publicar la planeación.'),
@@ -615,6 +660,7 @@ export class PlanningPage implements OnInit {
         this.versions.set(versions);
         this.employees.set(employees.items);
         this.resetPlanningDefaults(preferredPositionId, preferredVersionId);
+        this.loadPublishedShifts();
         this.loadShifts();
       },
       error: (error: HttpErrorResponse) => this.setError(error, 'No se pudo cargar la planeación del servicio.'),
@@ -642,6 +688,23 @@ export class PlanningPage implements OnInit {
     });
   }
 
+  private loadPublishedShifts() {
+    const context = this.context();
+    const publishedVersion = this.publishedVersion();
+
+    if (!context || !publishedVersion) {
+      this.publishedShifts.set([]);
+      return;
+    }
+
+    this.api
+      .listScheduledShifts(context.idOrganization, context.idClient, context.idService, publishedVersion.idScheduleVersion)
+      .subscribe({
+        next: (shifts) => this.publishedShifts.set(shifts),
+        error: () => this.publishedShifts.set([]),
+      });
+  }
+
   private resetPlanningDefaults(preferredPositionId?: string, preferredVersionId?: string) {
     const positionId = preferredPositionId ?? this.positions()[0]?.idPosition ?? '';
     const employeeId = this.employees()[0]?.idEmployee ?? '';
@@ -664,6 +727,7 @@ export class PlanningPage implements OnInit {
     this.assignments.set([]);
     this.versions.set([]);
     this.shifts.set([]);
+    this.publishedShifts.set([]);
     this.employees.set([]);
     this.selectedPositionId.set('');
     this.selectedAssignmentId.set('');
@@ -709,7 +773,33 @@ export class PlanningPage implements OnInit {
     return date.toISOString().slice(0, 10);
   }
 
+  private dateRange(startDate: string, endDate: string) {
+    const start = new Date(`${startDate}T00:00:00`);
+    const end = new Date(`${endDate}T00:00:00`);
+    const dates: string[] = [];
+
+    for (const date = new Date(start); date <= end; date.setDate(date.getDate() + 1)) {
+      dates.push(date.toISOString().slice(0, 10));
+    }
+
+    return dates;
+  }
+
+  private weekdayLabel(date: string) {
+    return new Intl.DateTimeFormat('es-MX', { weekday: 'short', day: '2-digit', month: 'short' }).format(
+      new Date(`${date}T00:00:00`),
+    );
+  }
+
   private nextCode(prefix: string, value: number) {
     return `${prefix}-${value.toString().padStart(3, '0')}`;
   }
 }
+
+type PlanningDay = {
+  readonly date: string;
+  readonly label: string;
+  readonly shifts: readonly ScheduledShift[];
+  readonly totalHours: number;
+  readonly coveredPositions: number;
+};

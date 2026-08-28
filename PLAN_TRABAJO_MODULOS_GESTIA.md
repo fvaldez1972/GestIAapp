@@ -5,6 +5,77 @@
 - Estado: plan tactico de construccion
 - Documento rector relacionado: `PLAN_MAESTRO_GESTIA.md`
 
+## Actualizacion 2026-08-28: solicitudes, elegibilidad, planeacion y operacion avanzada
+
+Quedo implementado un avance funcional para convertir solicitudes aprobadas en acciones reales del sistema:
+
+- Alta de cliente desde solicitud mediante bloque `client`.
+- Nuevo servicio desde solicitud mediante `service`, con soporte para crear sede, contrato y configuracion inicial.
+- Cambio de configuracion de servicio mediante nueva configuracion versionada.
+- Cambio de personal mediante creacion de asignacion real.
+- Solicitud de cobertura convertida en cobertura operativa real.
+
+Tambien se agrego la primera capa de elegibilidad de personal en asignaciones:
+
+- Bloqueo de empleados no activos.
+- Bloqueo si el empleado tiene documentos vencidos o rechazados.
+- Bloqueo si el empleado tiene evaluaciones vencidas, no aprobadas o inconclusas.
+- Validacion inicial contra perfil requerido de la posicion cuando existe un perfil capturado y el empleado tiene puesto registrado.
+
+En planeacion quedo reforzado:
+
+- Vista calendario de turnos por dia para la version seleccionada.
+- Comparativo resumido entre borrador y version publicada.
+- Bloqueo de publicacion cuando hay patrones de turno con posiciones/horarios incompletos.
+
+En operacion quedo reforzado:
+
+- Fecha operativa.
+- Tablero diario con turnos, asistencia, incidencias y coberturas.
+- Confirmacion masiva de asistencia pendiente del dia.
+- Cierre formal de incidencias con nota de resolucion obligatoria.
+- Carga real de archivos para evidencias operativas con storage persistente en Docker.
+
+Pendiente para cerrar producto real:
+
+- Catalogos formales de habilidades/restricciones por zona, cliente y servicio.
+- Flujo multiusuario de autorizaciones para correcciones sensibles.
+- Comparativo visual detallado turno por turno en planeacion.
+- Exportaciones Excel/PDF formales.
+
+## Actualizacion 2026-08-28: documentos reales, reemplazo de planeacion y controles operativos
+
+Quedo implementado otro corte funcional para acercar GestIA a operacion real:
+
+- Modulo documental completo MVP:
+  - Nueva tabla `BusinessDocuments`.
+  - Documentos por cliente, contrato, servicio, empleado, evaluacion y solicitud.
+  - Categorias, estatus, vencimientos, indicador sensible, notas y referencia de archivo.
+  - Carga real de archivos desde API.
+  - Descarga de archivos desde API.
+  - Pantalla `/documentos` con filtros, alta, edicion, desactivacion y descarga.
+  - Permisos nuevos `DOCUMENTS.READ` y `DOCUMENTS.WRITE`.
+- Planeacion avanzada:
+  - Una planeacion nueva publicada puede reemplazar versiones publicadas traslapadas.
+  - La version anterior queda marcada como `Superseded`, conservando historial.
+  - El mensaje de UI ya comunica que publicar tambien puede reemplazar.
+- Operacion avanzada:
+  - Las correcciones de asistencia ya requieren nota de autorizacion.
+  - La correccion conserva trazabilidad en notas operativas.
+  - La UI permite seleccionar asistencia existente, corregirla y registrar la autorizacion.
+- Reportes:
+  - Nuevo reporte de elegibilidad de personal.
+  - Filtros y exportacion CSV incluyen personal elegible/no elegible y motivos.
+  - Reportes muestran razones de no elegibilidad por estatus, documentos y evaluaciones.
+
+Queda como refinamiento de negocio:
+
+- Catalogos finos de habilidades, restricciones por zona/cliente/servicio y requisitos por puesto.
+- Exportaciones formales Excel/PDF.
+- Autorizaciones con flujo multiusuario formal, no solo nota obligatoria.
+- Comparativo visual detallado turno por turno entre borrador y publicado.
+- UX fina transversal: formularios por pasos, skeleton loaders, ordenamiento/paginacion en todas las tablas.
+
 ## 1. Proposito
 
 Este documento baja el plan maestro a un camino de trabajo implementable para construir los modulos faltantes de GestIA por partes. La intencion es que cada modulo avance como recorrido completo: modelo de dominio, persistencia SQL Server, endpoints, pantalla Angular, validaciones, pruebas y documentacion.
@@ -57,6 +128,7 @@ Reemplazar el actor local temporal por identidad real y asegurar que toda accion
 - [x] Proteger endpoints iniciales con autorizacion por permiso.
 - [x] Login local y logout del lado frontend.
 - [x] Sustituir `HttpActorContext` temporal por claims del JWT.
+- [x] Manejo global de sesion expirada.
 - [ ] Agregar refresh token o renovacion controlada de sesion.
 - [ ] Completar administracion de usuarios, roles y permisos desde UI.
 - [ ] Aplicar alcance por organizacion en todos los modulos nuevos.
@@ -79,9 +151,9 @@ Reemplazar el actor local temporal por identidad real y asegurar que toda accion
 - [x] Guardas de ruta.
 - [x] Token JWT en requests HTTP.
 - [x] Logout.
-- [ ] Manejo global de sesion expirada.
+- [x] Manejo global de sesion expirada.
 - [ ] Selector de organizacion si el usuario tiene mas de una.
-- [ ] Menus visibles segun permisos.
+- [x] Menus visibles segun permisos.
 
 ### Pruebas minimas
 
@@ -104,6 +176,7 @@ Completar el alta y administracion de cliente con sedes, contactos, datos fiscal
 - Agregar validaciones de domicilio, correo, telefono, RFC y datos fiscales.
 - Definir si razon social y cliente comercial son una sola entidad o entidades separadas.
 - Preparar estructura para documentos/requisitos del cliente, aunque el primer alcance no los use completo.
+- [x] Ejecutar solicitudes aprobadas con validación de vínculos mínimos por tipo.
 
 ### Base de datos actual y extensiones
 
@@ -122,6 +195,8 @@ Completar el alta y administracion de cliente con sedes, contactos, datos fiscal
 - Alta/edicion de contactos.
 - Estado activo/inactivo visible.
 - Busqueda por nombre, RFC, codigo y sede.
+- [x] Tablero de seguimiento de solicitudes por estado con acciones rápidas.
+- [x] Ejecución controlada de solicitudes aprobadas desde la UI.
 
 ### Pruebas minimas
 
@@ -260,11 +335,11 @@ Asignar personal a posiciones, detectar conflictos y publicar planeaciones versi
 - [x] Vincular asignaciones a posiciones del servicio.
 - [x] Validar que el empleado pertenezca a la organizacion y este activo.
 - [x] Validar traslapes basicos por empleado.
-- Validar elegibilidad contra documentos/evaluaciones/perfil.
+- [x] Validar elegibilidad contra documentos/evaluaciones/perfil.
 - [x] Crear versiones de planeacion por periodo.
 - [x] Crear turnos programados por version, posicion y empleado.
 - [x] Publicar version y bloquear cambios directos.
-- Reemplazar una planeacion publicada con nueva version.
+- [x] Reemplazar una planeacion publicada con nueva version.
 
 ### Base de datos actual y extensiones
 
@@ -281,9 +356,9 @@ Asignar personal a posiciones, detectar conflictos y publicar planeaciones versi
 - [x] Vista de asignaciones por servicio.
 - [x] Contratos TypeScript y cliente HTTP para versiones/turnos programados.
 - [x] Vista lista por periodo/version.
-- Indicadores de conflicto.
+- [x] Indicadores de conflicto.
 - [x] Publicacion de planeacion.
-- Comparacion de borrador vs publicado.
+- [x] Comparacion de borrador vs publicado.
 
 ### Pruebas minimas
 
@@ -292,7 +367,7 @@ Asignar personal a posiciones, detectar conflictos y publicar planeaciones versi
 - [x] No permitir traslapes por empleado.
 - [x] No permitir publicar planeacion vacia.
 - [x] La version publicada debe quedar inmutable.
-- Reemplazo de version conserva historial.
+- [x] Reemplazo de version conserva historial.
 
 ## 10. Entrega 6: asistencia, incidencias y coberturas
 
@@ -306,8 +381,8 @@ Registrar lo que realmente ocurrio en operacion: asistencia, faltas, retardos, i
 - [x] Confirmar asistencia por excepcion mediante `AttendanceRecords`.
 - [x] Registrar incidencias por servicio, turno y empleado opcional.
 - [x] Registrar coberturas y sustitutos con intervalos.
-- Adjuntar evidencias o referencias de almacenamiento.
-- Autorizar correcciones sensibles.
+- [x] Adjuntar evidencias o referencias de almacenamiento.
+- [x] Autorizar correcciones sensibles.
 
 ### Base de datos candidata
 
@@ -316,7 +391,7 @@ Registrar lo que realmente ocurrio en operacion: asistencia, faltas, retardos, i
 | `AttendanceRecords` | Implementada | Asistencia real por turno programado, empleado, fecha, estado, entrada/salida y minutos de retardo |
 | `Incidents` | Implementada | Excepciones operativas por servicio, turno opcional, empleado opcional, severidad y estado |
 | `CoverageRecords` | Implementada | Sustituciones e intervalos cubiertos por empleado original y reemplazo |
-| `EvidenceItems` | Pendiente | Evidencias o referencias de archivo |
+| `OperationEvidences` | Implementada | Evidencias o referencias de archivo ligadas a asistencia, incidencia o cobertura |
 | `ApprovalRequests` | Pendiente | Autorizaciones para cambios sensibles |
 
 ### Frontend
@@ -326,8 +401,9 @@ Registrar lo que realmente ocurrio en operacion: asistencia, faltas, retardos, i
 - [x] Formulario MVP para guardar asistencia por turno publicado.
 - [x] Formulario MVP para registrar incidencia de servicio o turno.
 - [x] Formulario MVP para registrar cobertura con sustituto.
-- Confirmacion masiva por excepcion.
-- Estado de evidencia/autorizacion.
+- [x] Confirmacion masiva por excepcion.
+- [x] Estado de evidencia.
+- [x] Estado de autorizacion.
 
 ### Pruebas minimas
 
@@ -337,7 +413,7 @@ Registrar lo que realmente ocurrio en operacion: asistencia, faltas, retardos, i
 - No registrar asistencia fuera de turno sin regla aprobada.
 - [x] No permitir cobertura sin sustituto valido.
 - [x] No permitir intervalos de cobertura invalidos.
-- Auditar correcciones de asistencia e incidencias.
+- [x] Auditar correcciones de asistencia e incidencias.
 
 ## 11. Entrega 7: reportes y control
 
@@ -349,8 +425,9 @@ Dar visibilidad a operacion, cumplimiento y trazabilidad sin convertir reportes 
 
 - [x] Crear consulta de lectura para resumen operativo MVP.
 - [x] Crear endpoint inicial `GET /api/v1/reports/operations-summary`.
-- Crear auditoria consultable.
-- Exportar clientes, servicios, empleados, asistencia e incidencias.
+- [x] Crear auditoria consultable.
+- [x] Exportar clientes, servicios, empleados, asistencia e incidencias.
+- [x] Exportar auditoria consultable MVP.
 - Preparar proyecciones reconstruibles.
 
 ### Base de datos candidata
@@ -365,9 +442,9 @@ Dar visibilidad a operacion, cumplimiento y trazabilidad sin convertir reportes 
 
 ### Frontend
 
-- Dashboard operativo.
-- Filtros por organizacion, cliente, servicio, periodo y estado.
-- Exportaciones controladas.
+- [x] Dashboard operativo.
+- [x] Filtros por organizacion, cliente, servicio, periodo y estado.
+- [x] Exportaciones controladas MVP.
 - Vista de auditoria por entidad.
 
 ### Pruebas minimas

@@ -100,6 +100,51 @@
     </article>
   }
 
+  @if (selectedVersion()) {
+    <section class="gi-card weekly-board" aria-label="Vista semanal de planeación">
+      <header>
+        <div>
+          <span class="eyebrow">Vista operativa</span>
+          <h2>Calendario de turnos</h2>
+          <p>Revisa rápidamente qué días tienen cobertura y dónde todavía hay huecos visibles.</p>
+        </div>
+        @if (planningComparison(); as comparison) {
+          <aside class="planning-compare" aria-label="Comparativo contra versión publicada">
+            <strong>Borrador vs publicada</strong>
+            <span>{{ comparison.draftShifts }} turnos / {{ comparison.draftHours }} h</span>
+            <small>
+              Publicada: {{ comparison.publishedShifts }} turnos / {{ comparison.publishedHours }} h ·
+              diferencia {{ comparison.shiftDelta }} turnos / {{ comparison.hourDelta }} h
+            </small>
+          </aside>
+        }
+      </header>
+
+      <div class="week-grid">
+        @for (day of weeklyPlanning(); track day.date) {
+          <article class="day-card" [class.is-empty]="day.shifts.length === 0">
+            <header>
+              <strong>{{ day.label }}</strong>
+              <span>{{ day.totalHours }} h · {{ day.coveredPositions }} pos.</span>
+            </header>
+
+            <div class="day-shifts">
+              @for (shift of day.shifts; track shift.idScheduledShift) {
+                <button type="button" class="day-shift" (click)="selectShift(shift)">
+                  <span>{{ shift.startTime }} — {{ shift.endTime }}</span>
+                  <strong>{{ shift.employeeName }}</strong>
+                  <small>{{ shift.positionCode }} · {{ shift.positionName }}</small>
+                </button>
+              } @empty {
+                <span class="empty-day">Sin turnos</span>
+              }
+            </div>
+          </article>
+        }
+      </div>
+    </section>
+  }
+
   <section class="planning-grid" aria-label="Captura de planeación">
     <form class="gi-card planning-card" [formGroup]="positionForm" (ngSubmit)="savePosition()">
       <header>
@@ -351,7 +396,7 @@
             Generar desde patrones
           </button>
           <button class="gi-button gi-button--secondary" type="button" [disabled]="saving() || !canWrite() || !selectedVersionId() || shifts().length === 0" (click)="publishVersion()">
-            Publicar versión
+            Publicar / reemplazar
           </button>
         </div>
       </header>

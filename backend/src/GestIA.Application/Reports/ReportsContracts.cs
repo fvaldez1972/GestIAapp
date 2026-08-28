@@ -39,3 +39,19 @@ public sealed record OperationsServiceSummaryResponse(
     int ConfirmedCoverages,
     int CompletedCoverages,
     int CoveredMinutes);
+
+public sealed record WorkforceEligibilityQuery(
+    Guid IdOrganization,
+    DateOnly ReferenceDate,
+    string? Search);
+
+public sealed record WorkforceEligibilityResponse(
+    Guid IdEmployee,
+    string CodeEmployee,
+    string FullName,
+    string? JobTitle,
+    bool IsEligible,
+    IReadOnlyList<string> Reasons,
+    int ExpiredDocuments,
+    int RejectedDocuments,
+    int InvalidEvaluations);

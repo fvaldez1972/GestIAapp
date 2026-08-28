@@ -40,6 +40,11 @@
     </select>
   </label>
 
+  <label>
+    Fecha operativa
+    <input type="date" [value]="selectedOperationDate()" (input)="onOperationDateChange($event)" />
+  </label>
+
   <div class="filter-hint">
     <strong>{{ services().length }}</strong>
     <span>servicios disponibles</span>
@@ -74,6 +79,60 @@
     <small>{{ coveredHours() }} h cubiertas</small>
   </article>
 </section>
+
+@if (selectedServiceId()) {
+  <section class="daily-board" aria-label="Tablero diario de operación">
+    <header>
+      <div>
+        <span class="kicker">Tablero diario</span>
+        <h2>{{ selectedOperationDate() }}</h2>
+        <p>Vista rápida de turnos publicados, asistencia capturada, incidencias y coberturas del día.</p>
+      </div>
+      <button type="button" [disabled]="saving() || pendingAttendanceCount() === 0" (click)="confirmDailyAttendance()">
+        Confirmar pendientes
+      </button>
+    </header>
+
+    <div class="daily-grid">
+      <article class="daily-kpi">
+        <span>Turnos del día</span>
+        <strong>{{ dailyBoard().length }}</strong>
+      </article>
+      <article class="daily-kpi">
+        <span>Asistencias pendientes</span>
+        <strong>{{ pendingAttendanceCount() }}</strong>
+      </article>
+      <article class="daily-kpi">
+        <span>Incidencias abiertas</span>
+        <strong>{{ openDailyIncidents() }}</strong>
+      </article>
+    </div>
+
+    <div class="daily-shifts">
+      @for (item of dailyBoard(); track item.shift.idScheduledShift) {
+        <article class="daily-shift" [class.needs-attendance]="!item.attendance">
+          <span>{{ item.shift.startTime }} — {{ item.shift.endTime }}</span>
+          <strong>{{ item.shift.employeeCode }} · {{ item.shift.employeeName }}</strong>
+          <small>{{ item.shift.positionCode }} · {{ item.shift.positionName }}</small>
+          <footer>
+            <i>{{ item.attendance?.status || 'Sin asistencia' }}</i>
+            @if (item.coverage) {
+              <i>Cobertura: {{ item.coverage.replacementEmployeeName }}</i>
+            }
+            @if (item.incidents.length) {
+              <i>{{ item.incidents.length }} incidencia(s)</i>
+            }
+          </footer>
+        </article>
+      } @empty {
+        <div class="empty-state">
+          <strong>Sin turnos para esta fecha</strong>
+          <span>Selecciona otra fecha o publica una planeación que cubra el día operativo.</span>
+        </div>
+      }
+    </div>
+  </section>
+}
 
 @if (selectedService(); as service) {
   <section class="service-context">
@@ -117,8 +176,14 @@
   <form class="capture-card" [formGroup]="attendanceForm" (ngSubmit)="saveAttendance()">
     <header>
       <span>Paso 1</span>
-      <h3>Confirma el turno</h3>
-      <p>Selecciona el turno publicado y registra lo que ocurrió en campo.</p>
+      <h3>{{ selectedAttendance() ? 'Corregir asistencia' : 'Confirma el turno' }}</h3>
+      <p>
+        @if (selectedAttendance()) {
+          Estás corrigiendo un registro existente; captura quién autorizó o el motivo de corrección.
+        } @else {
+          Selecciona el turno publicado y registra lo que ocurrió en campo.
+        }
+      </p>
     </header>
 
     <label>
@@ -165,7 +230,24 @@
       <textarea rows="3" formControlName="notes" placeholder="Ej. llegó con 3 min de retardo"></textarea>
     </label>
 
-    <button type="submit" [disabled]="saving() || !hasPublishedShifts()">Guardar asistencia</button>
+    @if (selectedAttendance()) {
+      <label>
+        Autorización de corrección
+        <textarea rows="2" formControlName="correctionAuthorizationNotes" placeholder="Ej. Autorizó supervisor / corrección por error de captura"></textarea>
+      </label>
+    }
+
+    <div class="form-actions">
+      <button type="submit" [disabled]="saving() || !hasPublishedShifts()">
+        {{ selectedAttendance() ? 'Guardar corrección' : 'Guardar asistencia' }}
+      </button>
+      <button type="button" class="button-reset" [disabled]="saving() || pendingAttendanceCount() === 0" (click)="confirmDailyAttendance()">
+        Confirmar pendientes del día
+      </button>
+      @if (selectedAttendance()) {
+        <button class="button-reset" type="button" [disabled]="saving()" (click)="resetAttendanceForm()">Nueva asistencia</button>
+      }
+    </div>
   </form>
   }
 
@@ -242,6 +324,9 @@
         {{ selectedIncident() ? 'Guardar cambios' : 'Registrar incidencia' }}
       </button>
       @if (selectedIncident()) {
+        <button class="ghost-action" type="button" [disabled]="saving() || selectedIncident()?.status === 'Resolved'" (click)="resolveSelectedIncident()">
+          Cerrar incidencia
+        </button>
         <button class="button-reset" type="button" [disabled]="saving()" (click)="resetIncidentForm()">Nueva incidencia</button>
       }
     </div>
@@ -359,7 +444,7 @@
         </thead>
         <tbody>
           @for (record of attendance(); track record.idAttendanceRecord) {
-            <tr>
+            <tr [class.is-selected]="record.idAttendanceRecord === selectedAttendanceId()" (click)="selectAttendance(record)">
               <td>{{ record.attendanceDate }}</td>
               <td>{{ record.employeeCode }} · {{ record.employeeName }}</td>
               <td><span class="status">{{ record.status }}</span></td>
@@ -463,3 +548,112 @@
   }
   </div>
 </section>
+
+@if (selectedServiceId()) {
+<section class="evidence-workspace" aria-label="Evidencias operativas">
+  <form class="capture-card evidence-card" [formGroup]="evidenceForm" (ngSubmit)="saveEvidence()">
+    <header>
+      <span>Paso 2</span>
+      <h3>{{ selectedEvidence() ? 'Editar evidencia' : 'Agregar evidencia' }}</h3>
+      <p>Relaciona fotos, documentos, reportes o ligas de respaldo con el registro seleccionado.</p>
+    </header>
+
+    <label>
+      Registro relacionado
+      <select formControlName="relatedRecordId">
+        @for (option of evidenceRelatedOptions(); track option.value) {
+          <option [value]="option.value">{{ option.label }}</option>
+        }
+      </select>
+    </label>
+
+    <div class="form-row">
+      <label>
+        Tipo
+        <select formControlName="evidenceType">
+          @for (type of evidenceTypes; track type.value) {
+            <option [value]="type.value">{{ type.label }}</option>
+          }
+        </select>
+      </label>
+
+      <label>
+        Título
+        <input type="text" formControlName="title" placeholder="Ej. Foto de acceso / reporte firmado" />
+      </label>
+    </div>
+
+    <label>
+      Archivo real
+      <input type="file" (change)="onEvidenceFileSelected($event)" [disabled]="uploadingEvidenceFile()" />
+      <small class="form-help">
+        {{ uploadingEvidenceFile() ? 'Cargando archivo…' : 'Opcional: sube el archivo y se llenará la referencia automáticamente.' }}
+      </small>
+    </label>
+
+    <label>
+      Ruta, liga o referencia generada
+      <input type="text" formControlName="storageReference" placeholder="URL, ruta generada por carga o folio documental" />
+    </label>
+
+    <label>
+      Notas
+      <textarea rows="2" formControlName="notes" placeholder="Contexto adicional de la evidencia"></textarea>
+    </label>
+
+    <div class="form-actions">
+      <button type="submit" [disabled]="saving() || evidenceRelatedOptions().length === 0">
+        {{ selectedEvidence() ? 'Guardar evidencia' : 'Agregar evidencia' }}
+      </button>
+      @if (selectedEvidence()) {
+        <button class="button-reset" type="button" [disabled]="saving()" (click)="resetEvidenceForm()">Nueva evidencia</button>
+      }
+    </div>
+
+    @if (evidenceRelatedOptions().length === 0) {
+      <small class="form-help">Primero captura un registro de {{ sectionTitle().toLowerCase() }} para poder adjuntar evidencia.</small>
+    }
+  </form>
+
+  <article class="panel evidence-list">
+    <header>
+      <div>
+        <span>Evidencias</span>
+        <h3>Respaldos del módulo</h3>
+      </div>
+      <span>{{ visibleEvidences().length }}</span>
+    </header>
+
+    <div class="evidence-items">
+      @for (evidence of visibleEvidences(); track evidence.idOperationEvidence) {
+        <button
+          class="evidence-item"
+          type="button"
+          [class.is-selected]="evidence.idOperationEvidence === selectedEvidenceId()"
+          (click)="selectEvidence(evidence)"
+        >
+          <span class="status">{{ evidence.evidenceType }}</span>
+          <strong>{{ evidence.title }}</strong>
+          <small>{{ evidence.storageReference }}</small>
+          @if (!evidence.active) {
+            <em>Inactiva</em>
+          }
+        </button>
+      } @empty {
+        <div class="empty-state">
+          <strong>Sin evidencias todavía</strong>
+          <span>Cuando agregues respaldos aparecerán aquí para seguimiento y auditoría.</span>
+        </div>
+      }
+    </div>
+
+    @if (selectedEvidence()) {
+      <footer class="evidence-footer">
+        <button class="button-danger" type="button" [disabled]="saving() || !selectedEvidence()?.active" (click)="deactivateEvidence(selectedEvidence()!)">
+          Desactivar evidencia
+        </button>
+      </footer>
+    }
+  </article>
+</section>
+}

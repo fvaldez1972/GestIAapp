@@ -65,6 +65,8 @@ public sealed class SecurityDataSeeder(
             (SecurityPermissions.OrganizationsWrite, "Organizaciones", "Administrar organizaciones"),
             (SecurityPermissions.ClientsRead, "Clientes", "Consultar clientes"),
             (SecurityPermissions.ClientsWrite, "Clientes", "Administrar clientes"),
+            (SecurityPermissions.DocumentsRead, "Documentos", "Consultar documentos de clientes, servicios y personal"),
+            (SecurityPermissions.DocumentsWrite, "Documentos", "Administrar documentos de clientes, servicios y personal"),
             (SecurityPermissions.WorkforceRead, "Personal", "Consultar personal operativo"),
             (SecurityPermissions.WorkforceWrite, "Personal", "Administrar personal operativo"),
             (SecurityPermissions.PlanningRead, "Planeación", "Consultar posiciones y turnos"),

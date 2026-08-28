@@ -5,6 +5,7 @@ import { ClientApiService } from '../../../clients/data-access/client-api.servic
 import { Client, ManagedService, Organization } from '../../../clients/data-access/client.models';
 import { RequestApiService } from '../../data-access/request-api.service';
 import {
+  ExecuteOperationalRequest,
   OperationalRequest,
   OperationalRequestPriority,
   OperationalRequestStatus,
@@ -47,6 +48,28 @@ export class RequestsPage implements OnInit {
   protected readonly selectedRequest = computed(
     () => this.requests().find((request) => request.idOperationalRequest === this.selectedRequestId()) ?? null,
   );
+  protected readonly workflowColumns = computed<RequestWorkflowColumn[]>(() =>
+    [
+      { status: 'Draft' as const, label: 'Borrador', hint: 'Pendientes de enviar' },
+      { status: 'Submitted' as const, label: 'Enviadas', hint: 'Listas para revisar' },
+      { status: 'InReview' as const, label: 'En revisión', hint: 'Requieren decisión' },
+      { status: 'Approved' as const, label: 'Aprobadas', hint: 'Listas para ejecutar' },
+      { status: 'Completed' as const, label: 'Completadas', hint: 'Cerradas correctamente' },
+    ].map((column) => ({
+      ...column,
+      requests: this.requests().filter((request) => request.status === column.status),
+    })),
+  );
+  protected readonly overdueRequests = computed(() => {
+    const today = this.today();
+    return this.requests().filter((request) =>
+      Boolean(
+        request.neededByDate &&
+        request.neededByDate < today &&
+        ['Submitted', 'InReview', 'Approved'].includes(request.status),
+      ),
+    ).length;
+  });
 
   protected readonly requestTypes: readonly { value: OperationalRequestType; label: string }[] = [
     { value: 'NewClient', label: 'Alta de cliente' },
@@ -92,6 +115,11 @@ export class RequestsPage implements OnInit {
     resolutionNotes: [''],
   });
 
+  protected readonly executionForm = this.formBuilder.nonNullable.group({
+    executionNotes: [''],
+    executionPayload: [''],
+  });
+
   ngOnInit() {
     this.loadOrganizations();
   }
@@ -134,6 +162,11 @@ export class RequestsPage implements OnInit {
   }
 
   protected applySearch() {
+    this.loadRequests();
+  }
+
+  protected filterByStatus(status: OperationalRequestStatus | '') {
+    this.filterStatus.set(status);
     this.loadRequests();
   }
 
@@ -197,6 +230,10 @@ export class RequestsPage implements OnInit {
       status: request.status,
       resolutionNotes: request.resolutionNotes ?? '',
     });
+    this.executionForm.patchValue({
+      executionNotes: request.resolutionNotes ?? '',
+      executionPayload: this.executionPayloadExample(request.requestType),
+    });
 
     if (request.idClient) {
       this.selectedClientId.set(request.idClient);
@@ -249,6 +286,78 @@ export class RequestsPage implements OnInit {
       });
   }
 
+  protected advanceRequest(request: OperationalRequest) {
+    const status = this.nextStatus(request);
+
+    if (!status) {
+      return;
+    }
+
+    this.updateRequestStatus(
+      request,
+      status,
+      `Avance rápido desde tablero: ${this.labelForStatus(status)}.`,
+    );
+  }
+
+  protected rejectRequest(request: OperationalRequest) {
+    this.updateRequestStatus(request, 'Rejected', 'Rechazada desde tablero operativo.');
+  }
+
+  protected executeRequest(request: OperationalRequest = this.selectedRequest()!) {
+    const organizationId = this.selectedOrganizationId();
+
+    if (!organizationId || !request) {
+      return;
+    }
+
+    const executionPayload = this.buildExecutionPayload();
+    if (!executionPayload) {
+      return;
+    }
+
+    this.beginSave();
+
+    this.api
+      .executeRequest(request.idOperationalRequest, {
+        idOrganization: organizationId,
+        executionNotes: this.emptyToNull(this.executionForm.controls.executionNotes.value),
+        ...executionPayload,
+      })
+      .subscribe({
+        next: (result) => {
+          const entityLabel = result.executedEntityKind && result.executedEntityId
+            ? ` (${result.executedEntityKind}: ${result.executedEntityId})`
+            : '';
+          this.message.set(`${result.outcome}${entityLabel}`);
+          this.selectedRequestId.set(result.request.idOperationalRequest);
+          this.statusForm.patchValue({
+            idOperationalRequest: result.request.idOperationalRequest,
+            status: result.request.status,
+            resolutionNotes: result.request.resolutionNotes ?? '',
+          });
+          this.loadRequests();
+        },
+        error: (error: HttpErrorResponse) => this.setError(error, 'No se pudo ejecutar la solicitud.'),
+        complete: () => this.saving.set(false),
+      });
+  }
+
+  protected nextStatus(request: OperationalRequest): OperationalRequestStatus | null {
+    switch (request.status) {
+      case 'Draft':
+        return 'Submitted';
+      case 'Submitted':
+        return 'InReview';
+      case 'InReview':
+        return 'Approved';
+      case 'Approved':
+        return 'Completed';
+      default:
+        return null;
+    }
+  }
+
   protected labelForType(value: OperationalRequestType) {
     return this.requestTypes.find((item) => item.value === value)?.label ?? value;
   }
@@ -259,6 +368,127 @@ export class RequestsPage implements OnInit {
 
   protected labelForPriority(value: OperationalRequestPriority) {
     return this.priorities.find((item) => item.value === value)?.label ?? value;
+  }
+
+  protected executionPayloadExample(type: OperationalRequestType | undefined = this.selectedRequest()?.requestType) {
+    switch (type) {
+      case 'NewClient':
+        return JSON.stringify({
+          client: {
+            codeClient: 'CLI-NUEVO',
+            legalName: 'Razón Social del Cliente S.A. de C.V.',
+            tradeName: 'Cliente Comercial',
+            rfc: 'XAXX010101000',
+            nationality: 'Mexicana',
+            taxActivity: null,
+            taxAddress: 'Domicilio fiscal pendiente',
+            publicRegistryDate: null,
+            commercialRegistryFolio: null,
+            employerRegistrationNumber: null,
+            incorporationDate: null,
+            incorporationDeedNumber: null,
+            legalRepresentativeInstrumentNumber: null,
+          },
+          clientSite: {
+            codeClientSite: 'SEDE-01',
+            name: 'Sede principal',
+            street: 'Calle pendiente',
+            exteriorNumber: null,
+            interiorNumber: null,
+            neighborhood: null,
+            municipality: 'Municipio',
+            state: 'Estado',
+            postalCode: '00000',
+            countryCode: 'MX',
+            accessInstructions: null,
+            timeZoneId: 'America/Mexico_City',
+          },
+        }, null, 2);
+      case 'NewService':
+        return JSON.stringify({
+          clientSite: {
+            codeClientSite: 'SEDE-01',
+            name: 'Sede operativa',
+            street: 'Calle pendiente',
+            exteriorNumber: null,
+            interiorNumber: null,
+            neighborhood: null,
+            municipality: 'Municipio',
+            state: 'Estado',
+            postalCode: '00000',
+            countryCode: 'MX',
+            accessInstructions: null,
+            timeZoneId: 'America/Mexico_City',
+          },
+          service: {
+            idClientSite: null,
+            idServiceContract: null,
+            codeService: 'SRV-NUEVO',
+            name: 'Nuevo servicio',
+            description: 'Servicio solicitado desde flujo operativo',
+            invoiceDescription: null,
+            startDate: this.today(),
+            endDate: null,
+          },
+          serviceConfiguration: {
+            effectiveFromDate: this.today(),
+            effectiveToDate: null,
+            requiredWorkerCount: 1,
+            hoursPerDay: 8,
+            daysPerWeek: 6,
+            averageMonthlyHours: 208,
+            preparationLeadDays: 3,
+            workScheduleDescription: 'Turno por definir',
+            specificInstructions: null,
+            monthlyPrice: 0,
+            currencyCode: 'MXN',
+            isTaxIncluded: false,
+          },
+        }, null, 2);
+      case 'ServiceChange':
+        return JSON.stringify({
+          serviceConfiguration: {
+            effectiveFromDate: this.today(),
+            effectiveToDate: null,
+            requiredWorkerCount: 1,
+            hoursPerDay: 8,
+            daysPerWeek: 6,
+            averageMonthlyHours: 208,
+            preparationLeadDays: 3,
+            workScheduleDescription: 'Nueva configuración solicitada',
+            specificInstructions: null,
+            monthlyPrice: 0,
+            currencyCode: 'MXN',
+            isTaxIncluded: false,
+          },
+        }, null, 2);
+      case 'StaffChange':
+        return JSON.stringify({
+          staffAssignment: {
+            idEmployee: '00000000-0000-0000-0000-000000000000',
+            idPosition: '00000000-0000-0000-0000-000000000000',
+            assignmentType: 'Primary',
+            startDate: this.today(),
+            endDate: null,
+            isPrimary: true,
+            notes: null,
+          },
+        }, null, 2);
+      case 'CoverageSupport':
+        return JSON.stringify({
+          coverage: {
+            idScheduledShift: '00000000-0000-0000-0000-000000000000',
+            idReplacementEmployee: '00000000-0000-0000-0000-000000000000',
+            coverageStartTime: '08:00:00',
+            coverageEndTime: '16:00:00',
+            isOvernight: false,
+            status: 'Confirmed',
+            notes: null,
+          },
+        }, null, 2);
+      default:
+        return '{}';
+    }
   }
 
   private loadOrganizations() {
@@ -337,6 +567,62 @@ export class RequestsPage implements OnInit {
     this.error.set('');
   }
 
+  private buildExecutionPayload(): Partial<ExecuteOperationalRequest> | null {
+    const rawPayload = this.executionForm.controls.executionPayload.value.trim();
+
+    if (!rawPayload) {
+      return {};
+    }
+
+    try {
+      const parsed = JSON.parse(rawPayload) as Partial<ExecuteOperationalRequest>;
+      if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object') {
+        this.error.set('Los datos de ejecución deben ser un objeto JSON.');
+        return null;
+      }
+
+      return parsed;
+    } catch {
+      this.error.set('Los datos de ejecución no tienen formato JSON válido.');
+      return null;
+    }
+  }
+
+  private updateRequestStatus(
+    request: OperationalRequest,
+    status: OperationalRequestStatus,
+    resolutionNotes: string,
+  ) {
+    const organizationId = this.selectedOrganizationId();
+
+    if (!organizationId) {
+      return;
+    }
+
+    this.beginSave();
+
+    this.api
+      .changeStatus(request.idOperationalRequest, {
+        idOrganization: organizationId,
+        status,
+        resolutionNotes,
+      })
+      .subscribe({
+        next: (updated) => {
+          this.message.set(`Solicitud ${updated.codeOperationalRequest} actualizada a ${this.labelForStatus(updated.status)}.`);
+          this.selectedRequestId.set(updated.idOperationalRequest);
+          this.statusForm.patchValue({
+            idOperationalRequest: updated.idOperationalRequest,
+            status: updated.status,
+            resolutionNotes: updated.resolutionNotes ?? '',
+          });
+          this.loadRequests();
+        },
+        error: (error: HttpErrorResponse) => this.setError(error, 'No se pudo avanzar la solicitud.'),
+        complete: () => this.saving.set(false),
+      });
+  }
+
   private setError(error: HttpErrorResponse, fallback: string) {
     this.loading.set(false);
     this.saving.set(false);
@@ -348,8 +634,19 @@ export class RequestsPage implements OnInit {
     return cleanValue.length > 0 ? cleanValue : null;
   }
 
+  protected today() {
+    return new Date().toISOString().slice(0, 10);
+  }
+
   private nextRequestCode() {
     const stamp = new Date().toISOString().replace(/[-:TZ.]/g, '').slice(0, 12);
     return `SOL-${stamp}`;
   }
 }
+
+type RequestWorkflowColumn = {
+  readonly status: OperationalRequestStatus;
+  readonly label: string;
+  readonly hint: string;
+  readonly requests: readonly OperationalRequest[];
+};

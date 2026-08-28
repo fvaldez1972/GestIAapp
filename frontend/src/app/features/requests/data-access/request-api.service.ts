@@ -3,6 +3,8 @@ import { inject, Injectable } from '@angular/core';
 import {
   ChangeOperationalRequestStatus,
   CreateOperationalRequest,
+  ExecuteOperationalRequest,
+  ExecuteOperationalRequestResult,
   OperationalRequest,
   OperationalRequestInput,
   OperationalRequestStatus,
@@ -53,5 +55,9 @@ export class RequestApiService {
 
   changeStatus(idOperationalRequest: string, request: ChangeOperationalRequestStatus) {
     return this.http.patch<OperationalRequest>(`${this.baseUrl}/${idOperationalRequest}/status`, request);
+  }
+
+  executeRequest(idOperationalRequest: string, request: ExecuteOperationalRequest) {
+    return this.http.post<ExecuteOperationalRequestResult>(`${this.baseUrl}/${idOperationalRequest}/execute`, request);
   }
 }

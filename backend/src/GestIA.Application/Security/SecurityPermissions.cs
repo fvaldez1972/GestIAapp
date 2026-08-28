@@ -7,6 +7,8 @@ public static class SecurityPermissions
     public const string OrganizationsWrite = "ORGANIZATIONS.WRITE";
     public const string ClientsRead = "CLIENTS.READ";
     public const string ClientsWrite = "CLIENTS.WRITE";
+    public const string DocumentsRead = "DOCUMENTS.READ";
+    public const string DocumentsWrite = "DOCUMENTS.WRITE";
     public const string WorkforceRead = "WORKFORCE.READ";
     public const string WorkforceWrite = "WORKFORCE.WRITE";
     public const string PlanningRead = "PLANNING.READ";

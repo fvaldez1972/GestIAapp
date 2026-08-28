@@ -1,6 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { finalize } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
 
@@ -13,9 +13,12 @@ import { AuthService } from '../../../../core/auth/auth.service';
 export class LoginPage {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
 
   protected readonly loading = signal(false);
-  protected readonly error = signal('');
+  protected readonly error = signal(this.route.snapshot.queryParamMap.has('sessionExpired')
+    ? 'Tu sesión expiró. Inicia sesión otra vez para continuar.'
+    : '');
   protected readonly form = new FormGroup({
     email: new FormControl('admin@gestia.local', {
       nonNullable: true,

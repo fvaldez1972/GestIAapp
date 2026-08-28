@@ -38,6 +38,26 @@ public sealed class AssignmentRepository(GestIaDbContext dbContext) : IAssignmen
             position => position.IdService == idService && position.IdPosition == idPosition,
             cancellationToken);
 
+    public async Task<IReadOnlyList<EmployeeDocument>> ListEmployeeDocumentsAsync(
+        Guid idEmployee,
+        CancellationToken cancellationToken) =>
+        await dbContext.EmployeeDocuments
+            .AsNoTracking()
+            .Where(document => document.IdEmployee == idEmployee)
+            .OrderBy(document => document.DocumentType)
+            .ThenByDescending(document => document.ReceivedDate)
+            .ToArrayAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<EmployeeEvaluation>> ListEmployeeEvaluationsAsync(
+        Guid idEmployee,
+        CancellationToken cancellationToken) =>
+        await dbContext.EmployeeEvaluations
+            .AsNoTracking()
+            .Where(evaluation => evaluation.IdEmployee == idEmployee)
+            .OrderByDescending(evaluation => evaluation.EvaluatedDate)
+            .ThenBy(evaluation => evaluation.EvaluationType)
+            .ToArrayAsync(cancellationToken);
+
     public async Task<IReadOnlyList<ServiceAssignment>> ListAssignmentsAsync(
         Guid idService,
         CancellationToken cancellationToken) =>

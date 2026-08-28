@@ -74,6 +74,12 @@ export class OverviewPage {
 
   protected readonly coveredHours = computed(() =>
     Math.round(((this.operationsSummary()?.coveredMinutes ?? 0) / 60) * 10) / 10);
+  protected readonly highestRiskServices = computed(() =>
+    [...this.serviceSummaries()]
+      .filter((service) => service.openIncidents > 0 || service.absentAttendance > 0 || service.lateAttendance > 0)
+      .sort((left, right) => this.riskScore(right) - this.riskScore(left))
+      .slice(0, 4),
+  );
 
   protected readonly quickActions = [
     {
@@ -151,5 +157,13 @@ export class OverviewPage {
         },
         complete: () => this.loading.set(false),
       });
+  }
+
+  protected serviceRiskSummary(service: OperationsServiceSummary) {
+    return `${service.openIncidents} incidencia(s) · ${service.absentAttendance} falta(s) · ${service.lateAttendance} retardo(s)`;
+  }
+
+  private riskScore(service: OperationsServiceSummary) {
+    return service.criticalIncidents * 5 + service.openIncidents * 3 + service.absentAttendance * 2 + service.lateAttendance;
   }
 }

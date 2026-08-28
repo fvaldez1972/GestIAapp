@@ -8,6 +8,9 @@
     <button class="gi-button gi-button--secondary" type="button" [disabled]="loading()" (click)="loadEvents()">
       {{ loading() ? 'Actualizando…' : 'Actualizar' }}
     </button>
+    <button class="gi-button gi-button--primary" type="button" [disabled]="events().length === 0" (click)="exportCsv()">
+      Exportar CSV
+    </button>
   </article>
 
   <section class="gi-card audit-filters" aria-label="Filtros de auditoría">

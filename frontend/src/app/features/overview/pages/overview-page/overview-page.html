@@ -37,6 +37,33 @@
   }
 </section>
 
+<section class="operations-focus" aria-label="Focos de atención operativa">
+  <article class="focus-panel">
+    <div>
+      <span class="kicker">Atención sugerida</span>
+      <h2>Servicios con señales de riesgo</h2>
+      <p>Ordenados por incidencias, faltas y retardos capturados en operación.</p>
+    </div>
+
+    <div class="focus-list">
+      @for (service of highestRiskServices(); track service.idService) {
+        <a class="focus-item" routerLink="/reportes">
+          <span>
+            <strong>{{ service.codeService }} · {{ service.serviceName }}</strong>
+            <small>{{ service.clientName }}</small>
+          </span>
+          <em>{{ serviceRiskSummary(service) }}</em>
+        </a>
+      } @empty {
+        <div class="focus-empty">
+          <strong>Sin focos rojos visibles</strong>
+          <span>Cuando aparezcan incidencias, faltas o retardos, se priorizarán aquí.</span>
+        </div>
+      }
+    </div>
+  </article>
+</section>
+
 <section class="next-step">
   <div>
     <span class="kicker">Estado actual</span>

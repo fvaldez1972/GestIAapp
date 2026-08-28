@@ -18,6 +18,18 @@ public sealed class ReportsService(IReportsRepository repository) : IReportsServ
         return repository.GetOperationsByServiceAsync(query, cancellationToken);
     }
 
+    public Task<IReadOnlyList<WorkforceEligibilityResponse>> GetWorkforceEligibilityAsync(
+        WorkforceEligibilityQuery query,
+        CancellationToken cancellationToken)
+    {
+        if (query.IdOrganization == Guid.Empty)
+        {
+            throw new ArgumentException("La organización es obligatoria.", nameof(query));
+        }
+
+        return repository.GetWorkforceEligibilityAsync(query, cancellationToken);
+    }
+
     private static void Validate(OperationsSummaryQuery query)
     {
         if (query.IdOrganization == Guid.Empty)

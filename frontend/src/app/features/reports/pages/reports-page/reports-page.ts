@@ -9,6 +9,7 @@ import {
   OperationsServiceSummary,
   OperationsSummary,
   Organization,
+  WorkforceEligibilityReport,
 } from '../../../clients/data-access/client.models';
 
 @Component({
@@ -26,6 +27,7 @@ export class ReportsPage implements OnInit {
   protected readonly services = signal<readonly ManagedService[]>([]);
   protected readonly summary = signal<OperationsSummary | null>(null);
   protected readonly serviceSummaries = signal<readonly OperationsServiceSummary[]>([]);
+  protected readonly workforceEligibility = signal<readonly WorkforceEligibilityReport[]>([]);
   protected readonly selectedOrganizationId = signal('');
   protected readonly selectedClientId = signal('');
   protected readonly selectedServiceId = signal('');
@@ -54,6 +56,12 @@ export class ReportsPage implements OnInit {
 
   protected readonly coveredHours = computed(() =>
     Math.round(((this.summary()?.coveredMinutes ?? 0) / 60) * 10) / 10,
+  );
+  protected readonly eligibleEmployees = computed(
+    () => this.workforceEligibility().filter((employee) => employee.isEligible).length,
+  );
+  protected readonly nonEligibleEmployees = computed(
+    () => this.workforceEligibility().filter((employee) => !employee.isEligible).length,
   );
 
   protected readonly reportCards = computed(() => {
@@ -89,6 +97,16 @@ export class ReportsPage implements OnInit {
         label: 'Coberturas cerradas',
         value: summary?.completedCoverages ?? 0,
         detail: `${summary?.confirmedCoverages ?? 0} confirmadas`,
+      },
+      {
+        label: 'Personal elegible',
+        value: this.eligibleEmployees(),
+        detail: 'Disponible con reglas actuales',
+      },
+      {
+        label: 'Personal no elegible',
+        value: this.nonEligibleEmployees(),
+        detail: 'Requiere revisión documental',
       },
     ];
   });
@@ -166,6 +184,8 @@ export class ReportsPage implements OnInit {
       ['Coberturas confirmadas', summary.confirmedCoverages],
       ['Coberturas completadas', summary.completedCoverages],
       ['Minutos cubiertos', summary.coveredMinutes],
+      ['Personal elegible', this.eligibleEmployees()],
+      ['Personal no elegible', this.nonEligibleEmployees()],
       [],
       ['Servicio', 'Cliente', 'Asistencias', 'Presentes', 'Retardos', 'Faltas', 'Incidencias abiertas', 'Críticas', 'Coberturas', 'Horas cubiertas'],
       ...this.serviceSummaries().map((service) => [
@@ -179,6 +199,14 @@ export class ReportsPage implements OnInit {
         service.criticalIncidents,
         service.coverageRecords,
         Math.round((service.coveredMinutes / 60) * 10) / 10,
+      ]),
+      [],
+      ['Empleado', 'Puesto', 'Elegible', 'Razones'],
+      ...this.workforceEligibility().map((employee) => [
+        `${employee.codeEmployee} · ${employee.fullName}`,
+        employee.jobTitle ?? '',
+        employee.isEligible ? 'Sí' : 'No',
+        employee.reasons.join(' | '),
       ]),
     ];
 
@@ -239,14 +267,16 @@ export class ReportsPage implements OnInit {
               this.fromDate(),
               this.toDate(),
             ),
+            workforceEligibility: this.api.getWorkforceEligibility(organizationId, this.toDate()),
             services: serviceRequests.length > 0 ? forkJoin(serviceRequests) : of([] as readonly ManagedService[][]),
           });
         }),
       )
       .subscribe({
-        next: ({ report, serviceSummaries, services }) => {
+        next: ({ report, serviceSummaries, workforceEligibility, services }) => {
           this.summary.set(report);
           this.serviceSummaries.set(serviceSummaries);
+          this.workforceEligibility.set(workforceEligibility);
           this.services.set(services.flat());
         },
         error: (error: HttpErrorResponse) => this.setError(error, 'No se pudo cargar el reporte operativo.'),
@@ -306,13 +336,15 @@ export class ReportsPage implements OnInit {
               this.fromDate(),
               this.toDate(),
             ),
+            workforceEligibility: this.api.getWorkforceEligibility(organizationId, this.toDate()),
           }),
         ),
       )
       .subscribe({
-        next: ({ summary, serviceSummaries }) => {
+        next: ({ summary, serviceSummaries, workforceEligibility }) => {
           this.summary.set(summary);
           this.serviceSummaries.set(serviceSummaries);
+          this.workforceEligibility.set(workforceEligibility);
         },
         error: (error: HttpErrorResponse) => this.setError(error, 'No se pudo actualizar el reporte.'),
         complete: () => this.loading.set(false),

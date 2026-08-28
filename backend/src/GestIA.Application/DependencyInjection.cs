@@ -1,6 +1,7 @@
 using GestIA.Application.Audit;
 using GestIA.Application.Clients;
 using GestIA.Application.Assignments;
+using GestIA.Application.Documents;
 using GestIA.Application.Operations;
 using GestIA.Application.Organizations;
 using GestIA.Application.Planning;
@@ -22,6 +23,7 @@ public static class DependencyInjection
         services.AddScoped<IClientService, ClientService>();
         services.AddScoped<IClientSiteService, ClientSiteService>();
         services.AddScoped<IClientContactService, ClientContactService>();
+        services.AddScoped<IBusinessDocumentService, BusinessDocumentService>();
         services.AddScoped<IServiceManagementService, ServiceManagementService>();
         services.AddScoped<IWorkforceService, WorkforceService>();
         services.AddScoped<IPlanningService, PlanningService>();

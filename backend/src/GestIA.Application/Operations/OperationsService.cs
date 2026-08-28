@@ -49,7 +49,31 @@ public sealed class OperationsService(
         }
         else
         {
-            existing.UpdateProfile(profile, actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
+            var authorizationErrors = new Dictionary<string, string[]>();
+            var correctionAuthorizationNotes = InputValidation.Optional(
+                request.CorrectionAuthorizationNotes,
+                nameof(request.CorrectionAuthorizationNotes),
+                1000,
+                authorizationErrors);
+            InputValidation.ThrowIfInvalid(authorizationErrors);
+
+            if (AttendanceChanged(existing, profile) && string.IsNullOrWhiteSpace(correctionAuthorizationNotes))
+            {
+                throw new RequestValidationException(new Dictionary<string, string[]>
+                {
+                    [nameof(request.CorrectionAuthorizationNotes)] =
+                        ["Para corregir una asistencia ya capturada necesitas indicar la autorización o motivo de corrección."]
+                });
+            }
+
+            existing.UpdateProfile(
+                profile with
+                {
+                    Notes = BuildAttendanceCorrectionNotes(profile.Notes, correctionAuthorizationNotes)
+                },
+                actorContext.ActorId,
+                actorContext.ActorName,
+                clock.UtcNow);
         }
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -375,6 +399,26 @@ public sealed class OperationsService(
         var normalizedNotes = InputValidation.Optional(notes, nameof(notes), 1000, errors);
         InputValidation.ThrowIfInvalid(errors);
         return new AttendanceRecordProfile(status, actualStartTime, actualEndTime, minutesLate, normalizedNotes);
+    }
+
+    private static bool AttendanceChanged(AttendanceRecord record, AttendanceRecordProfile profile) =>
+        record.Status != profile.Status ||
+        record.ActualStartTime != profile.ActualStartTime ||
+        record.ActualEndTime != profile.ActualEndTime ||
+        record.MinutesLate != profile.MinutesLate ||
+        !string.Equals(record.Notes, profile.Notes, StringComparison.Ordinal);
+
+    private static string? BuildAttendanceCorrectionNotes(string? notes, string? correctionAuthorizationNotes)
+    {
+        if (string.IsNullOrWhiteSpace(correctionAuthorizationNotes))
+        {
+            return notes;
+        }
+
+        var correctionNote = $"Corrección autorizada: {correctionAuthorizationNotes.Trim()}";
+        return string.IsNullOrWhiteSpace(notes)
+            ? correctionNote
+            : $"{notes.Trim()} | {correctionNote}";
     }
 
     private static IncidentProfile ValidateIncidentProfile(

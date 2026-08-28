@@ -50,6 +50,14 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'documentos',
+        title: 'GestIA | Documentos',
+        loadComponent: () =>
+          import('./features/documents/pages/documents-page/documents-page').then(
+            (component) => component.DocumentsPage,
+          ),
+      },
+      {
         path: 'planeacion',
         title: 'GestIA | Planeación',
         loadComponent: () =>

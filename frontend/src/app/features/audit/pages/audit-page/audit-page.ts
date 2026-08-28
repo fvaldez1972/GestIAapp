@@ -107,6 +107,31 @@ export class AuditPage implements OnInit {
     return 'status-updated';
   }
 
+  protected exportCsv() {
+    const rows = [
+      ['Fecha', 'Entidad', 'Registro', 'IdRegistro', 'Acción', 'Usuario', 'Detalle', 'Estado'],
+      ...this.events().map((event) => [
+        event.occurredAt,
+        event.entity,
+        event.entityName,
+        event.recordId,
+        event.action,
+        event.actorName,
+        event.details ?? '',
+        event.active ? 'Activo' : 'Inactivo',
+      ]),
+    ];
+    const csv = rows.map((row) => row.map((value) => `"${String(value).replaceAll('"', '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const entity = this.selectedEntity() || 'todas';
+    link.href = url;
+    link.download = `gestia-auditoria-${entity}-${this.page()}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
   private loadOrganizations() {
     this.loading.set(true);
     this.error.set('');

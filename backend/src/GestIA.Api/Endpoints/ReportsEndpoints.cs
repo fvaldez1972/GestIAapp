@@ -45,6 +45,24 @@ public static class ReportsEndpoints
             .RequirePermission(SecurityPermissions.ReportsRead)
             .WithName("GetOperationsByService");
 
+        group.MapGet("/workforce-eligibility", async (
+            Guid organizationId,
+            DateOnly? referenceDate,
+            string? search,
+            IReportsService service,
+            CancellationToken cancellationToken) =>
+        {
+            var result = await service.GetWorkforceEligibilityAsync(
+                new WorkforceEligibilityQuery(
+                    organizationId,
+                    referenceDate ?? DateOnly.FromDateTime(DateTime.UtcNow),
+                    search),
+                cancellationToken);
+            return Results.Ok(result);
+        })
+            .RequirePermission(SecurityPermissions.ReportsRead)
+            .WithName("GetWorkforceEligibility");
+
         return endpoints;
     }
 }

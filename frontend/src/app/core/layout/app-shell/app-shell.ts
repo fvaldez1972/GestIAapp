@@ -19,6 +19,7 @@ export class AppShell {
   private readonly currentUrl = signal(this.router.url);
   protected readonly navigation = computed(() => this.filterNavigation(GESTIA_NAVIGATION));
   protected readonly breadcrumbs = computed(() => this.resolveBreadcrumbs(this.currentUrl()));
+  protected readonly pageTitle = computed(() => this.breadcrumbs().at(-1) ?? 'GestIA');
 
   constructor() {
     this.router.events
@@ -57,6 +58,10 @@ export class AppShell {
       return ['Gestión', 'Personal'];
     }
 
+    if (url.startsWith('/documentos')) {
+      return ['Gestión', 'Documentos'];
+    }
+
     if (url.startsWith('/planeacion')) {
       return ['Gestión', 'Planeación'];
     }
@@ -79,6 +84,10 @@ export class AppShell {
 
     if (url.startsWith('/reportes')) {
       return ['Control', 'Reportes'];
+    }
+
+    if (url.startsWith('/auditoria')) {
+      return ['Control', 'Auditoría'];
     }
 
     return ['GestIA'];

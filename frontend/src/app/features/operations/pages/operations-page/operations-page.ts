@@ -14,6 +14,8 @@ import {
   IncidentSeverity,
   IncidentStatus,
   ManagedService,
+  OperationEvidence,
+  OperationEvidenceType,
   OperationsSummary,
   Organization,
   ScheduledShift,
@@ -42,6 +44,7 @@ export class OperationsPage implements OnInit {
   protected readonly attendance = signal<readonly AttendanceRecord[]>([]);
   protected readonly incidents = signal<readonly Incident[]>([]);
   protected readonly coverages = signal<readonly CoverageRecord[]>([]);
+  protected readonly evidences = signal<readonly OperationEvidence[]>([]);
   protected readonly scheduleVersions = signal<readonly ScheduleVersion[]>([]);
   protected readonly scheduledShifts = signal<readonly ScheduledShift[]>([]);
   protected readonly employees = signal<readonly Employee[]>([]);
@@ -51,9 +54,13 @@ export class OperationsPage implements OnInit {
   protected readonly selectedServiceId = signal('');
   protected readonly selectedIncidentId = signal('');
   protected readonly selectedCoverageId = signal('');
+  protected readonly selectedEvidenceId = signal('');
+  protected readonly selectedAttendanceId = signal('');
+  protected readonly selectedOperationDate = signal(this.today());
   protected readonly activeSection = signal<OperationSection>('asistencia');
   protected readonly loading = signal(false);
   protected readonly saving = signal(false);
+  protected readonly uploadingEvidenceFile = signal(false);
   protected readonly message = signal('');
   protected readonly error = signal('');
 
@@ -95,6 +102,56 @@ export class OperationsPage implements OnInit {
   protected readonly selectedCoverage = computed(
     () => this.coverages().find((coverage) => coverage.idCoverageRecord === this.selectedCoverageId()) ?? null,
   );
+  protected readonly selectedEvidence = computed(
+    () => this.evidences().find((evidence) => evidence.idOperationEvidence === this.selectedEvidenceId()) ?? null,
+  );
+  protected readonly selectedAttendance = computed(
+    () => this.attendance().find((record) => record.idAttendanceRecord === this.selectedAttendanceId()) ?? null,
+  );
+  protected readonly evidenceRelatedOptions = computed(() => {
+    switch (this.activeSection()) {
+      case 'incidencias':
+        return this.incidents().map((incident) => ({
+          value: incident.idIncident,
+          label: `${incident.incidentDate} · ${incident.incidentType} · ${incident.employeeName || 'Servicio'}`,
+        }));
+      case 'cobertura':
+        return this.coverages().map((coverage) => ({
+          value: coverage.idCoverageRecord,
+          label: `${coverage.originalEmployeeName} → ${coverage.replacementEmployeeName} · ${coverage.coverageStartTime}`,
+        }));
+      default:
+        return this.attendance().map((record) => ({
+          value: record.idAttendanceRecord,
+          label: `${record.attendanceDate} · ${record.employeeCode} · ${record.employeeName}`,
+        }));
+    }
+  });
+  protected readonly visibleEvidences = computed(() =>
+    this.evidences().filter((evidence) => this.evidenceSection(evidence) === this.activeSection()),
+  );
+  protected readonly dailyBoard = computed<readonly OperationDayShift[]>(() => {
+    const operationDate = this.selectedOperationDate();
+    return this.scheduledShifts()
+      .filter((shift) => shift.shiftDate === operationDate)
+      .map((shift) => ({
+        shift,
+        attendance: this.attendance().find((record) => record.idScheduledShift === shift.idScheduledShift) ?? null,
+        coverage: this.coverages().find((coverage) => coverage.idScheduledShift === shift.idScheduledShift) ?? null,
+        incidents: this.incidents().filter((incident) => incident.idScheduledShift === shift.idScheduledShift),
+      }));
+  });
+  protected readonly pendingAttendanceCount = computed(
+    () => this.dailyBoard().filter((item) => !item.attendance).length,
+  );
+  protected readonly openDailyIncidents = computed(
+    () =>
+      this.incidents().filter(
+        (incident) =>
+          incident.incidentDate === this.selectedOperationDate() &&
+          (incident.status === 'Open' || incident.status === 'InReview'),
+      ).length,
+  );
 
   protected readonly attendanceStatuses: readonly { value: AttendanceStatus; label: string }[] = [
     { value: 'Present', label: 'Presente' },
@@ -124,6 +181,14 @@ export class OperationsPage implements OnInit {
     { value: 'Cancelled', label: 'Cancelada' },
   ];
 
+  protected readonly evidenceTypes: readonly { value: OperationEvidenceType; label: string }[] = [
+    { value: 'Photo', label: 'Foto' },
+    { value: 'Document', label: 'Documento' },
+    { value: 'Report', label: 'Reporte' },
+    { value: 'Signature', label: 'Firma' },
+    { value: 'Other', label: 'Otro' },
+  ];
+
   protected readonly attendanceForm = this.formBuilder.nonNullable.group({
     idScheduledShift: ['', [Validators.required]],
     status: ['Present' as AttendanceStatus, [Validators.required]],
@@ -131,6 +196,7 @@ export class OperationsPage implements OnInit {
     actualEndTime: [''],
     minutesLate: [0, [Validators.min(0)]],
     notes: [''],
+    correctionAuthorizationNotes: [''],
   });
 
   protected readonly incidentForm = this.formBuilder.nonNullable.group({
@@ -153,12 +219,24 @@ export class OperationsPage implements OnInit {
     notes: [''],
   });
 
+  protected readonly evidenceForm = this.formBuilder.nonNullable.group({
+    relatedRecordId: ['', [Validators.required]],
+    evidenceType: ['Photo' as OperationEvidenceType, [Validators.required]],
+    title: ['', [Validators.required, Validators.maxLength(180)]],
+    storageReference: ['', [Validators.required, Validators.maxLength(500)]],
+    notes: [''],
+  });
+
   ngOnInit() {
     this.route.paramMap.subscribe((params) => {
       const section = params.get('section');
 
       if (isOperationSection(section)) {
+        const previousSection = this.activeSection();
         this.activeSection.set(section);
+        if (previousSection !== section) {
+          this.resetEvidenceForm();
+        }
         return;
       }
 
@@ -195,6 +273,46 @@ export class OperationsPage implements OnInit {
     this.loadOperationData();
   }
 
+  protected onOperationDateChange(event: Event) {
+    this.selectedOperationDate.set((event.target as HTMLInputElement).value);
+  }
+
+  protected confirmDailyAttendance() {
+    const context = this.operationContext();
+    const pending = this.dailyBoard().filter((item) => !item.attendance);
+
+    if (!context || pending.length === 0 || !window.confirm(`¿Confirmar ${pending.length} asistencia(s) como presente?`)) {
+      return;
+    }
+
+    this.saving.set(true);
+    this.message.set('');
+    this.error.set('');
+
+    forkJoin(
+      pending.map((item) =>
+        this.api.upsertAttendanceRecord(context.idClient, context.idService, {
+          idOrganization: context.idOrganization,
+          idClient: context.idClient,
+          idService: context.idService,
+          idScheduledShift: item.shift.idScheduledShift,
+          status: 'Present',
+          actualStartTime: item.shift.startTime,
+          actualEndTime: item.shift.endTime,
+          minutesLate: 0,
+          notes: 'Confirmación masiva desde tablero diario.',
+        }),
+      ),
+    ).subscribe({
+      next: () => {
+        this.message.set('Asistencia diaria confirmada correctamente.');
+        this.loadOperationData();
+      },
+      error: (error: HttpErrorResponse) => this.setError(error, 'No se pudo confirmar la asistencia masiva.'),
+      complete: () => this.saving.set(false),
+    });
+  }
+
   protected saveAttendance() {
     const context = this.operationContext();
 
@@ -219,15 +337,46 @@ export class OperationsPage implements OnInit {
         actualEndTime: this.emptyToNull(form.actualEndTime),
         minutesLate: Number(form.minutesLate) || 0,
         notes: this.emptyToNull(form.notes),
+        correctionAuthorizationNotes: this.selectedAttendance()
+          ? this.emptyToNull(form.correctionAuthorizationNotes)
+          : null,
       })
       .subscribe({
         next: () => {
           this.message.set('Asistencia guardada correctamente.');
           this.loadOperationData();
+          this.resetAttendanceForm();
         },
         error: (error: HttpErrorResponse) => this.setError(error, 'No se pudo guardar la asistencia.'),
         complete: () => this.saving.set(false),
       });
+  }
+
+  protected selectAttendance(record: AttendanceRecord) {
+    this.selectedAttendanceId.set(record.idAttendanceRecord);
+    this.attendanceForm.patchValue({
+      idScheduledShift: record.idScheduledShift,
+      status: record.status,
+      actualStartTime: record.actualStartTime?.slice(0, 5) ?? '',
+      actualEndTime: record.actualEndTime?.slice(0, 5) ?? '',
+      minutesLate: record.minutesLate,
+      notes: record.notes ?? '',
+      correctionAuthorizationNotes: '',
+    });
+  }
+
+  protected resetAttendanceForm() {
+    this.selectedAttendanceId.set('');
+    const firstShift = this.scheduledShifts()[0];
+    this.attendanceForm.reset({
+      idScheduledShift: firstShift?.idScheduledShift ?? '',
+      status: 'Present',
+      actualStartTime: firstShift?.startTime?.slice(0, 5) ?? '',
+      actualEndTime: firstShift?.endTime?.slice(0, 5) ?? '',
+      minutesLate: 0,
+      notes: '',
+      correctionAuthorizationNotes: '',
+    });
   }
 
   protected saveIncident() {
@@ -344,6 +493,23 @@ export class OperationsPage implements OnInit {
     });
   }
 
+  protected resolveSelectedIncident() {
+    const selectedIncident = this.selectedIncident();
+
+    if (!selectedIncident) {
+      return;
+    }
+
+    const resolutionNotes = this.incidentForm.controls.resolutionNotes.value.trim();
+    if (!resolutionNotes) {
+      this.error.set('Para cerrar formalmente una incidencia necesitas capturar la resolución.');
+      return;
+    }
+
+    this.incidentForm.patchValue({ status: 'Resolved' });
+    this.saveIncident();
+  }
+
   protected selectCoverage(coverage: CoverageRecord) {
     this.selectedCoverageId.set(coverage.idCoverageRecord);
     this.coverageForm.patchValue({
@@ -371,6 +537,134 @@ export class OperationsPage implements OnInit {
       status: 'Confirmed',
       notes: '',
     });
+  }
+
+  protected saveEvidence() {
+    const context = this.operationContext();
+
+    if (!context || this.evidenceForm.invalid) {
+      this.evidenceForm.markAllAsTouched();
+      return;
+    }
+
+    const form = this.evidenceForm.getRawValue();
+    const relation = this.evidenceRelationPayload(form.relatedRecordId);
+
+    if (!relation) {
+      this.error.set('Selecciona un registro operativo válido para ligar la evidencia.');
+      return;
+    }
+
+    const payload = {
+      idOrganization: context.idOrganization,
+      idClient: context.idClient,
+      idService: context.idService,
+      idAttendanceRecord: relation.idAttendanceRecord,
+      idIncident: relation.idIncident,
+      idCoverageRecord: relation.idCoverageRecord,
+      evidenceType: form.evidenceType,
+      title: form.title.trim(),
+      storageReference: form.storageReference.trim(),
+      notes: this.emptyToNull(form.notes),
+    };
+    const selectedEvidenceId = this.selectedEvidenceId();
+    const request = selectedEvidenceId
+      ? this.api.updateOperationEvidence(context.idClient, context.idService, selectedEvidenceId, payload)
+      : this.api.createOperationEvidence(context.idClient, context.idService, payload);
+
+    this.saving.set(true);
+    this.message.set('');
+    this.error.set('');
+
+    request.subscribe({
+      next: () => {
+        this.message.set(selectedEvidenceId ? 'Evidencia actualizada correctamente.' : 'Evidencia registrada correctamente.');
+        this.resetEvidenceForm();
+        this.loadOperationData();
+      },
+      error: (error: HttpErrorResponse) =>
+        this.setError(error, selectedEvidenceId ? 'No se pudo actualizar la evidencia.' : 'No se pudo registrar la evidencia.'),
+      complete: () => this.saving.set(false),
+    });
+  }
+
+  protected onEvidenceFileSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    this.uploadingEvidenceFile.set(true);
+    this.message.set('');
+    this.error.set('');
+
+    this.api.uploadOperationEvidenceFile(file).subscribe({
+      next: (result) => {
+        this.evidenceForm.patchValue({
+          title: this.evidenceForm.controls.title.value || result.originalFileName,
+          storageReference: result.storageReference,
+        });
+        this.message.set('Archivo cargado correctamente. Guarda la evidencia para ligarlo al registro.');
+      },
+      error: (error: HttpErrorResponse) => this.setError(error, 'No se pudo cargar el archivo.'),
+      complete: () => {
+        this.uploadingEvidenceFile.set(false);
+        input.value = '';
+      },
+    });
+  }
+
+  protected selectEvidence(evidence: OperationEvidence) {
+    this.selectedEvidenceId.set(evidence.idOperationEvidence);
+    this.evidenceForm.patchValue({
+      relatedRecordId: evidence.idAttendanceRecord ?? evidence.idIncident ?? evidence.idCoverageRecord ?? '',
+      evidenceType: evidence.evidenceType,
+      title: evidence.title,
+      storageReference: evidence.storageReference,
+      notes: evidence.notes ?? '',
+    });
+  }
+
+  protected resetEvidenceForm() {
+    this.selectedEvidenceId.set('');
+    this.evidenceForm.reset({
+      relatedRecordId: this.evidenceRelatedOptions()[0]?.value ?? '',
+      evidenceType: 'Photo',
+      title: '',
+      storageReference: '',
+      notes: '',
+    });
+  }
+
+  protected deactivateEvidence(evidence: OperationEvidence) {
+    const context = this.operationContext();
+
+    if (!context) {
+      return;
+    }
+
+    this.saving.set(true);
+    this.message.set('');
+    this.error.set('');
+
+    this.api
+      .deactivateOperationEvidence(
+        context.idOrganization,
+        context.idClient,
+        context.idService,
+        evidence.idOperationEvidence,
+      )
+      .subscribe({
+        next: () => {
+          this.message.set('Evidencia desactivada correctamente.');
+          this.resetEvidenceForm();
+          this.loadOperationData();
+        },
+        error: (error: HttpErrorResponse) => this.setError(error, 'No se pudo desactivar la evidencia.'),
+        complete: () => this.saving.set(false),
+      });
   }
 
   private loadOrganizations() {
@@ -448,17 +742,20 @@ export class OperationsPage implements OnInit {
       attendance: this.api.listAttendanceRecords(organizationId, clientId, serviceId),
       incidents: this.api.listIncidents(organizationId, clientId, serviceId),
       coverages: this.api.listCoverageRecords(organizationId, clientId, serviceId),
+      evidences: this.api.listOperationEvidences(organizationId, clientId, serviceId),
       summary: this.api.getOperationsSummary(organizationId, clientId, serviceId),
       versions: this.api.listScheduleVersions(organizationId, clientId, serviceId),
       employees: this.workforceApi.listEmployees(organizationId, '', 'Active', 1, 100),
     }).subscribe({
-      next: ({ attendance, incidents, coverages, summary, versions, employees }) => {
+      next: ({ attendance, incidents, coverages, evidences, summary, versions, employees }) => {
         this.attendance.set(attendance);
         this.incidents.set(incidents);
         this.coverages.set(coverages);
+        this.evidences.set(evidences);
         this.summary.set(summary);
         this.scheduleVersions.set(versions);
         this.employees.set(employees.items);
+        this.resetEvidenceForm();
         this.loadPublishedShifts();
       },
       error: (error: HttpErrorResponse) => this.setError(error, 'No se pudo cargar la operación del servicio.'),
@@ -470,12 +767,15 @@ export class OperationsPage implements OnInit {
     this.attendance.set([]);
     this.incidents.set([]);
     this.coverages.set([]);
+    this.evidences.set([]);
     this.scheduleVersions.set([]);
     this.scheduledShifts.set([]);
     this.employees.set([]);
     this.summary.set(null);
     this.selectedIncidentId.set('');
+    this.selectedAttendanceId.set('');
     this.selectedCoverageId.set('');
+    this.selectedEvidenceId.set('');
   }
 
   private loadPublishedShifts() {
@@ -521,6 +821,12 @@ export class OperationsPage implements OnInit {
       coverageEndTime: firstShift?.endTime?.slice(0, 5) ?? '16:00',
       isOvernight: firstShift?.isOvernight ?? false,
     });
+
+    if (!this.evidenceForm.controls.relatedRecordId.value) {
+      this.evidenceForm.patchValue({
+        relatedRecordId: this.evidenceRelatedOptions()[0]?.value ?? '',
+      });
+    }
   }
 
   private operationContext() {
@@ -546,12 +852,46 @@ export class OperationsPage implements OnInit {
     return cleanValue.length > 0 ? cleanValue : null;
   }
 
+  private evidenceRelationPayload(relatedRecordId: string) {
+    if (!relatedRecordId) {
+      return null;
+    }
+
+    switch (this.activeSection()) {
+      case 'incidencias':
+        return { idAttendanceRecord: null, idIncident: relatedRecordId, idCoverageRecord: null };
+      case 'cobertura':
+        return { idAttendanceRecord: null, idIncident: null, idCoverageRecord: relatedRecordId };
+      default:
+        return { idAttendanceRecord: relatedRecordId, idIncident: null, idCoverageRecord: null };
+    }
+  }
+
+  private evidenceSection(evidence: OperationEvidence): OperationSection {
+    if (evidence.idIncident) {
+      return 'incidencias';
+    }
+
+    if (evidence.idCoverageRecord) {
+      return 'cobertura';
+    }
+
+    return 'asistencia';
+  }
+
   private today() {
     return new Date().toISOString().slice(0, 10);
   }
 }
 
 type OperationSection = 'asistencia' | 'incidencias' | 'cobertura';
+
+type OperationDayShift = {
+  readonly shift: ScheduledShift;
+  readonly attendance: AttendanceRecord | null;
+  readonly coverage: CoverageRecord | null;
+  readonly incidents: readonly Incident[];
+};
 
 function isOperationSection(value: string | null): value is OperationSection {
   return value === 'asistencia' || value === 'incidencias' || value === 'cobertura';

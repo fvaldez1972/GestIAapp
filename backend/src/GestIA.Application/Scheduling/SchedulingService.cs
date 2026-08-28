@@ -68,14 +68,23 @@ public sealed class SchedulingService(
             throw new ResourceConflictException("No se puede publicar una planeación sin turnos programados.");
         }
 
-        if (await repository.HasPublishedVersionOverlapAsync(
+        var coverageGaps = await FindCoverageGapsAsync(idService, version, shifts, cancellationToken);
+        if (coverageGaps.Length > 0)
+        {
+            throw new ResourceConflictException(
+                $"No se puede publicar la planeación porque hay posiciones sin cubrir. {string.Join(" ", coverageGaps.Take(5))}");
+        }
+
+        var overlappingPublishedVersions = await repository.ListOverlappingPublishedVersionsAsync(
             idService,
             version.PeriodStartDate,
             version.PeriodEndDate,
             idScheduleVersion,
-            cancellationToken))
+            cancellationToken);
+
+        foreach (var publishedVersion in overlappingPublishedVersions)
         {
-            throw new ResourceConflictException("Ya existe una planeación publicada que se traslapa con este periodo.");
+            publishedVersion.MarkSuperseded(actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
         }
 
         version.Publish(actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
@@ -448,6 +457,60 @@ public sealed class SchedulingService(
         {
             throw new ResourceConflictException("El turno debe quedar dentro del periodo de la planeación.");
         }
+    }
+
+    private async Task<string[]> FindCoverageGapsAsync(
+        Guid idService,
+        ScheduleVersion version,
+        IReadOnlyList<ScheduledShift> shifts,
+        CancellationToken cancellationToken)
+    {
+        var patterns = await repository.ListShiftPatternsForServiceAsync(
+            idService,
+            version.PeriodStartDate,
+            version.PeriodEndDate,
+            cancellationToken);
+
+        if (!patterns.Any())
+        {
+            return [];
+        }
+
+        var gaps = new List<string>();
+        for (var shiftDate = version.PeriodStartDate; shiftDate <= version.PeriodEndDate; shiftDate = shiftDate.AddDays(1))
+        {
+            var patternsForDate = patterns
+                .Where(pattern =>
+                    pattern.EffectiveFromDate <= shiftDate &&
+                    (pattern.EffectiveToDate == null || pattern.EffectiveToDate >= shiftDate))
+                .GroupBy(pattern => pattern.IdPosition)
+                .Select(group => group.OrderByDescending(pattern => pattern.EffectiveFromDate).First());
+
+            foreach (var pattern in patternsForDate)
+            {
+                var segments = pattern.Segments
+                    .Where(segment => segment.DayOfWeek == shiftDate.DayOfWeek)
+                    .OrderBy(segment => segment.StartTime);
+
+                foreach (var segment in segments)
+                {
+                    var assigned = shifts.Count(shift =>
+                        shift.IdPosition == pattern.IdPosition &&
+                        shift.ShiftDate == shiftDate &&
+                        shift.StartTime == segment.StartTime &&
+                        shift.EndTime == segment.EndTime &&
+                        shift.IsOvernight == segment.IsOvernight);
+
+                    if (assigned < segment.RequiredWorkerCount)
+                    {
+                        gaps.Add(
+                            $"{shiftDate:yyyy-MM-dd} · {pattern.Position.CodePosition}: faltan {segment.RequiredWorkerCount - assigned} elemento(s) en {segment.StartTime:HH\\:mm}-{segment.EndTime:HH\\:mm}.");
+                    }
+                }
+            }
+        }
+
+        return gaps.ToArray();
     }
 
     private static ScheduleVersionResponse Map(ScheduleVersion version) =>

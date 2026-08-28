@@ -18,6 +18,7 @@ import {
   CreateServicePosition,
   CreateServiceAssignment,
   CreateShiftPattern,
+  FileUploadResponse,
   GenerateScheduledShiftsRequest,
   GenerateScheduledShiftsResponse,
   Incident,
@@ -47,6 +48,7 @@ import {
   ShiftSegment,
   ShiftSegmentInput,
   UpsertAttendanceRecord,
+  WorkforceEligibilityReport,
 } from './client.models';
 
 @Injectable({ providedIn: 'root' })
@@ -557,6 +559,12 @@ export class ClientApiService {
     );
   }
 
+  uploadOperationEvidenceFile(file: File) {
+    const formData = new FormData();
+    formData.append('file', file, file.name);
+    return this.http.post<FileUploadResponse>(`${this.baseUrl}/files/operation-evidence`, formData);
+  }
+
   getOperationsSummary(
     organizationId: string,
     clientId?: string,
@@ -611,5 +619,19 @@ export class ClientApiService {
     }
 
     return this.http.get<readonly OperationsServiceSummary[]>(`${this.baseUrl}/reports/operations-by-service`, { params });
+  }
+
+  getWorkforceEligibility(organizationId: string, referenceDate: string, search = '') {
+    let params = new HttpParams()
+      .set('organizationId', organizationId)
+      .set('referenceDate', referenceDate);
+
+    if (search.trim()) {
+      params = params.set('search', search.trim());
+    }
+
+    return this.http.get<readonly WorkforceEligibilityReport[]>(`${this.baseUrl}/reports/workforce-eligibility`, {
+      params,
+    });
   }
 }

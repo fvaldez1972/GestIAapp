@@ -139,6 +139,28 @@
   gap: .2rem;
 }
 
+.gi-table tr.row-warning {
+  background: #fffaf0;
+}
+
+.soft-status {
+  border-radius: 999rem;
+  display: inline-flex;
+  font-size: .72rem;
+  font-weight: 900;
+  padding: .28rem .6rem;
+}
+
+.soft-status.ok {
+  background: #effaf4;
+  color: #166534;
+}
+
+.soft-status.warning {
+  background: #fff0f0;
+  color: #991b1b;
+}
+
 .empty {
   color: #72809a;
   padding: 1.5rem !important;

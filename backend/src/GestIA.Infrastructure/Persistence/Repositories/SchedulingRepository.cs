@@ -151,6 +151,21 @@ public sealed class SchedulingRepository(GestIaDbContext dbContext) : ISchedulin
                 version.PeriodEndDate >= periodStartDate,
             cancellationToken);
 
+    public async Task<IReadOnlyList<ScheduleVersion>> ListOverlappingPublishedVersionsAsync(
+        Guid idService,
+        DateOnly periodStartDate,
+        DateOnly periodEndDate,
+        Guid excludedScheduleVersionId,
+        CancellationToken cancellationToken) =>
+        await dbContext.ScheduleVersions
+            .Where(version =>
+                version.IdService == idService &&
+                version.Status == ScheduleVersionStatus.Published &&
+                version.IdScheduleVersion != excludedScheduleVersionId &&
+                version.PeriodStartDate <= periodEndDate &&
+                version.PeriodEndDate >= periodStartDate)
+            .ToArrayAsync(cancellationToken);
+
     public Task AddScheduledShiftAsync(ScheduledShift scheduledShift, CancellationToken cancellationToken) =>
         dbContext.ScheduledShifts.AddAsync(scheduledShift, cancellationToken).AsTask();
 

@@ -13,7 +13,8 @@ public sealed record UpsertAttendanceRequest(
     TimeOnly? ActualStartTime,
     TimeOnly? ActualEndTime,
     int MinutesLate,
-    string? Notes);
+    string? Notes,
+    string? CorrectionAuthorizationNotes);
 
 public sealed record AttendanceRecordResponse(
     Guid IdAttendanceRecord,

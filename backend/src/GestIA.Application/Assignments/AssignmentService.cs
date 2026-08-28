@@ -1,4 +1,5 @@
 using GestIA.Application.Common;
+using GestIA.Domain.Planning;
 using GestIA.Domain.Workforce;
 
 namespace GestIA.Application.Assignments;
@@ -26,7 +27,7 @@ public sealed class AssignmentService(
     {
         await EnsureServiceAsync(request.IdOrganization, request.IdClient, request.IdService, cancellationToken);
         var employee = await EnsureActiveEmployeeAsync(request.IdOrganization, request.IdEmployee, cancellationToken);
-        await EnsurePositionAsync(request.IdService, request.IdPosition, cancellationToken);
+        var position = await EnsurePositionAsync(request.IdService, request.IdPosition, cancellationToken);
         var profile = ValidateProfile(
             request.IdPosition,
             request.AssignmentType,
@@ -34,6 +35,7 @@ public sealed class AssignmentService(
             request.EndDate,
             request.IsPrimary,
             request.Notes);
+        await EnsureEmployeeEligibilityAsync(employee, position, profile.StartDate, cancellationToken);
         await EnsureNoOverlapAsync(employee.IdEmployee, request.StartDate, request.EndDate, null, cancellationToken);
 
         var assignment = ServiceAssignment.Create(
@@ -58,7 +60,7 @@ public sealed class AssignmentService(
         await EnsureServiceAsync(request.IdOrganization, request.IdClient, request.IdService, cancellationToken);
         var assignment = await EnsureAssignmentAsync(request.IdService, idServiceAssignment, cancellationToken);
         var employee = await EnsureActiveEmployeeAsync(request.IdOrganization, assignment.IdEmployee, cancellationToken);
-        await EnsurePositionAsync(request.IdService, request.IdPosition, cancellationToken);
+        var position = await EnsurePositionAsync(request.IdService, request.IdPosition, cancellationToken);
         var profile = ValidateProfile(
             request.IdPosition,
             request.AssignmentType,
@@ -66,6 +68,7 @@ public sealed class AssignmentService(
             request.EndDate,
             request.IsPrimary,
             request.Notes);
+        await EnsureEmployeeEligibilityAsync(employee, position, profile.StartDate, cancellationToken);
         await EnsureNoOverlapAsync(
             employee.IdEmployee,
             request.StartDate,
@@ -146,7 +149,7 @@ public sealed class AssignmentService(
         return employee;
     }
 
-    private async Task EnsurePositionAsync(
+    private async Task<Position> EnsurePositionAsync(
         Guid idService,
         Guid idPosition,
         CancellationToken cancellationToken)
@@ -159,9 +162,52 @@ public sealed class AssignmentService(
             });
         }
 
-        if (await repository.GetPositionAsync(idService, idPosition, cancellationToken) is null)
+        return await repository.GetPositionAsync(idService, idPosition, cancellationToken)
+            ?? throw new ResourceNotFoundException("No se encontró la posición solicitada.");
+    }
+
+    private async Task EnsureEmployeeEligibilityAsync(
+        Employee employee,
+        Position position,
+        DateOnly effectiveDate,
+        CancellationToken cancellationToken)
+    {
+        var documents = await repository.ListEmployeeDocumentsAsync(employee.IdEmployee, cancellationToken);
+        var invalidDocuments = documents
+            .Where(document =>
+                document.Status is EmployeeDocumentStatus.Rejected or EmployeeDocumentStatus.Expired ||
+                (document.ExpiresDate.HasValue && document.ExpiresDate.Value < effectiveDate))
+            .Select(document => document.DocumentType.ToString())
+            .Distinct()
+            .ToArray();
+
+        if (invalidDocuments.Length > 0)
         {
-            throw new ResourceNotFoundException("No se encontró la posición solicitada.");
+            throw new ResourceConflictException(
+                $"El empleado no es elegible para asignación: tiene documentos vencidos o rechazados ({string.Join(", ", invalidDocuments)}).");
+        }
+
+        var evaluations = await repository.ListEmployeeEvaluationsAsync(employee.IdEmployee, cancellationToken);
+        var invalidEvaluations = evaluations
+            .Where(evaluation =>
+                evaluation.Result is EmployeeEvaluationResult.NotApproved or EmployeeEvaluationResult.Inconclusive ||
+                (evaluation.ExpiresDate.HasValue && evaluation.ExpiresDate.Value < effectiveDate))
+            .Select(evaluation => evaluation.EvaluationType.ToString())
+            .Distinct()
+            .ToArray();
+
+        if (invalidEvaluations.Length > 0)
+        {
+            throw new ResourceConflictException(
+                $"El empleado no es elegible para asignación: tiene evaluaciones vencidas o no aprobadas ({string.Join(", ", invalidEvaluations)}).");
+        }
+
+        if (!string.IsNullOrWhiteSpace(position.RequiredSkillProfile) &&
+            !string.IsNullOrWhiteSpace(employee.JobTitle) &&
+            !employee.JobTitle.Contains(position.RequiredSkillProfile, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ResourceConflictException(
+                $"El empleado no coincide con el perfil requerido para la posición: {position.RequiredSkillProfile}.");
         }
     }
 

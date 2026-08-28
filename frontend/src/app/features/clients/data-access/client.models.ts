@@ -453,6 +453,7 @@ export type UpsertAttendanceRecord = {
   readonly actualEndTime: string | null;
   readonly minutesLate: number;
   readonly notes: string | null;
+  readonly correctionAuthorizationNotes?: string | null;
 };
 
 export type IncidentSeverity = 'Low' | 'Medium' | 'High' | 'Critical';
@@ -550,6 +551,13 @@ export type OperationEvidenceInput = {
   readonly notes: string | null;
 };
 
+export type FileUploadResponse = {
+  readonly originalFileName: string;
+  readonly contentType: string;
+  readonly size: number;
+  readonly storageReference: string;
+};
+
 export type OperationsSummary = {
   readonly attendanceRecords: number;
   readonly presentAttendance: number;
@@ -571,6 +579,18 @@ export type OperationsServiceSummary = OperationsSummary & {
   readonly idService: string;
   readonly codeService: string;
   readonly serviceName: string;
+};
+
+export type WorkforceEligibilityReport = {
+  readonly idEmployee: string;
+  readonly codeEmployee: string;
+  readonly fullName: string;
+  readonly jobTitle: string | null;
+  readonly isEligible: boolean;
+  readonly reasons: readonly string[];
+  readonly expiredDocuments: number;
+  readonly rejectedDocuments: number;
+  readonly invalidEvaluations: number;
 };
 
 export type PagedResult<T> = {

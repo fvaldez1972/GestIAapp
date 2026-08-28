@@ -16,6 +16,10 @@
   --gestia-surface: #ffffff;
   --gestia-border: #e3e7ef;
   --gestia-muted: #687083;
+  --gestia-success: #16a34a;
+  --gestia-warning: #d97706;
+  --gestia-danger: #dc2626;
+  --gestia-info: #0284c7;
   --gestia-sidebar-width: 17rem;
   --gestia-sidebar-condensed-width: 5rem;
   --gestia-topbar-height: 4.5rem;
@@ -64,6 +68,16 @@ a {
   box-shadow: 0 0.75rem 2rem rgb(16 16 78 / 5%);
 }
 
+.gi-card--interactive {
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.gi-card--interactive:hover {
+  border-color: color-mix(in srgb, var(--gestia-cyan) 42%, var(--gestia-border));
+  box-shadow: 0 1rem 2.5rem rgb(16 16 78 / 8%);
+  transform: translateY(-1px);
+}
+
 .gi-card--hero {
   border-color: color-mix(in srgb, var(--gestia-cyan) 16%, var(--gestia-border));
   background:
@@ -104,6 +118,12 @@ a {
   background: #fff;
 }
 
+.gi-button--danger {
+  color: #991b1b;
+  border-color: rgb(220 38 38 / 20%);
+  background: #fff5f5;
+}
+
 .gi-field {
   display: grid;
   gap: 0.35rem;
@@ -129,6 +149,12 @@ a {
   border-color: color-mix(in srgb, var(--gestia-cyan) 60%, var(--gestia-border));
 }
 
+.gi-input.ng-invalid.ng-touched,
+.gi-field:has(.ng-invalid.ng-touched) .gi-input {
+  border-color: rgb(220 38 38 / 65%);
+  background: #fff8f8;
+}
+
 .gi-badge {
   display: inline-flex;
   width: fit-content;
@@ -139,6 +165,26 @@ a {
   font-size: 0.65rem;
   font-weight: 850;
   background: color-mix(in srgb, var(--gestia-cyan) 14%, white);
+}
+
+.gi-badge--success {
+  color: #166534;
+  background: #dcfce7;
+}
+
+.gi-badge--warning {
+  color: #92400e;
+  background: #fef3c7;
+}
+
+.gi-badge--danger {
+  color: #991b1b;
+  background: #fee2e2;
+}
+
+.gi-badge--muted {
+  color: var(--gestia-muted);
+  background: #f1f5f9;
 }
 
 .gi-alert {
@@ -172,6 +218,14 @@ a {
   text-align: left;
 }
 
+.gi-table tbody tr {
+  transition: background-color 140ms ease;
+}
+
+.gi-table tbody tr:hover {
+  background: #f8fbff;
+}
+
 .gi-table th {
   color: var(--gestia-muted);
   font-size: 0.65rem;
@@ -190,4 +244,58 @@ a {
 
 .gi-empty-state strong {
   color: var(--gestia-navy);
+}
+
+.gi-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem;
+}
+
+.gi-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.gi-section-heading {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.gi-section-heading h2,
+.gi-section-heading h3 {
+  margin: 0;
+  color: var(--gestia-navy);
+}
+
+.gi-section-heading p {
+  margin: 0;
+  color: var(--gestia-muted);
+  line-height: 1.5;
+}
+
+.gi-skeleton {
+  position: relative;
+  overflow: hidden;
+  min-height: 8rem;
+  border-radius: 1rem;
+  background: #eef3f9;
+}
+
+.gi-skeleton::after {
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 62%), transparent);
+  animation: gi-skeleton-shimmer 1.2s infinite;
+  content: '';
+}
+
+@keyframes gi-skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
 }

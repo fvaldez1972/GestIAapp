@@ -60,11 +60,131 @@
 
 .service-context h2,
 .generation-warnings h2,
+.weekly-board h2,
 .planning-card h2,
 .planning-table-card h2 {
   color: #06124a;
   font-size: 1.15rem;
   margin: .2rem 0 0;
+}
+
+.weekly-board {
+  display: grid;
+  gap: 1rem;
+}
+
+.weekly-board > header {
+  align-items: flex-start;
+  border-bottom: 1px solid #e5ecf6;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  padding-bottom: 1rem;
+}
+
+.weekly-board p {
+  color: #65728d;
+  margin: .35rem 0 0;
+}
+
+.planning-compare {
+  background: linear-gradient(180deg, #f0fbff, #fff);
+  border: 1px solid #c7eef9;
+  border-radius: 1rem;
+  color: #435372;
+  display: grid;
+  gap: .25rem;
+  min-width: 17rem;
+  padding: .85rem;
+}
+
+.planning-compare strong {
+  color: #06124a;
+}
+
+.planning-compare small {
+  color: #65728d;
+  line-height: 1.35;
+}
+
+.week-grid {
+  display: grid;
+  gap: .8rem;
+  grid-template-columns: repeat(7, minmax(11rem, 1fr));
+  overflow-x: auto;
+  padding-bottom: .25rem;
+}
+
+.day-card {
+  background: #f7faff;
+  border: 1px solid #dfe8f5;
+  border-radius: 1rem;
+  display: grid;
+  gap: .7rem;
+  min-width: 11rem;
+  padding: .8rem;
+}
+
+.day-card.is-empty {
+  background: #fffaf5;
+  border-color: #ffe0b8;
+}
+
+.day-card > header {
+  display: grid;
+  gap: .2rem;
+}
+
+.day-card > header strong {
+  color: #06124a;
+  text-transform: capitalize;
+}
+
+.day-card > header span {
+  color: #65728d;
+  font-size: .78rem;
+  font-weight: 800;
+}
+
+.day-shifts {
+  display: grid;
+  gap: .5rem;
+}
+
+.day-shift {
+  background: #fff;
+  border: 1px solid #dce8f6;
+  border-radius: .85rem;
+  color: inherit;
+  cursor: pointer;
+  display: grid;
+  gap: .18rem;
+  padding: .65rem;
+  text-align: left;
+}
+
+.day-shift:hover,
+.day-shift:focus-visible {
+  border-color: #9fe5fb;
+  box-shadow: 0 10px 22px rgba(10, 30, 70, .08);
+  outline: none;
+}
+
+.day-shift span {
+  color: #087f9c;
+  font-size: .75rem;
+  font-weight: 900;
+}
+
+.day-shift strong {
+  color: #06124a;
+  font-size: .86rem;
+}
+
+.day-shift small,
+.empty-day {
+  color: #65728d;
+  font-size: .75rem;
 }
 
 .generation-warnings {
@@ -264,6 +384,7 @@
 @media (max-width: 980px) {
   .planning-hero,
   .service-context,
+  .weekly-board > header,
   .planning-table-card > header,
   .table-actions {
     align-items: flex-start;

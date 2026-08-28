@@ -2,6 +2,7 @@ export type NavigationIcon =
   | 'home'
   | 'request'
   | 'customer'
+  | 'document'
   | 'people'
   | 'calendar'
   | 'attendance'
@@ -35,6 +36,7 @@ export const GESTIA_NAVIGATION: readonly NavigationGroup[] = [
       { label: 'Solicitudes', icon: 'request', route: '/solicitudes', permission: 'REQUESTS.READ' },
       { label: 'Clientes', icon: 'customer', route: '/clientes', permission: 'CLIENTS.READ' },
       { label: 'Personal', icon: 'people', route: '/personal', permission: 'WORKFORCE.READ' },
+      { label: 'Documentos', icon: 'document', route: '/documentos', permission: 'DOCUMENTS.READ' },
       { label: 'Planeación', icon: 'calendar', route: '/planeacion', permission: 'PLANNING.READ' },
     ],
   },

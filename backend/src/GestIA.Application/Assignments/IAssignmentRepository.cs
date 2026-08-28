@@ -22,6 +22,14 @@ public interface IAssignmentRepository
         Guid idPosition,
         CancellationToken cancellationToken);
 
+    Task<IReadOnlyList<EmployeeDocument>> ListEmployeeDocumentsAsync(
+        Guid idEmployee,
+        CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<EmployeeEvaluation>> ListEmployeeEvaluationsAsync(
+        Guid idEmployee,
+        CancellationToken cancellationToken);
+
     Task<IReadOnlyList<ServiceAssignment>> ListAssignmentsAsync(
         Guid idService,
         CancellationToken cancellationToken);

@@ -4,14 +4,15 @@
       <span class="brand-mark">G</span>
       <div>
         <strong>GestIA</strong>
-        <span>Consola operativa</span>
+        <span>Gestión inteligente</span>
       </div>
     </div>
 
     <form [formGroup]="form" (ngSubmit)="submit()" class="login-form">
       <div class="form-heading">
-        <p>Acceso MVP</p>
+        <p>Acceso seguro</p>
         <h1 id="login-title">Inicia sesión</h1>
+        <span>Entra a clientes, personal, planeación y operación diaria.</span>
       </div>
 
       @if (error()) {
@@ -29,8 +30,13 @@
       </label>
 
       <button type="submit" [disabled]="!canSubmit()">
-        {{ loading() ? 'Entrando...' : 'Entrar' }}
+        {{ loading() ? 'Validando acceso…' : 'Entrar a GestIA' }}
       </button>
+
+      <aside class="login-help">
+        <strong>Ambiente local</strong>
+        <span>Usa las credenciales de desarrollo mientras cerramos el piloto.</span>
+      </aside>
     </form>
   </section>
 </main>

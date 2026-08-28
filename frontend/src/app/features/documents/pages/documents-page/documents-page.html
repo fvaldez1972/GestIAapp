@@ -1,0 +1,218 @@
+<section class="documents-page">
+  <article class="gi-card gi-card--hero documents-hero">
+    <div>
+      <span class="eyebrow">Archivo documental</span>
+      <h1>Documentos reales</h1>
+      <p>
+        Centraliza contratos, anexos, papelería de empleados, evidencias de evaluaciones y soportes de solicitudes
+        con vencimientos, privacidad y trazabilidad.
+      </p>
+    </div>
+    <button class="gi-button gi-button--secondary" type="button" [disabled]="loading()" (click)="applyFilters()">
+      Actualizar
+    </button>
+  </article>
+
+  <section class="gi-card document-filters" [formGroup]="filterForm" aria-label="Filtros de documentos">
+    <label class="gi-field">
+      Organización
+      <select class="gi-input" [value]="selectedOrganizationId()" (change)="onOrganizationChange($event)">
+        @for (organization of organizations(); track organization.idOrganization) {
+          <option [value]="organization.idOrganization">{{ organization.legalName }}</option>
+        }
+      </select>
+    </label>
+
+    <label class="gi-field">
+      Tipo
+      <select class="gi-input" formControlName="ownerType">
+        <option value="">Todos</option>
+        @for (type of ownerTypes; track type.value) {
+          <option [value]="type.value">{{ type.label }}</option>
+        }
+      </select>
+    </label>
+
+    <label class="gi-field">
+      Estado
+      <select class="gi-input" formControlName="status">
+        <option value="">Todos</option>
+        @for (status of statuses; track status.value) {
+          <option [value]="status.value">{{ status.label }}</option>
+        }
+      </select>
+    </label>
+
+    <label class="gi-field">
+      Buscar
+      <input class="gi-input" type="search" formControlName="search" placeholder="Categoría, título o referencia" />
+    </label>
+
+    <button class="gi-button gi-button--secondary" type="button" [disabled]="loading()" (click)="applyFilters()">
+      Filtrar
+    </button>
+  </section>
+
+  @if (error()) {
+    <p class="gi-alert gi-alert--error">{{ error() }}</p>
+  }
+
+  @if (message()) {
+    <p class="gi-alert gi-alert--success">{{ message() }}</p>
+  }
+
+  <section class="document-summary" aria-label="Resumen documental">
+    <article class="gi-card metric-card">
+      <span>Total</span>
+      <strong>{{ documents().length }}</strong>
+      <small>Documentos visibles</small>
+    </article>
+    <article class="gi-card metric-card">
+      <span>Vencidos</span>
+      <strong>{{ expiredDocuments() }}</strong>
+      <small>Requieren renovación</small>
+    </article>
+    <article class="gi-card metric-card">
+      <span>Sensibles</span>
+      <strong>{{ sensitiveDocuments() }}</strong>
+      <small>Con privacidad reforzada</small>
+    </article>
+  </section>
+
+  <section class="documents-grid">
+    <form class="gi-card document-form" [formGroup]="documentForm" (ngSubmit)="saveDocument()">
+      <header>
+        <span class="eyebrow">{{ selectedDocument() ? 'Editar documento' : 'Nuevo documento' }}</span>
+        <h2>{{ selectedDocument() ? 'Actualizar expediente' : 'Registrar documento' }}</h2>
+        <p>Sube el archivo, define a qué registro pertenece y captura vencimiento si aplica.</p>
+      </header>
+
+      <div class="owner-type-grid">
+        @for (type of ownerTypes; track type.value) {
+          <label class="owner-type" [class.is-selected]="documentForm.controls.ownerType.value === type.value">
+            <input type="radio" formControlName="ownerType" [value]="type.value" (change)="onOwnerTypeChange()" />
+            <strong>{{ type.label }}</strong>
+            <small>{{ type.help }}</small>
+          </label>
+        }
+      </div>
+
+      @if (ownerOptions().length) {
+        <label class="gi-field">
+          Registro relacionado
+          <select class="gi-input" formControlName="ownerId">
+            @for (option of ownerOptions(); track option.value) {
+              <option [value]="option.value">{{ option.label }}</option>
+            }
+          </select>
+        </label>
+      } @else {
+        <label class="gi-field">
+          Id del registro relacionado
+          <input class="gi-input" type="text" formControlName="ownerId" placeholder="Pega aquí el identificador del contrato/evaluación" />
+          <small>Para contratos y evaluaciones todavía usa el ID directo; después lo conectamos a selector contextual.</small>
+        </label>
+      }
+
+      <div class="form-row">
+        <label class="gi-field">
+          Categoría
+          <input class="gi-input" type="text" formControlName="category" placeholder="Contrato, Anexo, INE, Evaluación..." />
+        </label>
+        <label class="gi-field">
+          Estado
+          <select class="gi-input" formControlName="status">
+            @for (status of statuses; track status.value) {
+              <option [value]="status.value">{{ status.label }}</option>
+            }
+          </select>
+        </label>
+      </div>
+
+      <label class="gi-field">
+        Título
+        <input class="gi-input" type="text" formControlName="title" placeholder="Ej. Contrato firmado / INE vigente" />
+      </label>
+
+      <div class="form-row">
+        <label class="gi-field">
+          Emisión
+          <input class="gi-input" type="date" formControlName="issuedDate" />
+        </label>
+        <label class="gi-field">
+          Vencimiento
+          <input class="gi-input" type="date" formControlName="expiresDate" />
+        </label>
+      </div>
+
+      <label class="gi-field">
+        Archivo
+        <input class="gi-input" type="file" [disabled]="uploading()" (change)="uploadFile($event)" />
+        <small>{{ uploading() ? 'Cargando archivo…' : 'Selecciona un archivo para guardarlo en storage local.' }}</small>
+      </label>
+
+      <label class="gi-field">
+        Referencia
+        <input class="gi-input" type="text" formControlName="storageReference" placeholder="Se llena al subir archivo o puedes pegar una URL/ruta" />
+      </label>
+
+      <label class="check-row">
+        <input type="checkbox" formControlName="isSensitive" />
+        Documento sensible
+      </label>
+
+      <label class="gi-field">
+        Notas
+        <textarea class="gi-input" rows="3" formControlName="notes" placeholder="Observaciones, pendiente de validación o instrucciones"></textarea>
+      </label>
+
+      <div class="form-actions">
+        <button class="gi-button gi-button--primary" type="submit" [disabled]="saving() || uploading() || !canWrite()">
+          {{ selectedDocument() ? 'Guardar cambios' : 'Guardar documento' }}
+        </button>
+        @if (selectedDocument()) {
+          <button class="gi-button gi-button--secondary" type="button" [disabled]="saving()" (click)="resetForm()">
+            Nuevo documento
+          </button>
+        }
+      </div>
+    </form>
+
+    <article class="gi-card document-list-card">
+      <header>
+        <div>
+          <span class="eyebrow">Expediente</span>
+          <h2>Documentos registrados</h2>
+        </div>
+        <span class="gi-badge">{{ documents().length }}</span>
+      </header>
+
+      <div class="document-list">
+        @for (document of documents(); track document.idBusinessDocument) {
+          <article class="document-item" [class.is-selected]="document.idBusinessDocument === selectedDocumentId()" [class.is-expired]="document.isExpired">
+            <button type="button" class="document-main" (click)="selectDocument(document)">
+              <span class="document-topline">
+                <i>{{ labelForOwnerType(document.ownerType) }}</i>
+                <em [class.is-sensitive]="document.isSensitive">{{ document.isSensitive ? 'Sensible' : labelForStatus(document.status) }}</em>
+              </span>
+              <strong>{{ document.title }}</strong>
+              <small>{{ document.ownerLabel }} · {{ document.category }}</small>
+              @if (document.expiresDate) {
+                <small [class.warning]="document.isExpired">Vence: {{ document.expiresDate }}</small>
+              }
+            </button>
+            <footer>
+              <button class="mini-action" type="button" (click)="downloadDocument(document)">Descargar</button>
+              <button class="mini-action danger" type="button" [disabled]="!canWrite()" (click)="deactivateDocument(document)">Desactivar</button>
+            </footer>
+          </article>
+        } @empty {
+          <div class="gi-empty-state">
+            <h3>Sin documentos</h3>
+            <p>Sube el primer archivo y relaciónalo con cliente, servicio, empleado o solicitud.</p>
+          </div>
+        }
+      </div>
+    </article>
+  </section>
+</section>

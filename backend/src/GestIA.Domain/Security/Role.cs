@@ -34,4 +34,27 @@ public sealed class Role : AuditableEntity
         role.RegisterCreation(actorId, actorName, occurredAt);
         return role;
     }
+
+    public static Role CreateCustom(
+        Guid? idOrganization,
+        string codeRole,
+        string name,
+        Guid actorId,
+        string actorName,
+        DateTime occurredAt)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(codeRole);
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+
+        var role = new Role
+        {
+            IdRole = Guid.NewGuid(),
+            IdOrganization = idOrganization,
+            CodeRole = codeRole.Trim().ToUpperInvariant(),
+            Name = name.Trim(),
+            IsSystem = false
+        };
+        role.RegisterCreation(actorId, actorName, occurredAt);
+        return role;
+    }
 }

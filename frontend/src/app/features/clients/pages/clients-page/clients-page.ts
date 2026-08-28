@@ -2,6 +2,8 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { finalize, forkJoin } from 'rxjs';
+import { WorkforceApiService } from '../../../workforce/data-access/workforce-api.service';
+import { Employee } from '../../../workforce/data-access/workforce.models';
 import { ClientApiService } from '../../data-access/client-api.service';
 import {
   Client,
@@ -15,15 +17,32 @@ import {
   CreateClientSite,
   CreateManagedService,
   CreateServiceContract,
+  CreateServicePosition,
+  CreateServiceAssignment,
+  CreateShiftPattern,
   ManagedService,
   ManagedServiceInput,
   Organization,
   PagedResult,
+  ServiceAssignment,
+  ServiceAssignmentInput,
+  ServiceAssignmentType,
+  ScheduledShift,
+  ScheduledShiftInput,
+  ScheduleVersion,
+  ScheduleVersionInput,
+  ScheduleVersionStatus,
   ServiceConfiguration,
   ServiceConfigurationInput,
   ServiceContract,
   ServiceContractInput,
   ServiceContractStatus,
+  ServicePosition,
+  ServicePositionInput,
+  ShiftPattern,
+  ShiftPatternInput,
+  ShiftSegment,
+  ShiftSegmentInput,
 } from '../../data-access/client.models';
 
 @Component({
@@ -35,6 +54,7 @@ import {
 })
 export class ClientsPage implements OnInit {
   private readonly api = inject(ClientApiService);
+  private readonly workforceApi = inject(WorkforceApiService);
   private readonly formBuilder = inject(FormBuilder);
 
   protected readonly organizations = signal<readonly Organization[]>([]);
@@ -45,7 +65,17 @@ export class ClientsPage implements OnInit {
   protected readonly contracts = signal<readonly ServiceContract[]>([]);
   protected readonly services = signal<readonly ManagedService[]>([]);
   protected readonly configurations = signal<readonly ServiceConfiguration[]>([]);
+  protected readonly positions = signal<readonly ServicePosition[]>([]);
+  protected readonly shiftPatterns = signal<readonly ShiftPattern[]>([]);
+  protected readonly shiftSegments = signal<readonly ShiftSegment[]>([]);
+  protected readonly assignments = signal<readonly ServiceAssignment[]>([]);
+  protected readonly scheduleVersions = signal<readonly ScheduleVersion[]>([]);
+  protected readonly scheduledShifts = signal<readonly ScheduledShift[]>([]);
+  protected readonly activeEmployees = signal<readonly Employee[]>([]);
   protected readonly selectedService = signal<ManagedService | null>(null);
+  protected readonly selectedPosition = signal<ServicePosition | null>(null);
+  protected readonly selectedShiftPattern = signal<ShiftPattern | null>(null);
+  protected readonly selectedScheduleVersion = signal<ScheduleVersion | null>(null);
   protected readonly result = signal<PagedResult<Client>>({
     items: [],
     totalCount: 0,
@@ -62,6 +92,12 @@ export class ClientsPage implements OnInit {
   protected readonly contractEditorOpen = signal(false);
   protected readonly serviceEditorOpen = signal(false);
   protected readonly configurationEditorOpen = signal(false);
+  protected readonly positionEditorOpen = signal(false);
+  protected readonly shiftPatternEditorOpen = signal(false);
+  protected readonly shiftSegmentEditorOpen = signal(false);
+  protected readonly assignmentEditorOpen = signal(false);
+  protected readonly scheduleVersionEditorOpen = signal(false);
+  protected readonly scheduledShiftEditorOpen = signal(false);
   protected readonly organizationEditorOpen = signal(false);
   protected readonly editingClient = signal<Client | null>(null);
   protected readonly editingSite = signal<ClientSite | null>(null);
@@ -69,11 +105,22 @@ export class ClientsPage implements OnInit {
   protected readonly editingContract = signal<ServiceContract | null>(null);
   protected readonly editingService = signal<ManagedService | null>(null);
   protected readonly editingConfiguration = signal<ServiceConfiguration | null>(null);
+  protected readonly editingPosition = signal<ServicePosition | null>(null);
+  protected readonly editingShiftPattern = signal<ShiftPattern | null>(null);
+  protected readonly editingShiftSegment = signal<ShiftSegment | null>(null);
+  protected readonly editingAssignment = signal<ServiceAssignment | null>(null);
+  protected readonly editingScheduleVersion = signal<ScheduleVersion | null>(null);
+  protected readonly editingScheduledShift = signal<ScheduledShift | null>(null);
   protected readonly message = signal('');
   protected readonly error = signal('');
   protected readonly search = signal('');
   protected readonly selectedClientName = computed(() => this.selectedClient()?.legalName ?? 'Sin cliente seleccionado');
   protected readonly selectedServiceName = computed(() => this.selectedService()?.name ?? 'Sin servicio seleccionado');
+  protected readonly selectedPositionName = computed(() => this.selectedPosition()?.name ?? 'Sin posición seleccionada');
+  protected readonly selectedShiftPatternName = computed(() => this.selectedShiftPattern()?.name ?? 'Sin patrón seleccionado');
+  protected readonly selectedScheduleVersionName = computed(
+    () => this.selectedScheduleVersion()?.name ?? 'Sin planeación seleccionada',
+  );
 
   protected readonly contractStatuses: readonly { value: ServiceContractStatus; label: string }[] = [
     { value: 'Draft', label: 'Borrador' },
@@ -93,6 +140,29 @@ export class ClientsPage implements OnInit {
     { value: 'Payments', label: 'Pagos' },
     { value: 'Purchasing', label: 'Compras' },
     { value: 'InternalSecurity', label: 'Seguridad interna' },
+  ];
+
+  protected readonly weekDays: readonly { value: string; label: string }[] = [
+    { value: 'Monday', label: 'Lunes' },
+    { value: 'Tuesday', label: 'Martes' },
+    { value: 'Wednesday', label: 'Miércoles' },
+    { value: 'Thursday', label: 'Jueves' },
+    { value: 'Friday', label: 'Viernes' },
+    { value: 'Saturday', label: 'Sábado' },
+    { value: 'Sunday', label: 'Domingo' },
+  ];
+
+  protected readonly assignmentTypes: readonly { value: ServiceAssignmentType; label: string }[] = [
+    { value: 'Primary', label: 'Principal' },
+    { value: 'Support', label: 'Apoyo' },
+    { value: 'Relief', label: 'Relevo' },
+    { value: 'TemporaryReplacement', label: 'Sustitución temporal' },
+  ];
+
+  protected readonly scheduleStatuses: readonly { value: ScheduleVersionStatus; label: string }[] = [
+    { value: 'Draft', label: 'Borrador' },
+    { value: 'Published', label: 'Publicado' },
+    { value: 'Superseded', label: 'Reemplazado' },
   ];
 
   protected readonly organizationForm = this.formBuilder.nonNullable.group({
@@ -177,6 +247,58 @@ export class ClientsPage implements OnInit {
     isTaxIncluded: [false],
   });
 
+  protected readonly positionForm = this.formBuilder.nonNullable.group({
+    codePosition: ['', [Validators.required, Validators.maxLength(40)]],
+    name: ['', [Validators.required, Validators.maxLength(150)]],
+    requiredWorkerCount: [1, [Validators.required, Validators.min(1), Validators.max(10000)]],
+    requiredSkillProfile: ['', [Validators.maxLength(1000)]],
+    notes: ['', [Validators.maxLength(1000)]],
+  });
+
+  protected readonly shiftPatternForm = this.formBuilder.nonNullable.group({
+    codeShiftPattern: ['', [Validators.required, Validators.maxLength(40)]],
+    name: ['', [Validators.required, Validators.maxLength(150)]],
+    description: ['', [Validators.maxLength(1000)]],
+    effectiveFromDate: ['', [Validators.required]],
+    effectiveToDate: [''],
+  });
+
+  protected readonly shiftSegmentForm = this.formBuilder.nonNullable.group({
+    dayOfWeek: ['Monday', [Validators.required]],
+    startTime: ['08:00', [Validators.required]],
+    endTime: ['16:00', [Validators.required]],
+    isOvernight: [false],
+    requiredWorkerCount: [1, [Validators.required, Validators.min(1), Validators.max(10000)]],
+    notes: ['', [Validators.maxLength(1000)]],
+  });
+
+  protected readonly assignmentForm = this.formBuilder.nonNullable.group({
+    idEmployee: ['', [Validators.required]],
+    idPosition: ['', [Validators.required]],
+    assignmentType: ['Primary' as ServiceAssignmentType, [Validators.required]],
+    startDate: ['', [Validators.required]],
+    endDate: [''],
+    isPrimary: [true],
+    notes: ['', [Validators.maxLength(1000)]],
+  });
+
+  protected readonly scheduleVersionForm = this.formBuilder.nonNullable.group({
+    name: ['', [Validators.required, Validators.maxLength(150)]],
+    periodStartDate: ['', [Validators.required]],
+    periodEndDate: ['', [Validators.required]],
+    notes: ['', [Validators.maxLength(1000)]],
+  });
+
+  protected readonly scheduledShiftForm = this.formBuilder.nonNullable.group({
+    idEmployee: ['', [Validators.required]],
+    idPosition: ['', [Validators.required]],
+    shiftDate: ['', [Validators.required]],
+    startTime: ['08:00', [Validators.required]],
+    endTime: ['16:00', [Validators.required]],
+    isOvernight: [false],
+    notes: ['', [Validators.maxLength(1000)]],
+  });
+
   ngOnInit(): void {
     this.loadOrganizations();
   }
@@ -208,7 +330,17 @@ export class ClientsPage implements OnInit {
     this.contracts.set([]);
     this.services.set([]);
     this.configurations.set([]);
+    this.positions.set([]);
+    this.shiftPatterns.set([]);
+    this.shiftSegments.set([]);
+    this.assignments.set([]);
+    this.scheduleVersions.set([]);
+    this.scheduledShifts.set([]);
+    this.activeEmployees.set([]);
     this.selectedService.set(null);
+    this.selectedPosition.set(null);
+    this.selectedShiftPattern.set(null);
+    this.selectedScheduleVersion.set(null);
     this.message.set('');
     this.loadClients(1);
   }
@@ -242,7 +374,15 @@ export class ClientsPage implements OnInit {
             this.contracts.set([]);
             this.services.set([]);
             this.configurations.set([]);
+            this.positions.set([]);
+            this.shiftPatterns.set([]);
+            this.shiftSegments.set([]);
+            this.assignments.set([]);
+            this.scheduleVersions.set([]);
+            this.scheduledShifts.set([]);
             this.selectedService.set(null);
+            this.selectedPosition.set(null);
+            this.selectedShiftPattern.set(null);
           }
         },
         error: (error: HttpErrorResponse) => this.setError(error),
@@ -283,9 +423,18 @@ export class ClientsPage implements OnInit {
             null;
           this.selectedService.set(nextService);
           if (nextService) {
-            this.loadConfigurations(nextService);
+            this.loadServicePlanning(nextService);
           } else {
             this.configurations.set([]);
+            this.positions.set([]);
+            this.shiftPatterns.set([]);
+            this.shiftSegments.set([]);
+            this.assignments.set([]);
+            this.scheduleVersions.set([]);
+            this.scheduledShifts.set([]);
+            this.selectedPosition.set(null);
+            this.selectedShiftPattern.set(null);
+            this.selectedScheduleVersion.set(null);
           }
         },
         error: (error: HttpErrorResponse) => this.setError(error),
@@ -408,7 +557,12 @@ export class ClientsPage implements OnInit {
         this.contracts.set([]);
         this.services.set([]);
         this.configurations.set([]);
+        this.positions.set([]);
+        this.shiftPatterns.set([]);
+        this.shiftSegments.set([]);
         this.selectedService.set(null);
+        this.selectedPosition.set(null);
+        this.selectedShiftPattern.set(null);
         this.loadClients(1);
       },
       error: (error: HttpErrorResponse) => this.setError(error),
@@ -768,9 +922,14 @@ export class ClientsPage implements OnInit {
     this.api.deactivateService(this.selectedOrganizationId(), client.idClient, service.idService).subscribe({
       next: () => {
         this.message.set('Servicio desactivado correctamente.');
-        if (this.selectedService()?.idService === service.idService) {
+    if (this.selectedService()?.idService === service.idService) {
           this.selectedService.set(null);
           this.configurations.set([]);
+          this.positions.set([]);
+          this.shiftPatterns.set([]);
+          this.shiftSegments.set([]);
+          this.selectedPosition.set(null);
+          this.selectedShiftPattern.set(null);
         }
         this.loadClientDetail(client);
       },
@@ -780,7 +939,15 @@ export class ClientsPage implements OnInit {
 
   protected selectService(service: ManagedService): void {
     this.selectedService.set(service);
+    this.loadServicePlanning(service);
+  }
+
+  protected loadServicePlanning(service = this.selectedService()): void {
     this.loadConfigurations(service);
+    this.loadPositions(service);
+    this.loadAssignments(service);
+    this.loadScheduleVersions(service);
+    this.loadActiveEmployees();
   }
 
   protected loadConfigurations(service = this.selectedService()): void {
@@ -794,6 +961,447 @@ export class ClientsPage implements OnInit {
       next: (configurations) => this.configurations.set(configurations),
       error: (error: HttpErrorResponse) => this.setError(error),
     });
+  }
+
+  protected loadPositions(service = this.selectedService()): void {
+    const client = this.selectedClient();
+    if (!client || !service) {
+      this.positions.set([]);
+      this.shiftPatterns.set([]);
+      this.shiftSegments.set([]);
+      this.assignments.set([]);
+      this.scheduleVersions.set([]);
+      this.scheduledShifts.set([]);
+      this.selectedScheduleVersion.set(null);
+      this.selectedPosition.set(null);
+      this.selectedShiftPattern.set(null);
+      return;
+    }
+
+    this.api.listPositions(this.selectedOrganizationId(), client.idClient, service.idService).subscribe({
+      next: (positions) => {
+        this.positions.set(positions);
+        const current = this.selectedPosition();
+        const nextPosition =
+          (current && positions.find((position) => position.idPosition === current.idPosition)) ??
+          positions[0] ??
+          null;
+        this.selectedPosition.set(nextPosition);
+        if (nextPosition) {
+          this.loadShiftPatterns(nextPosition);
+        } else {
+          this.shiftPatterns.set([]);
+          this.shiftSegments.set([]);
+          this.selectedShiftPattern.set(null);
+        }
+      },
+      error: (error: HttpErrorResponse) => this.setError(error),
+    });
+  }
+
+  protected selectPosition(position: ServicePosition): void {
+    this.selectedPosition.set(position);
+    this.loadShiftPatterns(position);
+  }
+
+  protected loadShiftPatterns(position = this.selectedPosition()): void {
+    const client = this.selectedClient();
+    const service = this.selectedService();
+    if (!client || !service || !position) {
+      this.shiftPatterns.set([]);
+      this.shiftSegments.set([]);
+      this.selectedShiftPattern.set(null);
+      return;
+    }
+
+    this.api
+      .listShiftPatterns(this.selectedOrganizationId(), client.idClient, service.idService, position.idPosition)
+      .subscribe({
+        next: (patterns) => {
+          this.shiftPatterns.set(patterns);
+          const current = this.selectedShiftPattern();
+          const nextPattern =
+            (current && patterns.find((pattern) => pattern.idShiftPattern === current.idShiftPattern)) ??
+            patterns[0] ??
+            null;
+          this.selectedShiftPattern.set(nextPattern);
+          if (nextPattern) {
+            this.loadShiftSegments(nextPattern);
+          } else {
+            this.shiftSegments.set([]);
+          }
+        },
+        error: (error: HttpErrorResponse) => this.setError(error),
+      });
+  }
+
+  protected selectShiftPattern(pattern: ShiftPattern): void {
+    this.selectedShiftPattern.set(pattern);
+    this.loadShiftSegments(pattern);
+  }
+
+  protected loadShiftSegments(pattern = this.selectedShiftPattern()): void {
+    const client = this.selectedClient();
+    const service = this.selectedService();
+    const position = this.selectedPosition();
+    if (!client || !service || !position || !pattern) {
+      this.shiftSegments.set([]);
+      return;
+    }
+
+    this.api
+      .listShiftSegments(
+        this.selectedOrganizationId(),
+        client.idClient,
+        service.idService,
+        position.idPosition,
+        pattern.idShiftPattern,
+      )
+      .subscribe({
+        next: (segments) => this.shiftSegments.set(segments),
+        error: (error: HttpErrorResponse) => this.setError(error),
+      });
+  }
+
+  protected loadAssignments(service = this.selectedService()): void {
+    const client = this.selectedClient();
+    if (!client || !service) {
+      this.assignments.set([]);
+      return;
+    }
+
+    this.api.listAssignments(this.selectedOrganizationId(), client.idClient, service.idService).subscribe({
+      next: (assignments) => this.assignments.set(assignments),
+      error: (error: HttpErrorResponse) => this.setError(error),
+    });
+  }
+
+  protected loadActiveEmployees(): void {
+    const organizationId = this.selectedOrganizationId();
+    if (!organizationId) {
+      this.activeEmployees.set([]);
+      return;
+    }
+
+    this.workforceApi.listEmployees(organizationId, '', 'Active', 1, 100).subscribe({
+      next: (result) => this.activeEmployees.set(result.items),
+      error: (error: HttpErrorResponse) => this.setError(error),
+    });
+  }
+
+  protected loadScheduleVersions(service = this.selectedService()): void {
+    const client = this.selectedClient();
+    if (!client || !service) {
+      this.scheduleVersions.set([]);
+      this.scheduledShifts.set([]);
+      this.selectedScheduleVersion.set(null);
+      return;
+    }
+
+    this.api.listScheduleVersions(this.selectedOrganizationId(), client.idClient, service.idService).subscribe({
+      next: (versions) => {
+        this.scheduleVersions.set(versions);
+        const current = this.selectedScheduleVersion();
+        const nextVersion =
+          (current && versions.find((version) => version.idScheduleVersion === current.idScheduleVersion)) ??
+          versions[0] ??
+          null;
+        this.selectedScheduleVersion.set(nextVersion);
+        if (nextVersion) {
+          this.loadScheduledShifts(nextVersion);
+        } else {
+          this.scheduledShifts.set([]);
+        }
+      },
+      error: (error: HttpErrorResponse) => this.setError(error),
+    });
+  }
+
+  protected selectScheduleVersion(version: ScheduleVersion): void {
+    this.selectedScheduleVersion.set(version);
+    this.loadScheduledShifts(version);
+  }
+
+  protected loadScheduledShifts(version = this.selectedScheduleVersion()): void {
+    const client = this.selectedClient();
+    const service = this.selectedService();
+    if (!client || !service || !version) {
+      this.scheduledShifts.set([]);
+      return;
+    }
+
+    this.api
+      .listScheduledShifts(this.selectedOrganizationId(), client.idClient, service.idService, version.idScheduleVersion)
+      .subscribe({
+        next: (shifts) => this.scheduledShifts.set(shifts),
+        error: (error: HttpErrorResponse) => this.setError(error),
+      });
+  }
+
+  protected openCreateScheduleVersion(): void {
+    if (!this.selectedClient() || !this.selectedService()) {
+      return;
+    }
+
+    this.editingScheduleVersion.set(null);
+    this.scheduleVersionForm.reset({
+      name: `Planeación ${this.today()}`,
+      periodStartDate: this.today(),
+      periodEndDate: this.today(),
+      notes: '',
+    });
+    this.scheduleVersionEditorOpen.set(true);
+  }
+
+  protected openEditScheduleVersion(version: ScheduleVersion): void {
+    this.editingScheduleVersion.set(version);
+    this.scheduleVersionForm.reset({
+      name: version.name,
+      periodStartDate: this.dateOnly(version.periodStartDate),
+      periodEndDate: this.dateOnly(version.periodEndDate),
+      notes: version.notes ?? '',
+    });
+    this.scheduleVersionEditorOpen.set(true);
+  }
+
+  protected saveScheduleVersion(): void {
+    const client = this.selectedClient();
+    const service = this.selectedService();
+    if (!client || !service || this.scheduleVersionForm.invalid) {
+      this.scheduleVersionForm.markAllAsTouched();
+      return;
+    }
+
+    const form = this.scheduleVersionForm.getRawValue();
+    const input: ScheduleVersionInput = {
+      idOrganization: this.selectedOrganizationId(),
+      idClient: client.idClient,
+      idService: service.idService,
+      name: form.name,
+      periodStartDate: form.periodStartDate,
+      periodEndDate: form.periodEndDate,
+      notes: this.optional(form.notes),
+    };
+    const editing = this.editingScheduleVersion();
+    const request = editing
+      ? this.api.updateScheduleVersion(client.idClient, service.idService, editing.idScheduleVersion, input)
+      : this.api.createScheduleVersion(client.idClient, service.idService, input);
+
+    this.saving.set(true);
+    request.pipe(finalize(() => this.saving.set(false))).subscribe({
+      next: (version) => {
+        this.scheduleVersionEditorOpen.set(false);
+        this.selectedScheduleVersion.set(version);
+        this.message.set(editing ? 'Planeación actualizada correctamente.' : 'Planeación creada correctamente.');
+        this.loadScheduleVersions(service);
+      },
+      error: (error: HttpErrorResponse) => this.setError(error),
+    });
+  }
+
+  protected publishScheduleVersion(version: ScheduleVersion): void {
+    const client = this.selectedClient();
+    const service = this.selectedService();
+    if (!client || !service || !window.confirm(`¿Deseas publicar la planeación ${version.name}?`)) {
+      return;
+    }
+
+    this.api
+      .publishScheduleVersion(this.selectedOrganizationId(), client.idClient, service.idService, version.idScheduleVersion)
+      .subscribe({
+        next: (published) => {
+          this.selectedScheduleVersion.set(published);
+          this.message.set('Planeación publicada correctamente.');
+          this.loadScheduleVersions(service);
+        },
+        error: (error: HttpErrorResponse) => this.setError(error),
+      });
+  }
+
+  protected openCreateScheduledShift(): void {
+    const version = this.selectedScheduleVersion();
+    if (!this.selectedClient() || !this.selectedService() || !version || version.status !== 'Draft') {
+      return;
+    }
+
+    this.editingScheduledShift.set(null);
+    this.scheduledShiftForm.reset({
+      idEmployee: this.activeEmployees()[0]?.idEmployee ?? '',
+      idPosition: this.selectedPosition()?.idPosition ?? this.positions()[0]?.idPosition ?? '',
+      shiftDate: this.dateOnly(version.periodStartDate),
+      startTime: '08:00',
+      endTime: '16:00',
+      isOvernight: false,
+      notes: '',
+    });
+    this.scheduledShiftEditorOpen.set(true);
+  }
+
+  protected openEditScheduledShift(shift: ScheduledShift): void {
+    this.editingScheduledShift.set(shift);
+    this.scheduledShiftForm.reset({
+      idEmployee: shift.idEmployee,
+      idPosition: shift.idPosition,
+      shiftDate: this.dateOnly(shift.shiftDate),
+      startTime: shift.startTime.slice(0, 5),
+      endTime: shift.endTime.slice(0, 5),
+      isOvernight: shift.isOvernight,
+      notes: shift.notes ?? '',
+    });
+    this.scheduledShiftEditorOpen.set(true);
+  }
+
+  protected saveScheduledShift(): void {
+    const client = this.selectedClient();
+    const service = this.selectedService();
+    const version = this.selectedScheduleVersion();
+    if (!client || !service || !version || this.scheduledShiftForm.invalid) {
+      this.scheduledShiftForm.markAllAsTouched();
+      return;
+    }
+
+    const form = this.scheduledShiftForm.getRawValue();
+    const input: ScheduledShiftInput = {
+      idOrganization: this.selectedOrganizationId(),
+      idClient: client.idClient,
+      idService: service.idService,
+      idScheduleVersion: version.idScheduleVersion,
+      idPosition: form.idPosition,
+      idEmployee: form.idEmployee,
+      shiftDate: form.shiftDate,
+      startTime: this.toApiTime(form.startTime),
+      endTime: this.toApiTime(form.endTime),
+      isOvernight: form.isOvernight,
+      notes: this.optional(form.notes),
+    };
+    const editing = this.editingScheduledShift();
+    const request = editing
+      ? this.api.updateScheduledShift(client.idClient, service.idService, version.idScheduleVersion, editing.idScheduledShift, input)
+      : this.api.createScheduledShift(client.idClient, service.idService, version.idScheduleVersion, input);
+
+    this.saving.set(true);
+    request.pipe(finalize(() => this.saving.set(false))).subscribe({
+      next: () => {
+        this.scheduledShiftEditorOpen.set(false);
+        this.message.set(editing ? 'Turno actualizado correctamente.' : 'Turno programado correctamente.');
+        this.loadScheduledShifts(version);
+      },
+      error: (error: HttpErrorResponse) => this.setError(error),
+    });
+  }
+
+  protected deactivateScheduledShift(shift: ScheduledShift): void {
+    const client = this.selectedClient();
+    const service = this.selectedService();
+    const version = this.selectedScheduleVersion();
+    if (!client || !service || !version || !window.confirm(`¿Deseas desactivar el turno de ${shift.employeeName}?`)) {
+      return;
+    }
+
+    this.api
+      .deactivateScheduledShift(
+        this.selectedOrganizationId(),
+        client.idClient,
+        service.idService,
+        version.idScheduleVersion,
+        shift.idScheduledShift,
+      )
+      .subscribe({
+        next: () => {
+          this.message.set('Turno desactivado correctamente.');
+          this.loadScheduledShifts(version);
+        },
+        error: (error: HttpErrorResponse) => this.setError(error),
+      });
+  }
+
+  protected openCreateAssignment(): void {
+    if (!this.selectedClient() || !this.selectedService() || !this.positions().length) {
+      return;
+    }
+
+    this.editingAssignment.set(null);
+    this.assignmentForm.reset({
+      idEmployee: this.activeEmployees()[0]?.idEmployee ?? '',
+      idPosition: this.selectedPosition()?.idPosition ?? this.positions()[0]?.idPosition ?? '',
+      assignmentType: 'Primary',
+      startDate: this.today(),
+      endDate: '',
+      isPrimary: true,
+      notes: '',
+    });
+    this.assignmentEditorOpen.set(true);
+  }
+
+  protected openEditAssignment(assignment: ServiceAssignment): void {
+    this.editingAssignment.set(assignment);
+    this.assignmentForm.reset({
+      idEmployee: assignment.idEmployee,
+      idPosition: assignment.idPosition ?? '',
+      assignmentType: assignment.assignmentType,
+      startDate: this.dateOnly(assignment.startDate),
+      endDate: this.dateOnly(assignment.endDate),
+      isPrimary: assignment.isPrimary,
+      notes: assignment.notes ?? '',
+    });
+    this.assignmentEditorOpen.set(true);
+  }
+
+  protected saveAssignment(): void {
+    const client = this.selectedClient();
+    const service = this.selectedService();
+    if (!client || !service || this.assignmentForm.invalid) {
+      this.assignmentForm.markAllAsTouched();
+      return;
+    }
+
+    const form = this.assignmentForm.getRawValue();
+    const input: ServiceAssignmentInput = {
+      idOrganization: this.selectedOrganizationId(),
+      idClient: client.idClient,
+      idService: service.idService,
+      idPosition: form.idPosition,
+      assignmentType: form.assignmentType,
+      startDate: form.startDate,
+      endDate: this.optionalDate(form.endDate),
+      isPrimary: form.isPrimary,
+      notes: this.optional(form.notes),
+    };
+    const editing = this.editingAssignment();
+    const request = editing
+      ? this.api.updateAssignment(client.idClient, service.idService, editing.idServiceAssignment, input)
+      : this.api.createAssignment(client.idClient, service.idService, {
+          ...input,
+          idEmployee: form.idEmployee,
+        } satisfies CreateServiceAssignment);
+
+    this.saving.set(true);
+    request.pipe(finalize(() => this.saving.set(false))).subscribe({
+      next: () => {
+        this.assignmentEditorOpen.set(false);
+        this.message.set(editing ? 'Asignación actualizada correctamente.' : 'Asignación creada correctamente.');
+        this.loadAssignments(service);
+      },
+      error: (error: HttpErrorResponse) => this.setError(error),
+    });
+  }
+
+  protected deactivateAssignment(assignment: ServiceAssignment): void {
+    const client = this.selectedClient();
+    const service = this.selectedService();
+    if (!client || !service || !window.confirm(`¿Deseas desactivar la asignación de ${assignment.employeeName}?`)) {
+      return;
+    }
+
+    this.api
+      .deactivateAssignment(this.selectedOrganizationId(), client.idClient, service.idService, assignment.idServiceAssignment)
+      .subscribe({
+        next: () => {
+          this.message.set('Asignación desactivada correctamente.');
+          this.loadAssignments(service);
+        },
+        error: (error: HttpErrorResponse) => this.setError(error),
+      });
   }
 
   protected openCreateConfiguration(): void {
@@ -903,6 +1511,295 @@ export class ClientsPage implements OnInit {
       });
   }
 
+  protected openCreatePosition(): void {
+    if (!this.selectedClient() || !this.selectedService()) {
+      return;
+    }
+
+    this.editingPosition.set(null);
+    this.positionForm.reset({
+      codePosition: '',
+      name: '',
+      requiredWorkerCount: 1,
+      requiredSkillProfile: '',
+      notes: '',
+    });
+    this.positionEditorOpen.set(true);
+  }
+
+  protected openEditPosition(position: ServicePosition): void {
+    this.editingPosition.set(position);
+    this.positionForm.reset({
+      codePosition: position.codePosition,
+      name: position.name,
+      requiredWorkerCount: position.requiredWorkerCount,
+      requiredSkillProfile: position.requiredSkillProfile ?? '',
+      notes: position.notes ?? '',
+    });
+    this.positionEditorOpen.set(true);
+  }
+
+  protected savePosition(): void {
+    const client = this.selectedClient();
+    const service = this.selectedService();
+    if (!client || !service || this.positionForm.invalid) {
+      this.positionForm.markAllAsTouched();
+      return;
+    }
+
+    const form = this.positionForm.getRawValue();
+    const input: ServicePositionInput = {
+      idOrganization: this.selectedOrganizationId(),
+      idClient: client.idClient,
+      idService: service.idService,
+      name: form.name,
+      requiredWorkerCount: Number(form.requiredWorkerCount),
+      requiredSkillProfile: this.optional(form.requiredSkillProfile),
+      notes: this.optional(form.notes),
+    };
+    const editing = this.editingPosition();
+    const request = editing
+      ? this.api.updatePosition(client.idClient, service.idService, editing.idPosition, input)
+      : this.api.createPosition(client.idClient, service.idService, {
+          ...input,
+          codePosition: form.codePosition,
+        } satisfies CreateServicePosition);
+
+    this.saving.set(true);
+    request.pipe(finalize(() => this.saving.set(false))).subscribe({
+      next: (position) => {
+        this.positionEditorOpen.set(false);
+        this.message.set(editing ? 'Posición actualizada correctamente.' : 'Posición creada correctamente.');
+        this.selectedPosition.set(position);
+        this.loadPositions(service);
+      },
+      error: (error: HttpErrorResponse) => this.setError(error),
+    });
+  }
+
+  protected deactivatePosition(position: ServicePosition): void {
+    const client = this.selectedClient();
+    const service = this.selectedService();
+    if (!client || !service || !window.confirm(`¿Deseas desactivar la posición ${position.name}?`)) {
+      return;
+    }
+
+    this.api.deactivatePosition(this.selectedOrganizationId(), client.idClient, service.idService, position.idPosition).subscribe({
+      next: () => {
+        this.message.set('Posición desactivada correctamente.');
+        if (this.selectedPosition()?.idPosition === position.idPosition) {
+          this.selectedPosition.set(null);
+          this.selectedShiftPattern.set(null);
+          this.shiftPatterns.set([]);
+          this.shiftSegments.set([]);
+        }
+        this.loadPositions(service);
+      },
+      error: (error: HttpErrorResponse) => this.setError(error),
+    });
+  }
+
+  protected openCreateShiftPattern(): void {
+    if (!this.selectedClient() || !this.selectedService() || !this.selectedPosition()) {
+      return;
+    }
+
+    this.editingShiftPattern.set(null);
+    this.shiftPatternForm.reset({
+      codeShiftPattern: '',
+      name: '',
+      description: '',
+      effectiveFromDate: this.today(),
+      effectiveToDate: '',
+    });
+    this.shiftPatternEditorOpen.set(true);
+  }
+
+  protected openEditShiftPattern(pattern: ShiftPattern): void {
+    this.editingShiftPattern.set(pattern);
+    this.shiftPatternForm.reset({
+      codeShiftPattern: pattern.codeShiftPattern,
+      name: pattern.name,
+      description: pattern.description ?? '',
+      effectiveFromDate: this.dateOnly(pattern.effectiveFromDate),
+      effectiveToDate: this.dateOnly(pattern.effectiveToDate),
+    });
+    this.shiftPatternEditorOpen.set(true);
+  }
+
+  protected saveShiftPattern(): void {
+    const client = this.selectedClient();
+    const service = this.selectedService();
+    const position = this.selectedPosition();
+    if (!client || !service || !position || this.shiftPatternForm.invalid) {
+      this.shiftPatternForm.markAllAsTouched();
+      return;
+    }
+
+    const form = this.shiftPatternForm.getRawValue();
+    const input: ShiftPatternInput = {
+      idOrganization: this.selectedOrganizationId(),
+      idClient: client.idClient,
+      idService: service.idService,
+      idPosition: position.idPosition,
+      name: form.name,
+      description: this.optional(form.description),
+      effectiveFromDate: form.effectiveFromDate,
+      effectiveToDate: this.optionalDate(form.effectiveToDate),
+    };
+    const editing = this.editingShiftPattern();
+    const request = editing
+      ? this.api.updateShiftPattern(client.idClient, service.idService, position.idPosition, editing.idShiftPattern, input)
+      : this.api.createShiftPattern(client.idClient, service.idService, position.idPosition, {
+          ...input,
+          codeShiftPattern: form.codeShiftPattern,
+        } satisfies CreateShiftPattern);
+
+    this.saving.set(true);
+    request.pipe(finalize(() => this.saving.set(false))).subscribe({
+      next: (pattern) => {
+        this.shiftPatternEditorOpen.set(false);
+        this.message.set(editing ? 'Patrón actualizado correctamente.' : 'Patrón creado correctamente.');
+        this.selectedShiftPattern.set(pattern);
+        this.loadShiftPatterns(position);
+      },
+      error: (error: HttpErrorResponse) => this.setError(error),
+    });
+  }
+
+  protected deactivateShiftPattern(pattern: ShiftPattern): void {
+    const client = this.selectedClient();
+    const service = this.selectedService();
+    const position = this.selectedPosition();
+    if (!client || !service || !position || !window.confirm(`¿Deseas desactivar el patrón ${pattern.name}?`)) {
+      return;
+    }
+
+    this.api
+      .deactivateShiftPattern(
+        this.selectedOrganizationId(),
+        client.idClient,
+        service.idService,
+        position.idPosition,
+        pattern.idShiftPattern,
+      )
+      .subscribe({
+        next: () => {
+          this.message.set('Patrón desactivado correctamente.');
+          if (this.selectedShiftPattern()?.idShiftPattern === pattern.idShiftPattern) {
+            this.selectedShiftPattern.set(null);
+            this.shiftSegments.set([]);
+          }
+          this.loadShiftPatterns(position);
+        },
+        error: (error: HttpErrorResponse) => this.setError(error),
+      });
+  }
+
+  protected openCreateShiftSegment(): void {
+    if (!this.selectedClient() || !this.selectedService() || !this.selectedPosition() || !this.selectedShiftPattern()) {
+      return;
+    }
+
+    this.editingShiftSegment.set(null);
+    this.shiftSegmentForm.reset({
+      dayOfWeek: 'Monday',
+      startTime: '08:00',
+      endTime: '16:00',
+      isOvernight: false,
+      requiredWorkerCount: this.selectedPosition()?.requiredWorkerCount ?? 1,
+      notes: '',
+    });
+    this.shiftSegmentEditorOpen.set(true);
+  }
+
+  protected openEditShiftSegment(segment: ShiftSegment): void {
+    this.editingShiftSegment.set(segment);
+    this.shiftSegmentForm.reset({
+      dayOfWeek: segment.dayOfWeek,
+      startTime: segment.startTime.slice(0, 5),
+      endTime: segment.endTime.slice(0, 5),
+      isOvernight: segment.isOvernight,
+      requiredWorkerCount: segment.requiredWorkerCount,
+      notes: segment.notes ?? '',
+    });
+    this.shiftSegmentEditorOpen.set(true);
+  }
+
+  protected saveShiftSegment(): void {
+    const client = this.selectedClient();
+    const service = this.selectedService();
+    const position = this.selectedPosition();
+    const pattern = this.selectedShiftPattern();
+    if (!client || !service || !position || !pattern || this.shiftSegmentForm.invalid) {
+      this.shiftSegmentForm.markAllAsTouched();
+      return;
+    }
+
+    const form = this.shiftSegmentForm.getRawValue();
+    const input: ShiftSegmentInput = {
+      idOrganization: this.selectedOrganizationId(),
+      idClient: client.idClient,
+      idService: service.idService,
+      idPosition: position.idPosition,
+      idShiftPattern: pattern.idShiftPattern,
+      dayOfWeek: form.dayOfWeek,
+      startTime: this.toApiTime(form.startTime),
+      endTime: this.toApiTime(form.endTime),
+      isOvernight: form.isOvernight,
+      requiredWorkerCount: Number(form.requiredWorkerCount),
+      notes: this.optional(form.notes),
+    };
+    const editing = this.editingShiftSegment();
+    const request = editing
+      ? this.api.updateShiftSegment(
+          client.idClient,
+          service.idService,
+          position.idPosition,
+          pattern.idShiftPattern,
+          editing.idShiftSegment,
+          input,
+        )
+      : this.api.createShiftSegment(client.idClient, service.idService, position.idPosition, pattern.idShiftPattern, input);
+
+    this.saving.set(true);
+    request.pipe(finalize(() => this.saving.set(false))).subscribe({
+      next: () => {
+        this.shiftSegmentEditorOpen.set(false);
+        this.message.set(editing ? 'Segmento actualizado correctamente.' : 'Segmento creado correctamente.');
+        this.loadShiftSegments(pattern);
+      },
+      error: (error: HttpErrorResponse) => this.setError(error),
+    });
+  }
+
+  protected deactivateShiftSegment(segment: ShiftSegment): void {
+    const client = this.selectedClient();
+    const service = this.selectedService();
+    const position = this.selectedPosition();
+    const pattern = this.selectedShiftPattern();
+    if (!client || !service || !position || !pattern || !window.confirm('¿Deseas desactivar este segmento?')) {
+      return;
+    }
+
+    this.api
+      .deactivateShiftSegment(
+        this.selectedOrganizationId(),
+        client.idClient,
+        service.idService,
+        position.idPosition,
+        pattern.idShiftPattern,
+        segment.idShiftSegment,
+      )
+      .subscribe({
+        next: () => {
+          this.message.set('Segmento desactivado correctamente.');
+          this.loadShiftSegments(pattern);
+        },
+        error: (error: HttpErrorResponse) => this.setError(error),
+      });
+  }
+
   protected closeEditors(): void {
     this.clientEditorOpen.set(false);
     this.siteEditorOpen.set(false);
@@ -910,6 +1807,12 @@ export class ClientsPage implements OnInit {
     this.contractEditorOpen.set(false);
     this.serviceEditorOpen.set(false);
     this.configurationEditorOpen.set(false);
+    this.positionEditorOpen.set(false);
+    this.shiftPatternEditorOpen.set(false);
+    this.shiftSegmentEditorOpen.set(false);
+    this.assignmentEditorOpen.set(false);
+    this.scheduleVersionEditorOpen.set(false);
+    this.scheduledShiftEditorOpen.set(false);
     this.organizationEditorOpen.set(false);
   }
 
@@ -935,6 +1838,24 @@ export class ClientsPage implements OnInit {
     return new Intl.NumberFormat('es-MX', { style: 'currency', currency: currencyCode }).format(value);
   }
 
+  protected dayLabel(value: string): string {
+    return this.weekDays.find((day) => day.value === value)?.label ?? value;
+  }
+
+  protected durationLabel(minutes: number): string {
+    const hours = Math.floor(minutes / 60);
+    const remainder = minutes % 60;
+    return remainder ? `${hours} h ${remainder} min` : `${hours} h`;
+  }
+
+  protected assignmentTypeLabel(value: ServiceAssignmentType): string {
+    return this.assignmentTypes.find((item) => item.value === value)?.label ?? value;
+  }
+
+  protected scheduleStatusLabel(value: ScheduleVersionStatus): string {
+    return this.scheduleStatuses.find((item) => item.value === value)?.label ?? value;
+  }
+
   private optional(value: string): string | null {
     const normalized = value.trim();
     return normalized ? normalized : null;
@@ -950,6 +1871,10 @@ export class ClientsPage implements OnInit {
 
   private today(): string {
     return new Date().toISOString().slice(0, 10);
+  }
+
+  private toApiTime(value: string): string {
+    return value.length === 5 ? `${value}:00` : value;
   }
 
   private setError(error: HttpErrorResponse): void {

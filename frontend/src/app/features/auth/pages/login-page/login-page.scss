@@ -4,14 +4,15 @@
   place-items: center;
   padding: 24px;
   background:
-    linear-gradient(135deg, rgba(23, 37, 84, 0.08), transparent 36%),
+    radial-gradient(circle at 18% 12%, rgb(34 198 238 / 20%), transparent 18rem),
+    radial-gradient(circle at 85% 75%, rgb(16 16 78 / 14%), transparent 22rem),
     #f5f7fb;
 }
 
 .login-panel {
-  width: min(100%, 420px);
+  width: min(100%, 440px);
   border: 1px solid #d9e2ef;
-  border-radius: 8px;
+  border-radius: 22px;
   background: #ffffff;
   box-shadow: 0 20px 45px rgba(15, 23, 42, 0.1);
   overflow: hidden;
@@ -30,9 +31,9 @@
   height: 40px;
   display: grid;
   place-items: center;
-  border-radius: 8px;
-  color: #ffffff;
-  background: #2563eb;
+  border-radius: 14px;
+  color: #10104e;
+  background: #22c6ee;
   font-weight: 800;
 }
 
@@ -59,18 +60,26 @@
 
 .form-heading p {
   margin: 0 0 6px;
-  color: #2563eb;
+  color: #087f9c;
   font-size: 12px;
   font-weight: 800;
-  letter-spacing: 0;
+  letter-spacing: .12em;
   text-transform: uppercase;
 }
 
 .form-heading h1 {
   margin: 0;
-  color: #0f172a;
+  color: #10104e;
   font-size: 28px;
   line-height: 1.2;
+}
+
+.form-heading span {
+  display: block;
+  margin-top: .45rem;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 label {
@@ -92,16 +101,16 @@ input {
 }
 
 input:focus {
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+  border-color: #22c6ee;
+  box-shadow: 0 0 0 3px rgb(34 198 238 / 18%);
 }
 
 button {
   min-height: 44px;
   border: 0;
-  border-radius: 6px;
+  border-radius: 12px;
   color: #ffffff;
-  background: #2563eb;
+  background: #10104e;
   font: inherit;
   font-weight: 800;
   cursor: pointer;
@@ -120,4 +129,24 @@ button:disabled {
   color: #991b1b;
   background: #fef2f2;
   font-size: 13px;
+}
+
+.login-help {
+  display: grid;
+  gap: .2rem;
+  border: 1px dashed #cfe6f2;
+  border-radius: 14px;
+  padding: .8rem;
+  background: #f7fcff;
+}
+
+.login-help strong {
+  color: #10104e;
+  font-size: 12px;
+}
+
+.login-help span {
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.45;
 }

@@ -1,7 +1,7 @@
 # Plan maestro de GestIA
 
-- Versión: 1.2
-- Fecha de actualización: 2026-08-27
+- Versión: 1.3
+- Fecha de actualización: 2026-08-28
 - Estado: documento rector de planeación
 
 ## 1. Propósito
@@ -45,19 +45,25 @@ Los ADR dentro de `docs/adr` siguen siendo la evidencia de decisiones técnicas 
 - Nginx como servidor del frontend y proxy de `/api`.
 - Pipeline CI para pruebas, builds e imágenes de contenedor.
 - Documentos iniciales de arquitectura, despliegue y modelo.
+- Solicitudes operativas con aprobación y ejecución controlada para alta de cliente, servicio, cambio de configuración, cambio de personal y cobertura.
+- Servicios, contratos, configuraciones, posiciones, patrones de turno, asignaciones y planeación versionada.
+- Publicación de planeación con reemplazo formal de versiones publicadas traslapadas y estado `Superseded`.
+- Operación diaria con asistencia, incidencias, coberturas, evidencias reales, tablero diario y confirmación masiva.
+- Correcciones de asistencia con autorización obligatoria mediante nota operativa.
+- Módulo documental MVP con carga, consulta, edición, desactivación, descarga, vencimientos, sensibilidad y permisos.
+- Reportes operativos con filtros, exportación CSV y reporte de elegibilidad de personal.
+- Mejoras UX/UI transversales en navegación, estados activos, formularios, tarjetas, tablas y lenguaje de negocio.
 
 ### Todavía no desarrollado
 
 - Recuperación de acceso, refresh token y administración completa de sesión.
 - Administración funcional de usuarios, roles, permisos y alcance por empresa.
-- Catálogos y CRUD funcionales adicionales al primer módulo de clientes.
-- Endpoints y pantallas para sedes, contactos, servicios y contratos.
-- Endpoints y pantallas para empleados, documentos, evaluaciones y asignaciones.
-- Solicitudes, posiciones, patrones de turno y planeación detallada.
-- Planeación versionada y publicación.
-- Asistencia, incidencias, coberturas y evidencias.
-- Auditoría funcional consultable.
-- Dashboard y reportes con datos reales.
+- Catálogos formales de habilidades, requisitos por puesto, restricciones por zona/cliente/servicio y reglas finas de elegibilidad.
+- Administración completa del módulo documental con privacidad avanzada por tipo de archivo.
+- Flujo multiusuario de autorización/aprobación para correcciones sensibles.
+- Comparativo visual detallado turno por turno entre borrador, publicado y reemplazado.
+- Exportaciones formales Excel/PDF y reportes ejecutivos finales.
+- Auditoría funcional consultable extendida en todos los recorridos.
 - Importaciones, exportaciones e integraciones externas.
 - Observabilidad, respaldo y despliegue productivo.
 
@@ -134,6 +140,7 @@ Los nombres son provisionales hasta validar el glosario del negocio.
 - Clientes, razones sociales, sedes y contactos.
 - Solicitudes de servicio.
 - Conversión de solicitud a servicio aceptado.
+- Ejecución controlada MVP de solicitudes aprobadas.
 - Vigencias y condiciones necesarias para operar.
 
 ### Personal
@@ -171,6 +178,8 @@ Los nombres son provisionales hasta validar el glosario del negocio.
 
 ```text
 Solicitud de servicio
+  -> revisión y aprobación
+  -> ejecución controlada
   -> cliente y sede
   -> servicio aceptado
   -> posiciones requeridas
@@ -288,21 +297,22 @@ El primer corte físico implementa `Organizations`, `Clients`, `ClientSites`, `C
 
 | Tabla de trabajo | Datos candidatos | Estado |
 | --- | --- | --- |
-| `Positions` | Servicio, perfil, nombre/código, capacidad, vigencia, estado | Por validar |
-| `ShiftPatterns` | Organización, código, nombre, ciclo, estado | Por validar |
-| `ShiftSegments` | Patrón, día del ciclo, inicio, fin, trabajo/descanso | Por validar |
-| `Assignments` | Posición, persona, patrón, tipo, inicio, fin, origen | Por validar |
-| `ScheduleVersions` | Organización, periodo, versión, estado, publicación | Por validar |
-| `ScheduledShifts` | Versión, servicio, posición, persona esperada, inicio, fin | Por validar |
-| `AttendanceRecords` | Turno, persona esperada, persona real, entrada, salida, fuente, estado | Por validar |
-| `Incidents` | Turno, tipo, motivo, impacto, estado, seguimiento | Por validar |
-| `Coverages` | Incidencia, sustituto, inicio, fin, estado, autorización | Por validar |
+| `Positions` | Servicio, perfil, nombre/código, capacidad, vigencia, estado | Implementado MVP |
+| `ShiftPatterns` | Organización, código, nombre, ciclo, estado | Implementado MVP |
+| `ShiftSegments` | Patrón, día del ciclo, inicio, fin, trabajo/descanso | Implementado MVP |
+| `ServiceAssignments` | Posición, persona, patrón, tipo, inicio, fin, origen | Implementado MVP |
+| `ScheduleVersions` | Servicio, periodo, versión, estado, publicación | Implementado MVP |
+| `ScheduledShifts` | Versión, servicio, posición, persona esperada, inicio, fin | Implementado MVP |
+| `AttendanceRecords` | Turno, persona, fecha, estado, entrada, salida, retardo | Implementado MVP |
+| `Incidents` | Servicio, turno opcional, empleado opcional, tipo, severidad, estado, seguimiento | Implementado MVP |
+| `CoverageRecords` | Turno, empleado original, sustituto, inicio, fin, estado | Implementado MVP |
 | `EvidenceItems` | Propietario, tipo, hash, ubicación, actor, fecha, privacidad | Por validar |
 
 #### Reporting
 
 | Proyección de trabajo | Propósito | Estado |
 | --- | --- | --- |
+| `GET /api/v1/reports/operations-summary` | Resumen operativo calculado desde transacciones | Implementado MVP |
 | `DailyOperationSummary` | Indicadores diarios por organización/servicio | Posterior |
 | `ServiceCoverageSummary` | Cobertura por servicio y periodo | Posterior |
 | `EffectivePersonnel` | Persona que realmente cubrió un intervalo | Posterior |
@@ -377,7 +387,8 @@ No se usará `EnsureCreated` ni se aplicarán migraciones automáticamente al in
 - [ ] Control de concurrencia.
 - [ ] Idempotencia para operaciones sensibles.
 - [ ] Observabilidad con logs estructurados, métricas y trazas.
-- [ ] Almacenamiento de evidencias.
+- [x] Referencias de evidencias operativas.
+- [ ] Almacenamiento físico de archivos de evidencia.
 - [ ] Exportaciones y trabajos en segundo plano cuando se requieran.
 
 ### API
@@ -403,7 +414,8 @@ No se usará `EnsureCreated` ni se aplicarán migraciones automáticamente al in
 ### Pendiente
 
 - [x] Login JWT, sesión local y rutas protegidas.
-- [ ] Expiración/renovación controlada de sesión.
+- [x] Manejo global de sesión expirada.
+- [ ] Renovación controlada de sesión.
 - [ ] Cliente TypeScript generado desde OpenAPI.
 - [ ] Manejo global de errores y estado de carga.
 - [ ] Sistema de notificaciones.
@@ -412,8 +424,8 @@ No se usará `EnsureCreated` ni se aplicarán migraciones automáticamente al in
 - [ ] Flujos de solicitudes y servicios.
 - [ ] Planeación y visualización de turnos.
 - [ ] Captura de asistencia por excepción.
-- [ ] Incidencias, coberturas y evidencias.
-- [ ] Dashboard y reportes.
+- [x] Incidencias, coberturas y evidencias.
+- [x] Dashboard y reportes MVP.
 - [ ] Accesibilidad y navegación por teclado.
 - [ ] Pruebas de componentes y recorridos críticos.
 
@@ -499,8 +511,9 @@ Cada módulo debe incluir pruebas proporcionales al riesgo. Las reglas de negoci
 
 ### Entrega 2: solicitudes, servicios, posiciones y turnos
 
-- Solicitud de servicio.
-- Conversión controlada a servicio.
+- [x] Solicitud de servicio.
+- [x] Ejecución controlada MVP de solicitudes aprobadas.
+- Conversión automática completa a cliente/servicio cuando el modelo fiscal/contractual esté cerrado.
 - Posiciones y capacidad.
 - Patrones y segmentos de turno.
 - Vigencias y estatus.
@@ -515,10 +528,11 @@ Cada módulo debe incluir pruebas proporcionales al riesgo. Las reglas de negoci
 
 ### Entrega 4: asistencia, incidencias y cobertura
 
-- Generación desde planeación publicada.
-- Confirmación masiva por excepción.
+- Registro de asistencia real por turno programado.
 - Registro y clasificación de incidencias.
 - Sustitutos e intervalos de cobertura.
+- Consultas API por servicio para asistencia, incidencias y coberturas.
+- Captura operativa MVP desde Angular para asistencia, incidencias y coberturas.
 - Evidencias y autorizaciones necesarias.
 
 ### Entrega 5: control, dashboard y reportes

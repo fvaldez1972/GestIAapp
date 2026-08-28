@@ -54,5 +54,23 @@ public sealed class User : AuditableEntity
             : DateTime.SpecifyKind(occurredAt, DateTimeKind.Utc);
     }
 
+    public void ResetPassword(
+        string passwordHash,
+        string passwordSalt,
+        int passwordIterations,
+        Guid actorId,
+        string actorName,
+        DateTime occurredAt)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(passwordHash);
+        ArgumentException.ThrowIfNullOrWhiteSpace(passwordSalt);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(passwordIterations);
+
+        PasswordHash = passwordHash;
+        PasswordSalt = passwordSalt;
+        PasswordIterations = passwordIterations;
+        RegisterUpdate(actorId, actorName, occurredAt);
+    }
+
     public static string NormalizeEmail(string email) => email.Trim().ToUpperInvariant();
 }

@@ -5,6 +5,77 @@
 - Estado: plan tactico de construccion
 - Documento rector relacionado: `PLAN_MAESTRO_GESTIA.md`
 
+## Actualizacion 2026-08-28: solicitudes, elegibilidad, planeacion y operacion avanzada
+
+Quedo implementado un avance funcional para convertir solicitudes aprobadas en acciones reales del sistema:
+
+- Alta de cliente desde solicitud mediante bloque `client`.
+- Nuevo servicio desde solicitud mediante `service`, con soporte para crear sede, contrato y configuracion inicial.
+- Cambio de configuracion de servicio mediante nueva configuracion versionada.
+- Cambio de personal mediante creacion de asignacion real.
+- Solicitud de cobertura convertida en cobertura operativa real.
+
+Tambien se agrego la primera capa de elegibilidad de personal en asignaciones:
+
+- Bloqueo de empleados no activos.
+- Bloqueo si el empleado tiene documentos vencidos o rechazados.
+- Bloqueo si el empleado tiene evaluaciones vencidas, no aprobadas o inconclusas.
+- Validacion inicial contra perfil requerido de la posicion cuando existe un perfil capturado y el empleado tiene puesto registrado.
+
+En planeacion quedo reforzado:
+
+- Vista calendario de turnos por dia para la version seleccionada.
+- Comparativo resumido entre borrador y version publicada.
+- Bloqueo de publicacion cuando hay patrones de turno con posiciones/horarios incompletos.
+
+En operacion quedo reforzado:
+
+- Fecha operativa.
+- Tablero diario con turnos, asistencia, incidencias y coberturas.
+- Confirmacion masiva de asistencia pendiente del dia.
+- Cierre formal de incidencias con nota de resolucion obligatoria.
+- Carga real de archivos para evidencias operativas con storage persistente en Docker.
+
+Pendiente para cerrar producto real:
+
+- Catalogos formales de habilidades/restricciones por zona, cliente y servicio.
+- Flujo multiusuario de autorizaciones para correcciones sensibles.
+- Comparativo visual detallado turno por turno en planeacion.
+- Exportaciones Excel/PDF formales.
+
+## Actualizacion 2026-08-28: documentos reales, reemplazo de planeacion y controles operativos
+
+Quedo implementado otro corte funcional para acercar GestIA a operacion real:
+
+- Modulo documental completo MVP:
+  - Nueva tabla `BusinessDocuments`.
+  - Documentos por cliente, contrato, servicio, empleado, evaluacion y solicitud.
+  - Categorias, estatus, vencimientos, indicador sensible, notas y referencia de archivo.
+  - Carga real de archivos desde API.
+  - Descarga de archivos desde API.
+  - Pantalla `/documentos` con filtros, alta, edicion, desactivacion y descarga.
+  - Permisos nuevos `DOCUMENTS.READ` y `DOCUMENTS.WRITE`.
+- Planeacion avanzada:
+  - Una planeacion nueva publicada puede reemplazar versiones publicadas traslapadas.
+  - La version anterior queda marcada como `Superseded`, conservando historial.
+  - El mensaje de UI ya comunica que publicar tambien puede reemplazar.
+- Operacion avanzada:
+  - Las correcciones de asistencia ya requieren nota de autorizacion.
+  - La correccion conserva trazabilidad en notas operativas.
+  - La UI permite seleccionar asistencia existente, corregirla y registrar la autorizacion.
+- Reportes:
+  - Nuevo reporte de elegibilidad de personal.
+  - Filtros y exportacion CSV incluyen personal elegible/no elegible y motivos.
+  - Reportes muestran razones de no elegibilidad por estatus, documentos y evaluaciones.
+
+Queda como refinamiento de negocio:
+
+- Catalogos finos de habilidades, restricciones por zona/cliente/servicio y requisitos por puesto.
+- Exportaciones formales Excel/PDF.
+- Autorizaciones con flujo multiusuario formal, no solo nota obligatoria.
+- Comparativo visual detallado turno por turno entre borrador y publicado.
+- UX fina transversal: formularios por pasos, skeleton loaders, ordenamiento/paginacion en todas las tablas.
+
 ## 1. Proposito
 
 Este documento baja el plan maestro a un camino de trabajo implementable para construir los modulos faltantes de GestIA por partes. La intencion es que cada modulo avance como recorrido completo: modelo de dominio, persistencia SQL Server, endpoints, pantalla Angular, validaciones, pruebas y documentacion.
@@ -57,6 +128,7 @@ Reemplazar el actor local temporal por identidad real y asegurar que toda accion
 - [x] Proteger endpoints iniciales con autorizacion por permiso.
 - [x] Login local y logout del lado frontend.
 - [x] Sustituir `HttpActorContext` temporal por claims del JWT.
+- [x] Manejo global de sesion expirada.
 - [ ] Agregar refresh token o renovacion controlada de sesion.
 - [ ] Completar administracion de usuarios, roles y permisos desde UI.
 - [ ] Aplicar alcance por organizacion en todos los modulos nuevos.
@@ -79,9 +151,9 @@ Reemplazar el actor local temporal por identidad real y asegurar que toda accion
 - [x] Guardas de ruta.
 - [x] Token JWT en requests HTTP.
 - [x] Logout.
-- [ ] Manejo global de sesion expirada.
+- [x] Manejo global de sesion expirada.
 - [ ] Selector de organizacion si el usuario tiene mas de una.
-- [ ] Menus visibles segun permisos.
+- [x] Menus visibles segun permisos.
 
 ### Pruebas minimas
 
@@ -104,6 +176,7 @@ Completar el alta y administracion de cliente con sedes, contactos, datos fiscal
 - Agregar validaciones de domicilio, correo, telefono, RFC y datos fiscales.
 - Definir si razon social y cliente comercial son una sola entidad o entidades separadas.
 - Preparar estructura para documentos/requisitos del cliente, aunque el primer alcance no los use completo.
+- [x] Ejecutar solicitudes aprobadas con validación de vínculos mínimos por tipo.
 
 ### Base de datos actual y extensiones
 
@@ -122,6 +195,8 @@ Completar el alta y administracion de cliente con sedes, contactos, datos fiscal
 - Alta/edicion de contactos.
 - Estado activo/inactivo visible.
 - Busqueda por nombre, RFC, codigo y sede.
+- [x] Tablero de seguimiento de solicitudes por estado con acciones rápidas.
+- [x] Ejecución controlada de solicitudes aprobadas desde la UI.
 
 ### Pruebas minimas
 
@@ -138,12 +213,12 @@ Modelar lo que el contrato y la carta compromiso describen: servicio contratado,
 
 ### Backend
 
-- Crear contratos de servicio por cliente.
-- Crear servicios vinculados a contrato y sede.
-- Crear configuraciones de servicio versionables.
-- Definir estados: borrador, activo, suspendido, terminado, cancelado.
-- Validar vigencias y traslapes.
-- Preparar historial de cambios de configuracion.
+- [x] Crear contratos de servicio por cliente.
+- [x] Crear servicios vinculados a contrato y sede.
+- [x] Crear configuraciones de servicio versionables.
+- [x] Definir estados base: borrador, revision, firmado, vigente, vencido y terminado.
+- [x] Validar vigencias base y pertenencia cliente/sede/contrato.
+- [ ] Preparar historial formal de cambios de configuracion.
 
 ### Base de datos actual y extensiones
 
@@ -157,18 +232,18 @@ Modelar lo que el contrato y la carta compromiso describen: servicio contratado,
 
 ### Frontend
 
-- Tab de servicios dentro del cliente.
-- Alta de contrato.
-- Alta de servicio.
-- Formulario de configuracion operativa.
-- Indicador de vigencias y estados.
+- [x] Tab/seccion de servicios dentro del cliente.
+- [x] Alta/edicion/baja logica de contrato.
+- [x] Alta/edicion/baja logica de servicio.
+- [x] Formulario de configuracion operativa.
+- [x] Indicador de vigencias y estados.
 
 ### Pruebas minimas
 
-- No permitir servicio sin cliente/sede valida.
-- No permitir vigencia final menor a inicio.
-- No permitir activar servicio incompleto.
-- Mantener historico cuando cambie la configuracion critica.
+- [x] No permitir servicio sin cliente/sede valida.
+- [x] No permitir vigencia final menor a inicio.
+- [x] No permitir configuracion incompleta.
+- [ ] Mantener historico formal cuando cambie la configuracion critica.
 
 ## 7. Entrega 3: personal operativo
 
@@ -178,12 +253,12 @@ Construir el expediente del empleado/persona operativa desde la ficha tecnica: d
 
 ### Backend
 
-- Completar CRUD de empleados.
-- Agregar documentos del empleado.
-- Agregar evaluaciones y resultados.
-- Definir estatus operativos: candidato, activo, suspendido, baja, no elegible.
-- Definir campos personales sensibles y politica de privacidad.
-- Preparar reglas de elegibilidad para asignaciones.
+- [x] Completar CRUD de empleados.
+- [x] Agregar documentos del empleado.
+- [x] Agregar evaluaciones y resultados.
+- [x] Definir estatus operativos base: candidato, activo, suspendido/permiso, inactivo y baja.
+- [ ] Definir campos personales sensibles y politica de privacidad.
+- [ ] Preparar reglas de elegibilidad para asignaciones.
 
 ### Base de datos actual y extensiones
 
@@ -197,17 +272,19 @@ Construir el expediente del empleado/persona operativa desde la ficha tecnica: d
 
 ### Frontend
 
-- Listado de empleados.
-- Detalle con tabs: perfil, documentos, evaluaciones, asignaciones.
-- Filtros por estatus, zona y elegibilidad.
-- Captura de documentos pendientes/recibidos/vencidos.
+- [x] Listado de empleados.
+- [x] Detalle con perfil, documentos y evaluaciones.
+- [x] Filtro por estatus y busqueda general.
+- [x] Captura de documentos pendientes/recibidos/vencidos.
+- [ ] Tab de asignaciones al cerrar reglas de planeacion.
+- [ ] Filtros por zona y elegibilidad cuando exista el modelo de asignaciones/perfiles.
 
 ### Pruebas minimas
 
-- No permitir empleado duplicado por numero interno.
-- Validar fechas de documentos y evaluaciones.
-- No permitir asignar empleado inactivo o no elegible.
-- Proteger datos sensibles por permiso.
+- [x] No permitir empleado duplicado por numero interno.
+- [x] Validar fechas de documentos y evaluaciones.
+- [ ] No permitir asignar empleado inactivo o no elegible.
+- [x] Proteger modulo por permiso `WORKFORCE.READ/WRITE`.
 
 ## 8. Entrega 4: posiciones y turnos
 
@@ -217,34 +294,34 @@ Separar claramente el servicio contratado de las posiciones requeridas y los hor
 
 ### Backend
 
-- Definir posicion requerida por servicio.
-- Definir perfil requerido por posicion.
-- Definir patrones de turno y segmentos.
-- Validar horarios nocturnos y cruces de dia.
-- Definir capacidad/cantidad requerida.
+- [x] Definir posicion requerida por servicio.
+- [x] Definir perfil requerido por posicion.
+- [x] Definir patrones de turno y segmentos.
+- [x] Validar horarios nocturnos y cruces de dia.
+- [x] Definir capacidad/cantidad requerida.
 
 ### Base de datos candidata
 
 | Tabla | Proposito |
 | --- | --- |
-| `Positions` | Puestos/posiciones autorizadas por servicio |
-| `ShiftPatterns` | Patron reusable de horario |
-| `ShiftSegments` | Segmentos de trabajo/descanso por patron |
-| `PositionShiftPatterns` | Relacion posicion-patron si se requiere flexibilidad |
+| `Positions` | Implementada: puestos/posiciones autorizadas por servicio |
+| `ShiftPatterns` | Implementada: patron reusable de horario |
+| `ShiftSegments` | Implementada: segmentos de trabajo/descanso por patron |
+| `PositionShiftPatterns` | No requerida en MVP; el patron cuelga directamente de la posicion |
 
 ### Frontend
 
-- Configurador de posiciones por servicio.
-- Configurador de patrones de turno.
-- Visualizacion semanal compacta.
-- Validaciones visibles de horarios incompletos o traslapados.
+- [x] Configurador de posiciones por servicio.
+- [x] Configurador de patrones de turno.
+- [x] Visualizacion semanal compacta.
+- [x] Validaciones visibles de horarios incompletos o traslapados.
 
 ### Pruebas minimas
 
-- No permitir posicion sin servicio activo.
-- No permitir patrones sin segmentos.
-- Validar hora inicio/fin y cruces de dia.
-- No permitir traslapes invalidos dentro de un patron.
+- [x] No permitir posicion sin servicio valido.
+- [ ] No permitir patrones sin segmentos antes de publicar/activar planeacion.
+- [x] Validar hora inicio/fin y cruces de dia.
+- [x] No permitir traslapes invalidos dentro de un patron.
 
 ## 9. Entrega 5: asignaciones y planeacion
 
@@ -254,36 +331,43 @@ Asignar personal a posiciones, detectar conflictos y publicar planeaciones versi
 
 ### Backend
 
-- Crear asignaciones con vigencia.
-- Validar traslapes por empleado.
-- Validar elegibilidad contra documentos/evaluaciones/perfil.
-- Crear versiones de planeacion por periodo.
-- Publicar version y bloquear cambios directos.
-- Reemplazar una planeacion publicada con nueva version.
+- [x] Crear asignaciones con vigencia.
+- [x] Vincular asignaciones a posiciones del servicio.
+- [x] Validar que el empleado pertenezca a la organizacion y este activo.
+- [x] Validar traslapes basicos por empleado.
+- [x] Validar elegibilidad contra documentos/evaluaciones/perfil.
+- [x] Crear versiones de planeacion por periodo.
+- [x] Crear turnos programados por version, posicion y empleado.
+- [x] Publicar version y bloquear cambios directos.
+- [x] Reemplazar una planeacion publicada con nueva version.
 
 ### Base de datos actual y extensiones
 
 | Tabla | Estado | Accion |
 | --- | --- | --- |
-| `ServiceAssignments` | Existe | Evolucionar a reglas completas |
-| `ScheduleVersions` | Candidata | Versiones de planeacion |
-| `ScheduledShifts` | Candidata | Turnos generados/publicados |
+| `ServiceAssignments` | Evolucionada | Agregado `IdPosition`, endpoints y reglas MVP de asignacion |
+| `ScheduleVersions` | Implementada | Versiones de planeacion con estado borrador/publicado/reemplazado |
+| `ScheduledShifts` | Implementada | Turnos programados por version, posicion y empleado |
 | `AssignmentConflicts` | Candidata | Si se desea guardar conflictos calculados |
 
 ### Frontend
 
-- Vista de asignaciones por servicio.
-- Vista calendario/lista por periodo.
-- Indicadores de conflicto.
-- Publicacion de planeacion.
-- Comparacion de borrador vs publicado.
+- [x] Contratos TypeScript y cliente HTTP para asignaciones.
+- [x] Vista de asignaciones por servicio.
+- [x] Contratos TypeScript y cliente HTTP para versiones/turnos programados.
+- [x] Vista lista por periodo/version.
+- [x] Indicadores de conflicto.
+- [x] Publicacion de planeacion.
+- [x] Comparacion de borrador vs publicado.
 
 ### Pruebas minimas
 
-- No permitir traslapes por empleado.
-- No permitir publicar con conflictos criticos.
-- La version publicada debe quedar inmutable.
-- Reemplazo de version conserva historial.
+- [x] Smoke API: crear asignacion `SMOKE-EMP` -> `SMOKE-POS`.
+- [x] Smoke API: crear version `SMOKE-SCHEDULE-ENTREGA-5`, turno y publicar.
+- [x] No permitir traslapes por empleado.
+- [x] No permitir publicar planeacion vacia.
+- [x] La version publicada debe quedar inmutable.
+- [x] Reemplazo de version conserva historial.
 
 ## 10. Entrega 6: asistencia, incidencias y coberturas
 
@@ -293,37 +377,43 @@ Registrar lo que realmente ocurrio en operacion: asistencia, faltas, retardos, i
 
 ### Backend
 
-- Generar asistencia esperada desde planeacion publicada.
-- Confirmar asistencia por excepcion.
-- Registrar incidencias por turno.
-- Registrar coberturas y sustitutos.
-- Adjuntar evidencias o referencias de almacenamiento.
-- Autorizar correcciones sensibles.
+- [x] Registrar asistencia real por turno programado publicado.
+- [x] Confirmar asistencia por excepcion mediante `AttendanceRecords`.
+- [x] Registrar incidencias por servicio, turno y empleado opcional.
+- [x] Registrar coberturas y sustitutos con intervalos.
+- [x] Adjuntar evidencias o referencias de almacenamiento.
+- [x] Autorizar correcciones sensibles.
 
 ### Base de datos candidata
 
-| Tabla | Proposito |
-| --- | --- |
-| `AttendanceRecords` | Asistencia esperada y real |
-| `Incidents` | Excepciones operativas |
-| `CoverageRecords` | Sustituciones e intervalos cubiertos |
-| `EvidenceItems` | Evidencias o referencias de archivo |
-| `ApprovalRequests` | Autorizaciones para cambios sensibles |
+| Tabla | Estado | Proposito |
+| --- | --- | --- |
+| `AttendanceRecords` | Implementada | Asistencia real por turno programado, empleado, fecha, estado, entrada/salida y minutos de retardo |
+| `Incidents` | Implementada | Excepciones operativas por servicio, turno opcional, empleado opcional, severidad y estado |
+| `CoverageRecords` | Implementada | Sustituciones e intervalos cubiertos por empleado original y reemplazo |
+| `OperationEvidences` | Implementada | Evidencias o referencias de archivo ligadas a asistencia, incidencia o cobertura |
+| `ApprovalRequests` | Pendiente | Autorizaciones para cambios sensibles |
 
 ### Frontend
 
-- Tablero diario de operacion.
-- Confirmacion masiva por excepcion.
-- Formulario de incidencia.
-- Formulario de cobertura.
-- Estado de evidencia/autorizacion.
+- [x] Consola de lectura operativa por organizacion, cliente y servicio.
+- [x] Tablero resumen de asistencia, incidencias y coberturas capturadas.
+- [x] Formulario MVP para guardar asistencia por turno publicado.
+- [x] Formulario MVP para registrar incidencia de servicio o turno.
+- [x] Formulario MVP para registrar cobertura con sustituto.
+- [x] Confirmacion masiva por excepcion.
+- [x] Estado de evidencia.
+- [x] Estado de autorizacion.
 
 ### Pruebas minimas
 
+- [x] Smoke API: crear/actualizar asistencia `SMOKE-ATTENDANCE-ENTREGA-6`.
+- [x] Smoke API: crear incidencia `SMOKE-INCIDENT-ENTREGA-6`.
+- [x] Smoke API: crear cobertura `SMOKE-COVERAGE-ENTREGA-6`.
 - No registrar asistencia fuera de turno sin regla aprobada.
-- No permitir cobertura sin sustituto valido.
-- No permitir intervalos de cobertura invalidos.
-- Auditar correcciones de asistencia e incidencias.
+- [x] No permitir cobertura sin sustituto valido.
+- [x] No permitir intervalos de cobertura invalidos.
+- [x] Auditar correcciones de asistencia e incidencias.
 
 ## 11. Entrega 7: reportes y control
 
@@ -333,32 +423,35 @@ Dar visibilidad a operacion, cumplimiento y trazabilidad sin convertir reportes 
 
 ### Backend
 
-- Crear consultas de lectura optimizadas.
-- Crear dashboard inicial.
-- Crear auditoria consultable.
-- Exportar clientes, servicios, empleados, asistencia e incidencias.
+- [x] Crear consulta de lectura para resumen operativo MVP.
+- [x] Crear endpoint inicial `GET /api/v1/reports/operations-summary`.
+- [x] Crear auditoria consultable.
+- [x] Exportar clientes, servicios, empleados, asistencia e incidencias.
+- [x] Exportar auditoria consultable MVP.
 - Preparar proyecciones reconstruibles.
 
 ### Base de datos candidata
 
-| Objeto | Proposito |
-| --- | --- |
-| `AuditEvents` | Trazabilidad funcional |
-| `DailyOperationSummary` | Indicadores por dia |
-| `ServiceCoverageSummary` | Cobertura por servicio |
-| `EffectivePersonnel` | Quien cubrio realmente cada turno |
+| Objeto | Estado | Proposito |
+| --- | --- | --- |
+| `GET /api/v1/reports/operations-summary` | Implementado MVP | Resumen calculado desde asistencia, incidencias y coberturas |
+| `AuditEvents` | Pendiente | Trazabilidad funcional |
+| `DailyOperationSummary` | Pendiente | Indicadores por dia |
+| `ServiceCoverageSummary` | Pendiente | Cobertura por servicio |
+| `EffectivePersonnel` | Pendiente | Quien cubrio realmente cada turno |
 
 ### Frontend
 
-- Dashboard operativo.
-- Filtros por organizacion, cliente, servicio, periodo y estado.
-- Exportaciones controladas.
+- [x] Dashboard operativo.
+- [x] Filtros por organizacion, cliente, servicio, periodo y estado.
+- [x] Exportaciones controladas MVP.
 - Vista de auditoria por entidad.
 
 ### Pruebas minimas
 
-- Reportes respetan permisos y organizacion.
-- Conteos coinciden con datos transaccionales.
+- [x] Smoke API: resumen operativo devuelve asistencia, incidencias, coberturas y minutos cubiertos.
+- [x] Reportes respetan permisos y organizacion.
+- [x] Conteos coinciden con datos transaccionales del smoke.
 - Exportaciones no exponen datos sin permiso.
 - Proyecciones pueden reconstruirse.
 

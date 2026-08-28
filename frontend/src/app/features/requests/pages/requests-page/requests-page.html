@@ -1,0 +1,342 @@
+<section class="requests-page">
+  <article class="gi-card gi-card--hero requests-hero">
+    <div>
+      <span class="eyebrow">Gestión de solicitudes</span>
+      <h1>Solicitudes operativas</h1>
+      <p>
+        Registra y da seguimiento a altas, nuevos servicios, cambios de configuración, coberturas y movimientos de
+        personal antes de que lleguen a operación.
+      </p>
+    </div>
+  </article>
+
+  <section class="gi-card request-filters" aria-label="Filtros de solicitudes">
+    <label class="gi-field">
+      Organización
+      <select class="gi-input" [value]="selectedOrganizationId()" (change)="onOrganizationChange($event)">
+        @for (organization of organizations(); track organization.idOrganization) {
+          <option [value]="organization.idOrganization">{{ organization.legalName }}</option>
+        }
+      </select>
+    </label>
+
+    <label class="gi-field">
+      Estado
+      <select class="gi-input" [value]="filterStatus()" (change)="onFilterStatusChange($event)">
+        <option value="">Todos</option>
+        @for (status of statuses; track status.value) {
+          <option [value]="status.value">{{ status.label }}</option>
+        }
+      </select>
+    </label>
+
+    <label class="gi-field">
+      Tipo
+      <select class="gi-input" [value]="filterType()" (change)="onFilterTypeChange($event)">
+        <option value="">Todos</option>
+        @for (type of requestTypes; track type.value) {
+          <option [value]="type.value">{{ type.label }}</option>
+        }
+      </select>
+    </label>
+
+    <label class="gi-field">
+      Buscar
+      <input class="gi-input" type="search" [value]="search()" (input)="onSearchChange($event)" placeholder="Folio, título o solicitante" />
+    </label>
+
+    <button class="gi-button gi-button--secondary" type="button" [disabled]="loading()" (click)="applySearch()">
+      Buscar
+    </button>
+  </section>
+
+  @if (error()) {
+    <p class="gi-alert gi-alert--error">{{ error() }}</p>
+  }
+
+  @if (message()) {
+    <p class="gi-alert gi-alert--success">{{ message() }}</p>
+  }
+
+  <section class="request-summary" aria-label="Resumen de solicitudes">
+    <article class="gi-card metric-card">
+      <span>Total</span>
+      <strong>{{ requests().length }}</strong>
+      <small>Solicitudes visibles</small>
+    </article>
+    <article class="gi-card metric-card">
+      <span>Abiertas</span>
+      <strong>{{ openRequests() }}</strong>
+      <small>Requieren seguimiento</small>
+    </article>
+    <article class="gi-card metric-card">
+      <span>Críticas</span>
+      <strong>{{ criticalRequests() }}</strong>
+      <small>Prioridad alta para operación</small>
+    </article>
+    <article class="gi-card metric-card">
+      <span>Vencidas</span>
+      <strong>{{ overdueRequests() }}</strong>
+      <small>Fecha requerida superada</small>
+    </article>
+  </section>
+
+  <section class="gi-card request-board" aria-label="Tablero de flujo de solicitudes">
+    <header class="board-heading">
+      <div>
+        <span class="eyebrow">Flujo operativo</span>
+        <h2>Tablero de seguimiento</h2>
+        <p>Avanza solicitudes por estado sin perder el contexto de prioridad, cliente y servicio.</p>
+      </div>
+      <div class="board-actions">
+        <button class="gi-button gi-button--secondary" type="button" (click)="filterByStatus('')">Ver todas</button>
+        <button class="gi-button gi-button--secondary" type="button" (click)="filterByStatus('InReview')">Sólo en revisión</button>
+      </div>
+    </header>
+
+    <div class="board-columns">
+      @for (column of workflowColumns(); track column.status) {
+        <article class="board-column">
+          <button class="board-column__title" type="button" (click)="filterByStatus(column.status)">
+            <span>
+              <strong>{{ column.label }}</strong>
+              <small>{{ column.hint }}</small>
+            </span>
+            <i>{{ column.requests.length }}</i>
+          </button>
+
+          <div class="board-stack">
+            @for (request of column.requests; track request.idOperationalRequest) {
+              <article class="board-card" [class.is-selected]="request.idOperationalRequest === selectedRequestId()">
+                <button class="board-card__main" type="button" (click)="selectRequest(request)">
+                  <span class="request-topline">
+                    <strong>{{ request.codeOperationalRequest }}</strong>
+                    <i [class]="'priority priority-' + request.priority.toLowerCase()">{{ labelForPriority(request.priority) }}</i>
+                  </span>
+                  <span class="request-title">{{ request.title }}</span>
+                  <span class="request-meta">{{ labelForType(request.requestType) }} · {{ request.requestedByName }}</span>
+                  @if (request.neededByDate) {
+                    <span class="request-due" [class.is-overdue]="request.neededByDate < today() && request.status !== 'Completed'">
+                      Requerida: {{ request.neededByDate }}
+                    </span>
+                  }
+                </button>
+
+                <div class="board-card__actions">
+                  @if (nextStatus(request); as status) {
+                    <button class="mini-flow-action" type="button" [disabled]="saving()" (click)="advanceRequest(request)">
+                      Pasar a {{ labelForStatus(status) }}
+                    </button>
+                  }
+                  @if (request.status === 'Approved') {
+                    <button class="mini-flow-action is-success" type="button" [disabled]="saving()" (click)="executeRequest(request)">
+                      Ejecutar
+                    </button>
+                  }
+                  @if (request.status !== 'Rejected' && request.status !== 'Cancelled' && request.status !== 'Completed') {
+                    <button class="mini-flow-action is-danger" type="button" [disabled]="saving()" (click)="rejectRequest(request)">
+                      Rechazar
+                    </button>
+                  }
+                </div>
+              </article>
+            } @empty {
+              <div class="board-empty">Sin solicitudes</div>
+            }
+          </div>
+        </article>
+      }
+    </div>
+  </section>
+
+  <section class="requests-grid">
+    <form class="gi-card request-card" [formGroup]="requestForm" (ngSubmit)="saveRequest()">
+      <header>
+        <span class="eyebrow">{{ selectedRequest() ? 'Edición de solicitud' : 'Nueva solicitud' }}</span>
+        <h2>{{ selectedRequest() ? 'Actualizar solicitud' : 'Captura inicial' }}</h2>
+        <p>
+          @if (selectedRequest()) {
+            Ajusta la información capturada antes de cerrar, cancelar o completar el seguimiento.
+          } @else {
+            Registra lo mínimo necesario para dar seguimiento sin bloquear el arranque del flujo.
+          }
+        </p>
+      </header>
+
+      <div class="form-row">
+        <label class="gi-field">
+          Folio
+          <input class="gi-input" type="text" formControlName="codeOperationalRequest" />
+        </label>
+
+        <label class="gi-field">
+          Prioridad
+          <select class="gi-input" formControlName="priority">
+            @for (priority of priorities; track priority.value) {
+              <option [value]="priority.value">{{ priority.label }}</option>
+            }
+          </select>
+        </label>
+      </div>
+
+      <label class="gi-field">
+        Tipo de solicitud
+        <select class="gi-input" formControlName="requestType">
+          @for (type of requestTypes; track type.value) {
+            <option [value]="type.value">{{ type.label }}</option>
+          }
+        </select>
+      </label>
+
+      <label class="gi-field">
+        Cliente relacionado
+        <select class="gi-input" formControlName="idClient" (change)="onRequestClientChange($event)">
+          <option value="">Sin cliente todavía</option>
+          @for (client of clients(); track client.idClient) {
+            <option [value]="client.idClient">{{ client.tradeName || client.legalName }}</option>
+          }
+        </select>
+      </label>
+
+      <label class="gi-field">
+        Servicio relacionado
+        <select class="gi-input" formControlName="idService">
+          <option value="">Sin servicio todavía</option>
+          @for (service of services(); track service.idService) {
+            <option [value]="service.idService">{{ service.name }}</option>
+          }
+        </select>
+      </label>
+
+      <label class="gi-field">
+        Título
+        <input class="gi-input" type="text" formControlName="title" placeholder="Ej. Alta de servicio nocturno" />
+      </label>
+
+      <label class="gi-field">
+        Solicitante
+        <input class="gi-input" type="text" formControlName="requestedByName" placeholder="Nombre o área que solicita" />
+      </label>
+
+      <label class="gi-field">
+        Fecha requerida
+        <input class="gi-input" type="date" formControlName="neededByDate" />
+      </label>
+
+      <label class="gi-field">
+        Detalle
+        <textarea class="gi-input" rows="4" formControlName="description" placeholder="Describe qué se necesita, por qué y cualquier dato operativo importante"></textarea>
+      </label>
+
+      <div class="form-actions">
+        <button class="gi-button gi-button--primary" type="submit" [disabled]="saving() || !selectedOrganizationId()">
+          {{ selectedRequest() ? 'Guardar cambios' : 'Guardar solicitud' }}
+        </button>
+
+        @if (selectedRequest()) {
+          <button class="gi-button gi-button--secondary" type="button" [disabled]="saving()" (click)="resetRequestForm()">
+            Nueva solicitud
+          </button>
+        }
+      </div>
+    </form>
+
+    <section class="request-workspace">
+      <article class="gi-card request-card">
+        <header>
+          <span class="eyebrow">Seguimiento</span>
+          <h2>Cambiar estado</h2>
+          <p>Selecciona una solicitud del listado para avanzar su revisión.</p>
+        </header>
+
+        <form class="status-form" [formGroup]="statusForm" (ngSubmit)="changeStatus()">
+          <label class="gi-field">
+            Estado
+            <select class="gi-input" formControlName="status">
+              @for (status of statuses; track status.value) {
+                <option [value]="status.value">{{ status.label }}</option>
+              }
+            </select>
+          </label>
+
+          <label class="gi-field">
+            Nota de seguimiento
+            <textarea class="gi-input" rows="3" formControlName="resolutionNotes" placeholder="Acuerdo, rechazo, pendiente o siguiente paso"></textarea>
+          </label>
+
+          <button class="gi-button gi-button--secondary" type="submit" [disabled]="saving() || !statusForm.value.idOperationalRequest">
+            Actualizar estado
+          </button>
+        </form>
+
+        <form class="execution-form" [formGroup]="executionForm" (ngSubmit)="executeRequest()">
+          <h3>Ejecutar solicitud aprobada</h3>
+          <p>
+            Convierte una solicitud aprobada en datos reales del sistema. Usa el ejemplo como guía y reemplaza los
+            valores pendientes antes de ejecutar.
+          </p>
+
+          <label class="gi-field">
+            Nota de ejecución
+            <textarea class="gi-input" rows="3" formControlName="executionNotes" placeholder="Qué se ejecutó, folio interno o acuerdo final"></textarea>
+          </label>
+
+          <label class="gi-field">
+            Datos de ejecución
+            <textarea
+              class="gi-input code-input"
+              rows="12"
+              formControlName="executionPayload"
+              [placeholder]="executionPayloadExample()"
+              spellcheck="false"
+            ></textarea>
+            <small>
+              Alta de cliente usa <code>client</code>; nuevo servicio usa <code>service</code> y opcionalmente
+              <code>clientSite</code>/<code>serviceConfiguration</code>; cambio de personal usa
+              <code>staffAssignment</code>; cobertura usa <code>coverage</code>.
+            </small>
+          </label>
+
+          <button class="gi-button gi-button--primary" type="submit" [disabled]="saving() || selectedRequest()?.status !== 'Approved'">
+            Ejecutar y completar
+          </button>
+        </form>
+      </article>
+
+      <article class="gi-card request-card">
+        <header>
+          <span class="eyebrow">Listado</span>
+          <h2>Solicitudes registradas</h2>
+        </header>
+
+        <div class="request-list">
+          @for (request of requests(); track request.idOperationalRequest) {
+            <button
+              class="request-item"
+              type="button"
+              [class.is-selected]="request.idOperationalRequest === selectedRequestId()"
+              (click)="selectRequest(request)"
+            >
+              <span class="request-topline">
+                <strong>{{ request.codeOperationalRequest }}</strong>
+                <i [class]="'priority priority-' + request.priority.toLowerCase()">{{ labelForPriority(request.priority) }}</i>
+              </span>
+              <span class="request-title">{{ request.title }}</span>
+              <span class="request-meta">
+                {{ labelForType(request.requestType) }} · {{ labelForStatus(request.status) }} · {{ request.requestedByName }}
+              </span>
+              @if (request.clientName || request.serviceName) {
+                <span class="request-meta">{{ request.clientName || 'Sin cliente' }} @if (request.serviceName) { · {{ request.serviceName }} }</span>
+              }
+            </button>
+          } @empty {
+            <div class="gi-empty-state">
+              <h3>Sin solicitudes</h3>
+              <p>Cuando captures una solicitud aparecerá aquí para darle seguimiento.</p>
+            </div>
+          }
+        </div>
+      </article>
+    </section>
+  </section>
+</section>

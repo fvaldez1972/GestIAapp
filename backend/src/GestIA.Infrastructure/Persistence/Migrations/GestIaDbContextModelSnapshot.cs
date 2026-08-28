@@ -329,6 +329,485 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                     b.ToTable("ClientSites", "dbo");
                 });
 
+            modelBuilder.Entity("GestIA.Domain.Documents.BusinessDocument", b =>
+                {
+                    b.Property<Guid>("IdBusinessDocument")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Active")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true)
+                        .HasColumnName("Active");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2(0)")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CreatedByName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateOnly?>("ExpiresDate")
+                        .HasColumnType("date");
+
+                    b.Property<Guid?>("IdClient")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("IdEmployee")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("IdEmployeeEvaluation")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("IdOperationalRequest")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("IdOrganization")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("IdService")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("IdServiceContract")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsSensitive")
+                        .HasColumnType("bit");
+
+                    b.Property<DateOnly?>("IssuedDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<Guid>("OwnerId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("OwnerType")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(40)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<string>("StorageReference")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(180)
+                        .HasColumnType("nvarchar(180)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2(0)");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("UpdatedByName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("IdBusinessDocument")
+                        .HasName("PK_BusinessDocuments");
+
+                    b.HasIndex("IdClient")
+                        .HasDatabaseName("IX_BusinessDocuments_IdClient");
+
+                    b.HasIndex("IdEmployee")
+                        .HasDatabaseName("IX_BusinessDocuments_IdEmployee");
+
+                    b.HasIndex("IdEmployeeEvaluation")
+                        .HasDatabaseName("IX_BusinessDocuments_IdEmployeeEvaluation");
+
+                    b.HasIndex("IdOperationalRequest")
+                        .HasDatabaseName("IX_BusinessDocuments_IdOperationalRequest");
+
+                    b.HasIndex("IdOrganization")
+                        .HasDatabaseName("IX_BusinessDocuments_IdOrganization");
+
+                    b.HasIndex("IdService")
+                        .HasDatabaseName("IX_BusinessDocuments_IdService");
+
+                    b.HasIndex("IdServiceContract")
+                        .HasDatabaseName("IX_BusinessDocuments_IdServiceContract");
+
+                    b.HasIndex("OwnerType", "OwnerId")
+                        .HasDatabaseName("IX_BusinessDocuments_OwnerType_OwnerId");
+
+                    b.HasIndex("Status", "ExpiresDate")
+                        .HasDatabaseName("IX_BusinessDocuments_Status_ExpiresDate");
+
+                    b.ToTable("BusinessDocuments", "dbo", t =>
+                        {
+                            t.HasCheckConstraint("CK_BusinessDocuments_ExpiryDateRange", "[ExpiresDate] IS NULL OR [IssuedDate] IS NULL OR [ExpiresDate] >= [IssuedDate]");
+
+                            t.HasCheckConstraint("CK_BusinessDocuments_RelatedRecord_ExactlyOne", "(([IdClient] IS NOT NULL AND [IdServiceContract] IS NULL AND [IdService] IS NULL AND [IdEmployee] IS NULL AND [IdEmployeeEvaluation] IS NULL AND [IdOperationalRequest] IS NULL) OR ([IdClient] IS NULL AND [IdServiceContract] IS NOT NULL AND [IdService] IS NULL AND [IdEmployee] IS NULL AND [IdEmployeeEvaluation] IS NULL AND [IdOperationalRequest] IS NULL) OR ([IdClient] IS NULL AND [IdServiceContract] IS NULL AND [IdService] IS NOT NULL AND [IdEmployee] IS NULL AND [IdEmployeeEvaluation] IS NULL AND [IdOperationalRequest] IS NULL) OR ([IdClient] IS NULL AND [IdServiceContract] IS NULL AND [IdService] IS NULL AND [IdEmployee] IS NOT NULL AND [IdEmployeeEvaluation] IS NULL AND [IdOperationalRequest] IS NULL) OR ([IdClient] IS NULL AND [IdServiceContract] IS NULL AND [IdService] IS NULL AND [IdEmployee] IS NULL AND [IdEmployeeEvaluation] IS NOT NULL AND [IdOperationalRequest] IS NULL) OR ([IdClient] IS NULL AND [IdServiceContract] IS NULL AND [IdService] IS NULL AND [IdEmployee] IS NULL AND [IdEmployeeEvaluation] IS NULL AND [IdOperationalRequest] IS NOT NULL))");
+                        });
+                });
+
+            modelBuilder.Entity("GestIA.Domain.Operations.AttendanceRecord", b =>
+                {
+                    b.Property<Guid>("IdAttendanceRecord")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Active")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true)
+                        .HasColumnName("Active");
+
+                    b.Property<TimeOnly?>("ActualEndTime")
+                        .HasColumnType("time");
+
+                    b.Property<TimeOnly?>("ActualStartTime")
+                        .HasColumnType("time");
+
+                    b.Property<DateOnly>("AttendanceDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2(0)")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CreatedByName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<Guid>("IdEmployee")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("IdScheduledShift")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("MinutesLate")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2(0)");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("UpdatedByName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("IdAttendanceRecord")
+                        .HasName("PK_AttendanceRecords");
+
+                    b.HasIndex("IdScheduledShift")
+                        .IsUnique()
+                        .HasDatabaseName("UX_AttendanceRecords_IdScheduledShift");
+
+                    b.HasIndex("IdEmployee", "AttendanceDate")
+                        .HasDatabaseName("IX_AttendanceRecords_IdEmployee_AttendanceDate");
+
+                    b.ToTable("AttendanceRecords", "dbo", t =>
+                        {
+                            t.HasCheckConstraint("CK_AttendanceRecords_MinutesLate", "[MinutesLate] >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("GestIA.Domain.Operations.CoverageRecord", b =>
+                {
+                    b.Property<Guid>("IdCoverageRecord")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Active")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true)
+                        .HasColumnName("Active");
+
+                    b.Property<TimeOnly>("CoverageEndTime")
+                        .HasColumnType("time");
+
+                    b.Property<TimeOnly>("CoverageStartTime")
+                        .HasColumnType("time");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2(0)")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CreatedByName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("DurationMinutes")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("IdOriginalEmployee")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("IdReplacementEmployee")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("IdScheduledShift")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsOvernight")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2(0)");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("UpdatedByName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("IdCoverageRecord")
+                        .HasName("PK_CoverageRecords");
+
+                    b.HasIndex("IdOriginalEmployee")
+                        .HasDatabaseName("IX_CoverageRecords_IdOriginalEmployee");
+
+                    b.HasIndex("IdReplacementEmployee")
+                        .HasDatabaseName("IX_CoverageRecords_IdReplacementEmployee");
+
+                    b.HasIndex("IdScheduledShift")
+                        .HasDatabaseName("IX_CoverageRecords_IdScheduledShift");
+
+                    b.ToTable("CoverageRecords", "dbo", t =>
+                        {
+                            t.HasCheckConstraint("CK_CoverageRecords_DurationMinutes", "[DurationMinutes] > 0 AND [DurationMinutes] <= 1440");
+                        });
+                });
+
+            modelBuilder.Entity("GestIA.Domain.Operations.Incident", b =>
+                {
+                    b.Property<Guid>("IdIncident")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Active")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true)
+                        .HasColumnName("Active");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2(0)")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CreatedByName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<Guid?>("IdEmployee")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("IdScheduledShift")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("IdService")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateOnly>("IncidentDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("IncidentType")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<string>("ResolutionNotes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<string>("Severity")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2(0)");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("UpdatedByName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("IdIncident")
+                        .HasName("PK_Incidents");
+
+                    b.HasIndex("IdScheduledShift")
+                        .HasDatabaseName("IX_Incidents_IdScheduledShift");
+
+                    b.HasIndex("IdEmployee", "IncidentDate")
+                        .HasDatabaseName("IX_Incidents_IdEmployee_IncidentDate");
+
+                    b.HasIndex("IdService", "IncidentDate")
+                        .HasDatabaseName("IX_Incidents_IdService_IncidentDate");
+
+                    b.ToTable("Incidents", "dbo");
+                });
+
+            modelBuilder.Entity("GestIA.Domain.Operations.OperationEvidence", b =>
+                {
+                    b.Property<Guid>("IdOperationEvidence")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Active")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true)
+                        .HasColumnName("Active");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2(0)")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CreatedByName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("EvidenceType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<Guid?>("IdAttendanceRecord")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("IdCoverageRecord")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("IdIncident")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("IdService")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("StorageReference")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(180)
+                        .HasColumnType("nvarchar(180)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2(0)");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("UpdatedByName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("IdOperationEvidence")
+                        .HasName("PK_OperationEvidences");
+
+                    b.HasIndex("EvidenceType")
+                        .HasDatabaseName("IX_OperationEvidences_EvidenceType");
+
+                    b.HasIndex("IdAttendanceRecord")
+                        .HasDatabaseName("IX_OperationEvidences_IdAttendanceRecord");
+
+                    b.HasIndex("IdCoverageRecord")
+                        .HasDatabaseName("IX_OperationEvidences_IdCoverageRecord");
+
+                    b.HasIndex("IdIncident")
+                        .HasDatabaseName("IX_OperationEvidences_IdIncident");
+
+                    b.HasIndex("IdService")
+                        .HasDatabaseName("IX_OperationEvidences_IdService");
+
+                    b.ToTable("OperationEvidences", "dbo", t =>
+                        {
+                            t.HasCheckConstraint("CK_OperationEvidences_RelatedRecord_ExactlyOne", "(([IdAttendanceRecord] IS NOT NULL AND [IdIncident] IS NULL AND [IdCoverageRecord] IS NULL) OR ([IdAttendanceRecord] IS NULL AND [IdIncident] IS NOT NULL AND [IdCoverageRecord] IS NULL) OR ([IdAttendanceRecord] IS NULL AND [IdIncident] IS NULL AND [IdCoverageRecord] IS NOT NULL))");
+                        });
+                });
+
             modelBuilder.Entity("GestIA.Domain.Organizations.Organization", b =>
                 {
                     b.Property<Guid>("IdOrganization")
@@ -393,6 +872,505 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                         .HasFilter("[Rfc] IS NOT NULL");
 
                     b.ToTable("Organizations", "dbo");
+                });
+
+            modelBuilder.Entity("GestIA.Domain.Planning.Position", b =>
+                {
+                    b.Property<Guid>("IdPosition")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Active")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true)
+                        .HasColumnName("Active");
+
+                    b.Property<string>("CodePosition")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(40)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2(0)")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CreatedByName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<Guid>("IdService")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("RequiredSkillProfile")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<int>("RequiredWorkerCount")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2(0)");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("UpdatedByName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("IdPosition")
+                        .HasName("PK_Positions");
+
+                    b.HasIndex("IdService", "CodePosition")
+                        .IsUnique()
+                        .HasDatabaseName("UX_Positions_IdService_CodePosition");
+
+                    b.ToTable("Positions", "dbo", t =>
+                        {
+                            t.HasCheckConstraint("CK_Positions_RequiredWorkerCount", "[RequiredWorkerCount] > 0");
+                        });
+                });
+
+            modelBuilder.Entity("GestIA.Domain.Planning.ScheduleVersion", b =>
+                {
+                    b.Property<Guid>("IdScheduleVersion")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Active")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true)
+                        .HasColumnName("Active");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2(0)")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CreatedByName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<Guid>("IdService")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateOnly>("PeriodEndDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly>("PeriodStartDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateTime?>("PublishedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("PublishedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("PublishedByName")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(30)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2(0)");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("UpdatedByName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("IdScheduleVersion")
+                        .HasName("PK_ScheduleVersions");
+
+                    b.HasIndex("IdService", "Status")
+                        .HasDatabaseName("IX_ScheduleVersions_IdService_Status");
+
+                    b.HasIndex("IdService", "PeriodStartDate", "PeriodEndDate")
+                        .HasDatabaseName("IX_ScheduleVersions_IdService_PeriodStartDate_PeriodEndDate");
+
+                    b.ToTable("ScheduleVersions", "dbo", t =>
+                        {
+                            t.HasCheckConstraint("CK_ScheduleVersions_DateRange", "[PeriodEndDate] >= [PeriodStartDate]");
+                        });
+                });
+
+            modelBuilder.Entity("GestIA.Domain.Planning.ScheduledShift", b =>
+                {
+                    b.Property<Guid>("IdScheduledShift")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Active")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true)
+                        .HasColumnName("Active");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2(0)")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CreatedByName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("DurationMinutes")
+                        .HasColumnType("int");
+
+                    b.Property<TimeOnly>("EndTime")
+                        .HasColumnType("time");
+
+                    b.Property<Guid>("IdEmployee")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("IdPosition")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("IdScheduleVersion")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsOvernight")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateOnly>("ShiftDate")
+                        .HasColumnType("date");
+
+                    b.Property<TimeOnly>("StartTime")
+                        .HasColumnType("time");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2(0)");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("UpdatedByName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("IdScheduledShift")
+                        .HasName("PK_ScheduledShifts");
+
+                    b.HasIndex("IdScheduleVersion", "ShiftDate")
+                        .HasDatabaseName("IX_ScheduledShifts_IdScheduleVersion_ShiftDate");
+
+                    b.HasIndex("IdEmployee", "ShiftDate", "StartTime")
+                        .HasDatabaseName("IX_ScheduledShifts_IdEmployee_ShiftDate_StartTime");
+
+                    b.HasIndex("IdPosition", "ShiftDate", "StartTime")
+                        .HasDatabaseName("IX_ScheduledShifts_IdPosition_ShiftDate_StartTime");
+
+                    b.ToTable("ScheduledShifts", "dbo", t =>
+                        {
+                            t.HasCheckConstraint("CK_ScheduledShifts_DurationMinutes", "[DurationMinutes] > 0 AND [DurationMinutes] <= 1440");
+                        });
+                });
+
+            modelBuilder.Entity("GestIA.Domain.Planning.ShiftPattern", b =>
+                {
+                    b.Property<Guid>("IdShiftPattern")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Active")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true)
+                        .HasColumnName("Active");
+
+                    b.Property<string>("CodeShiftPattern")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(40)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2(0)")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CreatedByName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateOnly>("EffectiveFromDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("EffectiveToDate")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("IdPosition")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2(0)");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("UpdatedByName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("IdShiftPattern")
+                        .HasName("PK_ShiftPatterns");
+
+                    b.HasIndex("IdPosition", "CodeShiftPattern")
+                        .IsUnique()
+                        .HasDatabaseName("UX_ShiftPatterns_IdPosition_CodeShiftPattern");
+
+                    b.ToTable("ShiftPatterns", "dbo", t =>
+                        {
+                            t.HasCheckConstraint("CK_ShiftPatterns_EffectiveDateRange", "[EffectiveToDate] IS NULL OR [EffectiveToDate] >= [EffectiveFromDate]");
+                        });
+                });
+
+            modelBuilder.Entity("GestIA.Domain.Planning.ShiftSegment", b =>
+                {
+                    b.Property<Guid>("IdShiftSegment")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Active")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true)
+                        .HasColumnName("Active");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2(0)")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CreatedByName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("DayOfWeek")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<int>("DurationMinutes")
+                        .HasColumnType("int");
+
+                    b.Property<TimeOnly>("EndTime")
+                        .HasColumnType("time");
+
+                    b.Property<Guid>("IdShiftPattern")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsOvernight")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<int>("RequiredWorkerCount")
+                        .HasColumnType("int");
+
+                    b.Property<TimeOnly>("StartTime")
+                        .HasColumnType("time");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2(0)");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("UpdatedByName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("IdShiftSegment")
+                        .HasName("PK_ShiftSegments");
+
+                    b.HasIndex("IdShiftPattern", "DayOfWeek", "StartTime")
+                        .HasDatabaseName("IX_ShiftSegments_IdShiftPattern_DayOfWeek_StartTime");
+
+                    b.ToTable("ShiftSegments", "dbo", t =>
+                        {
+                            t.HasCheckConstraint("CK_ShiftSegments_DurationMinutes", "[DurationMinutes] > 0 AND [DurationMinutes] <= 1440");
+
+                            t.HasCheckConstraint("CK_ShiftSegments_RequiredWorkerCount", "[RequiredWorkerCount] > 0");
+                        });
+                });
+
+            modelBuilder.Entity("GestIA.Domain.Requests.OperationalRequest", b =>
+                {
+                    b.Property<Guid>("IdOperationalRequest")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Active")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true)
+                        .HasColumnName("Active");
+
+                    b.Property<string>("CodeOperationalRequest")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(40)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2(0)")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CreatedByName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<Guid?>("IdClient")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("IdOrganization")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("IdService")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateOnly?>("NeededByDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Priority")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(40)");
+
+                    b.Property<string>("RequestType")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(40)");
+
+                    b.Property<string>("RequestedByName")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<string>("ResolutionNotes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(40)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(180)
+                        .HasColumnType("nvarchar(180)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2(0)");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("UpdatedByName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("IdOperationalRequest")
+                        .HasName("PK_OperationalRequests");
+
+                    b.HasIndex("IdClient")
+                        .HasDatabaseName("IX_OperationalRequests_IdClient");
+
+                    b.HasIndex("IdService")
+                        .HasDatabaseName("IX_OperationalRequests_IdService");
+
+                    b.HasIndex("IdOrganization", "CodeOperationalRequest")
+                        .IsUnique()
+                        .HasDatabaseName("UX_OperationalRequests_IdOrganization_CodeOperationalRequest");
+
+                    b.HasIndex("IdOrganization", "RequestType")
+                        .HasDatabaseName("IX_OperationalRequests_IdOrganization_RequestType");
+
+                    b.HasIndex("IdOrganization", "Status", "Priority")
+                        .HasDatabaseName("IX_OperationalRequests_IdOrganization_Status_Priority");
+
+                    b.ToTable("OperationalRequests", "dbo");
                 });
 
             modelBuilder.Entity("GestIA.Domain.Security.OrganizationMembership", b =>
@@ -1400,6 +2378,9 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("IdEmployee")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid?>("IdPosition")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid>("IdService")
                         .HasColumnType("uniqueidentifier");
 
@@ -1428,6 +2409,9 @@ namespace GestIA.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("IdEmployee", "StartDate")
                         .HasDatabaseName("IX_ServiceAssignments_IdEmployee_StartDate");
+
+                    b.HasIndex("IdPosition", "StartDate")
+                        .HasDatabaseName("IX_ServiceAssignments_IdPosition_StartDate");
 
                     b.HasIndex("IdService", "StartDate")
                         .HasDatabaseName("IX_ServiceAssignments_IdService_StartDate");
@@ -1480,6 +2464,278 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                         .HasConstraintName("FK_ClientSites_Clients_IdClient");
 
                     b.Navigation("Client");
+                });
+
+            modelBuilder.Entity("GestIA.Domain.Documents.BusinessDocument", b =>
+                {
+                    b.HasOne("GestIA.Domain.Clients.Client", "Client")
+                        .WithMany()
+                        .HasForeignKey("IdClient")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_BusinessDocuments_Clients_IdClient");
+
+                    b.HasOne("GestIA.Domain.Workforce.Employee", "Employee")
+                        .WithMany()
+                        .HasForeignKey("IdEmployee")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_BusinessDocuments_Employees_IdEmployee");
+
+                    b.HasOne("GestIA.Domain.Workforce.EmployeeEvaluation", "EmployeeEvaluation")
+                        .WithMany()
+                        .HasForeignKey("IdEmployeeEvaluation")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_BusinessDocuments_EmployeeEvaluations_IdEmployeeEvaluation");
+
+                    b.HasOne("GestIA.Domain.Requests.OperationalRequest", "OperationalRequest")
+                        .WithMany()
+                        .HasForeignKey("IdOperationalRequest")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_BusinessDocuments_OperationalRequests_IdOperationalRequest");
+
+                    b.HasOne("GestIA.Domain.Services.Service", "Service")
+                        .WithMany()
+                        .HasForeignKey("IdService")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_BusinessDocuments_Services_IdService");
+
+                    b.HasOne("GestIA.Domain.Services.ServiceContract", "ServiceContract")
+                        .WithMany()
+                        .HasForeignKey("IdServiceContract")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_BusinessDocuments_ServiceContracts_IdServiceContract");
+
+                    b.Navigation("Client");
+
+                    b.Navigation("Employee");
+
+                    b.Navigation("EmployeeEvaluation");
+
+                    b.Navigation("OperationalRequest");
+
+                    b.Navigation("Service");
+
+                    b.Navigation("ServiceContract");
+                });
+
+            modelBuilder.Entity("GestIA.Domain.Operations.AttendanceRecord", b =>
+                {
+                    b.HasOne("GestIA.Domain.Workforce.Employee", "Employee")
+                        .WithMany()
+                        .HasForeignKey("IdEmployee")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_AttendanceRecords_Employees_IdEmployee");
+
+                    b.HasOne("GestIA.Domain.Planning.ScheduledShift", "ScheduledShift")
+                        .WithMany()
+                        .HasForeignKey("IdScheduledShift")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_AttendanceRecords_ScheduledShifts_IdScheduledShift");
+
+                    b.Navigation("Employee");
+
+                    b.Navigation("ScheduledShift");
+                });
+
+            modelBuilder.Entity("GestIA.Domain.Operations.CoverageRecord", b =>
+                {
+                    b.HasOne("GestIA.Domain.Workforce.Employee", "OriginalEmployee")
+                        .WithMany()
+                        .HasForeignKey("IdOriginalEmployee")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_CoverageRecords_Employees_IdOriginalEmployee");
+
+                    b.HasOne("GestIA.Domain.Workforce.Employee", "ReplacementEmployee")
+                        .WithMany()
+                        .HasForeignKey("IdReplacementEmployee")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_CoverageRecords_Employees_IdReplacementEmployee");
+
+                    b.HasOne("GestIA.Domain.Planning.ScheduledShift", "ScheduledShift")
+                        .WithMany()
+                        .HasForeignKey("IdScheduledShift")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_CoverageRecords_ScheduledShifts_IdScheduledShift");
+
+                    b.Navigation("OriginalEmployee");
+
+                    b.Navigation("ReplacementEmployee");
+
+                    b.Navigation("ScheduledShift");
+                });
+
+            modelBuilder.Entity("GestIA.Domain.Operations.Incident", b =>
+                {
+                    b.HasOne("GestIA.Domain.Workforce.Employee", "Employee")
+                        .WithMany()
+                        .HasForeignKey("IdEmployee")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_Incidents_Employees_IdEmployee");
+
+                    b.HasOne("GestIA.Domain.Planning.ScheduledShift", "ScheduledShift")
+                        .WithMany()
+                        .HasForeignKey("IdScheduledShift")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_Incidents_ScheduledShifts_IdScheduledShift");
+
+                    b.HasOne("GestIA.Domain.Services.Service", "Service")
+                        .WithMany()
+                        .HasForeignKey("IdService")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_Incidents_Services_IdService");
+
+                    b.Navigation("Employee");
+
+                    b.Navigation("ScheduledShift");
+
+                    b.Navigation("Service");
+                });
+
+            modelBuilder.Entity("GestIA.Domain.Operations.OperationEvidence", b =>
+                {
+                    b.HasOne("GestIA.Domain.Operations.AttendanceRecord", "AttendanceRecord")
+                        .WithMany()
+                        .HasForeignKey("IdAttendanceRecord")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_OperationEvidences_AttendanceRecords_IdAttendanceRecord");
+
+                    b.HasOne("GestIA.Domain.Operations.CoverageRecord", "CoverageRecord")
+                        .WithMany()
+                        .HasForeignKey("IdCoverageRecord")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_OperationEvidences_CoverageRecords_IdCoverageRecord");
+
+                    b.HasOne("GestIA.Domain.Operations.Incident", "Incident")
+                        .WithMany()
+                        .HasForeignKey("IdIncident")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_OperationEvidences_Incidents_IdIncident");
+
+                    b.HasOne("GestIA.Domain.Services.Service", "Service")
+                        .WithMany()
+                        .HasForeignKey("IdService")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_OperationEvidences_Services_IdService");
+
+                    b.Navigation("AttendanceRecord");
+
+                    b.Navigation("CoverageRecord");
+
+                    b.Navigation("Incident");
+
+                    b.Navigation("Service");
+                });
+
+            modelBuilder.Entity("GestIA.Domain.Planning.Position", b =>
+                {
+                    b.HasOne("GestIA.Domain.Services.Service", "Service")
+                        .WithMany()
+                        .HasForeignKey("IdService")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_Positions_Services_IdService");
+
+                    b.Navigation("Service");
+                });
+
+            modelBuilder.Entity("GestIA.Domain.Planning.ScheduleVersion", b =>
+                {
+                    b.HasOne("GestIA.Domain.Services.Service", "Service")
+                        .WithMany()
+                        .HasForeignKey("IdService")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_ScheduleVersions_Services_IdService");
+
+                    b.Navigation("Service");
+                });
+
+            modelBuilder.Entity("GestIA.Domain.Planning.ScheduledShift", b =>
+                {
+                    b.HasOne("GestIA.Domain.Workforce.Employee", "Employee")
+                        .WithMany()
+                        .HasForeignKey("IdEmployee")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_ScheduledShifts_Employees_IdEmployee");
+
+                    b.HasOne("GestIA.Domain.Planning.Position", "Position")
+                        .WithMany()
+                        .HasForeignKey("IdPosition")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_ScheduledShifts_Positions_IdPosition");
+
+                    b.HasOne("GestIA.Domain.Planning.ScheduleVersion", "ScheduleVersion")
+                        .WithMany("Shifts")
+                        .HasForeignKey("IdScheduleVersion")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_ScheduledShifts_ScheduleVersions_IdScheduleVersion");
+
+                    b.Navigation("Employee");
+
+                    b.Navigation("Position");
+
+                    b.Navigation("ScheduleVersion");
+                });
+
+            modelBuilder.Entity("GestIA.Domain.Planning.ShiftPattern", b =>
+                {
+                    b.HasOne("GestIA.Domain.Planning.Position", "Position")
+                        .WithMany("ShiftPatterns")
+                        .HasForeignKey("IdPosition")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_ShiftPatterns_Positions_IdPosition");
+
+                    b.Navigation("Position");
+                });
+
+            modelBuilder.Entity("GestIA.Domain.Planning.ShiftSegment", b =>
+                {
+                    b.HasOne("GestIA.Domain.Planning.ShiftPattern", "ShiftPattern")
+                        .WithMany("Segments")
+                        .HasForeignKey("IdShiftPattern")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_ShiftSegments_ShiftPatterns_IdShiftPattern");
+
+                    b.Navigation("ShiftPattern");
+                });
+
+            modelBuilder.Entity("GestIA.Domain.Requests.OperationalRequest", b =>
+                {
+                    b.HasOne("GestIA.Domain.Clients.Client", "Client")
+                        .WithMany()
+                        .HasForeignKey("IdClient")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_OperationalRequests_Clients_IdClient");
+
+                    b.HasOne("GestIA.Domain.Organizations.Organization", "Organization")
+                        .WithMany()
+                        .HasForeignKey("IdOrganization")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_OperationalRequests_Organizations_IdOrganization");
+
+                    b.HasOne("GestIA.Domain.Services.Service", "Service")
+                        .WithMany()
+                        .HasForeignKey("IdService")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_OperationalRequests_Services_IdService");
+
+                    b.Navigation("Client");
+
+                    b.Navigation("Organization");
+
+                    b.Navigation("Service");
                 });
 
             modelBuilder.Entity("GestIA.Domain.Security.OrganizationMembership", b =>
@@ -1651,6 +2907,12 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasConstraintName("FK_ServiceAssignments_Employees_IdEmployee");
 
+                    b.HasOne("GestIA.Domain.Planning.Position", "Position")
+                        .WithMany()
+                        .HasForeignKey("IdPosition")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_ServiceAssignments_Positions_IdPosition");
+
                     b.HasOne("GestIA.Domain.Services.Service", "Service")
                         .WithMany()
                         .HasForeignKey("IdService")
@@ -1660,6 +2922,8 @@ namespace GestIA.Infrastructure.Persistence.Migrations
 
                     b.Navigation("Employee");
 
+                    b.Navigation("Position");
+
                     b.Navigation("Service");
                 });
 
@@ -1668,6 +2932,21 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                     b.Navigation("Contacts");
 
                     b.Navigation("Sites");
+                });
+
+            modelBuilder.Entity("GestIA.Domain.Planning.Position", b =>
+                {
+                    b.Navigation("ShiftPatterns");
+                });
+
+            modelBuilder.Entity("GestIA.Domain.Planning.ScheduleVersion", b =>
+                {
+                    b.Navigation("Shifts");
+                });
+
+            modelBuilder.Entity("GestIA.Domain.Planning.ShiftPattern", b =>
+                {
+                    b.Navigation("Segments");
                 });
 
             modelBuilder.Entity("GestIA.Domain.Services.Service", b =>

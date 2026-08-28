@@ -23,7 +23,12 @@ public sealed class ServiceAssignmentConfiguration : IEntityTypeConfiguration<Se
             .WithMany()
             .HasForeignKey(entity => entity.IdService)
             .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne(entity => entity.Position)
+            .WithMany()
+            .HasForeignKey(entity => entity.IdPosition)
+            .OnDelete(DeleteBehavior.Restrict);
         builder.HasIndex(entity => new { entity.IdEmployee, entity.StartDate });
         builder.HasIndex(entity => new { entity.IdService, entity.StartDate });
+        builder.HasIndex(entity => new { entity.IdPosition, entity.StartDate });
     }
 }

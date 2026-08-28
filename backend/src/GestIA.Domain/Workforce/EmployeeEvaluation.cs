@@ -2,6 +2,15 @@ using GestIA.Domain.Common;
 
 namespace GestIA.Domain.Workforce;
 
+public sealed record EmployeeEvaluationProfile(
+    EmployeeEvaluationType EvaluationType,
+    EmployeeEvaluationResult Result,
+    DateOnly EvaluatedDate,
+    DateOnly? ExpiresDate,
+    string? CertificateNumber,
+    string? StorageReference,
+    string? Notes);
+
 public sealed class EmployeeEvaluation : AuditableEntity
 {
     private EmployeeEvaluation()
@@ -54,4 +63,52 @@ public sealed class EmployeeEvaluation : AuditableEntity
             actorId,
             actorName,
             occurredAt);
+
+    public static EmployeeEvaluation Create(
+        Guid idEmployee,
+        EmployeeEvaluationProfile profile,
+        Guid actorId,
+        string actorName,
+        DateTime occurredAt)
+    {
+        var evaluation = Create(
+            idEmployee,
+            profile.EvaluationType,
+            profile.Result,
+            profile.EvaluatedDate,
+            actorId,
+            actorName,
+            occurredAt);
+        evaluation.ApplyProfile(profile);
+        return evaluation;
+    }
+
+    public void UpdateProfile(
+        EmployeeEvaluationProfile profile,
+        Guid actorId,
+        string actorName,
+        DateTime occurredAt)
+    {
+        ApplyProfile(profile);
+        RegisterUpdate(actorId, actorName, occurredAt);
+    }
+
+    private void ApplyProfile(EmployeeEvaluationProfile profile)
+    {
+        if (profile.ExpiresDate < profile.EvaluatedDate)
+        {
+            throw new ArgumentOutOfRangeException(nameof(profile));
+        }
+
+        EvaluationType = profile.EvaluationType;
+        Result = profile.Result;
+        EvaluatedDate = profile.EvaluatedDate;
+        ExpiresDate = profile.ExpiresDate;
+        CertificateNumber = Normalize(profile.CertificateNumber);
+        StorageReference = Normalize(profile.StorageReference);
+        Notes = Normalize(profile.Notes);
+    }
+
+    private static string? Normalize(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

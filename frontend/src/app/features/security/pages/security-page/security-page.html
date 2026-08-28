@@ -1,0 +1,322 @@
+<section class="security-page">
+  @if (!canAdministerSecurity()) {
+    <article class="gi-card gi-empty-state">
+      <span class="eyebrow">Acceso restringido</span>
+      <h1>No tienes permiso para ver Seguridad</h1>
+      <p>Esta sección sólo está disponible para usuarios administradores de la plataforma.</p>
+    </article>
+  } @else {
+    <article class="gi-card gi-card--hero security-hero">
+      <div>
+        <span class="eyebrow">Control de acceso</span>
+        <h1>Seguridad y permisos</h1>
+        <p>
+          Consulta usuarios, organizaciones, roles y permisos activos. Esta vista deja visible quién puede operar cada
+          parte del sistema antes de habilitar edición controlada.
+        </p>
+      </div>
+      <button class="gi-button gi-button--secondary" type="button" [disabled]="loading()" (click)="loadSecurity()">
+        {{ loading() ? 'Actualizando…' : 'Actualizar' }}
+      </button>
+    </article>
+
+    @if (error()) {
+      <div class="gi-alert gi-alert--error">{{ error() }}</div>
+    }
+
+    @if (message()) {
+      <div class="gi-alert gi-alert--success">{{ message() }}</div>
+    }
+
+    <section class="security-summary" aria-label="Resumen de seguridad">
+      <article class="gi-card metric-card">
+        <span>Usuarios</span>
+        <strong>{{ users().length }}</strong>
+        <small>Con acceso registrado</small>
+      </article>
+      <article class="gi-card metric-card">
+        <span>Roles</span>
+        <strong>{{ roles().length }}</strong>
+        <small>{{ systemRoles() }} del sistema</small>
+      </article>
+      <article class="gi-card metric-card">
+        <span>Permisos</span>
+        <strong>{{ permissions().length }}</strong>
+        <small>Agrupados por módulo</small>
+      </article>
+    </section>
+
+    <section class="security-admin-grid">
+      <form class="gi-card security-section" [formGroup]="createUserForm" (ngSubmit)="createUser()">
+        <div class="section-heading">
+          <div>
+            <span class="eyebrow">Nuevo acceso</span>
+            <h2>Crear usuario</h2>
+          </div>
+          <span class="gi-badge">Admin</span>
+        </div>
+
+        <div class="form-row">
+          <label class="gi-field">
+            Nombre
+            <input class="gi-input" type="text" formControlName="displayName" placeholder="Ej. Supervisor operativo" />
+          </label>
+
+          <label class="gi-field">
+            Correo
+            <input class="gi-input" type="email" formControlName="email" placeholder="usuario@empresa.com" />
+          </label>
+        </div>
+
+        <div class="form-row">
+          <label class="gi-field">
+            Contraseña temporal
+            <input class="gi-input" type="password" formControlName="password" placeholder="Mínimo 12 caracteres" />
+          </label>
+
+          <label class="gi-field">
+            Organización
+            <select class="gi-input" formControlName="idOrganization">
+              @for (organization of organizations(); track organization.idOrganization) {
+                <option [value]="organization.idOrganization">{{ organization.legalName }}</option>
+              }
+            </select>
+          </label>
+        </div>
+
+        <div class="form-row">
+          <label class="gi-field">
+            Rol
+            <select class="gi-input" formControlName="idRole">
+              @for (role of roles(); track role.idRole) {
+                <option [value]="role.idRole">{{ role.name }}</option>
+              }
+            </select>
+          </label>
+
+          <label class="gi-field">
+            Etiqueta de acceso
+            <input class="gi-input" type="text" formControlName="membershipLabel" placeholder="Ej. Supervisor zona norte" />
+          </label>
+        </div>
+
+        <button class="gi-button gi-button--primary" type="submit" [disabled]="saving()">
+          {{ saving() ? 'Guardando…' : 'Crear usuario' }}
+        </button>
+      </form>
+
+      <article class="gi-card security-section">
+        <div class="section-heading">
+          <div>
+            <span class="eyebrow">Usuario seleccionado</span>
+            <h2>{{ selectedUser()?.displayName || 'Selecciona un usuario' }}</h2>
+          </div>
+          @if (selectedUser(); as user) {
+            <span class="gi-badge">{{ user.email }}</span>
+          }
+        </div>
+
+        <form class="admin-form" [formGroup]="accessForm" (ngSubmit)="assignAccess()">
+          <h3>Asignar acceso</h3>
+          <div class="form-row">
+            <label class="gi-field">
+              Organización
+              <select class="gi-input" formControlName="idOrganization">
+                @for (organization of organizations(); track organization.idOrganization) {
+                  <option [value]="organization.idOrganization">{{ organization.legalName }}</option>
+                }
+              </select>
+            </label>
+
+            <label class="gi-field">
+              Rol
+              <select class="gi-input" formControlName="idRole">
+                @for (role of roles(); track role.idRole) {
+                  <option [value]="role.idRole">{{ role.name }}</option>
+                }
+              </select>
+            </label>
+          </div>
+
+          <label class="gi-field">
+            Etiqueta
+            <input class="gi-input" type="text" formControlName="membershipLabel" />
+          </label>
+
+          <button class="gi-button gi-button--secondary" type="submit" [disabled]="saving() || !selectedUser()">
+            Asignar acceso
+          </button>
+        </form>
+
+        <form class="admin-form" [formGroup]="passwordForm" (ngSubmit)="resetPassword()">
+          <h3>Resetear contraseña</h3>
+          <label class="gi-field">
+            Nueva contraseña temporal
+            <input class="gi-input" type="password" formControlName="password" placeholder="Mínimo 12 caracteres" />
+          </label>
+          <button class="gi-button gi-button--secondary" type="submit" [disabled]="saving() || !selectedUser()">
+            Actualizar contraseña
+          </button>
+        </form>
+
+        @if (selectedUser(); as user) {
+          <button class="danger-action" type="button" [disabled]="saving()" (click)="deactivateUser(user)">
+            Desactivar usuario
+          </button>
+        }
+      </article>
+    </section>
+
+    <section class="gi-card security-section">
+      <div class="section-heading">
+        <div>
+          <span class="eyebrow">Accesos</span>
+          <h2>Usuarios</h2>
+        </div>
+        <span class="gi-badge">{{ users().length }} registros</span>
+      </div>
+
+      @if (loading()) {
+        <div class="security-skeleton" aria-label="Cargando usuarios"></div>
+      } @else if (users().length === 0) {
+        <div class="gi-empty-state">
+          <h3>Aún no hay usuarios adicionales</h3>
+          <p>Cuando demos de alta usuarios operativos aparecerán aquí con sus roles y organizaciones.</p>
+        </div>
+      } @else {
+        <div class="table-wrap">
+          <table class="gi-table">
+            <thead>
+              <tr>
+                <th>Usuario</th>
+                <th>Organizaciones</th>
+                <th>Roles</th>
+                <th>Último acceso</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (user of users(); track user.idUser) {
+                <tr [class.is-selected]="user.idUser === selectedUserId()" (click)="selectUser(user)">
+                  <td>
+                    <strong>{{ user.displayName }}</strong>
+                    <span>{{ user.email }}</span>
+                  </td>
+                  <td>
+                    @for (organization of user.organizations; track organization.idOrganization) {
+                      <span class="mini-pill">{{ organization.legalName }}</span>
+                    }
+                  </td>
+                  <td>
+                    @for (role of user.roles; track role.idRole) {
+                      <span class="mini-pill is-strong">{{ role.name }}</span>
+                    }
+                  </td>
+                  <td>{{ user.lastLoginAt ? (user.lastLoginAt | date: 'dd/MM/yyyy HH:mm') : 'Sin ingreso' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </section>
+
+    <section class="security-grid">
+      <article class="gi-card security-section">
+        <div class="section-heading">
+          <div>
+            <span class="eyebrow">Roles</span>
+            <h2>Perfiles de acceso</h2>
+          </div>
+          <span class="gi-badge">{{ roles().length }} roles</span>
+        </div>
+
+        <form class="admin-form" [formGroup]="roleForm" (ngSubmit)="createRole()">
+          <h3>Crear rol personalizado</h3>
+          <label class="gi-field">
+            Clave del rol
+            <input class="gi-input" type="text" formControlName="codeRole" placeholder="Ej. SUPERVISOR_OPERACION" />
+          </label>
+
+          <label class="gi-field">
+            Nombre
+            <input class="gi-input" type="text" formControlName="name" placeholder="Ej. Supervisor de operación" />
+          </label>
+
+          <label class="gi-field">
+            Organización
+            <select class="gi-input" formControlName="idOrganization">
+              <option value="">Rol global</option>
+              @for (organization of organizations(); track organization.idOrganization) {
+                <option [value]="organization.idOrganization">{{ organization.legalName }}</option>
+              }
+            </select>
+          </label>
+
+          <div class="permission-checks" aria-label="Permisos del rol">
+            @for (group of permissionGroups(); track group.module) {
+              <article>
+                <strong>{{ group.module }}</strong>
+                @for (permission of group.permissions; track permission.idPermission) {
+                  <label>
+                    <input
+                      type="checkbox"
+                      [checked]="isPermissionSelected(permission.codePermission)"
+                      (change)="togglePermission(permission.codePermission, $event)"
+                    />
+                    <span>{{ permission.description }}</span>
+                  </label>
+                }
+              </article>
+            }
+          </div>
+
+          <button class="gi-button gi-button--primary" type="submit" [disabled]="saving()">
+            Crear rol
+          </button>
+        </form>
+
+        <div class="role-list">
+          @for (role of roles(); track role.idRole) {
+            <article class="role-card">
+              <div>
+                <strong>{{ role.name }}</strong>
+                <span>{{ role.codeRole }}</span>
+              </div>
+              <div class="role-actions">
+                <span class="gi-badge">{{ role.permissions.length }} permisos</span>
+                @if (!role.isSystem) {
+                  <button class="link-danger" type="button" [disabled]="saving()" (click)="deactivateRole(role)">
+                    Desactivar
+                  </button>
+                }
+              </div>
+            </article>
+          }
+        </div>
+      </article>
+
+      <article class="gi-card security-section">
+        <div class="section-heading">
+          <div>
+            <span class="eyebrow">Permisos</span>
+            <h2>Catálogo por módulo</h2>
+          </div>
+          <span class="gi-badge">{{ permissionGroups().length }} módulos</span>
+        </div>
+
+        <div class="permission-groups">
+          @for (group of permissionGroups(); track group.module) {
+            <article class="permission-group">
+              <strong>{{ group.module }}</strong>
+              <div>
+                @for (permission of group.permissions; track permission.idPermission) {
+                  <span class="mini-pill">{{ permission.description }}</span>
+                }
+              </div>
+            </article>
+          }
+        </div>
+      </article>
+    </section>
+  }
+</section>

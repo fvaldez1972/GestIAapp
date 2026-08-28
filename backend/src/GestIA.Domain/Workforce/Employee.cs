@@ -3,6 +3,32 @@ using GestIA.Domain.Organizations;
 
 namespace GestIA.Domain.Workforce;
 
+public sealed record EmployeeProfile(
+    string FullName,
+    string? JobTitle,
+    DateOnly HireDate,
+    DateOnly? BirthDate,
+    string? BirthPlace,
+    string? Sex,
+    string? MaritalStatus,
+    string? Rfc,
+    string? Curp,
+    string? SocialSecurityNumber,
+    string? VoterIdNumber,
+    string? DriverLicenseNumber,
+    string? MilitaryServiceCardNumber,
+    string? Email,
+    string? MobilePhone,
+    string? HomePhone,
+    string? EmergencyContactName,
+    string? EmergencyContactPhone,
+    string? Address,
+    string? Municipality,
+    string? State,
+    string? PostalCode,
+    string? HousingType,
+    DateOnly? ResidenceSinceDate);
+
 public sealed class Employee : AuditableEntity
 {
     private readonly List<EmployeeDocument> documents = [];
@@ -86,4 +112,84 @@ public sealed class Employee : AuditableEntity
             actorId,
             actorName,
             occurredAt);
+
+    public static Employee Create(
+        Guid idOrganization,
+        string codeEmployee,
+        EmployeeProfile profile,
+        Guid actorId,
+        string actorName,
+        DateTime occurredAt)
+    {
+        var employee = Create(
+            idOrganization,
+            codeEmployee,
+            profile.FullName,
+            profile.JobTitle,
+            profile.HireDate,
+            actorId,
+            actorName,
+            occurredAt);
+        employee.ApplyProfile(profile);
+        return employee;
+    }
+
+    public void UpdateProfile(
+        EmployeeProfile profile,
+        Guid actorId,
+        string actorName,
+        DateTime occurredAt)
+    {
+        ApplyProfile(profile);
+        RegisterUpdate(actorId, actorName, occurredAt);
+    }
+
+    public void ChangeStatus(
+        EmployeeStatus status,
+        Guid actorId,
+        string actorName,
+        DateTime occurredAt)
+    {
+        Status = status;
+        RegisterUpdate(actorId, actorName, occurredAt);
+    }
+
+    private void ApplyProfile(EmployeeProfile profile)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(profile.FullName);
+
+        FullName = profile.FullName.Trim();
+        JobTitle = Normalize(profile.JobTitle);
+        HireDate = profile.HireDate;
+        BirthDate = profile.BirthDate;
+        BirthPlace = Normalize(profile.BirthPlace);
+        Sex = Normalize(profile.Sex);
+        MaritalStatus = Normalize(profile.MaritalStatus);
+        Rfc = NormalizeUpper(profile.Rfc);
+        Curp = NormalizeUpper(profile.Curp);
+        SocialSecurityNumber = Normalize(profile.SocialSecurityNumber);
+        VoterIdNumber = NormalizeUpper(profile.VoterIdNumber);
+        DriverLicenseNumber = NormalizeUpper(profile.DriverLicenseNumber);
+        MilitaryServiceCardNumber = NormalizeUpper(profile.MilitaryServiceCardNumber);
+        Email = NormalizeLower(profile.Email);
+        MobilePhone = Normalize(profile.MobilePhone);
+        HomePhone = Normalize(profile.HomePhone);
+        EmergencyContactName = Normalize(profile.EmergencyContactName);
+        EmergencyContactPhone = Normalize(profile.EmergencyContactPhone);
+        Address = Normalize(profile.Address);
+        Municipality = Normalize(profile.Municipality);
+        State = Normalize(profile.State);
+        PostalCode = Normalize(profile.PostalCode);
+        HousingType = Normalize(profile.HousingType);
+        ResidenceSinceDate = profile.ResidenceSinceDate;
+    }
+
+    private static string? Normalize(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static string? NormalizeUpper(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim().ToUpperInvariant();
+
+    private static string? NormalizeLower(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim().ToLowerInvariant();
 }

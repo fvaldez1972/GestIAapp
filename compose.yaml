@@ -57,8 +57,11 @@ services:
       Jwt__Secret: "${GESTIA_JWT_SECRET:?Copy .env.example to .env and set GESTIA_JWT_SECRET}"
       BootstrapAdmin__Email: "${GESTIA_BOOTSTRAP_ADMIN_EMAIL:-admin@gestia.local}"
       BootstrapAdmin__Password: "${GESTIA_BOOTSTRAP_ADMIN_PASSWORD:-GestIA.Local.2026!}"
+      Storage__RootPath: /app/storage
     ports:
       - "${GESTIA_API_PORT:-8080}:8080"
+    volumes:
+      - ./storage:/app/storage
     security_opt:
       - no-new-privileges:true
 

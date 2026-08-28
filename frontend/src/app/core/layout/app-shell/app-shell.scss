@@ -5,6 +5,9 @@
 
 .wrapper {
   min-height: 100vh;
+  background:
+    radial-gradient(circle at 96% 4%, rgb(34 198 238 / 10%), transparent 20rem),
+    var(--gestia-canvas);
 }
 
 .app-menu {
@@ -47,17 +50,14 @@
 }
 
 .logo-copy,
-.profile-copy,
-.sidebar-foot__copy {
+.profile-copy {
   min-width: 0;
 }
 
 .logo-copy strong,
 .logo-copy small,
 .profile-copy strong,
-.profile-copy small,
-.sidebar-foot__copy strong,
-.sidebar-foot__copy small {
+.profile-copy small {
   display: block;
   white-space: nowrap;
 }
@@ -107,13 +107,17 @@
   color: inherit;
   font-size: 0.82rem;
   text-decoration: none;
-  transition: color 150ms ease, background-color 150ms ease;
+  transition: color 150ms ease, background-color 150ms ease, transform 150ms ease;
 }
 
 a.menu-link:hover,
 .menu-link.active {
   color: #fff;
   background: rgb(255 255 255 / 9%);
+}
+
+a.menu-link:hover {
+  transform: translateX(2px);
 }
 
 .menu-link.active::before {
@@ -154,30 +158,21 @@ a.menu-link:hover,
 }
 
 .sidebar-foot {
-  display: flex;
+  display: grid;
   min-height: 4.25rem;
-  align-items: center;
-  gap: 0.65rem;
+  align-content: center;
+  gap: 0.15rem;
   padding: 0.9rem 1.25rem;
   border-top: 1px solid rgb(255 255 255 / 8%);
 }
 
-.environment-dot {
-  width: 0.52rem;
-  height: 0.52rem;
-  flex: 0 0 auto;
-  border-radius: 50%;
-  background: #3ddc97;
-  box-shadow: 0 0 0 0.25rem rgb(61 220 151 / 12%);
-}
-
-.sidebar-foot strong {
+.sidebar-foot span {
   color: rgb(255 255 255 / 82%);
   font-size: 0.68rem;
+  font-weight: 800;
 }
 
 .sidebar-foot small {
-  margin-top: 0.15rem;
   color: rgb(255 255 255 / 38%);
   font-size: 0.6rem;
 }
@@ -200,14 +195,13 @@ a.menu-link:hover,
   justify-content: space-between;
   padding: 0 1.5rem;
   border-bottom: 1px solid var(--gestia-border);
-  background: rgb(255 255 255 / 92%);
+  background: rgb(255 255 255 / 88%);
   backdrop-filter: blur(12px);
 }
 
 .topbar-start,
 .topbar-actions,
-.profile,
-.environment {
+.profile {
   display: flex;
   align-items: center;
 }
@@ -243,12 +237,20 @@ a.menu-link:hover,
 }
 
 .topbar-title span {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
   margin-bottom: 0.1rem;
   color: var(--gestia-muted);
   font-size: 0.58rem;
   font-weight: 800;
   letter-spacing: 0.12em;
   text-transform: uppercase;
+}
+
+.topbar-title i {
+  color: color-mix(in srgb, var(--gestia-muted) 45%, white);
+  font-style: normal;
 }
 
 .topbar-title strong {
@@ -260,19 +262,6 @@ a.menu-link:hover,
   gap: 1rem;
 }
 
-.environment {
-  gap: 0.45rem;
-  color: var(--gestia-muted);
-  font-size: 0.7rem;
-}
-
-.environment i {
-  width: 0.45rem;
-  height: 0.45rem;
-  border-radius: 50%;
-  background: #20b26b;
-}
-
 .profile {
   gap: 0.55rem;
   padding: 0.35rem 0.45rem;
@@ -281,10 +270,12 @@ a.menu-link:hover,
   color: inherit;
   background: transparent;
   cursor: pointer;
+  transition: background-color 150ms ease, transform 150ms ease;
 }
 
 .profile:hover {
   background: var(--gestia-canvas);
+  transform: translateY(-1px);
 }
 
 .profile-avatar {
@@ -320,7 +311,7 @@ a.menu-link:hover,
 
 main {
   width: 100%;
-  max-width: 100rem;
+  max-width: 106rem;
   margin: 0 auto;
   flex: 1;
   padding: 2rem;
@@ -336,7 +327,7 @@ main {
   border-top: 1px solid var(--gestia-border);
   color: var(--gestia-muted);
   font-size: 0.65rem;
-  background: #fff;
+  background: rgb(255 255 255 / 70%);
 }
 
 .wrapper.is-condensed .app-menu {
@@ -351,7 +342,7 @@ main {
 .wrapper.is-condensed .menu-title,
 .wrapper.is-condensed .menu-text,
 .wrapper.is-condensed .menu-badge,
-.wrapper.is-condensed .sidebar-foot__copy {
+.wrapper.is-condensed .sidebar-foot small {
   display: none;
 }
 
@@ -398,7 +389,7 @@ main {
   .wrapper.is-condensed .menu-title,
   .wrapper.is-condensed .menu-text,
   .wrapper.is-condensed .menu-badge,
-  .wrapper.is-condensed .sidebar-foot__copy {
+  .wrapper.is-condensed .sidebar-foot small {
     display: block;
   }
 
@@ -414,7 +405,6 @@ main {
     padding: 0 1rem;
   }
 
-  .environment,
   .profile-copy,
   .profile-chevron {
     display: none;

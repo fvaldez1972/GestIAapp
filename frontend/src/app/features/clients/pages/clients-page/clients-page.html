@@ -273,6 +273,214 @@
           </div>
         }
       </section>
+
+      <section class="detail-section">
+        <header>
+          <div>
+            <h3>Posiciones requeridas</h3>
+            <span>{{ selectedServiceName() }}</span>
+          </div>
+          <button class="button button--secondary" type="button" [disabled]="!selectedService()" (click)="openCreatePosition()">Nueva posición</button>
+        </header>
+
+        @if (!selectedService()) {
+          <div class="compact-state">Selecciona un servicio para configurar posiciones.</div>
+        } @else if (!positions().length) {
+          <div class="compact-state">Sin posiciones registradas para este servicio.</div>
+        } @else {
+          <div class="cards-list">
+            @for (position of positions(); track position.idPosition) {
+              <article class="mini-card selectable" [class.is-active]="selectedPosition()?.idPosition === position.idPosition">
+                <button class="mini-card__main" type="button" (click)="selectPosition(position)">
+                  <span class="code">{{ position.codePosition }}</span>
+                  <strong>{{ position.name }}</strong>
+                  <small>{{ position.requiredWorkerCount }} elemento(s) requeridos</small>
+                  <small>{{ position.requiredSkillProfile || position.notes || 'Sin perfil requerido capturado' }}</small>
+                </button>
+                <div class="mini-actions">
+                  <button type="button" (click)="openEditPosition(position)">Editar</button>
+                  <button class="danger" type="button" (click)="deactivatePosition(position)">Desactivar</button>
+                </div>
+              </article>
+            }
+          </div>
+        }
+      </section>
+
+      <section class="detail-section">
+        <header>
+          <div>
+            <h3>Patrones de turno</h3>
+            <span>{{ selectedPositionName() }}</span>
+          </div>
+          <button class="button button--secondary" type="button" [disabled]="!selectedPosition()" (click)="openCreateShiftPattern()">Nuevo patrón</button>
+        </header>
+
+        @if (!selectedPosition()) {
+          <div class="compact-state">Selecciona una posición para configurar sus patrones.</div>
+        } @else if (!shiftPatterns().length) {
+          <div class="compact-state">Sin patrones registrados para esta posición.</div>
+        } @else {
+          <div class="cards-list">
+            @for (pattern of shiftPatterns(); track pattern.idShiftPattern) {
+              <article class="mini-card selectable" [class.is-active]="selectedShiftPattern()?.idShiftPattern === pattern.idShiftPattern">
+                <button class="mini-card__main" type="button" (click)="selectShiftPattern(pattern)">
+                  <span class="code">{{ pattern.codeShiftPattern }}</span>
+                  <strong>{{ pattern.name }}</strong>
+                  <small>Vigencia: {{ pattern.effectiveFromDate }} - {{ pattern.effectiveToDate || 'indefinida' }}</small>
+                  <small>{{ pattern.description || 'Sin descripción' }}</small>
+                </button>
+                <div class="mini-actions">
+                  <button type="button" (click)="openEditShiftPattern(pattern)">Editar</button>
+                  <button class="danger" type="button" (click)="deactivateShiftPattern(pattern)">Desactivar</button>
+                </div>
+              </article>
+            }
+          </div>
+        }
+      </section>
+
+      <section class="detail-section">
+        <header>
+          <div>
+            <h3>Asignaciones de personal</h3>
+            <span>{{ selectedServiceName() }}</span>
+          </div>
+          <button class="button button--secondary" type="button" [disabled]="!selectedService() || !positions().length || !activeEmployees().length" (click)="openCreateAssignment()">Nueva asignación</button>
+        </header>
+
+        @if (!selectedService()) {
+          <div class="compact-state">Selecciona un servicio para asignar personal.</div>
+        } @else if (!positions().length) {
+          <div class="compact-state">Primero registra posiciones para este servicio.</div>
+        } @else if (!activeEmployees().length) {
+          <div class="compact-state">No hay empleados activos disponibles para asignar.</div>
+        } @else if (!assignments().length) {
+          <div class="compact-state">Sin personal asignado a este servicio.</div>
+        } @else {
+          <div class="cards-list">
+            @for (assignment of assignments(); track assignment.idServiceAssignment) {
+              <article class="mini-card">
+                <div>
+                  <span class="pill">{{ assignmentTypeLabel(assignment.assignmentType) }}{{ assignment.isPrimary ? ' · Principal' : '' }}</span>
+                  <strong>{{ assignment.employeeName }}</strong>
+                  <small>{{ assignment.employeeCode }} · {{ assignment.positionCode || 'Sin posición' }} {{ assignment.positionName ? '· ' + assignment.positionName : '' }}</small>
+                  <small>Vigencia: {{ assignment.startDate }} - {{ assignment.endDate || 'indefinida' }}</small>
+                  <small>{{ assignment.notes || 'Sin notas' }}</small>
+                </div>
+                <div class="mini-actions">
+                  <button type="button" (click)="openEditAssignment(assignment)">Editar</button>
+                  <button class="danger" type="button" (click)="deactivateAssignment(assignment)">Desactivar</button>
+                </div>
+              </article>
+            }
+          </div>
+        }
+      </section>
+
+      <section class="detail-section">
+        <header>
+          <div>
+            <h3>Planeación versionada</h3>
+            <span>{{ selectedServiceName() }}</span>
+          </div>
+          <button class="button button--secondary" type="button" [disabled]="!selectedService()" (click)="openCreateScheduleVersion()">Nueva planeación</button>
+        </header>
+
+        @if (!selectedService()) {
+          <div class="compact-state">Selecciona un servicio para ver sus planeaciones.</div>
+        } @else if (!scheduleVersions().length) {
+          <div class="compact-state">Sin versiones de planeación para este servicio.</div>
+        } @else {
+          <div class="cards-list">
+            @for (version of scheduleVersions(); track version.idScheduleVersion) {
+              <article class="mini-card selectable" [class.is-active]="selectedScheduleVersion()?.idScheduleVersion === version.idScheduleVersion">
+                <button class="mini-card__main" type="button" (click)="selectScheduleVersion(version)">
+                  <span class="pill">{{ scheduleStatusLabel(version.status) }}</span>
+                  <strong>{{ version.name }}</strong>
+                  <small>{{ version.periodStartDate }} - {{ version.periodEndDate }}</small>
+                  <small>{{ version.publishedByName ? 'Publicado por ' + version.publishedByName : version.notes || 'Sin notas' }}</small>
+                </button>
+                <div class="mini-actions">
+                  @if (version.status === 'Draft') {
+                    <button type="button" (click)="openEditScheduleVersion(version)">Editar</button>
+                    <button type="button" (click)="publishScheduleVersion(version)">Publicar</button>
+                  }
+                </div>
+              </article>
+            }
+          </div>
+        }
+      </section>
+
+      <section class="detail-section">
+        <header>
+          <div>
+            <h3>Turnos programados</h3>
+            <span>{{ selectedScheduleVersionName() }}</span>
+          </div>
+          <button class="button button--secondary" type="button" [disabled]="!selectedScheduleVersion() || selectedScheduleVersion()?.status !== 'Draft' || !positions().length || !activeEmployees().length" (click)="openCreateScheduledShift()">Nuevo turno</button>
+        </header>
+
+        @if (!selectedScheduleVersion()) {
+          <div class="compact-state">Selecciona una planeación para ver sus turnos.</div>
+        } @else if (!scheduledShifts().length) {
+          <div class="compact-state">Sin turnos programados para esta planeación.</div>
+        } @else {
+          <div class="schedule-grid">
+            @for (shift of scheduledShifts(); track shift.idScheduledShift) {
+              <article class="schedule-card">
+                <div>
+                  <span class="pill">{{ shift.shiftDate }}{{ shift.isOvernight ? ' · Nocturno' : '' }}</span>
+                  <strong>{{ shift.startTime }} - {{ shift.endTime }}</strong>
+                  <small>{{ shift.employeeCode }} · {{ shift.employeeName }}</small>
+                  <small>{{ shift.positionCode }} · {{ shift.positionName }} · {{ durationLabel(shift.durationMinutes) }}</small>
+                  <small>{{ shift.notes || 'Sin notas' }}</small>
+                </div>
+                @if (selectedScheduleVersion()?.status === 'Draft') {
+                  <div class="mini-actions">
+                    <button type="button" (click)="openEditScheduledShift(shift)">Editar</button>
+                    <button class="danger" type="button" (click)="deactivateScheduledShift(shift)">Desactivar</button>
+                  </div>
+                }
+              </article>
+            }
+          </div>
+        }
+      </section>
+
+      <section class="detail-section">
+        <header>
+          <div>
+            <h3>Segmentos semanales</h3>
+            <span>{{ selectedShiftPatternName() }}</span>
+          </div>
+          <button class="button button--secondary" type="button" [disabled]="!selectedShiftPattern()" (click)="openCreateShiftSegment()">Nuevo segmento</button>
+        </header>
+
+        @if (!selectedShiftPattern()) {
+          <div class="compact-state">Selecciona un patrón para ver sus horarios.</div>
+        } @else if (!shiftSegments().length) {
+          <div class="compact-state">Sin segmentos registrados para este patrón.</div>
+        } @else {
+          <div class="schedule-grid">
+            @for (segment of shiftSegments(); track segment.idShiftSegment) {
+              <article class="schedule-card">
+                <div>
+                  <span class="pill">{{ dayLabel(segment.dayOfWeek) }}{{ segment.isOvernight ? ' · Nocturno' : '' }}</span>
+                  <strong>{{ segment.startTime }} - {{ segment.endTime }}</strong>
+                  <small>{{ durationLabel(segment.durationMinutes) }} · {{ segment.requiredWorkerCount }} elemento(s)</small>
+                  <small>{{ segment.notes || 'Sin notas' }}</small>
+                </div>
+                <div class="mini-actions">
+                  <button type="button" (click)="openEditShiftSegment(segment)">Editar</button>
+                  <button class="danger" type="button" (click)="deactivateShiftSegment(segment)">Desactivar</button>
+                </div>
+              </article>
+            }
+          </div>
+        }
+      </section>
     }
   </article>
 </section>
@@ -446,6 +654,189 @@
         <footer>
           <button class="button button--secondary" type="button" (click)="closeEditors()">Cancelar</button>
           <button class="button button--primary" type="submit" [disabled]="saving()">{{ saving() ? 'Guardando…' : 'Guardar configuración' }}</button>
+        </footer>
+      </form>
+    </section>
+  </div>
+}
+
+@if (positionEditorOpen()) {
+  <div class="modal-backdrop" (click)="closeEditors()">
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="position-editor-title" (click)="$event.stopPropagation()">
+      <header>
+        <div><span class="eyebrow">Posición requerida</span><h2 id="position-editor-title">{{ editingPosition() ? 'Editar posición' : 'Nueva posición' }}</h2></div>
+        <button type="button" aria-label="Cerrar" (click)="closeEditors()">×</button>
+      </header>
+      <form [formGroup]="positionForm" (ngSubmit)="savePosition()">
+        <div class="form-grid">
+          <label><span>Código *</span><input formControlName="codePosition" [readOnly]="!!editingPosition()" /></label>
+          <label><span>Elementos *</span><input type="number" formControlName="requiredWorkerCount" min="1" /></label>
+          <label class="wide"><span>Nombre *</span><input formControlName="name" /></label>
+          <label class="wide"><span>Perfil requerido</span><textarea rows="3" formControlName="requiredSkillProfile"></textarea></label>
+          <label class="wide"><span>Notas</span><textarea rows="3" formControlName="notes"></textarea></label>
+        </div>
+        <footer>
+          <button class="button button--secondary" type="button" (click)="closeEditors()">Cancelar</button>
+          <button class="button button--primary" type="submit" [disabled]="saving()">{{ saving() ? 'Guardando…' : 'Guardar posición' }}</button>
+        </footer>
+      </form>
+    </section>
+  </div>
+}
+
+@if (assignmentEditorOpen()) {
+  <div class="modal-backdrop" (click)="closeEditors()">
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="assignment-editor-title" (click)="$event.stopPropagation()">
+      <header>
+        <div><span class="eyebrow">Planeación operativa</span><h2 id="assignment-editor-title">{{ editingAssignment() ? 'Editar asignación' : 'Nueva asignación' }}</h2></div>
+        <button type="button" aria-label="Cerrar" (click)="closeEditors()">×</button>
+      </header>
+      <form [formGroup]="assignmentForm" (ngSubmit)="saveAssignment()">
+        <div class="form-grid">
+          <label class="wide">
+            <span>Empleado activo *</span>
+            <select formControlName="idEmployee">
+              @for (employee of activeEmployees(); track employee.idEmployee) {
+                <option [value]="employee.idEmployee">{{ employee.codeEmployee }} · {{ employee.fullName }}</option>
+              }
+            </select>
+          </label>
+          <label class="wide">
+            <span>Posición *</span>
+            <select formControlName="idPosition">
+              @for (position of positions(); track position.idPosition) {
+                <option [value]="position.idPosition">{{ position.codePosition }} · {{ position.name }}</option>
+              }
+            </select>
+          </label>
+          <label>
+            <span>Tipo *</span>
+            <select formControlName="assignmentType">
+              @for (type of assignmentTypes; track type.value) {
+                <option [value]="type.value">{{ type.label }}</option>
+              }
+            </select>
+          </label>
+          <label><span>Inicio *</span><input type="date" formControlName="startDate" /></label>
+          <label><span>Fin</span><input type="date" formControlName="endDate" /></label>
+          <label class="check"><input type="checkbox" formControlName="isPrimary" /><span>Asignación principal</span></label>
+          <label class="wide"><span>Notas</span><textarea rows="3" formControlName="notes"></textarea></label>
+        </div>
+        <footer>
+          <button class="button button--secondary" type="button" (click)="closeEditors()">Cancelar</button>
+          <button class="button button--primary" type="submit" [disabled]="saving()">{{ saving() ? 'Guardando…' : 'Guardar asignación' }}</button>
+        </footer>
+      </form>
+    </section>
+  </div>
+}
+
+@if (scheduleVersionEditorOpen()) {
+  <div class="modal-backdrop" (click)="closeEditors()">
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="schedule-version-editor-title" (click)="$event.stopPropagation()">
+      <header>
+        <div><span class="eyebrow">Planeación versionada</span><h2 id="schedule-version-editor-title">{{ editingScheduleVersion() ? 'Editar planeación' : 'Nueva planeación' }}</h2></div>
+        <button type="button" aria-label="Cerrar" (click)="closeEditors()">×</button>
+      </header>
+      <form [formGroup]="scheduleVersionForm" (ngSubmit)="saveScheduleVersion()">
+        <div class="form-grid">
+          <label class="wide"><span>Nombre *</span><input formControlName="name" /></label>
+          <label><span>Inicio periodo *</span><input type="date" formControlName="periodStartDate" /></label>
+          <label><span>Fin periodo *</span><input type="date" formControlName="periodEndDate" /></label>
+          <label class="wide"><span>Notas</span><textarea rows="3" formControlName="notes"></textarea></label>
+        </div>
+        <footer>
+          <button class="button button--secondary" type="button" (click)="closeEditors()">Cancelar</button>
+          <button class="button button--primary" type="submit" [disabled]="saving()">{{ saving() ? 'Guardando…' : 'Guardar planeación' }}</button>
+        </footer>
+      </form>
+    </section>
+  </div>
+}
+
+@if (scheduledShiftEditorOpen()) {
+  <div class="modal-backdrop" (click)="closeEditors()">
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="scheduled-shift-editor-title" (click)="$event.stopPropagation()">
+      <header>
+        <div><span class="eyebrow">Turno programado</span><h2 id="scheduled-shift-editor-title">{{ editingScheduledShift() ? 'Editar turno' : 'Nuevo turno' }}</h2></div>
+        <button type="button" aria-label="Cerrar" (click)="closeEditors()">×</button>
+      </header>
+      <form [formGroup]="scheduledShiftForm" (ngSubmit)="saveScheduledShift()">
+        <div class="form-grid">
+          <label class="wide">
+            <span>Empleado activo *</span>
+            <select formControlName="idEmployee">
+              @for (employee of activeEmployees(); track employee.idEmployee) {
+                <option [value]="employee.idEmployee">{{ employee.codeEmployee }} · {{ employee.fullName }}</option>
+              }
+            </select>
+          </label>
+          <label class="wide">
+            <span>Posición *</span>
+            <select formControlName="idPosition">
+              @for (position of positions(); track position.idPosition) {
+                <option [value]="position.idPosition">{{ position.codePosition }} · {{ position.name }}</option>
+              }
+            </select>
+          </label>
+          <label><span>Fecha *</span><input type="date" formControlName="shiftDate" /></label>
+          <label><span>Inicio *</span><input type="time" formControlName="startTime" /></label>
+          <label><span>Fin *</span><input type="time" formControlName="endTime" /></label>
+          <label class="check"><input type="checkbox" formControlName="isOvernight" /><span>Cruza medianoche</span></label>
+          <label class="wide"><span>Notas</span><textarea rows="3" formControlName="notes"></textarea></label>
+        </div>
+        <footer>
+          <button class="button button--secondary" type="button" (click)="closeEditors()">Cancelar</button>
+          <button class="button button--primary" type="submit" [disabled]="saving()">{{ saving() ? 'Guardando…' : 'Guardar turno' }}</button>
+        </footer>
+      </form>
+    </section>
+  </div>
+}
+
+@if (shiftPatternEditorOpen()) {
+  <div class="modal-backdrop" (click)="closeEditors()">
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="shift-pattern-editor-title" (click)="$event.stopPropagation()">
+      <header>
+        <div><span class="eyebrow">Patrón de turno</span><h2 id="shift-pattern-editor-title">{{ editingShiftPattern() ? 'Editar patrón' : 'Nuevo patrón' }}</h2></div>
+        <button type="button" aria-label="Cerrar" (click)="closeEditors()">×</button>
+      </header>
+      <form [formGroup]="shiftPatternForm" (ngSubmit)="saveShiftPattern()">
+        <div class="form-grid">
+          <label><span>Código *</span><input formControlName="codeShiftPattern" [readOnly]="!!editingShiftPattern()" /></label>
+          <label><span>Inicio vigencia *</span><input type="date" formControlName="effectiveFromDate" /></label>
+          <label><span>Fin vigencia</span><input type="date" formControlName="effectiveToDate" /></label>
+          <label class="wide"><span>Nombre *</span><input formControlName="name" /></label>
+          <label class="wide"><span>Descripción</span><textarea rows="3" formControlName="description"></textarea></label>
+        </div>
+        <footer>
+          <button class="button button--secondary" type="button" (click)="closeEditors()">Cancelar</button>
+          <button class="button button--primary" type="submit" [disabled]="saving()">{{ saving() ? 'Guardando…' : 'Guardar patrón' }}</button>
+        </footer>
+      </form>
+    </section>
+  </div>
+}
+
+@if (shiftSegmentEditorOpen()) {
+  <div class="modal-backdrop" (click)="closeEditors()">
+    <section class="modal modal--small" role="dialog" aria-modal="true" aria-labelledby="shift-segment-editor-title" (click)="$event.stopPropagation()">
+      <header>
+        <div><span class="eyebrow">Segmento semanal</span><h2 id="shift-segment-editor-title">{{ editingShiftSegment() ? 'Editar segmento' : 'Nuevo segmento' }}</h2></div>
+        <button type="button" aria-label="Cerrar" (click)="closeEditors()">×</button>
+      </header>
+      <form [formGroup]="shiftSegmentForm" (ngSubmit)="saveShiftSegment()">
+        <div class="form-grid">
+          <label><span>Día *</span><select formControlName="dayOfWeek">@for (day of weekDays; track day.value) { <option [value]="day.value">{{ day.label }}</option> }</select></label>
+          <label><span>Elementos *</span><input type="number" formControlName="requiredWorkerCount" min="1" /></label>
+          <label><span>Inicio *</span><input type="time" formControlName="startTime" /></label>
+          <label><span>Fin *</span><input type="time" formControlName="endTime" /></label>
+          <label class="check"><input type="checkbox" formControlName="isOvernight" /><span>Cruza medianoche</span></label>
+          <label class="wide"><span>Notas</span><textarea rows="3" formControlName="notes"></textarea></label>
+        </div>
+        <footer>
+          <button class="button button--secondary" type="button" (click)="closeEditors()">Cancelar</button>
+          <button class="button button--primary" type="submit" [disabled]="saving()">{{ saving() ? 'Guardando…' : 'Guardar segmento' }}</button>
         </footer>
       </form>
     </section>

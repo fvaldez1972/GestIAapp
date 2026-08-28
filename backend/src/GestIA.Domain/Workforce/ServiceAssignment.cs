@@ -1,7 +1,16 @@
 using GestIA.Domain.Common;
+using GestIA.Domain.Planning;
 using GestIA.Domain.Services;
 
 namespace GestIA.Domain.Workforce;
+
+public sealed record ServiceAssignmentProfile(
+    Guid IdPosition,
+    ServiceAssignmentType AssignmentType,
+    DateOnly StartDate,
+    DateOnly? EndDate,
+    bool IsPrimary,
+    string? Notes);
 
 public sealed class ServiceAssignment : AuditableEntity
 {
@@ -13,32 +22,22 @@ public sealed class ServiceAssignment : AuditableEntity
         Guid idServiceAssignment,
         Guid idEmployee,
         Guid idService,
-        ServiceAssignmentType assignmentType,
-        DateOnly startDate,
-        DateOnly? endDate,
-        bool isPrimary,
+        ServiceAssignmentProfile profile,
         Guid actorId,
         string actorName,
         DateTime occurredAt)
     {
-        if (endDate < startDate)
-        {
-            throw new ArgumentOutOfRangeException(nameof(endDate));
-        }
-
         IdServiceAssignment = idServiceAssignment;
         IdEmployee = idEmployee;
         IdService = idService;
-        AssignmentType = assignmentType;
-        StartDate = startDate;
-        EndDate = endDate;
-        IsPrimary = isPrimary;
+        ApplyProfile(profile);
         RegisterCreation(actorId, actorName, occurredAt);
     }
 
     public Guid IdServiceAssignment { get; private set; }
     public Guid IdEmployee { get; private set; }
     public Guid IdService { get; private set; }
+    public Guid? IdPosition { get; private set; }
     public ServiceAssignmentType AssignmentType { get; private set; }
     public DateOnly StartDate { get; private set; }
     public DateOnly? EndDate { get; private set; }
@@ -46,14 +45,12 @@ public sealed class ServiceAssignment : AuditableEntity
     public string? Notes { get; private set; }
     public Employee Employee { get; private set; } = null!;
     public Service Service { get; private set; } = null!;
+    public Position? Position { get; private set; }
 
     public static ServiceAssignment Create(
         Guid idEmployee,
         Guid idService,
-        ServiceAssignmentType assignmentType,
-        DateOnly startDate,
-        DateOnly? endDate,
-        bool isPrimary,
+        ServiceAssignmentProfile profile,
         Guid actorId,
         string actorName,
         DateTime occurredAt) =>
@@ -61,11 +58,38 @@ public sealed class ServiceAssignment : AuditableEntity
             Guid.NewGuid(),
             idEmployee,
             idService,
-            assignmentType,
-            startDate,
-            endDate,
-            isPrimary,
+            profile,
             actorId,
             actorName,
             occurredAt);
+
+    public void UpdateProfile(
+        ServiceAssignmentProfile profile,
+        Guid actorId,
+        string actorName,
+        DateTime occurredAt)
+    {
+        ApplyProfile(profile);
+        RegisterUpdate(actorId, actorName, occurredAt);
+    }
+
+    private void ApplyProfile(ServiceAssignmentProfile profile)
+    {
+        if (profile.IdPosition == Guid.Empty)
+        {
+            throw new ArgumentException("La posición es obligatoria.", nameof(profile));
+        }
+
+        if (profile.EndDate < profile.StartDate)
+        {
+            throw new ArgumentOutOfRangeException(nameof(profile), "La fecha final no puede ser menor que la inicial.");
+        }
+
+        IdPosition = profile.IdPosition;
+        AssignmentType = profile.AssignmentType;
+        StartDate = profile.StartDate;
+        EndDate = profile.EndDate;
+        IsPrimary = profile.IsPrimary;
+        Notes = string.IsNullOrWhiteSpace(profile.Notes) ? null : profile.Notes.Trim();
+    }
 }

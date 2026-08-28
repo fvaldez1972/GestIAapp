@@ -77,6 +77,22 @@ public static class SchedulingEndpoints
             .RequirePermission(SecurityPermissions.PlanningWrite)
             .WithName("PublishScheduleVersion");
 
+        versionGroup.MapPost("/{idScheduleVersion:guid}/generate-from-patterns", async (
+            Guid idClient,
+            Guid idService,
+            Guid idScheduleVersion,
+            GenerateScheduledShiftsRequest request,
+            ISchedulingService service,
+            CancellationToken cancellationToken) =>
+        {
+            var result = await service.GenerateScheduledShiftsAsync(
+                request with { IdClient = idClient, IdService = idService, IdScheduleVersion = idScheduleVersion },
+                cancellationToken);
+            return Results.Ok(result);
+        })
+            .RequirePermission(SecurityPermissions.PlanningWrite)
+            .WithName("GenerateScheduledShiftsFromPatterns");
+
         var shiftGroup = versionGroup.MapGroup("/{idScheduleVersion:guid}/shifts");
 
         shiftGroup.MapGet("", async (

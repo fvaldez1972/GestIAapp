@@ -42,6 +42,43 @@ public sealed class SchedulingRepository(GestIaDbContext dbContext) : ISchedulin
     public Task AddScheduleVersionAsync(ScheduleVersion scheduleVersion, CancellationToken cancellationToken) =>
         dbContext.ScheduleVersions.AddAsync(scheduleVersion, cancellationToken).AsTask();
 
+    public async Task<IReadOnlyList<ShiftPattern>> ListShiftPatternsForServiceAsync(
+        Guid idService,
+        DateOnly periodStartDate,
+        DateOnly periodEndDate,
+        CancellationToken cancellationToken) =>
+        await dbContext.ShiftPatterns
+            .AsNoTracking()
+            .Include(pattern => pattern.Position)
+            .Include(pattern => pattern.Segments)
+            .Where(pattern =>
+                pattern.Position.IdService == idService &&
+                pattern.EffectiveFromDate <= periodEndDate &&
+                (pattern.EffectiveToDate == null || pattern.EffectiveToDate >= periodStartDate))
+            .OrderBy(pattern => pattern.Position.CodePosition)
+            .ThenByDescending(pattern => pattern.EffectiveFromDate)
+            .ThenBy(pattern => pattern.CodeShiftPattern)
+            .ToArrayAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<ServiceAssignment>> ListAssignmentsForServiceAsync(
+        Guid idService,
+        DateOnly periodStartDate,
+        DateOnly periodEndDate,
+        CancellationToken cancellationToken) =>
+        await dbContext.ServiceAssignments
+            .AsNoTracking()
+            .Include(assignment => assignment.Employee)
+            .Include(assignment => assignment.Position)
+            .Where(assignment =>
+                assignment.IdService == idService &&
+                assignment.StartDate <= periodEndDate &&
+                (assignment.EndDate == null || assignment.EndDate >= periodStartDate) &&
+                assignment.Employee.Status == EmployeeStatus.Active)
+            .OrderByDescending(assignment => assignment.IsPrimary)
+            .ThenBy(assignment => assignment.AssignmentType)
+            .ThenBy(assignment => assignment.Employee.FullName)
+            .ToArrayAsync(cancellationToken);
+
     public Task<ScheduledShift?> GetScheduledShiftAsync(
         Guid idScheduleVersion,
         Guid idScheduledShift,

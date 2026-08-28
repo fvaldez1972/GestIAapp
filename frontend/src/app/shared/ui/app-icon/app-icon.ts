@@ -15,6 +15,8 @@ import { NavigationIcon } from '../../../core/layout/navigation';
         @case ('incident') { <path d="M12 3 2.5 20h19zM12 9v5M12 18h.01" /> }
         @case ('coverage') { <path d="M12 3 4 6v6c0 5 3.4 8 8 9 4.6-1 8-4 8-9V6zM8 12l2.5 2.5L16 9" /> }
         @case ('report') { <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /> }
+        @case ('audit') { <path d="M5 4h14v16H5z" /><path d="M9 8h6M9 12h6M9 16h3" /><path d="m15 16 1.5 1.5L20 14" /> }
+        @case ('security') { <path d="M12 3 4 6v5c0 5 3.4 8.4 8 10 4.6-1.6 8-5 8-10V6z" /><path d="M9 12h6M12 9v6" /> }
       }
     </svg>
   `,

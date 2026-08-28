@@ -101,4 +101,59 @@ public sealed class OperationsRepository(GestIaDbContext dbContext) : IOperation
 
     public Task AddCoverageAsync(CoverageRecord coverage, CancellationToken cancellationToken) =>
         dbContext.CoverageRecords.AddAsync(coverage, cancellationToken).AsTask();
+
+    public Task<bool> AttendanceBelongsToServiceAsync(
+        Guid idService,
+        Guid idAttendanceRecord,
+        CancellationToken cancellationToken) =>
+        dbContext.AttendanceRecords.AnyAsync(
+            record =>
+                record.IdAttendanceRecord == idAttendanceRecord &&
+                record.ScheduledShift.ScheduleVersion.IdService == idService,
+            cancellationToken);
+
+    public Task<bool> IncidentBelongsToServiceAsync(
+        Guid idService,
+        Guid idIncident,
+        CancellationToken cancellationToken) =>
+        dbContext.Incidents.AnyAsync(
+            incident => incident.IdService == idService && incident.IdIncident == idIncident,
+            cancellationToken);
+
+    public Task<bool> CoverageBelongsToServiceAsync(
+        Guid idService,
+        Guid idCoverageRecord,
+        CancellationToken cancellationToken) =>
+        dbContext.CoverageRecords.AnyAsync(
+            coverage =>
+                coverage.IdCoverageRecord == idCoverageRecord &&
+                coverage.ScheduledShift.ScheduleVersion.IdService == idService,
+            cancellationToken);
+
+    public Task<OperationEvidence?> GetEvidenceAsync(
+        Guid idService,
+        Guid idOperationEvidence,
+        CancellationToken cancellationToken) =>
+        dbContext.OperationEvidences.SingleOrDefaultAsync(
+            evidence => evidence.IdService == idService && evidence.IdOperationEvidence == idOperationEvidence,
+            cancellationToken);
+
+    public async Task<IReadOnlyList<OperationEvidence>> ListEvidencesAsync(
+        Guid idService,
+        Guid? relatedRecordId,
+        CancellationToken cancellationToken) =>
+        await dbContext.OperationEvidences
+            .AsNoTracking()
+            .Where(evidence =>
+                evidence.IdService == idService &&
+                (!relatedRecordId.HasValue ||
+                    evidence.IdAttendanceRecord == relatedRecordId.Value ||
+                    evidence.IdIncident == relatedRecordId.Value ||
+                    evidence.IdCoverageRecord == relatedRecordId.Value))
+            .OrderByDescending(evidence => evidence.CreatedAt)
+            .ThenBy(evidence => evidence.Title)
+            .ToArrayAsync(cancellationToken);
+
+    public Task AddEvidenceAsync(OperationEvidence evidence, CancellationToken cancellationToken) =>
+        dbContext.OperationEvidences.AddAsync(evidence, cancellationToken).AsTask();
 }

@@ -545,3 +545,53 @@ textarea {
     grid-column: auto;
   }
 }
+
+.page-heading {
+  border: 1px solid color-mix(in srgb, var(--gestia-cyan) 16%, var(--gestia-border));
+  border-radius: 1.25rem;
+  padding: 1.2rem;
+  background:
+    radial-gradient(circle at 92% 18%, rgb(34 198 238 / 12%), transparent 15rem),
+    linear-gradient(135deg, #fff, #f9fbff);
+  box-shadow: 0 1rem 2.4rem rgb(16 16 78 / 6%);
+}
+
+.table-card,
+.detail-card {
+  border-radius: 1rem;
+  box-shadow: 0 0.9rem 2.3rem rgb(16 16 78 / 6%);
+}
+
+.table-toolbar,
+.detail-header {
+  background: linear-gradient(180deg, #fff, #fbfcff);
+}
+
+.employee-row {
+  transition: background-color 140ms ease, transform 140ms ease;
+}
+
+.employee-row:hover {
+  transform: translateX(2px);
+}
+
+.employee-row.is-active {
+  box-shadow: inset 0.22rem 0 0 var(--gestia-cyan);
+}
+
+.mini-card {
+  transition: border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+}
+
+.mini-card:hover {
+  border-color: color-mix(in srgb, var(--gestia-cyan) 35%, var(--gestia-border));
+  box-shadow: 0 0.75rem 1.6rem rgb(16 16 78 / 6%);
+  transform: translateY(-1px);
+}
+
+.button:hover,
+.detail-actions button:hover,
+.mini-actions button:hover,
+.pagination button:hover {
+  transform: translateY(-1px);
+}

@@ -25,4 +25,25 @@ public interface IOperationsService
     Task<CoverageRecordResponse> CreateCoverageAsync(CreateCoverageRequest request, CancellationToken cancellationToken);
 
     Task<CoverageRecordResponse> UpdateCoverageAsync(Guid idCoverageRecord, UpdateCoverageRequest request, CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<OperationEvidenceResponse>> ListEvidencesAsync(
+        Guid idOrganization,
+        Guid idClient,
+        Guid idService,
+        Guid? relatedRecordId,
+        CancellationToken cancellationToken);
+
+    Task<OperationEvidenceResponse> CreateEvidenceAsync(OperationEvidenceInput request, CancellationToken cancellationToken);
+
+    Task<OperationEvidenceResponse> UpdateEvidenceAsync(
+        Guid idOperationEvidence,
+        OperationEvidenceInput request,
+        CancellationToken cancellationToken);
+
+    Task DeactivateEvidenceAsync(
+        Guid idOrganization,
+        Guid idClient,
+        Guid idService,
+        Guid idOperationEvidence,
+        CancellationToken cancellationToken);
 }

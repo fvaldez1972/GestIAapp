@@ -1,0 +1,144 @@
+.audit-page {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.audit-hero {
+  align-items: center;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.audit-hero p {
+  color: #5f6f8f;
+  margin: .65rem 0 0;
+  max-width: 48rem;
+}
+
+.audit-filters {
+  align-items: end;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1.2fr .9fr .7fr .7fr 1fr auto auto;
+}
+
+.audit-summary {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.metric-card {
+  display: grid;
+  gap: .35rem;
+}
+
+.metric-card span {
+  color: #6b7791;
+  font-size: .82rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.metric-card strong {
+  color: #06124a;
+  font-size: clamp(1.7rem, 4vw, 2.8rem);
+  line-height: 1;
+}
+
+.metric-card small,
+.gi-table small {
+  color: #71809b;
+}
+
+.audit-table-card {
+  display: grid;
+  gap: 1rem;
+}
+
+.audit-table-card > header,
+.pagination {
+  align-items: center;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.audit-table-card h2 {
+  color: #06124a;
+  font-size: 1.15rem;
+  margin: .2rem 0 0;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+.gi-table td:nth-child(3) {
+  display: grid;
+  gap: .2rem;
+  min-width: 16rem;
+}
+
+.audit-status {
+  border-radius: 999px;
+  display: inline-flex;
+  font-size: .72rem;
+  font-weight: 900;
+  padding: .28rem .55rem;
+  white-space: nowrap;
+}
+
+.status-created {
+  background: #effaf4;
+  color: #1f6a3c;
+}
+
+.status-updated {
+  background: #eef8ff;
+  color: #006d90;
+}
+
+.status-deactivated {
+  background: #fff0f0;
+  color: #9b1c1c;
+}
+
+.pagination {
+  border-top: 1px solid #e5ecf6;
+  color: #64728f;
+  padding-top: 1rem;
+}
+
+.pagination div {
+  display: flex;
+  gap: .75rem;
+}
+
+.empty {
+  color: #72809a;
+  padding: 1.5rem !important;
+  text-align: center;
+}
+
+@media (max-width: 1180px) {
+  .audit-filters,
+  .audit-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .audit-hero,
+  .audit-table-card > header,
+  .pagination {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .audit-filters,
+  .audit-summary {
+    grid-template-columns: 1fr;
+  }
+}

@@ -5,4 +5,8 @@ public interface IReportsRepository
     Task<OperationsSummaryResponse> GetOperationsSummaryAsync(
         OperationsSummaryQuery query,
         CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<OperationsServiceSummaryResponse>> GetOperationsByServiceAsync(
+        OperationsSummaryQuery query,
+        CancellationToken cancellationToken);
 }

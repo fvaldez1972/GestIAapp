@@ -1,12 +1,15 @@
 <article class="page-hero">
-  <span class="kicker">Operación diaria</span>
   <div>
+    <span class="kicker">Operación diaria</span>
     <h1>Asistencia, incidencias y coberturas</h1>
     <p>
-      Consola MVP para revisar lo que realmente ocurrió en el servicio: turnos atendidos, excepciones operativas y
-      sustituciones.
+      Captura y consulta lo que pasa en campo sin perder trazabilidad: quién asistió, qué incidente ocurrió y quién
+      cubrió un turno.
     </p>
   </div>
+  <button class="ghost-action" type="button" (click)="refresh()" [disabled]="loading() || !selectedServiceId()">
+    Actualizar datos
+  </button>
 </article>
 
 <section class="filters" aria-label="Filtros de operación">
@@ -37,7 +40,10 @@
     </select>
   </label>
 
-  <button type="button" (click)="refresh()" [disabled]="loading() || !selectedServiceId()">Actualizar</button>
+  <div class="filter-hint">
+    <strong>{{ services().length }}</strong>
+    <span>servicios disponibles</span>
+  </div>
 </section>
 
 @if (error()) {
@@ -50,16 +56,19 @@
 
 <section class="summary-grid" aria-label="Resumen operativo">
   <article>
+    <i aria-hidden="true">✓</i>
     <span>Asistencia</span>
     <strong>{{ attendanceCount() }}</strong>
     <small>Registros reales capturados</small>
   </article>
   <article>
+    <i aria-hidden="true">!</i>
     <span>Incidencias</span>
     <strong>{{ incidentCount() }}</strong>
     <small>Excepciones abiertas o históricas</small>
   </article>
   <article>
+    <i aria-hidden="true">↔</i>
     <span>Coberturas</span>
     <strong>{{ coverageCount() }}</strong>
     <small>{{ coveredHours() }} h cubiertas</small>
@@ -81,11 +90,35 @@
   </section>
 }
 
-<section class="capture-grid" aria-label="Captura operativa">
+<section class="section-tabs" aria-label="Módulos de operación">
+  <a routerLink="/operacion/asistencia" [class.active]="activeSection() === 'asistencia'">
+    <span>Asistencia</span>
+    <strong>{{ attendanceCount() }}</strong>
+  </a>
+  <a routerLink="/operacion/incidencias" [class.active]="activeSection() === 'incidencias'">
+    <span>Incidencias</span>
+    <strong>{{ incidentCount() }}</strong>
+  </a>
+  <a routerLink="/operacion/cobertura" [class.active]="activeSection() === 'cobertura'">
+    <span>Cobertura</span>
+    <strong>{{ coverageCount() }}</strong>
+  </a>
+</section>
+
+<section class="module-heading">
+  <span class="kicker">{{ sectionTitle() }}</span>
+  <h2>{{ sectionTitle() }}</h2>
+  <p>{{ sectionDescription() }}</p>
+</section>
+
+<section class="workspace-grid" aria-label="Captura operativa">
+  <div class="capture-column">
+  @if (activeSection() === 'asistencia') {
   <form class="capture-card" [formGroup]="attendanceForm" (ngSubmit)="saveAttendance()">
     <header>
-      <span>Captura</span>
-      <h2>Asistencia</h2>
+      <span>Paso 1</span>
+      <h3>Confirma el turno</h3>
+      <p>Selecciona el turno publicado y registra lo que ocurrió en campo.</p>
     </header>
 
     <label>
@@ -134,11 +167,20 @@
 
     <button type="submit" [disabled]="saving() || !hasPublishedShifts()">Guardar asistencia</button>
   </form>
+  }
 
+  @if (activeSection() === 'incidencias') {
   <form class="capture-card" [formGroup]="incidentForm" (ngSubmit)="saveIncident()">
     <header>
-      <span>Captura</span>
-      <h2>Incidencia</h2>
+      <span>Paso 1</span>
+      <h3>{{ selectedIncident() ? 'Editar incidencia' : 'Describe la excepción' }}</h3>
+      <p>
+        @if (selectedIncident()) {
+          Actualiza severidad, estado, descripción o seguimiento de la incidencia seleccionada.
+        } @else {
+          Puede ser general del servicio o ligada a un turno específico.
+        }
+      </p>
     </header>
 
     <label>
@@ -195,13 +237,29 @@
       <textarea rows="2" formControlName="resolutionNotes" placeholder="Acciones tomadas o pendientes"></textarea>
     </label>
 
-    <button type="submit" [disabled]="saving() || !selectedServiceId()">Registrar incidencia</button>
+    <div class="form-actions">
+      <button type="submit" [disabled]="saving() || !selectedServiceId()">
+        {{ selectedIncident() ? 'Guardar cambios' : 'Registrar incidencia' }}
+      </button>
+      @if (selectedIncident()) {
+        <button class="button-reset" type="button" [disabled]="saving()" (click)="resetIncidentForm()">Nueva incidencia</button>
+      }
+    </div>
   </form>
+  }
 
+  @if (activeSection() === 'cobertura') {
   <form class="capture-card" [formGroup]="coverageForm" (ngSubmit)="saveCoverage()">
     <header>
-      <span>Captura</span>
-      <h2>Cobertura</h2>
+      <span>Paso 1</span>
+      <h3>{{ selectedCoverage() ? 'Editar cobertura' : 'Registra la sustitución' }}</h3>
+      <p>
+        @if (selectedCoverage()) {
+          Actualiza sustituto, horario, estado o notas de la cobertura seleccionada.
+        } @else {
+          El sistema toma el empleado original desde el turno seleccionado.
+        }
+      </p>
     </header>
 
     <label>
@@ -257,14 +315,33 @@
       <textarea rows="3" formControlName="notes" placeholder="Motivo de la sustitución"></textarea>
     </label>
 
-    <button type="submit" [disabled]="saving() || !hasPublishedShifts()">Registrar cobertura</button>
+    <div class="form-actions">
+      <button type="submit" [disabled]="saving() || !hasPublishedShifts()">
+        {{ selectedCoverage() ? 'Guardar cambios' : 'Registrar cobertura' }}
+      </button>
+      @if (selectedCoverage()) {
+        <button class="button-reset" type="button" [disabled]="saving()" (click)="resetCoverageForm()">Nueva cobertura</button>
+      }
+    </div>
   </form>
-</section>
+  }
 
-<section class="operation-grid">
+  @if (!hasPublishedShifts() && activeSection() !== 'incidencias') {
+    <aside class="empty-guide">
+      <strong>Falta una planeación publicada</strong>
+      <span>Para capturar asistencia o cobertura primero debe existir al menos un turno publicado en el servicio.</span>
+    </aside>
+  }
+  </div>
+
+  <div class="history-column">
+  @if (activeSection() === 'asistencia') {
   <article class="panel">
     <header>
-      <h2>Asistencia</h2>
+      <div>
+        <span>Historial</span>
+        <h3>Asistencia capturada</h3>
+      </div>
       <span>{{ attendanceCount() }}</span>
     </header>
 
@@ -299,10 +376,15 @@
       </table>
     </div>
   </article>
+  }
 
+  @if (activeSection() === 'incidencias') {
   <article class="panel">
     <header>
-      <h2>Incidencias</h2>
+      <div>
+        <span>Historial</span>
+        <h3>Incidencias registradas</h3>
+      </div>
       <span>{{ incidentCount() }}</span>
     </header>
 
@@ -319,7 +401,7 @@
         </thead>
         <tbody>
           @for (incident of incidents(); track incident.idIncident) {
-            <tr>
+            <tr [class.is-selected]="incident.idIncident === selectedIncidentId()" (click)="selectIncident(incident)">
               <td>{{ incident.incidentDate }}</td>
               <td>{{ incident.incidentType }}</td>
               <td>{{ incident.employeeName || 'Servicio' }}</td>
@@ -335,10 +417,15 @@
       </table>
     </div>
   </article>
+  }
 
+  @if (activeSection() === 'cobertura') {
   <article class="panel is-wide">
     <header>
-      <h2>Coberturas</h2>
+      <div>
+        <span>Historial</span>
+        <h3>Coberturas registradas</h3>
+      </div>
       <span>{{ coverageCount() }}</span>
     </header>
 
@@ -356,7 +443,7 @@
         </thead>
         <tbody>
           @for (coverage of coverages(); track coverage.idCoverageRecord) {
-            <tr>
+            <tr [class.is-selected]="coverage.idCoverageRecord === selectedCoverageId()" (click)="selectCoverage(coverage)">
               <td>{{ coverage.originalEmployeeCode }} · {{ coverage.originalEmployeeName }}</td>
               <td>{{ coverage.replacementEmployeeCode }} · {{ coverage.replacementEmployeeName }}</td>
               <td>{{ coverage.coverageStartTime }}</td>
@@ -373,4 +460,6 @@
       </table>
     </div>
   </article>
+  }
+  </div>
 </section>

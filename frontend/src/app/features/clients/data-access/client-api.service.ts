@@ -18,11 +18,16 @@ import {
   CreateServicePosition,
   CreateServiceAssignment,
   CreateShiftPattern,
+  GenerateScheduledShiftsRequest,
+  GenerateScheduledShiftsResponse,
   Incident,
   IncidentInput,
   ManagedService,
   ManagedServiceInput,
   OperationsSummary,
+  OperationsServiceSummary,
+  OperationEvidence,
+  OperationEvidenceInput,
   Organization,
   PagedResult,
   ServiceAssignment,
@@ -394,6 +399,18 @@ export class ClientApiService {
     );
   }
 
+  generateScheduledShifts(
+    idClient: string,
+    idService: string,
+    idScheduleVersion: string,
+    request: GenerateScheduledShiftsRequest,
+  ) {
+    return this.http.post<GenerateScheduledShiftsResponse>(
+      `${this.baseUrl}/clients/${idClient}/services/${idService}/schedule-versions/${idScheduleVersion}/generate-from-patterns`,
+      request,
+    );
+  }
+
   listScheduledShifts(organizationId: string, idClient: string, idService: string, idScheduleVersion: string) {
     const params = new HttpParams().set('organizationId', organizationId);
     return this.http.get<readonly ScheduledShift[]>(
@@ -500,6 +517,46 @@ export class ClientApiService {
     );
   }
 
+  listOperationEvidences(organizationId: string, idClient: string, idService: string, relatedRecordId?: string) {
+    let params = new HttpParams().set('organizationId', organizationId);
+
+    if (relatedRecordId) {
+      params = params.set('relatedRecordId', relatedRecordId);
+    }
+
+    return this.http.get<readonly OperationEvidence[]>(
+      `${this.baseUrl}/clients/${idClient}/services/${idService}/operations/evidences`,
+      { params },
+    );
+  }
+
+  createOperationEvidence(idClient: string, idService: string, request: OperationEvidenceInput) {
+    return this.http.post<OperationEvidence>(
+      `${this.baseUrl}/clients/${idClient}/services/${idService}/operations/evidences`,
+      request,
+    );
+  }
+
+  updateOperationEvidence(
+    idClient: string,
+    idService: string,
+    idOperationEvidence: string,
+    request: OperationEvidenceInput,
+  ) {
+    return this.http.put<OperationEvidence>(
+      `${this.baseUrl}/clients/${idClient}/services/${idService}/operations/evidences/${idOperationEvidence}`,
+      request,
+    );
+  }
+
+  deactivateOperationEvidence(organizationId: string, idClient: string, idService: string, idOperationEvidence: string) {
+    const params = new HttpParams().set('organizationId', organizationId);
+    return this.http.delete<void>(
+      `${this.baseUrl}/clients/${idClient}/services/${idService}/operations/evidences/${idOperationEvidence}`,
+      { params },
+    );
+  }
+
   getOperationsSummary(
     organizationId: string,
     clientId?: string,
@@ -526,5 +583,33 @@ export class ClientApiService {
     }
 
     return this.http.get<OperationsSummary>(`${this.baseUrl}/reports/operations-summary`, { params });
+  }
+
+  getOperationsByService(
+    organizationId: string,
+    clientId?: string,
+    serviceId?: string,
+    fromDate?: string,
+    toDate?: string,
+  ) {
+    let params = new HttpParams().set('organizationId', organizationId);
+
+    if (clientId) {
+      params = params.set('clientId', clientId);
+    }
+
+    if (serviceId) {
+      params = params.set('serviceId', serviceId);
+    }
+
+    if (fromDate) {
+      params = params.set('fromDate', fromDate);
+    }
+
+    if (toDate) {
+      params = params.set('toDate', toDate);
+    }
+
+    return this.http.get<readonly OperationsServiceSummary[]>(`${this.baseUrl}/reports/operations-by-service`, { params });
   }
 }

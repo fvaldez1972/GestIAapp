@@ -34,6 +34,14 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'solicitudes',
+        title: 'GestIA | Solicitudes',
+        loadComponent: () =>
+          import('./features/requests/pages/requests-page/requests-page').then(
+            (component) => component.RequestsPage,
+          ),
+      },
+      {
         path: 'personal',
         title: 'GestIA | Personal',
         loadComponent: () =>
@@ -42,11 +50,48 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'planeacion',
+        title: 'GestIA | Planeación',
+        loadComponent: () =>
+          import('./features/planning/pages/planning-page/planning-page').then(
+            (component) => component.PlanningPage,
+          ),
+      },
+      {
         path: 'operacion',
+        redirectTo: 'operacion/asistencia',
+        pathMatch: 'full',
+      },
+      {
+        path: 'operacion/:section',
         title: 'GestIA | Operación',
         loadComponent: () =>
           import('./features/operations/pages/operations-page/operations-page').then(
             (component) => component.OperationsPage,
+          ),
+      },
+      {
+        path: 'seguridad',
+        title: 'GestIA | Seguridad',
+        loadComponent: () =>
+          import('./features/security/pages/security-page/security-page').then(
+            (component) => component.SecurityPage,
+          ),
+      },
+      {
+        path: 'reportes',
+        title: 'GestIA | Reportes',
+        loadComponent: () =>
+          import('./features/reports/pages/reports-page/reports-page').then(
+            (component) => component.ReportsPage,
+          ),
+      },
+      {
+        path: 'auditoria',
+        title: 'GestIA | Auditoría',
+        loadComponent: () =>
+          import('./features/audit/pages/audit-page/audit-page').then(
+            (component) => component.AuditPage,
           ),
       },
     ],

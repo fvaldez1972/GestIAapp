@@ -18,6 +18,18 @@ public interface ISchedulingRepository
 
     Task AddScheduleVersionAsync(ScheduleVersion scheduleVersion, CancellationToken cancellationToken);
 
+    Task<IReadOnlyList<ShiftPattern>> ListShiftPatternsForServiceAsync(
+        Guid idService,
+        DateOnly periodStartDate,
+        DateOnly periodEndDate,
+        CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<ServiceAssignment>> ListAssignmentsForServiceAsync(
+        Guid idService,
+        DateOnly periodStartDate,
+        DateOnly periodEndDate,
+        CancellationToken cancellationToken);
+
     Task<ScheduledShift?> GetScheduledShiftAsync(Guid idScheduleVersion, Guid idScheduledShift, CancellationToken cancellationToken);
 
     Task<IReadOnlyList<ScheduledShift>> ListScheduledShiftsAsync(Guid idScheduleVersion, CancellationToken cancellationToken);

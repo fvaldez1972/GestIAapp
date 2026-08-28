@@ -411,6 +411,21 @@ export type ScheduledShiftInput = {
   readonly notes: string | null;
 };
 
+export type GenerateScheduledShiftsRequest = {
+  readonly idOrganization: string;
+  readonly idClient: string;
+  readonly idService: string;
+  readonly idScheduleVersion: string;
+  readonly skipExisting: boolean;
+};
+
+export type GenerateScheduledShiftsResponse = {
+  readonly createdShifts: number;
+  readonly skippedShifts: number;
+  readonly missingAssignments: number;
+  readonly warnings: readonly string[];
+};
+
 export type AttendanceStatus = 'Expected' | 'Present' | 'Late' | 'Absent' | 'Excused';
 
 export type AttendanceRecord = {
@@ -507,6 +522,34 @@ export type CoverageInput = {
   readonly notes: string | null;
 };
 
+export type OperationEvidenceType = 'Photo' | 'Document' | 'Report' | 'Signature' | 'Other';
+
+export type OperationEvidence = {
+  readonly idOperationEvidence: string;
+  readonly idService: string;
+  readonly idAttendanceRecord: string | null;
+  readonly idIncident: string | null;
+  readonly idCoverageRecord: string | null;
+  readonly evidenceType: OperationEvidenceType;
+  readonly title: string;
+  readonly storageReference: string;
+  readonly notes: string | null;
+  readonly active: boolean;
+};
+
+export type OperationEvidenceInput = {
+  readonly idOrganization: string;
+  readonly idClient: string;
+  readonly idService: string;
+  readonly idAttendanceRecord: string | null;
+  readonly idIncident: string | null;
+  readonly idCoverageRecord: string | null;
+  readonly evidenceType: OperationEvidenceType;
+  readonly title: string;
+  readonly storageReference: string;
+  readonly notes: string | null;
+};
+
 export type OperationsSummary = {
   readonly attendanceRecords: number;
   readonly presentAttendance: number;
@@ -520,6 +563,14 @@ export type OperationsSummary = {
   readonly confirmedCoverages: number;
   readonly completedCoverages: number;
   readonly coveredMinutes: number;
+};
+
+export type OperationsServiceSummary = OperationsSummary & {
+  readonly idClient: string;
+  readonly clientName: string;
+  readonly idService: string;
+  readonly codeService: string;
+  readonly serviceName: string;
 };
 
 export type PagedResult<T> = {

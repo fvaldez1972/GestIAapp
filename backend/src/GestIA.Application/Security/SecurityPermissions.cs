@@ -14,4 +14,7 @@ public static class SecurityPermissions
     public const string OperationsRead = "OPERATIONS.READ";
     public const string OperationsWrite = "OPERATIONS.WRITE";
     public const string ReportsRead = "REPORTS.READ";
+    public const string AuditRead = "AUDIT.READ";
+    public const string RequestsRead = "REQUESTS.READ";
+    public const string RequestsWrite = "REQUESTS.WRITE";
 }

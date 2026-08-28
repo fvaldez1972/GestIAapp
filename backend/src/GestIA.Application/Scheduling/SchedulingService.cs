@@ -83,6 +83,136 @@ public sealed class SchedulingService(
         return Map(version);
     }
 
+    public async Task<GenerateScheduledShiftsResponse> GenerateScheduledShiftsAsync(
+        GenerateScheduledShiftsRequest request,
+        CancellationToken cancellationToken)
+    {
+        await EnsureServiceAsync(request.IdOrganization, request.IdClient, request.IdService, cancellationToken);
+        var version = await EnsureVersionAsync(request.IdService, request.IdScheduleVersion, cancellationToken);
+        version.EnsureDraft();
+
+        var patterns = await repository.ListShiftPatternsForServiceAsync(
+            request.IdService,
+            version.PeriodStartDate,
+            version.PeriodEndDate,
+            cancellationToken);
+        if (!patterns.Any())
+        {
+            throw new ResourceConflictException("No hay patrones de turno vigentes para generar la planeación.");
+        }
+
+        var assignments = await repository.ListAssignmentsForServiceAsync(
+            request.IdService,
+            version.PeriodStartDate,
+            version.PeriodEndDate,
+            cancellationToken);
+
+        var warnings = new List<string>();
+        var createdShifts = 0;
+        var skippedShifts = 0;
+        var missingAssignments = 0;
+
+        for (var shiftDate = version.PeriodStartDate; shiftDate <= version.PeriodEndDate; shiftDate = shiftDate.AddDays(1))
+        {
+            var patternsForDate = patterns
+                .Where(pattern =>
+                    pattern.EffectiveFromDate <= shiftDate &&
+                    (pattern.EffectiveToDate == null || pattern.EffectiveToDate >= shiftDate))
+                .GroupBy(pattern => pattern.IdPosition)
+                .Select(group => group.OrderByDescending(pattern => pattern.EffectiveFromDate).First());
+
+            foreach (var pattern in patternsForDate)
+            {
+                var segments = pattern.Segments
+                    .Where(segment => segment.DayOfWeek == shiftDate.DayOfWeek)
+                    .OrderBy(segment => segment.StartTime)
+                    .ToArray();
+
+                foreach (var segment in segments)
+                {
+                    var candidates = assignments
+                        .Where(assignment =>
+                            assignment.IdPosition == pattern.IdPosition &&
+                            assignment.StartDate <= shiftDate &&
+                            (assignment.EndDate == null || assignment.EndDate >= shiftDate))
+                        .GroupBy(assignment => assignment.IdEmployee)
+                        .Select(group => group
+                            .OrderByDescending(assignment => assignment.IsPrimary)
+                            .ThenBy(assignment => assignment.AssignmentType)
+                            .First())
+                        .OrderByDescending(assignment => assignment.IsPrimary)
+                        .ThenBy(assignment => assignment.AssignmentType)
+                        .ThenBy(assignment => assignment.Employee.FullName)
+                        .ToArray();
+
+                    var assignedForSegment = 0;
+                    foreach (var assignment in candidates)
+                    {
+                        if (assignedForSegment >= segment.RequiredWorkerCount)
+                        {
+                            break;
+                        }
+
+                        var profile = new ScheduledShiftProfile(
+                            pattern.IdPosition,
+                            assignment.IdEmployee,
+                            shiftDate,
+                            segment.StartTime,
+                            segment.EndTime,
+                            segment.IsOvernight,
+                            $"Generado desde patrón {pattern.CodeShiftPattern}");
+
+                        var duration = DurationMinutes(profile.StartTime, profile.EndTime, profile.IsOvernight);
+                        var hasOverlap = await repository.HasEmployeeShiftOverlapAsync(
+                            profile.IdEmployee,
+                            profile.ShiftDate,
+                            profile.StartTime,
+                            duration,
+                            null,
+                            cancellationToken);
+
+                        if (hasOverlap)
+                        {
+                            if (!request.SkipExisting)
+                            {
+                                throw new ResourceConflictException(
+                                    "Ya existen turnos que se traslapan. Activa la opción de omitir existentes para completar sólo los faltantes.");
+                            }
+
+                            skippedShifts++;
+                            continue;
+                        }
+
+                        var shift = ScheduledShift.Create(
+                            request.IdScheduleVersion,
+                            profile,
+                            actorContext.ActorId,
+                            actorContext.ActorName,
+                            clock.UtcNow);
+
+                        await repository.AddScheduledShiftAsync(shift, cancellationToken);
+                        assignedForSegment++;
+                        createdShifts++;
+                    }
+
+                    if (assignedForSegment < segment.RequiredWorkerCount)
+                    {
+                        var missing = segment.RequiredWorkerCount - assignedForSegment;
+                        missingAssignments += missing;
+                        if (warnings.Count < 25)
+                        {
+                            warnings.Add(
+                                $"{shiftDate:yyyy-MM-dd} · {pattern.Position.CodePosition}: faltan {missing} elemento(s) para el horario {segment.StartTime:HH\\:mm}-{segment.EndTime:HH\\:mm}.");
+                        }
+                    }
+                }
+            }
+        }
+
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+        return new GenerateScheduledShiftsResponse(createdShifts, skippedShifts, missingAssignments, warnings);
+    }
+
     public async Task<IReadOnlyList<ScheduledShiftResponse>> ListScheduledShiftsAsync(
         Guid idOrganization,
         Guid idClient,

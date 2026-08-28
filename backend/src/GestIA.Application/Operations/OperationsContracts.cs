@@ -109,3 +109,27 @@ public sealed record CoverageRecordResponse(
     CoverageStatus Status,
     string? Notes,
     bool Active);
+
+public sealed record OperationEvidenceInput(
+    Guid IdOrganization,
+    Guid IdClient,
+    Guid IdService,
+    Guid? IdAttendanceRecord,
+    Guid? IdIncident,
+    Guid? IdCoverageRecord,
+    OperationEvidenceType EvidenceType,
+    string Title,
+    string StorageReference,
+    string? Notes);
+
+public sealed record OperationEvidenceResponse(
+    Guid IdOperationEvidence,
+    Guid IdService,
+    Guid? IdAttendanceRecord,
+    Guid? IdIncident,
+    Guid? IdCoverageRecord,
+    OperationEvidenceType EvidenceType,
+    string Title,
+    string StorageReference,
+    string? Notes,
+    bool Active);

@@ -6,6 +6,20 @@ public sealed class ReportsService(IReportsRepository repository) : IReportsServ
         OperationsSummaryQuery query,
         CancellationToken cancellationToken)
     {
+        Validate(query);
+        return repository.GetOperationsSummaryAsync(query, cancellationToken);
+    }
+
+    public Task<IReadOnlyList<OperationsServiceSummaryResponse>> GetOperationsByServiceAsync(
+        OperationsSummaryQuery query,
+        CancellationToken cancellationToken)
+    {
+        Validate(query);
+        return repository.GetOperationsByServiceAsync(query, cancellationToken);
+    }
+
+    private static void Validate(OperationsSummaryQuery query)
+    {
         if (query.IdOrganization == Guid.Empty)
         {
             throw new ArgumentException("La organización es obligatoria.", nameof(query));
@@ -15,7 +29,5 @@ public sealed class ReportsService(IReportsRepository repository) : IReportsServ
         {
             throw new ArgumentException("La fecha inicial no puede ser posterior a la fecha final.", nameof(query));
         }
-
-        return repository.GetOperationsSummaryAsync(query, cancellationToken);
     }
 }

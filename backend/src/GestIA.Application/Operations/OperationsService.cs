@@ -195,11 +195,125 @@ public sealed class OperationsService(
         return Map(await repository.GetCoverageAsync(request.IdService, idCoverageRecord, cancellationToken) ?? coverage);
     }
 
+    public async Task<IReadOnlyList<OperationEvidenceResponse>> ListEvidencesAsync(
+        Guid idOrganization,
+        Guid idClient,
+        Guid idService,
+        Guid? relatedRecordId,
+        CancellationToken cancellationToken)
+    {
+        await EnsureServiceAsync(idOrganization, idClient, idService, cancellationToken);
+        var evidences = await repository.ListEvidencesAsync(idService, relatedRecordId, cancellationToken);
+        return evidences.Select(Map).ToArray();
+    }
+
+    public async Task<OperationEvidenceResponse> CreateEvidenceAsync(
+        OperationEvidenceInput request,
+        CancellationToken cancellationToken)
+    {
+        await EnsureServiceAsync(request.IdOrganization, request.IdClient, request.IdService, cancellationToken);
+        await EnsureEvidenceRelationAsync(request.IdService, request.IdAttendanceRecord, request.IdIncident, request.IdCoverageRecord, cancellationToken);
+        var profile = ValidateEvidenceProfile(
+            request.IdAttendanceRecord,
+            request.IdIncident,
+            request.IdCoverageRecord,
+            request.EvidenceType,
+            request.Title,
+            request.StorageReference,
+            request.Notes);
+        var evidence = OperationEvidence.Create(
+            request.IdService,
+            profile,
+            actorContext.ActorId,
+            actorContext.ActorName,
+            clock.UtcNow);
+
+        await repository.AddEvidenceAsync(evidence, cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+        return Map(await repository.GetEvidenceAsync(request.IdService, evidence.IdOperationEvidence, cancellationToken) ?? evidence);
+    }
+
+    public async Task<OperationEvidenceResponse> UpdateEvidenceAsync(
+        Guid idOperationEvidence,
+        OperationEvidenceInput request,
+        CancellationToken cancellationToken)
+    {
+        await EnsureServiceAsync(request.IdOrganization, request.IdClient, request.IdService, cancellationToken);
+        await EnsureEvidenceRelationAsync(request.IdService, request.IdAttendanceRecord, request.IdIncident, request.IdCoverageRecord, cancellationToken);
+        var evidence = await repository.GetEvidenceAsync(request.IdService, idOperationEvidence, cancellationToken)
+            ?? throw new ResourceNotFoundException("No se encontró la evidencia solicitada.");
+        var profile = ValidateEvidenceProfile(
+            request.IdAttendanceRecord,
+            request.IdIncident,
+            request.IdCoverageRecord,
+            request.EvidenceType,
+            request.Title,
+            request.StorageReference,
+            request.Notes);
+
+        evidence.UpdateProfile(profile, actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+        return Map(await repository.GetEvidenceAsync(request.IdService, idOperationEvidence, cancellationToken) ?? evidence);
+    }
+
+    public async Task DeactivateEvidenceAsync(
+        Guid idOrganization,
+        Guid idClient,
+        Guid idService,
+        Guid idOperationEvidence,
+        CancellationToken cancellationToken)
+    {
+        await EnsureServiceAsync(idOrganization, idClient, idService, cancellationToken);
+        var evidence = await repository.GetEvidenceAsync(idService, idOperationEvidence, cancellationToken)
+            ?? throw new ResourceNotFoundException("No se encontró la evidencia solicitada.");
+
+        evidence.Deactivate(actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+    }
+
     private async Task EnsureServiceAsync(Guid idOrganization, Guid idClient, Guid idService, CancellationToken cancellationToken)
     {
         if (await repository.GetServiceAsync(idOrganization, idClient, idService, cancellationToken) is null)
         {
             throw new ResourceNotFoundException("No se encontró el servicio solicitado.");
+        }
+    }
+
+    private async Task EnsureEvidenceRelationAsync(
+        Guid idService,
+        Guid? idAttendanceRecord,
+        Guid? idIncident,
+        Guid? idCoverageRecord,
+        CancellationToken cancellationToken)
+    {
+        var relatedRecords = new[] { idAttendanceRecord, idIncident, idCoverageRecord }
+            .Count(value => value.HasValue && value.Value != Guid.Empty);
+
+        if (relatedRecords != 1)
+        {
+            throw new RequestValidationException(
+                new Dictionary<string, string[]>
+                {
+                    [nameof(idAttendanceRecord)] = ["La evidencia debe estar ligada a un solo registro operativo."]
+                });
+        }
+
+        if (idAttendanceRecord.HasValue &&
+            !await repository.AttendanceBelongsToServiceAsync(idService, idAttendanceRecord.Value, cancellationToken))
+        {
+            throw new ResourceNotFoundException("No se encontró la asistencia relacionada.");
+        }
+
+        if (idIncident.HasValue &&
+            !await repository.IncidentBelongsToServiceAsync(idService, idIncident.Value, cancellationToken))
+        {
+            throw new ResourceNotFoundException("No se encontró la incidencia relacionada.");
+        }
+
+        if (idCoverageRecord.HasValue &&
+            !await repository.CoverageBelongsToServiceAsync(idService, idCoverageRecord.Value, cancellationToken))
+        {
+            throw new ResourceNotFoundException("No se encontró la cobertura relacionada.");
         }
     }
 
@@ -306,6 +420,30 @@ public sealed class OperationsService(
         return new CoverageRecordProfile(idReplacementEmployee, coverageStartTime, coverageEndTime, isOvernight, status, normalizedNotes);
     }
 
+    private static OperationEvidenceProfile ValidateEvidenceProfile(
+        Guid? idAttendanceRecord,
+        Guid? idIncident,
+        Guid? idCoverageRecord,
+        OperationEvidenceType evidenceType,
+        string title,
+        string storageReference,
+        string? notes)
+    {
+        var errors = new Dictionary<string, string[]>();
+        var normalizedTitle = InputValidation.Required(title, nameof(title), 180, errors);
+        var normalizedReference = InputValidation.Required(storageReference, nameof(storageReference), 500, errors);
+        var normalizedNotes = InputValidation.Optional(notes, nameof(notes), 1000, errors);
+        InputValidation.ThrowIfInvalid(errors);
+        return new OperationEvidenceProfile(
+            idAttendanceRecord,
+            idIncident,
+            idCoverageRecord,
+            evidenceType,
+            normalizedTitle,
+            normalizedReference,
+            normalizedNotes);
+    }
+
     private static AttendanceRecordResponse Map(AttendanceRecord record) =>
         new(
             record.IdAttendanceRecord,
@@ -354,6 +492,19 @@ public sealed class OperationsService(
             coverage.Status,
             coverage.Notes,
             coverage.Active);
+
+    private static OperationEvidenceResponse Map(OperationEvidence evidence) =>
+        new(
+            evidence.IdOperationEvidence,
+            evidence.IdService,
+            evidence.IdAttendanceRecord,
+            evidence.IdIncident,
+            evidence.IdCoverageRecord,
+            evidence.EvidenceType,
+            evidence.Title,
+            evidence.StorageReference,
+            evidence.Notes,
+            evidence.Active);
 
     private static int DurationMinutes(TimeOnly startTime, TimeOnly endTime, bool isOvernight)
     {

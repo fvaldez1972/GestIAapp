@@ -74,3 +74,16 @@ public sealed record ScheduledShiftResponse(
     int DurationMinutes,
     string? Notes,
     bool Active);
+
+public sealed record GenerateScheduledShiftsRequest(
+    Guid IdOrganization,
+    Guid IdClient,
+    Guid IdService,
+    Guid IdScheduleVersion,
+    bool SkipExisting);
+
+public sealed record GenerateScheduledShiftsResponse(
+    int CreatedShifts,
+    int SkippedShifts,
+    int MissingAssignments,
+    IReadOnlyList<string> Warnings);

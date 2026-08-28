@@ -82,6 +82,9 @@ app.MapAssignmentEndpoints();
 app.MapSchedulingEndpoints();
 app.MapOperationsEndpoints();
 app.MapReportsEndpoints();
+app.MapSecurityAdministrationEndpoints();
+app.MapOperationalRequestEndpoints();
+app.MapAuditEndpoints();
 
 app.Run();
 

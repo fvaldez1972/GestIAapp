@@ -9,7 +9,7 @@
     </a>
 
     <nav class="side-nav">
-      @for (group of navigation; track group.label) {
+      @for (group of navigation(); track group.label) {
         <section class="menu-group">
           <p class="menu-title">{{ group.label }}</p>
           @for (item of group.items; track item.label) {
@@ -38,11 +38,8 @@
     </nav>
 
     <div class="sidebar-foot">
-      <span class="environment-dot" aria-hidden="true"></span>
-      <span class="sidebar-foot__copy">
-        <strong>Entorno local</strong>
-        <small>SQL Server · API · Web</small>
-      </span>
+      <span>GestIA</span>
+      <small>Operación inteligente</small>
     </div>
   </aside>
 
@@ -64,13 +61,16 @@
           <span></span><span></span><span></span>
         </button>
         <div class="topbar-title">
-          <span>GestIA</span>
+          <span>
+            @for (crumb of breadcrumbs(); track crumb; let last = $last) {
+              {{ crumb }}@if (!last) { <i aria-hidden="true">/</i> }
+            }
+          </span>
           <strong>Consola operativa</strong>
         </div>
       </div>
 
       <div class="topbar-actions">
-        <span class="environment"><i></i> Entorno local</span>
         <button class="profile" type="button" aria-label="Cerrar sesión" (click)="logout()">
           <span class="profile-avatar">GI</span>
           <span class="profile-copy"><strong>{{ auth.displayName() || 'GestIA' }}</strong><small>Salir</small></span>
@@ -85,7 +85,7 @@
 
     <footer class="app-footer">
       <span>GestIA · Gestión inteligente</span>
-      <span>.NET 10 · Angular 22 · SQL Server</span>
+      <span>Operación, trazabilidad y control</span>
     </footer>
   </div>
 </div>

@@ -71,7 +71,10 @@ public sealed class SecurityDataSeeder(
             (SecurityPermissions.PlanningWrite, "Planeación", "Administrar posiciones y turnos"),
             (SecurityPermissions.OperationsRead, "Operación", "Consultar asistencia, incidencias y coberturas"),
             (SecurityPermissions.OperationsWrite, "Operación", "Administrar asistencia, incidencias y coberturas"),
-            (SecurityPermissions.ReportsRead, "Reportes", "Consultar reportes operativos")
+            (SecurityPermissions.ReportsRead, "Reportes", "Consultar reportes operativos"),
+            (SecurityPermissions.AuditRead, "Auditoría", "Consultar trazabilidad de cambios"),
+            (SecurityPermissions.RequestsRead, "Solicitudes", "Consultar solicitudes operativas"),
+            (SecurityPermissions.RequestsWrite, "Solicitudes", "Administrar solicitudes operativas")
         };
 
         var result = new List<Permission>(definitions.Length);

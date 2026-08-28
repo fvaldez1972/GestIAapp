@@ -1,6 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { ClientApiService } from '../../../clients/data-access/client-api.service';
 import {
@@ -23,7 +24,7 @@ import { Employee } from '../../../workforce/data-access/workforce.models';
 
 @Component({
   selector: 'app-operations-page',
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, RouterLink],
   templateUrl: './operations-page.html',
   styleUrl: './operations-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -32,6 +33,8 @@ export class OperationsPage implements OnInit {
   private readonly api = inject(ClientApiService);
   private readonly workforceApi = inject(WorkforceApiService);
   private readonly formBuilder = inject(FormBuilder);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
 
   protected readonly organizations = signal<readonly Organization[]>([]);
   protected readonly clients = signal<readonly Client[]>([]);
@@ -46,6 +49,9 @@ export class OperationsPage implements OnInit {
   protected readonly selectedOrganizationId = signal('');
   protected readonly selectedClientId = signal('');
   protected readonly selectedServiceId = signal('');
+  protected readonly selectedIncidentId = signal('');
+  protected readonly selectedCoverageId = signal('');
+  protected readonly activeSection = signal<OperationSection>('asistencia');
   protected readonly loading = signal(false);
   protected readonly saving = signal(false);
   protected readonly message = signal('');
@@ -59,10 +65,36 @@ export class OperationsPage implements OnInit {
   protected readonly incidentCount = computed(() => this.summary()?.incidents ?? this.incidents().length);
   protected readonly coverageCount = computed(() => this.summary()?.coverageRecords ?? this.coverages().length);
   protected readonly coveredHours = computed(() => Math.round(((this.summary()?.coveredMinutes ?? 0) / 60) * 10) / 10);
+  protected readonly sectionTitle = computed(() => {
+    switch (this.activeSection()) {
+      case 'incidencias':
+        return 'Incidencias';
+      case 'cobertura':
+        return 'Cobertura';
+      default:
+        return 'Asistencia';
+    }
+  });
+  protected readonly sectionDescription = computed(() => {
+    switch (this.activeSection()) {
+      case 'incidencias':
+        return 'Registra excepciones del servicio, clasifica su severidad y deja seguimiento para operación.';
+      case 'cobertura':
+        return 'Captura sustituciones de personal para mantener trazable quién cubrió cada turno.';
+      default:
+        return 'Confirma entrada, salida, estado y retardos de los turnos publicados.';
+    }
+  });
   protected readonly publishedVersion = computed(
     () => this.scheduleVersions().find((version) => version.status === 'Published') ?? null,
   );
   protected readonly hasPublishedShifts = computed(() => this.scheduledShifts().length > 0);
+  protected readonly selectedIncident = computed(
+    () => this.incidents().find((incident) => incident.idIncident === this.selectedIncidentId()) ?? null,
+  );
+  protected readonly selectedCoverage = computed(
+    () => this.coverages().find((coverage) => coverage.idCoverageRecord === this.selectedCoverageId()) ?? null,
+  );
 
   protected readonly attendanceStatuses: readonly { value: AttendanceStatus; label: string }[] = [
     { value: 'Present', label: 'Presente' },
@@ -122,6 +154,17 @@ export class OperationsPage implements OnInit {
   });
 
   ngOnInit() {
+    this.route.paramMap.subscribe((params) => {
+      const section = params.get('section');
+
+      if (isOperationSection(section)) {
+        this.activeSection.set(section);
+        return;
+      }
+
+      void this.router.navigateByUrl('/operacion/asistencia');
+    });
+
     this.loadOrganizations();
   }
 
@@ -201,27 +244,33 @@ export class OperationsPage implements OnInit {
     this.message.set('');
     this.error.set('');
 
-    this.api
-      .createIncident(context.idClient, context.idService, {
-        idOrganization: context.idOrganization,
-        idClient: context.idClient,
-        idService: context.idService,
-        idScheduledShift: this.emptyToNull(form.idScheduledShift),
-        idEmployee: shift?.idEmployee ?? null,
-        incidentDate: form.incidentDate,
-        incidentType: form.incidentType.trim(),
-        severity: form.severity,
-        status: form.status,
-        description: form.description.trim(),
-        resolutionNotes: this.emptyToNull(form.resolutionNotes),
-      })
-      .subscribe({
+    const payload = {
+      idOrganization: context.idOrganization,
+      idClient: context.idClient,
+      idService: context.idService,
+      idScheduledShift: this.emptyToNull(form.idScheduledShift),
+      idEmployee: shift?.idEmployee ?? this.selectedIncident()?.idEmployee ?? null,
+      incidentDate: form.incidentDate,
+      incidentType: form.incidentType.trim(),
+      severity: form.severity,
+      status: form.status,
+      description: form.description.trim(),
+      resolutionNotes: this.emptyToNull(form.resolutionNotes),
+    };
+    const selectedIncidentId = this.selectedIncidentId();
+    const request = selectedIncidentId
+      ? this.api.updateIncident(context.idClient, context.idService, selectedIncidentId, payload)
+      : this.api.createIncident(context.idClient, context.idService, payload);
+
+    request.subscribe({
         next: () => {
-          this.message.set('Incidencia registrada correctamente.');
-          this.incidentForm.patchValue({ description: '', resolutionNotes: '' });
+          this.message.set(selectedIncidentId ? 'Incidencia actualizada correctamente.' : 'Incidencia registrada correctamente.');
+          if (!selectedIncidentId) {
+            this.incidentForm.patchValue({ description: '', resolutionNotes: '' });
+          }
           this.loadOperationData();
         },
-        error: (error: HttpErrorResponse) => this.setError(error, 'No se pudo registrar la incidencia.'),
+        error: (error: HttpErrorResponse) => this.setError(error, selectedIncidentId ? 'No se pudo actualizar la incidencia.' : 'No se pudo registrar la incidencia.'),
         complete: () => this.saving.set(false),
       });
   }
@@ -239,28 +288,89 @@ export class OperationsPage implements OnInit {
     this.message.set('');
     this.error.set('');
 
-    this.api
-      .createCoverageRecord(context.idClient, context.idService, {
-        idOrganization: context.idOrganization,
-        idClient: context.idClient,
-        idService: context.idService,
-        idScheduledShift: form.idScheduledShift,
-        idReplacementEmployee: form.idReplacementEmployee,
-        coverageStartTime: form.coverageStartTime,
-        coverageEndTime: form.coverageEndTime,
-        isOvernight: form.isOvernight,
-        status: form.status,
-        notes: this.emptyToNull(form.notes),
-      })
-      .subscribe({
+    const payload = {
+      idOrganization: context.idOrganization,
+      idClient: context.idClient,
+      idService: context.idService,
+      idScheduledShift: form.idScheduledShift,
+      idReplacementEmployee: form.idReplacementEmployee,
+      coverageStartTime: form.coverageStartTime,
+      coverageEndTime: form.coverageEndTime,
+      isOvernight: form.isOvernight,
+      status: form.status,
+      notes: this.emptyToNull(form.notes),
+    };
+    const selectedCoverageId = this.selectedCoverageId();
+    const request = selectedCoverageId
+      ? this.api.updateCoverageRecord(context.idClient, context.idService, selectedCoverageId, payload)
+      : this.api.createCoverageRecord(context.idClient, context.idService, payload);
+
+    request.subscribe({
         next: () => {
-          this.message.set('Cobertura registrada correctamente.');
-          this.coverageForm.patchValue({ notes: '' });
+          this.message.set(selectedCoverageId ? 'Cobertura actualizada correctamente.' : 'Cobertura registrada correctamente.');
+          if (!selectedCoverageId) {
+            this.coverageForm.patchValue({ notes: '' });
+          }
           this.loadOperationData();
         },
-        error: (error: HttpErrorResponse) => this.setError(error, 'No se pudo registrar la cobertura.'),
+        error: (error: HttpErrorResponse) => this.setError(error, selectedCoverageId ? 'No se pudo actualizar la cobertura.' : 'No se pudo registrar la cobertura.'),
         complete: () => this.saving.set(false),
       });
+  }
+
+  protected selectIncident(incident: Incident) {
+    this.selectedIncidentId.set(incident.idIncident);
+    this.incidentForm.patchValue({
+      idScheduledShift: incident.idScheduledShift ?? '',
+      incidentDate: incident.incidentDate,
+      incidentType: incident.incidentType,
+      severity: incident.severity,
+      status: incident.status,
+      description: incident.description,
+      resolutionNotes: incident.resolutionNotes ?? '',
+    });
+  }
+
+  protected resetIncidentForm() {
+    this.selectedIncidentId.set('');
+    this.incidentForm.reset({
+      idScheduledShift: this.scheduledShifts()[0]?.idScheduledShift ?? '',
+      incidentDate: this.today(),
+      incidentType: 'OPERATIVA',
+      severity: 'Medium',
+      status: 'Open',
+      description: '',
+      resolutionNotes: '',
+    });
+  }
+
+  protected selectCoverage(coverage: CoverageRecord) {
+    this.selectedCoverageId.set(coverage.idCoverageRecord);
+    this.coverageForm.patchValue({
+      idScheduledShift: coverage.idScheduledShift,
+      idReplacementEmployee: coverage.idReplacementEmployee,
+      coverageStartTime: coverage.coverageStartTime.slice(0, 5),
+      coverageEndTime: coverage.coverageEndTime.slice(0, 5),
+      isOvernight: coverage.isOvernight,
+      status: coverage.status,
+      notes: coverage.notes ?? '',
+    });
+  }
+
+  protected resetCoverageForm() {
+    const firstShift = this.scheduledShifts()[0];
+    const firstReplacement = this.employees().find((employee) => employee.idEmployee !== firstShift?.idEmployee);
+
+    this.selectedCoverageId.set('');
+    this.coverageForm.reset({
+      idScheduledShift: firstShift?.idScheduledShift ?? '',
+      idReplacementEmployee: firstReplacement?.idEmployee ?? '',
+      coverageStartTime: firstShift?.startTime?.slice(0, 5) ?? '08:00',
+      coverageEndTime: firstShift?.endTime?.slice(0, 5) ?? '16:00',
+      isOvernight: firstShift?.isOvernight ?? false,
+      status: 'Confirmed',
+      notes: '',
+    });
   }
 
   private loadOrganizations() {
@@ -364,6 +474,8 @@ export class OperationsPage implements OnInit {
     this.scheduledShifts.set([]);
     this.employees.set([]);
     this.summary.set(null);
+    this.selectedIncidentId.set('');
+    this.selectedCoverageId.set('');
   }
 
   private loadPublishedShifts() {
@@ -437,4 +549,10 @@ export class OperationsPage implements OnInit {
   private today() {
     return new Date().toISOString().slice(0, 10);
   }
+}
+
+type OperationSection = 'asistencia' | 'incidencias' | 'cobertura';
+
+function isOperationSection(value: string | null): value is OperationSection {
+  return value === 'asistencia' || value === 'incidencias' || value === 'cobertura';
 }

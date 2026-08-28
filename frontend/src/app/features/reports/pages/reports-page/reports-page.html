@@ -1,0 +1,208 @@
+<section class="reports-page">
+  <article class="gi-card gi-card--hero reports-hero">
+    <div>
+      <span class="eyebrow">Control operativo</span>
+      <h1>Reportes</h1>
+      <p>
+        Consulta métricas reales de asistencia, ausentismo, incidencias y coberturas por organización, cliente,
+        servicio y periodo.
+      </p>
+    </div>
+    <div class="hero-actions">
+      <button class="gi-button gi-button--secondary" type="button" [disabled]="loading()" (click)="refresh()">
+        {{ loading() ? 'Actualizando…' : 'Actualizar' }}
+      </button>
+      <button class="gi-button gi-button--primary" type="button" [disabled]="!summary()" (click)="exportCsv()">
+        Exportar CSV
+      </button>
+    </div>
+  </article>
+
+  <section class="gi-card report-filters" aria-label="Filtros del reporte">
+    <label class="gi-field">
+      Organización
+      <select class="gi-input" [ngModel]="selectedOrganizationId()" (ngModelChange)="onOrganizationChange($event)">
+        @for (organization of organizations(); track organization.idOrganization) {
+          <option [value]="organization.idOrganization">{{ organization.legalName }}</option>
+        }
+      </select>
+    </label>
+
+    <label class="gi-field">
+      Cliente
+      <select class="gi-input" [ngModel]="selectedClientId()" (ngModelChange)="onClientChange($event)">
+        <option value="">Todos los clientes</option>
+        @for (client of clients(); track client.idClient) {
+          <option [value]="client.idClient">{{ client.tradeName || client.legalName }}</option>
+        }
+      </select>
+    </label>
+
+    <label class="gi-field">
+      Servicio
+      <select class="gi-input" [ngModel]="selectedServiceId()" (ngModelChange)="onServiceChange($event)">
+        <option value="">Todos los servicios</option>
+        @for (service of services(); track service.idService) {
+          <option [value]="service.idService">{{ service.name }}</option>
+        }
+      </select>
+    </label>
+
+    <label class="gi-field">
+      Desde
+      <input class="gi-input" type="date" [ngModel]="fromDate()" (ngModelChange)="onFromDateChange($event)" />
+    </label>
+
+    <label class="gi-field">
+      Hasta
+      <input class="gi-input" type="date" [ngModel]="toDate()" (ngModelChange)="onToDateChange($event)" />
+    </label>
+
+    <button class="gi-button gi-button--secondary" type="button" (click)="clearScope()">
+      Ver todo
+    </button>
+  </section>
+
+  @if (error()) {
+    <p class="gi-alert gi-alert--error">{{ error() }}</p>
+  }
+
+  <section class="report-grid" aria-label="Indicadores principales">
+    @for (card of reportCards(); track card.label) {
+      <article class="gi-card metric-card">
+        <span>{{ card.label }}</span>
+        <strong>{{ card.value }}</strong>
+        <small>{{ card.detail }}</small>
+      </article>
+    }
+  </section>
+
+  <section class="report-panels">
+    <article class="gi-card report-panel">
+      <span class="eyebrow">Asistencia</span>
+      <h2>Lectura rápida</h2>
+      <div class="progress-list">
+        <div>
+          <span>Presentes</span>
+          <strong>{{ summary()?.presentAttendance ?? 0 }}</strong>
+        </div>
+        <div>
+          <span>Retardos</span>
+          <strong>{{ summary()?.lateAttendance ?? 0 }}</strong>
+        </div>
+        <div>
+          <span>Faltas</span>
+          <strong>{{ summary()?.absentAttendance ?? 0 }}</strong>
+        </div>
+        <div>
+          <span>Justificadas</span>
+          <strong>{{ summary()?.excusedAttendance ?? 0 }}</strong>
+        </div>
+      </div>
+    </article>
+
+    <article class="gi-card report-panel">
+      <span class="eyebrow">Riesgos</span>
+      <h2>Alertas operativas</h2>
+      <div class="alert-stack">
+        @if ((summary()?.openIncidents ?? 0) > 0) {
+          <p class="soft-alert">Hay {{ summary()?.openIncidents }} incidencia(s) abiertas que requieren seguimiento.</p>
+        } @else {
+          <p class="soft-ok">Sin incidencias abiertas en el periodo seleccionado.</p>
+        }
+
+        @if ((summary()?.criticalIncidents ?? 0) > 0) {
+          <p class="soft-alert is-critical">{{ summary()?.criticalIncidents }} incidencia(s) crítica(s) detectadas.</p>
+        } @else {
+          <p class="soft-ok">Sin incidencias críticas registradas.</p>
+        }
+
+        @if (absenceRate() > 10) {
+          <p class="soft-alert">Ausentismo por arriba del 10%. Conviene revisar cobertura y personal disponible.</p>
+        } @else {
+          <p class="soft-ok">Ausentismo controlado para este corte.</p>
+        }
+      </div>
+    </article>
+  </section>
+
+  <section class="report-panels">
+    <article class="gi-card report-panel">
+      <span class="eyebrow">Servicios</span>
+      <h2>Mayor atención requerida</h2>
+
+      <div class="risk-list">
+        @for (service of highestRiskServices(); track service.idService) {
+          <article class="risk-item">
+            <div>
+              <strong>{{ service.codeService }} · {{ service.serviceName }}</strong>
+              <span>{{ service.clientName }}</span>
+            </div>
+            <small>
+              {{ service.openIncidents }} abiertas · {{ service.absentAttendance }} faltas · {{ service.lateAttendance }} retardos
+            </small>
+          </article>
+        } @empty {
+          <div class="gi-empty-state">
+            <h3>Sin focos rojos</h3>
+            <p>No hay servicios con faltas, retardos o incidencias abiertas en este corte.</p>
+          </div>
+        }
+      </div>
+    </article>
+
+    <article class="gi-card report-panel">
+      <span class="eyebrow">Periodo</span>
+      <h2>Interpretación del corte</h2>
+      <div class="alert-stack">
+        <p class="soft-ok">
+          El reporte está usando datos capturados entre {{ fromDate() }} y {{ toDate() }}.
+        </p>
+        <p class="soft-alert">
+          Si un servicio aparece en ceros, normalmente significa que todavía no tiene operación capturada para el periodo o que el filtro no lo incluye.
+        </p>
+      </div>
+    </article>
+  </section>
+
+  <article class="gi-card report-panel">
+    <span class="eyebrow">Detalle</span>
+    <h2>Desglose operativo por servicio</h2>
+
+    <div class="table-wrap">
+      <table class="gi-table">
+        <thead>
+          <tr>
+            <th>Servicio</th>
+            <th>Cliente</th>
+            <th>Asistencia</th>
+            <th>Retardos</th>
+            <th>Faltas</th>
+            <th>Incidencias</th>
+            <th>Cobertura</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (service of serviceSummaries(); track service.idService) {
+            <tr>
+              <td>
+                <strong>{{ service.codeService }}</strong>
+                <small>{{ service.serviceName }}</small>
+              </td>
+              <td>{{ service.clientName }}</td>
+              <td>{{ service.presentAttendance }} / {{ service.attendanceRecords }} · {{ serviceAttendanceRate(service) }}%</td>
+              <td>{{ service.lateAttendance }}</td>
+              <td>{{ service.absentAttendance }}</td>
+              <td>{{ service.openIncidents }} abiertas · {{ service.criticalIncidents }} críticas</td>
+              <td>{{ service.coverageRecords }} registros · {{ serviceCoveredHours(service) }} h</td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="7" class="empty">No hay servicios para el alcance seleccionado.</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </article>
+</section>

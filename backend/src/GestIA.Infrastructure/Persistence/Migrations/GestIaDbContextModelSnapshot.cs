@@ -1033,6 +1033,118 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("GestIA.Domain.Requests.OperationalRequest", b =>
+                {
+                    b.Property<Guid>("IdOperationalRequest")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Active")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true)
+                        .HasColumnName("Active");
+
+                    b.Property<string>("CodeOperationalRequest")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(40)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2(0)")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CreatedByName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<Guid?>("IdClient")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("IdOrganization")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("IdService")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateOnly?>("NeededByDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Priority")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(40)");
+
+                    b.Property<string>("RequestType")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(40)");
+
+                    b.Property<string>("RequestedByName")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<string>("ResolutionNotes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(40)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(180)
+                        .HasColumnType("nvarchar(180)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2(0)");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("UpdatedByName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("IdOperationalRequest")
+                        .HasName("PK_OperationalRequests");
+
+                    b.HasIndex("IdClient")
+                        .HasDatabaseName("IX_OperationalRequests_IdClient");
+
+                    b.HasIndex("IdService")
+                        .HasDatabaseName("IX_OperationalRequests_IdService");
+
+                    b.HasIndex("IdOrganization", "CodeOperationalRequest")
+                        .IsUnique()
+                        .HasDatabaseName("UX_OperationalRequests_IdOrganization_CodeOperationalRequest");
+
+                    b.HasIndex("IdOrganization", "RequestType")
+                        .HasDatabaseName("IX_OperationalRequests_IdOrganization_RequestType");
+
+                    b.HasIndex("IdOrganization", "Status", "Priority")
+                        .HasDatabaseName("IX_OperationalRequests_IdOrganization_Status_Priority");
+
+                    b.ToTable("OperationalRequests", "dbo");
+                });
+
             modelBuilder.Entity("GestIA.Domain.Security.OrganizationMembership", b =>
                 {
                     b.Property<Guid>("IdOrganizationMembership")
@@ -2281,6 +2393,34 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                         .HasConstraintName("FK_ShiftSegments_ShiftPatterns_IdShiftPattern");
 
                     b.Navigation("ShiftPattern");
+                });
+
+            modelBuilder.Entity("GestIA.Domain.Requests.OperationalRequest", b =>
+                {
+                    b.HasOne("GestIA.Domain.Clients.Client", "Client")
+                        .WithMany()
+                        .HasForeignKey("IdClient")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_OperationalRequests_Clients_IdClient");
+
+                    b.HasOne("GestIA.Domain.Organizations.Organization", "Organization")
+                        .WithMany()
+                        .HasForeignKey("IdOrganization")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_OperationalRequests_Organizations_IdOrganization");
+
+                    b.HasOne("GestIA.Domain.Services.Service", "Service")
+                        .WithMany()
+                        .HasForeignKey("IdService")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_OperationalRequests_Services_IdService");
+
+                    b.Navigation("Client");
+
+                    b.Navigation("Organization");
+
+                    b.Navigation("Service");
                 });
 
             modelBuilder.Entity("GestIA.Domain.Security.OrganizationMembership", b =>

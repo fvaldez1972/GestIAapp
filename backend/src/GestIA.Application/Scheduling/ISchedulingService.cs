@@ -24,6 +24,10 @@ public interface ISchedulingService
         Guid idScheduleVersion,
         CancellationToken cancellationToken);
 
+    Task<GenerateScheduledShiftsResponse> GenerateScheduledShiftsAsync(
+        GenerateScheduledShiftsRequest request,
+        CancellationToken cancellationToken);
+
     Task<IReadOnlyList<ScheduledShiftResponse>> ListScheduledShiftsAsync(
         Guid idOrganization,
         Guid idClient,

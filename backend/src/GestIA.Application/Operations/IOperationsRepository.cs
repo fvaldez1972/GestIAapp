@@ -30,4 +30,19 @@ public interface IOperationsRepository
     Task<IReadOnlyList<CoverageRecord>> ListCoveragesAsync(Guid idService, CancellationToken cancellationToken);
 
     Task AddCoverageAsync(CoverageRecord coverage, CancellationToken cancellationToken);
+
+    Task<bool> AttendanceBelongsToServiceAsync(Guid idService, Guid idAttendanceRecord, CancellationToken cancellationToken);
+
+    Task<bool> IncidentBelongsToServiceAsync(Guid idService, Guid idIncident, CancellationToken cancellationToken);
+
+    Task<bool> CoverageBelongsToServiceAsync(Guid idService, Guid idCoverageRecord, CancellationToken cancellationToken);
+
+    Task<OperationEvidence?> GetEvidenceAsync(Guid idService, Guid idOperationEvidence, CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<OperationEvidence>> ListEvidencesAsync(
+        Guid idService,
+        Guid? relatedRecordId,
+        CancellationToken cancellationToken);
+
+    Task AddEvidenceAsync(OperationEvidence evidence, CancellationToken cancellationToken);
 }

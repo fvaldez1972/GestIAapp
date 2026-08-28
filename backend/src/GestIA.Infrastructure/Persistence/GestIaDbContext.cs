@@ -2,6 +2,7 @@ using GestIA.Domain.Clients;
 using GestIA.Domain.Organizations;
 using GestIA.Domain.Operations;
 using GestIA.Domain.Planning;
+using GestIA.Domain.Requests;
 using GestIA.Domain.Security;
 using GestIA.Domain.Services;
 using GestIA.Domain.Workforce;
@@ -32,6 +33,8 @@ public sealed class GestIaDbContext(DbContextOptions<GestIaDbContext> options)
     public DbSet<AttendanceRecord> AttendanceRecords => Set<AttendanceRecord>();
     public DbSet<Incident> Incidents => Set<Incident>();
     public DbSet<CoverageRecord> CoverageRecords => Set<CoverageRecord>();
+    public DbSet<OperationEvidence> OperationEvidences => Set<OperationEvidence>();
+    public DbSet<OperationalRequest> OperationalRequests => Set<OperationalRequest>();
     public DbSet<User> Users => Set<User>();
     public DbSet<OrganizationMembership> OrganizationMemberships => Set<OrganizationMembership>();
     public DbSet<Role> Roles => Set<Role>();

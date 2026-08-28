@@ -20,3 +20,22 @@ public sealed record OperationsSummaryResponse(
     int ConfirmedCoverages,
     int CompletedCoverages,
     int CoveredMinutes);
+
+public sealed record OperationsServiceSummaryResponse(
+    Guid IdClient,
+    string ClientName,
+    Guid IdService,
+    string CodeService,
+    string ServiceName,
+    int AttendanceRecords,
+    int PresentAttendance,
+    int LateAttendance,
+    int AbsentAttendance,
+    int ExcusedAttendance,
+    int Incidents,
+    int OpenIncidents,
+    int CriticalIncidents,
+    int CoverageRecords,
+    int ConfirmedCoverages,
+    int CompletedCoverages,
+    int CoveredMinutes);

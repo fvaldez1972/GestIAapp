@@ -1,0 +1,143 @@
+<section class="audit-page">
+  <article class="gi-card gi-card--hero audit-hero">
+    <div>
+      <span class="eyebrow">Trazabilidad</span>
+      <h1>Auditoría</h1>
+      <p>Consulta altas, actualizaciones y bajas lógicas registradas en los módulos operativos.</p>
+    </div>
+    <button class="gi-button gi-button--secondary" type="button" [disabled]="loading()" (click)="loadEvents()">
+      {{ loading() ? 'Actualizando…' : 'Actualizar' }}
+    </button>
+  </article>
+
+  <section class="gi-card audit-filters" aria-label="Filtros de auditoría">
+    <label class="gi-field">
+      Organización
+      <select class="gi-input" [ngModel]="selectedOrganizationId()" (ngModelChange)="onOrganizationChange($event)">
+        @for (organization of organizations(); track organization.idOrganization) {
+          <option [value]="organization.idOrganization">{{ organization.legalName }}</option>
+        }
+      </select>
+    </label>
+
+    <label class="gi-field">
+      Entidad
+      <select class="gi-input" [ngModel]="selectedEntity()" (ngModelChange)="onEntityChange($event)">
+        <option value="">Todas</option>
+        @for (entity of entities(); track entity) {
+          <option [value]="entity">{{ entity }}</option>
+        }
+      </select>
+    </label>
+
+    <label class="gi-field">
+      Desde
+      <input class="gi-input" type="date" [ngModel]="fromDate()" (ngModelChange)="onFromDateChange($event)" />
+    </label>
+
+    <label class="gi-field">
+      Hasta
+      <input class="gi-input" type="date" [ngModel]="toDate()" (ngModelChange)="onToDateChange($event)" />
+    </label>
+
+    <label class="gi-field">
+      Buscar
+      <input
+        class="gi-input"
+        type="search"
+        [ngModel]="search()"
+        (ngModelChange)="onSearchChange($event)"
+        (keyup.enter)="applySearch()"
+        placeholder="Entidad, usuario, registro o detalle"
+      />
+    </label>
+
+    <button class="gi-button gi-button--secondary" type="button" [disabled]="loading()" (click)="applySearch()">Buscar</button>
+    <button class="gi-button gi-button--secondary" type="button" [disabled]="loading()" (click)="clearFilters()">Limpiar</button>
+  </section>
+
+  @if (error()) {
+    <p class="gi-alert gi-alert--error">{{ error() }}</p>
+  }
+
+  <section class="audit-summary" aria-label="Resumen de auditoría">
+    <article class="gi-card metric-card">
+      <span>Eventos</span>
+      <strong>{{ totalCount() }}</strong>
+      <small>Total del filtro actual</small>
+    </article>
+    <article class="gi-card metric-card">
+      <span>Actualizaciones</span>
+      <strong>{{ updateCount() }}</strong>
+      <small>En la página visible</small>
+    </article>
+    <article class="gi-card metric-card">
+      <span>Bajas</span>
+      <strong>{{ deactivationCount() }}</strong>
+      <small>Desactivaciones lógicas</small>
+    </article>
+    <article class="gi-card metric-card">
+      <span>Último movimiento</span>
+      <strong>{{ latestEvent()?.action || '—' }}</strong>
+      <small>{{ latestEvent()?.actorName || 'Sin eventos' }}</small>
+    </article>
+  </section>
+
+  <article class="gi-card audit-table-card">
+    <header>
+      <div>
+        <span class="eyebrow">Bitácora</span>
+        <h2>Eventos registrados</h2>
+      </div>
+      <span class="gi-badge">Página {{ page() }} de {{ totalPages() || 1 }}</span>
+    </header>
+
+    <div class="table-wrap">
+      <table class="gi-table">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Entidad</th>
+            <th>Registro</th>
+            <th>Acción</th>
+            <th>Usuario</th>
+            <th>Detalle</th>
+            <th>Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (event of events(); track event.entity + event.recordId + event.action + event.occurredAt) {
+            <tr>
+              <td>{{ event.occurredAt }}</td>
+              <td>{{ event.entity }}</td>
+              <td>
+                <strong>{{ event.entityName }}</strong>
+                <small>{{ event.recordId }}</small>
+              </td>
+              <td><span [class]="'audit-status ' + actionClass(event.action)">{{ event.action }}</span></td>
+              <td>{{ event.actorName }}</td>
+              <td>{{ event.details || '—' }}</td>
+              <td>{{ event.active ? 'Activo' : 'Inactivo' }}</td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="7" class="empty">No hay eventos para los filtros seleccionados.</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <footer class="pagination">
+      <span>{{ totalCount() }} evento(s)</span>
+      <div>
+        <button class="gi-button gi-button--secondary" type="button" [disabled]="page() <= 1 || loading()" (click)="goToPage(page() - 1)">
+          Anterior
+        </button>
+        <button class="gi-button gi-button--secondary" type="button" [disabled]="page() >= totalPages() || loading()" (click)="goToPage(page() + 1)">
+          Siguiente
+        </button>
+      </div>
+    </footer>
+  </article>
+</section>

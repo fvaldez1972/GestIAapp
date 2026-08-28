@@ -28,6 +28,23 @@ public static class ReportsEndpoints
             .RequirePermission(SecurityPermissions.ReportsRead)
             .WithName("GetOperationsSummary");
 
+        group.MapGet("/operations-by-service", async (
+            Guid organizationId,
+            Guid? clientId,
+            Guid? serviceId,
+            DateOnly? fromDate,
+            DateOnly? toDate,
+            IReportsService service,
+            CancellationToken cancellationToken) =>
+        {
+            var result = await service.GetOperationsByServiceAsync(
+                new OperationsSummaryQuery(organizationId, clientId, serviceId, fromDate, toDate),
+                cancellationToken);
+            return Results.Ok(result);
+        })
+            .RequirePermission(SecurityPermissions.ReportsRead)
+            .WithName("GetOperationsByService");
+
         return endpoints;
     }
 }

@@ -136,6 +136,78 @@ public static class OperationsEndpoints
             .RequirePermission(SecurityPermissions.OperationsWrite)
             .WithName("UpdateCoverage");
 
+        group.MapGet("/evidences", async (
+            Guid idClient,
+            Guid idService,
+            Guid organizationId,
+            Guid? relatedRecordId,
+            IOperationsService service,
+            CancellationToken cancellationToken) =>
+        {
+            var result = await service.ListEvidencesAsync(
+                organizationId,
+                idClient,
+                idService,
+                relatedRecordId,
+                cancellationToken);
+            return Results.Ok(result);
+        })
+            .RequirePermission(SecurityPermissions.OperationsRead)
+            .WithName("ListOperationEvidences");
+
+        group.MapPost("/evidences", async (
+            Guid idClient,
+            Guid idService,
+            OperationEvidenceInput request,
+            IOperationsService service,
+            CancellationToken cancellationToken) =>
+        {
+            var result = await service.CreateEvidenceAsync(
+                request with { IdClient = idClient, IdService = idService },
+                cancellationToken);
+            return Results.Created(
+                $"/api/v1/clients/{idClient}/services/{idService}/operations/evidences/{result.IdOperationEvidence}",
+                result);
+        })
+            .RequirePermission(SecurityPermissions.OperationsWrite)
+            .WithName("CreateOperationEvidence");
+
+        group.MapPut("/evidences/{idOperationEvidence:guid}", async (
+            Guid idClient,
+            Guid idService,
+            Guid idOperationEvidence,
+            OperationEvidenceInput request,
+            IOperationsService service,
+            CancellationToken cancellationToken) =>
+        {
+            var result = await service.UpdateEvidenceAsync(
+                idOperationEvidence,
+                request with { IdClient = idClient, IdService = idService },
+                cancellationToken);
+            return Results.Ok(result);
+        })
+            .RequirePermission(SecurityPermissions.OperationsWrite)
+            .WithName("UpdateOperationEvidence");
+
+        group.MapDelete("/evidences/{idOperationEvidence:guid}", async (
+            Guid idClient,
+            Guid idService,
+            Guid idOperationEvidence,
+            Guid organizationId,
+            IOperationsService service,
+            CancellationToken cancellationToken) =>
+        {
+            await service.DeactivateEvidenceAsync(
+                organizationId,
+                idClient,
+                idService,
+                idOperationEvidence,
+                cancellationToken);
+            return Results.NoContent();
+        })
+            .RequirePermission(SecurityPermissions.OperationsWrite)
+            .WithName("DeactivateOperationEvidence");
+
         return endpoints;
     }
 }

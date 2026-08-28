@@ -1,8 +1,14 @@
 using GestIA.Application.Clients;
+using GestIA.Application.Assignments;
 using GestIA.Application.Common;
+using GestIA.Application.Operations;
 using GestIA.Application.Organizations;
+using GestIA.Application.Planning;
+using GestIA.Application.Reports;
+using GestIA.Application.Scheduling;
 using GestIA.Application.Security;
 using GestIA.Application.Services;
+using GestIA.Application.Workforce;
 using GestIA.Infrastructure.Persistence;
 using GestIA.Infrastructure.Persistence.Repositories;
 using GestIA.Infrastructure.Security;
@@ -39,6 +45,12 @@ public static class DependencyInjection
         services.AddScoped<IClientSiteRepository, ClientSiteRepository>();
         services.AddScoped<IClientContactRepository, ClientContactRepository>();
         services.AddScoped<IServiceManagementRepository, ServiceManagementRepository>();
+        services.AddScoped<IWorkforceRepository, WorkforceRepository>();
+        services.AddScoped<IPlanningRepository, PlanningRepository>();
+        services.AddScoped<IAssignmentRepository, AssignmentRepository>();
+        services.AddScoped<ISchedulingRepository, SchedulingRepository>();
+        services.AddScoped<IOperationsRepository, OperationsRepository>();
+        services.AddScoped<IReportsRepository, ReportsRepository>();
         services.AddScoped<IUserAccessRepository, UserAccessRepository>();
         services.AddSingleton<IPasswordHashService, Pbkdf2PasswordHashService>();
         services.AddScoped<SecurityDataSeeder>();

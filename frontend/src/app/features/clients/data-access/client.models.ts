@@ -241,6 +241,287 @@ export type ServiceConfigurationInput = {
   readonly isTaxIncluded: boolean;
 };
 
+export type ServicePosition = {
+  readonly idPosition: string;
+  readonly idService: string;
+  readonly codePosition: string;
+  readonly name: string;
+  readonly requiredWorkerCount: number;
+  readonly requiredSkillProfile: string | null;
+  readonly notes: string | null;
+  readonly active: boolean;
+};
+
+export type ServicePositionInput = {
+  readonly idOrganization: string;
+  readonly idClient: string;
+  readonly idService: string;
+  readonly name: string;
+  readonly requiredWorkerCount: number;
+  readonly requiredSkillProfile: string | null;
+  readonly notes: string | null;
+};
+
+export type CreateServicePosition = ServicePositionInput & {
+  readonly codePosition: string;
+};
+
+export type ShiftPattern = {
+  readonly idShiftPattern: string;
+  readonly idPosition: string;
+  readonly codeShiftPattern: string;
+  readonly name: string;
+  readonly description: string | null;
+  readonly effectiveFromDate: string;
+  readonly effectiveToDate: string | null;
+  readonly active: boolean;
+};
+
+export type ShiftPatternInput = {
+  readonly idOrganization: string;
+  readonly idClient: string;
+  readonly idService: string;
+  readonly idPosition: string;
+  readonly name: string;
+  readonly description: string | null;
+  readonly effectiveFromDate: string;
+  readonly effectiveToDate: string | null;
+};
+
+export type CreateShiftPattern = ShiftPatternInput & {
+  readonly codeShiftPattern: string;
+};
+
+export type ShiftSegment = {
+  readonly idShiftSegment: string;
+  readonly idShiftPattern: string;
+  readonly dayOfWeek: string;
+  readonly startTime: string;
+  readonly endTime: string;
+  readonly isOvernight: boolean;
+  readonly requiredWorkerCount: number;
+  readonly durationMinutes: number;
+  readonly notes: string | null;
+  readonly active: boolean;
+};
+
+export type ShiftSegmentInput = {
+  readonly idOrganization: string;
+  readonly idClient: string;
+  readonly idService: string;
+  readonly idPosition: string;
+  readonly idShiftPattern: string;
+  readonly dayOfWeek: string;
+  readonly startTime: string;
+  readonly endTime: string;
+  readonly isOvernight: boolean;
+  readonly requiredWorkerCount: number;
+  readonly notes: string | null;
+};
+
+export type ServiceAssignmentType = 'Primary' | 'Support' | 'Relief' | 'TemporaryReplacement';
+
+export type ServiceAssignment = {
+  readonly idServiceAssignment: string;
+  readonly idEmployee: string;
+  readonly employeeCode: string;
+  readonly employeeName: string;
+  readonly idService: string;
+  readonly idPosition: string | null;
+  readonly positionCode: string | null;
+  readonly positionName: string | null;
+  readonly assignmentType: ServiceAssignmentType;
+  readonly startDate: string;
+  readonly endDate: string | null;
+  readonly isPrimary: boolean;
+  readonly notes: string | null;
+  readonly active: boolean;
+};
+
+export type ServiceAssignmentInput = {
+  readonly idOrganization: string;
+  readonly idClient: string;
+  readonly idService: string;
+  readonly idPosition: string;
+  readonly assignmentType: ServiceAssignmentType;
+  readonly startDate: string;
+  readonly endDate: string | null;
+  readonly isPrimary: boolean;
+  readonly notes: string | null;
+};
+
+export type CreateServiceAssignment = ServiceAssignmentInput & {
+  readonly idEmployee: string;
+};
+
+export type ScheduleVersionStatus = 'Draft' | 'Published' | 'Superseded';
+
+export type ScheduleVersion = {
+  readonly idScheduleVersion: string;
+  readonly idService: string;
+  readonly name: string;
+  readonly periodStartDate: string;
+  readonly periodEndDate: string;
+  readonly status: ScheduleVersionStatus;
+  readonly publishedAt: string | null;
+  readonly publishedByName: string | null;
+  readonly notes: string | null;
+  readonly active: boolean;
+};
+
+export type ScheduleVersionInput = {
+  readonly idOrganization: string;
+  readonly idClient: string;
+  readonly idService: string;
+  readonly name: string;
+  readonly periodStartDate: string;
+  readonly periodEndDate: string;
+  readonly notes: string | null;
+};
+
+export type ScheduledShift = {
+  readonly idScheduledShift: string;
+  readonly idScheduleVersion: string;
+  readonly idPosition: string;
+  readonly positionCode: string;
+  readonly positionName: string;
+  readonly idEmployee: string;
+  readonly employeeCode: string;
+  readonly employeeName: string;
+  readonly shiftDate: string;
+  readonly startTime: string;
+  readonly endTime: string;
+  readonly isOvernight: boolean;
+  readonly durationMinutes: number;
+  readonly notes: string | null;
+  readonly active: boolean;
+};
+
+export type ScheduledShiftInput = {
+  readonly idOrganization: string;
+  readonly idClient: string;
+  readonly idService: string;
+  readonly idScheduleVersion: string;
+  readonly idPosition: string;
+  readonly idEmployee: string;
+  readonly shiftDate: string;
+  readonly startTime: string;
+  readonly endTime: string;
+  readonly isOvernight: boolean;
+  readonly notes: string | null;
+};
+
+export type AttendanceStatus = 'Expected' | 'Present' | 'Late' | 'Absent' | 'Excused';
+
+export type AttendanceRecord = {
+  readonly idAttendanceRecord: string;
+  readonly idScheduledShift: string;
+  readonly idEmployee: string;
+  readonly employeeCode: string;
+  readonly employeeName: string;
+  readonly attendanceDate: string;
+  readonly status: AttendanceStatus;
+  readonly actualStartTime: string | null;
+  readonly actualEndTime: string | null;
+  readonly minutesLate: number;
+  readonly notes: string | null;
+  readonly active: boolean;
+};
+
+export type UpsertAttendanceRecord = {
+  readonly idOrganization: string;
+  readonly idClient: string;
+  readonly idService: string;
+  readonly idScheduledShift: string;
+  readonly status: AttendanceStatus;
+  readonly actualStartTime: string | null;
+  readonly actualEndTime: string | null;
+  readonly minutesLate: number;
+  readonly notes: string | null;
+};
+
+export type IncidentSeverity = 'Low' | 'Medium' | 'High' | 'Critical';
+
+export type IncidentStatus = 'Open' | 'InReview' | 'Resolved' | 'Cancelled';
+
+export type Incident = {
+  readonly idIncident: string;
+  readonly idService: string;
+  readonly idScheduledShift: string | null;
+  readonly idEmployee: string | null;
+  readonly employeeCode: string | null;
+  readonly employeeName: string | null;
+  readonly incidentDate: string;
+  readonly incidentType: string;
+  readonly severity: IncidentSeverity;
+  readonly status: IncidentStatus;
+  readonly description: string;
+  readonly resolutionNotes: string | null;
+  readonly active: boolean;
+};
+
+export type IncidentInput = {
+  readonly idOrganization: string;
+  readonly idClient: string;
+  readonly idService: string;
+  readonly idScheduledShift: string | null;
+  readonly idEmployee: string | null;
+  readonly incidentDate: string;
+  readonly incidentType: string;
+  readonly severity: IncidentSeverity;
+  readonly status: IncidentStatus;
+  readonly description: string;
+  readonly resolutionNotes: string | null;
+};
+
+export type CoverageStatus = 'Requested' | 'Confirmed' | 'Completed' | 'Cancelled';
+
+export type CoverageRecord = {
+  readonly idCoverageRecord: string;
+  readonly idScheduledShift: string;
+  readonly idOriginalEmployee: string;
+  readonly originalEmployeeCode: string;
+  readonly originalEmployeeName: string;
+  readonly idReplacementEmployee: string;
+  readonly replacementEmployeeCode: string;
+  readonly replacementEmployeeName: string;
+  readonly coverageStartTime: string;
+  readonly coverageEndTime: string;
+  readonly isOvernight: boolean;
+  readonly durationMinutes: number;
+  readonly status: CoverageStatus;
+  readonly notes: string | null;
+  readonly active: boolean;
+};
+
+export type CoverageInput = {
+  readonly idOrganization: string;
+  readonly idClient: string;
+  readonly idService: string;
+  readonly idScheduledShift: string;
+  readonly idReplacementEmployee: string;
+  readonly coverageStartTime: string;
+  readonly coverageEndTime: string;
+  readonly isOvernight: boolean;
+  readonly status: CoverageStatus;
+  readonly notes: string | null;
+};
+
+export type OperationsSummary = {
+  readonly attendanceRecords: number;
+  readonly presentAttendance: number;
+  readonly lateAttendance: number;
+  readonly absentAttendance: number;
+  readonly excusedAttendance: number;
+  readonly incidents: number;
+  readonly openIncidents: number;
+  readonly criticalIncidents: number;
+  readonly coverageRecords: number;
+  readonly confirmedCoverages: number;
+  readonly completedCoverages: number;
+  readonly coveredMinutes: number;
+};
+
 export type PagedResult<T> = {
   readonly items: readonly T[];
   readonly totalCount: number;

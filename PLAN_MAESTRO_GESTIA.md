@@ -288,21 +288,22 @@ El primer corte físico implementa `Organizations`, `Clients`, `ClientSites`, `C
 
 | Tabla de trabajo | Datos candidatos | Estado |
 | --- | --- | --- |
-| `Positions` | Servicio, perfil, nombre/código, capacidad, vigencia, estado | Por validar |
-| `ShiftPatterns` | Organización, código, nombre, ciclo, estado | Por validar |
-| `ShiftSegments` | Patrón, día del ciclo, inicio, fin, trabajo/descanso | Por validar |
-| `Assignments` | Posición, persona, patrón, tipo, inicio, fin, origen | Por validar |
-| `ScheduleVersions` | Organización, periodo, versión, estado, publicación | Por validar |
-| `ScheduledShifts` | Versión, servicio, posición, persona esperada, inicio, fin | Por validar |
-| `AttendanceRecords` | Turno, persona esperada, persona real, entrada, salida, fuente, estado | Por validar |
-| `Incidents` | Turno, tipo, motivo, impacto, estado, seguimiento | Por validar |
-| `Coverages` | Incidencia, sustituto, inicio, fin, estado, autorización | Por validar |
+| `Positions` | Servicio, perfil, nombre/código, capacidad, vigencia, estado | Implementado MVP |
+| `ShiftPatterns` | Organización, código, nombre, ciclo, estado | Implementado MVP |
+| `ShiftSegments` | Patrón, día del ciclo, inicio, fin, trabajo/descanso | Implementado MVP |
+| `ServiceAssignments` | Posición, persona, patrón, tipo, inicio, fin, origen | Implementado MVP |
+| `ScheduleVersions` | Servicio, periodo, versión, estado, publicación | Implementado MVP |
+| `ScheduledShifts` | Versión, servicio, posición, persona esperada, inicio, fin | Implementado MVP |
+| `AttendanceRecords` | Turno, persona, fecha, estado, entrada, salida, retardo | Implementado MVP |
+| `Incidents` | Servicio, turno opcional, empleado opcional, tipo, severidad, estado, seguimiento | Implementado MVP |
+| `CoverageRecords` | Turno, empleado original, sustituto, inicio, fin, estado | Implementado MVP |
 | `EvidenceItems` | Propietario, tipo, hash, ubicación, actor, fecha, privacidad | Por validar |
 
 #### Reporting
 
 | Proyección de trabajo | Propósito | Estado |
 | --- | --- | --- |
+| `GET /api/v1/reports/operations-summary` | Resumen operativo calculado desde transacciones | Implementado MVP |
 | `DailyOperationSummary` | Indicadores diarios por organización/servicio | Posterior |
 | `ServiceCoverageSummary` | Cobertura por servicio y periodo | Posterior |
 | `EffectivePersonnel` | Persona que realmente cubrió un intervalo | Posterior |
@@ -515,10 +516,11 @@ Cada módulo debe incluir pruebas proporcionales al riesgo. Las reglas de negoci
 
 ### Entrega 4: asistencia, incidencias y cobertura
 
-- Generación desde planeación publicada.
-- Confirmación masiva por excepción.
+- Registro de asistencia real por turno programado.
 - Registro y clasificación de incidencias.
 - Sustitutos e intervalos de cobertura.
+- Consultas API por servicio para asistencia, incidencias y coberturas.
+- Captura operativa MVP desde Angular para asistencia, incidencias y coberturas.
 - Evidencias y autorizaciones necesarias.
 
 ### Entrega 5: control, dashboard y reportes

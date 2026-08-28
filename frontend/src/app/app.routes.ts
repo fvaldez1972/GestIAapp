@@ -33,6 +33,22 @@ export const routes: Routes = [
             (component) => component.ClientsPage,
           ),
       },
+      {
+        path: 'personal',
+        title: 'GestIA | Personal',
+        loadComponent: () =>
+          import('./features/workforce/pages/workforce-page/workforce-page').then(
+            (component) => component.WorkforcePage,
+          ),
+      },
+      {
+        path: 'operacion',
+        title: 'GestIA | Operación',
+        loadComponent: () =>
+          import('./features/operations/pages/operations-page/operations-page').then(
+            (component) => component.OperationsPage,
+          ),
+      },
     ],
   },
   { path: '**', redirectTo: '' },

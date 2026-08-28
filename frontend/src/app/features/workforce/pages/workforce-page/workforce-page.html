@@ -1,0 +1,296 @@
+<section class="page-heading">
+  <div>
+    <span class="eyebrow">Personal operativo</span>
+    <h1>Empleados</h1>
+    <p>Administra expediente, documentos y evaluaciones del personal que después se asignará a servicios.</p>
+  </div>
+  <button class="button button--primary" type="button" [disabled]="!selectedOrganizationId()" (click)="openCreateEmployee()">
+    <span aria-hidden="true">＋</span> Nuevo empleado
+  </button>
+</section>
+
+<section class="context-card" aria-label="Contexto de organización">
+  <label>
+    <span>Organización</span>
+    <select [value]="selectedOrganizationId()" (change)="selectOrganization($any($event.target).value)">
+      @for (organization of organizations(); track organization.idOrganization) {
+        <option [value]="organization.idOrganization">{{ organization.legalName }}</option>
+      }
+    </select>
+  </label>
+</section>
+
+@if (message()) {
+  <div class="alert alert--success" role="status">{{ message() }}</div>
+}
+@if (error()) {
+  <div class="alert alert--error" role="alert">{{ error() }}</div>
+}
+
+<section class="workbench">
+  <article class="table-card">
+    <header class="table-toolbar">
+      <div>
+        <h2>Directorio</h2>
+        <span>{{ result().totalCount }} empleado(s)</span>
+      </div>
+      <div class="filters">
+        <input
+          type="search"
+          placeholder="Buscar por código, nombre, RFC, CURP o NSS"
+          [value]="search()"
+          (input)="updateSearch($any($event.target).value)"
+          (keyup.enter)="loadEmployees(1)"
+        />
+        <select [value]="statusFilter()" (change)="updateStatusFilter($any($event.target).value)">
+          <option value="">Todos</option>
+          @for (status of employeeStatuses; track status.value) {
+            <option [value]="status.value">{{ status.label }}</option>
+          }
+        </select>
+        <button class="button button--secondary" type="button" (click)="loadEmployees(1)">Buscar</button>
+      </div>
+    </header>
+
+    @if (loading()) {
+      <div class="state-panel"><span class="spinner"></span> Cargando personal…</div>
+    } @else if (!result().items.length) {
+      <div class="state-panel state-panel--empty">
+        <strong>No hay empleados que mostrar</strong>
+        <p>Registra el primer empleado o cambia la búsqueda.</p>
+        <button class="button button--primary" type="button" (click)="openCreateEmployee()">Nuevo empleado</button>
+      </div>
+    } @else {
+      <div class="employee-list">
+        @for (employee of result().items; track employee.idEmployee) {
+          <button
+            type="button"
+            class="employee-row"
+            [class.is-active]="selectedEmployee()?.idEmployee === employee.idEmployee"
+            (click)="selectEmployee(employee)"
+          >
+            <span class="code">{{ employee.codeEmployee }}</span>
+            <span>
+              <strong>{{ employee.fullName }}</strong>
+              <small>{{ statusLabel(employee.status) }} · {{ employee.jobTitle || 'Sin puesto' }}</small>
+            </span>
+          </button>
+        }
+      </div>
+      <footer class="pagination">
+        <span>Página {{ result().page }} de {{ result().totalPages || 1 }}</span>
+        <div>
+          <button type="button" [disabled]="result().page <= 1" (click)="loadEmployees(result().page - 1)">Anterior</button>
+          <button type="button" [disabled]="result().page >= result().totalPages" (click)="loadEmployees(result().page + 1)">Siguiente</button>
+        </div>
+      </footer>
+    }
+  </article>
+
+  <article class="detail-card">
+    <header class="detail-header">
+      <div>
+        <span class="eyebrow">Expediente laboral</span>
+        <h2>{{ selectedEmployeeName() }}</h2>
+        @if (selectedEmployee()) {
+          <p>{{ selectedEmployee()?.rfc || 'Sin RFC' }} · {{ selectedEmployee()?.curp || 'Sin CURP' }} · {{ selectedEmployee()?.socialSecurityNumber || 'Sin NSS' }}</p>
+        }
+      </div>
+      @if (selectedEmployee()) {
+        <div class="detail-actions">
+          <select [value]="selectedEmployee()?.status" (change)="changeStatus($any($event.target).value)">
+            @for (status of employeeStatuses; track status.value) {
+              <option [value]="status.value">{{ status.label }}</option>
+            }
+          </select>
+          <button type="button" (click)="openEditEmployee(selectedEmployee()!)">Editar ficha</button>
+          <button class="danger" type="button" (click)="deactivateEmployee(selectedEmployee()!)">Desactivar</button>
+        </div>
+      }
+    </header>
+
+    @if (!selectedEmployee()) {
+      <div class="state-panel state-panel--empty">
+        <strong>Selecciona un empleado</strong>
+        <p>Su documentación y evaluaciones aparecerán aquí.</p>
+      </div>
+    } @else {
+      <section class="detail-section">
+        <header>
+          <div>
+            <h3>Datos clave</h3>
+            <span>{{ statusLabel(selectedEmployee()!.status) }}</span>
+          </div>
+        </header>
+        <div class="profile-grid">
+          <span><strong>Ingreso</strong>{{ selectedEmployee()?.hireDate }}</span>
+          <span><strong>Teléfono</strong>{{ selectedEmployee()?.mobilePhone || selectedEmployee()?.homePhone || 'Sin teléfono' }}</span>
+          <span><strong>Correo</strong>{{ selectedEmployee()?.email || 'Sin correo' }}</span>
+          <span><strong>Emergencia</strong>{{ selectedEmployee()?.emergencyContactName || 'Sin contacto' }}</span>
+          <span class="wide"><strong>Domicilio</strong>{{ selectedEmployee()?.address || 'Sin domicilio' }}</span>
+        </div>
+      </section>
+
+      <section class="detail-section">
+        <header>
+          <div>
+            <h3>Documentos</h3>
+            <span>{{ documents().length }} registro(s)</span>
+          </div>
+          <button class="button button--secondary" type="button" (click)="openCreateDocument()">Nuevo documento</button>
+        </header>
+
+        @if (loadingDetail()) {
+          <div class="compact-state">Cargando expediente…</div>
+        } @else if (!documents().length) {
+          <div class="compact-state">Sin documentos registrados.</div>
+        } @else {
+          <div class="cards-list">
+            @for (document of documents(); track document.idEmployeeDocument) {
+              <article class="mini-card">
+                <div>
+                  <span class="pill">{{ documentStatusLabel(document.status) }}</span>
+                  <strong>{{ documentTypeLabel(document.documentType) }}</strong>
+                  <small>{{ document.documentNumber || 'Sin folio' }} · vence {{ document.expiresDate || 'sin vencimiento' }}</small>
+                  <small>{{ document.notes || document.storageReference || 'Sin notas' }}</small>
+                </div>
+                <div class="mini-actions">
+                  <button type="button" (click)="openEditDocument(document)">Editar</button>
+                  <button class="danger" type="button" (click)="deactivateDocument(document)">Desactivar</button>
+                </div>
+              </article>
+            }
+          </div>
+        }
+      </section>
+
+      <section class="detail-section">
+        <header>
+          <div>
+            <h3>Evaluaciones</h3>
+            <span>{{ evaluations().length }} registro(s)</span>
+          </div>
+          <button class="button button--secondary" type="button" (click)="openCreateEvaluation()">Nueva evaluación</button>
+        </header>
+
+        @if (!evaluations().length) {
+          <div class="compact-state">Sin evaluaciones registradas.</div>
+        } @else {
+          <div class="cards-list">
+            @for (evaluation of evaluations(); track evaluation.idEmployeeEvaluation) {
+              <article class="mini-card">
+                <div>
+                  <span class="pill">{{ evaluationResultLabel(evaluation.result) }}</span>
+                  <strong>{{ evaluationTypeLabel(evaluation.evaluationType) }}</strong>
+                  <small>Evaluado: {{ evaluation.evaluatedDate }} · vence {{ evaluation.expiresDate || 'sin vencimiento' }}</small>
+                  <small>{{ evaluation.certificateNumber || evaluation.notes || 'Sin folio/notas' }}</small>
+                </div>
+                <div class="mini-actions">
+                  <button type="button" (click)="openEditEvaluation(evaluation)">Editar</button>
+                  <button class="danger" type="button" (click)="deactivateEvaluation(evaluation)">Desactivar</button>
+                </div>
+              </article>
+            }
+          </div>
+        }
+      </section>
+    }
+  </article>
+</section>
+
+@if (employeeEditorOpen()) {
+  <div class="modal-backdrop" (click)="closeEditors()">
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="employee-editor-title" (click)="$event.stopPropagation()">
+      <header>
+        <div><span class="eyebrow">Ficha del empleado</span><h2 id="employee-editor-title">{{ editingEmployee() ? 'Editar empleado' : 'Nuevo empleado' }}</h2></div>
+        <button type="button" aria-label="Cerrar" (click)="closeEditors()">×</button>
+      </header>
+      <form [formGroup]="employeeForm" (ngSubmit)="saveEmployee()">
+        <div class="form-grid">
+          <label><span>Código *</span><input formControlName="codeEmployee" [readOnly]="!!editingEmployee()" /></label>
+          <label><span>Fecha ingreso *</span><input type="date" formControlName="hireDate" /></label>
+          <label class="wide"><span>Nombre completo *</span><input formControlName="fullName" /></label>
+          <label class="wide"><span>Puesto</span><input formControlName="jobTitle" /></label>
+          <label><span>RFC</span><input formControlName="rfc" maxlength="13" /></label>
+          <label><span>CURP</span><input formControlName="curp" maxlength="18" /></label>
+          <label><span>NSS</span><input formControlName="socialSecurityNumber" /></label>
+          <label><span>INE</span><input formControlName="voterIdNumber" /></label>
+          <label><span>Fecha nacimiento</span><input type="date" formControlName="birthDate" /></label>
+          <label><span>Lugar nacimiento</span><input formControlName="birthPlace" /></label>
+          <label><span>Sexo</span><input formControlName="sex" /></label>
+          <label><span>Estado civil</span><input formControlName="maritalStatus" /></label>
+          <label><span>Correo</span><input type="email" formControlName="email" /></label>
+          <label><span>Móvil</span><input formControlName="mobilePhone" /></label>
+          <label><span>Tel. casa</span><input formControlName="homePhone" /></label>
+          <label><span>Contacto emergencia</span><input formControlName="emergencyContactName" /></label>
+          <label><span>Tel. emergencia</span><input formControlName="emergencyContactPhone" /></label>
+          <label><span>Licencia</span><input formControlName="driverLicenseNumber" /></label>
+          <label><span>Cartilla militar</span><input formControlName="militaryServiceCardNumber" /></label>
+          <label><span>Vivienda</span><input formControlName="housingType" /></label>
+          <label><span>Residencia desde</span><input type="date" formControlName="residenceSinceDate" /></label>
+          <label class="wide"><span>Domicilio</span><textarea rows="3" formControlName="address"></textarea></label>
+          <label><span>Municipio</span><input formControlName="municipality" /></label>
+          <label><span>Estado</span><input formControlName="state" /></label>
+          <label><span>Código postal</span><input formControlName="postalCode" /></label>
+        </div>
+        <footer>
+          <button class="button button--secondary" type="button" (click)="closeEditors()">Cancelar</button>
+          <button class="button button--primary" type="submit" [disabled]="saving()">{{ saving() ? 'Guardando…' : 'Guardar empleado' }}</button>
+        </footer>
+      </form>
+    </section>
+  </div>
+}
+
+@if (documentEditorOpen()) {
+  <div class="modal-backdrop" (click)="closeEditors()">
+    <section class="modal modal--small" role="dialog" aria-modal="true" aria-labelledby="document-editor-title" (click)="$event.stopPropagation()">
+      <header>
+        <div><span class="eyebrow">Documento</span><h2 id="document-editor-title">{{ editingDocument() ? 'Editar documento' : 'Nuevo documento' }}</h2></div>
+        <button type="button" aria-label="Cerrar" (click)="closeEditors()">×</button>
+      </header>
+      <form [formGroup]="documentForm" (ngSubmit)="saveDocument()">
+        <div class="form-grid">
+          <label><span>Tipo *</span><select formControlName="documentType">@for (type of documentTypes; track type.value) { <option [value]="type.value">{{ type.label }}</option> }</select></label>
+          <label><span>Estatus *</span><select formControlName="status">@for (status of documentStatuses; track status.value) { <option [value]="status.value">{{ status.label }}</option> }</select></label>
+          <label><span>Folio</span><input formControlName="documentNumber" /></label>
+          <label><span>Recibido</span><input type="date" formControlName="receivedDate" /></label>
+          <label><span>Emitido</span><input type="date" formControlName="issuedDate" /></label>
+          <label><span>Vence</span><input type="date" formControlName="expiresDate" /></label>
+          <label class="wide"><span>Referencia archivo</span><input formControlName="storageReference" /></label>
+          <label class="wide"><span>Notas</span><textarea rows="3" formControlName="notes"></textarea></label>
+        </div>
+        <footer>
+          <button class="button button--secondary" type="button" (click)="closeEditors()">Cancelar</button>
+          <button class="button button--primary" type="submit" [disabled]="saving()">{{ saving() ? 'Guardando…' : 'Guardar documento' }}</button>
+        </footer>
+      </form>
+    </section>
+  </div>
+}
+
+@if (evaluationEditorOpen()) {
+  <div class="modal-backdrop" (click)="closeEditors()">
+    <section class="modal modal--small" role="dialog" aria-modal="true" aria-labelledby="evaluation-editor-title" (click)="$event.stopPropagation()">
+      <header>
+        <div><span class="eyebrow">Evaluación</span><h2 id="evaluation-editor-title">{{ editingEvaluation() ? 'Editar evaluación' : 'Nueva evaluación' }}</h2></div>
+        <button type="button" aria-label="Cerrar" (click)="closeEditors()">×</button>
+      </header>
+      <form [formGroup]="evaluationForm" (ngSubmit)="saveEvaluation()">
+        <div class="form-grid">
+          <label><span>Tipo *</span><select formControlName="evaluationType">@for (type of evaluationTypes; track type.value) { <option [value]="type.value">{{ type.label }}</option> }</select></label>
+          <label><span>Resultado *</span><select formControlName="result">@for (result of evaluationResults; track result.value) { <option [value]="result.value">{{ result.label }}</option> }</select></label>
+          <label><span>Evaluado *</span><input type="date" formControlName="evaluatedDate" /></label>
+          <label><span>Vence</span><input type="date" formControlName="expiresDate" /></label>
+          <label class="wide"><span>Certificado/folio</span><input formControlName="certificateNumber" /></label>
+          <label class="wide"><span>Referencia archivo</span><input formControlName="storageReference" /></label>
+          <label class="wide"><span>Notas</span><textarea rows="3" formControlName="notes"></textarea></label>
+        </div>
+        <footer>
+          <button class="button button--secondary" type="button" (click)="closeEditors()">Cancelar</button>
+          <button class="button button--primary" type="submit" [disabled]="saving()">{{ saving() ? 'Guardando…' : 'Guardar evaluación' }}</button>
+        </footer>
+      </form>
+    </section>
+  </div>
+}

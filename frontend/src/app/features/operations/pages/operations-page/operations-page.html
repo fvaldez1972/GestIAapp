@@ -1,0 +1,376 @@
+<article class="page-hero">
+  <span class="kicker">Operación diaria</span>
+  <div>
+    <h1>Asistencia, incidencias y coberturas</h1>
+    <p>
+      Consola MVP para revisar lo que realmente ocurrió en el servicio: turnos atendidos, excepciones operativas y
+      sustituciones.
+    </p>
+  </div>
+</article>
+
+<section class="filters" aria-label="Filtros de operación">
+  <label>
+    Organización
+    <select [value]="selectedOrganizationId()" (change)="onOrganizationChange($event)">
+      @for (organization of organizations(); track organization.idOrganization) {
+        <option [value]="organization.idOrganization">{{ organization.legalName }}</option>
+      }
+    </select>
+  </label>
+
+  <label>
+    Cliente
+    <select [value]="selectedClientId()" (change)="onClientChange($event)">
+      @for (client of clients(); track client.idClient) {
+        <option [value]="client.idClient">{{ client.tradeName || client.legalName }}</option>
+      }
+    </select>
+  </label>
+
+  <label>
+    Servicio
+    <select [value]="selectedServiceId()" (change)="onServiceChange($event)">
+      @for (service of services(); track service.idService) {
+        <option [value]="service.idService">{{ service.name }}</option>
+      }
+    </select>
+  </label>
+
+  <button type="button" (click)="refresh()" [disabled]="loading() || !selectedServiceId()">Actualizar</button>
+</section>
+
+@if (error()) {
+  <p class="alert">{{ error() }}</p>
+}
+
+@if (message()) {
+  <p class="success">{{ message() }}</p>
+}
+
+<section class="summary-grid" aria-label="Resumen operativo">
+  <article>
+    <span>Asistencia</span>
+    <strong>{{ attendanceCount() }}</strong>
+    <small>Registros reales capturados</small>
+  </article>
+  <article>
+    <span>Incidencias</span>
+    <strong>{{ incidentCount() }}</strong>
+    <small>Excepciones abiertas o históricas</small>
+  </article>
+  <article>
+    <span>Coberturas</span>
+    <strong>{{ coverageCount() }}</strong>
+    <small>{{ coveredHours() }} h cubiertas</small>
+  </article>
+</section>
+
+@if (selectedService(); as service) {
+  <section class="service-context">
+    <span>{{ service.codeService }}</span>
+    <strong>{{ service.name }}</strong>
+    <small>
+      {{ service.clientSiteName || 'Sin sede asignada' }}
+      @if (publishedVersion(); as version) {
+        · Planeación publicada: {{ version.name }}
+      } @else {
+        · Sin planeación publicada
+      }
+    </small>
+  </section>
+}
+
+<section class="capture-grid" aria-label="Captura operativa">
+  <form class="capture-card" [formGroup]="attendanceForm" (ngSubmit)="saveAttendance()">
+    <header>
+      <span>Captura</span>
+      <h2>Asistencia</h2>
+    </header>
+
+    <label>
+      Turno publicado
+      <select formControlName="idScheduledShift">
+        @for (shift of scheduledShifts(); track shift.idScheduledShift) {
+          <option [value]="shift.idScheduledShift">
+            {{ shift.shiftDate }} · {{ shift.startTime }}-{{ shift.endTime }} · {{ shift.employeeName }}
+          </option>
+        }
+      </select>
+    </label>
+
+    <div class="form-row">
+      <label>
+        Estado
+        <select formControlName="status">
+          @for (status of attendanceStatuses; track status.value) {
+            <option [value]="status.value">{{ status.label }}</option>
+          }
+        </select>
+      </label>
+
+      <label>
+        Retardo min.
+        <input type="number" min="0" formControlName="minutesLate" />
+      </label>
+    </div>
+
+    <div class="form-row">
+      <label>
+        Entrada real
+        <input type="time" formControlName="actualStartTime" />
+      </label>
+
+      <label>
+        Salida real
+        <input type="time" formControlName="actualEndTime" />
+      </label>
+    </div>
+
+    <label>
+      Notas
+      <textarea rows="3" formControlName="notes" placeholder="Ej. llegó con 3 min de retardo"></textarea>
+    </label>
+
+    <button type="submit" [disabled]="saving() || !hasPublishedShifts()">Guardar asistencia</button>
+  </form>
+
+  <form class="capture-card" [formGroup]="incidentForm" (ngSubmit)="saveIncident()">
+    <header>
+      <span>Captura</span>
+      <h2>Incidencia</h2>
+    </header>
+
+    <label>
+      Turno relacionado
+      <select formControlName="idScheduledShift">
+        <option value="">Incidencia general del servicio</option>
+        @for (shift of scheduledShifts(); track shift.idScheduledShift) {
+          <option [value]="shift.idScheduledShift">
+            {{ shift.shiftDate }} · {{ shift.startTime }}-{{ shift.endTime }} · {{ shift.employeeName }}
+          </option>
+        }
+      </select>
+    </label>
+
+    <div class="form-row">
+      <label>
+        Fecha
+        <input type="date" formControlName="incidentDate" />
+      </label>
+
+      <label>
+        Tipo
+        <input type="text" formControlName="incidentType" placeholder="FALTA, RETARDO, EQUIPO..." />
+      </label>
+    </div>
+
+    <div class="form-row">
+      <label>
+        Severidad
+        <select formControlName="severity">
+          @for (severity of incidentSeverities; track severity.value) {
+            <option [value]="severity.value">{{ severity.label }}</option>
+          }
+        </select>
+      </label>
+
+      <label>
+        Estado
+        <select formControlName="status">
+          @for (status of incidentStatuses; track status.value) {
+            <option [value]="status.value">{{ status.label }}</option>
+          }
+        </select>
+      </label>
+    </div>
+
+    <label>
+      Descripción
+      <textarea rows="3" formControlName="description" placeholder="Describe qué ocurrió"></textarea>
+    </label>
+
+    <label>
+      Resolución / seguimiento
+      <textarea rows="2" formControlName="resolutionNotes" placeholder="Acciones tomadas o pendientes"></textarea>
+    </label>
+
+    <button type="submit" [disabled]="saving() || !selectedServiceId()">Registrar incidencia</button>
+  </form>
+
+  <form class="capture-card" [formGroup]="coverageForm" (ngSubmit)="saveCoverage()">
+    <header>
+      <span>Captura</span>
+      <h2>Cobertura</h2>
+    </header>
+
+    <label>
+      Turno a cubrir
+      <select formControlName="idScheduledShift">
+        @for (shift of scheduledShifts(); track shift.idScheduledShift) {
+          <option [value]="shift.idScheduledShift">
+            {{ shift.shiftDate }} · {{ shift.startTime }}-{{ shift.endTime }} · {{ shift.employeeName }}
+          </option>
+        }
+      </select>
+    </label>
+
+    <label>
+      Sustituto
+      <select formControlName="idReplacementEmployee">
+        @for (employee of employees(); track employee.idEmployee) {
+          <option [value]="employee.idEmployee">{{ employee.codeEmployee }} · {{ employee.fullName }}</option>
+        }
+      </select>
+    </label>
+
+    <div class="form-row">
+      <label>
+        Inicio
+        <input type="time" formControlName="coverageStartTime" />
+      </label>
+
+      <label>
+        Fin
+        <input type="time" formControlName="coverageEndTime" />
+      </label>
+    </div>
+
+    <div class="form-row">
+      <label>
+        Estado
+        <select formControlName="status">
+          @for (status of coverageStatuses; track status.value) {
+            <option [value]="status.value">{{ status.label }}</option>
+          }
+        </select>
+      </label>
+
+      <label class="checkbox-label">
+        <input type="checkbox" formControlName="isOvernight" />
+        Cruza día
+      </label>
+    </div>
+
+    <label>
+      Notas
+      <textarea rows="3" formControlName="notes" placeholder="Motivo de la sustitución"></textarea>
+    </label>
+
+    <button type="submit" [disabled]="saving() || !hasPublishedShifts()">Registrar cobertura</button>
+  </form>
+</section>
+
+<section class="operation-grid">
+  <article class="panel">
+    <header>
+      <h2>Asistencia</h2>
+      <span>{{ attendanceCount() }}</span>
+    </header>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Empleado</th>
+            <th>Estado</th>
+            <th>Entrada</th>
+            <th>Salida</th>
+            <th>Retardo</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (record of attendance(); track record.idAttendanceRecord) {
+            <tr>
+              <td>{{ record.attendanceDate }}</td>
+              <td>{{ record.employeeCode }} · {{ record.employeeName }}</td>
+              <td><span class="status">{{ record.status }}</span></td>
+              <td>{{ record.actualStartTime || '—' }}</td>
+              <td>{{ record.actualEndTime || '—' }}</td>
+              <td>{{ record.minutesLate }} min</td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="6" class="empty">Sin asistencia capturada para este servicio.</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </article>
+
+  <article class="panel">
+    <header>
+      <h2>Incidencias</h2>
+      <span>{{ incidentCount() }}</span>
+    </header>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Tipo</th>
+            <th>Empleado</th>
+            <th>Severidad</th>
+            <th>Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (incident of incidents(); track incident.idIncident) {
+            <tr>
+              <td>{{ incident.incidentDate }}</td>
+              <td>{{ incident.incidentType }}</td>
+              <td>{{ incident.employeeName || 'Servicio' }}</td>
+              <td><span class="status">{{ incident.severity }}</span></td>
+              <td>{{ incident.status }}</td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="5" class="empty">Sin incidencias registradas.</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </article>
+
+  <article class="panel is-wide">
+    <header>
+      <h2>Coberturas</h2>
+      <span>{{ coverageCount() }}</span>
+    </header>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Original</th>
+            <th>Sustituto</th>
+            <th>Inicio</th>
+            <th>Fin</th>
+            <th>Duración</th>
+            <th>Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (coverage of coverages(); track coverage.idCoverageRecord) {
+            <tr>
+              <td>{{ coverage.originalEmployeeCode }} · {{ coverage.originalEmployeeName }}</td>
+              <td>{{ coverage.replacementEmployeeCode }} · {{ coverage.replacementEmployeeName }}</td>
+              <td>{{ coverage.coverageStartTime }}</td>
+              <td>{{ coverage.coverageEndTime }}</td>
+              <td>{{ coverage.durationMinutes }} min</td>
+              <td><span class="status">{{ coverage.status }}</span></td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="6" class="empty">Sin coberturas registradas.</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </article>
+</section>

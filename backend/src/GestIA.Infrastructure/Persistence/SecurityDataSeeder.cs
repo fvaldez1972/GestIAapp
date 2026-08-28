@@ -64,7 +64,14 @@ public sealed class SecurityDataSeeder(
             (SecurityPermissions.OrganizationsRead, "Organizaciones", "Consultar organizaciones"),
             (SecurityPermissions.OrganizationsWrite, "Organizaciones", "Administrar organizaciones"),
             (SecurityPermissions.ClientsRead, "Clientes", "Consultar clientes"),
-            (SecurityPermissions.ClientsWrite, "Clientes", "Administrar clientes")
+            (SecurityPermissions.ClientsWrite, "Clientes", "Administrar clientes"),
+            (SecurityPermissions.WorkforceRead, "Personal", "Consultar personal operativo"),
+            (SecurityPermissions.WorkforceWrite, "Personal", "Administrar personal operativo"),
+            (SecurityPermissions.PlanningRead, "Planeación", "Consultar posiciones y turnos"),
+            (SecurityPermissions.PlanningWrite, "Planeación", "Administrar posiciones y turnos"),
+            (SecurityPermissions.OperationsRead, "Operación", "Consultar asistencia, incidencias y coberturas"),
+            (SecurityPermissions.OperationsWrite, "Operación", "Administrar asistencia, incidencias y coberturas"),
+            (SecurityPermissions.ReportsRead, "Reportes", "Consultar reportes operativos")
         };
 
         var result = new List<Permission>(definitions.Length);

@@ -76,6 +76,12 @@ app.MapClientEndpoints();
 app.MapClientSiteEndpoints();
 app.MapClientContactEndpoints();
 app.MapServiceManagementEndpoints();
+app.MapWorkforceEndpoints();
+app.MapPlanningEndpoints();
+app.MapAssignmentEndpoints();
+app.MapSchedulingEndpoints();
+app.MapOperationsEndpoints();
+app.MapReportsEndpoints();
 
 app.Run();
 

@@ -31,16 +31,16 @@ export const GESTIA_NAVIGATION: readonly NavigationGroup[] = [
     items: [
       { label: 'Solicitudes', icon: 'request', planned: true },
       { label: 'Clientes', icon: 'customer', route: '/clientes' },
-      { label: 'Personal', icon: 'people', planned: true },
+      { label: 'Personal', icon: 'people', route: '/personal' },
       { label: 'Planeación', icon: 'calendar', planned: true },
     ],
   },
   {
     label: 'Operación',
     items: [
-      { label: 'Asistencia', icon: 'attendance', planned: true },
-      { label: 'Incidencias', icon: 'incident', planned: true },
-      { label: 'Cobertura', icon: 'coverage', planned: true },
+      { label: 'Asistencia', icon: 'attendance', route: '/operacion' },
+      { label: 'Incidencias', icon: 'incident', route: '/operacion' },
+      { label: 'Cobertura', icon: 'coverage', route: '/operacion' },
     ],
   },
   {

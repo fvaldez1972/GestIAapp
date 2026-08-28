@@ -1,5 +1,7 @@
 using GestIA.Domain.Clients;
 using GestIA.Domain.Organizations;
+using GestIA.Domain.Operations;
+using GestIA.Domain.Planning;
 using GestIA.Domain.Security;
 using GestIA.Domain.Services;
 using GestIA.Domain.Workforce;
@@ -22,6 +24,14 @@ public sealed class GestIaDbContext(DbContextOptions<GestIaDbContext> options)
     public DbSet<EmployeeDocument> EmployeeDocuments => Set<EmployeeDocument>();
     public DbSet<EmployeeEvaluation> EmployeeEvaluations => Set<EmployeeEvaluation>();
     public DbSet<ServiceAssignment> ServiceAssignments => Set<ServiceAssignment>();
+    public DbSet<Position> Positions => Set<Position>();
+    public DbSet<ShiftPattern> ShiftPatterns => Set<ShiftPattern>();
+    public DbSet<ShiftSegment> ShiftSegments => Set<ShiftSegment>();
+    public DbSet<ScheduleVersion> ScheduleVersions => Set<ScheduleVersion>();
+    public DbSet<ScheduledShift> ScheduledShifts => Set<ScheduledShift>();
+    public DbSet<AttendanceRecord> AttendanceRecords => Set<AttendanceRecord>();
+    public DbSet<Incident> Incidents => Set<Incident>();
+    public DbSet<CoverageRecord> CoverageRecords => Set<CoverageRecord>();
     public DbSet<User> Users => Set<User>();
     public DbSet<OrganizationMembership> OrganizationMemberships => Set<OrganizationMembership>();
     public DbSet<Role> Roles => Set<Role>();

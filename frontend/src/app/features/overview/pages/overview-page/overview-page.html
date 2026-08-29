@@ -1,74 +1,127 @@
-<article class="intro">
-  <div>
-    <span class="kicker">Plataforma operativa</span>
-    <h1>Controla clientes, personal y operación diaria desde un solo lugar.</h1>
-    <p>
-      GestIA conecta el expediente comercial, la planeación de turnos y la operación en campo para que cada servicio
-      tenga trazabilidad clara.
-    </p>
+<article class="dashboard-hero">
+  <div class="hero-copy">
+    <span class="kicker">Resumen operativo</span>
+    <h1>Tu operación, clara y lista para actuar.</h1>
+    <p>Consulta lo importante, atiende excepciones y continúa con la operación diaria desde un mismo lugar.</p>
+
+    <div class="hero-actions">
+      <a class="primary-link" routerLink="/operacion/asistencia">Abrir operación diaria</a>
+      <a class="secondary-link" routerLink="/planeacion">Revisar planeación</a>
+    </div>
   </div>
-  <a class="primary-link" routerLink="/operacion/asistencia">Ir a operación</a>
+
+  <aside class="hero-status" [class.hero-status--attention]="riskServicesCount() > 0">
+    <div class="status-heading">
+      <span class="status-indicator" aria-hidden="true"></span>
+      <div>
+        <small>Estado operativo</small>
+        <strong>{{ riskServicesCount() > 0 ? 'Requiere atención' : 'Operación estable' }}</strong>
+      </div>
+    </div>
+
+    <div class="status-grid">
+      <div>
+        <strong>{{ operationsSummary()?.openIncidents ?? 0 }}</strong>
+        <span>Incidencias</span>
+      </div>
+      <div>
+        <strong>{{ operationsSummary()?.pendingApprovals ?? 0 }}</strong>
+        <span>Autorizaciones</span>
+      </div>
+      <div>
+        <strong>{{ operationsSummary()?.attendanceRecords ?? 0 }}</strong>
+        <span>Asistencias</span>
+      </div>
+    </div>
+  </aside>
 </article>
 
-<section class="overview-grid" aria-label="Áreas operativas de GestIA">
-  @for (area of operationalAreas(); track area.label) {
-    <article class="overview-card">
-      <span>{{ area.label }}</span>
-      <strong>{{ area.value }}</strong>
-      <p>{{ area.detail }}</p>
-    </article>
-  }
-</section>
-
 @if (loading()) {
-  <section class="dashboard-state gi-card">Cargando métricas operativas…</section>
+  <section class="dashboard-state gi-card" aria-live="polite">Actualizando información operativa…</section>
 }
 
 @if (error()) {
-  <section class="dashboard-state dashboard-state--error gi-card">{{ error() }}</section>
+  <section class="dashboard-state dashboard-state--error gi-card" role="alert">{{ error() }}</section>
 }
 
-<section class="quick-actions" aria-label="Accesos rápidos">
-  @for (action of quickActions; track action.route) {
-    <a [routerLink]="action.route">
-      <strong>{{ action.label }}</strong>
-      <span>{{ action.detail }}</span>
+<section class="primary-metrics" aria-label="Indicadores prioritarios">
+  @for (metric of primaryMetrics(); track metric.label) {
+    <a
+      class="metric-card"
+      [class.metric-card--attention]="metric.tone === 'attention'"
+      [class.metric-card--positive]="metric.tone === 'positive'"
+      [routerLink]="metric.route"
+    >
+      <span>{{ metric.label }}</span>
+      <strong>{{ metric.value }}</strong>
+      <small>{{ metric.detail }}</small>
+      <i aria-hidden="true">→</i>
     </a>
   }
 </section>
 
-<section class="operations-focus" aria-label="Focos de atención operativa">
+<section class="supporting-metrics" aria-label="Resumen complementario">
+  @for (metric of supportingMetrics(); track metric.label) {
+    <article>
+      <div>
+        <span>{{ metric.label }}</span>
+        <small>{{ metric.detail }}</small>
+      </div>
+      <strong>{{ metric.value }}</strong>
+    </article>
+  }
+</section>
+
+<section class="dashboard-workspace">
   <article class="focus-panel">
-    <div>
-      <span class="kicker">Atención sugerida</span>
-      <h2>Servicios con señales de riesgo</h2>
-      <p>Ordenados por incidencias, faltas y retardos capturados en operación.</p>
-    </div>
+    <header class="section-heading">
+      <div>
+        <span class="kicker">Atención sugerida</span>
+        <h2>Servicios que requieren seguimiento</h2>
+        <p>Prioridad calculada con incidencias, faltas y retardos registrados.</p>
+      </div>
+      <a routerLink="/reportes">Ver reportes</a>
+    </header>
 
     <div class="focus-list">
       @for (service of highestRiskServices(); track service.idService) {
         <a class="focus-item" routerLink="/reportes">
           <span>
-            <strong>{{ service.codeService }} · {{ service.serviceName }}</strong>
-            <small>{{ service.clientName }}</small>
+            <strong>{{ service.serviceName }}</strong>
+            <small>{{ service.clientName }} · {{ service.codeService }}</small>
           </span>
           <em>{{ serviceRiskSummary(service) }}</em>
         </a>
       } @empty {
         <div class="focus-empty">
-          <strong>Sin focos rojos visibles</strong>
-          <span>Cuando aparezcan incidencias, faltas o retardos, se priorizarán aquí.</span>
+          <span class="empty-check" aria-hidden="true">✓</span>
+          <div>
+            <strong>Sin alertas operativas</strong>
+            <span>No hay incidencias, faltas o retardos que requieran atención.</span>
+          </div>
         </div>
       }
     </div>
   </article>
-</section>
 
-<section class="next-step">
-  <div>
-    <span class="kicker">Estado actual</span>
-    <h2>Operación integrada</h2>
-    <p>Ya puedes administrar base comercial, personal, planeación, operación, reportes, seguridad y auditoría desde GestIA.</p>
-  </div>
-  <span class="badge">Operativo</span>
+  <aside class="actions-panel">
+    <header class="section-heading">
+      <div>
+        <span class="kicker">Accesos rápidos</span>
+        <h2>¿Qué necesitas hacer?</h2>
+      </div>
+    </header>
+
+    <nav class="quick-actions" aria-label="Accesos rápidos">
+      @for (action of quickActions; track action.route) {
+        <a [routerLink]="action.route">
+          <span>
+            <strong>{{ action.label }}</strong>
+            <small>{{ action.detail }}</small>
+          </span>
+          <i aria-hidden="true">→</i>
+        </a>
+      }
+    </nav>
+  </aside>
 </section>

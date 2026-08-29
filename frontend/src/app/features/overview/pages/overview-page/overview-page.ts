@@ -29,61 +29,73 @@ export class OverviewPage {
   protected readonly operationsSummary = signal<OperationsSummary | null>(null);
   protected readonly serviceSummaries = signal<readonly OperationsServiceSummary[]>([]);
 
-  protected readonly operationalAreas = computed(() => [
-    {
-      label: 'Clientes',
-      value: this.clientsCount().toString(),
-      detail: 'Clientes registrados en la organización activa',
-    },
-    {
-      label: 'Servicios activos',
-      value: this.activeServicesCount().toString(),
-      detail: 'Servicios configurados para operación',
-    },
-    {
-      label: 'Solicitudes abiertas',
-      value: this.openRequestsCount().toString(),
-      detail: 'Altas/cambios pendientes de seguimiento',
-    },
-    {
-      label: 'Personal activo',
-      value: this.activeEmployeesCount().toString(),
-      detail: 'Empleados disponibles para asignación',
-    },
+  protected readonly coveredHours = computed(() =>
+    Math.round(((this.operationsSummary()?.coveredMinutes ?? 0) / 60) * 10) / 10);
+
+  protected readonly primaryMetrics = computed(() => [
     {
       label: 'Servicios con riesgo',
       value: this.riskServicesCount().toString(),
-      detail: 'Con faltas, retardos o incidencias abiertas',
+      detail: 'Servicios que necesitan seguimiento',
+      route: '/reportes',
+      tone: this.riskServicesCount() > 0 ? 'attention' : 'positive',
     },
     {
       label: 'Incidencias abiertas',
       value: (this.operationsSummary()?.openIncidents ?? 0).toString(),
-      detail: 'Excepciones que requieren seguimiento',
+      detail: 'Excepciones pendientes de resolución',
+      route: '/operacion/incidencias',
+      tone: (this.operationsSummary()?.openIncidents ?? 0) > 0 ? 'attention' : 'positive',
+    },
+    {
+      label: 'Personal activo',
+      value: this.activeEmployeesCount().toString(),
+      detail: 'Personas disponibles para asignación',
+      route: '/personal',
+      tone: 'neutral',
+    },
+    {
+      label: 'Servicios activos',
+      value: this.activeServicesCount().toString(),
+      detail: 'Servicios configurados para operar',
+      route: '/clientes',
+      tone: 'neutral',
+    },
+  ]);
+
+  protected readonly supportingMetrics = computed(() => [
+    {
+      label: 'Clientes',
+      value: this.clientsCount().toString(),
+      detail: 'Registrados',
+    },
+    {
+      label: 'Solicitudes abiertas',
+      value: this.openRequestsCount().toString(),
+      detail: 'Por atender',
     },
     {
       label: 'Autorizaciones pendientes',
       value: (this.operationsSummary()?.pendingApprovals ?? 0).toString(),
-      detail: 'Decisiones operativas esperando supervisión',
+      detail: 'Por supervisar',
     },
     {
       label: 'Días cerrados',
       value: (this.operationsSummary()?.closedOperationDays ?? 0).toString(),
-      detail: 'Cierres operativos registrados',
+      detail: 'Cierres registrados',
     },
     {
       label: 'Asistencias capturadas',
       value: (this.operationsSummary()?.attendanceRecords ?? 0).toString(),
-      detail: 'Registros reales de operación',
+      detail: 'Registros operativos',
     },
     {
       label: 'Horas cubiertas',
       value: this.coveredHours().toString(),
-      detail: 'Tiempo cubierto por sustituciones',
+      detail: 'Por sustituciones',
     },
   ]);
 
-  protected readonly coveredHours = computed(() =>
-    Math.round(((this.operationsSummary()?.coveredMinutes ?? 0) / 60) * 10) / 10);
   protected readonly highestRiskServices = computed(() =>
     [...this.serviceSummaries()]
       .filter((service) => service.openIncidents > 0 || service.absentAttendance > 0 || service.lateAttendance > 0)
@@ -98,7 +110,7 @@ export class OverviewPage {
       detail: 'Sedes, contactos, contratos y servicios.',
     },
     {
-      label: 'Solicitudes',
+      label: 'Gestionar solicitudes',
       route: '/solicitudes',
       detail: 'Altas, cambios y apoyos operativos.',
     },
@@ -170,7 +182,17 @@ export class OverviewPage {
   }
 
   protected serviceRiskSummary(service: OperationsServiceSummary) {
-    return `${service.openIncidents} incidencia(s) · ${service.absentAttendance} falta(s) · ${service.lateAttendance} retardo(s)`;
+    const signals = [
+      this.countLabel(service.openIncidents, 'incidencia', 'incidencias'),
+      this.countLabel(service.absentAttendance, 'falta', 'faltas'),
+      this.countLabel(service.lateAttendance, 'retardo', 'retardos'),
+    ].filter((signal): signal is string => Boolean(signal));
+
+    return signals.join(' · ');
+  }
+
+  private countLabel(value: number, singular: string, plural: string) {
+    return value > 0 ? `${value} ${value === 1 ? singular : plural}` : null;
   }
 
   private riskScore(service: OperationsServiceSummary) {

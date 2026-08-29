@@ -1,11 +1,8 @@
 <div class="wrapper" [class.is-condensed]="layout.isCondensed()">
   <aside id="app-menu" class="app-menu" [class.is-open]="layout.mobileMenuOpen()" aria-label="Navegación principal">
     <a class="logo-box" routerLink="/" (click)="layout.closeMobileNavigation()" aria-label="Ir al inicio de GestIA">
-      <span class="logo-mark" aria-hidden="true">G</span>
-      <span class="logo-copy">
-        <strong>GestIA</strong>
-        <small>Gestión inteligente</small>
-      </span>
+      <img class="brand-logo brand-logo--full" src="brand/gestia-logo-negative.svg" alt="GESTIA" />
+      <img class="brand-logo brand-logo--compact" src="brand/gestia-app-icon.svg" alt="" aria-hidden="true" />
     </a>
 
     <nav class="side-nav">
@@ -37,8 +34,8 @@
     </nav>
 
     <div class="sidebar-foot">
-      <span>GestIA</span>
-      <small>Operación inteligente</small>
+      <span>Control operativo</span>
+      <small>Información clara y trazable</small>
     </div>
   </aside>
 

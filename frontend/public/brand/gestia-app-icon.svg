@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title description">
+  <title id="title">GESTIA</title>
+  <desc id="description">Ícono de aplicación de GESTIA</desc>
+  <rect width="64" height="64" rx="14" fill="#10104E"/>
+  <g fill="#FFFFFF">
+    <rect x="12" y="11" width="7.56" height="7" opacity=".42"/>
+    <rect x="22.92" y="11" width="4.48" height="7" opacity=".42"/>
+    <rect x="30.76" y="11" width="12.6" height="7" opacity=".42"/>
+    <rect x="12" y="22.48" width="15.4" height="7" opacity=".7"/>
+    <rect x="30.76" y="22.48" width="9.52" height="7" opacity=".7"/>
+    <rect x="12" y="33.96" width="36.96" height="7"/>
+  </g>
+</svg>

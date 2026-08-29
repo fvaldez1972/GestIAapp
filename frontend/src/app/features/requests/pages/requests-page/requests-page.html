@@ -3,489 +3,361 @@
     <div>
       <span class="eyebrow">Gestión de solicitudes</span>
       <h1>Solicitudes operativas</h1>
-      <p>
-        Registra y da seguimiento a altas, nuevos servicios, cambios de configuración, coberturas y movimientos de
-        personal antes de que lleguen a operación.
-      </p>
+      <p>Centraliza altas, cambios y apoyos antes de llevarlos a la operación diaria.</p>
     </div>
+    <button class="gi-button gi-button--primary hero-action" type="button" (click)="openNewRequest()">
+      <span aria-hidden="true">＋</span> Nueva solicitud
+    </button>
   </article>
 
-  <section class="gi-card request-filters" aria-label="Filtros de solicitudes">
-    <label class="gi-field">
-      Organización
-      <select class="gi-input" [value]="selectedOrganizationId()" (change)="onOrganizationChange($event)">
-        @for (organization of organizations(); track organization.idOrganization) {
-          <option [value]="organization.idOrganization">{{ organization.legalName }}</option>
-        }
-      </select>
-    </label>
+  <section class="gi-card requests-control" aria-label="Consulta de solicitudes">
+    <div class="request-filters">
+      <label class="gi-field">
+        <span>Organización</span>
+        <select class="gi-input" [value]="selectedOrganizationId()" (change)="onOrganizationChange($event)">
+          @for (organization of organizations(); track organization.idOrganization) {
+            <option [value]="organization.idOrganization">{{ organization.legalName }}</option>
+          }
+        </select>
+      </label>
+      <label class="gi-field">
+        <span>Estado</span>
+        <select class="gi-input" [value]="filterStatus()" (change)="onFilterStatusChange($event)">
+          <option value="">Todos los estados</option>
+          @for (status of statuses; track status.value) { <option [value]="status.value">{{ status.label }}</option> }
+        </select>
+      </label>
+      <label class="gi-field">
+        <span>Tipo</span>
+        <select class="gi-input" [value]="filterType()" (change)="onFilterTypeChange($event)">
+          <option value="">Todos los tipos</option>
+          @for (type of requestTypes; track type.value) { <option [value]="type.value">{{ type.label }}</option> }
+        </select>
+      </label>
+      <label class="gi-field request-search">
+        <span>Buscar solicitud</span>
+        <span class="search-control">
+          <input class="gi-input" type="search" [value]="search()" (input)="onSearchChange($event)" (keyup.enter)="applySearch()" placeholder="Folio, título o solicitante" />
+          <button type="button" [disabled]="loading()" (click)="applySearch()">Buscar</button>
+        </span>
+      </label>
+    </div>
 
-    <label class="gi-field">
-      Estado
-      <select class="gi-input" [value]="filterStatus()" (change)="onFilterStatusChange($event)">
-        <option value="">Todos</option>
-        @for (status of statuses; track status.value) {
-          <option [value]="status.value">{{ status.label }}</option>
-        }
-      </select>
-    </label>
-
-    <label class="gi-field">
-      Tipo
-      <select class="gi-input" [value]="filterType()" (change)="onFilterTypeChange($event)">
-        <option value="">Todos</option>
-        @for (type of requestTypes; track type.value) {
-          <option [value]="type.value">{{ type.label }}</option>
-        }
-      </select>
-    </label>
-
-    <label class="gi-field">
-      Buscar
-      <input class="gi-input" type="search" [value]="search()" (input)="onSearchChange($event)" placeholder="Folio, título o solicitante" />
-    </label>
-
-    <button class="gi-button gi-button--secondary" type="button" [disabled]="loading()" (click)="applySearch()">
-      Buscar
-    </button>
+    <div class="request-summary" aria-label="Resumen de solicitudes">
+      <div class="summary-item"><span>Total</span><strong>{{ requests().length }}</strong><small>en la consulta</small></div>
+      <div class="summary-item"><span>Abiertas</span><strong>{{ openRequests() }}</strong><small>por atender</small></div>
+      <div class="summary-item" [class.has-warning]="criticalRequests() > 0"><span>Críticas</span><strong>{{ criticalRequests() }}</strong><small>prioridad inmediata</small></div>
+      <div class="summary-item" [class.has-warning]="overdueRequests() > 0"><span>Vencidas</span><strong>{{ overdueRequests() }}</strong><small>fuera de fecha</small></div>
+      <div class="summary-item"><span>Completadas</span><strong>{{ completedRequests() }}</strong><small>cerradas correctamente</small></div>
+    </div>
   </section>
 
-  @if (error()) {
-    <p class="gi-alert gi-alert--error">{{ error() }}</p>
-  }
+  @if (error()) { <p class="gi-alert gi-alert--error" role="alert">{{ error() }}</p> }
+  @if (message()) { <p class="gi-alert gi-alert--success" role="status">{{ message() }}</p> }
 
-  @if (message()) {
-    <p class="gi-alert gi-alert--success">{{ message() }}</p>
-  }
-
-  <section class="request-summary" aria-label="Resumen de solicitudes">
-    <article class="gi-card metric-card">
-      <span>Total</span>
-      <strong>{{ requests().length }}</strong>
-      <small>Solicitudes visibles</small>
-    </article>
-    <article class="gi-card metric-card">
-      <span>Abiertas</span>
-      <strong>{{ openRequests() }}</strong>
-      <small>Requieren seguimiento</small>
-    </article>
-    <article class="gi-card metric-card">
-      <span>Críticas</span>
-      <strong>{{ criticalRequests() }}</strong>
-      <small>Prioridad alta para operación</small>
-    </article>
-    <article class="gi-card metric-card">
-      <span>Vencidas</span>
-      <strong>{{ overdueRequests() }}</strong>
-      <small>Fecha requerida superada</small>
-    </article>
-  </section>
-
-  <section class="gi-card request-board" aria-label="Tablero de flujo de solicitudes">
+  <section class="gi-card request-board" aria-label="Flujo de solicitudes">
     <header class="board-heading">
       <div>
         <span class="eyebrow">Flujo operativo</span>
-        <h2>Tablero de seguimiento</h2>
-        <p>Avanza solicitudes por estado sin perder el contexto de prioridad, cliente y servicio.</p>
+        <h2>Seguimiento por etapa</h2>
+        <p>Selecciona una etapa para concentrarte en lo que requiere atención.</p>
       </div>
-      <div class="board-actions">
-        <button class="gi-button gi-button--secondary" type="button" (click)="filterByStatus('')">Ver todas</button>
-        <button class="gi-button gi-button--secondary" type="button" (click)="filterByStatus('InReview')">Sólo en revisión</button>
-      </div>
+      @if (filterStatus()) { <button class="text-action" type="button" (click)="filterByStatus('')">Limpiar filtro</button> }
     </header>
 
-    <div class="board-columns">
-      @for (column of workflowColumns(); track column.status) {
-        <article class="board-column">
-          <button class="board-column__title" type="button" (click)="filterByStatus(column.status)">
-            <span>
-              <strong>{{ column.label }}</strong>
-              <small>{{ column.hint }}</small>
-            </span>
-            <i>{{ column.requests.length }}</i>
-          </button>
-
-          <div class="board-stack">
-            @for (request of column.requests; track request.idOperationalRequest) {
-              <article class="board-card" [class.is-selected]="request.idOperationalRequest === selectedRequestId()">
-                <button class="board-card__main" type="button" (click)="selectRequest(request)">
-                  <span class="request-topline">
-                    <strong>{{ request.codeOperationalRequest }}</strong>
-                    <i [class]="'priority priority-' + request.priority.toLowerCase()">{{ labelForPriority(request.priority) }}</i>
-                  </span>
-                  <span class="request-title">{{ request.title }}</span>
-                  <span class="request-meta">{{ labelForType(request.requestType) }} · {{ request.requestedByName }}</span>
-                  @if (request.neededByDate) {
-                    <span class="request-due" [class.is-overdue]="request.neededByDate < today() && request.status !== 'Completed'">
-                      Requerida: {{ request.neededByDate }}
-                    </span>
-                  }
-                </button>
-
-                <div class="board-card__actions">
-                  @if (nextStatus(request); as status) {
-                    <button class="mini-flow-action" type="button" [disabled]="saving()" (click)="advanceRequest(request)">
-                      Pasar a {{ labelForStatus(status) }}
-                    </button>
-                  }
-                  @if (request.status === 'Approved') {
-                    <button class="mini-flow-action is-success" type="button" [disabled]="saving()" (click)="prepareExecution(request)">
-                      Preparar ejecución
-                    </button>
-                  }
-                  @if (request.status !== 'Rejected' && request.status !== 'Cancelled' && request.status !== 'Completed') {
-                    <button class="mini-flow-action is-danger" type="button" [disabled]="saving()" (click)="rejectRequest(request)">
-                      Rechazar
-                    </button>
-                  }
-                </div>
-              </article>
-            } @empty {
-              <div class="board-empty">Sin solicitudes</div>
-            }
-          </div>
-        </article>
+    <nav class="workflow-steps" aria-label="Etapas de las solicitudes">
+      <button class="workflow-step" type="button" [class.is-active]="filterStatus() === ''" (click)="filterByStatus('')">
+        <i aria-hidden="true">•</i><span><strong>Todas</strong><small>Vista general</small></span><b>{{ requests().length }}</b>
+      </button>
+      @for (column of workflowColumns(); track column.status; let index = $index) {
+        <button class="workflow-step" type="button" [class.is-active]="filterStatus() === column.status" (click)="filterByStatus(column.status)">
+          <i aria-hidden="true">{{ index + 1 }}</i><span><strong>{{ column.label }}</strong><small>{{ column.hint }}</small></span><b>{{ column.requests.length }}</b>
+        </button>
       }
+    </nav>
+
+    <div class="requests-layout">
+      <section class="requests-master">
+        <div class="request-results-heading">
+          <div><h3>{{ filterStatus() ? labelForStatus(filterStatus() || 'Draft') : 'Solicitudes visibles' }}</h3><p>{{ visibleRequests().length }} {{ visibleRequests().length === 1 ? 'resultado' : 'resultados' }}</p></div>
+          <label class="sort-control">
+            <span>Ordenar por</span>
+            <select class="gi-input" [value]="sortMode()" (change)="onSortModeChange($event)">
+              <option value="recent">Más reciente</option>
+              <option value="priority">Prioridad</option>
+              <option value="needed">Fecha requerida</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="request-results" [class.is-loading]="loading()">
+          @for (request of visibleRequests(); track request.idOperationalRequest) {
+            <article class="request-result" [class.is-selected]="request.idOperationalRequest === selectedRequestId()">
+              <button class="request-result__main" type="button" (click)="selectRequest(request)">
+                <span class="request-topline"><strong>{{ request.codeOperationalRequest }}</strong><i [class]="'priority priority-' + request.priority.toLowerCase()">{{ labelForPriority(request.priority) }}</i></span>
+                <span class="request-title">{{ request.title }}</span>
+                <span class="request-tags"><i>{{ labelForType(request.requestType) }}</i><i>{{ labelForStatus(request.status) }}</i></span>
+                <span class="request-context"><b>{{ request.clientName || 'Sin cliente relacionado' }}</b>@if (request.serviceName) { <small>{{ request.serviceName }}</small> }</span>
+                <span class="request-footer">
+                  <span>Solicita: {{ request.requestedByName }}</span>
+                  @if (request.neededByDate) { <span class="request-due" [class.is-overdue]="request.neededByDate < today() && request.status !== 'Completed'">Para {{ formatDate(request.neededByDate) }}</span> }
+                </span>
+              </button>
+              <div class="request-result__actions">
+                <button class="mini-icon-action" type="button" (click)="selectRequest(request)" aria-label="Abrir detalle">⋮</button>
+                @if (nextStatus(request); as status) { <button class="mini-flow-action" type="button" [disabled]="saving()" (click)="advanceRequest(request)">Avanzar a {{ labelForStatus(status) }}</button> }
+                @if (request.status === 'Approved') { <button class="mini-flow-action is-success" type="button" [disabled]="saving()" (click)="prepareExecution(request)">Preparar ejecución</button> }
+                @if (request.status !== 'Rejected' && request.status !== 'Cancelled' && request.status !== 'Completed') { <button class="mini-flow-action is-danger" type="button" [disabled]="saving()" (click)="rejectRequest(request)">Rechazar</button> }
+              </div>
+            </article>
+          } @empty {
+            <div class="gi-empty-state request-empty"><span aria-hidden="true">☷</span><h3>No hay solicitudes con estos filtros</h3><p>Prueba otra búsqueda o registra una nueva solicitud.</p><button class="gi-button gi-button--secondary" type="button" (click)="openNewRequest()">Crear solicitud</button></div>
+          }
+        </div>
+      </section>
     </div>
   </section>
 
-  <section class="requests-grid">
-    <form class="gi-card request-card" [formGroup]="requestForm" (ngSubmit)="saveRequest()">
-      <header>
-        <span class="eyebrow">{{ selectedRequest() ? 'Edición de solicitud' : 'Nueva solicitud' }}</span>
-        <h2>{{ selectedRequest() ? 'Actualizar solicitud' : 'Captura inicial' }}</h2>
-        <p>
-          @if (selectedRequest()) {
-            Ajusta la información capturada antes de cerrar, cancelar o completar el seguimiento.
-          } @else {
-            Registra lo mínimo necesario para dar seguimiento sin bloquear el arranque del flujo.
-          }
-        </p>
-      </header>
-
-      <div class="form-row">
-        <label class="gi-field">
-          Folio
-          <input class="gi-input" type="text" formControlName="codeOperationalRequest" />
-        </label>
-
-        <label class="gi-field">
-          Prioridad
-          <select class="gi-input" formControlName="priority">
-            @for (priority of priorities; track priority.value) {
-              <option [value]="priority.value">{{ priority.label }}</option>
-            }
-          </select>
-        </label>
-      </div>
-
-      <label class="gi-field">
-        Tipo de solicitud
-        <select class="gi-input" formControlName="requestType" (change)="onRequestTypeChange($event)">
-          @for (type of requestTypes; track type.value) {
-            <option [value]="type.value">{{ type.label }}</option>
-          }
-        </select>
-      </label>
-
-      <label class="gi-field">
-        Cliente relacionado
-        <select class="gi-input" formControlName="idClient" (change)="onRequestClientChange($event)">
-          <option value="">Sin cliente todavía</option>
-          @for (client of clients(); track client.idClient) {
-            <option [value]="client.idClient">{{ client.tradeName || client.legalName }}</option>
-          }
-        </select>
-      </label>
-
-      <label class="gi-field">
-        Servicio relacionado
-        <select class="gi-input" formControlName="idService" (change)="onRequestServiceChange($event)">
-          <option value="">Sin servicio todavía</option>
-          @for (service of services(); track service.idService) {
-            <option [value]="service.idService">{{ service.name }}</option>
-          }
-        </select>
-      </label>
-
-      <label class="gi-field">
-        Título
-        <input class="gi-input" type="text" formControlName="title" placeholder="Ej. Alta de servicio nocturno" />
-      </label>
-
-      <label class="gi-field">
-        Solicitante
-        <input class="gi-input" type="text" formControlName="requestedByName" placeholder="Nombre o área que solicita" />
-      </label>
-
-      <label class="gi-field">
-        Fecha requerida
-        <input class="gi-input" type="date" formControlName="neededByDate" />
-      </label>
-
-      <label class="gi-field">
-        Detalle
-        <textarea class="gi-input" rows="4" formControlName="description" placeholder="Describe qué se necesita, por qué y cualquier dato operativo importante"></textarea>
-      </label>
-
-      <div class="form-actions">
-        <button class="gi-button gi-button--primary" type="submit" [disabled]="saving() || !selectedOrganizationId()">
-          {{ selectedRequest() ? 'Guardar cambios' : 'Guardar solicitud' }}
-        </button>
-
-        @if (selectedRequest()) {
-          <button class="gi-button gi-button--secondary" type="button" [disabled]="saving()" (click)="resetRequestForm()">
-            Nueva solicitud
-          </button>
-        }
-      </div>
-    </form>
-
-    <section class="request-workspace">
-      <article class="gi-card request-card">
-        <header>
-          <span class="eyebrow">Seguimiento</span>
-          <h2>Cambiar estado</h2>
-          <p>Selecciona una solicitud del listado para avanzar su revisión.</p>
+  @if (detailPanelOpen() && selectedRequest(); as request) {
+    <div class="request-detail-shell" (click)="closeDetailPanel()">
+      <aside class="request-detail-panel" aria-label="Detalle y seguimiento de solicitud" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+        <header class="detail-heading">
+          <div>
+            <h2>Detalle y seguimiento</h2>
+            <p>{{ request.codeOperationalRequest }}</p>
+          </div>
+          <button type="button" class="detail-close" (click)="closeDetailPanel()" aria-label="Cerrar detalle">×</button>
         </header>
 
-        <form class="status-form" [formGroup]="statusForm" (ngSubmit)="changeStatus()">
-          <label class="gi-field">
-            Estado
-            <select class="gi-input" formControlName="status">
-              @for (status of statuses; track status.value) {
-                <option [value]="status.value">{{ status.label }}</option>
+        <section class="detail-summary-card" aria-label="Resumen de solicitud">
+          <div>
+            <span>Estado</span>
+            <strong class="status-pill">{{ labelForStatus(request.status) }}</strong>
+          </div>
+          <div>
+            <span>Prioridad</span>
+            <strong [class]="'priority priority-' + request.priority.toLowerCase()">{{ labelForPriority(request.priority) }}</strong>
+          </div>
+          <div>
+            <span>Tipo</span>
+            <strong>{{ labelForType(request.requestType) }}</strong>
+          </div>
+          <div>
+            <span>Cliente</span>
+            <strong>{{ request.clientName || 'Sin cliente' }}</strong>
+          </div>
+          <div>
+            <span>Servicio</span>
+            <strong>{{ request.serviceName || 'Pendiente' }}</strong>
+          </div>
+          <div>
+            <span>Solicitante</span>
+            <strong>{{ request.requestedByName }}</strong>
+          </div>
+        </section>
+
+        <nav class="detail-tabs" aria-label="Opciones de detalle">
+          <button type="button" [class.is-active]="detailPanelTab() === 'details'" (click)="showDetailPanelTab('details')">Resumen</button>
+          <button type="button" [class.is-active]="detailPanelTab() === 'status'" (click)="showDetailPanelTab('status')">Seguimiento</button>
+          <button type="button" [class.is-active]="detailPanelTab() === 'execution'" (click)="showDetailPanelTab('execution')">Ejecución</button>
+        </nav>
+
+        @if (detailPanelTab() === 'details') {
+          <section class="detail-tab-body">
+            <label class="gi-field">
+              <span>Nota de seguimiento</span>
+              <textarea class="gi-input" rows="5" [formControl]="statusForm.controls.resolutionNotes" placeholder="Escribe una nota clara para el siguiente responsable..."></textarea>
+            </label>
+            <div class="activity-list" aria-label="Actividad reciente">
+              <h3>Actividad reciente</h3>
+              <article>
+                <i></i>
+                <div><strong>Estado actual: {{ labelForStatus(request.status) }}</strong><span>por Operación · Hoy</span></div>
+              </article>
+              @if (request.resolutionNotes) {
+                <article>
+                  <i></i>
+                  <div><strong>Última nota registrada</strong><span>{{ request.resolutionNotes }}</span></div>
+                </article>
               }
-            </select>
-          </label>
+              <article>
+                <i></i>
+                <div><strong>Solicitud creada</strong><span>por {{ request.requestedByName }}</span></div>
+              </article>
+            </div>
+          </section>
+        }
 
-          <label class="gi-field">
-            Nota de seguimiento
-            <textarea class="gi-input" rows="3" formControlName="resolutionNotes" placeholder="Acuerdo, rechazo, pendiente o siguiente paso"></textarea>
-          </label>
+        @if (detailPanelTab() === 'status') {
+          <form class="detail-tab-body" [formGroup]="statusForm" (ngSubmit)="changeStatus()">
+            <label class="gi-field"><span>Nuevo estado</span><select class="gi-input" formControlName="status">@for (status of statuses; track status.value) { <option [value]="status.value">{{ status.label }}</option> }</select></label>
+            <label class="gi-field"><span>Nota de seguimiento</span><textarea class="gi-input" rows="6" formControlName="resolutionNotes" placeholder="Escribe el acuerdo, motivo o siguiente paso"></textarea></label>
+            <button class="gi-button gi-button--primary" type="submit" [disabled]="saving() || !statusForm.value.idOperationalRequest">Guardar seguimiento</button>
+          </form>
+        }
 
-          <button class="gi-button gi-button--secondary" type="submit" [disabled]="saving() || !statusForm.value.idOperationalRequest">
-            Actualizar estado
-          </button>
-        </form>
+        @if (detailPanelTab() === 'execution') {
+          <section class="detail-tab-body">
+            @if (request.status !== 'Approved') {
+              <div class="execution-guidance"><strong>La solicitud requiere aprobación.</strong><span>Primero avanza el estado a Aprobada para habilitar la ejecución.</span><button type="button" (click)="showDetailPanelTab('status')">Ir a seguimiento</button></div>
+            } @else {
+              <label class="gi-field"><span>Nota de ejecución</span><textarea class="gi-input" rows="4" [formControl]="executionForm.controls.executionNotes" placeholder="Describe el resultado o referencia interna"></textarea></label>
+              <button class="gi-button gi-button--secondary" type="button" [disabled]="saving()" (click)="previewExecution(request)">Validar información</button>
+              @if (executionPreview(); as preview) {
+                <section class="execution-preview" [class.is-ready]="preview.canExecute">
+                  <div><span aria-hidden="true">{{ preview.canExecute ? '✓' : '!' }}</span><div><h4>{{ preview.canExecute ? 'Lista para ejecutar' : 'Falta información' }}</h4><p>{{ preview.canExecute ? 'Ya puedes confirmar la conversión.' : 'Completa los datos pendientes desde el editor.' }}</p></div></div>
+                </section>
+              }
+            }
+          </section>
+        }
 
-        <form class="execution-form" [formGroup]="executionForm" (ngSubmit)="executeRequest()">
-          <h3>Ejecutar solicitud aprobada</h3>
-          <p>
-            Convierte una solicitud aprobada en datos reales del sistema. Primero valida impacto; si faltan datos,
-            el sistema los muestra antes de tocar clientes, servicios, asignaciones o coberturas.
-          </p>
+        <footer class="detail-actions">
+          <button class="gi-button gi-button--secondary" type="button" (click)="selectRequest(request, { modal: true, open: false, tab: 'details' })">Editar datos</button>
+          @if (detailPanelTab() === 'details') { <button class="gi-button gi-button--primary" type="button" [disabled]="saving() || !statusForm.value.idOperationalRequest" (click)="changeStatus()">Guardar nota</button> }
+          @if (nextStatus(request); as status) { <button class="gi-button gi-button--secondary" type="button" [disabled]="saving()" (click)="advanceRequest(request)">Avanzar a {{ labelForStatus(status) }}</button> }
+          @if (request.status === 'Approved') { <button class="gi-button gi-button--primary" type="button" [disabled]="saving()" (click)="selectRequest(request, { modal: true, open: false, tab: 'execution' })">Ir a ejecución</button> }
+        </footer>
+      </aside>
+    </div>
+  }
 
-          <label class="gi-field">
-            Nota de ejecución
-            <textarea class="gi-input" rows="3" formControlName="executionNotes" placeholder="Qué se ejecutó, folio interno o acuerdo final"></textarea>
-          </label>
+  @if (workspaceOpen()) {
+    <div class="request-modal-backdrop" (click)="closeWorkspace()">
+      <section class="gi-card request-workspace request-modal" [class.is-quick-create]="!selectedRequest()" aria-label="Área de trabajo de solicitud" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+        <header class="workspace-heading">
+          <div><span class="eyebrow">{{ selectedRequest() ? selectedRequest()?.codeOperationalRequest : 'Nueva solicitud rápida' }}</span><h2>{{ selectedRequest()?.title || 'Nueva solicitud rápida' }}</h2><p>{{ selectedRequest() ? 'Consulta la información y continúa el flujo desde un solo lugar.' : 'Sólo completa lo esencial para empezar el seguimiento.' }}</p></div>
+          <button class="workspace-close" type="button" (click)="closeWorkspace()" aria-label="Cerrar área de trabajo">×</button>
+        </header>
+
+        <nav class="workspace-tabs" aria-label="Opciones de la solicitud">
+          <button type="button" [class.is-active]="workspaceTab() === 'details'" (click)="showWorkspaceTab('details')"><span>1</span> Datos generales</button>
+          <button type="button" [disabled]="!selectedRequest()" [class.is-active]="workspaceTab() === 'status'" (click)="showWorkspaceTab('status')"><span>2</span> Seguimiento</button>
+          <button type="button" [disabled]="!selectedRequest()" [class.is-active]="workspaceTab() === 'execution'" (click)="showWorkspaceTab('execution')"><span>3</span> Ejecución</button>
+        </nav>
+
+        @if (workspaceTab() === 'details') {
+          <form class="workspace-form" [formGroup]="requestForm" (ngSubmit)="saveRequest()">
+            <div class="form-section-heading"><div><h3>Información principal</h3><p>Define qué se solicita, para quién y con qué prioridad.</p></div>@if (selectedRequest()) { <span class="status-pill">{{ labelForStatus(selectedRequest()!.status) }}</span> }</div>
+            @if (!selectedRequest()) {
+              <div class="quick-create-note"><span aria-hidden="true">i</span> Sólo completa lo esencial para empezar. La ejecución se detalla cuando la solicitud avance.</div>
+            }
+            <div class="form-grid">
+              @if (!selectedRequest()) {
+                <label class="gi-field form-span-2"><span>Organización</span><select class="gi-input" [value]="selectedOrganizationId()" (change)="onOrganizationChange($event)">@for (organization of organizations(); track organization.idOrganization) { <option [value]="organization.idOrganization">{{ organization.legalName }}</option> }</select></label>
+              } @else {
+                <label class="gi-field"><span>Folio</span><input class="gi-input" type="text" formControlName="codeOperationalRequest" /></label>
+              }
+              <label class="gi-field"><span>Prioridad</span><select class="gi-input" formControlName="priority">@for (priority of priorities; track priority.value) { <option [value]="priority.value">{{ priority.label }}</option> }</select></label>
+              <label class="gi-field"><span>Tipo de solicitud</span><select class="gi-input" formControlName="requestType" (change)="onRequestTypeChange($event)">@for (type of requestTypes; track type.value) { <option [value]="type.value">{{ type.label }}</option> }</select></label>
+              <label class="gi-field"><span>Fecha requerida</span><input class="gi-input" type="date" formControlName="neededByDate" /></label>
+              <label class="gi-field"><span>Cliente relacionado</span><select class="gi-input" formControlName="idClient" (change)="onRequestClientChange($event)"><option value="">Sin cliente relacionado</option>@for (client of clients(); track client.idClient) { <option [value]="client.idClient">{{ client.tradeName || client.legalName }}</option> }</select></label>
+              @if (selectedRequest()) {
+                <label class="gi-field"><span>Servicio relacionado</span><select class="gi-input" formControlName="idService" (change)="onRequestServiceChange($event)"><option value="">Sin servicio relacionado</option>@for (service of services(); track service.idService) { <option [value]="service.idService">{{ service.name }}</option> }</select></label>
+              }
+              <label class="gi-field form-span-2"><span>Título</span><input class="gi-input" type="text" formControlName="title" placeholder="Ej. Alta de servicio nocturno" /></label>
+              <label class="gi-field"><span>Solicitante</span><input class="gi-input" type="text" formControlName="requestedByName" placeholder="Nombre o área solicitante" /></label>
+              <label class="gi-field form-span-2"><span>Detalle de la solicitud</span><textarea class="gi-input" rows="4" formControlName="description" placeholder="Describe la necesidad, el motivo y los datos operativos importantes"></textarea></label>
+            </div>
+            <footer class="workspace-actions"><button class="gi-button gi-button--secondary" type="button" (click)="closeWorkspace()">Cancelar</button><button class="gi-button gi-button--primary" type="submit" [disabled]="saving() || !selectedOrganizationId()">{{ selectedRequest() ? 'Guardar cambios' : 'Crear y continuar' }}</button></footer>
+          </form>
+        }
+
+        @if (workspaceTab() === 'status') {
+          <form class="workspace-form status-form" [formGroup]="statusForm" (ngSubmit)="changeStatus()">
+            <div class="form-section-heading"><div><h3>Seguimiento de la solicitud</h3><p>Registra la decisión y deja una nota clara para el siguiente responsable.</p></div></div>
+            <div class="form-grid compact-form">
+              <label class="gi-field"><span>Nuevo estado</span><select class="gi-input" formControlName="status">@for (status of statuses; track status.value) { <option [value]="status.value">{{ status.label }}</option> }</select></label>
+              <label class="gi-field form-span-2"><span>Nota de seguimiento</span><textarea class="gi-input" rows="5" formControlName="resolutionNotes" placeholder="Escribe el acuerdo, motivo de rechazo o siguiente paso"></textarea></label>
+            </div>
+            <footer class="workspace-actions"><button class="gi-button gi-button--secondary" type="button" (click)="showWorkspaceTab('details')">Volver a datos</button><button class="gi-button gi-button--primary" type="submit" [disabled]="saving() || !statusForm.value.idOperationalRequest">Actualizar estado</button></footer>
+          </form>
+        }
+
+        @if (workspaceTab() === 'execution') {
+          <form class="workspace-form execution-form" [formGroup]="executionForm" (ngSubmit)="executeRequest()">
+            <div class="form-section-heading"><div><h3>Convertir solicitud en operación</h3><p>Valida los datos antes de crear o modificar información real del sistema.</p></div><span class="status-pill" [class.is-ready]="selectedRequest()?.status === 'Approved'">{{ selectedRequest()?.status === 'Approved' ? 'Lista para validar' : 'Requiere aprobación' }}</span></div>
+            @if (selectedRequest()?.status !== 'Approved') { <div class="execution-guidance"><strong>Esta solicitud aún no puede ejecutarse.</strong><span>Primero cambia su estado a Aprobada desde la pestaña Seguimiento.</span><button type="button" (click)="showWorkspaceTab('status')">Ir a seguimiento</button></div> }
+            <label class="gi-field"><span>Nota de ejecución</span><textarea class="gi-input" rows="3" formControlName="executionNotes" placeholder="Describe el resultado, acuerdo o referencia interna"></textarea></label>
 
           @if (activeExecutionType() === 'NewClient' || activeExecutionType() === 'NewService') {
             <section class="execution-section">
-              <h4>{{ activeExecutionType() === 'NewClient' ? 'Cliente nuevo' : 'Cliente para el servicio' }}</h4>
-              <p>Si la solicitud ya tiene cliente relacionado, estos datos son opcionales.</p>
-              <div class="form-row">
-                <label class="gi-field">Código cliente<input class="gi-input" formControlName="clientCode" /></label>
-                <label class="gi-field">RFC<input class="gi-input" formControlName="clientRfc" /></label>
+              <header><div><span>01</span><h4>{{ activeExecutionType() === 'NewClient' ? 'Cliente nuevo' : 'Cliente del servicio' }}</h4></div><p>Complétalo sólo si la solicitud no tiene un cliente relacionado.</p></header>
+              <div class="form-grid">
+                <label class="gi-field"><span>Código de cliente</span><input class="gi-input" formControlName="clientCode" /></label><label class="gi-field"><span>RFC</span><input class="gi-input" formControlName="clientRfc" /></label>
+                <label class="gi-field"><span>Razón social</span><input class="gi-input" formControlName="clientLegalName" /></label><label class="gi-field"><span>Nombre comercial</span><input class="gi-input" formControlName="clientTradeName" /></label>
               </div>
-              <label class="gi-field">Razón social<input class="gi-input" formControlName="clientLegalName" /></label>
-              <label class="gi-field">Nombre comercial<input class="gi-input" formControlName="clientTradeName" /></label>
             </section>
-
             <section class="execution-section">
-              <h4>Sede</h4>
-              <div class="form-row">
-                <label class="gi-field">Código sede<input class="gi-input" formControlName="siteCode" /></label>
-                <label class="gi-field">Nombre sede<input class="gi-input" formControlName="siteName" /></label>
+              <header><div><span>02</span><h4>Sede</h4></div><p>Ubicación donde se prestará el servicio.</p></header>
+              <div class="form-grid">
+                <label class="gi-field"><span>Código de sede</span><input class="gi-input" formControlName="siteCode" /></label><label class="gi-field"><span>Nombre de la sede</span><input class="gi-input" formControlName="siteName" /></label>
+                <label class="gi-field form-span-2"><span>Calle y número</span><input class="gi-input" formControlName="siteStreet" /></label>
+                <label class="gi-field"><span>Municipio</span><input class="gi-input" formControlName="siteMunicipality" /></label><label class="gi-field"><span>Estado</span><input class="gi-input" formControlName="siteState" /></label>
+                <label class="gi-field"><span>Código postal</span><input class="gi-input" formControlName="sitePostalCode" /></label>
               </div>
-              <label class="gi-field">Calle<input class="gi-input" formControlName="siteStreet" /></label>
-              <div class="form-row">
-                <label class="gi-field">Municipio<input class="gi-input" formControlName="siteMunicipality" /></label>
-                <label class="gi-field">Estado<input class="gi-input" formControlName="siteState" /></label>
-              </div>
-              <label class="gi-field">Código postal<input class="gi-input" formControlName="sitePostalCode" /></label>
             </section>
           }
 
           @if (activeExecutionType() === 'NewClient' || activeExecutionType() === 'NewService') {
             <section class="execution-section">
-              <h4>Servicio</h4>
-              <div class="form-row">
-                <label class="gi-field">Código servicio<input class="gi-input" formControlName="serviceCode" /></label>
-                <label class="gi-field">Inicio<input class="gi-input" type="date" formControlName="serviceStartDate" /></label>
+              <header><div><span>03</span><h4>Servicio</h4></div><p>Datos comerciales y fecha de arranque.</p></header>
+              <div class="form-grid">
+                <label class="gi-field"><span>Código de servicio</span><input class="gi-input" formControlName="serviceCode" /></label><label class="gi-field"><span>Fecha de inicio</span><input class="gi-input" type="date" formControlName="serviceStartDate" /></label>
+                <label class="gi-field form-span-2"><span>Nombre del servicio</span><input class="gi-input" formControlName="serviceName" /></label><label class="gi-field form-span-2"><span>Descripción</span><textarea class="gi-input" rows="2" formControlName="serviceDescription"></textarea></label>
               </div>
-              <label class="gi-field">Nombre servicio<input class="gi-input" formControlName="serviceName" /></label>
-              <label class="gi-field">Descripción<textarea class="gi-input" rows="2" formControlName="serviceDescription"></textarea></label>
             </section>
           }
 
           @if (activeExecutionType() === 'NewClient' || activeExecutionType() === 'NewService' || activeExecutionType() === 'ServiceChange') {
             <section class="execution-section">
-              <h4>Configuración operativa</h4>
-              <div class="form-row">
-                <label class="gi-field">Vigencia desde<input class="gi-input" type="date" formControlName="configEffectiveFromDate" /></label>
-                <label class="gi-field">Personal requerido<input class="gi-input" type="number" min="1" formControlName="configRequiredWorkerCount" /></label>
+              <header><div><span>04</span><h4>Configuración operativa</h4></div><p>Capacidad, jornada y condiciones del servicio.</p></header>
+              <div class="form-grid">
+                <label class="gi-field"><span>Vigencia desde</span><input class="gi-input" type="date" formControlName="configEffectiveFromDate" /></label><label class="gi-field"><span>Personal requerido</span><input class="gi-input" type="number" min="1" formControlName="configRequiredWorkerCount" /></label>
+                <label class="gi-field"><span>Horas por día</span><input class="gi-input" type="number" min="1" step="0.5" formControlName="configHoursPerDay" /></label><label class="gi-field"><span>Días por semana</span><input class="gi-input" type="number" min="1" max="7" formControlName="configDaysPerWeek" /></label>
+                <label class="gi-field"><span>Horas mensuales</span><input class="gi-input" type="number" min="1" step="0.5" formControlName="configAverageMonthlyHours" /></label><label class="gi-field"><span>Días de preparación</span><input class="gi-input" type="number" min="0" formControlName="configPreparationLeadDays" /></label>
+                <label class="gi-field form-span-2"><span>Horario e instrucciones</span><textarea class="gi-input" rows="3" formControlName="configWorkScheduleDescription"></textarea></label><label class="gi-field"><span>Precio mensual</span><input class="gi-input" type="number" min="0" step="0.01" formControlName="configMonthlyPrice" /></label>
               </div>
-              <div class="form-row">
-                <label class="gi-field">Horas por día<input class="gi-input" type="number" min="1" step="0.5" formControlName="configHoursPerDay" /></label>
-                <label class="gi-field">Días por semana<input class="gi-input" type="number" min="1" max="7" formControlName="configDaysPerWeek" /></label>
-              </div>
-              <div class="form-row">
-                <label class="gi-field">Horas mensuales<input class="gi-input" type="number" min="1" step="0.5" formControlName="configAverageMonthlyHours" /></label>
-                <label class="gi-field">Días preparación<input class="gi-input" type="number" min="0" formControlName="configPreparationLeadDays" /></label>
-              </div>
-              <label class="gi-field">Horario / instrucciones<textarea class="gi-input" rows="2" formControlName="configWorkScheduleDescription"></textarea></label>
-              <label class="gi-field">Precio mensual<input class="gi-input" type="number" min="0" step="0.01" formControlName="configMonthlyPrice" /></label>
             </section>
           }
 
           @if (activeExecutionType() === 'StaffChange') {
             <section class="execution-section">
-              <h4>Movimiento de personal</h4>
-              <label class="gi-field">
-                Empleado
-                <select class="gi-input" formControlName="idEmployee">
-                  <option value="">Selecciona empleado</option>
-                  @for (employee of employees(); track employee.idEmployee) {
-                    <option [value]="employee.idEmployee">{{ employee.codeEmployee }} · {{ employee.fullName }}</option>
-                  }
-                </select>
-              </label>
-              <label class="gi-field">
-                Puesto del servicio
-                <select class="gi-input" formControlName="idPosition">
-                  <option value="">Selecciona puesto</option>
-                  @for (position of positions(); track position.idPosition) {
-                    <option [value]="position.idPosition">{{ position.codePosition }} · {{ position.name }}</option>
-                  }
-                </select>
-              </label>
-              <div class="form-row">
-                <label class="gi-field">
-                  Tipo
-                  <select class="gi-input" formControlName="assignmentType">
-                    <option value="Primary">Titular</option>
-                    <option value="Support">Apoyo</option>
-                    <option value="Relief">Relevo</option>
-                    <option value="TemporaryReplacement">Reemplazo temporal</option>
-                  </select>
-                </label>
-                <label class="gi-field">Inicio<input class="gi-input" type="date" formControlName="assignmentStartDate" /></label>
+              <header><div><span>01</span><h4>Movimiento de personal</h4></div><p>Selecciona a la persona y su función dentro del servicio.</p></header>
+              <div class="form-grid">
+                <label class="gi-field"><span>Empleado</span><select class="gi-input" formControlName="idEmployee"><option value="">Selecciona un empleado</option>@for (employee of employees(); track employee.idEmployee) { <option [value]="employee.idEmployee">{{ employee.codeEmployee }} · {{ employee.fullName }}</option> }</select></label>
+                <label class="gi-field"><span>Puesto del servicio</span><select class="gi-input" formControlName="idPosition"><option value="">Selecciona un puesto</option>@for (position of positions(); track position.idPosition) { <option [value]="position.idPosition">{{ position.codePosition }} · {{ position.name }}</option> }</select></label>
+                <label class="gi-field"><span>Tipo de asignación</span><select class="gi-input" formControlName="assignmentType"><option value="Primary">Titular</option><option value="Support">Apoyo</option><option value="Relief">Relevo</option><option value="TemporaryReplacement">Reemplazo temporal</option></select></label><label class="gi-field"><span>Fecha de inicio</span><input class="gi-input" type="date" formControlName="assignmentStartDate" /></label>
+                <label class="gi-check form-span-2"><input type="checkbox" formControlName="assignmentIsPrimary" /><span>Marcar como asignación principal</span></label><label class="gi-field form-span-2"><span>Notas</span><textarea class="gi-input" rows="3" formControlName="assignmentNotes"></textarea></label>
               </div>
-              <label class="gi-field gi-check"><input type="checkbox" formControlName="assignmentIsPrimary" /> Marcar como asignación principal</label>
-              <label class="gi-field">Notas<textarea class="gi-input" rows="2" formControlName="assignmentNotes"></textarea></label>
             </section>
           }
 
           @if (activeExecutionType() === 'CoverageSupport') {
             <section class="execution-section">
-              <h4>Cobertura</h4>
-              <label class="gi-field">
-                Turno programado
-                <select class="gi-input" formControlName="idScheduledShift">
-                  <option value="">Selecciona turno</option>
-                  @for (shift of scheduledShifts(); track shift.idScheduledShift) {
-                    <option [value]="shift.idScheduledShift">{{ shift.shiftDate }} · {{ shift.startTime }} - {{ shift.endTime }} · {{ shift.employeeName }}</option>
-                  }
-                </select>
-              </label>
-              <label class="gi-field">
-                Reemplazo
-                <select class="gi-input" formControlName="idReplacementEmployee">
-                  <option value="">Selecciona empleado</option>
-                  @for (employee of employees(); track employee.idEmployee) {
-                    <option [value]="employee.idEmployee">{{ employee.codeEmployee }} · {{ employee.fullName }}</option>
-                  }
-                </select>
-              </label>
-              <div class="form-row">
-                <label class="gi-field">Inicio<input class="gi-input" type="time" formControlName="coverageStartTime" /></label>
-                <label class="gi-field">Fin<input class="gi-input" type="time" formControlName="coverageEndTime" /></label>
+              <header><div><span>01</span><h4>Cobertura</h4></div><p>Define el turno, reemplazo y horario que se cubrirá.</p></header>
+              <div class="form-grid">
+                <label class="gi-field form-span-2"><span>Turno programado</span><select class="gi-input" formControlName="idScheduledShift"><option value="">Selecciona un turno</option>@for (shift of scheduledShifts(); track shift.idScheduledShift) { <option [value]="shift.idScheduledShift">{{ formatDate(shift.shiftDate) }} · {{ shift.startTime }} a {{ shift.endTime }} · {{ shift.employeeName }}</option> }</select></label>
+                <label class="gi-field form-span-2"><span>Empleado de reemplazo</span><select class="gi-input" formControlName="idReplacementEmployee"><option value="">Selecciona un empleado</option>@for (employee of employees(); track employee.idEmployee) { <option [value]="employee.idEmployee">{{ employee.codeEmployee }} · {{ employee.fullName }}</option> }</select></label>
+                <label class="gi-field"><span>Hora de inicio</span><input class="gi-input" type="time" formControlName="coverageStartTime" /></label><label class="gi-field"><span>Hora de fin</span><input class="gi-input" type="time" formControlName="coverageEndTime" /></label>
+                <label class="gi-field"><span>Estado de cobertura</span><select class="gi-input" formControlName="coverageStatus"><option value="Requested">Solicitada</option><option value="Confirmed">Confirmada</option><option value="Completed">Completada</option><option value="Cancelled">Cancelada</option></select></label><label class="gi-check"><input type="checkbox" formControlName="coverageIsOvernight" /><span>El turno cruza medianoche</span></label>
+                <label class="gi-field form-span-2"><span>Notas</span><textarea class="gi-input" rows="3" formControlName="coverageNotes"></textarea></label>
               </div>
-              <div class="form-row">
-                <label class="gi-field">
-                  Estado
-                  <select class="gi-input" formControlName="coverageStatus">
-                    <option value="Requested">Solicitada</option>
-                    <option value="Confirmed">Confirmada</option>
-                    <option value="Completed">Completada</option>
-                    <option value="Cancelled">Cancelada</option>
-                  </select>
-                </label>
-                <label class="gi-field gi-check"><input type="checkbox" formControlName="coverageIsOvernight" /> Cruza medianoche</label>
-              </div>
-              <label class="gi-field">Notas<textarea class="gi-input" rows="2" formControlName="coverageNotes"></textarea></label>
             </section>
           }
 
           @if (executionPreview(); as preview) {
             <section class="execution-preview" [class.is-ready]="preview.canExecute">
-              <h4>{{ preview.canExecute ? 'Lista para ejecutar' : 'Datos pendientes' }}</h4>
-              @if (preview.impact.length) {
-                <strong>Impacto</strong>
-                <ul>
-                  @for (item of preview.impact; track item) {
-                    <li>{{ item }}</li>
-                  }
-                </ul>
-              }
-              @if (preview.missingFields.length) {
-                <strong>Falta completar</strong>
-                <ul>
-                  @for (item of preview.missingFields; track item) {
-                    <li>{{ item }}</li>
-                  }
-                </ul>
-              }
+              <div><span aria-hidden="true">{{ preview.canExecute ? '✓' : '!' }}</span><div><h4>{{ preview.canExecute ? 'La solicitud está lista' : 'Falta completar información' }}</h4><p>{{ preview.canExecute ? 'Revisa el impacto y confirma la ejecución.' : 'Corrige los campos indicados y vuelve a validar.' }}</p></div></div>
+              @if (preview.impact.length) { <section><strong>Impacto esperado</strong><ul>@for (item of preview.impact; track item) { <li>{{ item }}</li> }</ul></section> }
+              @if (preview.missingFields.length) { <section><strong>Información pendiente</strong><ul>@for (item of preview.missingFields; track item) { <li>{{ item }}</li> }</ul></section> }
             </section>
           }
 
-          <div class="form-actions">
-            <button class="gi-button gi-button--secondary" type="button" [disabled]="saving() || !selectedRequest()" (click)="previewExecution()">
-              Validar impacto
-            </button>
-            <button class="gi-button gi-button--primary" type="submit" [disabled]="saving() || selectedRequest()?.status !== 'Approved' || !executionPreview()?.canExecute">
-              Ejecutar y completar
-            </button>
-          </div>
-        </form>
-      </article>
-
-      <article class="gi-card request-card">
-        <header>
-          <span class="eyebrow">Listado</span>
-          <h2>Solicitudes registradas</h2>
-        </header>
-
-        <div class="request-list">
-          @for (request of requests(); track request.idOperationalRequest) {
-            <button
-              class="request-item"
-              type="button"
-              [class.is-selected]="request.idOperationalRequest === selectedRequestId()"
-              (click)="selectRequest(request)"
-            >
-              <span class="request-topline">
-                <strong>{{ request.codeOperationalRequest }}</strong>
-                <i [class]="'priority priority-' + request.priority.toLowerCase()">{{ labelForPriority(request.priority) }}</i>
-              </span>
-              <span class="request-title">{{ request.title }}</span>
-              <span class="request-meta">
-                {{ labelForType(request.requestType) }} · {{ labelForStatus(request.status) }} · {{ request.requestedByName }}
-              </span>
-              @if (request.clientName || request.serviceName) {
-                <span class="request-meta">{{ request.clientName || 'Sin cliente' }} @if (request.serviceName) { · {{ request.serviceName }} }</span>
-              }
-            </button>
-          } @empty {
-            <div class="gi-empty-state">
-              <h3>Sin solicitudes</h3>
-              <p>Cuando captures una solicitud aparecerá aquí para darle seguimiento.</p>
-            </div>
-          }
-        </div>
-      </article>
-    </section>
-  </section>
+            <footer class="workspace-actions"><button class="gi-button gi-button--secondary" type="button" [disabled]="saving() || !selectedRequest() || selectedRequest()?.status !== 'Approved'" (click)="previewExecution()">Validar información</button><button class="gi-button gi-button--primary" type="submit" [disabled]="saving() || selectedRequest()?.status !== 'Approved' || !executionPreview()?.canExecute">Ejecutar solicitud</button></footer>
+          </form>
+        }
+      </section>
+    </div>
+  }
 </section>

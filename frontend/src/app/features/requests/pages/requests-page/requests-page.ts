@@ -40,11 +40,16 @@ export class RequestsPage implements OnInit {
   protected readonly filterStatus = signal<OperationalRequestStatus | ''>('');
   protected readonly filterType = signal<OperationalRequestType | ''>('');
   protected readonly search = signal('');
+  protected readonly sortMode = signal<RequestSortMode>('recent');
   protected readonly loading = signal(false);
   protected readonly saving = signal(false);
   protected readonly message = signal('');
   protected readonly error = signal('');
   protected readonly selectedRequestId = signal('');
+  protected readonly workspaceOpen = signal(false);
+  protected readonly workspaceTab = signal<RequestWorkspaceTab>('details');
+  protected readonly detailPanelOpen = signal(false);
+  protected readonly detailPanelTab = signal<RequestWorkspaceTab>('details');
   protected readonly activeExecutionType = signal<OperationalRequestType>('NewService');
   protected readonly executionPreview = signal<OperationalRequestExecutionPreview | null>(null);
 
@@ -54,9 +59,32 @@ export class RequestsPage implements OnInit {
   protected readonly criticalRequests = computed(
     () => this.requests().filter((request) => request.priority === 'Critical').length,
   );
+  protected readonly completedRequests = computed(
+    () => this.requests().filter((request) => request.status === 'Completed').length,
+  );
   protected readonly selectedRequest = computed(
     () => this.requests().find((request) => request.idOperationalRequest === this.selectedRequestId()) ?? null,
   );
+  protected readonly visibleRequests = computed(() => {
+    const priorityWeight: Record<OperationalRequestPriority, number> = {
+      Critical: 4,
+      High: 3,
+      Medium: 2,
+      Low: 1,
+    };
+
+    return [...this.requests()].sort((left, right) => {
+      switch (this.sortMode()) {
+        case 'priority':
+          return priorityWeight[right.priority] - priorityWeight[left.priority];
+        case 'needed':
+          return this.dateWeight(left.neededByDate) - this.dateWeight(right.neededByDate);
+        case 'recent':
+        default:
+          return this.dateWeight(right.updatedAt ?? right.createdAt) - this.dateWeight(left.updatedAt ?? left.createdAt);
+      }
+    });
+  });
   protected readonly workflowColumns = computed<RequestWorkflowColumn[]>(() =>
     [
       { status: 'Draft' as const, label: 'Borrador', hint: 'Pendientes de enviar' },
@@ -229,9 +257,55 @@ export class RequestsPage implements OnInit {
     this.loadRequests();
   }
 
+  protected onSortModeChange(event: Event) {
+    this.sortMode.set((event.target as HTMLSelectElement).value as RequestSortMode);
+  }
+
   protected filterByStatus(status: OperationalRequestStatus | '') {
     this.filterStatus.set(status);
     this.loadRequests();
+  }
+
+  protected openNewRequest() {
+    this.resetRequestForm();
+    this.detailPanelOpen.set(false);
+    this.workspaceTab.set('details');
+    this.workspaceOpen.set(true);
+  }
+
+  protected openSelectedRequest(tab: RequestWorkspaceTab = 'details') {
+    if (!this.selectedRequest() && tab !== 'details') {
+      return;
+    }
+
+    this.detailPanelTab.set(tab);
+    this.detailPanelOpen.set(true);
+  }
+
+  protected closeWorkspace() {
+    this.workspaceOpen.set(false);
+    this.executionPreview.set(null);
+  }
+
+  protected closeDetailPanel() {
+    this.detailPanelOpen.set(false);
+    this.executionPreview.set(null);
+  }
+
+  protected showDetailPanelTab(tab: RequestWorkspaceTab) {
+    if (tab !== 'details' && !this.selectedRequest()) {
+      return;
+    }
+
+    this.detailPanelTab.set(tab);
+  }
+
+  protected showWorkspaceTab(tab: RequestWorkspaceTab) {
+    if (tab !== 'details' && !this.selectedRequest()) {
+      return;
+    }
+
+    this.workspaceTab.set(tab);
   }
 
   protected saveRequest() {
@@ -276,10 +350,17 @@ export class RequestsPage implements OnInit {
       });
   }
 
-  protected selectRequest(request: OperationalRequest) {
+  protected selectRequest(
+    request: OperationalRequest,
+    options: { readonly open?: boolean; readonly modal?: boolean; readonly tab?: RequestWorkspaceTab } = {},
+  ) {
     this.selectedRequestId.set(request.idOperationalRequest);
     this.activeExecutionType.set(request.requestType);
     this.executionPreview.set(null);
+    this.workspaceOpen.set(options.modal ?? false);
+    this.detailPanelOpen.set(options.open ?? true);
+    this.workspaceTab.set(options.tab ?? 'details');
+    this.detailPanelTab.set(options.tab ?? 'details');
     this.requestForm.patchValue({
       codeOperationalRequest: request.codeOperationalRequest,
       idClient: request.idClient ?? '',
@@ -411,7 +492,7 @@ export class RequestsPage implements OnInit {
   }
 
   protected prepareExecution(request: OperationalRequest) {
-    this.selectRequest(request);
+    this.selectRequest(request, { open: true, tab: 'execution' });
     this.message.set('Solicitud seleccionada. Valida el impacto y completa los datos antes de ejecutar.');
   }
 
@@ -521,6 +602,19 @@ export class RequestsPage implements OnInit {
 
   protected labelForPriority(value: OperationalRequestPriority) {
     return this.priorities.find((item) => item.value === value)?.label ?? 'Prioridad normal';
+  }
+
+  protected formatDate(value: string | null) {
+    if (!value) {
+      return '';
+    }
+
+    return new Intl.DateTimeFormat('es-MX', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      timeZone: 'UTC',
+    }).format(new Date(`${value}T00:00:00Z`));
   }
 
   private loadOrganizations() {
@@ -644,10 +738,20 @@ export class RequestsPage implements OnInit {
         next: (result) => {
           this.requests.set(result.items);
           const first = result.items[0];
-          if (first && !this.selectedRequestId()) {
-            this.selectRequest(first);
-          } else if (this.selectedRequestId() && !result.items.some((request) => request.idOperationalRequest === this.selectedRequestId())) {
+          const currentSelection = result.items.find((request) => request.idOperationalRequest === this.selectedRequestId());
+
+          if (currentSelection) {
+            this.selectRequest(currentSelection, {
+              open: this.detailPanelOpen(),
+              modal: this.workspaceOpen(),
+              tab: this.detailPanelOpen() ? this.detailPanelTab() : this.workspaceTab(),
+            });
+          } else if (first) {
+            this.selectRequest(first, { open: false });
+          } else {
             this.resetRequestForm();
+            this.workspaceOpen.set(false);
+            this.detailPanelOpen.set(false);
           }
         },
         error: (error: HttpErrorResponse) => this.setError(error, 'No se pudieron cargar las solicitudes.'),
@@ -832,6 +936,16 @@ export class RequestsPage implements OnInit {
     return value.length === 5 ? `${value}:00` : value;
   }
 
+  private dateWeight(value: string | null) {
+    if (!value) {
+      return Number.MAX_SAFE_INTEGER;
+    }
+
+    const normalizedValue = value.includes('T') ? value : `${value}T00:00:00Z`;
+    const parsed = new Date(normalizedValue).getTime();
+    return Number.isFinite(parsed) ? parsed : Number.MAX_SAFE_INTEGER;
+  }
+
   private updateRequestStatus(
     request: OperationalRequest,
     status: OperationalRequestStatus,
@@ -894,6 +1008,9 @@ type RequestWorkflowColumn = {
   readonly hint: string;
   readonly requests: readonly OperationalRequest[];
 };
+
+type RequestWorkspaceTab = 'details' | 'status' | 'execution';
+type RequestSortMode = 'recent' | 'priority' | 'needed';
 
 type MutableExecutionPayload = {
   -readonly [Property in keyof ExecuteOperationalRequest]?: ExecuteOperationalRequest[Property];

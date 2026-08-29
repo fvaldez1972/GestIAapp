@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { authGuard } from './core/auth/auth.guard';
+import { authChildGuard, authGuard } from './core/auth/auth.guard';
 import { AppShell } from './core/layout/app-shell/app-shell';
 
 export const routes: Routes = [
@@ -15,7 +15,7 @@ export const routes: Routes = [
     path: '',
     component: AppShell,
     canActivate: [authGuard],
-    canActivateChild: [authGuard],
+    canActivateChild: [authChildGuard],
     children: [
       {
         path: '',
@@ -28,6 +28,7 @@ export const routes: Routes = [
       {
         path: 'clientes',
         title: 'GestIA | Clientes',
+        data: { permission: 'CLIENTS.READ' },
         loadComponent: () =>
           import('./features/clients/pages/clients-page/clients-page').then(
             (component) => component.ClientsPage,
@@ -36,6 +37,7 @@ export const routes: Routes = [
       {
         path: 'solicitudes',
         title: 'GestIA | Solicitudes',
+        data: { permission: 'REQUESTS.READ' },
         loadComponent: () =>
           import('./features/requests/pages/requests-page/requests-page').then(
             (component) => component.RequestsPage,
@@ -44,6 +46,7 @@ export const routes: Routes = [
       {
         path: 'personal',
         title: 'GestIA | Personal',
+        data: { permission: 'WORKFORCE.READ' },
         loadComponent: () =>
           import('./features/workforce/pages/workforce-page/workforce-page').then(
             (component) => component.WorkforcePage,
@@ -52,14 +55,25 @@ export const routes: Routes = [
       {
         path: 'documentos',
         title: 'GestIA | Documentos',
+        data: { permission: 'DOCUMENTS.READ' },
         loadComponent: () =>
           import('./features/documents/pages/documents-page/documents-page').then(
             (component) => component.DocumentsPage,
           ),
       },
       {
+        path: 'catalogos',
+        title: 'GestIA | Catálogos',
+        data: { permission: 'CATALOGS.READ' },
+        loadComponent: () =>
+          import('./features/catalogs/pages/catalogs-page/catalogs-page').then(
+            (component) => component.CatalogsPage,
+          ),
+      },
+      {
         path: 'planeacion',
         title: 'GestIA | Planeación',
+        data: { permission: 'PLANNING.READ' },
         loadComponent: () =>
           import('./features/planning/pages/planning-page/planning-page').then(
             (component) => component.PlanningPage,
@@ -73,6 +87,7 @@ export const routes: Routes = [
       {
         path: 'operacion/:section',
         title: 'GestIA | Operación',
+        data: { permission: 'OPERATIONS.READ' },
         loadComponent: () =>
           import('./features/operations/pages/operations-page/operations-page').then(
             (component) => component.OperationsPage,
@@ -81,6 +96,7 @@ export const routes: Routes = [
       {
         path: 'seguridad',
         title: 'GestIA | Seguridad',
+        data: { permission: 'PLATFORM.ADMIN' },
         loadComponent: () =>
           import('./features/security/pages/security-page/security-page').then(
             (component) => component.SecurityPage,
@@ -89,6 +105,7 @@ export const routes: Routes = [
       {
         path: 'reportes',
         title: 'GestIA | Reportes',
+        data: { permission: 'REPORTS.READ' },
         loadComponent: () =>
           import('./features/reports/pages/reports-page/reports-page').then(
             (component) => component.ReportsPage,
@@ -97,6 +114,7 @@ export const routes: Routes = [
       {
         path: 'auditoria',
         title: 'GestIA | Auditoría',
+        data: { permission: 'AUDIT.READ' },
         loadComponent: () =>
           import('./features/audit/pages/audit-page/audit-page').then(
             (component) => component.AuditPage,

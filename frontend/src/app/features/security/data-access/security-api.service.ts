@@ -8,6 +8,8 @@ import {
   SecurityPermission,
   SecurityRole,
   SecurityUser,
+  UpdateSecurityRole,
+  UpdateSecurityUser,
 } from './security.models';
 
 @Injectable({ providedIn: 'root' })
@@ -31,16 +33,34 @@ export class SecurityApiService {
     return this.http.post<SecurityRole>(`${this.baseUrl}/roles`, request);
   }
 
+  updateRole(idRole: string, request: UpdateSecurityRole) {
+    return this.http.put<SecurityRole>(`${this.baseUrl}/roles/${idRole}`, request);
+  }
+
   deactivateRole(idRole: string) {
     return this.http.delete<void>(`${this.baseUrl}/roles/${idRole}`);
+  }
+
+  activateRole(idRole: string) {
+    return this.http.patch<SecurityRole>(`${this.baseUrl}/roles/${idRole}/activate`, {});
   }
 
   createUser(request: CreateSecurityUser) {
     return this.http.post<SecurityUser>(`${this.baseUrl}/users`, request);
   }
 
+  updateUser(idUser: string, request: UpdateSecurityUser) {
+    return this.http.put<SecurityUser>(`${this.baseUrl}/users/${idUser}`, request);
+  }
+
   assignUserAccess(idUser: string, request: AssignSecurityUserAccess) {
     return this.http.patch<SecurityUser>(`${this.baseUrl}/users/${idUser}/access`, request);
+  }
+
+  removeUserAccess(idUser: string, organizationId: string, roleId: string) {
+    return this.http.delete<SecurityUser>(
+      `${this.baseUrl}/users/${idUser}/access?organizationId=${organizationId}&roleId=${roleId}`,
+    );
   }
 
   resetUserPassword(idUser: string, request: ResetSecurityUserPassword) {
@@ -49,5 +69,9 @@ export class SecurityApiService {
 
   deactivateUser(idUser: string) {
     return this.http.delete<void>(`${this.baseUrl}/users/${idUser}`);
+  }
+
+  activateUser(idUser: string) {
+    return this.http.patch<SecurityUser>(`${this.baseUrl}/users/${idUser}/activate`, {});
   }
 }

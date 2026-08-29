@@ -2,10 +2,13 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ClientApiService } from '../../../clients/data-access/client-api.service';
-import { Client, ManagedService, Organization } from '../../../clients/data-access/client.models';
+import { Client, ManagedService, Organization, ScheduledShift, ServicePosition } from '../../../clients/data-access/client.models';
+import { WorkforceApiService } from '../../../workforce/data-access/workforce-api.service';
+import { Employee } from '../../../workforce/data-access/workforce.models';
 import { RequestApiService } from '../../data-access/request-api.service';
 import {
   ExecuteOperationalRequest,
+  OperationalRequestExecutionPreview,
   OperationalRequest,
   OperationalRequestPriority,
   OperationalRequestStatus,
@@ -22,11 +25,15 @@ import {
 export class RequestsPage implements OnInit {
   private readonly api = inject(RequestApiService);
   private readonly clientApi = inject(ClientApiService);
+  private readonly workforceApi = inject(WorkforceApiService);
   private readonly formBuilder = inject(FormBuilder);
 
   protected readonly organizations = signal<readonly Organization[]>([]);
   protected readonly clients = signal<readonly Client[]>([]);
   protected readonly services = signal<readonly ManagedService[]>([]);
+  protected readonly employees = signal<readonly Employee[]>([]);
+  protected readonly positions = signal<readonly ServicePosition[]>([]);
+  protected readonly scheduledShifts = signal<readonly ScheduledShift[]>([]);
   protected readonly requests = signal<readonly OperationalRequest[]>([]);
   protected readonly selectedOrganizationId = signal('');
   protected readonly selectedClientId = signal('');
@@ -38,6 +45,8 @@ export class RequestsPage implements OnInit {
   protected readonly message = signal('');
   protected readonly error = signal('');
   protected readonly selectedRequestId = signal('');
+  protected readonly activeExecutionType = signal<OperationalRequestType>('NewService');
+  protected readonly executionPreview = signal<OperationalRequestExecutionPreview | null>(null);
 
   protected readonly openRequests = computed(() =>
     this.requests().filter((request) => ['Submitted', 'InReview', 'Approved'].includes(request.status)).length,
@@ -117,7 +126,41 @@ export class RequestsPage implements OnInit {
 
   protected readonly executionForm = this.formBuilder.nonNullable.group({
     executionNotes: [''],
-    executionPayload: [''],
+    clientCode: [''],
+    clientLegalName: [''],
+    clientTradeName: [''],
+    clientRfc: [''],
+    siteCode: ['SEDE-01'],
+    siteName: [''],
+    siteStreet: [''],
+    siteMunicipality: [''],
+    siteState: [''],
+    sitePostalCode: [''],
+    serviceCode: [''],
+    serviceName: [''],
+    serviceDescription: [''],
+    serviceStartDate: [this.today()],
+    configEffectiveFromDate: [this.today()],
+    configRequiredWorkerCount: [1],
+    configHoursPerDay: [8],
+    configDaysPerWeek: [6],
+    configAverageMonthlyHours: [208],
+    configPreparationLeadDays: [3],
+    configWorkScheduleDescription: [''],
+    configMonthlyPrice: [0],
+    idEmployee: [''],
+    idPosition: [''],
+    assignmentType: ['Primary'],
+    assignmentStartDate: [this.today()],
+    assignmentIsPrimary: [true],
+    assignmentNotes: [''],
+    idScheduledShift: [''],
+    idReplacementEmployee: [''],
+    coverageStartTime: ['08:00:00'],
+    coverageEndTime: ['16:00:00'],
+    coverageIsOvernight: [false],
+    coverageStatus: ['Confirmed'],
+    coverageNotes: [''],
   });
 
   ngOnInit() {
@@ -129,8 +172,13 @@ export class RequestsPage implements OnInit {
     this.selectedClientId.set('');
     this.clients.set([]);
     this.services.set([]);
+    this.positions.set([]);
+    this.scheduledShifts.set([]);
+    this.employees.set([]);
+    this.executionPreview.set(null);
     this.requestForm.patchValue({ idClient: '', idService: '' });
     this.loadClients();
+    this.loadEmployees();
     this.loadRequests();
   }
 
@@ -144,7 +192,23 @@ export class RequestsPage implements OnInit {
   protected onRequestClientChange(event: Event) {
     const clientId = (event.target as HTMLSelectElement).value;
     this.requestForm.patchValue({ idClient: clientId, idService: '' });
+    this.positions.set([]);
+    this.scheduledShifts.set([]);
+    this.executionPreview.set(null);
     this.loadServices(clientId);
+  }
+
+  protected onRequestServiceChange(event: Event) {
+    const serviceId = (event.target as HTMLSelectElement).value;
+    const clientId = this.requestForm.controls.idClient.value;
+    this.requestForm.patchValue({ idService: serviceId });
+    this.executionPreview.set(null);
+    this.loadExecutionContext(clientId, serviceId);
+  }
+
+  protected onRequestTypeChange(event: Event) {
+    this.activeExecutionType.set((event.target as HTMLSelectElement).value as OperationalRequestType);
+    this.executionPreview.set(null);
   }
 
   protected onFilterStatusChange(event: Event) {
@@ -214,6 +278,8 @@ export class RequestsPage implements OnInit {
 
   protected selectRequest(request: OperationalRequest) {
     this.selectedRequestId.set(request.idOperationalRequest);
+    this.activeExecutionType.set(request.requestType);
+    this.executionPreview.set(null);
     this.requestForm.patchValue({
       codeOperationalRequest: request.codeOperationalRequest,
       idClient: request.idClient ?? '',
@@ -230,19 +296,49 @@ export class RequestsPage implements OnInit {
       status: request.status,
       resolutionNotes: request.resolutionNotes ?? '',
     });
+    this.resetExecutionForm();
     this.executionForm.patchValue({
       executionNotes: request.resolutionNotes ?? '',
-      executionPayload: this.executionPayloadExample(request.requestType),
     });
+    if (request.requestType === 'NewService') {
+      this.executionForm.patchValue({
+        serviceCode: `${request.codeOperationalRequest}-SRV`,
+        serviceName: request.title,
+        serviceDescription: request.description,
+        configWorkScheduleDescription: request.description,
+      });
+    }
+
+    if (request.requestType === 'ServiceChange') {
+      this.executionForm.patchValue({
+        configWorkScheduleDescription: request.description,
+      });
+    }
+
+    if (request.requestType === 'StaffChange') {
+      this.executionForm.patchValue({
+        assignmentNotes: request.description,
+      });
+    }
+
+    if (request.requestType === 'CoverageSupport') {
+      this.executionForm.patchValue({
+        coverageNotes: request.description,
+      });
+    }
 
     if (request.idClient) {
       this.selectedClientId.set(request.idClient);
       this.loadServices(request.idClient);
     }
+
+    this.loadExecutionContext(request.idClient ?? '', request.idService ?? '');
   }
 
   protected resetRequestForm() {
     this.selectedRequestId.set('');
+    this.activeExecutionType.set('NewService');
+    this.executionPreview.set(null);
     this.requestForm.reset({
       codeOperationalRequest: this.nextRequestCode(),
       idClient: this.selectedClientId(),
@@ -254,6 +350,7 @@ export class RequestsPage implements OnInit {
       requestedByName: 'Operación',
       neededByDate: '',
     });
+    this.resetExecutionForm();
   }
 
   protected changeStatus() {
@@ -262,6 +359,11 @@ export class RequestsPage implements OnInit {
 
     if (!organizationId || !form.idOperationalRequest || this.statusForm.invalid) {
       this.statusForm.markAllAsTouched();
+      return;
+    }
+
+    if (form.status === 'Completed' && this.selectedRequest()?.status !== 'Completed') {
+      this.error.set('Para completar una solicitud aprobada usa la ejecución; así se crean o modifican los datos reales.');
       return;
     }
 
@@ -301,18 +403,71 @@ export class RequestsPage implements OnInit {
   }
 
   protected rejectRequest(request: OperationalRequest) {
-    this.updateRequestStatus(request, 'Rejected', 'Rechazada desde tablero operativo.');
-  }
-
-  protected executeRequest(request: OperationalRequest = this.selectedRequest()!) {
-    const organizationId = this.selectedOrganizationId();
-
-    if (!organizationId || !request) {
+    if (!window.confirm(`¿Rechazar la solicitud ${request.codeOperationalRequest}?`)) {
       return;
     }
 
-    const executionPayload = this.buildExecutionPayload();
+    this.updateRequestStatus(request, 'Rejected', 'Rechazada desde tablero operativo.');
+  }
+
+  protected prepareExecution(request: OperationalRequest) {
+    this.selectRequest(request);
+    this.message.set('Solicitud seleccionada. Valida el impacto y completa los datos antes de ejecutar.');
+  }
+
+  protected previewExecution(request: OperationalRequest | null = this.selectedRequest()) {
+    const organizationId = this.selectedOrganizationId();
+
+    if (!organizationId || !request || request.status !== 'Approved') {
+      return;
+    }
+
+    const executionPayload = this.buildExecutionPayload(request);
     if (!executionPayload) {
+      return;
+    }
+
+    this.beginSave();
+
+    this.api
+      .previewExecution(request.idOperationalRequest, {
+        idOrganization: organizationId,
+        executionNotes: this.emptyToNull(this.executionForm.controls.executionNotes.value),
+        ...executionPayload,
+      })
+      .subscribe({
+        next: (preview) => {
+          this.executionPreview.set(preview);
+          this.message.set(
+            preview.canExecute
+              ? 'La solicitud tiene los datos necesarios para ejecutarse.'
+              : 'La solicitud todavía tiene datos pendientes.',
+          );
+        },
+        error: (error: HttpErrorResponse) => this.setError(error, 'No se pudo validar la ejecución.'),
+        complete: () => this.saving.set(false),
+      });
+  }
+
+  protected executeRequest(request: OperationalRequest | null = this.selectedRequest()) {
+    const organizationId = this.selectedOrganizationId();
+
+    if (!organizationId || !request || request.status !== 'Approved') {
+      return;
+    }
+
+    const executionPayload = this.buildExecutionPayload(request);
+    if (!executionPayload) {
+      return;
+    }
+
+    const preview = this.executionPreview();
+    if (!preview?.canExecute) {
+      this.error.set('Primero valida el impacto y completa los datos pendientes antes de ejecutar.');
+      return;
+    }
+
+    if (!window.confirm(`¿Ejecutar y completar la solicitud ${request.codeOperationalRequest}? Esta acción creará o modificará datos reales.`)) {
       return;
     }
 
@@ -351,144 +506,21 @@ export class RequestsPage implements OnInit {
         return 'InReview';
       case 'InReview':
         return 'Approved';
-      case 'Approved':
-        return 'Completed';
       default:
         return null;
     }
   }
 
   protected labelForType(value: OperationalRequestType) {
-    return this.requestTypes.find((item) => item.value === value)?.label ?? value;
+    return this.requestTypes.find((item) => item.value === value)?.label ?? 'Solicitud operativa';
   }
 
   protected labelForStatus(value: OperationalRequestStatus) {
-    return this.statuses.find((item) => item.value === value)?.label ?? value;
+    return this.statuses.find((item) => item.value === value)?.label ?? 'Sin estado';
   }
 
   protected labelForPriority(value: OperationalRequestPriority) {
-    return this.priorities.find((item) => item.value === value)?.label ?? value;
-  }
-
-  protected executionPayloadExample(type: OperationalRequestType | undefined = this.selectedRequest()?.requestType) {
-    switch (type) {
-      case 'NewClient':
-        return JSON.stringify({
-          client: {
-            codeClient: 'CLI-NUEVO',
-            legalName: 'Razón Social del Cliente S.A. de C.V.',
-            tradeName: 'Cliente Comercial',
-            rfc: 'XAXX010101000',
-            nationality: 'Mexicana',
-            taxActivity: null,
-            taxAddress: 'Domicilio fiscal pendiente',
-            publicRegistryDate: null,
-            commercialRegistryFolio: null,
-            employerRegistrationNumber: null,
-            incorporationDate: null,
-            incorporationDeedNumber: null,
-            legalRepresentativeInstrumentNumber: null,
-          },
-          clientSite: {
-            codeClientSite: 'SEDE-01',
-            name: 'Sede principal',
-            street: 'Calle pendiente',
-            exteriorNumber: null,
-            interiorNumber: null,
-            neighborhood: null,
-            municipality: 'Municipio',
-            state: 'Estado',
-            postalCode: '00000',
-            countryCode: 'MX',
-            accessInstructions: null,
-            timeZoneId: 'America/Mexico_City',
-          },
-        }, null, 2);
-      case 'NewService':
-        return JSON.stringify({
-          clientSite: {
-            codeClientSite: 'SEDE-01',
-            name: 'Sede operativa',
-            street: 'Calle pendiente',
-            exteriorNumber: null,
-            interiorNumber: null,
-            neighborhood: null,
-            municipality: 'Municipio',
-            state: 'Estado',
-            postalCode: '00000',
-            countryCode: 'MX',
-            accessInstructions: null,
-            timeZoneId: 'America/Mexico_City',
-          },
-          service: {
-            idClientSite: null,
-            idServiceContract: null,
-            codeService: 'SRV-NUEVO',
-            name: 'Nuevo servicio',
-            description: 'Servicio solicitado desde flujo operativo',
-            invoiceDescription: null,
-            startDate: this.today(),
-            endDate: null,
-          },
-          serviceConfiguration: {
-            effectiveFromDate: this.today(),
-            effectiveToDate: null,
-            requiredWorkerCount: 1,
-            hoursPerDay: 8,
-            daysPerWeek: 6,
-            averageMonthlyHours: 208,
-            preparationLeadDays: 3,
-            workScheduleDescription: 'Turno por definir',
-            specificInstructions: null,
-            monthlyPrice: 0,
-            currencyCode: 'MXN',
-            isTaxIncluded: false,
-          },
-        }, null, 2);
-      case 'ServiceChange':
-        return JSON.stringify({
-          serviceConfiguration: {
-            effectiveFromDate: this.today(),
-            effectiveToDate: null,
-            requiredWorkerCount: 1,
-            hoursPerDay: 8,
-            daysPerWeek: 6,
-            averageMonthlyHours: 208,
-            preparationLeadDays: 3,
-            workScheduleDescription: 'Nueva configuración solicitada',
-            specificInstructions: null,
-            monthlyPrice: 0,
-            currencyCode: 'MXN',
-            isTaxIncluded: false,
-          },
-        }, null, 2);
-      case 'StaffChange':
-        return JSON.stringify({
-          staffAssignment: {
-            idEmployee: '00000000-0000-0000-0000-000000000000',
-            idPosition: '00000000-0000-0000-0000-000000000000',
-            assignmentType: 'Primary',
-            startDate: this.today(),
-            endDate: null,
-            isPrimary: true,
-            notes: null,
-          },
-        }, null, 2);
-      case 'CoverageSupport':
-        return JSON.stringify({
-          coverage: {
-            idScheduledShift: '00000000-0000-0000-0000-000000000000',
-            idReplacementEmployee: '00000000-0000-0000-0000-000000000000',
-            coverageStartTime: '08:00:00',
-            coverageEndTime: '16:00:00',
-            isOvernight: false,
-            status: 'Confirmed',
-            notes: null,
-          },
-        }, null, 2);
-      default:
-        return '{}';
-    }
+    return this.priorities.find((item) => item.value === value)?.label ?? 'Prioridad normal';
   }
 
   private loadOrganizations() {
@@ -500,6 +532,7 @@ export class RequestsPage implements OnInit {
         this.organizations.set(organizations);
         this.selectedOrganizationId.set(organizations[0]?.idOrganization ?? '');
         this.loadClients();
+        this.loadEmployees();
         this.loadRequests();
       },
       error: (error: HttpErrorResponse) => this.setError(error, 'No se pudieron cargar las organizaciones.'),
@@ -531,6 +564,67 @@ export class RequestsPage implements OnInit {
     this.clientApi.listServices(organizationId, clientId).subscribe({
       next: (services) => this.services.set(services),
       error: (error: HttpErrorResponse) => this.setError(error, 'No se pudieron cargar los servicios.'),
+    });
+  }
+
+  private loadEmployees() {
+    const organizationId = this.selectedOrganizationId();
+
+    if (!organizationId) {
+      this.employees.set([]);
+      return;
+    }
+
+    this.workforceApi.listEmployees(organizationId, '', 'Active', 1, 100).subscribe({
+      next: (result) => {
+        this.employees.set(result.items);
+        this.executionForm.patchValue({
+          idEmployee: this.executionForm.controls.idEmployee.value || result.items[0]?.idEmployee || '',
+          idReplacementEmployee: this.executionForm.controls.idReplacementEmployee.value || result.items[0]?.idEmployee || '',
+        });
+      },
+      error: (error: HttpErrorResponse) => this.setError(error, 'No se pudo cargar el personal activo.'),
+    });
+  }
+
+  private loadExecutionContext(clientId: string, serviceId: string) {
+    const organizationId = this.selectedOrganizationId();
+
+    if (!organizationId || !clientId || !serviceId) {
+      this.positions.set([]);
+      this.scheduledShifts.set([]);
+      return;
+    }
+
+    this.clientApi.listPositions(organizationId, clientId, serviceId).subscribe({
+      next: (positions) => {
+        this.positions.set(positions);
+        this.executionForm.patchValue({
+          idPosition: this.executionForm.controls.idPosition.value || positions[0]?.idPosition || '',
+        });
+      },
+      error: (error: HttpErrorResponse) => this.setError(error, 'No se pudieron cargar las posiciones del servicio.'),
+    });
+
+    this.clientApi.listScheduleVersions(organizationId, clientId, serviceId).subscribe({
+      next: (versions) => {
+        const version = versions.find((item) => item.status === 'Published') ?? versions[0];
+        if (!version) {
+          this.scheduledShifts.set([]);
+          return;
+        }
+
+        this.clientApi.listScheduledShifts(organizationId, clientId, serviceId, version.idScheduleVersion).subscribe({
+          next: (shifts) => {
+            this.scheduledShifts.set(shifts);
+            this.executionForm.patchValue({
+              idScheduledShift: this.executionForm.controls.idScheduledShift.value || shifts[0]?.idScheduledShift || '',
+            });
+          },
+          error: (error: HttpErrorResponse) => this.setError(error, 'No se pudieron cargar los turnos publicados.'),
+        });
+      },
+      error: (error: HttpErrorResponse) => this.setError(error, 'No se pudieron cargar las planeaciones del servicio.'),
     });
   }
 
@@ -567,25 +661,175 @@ export class RequestsPage implements OnInit {
     this.error.set('');
   }
 
-  private buildExecutionPayload(): Partial<ExecuteOperationalRequest> | null {
-    const rawPayload = this.executionForm.controls.executionPayload.value.trim();
+  private resetExecutionForm() {
+    this.executionForm.reset({
+      executionNotes: '',
+      clientCode: '',
+      clientLegalName: '',
+      clientTradeName: '',
+      clientRfc: '',
+      siteCode: 'SEDE-01',
+      siteName: '',
+      siteStreet: '',
+      siteMunicipality: '',
+      siteState: '',
+      sitePostalCode: '',
+      serviceCode: '',
+      serviceName: '',
+      serviceDescription: '',
+      serviceStartDate: this.today(),
+      configEffectiveFromDate: this.today(),
+      configRequiredWorkerCount: 1,
+      configHoursPerDay: 8,
+      configDaysPerWeek: 6,
+      configAverageMonthlyHours: 208,
+      configPreparationLeadDays: 3,
+      configWorkScheduleDescription: '',
+      configMonthlyPrice: 0,
+      idEmployee: this.employees()[0]?.idEmployee ?? '',
+      idPosition: this.positions()[0]?.idPosition ?? '',
+      assignmentType: 'Primary',
+      assignmentStartDate: this.today(),
+      assignmentIsPrimary: true,
+      assignmentNotes: '',
+      idScheduledShift: this.scheduledShifts()[0]?.idScheduledShift ?? '',
+      idReplacementEmployee: this.employees()[0]?.idEmployee ?? '',
+      coverageStartTime: '08:00:00',
+      coverageEndTime: '16:00:00',
+      coverageIsOvernight: false,
+      coverageStatus: 'Confirmed',
+      coverageNotes: '',
+    });
+  }
 
-    if (!rawPayload) {
-      return {};
+  private buildExecutionPayload(request = this.selectedRequest()): Partial<ExecuteOperationalRequest> | null {
+    const form = this.executionForm.getRawValue();
+    const type = request?.requestType ?? this.activeExecutionType();
+    const payload: MutableExecutionPayload = {};
+    const hasServiceDetails = this.hasAnyText(form.serviceCode, form.serviceName, form.serviceDescription);
+    const hasSiteDetails = this.hasAnyText(
+      form.siteName,
+      form.siteStreet,
+      form.siteMunicipality,
+      form.siteState,
+      form.sitePostalCode,
+    ) || form.siteCode.trim() !== 'SEDE-01';
+
+    if ((type === 'NewClient' || type === 'NewService') && (!request?.idClient || this.hasAnyText(
+      form.clientCode,
+      form.clientLegalName,
+      form.clientTradeName,
+      form.clientRfc,
+    ))) {
+      payload.client = {
+        codeClient: form.clientCode.trim(),
+        legalName: form.clientLegalName.trim(),
+        tradeName: this.emptyToNull(form.clientTradeName),
+        rfc: form.clientRfc.trim(),
+        nationality: 'Mexicana',
+        taxActivity: null,
+        taxAddress: null,
+        publicRegistryDate: null,
+        commercialRegistryFolio: null,
+        employerRegistrationNumber: null,
+        incorporationDate: null,
+        incorporationDeedNumber: null,
+        legalRepresentativeInstrumentNumber: null,
+      };
     }
 
-    try {
-      const parsed = JSON.parse(rawPayload) as Partial<ExecuteOperationalRequest>;
-      if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object') {
-        this.error.set('Los datos de ejecución deben ser un objeto JSON.');
-        return null;
-      }
-
-      return parsed;
-    } catch {
-      this.error.set('Los datos de ejecución no tienen formato JSON válido.');
-      return null;
+    if ((type === 'NewClient' || type === 'NewService') && hasSiteDetails) {
+      payload.clientSite = {
+        codeClientSite: form.siteCode.trim(),
+        name: form.siteName.trim(),
+        street: form.siteStreet.trim(),
+        exteriorNumber: null,
+        interiorNumber: null,
+        neighborhood: null,
+        municipality: form.siteMunicipality.trim(),
+        state: form.siteState.trim(),
+        postalCode: form.sitePostalCode.trim(),
+        countryCode: 'MX',
+        accessInstructions: null,
+        timeZoneId: 'America/Mexico_City',
+      };
     }
+
+    if (
+      (type === 'NewService' && (!request?.idService || hasServiceDetails)) ||
+      (type === 'NewClient' && hasServiceDetails)
+    ) {
+      payload.service = {
+        idClientSite: null,
+        idServiceContract: null,
+        codeService: form.serviceCode.trim(),
+        name: form.serviceName.trim(),
+        description: form.serviceDescription.trim(),
+        invoiceDescription: null,
+        startDate: form.serviceStartDate || this.today(),
+        endDate: null,
+      };
+    }
+
+    if (
+      type === 'ServiceChange' ||
+      type === 'NewService' ||
+      (type === 'NewClient' && Boolean(payload.service || request?.idService) && form.configWorkScheduleDescription.trim().length > 0)
+    ) {
+      payload.serviceConfiguration = {
+        effectiveFromDate: form.configEffectiveFromDate || this.today(),
+        effectiveToDate: null,
+        requiredWorkerCount: this.toNumber(form.configRequiredWorkerCount),
+        hoursPerDay: this.toNumber(form.configHoursPerDay),
+        daysPerWeek: this.toNumber(form.configDaysPerWeek),
+        averageMonthlyHours: this.toNumber(form.configAverageMonthlyHours),
+        preparationLeadDays: this.toNumber(form.configPreparationLeadDays),
+        workScheduleDescription: form.configWorkScheduleDescription.trim(),
+        specificInstructions: null,
+        monthlyPrice: this.toNumber(form.configMonthlyPrice),
+        currencyCode: 'MXN',
+        isTaxIncluded: false,
+      };
+    }
+
+    if (type === 'StaffChange') {
+      payload.staffAssignment = {
+        idEmployee: form.idEmployee,
+        idPosition: form.idPosition,
+        assignmentType: form.assignmentType,
+        startDate: form.assignmentStartDate || this.today(),
+        endDate: null,
+        isPrimary: form.assignmentIsPrimary,
+        notes: this.emptyToNull(form.assignmentNotes),
+      };
+    }
+
+    if (type === 'CoverageSupport') {
+      payload.coverage = {
+        idScheduledShift: form.idScheduledShift,
+        idReplacementEmployee: form.idReplacementEmployee,
+        coverageStartTime: this.normalizeTime(form.coverageStartTime),
+        coverageEndTime: this.normalizeTime(form.coverageEndTime),
+        isOvernight: form.coverageIsOvernight,
+        status: form.coverageStatus,
+        notes: this.emptyToNull(form.coverageNotes),
+      };
+    }
+
+    return payload;
+  }
+
+  private hasAnyText(...values: readonly string[]) {
+    return values.some((value) => value.trim().length > 0);
+  }
+
+  private toNumber(value: string | number) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  private normalizeTime(value: string) {
+    return value.length === 5 ? `${value}:00` : value;
   }
 
   private updateRequestStatus(
@@ -649,4 +893,8 @@ type RequestWorkflowColumn = {
   readonly label: string;
   readonly hint: string;
   readonly requests: readonly OperationalRequest[];
+};
+
+type MutableExecutionPayload = {
+  -readonly [Property in keyof ExecuteOperationalRequest]?: ExecuteOperationalRequest[Property];
 };

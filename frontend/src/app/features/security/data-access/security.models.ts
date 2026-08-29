@@ -9,6 +9,7 @@ export type SecurityUserRole = {
   readonly idRole: string;
   readonly codeRole: string;
   readonly name: string;
+  readonly idOrganization: string | null;
   readonly organizationName: string | null;
 };
 
@@ -17,6 +18,7 @@ export type SecurityUser = {
   readonly email: string;
   readonly displayName: string;
   readonly lastLoginAt: string | null;
+  readonly active: boolean;
   readonly organizations: readonly SecurityUserOrganization[];
   readonly roles: readonly SecurityUserRole[];
 };
@@ -34,6 +36,7 @@ export type SecurityRole = {
   readonly codeRole: string;
   readonly name: string;
   readonly isSystem: boolean;
+  readonly active: boolean;
   readonly permissions: readonly SecurityPermission[];
 };
 
@@ -56,9 +59,19 @@ export type ResetSecurityUserPassword = {
   readonly password: string;
 };
 
+export type UpdateSecurityUser = {
+  readonly email: string;
+  readonly displayName: string;
+};
+
 export type CreateSecurityRole = {
   readonly idOrganization: string | null;
   readonly codeRole: string;
+  readonly name: string;
+  readonly permissionCodes: readonly string[];
+};
+
+export type UpdateSecurityRole = {
   readonly name: string;
   readonly permissionCodes: readonly string[];
 };

@@ -105,6 +105,21 @@ input:focus {
   box-shadow: 0 0 0 3px rgb(34 198 238 / 18%);
 }
 
+.field-error,
+.field-help {
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.field-error {
+  color: #b42318;
+}
+
+.field-help {
+  color: #64748b;
+  font-weight: 600;
+}
+
 button {
   min-height: 44px;
   border: 0;
@@ -114,6 +129,10 @@ button {
   font: inherit;
   font-weight: 800;
   cursor: pointer;
+}
+
+button:not(:disabled):hover {
+  background: #17176a;
 }
 
 button:disabled {

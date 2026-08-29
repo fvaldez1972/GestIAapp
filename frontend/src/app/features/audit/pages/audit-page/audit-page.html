@@ -8,8 +8,8 @@
     <button class="gi-button gi-button--secondary" type="button" [disabled]="loading()" (click)="loadEvents()">
       {{ loading() ? 'Actualizando…' : 'Actualizar' }}
     </button>
-    <button class="gi-button gi-button--primary" type="button" [disabled]="events().length === 0" (click)="exportCsv()">
-      Exportar CSV
+    <button class="gi-button gi-button--primary" type="button" [disabled]="events().length === 0 || exporting()" (click)="exportCsv()">
+      {{ exporting() ? 'Exportando…' : 'Exportar CSV' }}
     </button>
   </article>
 
@@ -28,7 +28,7 @@
       <select class="gi-input" [ngModel]="selectedEntity()" (ngModelChange)="onEntityChange($event)">
         <option value="">Todas</option>
         @for (entity of entities(); track entity) {
-          <option [value]="entity">{{ entity }}</option>
+          <option [value]="entity">{{ entityLabel(entity) }}</option>
         }
       </select>
     </label>
@@ -111,15 +111,15 @@
         <tbody>
           @for (event of events(); track event.entity + event.recordId + event.action + event.occurredAt) {
             <tr>
-              <td>{{ event.occurredAt }}</td>
-              <td>{{ event.entity }}</td>
+              <td>{{ formatDateTime(event.occurredAt) }}</td>
+              <td>{{ entityLabel(event.entity) }}</td>
               <td>
                 <strong>{{ event.entityName }}</strong>
-                <small>{{ event.recordId }}</small>
+                <small [title]="event.recordId">Registro {{ compactRecordId(event.recordId) }}</small>
               </td>
               <td><span [class]="'audit-status ' + actionClass(event.action)">{{ event.action }}</span></td>
               <td>{{ event.actorName }}</td>
-              <td>{{ event.details || '—' }}</td>
+              <td [title]="event.details || ''">{{ compactDetails(event.details) }}</td>
               <td>{{ event.active ? 'Activo' : 'Inactivo' }}</td>
             </tr>
           } @empty {

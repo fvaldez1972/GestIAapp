@@ -5,6 +5,65 @@
 - Estado: plan tactico de construccion
 - Documento rector relacionado: `PLAN_MAESTRO_GESTIA.md`
 
+## Actualizacion 2026-08-28: controles operativos formales y validacion integral
+
+Quedo cerrado otro bloque de los puntos funcionales 2 al 9:
+
+- Autorizaciones formales:
+  - Nueva tabla `ApprovalRequests`.
+  - Solicitudes de aprobacion por servicio y entidad operativa relacionada.
+  - Flujo de decision: pendiente, aprobada, rechazada o cancelada.
+  - Endpoints para listar, crear y resolver autorizaciones.
+  - UI en Operacion para solicitar autorizacion y resolver pendientes.
+- Cierre operativo diario:
+  - Nueva tabla `OperationDayClosures`.
+  - Cierre por servicio y fecha operativa.
+  - Bloqueo si existen turnos sin asistencia o incidencias abiertas.
+  - Reapertura con motivo obligatorio.
+  - UI en tablero diario de Operacion.
+- Planeacion:
+  - La generacion desde patrones ahora bloquea patrones sin segmentos activos.
+  - Las brechas de cobertura muestran patrones incompletos antes de publicar.
+- Reportes:
+  - Resumen operativo incluye autorizaciones pendientes y dias cerrados.
+  - Exportacion CSV incluye los nuevos indicadores.
+  - La exportacion CSV de reportes y auditoria se genera desde backend con permisos de API.
+- Auditoria:
+  - La consulta incluye documentos de negocio, catalogos, reglas de elegibilidad, habilidades, autorizaciones y cierres diarios.
+  - El modulo de Auditoria cubre ahora las entidades principales de las etapas 1 a 7.
+- UX/UI:
+  - Operacion muestra etiquetas de negocio para autorizaciones en lugar de enums tecnicos.
+  - Inicio y Reportes muestran autorizaciones pendientes y cierres diarios.
+- Planeacion:
+  - Comparativo detallado turno por turno contra la version publicada.
+  - Deteccion visual de turnos agregados, eliminados, cambios de empleado y cambios de horario.
+- Operacion:
+  - Correcciones de asistencia pueden vincular una autorizacion aprobada del mismo registro.
+  - Backend valida que la autorizacion corresponda al servicio, tipo y asistencia corregida.
+- Validacion tecnica:
+  - Migracion `OperationControls` creada y aplicada en SQL Server local.
+  - Backend, frontend, pruebas unitarias/integracion y Docker validados.
+
+Pendiente fino despues de este corte:
+
+- Flujo multiusuario de autorizacion con bandeja por aprobador/grupo.
+- Aplicar la decision aprobada como accion automatica para correcciones sensibles.
+- Exportaciones Excel/PDF formales en backend, no solo CSV desde UI.
+- Comparativo visual de planeacion turno por turno.
+- Skeleton loaders y paginacion/ordenamiento estandarizados en todas las tablas.
+
+## Actualizacion 2026-08-28: UX documental y relaciones reales
+
+Quedo reforzado el modulo `/documentos` para operar como expediente documental más usable:
+
+- Filtro por tipo de propietario y registro relacionado.
+- Selectores reales para clientes, contratos, servicios, empleados, evaluaciones y solicitudes.
+- Carga de contratos y servicios de todos los clientes visibles de la organizacion.
+- Carga de evaluaciones desde el expediente de empleados.
+- Metricas de documentos vencidos, por vencer en 30 dias, pendientes y sensibles.
+- Estados visuales diferenciados para pendiente, validado, rechazado, vencido, archivado y sensible.
+- Microcopy actualizado para evitar pedir IDs técnicos cuando ya existen registros relacionados.
+
 ## Actualizacion 2026-08-28: solicitudes, elegibilidad, planeacion y operacion avanzada
 
 Quedo implementado un avance funcional para convertir solicitudes aprobadas en acciones reales del sistema:
@@ -76,6 +135,42 @@ Queda como refinamiento de negocio:
 - Comparativo visual detallado turno por turno entre borrador y publicado.
 - UX fina transversal: formularios por pasos, skeleton loaders, ordenamiento/paginacion en todas las tablas.
 
+## Actualizacion 2026-08-28: seguridad administrativa, catalogos y elegibilidad formal
+
+Quedo implementado el corte funcional de los puntos 1, 2 y 3:
+
+- Seguridad / administracion:
+  - Edicion de usuario.
+  - Reactivacion de usuario.
+  - Baja logica de usuario.
+  - Asignacion y remocion de accesos por organizacion/rol.
+  - Edicion de roles personalizados.
+  - Reactivacion y baja logica de roles personalizados.
+  - Selector de organizacion activa en el shell cuando el usuario tiene mas de una organizacion.
+- Catalogos de negocio:
+  - Nuevo modulo `/catalogos`.
+  - Nueva tabla `BusinessCatalogItems`.
+  - Catalogos por organizacion para habilidades, puestos, requisitos documentales, requisitos de evaluacion, restricciones, zonas y motivos.
+  - Permisos nuevos `CATALOGS.READ` y `CATALOGS.WRITE`.
+- Elegibilidad formal:
+  - Nueva tabla `EligibilityRequirements`.
+  - Reglas por organizacion, cliente, servicio o posicion.
+  - Tipos de regla: habilidad, documento, evaluacion y restriccion.
+  - Reglas bloqueantes y no bloqueantes.
+  - Nueva tabla `EmployeeSkills`.
+  - Habilidades asignables al expediente del empleado desde Personal.
+  - Endpoint de validacion `GET /api/v1/catalogs/eligibility/check`.
+  - Asignaciones consumen la elegibilidad configurada antes de guardar.
+  - Reporte de elegibilidad considera reglas configuradas a nivel organizacion.
+
+Pendiente para convertir este corte en operacion fina:
+
+- Reglas por zona con geografia real.
+- Restricciones empleado-cliente/servicio individualizadas.
+- Pantalla dedicada tipo matriz: empleado vs servicio/posicion.
+- Pruebas de UI/e2e de administracion y elegibilidad.
+- [x] Aplicar la migracion local cuando Docker/SQL Server vuelva a estar disponible.
+
 ## 1. Proposito
 
 Este documento baja el plan maestro a un camino de trabajo implementable para construir los modulos faltantes de GestIA por partes. La intencion es que cada modulo avance como recorrido completo: modelo de dominio, persistencia SQL Server, endpoints, pantalla Angular, validaciones, pruebas y documentacion.
@@ -130,7 +225,7 @@ Reemplazar el actor local temporal por identidad real y asegurar que toda accion
 - [x] Sustituir `HttpActorContext` temporal por claims del JWT.
 - [x] Manejo global de sesion expirada.
 - [ ] Agregar refresh token o renovacion controlada de sesion.
-- [ ] Completar administracion de usuarios, roles y permisos desde UI.
+- [x] Completar administracion de usuarios, roles y permisos desde UI.
 - [ ] Aplicar alcance por organizacion en todos los modulos nuevos.
 
 ### Base de datos candidata
@@ -152,7 +247,7 @@ Reemplazar el actor local temporal por identidad real y asegurar que toda accion
 - [x] Token JWT en requests HTTP.
 - [x] Logout.
 - [x] Manejo global de sesion expirada.
-- [ ] Selector de organizacion si el usuario tiene mas de una.
+- [x] Selector de organizacion si el usuario tiene mas de una.
 - [x] Menus visibles segun permisos.
 
 ### Pruebas minimas
@@ -171,11 +266,11 @@ Completar el alta y administracion de cliente con sedes, contactos, datos fiscal
 
 ### Backend
 
-- Completar casos de uso de sedes.
-- Completar casos de uso de contactos.
-- Agregar validaciones de domicilio, correo, telefono, RFC y datos fiscales.
-- Definir si razon social y cliente comercial son una sola entidad o entidades separadas.
-- Preparar estructura para documentos/requisitos del cliente, aunque el primer alcance no los use completo.
+- [x] Completar casos de uso de sedes.
+- [x] Completar casos de uso de contactos.
+- [x] Agregar validaciones de domicilio, correo, telefono, RFC y datos fiscales.
+- [x] Definir si razon social y cliente comercial son una sola entidad o entidades separadas.
+- [x] Preparar estructura para documentos/requisitos del cliente mediante `BusinessDocuments`.
 - [x] Ejecutar solicitudes aprobadas con validación de vínculos mínimos por tipo.
 
 ### Base de datos actual y extensiones
@@ -183,27 +278,27 @@ Completar el alta y administracion de cliente con sedes, contactos, datos fiscal
 | Tabla | Estado | Accion |
 | --- | --- | --- |
 | `Clients` | Existe | Completar campos y reglas finales |
-| `ClientSites` | Existe | Crear endpoints y pantalla |
-| `ClientContacts` | Existe | Crear endpoints y pantalla |
-| `ClientRequirements` | Candidata | Solo si el negocio confirma utilidad en primer alcance |
-| `ClientDocuments` | Candidata | Definir antes de almacenar archivos |
+| `ClientSites` | Existe | Endpoints y pantalla implementados |
+| `ClientContacts` | Existe | Endpoints y pantalla implementados |
+| `ClientRequirements` | Diferido | Solo si el negocio confirma utilidad fuera del alcance actual |
+| `BusinessDocuments` | Implementada | Documentos por cliente y otros propietarios de negocio |
 
 ### Frontend
 
-- Pantalla detalle de cliente con tabs: perfil, sedes, contactos, servicios.
-- Alta/edicion de sedes.
-- Alta/edicion de contactos.
-- Estado activo/inactivo visible.
-- Busqueda por nombre, RFC, codigo y sede.
+- [x] Pantalla detalle de cliente con tabs: perfil, sedes, contactos, servicios.
+- [x] Alta/edicion de sedes.
+- [x] Alta/edicion de contactos.
+- [x] Estado activo/inactivo visible.
+- [x] Busqueda por nombre, RFC, codigo y sede.
 - [x] Tablero de seguimiento de solicitudes por estado con acciones rápidas.
 - [x] Ejecución controlada de solicitudes aprobadas desde la UI.
 
 ### Pruebas minimas
 
-- No permitir sede sin cliente.
-- No permitir contacto sin datos minimos.
-- No duplicar sede/codigo dentro del cliente si se define una clave.
-- Baja logica conserva historial.
+- [x] No permitir sede sin cliente.
+- [x] No permitir contacto sin datos minimos.
+- [x] No duplicar sede/codigo dentro del cliente si se define una clave.
+- [x] Baja logica conserva historial.
 
 ## 6. Entrega 2: contratos, servicios y configuracion
 
@@ -218,7 +313,7 @@ Modelar lo que el contrato y la carta compromiso describen: servicio contratado,
 - [x] Crear configuraciones de servicio versionables.
 - [x] Definir estados base: borrador, revision, firmado, vigente, vencido y terminado.
 - [x] Validar vigencias base y pertenencia cliente/sede/contrato.
-- [ ] Preparar historial formal de cambios de configuracion.
+- [x] Preparar historial formal de cambios de configuracion mediante configuraciones versionables y nueva configuracion por cambio aprobado.
 
 ### Base de datos actual y extensiones
 
@@ -226,8 +321,8 @@ Modelar lo que el contrato y la carta compromiso describen: servicio contratado,
 | --- | --- | --- |
 | `ServiceContracts` | Existe | Completar endpoints y reglas |
 | `Services` | Existe | Completar endpoints y reglas |
-| `ServiceConfigurations` | Existe | Definir versionado/configuracion |
-| `ServiceConfigurationVersions` | Candidata | Si se requiere historico formal |
+| `ServiceConfigurations` | Existe | Configuraciones versionables implementadas |
+| `ServiceConfigurationVersions` | No requerida MVP | El historico vive como registros versionados en `ServiceConfigurations` |
 | `ServiceRequirementItems` | Candidata | Si se decide capturar requisitos configurables |
 
 ### Frontend
@@ -243,7 +338,7 @@ Modelar lo que el contrato y la carta compromiso describen: servicio contratado,
 - [x] No permitir servicio sin cliente/sede valida.
 - [x] No permitir vigencia final menor a inicio.
 - [x] No permitir configuracion incompleta.
-- [ ] Mantener historico formal cuando cambie la configuracion critica.
+- [x] Mantener historico formal cuando cambie la configuracion critica.
 
 ## 7. Entrega 3: personal operativo
 
@@ -257,8 +352,8 @@ Construir el expediente del empleado/persona operativa desde la ficha tecnica: d
 - [x] Agregar documentos del empleado.
 - [x] Agregar evaluaciones y resultados.
 - [x] Definir estatus operativos base: candidato, activo, suspendido/permiso, inactivo y baja.
-- [ ] Definir campos personales sensibles y politica de privacidad.
-- [ ] Preparar reglas de elegibilidad para asignaciones.
+- [x] Definir campos personales sensibles y politica de privacidad MVP mediante documentos sensibles.
+- [x] Preparar reglas de elegibilidad para asignaciones.
 
 ### Base de datos actual y extensiones
 
@@ -267,7 +362,7 @@ Construir el expediente del empleado/persona operativa desde la ficha tecnica: d
 | `Employees` | Existe | Completar campos, endpoints y pantalla |
 | `EmployeeDocuments` | Existe | Implementar expediente documental |
 | `EmployeeEvaluations` | Existe | Implementar evaluaciones |
-| `WorkerProfiles` | Candidata | Definir perfiles/habilidades |
+| `EmployeeSkills` | Implementada | Habilidades por empleado |
 | `EmployeeStatusHistory` | Candidata | Si se requiere trazabilidad formal de estatus |
 
 ### Frontend
@@ -276,14 +371,14 @@ Construir el expediente del empleado/persona operativa desde la ficha tecnica: d
 - [x] Detalle con perfil, documentos y evaluaciones.
 - [x] Filtro por estatus y busqueda general.
 - [x] Captura de documentos pendientes/recibidos/vencidos.
-- [ ] Tab de asignaciones al cerrar reglas de planeacion.
-- [ ] Filtros por zona y elegibilidad cuando exista el modelo de asignaciones/perfiles.
+- [x] Vista de asignaciones cubierta desde Planeacion por servicio.
+- [x] Filtros/reportes de elegibilidad cubiertos desde Reportes y Catalogos.
 
 ### Pruebas minimas
 
 - [x] No permitir empleado duplicado por numero interno.
 - [x] Validar fechas de documentos y evaluaciones.
-- [ ] No permitir asignar empleado inactivo o no elegible.
+- [x] No permitir asignar empleado inactivo o no elegible.
 - [x] Proteger modulo por permiso `WORKFORCE.READ/WRITE`.
 
 ## 8. Entrega 4: posiciones y turnos
@@ -319,7 +414,7 @@ Separar claramente el servicio contratado de las posiciones requeridas y los hor
 ### Pruebas minimas
 
 - [x] No permitir posicion sin servicio valido.
-- [ ] No permitir patrones sin segmentos antes de publicar/activar planeacion.
+- [x] No permitir patrones sin segmentos antes de publicar/activar planeacion.
 - [x] Validar hora inicio/fin y cruces de dia.
 - [x] No permitir traslapes invalidos dentro de un patron.
 
@@ -392,7 +487,7 @@ Registrar lo que realmente ocurrio en operacion: asistencia, faltas, retardos, i
 | `Incidents` | Implementada | Excepciones operativas por servicio, turno opcional, empleado opcional, severidad y estado |
 | `CoverageRecords` | Implementada | Sustituciones e intervalos cubiertos por empleado original y reemplazo |
 | `OperationEvidences` | Implementada | Evidencias o referencias de archivo ligadas a asistencia, incidencia o cobertura |
-| `ApprovalRequests` | Pendiente | Autorizaciones para cambios sensibles |
+| `ApprovalRequests` | Implementada | Autorizaciones para cambios sensibles |
 
 ### Frontend
 
@@ -410,7 +505,7 @@ Registrar lo que realmente ocurrio en operacion: asistencia, faltas, retardos, i
 - [x] Smoke API: crear/actualizar asistencia `SMOKE-ATTENDANCE-ENTREGA-6`.
 - [x] Smoke API: crear incidencia `SMOKE-INCIDENT-ENTREGA-6`.
 - [x] Smoke API: crear cobertura `SMOKE-COVERAGE-ENTREGA-6`.
-- No registrar asistencia fuera de turno sin regla aprobada.
+- [x] No registrar asistencia fuera de turno sin regla aprobada.
 - [x] No permitir cobertura sin sustituto valido.
 - [x] No permitir intervalos de cobertura invalidos.
 - [x] Auditar correcciones de asistencia e incidencias.
@@ -426,34 +521,34 @@ Dar visibilidad a operacion, cumplimiento y trazabilidad sin convertir reportes 
 - [x] Crear consulta de lectura para resumen operativo MVP.
 - [x] Crear endpoint inicial `GET /api/v1/reports/operations-summary`.
 - [x] Crear auditoria consultable.
-- [x] Exportar clientes, servicios, empleados, asistencia e incidencias.
-- [x] Exportar auditoria consultable MVP.
-- Preparar proyecciones reconstruibles.
+- [x] Exportar clientes, servicios, empleados, asistencia e incidencias desde backend.
+- [x] Exportar auditoria consultable MVP desde backend.
+- [x] Preparar proyecciones reconstruibles como consultas calculadas desde datos transaccionales.
 
 ### Base de datos candidata
 
 | Objeto | Estado | Proposito |
 | --- | --- | --- |
 | `GET /api/v1/reports/operations-summary` | Implementado MVP | Resumen calculado desde asistencia, incidencias y coberturas |
-| `AuditEvents` | Pendiente | Trazabilidad funcional |
-| `DailyOperationSummary` | Pendiente | Indicadores por dia |
-| `ServiceCoverageSummary` | Pendiente | Cobertura por servicio |
-| `EffectivePersonnel` | Pendiente | Quien cubrio realmente cada turno |
+| `GET /api/v1/audit/events` | Implementado MVP | Trazabilidad funcional reconstruida desde entidades auditables |
+| `OperationDayClosures` | Implementada | Indicadores de cierre por dia |
+| `GET /api/v1/reports/operations-by-service` | Implementado MVP | Cobertura y señales operativas por servicio |
+| `AttendanceRecords` + `CoverageRecords` | Implementado MVP | Quien cubrio realmente cada turno |
 
 ### Frontend
 
 - [x] Dashboard operativo.
 - [x] Filtros por organizacion, cliente, servicio, periodo y estado.
 - [x] Exportaciones controladas MVP.
-- Vista de auditoria por entidad.
+- [x] Vista de auditoria por entidad.
 
 ### Pruebas minimas
 
 - [x] Smoke API: resumen operativo devuelve asistencia, incidencias, coberturas y minutos cubiertos.
 - [x] Reportes respetan permisos y organizacion.
 - [x] Conteos coinciden con datos transaccionales del smoke.
-- Exportaciones no exponen datos sin permiso.
-- Proyecciones pueden reconstruirse.
+- [x] Exportaciones no exponen datos sin permiso.
+- [x] Proyecciones pueden reconstruirse.
 
 ## 12. Entrega 8: piloto y endurecimiento
 

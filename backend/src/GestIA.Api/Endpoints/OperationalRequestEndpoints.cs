@@ -71,6 +71,18 @@ public static class OperationalRequestEndpoints
             .RequirePermission(SecurityPermissions.RequestsWrite)
             .WithName("ChangeOperationalRequestStatus");
 
+        group.MapPost("/{idOperationalRequest:guid}/execution-preview", async (
+            Guid idOperationalRequest,
+            ExecuteOperationalRequestRequest request,
+            IOperationalRequestService service,
+            CancellationToken cancellationToken) =>
+        {
+            var result = await service.PreviewExecutionAsync(idOperationalRequest, request, cancellationToken);
+            return Results.Ok(result);
+        })
+            .RequirePermission(SecurityPermissions.RequestsRead)
+            .WithName("PreviewOperationalRequestExecution");
+
         group.MapPost("/{idOperationalRequest:guid}/execute", async (
             Guid idOperationalRequest,
             ExecuteOperationalRequestRequest request,

@@ -78,6 +78,18 @@
     <strong>{{ coverageCount() }}</strong>
     <small>{{ coveredHours() }} h cubiertas</small>
   </article>
+  <article>
+    <i aria-hidden="true">A</i>
+    <span>Autorizaciones</span>
+    <strong>{{ pendingApprovalCount() }}</strong>
+    <small>Pendientes de decisión</small>
+  </article>
+  <article>
+    <i aria-hidden="true">C</i>
+    <span>Cierre diario</span>
+    <strong>{{ currentDayClosure() ? 'Cerrado' : 'Abierto' }}</strong>
+    <small>{{ selectedOperationDate() }}</small>
+  </article>
 </section>
 
 @if (selectedServiceId()) {
@@ -88,9 +100,14 @@
         <h2>{{ selectedOperationDate() }}</h2>
         <p>Vista rápida de turnos publicados, asistencia capturada, incidencias y coberturas del día.</p>
       </div>
-      <button type="button" [disabled]="saving() || pendingAttendanceCount() === 0" (click)="confirmDailyAttendance()">
-        Confirmar pendientes
-      </button>
+      <div class="daily-actions">
+        <button type="button" [disabled]="saving() || pendingAttendanceCount() === 0 || currentDayClosure()" (click)="confirmDailyAttendance()">
+          Confirmar asistencia pendiente
+        </button>
+        <button type="button" [disabled]="saving() || !canCloseDay()" (click)="closeOperationDay()">
+          Cerrar día
+        </button>
+      </div>
     </header>
 
     <div class="daily-grid">
@@ -106,7 +123,30 @@
         <span>Incidencias abiertas</span>
         <strong>{{ openDailyIncidents() }}</strong>
       </article>
+      <article class="daily-kpi">
+        <span>Estado del día</span>
+        <strong>{{ currentDayClosure() ? 'Cerrado' : 'Abierto' }}</strong>
+      </article>
     </div>
+
+    <form class="day-closure-form" [formGroup]="dayClosureForm">
+      @if (currentDayClosure(); as closure) {
+        <label>
+          Motivo para reabrir
+          <textarea rows="2" formControlName="reopenReason" placeholder="Explica por qué se necesita corregir el cierre"></textarea>
+        </label>
+        <button type="button" class="button-reset" [disabled]="saving()" (click)="reopenOperationDay()">Reabrir día</button>
+        <small>Cerrado por {{ closure.closedByName }}. Asistencias: {{ closure.attendanceRecords }} / {{ closure.expectedShifts }}.</small>
+      } @else {
+        <label>
+          Nota de cierre
+          <textarea rows="2" formControlName="notes" placeholder="Resumen operativo del día"></textarea>
+        </label>
+        <small>
+          El cierre se habilita sólo cuando no hay asistencias pendientes ni incidencias abiertas.
+        </small>
+      }
+    </form>
 
     <div class="daily-shifts">
       @for (item of dailyBoard(); track item.shift.idScheduledShift) {
@@ -115,7 +155,7 @@
           <strong>{{ item.shift.employeeCode }} · {{ item.shift.employeeName }}</strong>
           <small>{{ item.shift.positionCode }} · {{ item.shift.positionName }}</small>
           <footer>
-            <i>{{ item.attendance?.status || 'Sin asistencia' }}</i>
+            <i>{{ attendanceStatusLabel(item.attendance?.status) }}</i>
             @if (item.coverage) {
               <i>Cobertura: {{ item.coverage.replacementEmployeeName }}</i>
             }
@@ -208,7 +248,7 @@
       </label>
 
       <label>
-        Retardo min.
+        Minutos de retardo
         <input type="number" min="0" formControlName="minutesLate" />
       </label>
     </div>
@@ -231,18 +271,36 @@
     </label>
 
     @if (selectedAttendance()) {
+      @if (approvedAttendanceApprovals().length) {
+        <label>
+          Autorización aprobada
+          <select formControlName="idApprovalRequest">
+            <option value="">Selecciona autorización</option>
+            @for (approval of approvedAttendanceApprovals(); track approval.idApprovalRequest) {
+              <option [value]="approval.idApprovalRequest">
+                {{ approval.requestedAt }} · {{ approval.reason }}
+              </option>
+            }
+          </select>
+        </label>
+      } @else {
+        <p class="soft-alert">
+          Esta asistencia ya fue capturada. Para corregirla, primero solicita y aprueba una autorización.
+        </p>
+      }
+
       <label>
-        Autorización de corrección
-        <textarea rows="2" formControlName="correctionAuthorizationNotes" placeholder="Ej. Autorizó supervisor / corrección por error de captura"></textarea>
+        Comentario de corrección
+        <textarea rows="2" formControlName="correctionAuthorizationNotes" placeholder="Ej. Se corrige por error de captura validado con supervisor"></textarea>
       </label>
     }
 
     <div class="form-actions">
-      <button type="submit" [disabled]="saving() || !hasPublishedShifts()">
+      <button type="submit" [disabled]="saving() || !hasPublishedShifts() || !attendanceCorrectionReady()">
         {{ selectedAttendance() ? 'Guardar corrección' : 'Guardar asistencia' }}
       </button>
       <button type="button" class="button-reset" [disabled]="saving() || pendingAttendanceCount() === 0" (click)="confirmDailyAttendance()">
-        Confirmar pendientes del día
+        Confirmar asistencia pendiente
       </button>
       @if (selectedAttendance()) {
         <button class="button-reset" type="button" [disabled]="saving()" (click)="resetAttendanceForm()">Nueva asistencia</button>
@@ -447,7 +505,7 @@
             <tr [class.is-selected]="record.idAttendanceRecord === selectedAttendanceId()" (click)="selectAttendance(record)">
               <td>{{ record.attendanceDate }}</td>
               <td>{{ record.employeeCode }} · {{ record.employeeName }}</td>
-              <td><span class="status">{{ record.status }}</span></td>
+              <td><span class="status">{{ attendanceStatusLabel(record.status) }}</span></td>
               <td>{{ record.actualStartTime || '—' }}</td>
               <td>{{ record.actualEndTime || '—' }}</td>
               <td>{{ record.minutesLate }} min</td>
@@ -490,8 +548,8 @@
               <td>{{ incident.incidentDate }}</td>
               <td>{{ incident.incidentType }}</td>
               <td>{{ incident.employeeName || 'Servicio' }}</td>
-              <td><span class="status">{{ incident.severity }}</span></td>
-              <td>{{ incident.status }}</td>
+              <td><span class="status">{{ incidentSeverityLabel(incident.severity) }}</span></td>
+              <td>{{ incidentStatusLabel(incident.status) }}</td>
             </tr>
           } @empty {
             <tr>
@@ -534,7 +592,7 @@
               <td>{{ coverage.coverageStartTime }}</td>
               <td>{{ coverage.coverageEndTime }}</td>
               <td>{{ coverage.durationMinutes }} min</td>
-              <td><span class="status">{{ coverage.status }}</span></td>
+              <td><span class="status">{{ coverageStatusLabel(coverage.status) }}</span></td>
             </tr>
           } @empty {
             <tr>
@@ -584,16 +642,16 @@
     </div>
 
     <label>
-      Archivo real
+      Archivo
       <input type="file" (change)="onEvidenceFileSelected($event)" [disabled]="uploadingEvidenceFile()" />
       <small class="form-help">
-        {{ uploadingEvidenceFile() ? 'Cargando archivo…' : 'Opcional: sube el archivo y se llenará la referencia automáticamente.' }}
+        {{ uploadingEvidenceFile() ? 'Cargando archivo…' : 'Opcional: al cargarlo se guardará la referencia del respaldo.' }}
       </small>
     </label>
 
     <label>
-      Ruta, liga o referencia generada
-      <input type="text" formControlName="storageReference" placeholder="URL, ruta generada por carga o folio documental" />
+      Referencia del respaldo
+      <input type="text" formControlName="storageReference" placeholder="Liga, folio o referencia del archivo" />
     </label>
 
     <label>
@@ -632,9 +690,9 @@
           [class.is-selected]="evidence.idOperationEvidence === selectedEvidenceId()"
           (click)="selectEvidence(evidence)"
         >
-          <span class="status">{{ evidence.evidenceType }}</span>
+          <span class="status">{{ evidenceTypeLabel(evidence.evidenceType) }}</span>
           <strong>{{ evidence.title }}</strong>
-          <small>{{ evidence.storageReference }}</small>
+          <small [title]="evidence.storageReference">{{ compactReference(evidence.storageReference) }}</small>
           @if (!evidence.active) {
             <em>Inactiva</em>
           }
@@ -649,11 +707,100 @@
 
     @if (selectedEvidence()) {
       <footer class="evidence-footer">
+        <button class="button-reset" type="button" [disabled]="saving()" (click)="downloadEvidence(selectedEvidence()!)">
+          Descargar evidencia
+        </button>
         <button class="button-danger" type="button" [disabled]="saving() || !selectedEvidence()?.active" (click)="deactivateEvidence(selectedEvidence()!)">
           Desactivar evidencia
         </button>
       </footer>
     }
+  </article>
+</section>
+}
+
+@if (selectedServiceId()) {
+<section class="approval-workspace" aria-label="Autorizaciones operativas">
+  <form class="capture-card approval-card" [formGroup]="approvalForm">
+    <header>
+      <span>Control</span>
+      <h3>Autorizaciones</h3>
+      <p>
+        Selecciona una asistencia, incidencia o cobertura y solicita autorización cuando el cambio requiera supervisión.
+      </p>
+    </header>
+
+    <label>
+      Motivo
+      <textarea rows="2" formControlName="reason" placeholder="Motivo de la corrección, cierre o excepción"></textarea>
+    </label>
+
+    <label>
+      Cambio solicitado
+      <textarea rows="2" formControlName="requestedChangeSummary" placeholder="Qué se va a corregir o autorizar"></textarea>
+    </label>
+
+    <label>
+      Aprobador asignado
+      <input type="text" formControlName="assignedApproverName" placeholder="Ej. Supervisor operativo" />
+    </label>
+
+    <label>
+      Evidencia ligada
+      <select formControlName="idOperationEvidence">
+        <option value="">Sin evidencia ligada</option>
+        @for (evidence of approvalEvidenceOptions(); track evidence.value) {
+          <option [value]="evidence.value">{{ evidence.label }}</option>
+        }
+      </select>
+    </label>
+
+    <button type="button" [disabled]="saving()" (click)="requestApprovalForSelection()">Solicitar autorización</button>
+
+    <label>
+      Nota de decisión
+      <textarea rows="2" formControlName="decisionNotes" placeholder="Comentario al aprobar o rechazar"></textarea>
+    </label>
+  </form>
+
+  <article class="panel approval-list">
+    <header>
+      <div>
+        <span>Supervisión</span>
+        <h3>Autorizaciones recientes</h3>
+      </div>
+      <span>{{ pendingApprovalCount() }} pendientes</span>
+    </header>
+
+    <div class="approval-items">
+      @for (approval of approvalRequests(); track approval.idApprovalRequest) {
+        <article class="approval-item" [class.is-pending]="approval.status === 'Pending'">
+          <div>
+            <span class="status">{{ approvalStatusLabel(approval.status) }}</span>
+            <strong>{{ approvalTypeLabel(approval.approvalType) }}</strong>
+            <small>{{ approval.reason }}</small>
+            <small>Aprobador: {{ assignedApproverLabel(approval) }}</small>
+            <small>{{ approvalEvidenceLabel(approval) }}</small>
+            @if (approval.requestedChangeSummary) {
+              <small>{{ approval.requestedChangeSummary }}</small>
+            }
+          </div>
+          @if (approval.status === 'Pending') {
+            <footer>
+              <button class="button-reset" type="button" [disabled]="saving()" (click)="decideApproval(approval, 'Approved')">Aprobar</button>
+              <button class="button-danger" type="button" [disabled]="saving()" (click)="decideApproval(approval, 'Rejected')">Rechazar</button>
+            </footer>
+          } @else {
+            <small>Resuelta por {{ approval.decidedByName || 'sistema' }}</small>
+          }
+        </article>
+      } @empty {
+        <div class="empty-state">
+          <strong>Sin autorizaciones</strong>
+          <span>Las solicitudes de corrección o excepción aparecerán aquí.</span>
+        </div>
+      }
+    </div>
   </article>
 </section>
 }

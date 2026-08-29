@@ -9,6 +9,8 @@ public static class SecurityPermissions
     public const string ClientsWrite = "CLIENTS.WRITE";
     public const string DocumentsRead = "DOCUMENTS.READ";
     public const string DocumentsWrite = "DOCUMENTS.WRITE";
+    public const string CatalogsRead = "CATALOGS.READ";
+    public const string CatalogsWrite = "CATALOGS.WRITE";
     public const string WorkforceRead = "WORKFORCE.READ";
     public const string WorkforceWrite = "WORKFORCE.WRITE";
     public const string PlanningRead = "PLANNING.READ";

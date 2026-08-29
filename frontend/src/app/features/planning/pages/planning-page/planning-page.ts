@@ -122,8 +122,76 @@ export class PlanningPage implements OnInit {
       publishedHours: this.publishedHours(),
       shiftDelta: this.shifts().length - this.publishedShifts().length,
       hourDelta: Math.round((this.plannedHours() - this.publishedHours()) * 10) / 10,
+      details: this.compareShifts(this.shifts(), this.publishedShifts()),
     };
   });
+  protected readonly planningMatrix = computed<readonly PlanningMatrixRow[]>(() =>
+    this.positions().map((position) => ({
+      position,
+      days: this.weeklyPlanning().map((day) => {
+        const shifts = day.shifts.filter((shift) => shift.idPosition === position.idPosition);
+        return {
+          date: day.date,
+          label: day.label,
+          requiredWorkerCount: position.requiredWorkerCount,
+          shifts,
+          isUnderCovered: shifts.length < position.requiredWorkerCount,
+        };
+      }),
+    })),
+  );
+  protected readonly planningValidation = computed<readonly PlanningValidationIssue[]>(() => {
+    const issues: PlanningValidationIssue[] = [];
+    const selectedVersion = this.selectedVersion();
+
+    for (const row of this.planningMatrix()) {
+      for (const day of row.days) {
+        if (day.isUnderCovered) {
+          issues.push({
+            severity: 'danger',
+            label: 'Posición sin cubrir',
+            description: `${day.label} · ${row.position.codePosition}: ${day.shifts.length}/${day.requiredWorkerCount} persona(s) asignadas.`,
+          });
+        }
+      }
+    }
+
+    for (const day of this.weeklyPlanning()) {
+      const employeeCounts = new Map<string, { name: string; count: number }>();
+
+      for (const shift of day.shifts) {
+        const current = employeeCounts.get(shift.idEmployee) ?? { name: shift.employeeName, count: 0 };
+        employeeCounts.set(shift.idEmployee, { ...current, count: current.count + 1 });
+      }
+
+      for (const duplicate of employeeCounts.values()) {
+        if (duplicate.count > 1) {
+          issues.push({
+            severity: 'warning',
+            label: 'Empleado duplicado',
+            description: `${day.label} · ${duplicate.name} aparece en ${duplicate.count} turnos.`,
+          });
+        }
+      }
+    }
+
+    if (selectedVersion) {
+      for (const shift of this.shifts()) {
+        if (shift.shiftDate < selectedVersion.periodStartDate || shift.shiftDate > selectedVersion.periodEndDate) {
+          issues.push({
+            severity: 'danger',
+            label: 'Fuera de periodo',
+            description: `${shift.shiftDate} · ${shift.employeeName} no pertenece al periodo de la versión.`,
+          });
+        }
+      }
+    }
+
+    return issues.slice(0, 16);
+  });
+  protected readonly blockingPlanningIssues = computed(() =>
+    this.planningValidation().filter((issue) => issue.severity === 'danger'),
+  );
 
   protected readonly assignmentTypes: readonly { value: ServiceAssignmentType; label: string }[] = [
     { value: 'Primary', label: 'Titular' },
@@ -489,6 +557,29 @@ export class PlanningPage implements OnInit {
     });
   }
 
+  protected onShiftDragStart(shift: ScheduledShift) {
+    this.selectedShiftId.set(shift.idScheduledShift);
+  }
+
+  protected onMatrixDragOver(event: DragEvent) {
+    event.preventDefault();
+  }
+
+  protected onMatrixDrop(event: DragEvent, position: ServicePosition, date: string) {
+    event.preventDefault();
+    const shift = this.selectedShift();
+
+    if (!shift || !this.canWrite() || this.saving()) {
+      return;
+    }
+
+    this.shiftForm.patchValue({
+      idPosition: position.idPosition,
+      shiftDate: date,
+    });
+    this.saveShift();
+  }
+
   protected resetShiftForm() {
     this.selectedShiftId.set('');
     this.shiftForm.reset({
@@ -526,11 +617,54 @@ export class PlanningPage implements OnInit {
       });
   }
 
+  protected scheduleStatusLabel(status: ScheduleVersion['status']) {
+    switch (status) {
+      case 'Published':
+        return 'Publicada';
+      case 'Superseded':
+        return 'Reemplazada';
+      default:
+        return 'Borrador';
+    }
+  }
+
+  protected scheduleStatusClass(status: ScheduleVersion['status']) {
+    switch (status) {
+      case 'Published':
+        return 'mini-pill is-success';
+      case 'Superseded':
+        return 'mini-pill is-muted';
+      default:
+        return 'mini-pill';
+    }
+  }
+
+  protected assignmentTypeLabel(type: ServiceAssignmentType) {
+    return this.assignmentTypes.find((item) => item.value === type)?.label ?? 'Asignación';
+  }
+
+  protected formatHours(minutes: number) {
+    const hours = Math.round((minutes / 60) * 10) / 10;
+    return `${hours} h`;
+  }
+
   protected publishVersion() {
     const context = this.context();
     const versionId = this.selectedVersionId();
 
     if (!context || !versionId || !this.canWrite()) {
+      return;
+    }
+
+    if (this.blockingPlanningIssues().length) {
+      this.error.set('Antes de publicar, corrige las posiciones sin cubrir o los turnos fuera del periodo.');
+      return;
+    }
+
+    const replacementMessage = this.publishedVersion()
+      ? ' Si existe una planeación publicada traslapada, será reemplazada.'
+      : '';
+    if (!window.confirm(`¿Publicar la planeación seleccionada?${replacementMessage}`)) {
       return;
     }
 
@@ -552,6 +686,10 @@ export class PlanningPage implements OnInit {
     const version = this.selectedVersion();
 
     if (!context || !versionId || version?.status !== 'Draft' || !this.canWrite()) {
+      return;
+    }
+
+    if (!window.confirm(`¿Generar turnos para "${version.name}" desde los patrones activos?`)) {
       return;
     }
 
@@ -794,6 +932,62 @@ export class PlanningPage implements OnInit {
   private nextCode(prefix: string, value: number) {
     return `${prefix}-${value.toString().padStart(3, '0')}`;
   }
+
+  private compareShifts(draftShifts: readonly ScheduledShift[], publishedShifts: readonly ScheduledShift[]) {
+    const publishedBySlot = new Map(publishedShifts.map((shift) => [this.shiftSlotKey(shift), shift]));
+    const draftBySlot = new Map(draftShifts.map((shift) => [this.shiftSlotKey(shift), shift]));
+    const details: PlanningComparisonDetail[] = [];
+
+    for (const shift of draftShifts) {
+      const published = publishedBySlot.get(this.shiftSlotKey(shift));
+
+      if (!published) {
+        details.push({
+          type: 'added',
+          label: 'Turno agregado',
+          severity: 'info',
+          description: this.shiftDescription(shift),
+        });
+        continue;
+      }
+
+      if (published.idEmployee !== shift.idEmployee) {
+        details.push({
+          type: 'employee',
+          label: 'Empleado cambiado',
+          severity: 'warning',
+          description: `${shift.shiftDate} · ${shift.positionCode}: ${published.employeeName} → ${shift.employeeName}`,
+        });
+      }
+    }
+
+    for (const shift of publishedShifts) {
+      if (!draftBySlot.has(this.shiftSlotKey(shift))) {
+        const samePositionDay = draftShifts.find(
+          (draft) => draft.shiftDate === shift.shiftDate && draft.idPosition === shift.idPosition,
+        );
+
+        details.push({
+          type: samePositionDay ? 'time' : 'removed',
+          label: samePositionDay ? 'Horario modificado' : 'Turno eliminado',
+          severity: samePositionDay ? 'warning' : 'danger',
+          description: samePositionDay
+            ? `${shift.shiftDate} · ${shift.positionCode}: ${shift.startTime}-${shift.endTime} → ${samePositionDay.startTime}-${samePositionDay.endTime}`
+            : this.shiftDescription(shift),
+        });
+      }
+    }
+
+    return details.slice(0, 20);
+  }
+
+  private shiftSlotKey(shift: ScheduledShift) {
+    return `${shift.shiftDate}|${shift.idPosition}|${shift.startTime}|${shift.endTime}|${shift.isOvernight}`;
+  }
+
+  private shiftDescription(shift: ScheduledShift) {
+    return `${shift.shiftDate} · ${shift.positionCode} · ${shift.startTime}-${shift.endTime} · ${shift.employeeName}`;
+  }
 }
 
 type PlanningDay = {
@@ -802,4 +996,30 @@ type PlanningDay = {
   readonly shifts: readonly ScheduledShift[];
   readonly totalHours: number;
   readonly coveredPositions: number;
+};
+
+type PlanningComparisonDetail = {
+  readonly type: 'added' | 'removed' | 'employee' | 'time';
+  readonly label: string;
+  readonly severity: 'info' | 'warning' | 'danger';
+  readonly description: string;
+};
+
+type PlanningMatrixRow = {
+  readonly position: ServicePosition;
+  readonly days: readonly PlanningMatrixCell[];
+};
+
+type PlanningMatrixCell = {
+  readonly date: string;
+  readonly label: string;
+  readonly requiredWorkerCount: number;
+  readonly shifts: readonly ScheduledShift[];
+  readonly isUnderCovered: boolean;
+};
+
+type PlanningValidationIssue = {
+  readonly severity: 'warning' | 'danger';
+  readonly label: string;
+  readonly description: string;
 };

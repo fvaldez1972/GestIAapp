@@ -4,11 +4,11 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { forkJoin } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { ClientApiService } from '../../../clients/data-access/client-api.service';
-import { Client, ManagedService, Organization } from '../../../clients/data-access/client.models';
+import { Client, ManagedService, Organization, ServiceContract } from '../../../clients/data-access/client.models';
 import { RequestApiService } from '../../../requests/data-access/request-api.service';
 import { OperationalRequest } from '../../../requests/data-access/request.models';
 import { WorkforceApiService } from '../../../workforce/data-access/workforce-api.service';
-import { Employee } from '../../../workforce/data-access/workforce.models';
+import { Employee, EmployeeEvaluation } from '../../../workforce/data-access/workforce.models';
 import { DocumentApiService } from '../../data-access/document-api.service';
 import {
   BusinessDocument,
@@ -33,12 +33,16 @@ export class DocumentsPage implements OnInit {
 
   protected readonly organizations = signal<readonly Organization[]>([]);
   protected readonly clients = signal<readonly Client[]>([]);
+  protected readonly contracts = signal<readonly ServiceContract[]>([]);
   protected readonly services = signal<readonly ManagedService[]>([]);
   protected readonly employees = signal<readonly Employee[]>([]);
+  protected readonly evaluations = signal<readonly DocumentEvaluationOption[]>([]);
   protected readonly requests = signal<readonly OperationalRequest[]>([]);
   protected readonly documents = signal<readonly BusinessDocument[]>([]);
   protected readonly selectedOrganizationId = signal('');
   protected readonly selectedDocumentId = signal('');
+  protected readonly selectedOwnerType = signal<BusinessDocumentOwnerType>('Client');
+  protected readonly selectedFilterOwnerType = signal<BusinessDocumentOwnerType | ''>('');
   protected readonly loading = signal(false);
   protected readonly saving = signal(false);
   protected readonly uploading = signal(false);
@@ -50,16 +54,37 @@ export class DocumentsPage implements OnInit {
     () => this.documents().find((document) => document.idBusinessDocument === this.selectedDocumentId()) ?? null,
   );
   protected readonly expiredDocuments = computed(() => this.documents().filter((document) => document.isExpired).length);
+  protected readonly pendingDocuments = computed(
+    () => this.documents().filter((document) => document.status === 'PendingReview').length,
+  );
+  protected readonly dueSoonDocuments = computed(() => {
+    const today = new Date();
+    const limit = new Date();
+    limit.setDate(today.getDate() + 30);
+
+    return this.documents().filter((document) => {
+      if (!document.expiresDate || document.isExpired) {
+        return false;
+      }
+
+      const expiresDate = new Date(`${document.expiresDate}T00:00:00`);
+      return expiresDate >= today && expiresDate <= limit;
+    }).length;
+  });
   protected readonly sensitiveDocuments = computed(
     () => this.documents().filter((document) => document.isSensitive).length,
   );
   protected readonly ownerOptions = computed(() => {
-    const ownerType = this.documentForm.controls.ownerType.value;
-    switch (ownerType) {
+    switch (this.selectedOwnerType()) {
       case 'Client':
         return this.clients().map((client) => ({
           value: client.idClient,
           label: `${client.codeClient} · ${client.tradeName || client.legalName}`,
+        }));
+      case 'ServiceContract':
+        return this.contracts().map((contract) => ({
+          value: contract.idServiceContract,
+          label: `${contract.codeServiceContract} · ${this.clientLabel(contract.idClient)}`,
         }));
       case 'Service':
         return this.services().map((service) => ({
@@ -71,6 +96,11 @@ export class DocumentsPage implements OnInit {
           value: employee.idEmployee,
           label: `${employee.codeEmployee} · ${employee.fullName}`,
         }));
+      case 'EmployeeEvaluation':
+        return this.evaluations().map((evaluation) => ({
+          value: evaluation.idEmployeeEvaluation,
+          label: `${evaluation.employeeCode} · ${evaluation.employeeName} · ${evaluation.evaluationType}`,
+        }));
       case 'OperationalRequest':
         return this.requests().map((request) => ({
           value: request.idOperationalRequest,
@@ -80,6 +110,7 @@ export class DocumentsPage implements OnInit {
         return [];
     }
   });
+  protected readonly filterOwnerOptions = computed(() => this.ownerOptionsForType(this.selectedFilterOwnerType()));
 
   protected readonly ownerTypes: readonly { value: BusinessDocumentOwnerType; label: string; help: string }[] = [
     { value: 'Client', label: 'Cliente', help: 'Contratos, alta fiscal, requisitos iniciales.' },
@@ -130,7 +161,14 @@ export class DocumentsPage implements OnInit {
   }
 
   protected onOwnerTypeChange() {
-    this.documentForm.patchValue({ ownerId: this.ownerOptions()[0]?.value ?? '' });
+    this.selectedOwnerType.set(this.documentForm.controls.ownerType.value);
+    this.patchOwnerIdIfNeeded();
+  }
+
+  protected onFilterOwnerTypeChange(event: Event) {
+    const ownerType = (event.target as HTMLSelectElement).value as BusinessDocumentOwnerType | '';
+    this.selectedFilterOwnerType.set(ownerType);
+    this.filterForm.patchValue({ ownerType, ownerId: '' });
   }
 
   protected applyFilters() {
@@ -139,6 +177,7 @@ export class DocumentsPage implements OnInit {
 
   protected selectDocument(document: BusinessDocument) {
     this.selectedDocumentId.set(document.idBusinessDocument);
+    this.selectedOwnerType.set(document.ownerType);
     this.documentForm.patchValue({
       ownerType: document.ownerType,
       ownerId: document.ownerId,
@@ -155,6 +194,7 @@ export class DocumentsPage implements OnInit {
 
   protected resetForm() {
     this.selectedDocumentId.set('');
+    this.selectedOwnerType.set('Client');
     this.documentForm.reset({
       ownerType: 'Client',
       ownerId: this.clients()[0]?.idClient ?? '',
@@ -267,11 +307,51 @@ export class DocumentsPage implements OnInit {
   }
 
   protected labelForOwnerType(value: BusinessDocumentOwnerType) {
-    return this.ownerTypes.find((item) => item.value === value)?.label ?? value;
+    return this.ownerTypes.find((item) => item.value === value)?.label ?? 'Relacionado';
   }
 
   protected labelForStatus(value: BusinessDocumentStatus) {
-    return this.statuses.find((item) => item.value === value)?.label ?? value;
+    return this.statuses.find((item) => item.value === value)?.label ?? 'Sin estado';
+  }
+
+  protected statusClass(document: BusinessDocument) {
+    if (document.isSensitive) {
+      return 'is-sensitive';
+    }
+
+    if (document.isExpired || document.status === 'Expired') {
+      return 'is-expired';
+    }
+
+    return `status-${document.status.toLowerCase()}`;
+  }
+
+  protected expiryLabel(document: BusinessDocument) {
+    if (!document.expiresDate) {
+      return 'Sin vencimiento';
+    }
+
+    if (document.isExpired) {
+      return `Vencido: ${document.expiresDate}`;
+    }
+
+    return `Vence: ${document.expiresDate}`;
+  }
+
+  protected isDueSoon(document: BusinessDocument) {
+    if (!document.expiresDate || document.isExpired) {
+      return false;
+    }
+
+    const today = new Date();
+    const limit = new Date();
+    limit.setDate(today.getDate() + 30);
+    const expiresDate = new Date(`${document.expiresDate}T00:00:00`);
+    return expiresDate >= today && expiresDate <= limit;
+  }
+
+  protected ownerTypeHelp() {
+    return this.ownerTypes.find((item) => item.value === this.selectedOwnerType())?.help ?? '';
   }
 
   private loadInitialData() {
@@ -286,6 +366,57 @@ export class DocumentsPage implements OnInit {
       error: (error: HttpErrorResponse) => this.setError(error, 'No se pudieron cargar las organizaciones.'),
       complete: () => this.loading.set(false),
     });
+  }
+
+  private ownerOptionsForType(ownerType: BusinessDocumentOwnerType | '') {
+    switch (ownerType) {
+      case 'Client':
+        return this.clients().map((client) => ({
+          value: client.idClient,
+          label: `${client.codeClient} · ${client.tradeName || client.legalName}`,
+        }));
+      case 'ServiceContract':
+        return this.contracts().map((contract) => ({
+          value: contract.idServiceContract,
+          label: `${contract.codeServiceContract} · ${this.clientLabel(contract.idClient)}`,
+        }));
+      case 'Service':
+        return this.services().map((service) => ({
+          value: service.idService,
+          label: `${service.codeService} · ${service.name}`,
+        }));
+      case 'Employee':
+        return this.employees().map((employee) => ({
+          value: employee.idEmployee,
+          label: `${employee.codeEmployee} · ${employee.fullName}`,
+        }));
+      case 'EmployeeEvaluation':
+        return this.evaluations().map((evaluation) => ({
+          value: evaluation.idEmployeeEvaluation,
+          label: `${evaluation.employeeCode} · ${evaluation.employeeName} · ${evaluation.evaluationType}`,
+        }));
+      case 'OperationalRequest':
+        return this.requests().map((request) => ({
+          value: request.idOperationalRequest,
+          label: `${request.codeOperationalRequest} · ${request.title}`,
+        }));
+      default:
+        return [];
+    }
+  }
+
+  private clientLabel(idClient: string) {
+    const client = this.clients().find((item) => item.idClient === idClient);
+    return client?.tradeName || client?.legalName || 'Cliente';
+  }
+
+  private patchOwnerIdIfNeeded() {
+    const currentOwnerId = this.documentForm.controls.ownerId.value;
+    const options = this.ownerOptions();
+
+    if (!currentOwnerId || !options.some((option) => option.value === currentOwnerId)) {
+      this.documentForm.patchValue({ ownerId: this.ownerOptions()[0]?.value ?? '' });
+    }
   }
 
   private loadCatalogs() {
@@ -303,25 +434,60 @@ export class DocumentsPage implements OnInit {
         this.clients.set(clients.items);
         this.employees.set(employees.items);
         this.requests.set(requests.items);
+        this.loadRelatedOwnerOptions(clients.items, employees.items);
         this.documentForm.patchValue({ ownerId: this.ownerOptions()[0]?.value ?? '' });
-        this.loadServicesForFirstClient();
       },
       error: (error: HttpErrorResponse) => this.setError(error, 'No se pudieron cargar los catálogos de documentos.'),
     });
   }
 
-  private loadServicesForFirstClient() {
+  private loadRelatedOwnerOptions(clients: readonly Client[], employees: readonly Employee[]) {
     const organizationId = this.selectedOrganizationId();
-    const clientId = this.clients()[0]?.idClient;
-    if (!organizationId || !clientId) {
+    if (!organizationId) {
       this.services.set([]);
+      this.contracts.set([]);
+      this.evaluations.set([]);
       return;
     }
 
-    this.clientApi.listServices(organizationId, clientId).subscribe({
-      next: (services) => this.services.set(services),
-      error: () => this.services.set([]),
-    });
+    if (clients.length) {
+      forkJoin(clients.map((client) => this.clientApi.listServices(organizationId, client.idClient))).subscribe({
+        next: (serviceGroups) => {
+          this.services.set(serviceGroups.flat());
+          this.patchOwnerIdIfNeeded();
+        },
+        error: () => this.services.set([]),
+      });
+
+      forkJoin(clients.map((client) => this.clientApi.listContracts(organizationId, client.idClient))).subscribe({
+        next: (contractGroups) => {
+          this.contracts.set(contractGroups.flat());
+          this.patchOwnerIdIfNeeded();
+        },
+        error: () => this.contracts.set([]),
+      });
+    } else {
+      this.services.set([]);
+      this.contracts.set([]);
+    }
+
+    if (employees.length) {
+      forkJoin(employees.map((employee) => this.workforceApi.getEmployee(organizationId, employee.idEmployee))).subscribe({
+        next: (details) => {
+          this.evaluations.set(details.flatMap((detail) =>
+            detail.evaluations.map((evaluation) => ({
+              ...evaluation,
+              employeeCode: detail.employee.codeEmployee,
+              employeeName: detail.employee.fullName,
+            })),
+          ));
+          this.patchOwnerIdIfNeeded();
+        },
+        error: () => this.evaluations.set([]),
+      });
+    } else {
+      this.evaluations.set([]);
+    }
   }
 
   private loadDocuments() {
@@ -385,3 +551,8 @@ export class DocumentsPage implements OnInit {
     return cleanValue.length > 0 ? cleanValue : null;
   }
 }
+
+type DocumentEvaluationOption = EmployeeEvaluation & {
+  readonly employeeCode: string;
+  readonly employeeName: string;
+};

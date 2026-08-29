@@ -548,7 +548,8 @@ export class ClientsPage implements OnInit {
       return;
     }
 
-    this.api.deactivateClient(this.selectedOrganizationId(), client.idClient).subscribe({
+    this.saving.set(true);
+    this.api.deactivateClient(this.selectedOrganizationId(), client.idClient).pipe(finalize(() => this.saving.set(false))).subscribe({
       next: () => {
         this.message.set('Cliente desactivado correctamente.');
         this.selectedClient.set(null);
@@ -656,7 +657,8 @@ export class ClientsPage implements OnInit {
       return;
     }
 
-    this.api.deactivateSite(this.selectedOrganizationId(), client.idClient, site.idClientSite).subscribe({
+    this.saving.set(true);
+    this.api.deactivateSite(this.selectedOrganizationId(), client.idClient, site.idClientSite).pipe(finalize(() => this.saving.set(false))).subscribe({
       next: () => {
         this.message.set('Sede desactivada correctamente.');
         this.loadClientDetail(client);
@@ -741,7 +743,8 @@ export class ClientsPage implements OnInit {
       return;
     }
 
-    this.api.deactivateContact(this.selectedOrganizationId(), client.idClient, contact.idClientContact).subscribe({
+    this.saving.set(true);
+    this.api.deactivateContact(this.selectedOrganizationId(), client.idClient, contact.idClientContact).pipe(finalize(() => this.saving.set(false))).subscribe({
       next: () => {
         this.message.set('Contacto desactivado correctamente.');
         this.loadClientDetail(client);
@@ -834,7 +837,8 @@ export class ClientsPage implements OnInit {
       return;
     }
 
-    this.api.deactivateContract(this.selectedOrganizationId(), client.idClient, contract.idServiceContract).subscribe({
+    this.saving.set(true);
+    this.api.deactivateContract(this.selectedOrganizationId(), client.idClient, contract.idServiceContract).pipe(finalize(() => this.saving.set(false))).subscribe({
       next: () => {
         this.message.set('Contrato desactivado correctamente.');
         this.loadClientDetail(client);
@@ -919,7 +923,8 @@ export class ClientsPage implements OnInit {
       return;
     }
 
-    this.api.deactivateService(this.selectedOrganizationId(), client.idClient, service.idService).subscribe({
+    this.saving.set(true);
+    this.api.deactivateService(this.selectedOrganizationId(), client.idClient, service.idService).pipe(finalize(() => this.saving.set(false))).subscribe({
       next: () => {
         this.message.set('Servicio desactivado correctamente.');
     if (this.selectedService()?.idService === service.idService) {
@@ -1206,8 +1211,10 @@ export class ClientsPage implements OnInit {
       return;
     }
 
+    this.saving.set(true);
     this.api
       .publishScheduleVersion(this.selectedOrganizationId(), client.idClient, service.idService, version.idScheduleVersion)
+      .pipe(finalize(() => this.saving.set(false)))
       .subscribe({
         next: (published) => {
           this.selectedScheduleVersion.set(published);
@@ -1298,6 +1305,7 @@ export class ClientsPage implements OnInit {
       return;
     }
 
+    this.saving.set(true);
     this.api
       .deactivateScheduledShift(
         this.selectedOrganizationId(),
@@ -1306,6 +1314,7 @@ export class ClientsPage implements OnInit {
         version.idScheduleVersion,
         shift.idScheduledShift,
       )
+      .pipe(finalize(() => this.saving.set(false)))
       .subscribe({
         next: () => {
           this.message.set('Turno desactivado correctamente.');
@@ -1393,8 +1402,10 @@ export class ClientsPage implements OnInit {
       return;
     }
 
+    this.saving.set(true);
     this.api
       .deactivateAssignment(this.selectedOrganizationId(), client.idClient, service.idService, assignment.idServiceAssignment)
+      .pipe(finalize(() => this.saving.set(false)))
       .subscribe({
         next: () => {
           this.message.set('Asignación desactivada correctamente.');
@@ -1495,6 +1506,7 @@ export class ClientsPage implements OnInit {
       return;
     }
 
+    this.saving.set(true);
     this.api
       .deactivateServiceConfiguration(
         this.selectedOrganizationId(),
@@ -1502,6 +1514,7 @@ export class ClientsPage implements OnInit {
         service.idService,
         configuration.idServiceConfiguration,
       )
+      .pipe(finalize(() => this.saving.set(false)))
       .subscribe({
         next: () => {
           this.message.set('Configuración desactivada correctamente.');
@@ -1584,7 +1597,8 @@ export class ClientsPage implements OnInit {
       return;
     }
 
-    this.api.deactivatePosition(this.selectedOrganizationId(), client.idClient, service.idService, position.idPosition).subscribe({
+    this.saving.set(true);
+    this.api.deactivatePosition(this.selectedOrganizationId(), client.idClient, service.idService, position.idPosition).pipe(finalize(() => this.saving.set(false))).subscribe({
       next: () => {
         this.message.set('Posición desactivada correctamente.');
         if (this.selectedPosition()?.idPosition === position.idPosition) {
@@ -1675,6 +1689,7 @@ export class ClientsPage implements OnInit {
       return;
     }
 
+    this.saving.set(true);
     this.api
       .deactivateShiftPattern(
         this.selectedOrganizationId(),
@@ -1683,6 +1698,7 @@ export class ClientsPage implements OnInit {
         position.idPosition,
         pattern.idShiftPattern,
       )
+      .pipe(finalize(() => this.saving.set(false)))
       .subscribe({
         next: () => {
           this.message.set('Patrón desactivado correctamente.');
@@ -1782,6 +1798,7 @@ export class ClientsPage implements OnInit {
       return;
     }
 
+    this.saving.set(true);
     this.api
       .deactivateShiftSegment(
         this.selectedOrganizationId(),
@@ -1791,6 +1808,7 @@ export class ClientsPage implements OnInit {
         pattern.idShiftPattern,
         segment.idShiftSegment,
       )
+      .pipe(finalize(() => this.saving.set(false)))
       .subscribe({
         next: () => {
           this.message.set('Segmento desactivado correctamente.');
@@ -1817,7 +1835,7 @@ export class ClientsPage implements OnInit {
   }
 
   protected purposeLabel(value: ClientContactPurpose): string {
-    return this.contactPurposes.find((item) => item.value === value)?.label ?? value;
+    return this.contactPurposes.find((item) => item.value === value)?.label ?? 'Contacto';
   }
 
   protected address(site: ClientSite): string {
@@ -1827,7 +1845,7 @@ export class ClientsPage implements OnInit {
   }
 
   protected contractStatusLabel(value: ServiceContractStatus): string {
-    return this.contractStatuses.find((item) => item.value === value)?.label ?? value;
+    return this.contractStatuses.find((item) => item.value === value)?.label ?? 'Sin estado';
   }
 
   protected siteName(idClientSite: string): string {
@@ -1839,7 +1857,7 @@ export class ClientsPage implements OnInit {
   }
 
   protected dayLabel(value: string): string {
-    return this.weekDays.find((day) => day.value === value)?.label ?? value;
+    return this.weekDays.find((day) => day.value === value)?.label ?? 'Día no especificado';
   }
 
   protected durationLabel(minutes: number): string {
@@ -1849,11 +1867,11 @@ export class ClientsPage implements OnInit {
   }
 
   protected assignmentTypeLabel(value: ServiceAssignmentType): string {
-    return this.assignmentTypes.find((item) => item.value === value)?.label ?? value;
+    return this.assignmentTypes.find((item) => item.value === value)?.label ?? 'Asignación';
   }
 
   protected scheduleStatusLabel(value: ScheduleVersionStatus): string {
-    return this.scheduleStatuses.find((item) => item.value === value)?.label ?? value;
+    return this.scheduleStatuses.find((item) => item.value === value)?.label ?? 'Sin estado';
   }
 
   private optional(value: string): string | null {

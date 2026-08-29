@@ -120,6 +120,94 @@
         }
       </header>
 
+      @if (planningComparison(); as comparison) {
+        <section class="comparison-detail" aria-label="Cambios detectados contra la planeación publicada">
+          <header>
+            <span class="eyebrow">Cambios detectados</span>
+            <strong>{{ comparison.details.length }} diferencia(s) principales</strong>
+          </header>
+
+          <div class="comparison-list">
+            @for (detail of comparison.details; track detail.description) {
+              <article class="comparison-item" [class.is-warning]="detail.severity === 'warning'" [class.is-danger]="detail.severity === 'danger'">
+                <span>{{ detail.label }}</span>
+                <strong>{{ detail.description }}</strong>
+              </article>
+            } @empty {
+              <div class="gi-empty-state">
+                <h3>Sin diferencias turno por turno</h3>
+                <p>La versión seleccionada coincide con la planeación publicada en horarios, posiciones y empleados.</p>
+              </div>
+            }
+          </div>
+        </section>
+      }
+
+      @if (planningValidation().length) {
+        <section class="planning-validation" aria-label="Validación antes de publicar">
+          <header>
+            <span class="eyebrow">Validación</span>
+            <strong>{{ blockingPlanningIssues().length }} bloqueo(s) para publicar</strong>
+          </header>
+
+          <div class="validation-list">
+            @for (issue of planningValidation(); track issue.description) {
+              <article class="validation-item" [class.is-danger]="issue.severity === 'danger'">
+                <span>{{ issue.label }}</span>
+                <strong>{{ issue.description }}</strong>
+              </article>
+            }
+          </div>
+        </section>
+      }
+
+      <section class="planning-matrix" aria-label="Matriz de cobertura por posición y día">
+        <header>
+          <span class="eyebrow">Matriz de cobertura</span>
+          <strong>Posición × día × empleado</strong>
+          <small>Arrastra un turno sobre otra celda para moverlo de día o posición.</small>
+        </header>
+
+        <div class="matrix-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Posición</th>
+                @for (day of weeklyPlanning(); track day.date) {
+                  <th>{{ day.label }}</th>
+                }
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of planningMatrix(); track row.position.idPosition) {
+                <tr>
+                  <th>
+                    <strong>{{ row.position.codePosition }}</strong>
+                    <small>{{ row.position.name }}</small>
+                  </th>
+                  @for (day of row.days; track day.date) {
+                    <td
+                      [class.is-under-covered]="day.isUnderCovered"
+                      (dragover)="onMatrixDragOver($event)"
+                      (drop)="onMatrixDrop($event, row.position, day.date)"
+                    >
+                      <span class="coverage-count">{{ day.shifts.length }}/{{ day.requiredWorkerCount }}</span>
+                      @for (shift of day.shifts; track shift.idScheduledShift) {
+                        <button type="button" class="matrix-shift" draggable="true" (dragstart)="onShiftDragStart(shift)" (click)="selectShift(shift)">
+                          {{ shift.startTime.slice(0, 5) }} · {{ shift.employeeName }}
+                        </button>
+                      } @empty {
+                        <span class="matrix-empty">Sin cobertura</span>
+                      }
+                    </td>
+                  }
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+
       <div class="week-grid">
         @for (day of weeklyPlanning(); track day.date) {
           <article class="day-card" [class.is-empty]="day.shifts.length === 0">
@@ -130,7 +218,7 @@
 
             <div class="day-shifts">
               @for (shift of day.shifts; track shift.idScheduledShift) {
-                <button type="button" class="day-shift" (click)="selectShift(shift)">
+                <button type="button" class="day-shift" draggable="true" (dragstart)="onShiftDragStart(shift)" (click)="selectShift(shift)">
                   <span>{{ shift.startTime }} — {{ shift.endTime }}</span>
                   <strong>{{ shift.employeeName }}</strong>
                   <small>{{ shift.positionCode }} · {{ shift.positionName }}</small>
@@ -316,7 +404,7 @@
         Versión
         <select class="gi-input" [value]="selectedVersionId()" (change)="onVersionChange($event)">
           @for (version of versions(); track version.idScheduleVersion) {
-            <option [value]="version.idScheduleVersion">{{ version.name }} · {{ version.status }}</option>
+            <option [value]="version.idScheduleVersion">{{ version.name }} · {{ scheduleStatusLabel(version.status) }}</option>
           }
         </select>
       </label>
@@ -416,7 +504,7 @@
               <tr [class.is-selected]="version.idScheduleVersion === selectedVersionId()" (click)="selectVersion(version)">
                 <td><strong>{{ version.name }}</strong></td>
                 <td>{{ version.periodStartDate }} — {{ version.periodEndDate }}</td>
-                <td><span class="mini-pill">{{ version.status }}</span></td>
+                <td><span [class]="scheduleStatusClass(version.status)">{{ scheduleStatusLabel(version.status) }}</span></td>
                 <td>{{ version.publishedByName || '—' }}</td>
               </tr>
             } @empty {
@@ -436,7 +524,7 @@
           <h2>Turnos de la versión seleccionada</h2>
         </div>
         @if (selectedVersion(); as version) {
-          <span class="gi-badge">{{ version.status }}</span>
+          <span class="gi-badge">{{ scheduleStatusLabel(version.status) }}</span>
         }
       </header>
 
@@ -459,7 +547,7 @@
                 <td>{{ shift.positionCode }} · {{ shift.positionName }}</td>
                 <td>{{ shift.employeeCode }} · {{ shift.employeeName }}</td>
                 <td>
-                  {{ shift.durationMinutes / 60 }}
+                  {{ formatHours(shift.durationMinutes) }}
                   <button class="mini-action danger" type="button" [disabled]="saving() || !canWrite()" (click)="$event.stopPropagation(); deactivateShift(shift)">
                     Desactivar
                   </button>
@@ -518,7 +606,7 @@
         @for (assignment of assignments(); track assignment.idServiceAssignment) {
           <article class="mini-card" [class.is-selected]="assignment.idServiceAssignment === selectedAssignmentId()" (click)="selectAssignment(assignment)">
             <strong>{{ assignment.employeeCode }} · {{ assignment.employeeName }}</strong>
-            <span>{{ assignment.positionName || 'Sin posición' }} · {{ assignment.assignmentType }}</span>
+            <span>{{ assignment.positionName || 'Sin posición' }} · {{ assignmentTypeLabel(assignment.assignmentType) }}</span>
             <small>{{ assignment.startDate }} — {{ assignment.endDate || 'vigente' }}</small>
             <button class="mini-action danger" type="button" [disabled]="saving() || !canWrite()" (click)="$event.stopPropagation(); deactivateAssignment(assignment)">
               Desactivar

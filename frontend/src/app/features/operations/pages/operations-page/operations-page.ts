@@ -1,4 +1,4 @@
-import { HttpErrorResponse } from '@angular/common/http';
+import { HttpErrorResponse, HttpResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -6,6 +6,9 @@ import { forkJoin } from 'rxjs';
 import { ClientApiService } from '../../../clients/data-access/client-api.service';
 import {
   AttendanceRecord,
+  ApprovalRequest,
+  ApprovalRequestStatus,
+  ApprovalRequestType,
   AttendanceStatus,
   Client,
   CoverageRecord,
@@ -16,6 +19,7 @@ import {
   ManagedService,
   OperationEvidence,
   OperationEvidenceType,
+  OperationDayClosure,
   OperationsSummary,
   Organization,
   ScheduledShift,
@@ -45,6 +49,8 @@ export class OperationsPage implements OnInit {
   protected readonly incidents = signal<readonly Incident[]>([]);
   protected readonly coverages = signal<readonly CoverageRecord[]>([]);
   protected readonly evidences = signal<readonly OperationEvidence[]>([]);
+  protected readonly approvalRequests = signal<readonly ApprovalRequest[]>([]);
+  protected readonly dayClosures = signal<readonly OperationDayClosure[]>([]);
   protected readonly scheduleVersions = signal<readonly ScheduleVersion[]>([]);
   protected readonly scheduledShifts = signal<readonly ScheduledShift[]>([]);
   protected readonly employees = signal<readonly Employee[]>([]);
@@ -55,6 +61,7 @@ export class OperationsPage implements OnInit {
   protected readonly selectedIncidentId = signal('');
   protected readonly selectedCoverageId = signal('');
   protected readonly selectedEvidenceId = signal('');
+  protected readonly selectedApprovalRequestId = signal('');
   protected readonly selectedAttendanceId = signal('');
   protected readonly selectedOperationDate = signal(this.today());
   protected readonly activeSection = signal<OperationSection>('asistencia');
@@ -72,6 +79,25 @@ export class OperationsPage implements OnInit {
   protected readonly incidentCount = computed(() => this.summary()?.incidents ?? this.incidents().length);
   protected readonly coverageCount = computed(() => this.summary()?.coverageRecords ?? this.coverages().length);
   protected readonly coveredHours = computed(() => Math.round(((this.summary()?.coveredMinutes ?? 0) / 60) * 10) / 10);
+  protected readonly pendingApprovalCount = computed(
+    () => this.approvalRequests().filter((approval) => approval.status === 'Pending').length,
+  );
+  protected readonly selectedApprovalRequest = computed(
+    () => this.approvalRequests().find((approval) => approval.idApprovalRequest === this.selectedApprovalRequestId()) ?? null,
+  );
+  protected readonly currentDayClosure = computed(
+    () =>
+      this.dayClosures().find(
+        (closure) => closure.operationDate === this.selectedOperationDate() && closure.status === 'Closed',
+      ) ?? null,
+  );
+  protected readonly canCloseDay = computed(
+    () =>
+      this.dailyBoard().length > 0 &&
+      this.pendingAttendanceCount() === 0 &&
+      this.openDailyIncidents() === 0 &&
+      !this.currentDayClosure(),
+  );
   protected readonly sectionTitle = computed(() => {
     switch (this.activeSection()) {
       case 'incidencias':
@@ -108,6 +134,34 @@ export class OperationsPage implements OnInit {
   protected readonly selectedAttendance = computed(
     () => this.attendance().find((record) => record.idAttendanceRecord === this.selectedAttendanceId()) ?? null,
   );
+  protected readonly approvedAttendanceApprovals = computed(() => {
+    const attendance = this.selectedAttendance();
+    if (!attendance) {
+      return [];
+    }
+
+    return this.approvalRequests().filter(
+      (approval) =>
+        approval.status === 'Approved' &&
+        approval.approvalType === 'AttendanceCorrection' &&
+        approval.entityType === 'AttendanceRecord' &&
+        approval.entityId === attendance.idAttendanceRecord,
+    );
+  });
+  protected readonly approvalEvidenceOptions = computed(() => {
+    const target = this.currentApprovalTarget();
+
+    if (!target) {
+      return [];
+    }
+
+    return this.evidences()
+      .filter((evidence) => this.evidenceMatchesTarget(evidence, target))
+      .map((evidence) => ({
+        value: evidence.idOperationEvidence,
+        label: `${this.evidenceTypeLabel(evidence.evidenceType)} · ${evidence.title}`,
+      }));
+  });
   protected readonly evidenceRelatedOptions = computed(() => {
     switch (this.activeSection()) {
       case 'incidencias':
@@ -189,6 +243,13 @@ export class OperationsPage implements OnInit {
     { value: 'Other', label: 'Otro' },
   ];
 
+  protected readonly approvalStatuses: readonly { value: ApprovalRequestStatus; label: string }[] = [
+    { value: 'Pending', label: 'Pendiente' },
+    { value: 'Approved', label: 'Aprobada' },
+    { value: 'Rejected', label: 'Rechazada' },
+    { value: 'Cancelled', label: 'Cancelada' },
+  ];
+
   protected readonly attendanceForm = this.formBuilder.nonNullable.group({
     idScheduledShift: ['', [Validators.required]],
     status: ['Present' as AttendanceStatus, [Validators.required]],
@@ -197,6 +258,7 @@ export class OperationsPage implements OnInit {
     minutesLate: [0, [Validators.min(0)]],
     notes: [''],
     correctionAuthorizationNotes: [''],
+    idApprovalRequest: [''],
   });
 
   protected readonly incidentForm = this.formBuilder.nonNullable.group({
@@ -225,6 +287,19 @@ export class OperationsPage implements OnInit {
     title: ['', [Validators.required, Validators.maxLength(180)]],
     storageReference: ['', [Validators.required, Validators.maxLength(500)]],
     notes: [''],
+  });
+
+  protected readonly approvalForm = this.formBuilder.nonNullable.group({
+    reason: ['', [Validators.required, Validators.maxLength(1200)]],
+    requestedChangeSummary: ['', [Validators.maxLength(2000)]],
+    assignedApproverName: ['Supervisor operativo', [Validators.maxLength(100)]],
+    idOperationEvidence: [''],
+    decisionNotes: ['', [Validators.maxLength(1200)]],
+  });
+
+  protected readonly dayClosureForm = this.formBuilder.nonNullable.group({
+    notes: ['', [Validators.maxLength(1200)]],
+    reopenReason: ['', [Validators.maxLength(1200)]],
   });
 
   ngOnInit() {
@@ -277,6 +352,77 @@ export class OperationsPage implements OnInit {
     this.selectedOperationDate.set((event.target as HTMLInputElement).value);
   }
 
+  protected closeOperationDay() {
+    const context = this.operationContext();
+    if (!context || this.dayClosureForm.controls.notes.invalid) {
+      this.dayClosureForm.markAllAsTouched();
+      return;
+    }
+
+    if (!this.canCloseDay()) {
+      this.error.set('Para cerrar el día necesitas turnos publicados, asistencia completa y cero incidencias abiertas.');
+      return;
+    }
+
+    if (!window.confirm(`¿Cerrar la operación del ${this.selectedOperationDate()} para este servicio?`)) {
+      return;
+    }
+
+    this.saving.set(true);
+    this.message.set('');
+    this.error.set('');
+
+    this.api.closeOperationDay(context.idClient, context.idService, {
+      idOrganization: context.idOrganization,
+      operationDate: this.selectedOperationDate(),
+      notes: this.emptyToNull(this.dayClosureForm.controls.notes.value),
+    }).subscribe({
+      next: () => {
+        this.message.set('Día operativo cerrado correctamente.');
+        this.dayClosureForm.patchValue({ notes: '' });
+        this.loadOperationData();
+      },
+      error: (error: HttpErrorResponse) => this.setError(error, 'No se pudo cerrar el día operativo.'),
+      complete: () => this.saving.set(false),
+    });
+  }
+
+  protected reopenOperationDay() {
+    const context = this.operationContext();
+    const closure = this.currentDayClosure();
+    const reason = this.dayClosureForm.controls.reopenReason.value.trim();
+
+    if (!context || !closure) {
+      return;
+    }
+
+    if (!reason) {
+      this.error.set('Captura el motivo para reabrir el día operativo.');
+      return;
+    }
+
+    if (!window.confirm(`¿Reabrir el cierre operativo del ${closure.operationDate}?`)) {
+      return;
+    }
+
+    this.saving.set(true);
+    this.message.set('');
+    this.error.set('');
+
+    this.api.reopenOperationDay(context.idClient, context.idService, closure.idOperationDayClosure, {
+      idOrganization: context.idOrganization,
+      reason,
+    }).subscribe({
+      next: () => {
+        this.message.set('Día operativo reabierto correctamente.');
+        this.dayClosureForm.patchValue({ reopenReason: '' });
+        this.loadOperationData();
+      },
+      error: (error: HttpErrorResponse) => this.setError(error, 'No se pudo reabrir el día operativo.'),
+      complete: () => this.saving.set(false),
+    });
+  }
+
   protected confirmDailyAttendance() {
     const context = this.operationContext();
     const pending = this.dailyBoard().filter((item) => !item.attendance);
@@ -321,6 +467,11 @@ export class OperationsPage implements OnInit {
       return;
     }
 
+    if (!this.attendanceCorrectionReady()) {
+      this.error.set('Selecciona una autorización aprobada antes de guardar la corrección de asistencia.');
+      return;
+    }
+
     const form = this.attendanceForm.getRawValue();
     this.saving.set(true);
     this.message.set('');
@@ -339,6 +490,9 @@ export class OperationsPage implements OnInit {
         notes: this.emptyToNull(form.notes),
         correctionAuthorizationNotes: this.selectedAttendance()
           ? this.emptyToNull(form.correctionAuthorizationNotes)
+          : null,
+        idApprovalRequest: this.selectedAttendance()
+          ? this.emptyToNull(form.idApprovalRequest)
           : null,
       })
       .subscribe({
@@ -362,6 +516,7 @@ export class OperationsPage implements OnInit {
       minutesLate: record.minutesLate,
       notes: record.notes ?? '',
       correctionAuthorizationNotes: '',
+      idApprovalRequest: '',
     });
   }
 
@@ -376,6 +531,7 @@ export class OperationsPage implements OnInit {
       minutesLate: 0,
       notes: '',
       correctionAuthorizationNotes: '',
+      idApprovalRequest: '',
     });
   }
 
@@ -641,7 +797,7 @@ export class OperationsPage implements OnInit {
   protected deactivateEvidence(evidence: OperationEvidence) {
     const context = this.operationContext();
 
-    if (!context) {
+    if (!context || !window.confirm(`¿Desactivar la evidencia "${evidence.title}"?`)) {
       return;
     }
 
@@ -665,6 +821,159 @@ export class OperationsPage implements OnInit {
         error: (error: HttpErrorResponse) => this.setError(error, 'No se pudo desactivar la evidencia.'),
         complete: () => this.saving.set(false),
       });
+  }
+
+  protected downloadEvidence(evidence: OperationEvidence) {
+    if (!evidence.storageReference) {
+      this.error.set('La evidencia no tiene una referencia de archivo para descargar.');
+      return;
+    }
+
+    this.api.downloadOperationEvidenceFile(evidence.storageReference).subscribe({
+      next: (response) => this.openDownloadedEvidence(response, evidence),
+      error: (error: HttpErrorResponse) => this.setError(error, 'No se pudo descargar la evidencia.'),
+    });
+  }
+
+  protected requestApprovalForSelection() {
+    const context = this.operationContext();
+    const target = this.currentApprovalTarget();
+
+    if (!context || !target || this.approvalForm.controls.reason.invalid || this.approvalForm.controls.requestedChangeSummary.invalid) {
+      this.approvalForm.markAllAsTouched();
+      if (!target) {
+        this.error.set('Selecciona una asistencia, incidencia o cobertura para solicitar autorización.');
+      }
+      return;
+    }
+
+    this.saving.set(true);
+    this.message.set('');
+    this.error.set('');
+
+    this.api.createApprovalRequest({
+      idOrganization: context.idOrganization,
+      idService: context.idService,
+      approvalType: target.approvalType,
+      entityType: target.entityType,
+      entityId: target.entityId,
+      reason: this.approvalForm.controls.reason.value.trim(),
+      requestedChangeSummary: this.emptyToNull(this.approvalForm.controls.requestedChangeSummary.value),
+      assignedApproverName: this.emptyToNull(this.approvalForm.controls.assignedApproverName.value),
+      idOperationEvidence: this.emptyToNull(this.approvalForm.controls.idOperationEvidence.value),
+    }).subscribe({
+      next: () => {
+        this.message.set('Autorización solicitada correctamente.');
+        this.approvalForm.patchValue({ reason: '', requestedChangeSummary: '', idOperationEvidence: '' });
+        this.loadOperationData();
+      },
+      error: (error: HttpErrorResponse) => this.setError(error, 'No se pudo solicitar la autorización.'),
+      complete: () => this.saving.set(false),
+    });
+  }
+
+  protected decideApproval(approval: ApprovalRequest, status: 'Approved' | 'Rejected') {
+    const organizationId = this.selectedOrganizationId();
+    if (!organizationId) {
+      return;
+    }
+
+    if (!window.confirm(`¿${status === 'Approved' ? 'Aprobar' : 'Rechazar'} esta autorización?`)) {
+      return;
+    }
+
+    this.saving.set(true);
+    this.message.set('');
+    this.error.set('');
+
+    this.api.decideApprovalRequest(approval.idApprovalRequest, {
+      idOrganization: organizationId,
+      status,
+      decisionNotes: this.emptyToNull(this.approvalForm.controls.decisionNotes.value),
+    }).subscribe({
+      next: () => {
+        this.message.set(status === 'Approved' ? 'Autorización aprobada.' : 'Autorización rechazada.');
+        this.approvalForm.patchValue({ decisionNotes: '' });
+        this.loadOperationData();
+      },
+      error: (error: HttpErrorResponse) => this.setError(error, 'No se pudo resolver la autorización.'),
+      complete: () => this.saving.set(false),
+    });
+  }
+
+  protected approvalStatusLabel(status: ApprovalRequestStatus) {
+    switch (status) {
+      case 'Approved':
+        return 'Aprobada';
+      case 'Rejected':
+        return 'Rechazada';
+      case 'Cancelled':
+        return 'Cancelada';
+      default:
+        return 'Pendiente';
+    }
+  }
+
+  protected approvalTypeLabel(type: ApprovalRequestType) {
+    switch (type) {
+      case 'IncidentClosure':
+        return 'Cierre de incidencia';
+      case 'CoverageCorrection':
+        return 'Corrección de cobertura';
+      case 'ServiceConfigurationChange':
+        return 'Cambio de configuración';
+      case 'DocumentException':
+        return 'Excepción documental';
+      case 'Other':
+        return 'Autorización operativa';
+      default:
+        return 'Corrección de asistencia';
+    }
+  }
+
+  protected attendanceStatusLabel(status?: AttendanceStatus | null) {
+    return this.attendanceStatuses.find((item) => item.value === status)?.label ?? 'Sin asistencia';
+  }
+
+  protected incidentSeverityLabel(severity: IncidentSeverity) {
+    return this.incidentSeverities.find((item) => item.value === severity)?.label ?? 'Sin clasificar';
+  }
+
+  protected incidentStatusLabel(status: IncidentStatus) {
+    return this.incidentStatuses.find((item) => item.value === status)?.label ?? 'Sin estado';
+  }
+
+  protected coverageStatusLabel(status: CoverageStatus) {
+    return this.coverageStatuses.find((item) => item.value === status)?.label ?? 'Sin estado';
+  }
+
+  protected evidenceTypeLabel(type: OperationEvidenceType) {
+    return this.evidenceTypes.find((item) => item.value === type)?.label ?? 'Evidencia';
+  }
+
+  protected attendanceCorrectionReady() {
+    return !this.selectedAttendance() || Boolean(this.attendanceForm.controls.idApprovalRequest.value);
+  }
+
+  protected assignedApproverLabel(approval: ApprovalRequest) {
+    return approval.assignedApproverName || approval.decidedByName || 'Supervisor operativo';
+  }
+
+  protected approvalEvidenceLabel(approval: ApprovalRequest) {
+    if (!approval.idOperationEvidence) {
+      return 'Sin evidencia ligada';
+    }
+
+    const evidence = this.evidences().find((item) => item.idOperationEvidence === approval.idOperationEvidence);
+    return evidence ? `${this.evidenceTypeLabel(evidence.evidenceType)} · ${evidence.title}` : 'Evidencia ligada';
+  }
+
+  protected compactReference(value: string) {
+    if (!value) {
+      return 'Sin referencia';
+    }
+
+    return value.length > 54 ? `${value.slice(0, 26)}…${value.slice(-18)}` : value;
   }
 
   private loadOrganizations() {
@@ -743,15 +1052,19 @@ export class OperationsPage implements OnInit {
       incidents: this.api.listIncidents(organizationId, clientId, serviceId),
       coverages: this.api.listCoverageRecords(organizationId, clientId, serviceId),
       evidences: this.api.listOperationEvidences(organizationId, clientId, serviceId),
+      approvals: this.api.listApprovalRequests(organizationId, serviceId),
+      closures: this.api.listOperationDayClosures(organizationId, serviceId),
       summary: this.api.getOperationsSummary(organizationId, clientId, serviceId),
       versions: this.api.listScheduleVersions(organizationId, clientId, serviceId),
       employees: this.workforceApi.listEmployees(organizationId, '', 'Active', 1, 100),
     }).subscribe({
-      next: ({ attendance, incidents, coverages, evidences, summary, versions, employees }) => {
+      next: ({ attendance, incidents, coverages, evidences, approvals, closures, summary, versions, employees }) => {
         this.attendance.set(attendance);
         this.incidents.set(incidents);
         this.coverages.set(coverages);
         this.evidences.set(evidences);
+        this.approvalRequests.set(approvals);
+        this.dayClosures.set(closures);
         this.summary.set(summary);
         this.scheduleVersions.set(versions);
         this.employees.set(employees.items);
@@ -768,6 +1081,8 @@ export class OperationsPage implements OnInit {
     this.incidents.set([]);
     this.coverages.set([]);
     this.evidences.set([]);
+    this.approvalRequests.set([]);
+    this.dayClosures.set([]);
     this.scheduleVersions.set([]);
     this.scheduledShifts.set([]);
     this.employees.set([]);
@@ -776,6 +1091,7 @@ export class OperationsPage implements OnInit {
     this.selectedAttendanceId.set('');
     this.selectedCoverageId.set('');
     this.selectedEvidenceId.set('');
+    this.selectedApprovalRequestId.set('');
   }
 
   private loadPublishedShifts() {
@@ -847,6 +1163,21 @@ export class OperationsPage implements OnInit {
     this.error.set(error.error?.detail ?? error.error?.message ?? fallback);
   }
 
+  private openDownloadedEvidence(response: HttpResponse<Blob>, evidence: OperationEvidence) {
+    const blob = response.body;
+    if (!blob) {
+      this.error.set('La descarga no regresó contenido.');
+      return;
+    }
+
+    const url = URL.createObjectURL(blob);
+    const link = window.document.createElement('a');
+    link.href = url;
+    link.download = evidence.storageReference.split('/').at(-1) || evidence.title;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
   private emptyToNull(value: string) {
     const cleanValue = value.trim();
     return cleanValue.length > 0 ? cleanValue : null;
@@ -867,6 +1198,41 @@ export class OperationsPage implements OnInit {
     }
   }
 
+  private currentApprovalTarget(): ApprovalTarget | null {
+    switch (this.activeSection()) {
+      case 'incidencias': {
+        const incident = this.selectedIncident();
+        return incident
+          ? {
+              approvalType: 'IncidentClosure',
+              entityType: 'Incident',
+              entityId: incident.idIncident,
+            }
+          : null;
+      }
+      case 'cobertura': {
+        const coverage = this.selectedCoverage();
+        return coverage
+          ? {
+              approvalType: 'CoverageCorrection',
+              entityType: 'CoverageRecord',
+              entityId: coverage.idCoverageRecord,
+            }
+          : null;
+      }
+      default: {
+        const attendance = this.selectedAttendance();
+        return attendance
+          ? {
+              approvalType: 'AttendanceCorrection',
+              entityType: 'AttendanceRecord',
+              entityId: attendance.idAttendanceRecord,
+            }
+          : null;
+      }
+    }
+  }
+
   private evidenceSection(evidence: OperationEvidence): OperationSection {
     if (evidence.idIncident) {
       return 'incidencias';
@@ -877,6 +1243,14 @@ export class OperationsPage implements OnInit {
     }
 
     return 'asistencia';
+  }
+
+  private evidenceMatchesTarget(evidence: OperationEvidence, target: ApprovalTarget) {
+    return (
+      (target.entityType === 'AttendanceRecord' && evidence.idAttendanceRecord === target.entityId) ||
+      (target.entityType === 'Incident' && evidence.idIncident === target.entityId) ||
+      (target.entityType === 'CoverageRecord' && evidence.idCoverageRecord === target.entityId)
+    );
   }
 
   private today() {
@@ -891,6 +1265,12 @@ type OperationDayShift = {
   readonly attendance: AttendanceRecord | null;
   readonly coverage: CoverageRecord | null;
   readonly incidents: readonly Incident[];
+};
+
+type ApprovalTarget = {
+  readonly approvalType: ApprovalRequestType;
+  readonly entityType: string;
+  readonly entityId: string;
 };
 
 function isOperationSection(value: string | null): value is OperationSection {

@@ -19,7 +19,9 @@ public sealed record OperationsSummaryResponse(
     int CoverageRecords,
     int ConfirmedCoverages,
     int CompletedCoverages,
-    int CoveredMinutes);
+    int CoveredMinutes,
+    int PendingApprovals,
+    int ClosedOperationDays);
 
 public sealed record OperationsServiceSummaryResponse(
     Guid IdClient,
@@ -38,7 +40,9 @@ public sealed record OperationsServiceSummaryResponse(
     int CoverageRecords,
     int ConfirmedCoverages,
     int CompletedCoverages,
-    int CoveredMinutes);
+    int CoveredMinutes,
+    int PendingApprovals,
+    int ClosedOperationDays);
 
 public sealed record WorkforceEligibilityQuery(
     Guid IdOrganization,

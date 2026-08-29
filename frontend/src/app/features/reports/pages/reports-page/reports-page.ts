@@ -34,6 +34,7 @@ export class ReportsPage implements OnInit {
   protected readonly fromDate = signal(this.firstDayOfMonth());
   protected readonly toDate = signal(this.today());
   protected readonly loading = signal(false);
+  protected readonly exporting = signal(false);
   protected readonly error = signal('');
 
   protected readonly attendanceRate = computed(() => {
@@ -108,6 +109,16 @@ export class ReportsPage implements OnInit {
         value: this.nonEligibleEmployees(),
         detail: 'Requiere revisión documental',
       },
+      {
+        label: 'Autorizaciones pendientes',
+        value: summary?.pendingApprovals ?? 0,
+        detail: 'Requieren supervisor',
+      },
+      {
+        label: 'Días cerrados',
+        value: summary?.closedOperationDays ?? 0,
+        detail: 'Cierres operativos del periodo',
+      },
     ];
   });
 
@@ -117,6 +128,20 @@ export class ReportsPage implements OnInit {
       .sort((left, right) => this.riskScore(right) - this.riskScore(left))
       .slice(0, 5),
   );
+  protected readonly attendanceDistribution = computed(() => {
+    const summary = this.summary();
+    const total = summary?.attendanceRecords ?? 0;
+
+    return [
+      { label: 'Presentes', value: summary?.presentAttendance ?? 0, className: 'is-ok' },
+      { label: 'Retardos', value: summary?.lateAttendance ?? 0, className: 'is-warning' },
+      { label: 'Faltas', value: summary?.absentAttendance ?? 0, className: 'is-danger' },
+      { label: 'Justificadas', value: summary?.excusedAttendance ?? 0, className: 'is-info' },
+    ].map((item) => ({
+      ...item,
+      percentage: total === 0 ? 0 : Math.round((item.value / total) * 100),
+    }));
+  });
 
   ngOnInit() {
     this.loadOrganizations();
@@ -164,60 +189,33 @@ export class ReportsPage implements OnInit {
     this.loadReport();
   }
 
-  protected exportCsv() {
-    const summary = this.summary();
-    if (!summary) {
+  protected exportReport(format: 'csv' | 'xlsx' | 'pdf') {
+    const organizationId = this.selectedOrganizationId();
+    if (!organizationId || this.exporting()) {
       return;
     }
 
-    const rows = [
-      ['Métrica', 'Valor'],
-      ['Asistencias capturadas', summary.attendanceRecords],
-      ['Presentes', summary.presentAttendance],
-      ['Retardos', summary.lateAttendance],
-      ['Faltas', summary.absentAttendance],
-      ['Justificadas', summary.excusedAttendance],
-      ['Incidencias', summary.incidents],
-      ['Incidencias abiertas', summary.openIncidents],
-      ['Incidencias críticas', summary.criticalIncidents],
-      ['Coberturas', summary.coverageRecords],
-      ['Coberturas confirmadas', summary.confirmedCoverages],
-      ['Coberturas completadas', summary.completedCoverages],
-      ['Minutos cubiertos', summary.coveredMinutes],
-      ['Personal elegible', this.eligibleEmployees()],
-      ['Personal no elegible', this.nonEligibleEmployees()],
-      [],
-      ['Servicio', 'Cliente', 'Asistencias', 'Presentes', 'Retardos', 'Faltas', 'Incidencias abiertas', 'Críticas', 'Coberturas', 'Horas cubiertas'],
-      ...this.serviceSummaries().map((service) => [
-        `${service.codeService} · ${service.serviceName}`,
-        service.clientName,
-        service.attendanceRecords,
-        service.presentAttendance,
-        service.lateAttendance,
-        service.absentAttendance,
-        service.openIncidents,
-        service.criticalIncidents,
-        service.coverageRecords,
-        Math.round((service.coveredMinutes / 60) * 10) / 10,
-      ]),
-      [],
-      ['Empleado', 'Puesto', 'Elegible', 'Razones'],
-      ...this.workforceEligibility().map((employee) => [
-        `${employee.codeEmployee} · ${employee.fullName}`,
-        employee.jobTitle ?? '',
-        employee.isEligible ? 'Sí' : 'No',
-        employee.reasons.join(' | '),
-      ]),
-    ];
+    this.exporting.set(true);
+    this.error.set('');
 
-    const csv = rows.map((row) => row.map((value) => `"${String(value).replaceAll('"', '""')}"`).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `gestia-reporte-operativo-${this.fromDate()}-${this.toDate()}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+    this.api
+      .exportOperationsReport(
+        organizationId,
+        this.selectedClientId() || undefined,
+        this.selectedServiceId() || undefined,
+        this.fromDate(),
+        this.toDate(),
+        format,
+      )
+      .subscribe({
+        next: (blob) => this.downloadBlob(blob, `gestia-reporte-operativo-${this.fromDate()}-${this.toDate()}.${format}`),
+        error: (error: HttpErrorResponse) => this.setError(error, 'No se pudo exportar el reporte.'),
+        complete: () => this.exporting.set(false),
+      });
+  }
+
+  protected exportCsv() {
+    this.exportReport('csv');
   }
 
   private loadOrganizations() {
@@ -369,7 +367,17 @@ export class ReportsPage implements OnInit {
 
   private setError(error: HttpErrorResponse, fallback: string) {
     this.loading.set(false);
+    this.exporting.set(false);
     this.error.set(error.error?.detail ?? error.error?.message ?? fallback);
+  }
+
+  private downloadBlob(blob: Blob, fileName: string) {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    link.click();
+    URL.revokeObjectURL(url);
   }
 
   private today() {

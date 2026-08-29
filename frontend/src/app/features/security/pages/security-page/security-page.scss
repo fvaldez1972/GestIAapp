@@ -88,6 +88,29 @@
   margin: 0;
 }
 
+.field-help {
+  color: #697792;
+  font-size: .78rem;
+  font-weight: 700;
+  line-height: 1.35;
+  margin-top: .25rem;
+}
+
+.field-help.is-warning,
+.security-note.is-warning {
+  color: #8a5a00;
+}
+
+.security-note {
+  background: #fff8e7;
+  border: 1px solid #ffe0a3;
+  border-radius: .85rem;
+  font-size: .84rem;
+  font-weight: 800;
+  margin: 0;
+  padding: .75rem .85rem;
+}
+
 .section-heading h2 {
   color: #06124a;
   font-size: 1.15rem;
@@ -141,6 +164,13 @@
   font-weight: 800;
 }
 
+.mini-pill.is-danger,
+.gi-badge.is-muted {
+  background: #fff2f2;
+  border-color: #ffd4d4;
+  color: #9b1c1c;
+}
+
 .role-list,
 .permission-groups,
 .permission-checks {
@@ -154,6 +184,15 @@
   border: 1px solid #e0e8f4;
   border-radius: 1rem;
   padding: .9rem;
+}
+
+.role-card {
+  cursor: pointer;
+}
+
+.role-card.is-selected {
+  border-color: #13bce8;
+  box-shadow: 0 0 0 3px rgba(19, 188, 232, .12);
 }
 
 .role-card strong,
@@ -175,6 +214,26 @@
   font-size: .78rem;
   font-weight: 900;
   padding: .25rem;
+}
+
+.link-action {
+  background: transparent;
+  border: 0;
+  color: #006c8d;
+  cursor: pointer;
+  font-size: .78rem;
+  font-weight: 900;
+  padding: .25rem;
+}
+
+.access-row {
+  align-items: center;
+  background: #f8fbff;
+  border: 1px solid #e0e8f4;
+  border-radius: .85rem;
+  display: flex;
+  justify-content: space-between;
+  padding: .65rem .75rem;
 }
 
 .link-danger:disabled {

@@ -53,7 +53,7 @@
             <span class="eyebrow">Nuevo acceso</span>
             <h2>Crear usuario</h2>
           </div>
-          <span class="gi-badge">Admin</span>
+          <span class="gi-badge">Administración</span>
         </div>
 
         <div class="form-row">
@@ -72,6 +72,7 @@
           <label class="gi-field">
             Contraseña temporal
             <input class="gi-input" type="password" formControlName="password" placeholder="Mínimo 12 caracteres" />
+            <small class="field-help">{{ passwordGuidance(createUserForm.controls.password.value) }}</small>
           </label>
 
           <label class="gi-field">
@@ -92,6 +93,9 @@
                 <option [value]="role.idRole">{{ role.name }}</option>
               }
             </select>
+            @if (selectedAccessRoleIsSensitive(createUserForm.controls.idRole.value)) {
+              <small class="field-help is-warning">Este rol puede administrar seguridad y debe asignarse sólo a usuarios responsables.</small>
+            }
           </label>
 
           <label class="gi-field">
@@ -112,9 +116,26 @@
             <h2>{{ selectedUser()?.displayName || 'Selecciona un usuario' }}</h2>
           </div>
           @if (selectedUser(); as user) {
-            <span class="gi-badge">{{ user.email }}</span>
+            <span class="gi-badge" [class.is-muted]="!user.active">{{ user.active ? user.email : 'Inactivo' }}</span>
           }
         </div>
+
+        <form class="admin-form" [formGroup]="editUserForm" (ngSubmit)="updateUser()">
+          <h3>Editar usuario</h3>
+          <div class="form-row">
+            <label class="gi-field">
+              Nombre
+              <input class="gi-input" type="text" formControlName="displayName" />
+            </label>
+            <label class="gi-field">
+              Correo
+              <input class="gi-input" type="email" formControlName="email" />
+            </label>
+          </div>
+          <button class="gi-button gi-button--secondary" type="submit" [disabled]="saving() || !selectedUser()">
+            Guardar usuario
+          </button>
+        </form>
 
         <form class="admin-form" [formGroup]="accessForm" (ngSubmit)="assignAccess()">
           <h3>Asignar acceso</h3>
@@ -135,6 +156,9 @@
                   <option [value]="role.idRole">{{ role.name }}</option>
                 }
               </select>
+              @if (selectedAccessRoleIsSensitive(accessForm.controls.idRole.value)) {
+                <small class="field-help is-warning">Acceso sensible: permite administrar usuarios, roles y permisos.</small>
+              }
             </label>
           </div>
 
@@ -148,11 +172,30 @@
           </button>
         </form>
 
+        @if (selectedUser(); as user) {
+          @if (user.roles.length) {
+            <div class="admin-form">
+              <h3>Accesos actuales</h3>
+              @for (role of user.roles; track role.idRole + role.organizationName) {
+                <div class="access-row">
+                  <span>{{ role.name }} · {{ role.organizationName || 'Toda la plataforma' }}</span>
+                  @if (role.idOrganization) {
+                    <button class="link-danger" type="button" [disabled]="saving()" (click)="removeUserAccess(role)">
+                      Quitar
+                    </button>
+                  }
+                </div>
+              }
+            </div>
+          }
+        }
+
         <form class="admin-form" [formGroup]="passwordForm" (ngSubmit)="resetPassword()">
-          <h3>Resetear contraseña</h3>
+          <h3>Restablecer contraseña</h3>
           <label class="gi-field">
             Nueva contraseña temporal
             <input class="gi-input" type="password" formControlName="password" placeholder="Mínimo 12 caracteres" />
+            <small class="field-help">{{ passwordGuidance(passwordForm.controls.password.value) }}</small>
           </label>
           <button class="gi-button gi-button--secondary" type="submit" [disabled]="saving() || !selectedUser()">
             Actualizar contraseña
@@ -160,9 +203,15 @@
         </form>
 
         @if (selectedUser(); as user) {
-          <button class="danger-action" type="button" [disabled]="saving()" (click)="deactivateUser(user)">
-            Desactivar usuario
-          </button>
+          @if (user.active) {
+            <button class="danger-action" type="button" [disabled]="saving()" (click)="deactivateUser(user)">
+              Desactivar usuario
+            </button>
+          } @else {
+            <button class="gi-button gi-button--primary" type="button" [disabled]="saving()" (click)="activateUser(user)">
+              Reactivar usuario
+            </button>
+          }
         }
       </article>
     </section>
@@ -200,6 +249,7 @@
                   <td>
                     <strong>{{ user.displayName }}</strong>
                     <span>{{ user.email }}</span>
+                    @if (!user.active) { <span class="mini-pill is-danger">Inactivo</span> }
                   </td>
                   <td>
                     @for (organization of user.organizations; track organization.idOrganization) {
@@ -233,8 +283,8 @@
         <form class="admin-form" [formGroup]="roleForm" (ngSubmit)="createRole()">
           <h3>Crear rol personalizado</h3>
           <label class="gi-field">
-            Clave del rol
-            <input class="gi-input" type="text" formControlName="codeRole" placeholder="Ej. SUPERVISOR_OPERACION" />
+            Código del rol
+            <input class="gi-input" type="text" formControlName="codeRole" placeholder="Ej. SUPERVISOR01" />
           </label>
 
           <label class="gi-field">
@@ -255,7 +305,7 @@
           <div class="permission-checks" aria-label="Permisos del rol">
             @for (group of permissionGroups(); track group.module) {
               <article>
-                <strong>{{ group.module }}</strong>
+                <strong>{{ permissionModuleLabel(group.module) }}</strong>
                 @for (permission of group.permissions; track permission.idPermission) {
                   <label>
                     <input
@@ -270,6 +320,12 @@
             }
           </div>
 
+          @if (selectedPermissionCodes().includes('PLATFORM.ADMIN')) {
+            <p class="security-note is-warning">
+              Este rol tendrá administración completa. Úsalo sólo para perfiles de confianza.
+            </p>
+          }
+
           <button class="gi-button gi-button--primary" type="submit" [disabled]="saving()">
             Crear rol
           </button>
@@ -277,22 +333,44 @@
 
         <div class="role-list">
           @for (role of roles(); track role.idRole) {
-            <article class="role-card">
+            <article class="role-card" [class.is-selected]="role.idRole === selectedRoleId()" (click)="selectRole(role)">
               <div>
                 <strong>{{ role.name }}</strong>
-                <span>{{ role.codeRole }}</span>
+                <span>{{ roleCodeLabel(role.codeRole) }}</span>
+                @if (!role.active) { <span class="mini-pill is-danger">Inactivo</span> }
               </div>
               <div class="role-actions">
                 <span class="gi-badge">{{ role.permissions.length }} permisos</span>
                 @if (!role.isSystem) {
-                  <button class="link-danger" type="button" [disabled]="saving()" (click)="deactivateRole(role)">
-                    Desactivar
-                  </button>
+                  @if (role.active) {
+                    <button class="link-danger" type="button" [disabled]="saving()" (click)="deactivateRole(role); $event.stopPropagation()">
+                      Desactivar
+                    </button>
+                  } @else {
+                    <button class="link-action" type="button" [disabled]="saving()" (click)="activateRole(role); $event.stopPropagation()">
+                      Reactivar
+                    </button>
+                  }
                 }
               </div>
             </article>
           }
         </div>
+
+        @if (selectedRole(); as role) {
+          @if (!role.isSystem) {
+            <form class="admin-form" [formGroup]="editRoleForm" (ngSubmit)="updateRole()">
+              <h3>Editar rol seleccionado</h3>
+              <label class="gi-field">
+                Nombre
+                <input class="gi-input" type="text" formControlName="name" />
+              </label>
+              <button class="gi-button gi-button--secondary" type="submit" [disabled]="saving()">
+                Guardar rol y permisos seleccionados
+              </button>
+            </form>
+          }
+        }
       </article>
 
       <article class="gi-card security-section">
@@ -307,7 +385,7 @@
         <div class="permission-groups">
           @for (group of permissionGroups(); track group.module) {
             <article class="permission-group">
-              <strong>{{ group.module }}</strong>
+              <strong>{{ permissionModuleLabel(group.module) }}</strong>
               <div>
                 @for (permission of group.permissions; track permission.idPermission) {
                   <span class="mini-pill">{{ permission.description }}</span>

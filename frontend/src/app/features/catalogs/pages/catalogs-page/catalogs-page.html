@@ -1,0 +1,284 @@
+<section class="catalogs-page">
+  <article class="gi-card gi-card--hero catalogs-hero">
+    <div>
+      <span class="eyebrow">Configuración operativa</span>
+      <h1>Catálogos y elegibilidad</h1>
+      <p>Administra habilidades, puestos, motivos y reglas que determinan si una persona puede asignarse a un servicio.</p>
+    </div>
+    <label class="gi-field compact-field">
+      Organización
+      <select class="gi-input" [value]="selectedOrganizationId()" (change)="selectOrganization($any($event.target).value)">
+        @for (organization of organizations(); track organization.idOrganization) {
+          <option [value]="organization.idOrganization">{{ organization.legalName }}</option>
+        }
+      </select>
+    </label>
+  </article>
+
+  @if (error()) {
+    <div class="gi-alert gi-alert--error">{{ error() }}</div>
+  }
+
+  @if (message()) {
+    <div class="gi-alert gi-alert--success">{{ message() }}</div>
+  }
+
+  <section class="catalog-summary">
+    <article class="gi-card metric-card">
+      <span>Catálogos</span>
+      <strong>{{ items().length }}</strong>
+      <small>Elementos configurados</small>
+    </article>
+    <article class="gi-card metric-card">
+      <span>Habilidades</span>
+      <strong>{{ activeSkills().length }}</strong>
+      <small>Disponibles para elegibilidad</small>
+    </article>
+    <article class="gi-card metric-card">
+      <span>Reglas</span>
+      <strong>{{ requirements().length }}</strong>
+      <small>Validaciones configuradas</small>
+    </article>
+  </section>
+
+  <section class="catalog-grid">
+    <form class="gi-card module-card" [formGroup]="catalogForm" (ngSubmit)="saveCatalogItem()">
+      <div class="section-heading">
+        <div>
+          <span class="eyebrow">Catálogo</span>
+          <h2>{{ selectedCatalogItem() ? 'Editar elemento' : 'Nuevo elemento' }}</h2>
+        </div>
+        @if (selectedCatalogItem()) {
+          <button class="link-action" type="button" (click)="resetCatalogForm()">Nuevo</button>
+        }
+      </div>
+
+      <label class="gi-field">
+        Tipo
+        <select class="gi-input" formControlName="type">
+          @for (type of catalogTypes; track type.value) {
+            <option [value]="type.value">{{ type.label }}</option>
+          }
+        </select>
+      </label>
+
+      <div class="form-row">
+        <label class="gi-field">
+          Clave
+          <input class="gi-input" type="text" formControlName="code" placeholder="Ej. GUARDIA01" />
+        </label>
+        <label class="gi-field">
+          Nombre
+          <input class="gi-input" type="text" formControlName="name" placeholder="Ej. Guardia armado" />
+        </label>
+      </div>
+
+      <label class="gi-field">
+        Descripción
+        <textarea class="gi-input" formControlName="description" rows="3"></textarea>
+      </label>
+
+      <button class="gi-button gi-button--primary" type="submit" [disabled]="saving()">
+        {{ saving() ? 'Guardando…' : 'Guardar catálogo' }}
+      </button>
+    </form>
+
+    <article class="gi-card module-card">
+      <div class="section-heading">
+        <div>
+          <span class="eyebrow">Listado</span>
+          <h2>Elementos configurados</h2>
+        </div>
+        <button class="gi-button gi-button--secondary" type="button" [disabled]="loading()" (click)="loadData()">Actualizar</button>
+      </div>
+
+      @if (items().length === 0) {
+        <div class="gi-empty-state">
+          <h3>Sin catálogos</h3>
+          <p>Crea primero habilidades, puestos o motivos para usarlos en reglas de negocio.</p>
+        </div>
+      } @else {
+        <div class="catalog-list">
+          @for (item of items(); track item.idCatalogItem) {
+            <article class="catalog-row" [class.is-selected]="item.idCatalogItem === selectedCatalogItemId()" (click)="selectCatalogItem(item)">
+              <div>
+                <strong>{{ item.name }}</strong>
+                <span>{{ typeLabel(item.type) }} · {{ item.code }}</span>
+                @if (!item.active) { <span class="mini-pill is-danger">Inactivo</span> }
+              </div>
+              @if (item.active) {
+                <button class="link-danger" type="button" [disabled]="saving()" (click)="deactivateCatalogItem(item); $event.stopPropagation()">
+                  Desactivar
+                </button>
+              }
+            </article>
+          }
+        </div>
+      }
+    </article>
+  </section>
+
+  <section class="catalog-grid">
+    <form class="gi-card module-card" [formGroup]="requirementForm" (ngSubmit)="saveRequirement()">
+      <div class="section-heading">
+        <div>
+          <span class="eyebrow">Elegibilidad</span>
+          <h2>{{ selectedRequirement() ? 'Editar regla' : 'Nueva regla' }}</h2>
+        </div>
+        @if (selectedRequirement()) {
+          <button class="link-action" type="button" (click)="resetRequirementForm()">Nueva</button>
+        }
+      </div>
+
+      <div class="form-row">
+        <label class="gi-field">
+          Alcance
+          <select class="gi-input" formControlName="targetType">
+            @for (target of targetTypes; track target.value) {
+              <option [value]="target.value">{{ target.label }}</option>
+            }
+          </select>
+        </label>
+
+        <label class="gi-field">
+          Tipo de regla
+          <select class="gi-input" formControlName="requirementType">
+            @for (type of requirementTypes; track type.value) {
+              <option [value]="type.value">{{ type.label }}</option>
+            }
+          </select>
+        </label>
+      </div>
+
+      @if (requirementForm.getRawValue().targetType !== 'Organization') {
+        <div class="form-row">
+          <label class="gi-field">
+            Cliente
+            <select class="gi-input" formControlName="idClient" (change)="selectClient($any($event.target).value)">
+              <option value="">Selecciona cliente</option>
+              @for (client of clients(); track client.idClient) {
+                <option [value]="client.idClient">{{ client.tradeName || client.legalName }}</option>
+              }
+            </select>
+          </label>
+
+          @if (requirementForm.getRawValue().targetType === 'Service' || requirementForm.getRawValue().targetType === 'Position') {
+            <label class="gi-field">
+              Servicio
+              <select class="gi-input" formControlName="idService" (change)="selectService($any($event.target).value)">
+                <option value="">Selecciona servicio</option>
+                @for (service of services(); track service.idService) {
+                  <option [value]="service.idService">{{ service.name }}</option>
+                }
+              </select>
+            </label>
+          }
+        </div>
+      }
+
+      @if (requirementForm.getRawValue().targetType === 'Position') {
+        <label class="gi-field">
+          Posición
+          <select class="gi-input" formControlName="idPosition">
+            <option value="">Selecciona posición</option>
+            @for (position of positions(); track position.idPosition) {
+              <option [value]="position.idPosition">{{ position.name }}</option>
+            }
+          </select>
+        </label>
+      }
+
+      <div class="form-row">
+        <label class="gi-field">
+          Código requerido
+          <input class="gi-input" list="requirement-code-options" type="text" formControlName="requiredCode" />
+          <datalist id="requirement-code-options">
+            @for (code of codeOptions(); track code) {
+              <option [value]="code"></option>
+            }
+          </datalist>
+        </label>
+        <label class="gi-field">
+          Nombre de la regla
+          <input class="gi-input" type="text" formControlName="name" placeholder="Ej. Requiere polígrafo vigente" />
+        </label>
+      </div>
+
+      <label class="gi-field">
+        Descripción
+        <textarea class="gi-input" formControlName="description" rows="3"></textarea>
+      </label>
+
+      <label class="check-row">
+        <input type="checkbox" formControlName="isBlocking" />
+        <span>Bloquea asignación si no se cumple</span>
+      </label>
+
+      <button class="gi-button gi-button--primary" type="submit" [disabled]="saving()">
+        Guardar regla
+      </button>
+    </form>
+
+    <article class="gi-card module-card">
+      <div class="section-heading">
+        <div>
+          <span class="eyebrow">Reglas activas</span>
+          <h2>Elegibilidad configurada</h2>
+        </div>
+        <span class="gi-badge">{{ requirements().length }} reglas</span>
+      </div>
+
+      <div class="catalog-list">
+        @for (requirement of requirements(); track requirement.idEligibilityRequirement) {
+          <article class="catalog-row" [class.is-selected]="requirement.idEligibilityRequirement === selectedRequirementId()" (click)="selectRequirement(requirement)">
+            <div>
+              <strong>{{ requirement.name }}</strong>
+              <span>{{ requirementTypeLabel(requirement.requirementType) }} · {{ requirement.requiredCode }}</span>
+              <small>{{ requirementScopeLabel(requirement) }}</small>
+              @if (!requirement.active) { <span class="mini-pill is-danger">Inactivo</span> }
+            </div>
+            @if (requirement.active) {
+              <button class="link-danger" type="button" [disabled]="saving()" (click)="deactivateRequirement(requirement); $event.stopPropagation()">
+                Desactivar
+              </button>
+            }
+          </article>
+        }
+      </div>
+    </article>
+  </section>
+
+  <section class="gi-card module-card">
+    <div class="section-heading">
+      <div>
+        <span class="eyebrow">Prueba</span>
+        <h2>Validar elegibilidad de una persona</h2>
+      </div>
+    </div>
+
+    <form class="eligibility-form" [formGroup]="eligibilityForm" (ngSubmit)="checkEligibility()">
+      <label class="gi-field">
+        Empleado
+        <select class="gi-input" formControlName="idEmployee">
+          @for (employee of employees(); track employee.idEmployee) {
+            <option [value]="employee.idEmployee">{{ employee.fullName }}</option>
+          }
+        </select>
+      </label>
+      <label class="gi-field">
+        Fecha
+        <input class="gi-input" type="date" formControlName="referenceDate" />
+      </label>
+      <button class="gi-button gi-button--secondary" type="submit" [disabled]="loading()">Validar</button>
+    </form>
+
+    @if (eligibilityResult(); as result) {
+      <div class="eligibility-result" [class.is-ok]="result.isEligible">
+        <strong>{{ result.employeeName }}: {{ result.isEligible ? 'Elegible' : 'No elegible' }}</strong>
+        @for (reason of result.reasons; track reason.message) {
+          <span [class.is-fail]="!reason.passed">{{ reason.message }}</span>
+        }
+      </div>
+    }
+  </section>
+</section>

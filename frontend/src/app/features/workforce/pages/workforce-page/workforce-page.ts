@@ -2,6 +2,8 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { finalize } from 'rxjs';
+import { CatalogApiService } from '../../../catalogs/data-access/catalog-api.service';
+import { CatalogItem, EmployeeSkill, EmployeeSkillInput } from '../../../catalogs/data-access/catalog.models';
 import { ClientApiService } from '../../../clients/data-access/client-api.service';
 import { Organization } from '../../../clients/data-access/client.models';
 import { WorkforceApiService } from '../../data-access/workforce-api.service';
@@ -30,6 +32,7 @@ import {
 })
 export class WorkforcePage implements OnInit {
   private readonly api = inject(WorkforceApiService);
+  private readonly catalogApi = inject(CatalogApiService);
   private readonly clientApi = inject(ClientApiService);
   private readonly formBuilder = inject(FormBuilder);
 
@@ -38,6 +41,8 @@ export class WorkforcePage implements OnInit {
   protected readonly selectedEmployee = signal<Employee | null>(null);
   protected readonly documents = signal<readonly EmployeeDocument[]>([]);
   protected readonly evaluations = signal<readonly EmployeeEvaluation[]>([]);
+  protected readonly skills = signal<readonly EmployeeSkill[]>([]);
+  protected readonly skillCatalog = signal<readonly CatalogItem[]>([]);
   protected readonly result = signal<PagedResult<Employee>>({
     items: [],
     totalCount: 0,
@@ -51,9 +56,11 @@ export class WorkforcePage implements OnInit {
   protected readonly employeeEditorOpen = signal(false);
   protected readonly documentEditorOpen = signal(false);
   protected readonly evaluationEditorOpen = signal(false);
+  protected readonly skillEditorOpen = signal(false);
   protected readonly editingEmployee = signal<Employee | null>(null);
   protected readonly editingDocument = signal<EmployeeDocument | null>(null);
   protected readonly editingEvaluation = signal<EmployeeEvaluation | null>(null);
+  protected readonly editingSkill = signal<EmployeeSkill | null>(null);
   protected readonly message = signal('');
   protected readonly error = signal('');
   protected readonly search = signal('');
@@ -159,6 +166,13 @@ export class WorkforcePage implements OnInit {
     notes: ['', [Validators.maxLength(1000)]],
   });
 
+  protected readonly skillForm = this.formBuilder.nonNullable.group({
+    idSkillCatalogItem: ['', [Validators.required]],
+    acquiredDate: [''],
+    expiresDate: [''],
+    notes: ['', [Validators.maxLength(1000)]],
+  });
+
   ngOnInit(): void {
     this.loadOrganizations();
   }
@@ -174,6 +188,7 @@ export class WorkforcePage implements OnInit {
           const organizationId = this.selectedOrganizationId() || organizations[0]?.idOrganization || '';
           this.selectedOrganizationId.set(organizationId);
           if (organizationId) {
+            this.loadSkillCatalog(organizationId);
             this.loadEmployees(1);
           }
         },
@@ -186,6 +201,8 @@ export class WorkforcePage implements OnInit {
     this.selectedEmployee.set(null);
     this.documents.set([]);
     this.evaluations.set([]);
+    this.skills.set([]);
+    this.loadSkillCatalog(organizationId);
     this.loadEmployees(1);
   }
 
@@ -231,6 +248,7 @@ export class WorkforcePage implements OnInit {
           this.selectedEmployee.set(detail.employee);
           this.documents.set(detail.documents);
           this.evaluations.set(detail.evaluations);
+          this.loadEmployeeSkills(detail.employee.idEmployee);
         },
         error: (error: HttpErrorResponse) => this.setError(error),
       });
@@ -332,9 +350,14 @@ export class WorkforcePage implements OnInit {
       return;
     }
 
-    this.api.changeStatus(employee.idEmployee, this.selectedOrganizationId(), status).subscribe({
+    if (!window.confirm(`¿Cambiar el estatus de ${employee.fullName} a ${this.statusLabel(status)}?`)) {
+      return;
+    }
+
+    this.saving.set(true);
+    this.api.changeStatus(employee.idEmployee, this.selectedOrganizationId(), status).pipe(finalize(() => this.saving.set(false))).subscribe({
       next: (updated) => {
-        this.message.set('Estatus actualizado correctamente.');
+        this.message.set('Estado actualizado correctamente.');
         this.selectedEmployee.set(updated);
         this.loadEmployees();
       },
@@ -347,7 +370,8 @@ export class WorkforcePage implements OnInit {
       return;
     }
 
-    this.api.deactivateEmployee(this.selectedOrganizationId(), employee.idEmployee).subscribe({
+    this.saving.set(true);
+    this.api.deactivateEmployee(this.selectedOrganizationId(), employee.idEmployee).pipe(finalize(() => this.saving.set(false))).subscribe({
       next: () => {
         this.message.set('Empleado desactivado correctamente.');
         this.selectedEmployee.set(null);
@@ -435,7 +459,8 @@ export class WorkforcePage implements OnInit {
       return;
     }
 
-    this.api.deactivateDocument(this.selectedOrganizationId(), employee.idEmployee, document.idEmployeeDocument).subscribe({
+    this.saving.set(true);
+    this.api.deactivateDocument(this.selectedOrganizationId(), employee.idEmployee, document.idEmployeeDocument).pipe(finalize(() => this.saving.set(false))).subscribe({
       next: () => {
         this.message.set('Documento desactivado correctamente.');
         this.selectEmployee(employee);
@@ -517,8 +542,10 @@ export class WorkforcePage implements OnInit {
       return;
     }
 
+    this.saving.set(true);
     this.api
       .deactivateEvaluation(this.selectedOrganizationId(), employee.idEmployee, evaluation.idEmployeeEvaluation)
+      .pipe(finalize(() => this.saving.set(false)))
       .subscribe({
         next: () => {
           this.message.set('Evaluación desactivada correctamente.');
@@ -528,30 +555,117 @@ export class WorkforcePage implements OnInit {
       });
   }
 
+  protected openCreateSkill(): void {
+    if (!this.selectedEmployee()) {
+      return;
+    }
+
+    this.editingSkill.set(null);
+    this.skillForm.reset({
+      idSkillCatalogItem: this.skillCatalog()[0]?.idCatalogItem ?? '',
+      acquiredDate: '',
+      expiresDate: '',
+      notes: '',
+    });
+    this.skillEditorOpen.set(true);
+  }
+
+  protected openEditSkill(skill: EmployeeSkill): void {
+    this.editingSkill.set(skill);
+    this.skillForm.reset({
+      idSkillCatalogItem: skill.idSkillCatalogItem,
+      acquiredDate: this.dateOnly(skill.acquiredDate),
+      expiresDate: this.dateOnly(skill.expiresDate),
+      notes: skill.notes ?? '',
+    });
+    this.skillEditorOpen.set(true);
+  }
+
+  protected saveSkill(): void {
+    const employee = this.selectedEmployee();
+    if (!employee || this.skillForm.invalid) {
+      this.skillForm.markAllAsTouched();
+      return;
+    }
+
+    const form = this.skillForm.getRawValue();
+    const input: EmployeeSkillInput = {
+      idOrganization: this.selectedOrganizationId(),
+      idEmployee: employee.idEmployee,
+      idSkillCatalogItem: form.idSkillCatalogItem,
+      acquiredDate: this.optional(form.acquiredDate),
+      expiresDate: this.optional(form.expiresDate),
+      notes: this.optional(form.notes),
+    };
+    const editing = this.editingSkill();
+    const request = editing
+      ? this.catalogApi.updateEmployeeSkill(employee.idEmployee, editing.idEmployeeSkill, input)
+      : this.catalogApi.createEmployeeSkill(employee.idEmployee, input);
+
+    this.saving.set(true);
+    request.pipe(finalize(() => this.saving.set(false))).subscribe({
+      next: () => {
+        this.skillEditorOpen.set(false);
+        this.message.set(editing ? 'Habilidad actualizada correctamente.' : 'Habilidad agregada correctamente.');
+        this.loadEmployeeSkills(employee.idEmployee);
+      },
+      error: (error: HttpErrorResponse) => this.setError(error),
+    });
+  }
+
+  protected deactivateSkill(skill: EmployeeSkill): void {
+    const employee = this.selectedEmployee();
+    if (!employee || !window.confirm('¿Deseas desactivar esta habilidad?')) {
+      return;
+    }
+
+    this.saving.set(true);
+    this.catalogApi.deactivateEmployeeSkill(this.selectedOrganizationId(), employee.idEmployee, skill.idEmployeeSkill).pipe(finalize(() => this.saving.set(false))).subscribe({
+      next: () => {
+        this.message.set('Habilidad desactivada correctamente.');
+        this.loadEmployeeSkills(employee.idEmployee);
+      },
+      error: (error: HttpErrorResponse) => this.setError(error),
+    });
+  }
+
   protected closeEditors(): void {
     this.employeeEditorOpen.set(false);
     this.documentEditorOpen.set(false);
     this.evaluationEditorOpen.set(false);
+    this.skillEditorOpen.set(false);
+  }
+
+  protected skillName(idCatalogItem: string): string {
+    return this.skillCatalog().find((skill) => skill.idCatalogItem === idCatalogItem)?.name ?? 'Habilidad sin catálogo';
   }
 
   protected statusLabel(status: EmployeeStatus): string {
-    return this.employeeStatuses.find((item) => item.value === status)?.label ?? status;
+    return this.employeeStatuses.find((item) => item.value === status)?.label ?? 'Sin estado';
   }
 
   protected documentTypeLabel(type: EmployeeDocumentType): string {
-    return this.documentTypes.find((item) => item.value === type)?.label ?? type;
+    return this.documentTypes.find((item) => item.value === type)?.label ?? 'Documento';
   }
 
   protected documentStatusLabel(status: EmployeeDocumentStatus): string {
-    return this.documentStatuses.find((item) => item.value === status)?.label ?? status;
+    return this.documentStatuses.find((item) => item.value === status)?.label ?? 'Sin estado';
   }
 
   protected evaluationTypeLabel(type: EmployeeEvaluationType): string {
-    return this.evaluationTypes.find((item) => item.value === type)?.label ?? type;
+    return this.evaluationTypes.find((item) => item.value === type)?.label ?? 'Evaluación';
   }
 
   protected evaluationResultLabel(result: EmployeeEvaluationResult): string {
-    return this.evaluationResults.find((item) => item.value === result)?.label ?? result;
+    return this.evaluationResults.find((item) => item.value === result)?.label ?? 'Sin resultado';
+  }
+
+  protected compactReference(value: string | null): string {
+    if (!value) {
+      return '';
+    }
+
+    return value.length > 48 ? `${value.slice(0, 24)}…${value.slice(-14)}` : value;
   }
 
   private emptyEmployeeForm() {
@@ -582,6 +696,20 @@ export class WorkforcePage implements OnInit {
       housingType: '',
       residenceSinceDate: '',
     };
+  }
+
+  private loadSkillCatalog(organizationId: string): void {
+    this.catalogApi.listItems(organizationId, 'Skill').subscribe({
+      next: (items) => this.skillCatalog.set(items.filter((item) => item.active)),
+      error: (error: HttpErrorResponse) => this.setError(error),
+    });
+  }
+
+  private loadEmployeeSkills(idEmployee: string): void {
+    this.catalogApi.listEmployeeSkills(this.selectedOrganizationId(), idEmployee).subscribe({
+      next: (skills) => this.skills.set(skills),
+      error: (error: HttpErrorResponse) => this.setError(error),
+    });
   }
 
   private optional(value: string): string | null {

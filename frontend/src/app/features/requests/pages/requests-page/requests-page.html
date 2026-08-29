@@ -129,8 +129,8 @@
                     </button>
                   }
                   @if (request.status === 'Approved') {
-                    <button class="mini-flow-action is-success" type="button" [disabled]="saving()" (click)="executeRequest(request)">
-                      Ejecutar
+                    <button class="mini-flow-action is-success" type="button" [disabled]="saving()" (click)="prepareExecution(request)">
+                      Preparar ejecución
                     </button>
                   }
                   @if (request.status !== 'Rejected' && request.status !== 'Cancelled' && request.status !== 'Completed') {
@@ -181,7 +181,7 @@
 
       <label class="gi-field">
         Tipo de solicitud
-        <select class="gi-input" formControlName="requestType">
+        <select class="gi-input" formControlName="requestType" (change)="onRequestTypeChange($event)">
           @for (type of requestTypes; track type.value) {
             <option [value]="type.value">{{ type.label }}</option>
           }
@@ -200,7 +200,7 @@
 
       <label class="gi-field">
         Servicio relacionado
-        <select class="gi-input" formControlName="idService">
+        <select class="gi-input" formControlName="idService" (change)="onRequestServiceChange($event)">
           <option value="">Sin servicio todavía</option>
           @for (service of services(); track service.idService) {
             <option [value]="service.idService">{{ service.name }}</option>
@@ -272,8 +272,8 @@
         <form class="execution-form" [formGroup]="executionForm" (ngSubmit)="executeRequest()">
           <h3>Ejecutar solicitud aprobada</h3>
           <p>
-            Convierte una solicitud aprobada en datos reales del sistema. Usa el ejemplo como guía y reemplaza los
-            valores pendientes antes de ejecutar.
+            Convierte una solicitud aprobada en datos reales del sistema. Primero valida impacto; si faltan datos,
+            el sistema los muestra antes de tocar clientes, servicios, asignaciones o coberturas.
           </p>
 
           <label class="gi-field">
@@ -281,25 +281,174 @@
             <textarea class="gi-input" rows="3" formControlName="executionNotes" placeholder="Qué se ejecutó, folio interno o acuerdo final"></textarea>
           </label>
 
-          <label class="gi-field">
-            Datos de ejecución
-            <textarea
-              class="gi-input code-input"
-              rows="12"
-              formControlName="executionPayload"
-              [placeholder]="executionPayloadExample()"
-              spellcheck="false"
-            ></textarea>
-            <small>
-              Alta de cliente usa <code>client</code>; nuevo servicio usa <code>service</code> y opcionalmente
-              <code>clientSite</code>/<code>serviceConfiguration</code>; cambio de personal usa
-              <code>staffAssignment</code>; cobertura usa <code>coverage</code>.
-            </small>
-          </label>
+          @if (activeExecutionType() === 'NewClient' || activeExecutionType() === 'NewService') {
+            <section class="execution-section">
+              <h4>{{ activeExecutionType() === 'NewClient' ? 'Cliente nuevo' : 'Cliente para el servicio' }}</h4>
+              <p>Si la solicitud ya tiene cliente relacionado, estos datos son opcionales.</p>
+              <div class="form-row">
+                <label class="gi-field">Código cliente<input class="gi-input" formControlName="clientCode" /></label>
+                <label class="gi-field">RFC<input class="gi-input" formControlName="clientRfc" /></label>
+              </div>
+              <label class="gi-field">Razón social<input class="gi-input" formControlName="clientLegalName" /></label>
+              <label class="gi-field">Nombre comercial<input class="gi-input" formControlName="clientTradeName" /></label>
+            </section>
 
-          <button class="gi-button gi-button--primary" type="submit" [disabled]="saving() || selectedRequest()?.status !== 'Approved'">
-            Ejecutar y completar
-          </button>
+            <section class="execution-section">
+              <h4>Sede</h4>
+              <div class="form-row">
+                <label class="gi-field">Código sede<input class="gi-input" formControlName="siteCode" /></label>
+                <label class="gi-field">Nombre sede<input class="gi-input" formControlName="siteName" /></label>
+              </div>
+              <label class="gi-field">Calle<input class="gi-input" formControlName="siteStreet" /></label>
+              <div class="form-row">
+                <label class="gi-field">Municipio<input class="gi-input" formControlName="siteMunicipality" /></label>
+                <label class="gi-field">Estado<input class="gi-input" formControlName="siteState" /></label>
+              </div>
+              <label class="gi-field">Código postal<input class="gi-input" formControlName="sitePostalCode" /></label>
+            </section>
+          }
+
+          @if (activeExecutionType() === 'NewClient' || activeExecutionType() === 'NewService') {
+            <section class="execution-section">
+              <h4>Servicio</h4>
+              <div class="form-row">
+                <label class="gi-field">Código servicio<input class="gi-input" formControlName="serviceCode" /></label>
+                <label class="gi-field">Inicio<input class="gi-input" type="date" formControlName="serviceStartDate" /></label>
+              </div>
+              <label class="gi-field">Nombre servicio<input class="gi-input" formControlName="serviceName" /></label>
+              <label class="gi-field">Descripción<textarea class="gi-input" rows="2" formControlName="serviceDescription"></textarea></label>
+            </section>
+          }
+
+          @if (activeExecutionType() === 'NewClient' || activeExecutionType() === 'NewService' || activeExecutionType() === 'ServiceChange') {
+            <section class="execution-section">
+              <h4>Configuración operativa</h4>
+              <div class="form-row">
+                <label class="gi-field">Vigencia desde<input class="gi-input" type="date" formControlName="configEffectiveFromDate" /></label>
+                <label class="gi-field">Personal requerido<input class="gi-input" type="number" min="1" formControlName="configRequiredWorkerCount" /></label>
+              </div>
+              <div class="form-row">
+                <label class="gi-field">Horas por día<input class="gi-input" type="number" min="1" step="0.5" formControlName="configHoursPerDay" /></label>
+                <label class="gi-field">Días por semana<input class="gi-input" type="number" min="1" max="7" formControlName="configDaysPerWeek" /></label>
+              </div>
+              <div class="form-row">
+                <label class="gi-field">Horas mensuales<input class="gi-input" type="number" min="1" step="0.5" formControlName="configAverageMonthlyHours" /></label>
+                <label class="gi-field">Días preparación<input class="gi-input" type="number" min="0" formControlName="configPreparationLeadDays" /></label>
+              </div>
+              <label class="gi-field">Horario / instrucciones<textarea class="gi-input" rows="2" formControlName="configWorkScheduleDescription"></textarea></label>
+              <label class="gi-field">Precio mensual<input class="gi-input" type="number" min="0" step="0.01" formControlName="configMonthlyPrice" /></label>
+            </section>
+          }
+
+          @if (activeExecutionType() === 'StaffChange') {
+            <section class="execution-section">
+              <h4>Movimiento de personal</h4>
+              <label class="gi-field">
+                Empleado
+                <select class="gi-input" formControlName="idEmployee">
+                  <option value="">Selecciona empleado</option>
+                  @for (employee of employees(); track employee.idEmployee) {
+                    <option [value]="employee.idEmployee">{{ employee.codeEmployee }} · {{ employee.fullName }}</option>
+                  }
+                </select>
+              </label>
+              <label class="gi-field">
+                Puesto del servicio
+                <select class="gi-input" formControlName="idPosition">
+                  <option value="">Selecciona puesto</option>
+                  @for (position of positions(); track position.idPosition) {
+                    <option [value]="position.idPosition">{{ position.codePosition }} · {{ position.name }}</option>
+                  }
+                </select>
+              </label>
+              <div class="form-row">
+                <label class="gi-field">
+                  Tipo
+                  <select class="gi-input" formControlName="assignmentType">
+                    <option value="Primary">Titular</option>
+                    <option value="Support">Apoyo</option>
+                    <option value="Relief">Relevo</option>
+                    <option value="TemporaryReplacement">Reemplazo temporal</option>
+                  </select>
+                </label>
+                <label class="gi-field">Inicio<input class="gi-input" type="date" formControlName="assignmentStartDate" /></label>
+              </div>
+              <label class="gi-field gi-check"><input type="checkbox" formControlName="assignmentIsPrimary" /> Marcar como asignación principal</label>
+              <label class="gi-field">Notas<textarea class="gi-input" rows="2" formControlName="assignmentNotes"></textarea></label>
+            </section>
+          }
+
+          @if (activeExecutionType() === 'CoverageSupport') {
+            <section class="execution-section">
+              <h4>Cobertura</h4>
+              <label class="gi-field">
+                Turno programado
+                <select class="gi-input" formControlName="idScheduledShift">
+                  <option value="">Selecciona turno</option>
+                  @for (shift of scheduledShifts(); track shift.idScheduledShift) {
+                    <option [value]="shift.idScheduledShift">{{ shift.shiftDate }} · {{ shift.startTime }} - {{ shift.endTime }} · {{ shift.employeeName }}</option>
+                  }
+                </select>
+              </label>
+              <label class="gi-field">
+                Reemplazo
+                <select class="gi-input" formControlName="idReplacementEmployee">
+                  <option value="">Selecciona empleado</option>
+                  @for (employee of employees(); track employee.idEmployee) {
+                    <option [value]="employee.idEmployee">{{ employee.codeEmployee }} · {{ employee.fullName }}</option>
+                  }
+                </select>
+              </label>
+              <div class="form-row">
+                <label class="gi-field">Inicio<input class="gi-input" type="time" formControlName="coverageStartTime" /></label>
+                <label class="gi-field">Fin<input class="gi-input" type="time" formControlName="coverageEndTime" /></label>
+              </div>
+              <div class="form-row">
+                <label class="gi-field">
+                  Estado
+                  <select class="gi-input" formControlName="coverageStatus">
+                    <option value="Requested">Solicitada</option>
+                    <option value="Confirmed">Confirmada</option>
+                    <option value="Completed">Completada</option>
+                    <option value="Cancelled">Cancelada</option>
+                  </select>
+                </label>
+                <label class="gi-field gi-check"><input type="checkbox" formControlName="coverageIsOvernight" /> Cruza medianoche</label>
+              </div>
+              <label class="gi-field">Notas<textarea class="gi-input" rows="2" formControlName="coverageNotes"></textarea></label>
+            </section>
+          }
+
+          @if (executionPreview(); as preview) {
+            <section class="execution-preview" [class.is-ready]="preview.canExecute">
+              <h4>{{ preview.canExecute ? 'Lista para ejecutar' : 'Datos pendientes' }}</h4>
+              @if (preview.impact.length) {
+                <strong>Impacto</strong>
+                <ul>
+                  @for (item of preview.impact; track item) {
+                    <li>{{ item }}</li>
+                  }
+                </ul>
+              }
+              @if (preview.missingFields.length) {
+                <strong>Falta completar</strong>
+                <ul>
+                  @for (item of preview.missingFields; track item) {
+                    <li>{{ item }}</li>
+                  }
+                </ul>
+              }
+            </section>
+          }
+
+          <div class="form-actions">
+            <button class="gi-button gi-button--secondary" type="button" [disabled]="saving() || !selectedRequest()" (click)="previewExecution()">
+              Validar impacto
+            </button>
+            <button class="gi-button gi-button--primary" type="submit" [disabled]="saving() || selectedRequest()?.status !== 'Approved' || !executionPreview()?.canExecute">
+              Ejecutar y completar
+            </button>
+          </div>
         </form>
       </article>
 

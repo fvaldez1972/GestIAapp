@@ -134,6 +134,41 @@
       <section class="detail-section">
         <header>
           <div>
+            <h3>Habilidades</h3>
+            <span>{{ skills().length }} registro(s)</span>
+          </div>
+          <button class="button button--secondary" type="button" [disabled]="skillCatalog().length === 0" (click)="openCreateSkill()">
+            Nueva habilidad
+          </button>
+        </header>
+
+        @if (skillCatalog().length === 0) {
+          <div class="compact-state">Primero crea habilidades en Catálogos.</div>
+        } @else if (!skills().length) {
+          <div class="compact-state">Sin habilidades registradas.</div>
+        } @else {
+          <div class="cards-list">
+            @for (skill of skills(); track skill.idEmployeeSkill) {
+              <article class="mini-card">
+                <div>
+                  <span class="pill">Habilidad</span>
+                  <strong>{{ skill.skillName }}</strong>
+                  <small>{{ skill.skillCode }} · vence {{ skill.expiresDate || 'sin vencimiento' }}</small>
+                  <small>{{ skill.notes || 'Sin observaciones' }}</small>
+                </div>
+                <div class="mini-actions">
+                  <button type="button" (click)="openEditSkill(skill)">Editar</button>
+                  <button class="danger" type="button" (click)="deactivateSkill(skill)">Desactivar</button>
+                </div>
+              </article>
+            }
+          </div>
+        }
+      </section>
+
+      <section class="detail-section">
+        <header>
+          <div>
             <h3>Documentos</h3>
             <span>{{ documents().length }} registro(s)</span>
           </div>
@@ -152,7 +187,7 @@
                   <span class="pill">{{ documentStatusLabel(document.status) }}</span>
                   <strong>{{ documentTypeLabel(document.documentType) }}</strong>
                   <small>{{ document.documentNumber || 'Sin folio' }} · vence {{ document.expiresDate || 'sin vencimiento' }}</small>
-                  <small>{{ document.notes || document.storageReference || 'Sin notas' }}</small>
+                  <small [title]="document.storageReference || ''">{{ document.notes || compactReference(document.storageReference) || 'Sin observaciones' }}</small>
                 </div>
                 <div class="mini-actions">
                   <button type="button" (click)="openEditDocument(document)">Editar</button>
@@ -183,7 +218,7 @@
                   <span class="pill">{{ evaluationResultLabel(evaluation.result) }}</span>
                   <strong>{{ evaluationTypeLabel(evaluation.evaluationType) }}</strong>
                   <small>Evaluado: {{ evaluation.evaluatedDate }} · vence {{ evaluation.expiresDate || 'sin vencimiento' }}</small>
-                  <small>{{ evaluation.certificateNumber || evaluation.notes || 'Sin folio/notas' }}</small>
+                  <small>{{ evaluation.certificateNumber || evaluation.notes || 'Sin folio u observaciones' }}</small>
                 </div>
                 <div class="mini-actions">
                   <button type="button" (click)="openEditEvaluation(evaluation)">Editar</button>
@@ -242,6 +277,36 @@
   </div>
 }
 
+@if (skillEditorOpen()) {
+  <div class="modal-backdrop" (click)="closeEditors()">
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="skill-editor-title" (click)="$event.stopPropagation()">
+      <header>
+        <div><span class="eyebrow">Elegibilidad</span><h2 id="skill-editor-title">{{ editingSkill() ? 'Editar habilidad' : 'Nueva habilidad' }}</h2></div>
+        <button type="button" aria-label="Cerrar" (click)="closeEditors()">×</button>
+      </header>
+      <form [formGroup]="skillForm" (ngSubmit)="saveSkill()">
+        <div class="form-grid">
+          <label class="wide">
+            <span>Habilidad *</span>
+            <select formControlName="idSkillCatalogItem">
+              @for (skill of skillCatalog(); track skill.idCatalogItem) {
+                <option [value]="skill.idCatalogItem">{{ skill.name }}</option>
+              }
+            </select>
+          </label>
+          <label><span>Obtenida</span><input type="date" formControlName="acquiredDate" /></label>
+          <label><span>Vence</span><input type="date" formControlName="expiresDate" /></label>
+          <label class="wide"><span>Notas</span><textarea formControlName="notes" rows="3"></textarea></label>
+        </div>
+        <footer>
+          <button class="button button--secondary" type="button" (click)="closeEditors()">Cancelar</button>
+          <button class="button button--primary" type="submit" [disabled]="saving()">{{ saving() ? 'Guardando…' : 'Guardar habilidad' }}</button>
+        </footer>
+      </form>
+    </section>
+  </div>
+}
+
 @if (documentEditorOpen()) {
   <div class="modal-backdrop" (click)="closeEditors()">
     <section class="modal modal--small" role="dialog" aria-modal="true" aria-labelledby="document-editor-title" (click)="$event.stopPropagation()">
@@ -252,12 +317,12 @@
       <form [formGroup]="documentForm" (ngSubmit)="saveDocument()">
         <div class="form-grid">
           <label><span>Tipo *</span><select formControlName="documentType">@for (type of documentTypes; track type.value) { <option [value]="type.value">{{ type.label }}</option> }</select></label>
-          <label><span>Estatus *</span><select formControlName="status">@for (status of documentStatuses; track status.value) { <option [value]="status.value">{{ status.label }}</option> }</select></label>
+          <label><span>Estado *</span><select formControlName="status">@for (status of documentStatuses; track status.value) { <option [value]="status.value">{{ status.label }}</option> }</select></label>
           <label><span>Folio</span><input formControlName="documentNumber" /></label>
           <label><span>Recibido</span><input type="date" formControlName="receivedDate" /></label>
           <label><span>Emitido</span><input type="date" formControlName="issuedDate" /></label>
           <label><span>Vence</span><input type="date" formControlName="expiresDate" /></label>
-          <label class="wide"><span>Referencia archivo</span><input formControlName="storageReference" /></label>
+          <label class="wide"><span>Referencia del archivo</span><input formControlName="storageReference" placeholder="Folio, liga o ubicación del respaldo" /></label>
           <label class="wide"><span>Notas</span><textarea rows="3" formControlName="notes"></textarea></label>
         </div>
         <footer>
@@ -283,7 +348,7 @@
           <label><span>Evaluado *</span><input type="date" formControlName="evaluatedDate" /></label>
           <label><span>Vence</span><input type="date" formControlName="expiresDate" /></label>
           <label class="wide"><span>Certificado/folio</span><input formControlName="certificateNumber" /></label>
-          <label class="wide"><span>Referencia archivo</span><input formControlName="storageReference" /></label>
+          <label class="wide"><span>Referencia del archivo</span><input formControlName="storageReference" placeholder="Folio, liga o ubicación del respaldo" /></label>
           <label class="wide"><span>Notas</span><textarea rows="3" formControlName="notes"></textarea></label>
         </div>
         <footer>

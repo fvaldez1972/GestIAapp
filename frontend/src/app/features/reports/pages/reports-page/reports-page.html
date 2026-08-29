@@ -12,8 +12,14 @@
       <button class="gi-button gi-button--secondary" type="button" [disabled]="loading()" (click)="refresh()">
         {{ loading() ? 'Actualizando…' : 'Actualizar' }}
       </button>
-      <button class="gi-button gi-button--primary" type="button" [disabled]="!summary()" (click)="exportCsv()">
-        Exportar CSV
+      <button class="gi-button gi-button--secondary" type="button" [disabled]="!summary() || exporting()" (click)="exportReport('csv')">
+        CSV
+      </button>
+      <button class="gi-button gi-button--primary" type="button" [disabled]="!summary() || exporting()" (click)="exportReport('xlsx')">
+        {{ exporting() ? 'Exportando…' : 'Exportar Excel' }}
+      </button>
+      <button class="gi-button gi-button--secondary" type="button" [disabled]="!summary() || exporting()" (click)="exportReport('pdf')">
+        PDF
       </button>
     </div>
   </article>
@@ -80,24 +86,26 @@
   <section class="report-panels">
     <article class="gi-card report-panel">
       <span class="eyebrow">Asistencia</span>
-      <h2>Lectura rápida</h2>
-      <div class="progress-list">
-        <div>
-          <span>Presentes</span>
-          <strong>{{ summary()?.presentAttendance ?? 0 }}</strong>
-        </div>
-        <div>
-          <span>Retardos</span>
-          <strong>{{ summary()?.lateAttendance ?? 0 }}</strong>
-        </div>
-        <div>
-          <span>Faltas</span>
-          <strong>{{ summary()?.absentAttendance ?? 0 }}</strong>
-        </div>
-        <div>
-          <span>Justificadas</span>
-          <strong>{{ summary()?.excusedAttendance ?? 0 }}</strong>
-        </div>
+      <h2>Distribución del periodo</h2>
+      <div class="bar-list" aria-label="Distribución de asistencia">
+        @for (item of attendanceDistribution(); track item.label) {
+          <div class="bar-row">
+            <header>
+              <span>{{ item.label }}</span>
+              <strong>{{ item.value }} · {{ item.percentage }}%</strong>
+            </header>
+            <span class="bar-track">
+              <span
+                class="bar-fill"
+                [class.is-ok]="item.className === 'is-ok'"
+                [class.is-warning]="item.className === 'is-warning'"
+                [class.is-danger]="item.className === 'is-danger'"
+                [class.is-info]="item.className === 'is-info'"
+                [style.width.%]="item.percentage"
+              ></span>
+            </span>
+          </div>
+        }
       </div>
     </article>
 
@@ -152,7 +160,7 @@
     </article>
 
     <article class="gi-card report-panel">
-      <span class="eyebrow">Periodo</span>
+      <span class="eyebrow">Reporte ejecutivo</span>
       <h2>Interpretación del corte</h2>
       <div class="alert-stack">
         <p class="soft-ok">
@@ -180,6 +188,7 @@
             <th>Faltas</th>
             <th>Incidencias</th>
             <th>Cobertura</th>
+            <th>Control</th>
           </tr>
         </thead>
         <tbody>
@@ -195,10 +204,11 @@
               <td>{{ service.absentAttendance }}</td>
               <td>{{ service.openIncidents }} abiertas · {{ service.criticalIncidents }} críticas</td>
               <td>{{ service.coverageRecords }} registros · {{ serviceCoveredHours(service) }} h</td>
+              <td>{{ service.pendingApprovals }} autorizaciones · {{ service.closedOperationDays }} cierres</td>
             </tr>
           } @empty {
             <tr>
-              <td colspan="7" class="empty">No hay servicios para el alcance seleccionado.</td>
+              <td colspan="8" class="empty">No hay servicios para el alcance seleccionado.</td>
             </tr>
           }
         </tbody>

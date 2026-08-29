@@ -1,3 +1,4 @@
+using GestIA.Domain.Catalogs;
 using GestIA.Domain.Clients;
 using GestIA.Domain.Documents;
 using GestIA.Domain.Organizations;
@@ -35,8 +36,13 @@ public sealed class GestIaDbContext(DbContextOptions<GestIaDbContext> options)
     public DbSet<Incident> Incidents => Set<Incident>();
     public DbSet<CoverageRecord> CoverageRecords => Set<CoverageRecord>();
     public DbSet<OperationEvidence> OperationEvidences => Set<OperationEvidence>();
+    public DbSet<ApprovalRequest> ApprovalRequests => Set<ApprovalRequest>();
+    public DbSet<OperationDayClosure> OperationDayClosures => Set<OperationDayClosure>();
     public DbSet<OperationalRequest> OperationalRequests => Set<OperationalRequest>();
     public DbSet<BusinessDocument> BusinessDocuments => Set<BusinessDocument>();
+    public DbSet<BusinessCatalogItem> BusinessCatalogItems => Set<BusinessCatalogItem>();
+    public DbSet<EligibilityRequirement> EligibilityRequirements => Set<EligibilityRequirement>();
+    public DbSet<EmployeeSkill> EmployeeSkills => Set<EmployeeSkill>();
     public DbSet<User> Users => Set<User>();
     public DbSet<OrganizationMembership> OrganizationMemberships => Set<OrganizationMembership>();
     public DbSet<Role> Roles => Set<Role>();

@@ -83,6 +83,7 @@ app.MapSchedulingEndpoints();
 app.MapOperationsEndpoints();
 app.MapFileUploadEndpoints();
 app.MapBusinessDocumentEndpoints();
+app.MapCatalogEndpoints();
 app.MapReportsEndpoints();
 app.MapSecurityAdministrationEndpoints();
 app.MapOperationalRequestEndpoints();

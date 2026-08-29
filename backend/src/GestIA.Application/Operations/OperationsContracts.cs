@@ -14,7 +14,8 @@ public sealed record UpsertAttendanceRequest(
     TimeOnly? ActualEndTime,
     int MinutesLate,
     string? Notes,
-    string? CorrectionAuthorizationNotes);
+    string? CorrectionAuthorizationNotes,
+    Guid? IdApprovalRequest);
 
 public sealed record AttendanceRecordResponse(
     Guid IdAttendanceRecord,
@@ -133,4 +134,78 @@ public sealed record OperationEvidenceResponse(
     string Title,
     string StorageReference,
     string? Notes,
+    bool Active);
+
+public sealed record ApprovalRequestQuery(
+    Guid IdOrganization,
+    Guid? IdService,
+    ApprovalRequestStatus? Status);
+
+public sealed record CreateApprovalRequestRequest(
+    Guid IdOrganization,
+    Guid IdService,
+    ApprovalRequestType ApprovalType,
+    string EntityType,
+    Guid EntityId,
+    string Reason,
+    string? RequestedChangeSummary,
+    string? AssignedApproverName,
+    Guid? IdOperationEvidence);
+
+public sealed record DecideApprovalRequestRequest(
+    Guid IdOrganization,
+    ApprovalRequestStatus Status,
+    string? DecisionNotes);
+
+public sealed record ApprovalRequestResponse(
+    Guid IdApprovalRequest,
+    Guid IdOrganization,
+    Guid IdService,
+    ApprovalRequestType ApprovalType,
+    string EntityType,
+    Guid EntityId,
+    string Reason,
+    string? RequestedChangeSummary,
+    string? AssignedApproverName,
+    Guid? IdOperationEvidence,
+    ApprovalRequestStatus Status,
+    DateTime RequestedAt,
+    string RequestedByName,
+    DateTime? DecidedAt,
+    string? DecidedByName,
+    string? DecisionNotes,
+    bool Active);
+
+public sealed record OperationDayClosureQuery(
+    Guid IdOrganization,
+    Guid? IdService,
+    DateOnly? FromDate,
+    DateOnly? ToDate);
+
+public sealed record CloseOperationDayRequest(
+    Guid IdOrganization,
+    DateOnly OperationDate,
+    string? Notes);
+
+public sealed record ReopenOperationDayRequest(
+    Guid IdOrganization,
+    string Reason);
+
+public sealed record OperationDayClosureResponse(
+    Guid IdOperationDayClosure,
+    Guid IdOrganization,
+    Guid IdService,
+    DateOnly OperationDate,
+    int ExpectedShifts,
+    int AttendanceRecords,
+    int PendingAttendance,
+    int OpenIncidents,
+    int CoverageRecords,
+    string? Notes,
+    OperationDayClosureStatus Status,
+    DateTime ClosedAt,
+    string ClosedByName,
+    DateTime? ReopenedAt,
+    string? ReopenedByName,
+    string? ReopenReason,
     bool Active);

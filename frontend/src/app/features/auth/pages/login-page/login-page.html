@@ -21,12 +21,19 @@
 
       <label>
         <span>Correo</span>
-        <input type="email" autocomplete="username" formControlName="email" />
+        <input type="email" autocomplete="username" formControlName="email" placeholder="tu-correo@empresa.com" />
+        @if (form.controls.email.touched && form.controls.email.invalid) {
+          <small class="field-error">Escribe un correo válido.</small>
+        }
       </label>
 
       <label>
         <span>Contraseña</span>
-        <input type="password" autocomplete="current-password" formControlName="password" />
+        <input type="password" autocomplete="current-password" formControlName="password" placeholder="Ingresa tu contraseña" />
+        @if (form.controls.password.touched && form.controls.password.invalid) {
+          <small class="field-error">La contraseña es obligatoria.</small>
+        }
+        <small class="field-help">Por seguridad el navegador oculta la contraseña con puntos o asteriscos.</small>
       </label>
 
       <button type="submit" [disabled]="!canSubmit()">
@@ -34,8 +41,8 @@
       </button>
 
       <aside class="login-help">
-        <strong>Ambiente local</strong>
-        <span>Usa las credenciales de desarrollo mientras cerramos el piloto.</span>
+        <strong>Acceso autorizado</strong>
+        <span>Ingresa con el usuario asignado por el administrador de GestIA.</span>
       </aside>
     </form>
   </section>

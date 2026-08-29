@@ -81,6 +81,16 @@ export type ExecuteOperationalRequestResult = {
   readonly executedEntityId: string | null;
 };
 
+export type OperationalRequestExecutionPreview = {
+  readonly idOperationalRequest: string;
+  readonly requestType: OperationalRequestType;
+  readonly canExecute: boolean;
+  readonly requiredFields: readonly string[];
+  readonly missingFields: readonly string[];
+  readonly impact: readonly string[];
+  readonly warnings: readonly string[];
+};
+
 export type OperationalRequestClientInput = {
   readonly codeClient: string;
   readonly legalName: string;

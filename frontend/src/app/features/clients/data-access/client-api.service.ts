@@ -2,6 +2,8 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import {
   AttendanceRecord,
+  ApprovalRequest,
+  ApprovalRequestStatus,
   CoverageInput,
   CoverageRecord,
   Client,
@@ -12,12 +14,15 @@ import {
   ClientSiteInput,
   CreateClient,
   CreateClientSite,
+  CreateApprovalRequest,
   CreateManagedService,
   CreateServiceContract,
   CreateOrganization,
   CreateServicePosition,
   CreateServiceAssignment,
   CreateShiftPattern,
+  CloseOperationDay,
+  DecideApprovalRequest,
   FileUploadResponse,
   GenerateScheduledShiftsRequest,
   GenerateScheduledShiftsResponse,
@@ -29,6 +34,7 @@ import {
   OperationsServiceSummary,
   OperationEvidence,
   OperationEvidenceInput,
+  OperationDayClosure,
   Organization,
   PagedResult,
   ServiceAssignment,
@@ -43,6 +49,7 @@ import {
   ServiceContractInput,
   ServicePosition,
   ServicePositionInput,
+  ReopenOperationDay,
   ShiftPattern,
   ShiftPatternInput,
   ShiftSegment,
@@ -565,6 +572,82 @@ export class ClientApiService {
     return this.http.post<FileUploadResponse>(`${this.baseUrl}/files/operation-evidence`, formData);
   }
 
+  downloadOperationEvidenceFile(storageReference: string) {
+    const params = new HttpParams().set('storageReference', storageReference);
+    return this.http.get(`${this.baseUrl}/files/operation-evidence/download`, {
+      params,
+      observe: 'response',
+      responseType: 'blob',
+    });
+  }
+
+  listApprovalRequests(organizationId: string, serviceId = '', status: ApprovalRequestStatus | '' = '') {
+    let params = new HttpParams().set('organizationId', organizationId);
+
+    if (serviceId) {
+      params = params.set('serviceId', serviceId);
+    }
+
+    if (status) {
+      params = params.set('status', status);
+    }
+
+    return this.http.get<readonly ApprovalRequest[]>(`${this.baseUrl}/operations/approval-requests`, { params });
+  }
+
+  createApprovalRequest(request: CreateApprovalRequest) {
+    return this.http.post<ApprovalRequest>(`${this.baseUrl}/operations/approval-requests`, request);
+  }
+
+  decideApprovalRequest(idApprovalRequest: string, request: DecideApprovalRequest) {
+    return this.http.patch<ApprovalRequest>(
+      `${this.baseUrl}/operations/approval-requests/${idApprovalRequest}/decision`,
+      request,
+    );
+  }
+
+  listOperationDayClosures(
+    organizationId: string,
+    serviceId = '',
+    fromDate = '',
+    toDate = '',
+  ) {
+    let params = new HttpParams().set('organizationId', organizationId);
+
+    if (serviceId) {
+      params = params.set('serviceId', serviceId);
+    }
+
+    if (fromDate) {
+      params = params.set('fromDate', fromDate);
+    }
+
+    if (toDate) {
+      params = params.set('toDate', toDate);
+    }
+
+    return this.http.get<readonly OperationDayClosure[]>(`${this.baseUrl}/operations/day-closures`, { params });
+  }
+
+  closeOperationDay(idClient: string, idService: string, request: CloseOperationDay) {
+    return this.http.post<OperationDayClosure>(
+      `${this.baseUrl}/clients/${idClient}/services/${idService}/operations/day-closures`,
+      request,
+    );
+  }
+
+  reopenOperationDay(
+    idClient: string,
+    idService: string,
+    idOperationDayClosure: string,
+    request: ReopenOperationDay,
+  ) {
+    return this.http.patch<OperationDayClosure>(
+      `${this.baseUrl}/clients/${idClient}/services/${idService}/operations/day-closures/${idOperationDayClosure}/reopen`,
+      request,
+    );
+  }
+
   getOperationsSummary(
     organizationId: string,
     clientId?: string,
@@ -632,6 +715,40 @@ export class ClientApiService {
 
     return this.http.get<readonly WorkforceEligibilityReport[]>(`${this.baseUrl}/reports/workforce-eligibility`, {
       params,
+    });
+  }
+
+  exportOperationsReport(
+    organizationId: string,
+    clientId?: string,
+    serviceId?: string,
+    fromDate?: string,
+    toDate?: string,
+    format: 'csv' | 'xlsx' | 'pdf' = 'csv',
+  ) {
+    let params = new HttpParams().set('organizationId', organizationId);
+
+    if (clientId) {
+      params = params.set('clientId', clientId);
+    }
+
+    if (serviceId) {
+      params = params.set('serviceId', serviceId);
+    }
+
+    if (fromDate) {
+      params = params.set('fromDate', fromDate);
+    }
+
+    if (toDate) {
+      params = params.set('toDate', toDate);
+    }
+
+    const suffix = format === 'csv' ? '' : `.${format}`;
+
+    return this.http.get(`${this.baseUrl}/reports/operations-export${suffix}`, {
+      params,
+      responseType: 'blob',
     });
   }
 }

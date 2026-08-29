@@ -35,11 +35,15 @@ export class SecurityPage implements OnInit {
   protected readonly permissions = signal<readonly SecurityPermission[]>([]);
   protected readonly organizations = signal<readonly Organization[]>([]);
   protected readonly selectedUserId = signal('');
+  protected readonly selectedRoleId = signal('');
   protected readonly selectedPermissionCodes = signal<readonly string[]>([]);
 
   protected readonly canAdministerSecurity = computed(() => this.auth.hasPermission('PLATFORM.ADMIN'));
   protected readonly selectedUser = computed(
     () => this.users().find((user) => user.idUser === this.selectedUserId()) ?? null,
+  );
+  protected readonly selectedRole = computed(
+    () => this.roles().find((role) => role.idRole === this.selectedRoleId()) ?? null,
   );
   protected readonly systemRoles = computed(() => this.roles().filter((role) => role.isSystem).length);
   protected readonly permissionGroups = computed<readonly PermissionGroup[]>(() => {
@@ -71,6 +75,11 @@ export class SecurityPage implements OnInit {
     idRole: ['', [Validators.required]],
   });
 
+  protected readonly editUserForm = this.formBuilder.nonNullable.group({
+    displayName: ['', [Validators.required, Validators.maxLength(120)]],
+    email: ['', [Validators.required, Validators.email, Validators.maxLength(255)]],
+  });
+
   protected readonly passwordForm = this.formBuilder.nonNullable.group({
     password: ['', [Validators.required, Validators.minLength(12), Validators.maxLength(200)]],
   });
@@ -79,6 +88,10 @@ export class SecurityPage implements OnInit {
     codeRole: ['', [Validators.required, Validators.maxLength(60)]],
     name: ['', [Validators.required, Validators.maxLength(120)]],
     idOrganization: [''],
+  });
+
+  protected readonly editRoleForm = this.formBuilder.nonNullable.group({
+    name: ['', [Validators.required, Validators.maxLength(120)]],
   });
 
   ngOnInit() {
@@ -104,7 +117,9 @@ export class SecurityPage implements OnInit {
         this.permissions.set(permissions);
         this.organizations.set(organizations);
         this.selectedUserId.set(this.selectedUserId() || users[0]?.idUser || '');
+        this.selectedRoleId.set(this.selectedRoleId() || roles.find((role) => !role.isSystem)?.idRole || '');
         this.resetDefaults();
+        this.syncSelectedEditors();
         this.loading.set(false);
       },
       error: () => {
@@ -116,6 +131,42 @@ export class SecurityPage implements OnInit {
 
   protected selectUser(user: SecurityUser) {
     this.selectedUserId.set(user.idUser);
+    this.editUserForm.reset({
+      displayName: user.displayName,
+      email: user.email,
+    });
+  }
+
+  protected selectRole(role: SecurityRole) {
+    this.selectedRoleId.set(role.idRole);
+    this.editRoleForm.reset({ name: role.name });
+    this.selectedPermissionCodes.set(role.permissions.map((permission) => permission.codePermission));
+  }
+
+  protected updateUser() {
+    const user = this.selectedUser();
+
+    if (!user || this.editUserForm.invalid) {
+      this.editUserForm.markAllAsTouched();
+      return;
+    }
+
+    const form = this.editUserForm.getRawValue();
+    this.beginSave();
+
+    this.api
+      .updateUser(user.idUser, {
+        displayName: form.displayName.trim(),
+        email: form.email.trim(),
+      })
+      .subscribe({
+        next: () => {
+          this.message.set('Usuario actualizado correctamente.');
+          this.loadSecurity();
+        },
+        error: (error: HttpErrorResponse) => this.setError(error, 'No se pudo actualizar el usuario.'),
+        complete: () => this.saving.set(false),
+      });
   }
 
   protected createUser() {
@@ -125,6 +176,13 @@ export class SecurityPage implements OnInit {
     }
 
     const form = this.createUserForm.getRawValue();
+    if (
+      this.selectedAccessRoleIsSensitive(form.idRole) &&
+      !window.confirm('El rol seleccionado permite administrar usuarios, roles y permisos. ¿Deseas continuar?')
+    ) {
+      return;
+    }
+
     this.beginSave();
 
     this.api
@@ -157,6 +215,13 @@ export class SecurityPage implements OnInit {
     }
 
     const form = this.accessForm.getRawValue();
+    if (
+      this.selectedAccessRoleIsSensitive(form.idRole) &&
+      !window.confirm('Este acceso dará administración completa de seguridad. ¿Deseas continuar?')
+    ) {
+      return;
+    }
+
     this.beginSave();
 
     this.api
@@ -183,6 +248,10 @@ export class SecurityPage implements OnInit {
       return;
     }
 
+    if (!window.confirm(`¿Actualizar la contraseña de ${user.displayName}?`)) {
+      return;
+    }
+
     this.beginSave();
 
     this.api
@@ -198,6 +267,10 @@ export class SecurityPage implements OnInit {
   }
 
   protected deactivateUser(user: SecurityUser) {
+    if (!window.confirm(`¿Desactivar el usuario ${user.displayName}?`)) {
+      return;
+    }
+
     this.beginSave();
 
     this.api.deactivateUser(user.idUser).subscribe({
@@ -207,6 +280,47 @@ export class SecurityPage implements OnInit {
         this.loadSecurity();
       },
       error: (error: HttpErrorResponse) => this.setError(error, 'No se pudo desactivar el usuario.'),
+      complete: () => this.saving.set(false),
+    });
+  }
+
+  protected activateUser(user: SecurityUser) {
+    if (!window.confirm(`¿Reactivar el usuario ${user.displayName}?`)) {
+      return;
+    }
+
+    this.beginSave();
+
+    this.api.activateUser(user.idUser).subscribe({
+      next: () => {
+        this.message.set('Usuario reactivado correctamente.');
+        this.selectedUserId.set(user.idUser);
+        this.loadSecurity();
+      },
+      error: (error: HttpErrorResponse) => this.setError(error, 'No se pudo reactivar el usuario.'),
+      complete: () => this.saving.set(false),
+    });
+  }
+
+  protected removeUserAccess(role: SecurityUser['roles'][number]) {
+    const user = this.selectedUser();
+
+    if (!user || !role.idOrganization) {
+      return;
+    }
+
+    if (!window.confirm(`¿Remover el rol ${role.name} de ${user.displayName}?`)) {
+      return;
+    }
+
+    this.beginSave();
+
+    this.api.removeUserAccess(user.idUser, role.idOrganization, role.idRole).subscribe({
+      next: () => {
+        this.message.set('Acceso removido correctamente.');
+        this.loadSecurity();
+      },
+      error: (error: HttpErrorResponse) => this.setError(error, 'No se pudo remover el acceso.'),
       complete: () => this.saving.set(false),
     });
   }
@@ -226,6 +340,61 @@ export class SecurityPage implements OnInit {
     return this.selectedPermissionCodes().includes(codePermission);
   }
 
+  protected passwordGuidance(value: string) {
+    const checks = [
+      value.length >= 12,
+      /[A-ZÁÉÍÓÚÑ]/.test(value),
+      /[a-záéíóúñ]/.test(value),
+      /\d/.test(value),
+      /[^A-Za-zÁÉÍÓÚÑáéíóúñ0-9]/.test(value),
+    ];
+    const passed = checks.filter(Boolean).length;
+
+    if (!value) {
+      return 'Usa al menos 12 caracteres combinando mayúsculas, minúsculas, números y símbolo.';
+    }
+
+    if (passed >= 5) {
+      return 'Contraseña temporal fuerte.';
+    }
+
+    if (passed >= 3) {
+      return 'Contraseña aceptable; agrega variedad para hacerla más segura.';
+    }
+
+    return 'Contraseña débil; conviene reforzarla antes de guardar.';
+  }
+
+  protected selectedAccessRoleIsSensitive(formRoleId: string) {
+    const role = this.roles().find((item) => item.idRole === formRoleId);
+    return Boolean(role?.permissions.some((permission) => permission.codePermission === 'PLATFORM.ADMIN'));
+  }
+
+  protected roleCodeLabel(codeRole: string) {
+    return codeRole
+      .replaceAll('_', ' ')
+      .toLowerCase()
+      .replace(/\b[a-z]/g, (letter) => letter.toUpperCase());
+  }
+
+  protected permissionModuleLabel(module: string) {
+    const labels: Record<string, string> = {
+      Audit: 'Auditoría',
+      Catalogs: 'Catálogos',
+      Clients: 'Clientes',
+      Documents: 'Documentos',
+      Operations: 'Operación',
+      Organizations: 'Organizaciones',
+      Planning: 'Planeación',
+      Platform: 'Plataforma',
+      Reports: 'Reportes',
+      Requests: 'Solicitudes',
+      Workforce: 'Personal',
+    };
+
+    return labels[module] ?? module;
+  }
+
   protected createRole() {
     if (this.roleForm.invalid || this.selectedPermissionCodes().length === 0) {
       this.roleForm.markAllAsTouched();
@@ -236,6 +405,13 @@ export class SecurityPage implements OnInit {
     }
 
     const form = this.roleForm.getRawValue();
+    if (
+      this.selectedPermissionCodes().includes('PLATFORM.ADMIN') &&
+      !window.confirm('El rol tendrá administración completa de seguridad. ¿Deseas crearlo con ese permiso?')
+    ) {
+      return;
+    }
+
     this.beginSave();
 
     this.api
@@ -257,7 +433,46 @@ export class SecurityPage implements OnInit {
       });
   }
 
+  protected updateRole() {
+    const role = this.selectedRole();
+
+    if (!role || role.isSystem || this.editRoleForm.invalid || this.selectedPermissionCodes().length === 0) {
+      this.editRoleForm.markAllAsTouched();
+      if (this.selectedPermissionCodes().length === 0) {
+        this.error.set('Selecciona al menos un permiso para actualizar el rol.');
+      }
+      return;
+    }
+
+    if (
+      this.selectedPermissionCodes().includes('PLATFORM.ADMIN') &&
+      !window.confirm('El rol quedará con administración completa de seguridad. ¿Deseas guardar estos permisos?')
+    ) {
+      return;
+    }
+
+    this.beginSave();
+
+    this.api
+      .updateRole(role.idRole, {
+        name: this.editRoleForm.getRawValue().name.trim(),
+        permissionCodes: this.selectedPermissionCodes(),
+      })
+      .subscribe({
+        next: () => {
+          this.message.set('Rol actualizado correctamente.');
+          this.loadSecurity();
+        },
+        error: (error: HttpErrorResponse) => this.setError(error, 'No se pudo actualizar el rol.'),
+        complete: () => this.saving.set(false),
+      });
+  }
+
   protected deactivateRole(role: SecurityRole) {
+    if (!window.confirm(`¿Desactivar el rol ${role.name}?`)) {
+      return;
+    }
+
     this.beginSave();
 
     this.api.deactivateRole(role.idRole).subscribe({
@@ -266,6 +481,24 @@ export class SecurityPage implements OnInit {
         this.loadSecurity();
       },
       error: (error: HttpErrorResponse) => this.setError(error, 'No se pudo desactivar el rol.'),
+      complete: () => this.saving.set(false),
+    });
+  }
+
+  protected activateRole(role: SecurityRole) {
+    if (!window.confirm(`¿Reactivar el rol ${role.name}?`)) {
+      return;
+    }
+
+    this.beginSave();
+
+    this.api.activateRole(role.idRole).subscribe({
+      next: () => {
+        this.message.set('Rol reactivado correctamente.');
+        this.selectedRoleId.set(role.idRole);
+        this.loadSecurity();
+      },
+      error: (error: HttpErrorResponse) => this.setError(error, 'No se pudo reactivar el rol.'),
       complete: () => this.saving.set(false),
     });
   }
@@ -286,6 +519,22 @@ export class SecurityPage implements OnInit {
 
     if (!this.accessForm.getRawValue().idOrganization) {
       this.accessForm.patchValue({ idOrganization: organizationId, idRole: roleId });
+    }
+  }
+
+  private syncSelectedEditors() {
+    const selectedUser = this.selectedUser();
+    if (selectedUser) {
+      this.editUserForm.reset({
+        displayName: selectedUser.displayName,
+        email: selectedUser.email,
+      });
+    }
+
+    const selectedRole = this.selectedRole();
+    if (selectedRole) {
+      this.editRoleForm.reset({ name: selectedRole.name });
+      this.selectedPermissionCodes.set(selectedRole.permissions.map((permission) => permission.codePermission));
     }
   }
 

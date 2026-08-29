@@ -61,6 +61,16 @@ export class OverviewPage {
       detail: 'Excepciones que requieren seguimiento',
     },
     {
+      label: 'Autorizaciones pendientes',
+      value: (this.operationsSummary()?.pendingApprovals ?? 0).toString(),
+      detail: 'Decisiones operativas esperando supervisión',
+    },
+    {
+      label: 'Días cerrados',
+      value: (this.operationsSummary()?.closedOperationDays ?? 0).toString(),
+      detail: 'Cierres operativos registrados',
+    },
+    {
       label: 'Asistencias capturadas',
       value: (this.operationsSummary()?.attendanceRecords ?? 0).toString(),
       detail: 'Registros reales de operación',

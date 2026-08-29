@@ -195,7 +195,7 @@
                 <div>
                   <span class="code">{{ contract.codeServiceContract }}</span>
                   <strong>{{ contractStatusLabel(contract.status) }}</strong>
-                  <small>Vigencia: {{ contract.effectiveFromDate }} - {{ contract.effectiveToDate || 'indefinida' }}</small>
+                  <small>Vigencia: {{ contract.effectiveFromDate }} - {{ contract.effectiveToDate || 'sin fecha de término' }}</small>
                   <small>{{ contract.paymentTermDays }} días crédito · {{ contract.currencyCode }}</small>
                 </div>
                 <div class="mini-actions">
@@ -327,8 +327,8 @@
                 <button class="mini-card__main" type="button" (click)="selectShiftPattern(pattern)">
                   <span class="code">{{ pattern.codeShiftPattern }}</span>
                   <strong>{{ pattern.name }}</strong>
-                  <small>Vigencia: {{ pattern.effectiveFromDate }} - {{ pattern.effectiveToDate || 'indefinida' }}</small>
-                  <small>{{ pattern.description || 'Sin descripción' }}</small>
+                  <small>Vigencia: {{ pattern.effectiveFromDate }} - {{ pattern.effectiveToDate || 'sin fecha de término' }}</small>
+                  <small>{{ pattern.description || 'Sin descripción capturada' }}</small>
                 </button>
                 <div class="mini-actions">
                   <button type="button" (click)="openEditShiftPattern(pattern)">Editar</button>
@@ -365,8 +365,8 @@
                   <span class="pill">{{ assignmentTypeLabel(assignment.assignmentType) }}{{ assignment.isPrimary ? ' · Principal' : '' }}</span>
                   <strong>{{ assignment.employeeName }}</strong>
                   <small>{{ assignment.employeeCode }} · {{ assignment.positionCode || 'Sin posición' }} {{ assignment.positionName ? '· ' + assignment.positionName : '' }}</small>
-                  <small>Vigencia: {{ assignment.startDate }} - {{ assignment.endDate || 'indefinida' }}</small>
-                  <small>{{ assignment.notes || 'Sin notas' }}</small>
+                  <small>Vigencia: {{ assignment.startDate }} - {{ assignment.endDate || 'sin fecha de término' }}</small>
+                  <small>{{ assignment.notes || 'Sin observaciones' }}</small>
                 </div>
                 <div class="mini-actions">
                   <button type="button" (click)="openEditAssignment(assignment)">Editar</button>
@@ -399,7 +399,7 @@
                   <span class="pill">{{ scheduleStatusLabel(version.status) }}</span>
                   <strong>{{ version.name }}</strong>
                   <small>{{ version.periodStartDate }} - {{ version.periodEndDate }}</small>
-                  <small>{{ version.publishedByName ? 'Publicado por ' + version.publishedByName : version.notes || 'Sin notas' }}</small>
+                  <small>{{ version.publishedByName ? 'Publicado por ' + version.publishedByName : version.notes || 'Sin observaciones' }}</small>
                 </button>
                 <div class="mini-actions">
                   @if (version.status === 'Draft') {
@@ -435,7 +435,7 @@
                   <strong>{{ shift.startTime }} - {{ shift.endTime }}</strong>
                   <small>{{ shift.employeeCode }} · {{ shift.employeeName }}</small>
                   <small>{{ shift.positionCode }} · {{ shift.positionName }} · {{ durationLabel(shift.durationMinutes) }}</small>
-                  <small>{{ shift.notes || 'Sin notas' }}</small>
+                  <small>{{ shift.notes || 'Sin observaciones' }}</small>
                 </div>
                 @if (selectedScheduleVersion()?.status === 'Draft') {
                   <div class="mini-actions">
@@ -470,7 +470,7 @@
                   <span class="pill">{{ dayLabel(segment.dayOfWeek) }}{{ segment.isOvernight ? ' · Nocturno' : '' }}</span>
                   <strong>{{ segment.startTime }} - {{ segment.endTime }}</strong>
                   <small>{{ durationLabel(segment.durationMinutes) }} · {{ segment.requiredWorkerCount }} elemento(s)</small>
-                  <small>{{ segment.notes || 'Sin notas' }}</small>
+                  <small>{{ segment.notes || 'Sin observaciones' }}</small>
                 </div>
                 <div class="mini-actions">
                   <button type="button" (click)="openEditShiftSegment(segment)">Editar</button>
@@ -583,7 +583,7 @@
       <form [formGroup]="contractForm" (ngSubmit)="saveContract()">
         <div class="form-grid">
           <label><span>Código *</span><input formControlName="codeServiceContract" [readOnly]="!!editingContract()" /></label>
-          <label><span>Estatus *</span><select formControlName="status">@for (status of contractStatuses; track status.value) { <option [value]="status.value">{{ status.label }}</option> }</select></label>
+          <label><span>Estado *</span><select formControlName="status">@for (status of contractStatuses; track status.value) { <option [value]="status.value">{{ status.label }}</option> }</select></label>
           <label><span>Fecha firma</span><input type="date" formControlName="signedDate" /></label>
           <label><span>Inicio vigencia *</span><input type="date" formControlName="effectiveFromDate" /></label>
           <label><span>Fin vigencia</span><input type="date" formControlName="effectiveToDate" /></label>
@@ -640,7 +640,7 @@
         <div class="form-grid">
           <label><span>Inicio vigencia *</span><input type="date" formControlName="effectiveFromDate" /></label>
           <label><span>Fin vigencia</span><input type="date" formControlName="effectiveToDate" /></label>
-          <label><span>Elementos *</span><input type="number" formControlName="requiredWorkerCount" min="1" /></label>
+          <label><span>Personas requeridas *</span><input type="number" formControlName="requiredWorkerCount" min="1" /></label>
           <label><span>Horas/día *</span><input type="number" formControlName="hoursPerDay" min="0.5" step="0.5" /></label>
           <label><span>Días/semana *</span><input type="number" formControlName="daysPerWeek" min="1" max="7" /></label>
           <label><span>Horas/mes *</span><input type="number" formControlName="averageMonthlyHours" min="1" step="0.5" /></label>
@@ -670,7 +670,7 @@
       <form [formGroup]="positionForm" (ngSubmit)="savePosition()">
         <div class="form-grid">
           <label><span>Código *</span><input formControlName="codePosition" [readOnly]="!!editingPosition()" /></label>
-          <label><span>Elementos *</span><input type="number" formControlName="requiredWorkerCount" min="1" /></label>
+          <label><span>Personas requeridas *</span><input type="number" formControlName="requiredWorkerCount" min="1" /></label>
           <label class="wide"><span>Nombre *</span><input formControlName="name" /></label>
           <label class="wide"><span>Perfil requerido</span><textarea rows="3" formControlName="requiredSkillProfile"></textarea></label>
           <label class="wide"><span>Notas</span><textarea rows="3" formControlName="notes"></textarea></label>
@@ -828,7 +828,7 @@
       <form [formGroup]="shiftSegmentForm" (ngSubmit)="saveShiftSegment()">
         <div class="form-grid">
           <label><span>Día *</span><select formControlName="dayOfWeek">@for (day of weekDays; track day.value) { <option [value]="day.value">{{ day.label }}</option> }</select></label>
-          <label><span>Elementos *</span><input type="number" formControlName="requiredWorkerCount" min="1" /></label>
+          <label><span>Personas requeridas *</span><input type="number" formControlName="requiredWorkerCount" min="1" /></label>
           <label><span>Inicio *</span><input type="time" formControlName="startTime" /></label>
           <label><span>Fin *</span><input type="time" formControlName="endTime" /></label>
           <label class="check"><input type="checkbox" formControlName="isOvernight" /><span>Cruza medianoche</span></label>

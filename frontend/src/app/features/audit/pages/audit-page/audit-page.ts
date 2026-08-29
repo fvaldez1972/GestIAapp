@@ -30,6 +30,7 @@ export class AuditPage implements OnInit {
   protected readonly totalCount = signal(0);
   protected readonly totalPages = signal(0);
   protected readonly loading = signal(false);
+  protected readonly exporting = signal(false);
   protected readonly error = signal('');
 
   protected readonly latestEvent = computed(() => this.events()[0] ?? null);
@@ -107,29 +108,75 @@ export class AuditPage implements OnInit {
     return 'status-updated';
   }
 
+  protected entityLabel(entity: string) {
+    const labels: Record<string, string> = {
+      ApprovalRequests: 'Autorizaciones',
+      BusinessCatalogItems: 'Catálogos',
+      BusinessDocuments: 'Documentos',
+      Clients: 'Clientes',
+      ClientContacts: 'Contactos',
+      ClientSites: 'Sedes',
+      EligibilityRequirements: 'Reglas de elegibilidad',
+      EmployeeDocuments: 'Documentos de personal',
+      EmployeeEvaluations: 'Evaluaciones',
+      Employees: 'Personal',
+      EmployeeSkills: 'Habilidades del personal',
+      OperationDayClosures: 'Cierres diarios',
+      Organizations: 'Organizaciones',
+      ServiceAssignments: 'Asignaciones',
+      ServiceConfigurations: 'Configuraciones de servicio',
+      ServiceContracts: 'Contratos',
+      Services: 'Servicios',
+    };
+
+    return labels[entity] ?? this.humanizeToken(entity);
+  }
+
+  protected compactRecordId(recordId: string) {
+    if (!recordId) {
+      return '';
+    }
+
+    return recordId.length > 12 ? `${recordId.slice(0, 8)}…` : recordId;
+  }
+
+  protected formatDateTime(value: string) {
+    return new Intl.DateTimeFormat('es-MX', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    }).format(new Date(value));
+  }
+
+  protected compactDetails(value: string | null) {
+    if (!value) {
+      return 'Sin detalle adicional';
+    }
+
+    return value.length > 120 ? `${value.slice(0, 117)}…` : value;
+  }
+
   protected exportCsv() {
-    const rows = [
-      ['Fecha', 'Entidad', 'Registro', 'IdRegistro', 'Acción', 'Usuario', 'Detalle', 'Estado'],
-      ...this.events().map((event) => [
-        event.occurredAt,
-        event.entity,
-        event.entityName,
-        event.recordId,
-        event.action,
-        event.actorName,
-        event.details ?? '',
-        event.active ? 'Activo' : 'Inactivo',
-      ]),
-    ];
-    const csv = rows.map((row) => row.map((value) => `"${String(value).replaceAll('"', '""')}"`).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    const entity = this.selectedEntity() || 'todas';
-    link.href = url;
-    link.download = `gestia-auditoria-${entity}-${this.page()}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+    const organizationId = this.selectedOrganizationId();
+    if (!organizationId || this.exporting()) {
+      return;
+    }
+
+    this.exporting.set(true);
+    this.error.set('');
+
+    this.api
+      .exportEvents(
+        organizationId,
+        this.selectedEntity(),
+        this.search(),
+        this.fromDate(),
+        this.toDate(),
+      )
+      .subscribe({
+        next: (blob) => this.downloadBlob(blob, `gestia-auditoria-${this.selectedEntity() || 'todas'}.csv`),
+        error: (error: HttpErrorResponse) => this.setError(error, 'No se pudo exportar la auditoría.'),
+        complete: () => this.exporting.set(false),
+      });
   }
 
   private loadOrganizations() {
@@ -173,7 +220,7 @@ export class AuditPage implements OnInit {
       .subscribe({
         next: (result: AuditResult) => {
           this.events.set(result.events.items);
-          this.entities.set(result.availableEntities);
+          this.entities.set([...result.availableEntities].sort((left, right) => this.entityLabel(left).localeCompare(this.entityLabel(right), 'es-MX')));
           this.totalCount.set(result.events.totalCount);
           this.totalPages.set(result.events.totalPages);
         },
@@ -184,6 +231,27 @@ export class AuditPage implements OnInit {
 
   private setError(error: HttpErrorResponse, fallback: string) {
     this.loading.set(false);
+    this.exporting.set(false);
     this.error.set(error.error?.detail ?? error.error?.message ?? fallback);
+  }
+
+  private downloadBlob(blob: Blob, fileName: string) {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  private humanizeToken(value: string) {
+    if (!value) {
+      return 'Sin categoría';
+    }
+
+    return value
+      .replace(/([a-z])([A-Z])/g, '$1 $2')
+      .replaceAll('_', ' ')
+      .trim();
   }
 }

@@ -69,9 +69,13 @@
   margin: -.6rem 0 0;
 }
 
-.progress-list {
+.progress-list,
+.bar-list {
   display: grid;
   gap: .75rem;
+}
+
+.progress-list {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
@@ -92,6 +96,64 @@
 .progress-list strong {
   color: #06124a;
   font-size: 1.35rem;
+}
+
+.bar-row {
+  background: #f7faff;
+  border: 1px solid #e1ebf6;
+  border-radius: 1rem;
+  display: grid;
+  gap: .55rem;
+  padding: .85rem;
+}
+
+.bar-row header {
+  align-items: center;
+  display: flex;
+  gap: .75rem;
+  justify-content: space-between;
+}
+
+.bar-row span {
+  color: #60708c;
+  font-size: .86rem;
+  font-weight: 800;
+}
+
+.bar-row strong {
+  color: #06124a;
+  font-size: .88rem;
+}
+
+.bar-track {
+  background: #e8eef8;
+  border-radius: 999rem;
+  display: block;
+  height: .55rem;
+  overflow: hidden;
+}
+
+.bar-fill {
+  background: #12b8df;
+  border-radius: inherit;
+  display: block;
+  height: 100%;
+}
+
+.bar-fill.is-ok {
+  background: #20b56b;
+}
+
+.bar-fill.is-warning {
+  background: #f59e0b;
+}
+
+.bar-fill.is-danger {
+  background: #ef4444;
+}
+
+.bar-fill.is-info {
+  background: #38bdf8;
 }
 
 .alert-stack {

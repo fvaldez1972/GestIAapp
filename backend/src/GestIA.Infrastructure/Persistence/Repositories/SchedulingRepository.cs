@@ -50,9 +50,11 @@ public sealed class SchedulingRepository(GestIaDbContext dbContext) : ISchedulin
         await dbContext.ShiftPatterns
             .AsNoTracking()
             .Include(pattern => pattern.Position)
-            .Include(pattern => pattern.Segments)
+            .Include(pattern => pattern.Segments.Where(segment => segment.Active))
             .Where(pattern =>
                 pattern.Position.IdService == idService &&
+                pattern.Position.Active &&
+                pattern.Active &&
                 pattern.EffectiveFromDate <= periodEndDate &&
                 (pattern.EffectiveToDate == null || pattern.EffectiveToDate >= periodStartDate))
             .OrderBy(pattern => pattern.Position.CodePosition)

@@ -2,7 +2,7 @@
   <article class="gi-card gi-card--hero documents-hero">
     <div>
       <span class="eyebrow">Archivo documental</span>
-      <h1>Documentos reales</h1>
+      <h1>Expediente documental</h1>
       <p>
         Centraliza contratos, anexos, papelería de empleados, evidencias de evaluaciones y soportes de solicitudes
         con vencimientos, privacidad y trazabilidad.
@@ -25,10 +25,20 @@
 
     <label class="gi-field">
       Tipo
-      <select class="gi-input" formControlName="ownerType">
+      <select class="gi-input" formControlName="ownerType" (change)="onFilterOwnerTypeChange($event)">
         <option value="">Todos</option>
         @for (type of ownerTypes; track type.value) {
           <option [value]="type.value">{{ type.label }}</option>
+        }
+      </select>
+    </label>
+
+    <label class="gi-field">
+      Registro
+      <select class="gi-input" formControlName="ownerId" [disabled]="!selectedFilterOwnerType()">
+        <option value="">Todos</option>
+        @for (option of filterOwnerOptions(); track option.value) {
+          <option [value]="option.value">{{ option.label }}</option>
         }
       </select>
     </label>
@@ -73,6 +83,16 @@
       <small>Requieren renovación</small>
     </article>
     <article class="gi-card metric-card">
+      <span>Por vencer</span>
+      <strong>{{ dueSoonDocuments() }}</strong>
+      <small>Próximos 30 días</small>
+    </article>
+    <article class="gi-card metric-card">
+      <span>Pendientes</span>
+      <strong>{{ pendingDocuments() }}</strong>
+      <small>Por revisar</small>
+    </article>
+    <article class="gi-card metric-card">
       <span>Sensibles</span>
       <strong>{{ sensitiveDocuments() }}</strong>
       <small>Con privacidad reforzada</small>
@@ -96,6 +116,7 @@
           </label>
         }
       </div>
+      <p class="owner-hint">{{ ownerTypeHelp() }}</p>
 
       @if (ownerOptions().length) {
         <label class="gi-field">
@@ -108,9 +129,9 @@
         </label>
       } @else {
         <label class="gi-field">
-          Id del registro relacionado
-          <input class="gi-input" type="text" formControlName="ownerId" placeholder="Pega aquí el identificador del contrato/evaluación" />
-          <small>Para contratos y evaluaciones todavía usa el ID directo; después lo conectamos a selector contextual.</small>
+          Registro relacionado
+          <input class="gi-input" type="text" formControlName="ownerId" placeholder="Referencia del registro relacionado" />
+          <small>No hay registros disponibles para este tipo; crea primero el registro correspondiente o revisa la organización seleccionada.</small>
         </label>
       }
 
@@ -148,12 +169,12 @@
       <label class="gi-field">
         Archivo
         <input class="gi-input" type="file" [disabled]="uploading()" (change)="uploadFile($event)" />
-        <small>{{ uploading() ? 'Cargando archivo…' : 'Selecciona un archivo para guardarlo en storage local.' }}</small>
+        <small>{{ uploading() ? 'Cargando archivo…' : 'Selecciona un archivo para dejarlo disponible en el expediente.' }}</small>
       </label>
 
       <label class="gi-field">
         Referencia
-        <input class="gi-input" type="text" formControlName="storageReference" placeholder="Se llena al subir archivo o puedes pegar una URL/ruta" />
+        <input class="gi-input" type="text" formControlName="storageReference" placeholder="Se llena al subir archivo o puedes pegar una referencia externa" />
       </label>
 
       <label class="check-row">
@@ -193,12 +214,13 @@
             <button type="button" class="document-main" (click)="selectDocument(document)">
               <span class="document-topline">
                 <i>{{ labelForOwnerType(document.ownerType) }}</i>
-                <em [class.is-sensitive]="document.isSensitive">{{ document.isSensitive ? 'Sensible' : labelForStatus(document.status) }}</em>
+                <em [class]="statusClass(document)">{{ document.isSensitive ? 'Sensible' : labelForStatus(document.status) }}</em>
               </span>
               <strong>{{ document.title }}</strong>
               <small>{{ document.ownerLabel }} · {{ document.category }}</small>
-              @if (document.expiresDate) {
-                <small [class.warning]="document.isExpired">Vence: {{ document.expiresDate }}</small>
+              <small [class.warning]="document.isExpired || isDueSoon(document)">{{ expiryLabel(document) }}</small>
+              @if (document.notes) {
+                <small>{{ document.notes }}</small>
               }
             </button>
             <footer>

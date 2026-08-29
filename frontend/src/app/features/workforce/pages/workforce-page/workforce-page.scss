@@ -116,19 +116,20 @@ input,
 textarea {
   width: 100%;
   border: 1px solid #d8deea;
-  border-radius: 0.55rem;
+  border-radius: 0.72rem;
   color: #252c3a;
   background: #fff;
 }
 
 select,
 input {
-  min-height: 2.35rem;
-  padding: 0.45rem 0.65rem;
+  min-height: 2.55rem;
+  padding: 0.52rem 0.72rem;
 }
 
 textarea {
-  padding: 0.6rem 0.65rem;
+  padding: 0.72rem;
+  line-height: 1.45;
   resize: vertical;
 }
 
@@ -162,7 +163,7 @@ textarea {
 .workbench {
   display: grid;
   grid-template-columns: minmax(22rem, 0.86fr) minmax(28rem, 1.14fr);
-  gap: 1rem;
+  gap: 1.2rem;
   align-items: start;
 }
 
@@ -204,7 +205,7 @@ textarea {
   grid-template-columns: auto 1fr;
   gap: 0.7rem;
   width: 100%;
-  padding: 0.85rem 1rem;
+  padding: 0.95rem 1.05rem;
   border: 0;
   border-top: 1px solid #edf0f5;
   color: inherit;
@@ -240,7 +241,8 @@ textarea {
 .mini-card small {
   margin-top: 0.18rem;
   color: var(--gestia-muted);
-  font-size: 0.68rem;
+  font-size: 0.72rem;
+  line-height: 1.42;
 }
 
 .code,
@@ -250,9 +252,10 @@ textarea {
   padding: 0.24rem 0.42rem;
   border-radius: 0.38rem;
   color: var(--gestia-navy);
-  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-family: inherit;
   font-size: 0.68rem;
   font-weight: 750;
+  letter-spacing: 0.02em;
   background: #f0f1f8;
 }
 
@@ -294,7 +297,7 @@ textarea {
 }
 
 .detail-section {
-  padding: 1rem 1.15rem;
+  padding: 1.15rem 1.25rem;
   border-top: 1px solid #edf0f5;
 }
 
@@ -304,8 +307,8 @@ textarea {
 
 .cards-list {
   display: grid;
-  gap: 0.65rem;
-  margin-top: 0.8rem;
+  gap: 0.78rem;
+  margin-top: 0.9rem;
 }
 
 .profile-grid {
@@ -337,9 +340,9 @@ textarea {
 
 .mini-card {
   align-items: flex-start;
-  padding: 0.85rem;
+  padding: 0.95rem;
   border: 1px solid #edf0f5;
-  border-radius: 0.75rem;
+  border-radius: 0.9rem;
   background: #fbfcfe;
 }
 
@@ -355,7 +358,7 @@ textarea {
 .mini-card__main {
   flex: 1;
   min-width: 0;
-  padding: 0.85rem;
+  padding: 0.95rem;
   border: 0;
   color: inherit;
   text-align: left;
@@ -456,13 +459,13 @@ textarea {
 }
 
 .modal form {
-  padding: 1.15rem 1.25rem;
+  padding: 1.25rem 1.35rem;
 }
 
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.9rem;
+  gap: 1rem;
 }
 
 .form-grid label span {

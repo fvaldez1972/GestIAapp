@@ -135,6 +135,22 @@ public sealed class OperationalRequestService(
         return Map(operationalRequest);
     }
 
+    public async Task<OperationalRequestExecutionPreviewResponse> PreviewExecutionAsync(
+        Guid idOperationalRequest,
+        ExecuteOperationalRequestRequest request,
+        CancellationToken cancellationToken)
+    {
+        var errors = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
+        ValidateOrganization(request.IdOrganization, errors);
+        InputValidation.Optional(request.ExecutionNotes, nameof(request.ExecutionNotes), 1000, errors);
+        InputValidation.ThrowIfInvalid(errors);
+
+        var operationalRequest = await repository.GetAsync(request.IdOrganization, idOperationalRequest, cancellationToken)
+            ?? throw new ResourceNotFoundException("No se encontró la solicitud.");
+
+        return BuildExecutionPreview(operationalRequest, request);
+    }
+
     public async Task<ExecuteOperationalRequestResponse> ExecuteAsync(
         Guid idOperationalRequest,
         ExecuteOperationalRequestRequest request,
@@ -153,13 +169,16 @@ public sealed class OperationalRequestService(
             throw new ResourceConflictException("Sólo se pueden ejecutar solicitudes aprobadas.");
         }
 
-        var warnings = ValidateExecutionReadiness(operationalRequest, request);
-        if (warnings.Count > 0)
+        var preview = BuildExecutionPreview(operationalRequest, request);
+        if (!preview.CanExecute)
         {
             throw new RequestValidationException(
                 new Dictionary<string, string[]>
                 {
-                    ["execution"] = warnings.ToArray()
+                    ["execution"] = preview.MissingFields
+                        .Concat(preview.Warnings)
+                        .DefaultIfEmpty("La solicitud todavía no tiene los datos necesarios para ejecutarse.")
+                        .ToArray()
                 });
         }
 
@@ -610,101 +629,300 @@ public sealed class OperationalRequestService(
                 input.IsTaxIncluded),
             cancellationToken);
 
-    private static List<string> ValidateExecutionReadiness(
+    private static OperationalRequestExecutionPreviewResponse BuildExecutionPreview(
         OperationalRequest request,
         ExecuteOperationalRequestRequest execution)
     {
+        var requiredFields = new List<string>();
+        var missingFields = new List<string>();
+        var impact = new List<string>();
         var warnings = new List<string>();
+
+        requiredFields.Add("Solicitud aprobada");
+        if (request.Status != OperationalRequestStatus.Approved)
+        {
+            missingFields.Add("La solicitud debe estar aprobada antes de ejecutarse.");
+        }
 
         switch (request.RequestType)
         {
             case OperationalRequestType.NewClient:
-                if (!request.IdClient.HasValue && execution.Client is null)
+                impact.Add(request.IdClient.HasValue
+                    ? "Ligará la solicitud al cliente ya seleccionado."
+                    : "Creará un nuevo cliente real.");
+                if (execution.ClientSite is not null)
                 {
-                    warnings.Add("Captura el bloque 'client' o liga un cliente antes de ejecutar una solicitud de alta de cliente.");
+                    impact.Add("Creará una sede para el cliente.");
+                }
+
+                if (execution.Service is not null)
+                {
+                    impact.Add("Creará un servicio asociado al cliente.");
+                }
+
+                RequireClientInputOrLinkedClient(request, execution, requiredFields, missingFields);
+                if (execution.Client is not null)
+                {
+                    RequireNewClientFields(execution.Client, requiredFields, missingFields);
+                }
+
+                if (execution.ClientSite is not null)
+                {
+                    RequireClientSiteFields(execution.ClientSite, requiredFields, missingFields);
+                }
+
+                if (execution.Service is not null)
+                {
+                    RequireServiceFields(execution.Service, execution.ClientSite, requiredFields, missingFields);
+                }
+
+                if (execution.ServiceConfiguration is not null)
+                {
+                    if (execution.Service is null && !request.IdService.HasValue)
+                    {
+                        missingFields.Add("Para crear configuración se necesita crear o ligar un servicio.");
+                    }
+
+                    RequireConfigurationFields(execution.ServiceConfiguration, requiredFields, missingFields);
                 }
 
                 break;
             case OperationalRequestType.NewService:
-                if (!request.IdClient.HasValue && execution.Client is null)
+                impact.Add(request.IdClient.HasValue
+                    ? "Usará el cliente ligado a la solicitud."
+                    : "Creará el cliente antes de crear el servicio.");
+                impact.Add(request.IdService.HasValue
+                    ? "Ligará la solicitud al servicio existente."
+                    : "Creará un nuevo servicio real.");
+                if (execution.ServiceConfiguration is not null)
                 {
-                    warnings.Add("Liga un cliente o captura el bloque 'client' antes de crear un servicio.");
+                    impact.Add("Creará la configuración operativa inicial del servicio.");
                 }
 
+                RequireClientInputOrLinkedClient(request, execution, requiredFields, missingFields);
+                if (execution.Client is not null)
+                {
+                    RequireNewClientFields(execution.Client, requiredFields, missingFields);
+                }
+
+                requiredFields.Add("Servicio nuevo o servicio ligado");
                 if (!request.IdService.HasValue && execution.Service is null)
                 {
-                    warnings.Add("Captura el bloque 'service' o liga un servicio antes de ejecutar una solicitud de nuevo servicio.");
+                    missingFields.Add("Captura los datos del servicio o liga un servicio existente.");
                 }
 
-                if (execution.Service is not null &&
-                    !execution.Service.IdClientSite.HasValue &&
-                    execution.ClientSite is null)
+                if (execution.ClientSite is not null)
                 {
-                    warnings.Add("Para crear un servicio necesitas indicar 'service.idClientSite' o capturar el bloque 'clientSite'.");
+                    RequireClientSiteFields(execution.ClientSite, requiredFields, missingFields);
+                }
+
+                if (execution.Service is not null)
+                {
+                    RequireServiceFields(execution.Service, execution.ClientSite, requiredFields, missingFields);
+                }
+
+                if (execution.ServiceConfiguration is not null)
+                {
+                    RequireConfigurationFields(execution.ServiceConfiguration, requiredFields, missingFields);
                 }
 
                 break;
             case OperationalRequestType.ServiceChange:
-                if (!request.IdClient.HasValue)
-                {
-                    warnings.Add("Liga un cliente antes de ejecutar el cambio de configuración.");
-                }
-
-                if (!request.IdService.HasValue)
-                {
-                    warnings.Add("Liga un servicio antes de ejecutar el cambio de configuración.");
-                }
+                impact.Add("Creará una nueva configuración para el servicio ligado.");
+                RequireLinkedClientAndService(request, requiredFields, missingFields);
+                requiredFields.Add("Nueva configuración de servicio");
 
                 if (execution.ServiceConfiguration is null)
                 {
-                    warnings.Add("Captura el bloque 'serviceConfiguration' para aplicar el cambio de configuración.");
+                    missingFields.Add("Captura la nueva configuración del servicio.");
+                }
+                else
+                {
+                    RequireConfigurationFields(execution.ServiceConfiguration, requiredFields, missingFields);
                 }
 
                 break;
             case OperationalRequestType.StaffChange:
-                if (!request.IdClient.HasValue)
-                {
-                    warnings.Add("Liga un cliente antes de ejecutar el cambio de personal.");
-                }
-
-                if (!request.IdService.HasValue)
-                {
-                    warnings.Add("Liga un servicio antes de ejecutar el cambio de personal.");
-                }
+                impact.Add("Convertirá el movimiento de personal en una asignación real.");
+                RequireLinkedClientAndService(request, requiredFields, missingFields);
+                requiredFields.Add("Empleado");
+                requiredFields.Add("Puesto");
+                requiredFields.Add("Fecha de inicio");
 
                 if (execution.StaffAssignment is null)
                 {
-                    warnings.Add("Captura el bloque 'staffAssignment' para convertir la solicitud en asignación.");
+                    missingFields.Add("Captura los datos del movimiento de personal.");
+                }
+                else
+                {
+                    if (execution.StaffAssignment.IdEmployee == Guid.Empty)
+                    {
+                        missingFields.Add("Selecciona el empleado.");
+                    }
+
+                    if (execution.StaffAssignment.IdPosition == Guid.Empty)
+                    {
+                        missingFields.Add("Selecciona el puesto.");
+                    }
                 }
 
                 break;
             case OperationalRequestType.CoverageSupport:
-                if (!request.IdClient.HasValue)
-                {
-                    warnings.Add("Liga un cliente antes de ejecutar la cobertura.");
-                }
-
-                if (!request.IdService.HasValue)
-                {
-                    warnings.Add("Liga un servicio antes de ejecutar la cobertura.");
-                }
+                impact.Add("Convertirá el apoyo solicitado en una cobertura real.");
+                RequireLinkedClientAndService(request, requiredFields, missingFields);
+                requiredFields.Add("Turno programado");
+                requiredFields.Add("Empleado de reemplazo");
+                requiredFields.Add("Horario de cobertura");
 
                 if (execution.Coverage is null)
                 {
-                    warnings.Add("Captura el bloque 'coverage' para convertir la solicitud en cobertura real.");
+                    missingFields.Add("Captura los datos de la cobertura.");
+                }
+                else
+                {
+                    if (execution.Coverage.IdScheduledShift == Guid.Empty)
+                    {
+                        missingFields.Add("Selecciona el turno programado.");
+                    }
+
+                    if (execution.Coverage.IdReplacementEmployee == Guid.Empty)
+                    {
+                        missingFields.Add("Selecciona el empleado de reemplazo.");
+                    }
                 }
 
                 break;
             case OperationalRequestType.Other:
-                if (string.IsNullOrWhiteSpace(request.ResolutionNotes))
+                impact.Add("Cerrará la solicitud con nota de seguimiento.");
+                requiredFields.Add("Nota de resolución o ejecución");
+                if (string.IsNullOrWhiteSpace(request.ResolutionNotes) &&
+                    string.IsNullOrWhiteSpace(execution.ExecutionNotes))
                 {
-                    warnings.Add("Agrega una nota de resolución antes de ejecutar una solicitud de tipo Otro.");
+                    missingFields.Add("Agrega una nota de resolución o ejecución antes de cerrar la solicitud.");
                 }
 
                 break;
         }
 
-        return warnings;
+        var distinctRequiredFields = requiredFields.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        var distinctMissingFields = missingFields.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+
+        return new OperationalRequestExecutionPreviewResponse(
+            request.IdOperationalRequest,
+            request.RequestType,
+            distinctMissingFields.Length == 0,
+            distinctRequiredFields,
+            distinctMissingFields,
+            impact.Distinct(StringComparer.OrdinalIgnoreCase).ToArray(),
+            warnings);
+    }
+
+    private static void RequireClientInputOrLinkedClient(
+        OperationalRequest request,
+        ExecuteOperationalRequestRequest execution,
+        List<string> requiredFields,
+        List<string> missingFields)
+    {
+        requiredFields.Add("Cliente ligado o datos de cliente nuevo");
+        if (!request.IdClient.HasValue && execution.Client is null)
+        {
+            missingFields.Add("Liga un cliente existente o captura los datos del cliente nuevo.");
+        }
+    }
+
+    private static void RequireLinkedClientAndService(
+        OperationalRequest request,
+        List<string> requiredFields,
+        List<string> missingFields)
+    {
+        requiredFields.Add("Cliente ligado");
+        requiredFields.Add("Servicio ligado");
+
+        if (!request.IdClient.HasValue)
+        {
+            missingFields.Add("Liga un cliente antes de ejecutar esta solicitud.");
+        }
+
+        if (!request.IdService.HasValue)
+        {
+            missingFields.Add("Liga un servicio antes de ejecutar esta solicitud.");
+        }
+    }
+
+    private static void RequireNewClientFields(
+        OperationalRequestClientInput client,
+        List<string> requiredFields,
+        List<string> missingFields)
+    {
+        requiredFields.Add("Código de cliente");
+        requiredFields.Add("Razón social");
+        requiredFields.Add("RFC");
+        AddMissingIf(string.IsNullOrWhiteSpace(client.CodeClient), "Captura el código del cliente.", missingFields);
+        AddMissingIf(string.IsNullOrWhiteSpace(client.LegalName), "Captura la razón social del cliente.", missingFields);
+        AddMissingIf(string.IsNullOrWhiteSpace(client.Rfc), "Captura el RFC del cliente.", missingFields);
+    }
+
+    private static void RequireClientSiteFields(
+        OperationalRequestClientSiteInput site,
+        List<string> requiredFields,
+        List<string> missingFields)
+    {
+        requiredFields.Add("Código de sede");
+        requiredFields.Add("Nombre de sede");
+        requiredFields.Add("Dirección de sede");
+        AddMissingIf(string.IsNullOrWhiteSpace(site.CodeClientSite), "Captura el código de la sede.", missingFields);
+        AddMissingIf(string.IsNullOrWhiteSpace(site.Name), "Captura el nombre de la sede.", missingFields);
+        AddMissingIf(string.IsNullOrWhiteSpace(site.Street), "Captura la calle de la sede.", missingFields);
+        AddMissingIf(string.IsNullOrWhiteSpace(site.Municipality), "Captura el municipio de la sede.", missingFields);
+        AddMissingIf(string.IsNullOrWhiteSpace(site.State), "Captura el estado de la sede.", missingFields);
+        AddMissingIf(string.IsNullOrWhiteSpace(site.PostalCode), "Captura el código postal de la sede.", missingFields);
+    }
+
+    private static void RequireServiceFields(
+        OperationalRequestServiceInput service,
+        OperationalRequestClientSiteInput? clientSite,
+        List<string> requiredFields,
+        List<string> missingFields)
+    {
+        requiredFields.Add("Código de servicio");
+        requiredFields.Add("Nombre de servicio");
+        requiredFields.Add("Descripción de servicio");
+        requiredFields.Add("Fecha de inicio del servicio");
+        requiredFields.Add("Sede del servicio");
+
+        AddMissingIf(string.IsNullOrWhiteSpace(service.CodeService), "Captura el código del servicio.", missingFields);
+        AddMissingIf(string.IsNullOrWhiteSpace(service.Name), "Captura el nombre del servicio.", missingFields);
+        AddMissingIf(string.IsNullOrWhiteSpace(service.Description), "Captura la descripción del servicio.", missingFields);
+        if (!service.IdClientSite.HasValue && clientSite is null)
+        {
+            missingFields.Add("Selecciona una sede existente o captura los datos de la sede nueva.");
+        }
+    }
+
+    private static void RequireConfigurationFields(
+        OperationalRequestServiceConfigurationInput configuration,
+        List<string> requiredFields,
+        List<string> missingFields)
+    {
+        requiredFields.Add("Personal requerido");
+        requiredFields.Add("Horas por día");
+        requiredFields.Add("Días por semana");
+        requiredFields.Add("Horas mensuales promedio");
+        requiredFields.Add("Descripción de horario");
+
+        AddMissingIf(configuration.RequiredWorkerCount <= 0, "El personal requerido debe ser mayor a cero.", missingFields);
+        AddMissingIf(configuration.HoursPerDay <= 0, "Las horas por día deben ser mayores a cero.", missingFields);
+        AddMissingIf(configuration.DaysPerWeek <= 0, "Los días por semana deben ser mayores a cero.", missingFields);
+        AddMissingIf(configuration.AverageMonthlyHours <= 0, "Las horas mensuales promedio deben ser mayores a cero.", missingFields);
+        AddMissingIf(string.IsNullOrWhiteSpace(configuration.WorkScheduleDescription), "Captura la descripción del horario.", missingFields);
+    }
+
+    private static void AddMissingIf(bool condition, string message, List<string> missingFields)
+    {
+        if (condition)
+        {
+            missingFields.Add(message);
+        }
     }
 
     private static string BuildExecutionNotes(string outcome, string? executionNotes)

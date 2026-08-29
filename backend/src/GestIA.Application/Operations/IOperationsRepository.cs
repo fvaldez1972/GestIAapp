@@ -9,6 +9,8 @@ public interface IOperationsRepository
 {
     Task<ServiceEntity?> GetServiceAsync(Guid idOrganization, Guid idClient, Guid idService, CancellationToken cancellationToken);
 
+    Task<ServiceEntity?> GetServiceAsync(Guid idOrganization, Guid idService, CancellationToken cancellationToken);
+
     Task<ScheduledShift?> GetScheduledShiftAsync(Guid idService, Guid idScheduledShift, CancellationToken cancellationToken);
 
     Task<Employee?> GetEmployeeAsync(Guid idOrganization, Guid idEmployee, CancellationToken cancellationToken);
@@ -18,6 +20,8 @@ public interface IOperationsRepository
     Task<IReadOnlyList<AttendanceRecord>> ListAttendanceAsync(Guid idService, DateOnly? attendanceDate, CancellationToken cancellationToken);
 
     Task AddAttendanceAsync(AttendanceRecord attendance, CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<ScheduledShift>> ListScheduledShiftsAsync(Guid idService, DateOnly shiftDate, CancellationToken cancellationToken);
 
     Task<Incident?> GetIncidentAsync(Guid idService, Guid idIncident, CancellationToken cancellationToken);
 
@@ -45,4 +49,27 @@ public interface IOperationsRepository
         CancellationToken cancellationToken);
 
     Task AddEvidenceAsync(OperationEvidence evidence, CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<ApprovalRequest>> ListApprovalRequestsAsync(
+        Guid idOrganization,
+        Guid? idService,
+        ApprovalRequestStatus? status,
+        CancellationToken cancellationToken);
+
+    Task<ApprovalRequest?> GetApprovalRequestAsync(Guid idOrganization, Guid idApprovalRequest, CancellationToken cancellationToken);
+
+    Task AddApprovalRequestAsync(ApprovalRequest approvalRequest, CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<OperationDayClosure>> ListDayClosuresAsync(
+        Guid idOrganization,
+        Guid? idService,
+        DateOnly? fromDate,
+        DateOnly? toDate,
+        CancellationToken cancellationToken);
+
+    Task<OperationDayClosure?> GetDayClosureAsync(Guid idService, DateOnly operationDate, CancellationToken cancellationToken);
+
+    Task<OperationDayClosure?> GetDayClosureAsync(Guid idService, Guid idOperationDayClosure, CancellationToken cancellationToken);
+
+    Task AddDayClosureAsync(OperationDayClosure closure, CancellationToken cancellationToken);
 }

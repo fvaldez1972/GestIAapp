@@ -1,6 +1,7 @@
 using GestIA.Application.Audit;
 using GestIA.Application.Clients;
 using GestIA.Application.Assignments;
+using GestIA.Application.Catalogs;
 using GestIA.Application.Common;
 using GestIA.Application.Documents;
 using GestIA.Application.Operations;
@@ -52,6 +53,7 @@ public static class DependencyInjection
         services.AddScoped<IWorkforceRepository, WorkforceRepository>();
         services.AddScoped<IPlanningRepository, PlanningRepository>();
         services.AddScoped<IAssignmentRepository, AssignmentRepository>();
+        services.AddScoped<ICatalogRepository, CatalogRepository>();
         services.AddScoped<ISchedulingRepository, SchedulingRepository>();
         services.AddScoped<IOperationsRepository, OperationsRepository>();
         services.AddScoped<IReportsRepository, ReportsRepository>();

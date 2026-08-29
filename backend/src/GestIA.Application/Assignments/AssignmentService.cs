@@ -1,4 +1,5 @@
 using GestIA.Application.Common;
+using GestIA.Application.Catalogs;
 using GestIA.Domain.Planning;
 using GestIA.Domain.Workforce;
 
@@ -6,6 +7,7 @@ namespace GestIA.Application.Assignments;
 
 public sealed class AssignmentService(
     IAssignmentRepository repository,
+    ICatalogService catalogService,
     IUnitOfWork unitOfWork,
     IActorContext actorContext,
     IClock clock) : IAssignmentService
@@ -36,6 +38,12 @@ public sealed class AssignmentService(
             request.IsPrimary,
             request.Notes);
         await EnsureEmployeeEligibilityAsync(employee, position, profile.StartDate, cancellationToken);
+        await EnsureConfiguredEligibilityAsync(
+            request.IdOrganization,
+            employee.IdEmployee,
+            position.IdPosition,
+            profile.StartDate,
+            cancellationToken);
         await EnsureNoOverlapAsync(employee.IdEmployee, request.StartDate, request.EndDate, null, cancellationToken);
 
         var assignment = ServiceAssignment.Create(
@@ -69,6 +77,12 @@ public sealed class AssignmentService(
             request.IsPrimary,
             request.Notes);
         await EnsureEmployeeEligibilityAsync(employee, position, profile.StartDate, cancellationToken);
+        await EnsureConfiguredEligibilityAsync(
+            request.IdOrganization,
+            employee.IdEmployee,
+            position.IdPosition,
+            profile.StartDate,
+            cancellationToken);
         await EnsureNoOverlapAsync(
             employee.IdEmployee,
             request.StartDate,
@@ -208,6 +222,36 @@ public sealed class AssignmentService(
         {
             throw new ResourceConflictException(
                 $"El empleado no coincide con el perfil requerido para la posición: {position.RequiredSkillProfile}.");
+        }
+    }
+
+    private async Task EnsureConfiguredEligibilityAsync(
+        Guid idOrganization,
+        Guid idEmployee,
+        Guid idPosition,
+        DateOnly effectiveDate,
+        CancellationToken cancellationToken)
+    {
+        var eligibility = await catalogService.CheckEligibilityAsync(
+            new EligibilityCheckQuery(
+                idOrganization,
+                idEmployee,
+                null,
+                null,
+                idPosition,
+                effectiveDate),
+            cancellationToken);
+
+        if (!eligibility.IsEligible)
+        {
+            var blockingReasons = eligibility.Reasons
+                .Where(reason => reason.IsBlocking && !reason.Passed)
+                .Select(reason => reason.Message)
+                .Distinct()
+                .ToArray();
+
+            throw new ResourceConflictException(
+                $"El empleado no cumple reglas de elegibilidad configuradas: {string.Join(" ", blockingReasons)}");
         }
     }
 

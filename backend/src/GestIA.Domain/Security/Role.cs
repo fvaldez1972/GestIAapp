@@ -57,4 +57,16 @@ public sealed class Role : AuditableEntity
         role.RegisterCreation(actorId, actorName, occurredAt);
         return role;
     }
+
+    public void UpdateProfile(
+        string name,
+        Guid actorId,
+        string actorName,
+        DateTime occurredAt)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+
+        Name = name.Trim();
+        RegisterUpdate(actorId, actorName, occurredAt);
+    }
 }

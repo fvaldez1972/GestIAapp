@@ -21,13 +21,13 @@
   align-items: end;
   display: grid;
   gap: 1rem;
-  grid-template-columns: 1.2fr .8fr .8fr 1fr auto;
+  grid-template-columns: 1.1fr .75fr 1fr .75fr 1fr auto;
 }
 
 .document-summary {
   display: grid;
   gap: 1rem;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
 .metric-card {
@@ -121,6 +121,16 @@
   line-height: 1.35;
 }
 
+.owner-hint {
+  background: #f8fbff;
+  border: 1px solid #e1eaf6;
+  border-radius: .85rem;
+  color: #52617d;
+  font-size: .82rem;
+  margin: -.25rem 0 0;
+  padding: .7rem .8rem;
+}
+
 .form-row {
   display: grid;
   gap: .75rem;
@@ -210,6 +220,23 @@
 .document-topline em.is-sensitive {
   background: #fff0f0;
   color: #991b1b;
+}
+
+.document-topline em.is-expired,
+.document-topline em.status-expired,
+.document-topline em.status-rejected {
+  background: #fff0f0;
+  color: #991b1b;
+}
+
+.document-topline em.status-pendingreview {
+  background: #fff8e7;
+  color: #815700;
+}
+
+.document-topline em.status-archived {
+  background: #eef2f7;
+  color: #475569;
 }
 
 .document-main strong {

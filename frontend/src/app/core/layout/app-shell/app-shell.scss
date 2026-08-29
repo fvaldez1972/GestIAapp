@@ -147,16 +147,6 @@ a.menu-link:hover {
   opacity: 0.5;
 }
 
-.menu-badge {
-  margin-left: auto;
-  padding: 0.18rem 0.38rem;
-  border-radius: 99rem;
-  color: rgb(255 255 255 / 65%);
-  font-size: 0.56rem;
-  font-weight: 750;
-  background: rgb(255 255 255 / 9%);
-}
-
 .sidebar-foot {
   display: grid;
   min-height: 4.25rem;
@@ -262,6 +252,28 @@ a.menu-link:hover {
   gap: 1rem;
 }
 
+.org-switcher {
+  align-items: center;
+  color: var(--gestia-muted);
+  display: flex;
+  font-size: 0.72rem;
+  font-weight: 800;
+  gap: 0.5rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.org-switcher select {
+  background: #fff;
+  border: 1px solid var(--gestia-border);
+  border-radius: 0.85rem;
+  color: var(--gestia-navy);
+  font: inherit;
+  max-width: 15rem;
+  padding: 0.6rem 0.75rem;
+  text-transform: none;
+}
+
 .profile {
   gap: 0.55rem;
   padding: 0.35rem 0.45rem;
@@ -314,7 +326,7 @@ main {
   max-width: 106rem;
   margin: 0 auto;
   flex: 1;
-  padding: 2rem;
+  padding: clamp(1.25rem, 2vw, 2.25rem);
 }
 
 .app-footer {
@@ -341,7 +353,6 @@ main {
 .wrapper.is-condensed .logo-copy,
 .wrapper.is-condensed .menu-title,
 .wrapper.is-condensed .menu-text,
-.wrapper.is-condensed .menu-badge,
 .wrapper.is-condensed .sidebar-foot small {
   display: none;
 }
@@ -388,7 +399,6 @@ main {
   .wrapper.is-condensed .logo-copy,
   .wrapper.is-condensed .menu-title,
   .wrapper.is-condensed .menu-text,
-  .wrapper.is-condensed .menu-badge,
   .wrapper.is-condensed .sidebar-foot small {
     display: block;
   }
@@ -411,7 +421,7 @@ main {
   }
 
   main {
-    padding: 1.25rem;
+    padding: 1rem;
   }
 
   .app-footer {

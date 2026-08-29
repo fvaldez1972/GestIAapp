@@ -46,4 +46,34 @@ public interface IOperationsService
         Guid idService,
         Guid idOperationEvidence,
         CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<ApprovalRequestResponse>> ListApprovalRequestsAsync(
+        ApprovalRequestQuery query,
+        CancellationToken cancellationToken);
+
+    Task<ApprovalRequestResponse> CreateApprovalRequestAsync(
+        CreateApprovalRequestRequest request,
+        CancellationToken cancellationToken);
+
+    Task<ApprovalRequestResponse> DecideApprovalRequestAsync(
+        Guid idApprovalRequest,
+        DecideApprovalRequestRequest request,
+        CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<OperationDayClosureResponse>> ListDayClosuresAsync(
+        OperationDayClosureQuery query,
+        CancellationToken cancellationToken);
+
+    Task<OperationDayClosureResponse> CloseOperationDayAsync(
+        Guid idClient,
+        Guid idService,
+        CloseOperationDayRequest request,
+        CancellationToken cancellationToken);
+
+    Task<OperationDayClosureResponse> ReopenOperationDayAsync(
+        Guid idClient,
+        Guid idService,
+        Guid idOperationDayClosure,
+        ReopenOperationDayRequest request,
+        CancellationToken cancellationToken);
 }

@@ -1,15 +1,14 @@
-<article class="page-hero">
+<article class="page-hero operation-hero">
   <div>
-    <span class="kicker">Operación diaria</span>
-    <h1>Asistencia, incidencias y coberturas</h1>
-    <p>
-      Captura y consulta lo que pasa en campo sin perder trazabilidad: quién asistió, qué incidente ocurrió y quién
-      cubrió un turno.
-    </p>
+    <span class="kicker">Centro de control</span>
+    <h1>Operación · {{ selectedOperationDate() }}</h1>
+    <p>Revisa turnos, confirma asistencia, atiende excepciones y cierra el día desde un solo lugar.</p>
   </div>
-  <button class="ghost-action" type="button" (click)="refresh()" [disabled]="loading() || !selectedServiceId()">
-    Actualizar datos
-  </button>
+  <div class="hero-status-card">
+    <span>{{ currentDayClosure() ? 'Día cerrado' : 'Día abierto' }}</span>
+    <strong>{{ openDailyIncidents() || pendingAttendanceCount() ? 'Requiere atención' : 'Bajo control' }}</strong>
+    <small>{{ pendingAttendanceCount() }} asistencia(s) pendiente(s) · {{ pendingApprovalCount() }} autorización(es)</small>
+  </div>
 </article>
 
 <section class="filters" aria-label="Filtros de operación">
@@ -45,10 +44,9 @@
     <input type="date" [value]="selectedOperationDate()" (input)="onOperationDateChange($event)" />
   </label>
 
-  <div class="filter-hint">
-    <strong>{{ services().length }}</strong>
-    <span>servicios disponibles</span>
-  </div>
+  <button class="ghost-action" type="button" (click)="refresh()" [disabled]="loading() || !selectedServiceId()">
+    {{ loading() ? 'Actualizando…' : 'Actualizar' }}
+  </button>
 </section>
 
 @if (error()) {
@@ -59,36 +57,36 @@
   <p class="success">{{ message() }}</p>
 }
 
-<section class="summary-grid" aria-label="Resumen operativo">
+<section class="summary-grid operation-kpis" aria-label="Resumen de operación de hoy">
+  <article>
+    <i aria-hidden="true">T</i>
+    <span>Turnos esperados</span>
+    <strong>{{ expectedShiftCount() }}</strong>
+    <small>Según planeación publicada</small>
+  </article>
   <article>
     <i aria-hidden="true">✓</i>
-    <span>Asistencia</span>
-    <strong>{{ attendanceCount() }}</strong>
-    <small>Registros reales capturados</small>
+    <span>Presentes</span>
+    <strong>{{ presentTodayCount() }}</strong>
+    <small>Confirmados en campo</small>
   </article>
-  <article>
+  <article class="needs-attention">
     <i aria-hidden="true">!</i>
-    <span>Incidencias</span>
-    <strong>{{ incidentCount() }}</strong>
-    <small>Excepciones abiertas o históricas</small>
+    <span>Faltas</span>
+    <strong>{{ absentTodayCount() }}</strong>
+    <small>Requieren seguimiento</small>
   </article>
-  <article>
+  <article class="needs-attention">
+    <i aria-hidden="true">R</i>
+    <span>Retardos</span>
+    <strong>{{ lateTodayCount() }}</strong>
+    <small>Llegadas tarde capturadas</small>
+  </article>
+  <article class="needs-attention">
     <i aria-hidden="true">↔</i>
-    <span>Coberturas</span>
-    <strong>{{ coverageCount() }}</strong>
-    <small>{{ coveredHours() }} h cubiertas</small>
-  </article>
-  <article>
-    <i aria-hidden="true">A</i>
-    <span>Autorizaciones</span>
-    <strong>{{ pendingApprovalCount() }}</strong>
-    <small>Pendientes de decisión</small>
-  </article>
-  <article>
-    <i aria-hidden="true">C</i>
-    <span>Cierre diario</span>
-    <strong>{{ currentDayClosure() ? 'Cerrado' : 'Abierto' }}</strong>
-    <small>{{ selectedOperationDate() }}</small>
+    <span>Coberturas pendientes</span>
+    <strong>{{ pendingCoverageCount() }}</strong>
+    <small>{{ coveredHours() }} h cubiertas en total</small>
   </article>
 </section>
 
@@ -129,6 +127,7 @@
       </article>
     </div>
 
+    @if (activeTab() === 'cierre') {
     <form class="day-closure-form" [formGroup]="dayClosureForm">
       @if (currentDayClosure(); as closure) {
         <label>
@@ -147,13 +146,23 @@
         </small>
       }
     </form>
+    }
 
     <div class="daily-shifts">
       @for (item of dailyBoard(); track item.shift.idScheduledShift) {
-        <article class="daily-shift" [class.needs-attendance]="!item.attendance">
+        <article
+          class="daily-shift"
+          [class.needs-attendance]="!item.attendance"
+          [class.is-present]="shiftStatusClass(item) === 'is-present'"
+          [class.is-late]="shiftStatusClass(item) === 'is-late'"
+          [class.is-absent]="shiftStatusClass(item) === 'is-absent'"
+          [class.is-covered]="shiftStatusClass(item) === 'is-covered'"
+          [class.is-pending]="shiftStatusClass(item) === 'is-pending'"
+        >
           <span>{{ item.shift.startTime }} — {{ item.shift.endTime }}</span>
-          <strong>{{ item.shift.employeeCode }} · {{ item.shift.employeeName }}</strong>
-          <small>{{ item.shift.positionCode }} · {{ item.shift.positionName }}</small>
+          <strong>{{ item.shift.positionCode }} · {{ item.shift.positionName }}</strong>
+          <small>Planeado: {{ item.shift.employeeCode }} · {{ item.shift.employeeName }}</small>
+          <small>Ocurrió: {{ actualEmployeeLabel(item) }}</small>
           <footer>
             <i>{{ attendanceStatusLabel(item.attendance?.status) }}</i>
             @if (item.coverage) {
@@ -163,6 +172,14 @@
               <i>{{ item.incidents.length }} incidencia(s)</i>
             }
           </footer>
+          @if (!item.attendance && !currentDayClosure()) {
+            <div class="quick-actions" aria-label="Acciones rápidas de asistencia">
+              <button type="button" [disabled]="saving()" (click)="quickAttendance(item, 'Present')">Presente</button>
+              <button type="button" [disabled]="saving()" (click)="quickAttendance(item, 'Late')">Retardo</button>
+              <button type="button" [disabled]="saving()" (click)="quickAttendance(item, 'Absent')">Falta</button>
+              <button type="button" [disabled]="saving()" (click)="quickAttendance(item, 'Excused')">Justificada</button>
+            </div>
+          }
         </article>
       } @empty {
         <div class="empty-state">
@@ -189,27 +206,36 @@
   </section>
 }
 
-<section class="section-tabs" aria-label="Módulos de operación">
-  <a routerLink="/operacion/asistencia" [class.active]="activeSection() === 'asistencia'">
+<section class="section-tabs operation-tabs" aria-label="Módulos de operación">
+  <a routerLink="/operacion/asistencia" [class.active]="activeTab() === 'asistencia'">
     <span>Asistencia</span>
     <strong>{{ attendanceCount() }}</strong>
   </a>
-  <a routerLink="/operacion/incidencias" [class.active]="activeSection() === 'incidencias'">
+  <a routerLink="/operacion/incidencias" [class.active]="activeTab() === 'incidencias'">
     <span>Incidencias</span>
     <strong>{{ incidentCount() }}</strong>
   </a>
-  <a routerLink="/operacion/cobertura" [class.active]="activeSection() === 'cobertura'">
+  <a routerLink="/operacion/cobertura" [class.active]="activeTab() === 'cobertura'">
     <span>Cobertura</span>
     <strong>{{ coverageCount() }}</strong>
   </a>
+  <button class="tab-action" type="button" [class.active]="activeTab() === 'evidencias'" (click)="setActiveTab('evidencias')">
+    <span>Evidencias</span>
+    <strong>{{ evidenceList().length }}</strong>
+  </button>
+  <button class="tab-action" type="button" [class.active]="activeTab() === 'cierre'" (click)="setActiveTab('cierre')">
+    <span>Cierre diario</span>
+    <strong>{{ currentDayClosure() ? 'OK' : pendingAttendanceCount() }}</strong>
+  </button>
 </section>
 
 <section class="module-heading">
-  <span class="kicker">{{ sectionTitle() }}</span>
-  <h2>{{ sectionTitle() }}</h2>
-  <p>{{ sectionDescription() }}</p>
+  <span class="kicker">{{ tabTitle() }}</span>
+  <h2>{{ tabTitle() }}</h2>
+  <p>{{ tabDescription() }}</p>
 </section>
 
+@if (activeTab() === 'asistencia' || activeTab() === 'incidencias' || activeTab() === 'cobertura') {
 <section class="workspace-grid" aria-label="Captura operativa">
   <div class="capture-column">
   @if (activeSection() === 'asistencia') {
@@ -606,8 +632,9 @@
   }
   </div>
 </section>
+}
 
-@if (selectedServiceId()) {
+@if (selectedServiceId() && activeTab() === 'evidencias') {
 <section class="evidence-workspace" aria-label="Evidencias operativas">
   <form class="capture-card evidence-card" [formGroup]="evidenceForm" (ngSubmit)="saveEvidence()">
     <header>
@@ -683,7 +710,7 @@
     </header>
 
     <div class="evidence-items">
-      @for (evidence of visibleEvidences(); track evidence.idOperationEvidence) {
+      @for (evidence of evidenceList(); track evidence.idOperationEvidence) {
         <button
           class="evidence-item"
           type="button"
@@ -719,7 +746,7 @@
 </section>
 }
 
-@if (selectedServiceId()) {
+@if (selectedServiceId() && activeTab() === 'cierre') {
 <section class="approval-workspace" aria-label="Autorizaciones operativas">
   <form class="capture-card approval-card" [formGroup]="approvalForm">
     <header>

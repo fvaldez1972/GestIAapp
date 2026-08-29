@@ -13,6 +13,38 @@
   box-shadow: 0 1rem 2.5rem rgb(16 16 78 / 6%);
 }
 
+.operation-hero {
+  min-height: 11rem;
+}
+
+.hero-status-card {
+  display: grid;
+  min-width: 18rem;
+  gap: .35rem;
+  border: 1px solid color-mix(in srgb, var(--gestia-cyan) 24%, var(--gestia-border));
+  border-radius: 1rem;
+  padding: 1rem;
+  background: rgb(255 255 255 / 78%);
+  box-shadow: 0 1rem 2.3rem rgb(16 16 78 / 8%);
+}
+
+.hero-status-card span {
+  color: var(--gestia-cyan-dark);
+  font-size: .68rem;
+  font-weight: 900;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.hero-status-card strong {
+  color: var(--gestia-navy);
+  font-size: 1.05rem;
+}
+
+.hero-status-card small {
+  color: var(--gestia-muted);
+}
+
 .kicker {
   color: var(--gestia-cyan-dark);
   font-size: 0.7rem;
@@ -179,6 +211,15 @@ button:disabled,
   padding: 1.15rem;
 }
 
+.operation-kpis article {
+  min-height: 8.25rem;
+}
+
+.operation-kpis article.needs-attention i {
+  color: #7a4d08;
+  background: #fff5dc;
+}
+
 .summary-grid i {
   display: grid;
   width: 2rem;
@@ -310,6 +351,19 @@ button:disabled,
   background: #fff;
 }
 
+.daily-shift.is-present {
+  border-color: #b9e8c9;
+}
+
+.daily-shift.is-late,
+.daily-shift.is-covered {
+  border-color: #ffe1a3;
+}
+
+.daily-shift.is-absent {
+  border-color: #ffc7c7;
+}
+
 .daily-shift.needs-attendance {
   border-color: #ffd59a;
   background: #fffaf0;
@@ -347,6 +401,28 @@ button:disabled,
   background: color-mix(in srgb, var(--gestia-cyan) 15%, white);
 }
 
+.quick-actions {
+  display: grid;
+  gap: .35rem;
+  margin-top: .6rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.quick-actions button {
+  min-height: 2rem;
+  border: 1px solid var(--gestia-border);
+  color: var(--gestia-navy);
+  font-size: .7rem;
+  background: #fff;
+  box-shadow: none;
+}
+
+.quick-actions button:hover {
+  border-color: color-mix(in srgb, var(--gestia-cyan) 55%, var(--gestia-border));
+  color: var(--gestia-cyan-dark);
+  background: color-mix(in srgb, var(--gestia-cyan) 8%, white);
+}
+
 .service-context {
   display: grid;
   gap: 0.15rem;
@@ -368,7 +444,8 @@ button:disabled,
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-.section-tabs a {
+.section-tabs a,
+.section-tabs button {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -382,12 +459,23 @@ button:disabled,
   box-shadow: 0 0.75rem 2rem rgb(16 16 78 / 4%);
 }
 
-.section-tabs a span {
+.operation-tabs {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.section-tabs button {
+  min-height: auto;
+  text-align: left;
+}
+
+.section-tabs a span,
+.section-tabs button span {
   font-size: 0.78rem;
   font-weight: 850;
 }
 
-.section-tabs a strong {
+.section-tabs a strong,
+.section-tabs button strong {
   display: grid;
   min-width: 2rem;
   height: 2rem;
@@ -398,13 +486,16 @@ button:disabled,
 }
 
 .section-tabs a.active,
-.section-tabs a:hover {
+.section-tabs a:hover,
+.section-tabs button.active,
+.section-tabs button:hover {
   color: var(--gestia-navy);
   border-color: var(--gestia-navy);
   background: color-mix(in srgb, var(--gestia-cyan) 10%, white);
 }
 
-.section-tabs a.active strong {
+.section-tabs a.active strong,
+.section-tabs button.active strong {
   color: #fff;
   background: var(--gestia-navy);
 }
@@ -746,4 +837,127 @@ tbody tr.is-selected {
   .form-row {
     grid-template-columns: 1fr;
   }
+}
+
+/* Operational control polish: cyan primary actions, clearer tabs, denser cards
+   and table states that match the approved module mockups. */
+button:not(.ghost-action):not(.button-reset):not(.button-danger):not(.tab-action) {
+  border: 1px solid color-mix(in srgb, var(--gestia-cyan) 76%, #fff);
+  color: var(--gestia-navy);
+  background: linear-gradient(135deg, #2bd0f4, var(--gestia-cyan));
+  box-shadow: 0 0.7rem 1.4rem rgb(34 198 238 / 22%);
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+button:not(.ghost-action):not(.button-reset):not(.button-danger):not(.tab-action):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0.9rem 1.7rem rgb(34 198 238 / 30%);
+}
+
+.ghost-action,
+.button-reset,
+.button-danger {
+  border: 1px solid color-mix(in srgb, var(--gestia-border) 84%, #fff);
+  border-radius: 0.85rem;
+  box-shadow: 0 0.35rem 0.9rem rgb(16 16 78 / 4%);
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.ghost-action:hover,
+.button-reset:hover,
+.button-danger:hover {
+  transform: translateY(-1px);
+}
+
+.button-danger:hover {
+  border-color: rgb(220 38 38 / 28%);
+  background: #fff1f2;
+}
+
+.section-tabs a,
+.section-tabs button {
+  min-height: 4.4rem;
+  border-radius: 1.05rem;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.section-tabs a:hover,
+.section-tabs button:hover {
+  border-color: color-mix(in srgb, var(--gestia-cyan) 48%, var(--gestia-border));
+  box-shadow: 0 0.9rem 1.8rem rgb(16 16 78 / 7%);
+  transform: translateY(-1px);
+}
+
+.section-tabs a.active,
+.section-tabs button.active {
+  border-color: color-mix(in srgb, var(--gestia-cyan) 58%, var(--gestia-border));
+  background:
+    radial-gradient(circle at 90% 20%, rgb(34 198 238 / 18%), transparent 8rem),
+    #fff;
+  box-shadow: inset 0 0 0 0.12rem rgb(34 198 238 / 18%), 0 0.9rem 1.8rem rgb(16 16 78 / 7%);
+}
+
+.section-tabs a.active strong,
+.section-tabs button.active strong {
+  color: var(--gestia-navy);
+  background: var(--gestia-cyan);
+}
+
+.capture-card,
+.panel,
+.daily-board,
+.daily-kpi,
+.daily-shift,
+.approval-item,
+.evidence-item {
+  border-color: color-mix(in srgb, var(--gestia-border) 84%, white);
+}
+
+.daily-kpi,
+.daily-shift,
+.approval-item,
+.evidence-item {
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.daily-shift:hover,
+.approval-item:hover,
+.evidence-item:hover {
+  border-color: color-mix(in srgb, var(--gestia-cyan) 44%, var(--gestia-border));
+  box-shadow: 0 0.8rem 1.6rem rgb(16 16 78 / 6%);
+  transform: translateY(-1px);
+}
+
+table {
+  font-size: 0.84rem;
+}
+
+th {
+  font-size: 0.68rem;
+}
+
+.quick-actions button {
+  min-height: 2rem;
+  border: 1px solid var(--gestia-border);
+  color: var(--gestia-navy);
+  font-size: .7rem;
+  background: #fff;
+  box-shadow: none;
 }

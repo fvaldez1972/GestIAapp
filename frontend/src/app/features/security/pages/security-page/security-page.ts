@@ -14,6 +14,13 @@ type PermissionGroup = {
   readonly permissions: readonly SecurityPermission[];
 };
 
+type SecurityTab = 'users' | 'roles' | 'permissions' | 'organizations' | 'memberships';
+
+type MembershipRow = {
+  readonly user: SecurityUser;
+  readonly role: SecurityUser['roles'][number];
+};
+
 @Component({
   selector: 'app-security-page',
   imports: [DatePipe, ReactiveFormsModule],
@@ -37,6 +44,11 @@ export class SecurityPage implements OnInit {
   protected readonly selectedUserId = signal('');
   protected readonly selectedRoleId = signal('');
   protected readonly selectedPermissionCodes = signal<readonly string[]>([]);
+  protected readonly activeTab = signal<SecurityTab>('users');
+  protected readonly userSearch = signal('');
+  protected readonly statusFilter = signal<'all' | 'active' | 'inactive'>('all');
+  protected readonly roleFilter = signal('');
+  protected readonly organizationFilter = signal('');
 
   protected readonly canAdministerSecurity = computed(() => this.auth.hasPermission('PLATFORM.ADMIN'));
   protected readonly selectedUser = computed(
@@ -46,10 +58,67 @@ export class SecurityPage implements OnInit {
     () => this.roles().find((role) => role.idRole === this.selectedRoleId()) ?? null,
   );
   protected readonly systemRoles = computed(() => this.roles().filter((role) => role.isSystem).length);
+  protected readonly activeUsers = computed(() => this.users().filter((user) => user.active).length);
+  protected readonly membershipCount = computed(() =>
+    this.users().reduce((total, user) => total + user.roles.length, 0),
+  );
+  protected readonly filteredUsers = computed(() => {
+    const search = this.userSearch().trim().toLowerCase();
+    const status = this.statusFilter();
+    const roleId = this.roleFilter();
+    const organizationId = this.organizationFilter();
+
+    return this.users().filter((user) => {
+      const matchesSearch =
+        !search ||
+        user.displayName.toLowerCase().includes(search) ||
+        user.email.toLowerCase().includes(search);
+      const matchesStatus =
+        status === 'all' || (status === 'active' ? user.active : !user.active);
+      const matchesRole = !roleId || user.roles.some((role) => role.idRole === roleId);
+      const matchesOrganization =
+        !organizationId || user.organizations.some((organization) => organization.idOrganization === organizationId);
+
+      return matchesSearch && matchesStatus && matchesRole && matchesOrganization;
+    });
+  });
+  protected readonly membershipRows = computed<readonly MembershipRow[]>(() =>
+    this.users().flatMap((user) => user.roles.map((role) => ({ user, role }))),
+  );
   protected readonly permissionGroups = computed<readonly PermissionGroup[]>(() => {
     const groups = new Map<string, SecurityPermission[]>();
 
     for (const permission of this.permissions()) {
+      const modulePermissions = groups.get(permission.module) ?? [];
+      modulePermissions.push(permission);
+      groups.set(permission.module, modulePermissions);
+    }
+
+    return Array.from(groups.entries())
+      .map(([module, permissions]) => ({ module, permissions }))
+      .sort((first, second) => first.module.localeCompare(second.module));
+  });
+  protected readonly selectedUserPermissionGroups = computed<readonly PermissionGroup[]>(() => {
+    const user = this.selectedUser();
+    if (!user) {
+      return [];
+    }
+
+    const roleIds = new Set(user.roles.map((role) => role.idRole));
+    const permissions = new Map<string, SecurityPermission>();
+
+    for (const role of this.roles()) {
+      if (!roleIds.has(role.idRole)) {
+        continue;
+      }
+
+      for (const permission of role.permissions) {
+        permissions.set(permission.codePermission, permission);
+      }
+    }
+
+    const groups = new Map<string, SecurityPermission[]>();
+    for (const permission of permissions.values()) {
       const modulePermissions = groups.get(permission.module) ?? [];
       modulePermissions.push(permission);
       groups.set(permission.module, modulePermissions);
@@ -129,12 +198,36 @@ export class SecurityPage implements OnInit {
     });
   }
 
+  protected selectTab(tab: SecurityTab) {
+    this.activeTab.set(tab);
+  }
+
+  protected onUserSearch(event: Event) {
+    this.userSearch.set((event.target as HTMLInputElement).value);
+  }
+
+  protected onStatusFilter(event: Event) {
+    this.statusFilter.set((event.target as HTMLSelectElement).value as 'all' | 'active' | 'inactive');
+  }
+
+  protected onRoleFilter(event: Event) {
+    this.roleFilter.set((event.target as HTMLSelectElement).value);
+  }
+
+  protected onOrganizationFilter(event: Event) {
+    this.organizationFilter.set((event.target as HTMLSelectElement).value);
+  }
+
   protected selectUser(user: SecurityUser) {
     this.selectedUserId.set(user.idUser);
     this.editUserForm.reset({
       displayName: user.displayName,
       email: user.email,
     });
+  }
+
+  protected closeUserDetail() {
+    this.selectedUserId.set('');
   }
 
   protected selectRole(role: SecurityRole) {
@@ -178,7 +271,7 @@ export class SecurityPage implements OnInit {
     const form = this.createUserForm.getRawValue();
     if (
       this.selectedAccessRoleIsSensitive(form.idRole) &&
-      !window.confirm('El rol seleccionado permite administrar usuarios, roles y permisos. ¿Deseas continuar?')
+      !window.confirm('El rol seleccionado permite administrar usuarios, roles y permisos. ¿Deseas crear este acceso administrativo?')
     ) {
       return;
     }
@@ -217,7 +310,7 @@ export class SecurityPage implements OnInit {
     const form = this.accessForm.getRawValue();
     if (
       this.selectedAccessRoleIsSensitive(form.idRole) &&
-      !window.confirm('Este acceso dará administración completa de seguridad. ¿Deseas continuar?')
+      !window.confirm(`${user.displayName} recibirá permisos para administrar usuarios, roles y permisos. ¿Deseas continuar?`)
     ) {
       return;
     }
@@ -248,7 +341,7 @@ export class SecurityPage implements OnInit {
       return;
     }
 
-    if (!window.confirm(`¿Actualizar la contraseña de ${user.displayName}?`)) {
+    if (!window.confirm(`${user.displayName} tendrá una nueva contraseña temporal. ¿Deseas continuar?`)) {
       return;
     }
 
@@ -267,7 +360,7 @@ export class SecurityPage implements OnInit {
   }
 
   protected deactivateUser(user: SecurityUser) {
-    if (!window.confirm(`¿Desactivar el usuario ${user.displayName}?`)) {
+    if (!window.confirm(`${user.displayName} perderá acceso al portal GestIA. ¿Deseas desactivar este usuario?`)) {
       return;
     }
 
@@ -285,7 +378,7 @@ export class SecurityPage implements OnInit {
   }
 
   protected activateUser(user: SecurityUser) {
-    if (!window.confirm(`¿Reactivar el usuario ${user.displayName}?`)) {
+    if (!window.confirm(`${user.displayName} podrá volver a entrar al portal GestIA. ¿Deseas reactivar este usuario?`)) {
       return;
     }
 
@@ -309,7 +402,8 @@ export class SecurityPage implements OnInit {
       return;
     }
 
-    if (!window.confirm(`¿Remover el rol ${role.name} de ${user.displayName}?`)) {
+    const scope = role.organizationName || 'toda la plataforma';
+    if (!window.confirm(`${user.displayName} perderá el rol ${role.name} en ${scope}. ¿Deseas retirar esta membresía?`)) {
       return;
     }
 
@@ -338,6 +432,10 @@ export class SecurityPage implements OnInit {
 
   protected isPermissionSelected(codePermission: string) {
     return this.selectedPermissionCodes().includes(codePermission);
+  }
+
+  protected roleHasPermission(role: SecurityRole, permission: SecurityPermission) {
+    return role.permissions.some((item) => item.codePermission === permission.codePermission);
   }
 
   protected passwordGuidance(value: string) {
@@ -395,6 +493,38 @@ export class SecurityPage implements OnInit {
     return labels[module] ?? module;
   }
 
+  protected permissionActionLabel(permission: SecurityPermission) {
+    const action = permission.codePermission.split('.').pop() ?? permission.codePermission;
+    const labels: Record<string, string> = {
+      READ: 'Leer',
+      VIEW: 'Consultar',
+      CREATE: 'Crear',
+      UPDATE: 'Editar',
+      EDIT: 'Editar',
+      DELETE: 'Eliminar',
+      DEACTIVATE: 'Desactivar',
+      APPROVE: 'Aprobar',
+      REVIEW: 'Revisar',
+      EXECUTE: 'Ejecutar',
+      EXPORT: 'Exportar',
+      ADMIN: 'Administrar',
+      MANAGE: 'Administrar',
+      CLOSE: 'Cerrar',
+      REOPEN: 'Reabrir',
+      PUBLISH: 'Publicar',
+    };
+
+    return labels[action] ?? this.roleCodeLabel(action);
+  }
+
+  protected organizationLabel(organizationId: string | null) {
+    if (!organizationId) {
+      return 'Toda la plataforma';
+    }
+
+    return this.organizations().find((organization) => organization.idOrganization === organizationId)?.legalName ?? 'Organización asignada';
+  }
+
   protected createRole() {
     if (this.roleForm.invalid || this.selectedPermissionCodes().length === 0) {
       this.roleForm.markAllAsTouched();
@@ -407,7 +537,7 @@ export class SecurityPage implements OnInit {
     const form = this.roleForm.getRawValue();
     if (
       this.selectedPermissionCodes().includes('PLATFORM.ADMIN') &&
-      !window.confirm('El rol tendrá administración completa de seguridad. ¿Deseas crearlo con ese permiso?')
+      !window.confirm('Este rol tendrá administración completa de seguridad. ¿Deseas crearlo con ese alcance?')
     ) {
       return;
     }
@@ -446,7 +576,7 @@ export class SecurityPage implements OnInit {
 
     if (
       this.selectedPermissionCodes().includes('PLATFORM.ADMIN') &&
-      !window.confirm('El rol quedará con administración completa de seguridad. ¿Deseas guardar estos permisos?')
+      !window.confirm(`${role.name} quedará con administración completa de seguridad. ¿Deseas guardar estos permisos?`)
     ) {
       return;
     }
@@ -469,7 +599,7 @@ export class SecurityPage implements OnInit {
   }
 
   protected deactivateRole(role: SecurityRole) {
-    if (!window.confirm(`¿Desactivar el rol ${role.name}?`)) {
+    if (!window.confirm(`Los usuarios con el rol ${role.name} podrían perder acceso a funciones del sistema. ¿Deseas desactivarlo?`)) {
       return;
     }
 
@@ -486,7 +616,7 @@ export class SecurityPage implements OnInit {
   }
 
   protected activateRole(role: SecurityRole) {
-    if (!window.confirm(`¿Reactivar el rol ${role.name}?`)) {
+    if (!window.confirm(`El rol ${role.name} volverá a estar disponible para asignación. ¿Deseas reactivarlo?`)) {
       return;
     }
 

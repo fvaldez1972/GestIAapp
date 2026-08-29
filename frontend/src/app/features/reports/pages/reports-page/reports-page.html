@@ -69,6 +69,20 @@
     </button>
   </section>
 
+  <section class="report-type-strip" aria-label="Tipos de reporte">
+    @for (report of reportTypes; track report.value) {
+      <button
+        class="report-type"
+        type="button"
+        [class.is-active]="selectedReportType() === report.value"
+        (click)="selectReportType(report.value)"
+      >
+        <span>{{ report.label }}</span>
+        <small>{{ report.description }}</small>
+      </button>
+    }
+  </section>
+
   @if (error()) {
     <p class="gi-alert gi-alert--error">{{ error() }}</p>
   }
@@ -83,7 +97,19 @@
     }
   </section>
 
-  <section class="report-panels">
+  <article class="gi-card report-context">
+    <div>
+      <span class="eyebrow">{{ selectedReport().label }}</span>
+      <h2>Corte ejecutivo</h2>
+    </div>
+    <ul>
+      @for (note of executiveNotes(); track note) {
+        <li>{{ note }}</li>
+      }
+    </ul>
+  </article>
+
+  <section class="report-panels report-panels--three">
     <article class="gi-card report-panel">
       <span class="eyebrow">Asistencia</span>
       <h2>Distribución del periodo</h2>
@@ -105,6 +131,20 @@
               ></span>
             </span>
           </div>
+        }
+      </div>
+    </article>
+
+    <article class="gi-card report-panel donut-panel">
+      <span class="eyebrow">Estados</span>
+      <h2>Lectura rápida</h2>
+      <div class="donut-chart" [style.background]="donutStyle()">
+        <span>{{ attendanceRate() }}%</span>
+        <small>presentes</small>
+      </div>
+      <div class="donut-legend">
+        @for (item of attendanceDistribution(); track item.label) {
+          <span [class]="item.className">{{ item.label }} · {{ item.value }}</span>
         }
       </div>
     </article>

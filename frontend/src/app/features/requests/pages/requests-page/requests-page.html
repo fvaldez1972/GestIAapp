@@ -21,23 +21,23 @@
         </select>
       </label>
       <label class="gi-field">
-        <span>Estado</span>
-        <select class="gi-input" [value]="filterStatus()" (change)="onFilterStatusChange($event)">
-          <option value="">Todos los estados</option>
-          @for (status of statuses; track status.value) { <option [value]="status.value">{{ status.label }}</option> }
-        </select>
-      </label>
-      <label class="gi-field">
         <span>Tipo</span>
         <select class="gi-input" [value]="filterType()" (change)="onFilterTypeChange($event)">
           <option value="">Todos los tipos</option>
           @for (type of requestTypes; track type.value) { <option [value]="type.value">{{ type.label }}</option> }
         </select>
       </label>
+      <label class="gi-field">
+        <span>Prioridad</span>
+        <select class="gi-input" [value]="filterPriority()" (change)="onFilterPriorityChange($event)">
+          <option value="">Todas las prioridades</option>
+          @for (priority of priorities; track priority.value) { <option [value]="priority.value">{{ priority.label }}</option> }
+        </select>
+      </label>
       <label class="gi-field request-search">
         <span>Buscar solicitud</span>
         <span class="search-control">
-          <input class="gi-input" type="search" [value]="search()" (input)="onSearchChange($event)" (keyup.enter)="applySearch()" placeholder="Folio, título o solicitante" />
+          <input class="gi-input" type="search" [value]="search()" (input)="onSearchChange($event)" (keyup.enter)="applySearch()" placeholder="Folio, título o cliente" />
           <button type="button" [disabled]="loading()" (click)="applySearch()">Buscar</button>
         </span>
       </label>
@@ -60,17 +60,17 @@
       <div>
         <span class="eyebrow">Flujo operativo</span>
         <h2>Seguimiento por etapa</h2>
-        <p>Selecciona una etapa para concentrarte en lo que requiere atención.</p>
+      <p>Filtra rápido, revisa prioridad y abre el detalle sin perder el listado.</p>
       </div>
-      @if (filterStatus()) { <button class="text-action" type="button" (click)="filterByStatus('')">Limpiar filtro</button> }
+      @if (stageFilter() !== 'all' || filterPriority()) { <button class="text-action" type="button" (click)="clearQuickFilters()">Limpiar filtros</button> }
     </header>
 
     <nav class="workflow-steps" aria-label="Etapas de las solicitudes">
-      <button class="workflow-step" type="button" [class.is-active]="filterStatus() === ''" (click)="filterByStatus('')">
+      <button class="workflow-step" type="button" [class.is-active]="stageFilter() === 'all'" (click)="filterByStage('all')">
         <i aria-hidden="true">•</i><span><strong>Todas</strong><small>Vista general</small></span><b>{{ requests().length }}</b>
       </button>
-      @for (column of workflowColumns(); track column.status; let index = $index) {
-        <button class="workflow-step" type="button" [class.is-active]="filterStatus() === column.status" (click)="filterByStatus(column.status)">
+      @for (column of workflowColumns(); track column.stage; let index = $index) {
+        <button class="workflow-step" type="button" [class.is-active]="stageFilter() === column.stage" (click)="filterByStage(column.stage)">
           <i aria-hidden="true">{{ index + 1 }}</i><span><strong>{{ column.label }}</strong><small>{{ column.hint }}</small></span><b>{{ column.requests.length }}</b>
         </button>
       }
@@ -79,7 +79,7 @@
     <div class="requests-layout">
       <section class="requests-master">
         <div class="request-results-heading">
-          <div><h3>{{ filterStatus() ? labelForStatus(filterStatus() || 'Draft') : 'Solicitudes visibles' }}</h3><p>{{ visibleRequests().length }} {{ visibleRequests().length === 1 ? 'resultado' : 'resultados' }}</p></div>
+          <div><h3>{{ labelForStage(stageFilter()) }}</h3><p>{{ visibleRequests().length }} {{ visibleRequests().length === 1 ? 'resultado' : 'resultados' }}</p></div>
           <label class="sort-control">
             <span>Ordenar por</span>
             <select class="gi-input" [value]="sortMode()" (change)="onSortModeChange($event)">
@@ -90,27 +90,60 @@
           </label>
         </div>
 
-        <div class="request-results" [class.is-loading]="loading()">
-          @for (request of visibleRequests(); track request.idOperationalRequest) {
-            <article class="request-result" [class.is-selected]="request.idOperationalRequest === selectedRequestId()">
-              <button class="request-result__main" type="button" (click)="selectRequest(request)">
-                <span class="request-topline"><strong>{{ request.codeOperationalRequest }}</strong><i [class]="'priority priority-' + request.priority.toLowerCase()">{{ labelForPriority(request.priority) }}</i></span>
-                <span class="request-title">{{ request.title }}</span>
-                <span class="request-tags"><i>{{ labelForType(request.requestType) }}</i><i>{{ labelForStatus(request.status) }}</i></span>
-                <span class="request-context"><b>{{ request.clientName || 'Sin cliente relacionado' }}</b>@if (request.serviceName) { <small>{{ request.serviceName }}</small> }</span>
-                <span class="request-footer">
-                  <span>Solicita: {{ request.requestedByName }}</span>
-                  @if (request.neededByDate) { <span class="request-due" [class.is-overdue]="request.neededByDate < today() && request.status !== 'Completed'">Para {{ formatDate(request.neededByDate) }}</span> }
-                </span>
-              </button>
-              <div class="request-result__actions">
-                <button class="mini-icon-action" type="button" (click)="selectRequest(request)" aria-label="Abrir detalle">⋮</button>
-                @if (nextStatus(request); as status) { <button class="mini-flow-action" type="button" [disabled]="saving()" (click)="advanceRequest(request)">Avanzar a {{ labelForStatus(status) }}</button> }
-                @if (request.status === 'Approved') { <button class="mini-flow-action is-success" type="button" [disabled]="saving()" (click)="prepareExecution(request)">Preparar ejecución</button> }
-                @if (request.status !== 'Rejected' && request.status !== 'Cancelled' && request.status !== 'Completed') { <button class="mini-flow-action is-danger" type="button" [disabled]="saving()" (click)="rejectRequest(request)">Rechazar</button> }
-              </div>
-            </article>
-          } @empty {
+        <div class="request-table-shell" [class.is-loading]="loading()">
+          @if (visibleRequests().length) {
+            <table class="request-table">
+              <thead>
+                <tr>
+                  <th>Folio</th>
+                  <th>Tipo</th>
+                  <th>Cliente</th>
+                  <th>Fecha requerida</th>
+                  <th>Prioridad</th>
+                  <th>Estado</th>
+                  <th>Solicitante</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (request of visibleRequests(); track request.idOperationalRequest) {
+                  <tr [class.is-selected]="request.idOperationalRequest === selectedRequestId()">
+                    <td>
+                      <button class="folio-link" type="button" (click)="selectRequest(request)">{{ request.codeOperationalRequest }}</button>
+                      <small>{{ request.title }}</small>
+                    </td>
+                    <td><span class="soft-pill">{{ labelForType(request.requestType) }}</span></td>
+                    <td>
+                      <strong>{{ request.clientName || 'Sin cliente' }}</strong>
+                      @if (request.serviceName) { <small>{{ request.serviceName }}</small> }
+                    </td>
+                    <td>
+                      @if (request.neededByDate) {
+                        <span class="date-chip" [class.is-overdue]="request.neededByDate < today() && request.status !== 'Completed'">{{ formatDate(request.neededByDate) }}</span>
+                      } @else {
+                        <span class="muted">Sin fecha</span>
+                      }
+                    </td>
+                    <td><i [class]="'priority priority-' + request.priority.toLowerCase()">{{ labelForPriority(request.priority) }}</i></td>
+                    <td><span class="status-pill">{{ labelForStatus(request.status) }}</span></td>
+                    <td>{{ request.requestedByName }}</td>
+                    <td>
+                      <div class="row-actions">
+                        <button class="mini-flow-action" type="button" (click)="selectRequest(request)">Ver</button>
+                        <button class="mini-flow-action" type="button" (click)="selectRequest(request, { modal: true, open: false, tab: 'details' })">Editar</button>
+                        @if (nextStatus(request)) {
+                          <button class="mini-flow-action" type="button" [disabled]="saving()" (click)="advanceRequest(request)">{{ actionLabelForRequest(request) }}</button>
+                        }
+                        @if (request.status === 'Approved') {
+                          <button class="mini-flow-action is-success" type="button" [disabled]="saving()" (click)="prepareExecution(request)">Impacto</button>
+                        }
+                      </div>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          } @else {
             <div class="gi-empty-state request-empty"><span aria-hidden="true">☷</span><h3>No hay solicitudes con estos filtros</h3><p>Prueba otra búsqueda o registra una nueva solicitud.</p><button class="gi-button gi-button--secondary" type="button" (click)="openNewRequest()">Crear solicitud</button></div>
           }
         </div>
@@ -123,8 +156,9 @@
       <aside class="request-detail-panel" aria-label="Detalle y seguimiento de solicitud" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
         <header class="detail-heading">
           <div>
+            <span class="eyebrow">{{ request.codeOperationalRequest }}</span>
             <h2>Detalle y seguimiento</h2>
-            <p>{{ request.codeOperationalRequest }}</p>
+            <p>{{ request.title }}</p>
           </div>
           <button type="button" class="detail-close" (click)="closeDetailPanel()" aria-label="Cerrar detalle">×</button>
         </header>
@@ -159,20 +193,32 @@
         <nav class="detail-tabs" aria-label="Opciones de detalle">
           <button type="button" [class.is-active]="detailPanelTab() === 'details'" (click)="showDetailPanelTab('details')">Resumen</button>
           <button type="button" [class.is-active]="detailPanelTab() === 'status'" (click)="showDetailPanelTab('status')">Seguimiento</button>
-          <button type="button" [class.is-active]="detailPanelTab() === 'execution'" (click)="showDetailPanelTab('execution')">Ejecución</button>
+          <button type="button" [class.is-active]="detailPanelTab() === 'documents'" (click)="showDetailPanelTab('documents')">Documentos</button>
+          <button type="button" [class.is-active]="detailPanelTab() === 'execution'" (click)="showDetailPanelTab('execution')">Impacto</button>
         </nav>
 
         @if (detailPanelTab() === 'details') {
           <section class="detail-tab-body">
-            <label class="gi-field">
-              <span>Nota de seguimiento</span>
-              <textarea class="gi-input" rows="5" [formControl]="statusForm.controls.resolutionNotes" placeholder="Escribe una nota clara para el siguiente responsable..."></textarea>
-            </label>
+            <div class="detail-info-grid">
+              <span><strong>Folio</strong>{{ request.codeOperationalRequest }}</span>
+              <span><strong>Fecha requerida</strong>{{ request.neededByDate ? formatDate(request.neededByDate) : 'Sin fecha requerida' }}</span>
+              <span><strong>Creada</strong>{{ formatDate(request.createdAt.slice(0, 10)) }}</span>
+              <span><strong>Último cambio</strong>{{ request.updatedAt ? formatDate(request.updatedAt.slice(0, 10)) : 'Sin cambios posteriores' }}</span>
+            </div>
+            <article class="detail-description">
+              <strong>Necesidad solicitada</strong>
+              <p>{{ request.description }}</p>
+            </article>
+          </section>
+        }
+
+        @if (detailPanelTab() === 'status') {
+          <form class="detail-tab-body" [formGroup]="statusForm" (ngSubmit)="changeStatus()">
             <div class="activity-list" aria-label="Actividad reciente">
               <h3>Actividad reciente</h3>
               <article>
                 <i></i>
-                <div><strong>Estado actual: {{ labelForStatus(request.status) }}</strong><span>por Operación · Hoy</span></div>
+                <div><strong>Estado actual: {{ labelForStatus(request.status) }}</strong><span>Último estado disponible en la solicitud.</span></div>
               </article>
               @if (request.resolutionNotes) {
                 <article>
@@ -182,41 +228,51 @@
               }
               <article>
                 <i></i>
-                <div><strong>Solicitud creada</strong><span>por {{ request.requestedByName }}</span></div>
+                <div><strong>Solicitud creada</strong><span>por {{ request.requestedByName }} · {{ formatDate(request.createdAt.slice(0, 10)) }}</span></div>
               </article>
             </div>
-          </section>
-        }
-
-        @if (detailPanelTab() === 'status') {
-          <form class="detail-tab-body" [formGroup]="statusForm" (ngSubmit)="changeStatus()">
             <label class="gi-field"><span>Nuevo estado</span><select class="gi-input" formControlName="status">@for (status of statuses; track status.value) { <option [value]="status.value">{{ status.label }}</option> }</select></label>
             <label class="gi-field"><span>Nota de seguimiento</span><textarea class="gi-input" rows="6" formControlName="resolutionNotes" placeholder="Escribe el acuerdo, motivo o siguiente paso"></textarea></label>
             <button class="gi-button gi-button--primary" type="submit" [disabled]="saving() || !statusForm.value.idOperationalRequest">Guardar seguimiento</button>
           </form>
         }
 
+        @if (detailPanelTab() === 'documents') {
+          <section class="detail-tab-body">
+            <div class="document-placeholder">
+              <span aria-hidden="true">📎</span>
+              <h3>Documentos relacionados</h3>
+              <p>Los soportes de solicitudes se administran desde Documentos para mantener un solo expediente trazable.</p>
+              <a class="gi-button gi-button--secondary" routerLink="/documentos">Abrir Documentos</a>
+            </div>
+          </section>
+        }
+
         @if (detailPanelTab() === 'execution') {
           <section class="detail-tab-body">
             @if (request.status !== 'Approved') {
-              <div class="execution-guidance"><strong>La solicitud requiere aprobación.</strong><span>Primero avanza el estado a Aprobada para habilitar la ejecución.</span><button type="button" (click)="showDetailPanelTab('status')">Ir a seguimiento</button></div>
+              <div class="execution-guidance"><strong>La solicitud requiere aprobación.</strong><span>Primero apruébala desde Seguimiento para habilitar la validación de impacto.</span><button type="button" (click)="showDetailPanelTab('status')">Ir a seguimiento</button></div>
             } @else {
-              <label class="gi-field"><span>Nota de ejecución</span><textarea class="gi-input" rows="4" [formControl]="executionForm.controls.executionNotes" placeholder="Describe el resultado o referencia interna"></textarea></label>
-              <button class="gi-button gi-button--secondary" type="button" [disabled]="saving()" (click)="previewExecution(request)">Validar información</button>
-              @if (executionPreview(); as preview) {
-                <section class="execution-preview" [class.is-ready]="preview.canExecute">
-                  <div><span aria-hidden="true">{{ preview.canExecute ? '✓' : '!' }}</span><div><h4>{{ preview.canExecute ? 'Lista para ejecutar' : 'Falta información' }}</h4><p>{{ preview.canExecute ? 'Ya puedes confirmar la conversión.' : 'Completa los datos pendientes desde el editor.' }}</p></div></div>
-                </section>
-              }
+              <button class="gi-button gi-button--secondary" type="button" [disabled]="saving()" (click)="selectRequest(request, { modal: true, open: false, tab: 'execution' })">Revisar impacto y ejecutar</button>
+              <p class="muted">La ejecución se abre en el panel ancho para validar datos antes de crear o modificar registros.</p>
             }
           </section>
         }
 
         <footer class="detail-actions">
+          @if (request.status === 'Draft') {
+            <button class="gi-button gi-button--primary" type="button" [disabled]="saving()" (click)="advanceRequest(request)">Enviar a revisión</button>
+          } @else if (request.status === 'Submitted') {
+            <button class="gi-button gi-button--primary" type="button" [disabled]="saving()" (click)="advanceRequest(request)">Tomar revisión</button>
+          } @else if (request.status === 'InReview') {
+            <button class="gi-button gi-button--primary" type="button" [disabled]="saving()" (click)="advanceRequest(request)">Aprobar</button>
+            <button class="gi-button gi-button--ghost-danger" type="button" [disabled]="saving()" (click)="rejectRequest(request)">Rechazar</button>
+          } @else if (request.status === 'Approved') {
+            <button class="gi-button gi-button--primary" type="button" [disabled]="saving()" (click)="selectRequest(request, { modal: true, open: false, tab: 'execution' })">Revisar impacto</button>
+          } @else if (request.status === 'Completed') {
+            <a class="gi-button gi-button--secondary" routerLink="/clientes">Ver resultado</a>
+          }
           <button class="gi-button gi-button--secondary" type="button" (click)="selectRequest(request, { modal: true, open: false, tab: 'details' })">Editar datos</button>
-          @if (detailPanelTab() === 'details') { <button class="gi-button gi-button--primary" type="button" [disabled]="saving() || !statusForm.value.idOperationalRequest" (click)="changeStatus()">Guardar nota</button> }
-          @if (nextStatus(request); as status) { <button class="gi-button gi-button--secondary" type="button" [disabled]="saving()" (click)="advanceRequest(request)">Avanzar a {{ labelForStatus(status) }}</button> }
-          @if (request.status === 'Approved') { <button class="gi-button gi-button--primary" type="button" [disabled]="saving()" (click)="selectRequest(request, { modal: true, open: false, tab: 'execution' })">Ir a ejecución</button> }
         </footer>
       </aside>
     </div>
@@ -226,40 +282,77 @@
     <div class="request-modal-backdrop" (click)="closeWorkspace()">
       <section class="gi-card request-workspace request-modal" [class.is-quick-create]="!selectedRequest()" aria-label="Área de trabajo de solicitud" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
         <header class="workspace-heading">
-          <div><span class="eyebrow">{{ selectedRequest() ? selectedRequest()?.codeOperationalRequest : 'Nueva solicitud rápida' }}</span><h2>{{ selectedRequest()?.title || 'Nueva solicitud rápida' }}</h2><p>{{ selectedRequest() ? 'Consulta la información y continúa el flujo desde un solo lugar.' : 'Sólo completa lo esencial para empezar el seguimiento.' }}</p></div>
+          <div><span class="eyebrow">{{ selectedRequest() ? selectedRequest()?.codeOperationalRequest : 'Nueva solicitud rápida' }}</span><h2>{{ selectedRequest()?.title || '¿Qué necesitas hacer?' }}</h2><p>{{ selectedRequest() ? 'Consulta la información y continúa el flujo desde un solo lugar.' : 'Elige el tipo de solicitud y captura sólo lo esencial para iniciar.' }}</p></div>
           <button class="workspace-close" type="button" (click)="closeWorkspace()" aria-label="Cerrar área de trabajo">×</button>
         </header>
 
         <nav class="workspace-tabs" aria-label="Opciones de la solicitud">
-          <button type="button" [class.is-active]="workspaceTab() === 'details'" (click)="showWorkspaceTab('details')"><span>1</span> Datos generales</button>
+          <button type="button" [class.is-active]="workspaceTab() === 'details'" (click)="showWorkspaceTab('details')"><span>1</span> Datos básicos</button>
           <button type="button" [disabled]="!selectedRequest()" [class.is-active]="workspaceTab() === 'status'" (click)="showWorkspaceTab('status')"><span>2</span> Seguimiento</button>
           <button type="button" [disabled]="!selectedRequest()" [class.is-active]="workspaceTab() === 'execution'" (click)="showWorkspaceTab('execution')"><span>3</span> Ejecución</button>
         </nav>
 
         @if (workspaceTab() === 'details') {
-          <form class="workspace-form" [formGroup]="requestForm" (ngSubmit)="saveRequest()">
-            <div class="form-section-heading"><div><h3>Información principal</h3><p>Define qué se solicita, para quién y con qué prioridad.</p></div>@if (selectedRequest()) { <span class="status-pill">{{ labelForStatus(selectedRequest()!.status) }}</span> }</div>
+          <form class="workspace-form" [formGroup]="requestForm">
             @if (!selectedRequest()) {
-              <div class="quick-create-note"><span aria-hidden="true">i</span> Sólo completa lo esencial para empezar. La ejecución se detalla cuando la solicitud avance.</div>
+              <section class="request-type-picker" aria-label="Tipo de solicitud">
+                <div class="form-section-heading"><div><h3>¿Qué necesitas hacer?</h3><p>Selecciona una opción para mostrar sólo los campos necesarios.</p></div></div>
+                <div class="request-type-grid">
+                  @for (type of requestTypeCards; track type.value) {
+                    <button class="request-type-card" type="button" [class.is-selected]="requestTypeSelected() && activeExecutionType() === type.value" (click)="selectRequestType(type.value)">
+                      <span aria-hidden="true">{{ type.icon }}</span>
+                      <strong>{{ type.label }}</strong>
+                      <small>{{ type.hint }}</small>
+                    </button>
+                  }
+                </div>
+              </section>
             }
-            <div class="form-grid">
-              @if (!selectedRequest()) {
-                <label class="gi-field form-span-2"><span>Organización</span><select class="gi-input" [value]="selectedOrganizationId()" (change)="onOrganizationChange($event)">@for (organization of organizations(); track organization.idOrganization) { <option [value]="organization.idOrganization">{{ organization.legalName }}</option> }</select></label>
-              } @else {
-                <label class="gi-field"><span>Folio</span><input class="gi-input" type="text" formControlName="codeOperationalRequest" /></label>
-              }
-              <label class="gi-field"><span>Prioridad</span><select class="gi-input" formControlName="priority">@for (priority of priorities; track priority.value) { <option [value]="priority.value">{{ priority.label }}</option> }</select></label>
-              <label class="gi-field"><span>Tipo de solicitud</span><select class="gi-input" formControlName="requestType" (change)="onRequestTypeChange($event)">@for (type of requestTypes; track type.value) { <option [value]="type.value">{{ type.label }}</option> }</select></label>
-              <label class="gi-field"><span>Fecha requerida</span><input class="gi-input" type="date" formControlName="neededByDate" /></label>
-              <label class="gi-field"><span>Cliente relacionado</span><select class="gi-input" formControlName="idClient" (change)="onRequestClientChange($event)"><option value="">Sin cliente relacionado</option>@for (client of clients(); track client.idClient) { <option [value]="client.idClient">{{ client.tradeName || client.legalName }}</option> }</select></label>
-              @if (selectedRequest()) {
-                <label class="gi-field"><span>Servicio relacionado</span><select class="gi-input" formControlName="idService" (change)="onRequestServiceChange($event)"><option value="">Sin servicio relacionado</option>@for (service of services(); track service.idService) { <option [value]="service.idService">{{ service.name }}</option> }</select></label>
-              }
-              <label class="gi-field form-span-2"><span>Título</span><input class="gi-input" type="text" formControlName="title" placeholder="Ej. Alta de servicio nocturno" /></label>
-              <label class="gi-field"><span>Solicitante</span><input class="gi-input" type="text" formControlName="requestedByName" placeholder="Nombre o área solicitante" /></label>
-              <label class="gi-field form-span-2"><span>Detalle de la solicitud</span><textarea class="gi-input" rows="4" formControlName="description" placeholder="Describe la necesidad, el motivo y los datos operativos importantes"></textarea></label>
-            </div>
-            <footer class="workspace-actions"><button class="gi-button gi-button--secondary" type="button" (click)="closeWorkspace()">Cancelar</button><button class="gi-button gi-button--primary" type="submit" [disabled]="saving() || !selectedOrganizationId()">{{ selectedRequest() ? 'Guardar cambios' : 'Crear y continuar' }}</button></footer>
+
+            @if (selectedRequest() || requestTypeSelected()) {
+              <section class="request-basic-form">
+                <div class="form-section-heading">
+                  <div><h3>Datos básicos</h3><p>Define prioridad, fecha y contexto antes de enviarla a revisión.</p></div>
+                  @if (selectedRequest()) { <span class="status-pill">{{ labelForStatus(selectedRequest()!.status) }}</span> }
+                </div>
+
+                <div class="quick-create-note"><span aria-hidden="true">i</span> La ejecución se validará después, cuando la solicitud esté aprobada.</div>
+
+                <div class="form-grid">
+                  @if (!selectedRequest()) {
+                    <label class="gi-field form-span-2"><span>Organización</span><select class="gi-input" [value]="selectedOrganizationId()" (change)="onOrganizationChange($event)">@for (organization of organizations(); track organization.idOrganization) { <option [value]="organization.idOrganization">{{ organization.legalName }}</option> }</select></label>
+                  } @else {
+                    <label class="gi-field"><span>Folio</span><input class="gi-input" type="text" formControlName="codeOperationalRequest" /></label>
+                    <label class="gi-field"><span>Tipo</span><select class="gi-input" formControlName="requestType" (change)="onRequestTypeChange($event)">@for (type of requestTypes; track type.value) { <option [value]="type.value">{{ type.label }}</option> }</select></label>
+                  }
+
+                  <label class="gi-field"><span>Prioridad</span><select class="gi-input" formControlName="priority">@for (priority of priorities; track priority.value) { <option [value]="priority.value">{{ priority.label }}</option> }</select></label>
+                  <label class="gi-field"><span>Fecha requerida</span><input class="gi-input" type="date" formControlName="neededByDate" /></label>
+
+                  @if (activeExecutionType() !== 'NewClient') {
+                    <label class="gi-field form-span-2"><span>Cliente relacionado</span><select class="gi-input" formControlName="idClient" (change)="onRequestClientChange($event)"><option value="">Sin cliente relacionado</option>@for (client of clients(); track client.idClient) { <option [value]="client.idClient">{{ client.tradeName || client.legalName }}</option> }</select></label>
+                  }
+
+                  @if (selectedRequest() || activeExecutionType() === 'NewService' || activeExecutionType() === 'ServiceChange' || activeExecutionType() === 'StaffChange' || activeExecutionType() === 'CoverageSupport') {
+                    <label class="gi-field form-span-2"><span>Servicio relacionado</span><select class="gi-input" formControlName="idService" (change)="onRequestServiceChange($event)"><option value="">Sin servicio relacionado</option>@for (service of services(); track service.idService) { <option [value]="service.idService">{{ service.name }}</option> }</select></label>
+                  }
+
+                  <label class="gi-field form-span-2"><span>Título</span><input class="gi-input" type="text" formControlName="title" placeholder="Ej. Nuevo servicio nocturno" /></label>
+                  <label class="gi-field form-span-2"><span>Solicitante</span><input class="gi-input" type="text" formControlName="requestedByName" [readonly]="!selectedRequest()" /></label>
+                  <label class="gi-field form-span-2"><span>Descripción</span><textarea class="gi-input" rows="5" formControlName="description" placeholder="Describe la necesidad y los datos operativos importantes."></textarea></label>
+                </div>
+
+                <footer class="workspace-actions">
+                  <button class="gi-button gi-button--secondary" type="button" (click)="closeWorkspace()">Cancelar</button>
+                  @if (!selectedRequest()) {
+                    <button class="gi-button gi-button--secondary" type="button" [disabled]="saving() || !selectedOrganizationId() || !requestTypeSelected()" (click)="saveRequest('Draft')">Guardar borrador</button>
+                    <button class="gi-button gi-button--primary" type="button" [disabled]="saving() || !selectedOrganizationId() || !requestTypeSelected()" (click)="saveRequest('Submitted')">{{ saving() ? 'Enviando…' : 'Enviar solicitud' }}</button>
+                  } @else {
+                    <button class="gi-button gi-button--primary" type="button" [disabled]="saving() || !selectedOrganizationId()" (click)="saveRequest()">{{ saving() ? 'Guardando…' : 'Guardar cambios' }}</button>
+                  }
+                </footer>
+              </section>
+            }
           </form>
         }
 
@@ -276,7 +369,7 @@
 
         @if (workspaceTab() === 'execution') {
           <form class="workspace-form execution-form" [formGroup]="executionForm" (ngSubmit)="executeRequest()">
-            <div class="form-section-heading"><div><h3>Convertir solicitud en operación</h3><p>Valida los datos antes de crear o modificar información real del sistema.</p></div><span class="status-pill" [class.is-ready]="selectedRequest()?.status === 'Approved'">{{ selectedRequest()?.status === 'Approved' ? 'Lista para validar' : 'Requiere aprobación' }}</span></div>
+            <div class="form-section-heading"><div><h3>Vista previa de ejecución</h3><p>Valida exactamente qué se creará o modificará antes de tocar datos reales.</p></div><span class="status-pill" [class.is-ready]="selectedRequest()?.status === 'Approved'">{{ selectedRequest()?.status === 'Approved' ? 'Lista para validar' : 'Requiere aprobación' }}</span></div>
             @if (selectedRequest()?.status !== 'Approved') { <div class="execution-guidance"><strong>Esta solicitud aún no puede ejecutarse.</strong><span>Primero cambia su estado a Aprobada desde la pestaña Seguimiento.</span><button type="button" (click)="showWorkspaceTab('status')">Ir a seguimiento</button></div> }
             <label class="gi-field"><span>Nota de ejecución</span><textarea class="gi-input" rows="3" formControlName="executionNotes" placeholder="Describe el resultado, acuerdo o referencia interna"></textarea></label>
 
@@ -348,13 +441,37 @@
 
           @if (executionPreview(); as preview) {
             <section class="execution-preview" [class.is-ready]="preview.canExecute">
-              <div><span aria-hidden="true">{{ preview.canExecute ? '✓' : '!' }}</span><div><h4>{{ preview.canExecute ? 'La solicitud está lista' : 'Falta completar información' }}</h4><p>{{ preview.canExecute ? 'Revisa el impacto y confirma la ejecución.' : 'Corrige los campos indicados y vuelve a validar.' }}</p></div></div>
+              <div><span aria-hidden="true">{{ preview.canExecute ? '✓' : '!' }}</span><div><h4>{{ preview.canExecute ? 'Solicitud lista para ejecutar' : 'Antes de ejecutar debes completar información' }}</h4><p>{{ preview.canExecute ? 'Revisa el impacto y confirma la ejecución.' : 'Completa lo pendiente y vuelve a validar.' }}</p></div></div>
+              <div class="preview-metrics">
+                <article><strong>{{ previewCreatedItems(preview).length }}</strong><span>por crear</span></article>
+                <article><strong>{{ previewUpdatedItems(preview).length }}</strong><span>por modificar</span></article>
+                <article><strong>{{ preview.missingFields.length }}</strong><span>pendientes</span></article>
+                <article><strong>{{ preview.warnings.length }}</strong><span>alertas</span></article>
+              </div>
               @if (preview.impact.length) { <section><strong>Impacto esperado</strong><ul>@for (item of preview.impact; track item) { <li>{{ item }}</li> }</ul></section> }
-              @if (preview.missingFields.length) { <section><strong>Información pendiente</strong><ul>@for (item of preview.missingFields; track item) { <li>{{ item }}</li> }</ul></section> }
+              @if (preview.missingFields.length) { <section><strong>Antes de ejecutar debes completar</strong><ul>@for (item of preview.missingFields; track item) { <li>{{ item }}</li> }</ul></section> }
+              @if (preview.warnings.length) { <section><strong>Alertas</strong><ul>@for (item of preview.warnings; track item) { <li>{{ item }}</li> }</ul></section> }
             </section>
           }
 
-            <footer class="workspace-actions"><button class="gi-button gi-button--secondary" type="button" [disabled]="saving() || !selectedRequest() || selectedRequest()?.status !== 'Approved'" (click)="previewExecution()">Validar información</button><button class="gi-button gi-button--primary" type="submit" [disabled]="saving() || selectedRequest()?.status !== 'Approved' || !executionPreview()?.canExecute">Ejecutar solicitud</button></footer>
+          @if (executionResult(); as result) {
+            <section class="execution-result">
+              <span aria-hidden="true">✓</span>
+              <div>
+                <h3>Solicitud ejecutada correctamente</h3>
+                <p>{{ result.outcome }}</p>
+                @if (result.executedEntityKind && result.executedEntityId) {
+                  <small>Registro afectado: {{ result.executedEntityKind }}</small>
+                }
+                <div class="result-links">
+                  <a routerLink="/clientes">Ir a Clientes</a>
+                  <a routerLink="/documentos">Ir a Documentos</a>
+                </div>
+              </div>
+            </section>
+          }
+
+            <footer class="workspace-actions"><button class="gi-button gi-button--secondary" type="button" [disabled]="saving() || !selectedRequest() || selectedRequest()?.status !== 'Approved'" (click)="previewExecution()">{{ saving() ? 'Validando…' : 'Validar impacto' }}</button><button class="gi-button gi-button--primary" type="submit" [disabled]="saving() || selectedRequest()?.status !== 'Approved' || !executionPreview()?.canExecute">{{ saving() ? 'Ejecutando…' : 'Ejecutar solicitud' }}</button></footer>
           </form>
         }
       </section>

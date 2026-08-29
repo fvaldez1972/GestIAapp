@@ -1,27 +1,20 @@
 <article class="dashboard-hero">
   <div class="hero-copy">
-    <span class="kicker">Resumen operativo</span>
-    <h1>Tu operación, clara y lista para actuar.</h1>
-    <p>Consulta lo importante, atiende excepciones y continúa con la operación diaria desde un mismo lugar.</p>
-
-    <div class="hero-actions">
-      <a class="primary-link" routerLink="/operacion/asistencia">
-        <span>Abrir operación diaria</span>
-        <i aria-hidden="true">→</i>
-      </a>
-      <a class="secondary-link" routerLink="/planeacion">
-        <span>Revisar planeación</span>
-        <i aria-hidden="true">→</i>
-      </a>
-    </div>
+    <span class="kicker">Inicio</span>
+    <h1>Hola, {{ displayName() || 'equipo' }}.</h1>
+    <p>
+      {{ todayLabel }} ·
+      {{ activeOrganization()?.legalName || 'Sin organización activa' }}
+    </p>
+    <strong>Tu operación está resumida para detectar excepciones y actuar rápido.</strong>
   </div>
 
-  <aside class="hero-status" [class.hero-status--attention]="riskServicesCount() > 0">
+  <aside class="hero-status" [class.hero-status--attention]="riskServicesCount() > 0 || pendingCoverages() > 0 || (operationsSummary()?.openIncidents ?? 0) > 0">
     <div class="status-heading">
       <span class="status-indicator" aria-hidden="true"></span>
       <div>
         <small>Estado operativo</small>
-        <strong>{{ riskServicesCount() > 0 ? 'Requiere atención' : 'Operación estable' }}</strong>
+        <strong>{{ riskServicesCount() > 0 || pendingCoverages() > 0 || (operationsSummary()?.openIncidents ?? 0) > 0 ? 'Requiere atención' : 'Sin alertas críticas' }}</strong>
       </div>
     </div>
 
@@ -31,26 +24,31 @@
         <span>Incidencias</span>
       </div>
       <div>
-        <strong>{{ operationsSummary()?.pendingApprovals ?? 0 }}</strong>
-        <span>Autorizaciones</span>
+        <strong>{{ pendingCoverages() }}</strong>
+        <span>Coberturas</span>
       </div>
       <div>
-        <strong>{{ operationsSummary()?.attendanceRecords ?? 0 }}</strong>
-        <span>Asistencias</span>
+        <strong>{{ openRequestsCount() }}</strong>
+        <span>Solicitudes</span>
       </div>
     </div>
   </aside>
 </article>
 
 @if (loading()) {
-  <section class="dashboard-state gi-card" aria-live="polite">Actualizando información operativa…</section>
+  <section class="dashboard-skeleton" aria-live="polite">
+    <span></span>
+    <span></span>
+    <span></span>
+    <span></span>
+  </section>
 }
 
 @if (error()) {
   <section class="dashboard-state dashboard-state--error gi-card" role="alert">{{ error() }}</section>
 }
 
-<section class="primary-metrics" aria-label="Indicadores prioritarios">
+<section class="primary-metrics" aria-label="Indicadores principales">
   @for (metric of primaryMetrics(); track metric.label) {
     <a
       class="metric-card"
@@ -61,30 +59,103 @@
       <span>{{ metric.label }}</span>
       <strong>{{ metric.value }}</strong>
       <small>{{ metric.detail }}</small>
-      <i aria-hidden="true">→</i>
+      @if (metric.tone === 'attention') {
+        <em>Atención</em>
+      }
     </a>
   }
 </section>
 
-<section class="supporting-metrics" aria-label="Resumen complementario">
-  @for (metric of supportingMetrics(); track metric.label) {
-    <a [routerLink]="metric.route" [attr.aria-label]="metric.label + ': ' + metric.value">
-      <div>
+<section class="today-section gi-card">
+  <header class="section-heading">
+    <div>
+      <span class="kicker">Operación de hoy</span>
+      <h2>Resumen de operación de hoy</h2>
+      <p>Indicadores del día para asistencia, excepciones y coberturas.</p>
+    </div>
+    <a routerLink="/operacion/asistencia">Abrir operación</a>
+  </header>
+
+  <div class="today-grid">
+    @for (metric of todaySummary(); track metric.label) {
+      <article class="today-kpi" [class.today-kpi--attention]="metric.tone === 'attention'" [class.today-kpi--positive]="metric.tone === 'positive'">
         <span>{{ metric.label }}</span>
+        <strong>{{ metric.value }}</strong>
         <small>{{ metric.detail }}</small>
-      </div>
-      <strong>{{ metric.value }}</strong>
-    </a>
-  }
+      </article>
+    }
+  </div>
 </section>
 
 <section class="dashboard-workspace">
-  <article class="focus-panel">
+  <article class="attendance-panel gi-card">
+    <header class="section-heading">
+      <div>
+        <span class="kicker">Asistencia del día</span>
+        <h2>{{ attendanceRate() }}% de asistencia</h2>
+        <p>Distribución de registros capturados para la operación actual.</p>
+      </div>
+    </header>
+
+    <div class="attendance-content">
+      <div class="donut" [style.background]="donutStyle()" aria-label="Gráfica de asistencia">
+        <span>
+          <strong>{{ attendanceRate() }}%</strong>
+          <small>asistencia</small>
+        </span>
+      </div>
+
+      <div class="donut-legend">
+        @for (item of attendanceBreakdown(); track item.label) {
+          <div [class]="'legend-item legend-item--' + item.tone">
+            <i aria-hidden="true"></i>
+            <span>{{ item.label }}</span>
+            <strong>{{ item.value }}</strong>
+          </div>
+        }
+      </div>
+    </div>
+  </article>
+
+  <article class="activity-panel gi-card">
+    <header class="section-heading">
+      <div>
+        <span class="kicker">Actividad reciente</span>
+        <h2>Últimos movimientos relevantes</h2>
+        <p>Eventos operativos derivados de la información disponible hoy.</p>
+      </div>
+    </header>
+
+    <div class="activity-list">
+      @for (activity of recentActivity(); track activity.title) {
+        <a class="activity-item" [routerLink]="activity.route">
+          <i aria-hidden="true">{{ activity.icon }}</i>
+          <span>
+            <strong>{{ activity.title }}</strong>
+            <small>{{ activity.context }}</small>
+          </span>
+          <em>{{ activity.when }}</em>
+        </a>
+      } @empty {
+        <div class="focus-empty">
+          <span class="empty-check" aria-hidden="true">✓</span>
+          <div>
+            <strong>Sin actividad crítica</strong>
+            <span>No hay incidencias, coberturas o solicitudes que requieran atención inmediata.</span>
+          </div>
+        </div>
+      }
+    </div>
+  </article>
+</section>
+
+<section class="dashboard-workspace dashboard-workspace--secondary">
+  <article class="focus-panel gi-card">
     <header class="section-heading">
       <div>
         <span class="kicker">Atención sugerida</span>
         <h2>Servicios que requieren seguimiento</h2>
-        <p>Prioridad calculada con incidencias, faltas y retardos registrados.</p>
+        <p>Priorizados por incidencias, faltas y retardos registrados.</p>
       </div>
       <a routerLink="/reportes">Ver reportes</a>
     </header>
@@ -102,24 +173,25 @@
         <div class="focus-empty">
           <span class="empty-check" aria-hidden="true">✓</span>
           <div>
-            <strong>Sin alertas operativas</strong>
-            <span>No hay incidencias, faltas o retardos que requieran atención.</span>
+            <strong>Sin servicios en riesgo</strong>
+            <span>No hay faltas, retardos o incidencias abiertas en los servicios consultados.</span>
           </div>
         </div>
       }
     </div>
   </article>
 
-  <aside class="actions-panel">
+  <aside class="actions-panel gi-card">
     <header class="section-heading">
       <div>
         <span class="kicker">Accesos rápidos</span>
-        <h2>¿Qué necesitas hacer?</h2>
+        <h2>Acciones frecuentes</h2>
+        <p>Se muestran según los permisos del usuario.</p>
       </div>
     </header>
 
     <nav class="quick-actions" aria-label="Accesos rápidos">
-      @for (action of quickActions; track action.route) {
+      @for (action of quickActions(); track action.route) {
         <a [routerLink]="action.route">
           <span>
             <strong>{{ action.label }}</strong>
@@ -127,6 +199,14 @@
           </span>
           <i aria-hidden="true">→</i>
         </a>
+      } @empty {
+        <div class="focus-empty">
+          <span class="empty-check" aria-hidden="true">i</span>
+          <div>
+            <strong>Sin acciones disponibles</strong>
+            <span>Tu usuario no tiene acciones rápidas asignadas por ahora.</span>
+          </div>
+        </div>
       }
     </nav>
   </aside>

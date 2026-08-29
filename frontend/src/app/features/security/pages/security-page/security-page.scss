@@ -23,7 +23,7 @@
 }
 
 .security-summary {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .security-grid {
@@ -32,6 +32,57 @@
 
 .security-admin-grid {
   grid-template-columns: minmax(0, 1.2fr) minmax(20rem, .8fr);
+}
+
+.security-page {
+  position: relative;
+}
+
+.security-tabs {
+  display: grid;
+  gap: .7rem;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.security-tabs button {
+  min-height: 3.4rem;
+  border: 1px solid color-mix(in srgb, var(--gestia-border) 86%, white);
+  border-radius: 1rem;
+  color: #06124a;
+  font-weight: 900;
+  background: #fff;
+  box-shadow: 0 .75rem 1.6rem rgb(16 16 78 / 4%);
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.security-tabs button:hover,
+.security-tabs button.is-active {
+  border-color: color-mix(in srgb, var(--gestia-cyan) 60%, var(--gestia-border));
+  box-shadow: 0 .9rem 1.8rem rgb(16 16 78 / 7%);
+  transform: translateY(-1px);
+}
+
+.security-tabs button.is-active {
+  background:
+    radial-gradient(circle at 90% 20%, rgb(34 198 238 / 16%), transparent 7rem),
+    #fff;
+}
+
+.security-workspace {
+  display: grid;
+  gap: 1rem;
+  align-items: start;
+  grid-template-columns: minmax(0, 1.35fr) minmax(20rem, .65fr);
+}
+
+.security-filters {
+  display: grid;
+  gap: .8rem;
+  grid-template-columns: minmax(15rem, 1.25fr) repeat(3, minmax(10rem, 1fr));
 }
 
 .metric-card {
@@ -246,6 +297,20 @@
   gap: .65rem;
 }
 
+.permission-groups--wide {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.permission-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .35rem;
+}
+
+.permission-group.compact {
+  padding: .75rem;
+}
+
 .permission-checks {
   max-height: 24rem;
   overflow: auto;
@@ -302,6 +367,100 @@
   opacity: .65;
 }
 
+.organization-grid {
+  display: grid;
+  gap: .85rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.organization-card {
+  display: grid;
+  gap: .35rem;
+  border: 1px solid color-mix(in srgb, var(--gestia-border) 84%, white);
+  border-radius: 1rem;
+  padding: 1rem;
+  background:
+    radial-gradient(circle at 94% 12%, rgb(34 198 238 / 12%), transparent 7rem),
+    #fff;
+}
+
+.organization-card span {
+  color: var(--gestia-cyan-dark);
+  font-size: .7rem;
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.organization-card strong {
+  color: #06124a;
+  font-size: 1rem;
+}
+
+.organization-card small,
+.muted {
+  color: #71809b;
+}
+
+.security-drawer {
+  position: fixed;
+  top: var(--gestia-topbar-height);
+  right: 0;
+  z-index: 30;
+  display: grid;
+  width: min(34rem, calc(100vw - 1rem));
+  max-height: calc(100vh - var(--gestia-topbar-height));
+  overflow-y: auto;
+  gap: 1rem;
+  border-left: 1px solid color-mix(in srgb, var(--gestia-border) 82%, white);
+  padding: 1.25rem;
+  background:
+    radial-gradient(circle at 100% 0, rgb(34 198 238 / 12%), transparent 14rem),
+    #fff;
+  box-shadow: -1rem 0 2.5rem rgb(16 16 78 / 12%);
+}
+
+.drawer-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border: 1px solid var(--gestia-border);
+  border-radius: 999rem;
+  color: #06124a;
+  font-size: 1.2rem;
+  background: #fff;
+  cursor: pointer;
+}
+
+.security-drawer header,
+.drawer-block {
+  display: grid;
+  gap: .7rem;
+}
+
+.security-drawer header {
+  padding-right: 2.4rem;
+}
+
+.security-drawer h2,
+.drawer-block h3 {
+  margin: 0;
+  color: #06124a;
+}
+
+.security-drawer p {
+  margin: 0;
+}
+
+.drawer-block {
+  border-top: 1px solid #e4ecf6;
+  padding-top: 1rem;
+}
+
 @keyframes pulse {
   0%, 100% {
     opacity: .6;
@@ -321,7 +480,12 @@
 
   .security-summary,
   .security-grid,
-  .security-admin-grid {
+  .security-admin-grid,
+  .security-tabs,
+  .security-workspace,
+  .security-filters,
+  .permission-groups--wide,
+  .organization-grid {
     grid-template-columns: 1fr;
   }
 }
@@ -329,5 +493,57 @@
 @media (max-width: 640px) {
   .form-row {
     grid-template-columns: 1fr;
+  }
+}
+
+/* Security polish: administration stays dense but gains clearer selectable
+   users, roles and permission groups. */
+.security-hero,
+.security-section,
+.metric-card,
+.role-card,
+.permission-group,
+.access-row,
+.security-note {
+  border-color: color-mix(in srgb, var(--gestia-border) 84%, white);
+  border-radius: 1.1rem;
+}
+
+.security-hero,
+.security-section {
+  box-shadow: 0 1rem 2.4rem rgb(16 16 78 / 7%);
+}
+
+.role-card,
+.permission-checks article,
+.organization-card,
+.access-row,
+.danger-action,
+.link-action,
+.link-danger {
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.role-card:hover,
+.role-card.is-selected,
+.permission-checks article:hover,
+.organization-card:hover,
+.access-row:hover {
+  border-color: color-mix(in srgb, var(--gestia-cyan) 46%, var(--gestia-border));
+  box-shadow: 0 .8rem 1.7rem rgb(16 16 78 / 6%);
+  transform: translateY(-1px);
+}
+
+@media (max-width: 760px) {
+  .security-drawer {
+    left: .5rem;
+    right: .5rem;
+    width: auto;
+    border-left: 1px solid var(--gestia-border);
+    border-radius: 1.1rem 1.1rem 0 0;
   }
 }

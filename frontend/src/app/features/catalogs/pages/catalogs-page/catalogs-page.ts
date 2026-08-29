@@ -2,6 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { forkJoin } from 'rxjs';
+import { AuthService } from '../../../../core/auth/auth.service';
 import { ClientApiService } from '../../../clients/data-access/client-api.service';
 import { Client, ManagedService, Organization, PagedResult, ServicePosition } from '../../../clients/data-access/client.models';
 import { WorkforceApiService } from '../../../workforce/data-access/workforce-api.service';
@@ -27,6 +28,7 @@ export class CatalogsPage implements OnInit {
   private readonly api = inject(CatalogApiService);
   private readonly clientApi = inject(ClientApiService);
   private readonly workforceApi = inject(WorkforceApiService);
+  private readonly auth = inject(AuthService);
   private readonly formBuilder = inject(FormBuilder);
 
   protected readonly organizations = signal<readonly Organization[]>([]);
@@ -39,12 +41,20 @@ export class CatalogsPage implements OnInit {
   protected readonly selectedOrganizationId = signal('');
   protected readonly selectedCatalogItemId = signal('');
   protected readonly selectedRequirementId = signal('');
+  protected readonly activeTab = signal<CatalogTab>('general');
+  protected readonly selectedCatalogType = signal<BusinessCatalogItemType>('Skill');
+  protected readonly catalogDrawerOpen = signal(false);
+  protected readonly requirementDrawerOpen = signal(false);
+  protected readonly requirementClientFilter = signal('');
+  protected readonly requirementServiceFilter = signal('');
+  protected readonly requirementPositionFilter = signal('');
   protected readonly loading = signal(false);
   protected readonly saving = signal(false);
   protected readonly message = signal('');
   protected readonly error = signal('');
   protected readonly eligibilityResult = signal<EligibilityCheck | null>(null);
 
+  protected readonly canWrite = computed(() => this.auth.hasPermission('CATALOGS.WRITE'));
   protected readonly selectedCatalogItem = computed(
     () => this.items().find((item) => item.idCatalogItem === this.selectedCatalogItemId()) ?? null,
   );
@@ -52,6 +62,33 @@ export class CatalogsPage implements OnInit {
     () => this.requirements().find((item) => item.idEligibilityRequirement === this.selectedRequirementId()) ?? null,
   );
   protected readonly activeSkills = computed(() => this.items().filter((item) => item.type === 'Skill' && item.active));
+  protected readonly activeCatalogCards = computed(() =>
+    this.catalogCategories.filter((category) => category.tab === this.activeTab()),
+  );
+  protected readonly selectedCategory = computed(
+    () => this.catalogCategories.find((category) => category.type === this.selectedCatalogType()) ?? this.catalogCategories[0],
+  );
+  protected readonly selectedCatalogItems = computed(() =>
+    this.items().filter((item) => item.type === this.selectedCatalogType()),
+  );
+  protected readonly activeCatalogItems = computed(() => this.items().filter((item) => item.active).length);
+  protected readonly activeRequirements = computed(() => this.requirements().filter((requirement) => requirement.active).length);
+  protected readonly blockingRequirements = computed(
+    () => this.requirements().filter((requirement) => requirement.active && requirement.isBlocking).length,
+  );
+  protected readonly filteredRequirements = computed(() =>
+    this.requirements().filter((requirement) => {
+      const clientFilter = this.requirementClientFilter();
+      const serviceFilter = this.requirementServiceFilter();
+      const positionFilter = this.requirementPositionFilter();
+
+      return (
+        (!clientFilter || requirement.idClient === clientFilter) &&
+        (!serviceFilter || requirement.idService === serviceFilter) &&
+        (!positionFilter || requirement.idPosition === positionFilter)
+      );
+    }),
+  );
 
   protected readonly catalogTypes: readonly { value: BusinessCatalogItemType; label: string }[] = [
     { value: 'Skill', label: 'Habilidad' },
@@ -64,6 +101,85 @@ export class CatalogsPage implements OnInit {
     { value: 'IncidentReason', label: 'Motivo de incidencia' },
     { value: 'CoverageReason', label: 'Motivo de cobertura' },
     { value: 'CancellationReason', label: 'Motivo de baja/cancelación' },
+  ];
+
+  protected readonly tabs: readonly { value: CatalogTab; label: string; help: string }[] = [
+    { value: 'general', label: 'Generales', help: 'Habilidades, puestos y zonas base.' },
+    { value: 'operational', label: 'Operativos', help: 'Motivos usados en operación diaria.' },
+    { value: 'eligibility', label: 'Elegibilidad', help: 'Reglas para decidir si alguien puede asignarse.' },
+  ];
+
+  protected readonly catalogCategories: readonly CatalogCategory[] = [
+    {
+      type: 'Skill',
+      tab: 'general',
+      title: 'Habilidades',
+      description: 'Competencias que puede tener el personal.',
+      icon: '✦',
+    },
+    {
+      type: 'JobPosition',
+      tab: 'general',
+      title: 'Puestos / posiciones',
+      description: 'Roles operativos disponibles para servicios.',
+      icon: '▦',
+    },
+    {
+      type: 'Zone',
+      tab: 'general',
+      title: 'Zonas',
+      description: 'Áreas geográficas o zonas de operación.',
+      icon: '⌖',
+    },
+    {
+      type: 'IncidentReason',
+      tab: 'operational',
+      title: 'Tipos de incidencia',
+      description: 'Motivos para clasificar excepciones operativas.',
+      icon: '△',
+    },
+    {
+      type: 'CoverageReason',
+      tab: 'operational',
+      title: 'Motivos de cobertura',
+      description: 'Razones para cubrir o sustituir turnos.',
+      icon: '◉',
+    },
+    {
+      type: 'CancellationReason',
+      tab: 'operational',
+      title: 'Motivos de cancelación',
+      description: 'Causas controladas para bajas o cancelaciones.',
+      icon: '×',
+    },
+    {
+      type: 'DocumentRequirement',
+      tab: 'eligibility',
+      title: 'Tipos de documento',
+      description: 'Documentos requeridos para validar expediente.',
+      icon: '□',
+    },
+    {
+      type: 'EvaluationRequirement',
+      tab: 'eligibility',
+      title: 'Evaluaciones',
+      description: 'Evaluaciones, exámenes o revisiones necesarias.',
+      icon: '✓',
+    },
+    {
+      type: 'ClientRestriction',
+      tab: 'eligibility',
+      title: 'Restricciones por cliente',
+      description: 'Reglas particulares para clientes específicos.',
+      icon: '!',
+    },
+    {
+      type: 'ServiceRestriction',
+      tab: 'eligibility',
+      title: 'Restricciones por servicio',
+      description: 'Condiciones aplicables a servicios concretos.',
+      icon: '⛨',
+    },
   ];
 
   protected readonly targetTypes: readonly { value: EligibilityRequirementTargetType; label: string }[] = [
@@ -146,7 +262,26 @@ export class CatalogsPage implements OnInit {
     this.positions.set([]);
     this.employees.set([]);
     this.eligibilityResult.set(null);
+    this.requirementClientFilter.set('');
+    this.requirementServiceFilter.set('');
+    this.requirementPositionFilter.set('');
     this.loadData();
+  }
+
+  protected selectTab(tab: CatalogTab): void {
+    this.activeTab.set(tab);
+    const firstCategory = this.catalogCategories.find((category) => category.tab === tab);
+
+    if (firstCategory) {
+      this.selectedCatalogType.set(firstCategory.type);
+      this.catalogForm.patchValue({ type: firstCategory.type });
+    }
+  }
+
+  protected selectCatalogCategory(type: BusinessCatalogItemType): void {
+    this.selectedCatalogType.set(type);
+    this.selectedCatalogItemId.set('');
+    this.catalogForm.patchValue({ type });
   }
 
   protected loadData(): void {
@@ -176,50 +311,69 @@ export class CatalogsPage implements OnInit {
     });
   }
 
-  protected selectClient(idClient: string): void {
+  protected selectRequirementClient(idClient: string): void {
     this.requirementForm.patchValue({ idClient, idService: '', idPosition: '' });
-    this.eligibilityForm.patchValue({ idClient, idService: '', idPosition: '' });
-    this.services.set([]);
-    this.positions.set([]);
-
-    if (!idClient) {
-      return;
-    }
-
-    this.clientApi.listServices(this.selectedOrganizationId(), idClient).subscribe({
-      next: (services) => this.services.set(services),
-      error: (error: HttpErrorResponse) => this.setError(error),
-    });
+    this.loadServicesForClient(idClient);
   }
 
-  protected selectService(idService: string): void {
-    const clientId = this.requirementForm.getRawValue().idClient || this.eligibilityForm.getRawValue().idClient;
+  protected selectRequirementService(idService: string): void {
+    const clientId = this.requirementForm.getRawValue().idClient;
     this.requirementForm.patchValue({ idService, idPosition: '' });
+    this.loadPositionsForService(clientId, idService);
+  }
+
+  protected selectEligibilityClient(idClient: string): void {
+    this.eligibilityForm.patchValue({ idClient, idService: '', idPosition: '' });
+    this.loadServicesForClient(idClient);
+  }
+
+  protected selectEligibilityService(idService: string): void {
+    const clientId = this.eligibilityForm.getRawValue().idClient;
     this.eligibilityForm.patchValue({ idService, idPosition: '' });
-    this.positions.set([]);
+    this.loadPositionsForService(clientId, idService);
+  }
 
-    if (!clientId || !idService) {
-      return;
-    }
+  protected selectRequirementFilterClient(idClient: string): void {
+    this.requirementClientFilter.set(idClient);
+    this.requirementServiceFilter.set('');
+    this.requirementPositionFilter.set('');
+    this.loadServicesForClient(idClient);
+  }
 
-    this.clientApi.listPositions(this.selectedOrganizationId(), clientId, idService).subscribe({
-      next: (positions) => this.positions.set(positions),
-      error: (error: HttpErrorResponse) => this.setError(error),
-    });
+  protected selectRequirementFilterService(idService: string): void {
+    this.requirementServiceFilter.set(idService);
+    this.requirementPositionFilter.set('');
+    this.loadPositionsForService(this.requirementClientFilter(), idService);
+  }
+
+  protected selectRequirementFilterPosition(idPosition: string): void {
+    this.requirementPositionFilter.set(idPosition);
   }
 
   protected selectCatalogItem(item: CatalogItem): void {
     this.selectedCatalogItemId.set(item.idCatalogItem);
+    this.selectedCatalogType.set(item.type);
     this.catalogForm.reset({
       type: item.type,
       code: item.code,
       name: item.name,
       description: item.description ?? '',
     });
+    this.catalogDrawerOpen.set(true);
+  }
+
+  protected openNewCatalogItem(): void {
+    this.selectedCatalogItemId.set('');
+    this.catalogForm.reset({ type: this.selectedCatalogType(), code: '', name: '', description: '' });
+    this.catalogDrawerOpen.set(true);
+  }
+
+  protected closeCatalogDrawer(): void {
+    this.catalogDrawerOpen.set(false);
   }
 
   protected saveCatalogItem(): void {
-    if (!this.selectedOrganizationId() || this.catalogForm.invalid) {
+    if (!this.selectedOrganizationId() || this.catalogForm.invalid || !this.canWrite()) {
       this.catalogForm.markAllAsTouched();
       return;
     }
@@ -242,6 +396,7 @@ export class CatalogsPage implements OnInit {
       next: () => {
         this.message.set(selected ? 'Catálogo actualizado.' : 'Catálogo creado.');
         this.resetCatalogForm();
+        this.catalogDrawerOpen.set(false);
         this.loadData();
       },
       error: (error: HttpErrorResponse) => this.setError(error),
@@ -250,6 +405,10 @@ export class CatalogsPage implements OnInit {
   }
 
   protected deactivateCatalogItem(item: CatalogItem): void {
+    if (!this.canWrite()) {
+      return;
+    }
+
     if (!window.confirm(`¿Desactivar el catálogo "${item.name}"?`)) {
       return;
     }
@@ -266,7 +425,7 @@ export class CatalogsPage implements OnInit {
   }
 
   protected saveRequirement(): void {
-    if (!this.selectedOrganizationId() || this.requirementForm.invalid) {
+    if (!this.selectedOrganizationId() || this.requirementForm.invalid || !this.canWrite()) {
       this.requirementForm.markAllAsTouched();
       return;
     }
@@ -293,6 +452,7 @@ export class CatalogsPage implements OnInit {
       next: () => {
         this.message.set(selected ? 'Regla actualizada.' : 'Regla creada.');
         this.resetRequirementForm();
+        this.requirementDrawerOpen.set(false);
         this.loadData();
       },
       error: (error: HttpErrorResponse) => this.setError(error),
@@ -313,9 +473,23 @@ export class CatalogsPage implements OnInit {
       description: requirement.description ?? '',
       isBlocking: requirement.isBlocking,
     });
+    this.requirementDrawerOpen.set(true);
+  }
+
+  protected openNewRequirement(): void {
+    this.resetRequirementForm();
+    this.requirementDrawerOpen.set(true);
+  }
+
+  protected closeRequirementDrawer(): void {
+    this.requirementDrawerOpen.set(false);
   }
 
   protected deactivateRequirement(requirement: EligibilityRequirement): void {
+    if (!this.canWrite()) {
+      return;
+    }
+
     if (!window.confirm(`¿Desactivar la regla "${requirement.name}"?`)) {
       return;
     }
@@ -377,7 +551,7 @@ export class CatalogsPage implements OnInit {
 
   protected resetCatalogForm(): void {
     this.selectedCatalogItemId.set('');
-    this.catalogForm.reset({ type: 'Skill', code: '', name: '', description: '' });
+    this.catalogForm.reset({ type: this.selectedCatalogType(), code: '', name: '', description: '' });
   }
 
   protected resetRequirementForm(): void {
@@ -407,6 +581,28 @@ export class CatalogsPage implements OnInit {
     return this.targetTypes.find((item) => item.value === type)?.label ?? 'Alcance general';
   }
 
+  protected countCatalogItems(type: BusinessCatalogItemType): number {
+    return this.items().filter((item) => item.type === type && item.active).length;
+  }
+
+  protected tabCount(tab: CatalogTab): number {
+    if (tab === 'eligibility') {
+      return this.requirements().length;
+    }
+
+    return this.catalogCategories
+      .filter((category) => category.tab === tab)
+      .reduce((total, category) => total + this.countCatalogItems(category.type), 0);
+  }
+
+  protected activeLabel(active: boolean): string {
+    return active ? 'Activo' : 'Inactivo';
+  }
+
+  protected blockingLabel(requirement: EligibilityRequirement): string {
+    return requirement.isBlocking ? 'Bloqueante' : 'Informativa';
+  }
+
   protected requirementScopeLabel(requirement: {
     readonly clientName: string | null;
     readonly serviceName: string | null;
@@ -426,6 +622,33 @@ export class CatalogsPage implements OnInit {
     if (employeeId && !this.eligibilityForm.getRawValue().idEmployee) {
       this.eligibilityForm.patchValue({ idEmployee: employeeId });
     }
+  }
+
+  private loadServicesForClient(idClient: string): void {
+    this.services.set([]);
+    this.positions.set([]);
+
+    if (!idClient) {
+      return;
+    }
+
+    this.clientApi.listServices(this.selectedOrganizationId(), idClient).subscribe({
+      next: (services) => this.services.set(services),
+      error: (error: HttpErrorResponse) => this.setError(error),
+    });
+  }
+
+  private loadPositionsForService(idClient: string, idService: string): void {
+    this.positions.set([]);
+
+    if (!idClient || !idService) {
+      return;
+    }
+
+    this.clientApi.listPositions(this.selectedOrganizationId(), idClient, idService).subscribe({
+      next: (positions) => this.positions.set(positions),
+      error: (error: HttpErrorResponse) => this.setError(error),
+    });
   }
 
   private targetIds(
@@ -460,3 +683,13 @@ export class CatalogsPage implements OnInit {
     this.error.set(typeof detail === 'string' ? detail : 'No fue posible completar la operación.');
   }
 }
+
+type CatalogTab = 'general' | 'operational' | 'eligibility';
+
+type CatalogCategory = {
+  readonly type: BusinessCatalogItemType;
+  readonly tab: CatalogTab;
+  readonly title: string;
+  readonly description: string;
+  readonly icon: string;
+};

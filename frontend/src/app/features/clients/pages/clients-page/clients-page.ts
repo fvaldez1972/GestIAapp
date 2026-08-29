@@ -1,6 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { finalize, forkJoin } from 'rxjs';
 import { WorkforceApiService } from '../../../workforce/data-access/workforce-api.service';
 import { Employee } from '../../../workforce/data-access/workforce.models';
@@ -45,9 +46,13 @@ import {
   ShiftSegmentInput,
 } from '../../data-access/client.models';
 
+type ClientTab = 'summary' | 'sites' | 'services' | 'contracts' | 'contacts' | 'documents';
+type ClientStatusFilter = 'all' | 'active' | 'inactive';
+type ClientServiceFilter = 'all' | 'withServices' | 'withoutServices';
+
 @Component({
   selector: 'app-clients-page',
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, RouterLink],
   templateUrl: './clients-page.html',
   styleUrl: './clients-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -114,12 +119,43 @@ export class ClientsPage implements OnInit {
   protected readonly message = signal('');
   protected readonly error = signal('');
   protected readonly search = signal('');
+  protected readonly clientStatusFilter = signal<ClientStatusFilter>('all');
+  protected readonly clientServiceFilter = signal<ClientServiceFilter>('all');
+  protected readonly activeClientTab = signal<ClientTab>('summary');
+  protected readonly clientServiceCounts = signal<Record<string, number>>({});
   protected readonly selectedClientName = computed(() => this.selectedClient()?.legalName ?? 'Sin cliente seleccionado');
   protected readonly selectedServiceName = computed(() => this.selectedService()?.name ?? 'Sin servicio seleccionado');
   protected readonly selectedPositionName = computed(() => this.selectedPosition()?.name ?? 'Sin posición seleccionada');
   protected readonly selectedShiftPatternName = computed(() => this.selectedShiftPattern()?.name ?? 'Sin patrón seleccionado');
   protected readonly selectedScheduleVersionName = computed(
     () => this.selectedScheduleVersion()?.name ?? 'Sin planeación seleccionada',
+  );
+  protected readonly visibleClients = computed(() =>
+    this.result().items.filter((client) => {
+      const matchesStatus =
+        this.clientStatusFilter() === 'all' ||
+        (this.clientStatusFilter() === 'active' && client.active) ||
+        (this.clientStatusFilter() === 'inactive' && !client.active);
+      const serviceCount = this.serviceCount(client);
+      const matchesServices =
+        this.clientServiceFilter() === 'all' ||
+        (this.clientServiceFilter() === 'withServices' && serviceCount > 0) ||
+        (this.clientServiceFilter() === 'withoutServices' && serviceCount === 0);
+
+      return matchesStatus && matchesServices;
+    }),
+  );
+  protected readonly clientTabs: readonly { value: ClientTab; label: string; count?: () => number }[] = [
+    { value: 'summary', label: 'Resumen' },
+    { value: 'sites', label: 'Sedes', count: () => this.sites().length },
+    { value: 'services', label: 'Servicios', count: () => this.services().length },
+    { value: 'contracts', label: 'Contratos', count: () => this.contracts().length },
+    { value: 'contacts', label: 'Contactos', count: () => this.contacts().length },
+    { value: 'documents', label: 'Documentos' },
+  ];
+  protected readonly currentConfiguration = computed(() => this.configurations().find((configuration) => configuration.active) ?? this.configurations()[0] ?? null);
+  protected readonly activeContractsCount = computed(() =>
+    this.contracts().filter((contract) => contract.active && ['Executed', 'Effective'].includes(contract.status)).length,
   );
 
   protected readonly contractStatuses: readonly { value: ServiceContractStatus; label: string }[] = [
@@ -349,6 +385,18 @@ export class ClientsPage implements OnInit {
     this.search.set(value);
   }
 
+  protected updateClientStatusFilter(value: ClientStatusFilter): void {
+    this.clientStatusFilter.set(value);
+  }
+
+  protected updateClientServiceFilter(value: ClientServiceFilter): void {
+    this.clientServiceFilter.set(value);
+  }
+
+  protected showClientTab(tab: ClientTab): void {
+    this.activeClientTab.set(tab);
+  }
+
   protected loadClients(page = this.result().page): void {
     const organizationId = this.selectedOrganizationId();
     if (!organizationId) {
@@ -364,6 +412,7 @@ export class ClientsPage implements OnInit {
       .subscribe({
         next: (result) => {
           this.result.set(result);
+          this.loadClientServiceCounts(result.items);
           const current = this.selectedClient();
           if (!current && result.items.length) {
             this.selectClient(result.items[0]);
@@ -391,6 +440,7 @@ export class ClientsPage implements OnInit {
 
   protected selectClient(client: Client): void {
     this.selectedClient.set(client);
+    this.activeClientTab.set('summary');
     this.loadClientDetail(client);
   }
 
@@ -1874,9 +1924,64 @@ export class ClientsPage implements OnInit {
     return this.scheduleStatuses.find((item) => item.value === value)?.label ?? 'Sin estado';
   }
 
+  protected clientStatusLabel(client: Client): string {
+    return client.active ? 'Activo' : 'Inactivo';
+  }
+
+  protected serviceCount(client: Client): number {
+    return this.clientServiceCounts()[client.idClient] ?? (this.selectedClient()?.idClient === client.idClient ? this.services().length : 0);
+  }
+
+  protected clientLocationSummary(client: Client): string {
+    if (this.selectedClient()?.idClient === client.idClient && this.sites().length) {
+      const mainSite = this.sites()[0];
+      return [mainSite.municipality, mainSite.state].filter(Boolean).join(', ');
+    }
+
+    return client.taxAddress || 'Sin ubicación capturada';
+  }
+
+  protected dateLabel(value: string | null): string {
+    if (!value) {
+      return 'Sin fecha';
+    }
+
+    return new Intl.DateTimeFormat('es-MX', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    }).format(new Date(value));
+  }
+
   private optional(value: string): string | null {
     const normalized = value.trim();
     return normalized ? normalized : null;
+  }
+
+  private loadClientServiceCounts(clients: readonly Client[]): void {
+    const organizationId = this.selectedOrganizationId();
+
+    if (!organizationId || clients.length === 0) {
+      this.clientServiceCounts.set({});
+      return;
+    }
+
+    const requests = Object.fromEntries(
+      clients.map((client) => [client.idClient, this.api.listServices(organizationId, client.idClient)]),
+    );
+
+    forkJoin(requests).subscribe({
+      next: (servicesByClient) => {
+        this.clientServiceCounts.set(
+          Object.fromEntries(
+            Object.entries(servicesByClient).map(([idClient, services]) => [idClient, services.length]),
+          ),
+        );
+      },
+      error: () => {
+        this.clientServiceCounts.set({});
+      },
+    });
   }
 
   private optionalDate(value: string): string | null {

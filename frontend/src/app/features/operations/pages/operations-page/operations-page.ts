@@ -65,6 +65,7 @@ export class OperationsPage implements OnInit {
   protected readonly selectedAttendanceId = signal('');
   protected readonly selectedOperationDate = signal(this.today());
   protected readonly activeSection = signal<OperationSection>('asistencia');
+  protected readonly activeTab = signal<OperationTab>('asistencia');
   protected readonly loading = signal(false);
   protected readonly saving = signal(false);
   protected readonly uploadingEvidenceFile = signal(false);
@@ -79,6 +80,24 @@ export class OperationsPage implements OnInit {
   protected readonly incidentCount = computed(() => this.summary()?.incidents ?? this.incidents().length);
   protected readonly coverageCount = computed(() => this.summary()?.coverageRecords ?? this.coverages().length);
   protected readonly coveredHours = computed(() => Math.round(((this.summary()?.coveredMinutes ?? 0) / 60) * 10) / 10);
+  protected readonly expectedShiftCount = computed(() => this.dailyBoard().length);
+  protected readonly presentTodayCount = computed(
+    () => this.dailyBoard().filter((item) => item.attendance?.status === 'Present').length,
+  );
+  protected readonly absentTodayCount = computed(
+    () => this.dailyBoard().filter((item) => item.attendance?.status === 'Absent').length,
+  );
+  protected readonly lateTodayCount = computed(
+    () => this.dailyBoard().filter((item) => item.attendance?.status === 'Late').length,
+  );
+  protected readonly pendingCoverageCount = computed(
+    () =>
+      this.dailyBoard().filter(
+        (item) =>
+          item.attendance?.status === 'Absent' &&
+          (!item.coverage || item.coverage.status === 'Requested'),
+      ).length,
+  );
   protected readonly pendingApprovalCount = computed(
     () => this.approvalRequests().filter((approval) => approval.status === 'Pending').length,
   );
@@ -116,6 +135,34 @@ export class OperationsPage implements OnInit {
         return 'Captura sustituciones de personal para mantener trazable quién cubrió cada turno.';
       default:
         return 'Confirma entrada, salida, estado y retardos de los turnos publicados.';
+    }
+  });
+  protected readonly tabTitle = computed(() => {
+    switch (this.activeTab()) {
+      case 'incidencias':
+        return 'Incidencias';
+      case 'cobertura':
+        return 'Cobertura';
+      case 'evidencias':
+        return 'Evidencias';
+      case 'cierre':
+        return 'Cierre diario';
+      default:
+        return 'Asistencia';
+    }
+  });
+  protected readonly tabDescription = computed(() => {
+    switch (this.activeTab()) {
+      case 'incidencias':
+        return 'Prioriza excepciones abiertas y cierra incidencias con evidencia y seguimiento.';
+      case 'cobertura':
+        return 'Controla sustituciones, reemplazos y horas cubiertas sin mezclarlo con la asistencia planeada.';
+      case 'evidencias':
+        return 'Consulta y adjunta respaldos operativos ligados a asistencia, incidencias o coberturas.';
+      case 'cierre':
+        return 'Revisa pendientes, autorizaciones y confirma el cierre del día sólo cuando la operación esté lista.';
+      default:
+        return 'Confirma lo ocurrido por turno: presente, retardo, falta o justificación.';
     }
   });
   protected readonly publishedVersion = computed(
@@ -183,6 +230,9 @@ export class OperationsPage implements OnInit {
   });
   protected readonly visibleEvidences = computed(() =>
     this.evidences().filter((evidence) => this.evidenceSection(evidence) === this.activeSection()),
+  );
+  protected readonly evidenceList = computed(() =>
+    this.activeTab() === 'evidencias' ? this.evidences() : this.visibleEvidences(),
   );
   protected readonly dailyBoard = computed<readonly OperationDayShift[]>(() => {
     const operationDate = this.selectedOperationDate();
@@ -309,6 +359,7 @@ export class OperationsPage implements OnInit {
       if (isOperationSection(section)) {
         const previousSection = this.activeSection();
         this.activeSection.set(section);
+        this.activeTab.set(section);
         if (previousSection !== section) {
           this.resetEvidenceForm();
         }
@@ -350,6 +401,52 @@ export class OperationsPage implements OnInit {
 
   protected onOperationDateChange(event: Event) {
     this.selectedOperationDate.set((event.target as HTMLInputElement).value);
+  }
+
+  protected setActiveTab(tab: OperationTab) {
+    this.activeTab.set(tab);
+
+    if (isOperationSection(tab)) {
+      void this.router.navigateByUrl(`/operacion/${tab}`);
+    }
+  }
+
+  protected quickAttendance(item: OperationDayShift, status: AttendanceStatus) {
+    const context = this.operationContext();
+
+    if (!context || this.saving()) {
+      return;
+    }
+
+    if (item.attendance) {
+      this.selectAttendance(item.attendance);
+      this.activeTab.set('asistencia');
+      this.error.set('Ese turno ya tiene asistencia. Para corregirlo usa el formulario y una autorización aprobada.');
+      return;
+    }
+
+    this.saving.set(true);
+    this.message.set('');
+    this.error.set('');
+
+    this.api.upsertAttendanceRecord(context.idClient, context.idService, {
+      idOrganization: context.idOrganization,
+      idClient: context.idClient,
+      idService: context.idService,
+      idScheduledShift: item.shift.idScheduledShift,
+      status,
+      actualStartTime: status === 'Absent' ? null : item.shift.startTime,
+      actualEndTime: status === 'Absent' ? null : item.shift.endTime,
+      minutesLate: status === 'Late' ? 10 : 0,
+      notes: `Captura rápida desde centro de control: ${this.attendanceStatusLabel(status)}.`,
+    }).subscribe({
+      next: () => {
+        this.message.set(`Asistencia marcada como ${this.attendanceStatusLabel(status).toLowerCase()}.`);
+        this.loadOperationData();
+      },
+      error: (error: HttpErrorResponse) => this.setError(error, 'No se pudo registrar la asistencia rápida.'),
+      complete: () => this.saving.set(false),
+    });
   }
 
   protected closeOperationDay() {
@@ -976,6 +1073,38 @@ export class OperationsPage implements OnInit {
     return value.length > 54 ? `${value.slice(0, 26)}…${value.slice(-18)}` : value;
   }
 
+  protected shiftStatusClass(item: OperationDayShift) {
+    if (item.attendance?.status === 'Present') {
+      return 'is-present';
+    }
+
+    if (item.attendance?.status === 'Late') {
+      return 'is-late';
+    }
+
+    if (item.attendance?.status === 'Absent') {
+      return 'is-absent';
+    }
+
+    if (item.coverage) {
+      return 'is-covered';
+    }
+
+    return 'is-pending';
+  }
+
+  protected actualEmployeeLabel(item: OperationDayShift) {
+    if (item.coverage) {
+      return `${item.coverage.replacementEmployeeCode} · ${item.coverage.replacementEmployeeName}`;
+    }
+
+    if (item.attendance && item.attendance.status !== 'Absent') {
+      return `${item.attendance.employeeCode} · ${item.attendance.employeeName}`;
+    }
+
+    return 'Pendiente de confirmar';
+  }
+
   private loadOrganizations() {
     this.loading.set(true);
     this.error.set('');
@@ -1259,6 +1388,8 @@ export class OperationsPage implements OnInit {
 }
 
 type OperationSection = 'asistencia' | 'incidencias' | 'cobertura';
+
+type OperationTab = OperationSection | 'evidencias' | 'cierre';
 
 type OperationDayShift = {
   readonly shift: ScheduledShift;

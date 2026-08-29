@@ -43,6 +43,10 @@ export class DocumentsPage implements OnInit {
   protected readonly selectedDocumentId = signal('');
   protected readonly selectedOwnerType = signal<BusinessDocumentOwnerType>('Client');
   protected readonly selectedFilterOwnerType = signal<BusinessDocumentOwnerType | ''>('');
+  protected readonly expiryFilter = signal<DocumentExpiryFilter>('all');
+  protected readonly sensitivityFilter = signal<DocumentSensitivityFilter>('all');
+  protected readonly editorOpen = signal(false);
+  protected readonly detailOpen = signal(false);
   protected readonly loading = signal(false);
   protected readonly saving = signal(false);
   protected readonly uploading = signal(false);
@@ -111,6 +115,11 @@ export class DocumentsPage implements OnInit {
     }
   });
   protected readonly filterOwnerOptions = computed(() => this.ownerOptionsForType(this.selectedFilterOwnerType()));
+  protected readonly visibleDocuments = computed(() =>
+    this.documents().filter(
+      (document) => this.matchesExpiryFilter(document) && this.matchesSensitivityFilter(document),
+    ),
+  );
 
   protected readonly ownerTypes: readonly { value: BusinessDocumentOwnerType; label: string; help: string }[] = [
     { value: 'Client', label: 'Cliente', help: 'Contratos, alta fiscal, requisitos iniciales.' },
@@ -176,6 +185,48 @@ export class DocumentsPage implements OnInit {
   }
 
   protected selectDocument(document: BusinessDocument) {
+    this.patchDocumentForm(document);
+    this.detailOpen.set(true);
+    this.editorOpen.set(false);
+  }
+
+  protected openCreateDocument() {
+    this.resetForm();
+    this.editorOpen.set(true);
+    this.detailOpen.set(false);
+  }
+
+  protected openEditDocument(document: BusinessDocument) {
+    this.patchDocumentForm(document);
+    this.editorOpen.set(true);
+    this.detailOpen.set(false);
+  }
+
+  protected closeEditor() {
+    this.editorOpen.set(false);
+  }
+
+  protected closeDetail() {
+    this.detailOpen.set(false);
+  }
+
+  protected onExpiryFilterChange(event: Event) {
+    this.expiryFilter.set((event.target as HTMLSelectElement).value as DocumentExpiryFilter);
+  }
+
+  protected onSensitivityFilterChange(event: Event) {
+    this.sensitivityFilter.set((event.target as HTMLSelectElement).value as DocumentSensitivityFilter);
+  }
+
+  protected validateDocument(document: BusinessDocument) {
+    this.updateDocumentStatus(document, 'Validated');
+  }
+
+  protected rejectDocument(document: BusinessDocument) {
+    this.updateDocumentStatus(document, 'Rejected');
+  }
+
+  private patchDocumentForm(document: BusinessDocument) {
     this.selectedDocumentId.set(document.idBusinessDocument);
     this.selectedOwnerType.set(document.ownerType);
     this.documentForm.patchValue({
@@ -240,6 +291,8 @@ export class DocumentsPage implements OnInit {
       next: (document) => {
         this.message.set(selectedDocumentId ? 'Documento actualizado correctamente.' : 'Documento registrado correctamente.');
         this.selectedDocumentId.set(document.idBusinessDocument);
+        this.detailOpen.set(true);
+        this.editorOpen.set(false);
         this.loadDocuments();
       },
       error: (error: HttpErrorResponse) =>
@@ -299,6 +352,8 @@ export class DocumentsPage implements OnInit {
       next: () => {
         this.message.set('Documento desactivado correctamente.');
         this.resetForm();
+        this.detailOpen.set(false);
+        this.editorOpen.set(false);
         this.loadDocuments();
       },
       error: (error: HttpErrorResponse) => this.setError(error, 'No se pudo desactivar el documento.'),
@@ -326,6 +381,22 @@ export class DocumentsPage implements OnInit {
     return `status-${document.status.toLowerCase()}`;
   }
 
+  protected statusTone(document: BusinessDocument) {
+    if (document.isExpired || document.status === 'Expired' || document.status === 'Rejected') {
+      return 'danger';
+    }
+
+    if (document.status === 'PendingReview' || this.isDueSoon(document)) {
+      return 'warning';
+    }
+
+    if (document.status === 'Validated') {
+      return 'success';
+    }
+
+    return 'muted';
+  }
+
   protected expiryLabel(document: BusinessDocument) {
     if (!document.expiresDate) {
       return 'Sin vencimiento';
@@ -336,6 +407,51 @@ export class DocumentsPage implements OnInit {
     }
 
     return `Vence: ${document.expiresDate}`;
+  }
+
+  protected formattedDate(value: string | null) {
+    if (!value) {
+      return 'No capturada';
+    }
+
+    return new Intl.DateTimeFormat('es-MX', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    }).format(new Date(`${value}T00:00:00`));
+  }
+
+  protected documentSignals(document: BusinessDocument) {
+    const signals: { label: string; tone: 'danger' | 'warning' | 'info' }[] = [];
+
+    if (document.isExpired || document.status === 'Expired') {
+      signals.push({ label: 'Vencido', tone: 'danger' });
+    } else if (this.isDueSoon(document)) {
+      signals.push({ label: 'Por vencer', tone: 'warning' });
+    }
+
+    if (document.isSensitive) {
+      signals.push({ label: 'Sensible', tone: 'info' });
+    }
+
+    return signals;
+  }
+
+  protected storageStatusLabel() {
+    return this.documentForm.controls.storageReference.value ? 'Archivo listo para guardar' : 'Archivo pendiente';
+  }
+
+  protected ownerSelectionHelp() {
+    const options = this.ownerOptions();
+    if (!options.length) {
+      return `No hay registros disponibles para ${this.labelForOwnerType(this.selectedOwnerType()).toLowerCase()}. Crea primero el registro correspondiente.`;
+    }
+
+    return 'Elige el registro real al que pertenece este documento.';
+  }
+
+  protected ownerEmptyLabel() {
+    return `Sin ${this.labelForOwnerType(this.selectedOwnerType()).toLowerCase()} disponible`;
   }
 
   protected isDueSoon(document: BusinessDocument) {
@@ -352,6 +468,64 @@ export class DocumentsPage implements OnInit {
 
   protected ownerTypeHelp() {
     return this.ownerTypes.find((item) => item.value === this.selectedOwnerType())?.help ?? '';
+  }
+
+  private updateDocumentStatus(document: BusinessDocument, status: BusinessDocumentStatus) {
+    const organizationId = this.selectedOrganizationId();
+    if (!organizationId || !this.canWrite() || this.saving()) {
+      return;
+    }
+
+    const payload = {
+      idOrganization: organizationId,
+      ownerType: document.ownerType,
+      ownerId: document.ownerId,
+      category: document.category,
+      title: document.title,
+      status,
+      issuedDate: document.issuedDate,
+      expiresDate: document.expiresDate,
+      storageReference: document.storageReference,
+      isSensitive: document.isSensitive,
+      notes: document.notes,
+    };
+
+    this.beginSave();
+    this.documentsApi.updateDocument(document.idBusinessDocument, payload).subscribe({
+      next: (updatedDocument) => {
+        this.message.set(
+          status === 'Validated' ? 'Documento validado correctamente.' : 'Documento rechazado correctamente.',
+        );
+        this.selectedDocumentId.set(updatedDocument.idBusinessDocument);
+        this.loadDocuments();
+      },
+      error: (error: HttpErrorResponse) => this.setError(error, 'No se pudo actualizar el estado del documento.'),
+      complete: () => this.saving.set(false),
+    });
+  }
+
+  private matchesExpiryFilter(document: BusinessDocument) {
+    switch (this.expiryFilter()) {
+      case 'expired':
+        return document.isExpired || document.status === 'Expired';
+      case 'dueSoon':
+        return this.isDueSoon(document);
+      case 'withoutExpiry':
+        return !document.expiresDate;
+      default:
+        return true;
+    }
+  }
+
+  private matchesSensitivityFilter(document: BusinessDocument) {
+    switch (this.sensitivityFilter()) {
+      case 'sensitive':
+        return document.isSensitive;
+      case 'public':
+        return !document.isSensitive;
+      default:
+        return true;
+    }
   }
 
   private loadInitialData() {
@@ -556,3 +730,6 @@ type DocumentEvaluationOption = EmployeeEvaluation & {
   readonly employeeCode: string;
   readonly employeeName: string;
 };
+
+type DocumentExpiryFilter = 'all' | 'dueSoon' | 'expired' | 'withoutExpiry';
+type DocumentSensitivityFilter = 'all' | 'sensitive' | 'public';

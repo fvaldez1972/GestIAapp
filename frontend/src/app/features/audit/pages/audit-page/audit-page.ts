@@ -22,6 +22,7 @@ export class AuditPage implements OnInit {
   protected readonly entities = signal<readonly string[]>([]);
   protected readonly selectedOrganizationId = signal('');
   protected readonly selectedEntity = signal('');
+  protected readonly selectedEventKey = signal('');
   protected readonly search = signal('');
   protected readonly fromDate = signal('');
   protected readonly toDate = signal('');
@@ -34,6 +35,9 @@ export class AuditPage implements OnInit {
   protected readonly error = signal('');
 
   protected readonly latestEvent = computed(() => this.events()[0] ?? null);
+  protected readonly selectedEvent = computed(
+    () => this.events().find((event) => this.eventKey(event) === this.selectedEventKey()) ?? null,
+  );
   protected readonly updateCount = computed(
     () => this.events().filter((event) => event.action === 'Actualización').length,
   );
@@ -96,6 +100,14 @@ export class AuditPage implements OnInit {
     this.loadEvents();
   }
 
+  protected selectEvent(event: AuditEvent) {
+    this.selectedEventKey.set(this.eventKey(event));
+  }
+
+  protected closeEventDetail() {
+    this.selectedEventKey.set('');
+  }
+
   protected actionClass(action: string) {
     if (action === 'Alta') {
       return 'status-created';
@@ -153,6 +165,30 @@ export class AuditPage implements OnInit {
     }
 
     return value.length > 120 ? `${value.slice(0, 117)}…` : value;
+  }
+
+  protected auditSentence(event: AuditEvent) {
+    return `${event.actorName} registró ${event.action.toLowerCase()} en ${this.entityLabel(event.entity)}.`;
+  }
+
+  protected resultLabel(event: AuditEvent) {
+    return event.active ? 'Registro activo después del movimiento' : 'Registro inactivo después del movimiento';
+  }
+
+  protected detailLines(value: string | null) {
+    if (!value) {
+      return ['Sin motivo o detalle adicional registrado.'];
+    }
+
+    return value
+      .split(/\r?\n|;|\|/g)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .slice(0, 8);
+  }
+
+  protected eventKey(event: AuditEvent) {
+    return `${event.entity}|${event.recordId}|${event.action}|${event.occurredAt}`;
   }
 
   protected exportCsv() {

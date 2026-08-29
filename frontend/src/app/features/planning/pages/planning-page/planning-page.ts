@@ -13,6 +13,7 @@ import {
   ServiceAssignment,
   ServiceAssignmentType,
   ServicePosition,
+  ShiftPattern,
 } from '../../../clients/data-access/client.models';
 import { WorkforceApiService } from '../../../workforce/data-access/workforce-api.service';
 import { Employee } from '../../../workforce/data-access/workforce.models';
@@ -39,6 +40,7 @@ export class PlanningPage implements OnInit {
   protected readonly shifts = signal<readonly ScheduledShift[]>([]);
   protected readonly publishedShifts = signal<readonly ScheduledShift[]>([]);
   protected readonly employees = signal<readonly Employee[]>([]);
+  protected readonly shiftPatterns = signal<readonly ShiftPattern[]>([]);
   protected readonly selectedOrganizationId = signal('');
   protected readonly selectedClientId = signal('');
   protected readonly selectedServiceId = signal('');
@@ -46,6 +48,12 @@ export class PlanningPage implements OnInit {
   protected readonly selectedPositionId = signal('');
   protected readonly selectedAssignmentId = signal('');
   protected readonly selectedShiftId = signal('');
+  protected readonly activeTab = signal<PlanningTab>('calendar');
+  protected readonly positionDrawerOpen = signal(false);
+  protected readonly assignmentDrawerOpen = signal(false);
+  protected readonly versionDrawerOpen = signal(false);
+  protected readonly shiftDrawerOpen = signal(false);
+  protected readonly shiftDetailOpen = signal(false);
   protected readonly loading = signal(false);
   protected readonly saving = signal(false);
   protected readonly message = signal('');
@@ -77,6 +85,7 @@ export class PlanningPage implements OnInit {
   protected readonly assignedEmployees = computed(
     () => new Set(this.assignments().map((assignment) => assignment.idEmployee)).size,
   );
+  protected readonly activePatterns = computed(() => this.shiftPatterns().filter((pattern) => pattern.active));
   protected readonly plannedHours = computed(() =>
     Math.round((this.shifts().reduce((total, shift) => total + shift.durationMinutes, 0) / 60) * 10) / 10,
   );
@@ -192,12 +201,36 @@ export class PlanningPage implements OnInit {
   protected readonly blockingPlanningIssues = computed(() =>
     this.planningValidation().filter((issue) => issue.severity === 'danger'),
   );
+  protected readonly coverageGapCount = computed(() =>
+    this.planningMatrix().reduce(
+      (total, row) =>
+        total + row.days.reduce((dayTotal, day) => dayTotal + Math.max(day.requiredWorkerCount - day.shifts.length, 0), 0),
+      0,
+    ),
+  );
+  protected readonly duplicateShiftCount = computed(() =>
+    this.planningValidation().filter((issue) => issue.label === 'Empleado duplicado').length,
+  );
+  protected readonly publishSummary = computed(() => ({
+    validShifts: Math.max(this.shifts().length - this.blockingPlanningIssues().length, 0),
+    gaps: this.coverageGapCount(),
+    conflicts: this.blockingPlanningIssues().length,
+    notEligible: 0,
+  }));
 
   protected readonly assignmentTypes: readonly { value: ServiceAssignmentType; label: string }[] = [
     { value: 'Primary', label: 'Titular' },
     { value: 'Support', label: 'Apoyo' },
     { value: 'Relief', label: 'Relevo' },
     { value: 'TemporaryReplacement', label: 'Sustitución temporal' },
+  ];
+
+  protected readonly tabs: readonly { value: PlanningTab; label: string; help: string }[] = [
+    { value: 'calendar', label: 'Calendario', help: 'Semana visual por posición.' },
+    { value: 'positions', label: 'Posiciones', help: 'Puestos y personal asignado.' },
+    { value: 'patterns', label: 'Patrones', help: 'Generación automática.' },
+    { value: 'versions', label: 'Versiones', help: 'Borradores y publicación.' },
+    { value: 'conflicts', label: 'Conflictos', help: 'Validación previa.' },
   ];
 
   protected readonly positionForm = this.formBuilder.nonNullable.group({
@@ -275,6 +308,76 @@ export class PlanningPage implements OnInit {
     this.loadPlanningData();
   }
 
+  protected setActiveTab(tab: PlanningTab) {
+    this.activeTab.set(tab);
+  }
+
+  protected openNewPosition() {
+    this.resetPositionForm();
+    this.positionDrawerOpen.set(true);
+  }
+
+  protected closePositionDrawer() {
+    this.positionDrawerOpen.set(false);
+  }
+
+  protected openNewAssignment() {
+    this.resetAssignmentForm();
+    this.assignmentDrawerOpen.set(true);
+  }
+
+  protected closeAssignmentDrawer() {
+    this.assignmentDrawerOpen.set(false);
+  }
+
+  protected openNewVersion() {
+    this.resetVersionForm();
+    this.versionDrawerOpen.set(true);
+  }
+
+  protected editSelectedVersion() {
+    const version = this.selectedVersion();
+    if (!version) {
+      return;
+    }
+
+    this.versionForm.patchValue({
+      name: version.name,
+      periodStartDate: version.periodStartDate,
+      periodEndDate: version.periodEndDate,
+      notes: version.notes ?? '',
+    });
+    this.versionDrawerOpen.set(true);
+  }
+
+  protected closeVersionDrawer() {
+    this.versionDrawerOpen.set(false);
+  }
+
+  protected openNewShift(positionId?: string, date?: string) {
+    this.resetShiftForm();
+    this.shiftForm.patchValue({
+      idPosition: positionId || this.positions()[0]?.idPosition || '',
+      shiftDate: date || this.selectedVersion()?.periodStartDate || this.today(),
+    });
+    this.shiftDrawerOpen.set(true);
+    this.shiftDetailOpen.set(false);
+  }
+
+  protected openEditShift(shift: ScheduledShift) {
+    this.patchShiftForm(shift);
+    this.shiftDrawerOpen.set(true);
+    this.shiftDetailOpen.set(false);
+  }
+
+  protected closeShiftDrawer() {
+    this.shiftDrawerOpen.set(false);
+  }
+
+  protected closeShiftDetail() {
+    this.shiftDetailOpen.set(false);
+  }
+
   protected savePosition() {
     const context = this.context();
 
@@ -307,6 +410,7 @@ export class PlanningPage implements OnInit {
         next: (position) => {
           this.message.set(selectedPositionId ? 'Posición actualizada correctamente.' : 'Posición creada correctamente.');
           this.selectedPositionId.set(position.idPosition);
+          this.positionDrawerOpen.set(false);
           this.loadPlanningData(position.idPosition);
         },
         error: (error: HttpErrorResponse) => this.setError(error, selectedPositionId ? 'No se pudo actualizar la posición.' : 'No se pudo crear la posición.'),
@@ -347,6 +451,7 @@ export class PlanningPage implements OnInit {
     operation.subscribe({
         next: () => {
           this.message.set(selectedAssignmentId ? 'Asignación actualizada correctamente.' : 'Personal asignado correctamente.');
+          this.assignmentDrawerOpen.set(false);
           this.loadPlanningData();
         },
         error: (error: HttpErrorResponse) => this.setError(error, selectedAssignmentId ? 'No se pudo actualizar la asignación.' : 'No se pudo asignar el personal.'),
@@ -383,6 +488,7 @@ export class PlanningPage implements OnInit {
         next: (version) => {
           this.message.set(selectedVersionId ? 'Versión actualizada correctamente.' : 'Versión de planeación creada correctamente.');
           this.selectedVersionId.set(version.idScheduleVersion);
+          this.versionDrawerOpen.set(false);
           this.loadPlanningData(undefined, version.idScheduleVersion);
         },
         error: (error: HttpErrorResponse) => this.setError(error, selectedVersionId ? 'No se pudo actualizar la versión.' : 'No se pudo crear la versión de planeación.'),
@@ -423,6 +529,7 @@ export class PlanningPage implements OnInit {
     operation.subscribe({
         next: () => {
           this.message.set(selectedShiftId ? 'Turno actualizado correctamente.' : 'Turno agregado a la planeación.');
+          this.shiftDrawerOpen.set(false);
           this.loadShifts();
         },
         error: (error: HttpErrorResponse) => this.setError(error, selectedShiftId ? 'No se pudo actualizar el turno.' : 'No se pudo agregar el turno.'),
@@ -439,6 +546,7 @@ export class PlanningPage implements OnInit {
       requiredSkillProfile: position.requiredSkillProfile ?? '',
       notes: position.notes ?? '',
     });
+    this.positionDrawerOpen.set(true);
   }
 
   protected resetPositionForm() {
@@ -484,6 +592,7 @@ export class PlanningPage implements OnInit {
       isPrimary: assignment.isPrimary,
       notes: assignment.notes ?? '',
     });
+    this.assignmentDrawerOpen.set(true);
   }
 
   protected resetAssignmentForm() {
@@ -545,6 +654,12 @@ export class PlanningPage implements OnInit {
   }
 
   protected selectShift(shift: ScheduledShift) {
+    this.patchShiftForm(shift);
+    this.shiftDetailOpen.set(true);
+    this.shiftDrawerOpen.set(false);
+  }
+
+  private patchShiftForm(shift: ScheduledShift) {
     this.selectedShiftId.set(shift.idScheduledShift);
     this.shiftForm.patchValue({
       idPosition: shift.idPosition,
@@ -609,6 +724,8 @@ export class PlanningPage implements OnInit {
           this.message.set('Turno desactivado correctamente.');
           if (this.selectedShiftId() === shift.idScheduledShift) {
             this.resetShiftForm();
+            this.shiftDetailOpen.set(false);
+            this.shiftDrawerOpen.set(false);
           }
           this.loadShifts();
         },
@@ -646,6 +763,53 @@ export class PlanningPage implements OnInit {
   protected formatHours(minutes: number) {
     const hours = Math.round((minutes / 60) * 10) / 10;
     return `${hours} h`;
+  }
+
+  protected formatDate(date: string) {
+    return new Intl.DateTimeFormat('es-MX', {
+      weekday: 'short',
+      day: '2-digit',
+      month: 'short',
+    }).format(new Date(`${date}T00:00:00`));
+  }
+
+  protected matrixCellState(cell: PlanningMatrixCell) {
+    if (cell.shifts.length === 0) {
+      return { icon: '○', label: 'Sin asignar', tone: 'empty' };
+    }
+
+    if (cell.isUnderCovered) {
+      return { icon: '⚠', label: 'Cobertura parcial', tone: 'warning' };
+    }
+
+    if (cell.shifts.some((shift) => this.shiftIssues(shift).length > 0)) {
+      return { icon: '✕', label: 'Conflicto', tone: 'danger' };
+    }
+
+    return { icon: '✓', label: 'Asignado', tone: 'success' };
+  }
+
+  protected shiftIssues(shift: ScheduledShift): readonly string[] {
+    const issues: string[] = [];
+    const version = this.selectedVersion();
+
+    if (version && (shift.shiftDate < version.periodStartDate || shift.shiftDate > version.periodEndDate)) {
+      issues.push('Turno fuera del periodo de la versión.');
+    }
+
+    const sameDayEmployeeShifts = this.shifts().filter(
+      (item) => item.shiftDate === shift.shiftDate && item.idEmployee === shift.idEmployee,
+    );
+
+    if (sameDayEmployeeShifts.length > 1) {
+      issues.push('Empleado asignado más de una vez en el mismo día.');
+    }
+
+    return issues;
+  }
+
+  protected selectedShiftEligibilityLabel() {
+    return 'Se valida con reglas de elegibilidad al guardar/asignar y antes de operar.';
   }
 
   protected publishVersion() {
@@ -798,6 +962,7 @@ export class PlanningPage implements OnInit {
         this.versions.set(versions);
         this.employees.set(employees.items);
         this.resetPlanningDefaults(preferredPositionId, preferredVersionId);
+        this.loadPatternSummary(positions);
         this.loadPublishedShifts();
         this.loadShifts();
       },
@@ -866,6 +1031,7 @@ export class PlanningPage implements OnInit {
     this.versions.set([]);
     this.shifts.set([]);
     this.publishedShifts.set([]);
+    this.shiftPatterns.set([]);
     this.employees.set([]);
     this.selectedPositionId.set('');
     this.selectedAssignmentId.set('');
@@ -882,6 +1048,24 @@ export class PlanningPage implements OnInit {
     }
 
     return { idOrganization, idClient, idService };
+  }
+
+  private loadPatternSummary(positions: readonly ServicePosition[]) {
+    const context = this.context();
+
+    if (!context || positions.length === 0) {
+      this.shiftPatterns.set([]);
+      return;
+    }
+
+    forkJoin(
+      positions.map((position) =>
+        this.api.listShiftPatterns(context.idOrganization, context.idClient, context.idService, position.idPosition),
+      ),
+    ).subscribe({
+      next: (groups) => this.shiftPatterns.set(groups.flat()),
+      error: () => this.shiftPatterns.set([]),
+    });
   }
 
   private beginSave() {
@@ -1023,3 +1207,5 @@ type PlanningValidationIssue = {
   readonly label: string;
   readonly description: string;
 };
+
+type PlanningTab = 'calendar' | 'positions' | 'patterns' | 'versions' | 'conflicts';

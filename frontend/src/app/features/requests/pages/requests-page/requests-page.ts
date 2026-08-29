@@ -1,6 +1,9 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { RouterLink } from '@angular/router';
+import { of, switchMap } from 'rxjs';
+import { AuthService } from '../../../../core/auth/auth.service';
 import { ClientApiService } from '../../../clients/data-access/client-api.service';
 import { Client, ManagedService, Organization, ScheduledShift, ServicePosition } from '../../../clients/data-access/client.models';
 import { WorkforceApiService } from '../../../workforce/data-access/workforce-api.service';
@@ -8,6 +11,7 @@ import { Employee } from '../../../workforce/data-access/workforce.models';
 import { RequestApiService } from '../../data-access/request-api.service';
 import {
   ExecuteOperationalRequest,
+  ExecuteOperationalRequestResult,
   OperationalRequestExecutionPreview,
   OperationalRequest,
   OperationalRequestPriority,
@@ -17,13 +21,14 @@ import {
 
 @Component({
   selector: 'app-requests-page',
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, RouterLink],
   templateUrl: './requests-page.html',
   styleUrl: './requests-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class RequestsPage implements OnInit {
   private readonly api = inject(RequestApiService);
+  private readonly auth = inject(AuthService);
   private readonly clientApi = inject(ClientApiService);
   private readonly workforceApi = inject(WorkforceApiService);
   private readonly formBuilder = inject(FormBuilder);
@@ -38,7 +43,9 @@ export class RequestsPage implements OnInit {
   protected readonly selectedOrganizationId = signal('');
   protected readonly selectedClientId = signal('');
   protected readonly filterStatus = signal<OperationalRequestStatus | ''>('');
+  protected readonly stageFilter = signal<RequestStageFilter>('all');
   protected readonly filterType = signal<OperationalRequestType | ''>('');
+  protected readonly filterPriority = signal<OperationalRequestPriority | ''>('');
   protected readonly search = signal('');
   protected readonly sortMode = signal<RequestSortMode>('recent');
   protected readonly loading = signal(false);
@@ -51,7 +58,9 @@ export class RequestsPage implements OnInit {
   protected readonly detailPanelOpen = signal(false);
   protected readonly detailPanelTab = signal<RequestWorkspaceTab>('details');
   protected readonly activeExecutionType = signal<OperationalRequestType>('NewService');
+  protected readonly requestTypeSelected = signal(false);
   protected readonly executionPreview = signal<OperationalRequestExecutionPreview | null>(null);
+  protected readonly executionResult = signal<ExecuteOperationalRequestResult | null>(null);
 
   protected readonly openRequests = computed(() =>
     this.requests().filter((request) => ['Submitted', 'InReview', 'Approved'].includes(request.status)).length,
@@ -73,7 +82,10 @@ export class RequestsPage implements OnInit {
       Low: 1,
     };
 
-    return [...this.requests()].sort((left, right) => {
+    return [...this.requests()]
+      .filter((request) => this.matchesStage(request, this.stageFilter()))
+      .filter((request) => !this.filterPriority() || request.priority === this.filterPriority())
+      .sort((left, right) => {
       switch (this.sortMode()) {
         case 'priority':
           return priorityWeight[right.priority] - priorityWeight[left.priority];
@@ -82,19 +94,19 @@ export class RequestsPage implements OnInit {
         case 'recent':
         default:
           return this.dateWeight(right.updatedAt ?? right.createdAt) - this.dateWeight(left.updatedAt ?? left.createdAt);
-      }
-    });
+        }
+      });
   });
   protected readonly workflowColumns = computed<RequestWorkflowColumn[]>(() =>
     [
-      { status: 'Draft' as const, label: 'Borrador', hint: 'Pendientes de enviar' },
-      { status: 'Submitted' as const, label: 'Enviadas', hint: 'Listas para revisar' },
-      { status: 'InReview' as const, label: 'En revisión', hint: 'Requieren decisión' },
-      { status: 'Approved' as const, label: 'Aprobadas', hint: 'Listas para ejecutar' },
-      { status: 'Completed' as const, label: 'Completadas', hint: 'Cerradas correctamente' },
+      { stage: 'draft' as const, label: 'Borrador', hint: 'Pendientes de enviar' },
+      { stage: 'review' as const, label: 'En revisión', hint: 'Requieren decisión' },
+      { stage: 'approved' as const, label: 'Aprobadas', hint: 'Listas para ejecutar' },
+      { stage: 'completed' as const, label: 'Completadas', hint: 'Cerradas correctamente' },
+      { stage: 'rejected' as const, label: 'Rechazadas', hint: 'No continúan' },
     ].map((column) => ({
       ...column,
-      requests: this.requests().filter((request) => request.status === column.status),
+      requests: this.requests().filter((request) => this.matchesStage(request, column.stage)),
     })),
   );
   protected readonly overdueRequests = computed(() => {
@@ -115,6 +127,15 @@ export class RequestsPage implements OnInit {
     { value: 'CoverageSupport', label: 'Apoyo de cobertura' },
     { value: 'StaffChange', label: 'Cambio de personal' },
     { value: 'Other', label: 'Otro' },
+  ];
+
+  protected readonly requestTypeCards: readonly RequestTypeCard[] = [
+    { value: 'NewClient', label: 'Alta de cliente', hint: 'Registrar un cliente nuevo en el sistema.', icon: '🏢' },
+    { value: 'NewService', label: 'Nuevo servicio', hint: 'Solicitar un servicio adicional para un cliente.', icon: '🛡️' },
+    { value: 'ServiceChange', label: 'Cambio de configuración', hint: 'Ajustar horarios, personal requerido o condiciones.', icon: '⚙️' },
+    { value: 'StaffChange', label: 'Cambio de personal', hint: 'Mover, reemplazar o asignar personal operativo.', icon: '👥' },
+    { value: 'CoverageSupport', label: 'Solicitud de cobertura', hint: 'Cubrir una falta, turno o apoyo puntual.', icon: '✅' },
+    { value: 'Other', label: 'Otro', hint: 'Registrar una necesidad operativa especial.', icon: '✦' },
   ];
 
   protected readonly statuses: readonly { value: OperationalRequestStatus; label: string }[] = [
@@ -249,6 +270,10 @@ export class RequestsPage implements OnInit {
     this.loadRequests();
   }
 
+  protected onFilterPriorityChange(event: Event) {
+    this.filterPriority.set((event.target as HTMLSelectElement).value as OperationalRequestPriority | '');
+  }
+
   protected onSearchChange(event: Event) {
     this.search.set((event.target as HTMLInputElement).value);
   }
@@ -261,15 +286,20 @@ export class RequestsPage implements OnInit {
     this.sortMode.set((event.target as HTMLSelectElement).value as RequestSortMode);
   }
 
-  protected filterByStatus(status: OperationalRequestStatus | '') {
-    this.filterStatus.set(status);
-    this.loadRequests();
+  protected filterByStage(stage: RequestStageFilter) {
+    this.stageFilter.set(stage);
+  }
+
+  protected clearQuickFilters() {
+    this.stageFilter.set('all');
+    this.filterPriority.set('');
   }
 
   protected openNewRequest() {
     this.resetRequestForm();
     this.detailPanelOpen.set(false);
     this.workspaceTab.set('details');
+    this.requestTypeSelected.set(false);
     this.workspaceOpen.set(true);
   }
 
@@ -285,11 +315,13 @@ export class RequestsPage implements OnInit {
   protected closeWorkspace() {
     this.workspaceOpen.set(false);
     this.executionPreview.set(null);
+    this.executionResult.set(null);
   }
 
   protected closeDetailPanel() {
     this.detailPanelOpen.set(false);
     this.executionPreview.set(null);
+    this.executionResult.set(null);
   }
 
   protected showDetailPanelTab(tab: RequestWorkspaceTab) {
@@ -308,10 +340,21 @@ export class RequestsPage implements OnInit {
     this.workspaceTab.set(tab);
   }
 
-  protected saveRequest() {
+  protected selectRequestType(type: OperationalRequestType) {
+    this.requestTypeSelected.set(true);
+    this.activeExecutionType.set(type);
+    this.executionPreview.set(null);
+    this.executionResult.set(null);
+    this.requestForm.patchValue({
+      requestType: type,
+      title: this.defaultTitleForType(type),
+    });
+  }
+
+  protected saveRequest(targetStatus: OperationalRequestStatus | null = null) {
     const organizationId = this.selectedOrganizationId();
 
-    if (!organizationId || this.requestForm.invalid) {
+    if (!organizationId || this.requestForm.invalid || (!this.selectedRequest() && !this.requestTypeSelected())) {
       this.requestForm.markAllAsTouched();
       return;
     }
@@ -338,12 +381,34 @@ export class RequestsPage implements OnInit {
         codeOperationalRequest: form.codeOperationalRequest.trim(),
       });
 
-    operation.subscribe({
+    operation.pipe(
+      switchMap((request) => {
+        if (!targetStatus || request.status === targetStatus) {
+          return of(request);
+        }
+
+        return this.api.changeStatus(request.idOperationalRequest, {
+          idOrganization: organizationId,
+          status: targetStatus,
+          resolutionNotes: targetStatus === 'Submitted'
+            ? 'Solicitud enviada para revisión.'
+            : null,
+        });
+      }),
+    ).subscribe({
         next: (request) => {
-          this.message.set(selectedRequestId ? 'Solicitud actualizada correctamente.' : 'Solicitud registrada correctamente.');
+          this.message.set(
+            targetStatus === 'Submitted'
+              ? 'Solicitud enviada a revisión.'
+              : selectedRequestId ? 'Solicitud actualizada correctamente.' : 'Borrador guardado correctamente.',
+          );
           this.selectedRequestId.set(request.idOperationalRequest);
           this.statusForm.patchValue({ idOperationalRequest: request.idOperationalRequest });
           this.loadRequests();
+          if (!selectedRequestId && targetStatus === 'Submitted') {
+            this.detailPanelOpen.set(true);
+            this.workspaceOpen.set(false);
+          }
         },
         error: (error: HttpErrorResponse) => this.setError(error, selectedRequestId ? 'No se pudo actualizar la solicitud.' : 'No se pudo crear la solicitud.'),
         complete: () => this.saving.set(false),
@@ -356,7 +421,9 @@ export class RequestsPage implements OnInit {
   ) {
     this.selectedRequestId.set(request.idOperationalRequest);
     this.activeExecutionType.set(request.requestType);
+    this.requestTypeSelected.set(true);
     this.executionPreview.set(null);
+    this.executionResult.set(null);
     this.workspaceOpen.set(options.modal ?? false);
     this.detailPanelOpen.set(options.open ?? true);
     this.workspaceTab.set(options.tab ?? 'details');
@@ -419,16 +486,18 @@ export class RequestsPage implements OnInit {
   protected resetRequestForm() {
     this.selectedRequestId.set('');
     this.activeExecutionType.set('NewService');
+    this.requestTypeSelected.set(false);
     this.executionPreview.set(null);
+    this.executionResult.set(null);
     this.requestForm.reset({
       codeOperationalRequest: this.nextRequestCode(),
       idClient: this.selectedClientId(),
       idService: '',
       requestType: 'NewService',
       priority: 'Medium',
-      title: 'Nueva solicitud operativa',
+      title: '',
       description: '',
-      requestedByName: 'Operación',
+      requestedByName: this.currentRequesterName(),
       neededByDate: '',
     });
     this.resetExecutionForm();
@@ -519,6 +588,7 @@ export class RequestsPage implements OnInit {
       .subscribe({
         next: (preview) => {
           this.executionPreview.set(preview);
+          this.executionResult.set(null);
           this.message.set(
             preview.canExecute
               ? 'La solicitud tiene los datos necesarios para ejecutarse.'
@@ -553,6 +623,7 @@ export class RequestsPage implements OnInit {
     }
 
     this.beginSave();
+    this.executionResult.set(null);
 
     this.api
       .executeRequest(request.idOperationalRequest, {
@@ -566,6 +637,8 @@ export class RequestsPage implements OnInit {
             ? ` (${result.executedEntityKind}: ${result.executedEntityId})`
             : '';
           this.message.set(`${result.outcome}${entityLabel}`);
+          this.executionPreview.set(null);
+          this.executionResult.set(result);
           this.selectedRequestId.set(result.request.idOperationalRequest);
           this.statusForm.patchValue({
             idOperationalRequest: result.request.idOperationalRequest,
@@ -602,6 +675,41 @@ export class RequestsPage implements OnInit {
 
   protected labelForPriority(value: OperationalRequestPriority) {
     return this.priorities.find((item) => item.value === value)?.label ?? 'Prioridad normal';
+  }
+
+  protected labelForStage(value: RequestStageFilter) {
+    if (value === 'all') {
+      return 'Solicitudes visibles';
+    }
+
+    return this.workflowColumns().find((item) => item.stage === value)?.label ?? 'Solicitudes visibles';
+  }
+
+  protected actionLabelForRequest(request: OperationalRequest) {
+    switch (request.status) {
+      case 'Draft':
+        return 'Enviar';
+      case 'Submitted':
+        return 'Tomar revisión';
+      case 'InReview':
+        return 'Aprobar';
+      default:
+        return 'Avanzar';
+    }
+  }
+
+  protected previewCreatedItems(preview: OperationalRequestExecutionPreview) {
+    return preview.impact.filter((item) => this.containsAny(item, 'crear', 'creará', 'alta', 'nuev'));
+  }
+
+  protected previewUpdatedItems(preview: OperationalRequestExecutionPreview) {
+    return preview.impact.filter((item) => this.containsAny(item, 'actualizar', 'modificar', 'cambiar', 'ajustar'));
+  }
+
+  protected previewOtherItems(preview: OperationalRequestExecutionPreview) {
+    const created = new Set(this.previewCreatedItems(preview));
+    const updated = new Set(this.previewUpdatedItems(preview));
+    return preview.impact.filter((item) => !created.has(item) && !updated.has(item));
   }
 
   protected formatDate(value: string | null) {
@@ -733,7 +841,7 @@ export class RequestsPage implements OnInit {
     this.error.set('');
 
     this.api
-      .listRequests(organizationId, this.filterStatus(), this.filterType(), this.search(), 1, 50)
+      .listRequests(organizationId, '', this.filterType(), this.search(), 1, 50)
       .subscribe({
         next: (result) => {
           this.requests.set(result.items);
@@ -746,7 +854,7 @@ export class RequestsPage implements OnInit {
               modal: this.workspaceOpen(),
               tab: this.detailPanelOpen() ? this.detailPanelTab() : this.workspaceTab(),
             });
-          } else if (first) {
+          } else if (first && !(this.workspaceOpen() && !this.selectedRequestId())) {
             this.selectRequest(first, { open: false });
           } else {
             this.resetRequestForm();
@@ -763,6 +871,51 @@ export class RequestsPage implements OnInit {
     this.saving.set(true);
     this.message.set('');
     this.error.set('');
+  }
+
+  private currentRequesterName() {
+    return this.auth.displayName() || this.auth.session()?.user.email || 'Operación';
+  }
+
+  private defaultTitleForType(type: OperationalRequestType) {
+    switch (type) {
+      case 'NewClient':
+        return 'Alta de cliente';
+      case 'NewService':
+        return 'Nuevo servicio operativo';
+      case 'ServiceChange':
+        return 'Cambio de configuración de servicio';
+      case 'StaffChange':
+        return 'Cambio de personal';
+      case 'CoverageSupport':
+        return 'Solicitud de cobertura';
+      case 'Other':
+      default:
+        return 'Solicitud operativa';
+    }
+  }
+
+  private matchesStage(request: OperationalRequest, stage: RequestStageFilter) {
+    switch (stage) {
+      case 'draft':
+        return request.status === 'Draft';
+      case 'review':
+        return request.status === 'Submitted' || request.status === 'InReview';
+      case 'approved':
+        return request.status === 'Approved';
+      case 'completed':
+        return request.status === 'Completed';
+      case 'rejected':
+        return request.status === 'Rejected' || request.status === 'Cancelled';
+      case 'all':
+      default:
+        return true;
+    }
+  }
+
+  private containsAny(value: string, ...needles: readonly string[]) {
+    const normalized = value.toLocaleLowerCase('es-MX');
+    return needles.some((needle) => normalized.includes(needle));
   }
 
   private resetExecutionForm() {
@@ -1003,14 +1156,22 @@ export class RequestsPage implements OnInit {
 }
 
 type RequestWorkflowColumn = {
-  readonly status: OperationalRequestStatus;
+  readonly stage: Exclude<RequestStageFilter, 'all'>;
   readonly label: string;
   readonly hint: string;
   readonly requests: readonly OperationalRequest[];
 };
 
-type RequestWorkspaceTab = 'details' | 'status' | 'execution';
+type RequestWorkspaceTab = 'details' | 'status' | 'documents' | 'execution';
 type RequestSortMode = 'recent' | 'priority' | 'needed';
+type RequestStageFilter = 'all' | 'draft' | 'review' | 'approved' | 'completed' | 'rejected';
+
+type RequestTypeCard = {
+  readonly value: OperationalRequestType;
+  readonly label: string;
+  readonly hint: string;
+  readonly icon: string;
+};
 
 type MutableExecutionPayload = {
   -readonly [Property in keyof ExecuteOperationalRequest]?: ExecuteOperationalRequest[Property];

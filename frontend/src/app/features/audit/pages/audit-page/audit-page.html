@@ -3,7 +3,7 @@
     <div>
       <span class="eyebrow">Trazabilidad</span>
       <h1>Auditoría</h1>
-      <p>Consulta altas, actualizaciones y bajas lógicas registradas en los módulos operativos.</p>
+      <p>Consulta cambios y acciones registradas en el sistema con lenguaje de negocio.</p>
     </div>
     <button class="gi-button gi-button--secondary" type="button" [disabled]="loading()" (click)="loadEvents()">
       {{ loading() ? 'Actualizando…' : 'Actualizar' }}
@@ -104,13 +104,14 @@
             <th>Registro</th>
             <th>Acción</th>
             <th>Usuario</th>
-            <th>Detalle</th>
-            <th>Estado</th>
+            <th>Resumen</th>
+            <th>Resultado</th>
+            <th>Abrir</th>
           </tr>
         </thead>
         <tbody>
           @for (event of events(); track event.entity + event.recordId + event.action + event.occurredAt) {
-            <tr>
+            <tr [class.is-selected]="eventKey(event) === selectedEventKey()" (click)="selectEvent(event)">
               <td>{{ formatDateTime(event.occurredAt) }}</td>
               <td>{{ entityLabel(event.entity) }}</td>
               <td>
@@ -121,10 +122,13 @@
               <td>{{ event.actorName }}</td>
               <td [title]="event.details || ''">{{ compactDetails(event.details) }}</td>
               <td>{{ event.active ? 'Activo' : 'Inactivo' }}</td>
+              <td>
+                <button class="detail-button" type="button" (click)="selectEvent(event); $event.stopPropagation()">Ver detalle</button>
+              </td>
             </tr>
           } @empty {
             <tr>
-              <td colspan="7" class="empty">No hay eventos para los filtros seleccionados.</td>
+              <td colspan="8" class="empty">No hay eventos para los filtros seleccionados.</td>
             </tr>
           }
         </tbody>
@@ -143,4 +147,51 @@
       </div>
     </footer>
   </article>
+
+  @if (selectedEvent(); as event) {
+    <aside class="audit-drawer" aria-label="Detalle de auditoría">
+      <button class="drawer-close" type="button" (click)="closeEventDetail()">×</button>
+
+      <header>
+        <span class="eyebrow">Detalle de auditoría</span>
+        <h2>Qué ocurrió</h2>
+        <p>{{ auditSentence(event) }}</p>
+      </header>
+
+      <section class="detail-grid">
+        <article>
+          <span>Cuándo</span>
+          <strong>{{ formatDateTime(event.occurredAt) }}</strong>
+        </article>
+        <article>
+          <span>Usuario</span>
+          <strong>{{ event.actorName }}</strong>
+        </article>
+        <article>
+          <span>Entidad</span>
+          <strong>{{ entityLabel(event.entity) }}</strong>
+        </article>
+        <article>
+          <span>Registro</span>
+          <strong>{{ event.entityName }}</strong>
+          <small [title]="event.recordId">Referencia {{ compactRecordId(event.recordId) }}</small>
+        </article>
+      </section>
+
+      <section class="change-card">
+        <span class="eyebrow">Cambio</span>
+        <h3>{{ event.action }}</h3>
+        <p>{{ resultLabel(event) }}</p>
+      </section>
+
+      <section class="change-card">
+        <span class="eyebrow">Motivo / detalle</span>
+        <ul>
+          @for (line of detailLines(event.details); track line) {
+            <li>{{ line }}</li>
+          }
+        </ul>
+      </section>
+    </aside>
+  }
 </section>

@@ -31,6 +31,7 @@ export class ReportsPage implements OnInit {
   protected readonly selectedOrganizationId = signal('');
   protected readonly selectedClientId = signal('');
   protected readonly selectedServiceId = signal('');
+  protected readonly selectedReportType = signal<ReportType>('resumen');
   protected readonly fromDate = signal(this.firstDayOfMonth());
   protected readonly toDate = signal(this.today());
   protected readonly loading = signal(false);
@@ -63,6 +64,15 @@ export class ReportsPage implements OnInit {
   );
   protected readonly nonEligibleEmployees = computed(
     () => this.workforceEligibility().filter((employee) => !employee.isEligible).length,
+  );
+  protected readonly reportTypes: readonly { value: ReportType; label: string; description: string }[] = [
+    { value: 'resumen', label: 'Resumen operativo', description: 'Vista ejecutiva del periodo' },
+    { value: 'servicios', label: 'Operación por servicio', description: 'Comparativo por cliente y servicio' },
+    { value: 'elegibilidad', label: 'Elegibilidad', description: 'Personal elegible y pendientes' },
+    { value: 'exportacion', label: 'Exportación operativa', description: 'Salida para dirección o administración' },
+  ];
+  protected readonly selectedReport = computed(
+    () => this.reportTypes.find((report) => report.value === this.selectedReportType()) ?? this.reportTypes[0],
   );
 
   protected readonly reportCards = computed(() => {
@@ -142,6 +152,36 @@ export class ReportsPage implements OnInit {
       percentage: total === 0 ? 0 : Math.round((item.value / total) * 100),
     }));
   });
+  protected readonly donutStyle = computed(() => {
+    const distribution = this.attendanceDistribution();
+    const present = distribution.find((item) => item.label === 'Presentes')?.percentage ?? 0;
+    const late = distribution.find((item) => item.label === 'Retardos')?.percentage ?? 0;
+    const absent = distribution.find((item) => item.label === 'Faltas')?.percentage ?? 0;
+    const presentEnd = present;
+    const lateEnd = presentEnd + late;
+    const absentEnd = lateEnd + absent;
+
+    return `conic-gradient(#20b56b 0 ${presentEnd}%, #f59e0b ${presentEnd}% ${lateEnd}%, #ef4444 ${lateEnd}% ${absentEnd}%, #38bdf8 ${absentEnd}% 100%)`;
+  });
+  protected readonly executiveNotes = computed(() => {
+    const summary = this.summary();
+
+    if (!summary) {
+      return ['Selecciona una organización para generar el corte operativo.'];
+    }
+
+    const notes = [
+      `Asistencia general del ${this.attendanceRate()}% entre ${this.fromDate()} y ${this.toDate()}.`,
+      `${summary.openIncidents} incidencia(s) abierta(s), ${summary.criticalIncidents} crítica(s) y ${summary.pendingApprovals} autorización(es) pendiente(s).`,
+      `${this.coveredHours()} hora(s) cubiertas en sustituciones registradas.`,
+    ];
+
+    if (this.nonEligibleEmployees() > 0) {
+      notes.push(`${this.nonEligibleEmployees()} empleado(s) requieren revisión de elegibilidad.`);
+    }
+
+    return notes;
+  });
 
   ngOnInit() {
     this.loadOrganizations();
@@ -187,6 +227,10 @@ export class ReportsPage implements OnInit {
 
   protected refresh() {
     this.loadReport();
+  }
+
+  protected selectReportType(type: ReportType) {
+    this.selectedReportType.set(type);
   }
 
   protected exportReport(format: 'csv' | 'xlsx' | 'pdf') {
@@ -390,3 +434,5 @@ export class ReportsPage implements OnInit {
     return date.toISOString().slice(0, 10);
   }
 }
+
+type ReportType = 'resumen' | 'servicios' | 'elegibilidad' | 'exportacion';

@@ -2,10 +2,11 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { finalize } from 'rxjs';
+import { AuthService } from '../../../../core/auth/auth.service';
 import { CatalogApiService } from '../../../catalogs/data-access/catalog-api.service';
 import { CatalogItem, EmployeeSkill, EmployeeSkillInput } from '../../../catalogs/data-access/catalog.models';
 import { ClientApiService } from '../../../clients/data-access/client-api.service';
-import { Organization } from '../../../clients/data-access/client.models';
+import { Organization, WorkforceEligibilityReport } from '../../../clients/data-access/client.models';
 import { WorkforceApiService } from '../../data-access/workforce-api.service';
 import {
   CreateEmployee,
@@ -32,6 +33,7 @@ import {
 })
 export class WorkforcePage implements OnInit {
   private readonly api = inject(WorkforceApiService);
+  private readonly auth = inject(AuthService);
   private readonly catalogApi = inject(CatalogApiService);
   private readonly clientApi = inject(ClientApiService);
   private readonly formBuilder = inject(FormBuilder);
@@ -43,6 +45,7 @@ export class WorkforcePage implements OnInit {
   protected readonly evaluations = signal<readonly EmployeeEvaluation[]>([]);
   protected readonly skills = signal<readonly EmployeeSkill[]>([]);
   protected readonly skillCatalog = signal<readonly CatalogItem[]>([]);
+  protected readonly workforceEligibility = signal<readonly WorkforceEligibilityReport[]>([]);
   protected readonly result = signal<PagedResult<Employee>>({
     items: [],
     totalCount: 0,
@@ -65,12 +68,84 @@ export class WorkforcePage implements OnInit {
   protected readonly error = signal('');
   protected readonly search = signal('');
   protected readonly statusFilter = signal<EmployeeStatus | ''>('');
+  protected readonly jobTitleFilter = signal('');
+  protected readonly serviceFilter = signal('');
+  protected readonly eligibilityFilter = signal<EmployeeEligibilityFilter>('all');
+  protected readonly activeTab = signal<EmployeeTab>('summary');
   protected readonly selectedEmployeeName = computed(() => this.selectedEmployee()?.fullName ?? 'Sin empleado seleccionado');
+  protected readonly canViewSensitivePersonalData = computed(() => this.auth.hasPermission('PLATFORM.ADMIN'));
+  protected readonly visibleEmployees = computed(() =>
+    this.result().items
+      .filter((employee) => !this.jobTitleFilter() || employee.jobTitle === this.jobTitleFilter())
+      .filter((employee) => {
+        const filter = this.eligibilityFilter();
+        if (filter === 'all') {
+          return true;
+        }
+
+        const isEligible = this.eligibilityForEmployee(employee.idEmployee)?.isEligible ?? this.basicEmployeeEligibility(employee);
+        return filter === 'eligible' ? isEligible : !isEligible;
+      }),
+  );
+  protected readonly jobTitleOptions = computed(() =>
+    [...new Set(this.result().items.map((employee) => employee.jobTitle).filter(Boolean) as string[])].sort(),
+  );
+  protected readonly selectedEligibility = computed(() => {
+    const employee = this.selectedEmployee();
+    return employee ? this.eligibilityForEmployee(employee.idEmployee) : null;
+  });
+  protected readonly eligibilityItems = computed<EmployeeEligibilityItem[]>(() => {
+    const employee = this.selectedEmployee();
+    if (!employee) {
+      return [];
+    }
+
+    const report = this.selectedEligibility();
+    const items: EmployeeEligibilityItem[] = [
+      {
+        state: employee.status === 'Active' ? 'ok' : 'fail',
+        label: employee.status === 'Active' ? 'Empleado activo' : `Estatus actual: ${this.statusLabel(employee.status)}`,
+        hint: employee.status === 'Active' ? 'Disponible para asignación operativa.' : 'Debe validarse antes de asignarlo a servicio.',
+      },
+      {
+        state: this.hasValidDocument('VoterId') ? 'ok' : 'warn',
+        label: this.hasValidDocument('VoterId') ? 'INE vigente' : 'INE pendiente o no validada',
+        hint: 'Documento base para expediente operativo.',
+      },
+      {
+        state: this.hasApprovedEvaluation() ? 'ok' : 'warn',
+        label: this.hasApprovedEvaluation() ? 'Evaluación aprobada' : 'Evaluación pendiente o por revisar',
+        hint: 'Revisa polígrafo, antidoping o evaluación requerida.',
+      },
+      {
+        state: this.skills().length > 0 ? 'ok' : 'warn',
+        label: this.skills().length > 0 ? 'Habilidades registradas' : 'Falta habilidad requerida',
+        hint: this.skills().length > 0 ? `${this.skills().length} habilidad(es) en expediente.` : 'Captura habilidades para validar asignaciones.',
+      },
+    ];
+
+    if (report && !report.isEligible) {
+      items.push(...report.reasons.slice(0, 3).map((reason) => ({
+        state: 'fail' as const,
+        label: reason,
+        hint: 'Regla de elegibilidad detectada por el reporte operativo.',
+      })));
+    }
+
+    return items;
+  });
+  protected readonly employeeTabs: readonly { value: EmployeeTab; label: string }[] = [
+    { value: 'summary', label: 'Resumen' },
+    { value: 'documents', label: 'Documentos' },
+    { value: 'evaluations', label: 'Evaluaciones' },
+    { value: 'skills', label: 'Habilidades' },
+    { value: 'assignments', label: 'Asignaciones' },
+  ];
 
   protected readonly employeeStatuses: readonly { value: EmployeeStatus; label: string }[] = [
     { value: 'Candidate', label: 'Candidato' },
     { value: 'Active', label: 'Activo' },
-    { value: 'OnLeave', label: 'Suspendido / permiso' },
+    { value: 'OnLeave', label: 'Permiso / Incapacidad' },
     { value: 'Inactive', label: 'Inactivo' },
     { value: 'Terminated', label: 'Baja' },
   ];
@@ -215,6 +290,22 @@ export class WorkforcePage implements OnInit {
     this.loadEmployees(1);
   }
 
+  protected updateJobTitleFilter(value: string): void {
+    this.jobTitleFilter.set(value);
+  }
+
+  protected updateServiceFilter(value: string): void {
+    this.serviceFilter.set(value);
+  }
+
+  protected updateEligibilityFilter(value: EmployeeEligibilityFilter): void {
+    this.eligibilityFilter.set(value);
+  }
+
+  protected showTab(tab: EmployeeTab): void {
+    this.activeTab.set(tab);
+  }
+
   protected loadEmployees(page = this.result().page): void {
     const organizationId = this.selectedOrganizationId();
     if (!organizationId) {
@@ -229,6 +320,7 @@ export class WorkforcePage implements OnInit {
       .subscribe({
         next: (result) => {
           this.result.set(result);
+          this.loadWorkforceEligibility();
           if (!this.selectedEmployee() && result.items.length) {
             this.selectEmployee(result.items[0]);
           }
@@ -239,6 +331,7 @@ export class WorkforcePage implements OnInit {
 
   protected selectEmployee(employee: Employee): void {
     this.selectedEmployee.set(employee);
+    this.activeTab.set('summary');
     this.loadingDetail.set(true);
     this.api
       .getEmployee(this.selectedOrganizationId(), employee.idEmployee)
@@ -668,6 +761,42 @@ export class WorkforcePage implements OnInit {
     return value.length > 48 ? `${value.slice(0, 24)}…${value.slice(-14)}` : value;
   }
 
+  protected maskedPersonalReference(value: string | null): string {
+    if (!value) {
+      return 'Sin dato capturado';
+    }
+
+    if (this.canViewSensitivePersonalData()) {
+      return value;
+    }
+
+    return value.length > 4 ? `•••• ${value.slice(-4)}` : 'Dato reservado';
+  }
+
+  protected employeeServiceLabel(_employee: Employee): string {
+    return 'Sin asignación visible';
+  }
+
+  protected eligibilityBadge(employee: Employee): string {
+    return (this.eligibilityForEmployee(employee.idEmployee)?.isEligible ?? this.basicEmployeeEligibility(employee))
+      ? 'Elegible'
+      : 'Revisar';
+  }
+
+  protected eligibilityState(employee: Employee): 'ok' | 'warn' {
+    return (this.eligibilityForEmployee(employee.idEmployee)?.isEligible ?? this.basicEmployeeEligibility(employee))
+      ? 'ok'
+      : 'warn';
+  }
+
+  protected isExpired(value: string | null): boolean {
+    return Boolean(value && value < this.today());
+  }
+
+  protected itemStateClass(state: EmployeeEligibilityItem['state']): string {
+    return `is-${state}`;
+  }
+
   private emptyEmployeeForm() {
     return {
       codeEmployee: '',
@@ -712,6 +841,45 @@ export class WorkforcePage implements OnInit {
     });
   }
 
+  private loadWorkforceEligibility(): void {
+    const organizationId = this.selectedOrganizationId();
+
+    if (!organizationId) {
+      this.workforceEligibility.set([]);
+      return;
+    }
+
+    this.clientApi.getWorkforceEligibility(organizationId, this.today(), this.search()).subscribe({
+      next: (result) => this.workforceEligibility.set(result),
+      error: () => this.workforceEligibility.set([]),
+    });
+  }
+
+  private eligibilityForEmployee(idEmployee: string): WorkforceEligibilityReport | null {
+    return this.workforceEligibility().find((employee) => employee.idEmployee === idEmployee) ?? null;
+  }
+
+  private basicEmployeeEligibility(employee: Employee): boolean {
+    return employee.status === 'Active';
+  }
+
+  private hasValidDocument(type: EmployeeDocumentType): boolean {
+    return this.documents().some((document) =>
+      document.documentType === type &&
+      document.active &&
+      document.status === 'Validated' &&
+      (!document.expiresDate || document.expiresDate >= this.today()),
+    );
+  }
+
+  private hasApprovedEvaluation(): boolean {
+    return this.evaluations().some((evaluation) =>
+      evaluation.active &&
+      ['Approved', 'ApprovedWithObservations'].includes(evaluation.result) &&
+      (!evaluation.expiresDate || evaluation.expiresDate >= this.today()),
+    );
+  }
+
   private optional(value: string): string | null {
     const normalized = value.trim();
     return normalized ? normalized : null;
@@ -733,3 +901,12 @@ export class WorkforcePage implements OnInit {
     this.error.set(typeof detail === 'string' ? detail : 'No fue posible completar la operación.');
   }
 }
+
+type EmployeeTab = 'summary' | 'documents' | 'evaluations' | 'skills' | 'assignments';
+type EmployeeEligibilityFilter = 'all' | 'eligible' | 'review';
+
+type EmployeeEligibilityItem = {
+  readonly state: 'ok' | 'warn' | 'fail';
+  readonly label: string;
+  readonly hint: string;
+};

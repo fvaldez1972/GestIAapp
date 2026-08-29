@@ -1,23 +1,12 @@
-<section class="page-heading">
+<section class="page-heading workforce-hero">
   <div>
-    <span class="eyebrow">Personal operativo</span>
-    <h1>Empleados</h1>
-    <p>Administra expediente, documentos y evaluaciones del personal que después se asignará a servicios.</p>
+    <span class="eyebrow">Expediente operativo</span>
+    <h1>Personal</h1>
+    <p>Consulta empleados, documentación, evaluaciones, habilidades y señales de elegibilidad desde una ficha clara.</p>
   </div>
   <button class="button button--primary" type="button" [disabled]="!selectedOrganizationId()" (click)="openCreateEmployee()">
     <span aria-hidden="true">＋</span> Nuevo empleado
   </button>
-</section>
-
-<section class="context-card" aria-label="Contexto de organización">
-  <label>
-    <span>Organización</span>
-    <select [value]="selectedOrganizationId()" (change)="selectOrganization($any($event.target).value)">
-      @for (organization of organizations(); track organization.idOrganization) {
-        <option [value]="organization.idOrganization">{{ organization.legalName }}</option>
-      }
-    </select>
-  </label>
 </section>
 
 @if (message()) {
@@ -27,17 +16,26 @@
   <div class="alert alert--error" role="alert">{{ error() }}</div>
 }
 
-<section class="workbench">
-  <article class="table-card">
+<section class="workbench workforce-workbench">
+  <article class="table-card directory-card">
     <header class="table-toolbar">
       <div>
-        <h2>Directorio</h2>
-        <span>{{ result().totalCount }} empleado(s)</span>
+        <span class="eyebrow">Directorio de personal</span>
+        <h2>Empleados</h2>
+        <span>{{ visibleEmployees().length }} de {{ result().totalCount }} empleado(s)</span>
       </div>
       <div class="filters">
+        <label>
+          <span>Organización</span>
+          <select [value]="selectedOrganizationId()" (change)="selectOrganization($any($event.target).value)">
+            @for (organization of organizations(); track organization.idOrganization) {
+              <option [value]="organization.idOrganization">{{ organization.legalName }}</option>
+            }
+          </select>
+        </label>
         <input
           type="search"
-          placeholder="Buscar por código, nombre, RFC, CURP o NSS"
+          [placeholder]="canViewSensitivePersonalData() ? 'Buscar por nombre, número o RFC' : 'Buscar por nombre o número'"
           [value]="search()"
           (input)="updateSearch($any($event.target).value)"
           (keyup.enter)="loadEmployees(1)"
@@ -47,6 +45,20 @@
           @for (status of employeeStatuses; track status.value) {
             <option [value]="status.value">{{ status.label }}</option>
           }
+        </select>
+        <select [value]="jobTitleFilter()" (change)="updateJobTitleFilter($any($event.target).value)">
+          <option value="">Todos los puestos</option>
+          @for (jobTitle of jobTitleOptions(); track jobTitle) {
+            <option [value]="jobTitle">{{ jobTitle }}</option>
+          }
+        </select>
+        <select [value]="serviceFilter()" (change)="updateServiceFilter($any($event.target).value)">
+          <option value="">Todos los servicios</option>
+        </select>
+        <select [value]="eligibilityFilter()" (change)="updateEligibilityFilter($any($event.target).value)">
+          <option value="all">Toda elegibilidad</option>
+          <option value="eligible">Elegibles</option>
+          <option value="review">Por revisar</option>
         </select>
         <button class="button button--secondary" type="button" (click)="loadEmployees(1)">Buscar</button>
       </div>
@@ -60,22 +72,50 @@
         <p>Registra el primer empleado o cambia la búsqueda.</p>
         <button class="button button--primary" type="button" (click)="openCreateEmployee()">Nuevo empleado</button>
       </div>
+    } @else if (!visibleEmployees().length) {
+      <div class="state-panel state-panel--empty">
+        <strong>No hay personal con estos filtros</strong>
+        <p>Prueba cambiar estado, puesto, elegibilidad o búsqueda.</p>
+        <button class="button button--secondary" type="button" (click)="updateJobTitleFilter(''); updateEligibilityFilter('all')">Limpiar filtros</button>
+      </div>
     } @else {
-      <div class="employee-list">
-        @for (employee of result().items; track employee.idEmployee) {
-          <button
-            type="button"
-            class="employee-row"
-            [class.is-active]="selectedEmployee()?.idEmployee === employee.idEmployee"
-            (click)="selectEmployee(employee)"
-          >
-            <span class="code">{{ employee.codeEmployee }}</span>
-            <span>
-              <strong>{{ employee.fullName }}</strong>
-              <small>{{ statusLabel(employee.status) }} · {{ employee.jobTitle || 'Sin puesto' }}</small>
-            </span>
-          </button>
-        }
+      <div class="employee-table-shell">
+        <table class="employee-table">
+          <thead>
+            <tr>
+              <th>Número</th>
+              <th>Nombre</th>
+              <th>Puesto</th>
+              <th>Servicio actual</th>
+              <th>Estado</th>
+              <th>Elegibilidad</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (employee of visibleEmployees(); track employee.idEmployee) {
+              <tr [class.is-active]="selectedEmployee()?.idEmployee === employee.idEmployee">
+                <td><span class="code">{{ employee.codeEmployee }}</span></td>
+                <td>
+                  <button class="employee-link" type="button" (click)="selectEmployee(employee)">{{ employee.fullName }}</button>
+                  @if (canViewSensitivePersonalData()) {
+                    <small>{{ employee.rfc || 'RFC no capturado' }}</small>
+                  }
+                </td>
+                <td>{{ employee.jobTitle || 'Sin puesto' }}</td>
+                <td><span class="muted">{{ employeeServiceLabel(employee) }}</span></td>
+                <td><span class="status-chip" [class.is-inactive]="employee.status !== 'Active'">{{ statusLabel(employee.status) }}</span></td>
+                <td><span class="eligibility-chip" [class.is-ok]="eligibilityState(employee) === 'ok'">{{ eligibilityBadge(employee) }}</span></td>
+                <td>
+                  <div class="row-actions">
+                    <button type="button" (click)="selectEmployee(employee)">Ver</button>
+                    <button type="button" (click)="openEditEmployee(employee)">Editar</button>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
       </div>
       <footer class="pagination">
         <span>Página {{ result().page }} de {{ result().totalPages || 1 }}</span>
@@ -87,13 +127,13 @@
     }
   </article>
 
-  <article class="detail-card">
+  <article class="detail-card employee-file">
     <header class="detail-header">
       <div>
-        <span class="eyebrow">Expediente laboral</span>
+        <span class="eyebrow">Ficha 360°</span>
         <h2>{{ selectedEmployeeName() }}</h2>
         @if (selectedEmployee()) {
-          <p>{{ selectedEmployee()?.rfc || 'Sin RFC' }} · {{ selectedEmployee()?.curp || 'Sin CURP' }} · {{ selectedEmployee()?.socialSecurityNumber || 'Sin NSS' }}</p>
+          <p>{{ selectedEmployee()?.jobTitle || 'Sin puesto definido' }} · {{ employeeServiceLabel(selectedEmployee()!) }}</p>
         }
       </div>
       @if (selectedEmployee()) {
@@ -115,23 +155,48 @@
         <p>Su documentación y evaluaciones aparecerán aquí.</p>
       </div>
     } @else {
-      <section class="detail-section">
-        <header>
-          <div>
-            <h3>Datos clave</h3>
-            <span>{{ statusLabel(selectedEmployee()!.status) }}</span>
-          </div>
-        </header>
-        <div class="profile-grid">
-          <span><strong>Ingreso</strong>{{ selectedEmployee()?.hireDate }}</span>
-          <span><strong>Teléfono</strong>{{ selectedEmployee()?.mobilePhone || selectedEmployee()?.homePhone || 'Sin teléfono' }}</span>
-          <span><strong>Correo</strong>{{ selectedEmployee()?.email || 'Sin correo' }}</span>
-          <span><strong>Emergencia</strong>{{ selectedEmployee()?.emergencyContactName || 'Sin contacto' }}</span>
-          <span class="wide"><strong>Domicilio</strong>{{ selectedEmployee()?.address || 'Sin domicilio' }}</span>
-        </div>
-      </section>
+      <nav class="file-tabs" aria-label="Secciones del expediente">
+        @for (tab of employeeTabs; track tab.value) {
+          <button type="button" [class.is-active]="activeTab() === tab.value" (click)="showTab(tab.value)">{{ tab.label }}</button>
+        }
+      </nav>
 
-      <section class="detail-section">
+      @if (activeTab() === 'summary') {
+        <section class="detail-section file-summary">
+          <header>
+            <div>
+              <h3>Resumen operativo</h3>
+              <span>{{ statusLabel(selectedEmployee()!.status) }}</span>
+            </div>
+          </header>
+          <div class="summary-layout">
+            <div class="profile-grid">
+              <span><strong>Ingreso</strong>{{ selectedEmployee()?.hireDate }}</span>
+              <span><strong>Teléfono</strong>{{ selectedEmployee()?.mobilePhone || selectedEmployee()?.homePhone || 'Sin teléfono' }}</span>
+              <span><strong>Correo</strong>{{ selectedEmployee()?.email || 'Sin correo' }}</span>
+              <span><strong>Emergencia</strong>{{ selectedEmployee()?.emergencyContactName || 'Sin contacto' }}</span>
+              <span><strong>RFC</strong>{{ maskedPersonalReference(selectedEmployee()?.rfc ?? null) }}</span>
+              <span><strong>CURP</strong>{{ maskedPersonalReference(selectedEmployee()?.curp ?? null) }}</span>
+              <span class="wide"><strong>Domicilio</strong>{{ selectedEmployee()?.address || 'Sin domicilio capturado' }}</span>
+            </div>
+            <aside class="eligibility-panel" [class.is-ok]="selectedEligibility()?.isEligible">
+              <span class="eyebrow">Elegibilidad</span>
+              <h3>{{ selectedEligibility()?.isEligible ? 'Puede asignarse' : 'Requiere revisión' }}</h3>
+              <div class="eligibility-list">
+                @for (item of eligibilityItems(); track item.label) {
+                  <article [class]="itemStateClass(item.state)">
+                    <i aria-hidden="true">{{ item.state === 'ok' ? '✓' : item.state === 'warn' ? '⚠' : '✕' }}</i>
+                    <span><strong>{{ item.label }}</strong><small>{{ item.hint }}</small></span>
+                  </article>
+                }
+              </div>
+            </aside>
+          </div>
+        </section>
+      }
+
+      @if (activeTab() === 'skills') {
+        <section class="detail-section">
         <header>
           <div>
             <h3>Habilidades</h3>
@@ -165,8 +230,10 @@
           </div>
         }
       </section>
+      }
 
-      <section class="detail-section">
+      @if (activeTab() === 'documents') {
+        <section class="detail-section">
         <header>
           <div>
             <h3>Documentos</h3>
@@ -182,7 +249,7 @@
         } @else {
           <div class="cards-list">
             @for (document of documents(); track document.idEmployeeDocument) {
-              <article class="mini-card">
+              <article class="mini-card" [class.has-alert]="document.status === 'Expired' || isExpired(document.expiresDate)">
                 <div>
                   <span class="pill">{{ documentStatusLabel(document.status) }}</span>
                   <strong>{{ documentTypeLabel(document.documentType) }}</strong>
@@ -198,8 +265,10 @@
           </div>
         }
       </section>
+      }
 
-      <section class="detail-section">
+      @if (activeTab() === 'evaluations') {
+        <section class="detail-section">
         <header>
           <div>
             <h3>Evaluaciones</h3>
@@ -213,7 +282,7 @@
         } @else {
           <div class="cards-list">
             @for (evaluation of evaluations(); track evaluation.idEmployeeEvaluation) {
-              <article class="mini-card">
+              <article class="mini-card" [class.has-alert]="evaluation.result === 'NotApproved' || isExpired(evaluation.expiresDate)">
                 <div>
                   <span class="pill">{{ evaluationResultLabel(evaluation.result) }}</span>
                   <strong>{{ evaluationTypeLabel(evaluation.evaluationType) }}</strong>
@@ -229,6 +298,25 @@
           </div>
         }
       </section>
+      }
+
+      @if (activeTab() === 'assignments') {
+        <section class="detail-section">
+          <header>
+            <div>
+              <h3>Asignaciones</h3>
+              <span>Historial operativo</span>
+            </div>
+          </header>
+          <div class="assignment-placeholder">
+            <span aria-hidden="true">🗓️</span>
+            <div>
+              <strong>Asignaciones por empleado pendientes de integrar</strong>
+              <p>El expediente ya reserva esta sección. Cuando el backend exponga el historial por empleado, aquí se mostrará servicio, puesto, fechas, tipo de asignación y estatus.</p>
+            </div>
+          </div>
+        </section>
+      }
     }
   </article>
 </section>

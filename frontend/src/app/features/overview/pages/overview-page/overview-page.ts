@@ -68,31 +68,37 @@ export class OverviewPage {
       label: 'Clientes',
       value: this.clientsCount().toString(),
       detail: 'Registrados',
+      route: '/clientes',
     },
     {
       label: 'Solicitudes abiertas',
       value: this.openRequestsCount().toString(),
       detail: 'Por atender',
+      route: '/solicitudes',
     },
     {
       label: 'Autorizaciones pendientes',
       value: (this.operationsSummary()?.pendingApprovals ?? 0).toString(),
       detail: 'Por supervisar',
+      route: '/operacion/asistencia',
     },
     {
       label: 'Días cerrados',
       value: (this.operationsSummary()?.closedOperationDays ?? 0).toString(),
       detail: 'Cierres registrados',
+      route: '/operacion/asistencia',
     },
     {
       label: 'Asistencias capturadas',
       value: (this.operationsSummary()?.attendanceRecords ?? 0).toString(),
       detail: 'Registros operativos',
+      route: '/operacion/asistencia',
     },
     {
       label: 'Horas cubiertas',
       value: this.coveredHours().toString(),
       detail: 'Por sustituciones',
+      route: '/operacion/cobertura',
     },
   ]);
 

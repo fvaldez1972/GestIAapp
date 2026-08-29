@@ -5,8 +5,14 @@
     <p>Consulta lo importante, atiende excepciones y continúa con la operación diaria desde un mismo lugar.</p>
 
     <div class="hero-actions">
-      <a class="primary-link" routerLink="/operacion/asistencia">Abrir operación diaria</a>
-      <a class="secondary-link" routerLink="/planeacion">Revisar planeación</a>
+      <a class="primary-link" routerLink="/operacion/asistencia">
+        <span>Abrir operación diaria</span>
+        <i aria-hidden="true">→</i>
+      </a>
+      <a class="secondary-link" routerLink="/planeacion">
+        <span>Revisar planeación</span>
+        <i aria-hidden="true">→</i>
+      </a>
     </div>
   </div>
 
@@ -62,13 +68,13 @@
 
 <section class="supporting-metrics" aria-label="Resumen complementario">
   @for (metric of supportingMetrics(); track metric.label) {
-    <article>
+    <a [routerLink]="metric.route" [attr.aria-label]="metric.label + ': ' + metric.value">
       <div>
         <span>{{ metric.label }}</span>
         <small>{{ metric.detail }}</small>
       </div>
       <strong>{{ metric.value }}</strong>
-    </article>
+    </a>
   }
 </section>
 

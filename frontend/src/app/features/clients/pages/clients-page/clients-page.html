@@ -23,6 +23,7 @@
   <label class="organization-picker">
     <span>Organización</span>
     <select [value]="selectedOrganizationId()" (change)="selectOrganization($any($event.target).value)">
+      <option value="" disabled>Selecciona una organización</option>
       @if (!organizations().length) {
         <option value="">Sin organizaciones registradas</option>
       }
@@ -92,6 +93,7 @@
       <label>
         <span>Organización</span>
         <select [value]="selectedOrganizationId()" (change)="selectOrganization($any($event.target).value)">
+          <option value="" disabled>Selecciona una organización</option>
           @if (!organizations().length) {
             <option value="">Sin organizaciones</option>
           }

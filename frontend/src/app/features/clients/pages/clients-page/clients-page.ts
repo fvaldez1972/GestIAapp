@@ -414,7 +414,7 @@ export class ClientsPage implements OnInit {
       .subscribe({
         next: (organizations) => {
           this.organizations.set(organizations);
-          const organizationId = preferredId ?? this.selectedOrganizationId() ?? organizations[0]?.idOrganization ?? '';
+          const organizationId = this.resolveOrganizationSelection(preferredId, organizations);
           this.selectedOrganizationId.set(organizationId);
           if (organizationId) {
             this.loadClients(1);
@@ -2131,6 +2131,23 @@ export class ClientsPage implements OnInit {
   private optional(value: string): string | null {
     const normalized = value.trim();
     return normalized ? normalized : null;
+  }
+
+  private resolveOrganizationSelection(preferredId: string | undefined, organizations: readonly Organization[]): string {
+    const preferred = preferredId?.trim();
+    const current = this.selectedOrganizationId().trim();
+    const activeOrganization = organizations.find((organization) => organization.active);
+    const fallback = activeOrganization ?? organizations[0] ?? null;
+
+    if (preferred && organizations.some((organization) => organization.idOrganization === preferred)) {
+      return preferred;
+    }
+
+    if (current && organizations.some((organization) => organization.idOrganization === current)) {
+      return current;
+    }
+
+    return fallback?.idOrganization ?? '';
   }
 
   private loadClientServiceCounts(clients: readonly Client[]): void {

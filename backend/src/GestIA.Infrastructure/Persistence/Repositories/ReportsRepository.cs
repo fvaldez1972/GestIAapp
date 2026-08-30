@@ -1,5 +1,7 @@
 using GestIA.Application.Reports;
+using GestIA.Domain.Catalogs;
 using GestIA.Domain.Operations;
+using GestIA.Domain.Planning;
 using GestIA.Domain.Workforce;
 using Microsoft.EntityFrameworkCore;
 
@@ -87,6 +89,34 @@ public sealed class ReportsRepository(GestIaDbContext dbContext) : IReportsRepos
             coverageQuery = coverageQuery.Where(item => item.ScheduledShift.ShiftDate <= query.ToDate);
         }
 
+        var approvalQuery = dbContext.ApprovalRequests
+            .AsNoTracking()
+            .Where(item => item.IdOrganization == query.IdOrganization);
+
+        if (query.IdService is not null)
+        {
+            approvalQuery = approvalQuery.Where(item => item.IdService == query.IdService);
+        }
+
+        var closureQuery = dbContext.OperationDayClosures
+            .AsNoTracking()
+            .Where(item => item.IdOrganization == query.IdOrganization && item.Status == OperationDayClosureStatus.Closed);
+
+        if (query.IdService is not null)
+        {
+            closureQuery = closureQuery.Where(item => item.IdService == query.IdService);
+        }
+
+        if (query.FromDate is not null)
+        {
+            closureQuery = closureQuery.Where(item => item.OperationDate >= query.FromDate);
+        }
+
+        if (query.ToDate is not null)
+        {
+            closureQuery = closureQuery.Where(item => item.OperationDate <= query.ToDate);
+        }
+
         var attendanceRecords = await attendanceQuery.CountAsync(cancellationToken);
         var presentAttendance = await attendanceQuery.CountAsync(
             item => item.Status == AttendanceStatus.Present,
@@ -117,6 +147,10 @@ public sealed class ReportsRepository(GestIaDbContext dbContext) : IReportsRepos
             item => item.Status == CoverageStatus.Completed,
             cancellationToken);
         var coveredMinutes = await coverageQuery.SumAsync(item => item.DurationMinutes, cancellationToken);
+        var pendingApprovals = await approvalQuery.CountAsync(
+            item => item.Status == ApprovalRequestStatus.Pending,
+            cancellationToken);
+        var closedOperationDays = await closureQuery.CountAsync(cancellationToken);
 
         return new OperationsSummaryResponse(
             attendanceRecords,
@@ -130,7 +164,9 @@ public sealed class ReportsRepository(GestIaDbContext dbContext) : IReportsRepos
             coverageRecords,
             confirmedCoverages,
             completedCoverages,
-            coveredMinutes);
+            coveredMinutes,
+            pendingApprovals,
+            closedOperationDays);
     }
 
     public async Task<IReadOnlyList<OperationsServiceSummaryResponse>> GetOperationsByServiceAsync(
@@ -241,6 +277,22 @@ public sealed class ReportsRepository(GestIaDbContext dbContext) : IReportsRepos
                 item => item.Status == CoverageStatus.Completed,
                 cancellationToken);
             var coveredMinutes = await coverageQuery.SumAsync(item => item.DurationMinutes, cancellationToken);
+            var pendingApprovals = await dbContext.ApprovalRequests
+                .AsNoTracking()
+                .CountAsync(
+                    item =>
+                        item.IdService == service.IdService &&
+                        item.Status == ApprovalRequestStatus.Pending,
+                    cancellationToken);
+            var closedOperationDays = await dbContext.OperationDayClosures
+                .AsNoTracking()
+                .CountAsync(
+                    item =>
+                        item.IdService == service.IdService &&
+                        item.Status == OperationDayClosureStatus.Closed &&
+                        (!query.FromDate.HasValue || item.OperationDate >= query.FromDate.Value) &&
+                        (!query.ToDate.HasValue || item.OperationDate <= query.ToDate.Value),
+                    cancellationToken);
 
             rows.Add(new OperationsServiceSummaryResponse(
                 service.IdClient,
@@ -259,7 +311,9 @@ public sealed class ReportsRepository(GestIaDbContext dbContext) : IReportsRepos
                 coverageRecords,
                 confirmedCoverages,
                 completedCoverages,
-                coveredMinutes));
+                coveredMinutes,
+                pendingApprovals,
+                closedOperationDays));
         }
 
         return rows;
@@ -296,11 +350,24 @@ public sealed class ReportsRepository(GestIaDbContext dbContext) : IReportsRepos
             .AsNoTracking()
             .Where(evaluation => employeeIds.Contains(evaluation.IdEmployee))
             .ToArrayAsync(cancellationToken);
+        var skills = await dbContext.EmployeeSkills
+            .AsNoTracking()
+            .Include(skill => skill.SkillCatalogItem)
+            .Where(skill => employeeIds.Contains(skill.IdEmployee))
+            .ToArrayAsync(cancellationToken);
+        var organizationRequirements = await dbContext.EligibilityRequirements
+            .AsNoTracking()
+            .Where(requirement =>
+                requirement.IdOrganization == query.IdOrganization &&
+                requirement.Active &&
+                requirement.TargetType == EligibilityRequirementTargetType.Organization)
+            .ToArrayAsync(cancellationToken);
 
         return employees.Select(employee =>
         {
             var employeeDocuments = documents.Where(document => document.IdEmployee == employee.IdEmployee).ToArray();
             var employeeEvaluations = evaluations.Where(evaluation => evaluation.IdEmployee == employee.IdEmployee).ToArray();
+            var employeeSkills = skills.Where(skill => skill.IdEmployee == employee.IdEmployee).ToArray();
             var expiredDocuments = employeeDocuments.Count(document =>
                 document.Status == EmployeeDocumentStatus.Expired ||
                 (document.ExpiresDate.HasValue && document.ExpiresDate.Value < query.ReferenceDate));
@@ -328,6 +395,34 @@ public sealed class ReportsRepository(GestIaDbContext dbContext) : IReportsRepos
             if (invalidEvaluations > 0)
             {
                 reasons.Add($"{invalidEvaluations} evaluación(es) vencida(s) o no aprobada(s).");
+            }
+
+            foreach (var requirement in organizationRequirements)
+            {
+                var passed = requirement.RequirementType switch
+                {
+                    EligibilityRequirementType.Skill => employeeSkills.Any(skill =>
+                        skill.Active &&
+                        skill.SkillCatalogItem.Code == requirement.RequiredCode &&
+                        (!skill.ExpiresDate.HasValue || skill.ExpiresDate.Value >= query.ReferenceDate)),
+                    EligibilityRequirementType.Document => employeeDocuments.Any(document =>
+                        document.Active &&
+                        document.DocumentType.ToString().Equals(requirement.RequiredCode, StringComparison.OrdinalIgnoreCase) &&
+                        (document.Status is EmployeeDocumentStatus.Validated or EmployeeDocumentStatus.Received) &&
+                        (!document.ExpiresDate.HasValue || document.ExpiresDate.Value >= query.ReferenceDate)),
+                    EligibilityRequirementType.Evaluation => employeeEvaluations.Any(evaluation =>
+                        evaluation.Active &&
+                        evaluation.EvaluationType.ToString().Equals(requirement.RequiredCode, StringComparison.OrdinalIgnoreCase) &&
+                        (evaluation.Result is EmployeeEvaluationResult.Approved or EmployeeEvaluationResult.ApprovedWithObservations) &&
+                        (!evaluation.ExpiresDate.HasValue || evaluation.ExpiresDate.Value >= query.ReferenceDate)),
+                    EligibilityRequirementType.Restriction => false,
+                    _ => false
+                };
+
+                if (!passed && requirement.IsBlocking)
+                {
+                    reasons.Add($"Regla obligatoria no cumplida: {requirement.Name} ({requirement.RequiredCode}).");
+                }
             }
 
             if (reasons.Count == 0)

@@ -454,6 +454,7 @@ export type UpsertAttendanceRecord = {
   readonly minutesLate: number;
   readonly notes: string | null;
   readonly correctionAuthorizationNotes?: string | null;
+  readonly idApprovalRequest?: string | null;
 };
 
 export type IncidentSeverity = 'Low' | 'Medium' | 'High' | 'Critical';
@@ -558,6 +559,87 @@ export type FileUploadResponse = {
   readonly storageReference: string;
 };
 
+export type ApprovalRequestStatus = 'Pending' | 'Approved' | 'Rejected' | 'Cancelled';
+
+export type ApprovalRequestType =
+  | 'AttendanceCorrection'
+  | 'IncidentClosure'
+  | 'CoverageCorrection'
+  | 'ServiceConfigurationChange'
+  | 'DocumentException'
+  | 'Other';
+
+export type ApprovalRequest = {
+  readonly idApprovalRequest: string;
+  readonly idOrganization: string;
+  readonly idService: string;
+  readonly approvalType: ApprovalRequestType;
+  readonly entityType: string;
+  readonly entityId: string;
+  readonly reason: string;
+  readonly requestedChangeSummary: string | null;
+  readonly assignedApproverName: string | null;
+  readonly idOperationEvidence: string | null;
+  readonly status: ApprovalRequestStatus;
+  readonly requestedAt: string;
+  readonly requestedByName: string;
+  readonly decidedAt: string | null;
+  readonly decidedByName: string | null;
+  readonly decisionNotes: string | null;
+  readonly active: boolean;
+};
+
+export type CreateApprovalRequest = {
+  readonly idOrganization: string;
+  readonly idService: string;
+  readonly approvalType: ApprovalRequestType;
+  readonly entityType: string;
+  readonly entityId: string;
+  readonly reason: string;
+  readonly requestedChangeSummary: string | null;
+  readonly assignedApproverName: string | null;
+  readonly idOperationEvidence: string | null;
+};
+
+export type DecideApprovalRequest = {
+  readonly idOrganization: string;
+  readonly status: ApprovalRequestStatus;
+  readonly decisionNotes: string | null;
+};
+
+export type OperationDayClosureStatus = 'Closed' | 'Reopened';
+
+export type OperationDayClosure = {
+  readonly idOperationDayClosure: string;
+  readonly idOrganization: string;
+  readonly idService: string;
+  readonly operationDate: string;
+  readonly expectedShifts: number;
+  readonly attendanceRecords: number;
+  readonly pendingAttendance: number;
+  readonly openIncidents: number;
+  readonly coverageRecords: number;
+  readonly notes: string | null;
+  readonly status: OperationDayClosureStatus;
+  readonly closedAt: string;
+  readonly closedByName: string;
+  readonly reopenedAt: string | null;
+  readonly reopenedByName: string | null;
+  readonly reopenReason: string | null;
+  readonly active: boolean;
+};
+
+export type CloseOperationDay = {
+  readonly idOrganization: string;
+  readonly operationDate: string;
+  readonly notes: string | null;
+};
+
+export type ReopenOperationDay = {
+  readonly idOrganization: string;
+  readonly reason: string;
+};
+
 export type OperationsSummary = {
   readonly attendanceRecords: number;
   readonly presentAttendance: number;
@@ -571,6 +653,8 @@ export type OperationsSummary = {
   readonly confirmedCoverages: number;
   readonly completedCoverages: number;
   readonly coveredMinutes: number;
+  readonly pendingApprovals: number;
+  readonly closedOperationDays: number;
 };
 
 export type OperationsServiceSummary = OperationsSummary & {

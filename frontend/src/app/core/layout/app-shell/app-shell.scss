@@ -29,48 +29,35 @@
   display: flex;
   min-height: var(--gestia-topbar-height);
   align-items: center;
-  gap: 0.75rem;
   padding: 0 1.25rem;
   color: #fff;
   text-decoration: none;
   border-bottom: 1px solid rgb(255 255 255 / 8%);
 }
 
-.logo-mark {
-  display: grid;
-  width: 2.35rem;
-  height: 2.35rem;
-  flex: 0 0 auto;
-  place-items: center;
-  border-radius: 0.75rem;
-  color: var(--gestia-navy);
-  font-weight: 850;
-  background: var(--gestia-cyan);
-  box-shadow: 0 0.5rem 1.5rem rgb(34 198 238 / 16%);
+.brand-logo {
+  display: block;
+  height: auto;
 }
 
-.logo-copy,
+.brand-logo--full {
+  width: 9.6rem;
+  min-width: 6.875rem;
+}
+
+.brand-logo--compact {
+  display: none;
+  width: 2.55rem;
+}
+
 .profile-copy {
   min-width: 0;
 }
 
-.logo-copy strong,
-.logo-copy small,
 .profile-copy strong,
 .profile-copy small {
   display: block;
   white-space: nowrap;
-}
-
-.logo-copy strong {
-  font-size: 1rem;
-  letter-spacing: 0.01em;
-}
-
-.logo-copy small {
-  margin-top: 0.1rem;
-  color: rgb(255 255 255 / 50%);
-  font-size: 0.67rem;
 }
 
 .side-nav {
@@ -145,16 +132,6 @@ a.menu-link:hover {
 .menu-link.is-disabled {
   cursor: default;
   opacity: 0.5;
-}
-
-.menu-badge {
-  margin-left: auto;
-  padding: 0.18rem 0.38rem;
-  border-radius: 99rem;
-  color: rgb(255 255 255 / 65%);
-  font-size: 0.56rem;
-  font-weight: 750;
-  background: rgb(255 255 255 / 9%);
 }
 
 .sidebar-foot {
@@ -262,6 +239,28 @@ a.menu-link:hover {
   gap: 1rem;
 }
 
+.org-switcher {
+  align-items: center;
+  color: var(--gestia-muted);
+  display: flex;
+  font-size: 0.72rem;
+  font-weight: 800;
+  gap: 0.5rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.org-switcher select {
+  background: #fff;
+  border: 1px solid var(--gestia-border);
+  border-radius: 0.85rem;
+  color: var(--gestia-navy);
+  font: inherit;
+  max-width: 15rem;
+  padding: 0.6rem 0.75rem;
+  text-transform: none;
+}
+
 .profile {
   gap: 0.55rem;
   padding: 0.35rem 0.45rem;
@@ -314,7 +313,7 @@ main {
   max-width: 106rem;
   margin: 0 auto;
   flex: 1;
-  padding: 2rem;
+  padding: clamp(1.25rem, 2vw, 2.25rem);
 }
 
 .app-footer {
@@ -338,12 +337,15 @@ main {
   margin-left: var(--gestia-sidebar-condensed-width);
 }
 
-.wrapper.is-condensed .logo-copy,
+.wrapper.is-condensed .brand-logo--full,
 .wrapper.is-condensed .menu-title,
 .wrapper.is-condensed .menu-text,
-.wrapper.is-condensed .menu-badge,
 .wrapper.is-condensed .sidebar-foot small {
   display: none;
+}
+
+.wrapper.is-condensed .brand-logo--compact {
+  display: block;
 }
 
 .wrapper.is-condensed .logo-box,
@@ -385,12 +387,15 @@ main {
     margin-left: 0;
   }
 
-  .wrapper.is-condensed .logo-copy,
+  .wrapper.is-condensed .brand-logo--full,
   .wrapper.is-condensed .menu-title,
   .wrapper.is-condensed .menu-text,
-  .wrapper.is-condensed .menu-badge,
   .wrapper.is-condensed .sidebar-foot small {
     display: block;
+  }
+
+  .wrapper.is-condensed .brand-logo--compact {
+    display: none;
   }
 
   .wrapper.is-condensed .logo-box,
@@ -411,7 +416,7 @@ main {
   }
 
   main {
-    padding: 1.25rem;
+    padding: 1rem;
   }
 
   .app-footer {

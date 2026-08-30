@@ -52,6 +52,15 @@ public sealed record ExecuteOperationalRequestResponse(
     string? ExecutedEntityKind,
     Guid? ExecutedEntityId);
 
+public sealed record OperationalRequestExecutionPreviewResponse(
+    Guid IdOperationalRequest,
+    OperationalRequestType RequestType,
+    bool CanExecute,
+    IReadOnlyList<string> RequiredFields,
+    IReadOnlyList<string> MissingFields,
+    IReadOnlyList<string> Impact,
+    IReadOnlyList<string> Warnings);
+
 public sealed record OperationalRequestClientInput(
     string CodeClient,
     string LegalName,

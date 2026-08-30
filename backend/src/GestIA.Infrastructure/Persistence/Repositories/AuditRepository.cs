@@ -19,6 +19,9 @@ public sealed class AuditRepository(GestIaDbContext dbContext) : IAuditRepositor
         "Personal",
         "Documentos",
         "Evaluaciones",
+        "Catálogos",
+        "Reglas de elegibilidad",
+        "Habilidades",
         "Posiciones",
         "Patrones",
         "Segmentos",
@@ -28,6 +31,8 @@ public sealed class AuditRepository(GestIaDbContext dbContext) : IAuditRepositor
         "Incidencias",
         "Coberturas",
         "Evidencias",
+        "Autorizaciones",
+        "Cierres diarios",
         "Solicitudes"
     ];
 
@@ -196,6 +201,21 @@ public sealed class AuditRepository(GestIaDbContext dbContext) : IAuditRepositor
                     item.UpdatedAt,
                     item.DocumentType.ToString()))
                 .ToArrayAsync(cancellationToken));
+
+            AddRows(rows, await dbContext.BusinessDocuments
+                .IgnoreQueryFilters()
+                .Where(item => item.IdOrganization == query.IdOrganization)
+                .Select(item => new AuditableRecord(
+                    "Documentos",
+                    item.Title,
+                    item.IdBusinessDocument,
+                    item.Active,
+                    item.CreatedByName,
+                    item.CreatedAt,
+                    item.UpdatedByName,
+                    item.UpdatedAt,
+                    item.OwnerType.ToString() + " · " + item.Category + " · " + item.Status.ToString()))
+                .ToArrayAsync(cancellationToken));
         }
 
         if (Matches(entity, "Evaluaciones"))
@@ -213,6 +233,60 @@ public sealed class AuditRepository(GestIaDbContext dbContext) : IAuditRepositor
                     item.UpdatedByName,
                     item.UpdatedAt,
                     item.EvaluationType.ToString()))
+                .ToArrayAsync(cancellationToken));
+        }
+
+        if (Matches(entity, "Catálogos"))
+        {
+            AddRows(rows, await dbContext.BusinessCatalogItems
+                .IgnoreQueryFilters()
+                .Where(item => item.IdOrganization == query.IdOrganization)
+                .Select(item => new AuditableRecord(
+                    "Catálogos",
+                    item.Name,
+                    item.IdBusinessCatalogItem,
+                    item.Active,
+                    item.CreatedByName,
+                    item.CreatedAt,
+                    item.UpdatedByName,
+                    item.UpdatedAt,
+                    item.Type.ToString() + " · " + item.Code))
+                .ToArrayAsync(cancellationToken));
+        }
+
+        if (Matches(entity, "Reglas de elegibilidad"))
+        {
+            AddRows(rows, await dbContext.EligibilityRequirements
+                .IgnoreQueryFilters()
+                .Where(item => item.IdOrganization == query.IdOrganization)
+                .Select(item => new AuditableRecord(
+                    "Reglas de elegibilidad",
+                    item.Name,
+                    item.IdEligibilityRequirement,
+                    item.Active,
+                    item.CreatedByName,
+                    item.CreatedAt,
+                    item.UpdatedByName,
+                    item.UpdatedAt,
+                    item.TargetType.ToString() + " · " + item.RequirementType.ToString() + " · " + item.RequiredCode))
+                .ToArrayAsync(cancellationToken));
+        }
+
+        if (Matches(entity, "Habilidades"))
+        {
+            AddRows(rows, await dbContext.EmployeeSkills
+                .IgnoreQueryFilters()
+                .Where(item => item.Employee.IdOrganization == query.IdOrganization)
+                .Select(item => new AuditableRecord(
+                    "Habilidades",
+                    item.Employee.FullName,
+                    item.IdEmployeeSkill,
+                    item.Active,
+                    item.CreatedByName,
+                    item.CreatedAt,
+                    item.UpdatedByName,
+                    item.UpdatedAt,
+                    item.SkillCatalogItem.Code + " · " + item.SkillCatalogItem.Name))
                 .ToArrayAsync(cancellationToken));
         }
 
@@ -375,6 +449,42 @@ public sealed class AuditRepository(GestIaDbContext dbContext) : IAuditRepositor
                     item.UpdatedByName,
                     item.UpdatedAt,
                     item.EvidenceType.ToString()))
+                .ToArrayAsync(cancellationToken));
+        }
+
+        if (Matches(entity, "Autorizaciones"))
+        {
+            AddRows(rows, await dbContext.ApprovalRequests
+                .IgnoreQueryFilters()
+                .Where(item => item.IdOrganization == query.IdOrganization)
+                .Select(item => new AuditableRecord(
+                    "Autorizaciones",
+                    item.Service.Name,
+                    item.IdApprovalRequest,
+                    item.Active,
+                    item.CreatedByName,
+                    item.CreatedAt,
+                    item.UpdatedByName,
+                    item.UpdatedAt,
+                    item.ApprovalType.ToString() + " · " + item.Status.ToString()))
+                .ToArrayAsync(cancellationToken));
+        }
+
+        if (Matches(entity, "Cierres diarios"))
+        {
+            AddRows(rows, await dbContext.OperationDayClosures
+                .IgnoreQueryFilters()
+                .Where(item => item.IdOrganization == query.IdOrganization)
+                .Select(item => new AuditableRecord(
+                    "Cierres diarios",
+                    item.Service.Name,
+                    item.IdOperationDayClosure,
+                    item.Active,
+                    item.CreatedByName,
+                    item.CreatedAt,
+                    item.UpdatedByName,
+                    item.UpdatedAt,
+                    item.OperationDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) + " · " + item.Status.ToString()))
                 .ToArrayAsync(cancellationToken));
         }
 

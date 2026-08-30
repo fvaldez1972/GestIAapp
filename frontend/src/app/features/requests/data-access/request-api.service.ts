@@ -5,6 +5,7 @@ import {
   CreateOperationalRequest,
   ExecuteOperationalRequest,
   ExecuteOperationalRequestResult,
+  OperationalRequestExecutionPreview,
   OperationalRequest,
   OperationalRequestInput,
   OperationalRequestStatus,
@@ -59,5 +60,12 @@ export class RequestApiService {
 
   executeRequest(idOperationalRequest: string, request: ExecuteOperationalRequest) {
     return this.http.post<ExecuteOperationalRequestResult>(`${this.baseUrl}/${idOperationalRequest}/execute`, request);
+  }
+
+  previewExecution(idOperationalRequest: string, request: ExecuteOperationalRequest) {
+    return this.http.post<OperationalRequestExecutionPreview>(
+      `${this.baseUrl}/${idOperationalRequest}/execution-preview`,
+      request,
+    );
   }
 }

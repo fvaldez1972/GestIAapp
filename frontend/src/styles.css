@@ -23,6 +23,8 @@
   --gestia-sidebar-width: 17rem;
   --gestia-sidebar-condensed-width: 5rem;
   --gestia-topbar-height: 4.5rem;
+  --gestia-page-gap: 1.35rem;
+  --gestia-card-padding: 1.25rem;
   color: #1d2433;
   font-family: var(--font-sans);
   font-synthesis: none;
@@ -68,6 +70,10 @@ a {
   box-shadow: 0 0.75rem 2rem rgb(16 16 78 / 5%);
 }
 
+.gi-card:not(:empty) {
+  padding: var(--gestia-card-padding);
+}
+
 .gi-card--interactive {
   transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
 }
@@ -94,6 +100,11 @@ a {
   font-weight: 800;
   cursor: pointer;
   transition: transform 140ms ease, border-color 140ms ease, background-color 140ms ease;
+}
+
+.gi-button:focus-visible,
+.gi-input:focus-visible {
+  outline-offset: 3px;
 }
 
 .gi-button:hover {
@@ -126,7 +137,7 @@ a {
 
 .gi-field {
   display: grid;
-  gap: 0.35rem;
+  gap: 0.42rem;
 }
 
 .gi-field > span {
@@ -137,12 +148,17 @@ a {
 
 .gi-input {
   width: 100%;
-  min-height: 2.45rem;
+  min-height: 2.65rem;
   border: 1px solid #d8deea;
-  border-radius: 0.65rem;
-  padding: 0.45rem 0.7rem;
+  border-radius: 0.78rem;
+  padding: 0.58rem 0.78rem;
   color: #252c3a;
   background: #fff;
+}
+
+textarea.gi-input {
+  min-height: 5rem;
+  resize: vertical;
 }
 
 .gi-input:focus {
@@ -213,9 +229,10 @@ a {
 
 .gi-table th,
 .gi-table td {
-  padding: 0.75rem 1rem;
+  padding: 0.82rem 1rem;
   border-bottom: 1px solid var(--gestia-border);
   text-align: left;
+  vertical-align: top;
 }
 
 .gi-table tbody tr {
@@ -233,11 +250,24 @@ a {
   text-transform: uppercase;
 }
 
+.gi-table td strong,
+.gi-table td small {
+  display: block;
+}
+
+.gi-table td small {
+  margin-top: 0.2rem;
+  color: var(--gestia-muted);
+  line-height: 1.35;
+  word-break: break-word;
+}
+
 .gi-empty-state {
   display: grid;
   min-height: 10rem;
   place-items: center;
   gap: 0.4rem;
+  padding: 1.25rem;
   color: var(--gestia-muted);
   text-align: center;
 }
@@ -252,6 +282,44 @@ a {
   align-items: center;
   justify-content: space-between;
   gap: 0.85rem;
+}
+
+.eyebrow,
+.kicker {
+  color: var(--gestia-cyan-dark);
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.table-wrap {
+  border: 1px solid color-mix(in srgb, var(--gestia-border) 76%, white);
+  border-radius: 0.95rem;
+  overflow: auto;
+  background: #fff;
+}
+
+.table-wrap .gi-table th:first-child,
+.table-wrap .gi-table td:first-child {
+  padding-left: 1.1rem;
+}
+
+.table-wrap .gi-table th:last-child,
+.table-wrap .gi-table td:last-child {
+  padding-right: 1.1rem;
+}
+
+@media (max-width: 700px) {
+  :root {
+    --gestia-page-gap: 1rem;
+    --gestia-card-padding: 1rem;
+  }
+
+  .gi-table th,
+  .gi-table td {
+    padding: 0.72rem 0.8rem;
+  }
 }
 
 .gi-action-row {
@@ -297,5 +365,260 @@ a {
 @keyframes gi-skeleton-shimmer {
   100% {
     transform: translateX(100%);
+  }
+}
+
+/* UX/UI refinement layer inspired by the approved GestIA mockups.
+   This keeps existing components and APIs intact while giving legacy modules
+   the same visual language: compact cards, cyan actions, soft tables and
+   clearer interactive states. */
+:root {
+  --gestia-cyan-soft: #e9fbff;
+  --gestia-surface-soft: #f8fbff;
+  --gestia-text: #111827;
+  --gestia-shadow-sm: 0 0.6rem 1.5rem rgb(16 16 78 / 5%);
+  --gestia-shadow-md: 0 1rem 2.4rem rgb(16 16 78 / 8%);
+  --gestia-shadow-action: 0 0.7rem 1.4rem rgb(34 198 238 / 24%);
+}
+
+body {
+  color: var(--gestia-text);
+  background:
+    radial-gradient(circle at 96% 7%, rgb(34 198 238 / 10%), transparent 18rem),
+    linear-gradient(180deg, #f8fbff 0%, var(--gestia-canvas) 38%, #f4f6fa 100%);
+}
+
+.gi-card,
+.table-wrap {
+  border-color: color-mix(in srgb, var(--gestia-border) 84%, white);
+  border-radius: 1.1rem;
+  box-shadow: var(--gestia-shadow-sm);
+}
+
+.gi-card--interactive,
+.gi-button,
+.button,
+.gi-table tbody tr {
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.gi-card--interactive:hover {
+  border-color: color-mix(in srgb, var(--gestia-cyan) 42%, var(--gestia-border));
+  box-shadow: var(--gestia-shadow-md);
+  transform: translateY(-2px);
+}
+
+.gi-button,
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 2.65rem;
+  border-radius: 0.85rem;
+  font-size: 0.82rem;
+  font-weight: 850;
+  letter-spacing: -0.01em;
+}
+
+.gi-button:hover,
+.button:hover {
+  transform: translateY(-1px);
+}
+
+.gi-button--primary,
+.button--primary {
+  border-color: color-mix(in srgb, var(--gestia-cyan) 76%, #fff) !important;
+  color: var(--gestia-navy) !important;
+  background: linear-gradient(135deg, #2bd0f4, var(--gestia-cyan)) !important;
+  box-shadow: var(--gestia-shadow-action) !important;
+}
+
+.gi-button--primary:hover,
+.button--primary:hover {
+  border-color: var(--gestia-cyan) !important;
+  background: linear-gradient(135deg, #54dcf8, #20c4ec) !important;
+  box-shadow: 0 0.9rem 1.7rem rgb(34 198 238 / 30%) !important;
+}
+
+.gi-button--secondary,
+.button--secondary {
+  color: var(--gestia-navy) !important;
+  border-color: color-mix(in srgb, var(--gestia-border) 84%, #fff) !important;
+  background: #fff !important;
+  box-shadow: 0 0.35rem 0.9rem rgb(16 16 78 / 4%);
+}
+
+.gi-button--secondary:hover,
+.button--secondary:hover {
+  border-color: color-mix(in srgb, var(--gestia-cyan) 46%, var(--gestia-border)) !important;
+  background: var(--gestia-cyan-soft) !important;
+}
+
+.gi-input,
+select,
+input,
+textarea {
+  font-size: 0.86rem;
+}
+
+.gi-input:focus,
+select:focus,
+input:focus,
+textarea:focus {
+  outline: 0;
+  border-color: color-mix(in srgb, var(--gestia-cyan) 62%, var(--gestia-border));
+  box-shadow: 0 0 0 0.22rem rgb(34 198 238 / 14%);
+}
+
+.gi-table {
+  font-size: 0.84rem;
+}
+
+.gi-table tbody tr:hover {
+  background: var(--gestia-surface-soft);
+}
+
+/* Solicitudes keeps its functional component intact, but these unique class
+   names receive the approved dashboard + drawer treatment globally to avoid
+   growing the component stylesheet budget. */
+.requests-page {
+  font-size: 0.94rem;
+}
+
+.requests-hero,
+.request-controls,
+.workflow-board {
+  border-color: color-mix(in srgb, var(--request-cyan) 18%, var(--request-line));
+  box-shadow: 0 1rem 2.5rem rgb(16 16 78 / 7%);
+}
+
+.hero-action {
+  min-width: 10.5rem;
+}
+
+.request-filters .gi-input,
+.sort-control .gi-input {
+  background: #fff;
+  box-shadow: 0 0.35rem 0.9rem rgb(16 16 78 / 3%);
+}
+
+.workflow-steps {
+  gap: .55rem;
+  padding: .55rem;
+}
+
+.workflow-step {
+  min-height: 3.8rem;
+  border-color: color-mix(in srgb, var(--request-line) 82%, #fff);
+  background: #fff;
+  box-shadow: 0 .4rem .9rem rgb(16 16 78 / 3%);
+}
+
+.workflow-step:hover,
+.workflow-step:focus-visible {
+  border-color: color-mix(in srgb, var(--request-cyan) 56%, var(--request-line));
+  background: linear-gradient(135deg, #fff, #f2fcff);
+}
+
+.workflow-step.is-active {
+  background:
+    radial-gradient(circle at 12% 50%, rgb(34 198 238 / 28%), transparent 5rem),
+    linear-gradient(145deg, #11145b, #242875);
+}
+
+.workflow-step strong {
+  font-size: .8rem;
+}
+
+.workflow-step small {
+  font-size: .64rem;
+}
+
+.request-results {
+  grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr));
+}
+
+.request-result {
+  border-radius: 1.08rem;
+  box-shadow: 0 .6rem 1.4rem rgb(16 16 78 / 4%);
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.request-title {
+  font-size: 1.05rem;
+}
+
+.request-context {
+  background: #f8fbff;
+}
+
+.request-detail-shell,
+.workspace-overlay {
+  background: rgb(8 16 38 / 34%);
+  backdrop-filter: blur(7px);
+}
+
+.request-detail-panel {
+  width: min(42rem, 100vw);
+  border-left-color: color-mix(in srgb, var(--request-cyan) 22%, var(--request-line));
+  border-radius: 1.2rem 0 0 1.2rem;
+  box-shadow: -1rem 0 3rem rgb(16 16 78 / 20%);
+}
+
+.detail-summary-card,
+.workspace-panel,
+.form-section,
+.execution-preview,
+.execution-guidance,
+.impact-card,
+.activity-timeline {
+  border-color: color-mix(in srgb, var(--request-line) 84%, #fff);
+  border-radius: 1rem;
+}
+
+.detail-tabs {
+  background: #f5f8fc;
+  border: 1px solid color-mix(in srgb, var(--request-line) 84%, #fff);
+  border-radius: 999rem;
+  padding: .25rem;
+}
+
+.detail-tabs button {
+  border-radius: 999rem;
+}
+
+.detail-tabs button.is-active {
+  background: #fff;
+  box-shadow: 0 .45rem 1rem rgb(16 16 78 / 7%);
+}
+
+.workspace-panel {
+  max-width: 100vw;
+}
+
+.workspace-panel.is-quick-create {
+  width: min(36rem, 100vw);
+}
+
+.workspace-panel:not(.is-quick-create) {
+  width: min(48rem, 100vw);
+}
+
+@media (max-width: 820px) {
+  .request-detail-panel,
+  .workspace-panel,
+  .workspace-panel.is-quick-create,
+  .workspace-panel:not(.is-quick-create) {
+    width: 100vw;
+    border-radius: 1rem 1rem 0 0;
   }
 }

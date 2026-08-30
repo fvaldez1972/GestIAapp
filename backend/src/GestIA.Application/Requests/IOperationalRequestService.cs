@@ -22,6 +22,11 @@ public interface IOperationalRequestService
         ChangeOperationalRequestStatusRequest request,
         CancellationToken cancellationToken);
 
+    Task<OperationalRequestExecutionPreviewResponse> PreviewExecutionAsync(
+        Guid idOperationalRequest,
+        ExecuteOperationalRequestRequest request,
+        CancellationToken cancellationToken);
+
     Task<ExecuteOperationalRequestResponse> ExecuteAsync(
         Guid idOperationalRequest,
         ExecuteOperationalRequestRequest request,

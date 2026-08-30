@@ -110,6 +110,17 @@ public sealed class SchedulingService(
             throw new ResourceConflictException("No hay patrones de turno vigentes para generar la planeación.");
         }
 
+        var patternsWithoutSegments = patterns
+            .Where(pattern => !pattern.Segments.Any(segment => segment.Active))
+            .Select(pattern => pattern.CodeShiftPattern)
+            .Take(5)
+            .ToArray();
+        if (patternsWithoutSegments.Length > 0)
+        {
+            throw new ResourceConflictException(
+                $"No se puede generar la planeación porque hay patrones sin segmentos activos: {string.Join(", ", patternsWithoutSegments)}.");
+        }
+
         var assignments = await repository.ListAssignmentsForServiceAsync(
             request.IdService,
             version.PeriodStartDate,
@@ -474,6 +485,18 @@ public sealed class SchedulingService(
         if (!patterns.Any())
         {
             return [];
+        }
+
+        var patternsWithoutSegments = patterns
+            .Where(pattern => !pattern.Segments.Any(segment => segment.Active))
+            .Select(pattern => pattern.CodeShiftPattern)
+            .Take(5)
+            .ToArray();
+        if (patternsWithoutSegments.Length > 0)
+        {
+            return patternsWithoutSegments
+                .Select(patternCode => $"Patrón {patternCode}: falta al menos un segmento activo.")
+                .ToArray();
         }
 
         var gaps = new List<string>();

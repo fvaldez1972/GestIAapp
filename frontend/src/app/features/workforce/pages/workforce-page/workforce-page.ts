@@ -2,8 +2,11 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { finalize } from 'rxjs';
+import { AuthService } from '../../../../core/auth/auth.service';
+import { CatalogApiService } from '../../../catalogs/data-access/catalog-api.service';
+import { CatalogItem, EmployeeSkill, EmployeeSkillInput } from '../../../catalogs/data-access/catalog.models';
 import { ClientApiService } from '../../../clients/data-access/client-api.service';
-import { Organization } from '../../../clients/data-access/client.models';
+import { Organization, WorkforceEligibilityReport } from '../../../clients/data-access/client.models';
 import { WorkforceApiService } from '../../data-access/workforce-api.service';
 import {
   CreateEmployee,
@@ -30,6 +33,8 @@ import {
 })
 export class WorkforcePage implements OnInit {
   private readonly api = inject(WorkforceApiService);
+  private readonly auth = inject(AuthService);
+  private readonly catalogApi = inject(CatalogApiService);
   private readonly clientApi = inject(ClientApiService);
   private readonly formBuilder = inject(FormBuilder);
 
@@ -38,6 +43,9 @@ export class WorkforcePage implements OnInit {
   protected readonly selectedEmployee = signal<Employee | null>(null);
   protected readonly documents = signal<readonly EmployeeDocument[]>([]);
   protected readonly evaluations = signal<readonly EmployeeEvaluation[]>([]);
+  protected readonly skills = signal<readonly EmployeeSkill[]>([]);
+  protected readonly skillCatalog = signal<readonly CatalogItem[]>([]);
+  protected readonly workforceEligibility = signal<readonly WorkforceEligibilityReport[]>([]);
   protected readonly result = signal<PagedResult<Employee>>({
     items: [],
     totalCount: 0,
@@ -51,19 +59,127 @@ export class WorkforcePage implements OnInit {
   protected readonly employeeEditorOpen = signal(false);
   protected readonly documentEditorOpen = signal(false);
   protected readonly evaluationEditorOpen = signal(false);
+  protected readonly skillEditorOpen = signal(false);
   protected readonly editingEmployee = signal<Employee | null>(null);
   protected readonly editingDocument = signal<EmployeeDocument | null>(null);
   protected readonly editingEvaluation = signal<EmployeeEvaluation | null>(null);
+  protected readonly editingSkill = signal<EmployeeSkill | null>(null);
   protected readonly message = signal('');
   protected readonly error = signal('');
   protected readonly search = signal('');
   protected readonly statusFilter = signal<EmployeeStatus | ''>('');
+  protected readonly fileStageFilter = signal<EmployeeFileStageFilter>('all');
+  protected readonly jobTitleFilter = signal('');
+  protected readonly serviceFilter = signal('');
+  protected readonly eligibilityFilter = signal<EmployeeEligibilityFilter>('all');
+  protected readonly siteFilter = signal('');
+  protected readonly ineFilter = signal<EmployeeDocumentFilter>('all');
+  protected readonly skillRequirementFilter = signal<EmployeeSkillFilter>('all');
+  protected readonly employeeWizardStep = signal(1);
+  protected readonly activeTab = signal<EmployeeTab>('summary');
+  protected readonly selectedOrganization = computed(
+    () => this.organizations().find((organization) => organization.idOrganization === this.selectedOrganizationId()) ?? null,
+  );
   protected readonly selectedEmployeeName = computed(() => this.selectedEmployee()?.fullName ?? 'Sin empleado seleccionado');
+  protected readonly canViewSensitivePersonalData = computed(() => this.auth.hasPermission('PLATFORM.ADMIN'));
+  protected readonly visibleEmployees = computed(() =>
+    this.result().items
+      .filter((employee) => !this.jobTitleFilter() || employee.jobTitle === this.jobTitleFilter())
+      .filter((employee) => this.fileStageFilter() === 'all' || this.employeeStage(employee) === this.fileStageFilter())
+      .filter((employee) => !this.siteFilter() || this.employeeSiteLabel(employee) === this.siteFilter())
+      .filter((employee) => {
+        if (this.ineFilter() === 'all') {
+          return true;
+        }
+
+        const hasIne = this.selectedEmployee()?.idEmployee === employee.idEmployee ? this.hasValidDocument('VoterId') : false;
+        return this.ineFilter() === 'valid' ? hasIne : !hasIne;
+      })
+      .filter((employee) => {
+        if (this.skillRequirementFilter() === 'all') {
+          return true;
+        }
+
+        const hasSkills = this.selectedEmployee()?.idEmployee === employee.idEmployee ? this.skills().length > 0 : false;
+        return this.skillRequirementFilter() === 'withSkills' ? hasSkills : !hasSkills;
+      })
+      .filter((employee) => {
+        const filter = this.eligibilityFilter();
+        if (filter === 'all') {
+          return true;
+        }
+
+        const isEligible = this.employeeIsAssignable(employee);
+        return filter === 'eligible' ? isEligible : !isEligible;
+      }),
+  );
+  protected readonly jobTitleOptions = computed(() =>
+    [...new Set(this.result().items.map((employee) => employee.jobTitle).filter(Boolean) as string[])].sort(),
+  );
+  protected readonly siteOptions = computed(() =>
+    [...new Set(this.result().items.map((employee) => this.employeeSiteLabel(employee)).filter(Boolean))].sort(),
+  );
+  protected readonly activeEmployeesCount = computed(() => this.result().items.filter((employee) => employee.status === 'Active').length);
+  protected readonly candidateEmployeesCount = computed(() => this.result().items.filter((employee) => employee.status === 'Candidate').length);
+  protected readonly notEligibleEmployeesCount = computed(() =>
+    this.result().items.filter((employee) => !this.employeeIsAssignable(employee)).length,
+  );
+  protected readonly selectedEligibility = computed(() => {
+    const employee = this.selectedEmployee();
+    return employee ? this.eligibilityForEmployee(employee.idEmployee) : null;
+  });
+  protected readonly eligibilityItems = computed<EmployeeEligibilityItem[]>(() => {
+    const employee = this.selectedEmployee();
+    if (!employee) {
+      return [];
+    }
+
+    const report = this.selectedEligibility();
+    const items: EmployeeEligibilityItem[] = [
+      {
+        state: employee.status === 'Active' ? 'ok' : 'fail',
+        label: employee.status === 'Active' ? 'Empleado activo' : `Estatus actual: ${this.statusLabel(employee.status)}`,
+        hint: employee.status === 'Active' ? 'Disponible para asignación operativa.' : 'Debe validarse antes de asignarlo a servicio.',
+      },
+      {
+        state: this.hasValidDocument('VoterId') ? 'ok' : 'warn',
+        label: this.hasValidDocument('VoterId') ? 'INE vigente' : 'INE pendiente o no validada',
+        hint: 'Documento base para expediente operativo.',
+      },
+      {
+        state: this.hasApprovedEvaluation() ? 'ok' : 'warn',
+        label: this.hasApprovedEvaluation() ? 'Evaluación aprobada' : 'Evaluación pendiente o por revisar',
+        hint: 'Revisa polígrafo, antidoping o evaluación requerida.',
+      },
+      {
+        state: this.skills().length > 0 ? 'ok' : 'warn',
+        label: this.skills().length > 0 ? 'Habilidades registradas' : 'Falta habilidad requerida',
+        hint: this.skills().length > 0 ? `${this.skills().length} habilidad(es) en expediente.` : 'Captura habilidades para validar asignaciones.',
+      },
+    ];
+
+    if (report && !report.isEligible) {
+      items.push(...report.reasons.slice(0, 3).map((reason) => ({
+        state: 'fail' as const,
+        label: reason,
+        hint: 'Regla de elegibilidad detectada por el reporte operativo.',
+      })));
+    }
+
+    return items;
+  });
+  protected readonly employeeTabs: readonly { value: EmployeeTab; label: string }[] = [
+    { value: 'summary', label: 'Resumen' },
+    { value: 'documents', label: 'Documentos' },
+    { value: 'evaluations', label: 'Evaluaciones' },
+    { value: 'skills', label: 'Habilidades' },
+    { value: 'assignments', label: 'Asignaciones' },
+  ];
 
   protected readonly employeeStatuses: readonly { value: EmployeeStatus; label: string }[] = [
     { value: 'Candidate', label: 'Candidato' },
     { value: 'Active', label: 'Activo' },
-    { value: 'OnLeave', label: 'Suspendido / permiso' },
+    { value: 'OnLeave', label: 'Permiso / Incapacidad' },
     { value: 'Inactive', label: 'Inactivo' },
     { value: 'Terminated', label: 'Baja' },
   ];
@@ -159,6 +275,13 @@ export class WorkforcePage implements OnInit {
     notes: ['', [Validators.maxLength(1000)]],
   });
 
+  protected readonly skillForm = this.formBuilder.nonNullable.group({
+    idSkillCatalogItem: ['', [Validators.required]],
+    acquiredDate: [''],
+    expiresDate: [''],
+    notes: ['', [Validators.maxLength(1000)]],
+  });
+
   ngOnInit(): void {
     this.loadOrganizations();
   }
@@ -174,6 +297,7 @@ export class WorkforcePage implements OnInit {
           const organizationId = this.selectedOrganizationId() || organizations[0]?.idOrganization || '';
           this.selectedOrganizationId.set(organizationId);
           if (organizationId) {
+            this.loadSkillCatalog(organizationId);
             this.loadEmployees(1);
           }
         },
@@ -186,6 +310,8 @@ export class WorkforcePage implements OnInit {
     this.selectedEmployee.set(null);
     this.documents.set([]);
     this.evaluations.set([]);
+    this.skills.set([]);
+    this.loadSkillCatalog(organizationId);
     this.loadEmployees(1);
   }
 
@@ -196,6 +322,51 @@ export class WorkforcePage implements OnInit {
   protected updateStatusFilter(value: EmployeeStatus | ''): void {
     this.statusFilter.set(value);
     this.loadEmployees(1);
+  }
+
+  protected updateFileStageFilter(value: EmployeeFileStageFilter): void {
+    this.fileStageFilter.set(value);
+  }
+
+  protected updateJobTitleFilter(value: string): void {
+    this.jobTitleFilter.set(value);
+  }
+
+  protected updateServiceFilter(value: string): void {
+    this.serviceFilter.set(value);
+  }
+
+  protected updateSiteFilter(value: string): void {
+    this.siteFilter.set(value);
+  }
+
+  protected updateIneFilter(value: EmployeeDocumentFilter): void {
+    this.ineFilter.set(value);
+  }
+
+  protected updateSkillRequirementFilter(value: EmployeeSkillFilter): void {
+    this.skillRequirementFilter.set(value);
+  }
+
+  protected updateEligibilityFilter(value: EmployeeEligibilityFilter): void {
+    this.eligibilityFilter.set(value);
+  }
+
+  protected clearFilters(): void {
+    this.search.set('');
+    this.statusFilter.set('');
+    this.fileStageFilter.set('all');
+    this.jobTitleFilter.set('');
+    this.serviceFilter.set('');
+    this.eligibilityFilter.set('all');
+    this.siteFilter.set('');
+    this.ineFilter.set('all');
+    this.skillRequirementFilter.set('all');
+    this.loadEmployees(1);
+  }
+
+  protected showTab(tab: EmployeeTab): void {
+    this.activeTab.set(tab);
   }
 
   protected loadEmployees(page = this.result().page): void {
@@ -212,6 +383,7 @@ export class WorkforcePage implements OnInit {
       .subscribe({
         next: (result) => {
           this.result.set(result);
+          this.loadWorkforceEligibility();
           if (!this.selectedEmployee() && result.items.length) {
             this.selectEmployee(result.items[0]);
           }
@@ -222,6 +394,7 @@ export class WorkforcePage implements OnInit {
 
   protected selectEmployee(employee: Employee): void {
     this.selectedEmployee.set(employee);
+    this.activeTab.set('summary');
     this.loadingDetail.set(true);
     this.api
       .getEmployee(this.selectedOrganizationId(), employee.idEmployee)
@@ -231,6 +404,7 @@ export class WorkforcePage implements OnInit {
           this.selectedEmployee.set(detail.employee);
           this.documents.set(detail.documents);
           this.evaluations.set(detail.evaluations);
+          this.loadEmployeeSkills(detail.employee.idEmployee);
         },
         error: (error: HttpErrorResponse) => this.setError(error),
       });
@@ -239,6 +413,7 @@ export class WorkforcePage implements OnInit {
   protected openCreateEmployee(): void {
     this.editingEmployee.set(null);
     this.employeeForm.reset(this.emptyEmployeeForm());
+    this.employeeWizardStep.set(1);
     this.employeeEditorOpen.set(true);
   }
 
@@ -271,6 +446,7 @@ export class WorkforcePage implements OnInit {
       housingType: employee.housingType ?? '',
       residenceSinceDate: this.dateOnly(employee.residenceSinceDate),
     });
+    this.employeeWizardStep.set(1);
     this.employeeEditorOpen.set(true);
   }
 
@@ -332,9 +508,14 @@ export class WorkforcePage implements OnInit {
       return;
     }
 
-    this.api.changeStatus(employee.idEmployee, this.selectedOrganizationId(), status).subscribe({
+    if (!window.confirm(`¿Cambiar el estatus de ${employee.fullName} a ${this.statusLabel(status)}?`)) {
+      return;
+    }
+
+    this.saving.set(true);
+    this.api.changeStatus(employee.idEmployee, this.selectedOrganizationId(), status).pipe(finalize(() => this.saving.set(false))).subscribe({
       next: (updated) => {
-        this.message.set('Estatus actualizado correctamente.');
+        this.message.set('Estado actualizado correctamente.');
         this.selectedEmployee.set(updated);
         this.loadEmployees();
       },
@@ -347,7 +528,8 @@ export class WorkforcePage implements OnInit {
       return;
     }
 
-    this.api.deactivateEmployee(this.selectedOrganizationId(), employee.idEmployee).subscribe({
+    this.saving.set(true);
+    this.api.deactivateEmployee(this.selectedOrganizationId(), employee.idEmployee).pipe(finalize(() => this.saving.set(false))).subscribe({
       next: () => {
         this.message.set('Empleado desactivado correctamente.');
         this.selectedEmployee.set(null);
@@ -435,7 +617,8 @@ export class WorkforcePage implements OnInit {
       return;
     }
 
-    this.api.deactivateDocument(this.selectedOrganizationId(), employee.idEmployee, document.idEmployeeDocument).subscribe({
+    this.saving.set(true);
+    this.api.deactivateDocument(this.selectedOrganizationId(), employee.idEmployee, document.idEmployeeDocument).pipe(finalize(() => this.saving.set(false))).subscribe({
       next: () => {
         this.message.set('Documento desactivado correctamente.');
         this.selectEmployee(employee);
@@ -517,8 +700,10 @@ export class WorkforcePage implements OnInit {
       return;
     }
 
+    this.saving.set(true);
     this.api
       .deactivateEvaluation(this.selectedOrganizationId(), employee.idEmployee, evaluation.idEmployeeEvaluation)
+      .pipe(finalize(() => this.saving.set(false)))
       .subscribe({
         next: () => {
           this.message.set('Evaluación desactivada correctamente.');
@@ -528,30 +713,305 @@ export class WorkforcePage implements OnInit {
       });
   }
 
+  protected openCreateSkill(): void {
+    if (!this.selectedEmployee()) {
+      return;
+    }
+
+    this.editingSkill.set(null);
+    this.skillForm.reset({
+      idSkillCatalogItem: this.skillCatalog()[0]?.idCatalogItem ?? '',
+      acquiredDate: '',
+      expiresDate: '',
+      notes: '',
+    });
+    this.skillEditorOpen.set(true);
+  }
+
+  protected openEditSkill(skill: EmployeeSkill): void {
+    this.editingSkill.set(skill);
+    this.skillForm.reset({
+      idSkillCatalogItem: skill.idSkillCatalogItem,
+      acquiredDate: this.dateOnly(skill.acquiredDate),
+      expiresDate: this.dateOnly(skill.expiresDate),
+      notes: skill.notes ?? '',
+    });
+    this.skillEditorOpen.set(true);
+  }
+
+  protected saveSkill(): void {
+    const employee = this.selectedEmployee();
+    if (!employee || this.skillForm.invalid) {
+      this.skillForm.markAllAsTouched();
+      return;
+    }
+
+    const form = this.skillForm.getRawValue();
+    const input: EmployeeSkillInput = {
+      idOrganization: this.selectedOrganizationId(),
+      idEmployee: employee.idEmployee,
+      idSkillCatalogItem: form.idSkillCatalogItem,
+      acquiredDate: this.optional(form.acquiredDate),
+      expiresDate: this.optional(form.expiresDate),
+      notes: this.optional(form.notes),
+    };
+    const editing = this.editingSkill();
+    const request = editing
+      ? this.catalogApi.updateEmployeeSkill(employee.idEmployee, editing.idEmployeeSkill, input)
+      : this.catalogApi.createEmployeeSkill(employee.idEmployee, input);
+
+    this.saving.set(true);
+    request.pipe(finalize(() => this.saving.set(false))).subscribe({
+      next: () => {
+        this.skillEditorOpen.set(false);
+        this.message.set(editing ? 'Habilidad actualizada correctamente.' : 'Habilidad agregada correctamente.');
+        this.loadEmployeeSkills(employee.idEmployee);
+      },
+      error: (error: HttpErrorResponse) => this.setError(error),
+    });
+  }
+
+  protected deactivateSkill(skill: EmployeeSkill): void {
+    const employee = this.selectedEmployee();
+    if (!employee || !window.confirm('¿Deseas desactivar esta habilidad?')) {
+      return;
+    }
+
+    this.saving.set(true);
+    this.catalogApi.deactivateEmployeeSkill(this.selectedOrganizationId(), employee.idEmployee, skill.idEmployeeSkill).pipe(finalize(() => this.saving.set(false))).subscribe({
+      next: () => {
+        this.message.set('Habilidad desactivada correctamente.');
+        this.loadEmployeeSkills(employee.idEmployee);
+      },
+      error: (error: HttpErrorResponse) => this.setError(error),
+    });
+  }
+
   protected closeEditors(): void {
     this.employeeEditorOpen.set(false);
     this.documentEditorOpen.set(false);
     this.evaluationEditorOpen.set(false);
+    this.skillEditorOpen.set(false);
+  }
+
+  protected skillName(idCatalogItem: string): string {
+    return this.skillCatalog().find((skill) => skill.idCatalogItem === idCatalogItem)?.name ?? 'Habilidad sin catálogo';
   }
 
   protected statusLabel(status: EmployeeStatus): string {
-    return this.employeeStatuses.find((item) => item.value === status)?.label ?? status;
+    return this.employeeStatuses.find((item) => item.value === status)?.label ?? 'Sin estado';
   }
 
   protected documentTypeLabel(type: EmployeeDocumentType): string {
-    return this.documentTypes.find((item) => item.value === type)?.label ?? type;
+    return this.documentTypes.find((item) => item.value === type)?.label ?? 'Documento';
   }
 
   protected documentStatusLabel(status: EmployeeDocumentStatus): string {
-    return this.documentStatuses.find((item) => item.value === status)?.label ?? status;
+    return this.documentStatuses.find((item) => item.value === status)?.label ?? 'Sin estado';
   }
 
   protected evaluationTypeLabel(type: EmployeeEvaluationType): string {
-    return this.evaluationTypes.find((item) => item.value === type)?.label ?? type;
+    return this.evaluationTypes.find((item) => item.value === type)?.label ?? 'Evaluación';
   }
 
   protected evaluationResultLabel(result: EmployeeEvaluationResult): string {
-    return this.evaluationResults.find((item) => item.value === result)?.label ?? result;
+    return this.evaluationResults.find((item) => item.value === result)?.label ?? 'Sin resultado';
+  }
+
+  protected compactReference(value: string | null): string {
+    if (!value) {
+      return '';
+    }
+
+    return value.length > 48 ? `${value.slice(0, 24)}…${value.slice(-14)}` : value;
+  }
+
+  protected maskedPersonalReference(value: string | null): string {
+    if (!value) {
+      return 'Sin dato capturado';
+    }
+
+    if (this.canViewSensitivePersonalData()) {
+      return value;
+    }
+
+    return value.length > 4 ? `•••• ${value.slice(-4)}` : 'Dato reservado';
+  }
+
+  protected employeeServiceLabel(_employee: Employee): string {
+    return 'Sin asignación visible';
+  }
+
+  protected employeeSiteLabel(_employee: Employee): string {
+    return 'Sin sede visible';
+  }
+
+  protected employmentStatusLabel(status: EmployeeStatus): string {
+    if (status === 'Active') {
+      return 'Activo';
+    }
+
+    if (status === 'OnLeave') {
+      return 'Suspendido';
+    }
+
+    if (status === 'Terminated') {
+      return 'Baja';
+    }
+
+    return 'Inactivo';
+  }
+
+  protected employeeStage(employee: Employee): EmployeeFileStageFilter {
+    if (employee.status === 'Candidate') {
+      return 'candidate';
+    }
+
+    if (employee.status === 'Terminated') {
+      return 'rejected';
+    }
+
+    if (employee.status !== 'Active') {
+      return 'review';
+    }
+
+    if (this.selectedEmployee()?.idEmployee === employee.idEmployee) {
+      return this.employeeFileComplete() ? 'complete' : 'review';
+    }
+
+    return 'review';
+  }
+
+  protected employeeStageLabel(employee: Employee): string {
+    const stage = this.employeeStage(employee);
+    const labels: Record<EmployeeFileStageFilter, string> = {
+      all: 'Todas',
+      candidate: 'Candidato',
+      capture: 'Captura',
+      review: 'En revisión',
+      complete: 'Completo',
+      rejected: 'Rechazado',
+    };
+
+    return labels[stage];
+  }
+
+  protected employeeFileStatus(employee: Employee): string {
+    return this.selectedEmployee()?.idEmployee === employee.idEmployee && this.employeeFileComplete()
+      ? 'Completo'
+      : 'Incompleto';
+  }
+
+  protected assignmentBlockedReason(employee = this.selectedEmployee()): string {
+    if (!employee) {
+      return 'Selecciona un empleado para revisar asignación.';
+    }
+
+    if (employee.status !== 'Active') {
+      return `El estado laboral actual es ${this.employmentStatusLabel(employee.status)}.`;
+    }
+
+    if (!this.hasValidDocument('VoterId')) {
+      return 'Falta INE obligatoria validada.';
+    }
+
+    if (!this.skills().length) {
+      return 'Falta una habilidad requerida.';
+    }
+
+    if (!this.hasApprovedEvaluation()) {
+      return 'Falta evaluación aprobada o vigente.';
+    }
+
+    return '';
+  }
+
+  protected employeeFileComplete(): boolean {
+    return this.hasValidDocument('VoterId') && this.hasValidDocument('Curp') && this.hasValidDocument('SocialSecurityNumber');
+  }
+
+  protected employeeIsAssignable(employee: Employee): boolean {
+    const report = this.eligibilityForEmployee(employee.idEmployee);
+    if (report) {
+      return employee.status === 'Active' && report.isEligible;
+    }
+
+    if (this.selectedEmployee()?.idEmployee === employee.idEmployee) {
+      return !this.assignmentBlockedReason(employee);
+    }
+
+    return employee.status === 'Active';
+  }
+
+  protected eligibilityBadge(employee: Employee): string {
+    return this.employeeIsAssignable(employee) ? 'Elegible' : 'No elegible';
+  }
+
+  protected eligibilityState(employee: Employee): 'ok' | 'warn' {
+    return this.employeeIsAssignable(employee) ? 'ok' : 'warn';
+  }
+
+  protected isExpired(value: string | null): boolean {
+    return Boolean(value && value < this.today());
+  }
+
+  protected shortDate(value: string | null): string {
+    return value ? value.slice(0, 10) : 'sin actualización';
+  }
+
+  protected itemStateClass(state: EmployeeEligibilityItem['state']): string {
+    return `is-${state}`;
+  }
+
+  protected documentRequirementStatus(type: EmployeeDocumentType): string {
+    const document = this.documents().find((item) => item.documentType === type && item.active);
+
+    if (!document) {
+      return 'Pendiente';
+    }
+
+    if (document.expiresDate && this.isExpired(document.expiresDate)) {
+      return 'Vencido';
+    }
+
+    return this.documentStatusLabel(document.status);
+  }
+
+  protected skillRequirementStatus(): string {
+    return this.skills().length ? 'Aprobada' : 'Faltante';
+  }
+
+  protected employeeStepIsActive(step: number): boolean {
+    return this.employeeWizardStep() === step;
+  }
+
+  protected goToEmployeeStep(step: number): void {
+    if (step < 1 || step > 6) {
+      return;
+    }
+
+    this.employeeWizardStep.set(step);
+  }
+
+  protected nextEmployeeStep(): void {
+    if (this.employeeWizardStep() < 6) {
+      this.employeeWizardStep.update((step) => step + 1);
+    }
+  }
+
+  protected previousEmployeeStep(): void {
+    if (this.employeeWizardStep() > 1) {
+      this.employeeWizardStep.update((step) => step - 1);
+    }
+  }
+
+  protected isInvalid(controlName: string): boolean {
+    const control = this.employeeForm.get(controlName);
+    return Boolean(control?.invalid && (control.touched || control.dirty));
+  }
+
+  protected employeeReadyToSave(): boolean {
+    return this.employeeForm.valid;
   }
 
   private emptyEmployeeForm() {
@@ -584,6 +1044,59 @@ export class WorkforcePage implements OnInit {
     };
   }
 
+  private loadSkillCatalog(organizationId: string): void {
+    this.catalogApi.listItems(organizationId, 'Skill').subscribe({
+      next: (items) => this.skillCatalog.set(items.filter((item) => item.active)),
+      error: (error: HttpErrorResponse) => this.setError(error),
+    });
+  }
+
+  private loadEmployeeSkills(idEmployee: string): void {
+    this.catalogApi.listEmployeeSkills(this.selectedOrganizationId(), idEmployee).subscribe({
+      next: (skills) => this.skills.set(skills),
+      error: (error: HttpErrorResponse) => this.setError(error),
+    });
+  }
+
+  private loadWorkforceEligibility(): void {
+    const organizationId = this.selectedOrganizationId();
+
+    if (!organizationId) {
+      this.workforceEligibility.set([]);
+      return;
+    }
+
+    this.clientApi.getWorkforceEligibility(organizationId, this.today(), this.search()).subscribe({
+      next: (result) => this.workforceEligibility.set(result),
+      error: () => this.workforceEligibility.set([]),
+    });
+  }
+
+  private eligibilityForEmployee(idEmployee: string): WorkforceEligibilityReport | null {
+    return this.workforceEligibility().find((employee) => employee.idEmployee === idEmployee) ?? null;
+  }
+
+  private basicEmployeeEligibility(employee: Employee): boolean {
+    return employee.status === 'Active';
+  }
+
+  protected hasValidDocument(type: EmployeeDocumentType): boolean {
+    return this.documents().some((document) =>
+      document.documentType === type &&
+      document.active &&
+      document.status === 'Validated' &&
+      (!document.expiresDate || document.expiresDate >= this.today()),
+    );
+  }
+
+  protected hasApprovedEvaluation(): boolean {
+    return this.evaluations().some((evaluation) =>
+      evaluation.active &&
+      ['Approved', 'ApprovedWithObservations'].includes(evaluation.result) &&
+      (!evaluation.expiresDate || evaluation.expiresDate >= this.today()),
+    );
+  }
+
   private optional(value: string): string | null {
     const normalized = value.trim();
     return normalized ? normalized : null;
@@ -605,3 +1118,15 @@ export class WorkforcePage implements OnInit {
     this.error.set(typeof detail === 'string' ? detail : 'No fue posible completar la operación.');
   }
 }
+
+type EmployeeTab = 'summary' | 'documents' | 'evaluations' | 'skills' | 'assignments';
+type EmployeeEligibilityFilter = 'all' | 'eligible' | 'review';
+type EmployeeFileStageFilter = 'all' | 'candidate' | 'capture' | 'review' | 'complete' | 'rejected';
+type EmployeeDocumentFilter = 'all' | 'valid' | 'pending';
+type EmployeeSkillFilter = 'all' | 'withSkills' | 'missing';
+
+type EmployeeEligibilityItem = {
+  readonly state: 'ok' | 'warn' | 'fail';
+  readonly label: string;
+  readonly hint: string;
+};

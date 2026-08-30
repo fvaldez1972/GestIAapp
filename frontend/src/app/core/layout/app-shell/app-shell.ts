@@ -62,6 +62,10 @@ export class AppShell {
       return ['Gestión', 'Documentos'];
     }
 
+    if (url.startsWith('/catalogos')) {
+      return ['Gestión', 'Catálogos'];
+    }
+
     if (url.startsWith('/planeacion')) {
       return ['Gestión', 'Planeación'];
     }

@@ -13,6 +13,7 @@ import {
   ServiceAssignment,
   ServiceAssignmentType,
   ServicePosition,
+  ShiftPattern,
 } from '../../../clients/data-access/client.models';
 import { WorkforceApiService } from '../../../workforce/data-access/workforce-api.service';
 import { Employee } from '../../../workforce/data-access/workforce.models';
@@ -39,6 +40,7 @@ export class PlanningPage implements OnInit {
   protected readonly shifts = signal<readonly ScheduledShift[]>([]);
   protected readonly publishedShifts = signal<readonly ScheduledShift[]>([]);
   protected readonly employees = signal<readonly Employee[]>([]);
+  protected readonly shiftPatterns = signal<readonly ShiftPattern[]>([]);
   protected readonly selectedOrganizationId = signal('');
   protected readonly selectedClientId = signal('');
   protected readonly selectedServiceId = signal('');
@@ -46,6 +48,14 @@ export class PlanningPage implements OnInit {
   protected readonly selectedPositionId = signal('');
   protected readonly selectedAssignmentId = signal('');
   protected readonly selectedShiftId = signal('');
+  protected readonly editingVersionId = signal('');
+  protected readonly activeTab = signal<PlanningTab>('calendar');
+  protected readonly positionDrawerOpen = signal(false);
+  protected readonly assignmentDrawerOpen = signal(false);
+  protected readonly versionDrawerOpen = signal(false);
+  protected readonly shiftDrawerOpen = signal(false);
+  protected readonly shiftDetailOpen = signal(false);
+  protected readonly conflictFilterRevision = signal(0);
   protected readonly loading = signal(false);
   protected readonly saving = signal(false);
   protected readonly message = signal('');
@@ -77,6 +87,7 @@ export class PlanningPage implements OnInit {
   protected readonly assignedEmployees = computed(
     () => new Set(this.assignments().map((assignment) => assignment.idEmployee)).size,
   );
+  protected readonly activePatterns = computed(() => this.shiftPatterns().filter((pattern) => pattern.active));
   protected readonly plannedHours = computed(() =>
     Math.round((this.shifts().reduce((total, shift) => total + shift.durationMinutes, 0) / 60) * 10) / 10,
   );
@@ -122,14 +133,221 @@ export class PlanningPage implements OnInit {
       publishedHours: this.publishedHours(),
       shiftDelta: this.shifts().length - this.publishedShifts().length,
       hourDelta: Math.round((this.plannedHours() - this.publishedHours()) * 10) / 10,
+      details: this.compareShifts(this.shifts(), this.publishedShifts()),
     };
   });
+  protected readonly planningMatrix = computed<readonly PlanningMatrixRow[]>(() =>
+    this.positions().map((position) => ({
+      position,
+      days: this.weeklyPlanning().map((day) => {
+        const shifts = day.shifts.filter((shift) => shift.idPosition === position.idPosition);
+        return {
+          date: day.date,
+          label: day.label,
+          requiredWorkerCount: position.requiredWorkerCount,
+          shifts,
+          isUnderCovered: shifts.length < position.requiredWorkerCount,
+        };
+      }),
+    })),
+  );
+  protected readonly planningValidation = computed<readonly PlanningValidationIssue[]>(() => {
+    const issues: PlanningValidationIssue[] = [];
+    const selectedVersion = this.selectedVersion();
+
+    for (const row of this.planningMatrix()) {
+      for (const day of row.days) {
+        if (day.isUnderCovered) {
+          issues.push({
+            severity: 'danger',
+            severityLabel: 'Alta',
+            type: 'uncovered',
+            label: 'Posición sin cubrir',
+            day: day.date,
+            positionId: row.position.idPosition,
+            positionName: row.position.name,
+            description: `${day.label} · ${row.position.codePosition}: ${day.shifts.length}/${day.requiredWorkerCount} persona(s) asignadas.`,
+            recommendedAction: 'Asignar personal elegible para cubrir el requerimiento.',
+            actionLabel: 'Asignar personal',
+          });
+        }
+      }
+    }
+
+    for (const day of this.weeklyPlanning()) {
+      const employeeCounts = new Map<string, { name: string; count: number }>();
+
+      for (const shift of day.shifts) {
+        const current = employeeCounts.get(shift.idEmployee) ?? { name: shift.employeeName, count: 0 };
+        employeeCounts.set(shift.idEmployee, { ...current, count: current.count + 1 });
+      }
+
+      for (const duplicate of employeeCounts.values()) {
+        if (duplicate.count > 1) {
+          const duplicateShift = day.shifts.find((shift) => shift.employeeName === duplicate.name);
+          issues.push({
+            severity: 'warning',
+            severityLabel: 'Media',
+            type: 'duplicate',
+            label: 'Empleado duplicado',
+            day: day.date,
+            positionId: duplicateShift?.idPosition ?? '',
+            positionName: duplicateShift?.positionName ?? 'Sin posición',
+            description: `${day.label} · ${duplicate.name} aparece en ${duplicate.count} turnos.`,
+            recommendedAction: 'Revisar y ajustar la asignación del día.',
+            actionLabel: 'Resolver',
+          });
+        }
+      }
+    }
+
+    if (selectedVersion) {
+      for (const shift of this.shifts()) {
+        if (shift.shiftDate < selectedVersion.periodStartDate || shift.shiftDate > selectedVersion.periodEndDate) {
+          issues.push({
+            severity: 'danger',
+            severityLabel: 'Media',
+            type: 'outOfPeriod',
+            label: 'Fuera de periodo',
+            day: shift.shiftDate,
+            positionId: shift.idPosition,
+            positionName: shift.positionName,
+            description: `${shift.shiftDate} · ${shift.employeeName} no pertenece al periodo de la versión.`,
+            recommendedAction: 'Reasignar turno dentro del periodo seleccionado.',
+            actionLabel: 'Revisar periodo',
+          });
+        }
+      }
+    }
+
+    for (const assignment of this.assignments()) {
+      if (!assignment.idPosition) {
+        issues.push({
+          severity: 'danger',
+          severityLabel: 'Alta',
+          type: 'eligibility',
+          label: 'Elegibilidad',
+          day: selectedVersion?.periodStartDate ?? '',
+          positionId: '',
+          positionName: 'Sin posición',
+          description: `${assignment.employeeName} no tiene una posición válida asignada.`,
+          recommendedAction: 'Asignar una posición antes de publicar.',
+          actionLabel: 'Ver detalle',
+        });
+      }
+    }
+
+    return issues.slice(0, 16);
+  });
+  protected readonly blockingPlanningIssues = computed(() =>
+    this.planningValidation().filter((issue) => issue.severity === 'danger'),
+  );
+  protected readonly coverageGapCount = computed(() =>
+    this.planningMatrix().reduce(
+      (total, row) =>
+        total + row.days.reduce((dayTotal, day) => dayTotal + Math.max(day.requiredWorkerCount - day.shifts.length, 0), 0),
+      0,
+    ),
+  );
+  protected readonly duplicateShiftCount = computed(() =>
+    this.planningValidation().filter((issue) => issue.label === 'Empleado duplicado').length,
+  );
+  protected readonly publishSummary = computed(() => ({
+    validShifts: Math.max(this.shifts().length - this.blockingPlanningIssues().length, 0),
+    gaps: this.coverageGapCount(),
+    conflicts: this.blockingPlanningIssues().length,
+    notEligible: this.eligibilityBlockCount(),
+  }));
+  protected readonly periodIsValid = computed(() => {
+    const version = this.selectedVersion();
+
+    if (!version) {
+      return false;
+    }
+
+    return version.periodStartDate <= version.periodEndDate;
+  });
+  protected readonly coveragePercentage = computed(() => {
+    const totalRequired = this.planningMatrix().reduce(
+      (total, row) => total + row.days.reduce((dayTotal, day) => dayTotal + day.requiredWorkerCount, 0),
+      0,
+    );
+    const covered = this.planningMatrix().reduce(
+      (total, row) => total + row.days.reduce((dayTotal, day) => dayTotal + Math.min(day.shifts.length, day.requiredWorkerCount), 0),
+      0,
+    );
+
+    return totalRequired ? Math.round((covered / totalRequired) * 100) : 0;
+  });
+  protected readonly eligibilityBlockCount = computed(() =>
+    this.assignments().filter((assignment) => !assignment.idPosition).length,
+  );
+  protected readonly canPublishSelectedVersion = computed(() => {
+    const version = this.selectedVersion();
+
+    return Boolean(
+      version &&
+      version.status === 'Draft' &&
+      this.shifts().length > 0 &&
+      this.periodIsValid() &&
+      this.coverageGapCount() === 0 &&
+      this.blockingPlanningIssues().length === 0 &&
+      this.eligibilityBlockCount() === 0,
+    );
+  });
+  protected readonly publishPreparation = computed<readonly PublishPreparationItem[]>(() => [
+    {
+      label: 'Periodo válido',
+      detail: this.selectedVersion()
+        ? `${this.selectedVersion()?.periodStartDate} — ${this.selectedVersion()?.periodEndDate}`
+        : 'Selecciona una versión',
+      state: this.periodIsValid() ? 'ok' : 'blocked',
+    },
+    {
+      label: 'Cobertura completa',
+      detail: `${this.coveragePercentage()}% de cobertura · ${this.coverageGapCount()} hueco(s)`,
+      state: this.coverageGapCount() === 0 ? 'ok' : 'warning',
+    },
+    {
+      label: 'Personal elegible',
+      detail: `${this.eligibilityBlockCount()} bloqueo(s) detectado(s)`,
+      state: this.eligibilityBlockCount() === 0 ? 'ok' : 'blocked',
+    },
+    {
+      label: 'Sin conflictos',
+      detail: `${this.blockingPlanningIssues().length} conflicto(s) abiertos`,
+      state: this.blockingPlanningIssues().length === 0 ? 'ok' : 'blocked',
+    },
+  ]);
+  protected readonly filteredPlanningConflicts = computed(() => {
+    this.conflictFilterRevision();
+    const filters = this.conflictFilterForm.getRawValue();
+
+    return this.planningValidation().filter(
+      (issue) =>
+        (!filters.type || issue.type === filters.type) &&
+        (!filters.severity || issue.severityLabel === filters.severity) &&
+        (!filters.day || issue.day === filters.day) &&
+        (!filters.position || issue.positionId === filters.position),
+    );
+  });
+  protected readonly conflictDays = computed(() =>
+    [...new Set(this.planningValidation().map((issue) => issue.day).filter(Boolean))].sort(),
+  );
 
   protected readonly assignmentTypes: readonly { value: ServiceAssignmentType; label: string }[] = [
     { value: 'Primary', label: 'Titular' },
     { value: 'Support', label: 'Apoyo' },
     { value: 'Relief', label: 'Relevo' },
     { value: 'TemporaryReplacement', label: 'Sustitución temporal' },
+  ];
+
+  protected readonly tabs: readonly { value: PlanningTab; label: string; help: string }[] = [
+    { value: 'calendar', label: 'Calendario', help: 'Semana visual por posición.' },
+    { value: 'positions', label: 'Posiciones', help: 'Puestos y personal asignado.' },
+    { value: 'patterns', label: 'Patrones', help: 'Generación automática.' },
+    { value: 'versions', label: 'Versiones', help: 'Borradores y publicación.' },
+    { value: 'conflicts', label: 'Conflictos', help: 'Validación previa.' },
   ];
 
   protected readonly positionForm = this.formBuilder.nonNullable.group({
@@ -151,10 +369,19 @@ export class PlanningPage implements OnInit {
   });
 
   protected readonly versionForm = this.formBuilder.nonNullable.group({
+    idService: [''],
+    baseVersionId: [''],
     name: [`Planeación ${this.today()}`, [Validators.required, Validators.maxLength(160)]],
     periodStartDate: [this.today(), [Validators.required]],
     periodEndDate: [this.addDays(6), [Validators.required]],
-    notes: [''],
+    notes: ['', [Validators.required, Validators.maxLength(1000)]],
+  });
+
+  protected readonly conflictFilterForm = this.formBuilder.nonNullable.group({
+    type: ['' as PlanningConflictType | ''],
+    severity: ['' as PlanningConflictSeverity | ''],
+    day: [''],
+    position: [''],
   });
 
   protected readonly shiftForm = this.formBuilder.nonNullable.group({
@@ -207,6 +434,84 @@ export class PlanningPage implements OnInit {
     this.loadPlanningData();
   }
 
+  protected setActiveTab(tab: PlanningTab) {
+    this.activeTab.set(tab);
+  }
+
+  protected openNewPosition() {
+    this.resetPositionForm();
+    this.positionDrawerOpen.set(true);
+  }
+
+  protected closePositionDrawer() {
+    this.positionDrawerOpen.set(false);
+  }
+
+  protected openNewAssignment() {
+    this.resetAssignmentForm();
+    this.assignmentDrawerOpen.set(true);
+  }
+
+  protected closeAssignmentDrawer() {
+    this.assignmentDrawerOpen.set(false);
+  }
+
+  protected openNewVersion() {
+    this.prepareNewVersionForm();
+    this.versionDrawerOpen.set(true);
+  }
+
+  protected editSelectedVersion() {
+    const version = this.selectedVersion();
+    if (!version) {
+      return;
+    }
+
+    this.editingVersionId.set(version.idScheduleVersion);
+    this.versionForm.patchValue({
+      idService: this.selectedServiceId(),
+      baseVersionId: '',
+      name: version.name,
+      periodStartDate: version.periodStartDate,
+      periodEndDate: version.periodEndDate,
+      notes: version.notes ?? '',
+    });
+    this.versionDrawerOpen.set(true);
+  }
+
+  protected closeVersionDrawer() {
+    if (!this.editingVersionId()) {
+      this.message.set('Cambios descartados. La nueva versión no fue creada. Se mantiene la versión seleccionada.');
+    }
+
+    this.editingVersionId.set('');
+    this.versionDrawerOpen.set(false);
+  }
+
+  protected openNewShift(positionId?: string, date?: string) {
+    this.resetShiftForm();
+    this.shiftForm.patchValue({
+      idPosition: positionId || this.positions()[0]?.idPosition || '',
+      shiftDate: date || this.selectedVersion()?.periodStartDate || this.today(),
+    });
+    this.shiftDrawerOpen.set(true);
+    this.shiftDetailOpen.set(false);
+  }
+
+  protected openEditShift(shift: ScheduledShift) {
+    this.patchShiftForm(shift);
+    this.shiftDrawerOpen.set(true);
+    this.shiftDetailOpen.set(false);
+  }
+
+  protected closeShiftDrawer() {
+    this.shiftDrawerOpen.set(false);
+  }
+
+  protected closeShiftDetail() {
+    this.shiftDetailOpen.set(false);
+  }
+
   protected savePosition() {
     const context = this.context();
 
@@ -239,6 +544,7 @@ export class PlanningPage implements OnInit {
         next: (position) => {
           this.message.set(selectedPositionId ? 'Posición actualizada correctamente.' : 'Posición creada correctamente.');
           this.selectedPositionId.set(position.idPosition);
+          this.positionDrawerOpen.set(false);
           this.loadPlanningData(position.idPosition);
         },
         error: (error: HttpErrorResponse) => this.setError(error, selectedPositionId ? 'No se pudo actualizar la posición.' : 'No se pudo crear la posición.'),
@@ -279,6 +585,7 @@ export class PlanningPage implements OnInit {
     operation.subscribe({
         next: () => {
           this.message.set(selectedAssignmentId ? 'Asignación actualizada correctamente.' : 'Personal asignado correctamente.');
+          this.assignmentDrawerOpen.set(false);
           this.loadPlanningData();
         },
         error: (error: HttpErrorResponse) => this.setError(error, selectedAssignmentId ? 'No se pudo actualizar la asignación.' : 'No se pudo asignar el personal.'),
@@ -295,6 +602,11 @@ export class PlanningPage implements OnInit {
     }
 
     const form = this.versionForm.getRawValue();
+
+    if (form.periodStartDate > form.periodEndDate) {
+      this.error.set('El periodo no es válido. La fecha inicial debe ser anterior o igual a la fecha final.');
+      return;
+    }
     const payload = {
       idOrganization: context.idOrganization,
       idClient: context.idClient,
@@ -306,18 +618,20 @@ export class PlanningPage implements OnInit {
     };
     this.beginSave();
 
-    const selectedVersionId = this.selectedVersionId();
-    const operation = selectedVersionId
-      ? this.api.updateScheduleVersion(context.idClient, context.idService, selectedVersionId, payload)
+    const editingVersionId = this.editingVersionId();
+    const operation = editingVersionId
+      ? this.api.updateScheduleVersion(context.idClient, context.idService, editingVersionId, payload)
       : this.api.createScheduleVersion(context.idClient, context.idService, payload);
 
     operation.subscribe({
         next: (version) => {
-          this.message.set(selectedVersionId ? 'Versión actualizada correctamente.' : 'Versión de planeación creada correctamente.');
+          this.message.set(editingVersionId ? 'Versión actualizada correctamente.' : 'Borrador creado correctamente.');
           this.selectedVersionId.set(version.idScheduleVersion);
+          this.editingVersionId.set('');
+          this.versionDrawerOpen.set(false);
           this.loadPlanningData(undefined, version.idScheduleVersion);
         },
-        error: (error: HttpErrorResponse) => this.setError(error, selectedVersionId ? 'No se pudo actualizar la versión.' : 'No se pudo crear la versión de planeación.'),
+        error: (error: HttpErrorResponse) => this.setError(error, editingVersionId ? 'No se pudo actualizar la versión.' : 'No se pudo crear la versión de planeación.'),
         complete: () => this.saving.set(false),
       });
   }
@@ -355,6 +669,7 @@ export class PlanningPage implements OnInit {
     operation.subscribe({
         next: () => {
           this.message.set(selectedShiftId ? 'Turno actualizado correctamente.' : 'Turno agregado a la planeación.');
+          this.shiftDrawerOpen.set(false);
           this.loadShifts();
         },
         error: (error: HttpErrorResponse) => this.setError(error, selectedShiftId ? 'No se pudo actualizar el turno.' : 'No se pudo agregar el turno.'),
@@ -371,6 +686,7 @@ export class PlanningPage implements OnInit {
       requiredSkillProfile: position.requiredSkillProfile ?? '',
       notes: position.notes ?? '',
     });
+    this.positionDrawerOpen.set(true);
   }
 
   protected resetPositionForm() {
@@ -416,6 +732,7 @@ export class PlanningPage implements OnInit {
       isPrimary: assignment.isPrimary,
       notes: assignment.notes ?? '',
     });
+    this.assignmentDrawerOpen.set(true);
   }
 
   protected resetAssignmentForm() {
@@ -465,18 +782,29 @@ export class PlanningPage implements OnInit {
   }
 
   protected resetVersionForm() {
-    this.selectedVersionId.set('');
+    this.prepareNewVersionForm();
+  }
+
+  protected prepareNewVersionForm() {
+    const currentVersionId = this.selectedVersionId();
+    this.editingVersionId.set('');
     this.versionForm.reset({
+      idService: this.selectedServiceId(),
+      baseVersionId: currentVersionId,
       name: `Planeación ${this.today()}`,
       periodStartDate: this.today(),
       periodEndDate: this.addDays(6),
       notes: '',
     });
-    this.shifts.set([]);
-    this.resetShiftForm();
   }
 
   protected selectShift(shift: ScheduledShift) {
+    this.patchShiftForm(shift);
+    this.shiftDetailOpen.set(true);
+    this.shiftDrawerOpen.set(false);
+  }
+
+  private patchShiftForm(shift: ScheduledShift) {
     this.selectedShiftId.set(shift.idScheduledShift);
     this.shiftForm.patchValue({
       idPosition: shift.idPosition,
@@ -487,6 +815,29 @@ export class PlanningPage implements OnInit {
       isOvernight: shift.isOvernight,
       notes: shift.notes ?? '',
     });
+  }
+
+  protected onShiftDragStart(shift: ScheduledShift) {
+    this.selectedShiftId.set(shift.idScheduledShift);
+  }
+
+  protected onMatrixDragOver(event: DragEvent) {
+    event.preventDefault();
+  }
+
+  protected onMatrixDrop(event: DragEvent, position: ServicePosition, date: string) {
+    event.preventDefault();
+    const shift = this.selectedShift();
+
+    if (!shift || !this.canWrite() || this.saving()) {
+      return;
+    }
+
+    this.shiftForm.patchValue({
+      idPosition: position.idPosition,
+      shiftDate: date,
+    });
+    this.saveShift();
   }
 
   protected resetShiftForm() {
@@ -518,6 +869,8 @@ export class PlanningPage implements OnInit {
           this.message.set('Turno desactivado correctamente.');
           if (this.selectedShiftId() === shift.idScheduledShift) {
             this.resetShiftForm();
+            this.shiftDetailOpen.set(false);
+            this.shiftDrawerOpen.set(false);
           }
           this.loadShifts();
         },
@@ -526,11 +879,191 @@ export class PlanningPage implements OnInit {
       });
   }
 
+  protected scheduleStatusLabel(status: ScheduleVersion['status']) {
+    switch (status) {
+      case 'Published':
+        return 'Publicada';
+      case 'Superseded':
+        return 'Reemplazada';
+      default:
+        return 'Borrador';
+    }
+  }
+
+  protected visualScheduleStatusLabel(version: ScheduleVersion) {
+    const hasBlockingIssues = version.idScheduleVersion === this.selectedVersionId() && this.blockingPlanningIssues().length > 0;
+    const hasAuditableException = Boolean(version.notes?.toLowerCase().includes('excepción'));
+
+    if (version.status === 'Published' && hasBlockingIssues && hasAuditableException) {
+      return 'Publicada con excepción';
+    }
+
+    if (version.status === 'Published' && hasBlockingIssues) {
+      return 'Bloqueada';
+    }
+
+    if (version.status === 'Draft' && hasBlockingIssues) {
+      return 'Borrador con conflictos';
+    }
+
+    return this.scheduleStatusLabel(version.status);
+  }
+
+  protected visualScheduleStatusClass(version: ScheduleVersion) {
+    const label = this.visualScheduleStatusLabel(version);
+
+    if (label === 'Publicada') {
+      return 'mini-pill is-success';
+    }
+
+    if (label === 'Publicada con excepción') {
+      return 'mini-pill is-warning';
+    }
+
+    if (label === 'Bloqueada' || label === 'Borrador con conflictos') {
+      return 'mini-pill is-danger';
+    }
+
+    if (label === 'Reemplazada') {
+      return 'mini-pill is-muted';
+    }
+
+    return 'mini-pill';
+  }
+
+  protected scheduleStatusClass(status: ScheduleVersion['status']) {
+    switch (status) {
+      case 'Published':
+        return 'mini-pill is-success';
+      case 'Superseded':
+        return 'mini-pill is-muted';
+      default:
+        return 'mini-pill';
+    }
+  }
+
+  protected assignmentTypeLabel(type: ServiceAssignmentType) {
+    return this.assignmentTypes.find((item) => item.value === type)?.label ?? 'Asignación';
+  }
+
+  protected formatHours(minutes: number) {
+    const hours = Math.round((minutes / 60) * 10) / 10;
+    return `${hours} h`;
+  }
+
+  protected formatDate(date: string) {
+    return new Intl.DateTimeFormat('es-MX', {
+      weekday: 'short',
+      day: '2-digit',
+      month: 'short',
+    }).format(new Date(`${date}T00:00:00`));
+  }
+
+  protected matrixCellState(cell: PlanningMatrixCell) {
+    if (cell.shifts.length === 0) {
+      return { icon: '○', label: 'Sin asignar', tone: 'empty' };
+    }
+
+    if (cell.isUnderCovered) {
+      return { icon: '⚠', label: 'Cobertura parcial', tone: 'warning' };
+    }
+
+    if (cell.shifts.some((shift) => this.shiftIssues(shift).length > 0)) {
+      return { icon: '✕', label: 'Conflicto', tone: 'danger' };
+    }
+
+    return { icon: '✓', label: 'Asignado', tone: 'success' };
+  }
+
+  protected shiftIssues(shift: ScheduledShift): readonly string[] {
+    const issues: string[] = [];
+    const version = this.selectedVersion();
+
+    if (version && (shift.shiftDate < version.periodStartDate || shift.shiftDate > version.periodEndDate)) {
+      issues.push('Turno fuera del periodo de la versión.');
+    }
+
+    const sameDayEmployeeShifts = this.shifts().filter(
+      (item) => item.shiftDate === shift.shiftDate && item.idEmployee === shift.idEmployee,
+    );
+
+    if (sameDayEmployeeShifts.length > 1) {
+      issues.push('Empleado asignado más de una vez en el mismo día.');
+    }
+
+    return issues;
+  }
+
+  protected selectedShiftEligibilityLabel() {
+    return 'Se valida con reglas de elegibilidad al guardar/asignar y antes de operar.';
+  }
+
+  protected preparationIcon(state: PublishPreparationItem['state']) {
+    if (state === 'ok') {
+      return '✓';
+    }
+
+    return state === 'warning' ? '⚠' : '✕';
+  }
+
+  protected conflictTypeLabel(type: PlanningConflictType) {
+    switch (type) {
+      case 'uncovered':
+        return 'Posiciones sin cubrir';
+      case 'duplicate':
+        return 'Duplicados';
+      case 'outOfPeriod':
+        return 'Fuera de periodo';
+      case 'eligibility':
+        return 'Elegibilidad';
+    }
+  }
+
+  protected conflictCount(type: PlanningConflictType) {
+    return this.planningValidation().filter((issue) => issue.type === type).length;
+  }
+
+  protected refreshConflictFilters() {
+    this.conflictFilterRevision.update((value) => value + 1);
+  }
+
+  protected clearConflictFilters() {
+    this.conflictFilterForm.reset({ type: '', severity: '', day: '', position: '' });
+    this.refreshConflictFilters();
+  }
+
+  protected resolveConflict(issue: PlanningValidationIssue) {
+    if (issue.type === 'uncovered' || issue.type === 'eligibility') {
+      this.activeTab.set('positions');
+      this.openNewAssignment();
+      return;
+    }
+
+    if (issue.type === 'outOfPeriod') {
+      this.editSelectedVersion();
+      return;
+    }
+
+    this.activeTab.set('calendar');
+  }
+
   protected publishVersion() {
     const context = this.context();
     const versionId = this.selectedVersionId();
 
     if (!context || !versionId || !this.canWrite()) {
+      return;
+    }
+
+    if (!this.canPublishSelectedVersion()) {
+      this.error.set('No disponible hasta resolver bloqueos. Corrige conflictos, huecos obligatorios o personal no elegible antes de publicar.');
+      return;
+    }
+
+    const replacementMessage = this.publishedVersion()
+      ? ' Si existe una planeación publicada traslapada, será reemplazada.'
+      : '';
+    if (!window.confirm(`¿Publicar la planeación seleccionada?${replacementMessage}`)) {
       return;
     }
 
@@ -552,6 +1085,10 @@ export class PlanningPage implements OnInit {
     const version = this.selectedVersion();
 
     if (!context || !versionId || version?.status !== 'Draft' || !this.canWrite()) {
+      return;
+    }
+
+    if (!window.confirm(`¿Generar turnos para "${version.name}" desde los patrones activos?`)) {
       return;
     }
 
@@ -660,6 +1197,7 @@ export class PlanningPage implements OnInit {
         this.versions.set(versions);
         this.employees.set(employees.items);
         this.resetPlanningDefaults(preferredPositionId, preferredVersionId);
+        this.loadPatternSummary(positions);
         this.loadPublishedShifts();
         this.loadShifts();
       },
@@ -728,6 +1266,7 @@ export class PlanningPage implements OnInit {
     this.versions.set([]);
     this.shifts.set([]);
     this.publishedShifts.set([]);
+    this.shiftPatterns.set([]);
     this.employees.set([]);
     this.selectedPositionId.set('');
     this.selectedAssignmentId.set('');
@@ -744,6 +1283,24 @@ export class PlanningPage implements OnInit {
     }
 
     return { idOrganization, idClient, idService };
+  }
+
+  private loadPatternSummary(positions: readonly ServicePosition[]) {
+    const context = this.context();
+
+    if (!context || positions.length === 0) {
+      this.shiftPatterns.set([]);
+      return;
+    }
+
+    forkJoin(
+      positions.map((position) =>
+        this.api.listShiftPatterns(context.idOrganization, context.idClient, context.idService, position.idPosition),
+      ),
+    ).subscribe({
+      next: (groups) => this.shiftPatterns.set(groups.flat()),
+      error: () => this.shiftPatterns.set([]),
+    });
   }
 
   private beginSave() {
@@ -794,6 +1351,62 @@ export class PlanningPage implements OnInit {
   private nextCode(prefix: string, value: number) {
     return `${prefix}-${value.toString().padStart(3, '0')}`;
   }
+
+  private compareShifts(draftShifts: readonly ScheduledShift[], publishedShifts: readonly ScheduledShift[]) {
+    const publishedBySlot = new Map(publishedShifts.map((shift) => [this.shiftSlotKey(shift), shift]));
+    const draftBySlot = new Map(draftShifts.map((shift) => [this.shiftSlotKey(shift), shift]));
+    const details: PlanningComparisonDetail[] = [];
+
+    for (const shift of draftShifts) {
+      const published = publishedBySlot.get(this.shiftSlotKey(shift));
+
+      if (!published) {
+        details.push({
+          type: 'added',
+          label: 'Turno agregado',
+          severity: 'info',
+          description: this.shiftDescription(shift),
+        });
+        continue;
+      }
+
+      if (published.idEmployee !== shift.idEmployee) {
+        details.push({
+          type: 'employee',
+          label: 'Empleado cambiado',
+          severity: 'warning',
+          description: `${shift.shiftDate} · ${shift.positionCode}: ${published.employeeName} → ${shift.employeeName}`,
+        });
+      }
+    }
+
+    for (const shift of publishedShifts) {
+      if (!draftBySlot.has(this.shiftSlotKey(shift))) {
+        const samePositionDay = draftShifts.find(
+          (draft) => draft.shiftDate === shift.shiftDate && draft.idPosition === shift.idPosition,
+        );
+
+        details.push({
+          type: samePositionDay ? 'time' : 'removed',
+          label: samePositionDay ? 'Horario modificado' : 'Turno eliminado',
+          severity: samePositionDay ? 'warning' : 'danger',
+          description: samePositionDay
+            ? `${shift.shiftDate} · ${shift.positionCode}: ${shift.startTime}-${shift.endTime} → ${samePositionDay.startTime}-${samePositionDay.endTime}`
+            : this.shiftDescription(shift),
+        });
+      }
+    }
+
+    return details.slice(0, 20);
+  }
+
+  private shiftSlotKey(shift: ScheduledShift) {
+    return `${shift.shiftDate}|${shift.idPosition}|${shift.startTime}|${shift.endTime}|${shift.isOvernight}`;
+  }
+
+  private shiftDescription(shift: ScheduledShift) {
+    return `${shift.shiftDate} · ${shift.positionCode} · ${shift.startTime}-${shift.endTime} · ${shift.employeeName}`;
+  }
 }
 
 type PlanningDay = {
@@ -802,4 +1415,47 @@ type PlanningDay = {
   readonly shifts: readonly ScheduledShift[];
   readonly totalHours: number;
   readonly coveredPositions: number;
+};
+
+type PlanningComparisonDetail = {
+  readonly type: 'added' | 'removed' | 'employee' | 'time';
+  readonly label: string;
+  readonly severity: 'info' | 'warning' | 'danger';
+  readonly description: string;
+};
+
+type PlanningMatrixRow = {
+  readonly position: ServicePosition;
+  readonly days: readonly PlanningMatrixCell[];
+};
+
+type PlanningMatrixCell = {
+  readonly date: string;
+  readonly label: string;
+  readonly requiredWorkerCount: number;
+  readonly shifts: readonly ScheduledShift[];
+  readonly isUnderCovered: boolean;
+};
+
+type PlanningValidationIssue = {
+  readonly severity: 'warning' | 'danger';
+  readonly severityLabel: PlanningConflictSeverity;
+  readonly type: PlanningConflictType;
+  readonly label: string;
+  readonly day: string;
+  readonly positionId: string;
+  readonly positionName: string;
+  readonly description: string;
+  readonly recommendedAction: string;
+  readonly actionLabel: string;
+};
+
+type PlanningTab = 'calendar' | 'positions' | 'patterns' | 'versions' | 'conflicts';
+type PlanningConflictType = 'uncovered' | 'duplicate' | 'outOfPeriod' | 'eligibility';
+type PlanningConflictSeverity = 'Alta' | 'Media';
+
+type PublishPreparationItem = {
+  readonly label: string;
+  readonly detail: string;
+  readonly state: 'ok' | 'warning' | 'blocked';
 };

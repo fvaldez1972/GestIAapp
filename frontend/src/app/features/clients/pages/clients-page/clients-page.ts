@@ -1,7 +1,8 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { finalize, forkJoin } from 'rxjs';
+import { RouterLink } from '@angular/router';
+import { finalize, forkJoin, map, of, switchMap } from 'rxjs';
 import { WorkforceApiService } from '../../../workforce/data-access/workforce-api.service';
 import { Employee } from '../../../workforce/data-access/workforce.models';
 import { ClientApiService } from '../../data-access/client-api.service';
@@ -45,9 +46,16 @@ import {
   ShiftSegmentInput,
 } from '../../data-access/client.models';
 
+type ClientTab = 'summary' | 'sites' | 'services' | 'contracts' | 'contacts' | 'documents';
+type ClientStatusFilter = 'all' | 'active' | 'inactive';
+type ClientServiceFilter = 'all' | 'withServices' | 'withoutServices';
+type ClientSiteFilter = 'all' | 'withSite' | 'withoutSite';
+type ClientContractFilter = 'all' | 'withActiveContract' | 'withoutActiveContract';
+type ClientDocumentsFilter = 'all' | 'pending' | 'complete';
+
 @Component({
   selector: 'app-clients-page',
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, RouterLink],
   templateUrl: './clients-page.html',
   styleUrl: './clients-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -114,12 +122,102 @@ export class ClientsPage implements OnInit {
   protected readonly message = signal('');
   protected readonly error = signal('');
   protected readonly search = signal('');
+  protected readonly clientStatusFilter = signal<ClientStatusFilter>('all');
+  protected readonly clientServiceFilter = signal<ClientServiceFilter>('all');
+  protected readonly clientSiteFilter = signal<ClientSiteFilter>('all');
+  protected readonly clientContractFilter = signal<ClientContractFilter>('all');
+  protected readonly clientDocumentsFilter = signal<ClientDocumentsFilter>('all');
+  protected readonly responsibleFilter = signal('');
+  protected readonly startDateFilter = signal('');
+  protected readonly endDateFilter = signal('');
+  protected readonly activeClientTab = signal<ClientTab>('summary');
+  protected readonly clientServiceCounts = signal<Record<string, number>>({});
+  protected readonly selectedOrganization = computed(
+    () => this.organizations().find((organization) => organization.idOrganization === this.selectedOrganizationId()) ?? null,
+  );
+  protected readonly todayContext = computed(() => {
+    const date = new Intl.DateTimeFormat('es-MX', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    }).format(new Date());
+    return `Organización actual · Hoy, ${date.replace('.', '')}`;
+  });
   protected readonly selectedClientName = computed(() => this.selectedClient()?.legalName ?? 'Sin cliente seleccionado');
   protected readonly selectedServiceName = computed(() => this.selectedService()?.name ?? 'Sin servicio seleccionado');
   protected readonly selectedPositionName = computed(() => this.selectedPosition()?.name ?? 'Sin posición seleccionada');
   protected readonly selectedShiftPatternName = computed(() => this.selectedShiftPattern()?.name ?? 'Sin patrón seleccionado');
   protected readonly selectedScheduleVersionName = computed(
     () => this.selectedScheduleVersion()?.name ?? 'Sin planeación seleccionada',
+  );
+  protected readonly visibleClients = computed(() =>
+    this.result().items.filter((client) => {
+      const matchesStatus =
+        this.clientStatusFilter() === 'all' ||
+        (this.clientStatusFilter() === 'active' && client.active) ||
+        (this.clientStatusFilter() === 'inactive' && !client.active);
+      const serviceCount = this.serviceCount(client);
+      const matchesServices =
+        this.clientServiceFilter() === 'all' ||
+        (this.clientServiceFilter() === 'withServices' && serviceCount > 0) ||
+        (this.clientServiceFilter() === 'withoutServices' && serviceCount === 0);
+      const hasKnownSite =
+        (this.selectedClient()?.idClient === client.idClient && this.sites().length > 0) ||
+        Boolean(client.taxAddress?.trim());
+      const matchesSite =
+        this.clientSiteFilter() === 'all' ||
+        (this.clientSiteFilter() === 'withSite' && hasKnownSite) ||
+        (this.clientSiteFilter() === 'withoutSite' && !hasKnownSite);
+      const selectedClientContracts =
+        this.selectedClient()?.idClient === client.idClient ? this.contracts() : [];
+      const hasActiveContract = selectedClientContracts.some(
+        (contract) => contract.active && ['Executed', 'Effective'].includes(contract.status),
+      );
+      const matchesContract =
+        this.clientContractFilter() === 'all' ||
+        (this.clientContractFilter() === 'withActiveContract' && hasActiveContract) ||
+        (this.clientContractFilter() === 'withoutActiveContract' && !hasActiveContract);
+      const matchesResponsible =
+        !this.responsibleFilter().trim() ||
+        (this.selectedClient()?.idClient === client.idClient &&
+          this.contacts().some((contact) =>
+            contact.fullName.toLowerCase().includes(this.responsibleFilter().trim().toLowerCase()),
+          ));
+
+      return matchesStatus && matchesServices && matchesSite && matchesContract && matchesResponsible;
+    }),
+  );
+  protected readonly activeClientsCount = computed(() => this.result().items.filter((client) => client.active).length);
+  protected readonly knownServicesCount = computed(() =>
+    Object.values(this.clientServiceCounts()).reduce((total, count) => total + count, 0),
+  );
+  protected readonly primaryContact = computed(
+    () => this.contacts().find((contact) => contact.isPrimary) ?? this.contacts()[0] ?? null,
+  );
+  protected readonly primarySite = computed(() => this.sites()[0] ?? null);
+  protected readonly newClientDisabledReason = computed(() => {
+    if (!this.selectedOrganizationId()) {
+      return 'Selecciona o crea una organización para asociar el cliente.';
+    }
+
+    if (this.selectedOrganization()?.active === false) {
+      return 'La organización seleccionada está inactiva.';
+    }
+
+    return '';
+  });
+  protected readonly canCreateClient = computed(() => !this.newClientDisabledReason());
+  protected readonly clientTabs: readonly { value: ClientTab; label: string; count?: () => number }[] = [
+    { value: 'summary', label: 'Resumen' },
+    { value: 'sites', label: 'Sedes', count: () => this.sites().length },
+    { value: 'services', label: 'Servicios', count: () => this.services().length },
+    { value: 'contracts', label: 'Contratos', count: () => this.contracts().length },
+    { value: 'contacts', label: 'Contactos', count: () => this.contacts().length },
+    { value: 'documents', label: 'Documentos' },
+  ];
+  protected readonly currentConfiguration = computed(() => this.configurations().find((configuration) => configuration.active) ?? this.configurations()[0] ?? null);
+  protected readonly activeContractsCount = computed(() =>
+    this.contracts().filter((contract) => contract.active && ['Executed', 'Effective'].includes(contract.status)).length,
   );
 
   protected readonly contractStatuses: readonly { value: ServiceContractStatus; label: string }[] = [
@@ -169,6 +267,7 @@ export class ClientsPage implements OnInit {
     codeOrganization: ['', [Validators.required, Validators.maxLength(30)]],
     legalName: ['', [Validators.required, Validators.maxLength(200)]],
     rfc: ['', [Validators.maxLength(13)]],
+    status: ['active'],
   });
 
   protected readonly clientForm = this.formBuilder.nonNullable.group({
@@ -180,6 +279,9 @@ export class ClientsPage implements OnInit {
     taxActivity: ['', [Validators.maxLength(300)]],
     taxAddress: ['', [Validators.maxLength(500)]],
     employerRegistrationNumber: ['', [Validators.maxLength(30)]],
+    contactFullName: ['', [Validators.maxLength(200)]],
+    contactPhone: ['', [Validators.maxLength(30)]],
+    contactEmail: ['', [Validators.email, Validators.maxLength(254)]],
   });
 
   protected readonly siteForm = this.formBuilder.nonNullable.group({
@@ -312,7 +414,7 @@ export class ClientsPage implements OnInit {
       .subscribe({
         next: (organizations) => {
           this.organizations.set(organizations);
-          const organizationId = preferredId ?? this.selectedOrganizationId() ?? organizations[0]?.idOrganization ?? '';
+          const organizationId = this.resolveOrganizationSelection(preferredId, organizations);
           this.selectedOrganizationId.set(organizationId);
           if (organizationId) {
             this.loadClients(1);
@@ -349,6 +451,79 @@ export class ClientsPage implements OnInit {
     this.search.set(value);
   }
 
+  protected updateClientStatusFilter(value: ClientStatusFilter): void {
+    this.clientStatusFilter.set(value);
+  }
+
+  protected updateClientServiceFilter(value: ClientServiceFilter): void {
+    this.clientServiceFilter.set(value);
+  }
+
+  protected updateClientSiteFilter(value: ClientSiteFilter): void {
+    this.clientSiteFilter.set(value);
+  }
+
+  protected updateClientContractFilter(value: ClientContractFilter): void {
+    this.clientContractFilter.set(value);
+  }
+
+  protected updateClientDocumentsFilter(value: ClientDocumentsFilter): void {
+    this.clientDocumentsFilter.set(value);
+  }
+
+  protected updateResponsibleFilter(value: string): void {
+    this.responsibleFilter.set(value);
+  }
+
+  protected updateStartDateFilter(value: string): void {
+    this.startDateFilter.set(value);
+  }
+
+  protected updateEndDateFilter(value: string): void {
+    this.endDateFilter.set(value);
+  }
+
+  protected clearFilters(): void {
+    this.search.set('');
+    this.clientStatusFilter.set('all');
+    this.clientServiceFilter.set('all');
+    this.clientSiteFilter.set('all');
+    this.clientContractFilter.set('all');
+    this.clientDocumentsFilter.set('all');
+    this.responsibleFilter.set('');
+    this.startDateFilter.set('');
+    this.endDateFilter.set('');
+    this.loadClients(1);
+  }
+
+  protected applySavedFilter(filter: 'active' | 'withoutContract' | 'pendingDocuments' | 'withServices'): void {
+    if (filter === 'active') {
+      this.clientStatusFilter.set('active');
+    }
+
+    if (filter === 'withoutContract') {
+      this.clientContractFilter.set('withoutActiveContract');
+    }
+
+    if (filter === 'pendingDocuments') {
+      this.clientDocumentsFilter.set('pending');
+    }
+
+    if (filter === 'withServices') {
+      this.clientServiceFilter.set('withServices');
+    }
+  }
+
+  protected updatePageSize(value: string): void {
+    const pageSize = Number(value) || 20;
+    this.result.update((result) => ({ ...result, pageSize }));
+    this.loadClients(1);
+  }
+
+  protected showClientTab(tab: ClientTab): void {
+    this.activeClientTab.set(tab);
+  }
+
   protected loadClients(page = this.result().page): void {
     const organizationId = this.selectedOrganizationId();
     if (!organizationId) {
@@ -364,6 +539,7 @@ export class ClientsPage implements OnInit {
       .subscribe({
         next: (result) => {
           this.result.set(result);
+          this.loadClientServiceCounts(result.items);
           const current = this.selectedClient();
           if (!current && result.items.length) {
             this.selectClient(result.items[0]);
@@ -391,6 +567,7 @@ export class ClientsPage implements OnInit {
 
   protected selectClient(client: Client): void {
     this.selectedClient.set(client);
+    this.activeClientTab.set('summary');
     this.loadClientDetail(client);
   }
 
@@ -442,7 +619,7 @@ export class ClientsPage implements OnInit {
   }
 
   protected openCreateOrganization(): void {
-    this.organizationForm.reset({ codeOrganization: '', legalName: '', rfc: '' });
+    this.organizationForm.reset({ codeOrganization: '', legalName: '', rfc: '', status: 'active' });
     this.organizationEditorOpen.set(true);
   }
 
@@ -483,6 +660,9 @@ export class ClientsPage implements OnInit {
       taxActivity: '',
       taxAddress: '',
       employerRegistrationNumber: '',
+      contactFullName: '',
+      contactPhone: '',
+      contactEmail: '',
     });
     this.clientEditorOpen.set(true);
   }
@@ -498,6 +678,9 @@ export class ClientsPage implements OnInit {
       taxActivity: client.taxActivity ?? '',
       taxAddress: client.taxAddress ?? '',
       employerRegistrationNumber: client.employerRegistrationNumber ?? '',
+      contactFullName: '',
+      contactPhone: '',
+      contactEmail: '',
     });
     this.clientEditorOpen.set(true);
   }
@@ -528,10 +711,22 @@ export class ClientsPage implements OnInit {
     const request = editing
       ? this.api.updateClient(editing.idClient, input)
       : this.api.createClient({ ...input, codeClient: form.codeClient } satisfies CreateClient);
+    const primaryContactInput = this.primaryContactInput(form);
 
     this.saving.set(true);
     this.error.set('');
-    request.pipe(finalize(() => this.saving.set(false))).subscribe({
+    request
+      .pipe(
+        switchMap((client) => {
+          if (!editing && primaryContactInput) {
+            return this.api.createContact(client.idClient, primaryContactInput(client)).pipe(map(() => client));
+          }
+
+          return of(client);
+        }),
+        finalize(() => this.saving.set(false)),
+      )
+      .subscribe({
       next: (client) => {
         this.clientEditorOpen.set(false);
         this.message.set(editing ? 'Cliente actualizado correctamente.' : 'Cliente creado correctamente.');
@@ -548,7 +743,8 @@ export class ClientsPage implements OnInit {
       return;
     }
 
-    this.api.deactivateClient(this.selectedOrganizationId(), client.idClient).subscribe({
+    this.saving.set(true);
+    this.api.deactivateClient(this.selectedOrganizationId(), client.idClient).pipe(finalize(() => this.saving.set(false))).subscribe({
       next: () => {
         this.message.set('Cliente desactivado correctamente.');
         this.selectedClient.set(null);
@@ -656,7 +852,8 @@ export class ClientsPage implements OnInit {
       return;
     }
 
-    this.api.deactivateSite(this.selectedOrganizationId(), client.idClient, site.idClientSite).subscribe({
+    this.saving.set(true);
+    this.api.deactivateSite(this.selectedOrganizationId(), client.idClient, site.idClientSite).pipe(finalize(() => this.saving.set(false))).subscribe({
       next: () => {
         this.message.set('Sede desactivada correctamente.');
         this.loadClientDetail(client);
@@ -741,7 +938,8 @@ export class ClientsPage implements OnInit {
       return;
     }
 
-    this.api.deactivateContact(this.selectedOrganizationId(), client.idClient, contact.idClientContact).subscribe({
+    this.saving.set(true);
+    this.api.deactivateContact(this.selectedOrganizationId(), client.idClient, contact.idClientContact).pipe(finalize(() => this.saving.set(false))).subscribe({
       next: () => {
         this.message.set('Contacto desactivado correctamente.');
         this.loadClientDetail(client);
@@ -834,7 +1032,8 @@ export class ClientsPage implements OnInit {
       return;
     }
 
-    this.api.deactivateContract(this.selectedOrganizationId(), client.idClient, contract.idServiceContract).subscribe({
+    this.saving.set(true);
+    this.api.deactivateContract(this.selectedOrganizationId(), client.idClient, contract.idServiceContract).pipe(finalize(() => this.saving.set(false))).subscribe({
       next: () => {
         this.message.set('Contrato desactivado correctamente.');
         this.loadClientDetail(client);
@@ -919,7 +1118,8 @@ export class ClientsPage implements OnInit {
       return;
     }
 
-    this.api.deactivateService(this.selectedOrganizationId(), client.idClient, service.idService).subscribe({
+    this.saving.set(true);
+    this.api.deactivateService(this.selectedOrganizationId(), client.idClient, service.idService).pipe(finalize(() => this.saving.set(false))).subscribe({
       next: () => {
         this.message.set('Servicio desactivado correctamente.');
     if (this.selectedService()?.idService === service.idService) {
@@ -1206,8 +1406,10 @@ export class ClientsPage implements OnInit {
       return;
     }
 
+    this.saving.set(true);
     this.api
       .publishScheduleVersion(this.selectedOrganizationId(), client.idClient, service.idService, version.idScheduleVersion)
+      .pipe(finalize(() => this.saving.set(false)))
       .subscribe({
         next: (published) => {
           this.selectedScheduleVersion.set(published);
@@ -1298,6 +1500,7 @@ export class ClientsPage implements OnInit {
       return;
     }
 
+    this.saving.set(true);
     this.api
       .deactivateScheduledShift(
         this.selectedOrganizationId(),
@@ -1306,6 +1509,7 @@ export class ClientsPage implements OnInit {
         version.idScheduleVersion,
         shift.idScheduledShift,
       )
+      .pipe(finalize(() => this.saving.set(false)))
       .subscribe({
         next: () => {
           this.message.set('Turno desactivado correctamente.');
@@ -1393,8 +1597,10 @@ export class ClientsPage implements OnInit {
       return;
     }
 
+    this.saving.set(true);
     this.api
       .deactivateAssignment(this.selectedOrganizationId(), client.idClient, service.idService, assignment.idServiceAssignment)
+      .pipe(finalize(() => this.saving.set(false)))
       .subscribe({
         next: () => {
           this.message.set('Asignación desactivada correctamente.');
@@ -1495,6 +1701,7 @@ export class ClientsPage implements OnInit {
       return;
     }
 
+    this.saving.set(true);
     this.api
       .deactivateServiceConfiguration(
         this.selectedOrganizationId(),
@@ -1502,6 +1709,7 @@ export class ClientsPage implements OnInit {
         service.idService,
         configuration.idServiceConfiguration,
       )
+      .pipe(finalize(() => this.saving.set(false)))
       .subscribe({
         next: () => {
           this.message.set('Configuración desactivada correctamente.');
@@ -1584,7 +1792,8 @@ export class ClientsPage implements OnInit {
       return;
     }
 
-    this.api.deactivatePosition(this.selectedOrganizationId(), client.idClient, service.idService, position.idPosition).subscribe({
+    this.saving.set(true);
+    this.api.deactivatePosition(this.selectedOrganizationId(), client.idClient, service.idService, position.idPosition).pipe(finalize(() => this.saving.set(false))).subscribe({
       next: () => {
         this.message.set('Posición desactivada correctamente.');
         if (this.selectedPosition()?.idPosition === position.idPosition) {
@@ -1675,6 +1884,7 @@ export class ClientsPage implements OnInit {
       return;
     }
 
+    this.saving.set(true);
     this.api
       .deactivateShiftPattern(
         this.selectedOrganizationId(),
@@ -1683,6 +1893,7 @@ export class ClientsPage implements OnInit {
         position.idPosition,
         pattern.idShiftPattern,
       )
+      .pipe(finalize(() => this.saving.set(false)))
       .subscribe({
         next: () => {
           this.message.set('Patrón desactivado correctamente.');
@@ -1782,6 +1993,7 @@ export class ClientsPage implements OnInit {
       return;
     }
 
+    this.saving.set(true);
     this.api
       .deactivateShiftSegment(
         this.selectedOrganizationId(),
@@ -1791,6 +2003,7 @@ export class ClientsPage implements OnInit {
         pattern.idShiftPattern,
         segment.idShiftSegment,
       )
+      .pipe(finalize(() => this.saving.set(false)))
       .subscribe({
         next: () => {
           this.message.set('Segmento desactivado correctamente.');
@@ -1817,7 +2030,7 @@ export class ClientsPage implements OnInit {
   }
 
   protected purposeLabel(value: ClientContactPurpose): string {
-    return this.contactPurposes.find((item) => item.value === value)?.label ?? value;
+    return this.contactPurposes.find((item) => item.value === value)?.label ?? 'Contacto';
   }
 
   protected address(site: ClientSite): string {
@@ -1827,7 +2040,7 @@ export class ClientsPage implements OnInit {
   }
 
   protected contractStatusLabel(value: ServiceContractStatus): string {
-    return this.contractStatuses.find((item) => item.value === value)?.label ?? value;
+    return this.contractStatuses.find((item) => item.value === value)?.label ?? 'Sin estado';
   }
 
   protected siteName(idClientSite: string): string {
@@ -1839,7 +2052,7 @@ export class ClientsPage implements OnInit {
   }
 
   protected dayLabel(value: string): string {
-    return this.weekDays.find((day) => day.value === value)?.label ?? value;
+    return this.weekDays.find((day) => day.value === value)?.label ?? 'Día no especificado';
   }
 
   protected durationLabel(minutes: number): string {
@@ -1849,16 +2062,118 @@ export class ClientsPage implements OnInit {
   }
 
   protected assignmentTypeLabel(value: ServiceAssignmentType): string {
-    return this.assignmentTypes.find((item) => item.value === value)?.label ?? value;
+    return this.assignmentTypes.find((item) => item.value === value)?.label ?? 'Asignación';
   }
 
   protected scheduleStatusLabel(value: ScheduleVersionStatus): string {
-    return this.scheduleStatuses.find((item) => item.value === value)?.label ?? value;
+    return this.scheduleStatuses.find((item) => item.value === value)?.label ?? 'Sin estado';
+  }
+
+  protected clientStatusLabel(client: Client): string {
+    return client.active ? 'Activo' : 'Inactivo';
+  }
+
+  protected serviceCount(client: Client): number {
+    return this.clientServiceCounts()[client.idClient] ?? (this.selectedClient()?.idClient === client.idClient ? this.services().length : 0);
+  }
+
+  protected clientLocationSummary(client: Client): string {
+    if (this.selectedClient()?.idClient === client.idClient && this.sites().length) {
+      const mainSite = this.sites()[0];
+      return [mainSite.municipality, mainSite.state].filter(Boolean).join(', ');
+    }
+
+    return client.taxAddress || 'Sin ubicación capturada';
+  }
+
+  protected dateLabel(value: string | null): string {
+    if (!value) {
+      return 'Sin fecha';
+    }
+
+    return new Intl.DateTimeFormat('es-MX', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    }).format(new Date(value));
+  }
+
+  protected isInvalid(formName: 'client' | 'organization', controlName: string): boolean {
+    const control = formName === 'client' ? this.clientForm.get(controlName) : this.organizationForm.get(controlName);
+    return Boolean(control?.invalid && (control.touched || control.dirty));
+  }
+
+  private primaryContactInput(
+    form: ReturnType<typeof this.clientForm.getRawValue>,
+  ): ((client: Client) => ClientContactInput) | null {
+    const fullName = this.optional(form.contactFullName);
+    const phone = this.optional(form.contactPhone);
+    const email = this.optional(form.contactEmail);
+
+    if (!fullName && !phone && !email) {
+      return null;
+    }
+
+    return (client) => ({
+      idOrganization: this.selectedOrganizationId(),
+      idClient: client.idClient,
+      idClientSite: null,
+      purpose: 'Operational',
+      fullName: fullName ?? 'Contacto principal',
+      jobTitle: null,
+      email,
+      phone,
+      mobilePhone: null,
+      isPrimary: true,
+    });
   }
 
   private optional(value: string): string | null {
     const normalized = value.trim();
     return normalized ? normalized : null;
+  }
+
+  private resolveOrganizationSelection(preferredId: string | undefined, organizations: readonly Organization[]): string {
+    const preferred = preferredId?.trim();
+    const current = this.selectedOrganizationId().trim();
+    const activeOrganization = organizations.find((organization) => organization.active);
+    const fallback = activeOrganization ?? organizations[0] ?? null;
+
+    if (preferred && organizations.some((organization) => organization.idOrganization === preferred)) {
+      return preferred;
+    }
+
+    if (current && organizations.some((organization) => organization.idOrganization === current)) {
+      return current;
+    }
+
+    return fallback?.idOrganization ?? '';
+  }
+
+  private loadClientServiceCounts(clients: readonly Client[]): void {
+    const organizationId = this.selectedOrganizationId();
+
+    if (!organizationId || clients.length === 0) {
+      this.clientServiceCounts.set({});
+      return;
+    }
+
+    const requests = Object.fromEntries(
+      clients.map((client) => [client.idClient, this.api.listServices(organizationId, client.idClient)]),
+    );
+
+    forkJoin(requests).subscribe({
+      next: (servicesByClient) => {
+        this.clientServiceCounts.set(
+          Object.fromEntries(
+            Object.entries(servicesByClient).map(([idClient, services]) => [idClient, services.length]),
+          ),
+        );
+      },
+      error: () => {
+        this.clientServiceCounts.set({});
+      },
+    });
   }
 
   private optionalDate(value: string): string | null {

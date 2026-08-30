@@ -20,16 +20,16 @@ export class LoginPage {
     ? 'Tu sesión expiró. Inicia sesión otra vez para continuar.'
     : '');
   protected readonly form = new FormGroup({
-    email: new FormControl('admin@gestia.local', {
+    email: new FormControl('', {
       nonNullable: true,
       validators: [Validators.required, Validators.email],
     }),
-    password: new FormControl('GestIA.Local.2026!', {
+    password: new FormControl('', {
       nonNullable: true,
       validators: [Validators.required],
     }),
   });
-  protected readonly canSubmit = computed(() => this.form.valid && !this.loading());
+  protected readonly canSubmit = computed(() => !this.loading());
 
   submit() {
     if (this.form.invalid || this.loading()) {

@@ -57,19 +57,31 @@ public sealed class OperationsService(
                 authorizationErrors);
             InputValidation.ThrowIfInvalid(authorizationErrors);
 
-            if (AttendanceChanged(existing, profile) && string.IsNullOrWhiteSpace(correctionAuthorizationNotes))
+            if (AttendanceChanged(existing, profile) && !request.IdApprovalRequest.HasValue)
             {
                 throw new RequestValidationException(new Dictionary<string, string[]>
                 {
-                    [nameof(request.CorrectionAuthorizationNotes)] =
-                        ["Para corregir una asistencia ya capturada necesitas indicar la autorización o motivo de corrección."]
+                    [nameof(request.IdApprovalRequest)] =
+                        ["Para corregir una asistencia ya capturada necesitas seleccionar una autorización aprobada."]
                 });
+            }
+
+            if (AttendanceChanged(existing, profile) && request.IdApprovalRequest.HasValue)
+            {
+                await EnsureApprovedApprovalRequestAsync(
+                    request.IdOrganization,
+                    request.IdService,
+                    ApprovalRequestType.AttendanceCorrection,
+                    "AttendanceRecord",
+                    existing.IdAttendanceRecord,
+                    request.IdApprovalRequest.Value,
+                    cancellationToken);
             }
 
             existing.UpdateProfile(
                 profile with
                 {
-                    Notes = BuildAttendanceCorrectionNotes(profile.Notes, correctionAuthorizationNotes)
+                    Notes = BuildAttendanceCorrectionNotes(profile.Notes, correctionAuthorizationNotes, request.IdApprovalRequest)
                 },
                 actorContext.ActorId,
                 actorContext.ActorName,
@@ -295,11 +307,239 @@ public sealed class OperationsService(
         await unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<ApprovalRequestResponse>> ListApprovalRequestsAsync(
+        ApprovalRequestQuery query,
+        CancellationToken cancellationToken)
+    {
+        if (query.IdService.HasValue)
+        {
+            await EnsureServiceByOrganizationAsync(query.IdOrganization, query.IdService.Value, cancellationToken);
+        }
+
+        var approvals = await repository.ListApprovalRequestsAsync(
+            query.IdOrganization,
+            query.IdService,
+            query.Status,
+            cancellationToken);
+        return approvals.Select(Map).ToArray();
+    }
+
+    public async Task<ApprovalRequestResponse> CreateApprovalRequestAsync(
+        CreateApprovalRequestRequest request,
+        CancellationToken cancellationToken)
+    {
+        await EnsureServiceByOrganizationAsync(request.IdOrganization, request.IdService, cancellationToken);
+        await EnsureApprovalEntityBelongsToServiceAsync(request.IdService, request.EntityType, request.EntityId, cancellationToken);
+
+        var profile = ValidateApprovalProfile(
+            request.IdOrganization,
+            request.IdService,
+            request.ApprovalType,
+            request.EntityType,
+            request.EntityId,
+            request.Reason,
+            request.RequestedChangeSummary,
+            request.AssignedApproverName,
+            request.IdOperationEvidence);
+
+        if (request.IdOperationEvidence.HasValue &&
+            await repository.GetEvidenceAsync(request.IdService, request.IdOperationEvidence.Value, cancellationToken) is null)
+        {
+            throw new ResourceNotFoundException("No se encontró la evidencia ligada a la autorización.");
+        }
+
+        var approval = ApprovalRequest.Create(
+            profile,
+            actorContext.ActorId,
+            actorContext.ActorName,
+            clock.UtcNow);
+
+        await repository.AddApprovalRequestAsync(approval, cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+        return Map(approval);
+    }
+
+    public async Task<ApprovalRequestResponse> DecideApprovalRequestAsync(
+        Guid idApprovalRequest,
+        DecideApprovalRequestRequest request,
+        CancellationToken cancellationToken)
+    {
+        var approval = await repository.GetApprovalRequestAsync(request.IdOrganization, idApprovalRequest, cancellationToken)
+            ?? throw new ResourceNotFoundException("No se encontró la autorización solicitada.");
+
+        if (approval.Status != ApprovalRequestStatus.Pending)
+        {
+            throw new ResourceConflictException("La autorización ya fue resuelta.");
+        }
+
+        if (request.Status is not ApprovalRequestStatus.Approved and not ApprovalRequestStatus.Rejected and not ApprovalRequestStatus.Cancelled)
+        {
+            throw new RequestValidationException(new Dictionary<string, string[]>
+            {
+                [nameof(request.Status)] = ["La decisión debe ser aprobada, rechazada o cancelada."]
+            });
+        }
+
+        var errors = new Dictionary<string, string[]>();
+        var decisionNotes = InputValidation.Optional(request.DecisionNotes, nameof(request.DecisionNotes), 1200, errors);
+        InputValidation.ThrowIfInvalid(errors);
+
+        approval.Decide(
+            request.Status,
+            decisionNotes,
+            actorContext.ActorId,
+            actorContext.ActorName,
+            clock.UtcNow);
+
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+        return Map(approval);
+    }
+
+    public async Task<IReadOnlyList<OperationDayClosureResponse>> ListDayClosuresAsync(
+        OperationDayClosureQuery query,
+        CancellationToken cancellationToken)
+    {
+        if (query.IdService.HasValue)
+        {
+            await EnsureServiceByOrganizationAsync(query.IdOrganization, query.IdService.Value, cancellationToken);
+        }
+
+        var closures = await repository.ListDayClosuresAsync(
+            query.IdOrganization,
+            query.IdService,
+            query.FromDate,
+            query.ToDate,
+            cancellationToken);
+        return closures.Select(Map).ToArray();
+    }
+
+    public async Task<OperationDayClosureResponse> CloseOperationDayAsync(
+        Guid idClient,
+        Guid idService,
+        CloseOperationDayRequest request,
+        CancellationToken cancellationToken)
+    {
+        await EnsureServiceAsync(request.IdOrganization, idClient, idService, cancellationToken);
+
+        if (await repository.GetDayClosureAsync(idService, request.OperationDate, cancellationToken) is not null)
+        {
+            throw new ResourceConflictException("El día operativo ya tiene un cierre registrado.");
+        }
+
+        var shifts = await repository.ListScheduledShiftsAsync(idService, request.OperationDate, cancellationToken);
+        if (shifts.Count == 0)
+        {
+            throw new ResourceConflictException("No se puede cerrar un día sin turnos publicados.");
+        }
+
+        var attendance = await repository.ListAttendanceAsync(idService, request.OperationDate, cancellationToken);
+        var incidents = await repository.ListIncidentsAsync(idService, cancellationToken);
+        var coverages = await repository.ListCoveragesAsync(idService, cancellationToken);
+        var openIncidents = incidents.Count(incident =>
+            incident.IncidentDate == request.OperationDate &&
+            (incident.Status is IncidentStatus.Open or IncidentStatus.InReview));
+        var coverageRecords = coverages.Count(coverage => coverage.ScheduledShift.ShiftDate == request.OperationDate);
+        var pendingAttendance = shifts.Count(shift =>
+            attendance.All(record => record.IdScheduledShift != shift.IdScheduledShift));
+
+        if (pendingAttendance > 0 || openIncidents > 0)
+        {
+            throw new ResourceConflictException(
+                $"No se puede cerrar el día: {pendingAttendance} turno(s) sin asistencia y {openIncidents} incidencia(s) abierta(s).");
+        }
+
+        var closureErrors = new Dictionary<string, string[]>();
+        var notes = InputValidation.Optional(request.Notes, nameof(request.Notes), 1200, closureErrors);
+        InputValidation.ThrowIfInvalid(closureErrors);
+
+        var profile = new OperationDayClosureProfile(
+            request.IdOrganization,
+            idService,
+            request.OperationDate,
+            shifts.Count,
+            attendance.Count,
+            pendingAttendance,
+            openIncidents,
+            coverageRecords,
+            notes);
+
+        var closure = OperationDayClosure.Create(
+            profile,
+            actorContext.ActorId,
+            actorContext.ActorName,
+            clock.UtcNow);
+
+        await repository.AddDayClosureAsync(closure, cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+        return Map(closure);
+    }
+
+    public async Task<OperationDayClosureResponse> ReopenOperationDayAsync(
+        Guid idClient,
+        Guid idService,
+        Guid idOperationDayClosure,
+        ReopenOperationDayRequest request,
+        CancellationToken cancellationToken)
+    {
+        await EnsureServiceAsync(request.IdOrganization, idClient, idService, cancellationToken);
+        var closure = await repository.GetDayClosureAsync(idService, idOperationDayClosure, cancellationToken)
+            ?? throw new ResourceNotFoundException("No se encontró el cierre operativo solicitado.");
+
+        var errors = new Dictionary<string, string[]>();
+        var reason = InputValidation.Required(request.Reason, nameof(request.Reason), 1200, errors);
+        InputValidation.ThrowIfInvalid(errors);
+
+        closure.Reopen(reason, actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+        return Map(closure);
+    }
+
     private async Task EnsureServiceAsync(Guid idOrganization, Guid idClient, Guid idService, CancellationToken cancellationToken)
     {
         if (await repository.GetServiceAsync(idOrganization, idClient, idService, cancellationToken) is null)
         {
             throw new ResourceNotFoundException("No se encontró el servicio solicitado.");
+        }
+    }
+
+    private async Task EnsureServiceByOrganizationAsync(Guid idOrganization, Guid idService, CancellationToken cancellationToken)
+    {
+        if (idOrganization == Guid.Empty || idService == Guid.Empty)
+        {
+            throw new RequestValidationException(new Dictionary<string, string[]>
+            {
+                [nameof(idOrganization)] = ["La organización es obligatoria."],
+                [nameof(idService)] = ["El servicio es obligatorio."]
+            });
+        }
+
+        if (await repository.GetServiceAsync(idOrganization, idService, cancellationToken) is null)
+        {
+            throw new ResourceNotFoundException("No se encontró el servicio solicitado.");
+        }
+    }
+
+    private async Task EnsureApprovalEntityBelongsToServiceAsync(
+        Guid idService,
+        string entityType,
+        Guid entityId,
+        CancellationToken cancellationToken)
+    {
+        var normalizedEntityType = entityType.Trim();
+        var exists = normalizedEntityType switch
+        {
+            "AttendanceRecord" => await repository.AttendanceBelongsToServiceAsync(idService, entityId, cancellationToken),
+            "Incident" => await repository.IncidentBelongsToServiceAsync(idService, entityId, cancellationToken),
+            "CoverageRecord" => await repository.CoverageBelongsToServiceAsync(idService, entityId, cancellationToken),
+            "OperationEvidence" => await repository.GetEvidenceAsync(idService, entityId, cancellationToken) is not null,
+            "ServiceConfiguration" => true,
+            "BusinessDocument" => true,
+            _ => true
+        };
+
+        if (!exists)
+        {
+            throw new ResourceNotFoundException("No se encontró el registro relacionado a la autorización.");
         }
     }
 
@@ -410,15 +650,54 @@ public sealed class OperationsService(
 
     private static string? BuildAttendanceCorrectionNotes(string? notes, string? correctionAuthorizationNotes)
     {
-        if (string.IsNullOrWhiteSpace(correctionAuthorizationNotes))
+        return BuildAttendanceCorrectionNotes(notes, correctionAuthorizationNotes, null);
+    }
+
+    private static string? BuildAttendanceCorrectionNotes(
+        string? notes,
+        string? correctionAuthorizationNotes,
+        Guid? idApprovalRequest)
+    {
+        if (string.IsNullOrWhiteSpace(correctionAuthorizationNotes) && !idApprovalRequest.HasValue)
         {
             return notes;
         }
 
-        var correctionNote = $"Corrección autorizada: {correctionAuthorizationNotes.Trim()}";
+        var approvalReference = idApprovalRequest.HasValue ? $"Autorización aprobada: {idApprovalRequest.Value}" : null;
+        var correctionNote = string.Join(
+            " · ",
+            new[] { approvalReference, string.IsNullOrWhiteSpace(correctionAuthorizationNotes) ? null : $"Nota: {correctionAuthorizationNotes.Trim()}" }
+                .Where(value => !string.IsNullOrWhiteSpace(value)));
+
         return string.IsNullOrWhiteSpace(notes)
             ? correctionNote
             : $"{notes.Trim()} | {correctionNote}";
+    }
+
+    private async Task EnsureApprovedApprovalRequestAsync(
+        Guid idOrganization,
+        Guid idService,
+        ApprovalRequestType approvalType,
+        string entityType,
+        Guid entityId,
+        Guid idApprovalRequest,
+        CancellationToken cancellationToken)
+    {
+        var approval = await repository.GetApprovalRequestAsync(idOrganization, idApprovalRequest, cancellationToken)
+            ?? throw new ResourceNotFoundException("No se encontró la autorización seleccionada.");
+
+        if (approval.IdService != idService ||
+            approval.ApprovalType != approvalType ||
+            !string.Equals(approval.EntityType, entityType, StringComparison.OrdinalIgnoreCase) ||
+            approval.EntityId != entityId)
+        {
+            throw new ResourceConflictException("La autorización seleccionada no corresponde al registro que se intenta corregir.");
+        }
+
+        if (approval.Status != ApprovalRequestStatus.Approved)
+        {
+            throw new ResourceConflictException("La autorización seleccionada todavía no está aprobada.");
+        }
     }
 
     private static IncidentProfile ValidateIncidentProfile(
@@ -488,6 +767,51 @@ public sealed class OperationsService(
             normalizedNotes);
     }
 
+    private static ApprovalRequestProfile ValidateApprovalProfile(
+        Guid idOrganization,
+        Guid idService,
+        ApprovalRequestType approvalType,
+        string entityType,
+        Guid entityId,
+        string reason,
+        string? requestedChangeSummary,
+        string? assignedApproverName,
+        Guid? idOperationEvidence)
+    {
+        var errors = new Dictionary<string, string[]>();
+        if (idOrganization == Guid.Empty)
+        {
+            errors[nameof(idOrganization)] = ["La organización es obligatoria."];
+        }
+
+        if (idService == Guid.Empty)
+        {
+            errors[nameof(idService)] = ["El servicio es obligatorio."];
+        }
+
+        if (entityId == Guid.Empty)
+        {
+            errors[nameof(entityId)] = ["El registro relacionado es obligatorio."];
+        }
+
+        var normalizedEntityType = InputValidation.Required(entityType, nameof(entityType), 80, errors);
+        var normalizedReason = InputValidation.Required(reason, nameof(reason), 1200, errors);
+        var normalizedSummary = InputValidation.Optional(requestedChangeSummary, nameof(requestedChangeSummary), 2000, errors);
+        var normalizedApproverName = InputValidation.Optional(assignedApproverName, nameof(assignedApproverName), 100, errors);
+        InputValidation.ThrowIfInvalid(errors);
+
+        return new ApprovalRequestProfile(
+            idOrganization,
+            idService,
+            approvalType,
+            normalizedEntityType,
+            entityId,
+            normalizedReason,
+            normalizedSummary,
+            normalizedApproverName,
+            idOperationEvidence);
+    }
+
     private static AttendanceRecordResponse Map(AttendanceRecord record) =>
         new(
             record.IdAttendanceRecord,
@@ -549,6 +873,46 @@ public sealed class OperationsService(
             evidence.StorageReference,
             evidence.Notes,
             evidence.Active);
+
+    private static ApprovalRequestResponse Map(ApprovalRequest approval) =>
+        new(
+            approval.IdApprovalRequest,
+            approval.IdOrganization,
+            approval.IdService,
+            approval.ApprovalType,
+            approval.EntityType,
+            approval.EntityId,
+            approval.Reason,
+            approval.RequestedChangeSummary,
+            approval.AssignedApproverName,
+            approval.IdOperationEvidence,
+            approval.Status,
+            approval.RequestedAt,
+            approval.CreatedByName,
+            approval.DecidedAt,
+            approval.DecidedByName,
+            approval.DecisionNotes,
+            approval.Active);
+
+    private static OperationDayClosureResponse Map(OperationDayClosure closure) =>
+        new(
+            closure.IdOperationDayClosure,
+            closure.IdOrganization,
+            closure.IdService,
+            closure.OperationDate,
+            closure.ExpectedShifts,
+            closure.AttendanceRecords,
+            closure.PendingAttendance,
+            closure.OpenIncidents,
+            closure.CoverageRecords,
+            closure.Notes,
+            closure.Status,
+            closure.ClosedAt,
+            closure.ClosedByName,
+            closure.ReopenedAt,
+            closure.ReopenedByName,
+            closure.ReopenReason,
+            closure.Active);
 
     private static int DurationMinutes(TimeOnly startTime, TimeOnly endTime, bool isOvernight)
     {

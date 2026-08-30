@@ -1,0 +1,8 @@
+name: gestia-pruebas
+
+services:
+  backend:
+    image: gestia/backend:pruebas
+
+  frontend:
+    image: gestia/frontend:pruebas

@@ -54,6 +54,22 @@ public sealed class User : AuditableEntity
             : DateTime.SpecifyKind(occurredAt, DateTimeKind.Utc);
     }
 
+    public void UpdateProfile(
+        string email,
+        string displayName,
+        Guid actorId,
+        string actorName,
+        DateTime occurredAt)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(email);
+        ArgumentException.ThrowIfNullOrWhiteSpace(displayName);
+
+        Email = email.Trim();
+        NormalizedEmail = NormalizeEmail(email);
+        DisplayName = displayName.Trim();
+        RegisterUpdate(actorId, actorName, occurredAt);
+    }
+
     public void ResetPassword(
         string passwordHash,
         string passwordSalt,

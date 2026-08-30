@@ -1,74 +1,213 @@
-<article class="intro">
-  <div>
-    <span class="kicker">Plataforma operativa</span>
-    <h1>Controla clientes, personal y operación diaria desde un solo lugar.</h1>
+<article class="dashboard-hero">
+  <div class="hero-copy">
+    <span class="kicker">Inicio</span>
+    <h1>Hola, {{ displayName() || 'equipo' }}.</h1>
     <p>
-      GestIA conecta el expediente comercial, la planeación de turnos y la operación en campo para que cada servicio
-      tenga trazabilidad clara.
+      {{ todayLabel }} ·
+      {{ activeOrganization()?.legalName || 'Sin organización activa' }}
     </p>
+    <strong>Tu operación está resumida para detectar excepciones y actuar rápido.</strong>
   </div>
-  <a class="primary-link" routerLink="/operacion/asistencia">Ir a operación</a>
+
+  <aside class="hero-status" [class.hero-status--attention]="riskServicesCount() > 0 || pendingCoverages() > 0 || (operationsSummary()?.openIncidents ?? 0) > 0">
+    <div class="status-heading">
+      <span class="status-indicator" aria-hidden="true"></span>
+      <div>
+        <small>Estado operativo</small>
+        <strong>{{ riskServicesCount() > 0 || pendingCoverages() > 0 || (operationsSummary()?.openIncidents ?? 0) > 0 ? 'Requiere atención' : 'Sin alertas críticas' }}</strong>
+      </div>
+    </div>
+
+    <div class="status-grid">
+      <div>
+        <strong>{{ operationsSummary()?.openIncidents ?? 0 }}</strong>
+        <span>Incidencias</span>
+      </div>
+      <div>
+        <strong>{{ pendingCoverages() }}</strong>
+        <span>Coberturas</span>
+      </div>
+      <div>
+        <strong>{{ openRequestsCount() }}</strong>
+        <span>Solicitudes</span>
+      </div>
+    </div>
+  </aside>
 </article>
 
-<section class="overview-grid" aria-label="Áreas operativas de GestIA">
-  @for (area of operationalAreas(); track area.label) {
-    <article class="overview-card">
-      <span>{{ area.label }}</span>
-      <strong>{{ area.value }}</strong>
-      <p>{{ area.detail }}</p>
-    </article>
-  }
-</section>
-
 @if (loading()) {
-  <section class="dashboard-state gi-card">Cargando métricas operativas…</section>
+  <section class="dashboard-skeleton" aria-live="polite">
+    <span></span>
+    <span></span>
+    <span></span>
+    <span></span>
+  </section>
 }
 
 @if (error()) {
-  <section class="dashboard-state dashboard-state--error gi-card">{{ error() }}</section>
+  <section class="dashboard-state dashboard-state--error gi-card" role="alert">{{ error() }}</section>
 }
 
-<section class="quick-actions" aria-label="Accesos rápidos">
-  @for (action of quickActions; track action.route) {
-    <a [routerLink]="action.route">
-      <strong>{{ action.label }}</strong>
-      <span>{{ action.detail }}</span>
+<section class="primary-metrics" aria-label="Indicadores principales">
+  @for (metric of primaryMetrics(); track metric.label) {
+    <a
+      class="metric-card"
+      [class.metric-card--attention]="metric.tone === 'attention'"
+      [class.metric-card--positive]="metric.tone === 'positive'"
+      [routerLink]="metric.route"
+    >
+      <span>{{ metric.label }}</span>
+      <strong>{{ metric.value }}</strong>
+      <small>{{ metric.detail }}</small>
+      @if (metric.tone === 'attention') {
+        <em>Atención</em>
+      }
     </a>
   }
 </section>
 
-<section class="operations-focus" aria-label="Focos de atención operativa">
-  <article class="focus-panel">
+<section class="today-section gi-card">
+  <header class="section-heading">
     <div>
-      <span class="kicker">Atención sugerida</span>
-      <h2>Servicios con señales de riesgo</h2>
-      <p>Ordenados por incidencias, faltas y retardos capturados en operación.</p>
+      <span class="kicker">Operación de hoy</span>
+      <h2>Resumen de operación de hoy</h2>
+      <p>Indicadores del día para asistencia, excepciones y coberturas.</p>
     </div>
+    <a routerLink="/operacion/asistencia">Abrir operación</a>
+  </header>
 
-    <div class="focus-list">
-      @for (service of highestRiskServices(); track service.idService) {
-        <a class="focus-item" routerLink="/reportes">
+  <div class="today-grid">
+    @for (metric of todaySummary(); track metric.label) {
+      <article class="today-kpi" [class.today-kpi--attention]="metric.tone === 'attention'" [class.today-kpi--positive]="metric.tone === 'positive'">
+        <span>{{ metric.label }}</span>
+        <strong>{{ metric.value }}</strong>
+        <small>{{ metric.detail }}</small>
+      </article>
+    }
+  </div>
+</section>
+
+<section class="dashboard-workspace">
+  <article class="attendance-panel gi-card">
+    <header class="section-heading">
+      <div>
+        <span class="kicker">Asistencia del día</span>
+        <h2>{{ attendanceRate() }}% de asistencia</h2>
+        <p>Distribución de registros capturados para la operación actual.</p>
+      </div>
+    </header>
+
+    <div class="attendance-content">
+      <div class="donut" [style.background]="donutStyle()" aria-label="Gráfica de asistencia">
+        <span>
+          <strong>{{ attendanceRate() }}%</strong>
+          <small>asistencia</small>
+        </span>
+      </div>
+
+      <div class="donut-legend">
+        @for (item of attendanceBreakdown(); track item.label) {
+          <div [class]="'legend-item legend-item--' + item.tone">
+            <i aria-hidden="true"></i>
+            <span>{{ item.label }}</span>
+            <strong>{{ item.value }}</strong>
+          </div>
+        }
+      </div>
+    </div>
+  </article>
+
+  <article class="activity-panel gi-card">
+    <header class="section-heading">
+      <div>
+        <span class="kicker">Actividad reciente</span>
+        <h2>Últimos movimientos relevantes</h2>
+        <p>Eventos operativos derivados de la información disponible hoy.</p>
+      </div>
+    </header>
+
+    <div class="activity-list">
+      @for (activity of recentActivity(); track activity.title) {
+        <a class="activity-item" [routerLink]="activity.route">
+          <i aria-hidden="true">{{ activity.icon }}</i>
           <span>
-            <strong>{{ service.codeService }} · {{ service.serviceName }}</strong>
-            <small>{{ service.clientName }}</small>
+            <strong>{{ activity.title }}</strong>
+            <small>{{ activity.context }}</small>
           </span>
-          <em>{{ serviceRiskSummary(service) }}</em>
+          <em>{{ activity.when }}</em>
         </a>
       } @empty {
         <div class="focus-empty">
-          <strong>Sin focos rojos visibles</strong>
-          <span>Cuando aparezcan incidencias, faltas o retardos, se priorizarán aquí.</span>
+          <span class="empty-check" aria-hidden="true">✓</span>
+          <div>
+            <strong>Sin actividad crítica</strong>
+            <span>No hay incidencias, coberturas o solicitudes que requieran atención inmediata.</span>
+          </div>
         </div>
       }
     </div>
   </article>
 </section>
 
-<section class="next-step">
-  <div>
-    <span class="kicker">Estado actual</span>
-    <h2>MVP operativo integrado</h2>
-    <p>Ya puedes administrar base comercial, personal, planeación, operación, reportes, seguridad y auditoría desde la app local.</p>
-  </div>
-  <span class="badge">Operativo</span>
+<section class="dashboard-workspace dashboard-workspace--secondary">
+  <article class="focus-panel gi-card">
+    <header class="section-heading">
+      <div>
+        <span class="kicker">Atención sugerida</span>
+        <h2>Servicios que requieren seguimiento</h2>
+        <p>Priorizados por incidencias, faltas y retardos registrados.</p>
+      </div>
+      <a routerLink="/reportes">Ver reportes</a>
+    </header>
+
+    <div class="focus-list">
+      @for (service of highestRiskServices(); track service.idService) {
+        <a class="focus-item" routerLink="/reportes">
+          <span>
+            <strong>{{ service.serviceName }}</strong>
+            <small>{{ service.clientName }} · {{ service.codeService }}</small>
+          </span>
+          <em>{{ serviceRiskSummary(service) }}</em>
+        </a>
+      } @empty {
+        <div class="focus-empty">
+          <span class="empty-check" aria-hidden="true">✓</span>
+          <div>
+            <strong>Sin servicios en riesgo</strong>
+            <span>No hay faltas, retardos o incidencias abiertas en los servicios consultados.</span>
+          </div>
+        </div>
+      }
+    </div>
+  </article>
+
+  <aside class="actions-panel gi-card">
+    <header class="section-heading">
+      <div>
+        <span class="kicker">Accesos rápidos</span>
+        <h2>Acciones frecuentes</h2>
+        <p>Se muestran según los permisos del usuario.</p>
+      </div>
+    </header>
+
+    <nav class="quick-actions" aria-label="Accesos rápidos">
+      @for (action of quickActions(); track action.route) {
+        <a [routerLink]="action.route">
+          <span>
+            <strong>{{ action.label }}</strong>
+            <small>{{ action.detail }}</small>
+          </span>
+          <i aria-hidden="true">→</i>
+        </a>
+      } @empty {
+        <div class="focus-empty">
+          <span class="empty-check" aria-hidden="true">i</span>
+          <div>
+            <strong>Sin acciones disponibles</strong>
+            <span>Tu usuario no tiene acciones rápidas asignadas por ahora.</span>
+          </div>
+        </div>
+      }
+    </nav>
+  </aside>
 </section>

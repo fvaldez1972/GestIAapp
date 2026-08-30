@@ -1,11 +1,8 @@
 <div class="wrapper" [class.is-condensed]="layout.isCondensed()">
   <aside id="app-menu" class="app-menu" [class.is-open]="layout.mobileMenuOpen()" aria-label="Navegación principal">
     <a class="logo-box" routerLink="/" (click)="layout.closeMobileNavigation()" aria-label="Ir al inicio de GestIA">
-      <span class="logo-mark" aria-hidden="true">G</span>
-      <span class="logo-copy">
-        <strong>GestIA</strong>
-        <small>Gestión inteligente</small>
-      </span>
+      <img class="brand-logo brand-logo--full" src="brand/gestia-logo-negative.svg" alt="GESTIA" />
+      <img class="brand-logo brand-logo--compact" src="brand/gestia-app-icon.svg" alt="" aria-hidden="true" />
     </a>
 
     <nav class="side-nav">
@@ -26,10 +23,9 @@
                 <span class="menu-text">{{ item.label }}</span>
               </a>
             } @else {
-              <span class="menu-link is-disabled" [title]="layout.isCondensed() ? item.label : 'Módulo planificado'">
+              <span class="menu-link is-disabled" [title]="layout.isCondensed() ? item.label : item.label">
                 <span class="menu-icon"><app-icon [name]="item.icon" /></span>
                 <span class="menu-text">{{ item.label }}</span>
-                @if (item.planned) { <span class="menu-badge">Pronto</span> }
               </span>
             }
           }
@@ -38,8 +34,8 @@
     </nav>
 
     <div class="sidebar-foot">
-      <span>GestIA</span>
-      <small>Operación inteligente</small>
+      <span>Control operativo</span>
+      <small>Información clara y trazable</small>
     </div>
   </aside>
 
@@ -71,6 +67,16 @@
       </div>
 
       <div class="topbar-actions">
+        @if (auth.organizations().length > 1) {
+          <label class="org-switcher">
+            <span>Organización</span>
+            <select [value]="auth.activeOrganization()?.idOrganization ?? ''" (change)="auth.setActiveOrganization($any($event.target).value)">
+              @for (organization of auth.organizations(); track organization.idOrganization) {
+                <option [value]="organization.idOrganization">{{ organization.legalName }}</option>
+              }
+            </select>
+          </label>
+        }
         <button class="profile" type="button" aria-label="Cerrar sesión" (click)="logout()">
           <span class="profile-avatar">GI</span>
           <span class="profile-copy"><strong>{{ auth.displayName() || 'GestIA' }}</strong><small>Salir</small></span>

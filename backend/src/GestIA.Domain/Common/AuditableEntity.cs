@@ -32,6 +32,12 @@ public abstract class AuditableEntity : IAuditableEntity, IActivatableEntity
         RegisterUpdate(actorId, actorName, occurredAt);
     }
 
+    public void Activate(Guid actorId, string actorName, DateTime occurredAt)
+    {
+        Active = true;
+        RegisterUpdate(actorId, actorName, occurredAt);
+    }
+
     private static DateTime EnsureUtc(DateTime value) => value.Kind switch
     {
         DateTimeKind.Utc => value,

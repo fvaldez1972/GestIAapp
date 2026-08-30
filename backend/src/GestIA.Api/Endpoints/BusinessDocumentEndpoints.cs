@@ -171,7 +171,7 @@ public static class BusinessDocumentEndpoints
             Path.Combine(relativeFolder, storedFileName).Replace('\\', '/'));
     }
 
-    private static string ResolveStorageRoot(IConfiguration configuration, IWebHostEnvironment environment)
+    internal static string ResolveStorageRoot(IConfiguration configuration, IWebHostEnvironment environment)
     {
         var storageRoot = configuration["Storage:RootPath"];
         return string.IsNullOrWhiteSpace(storageRoot)
@@ -179,7 +179,7 @@ public static class BusinessDocumentEndpoints
             : storageRoot;
     }
 
-    private static string ResolveStoragePath(string storageRoot, string storageReference)
+    internal static string ResolveStoragePath(string storageRoot, string storageReference)
     {
         var root = Path.GetFullPath(storageRoot);
         var fullPath = Path.GetFullPath(Path.Combine(root, storageReference.Replace('/', Path.DirectorySeparatorChar)));

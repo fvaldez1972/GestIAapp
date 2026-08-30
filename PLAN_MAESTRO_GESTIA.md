@@ -1,6 +1,6 @@
 # Plan maestro de GestIA
 
-- Versión: 1.3
+- Versión: 1.4
 - Fecha de actualización: 2026-08-28
 - Estado: documento rector de planeación
 
@@ -53,17 +53,30 @@ Los ADR dentro de `docs/adr` siguen siendo la evidencia de decisiones técnicas 
 - Módulo documental MVP con carga, consulta, edición, desactivación, descarga, vencimientos, sensibilidad y permisos.
 - Reportes operativos con filtros, exportación CSV y reporte de elegibilidad de personal.
 - Mejoras UX/UI transversales en navegación, estados activos, formularios, tarjetas, tablas y lenguaje de negocio.
+- Administración funcional de usuarios, roles, permisos, activación/baja lógica y accesos por organización.
+- Selector de organización activa en el shell para usuarios multiorganización.
+- Módulo de catálogos de negocio para habilidades, puestos, requisitos, restricciones, zonas y motivos.
+- Elegibilidad formal configurable por organización, cliente, servicio o posición.
+- Habilidades asignables al expediente del empleado y validación de elegibilidad antes de asignar personal.
+- Autorizaciones formales por servicio y registro operativo relacionado.
+- Cierre operativo diario con bloqueo por asistencia pendiente o incidencias abiertas.
+- Reapertura de día operativo con motivo obligatorio.
+- Comparativo visual de planeación turno por turno contra la versión publicada.
+- Correcciones de asistencia vinculables a una autorización aprobada validada por backend.
+- Migraciones `BusinessCatalogsAndEligibility` y `OperationControls` aplicadas en SQL Server local.
+- Docker Compose reconstruido y validado con backend, frontend y SQL Server saludables.
 
 ### Todavía no desarrollado
 
 - Recuperación de acceso, refresh token y administración completa de sesión.
-- Administración funcional de usuarios, roles, permisos y alcance por empresa.
-- Catálogos formales de habilidades, requisitos por puesto, restricciones por zona/cliente/servicio y reglas finas de elegibilidad.
-- Administración completa del módulo documental con privacidad avanzada por tipo de archivo.
-- Flujo multiusuario de autorización/aprobación para correcciones sensibles.
-- Comparativo visual detallado turno por turno entre borrador, publicado y reemplazado.
+- Endurecimiento fino del alcance por empresa en recorridos edge-case.
+- Reglas geográficas reales y restricciones individualizadas por empleado, cliente o servicio.
+- Privacidad documental avanzada por tipo de archivo y perfil de usuario.
+- Flujo multiusuario de autorización/aprobación con bandejas por aprobador.
+- Comparativo visual histórico entre versiones reemplazadas antiguas.
 - Exportaciones formales Excel/PDF y reportes ejecutivos finales.
-- Auditoría funcional consultable extendida en todos los recorridos.
+- Auditoría funcional extendida para cada transición crítica de negocio.
+- Matriz operativa de elegibilidad empleado vs servicio/posición.
 - Importaciones, exportaciones e integraciones externas.
 - Observabilidad, respaldo y despliegue productivo.
 
@@ -380,16 +393,16 @@ No se usará `EnsureCreated` ni se aplicarán migraciones automáticamente al in
 - [x] Validación inicial de comandos y contratos.
 - [x] Autenticación JWT local y autorización inicial por permiso.
 - [x] Contexto de usuario autenticado para auditoría.
-- [ ] Selector y alcance activo por organización.
-- [ ] Correlación de solicitudes.
-- [ ] Auditoría automática y funcional.
+- [x] Selector y alcance activo por organización.
+- [x] Correlación de solicitudes mediante ejecución controlada y trazabilidad de cambios.
+- [x] Auditoría funcional consultable MVP.
 - [x] Primer patrón de paginación, filtros y ordenamiento en clientes.
 - [ ] Control de concurrencia.
 - [ ] Idempotencia para operaciones sensibles.
 - [ ] Observabilidad con logs estructurados, métricas y trazas.
 - [x] Referencias de evidencias operativas.
-- [ ] Almacenamiento físico de archivos de evidencia.
-- [ ] Exportaciones y trabajos en segundo plano cuando se requieran.
+- [x] Almacenamiento físico de archivos de evidencia.
+- [x] Exportaciones CSV controladas desde backend para reportes y auditoría.
 
 ### API
 
@@ -417,13 +430,13 @@ No se usará `EnsureCreated` ni se aplicarán migraciones automáticamente al in
 - [x] Manejo global de sesión expirada.
 - [ ] Renovación controlada de sesión.
 - [ ] Cliente TypeScript generado desde OpenAPI.
-- [ ] Manejo global de errores y estado de carga.
+- [x] Manejo global de errores y estado de carga MVP.
 - [ ] Sistema de notificaciones.
-- [ ] Componentes de tabla, filtros, paginación y formularios.
-- [ ] Catálogos de empresas, clientes, sedes y personal.
-- [ ] Flujos de solicitudes y servicios.
-- [ ] Planeación y visualización de turnos.
-- [ ] Captura de asistencia por excepción.
+- [x] Componentes/patrones de tabla, filtros, paginación y formularios MVP.
+- [x] Catálogos de empresas, clientes, sedes y personal.
+- [x] Flujos de solicitudes y servicios.
+- [x] Planeación y visualización de turnos.
+- [x] Captura de asistencia por excepción.
 - [x] Incidencias, coberturas y evidencias.
 - [x] Dashboard y reportes MVP.
 - [ ] Accesibilidad y navegación por teclado.

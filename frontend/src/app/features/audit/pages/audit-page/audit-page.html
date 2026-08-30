@@ -1,24 +1,78 @@
 <section class="audit-page">
   <article class="gi-card gi-card--hero audit-hero">
     <div>
-      <span class="eyebrow">Trazabilidad</span>
+      <span class="eyebrow">Control / Auditoría</span>
       <h1>Auditoría</h1>
-      <p>Consulta altas, actualizaciones y bajas lógicas registradas en los módulos operativos.</p>
+      <p>Investiga cambios del sistema con lenguaje de negocio, filtros claros y trazabilidad por registro.</p>
+      <span class="audit-context">Organización actual · {{ selectedOrganizationName() }}</span>
     </div>
-    <button class="gi-button gi-button--secondary" type="button" [disabled]="loading()" (click)="loadEvents()">
-      {{ loading() ? 'Actualizando…' : 'Actualizar' }}
-    </button>
-    <button class="gi-button gi-button--primary" type="button" [disabled]="events().length === 0" (click)="exportCsv()">
-      Exportar CSV
-    </button>
+    <div class="hero-actions">
+      <button class="gi-button gi-button--secondary" type="button" [disabled]="loading()" (click)="loadEvents()">
+        {{ loading() ? 'Actualizando…' : 'Actualizar' }}
+      </button>
+      <button class="gi-button gi-button--primary" type="button" [disabled]="events().length === 0 || exporting()" (click)="openExportConfig()">
+        Exportar bitácora
+      </button>
+    </div>
   </article>
+
+  <section class="audit-summary" aria-label="Resumen de auditoría">
+    <article class="gi-card metric-card">
+      <span>Eventos</span>
+      <strong>{{ visibleEvents().length }}</strong>
+      <small>{{ totalCount() }} total(es) en la consulta</small>
+    </article>
+    <article class="gi-card metric-card">
+      <span>Altas</span>
+      <strong>{{ createCount() }}</strong>
+      <small>Registros creados</small>
+    </article>
+    <article class="gi-card metric-card">
+      <span>Actualizaciones</span>
+      <strong>{{ updateCount() }}</strong>
+      <small>Registros modificados</small>
+    </article>
+    <article class="gi-card metric-card">
+      <span>Bajas</span>
+      <strong>{{ deactivationCount() }}</strong>
+      <small>Registros eliminados</small>
+    </article>
+    <article class="gi-card metric-card danger-card">
+      <span>Errores</span>
+      <strong>{{ failedCount() }}</strong>
+      <small>Eventos fallidos</small>
+    </article>
+  </section>
 
   <section class="gi-card audit-filters" aria-label="Filtros de auditoría">
     <label class="gi-field">
-      Organización
-      <select class="gi-input" [ngModel]="selectedOrganizationId()" (ngModelChange)="onOrganizationChange($event)">
-        @for (organization of organizations(); track organization.idOrganization) {
-          <option [value]="organization.idOrganization">{{ organization.legalName }}</option>
+      Buscar registro o entidad
+      <input
+        class="gi-input"
+        type="search"
+        [ngModel]="search()"
+        (ngModelChange)="onSearchChange($event)"
+        (keyup.enter)="applySearch()"
+        placeholder="Buscar por registro, entidad o detalle"
+      />
+    </label>
+
+    <label class="gi-field">
+      Usuario
+      <select class="gi-input" [ngModel]="selectedActor()" (ngModelChange)="onActorChange($event)">
+        <option value="">Todos los usuarios</option>
+        @for (actor of actorOptions(); track actor) {
+          <option [value]="actor">{{ actor }}</option>
+        }
+      </select>
+    </label>
+
+    <label class="gi-field">
+      Acción
+      <select class="gi-input" [ngModel]="selectedAction()" (ngModelChange)="onActionChange($event)">
+        <option value="">Todas las acciones</option>
+        @for (action of actionOptions(); track action) {
+          <option [value]="action">{{ action }}</option>
         }
       </select>
     </label>
@@ -26,15 +80,15 @@
     <label class="gi-field">
       Entidad
       <select class="gi-input" [ngModel]="selectedEntity()" (ngModelChange)="onEntityChange($event)">
-        <option value="">Todas</option>
+        <option value="">Todas las entidades</option>
         @for (entity of entities(); track entity) {
-          <option [value]="entity">{{ entity }}</option>
+          <option [value]="entity">{{ entityLabel(entity) }}</option>
         }
       </select>
     </label>
 
     <label class="gi-field">
-      Desde
+      Rango de fechas
       <input class="gi-input" type="date" [ngModel]="fromDate()" (ngModelChange)="onFromDateChange($event)" />
     </label>
 
@@ -44,95 +98,85 @@
     </label>
 
     <label class="gi-field">
-      Buscar
-      <input
-        class="gi-input"
-        type="search"
-        [ngModel]="search()"
-        (ngModelChange)="onSearchChange($event)"
-        (keyup.enter)="applySearch()"
-        placeholder="Entidad, usuario, registro o detalle"
-      />
+      Resultado
+      <select class="gi-input" [ngModel]="selectedResult()" (ngModelChange)="onResultChange($event)">
+        <option value="">Todos los resultados</option>
+        <option value="success">Éxito</option>
+        <option value="failed">Fallido</option>
+      </select>
     </label>
 
-    <button class="gi-button gi-button--secondary" type="button" [disabled]="loading()" (click)="applySearch()">Buscar</button>
-    <button class="gi-button gi-button--secondary" type="button" [disabled]="loading()" (click)="clearFilters()">Limpiar</button>
+    <div class="filter-actions">
+      <button class="gi-button gi-button--secondary" type="button" [disabled]="loading()" (click)="clearFilters()">Limpiar</button>
+      <button class="gi-button gi-button--primary" type="button" [disabled]="loading()" (click)="applySearch()">Filtrar</button>
+    </div>
   </section>
 
   @if (error()) {
     <p class="gi-alert gi-alert--error">{{ error() }}</p>
   }
 
-  <section class="audit-summary" aria-label="Resumen de auditoría">
-    <article class="gi-card metric-card">
-      <span>Eventos</span>
-      <strong>{{ totalCount() }}</strong>
-      <small>Total del filtro actual</small>
-    </article>
-    <article class="gi-card metric-card">
-      <span>Actualizaciones</span>
-      <strong>{{ updateCount() }}</strong>
-      <small>En la página visible</small>
-    </article>
-    <article class="gi-card metric-card">
-      <span>Bajas</span>
-      <strong>{{ deactivationCount() }}</strong>
-      <small>Desactivaciones lógicas</small>
-    </article>
-    <article class="gi-card metric-card">
-      <span>Último movimiento</span>
-      <strong>{{ latestEvent()?.action || '—' }}</strong>
-      <small>{{ latestEvent()?.actorName || 'Sin eventos' }}</small>
-    </article>
-  </section>
-
   <article class="gi-card audit-table-card">
     <header>
       <div>
         <span class="eyebrow">Bitácora</span>
-        <h2>Eventos registrados</h2>
+        <h2>{{ visibleEvents().length }} eventos encontrados</h2>
       </div>
       <span class="gi-badge">Página {{ page() }} de {{ totalPages() || 1 }}</span>
     </header>
 
-    <div class="table-wrap">
-      <table class="gi-table">
-        <thead>
-          <tr>
-            <th>Fecha</th>
-            <th>Entidad</th>
-            <th>Registro</th>
-            <th>Acción</th>
-            <th>Usuario</th>
-            <th>Detalle</th>
-            <th>Estado</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (event of events(); track event.entity + event.recordId + event.action + event.occurredAt) {
+    @if (visibleEvents().length) {
+      <div class="table-wrap">
+        <table class="gi-table">
+          <thead>
             <tr>
-              <td>{{ event.occurredAt }}</td>
-              <td>{{ event.entity }}</td>
-              <td>
-                <strong>{{ event.entityName }}</strong>
-                <small>{{ event.recordId }}</small>
-              </td>
-              <td><span [class]="'audit-status ' + actionClass(event.action)">{{ event.action }}</span></td>
-              <td>{{ event.actorName }}</td>
-              <td>{{ event.details || '—' }}</td>
-              <td>{{ event.active ? 'Activo' : 'Inactivo' }}</td>
+              <th>Fecha y hora</th>
+              <th>Usuario</th>
+              <th>Acción</th>
+              <th>Entidad</th>
+              <th>Registro</th>
+              <th>Resultado</th>
+              <th>Origen</th>
+              <th>Correlación</th>
+              <th>Acciones</th>
             </tr>
-          } @empty {
-            <tr>
-              <td colspan="7" class="empty">No hay eventos para los filtros seleccionados.</td>
-            </tr>
-          }
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody>
+            @for (event of visibleEvents(); track eventKey(event)) {
+              <tr [class.is-selected]="eventKey(event) === selectedEventKey()" [class.row-failed]="resultStatus(event) === 'failed'" (click)="selectEvent(event)">
+                <td>{{ formatDateTime(event.occurredAt) }}</td>
+                <td>{{ event.actorName }}</td>
+                <td><span [class]="'audit-status ' + actionClass(event.action)">{{ actionLabel(event.action) }}</span></td>
+                <td>{{ entityLabel(event.entity) }}</td>
+                <td>
+                  <strong>{{ translateText(event.entityName) }}</strong>
+                  <small [title]="event.recordId">Referencia {{ compactRecordId(event.recordId) }}</small>
+                </td>
+                <td>
+                  <span class="result-pill" [class.result-success]="resultStatus(event) === 'success'" [class.result-failed]="resultStatus(event) === 'failed'">
+                    {{ resultLabel(event) }}
+                  </span>
+                </td>
+                <td>{{ originLabel(event) }}</td>
+                <td>{{ correlationId(event) }}</td>
+                <td>
+                  <button class="detail-button" type="button" (click)="selectEvent(event); $event.stopPropagation()">Ver detalle</button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    } @else {
+      <div class="gi-empty-state empty-audit">
+        <h3>No hay eventos con estos filtros</h3>
+        <p>Intenta con otros criterios de búsqueda o limpia los filtros para ampliar la bitácora.</p>
+        <button class="gi-button gi-button--secondary" type="button" (click)="clearFilters()">Limpiar filtros</button>
+      </div>
+    }
 
     <footer class="pagination">
-      <span>{{ totalCount() }} evento(s)</span>
+      <span>{{ totalCount() }} evento(s) en la consulta original</span>
       <div>
         <button class="gi-button gi-button--secondary" type="button" [disabled]="page() <= 1 || loading()" (click)="goToPage(page() - 1)">
           Anterior
@@ -143,4 +187,172 @@
       </div>
     </footer>
   </article>
+
+  @if (selectedEvent(); as event) {
+    <aside class="audit-drawer" aria-label="Detalle de auditoría">
+      <button class="drawer-close" type="button" (click)="closeEventDetail()">×</button>
+
+      <header>
+        <span class="eyebrow">Detalle de auditoría</span>
+        <h2>{{ translateText(event.entityName) }}</h2>
+        <p>{{ auditSentence(event) }}</p>
+      </header>
+
+      <section class="detail-grid">
+        <article>
+          <span>Cuándo</span>
+          <strong>{{ formatDateTime(event.occurredAt) }}</strong>
+        </article>
+        <article>
+          <span>Usuario</span>
+          <strong>{{ event.actorName }}</strong>
+        </article>
+        <article>
+          <span>Acción</span>
+          <strong>{{ actionLabel(event.action) }}</strong>
+        </article>
+        <article>
+          <span>Entidad</span>
+          <strong>{{ entityLabel(event.entity) }}</strong>
+        </article>
+        <article>
+          <span>Registro</span>
+          <strong>{{ translateText(event.entityName) }}</strong>
+          <small>Referencia {{ compactRecordId(event.recordId) }}</small>
+        </article>
+        <article>
+          <span>Resultado</span>
+          <strong>{{ resultLabel(event) }}</strong>
+          <small>{{ resultDescription(event) }}</small>
+        </article>
+        <article>
+          <span>Origen</span>
+          <strong>{{ originLabel(event) }}</strong>
+        </article>
+        <article>
+          <span>Correlación</span>
+          <strong>{{ correlationId(event) }}</strong>
+        </article>
+      </section>
+
+      <section class="change-card">
+        <span class="eyebrow">Cambios realizados</span>
+        <h3>Diff campo por campo</h3>
+        <div class="diff-table">
+          <div class="diff-head">
+            <span>Campo</span>
+            <span>Valor anterior</span>
+            <span>Valor nuevo</span>
+          </div>
+          @for (row of selectedDiffRows(); track row.field) {
+            <div class="diff-row" [class.is-deleted]="row.deleted">
+              <strong>{{ row.field }}</strong>
+              <span>{{ valueLabel(row.before) }}</span>
+              <span>{{ valueLabel(row.after) }}</span>
+            </div>
+          }
+        </div>
+      </section>
+
+      <section class="snapshot-grid">
+        <article class="change-card">
+          <span class="eyebrow">Snapshot auditado</span>
+          <h3>Estado en el momento del evento</h3>
+          <dl>
+            <div><dt>Referencia</dt><dd>{{ snapshotReference(event) }}</dd></div>
+            <div><dt>Correlación</dt><dd>{{ correlationId(event) }}</dd></div>
+            <div><dt>Fecha y hora</dt><dd>{{ formatDateTime(event.occurredAt) }}</dd></div>
+            <div><dt>Acción</dt><dd>{{ actionLabel(event.action) }}</dd></div>
+            <div><dt>Usuario</dt><dd>{{ event.actorName }}</dd></div>
+          </dl>
+        </article>
+
+        <article class="change-card">
+          <span class="eyebrow">Objeto actual</span>
+          <h3>Puede haber cambiado después</h3>
+          <p>El objeto actual puede haber sido modificado después de este evento.</p>
+          <strong>{{ currentObjectStatus(event) }}</strong>
+          <div class="drawer-actions">
+            <button class="gi-button gi-button--primary" type="button">Ver objeto actual</button>
+            <button class="gi-button gi-button--secondary" type="button" (click)="copyReference()">Copiar referencia</button>
+          </div>
+        </article>
+      </section>
+
+      <section class="change-card">
+        <span class="eyebrow">Timeline del registro</span>
+        <h3>Eventos relacionados</h3>
+        <nav class="timeline-filters">
+          <button type="button" [class.is-active]="selectedTimelineFilter() === 'all'" (click)="setTimelineFilter('all')">Todos los eventos</button>
+          <button type="button" [class.is-active]="selectedTimelineFilter() === 'success'" (click)="setTimelineFilter('success')">Sólo exitosos</button>
+          <button type="button" [class.is-active]="selectedTimelineFilter() === 'failed'" (click)="setTimelineFilter('failed')">Sólo fallidos</button>
+          <button type="button" [class.is-active]="selectedTimelineFilter() === 'status'" (click)="setTimelineFilter('status')">Sólo cambios de estado</button>
+        </nav>
+
+        <div class="timeline-list">
+          @for (item of selectedTimeline(); track eventKey(item)) {
+            <article>
+              <i></i>
+              <div>
+                <strong>{{ actionLabel(item.action) }}</strong>
+                <span>{{ item.actorName }} · {{ formatDateTime(item.occurredAt) }}</span>
+                <small>Resultado: {{ resultLabel(item) }} · Origen: {{ originLabel(item) }} · Correlación: {{ correlationId(item) }}</small>
+              </div>
+            </article>
+          } @empty {
+            <p class="empty">No hay eventos relacionados con este filtro.</p>
+          }
+        </div>
+      </section>
+
+      <section class="change-card trace-card">
+        <span class="eyebrow">Origen y trazabilidad</span>
+        <h3>Metadatos del evento</h3>
+        <dl>
+          <div><dt>Origen</dt><dd>{{ originLabel(event) }}</dd></div>
+          <div><dt>Dirección IP</dt><dd>No registrada</dd></div>
+          <div><dt>Dispositivo</dt><dd>Interfaz web</dd></div>
+          <div><dt>Sesión</dt><dd>No registrada</dd></div>
+          <div><dt>Pantalla / módulo</dt><dd>{{ entityLabel(event.entity) }}</dd></div>
+          <div><dt>Solicitud / API</dt><dd>Operación de {{ entityLabel(event.entity) }}</dd></div>
+          <div><dt>Correlación</dt><dd>{{ correlationId(event) }}</dd></div>
+        </dl>
+
+        @if (resultStatus(event) === 'failed') {
+          <aside class="failed-event">
+            <strong>Evento fallido</strong>
+            <span>{{ resultDescription(event) }}</span>
+          </aside>
+        }
+      </section>
+    </aside>
+  }
+
+  @if (showExportConfig()) {
+    <aside class="export-drawer" aria-label="Confirmar exportación">
+      <button class="drawer-close" type="button" (click)="closeExportConfig()">×</button>
+      <span class="eyebrow">Exportación</span>
+      <h2>Exportar bitácora</h2>
+      <p>La exportación respetará los filtros aplicados y añadirá contexto para trazabilidad.</p>
+
+      <dl>
+        <div><dt>Archivo</dt><dd>{{ exportFileName() }}</dd></div>
+        <div><dt>Usuario que exporta</dt><dd>{{ exportingUserName() }}</dd></div>
+        <div><dt>Fecha y hora</dt><dd>{{ formatDateTime(latestEvent()?.occurredAt || '') }}</dd></div>
+        <div><dt>Organización</dt><dd>{{ selectedOrganizationName() }}</dd></div>
+        <div><dt>Entidad</dt><dd>{{ selectedEntity() ? entityLabel(selectedEntity()) : 'Todas las entidades' }}</dd></div>
+        <div><dt>Usuario filtrado</dt><dd>{{ selectedActor() || 'Todos los usuarios' }}</dd></div>
+        <div><dt>Acción filtrada</dt><dd>{{ selectedAction() || 'Todas las acciones' }}</dd></div>
+        <div><dt>Resultado filtrado</dt><dd>{{ selectedResult() === 'failed' ? 'Fallido' : selectedResult() === 'success' ? 'Éxito' : 'Todos los resultados' }}</dd></div>
+        <div><dt>Columnas visibles</dt><dd>Fecha, usuario, acción, entidad, registro, resultado, origen, correlación</dd></div>
+      </dl>
+
+      <div class="drawer-actions">
+        <button class="gi-button gi-button--secondary" type="button" (click)="closeExportConfig()">Cancelar</button>
+        <button class="gi-button gi-button--primary" type="button" [disabled]="exporting()" (click)="exportCsv()">
+          {{ exporting() ? 'Exportando…' : 'Confirmar exportación' }}
+        </button>
+      </div>
+    </aside>
+  }
 </section>

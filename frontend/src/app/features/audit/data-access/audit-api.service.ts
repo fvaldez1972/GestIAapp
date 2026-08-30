@@ -39,4 +39,29 @@ export class AuditApiService {
 
     return this.http.get<AuditResult>(this.baseUrl, { params });
   }
+
+  exportEvents(organizationId: string, entity = '', search = '', fromDate = '', toDate = '') {
+    let params = new HttpParams().set('organizationId', organizationId);
+
+    if (entity) {
+      params = params.set('entity', entity);
+    }
+
+    if (search.trim()) {
+      params = params.set('search', search.trim());
+    }
+
+    if (fromDate) {
+      params = params.set('fromDate', fromDate);
+    }
+
+    if (toDate) {
+      params = params.set('toDate', toDate);
+    }
+
+    return this.http.get(`${this.baseUrl}/export`, {
+      params,
+      responseType: 'blob',
+    });
+  }
 }

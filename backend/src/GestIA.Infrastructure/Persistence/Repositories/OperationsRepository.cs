@@ -17,6 +17,11 @@ public sealed class OperationsRepository(GestIaDbContext dbContext) : IOperation
                 service.Client.IdOrganization == idOrganization,
             cancellationToken);
 
+    public Task<ServiceEntity?> GetServiceAsync(Guid idOrganization, Guid idService, CancellationToken cancellationToken) =>
+        dbContext.Services.SingleOrDefaultAsync(
+            service => service.IdService == idService && service.Client.IdOrganization == idOrganization,
+            cancellationToken);
+
     public Task<ScheduledShift?> GetScheduledShiftAsync(Guid idService, Guid idScheduledShift, CancellationToken cancellationToken) =>
         dbContext.ScheduledShifts
             .Include(shift => shift.ScheduleVersion)
@@ -55,6 +60,23 @@ public sealed class OperationsRepository(GestIaDbContext dbContext) : IOperation
 
     public Task AddAttendanceAsync(AttendanceRecord attendance, CancellationToken cancellationToken) =>
         dbContext.AttendanceRecords.AddAsync(attendance, cancellationToken).AsTask();
+
+    public async Task<IReadOnlyList<ScheduledShift>> ListScheduledShiftsAsync(
+        Guid idService,
+        DateOnly shiftDate,
+        CancellationToken cancellationToken) =>
+        await dbContext.ScheduledShifts
+            .AsNoTracking()
+            .Include(shift => shift.ScheduleVersion)
+            .Include(shift => shift.Employee)
+            .Where(shift =>
+                shift.ScheduleVersion.IdService == idService &&
+                shift.ScheduleVersion.Status == GestIA.Domain.Planning.ScheduleVersionStatus.Published &&
+                shift.ShiftDate == shiftDate &&
+                shift.Active)
+            .OrderBy(shift => shift.StartTime)
+            .ThenBy(shift => shift.Employee.FullName)
+            .ToArrayAsync(cancellationToken);
 
     public Task<Incident?> GetIncidentAsync(Guid idService, Guid idIncident, CancellationToken cancellationToken) =>
         dbContext.Incidents
@@ -156,4 +178,92 @@ public sealed class OperationsRepository(GestIaDbContext dbContext) : IOperation
 
     public Task AddEvidenceAsync(OperationEvidence evidence, CancellationToken cancellationToken) =>
         dbContext.OperationEvidences.AddAsync(evidence, cancellationToken).AsTask();
+
+    public async Task<IReadOnlyList<ApprovalRequest>> ListApprovalRequestsAsync(
+        Guid idOrganization,
+        Guid? idService,
+        ApprovalRequestStatus? status,
+        CancellationToken cancellationToken)
+    {
+        var query = dbContext.ApprovalRequests
+            .AsNoTracking()
+            .Where(approval => approval.IdOrganization == idOrganization);
+
+        if (idService.HasValue)
+        {
+            query = query.Where(approval => approval.IdService == idService.Value);
+        }
+
+        if (status.HasValue)
+        {
+            query = query.Where(approval => approval.Status == status.Value);
+        }
+
+        return await query
+            .OrderByDescending(approval => approval.RequestedAt)
+            .ThenBy(approval => approval.ApprovalType)
+            .ToArrayAsync(cancellationToken);
+    }
+
+    public Task<ApprovalRequest?> GetApprovalRequestAsync(
+        Guid idOrganization,
+        Guid idApprovalRequest,
+        CancellationToken cancellationToken) =>
+        dbContext.ApprovalRequests.SingleOrDefaultAsync(
+            approval => approval.IdOrganization == idOrganization && approval.IdApprovalRequest == idApprovalRequest,
+            cancellationToken);
+
+    public Task AddApprovalRequestAsync(ApprovalRequest approvalRequest, CancellationToken cancellationToken) =>
+        dbContext.ApprovalRequests.AddAsync(approvalRequest, cancellationToken).AsTask();
+
+    public async Task<IReadOnlyList<OperationDayClosure>> ListDayClosuresAsync(
+        Guid idOrganization,
+        Guid? idService,
+        DateOnly? fromDate,
+        DateOnly? toDate,
+        CancellationToken cancellationToken)
+    {
+        var query = dbContext.OperationDayClosures
+            .AsNoTracking()
+            .Where(closure => closure.IdOrganization == idOrganization);
+
+        if (idService.HasValue)
+        {
+            query = query.Where(closure => closure.IdService == idService.Value);
+        }
+
+        if (fromDate.HasValue)
+        {
+            query = query.Where(closure => closure.OperationDate >= fromDate.Value);
+        }
+
+        if (toDate.HasValue)
+        {
+            query = query.Where(closure => closure.OperationDate <= toDate.Value);
+        }
+
+        return await query
+            .OrderByDescending(closure => closure.OperationDate)
+            .ThenByDescending(closure => closure.ClosedAt)
+            .ToArrayAsync(cancellationToken);
+    }
+
+    public Task<OperationDayClosure?> GetDayClosureAsync(
+        Guid idService,
+        DateOnly operationDate,
+        CancellationToken cancellationToken) =>
+        dbContext.OperationDayClosures.SingleOrDefaultAsync(
+            closure => closure.IdService == idService && closure.OperationDate == operationDate,
+            cancellationToken);
+
+    public Task<OperationDayClosure?> GetDayClosureAsync(
+        Guid idService,
+        Guid idOperationDayClosure,
+        CancellationToken cancellationToken) =>
+        dbContext.OperationDayClosures.SingleOrDefaultAsync(
+            closure => closure.IdService == idService && closure.IdOperationDayClosure == idOperationDayClosure,
+            cancellationToken);
+
+    public Task AddDayClosureAsync(OperationDayClosure closure, CancellationToken cancellationToken) =>
+        dbContext.OperationDayClosures.AddAsync(closure, cancellationToken).AsTask();
 }

@@ -2,7 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { of, switchMap } from 'rxjs';
+import { forkJoin, of, switchMap } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { ClientApiService } from '../../../clients/data-access/client-api.service';
 import { Client, ManagedService, Organization, ScheduledShift, ServicePosition } from '../../../clients/data-access/client.models';
@@ -36,6 +36,7 @@ export class RequestsPage implements OnInit {
   protected readonly organizations = signal<readonly Organization[]>([]);
   protected readonly clients = signal<readonly Client[]>([]);
   protected readonly services = signal<readonly ManagedService[]>([]);
+  protected readonly filterServices = signal<readonly ManagedService[]>([]);
   protected readonly employees = signal<readonly Employee[]>([]);
   protected readonly positions = signal<readonly ServicePosition[]>([]);
   protected readonly scheduledShifts = signal<readonly ScheduledShift[]>([]);
@@ -46,6 +47,10 @@ export class RequestsPage implements OnInit {
   protected readonly stageFilter = signal<RequestStageFilter>('all');
   protected readonly filterType = signal<OperationalRequestType | ''>('');
   protected readonly filterPriority = signal<OperationalRequestPriority | ''>('');
+  protected readonly filterServiceId = signal('');
+  protected readonly filterResponsible = signal('');
+  protected readonly filterDateFrom = signal(this.today());
+  protected readonly filterDateTo = signal(this.today());
   protected readonly search = signal('');
   protected readonly sortMode = signal<RequestSortMode>('recent');
   protected readonly loading = signal(false);
@@ -55,25 +60,54 @@ export class RequestsPage implements OnInit {
   protected readonly selectedRequestId = signal('');
   protected readonly workspaceOpen = signal(false);
   protected readonly workspaceTab = signal<RequestWorkspaceTab>('details');
+  protected readonly newRequestStep = signal<NewRequestStep>(1);
   protected readonly detailPanelOpen = signal(false);
   protected readonly detailPanelTab = signal<RequestWorkspaceTab>('details');
   protected readonly activeExecutionType = signal<OperationalRequestType>('NewService');
   protected readonly requestTypeSelected = signal(false);
+  protected readonly attemptedNewRequestNext = signal(false);
   protected readonly executionPreview = signal<OperationalRequestExecutionPreview | null>(null);
   protected readonly executionResult = signal<ExecuteOperationalRequestResult | null>(null);
+  protected readonly selectedOrganization = computed(
+    () => this.organizations().find((organization) => organization.idOrganization === this.selectedOrganizationId()) ?? null,
+  );
 
-  protected readonly openRequests = computed(() =>
-    this.requests().filter((request) => ['Submitted', 'InReview', 'Approved'].includes(request.status)).length,
-  );
-  protected readonly criticalRequests = computed(
-    () => this.requests().filter((request) => request.priority === 'Critical').length,
-  );
-  protected readonly completedRequests = computed(
-    () => this.requests().filter((request) => request.status === 'Completed').length,
-  );
   protected readonly selectedRequest = computed(
     () => this.requests().find((request) => request.idOperationalRequest === this.selectedRequestId()) ?? null,
   );
+  protected readonly filteredRequests = computed(() => {
+    const search = this.search().trim().toLocaleLowerCase('es-MX');
+    const status = this.filterStatus();
+    const type = this.filterType();
+    const priority = this.filterPriority();
+    const serviceId = this.filterServiceId();
+    const responsible = this.filterResponsible().trim().toLocaleLowerCase('es-MX');
+    const dateFrom = this.filterDateFrom();
+    const dateTo = this.filterDateTo();
+
+    return this.requests().filter((request) => {
+      const searchMatches =
+        !search ||
+        request.codeOperationalRequest.toLocaleLowerCase('es-MX').includes(search) ||
+        request.title.toLocaleLowerCase('es-MX').includes(search) ||
+        request.requestedByName.toLocaleLowerCase('es-MX').includes(search) ||
+        (request.clientName ?? '').toLocaleLowerCase('es-MX').includes(search) ||
+        (request.serviceName ?? '').toLocaleLowerCase('es-MX').includes(search);
+      const dateMatches =
+        (!dateFrom || (request.neededByDate ?? '') >= dateFrom) &&
+        (!dateTo || (request.neededByDate ?? '') <= dateTo);
+
+      return (
+        searchMatches &&
+        (!status || request.status === status) &&
+        (!type || request.requestType === type) &&
+        (!priority || request.priority === priority) &&
+        (!serviceId || request.idService === serviceId) &&
+        (!responsible || request.requestedByName.toLocaleLowerCase('es-MX').includes(responsible)) &&
+        dateMatches
+      );
+    });
+  });
   protected readonly visibleRequests = computed(() => {
     const priorityWeight: Record<OperationalRequestPriority, number> = {
       Critical: 4,
@@ -82,9 +116,8 @@ export class RequestsPage implements OnInit {
       Low: 1,
     };
 
-    return [...this.requests()]
+    return [...this.filteredRequests()]
       .filter((request) => this.matchesStage(request, this.stageFilter()))
-      .filter((request) => !this.filterPriority() || request.priority === this.filterPriority())
       .sort((left, right) => {
       switch (this.sortMode()) {
         case 'priority':
@@ -97,35 +130,29 @@ export class RequestsPage implements OnInit {
         }
       });
   });
-  protected readonly workflowColumns = computed<RequestWorkflowColumn[]>(() =>
-    [
-      { stage: 'draft' as const, label: 'Borrador', hint: 'Pendientes de enviar' },
-      { stage: 'review' as const, label: 'En revisión', hint: 'Requieren decisión' },
-      { stage: 'approved' as const, label: 'Aprobadas', hint: 'Listas para ejecutar' },
-      { stage: 'completed' as const, label: 'Completadas', hint: 'Cerradas correctamente' },
-      { stage: 'rejected' as const, label: 'Rechazadas', hint: 'No continúan' },
-    ].map((column) => ({
-      ...column,
-      requests: this.requests().filter((request) => this.matchesStage(request, column.stage)),
-    })),
+  protected readonly stageDefinitions = computed<readonly RequestStageDefinition[]>(() => [
+    { stage: 'all', label: 'Todas', hint: 'Vista general', count: this.filteredRequests().length },
+    { stage: 'draft', label: 'Borrador', hint: 'Pendientes de enviar', count: this.countStage('draft') },
+    { stage: 'open', label: 'Abiertas', hint: 'Por atender', count: this.countStage('open') },
+    { stage: 'approved', label: 'Aprobadas', hint: 'Aprobadas', count: this.countStage('approved') },
+    { stage: 'execution', label: 'En ejecución', hint: 'En curso', count: this.countStage('execution') },
+    { stage: 'completed', label: 'Completadas', hint: 'Cerradas', count: this.countStage('completed') },
+    { stage: 'cancelled', label: 'Canceladas', hint: 'Canceladas', count: this.countStage('cancelled') },
+  ]);
+  protected readonly totalRequests = computed(() => this.filteredRequests().length);
+  protected readonly openRequests = computed(() => this.filteredRequests().filter((request) => this.isOpenStatus(request.status)).length);
+  protected readonly completedRequests = computed(() => this.filteredRequests().filter((request) => request.status === 'Completed').length);
+  protected readonly blockedRequests = computed(
+    () =>
+      this.filteredRequests().filter((request) => ['Rejected', 'Cancelled'].includes(request.status) || this.isOverdue(request)).length,
   );
-  protected readonly overdueRequests = computed(() => {
-    const today = this.today();
-    return this.requests().filter((request) =>
-      Boolean(
-        request.neededByDate &&
-        request.neededByDate < today &&
-        ['Submitted', 'InReview', 'Approved'].includes(request.status),
-      ),
-    ).length;
-  });
 
   protected readonly requestTypes: readonly { value: OperationalRequestType; label: string }[] = [
     { value: 'NewClient', label: 'Alta de cliente' },
     { value: 'NewService', label: 'Nuevo servicio' },
-    { value: 'ServiceChange', label: 'Cambio de servicio' },
-    { value: 'CoverageSupport', label: 'Apoyo de cobertura' },
+    { value: 'ServiceChange', label: 'Cambio de configuración' },
     { value: 'StaffChange', label: 'Cambio de personal' },
+    { value: 'CoverageSupport', label: 'Solicitud de cobertura' },
     { value: 'Other', label: 'Otro' },
   ];
 
@@ -140,7 +167,7 @@ export class RequestsPage implements OnInit {
 
   protected readonly statuses: readonly { value: OperationalRequestStatus; label: string }[] = [
     { value: 'Draft', label: 'Borrador' },
-    { value: 'Submitted', label: 'Enviada' },
+    { value: 'Submitted', label: 'Abierta' },
     { value: 'InReview', label: 'En revisión' },
     { value: 'Approved', label: 'Aprobada' },
     { value: 'Rejected', label: 'Rechazada' },
@@ -155,6 +182,13 @@ export class RequestsPage implements OnInit {
     { value: 'Critical', label: 'Crítica' },
   ];
 
+  protected readonly savedFilters: readonly SavedRequestFilter[] = [
+    { label: 'Completadas', icon: '✓', status: 'Completed' },
+    { label: 'Pendientes de aprobación', icon: '!', status: 'InReview' },
+    { label: 'Alta de cliente', icon: '+', type: 'NewClient' },
+    { label: 'Vence hoy', icon: '↘', dueToday: true },
+  ];
+
   protected readonly requestForm = this.formBuilder.nonNullable.group({
     codeOperationalRequest: [this.nextRequestCode(), [Validators.required, Validators.maxLength(40)]],
     idClient: [''],
@@ -164,7 +198,7 @@ export class RequestsPage implements OnInit {
     title: ['Nueva solicitud operativa', [Validators.required, Validators.maxLength(180)]],
     description: ['', [Validators.required, Validators.maxLength(2000)]],
     requestedByName: ['Operación', [Validators.required, Validators.maxLength(160)]],
-    neededByDate: [''],
+    neededByDate: ['', [Validators.required]],
   });
 
   protected readonly statusForm = this.formBuilder.nonNullable.group({
@@ -221,6 +255,7 @@ export class RequestsPage implements OnInit {
     this.selectedClientId.set('');
     this.clients.set([]);
     this.services.set([]);
+    this.filterServices.set([]);
     this.positions.set([]);
     this.scheduledShifts.set([]);
     this.employees.set([]);
@@ -262,16 +297,30 @@ export class RequestsPage implements OnInit {
 
   protected onFilterStatusChange(event: Event) {
     this.filterStatus.set((event.target as HTMLSelectElement).value as OperationalRequestStatus | '');
-    this.loadRequests();
   }
 
   protected onFilterTypeChange(event: Event) {
     this.filterType.set((event.target as HTMLSelectElement).value as OperationalRequestType | '');
-    this.loadRequests();
   }
 
   protected onFilterPriorityChange(event: Event) {
     this.filterPriority.set((event.target as HTMLSelectElement).value as OperationalRequestPriority | '');
+  }
+
+  protected onFilterServiceChange(event: Event) {
+    this.filterServiceId.set((event.target as HTMLSelectElement).value);
+  }
+
+  protected onFilterResponsibleChange(event: Event) {
+    this.filterResponsible.set((event.target as HTMLInputElement).value);
+  }
+
+  protected onDateFromChange(event: Event) {
+    this.filterDateFrom.set((event.target as HTMLInputElement).value);
+  }
+
+  protected onDateToChange(event: Event) {
+    this.filterDateTo.set((event.target as HTMLInputElement).value);
   }
 
   protected onSearchChange(event: Event) {
@@ -279,7 +328,7 @@ export class RequestsPage implements OnInit {
   }
 
   protected applySearch() {
-    this.loadRequests();
+    this.message.set('Filtros aplicados.');
   }
 
   protected onSortModeChange(event: Event) {
@@ -291,15 +340,44 @@ export class RequestsPage implements OnInit {
   }
 
   protected clearQuickFilters() {
+    this.clearFilters();
+  }
+
+  protected clearFilters() {
     this.stageFilter.set('all');
+    this.filterStatus.set('');
+    this.filterType.set('');
     this.filterPriority.set('');
+    this.filterServiceId.set('');
+    this.filterResponsible.set('');
+    this.filterDateFrom.set('');
+    this.filterDateTo.set('');
+    this.search.set('');
+  }
+
+  protected applySavedFilter(filter: SavedRequestFilter) {
+    this.stageFilter.set('all');
+    this.filterStatus.set(filter.status ?? '');
+    this.filterType.set(filter.type ?? '');
+    this.filterPriority.set('');
+    this.filterServiceId.set('');
+    this.filterResponsible.set('');
+    if (filter.dueToday) {
+      this.filterDateFrom.set(this.today());
+      this.filterDateTo.set(this.today());
+    } else {
+      this.filterDateFrom.set('');
+      this.filterDateTo.set('');
+    }
   }
 
   protected openNewRequest() {
     this.resetRequestForm();
     this.detailPanelOpen.set(false);
     this.workspaceTab.set('details');
+    this.newRequestStep.set(1);
     this.requestTypeSelected.set(false);
+    this.attemptedNewRequestNext.set(false);
     this.workspaceOpen.set(true);
   }
 
@@ -340,6 +418,20 @@ export class RequestsPage implements OnInit {
     this.workspaceTab.set(tab);
   }
 
+  protected nextNewRequestStep() {
+    this.attemptedNewRequestNext.set(true);
+    if (this.newRequestStep() === 1 && !this.canContinueNewRequest()) {
+      this.requestForm.markAllAsTouched();
+      return;
+    }
+
+    this.newRequestStep.set(Math.min(3, this.newRequestStep() + 1) as NewRequestStep);
+  }
+
+  protected previousNewRequestStep() {
+    this.newRequestStep.set(Math.max(1, this.newRequestStep() - 1) as NewRequestStep);
+  }
+
   protected selectRequestType(type: OperationalRequestType) {
     this.requestTypeSelected.set(true);
     this.activeExecutionType.set(type);
@@ -347,8 +439,28 @@ export class RequestsPage implements OnInit {
     this.executionResult.set(null);
     this.requestForm.patchValue({
       requestType: type,
+      idClient: type === 'NewClient' ? '' : this.requestForm.controls.idClient.value,
       title: this.defaultTitleForType(type),
     });
+  }
+
+  protected canContinueNewRequest() {
+    const form = this.requestForm.getRawValue();
+    return Boolean(
+      this.selectedOrganizationId() &&
+      this.requestTypeSelected() &&
+      form.priority &&
+      form.neededByDate &&
+      form.requestedByName.trim() &&
+      form.title.trim() &&
+      form.description.trim() &&
+      (form.requestType === 'NewClient' || form.idClient),
+    );
+  }
+
+  protected shouldShowFieldError(controlName: keyof typeof this.requestForm.controls) {
+    const control = this.requestForm.controls[controlName];
+    return control.invalid && (control.touched || this.attemptedNewRequestNext());
   }
 
   protected saveRequest(targetStatus: OperationalRequestStatus | null = null) {
@@ -498,44 +610,27 @@ export class RequestsPage implements OnInit {
       title: '',
       description: '',
       requestedByName: this.currentRequesterName(),
-      neededByDate: '',
+      neededByDate: this.today(),
     });
     this.resetExecutionForm();
   }
 
   protected changeStatus() {
-    const organizationId = this.selectedOrganizationId();
+    const request = this.selectedRequest();
     const form = this.statusForm.getRawValue();
 
-    if (!organizationId || !form.idOperationalRequest || this.statusForm.invalid) {
+    if (!request || !form.idOperationalRequest || this.statusForm.invalid) {
       this.statusForm.markAllAsTouched();
       return;
     }
 
-    if (form.status === 'Completed' && this.selectedRequest()?.status !== 'Completed') {
-      this.error.set('Para completar una solicitud aprobada usa la ejecución; así se crean o modifican los datos reales.');
+    const rule = this.transitionRule(request, form.status);
+    if (!rule.enabled) {
+      this.error.set(rule.reason);
       return;
     }
 
-    this.beginSave();
-
-    this.api
-      .changeStatus(form.idOperationalRequest, {
-        idOrganization: organizationId,
-        status: form.status,
-        resolutionNotes: this.emptyToNull(form.resolutionNotes),
-      })
-      .subscribe({
-        next: () => {
-          this.message.set('Estado de solicitud actualizado.');
-          if (form.status === 'Cancelled') {
-            this.resetRequestForm();
-          }
-          this.loadRequests();
-        },
-        error: (error: HttpErrorResponse) => this.setError(error, 'No se pudo actualizar el estado.'),
-        complete: () => this.saving.set(false),
-      });
+    this.updateRequestStatus(request, form.status, this.emptyToNull(form.resolutionNotes) ?? rule.note);
   }
 
   protected advanceRequest(request: OperationalRequest) {
@@ -563,6 +658,15 @@ export class RequestsPage implements OnInit {
   protected prepareExecution(request: OperationalRequest) {
     this.selectRequest(request, { open: true, tab: 'execution' });
     this.message.set('Solicitud seleccionada. Valida el impacto y completa los datos antes de ejecutar.');
+  }
+
+  protected openEditRequest(request: OperationalRequest) {
+    if (request.status === 'Completed') {
+      this.selectRequest(request, { open: true, tab: 'execution' });
+      return;
+    }
+
+    this.selectRequest(request, { modal: true, open: false, tab: 'details' });
   }
 
   protected previewExecution(request: OperationalRequest | null = this.selectedRequest()) {
@@ -665,6 +769,56 @@ export class RequestsPage implements OnInit {
     }
   }
 
+  protected transitionRule(request: OperationalRequest, target: OperationalRequestStatus): RequestTransitionRule {
+    if (request.status === 'Completed') {
+      return {
+        label: `Cambiar a ${this.labelForStatus(target)}`,
+        target,
+        enabled: false,
+        reason: 'No disponible para solicitudes completadas.',
+        note: 'Solicitud completada sin cambios.',
+      };
+    }
+
+    const allowed: Partial<Record<OperationalRequestStatus, readonly OperationalRequestStatus[]>> = {
+      Draft: ['Submitted', 'Cancelled'],
+      Submitted: ['InReview', 'Cancelled'],
+      InReview: ['Approved', 'Rejected', 'Cancelled'],
+      Approved: ['Cancelled'],
+      Rejected: ['Draft'],
+      Cancelled: ['Draft'],
+    };
+    const enabled = allowed[request.status]?.includes(target) ?? false;
+
+    return {
+      label: `Cambiar a ${this.labelForStatus(target)}`,
+      target,
+      enabled,
+      reason: enabled ? '' : `No se puede pasar de ${this.labelForStatus(request.status)} a ${this.labelForStatus(target)}.`,
+      note: `Cambio de estado: ${this.labelForStatus(request.status)} → ${this.labelForStatus(target)}.`,
+    };
+  }
+
+  protected transitionTo(request: OperationalRequest, status: OperationalRequestStatus) {
+    const rule = this.transitionRule(request, status);
+    if (!rule.enabled) {
+      return;
+    }
+
+    if (status === 'Rejected' && !window.confirm(`¿Rechazar la solicitud ${request.codeOperationalRequest}?`)) {
+      return;
+    }
+
+    this.updateRequestStatus(request, status, rule.note);
+  }
+
+  protected primaryTransitions(request: OperationalRequest) {
+    const targets: OperationalRequestStatus[] = ['Submitted', 'InReview', 'Approved', 'Rejected', 'Cancelled', 'Draft'];
+    return targets
+      .filter((target) => target !== request.status)
+      .map((target) => this.transitionRule(request, target));
+  }
+
   protected labelForType(value: OperationalRequestType) {
     return this.requestTypes.find((item) => item.value === value)?.label ?? 'Solicitud operativa';
   }
@@ -678,11 +832,7 @@ export class RequestsPage implements OnInit {
   }
 
   protected labelForStage(value: RequestStageFilter) {
-    if (value === 'all') {
-      return 'Solicitudes visibles';
-    }
-
-    return this.workflowColumns().find((item) => item.stage === value)?.label ?? 'Solicitudes visibles';
+    return this.stageDefinitions().find((item) => item.stage === value)?.label ?? 'Solicitudes visibles';
   }
 
   protected actionLabelForRequest(request: OperationalRequest) {
@@ -693,9 +843,65 @@ export class RequestsPage implements OnInit {
         return 'Tomar revisión';
       case 'InReview':
         return 'Aprobar';
+      case 'Approved':
+        return 'Validar impacto';
+      case 'Completed':
+        return 'Ver resultado';
       default:
-        return 'Avanzar';
+        return 'Ver detalle';
     }
+  }
+
+  protected statusClass(value: OperationalRequestStatus) {
+    return `status-${value.toLocaleLowerCase('en-US')}`;
+  }
+
+  protected serviceStateLabel(request: OperationalRequest) {
+    switch (request.status) {
+      case 'Completed':
+        return 'Ejecutado';
+      case 'Approved':
+        return 'Listo para ejecutar';
+      case 'Rejected':
+      case 'Cancelled':
+        return 'No aplica';
+      case 'Draft':
+        return request.serviceName ? 'Sin ejecutar' : 'Por definir';
+      case 'Submitted':
+      case 'InReview':
+      default:
+        return request.serviceName ? 'En revisión' : 'Pendiente';
+    }
+  }
+
+  protected serviceStateClass(request: OperationalRequest) {
+    if (request.status === 'Completed') {
+      return 'service-executed';
+    }
+    if (request.status === 'Approved') {
+      return 'service-ready';
+    }
+    if (['Rejected', 'Cancelled'].includes(request.status)) {
+      return 'service-muted';
+    }
+    return 'service-pending';
+  }
+
+  protected requestCycle(request: OperationalRequest): readonly RequestCycleItem[] {
+    const base: RequestCycleItem[] = [
+      { label: 'Borrador', status: 'Draft' },
+      { label: 'Abierta', status: 'Submitted' },
+      { label: 'Aprobada', status: 'Approved' },
+      { label: 'Ejecutada', status: 'Completed' },
+    ];
+    const order: OperationalRequestStatus[] = ['Draft', 'Submitted', 'InReview', 'Approved', 'Completed'];
+    const currentIndex = order.indexOf(request.status);
+
+    return base.map((item) => ({
+      ...item,
+      done: request.status === 'Completed' || order.indexOf(item.status) <= currentIndex,
+      active: item.status === request.status || (item.status === 'Submitted' && request.status === 'InReview'),
+    }));
   }
 
   protected previewCreatedItems(preview: OperationalRequestExecutionPreview) {
@@ -722,7 +928,19 @@ export class RequestsPage implements OnInit {
       month: 'short',
       year: 'numeric',
       timeZone: 'UTC',
-    }).format(new Date(`${value}T00:00:00Z`));
+    }).format(new Date(`${value.slice(0, 10)}T00:00:00Z`));
+  }
+
+  protected isOverdue(request: OperationalRequest) {
+    return Boolean(request.neededByDate && request.neededByDate < this.today() && request.status !== 'Completed');
+  }
+
+  protected todayLabel() {
+    return new Intl.DateTimeFormat('es-MX', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    }).format(new Date());
   }
 
   private loadOrganizations() {
@@ -750,8 +968,25 @@ export class RequestsPage implements OnInit {
     }
 
     this.clientApi.listClients(organizationId, '', 1, 100).subscribe({
-      next: (result) => this.clients.set(result.items),
+      next: (result) => {
+        this.clients.set(result.items);
+        this.loadFilterServices(result.items);
+      },
       error: (error: HttpErrorResponse) => this.setError(error, 'No se pudieron cargar los clientes.'),
+    });
+  }
+
+  private loadFilterServices(clients: readonly Client[]) {
+    const organizationId = this.selectedOrganizationId();
+
+    if (!organizationId || clients.length === 0) {
+      this.filterServices.set([]);
+      return;
+    }
+
+    forkJoin(clients.map((client) => this.clientApi.listServices(organizationId, client.idClient))).subscribe({
+      next: (serviceGroups) => this.filterServices.set(serviceGroups.flat()),
+      error: (error: HttpErrorResponse) => this.setError(error, 'No se pudieron cargar los servicios para filtros.'),
     });
   }
 
@@ -841,7 +1076,7 @@ export class RequestsPage implements OnInit {
     this.error.set('');
 
     this.api
-      .listRequests(organizationId, '', this.filterType(), this.search(), 1, 50)
+      .listRequests(organizationId, '', '', '', 1, 200)
       .subscribe({
         next: (result) => {
           this.requests.set(result.items);
@@ -899,18 +1134,28 @@ export class RequestsPage implements OnInit {
     switch (stage) {
       case 'draft':
         return request.status === 'Draft';
-      case 'review':
+      case 'open':
         return request.status === 'Submitted' || request.status === 'InReview';
       case 'approved':
         return request.status === 'Approved';
+      case 'execution':
+        return request.status === 'Approved';
       case 'completed':
         return request.status === 'Completed';
-      case 'rejected':
+      case 'cancelled':
         return request.status === 'Rejected' || request.status === 'Cancelled';
       case 'all':
       default:
         return true;
     }
+  }
+
+  private countStage(stage: RequestStageFilter) {
+    return this.filteredRequests().filter((request) => this.matchesStage(request, stage)).length;
+  }
+
+  private isOpenStatus(status: OperationalRequestStatus) {
+    return status === 'Submitted' || status === 'InReview' || status === 'Approved';
   }
 
   private containsAny(value: string, ...needles: readonly string[]) {
@@ -1155,22 +1400,46 @@ export class RequestsPage implements OnInit {
   }
 }
 
-type RequestWorkflowColumn = {
-  readonly stage: Exclude<RequestStageFilter, 'all'>;
+type RequestStageDefinition = {
+  readonly stage: RequestStageFilter;
   readonly label: string;
   readonly hint: string;
-  readonly requests: readonly OperationalRequest[];
+  readonly count: number;
 };
 
 type RequestWorkspaceTab = 'details' | 'status' | 'documents' | 'execution';
 type RequestSortMode = 'recent' | 'priority' | 'needed';
-type RequestStageFilter = 'all' | 'draft' | 'review' | 'approved' | 'completed' | 'rejected';
+type RequestStageFilter = 'all' | 'draft' | 'open' | 'approved' | 'execution' | 'completed' | 'cancelled';
+type NewRequestStep = 1 | 2 | 3;
 
 type RequestTypeCard = {
   readonly value: OperationalRequestType;
   readonly label: string;
   readonly hint: string;
   readonly icon: string;
+};
+
+type SavedRequestFilter = {
+  readonly label: string;
+  readonly icon: string;
+  readonly status?: OperationalRequestStatus;
+  readonly type?: OperationalRequestType;
+  readonly dueToday?: boolean;
+};
+
+type RequestTransitionRule = {
+  readonly label: string;
+  readonly target: OperationalRequestStatus;
+  readonly enabled: boolean;
+  readonly reason: string;
+  readonly note: string;
+};
+
+type RequestCycleItem = {
+  readonly label: string;
+  readonly status: OperationalRequestStatus;
+  readonly done?: boolean;
+  readonly active?: boolean;
 };
 
 type MutableExecutionPayload = {

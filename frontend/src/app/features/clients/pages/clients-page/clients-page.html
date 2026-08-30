@@ -1,16 +1,26 @@
-<section class="page-heading">
+<section class="page-heading page-heading--clients">
   <div>
-    <span class="eyebrow">Gestión comercial</span>
+    <span class="context-chip">Organización actual</span>
+    <p class="context-line">{{ todayContext() }}</p>
     <h1>Clientes</h1>
-    <p>Consulta y administra la información de tus clientes.</p>
+    <p>Estás viendo clientes asociados a esta organización. Consulta, filtra y abre el expediente sin perder contexto.</p>
   </div>
-  <button class="button button--primary" type="button" [disabled]="!selectedOrganizationId()" (click)="openCreateClient()">
-    <span aria-hidden="true">＋</span> Nuevo cliente
-  </button>
+  <div class="heading-actions">
+    <button class="button button--secondary" type="button" (click)="openCreateOrganization()">Nueva organización</button>
+    <button
+      class="button button--primary"
+      type="button"
+      [disabled]="!canCreateClient()"
+      [title]="newClientDisabledReason()"
+      (click)="openCreateClient()"
+    >
+      <span aria-hidden="true">＋</span> Nuevo cliente
+    </button>
+  </div>
 </section>
 
-<section class="context-card" aria-label="Contexto de organización">
-  <label>
+<section class="context-card context-card--clients" aria-label="Contexto de organización">
+  <label class="organization-picker">
     <span>Organización</span>
     <select [value]="selectedOrganizationId()" (change)="selectOrganization($any($event.target).value)">
       @if (!organizations().length) {
@@ -20,8 +30,35 @@
         <option [value]="organization.idOrganization">{{ organization.legalName }}</option>
       }
     </select>
+    <small>{{ selectedOrganization()?.legalName || 'Crea una organización para comenzar' }}</small>
   </label>
-  <button class="button button--secondary" type="button" (click)="openCreateOrganization()">Agregar organización</button>
+
+  @if (newClientDisabledReason()) {
+    <p class="context-warning">{{ newClientDisabledReason() }}</p>
+  }
+</section>
+
+<section class="client-kpis" aria-label="Indicadores de clientes">
+  <article>
+    <span>Organizaciones</span>
+    <strong>{{ organizations().length }}</strong>
+    <small>contextos registrados</small>
+  </article>
+  <article>
+    <span>Clientes</span>
+    <strong>{{ result().totalCount }}</strong>
+    <small>en la consulta</small>
+  </article>
+  <article>
+    <span>Sedes</span>
+    <strong>{{ sites().length }}</strong>
+    <small>del expediente abierto</small>
+  </article>
+  <article>
+    <span>Servicios activos</span>
+    <strong>{{ knownServicesCount() }}</strong>
+    <small>en resultados visibles</small>
+  </article>
 </section>
 
 @if (message()) {
@@ -33,64 +70,137 @@
 
 <section class="workbench">
   <article class="table-card">
-    <header class="table-toolbar">
+    <header class="table-toolbar table-toolbar--stacked">
       <div>
+        <span class="eyebrow">Directorio + contexto</span>
         <h2>Directorio de clientes</h2>
         <span>{{ visibleClients().length }} visibles de {{ result().totalCount }} registrados</span>
       </div>
-      <div class="search-box search-box--wide">
+    </header>
+
+    <div class="client-filters client-filters--advanced" aria-label="Filtros avanzados de clientes">
+      <label class="wide">
+        <span>Buscar cliente, RFC o contacto</span>
         <input
           type="search"
-          placeholder="Buscar por código, razón social, nombre comercial o RFC"
+          placeholder="Buscar..."
           [value]="search()"
           (input)="updateSearch($any($event.target).value)"
           (keyup.enter)="loadClients(1)"
         />
-        <button class="button button--secondary" type="button" (click)="loadClients(1)">Buscar</button>
-      </div>
-    </header>
-
-    <div class="client-filters" aria-label="Filtros de clientes">
+      </label>
+      <label>
+        <span>Organización</span>
+        <select [value]="selectedOrganizationId()" (change)="selectOrganization($any($event.target).value)">
+          @if (!organizations().length) {
+            <option value="">Sin organizaciones</option>
+          }
+          @for (organization of organizations(); track organization.idOrganization) {
+            <option [value]="organization.idOrganization">{{ organization.legalName }}</option>
+          }
+        </select>
+      </label>
       <label>
         <span>Estado</span>
         <select [value]="clientStatusFilter()" (change)="updateClientStatusFilter($any($event.target).value)">
           <option value="all">Todos</option>
-          <option value="active">Activos</option>
-          <option value="inactive">Inactivos</option>
+          <option value="active">Activo</option>
+          <option value="inactive">Inactivo</option>
         </select>
       </label>
       <label>
-        <span>Servicios</span>
+        <span>Servicio</span>
         <select [value]="clientServiceFilter()" (change)="updateClientServiceFilter($any($event.target).value)">
           <option value="all">Todos</option>
-          <option value="withServices">Con servicios</option>
-          <option value="withoutServices">Sin servicios</option>
+          <option value="withServices">Con servicios activos</option>
+          <option value="withoutServices">Sin servicios activos</option>
         </select>
       </label>
-      <div class="filter-note">
-        <strong>Filtros avanzados</strong>
-        <span>Ubicación y documentos se agregarán cuando existan esos filtros en API.</span>
+      <label>
+        <span>Sede</span>
+        <select [value]="clientSiteFilter()" (change)="updateClientSiteFilter($any($event.target).value)">
+          <option value="all">Todas</option>
+          <option value="withSite">Con sede conocida</option>
+          <option value="withoutSite">Sin sede capturada</option>
+        </select>
+      </label>
+      <label>
+        <span>Contrato</span>
+        <select [value]="clientContractFilter()" (change)="updateClientContractFilter($any($event.target).value)">
+          <option value="all">Todos</option>
+          <option value="withActiveContract">Con contrato vigente</option>
+          <option value="withoutActiveContract">Sin contrato vigente</option>
+        </select>
+      </label>
+      <label>
+        <span>Documentos</span>
+        <select [value]="clientDocumentsFilter()" (change)="updateClientDocumentsFilter($any($event.target).value)">
+          <option value="all">Todos</option>
+          <option value="pending">Con documentos pendientes</option>
+          <option value="complete">Sin pendientes visibles</option>
+        </select>
+      </label>
+      <label>
+        <span>Responsable</span>
+        <input
+          type="search"
+          placeholder="Nombre del contacto"
+          [value]="responsibleFilter()"
+          (input)="updateResponsibleFilter($any($event.target).value)"
+        />
+      </label>
+      <label>
+        <span>Rango de fechas</span>
+        <input type="date" [value]="startDateFilter()" (input)="updateStartDateFilter($any($event.target).value)" />
+      </label>
+      <label>
+        <span>Hasta</span>
+        <input type="date" [value]="endDateFilter()" (input)="updateEndDateFilter($any($event.target).value)" />
+      </label>
+      <div class="filter-actions">
+        <button class="button button--secondary" type="button" (click)="clearFilters()">Limpiar</button>
+        <button class="button button--primary" type="button" (click)="loadClients(1)">Filtrar</button>
+      </div>
+      <div class="saved-filters">
+        <span>Filtros guardados</span>
+        <button type="button" (click)="applySavedFilter('active')">Activos</button>
+        <button type="button" (click)="applySavedFilter('withoutContract')">Sin contrato vigente</button>
+        <button type="button" (click)="applySavedFilter('pendingDocuments')">Con documentos pendientes</button>
+        <button type="button" (click)="applySavedFilter('withServices')">Servicios activos</button>
       </div>
     </div>
 
     @if (loading()) {
       <div class="state-panel"><span class="spinner"></span> Cargando información…</div>
+    } @else if (!organizations().length) {
+      <div class="state-panel state-panel--empty">
+        <span class="empty-icon">⌂</span>
+        <strong>Esta cuenta aún no tiene organizaciones</strong>
+        <p>Puedes registrar un contexto empresarial para comenzar a administrar clientes.</p>
+        <button class="button button--primary" type="button" (click)="openCreateOrganization()">Nueva organización</button>
+      </div>
     } @else if (!selectedOrganizationId()) {
       <div class="state-panel state-panel--empty">
-        <strong>Crea la primera organización</strong>
-        <p>La organización delimita clientes y operación.</p>
-        <button class="button button--primary" type="button" (click)="openCreateOrganization()">Crear organización</button>
+        <span class="empty-icon">⌄</span>
+        <strong>Selecciona una organización</strong>
+        <p>Los clientes se muestran según la organización activa.</p>
       </div>
     } @else if (!result().items.length) {
       <div class="state-panel state-panel--empty">
-        <strong>No hay clientes que mostrar</strong>
-        <p>Registra el primer cliente o cambia la búsqueda.</p>
-        <button class="button button--primary" type="button" (click)="openCreateClient()">Nuevo cliente</button>
+        <span class="empty-icon">👥</span>
+        <strong>Esta organización aún no tiene clientes</strong>
+        <p>Puedes registrar un cliente para comenzar o cambiar de organización.</p>
+        <div class="empty-actions">
+          <button class="button button--primary" type="button" [disabled]="!canCreateClient()" [title]="newClientDisabledReason()" (click)="openCreateClient()">Nuevo cliente</button>
+          <button class="button button--secondary" type="button" (click)="openCreateOrganization()">Cambiar / nueva organización</button>
+        </div>
       </div>
     } @else if (!visibleClients().length) {
       <div class="state-panel state-panel--empty">
-        <strong>No hay coincidencias con estos filtros</strong>
-        <p>Ajusta el estado, el filtro de servicios o realiza otra búsqueda.</p>
+        <span class="empty-icon">⌕</span>
+        <strong>No hay clientes con estos filtros</strong>
+        <p>Intenta ajustar la búsqueda, limpiar filtros o usar otro filtro guardado.</p>
+        <button class="button button--primary" type="button" (click)="clearFilters()">Limpiar filtros</button>
       </div>
     } @else {
       <div class="client-table-wrap">
@@ -98,10 +208,10 @@
           <thead>
             <tr>
               <th>Cliente</th>
-              <th>Código</th>
               <th>RFC</th>
-              <th>Ubicación</th>
-              <th>Servicios</th>
+              <th>Contacto principal</th>
+              <th>Sede principal</th>
+              <th>Servicios activos</th>
               <th>Estado</th>
               <th>Acciones</th>
             </tr>
@@ -115,14 +225,21 @@
                     <small>{{ client.tradeName || 'Sin nombre comercial' }}</small>
                   </button>
                 </td>
-                <td><span class="code">{{ client.codeClient }}</span></td>
                 <td>{{ client.rfc }}</td>
+                <td>
+                  @if (selectedClient()?.idClient === client.idClient && primaryContact()) {
+                    <strong class="cell-main">{{ primaryContact()?.fullName }}</strong>
+                    <small>{{ primaryContact()?.email || primaryContact()?.phone || 'Sin dato de contacto' }}</small>
+                  } @else {
+                    <span class="muted-cell">Selecciona para consultar</span>
+                  }
+                </td>
                 <td>{{ clientLocationSummary(client) }}</td>
                 <td>{{ serviceCount(client) }}</td>
                 <td><span class="pill" [class.pill--muted]="!client.active">{{ clientStatusLabel(client) }}</span></td>
                 <td>
                   <div class="row-actions">
-                    <button type="button" title="Ver ficha 360" (click)="selectClient(client)">Ver</button>
+                    <button type="button" title="Ver expediente del cliente" (click)="selectClient(client)">Ver</button>
                     <button type="button" title="Editar cliente" (click)="openEditClient(client)">Editar</button>
                     <button class="danger" type="button" title="Desactivar cliente" (click)="deactivate(client)">Desactivar</button>
                   </div>
@@ -137,6 +254,14 @@
         <div>
           <button type="button" [disabled]="result().page <= 1" (click)="loadClients(result().page - 1)">Anterior</button>
           <button type="button" [disabled]="result().page >= result().totalPages" (click)="loadClients(result().page + 1)">Siguiente</button>
+          <label class="page-size">
+            <span>Por página</span>
+            <select [value]="result().pageSize" (change)="updatePageSize($any($event.target).value)">
+              <option value="10">10</option>
+              <option value="20">20</option>
+              <option value="50">50</option>
+            </select>
+          </label>
         </div>
       </footer>
     }
@@ -148,7 +273,12 @@
         <span class="eyebrow">Expediente del cliente</span>
         <h2>{{ selectedClientName() }}</h2>
         @if (selectedClient()) {
-          <p>{{ selectedClient()?.rfc }} · {{ selectedClient()?.employerRegistrationNumber || 'Sin registro patronal' }}</p>
+          <p>{{ selectedClient()?.rfc }} · {{ selectedClient()?.organizationName }}</p>
+          <div class="detail-badges">
+            <span class="pill" [class.pill--muted]="!selectedClient()?.active">{{ clientStatusLabel(selectedClient()!) }}</span>
+            <span class="pill" [class.pill--muted]="!services().length">{{ services().length ? 'Servicio activo' : 'Sin servicios activos' }}</span>
+            <span class="pill" [class.pill--muted]="!activeContractsCount()">{{ activeContractsCount() ? 'Contrato vigente' : 'Sin contrato vigente' }}</span>
+          </div>
         }
       </div>
       @if (selectedClient()) {
@@ -161,8 +291,9 @@
 
     @if (!selectedClient()) {
       <div class="state-panel state-panel--empty">
+        <span class="empty-icon">☰</span>
         <strong>Selecciona un cliente</strong>
-        <p>Sus sedes y contactos aparecerán aquí.</p>
+        <p>Su expediente 360 aparecerá aquí sin sacarte del directorio.</p>
       </div>
     } @else {
       <section class="client-360-summary">
@@ -204,12 +335,17 @@
         </header>
 
         <div class="profile-grid profile-grid--client">
+          <span><strong>Organización</strong>{{ selectedClient()?.organizationName }}</span>
           <span><strong>RFC</strong>{{ selectedClient()?.rfc }}</span>
           <span><strong>Nombre comercial</strong>{{ selectedClient()?.tradeName || 'Sin nombre comercial' }}</span>
           <span><strong>Nacionalidad</strong>{{ selectedClient()?.nationality || 'Sin nacionalidad capturada' }}</span>
           <span><strong>Actividad</strong>{{ selectedClient()?.taxActivity || 'Sin actividad capturada' }}</span>
-          <span><strong>Teléfono</strong>{{ contacts()[0]?.phone || contacts()[0]?.mobilePhone || 'Sin teléfono capturado' }}</span>
-          <span><strong>Correo</strong>{{ contacts()[0]?.email || 'Sin correo capturado' }}</span>
+          <span><strong>Contacto principal</strong>{{ primaryContact()?.fullName || 'Sin contacto principal' }}</span>
+          <span><strong>Teléfono</strong>{{ primaryContact()?.phone || primaryContact()?.mobilePhone || 'Sin teléfono capturado' }}</span>
+          <span><strong>Correo</strong>{{ primaryContact()?.email || 'Sin correo capturado' }}</span>
+          <span><strong>Sede principal</strong>{{ primarySite()?.name || 'Sin sede principal' }}</span>
+          <span><strong>Servicios activos</strong>{{ services().length }}</span>
+          <span><strong>Contratos vigentes</strong>{{ activeContractsCount() }}</span>
           <span class="wide"><strong>Domicilio fiscal</strong>{{ selectedClient()?.taxAddress || 'Sin domicilio fiscal capturado' }}</span>
         </div>
 
@@ -615,28 +751,69 @@
 
 @if (clientEditorOpen()) {
   <div class="modal-backdrop" (click)="closeEditors()">
-    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="client-editor-title" (click)="$event.stopPropagation()">
+    <section class="modal modal--client" role="dialog" aria-modal="true" aria-labelledby="client-editor-title" (click)="$event.stopPropagation()">
       <header>
-        <div><span class="eyebrow">Ficha fiscal</span><h2 id="client-editor-title">{{ editingClient() ? 'Editar cliente' : 'Nuevo cliente' }}</h2></div>
+        <div>
+          <span class="eyebrow">Expediente comercial</span>
+          <h2 id="client-editor-title">{{ editingClient() ? 'Editar cliente' : 'Nuevo cliente' }}</h2>
+          <p>{{ editingClient() ? 'Actualiza la información principal del cliente.' : 'Completa sólo lo esencial; sedes, servicios y documentos se agregan desde el expediente.' }}</p>
+        </div>
         <button type="button" aria-label="Cerrar" (click)="closeEditors()">×</button>
       </header>
       <form [formGroup]="clientForm" (ngSubmit)="saveClient()">
+        @if (!editingClient()) {
+          <ol class="wizard-steps" aria-label="Pasos para nuevo cliente">
+            <li class="is-active"><span>1</span>Datos básicos</li>
+            <li><span>2</span>Sedes</li>
+            <li><span>3</span>Servicios</li>
+            <li><span>4</span>Contactos</li>
+            <li><span>5</span>Documentos</li>
+          </ol>
+          <div class="inline-note">El cliente se asociará a la organización seleccionada: {{ selectedOrganization()?.legalName || 'sin organización seleccionada' }}.</div>
+        }
         <div class="form-grid">
-          <label><span>Código *</span><input formControlName="codeClient" [readOnly]="!!editingClient()" /></label>
-          <label><span>RFC *</span><input formControlName="rfc" maxlength="13" /></label>
-          <label class="wide"><span>Razón social *</span><input formControlName="legalName" /></label>
+          <label>
+            <span>Organización *</span>
+            <select [value]="selectedOrganizationId()" disabled>
+              <option>{{ selectedOrganization()?.legalName || 'Selecciona una organización' }}</option>
+            </select>
+          </label>
+          <label [class.is-invalid]="isInvalid('client', 'codeClient')">
+            <span>Código *</span>
+            <input formControlName="codeClient" [readOnly]="!!editingClient()" />
+            @if (isInvalid('client', 'codeClient')) { <small>El código es obligatorio.</small> }
+          </label>
+          <label [class.is-invalid]="isInvalid('client', 'rfc')">
+            <span>RFC *</span>
+            <input formControlName="rfc" maxlength="13" />
+            @if (isInvalid('client', 'rfc')) { <small>Captura un RFC válido de 12 a 13 caracteres.</small> }
+          </label>
+          <label class="wide" [class.is-invalid]="isInvalid('client', 'legalName')">
+            <span>Razón social *</span>
+            <input formControlName="legalName" />
+            @if (isInvalid('client', 'legalName')) { <small>La razón social es obligatoria.</small> }
+          </label>
           <label class="wide"><span>Nombre comercial</span><input formControlName="tradeName" /></label>
+          <label><span>Contacto principal</span><input formControlName="contactFullName" placeholder="Nombre del contacto" /></label>
+          <label><span>Teléfono</span><input formControlName="contactPhone" placeholder="55 1234 5678" /></label>
+          <label [class.is-invalid]="isInvalid('client', 'contactEmail')">
+            <span>Correo</span>
+            <input type="email" formControlName="contactEmail" placeholder="correo@ejemplo.com" />
+            @if (isInvalid('client', 'contactEmail')) { <small>Captura un correo válido.</small> }
+          </label>
           <label><span>Nacionalidad</span><input formControlName="nationality" /></label>
           <label><span>Registro patronal</span><input formControlName="employerRegistrationNumber" /></label>
           <label class="wide"><span>Actividad fiscal</span><textarea formControlName="taxActivity" rows="2"></textarea></label>
           <label class="wide"><span>Domicilio fiscal</span><textarea formControlName="taxAddress" rows="3"></textarea></label>
         </div>
         @if (clientForm.invalid && clientForm.touched) {
-          <p class="form-error">Revisa los campos obligatorios y sus longitudes.</p>
+          <p class="form-error">Faltan datos para avanzar. Revisa los campos marcados.</p>
         }
         <footer>
           <button class="button button--secondary" type="button" (click)="closeEditors()">Cancelar</button>
-          <button class="button button--primary" type="submit" [disabled]="saving()">{{ saving() ? 'Guardando…' : 'Guardar cliente' }}</button>
+          <button class="button button--primary" type="submit" [disabled]="saving() || clientForm.invalid">
+            {{ saving() ? 'Guardando…' : editingClient() ? 'Guardar cambios' : 'Siguiente' }}
+          </button>
         </footer>
       </form>
     </section>
@@ -980,13 +1157,30 @@
       </header>
       <form [formGroup]="organizationForm" (ngSubmit)="saveOrganization()">
         <div class="form-grid">
-          <label><span>Código *</span><input formControlName="codeOrganization" /></label>
-          <label><span>RFC</span><input formControlName="rfc" maxlength="13" /></label>
-          <label class="wide"><span>Razón social *</span><input formControlName="legalName" /></label>
+          <label [class.is-invalid]="isInvalid('organization', 'codeOrganization')">
+            <span>Código *</span>
+            <input formControlName="codeOrganization" />
+            @if (isInvalid('organization', 'codeOrganization')) { <small>El código es obligatorio.</small> }
+          </label>
+          <label [class.is-invalid]="isInvalid('organization', 'rfc')"><span>RFC</span><input formControlName="rfc" maxlength="13" /></label>
+          <label class="wide" [class.is-invalid]="isInvalid('organization', 'legalName')">
+            <span>Razón social *</span>
+            <input formControlName="legalName" />
+            @if (isInvalid('organization', 'legalName')) { <small>La razón social es obligatoria.</small> }
+          </label>
+          <label>
+            <span>Estado</span>
+            <select formControlName="status" [disabled]="true">
+              <option value="active">Activo al crear</option>
+            </select>
+          </label>
         </div>
+        @if (organizationForm.invalid && organizationForm.touched) {
+          <p class="form-error">Faltan datos para crear la organización.</p>
+        }
         <footer>
           <button class="button button--secondary" type="button" (click)="closeEditors()">Cancelar</button>
-          <button class="button button--primary" type="submit" [disabled]="saving()">{{ saving() ? 'Guardando…' : 'Crear organización' }}</button>
+          <button class="button button--primary" type="submit" [disabled]="saving() || organizationForm.invalid">{{ saving() ? 'Guardando…' : 'Crear organización' }}</button>
         </footer>
       </form>
     </section>

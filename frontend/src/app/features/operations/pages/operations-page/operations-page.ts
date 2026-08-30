@@ -64,6 +64,8 @@ export class OperationsPage implements OnInit {
   protected readonly selectedApprovalRequestId = signal('');
   protected readonly selectedAttendanceId = signal('');
   protected readonly selectedOperationDate = signal(this.today());
+  protected readonly incidentHistoryScope = signal<IncidentHistoryScope>('day');
+  protected readonly coverageHistoryScope = signal<CoverageHistoryScope>('day');
   protected readonly activeSection = signal<OperationSection>('asistencia');
   protected readonly activeTab = signal<OperationTab>('asistencia');
   protected readonly loading = signal(false);
@@ -76,27 +78,126 @@ export class OperationsPage implements OnInit {
     () => this.services().find((service) => service.idService === this.selectedServiceId()) ?? null,
   );
 
-  protected readonly attendanceCount = computed(() => this.summary()?.attendanceRecords ?? this.attendance().length);
-  protected readonly incidentCount = computed(() => this.summary()?.incidents ?? this.incidents().length);
-  protected readonly coverageCount = computed(() => this.summary()?.coverageRecords ?? this.coverages().length);
+  protected readonly operationDateLabel = computed(() => this.formatDate(this.selectedOperationDate()));
+  protected readonly selectedClient = computed(
+    () => this.clients().find((client) => client.idClient === this.selectedClientId()) ?? null,
+  );
+  protected readonly selectedOrganization = computed(
+    () => this.organizations().find((organization) => organization.idOrganization === this.selectedOrganizationId()) ?? null,
+  );
+  protected readonly dailyShifts = computed(() =>
+    this.scheduledShifts().filter((shift) => shift.shiftDate === this.selectedOperationDate()),
+  );
+  protected readonly dailyShiftIds = computed(() => new Set(this.dailyShifts().map((shift) => shift.idScheduledShift)));
+  protected readonly dailyAttendance = computed(() =>
+    this.attendance().filter(
+      (record) =>
+        record.attendanceDate === this.selectedOperationDate() &&
+        this.dailyShiftIds().has(record.idScheduledShift),
+    ),
+  );
+  protected readonly dailyIncidents = computed(() =>
+    this.incidents().filter((incident) => incident.incidentDate === this.selectedOperationDate()),
+  );
+  protected readonly visibleIncidentHistory = computed(() =>
+    this.incidentHistoryScope() === 'day' ? this.dailyIncidents() : this.incidents(),
+  );
+  protected readonly incidentMetricsSource = computed(() =>
+    this.activeSection() === 'incidencias' ? this.visibleIncidentHistory() : this.dailyIncidents(),
+  );
+  protected readonly incidentKpis = computed(() => {
+    const incidents = this.incidentMetricsSource();
+
+    return {
+      open: incidents.filter((incident) => incident.status === 'Open').length,
+      inAttention: incidents.filter((incident) => incident.status === 'InReview').length,
+      resolved: incidents.filter((incident) => incident.status === 'Resolved').length,
+      slaExpired: incidents.filter((incident) => this.incidentSlaExpired(incident)).length,
+    };
+  });
+  protected readonly dailyCoverages = computed(() =>
+    this.coverages().filter((coverage) => this.dailyShiftIds().has(coverage.idScheduledShift)),
+  );
+  protected readonly visibleCoverageHistory = computed(() =>
+    this.coverageHistoryScope() === 'day' ? this.dailyCoverages() : this.coverages(),
+  );
+  protected readonly coverageMetricsSource = computed(() =>
+    this.activeSection() === 'cobertura' ? this.visibleCoverageHistory() : this.dailyCoverages(),
+  );
+  protected readonly coverageKpis = computed(() => {
+    const coverages = this.coverageMetricsSource();
+
+    return {
+      requested: coverages.length,
+      inReview: coverages.filter((coverage) => coverage.status === 'Requested').length,
+      confirmed: coverages.filter((coverage) => coverage.status === 'Confirmed' || coverage.status === 'Completed').length,
+      blocked: coverages.filter((coverage) => this.coverageHasBlockingIssue(coverage)).length,
+    };
+  });
+  protected readonly selectedDailyShift = computed(
+    () => {
+      const selectedShiftId =
+        this.activeSection() === 'incidencias'
+          ? this.incidentForm.controls.idScheduledShift.value
+          : this.activeSection() === 'cobertura'
+            ? this.coverageForm.controls.idScheduledShift.value
+            : this.attendanceForm.controls.idScheduledShift.value;
+
+      return this.dailyShifts().find((shift) => shift.idScheduledShift === selectedShiftId) ?? null;
+    },
+  );
+  protected readonly dailyEvidenceRecordIds = computed(() => {
+    const ids = new Set<string>();
+    const selectedShift = this.selectedDailyShift();
+
+    if (!selectedShift) {
+      return ids;
+    }
+
+    for (const record of this.dailyAttendance()) {
+      if (record.idScheduledShift === selectedShift.idScheduledShift) {
+        ids.add(record.idAttendanceRecord);
+      }
+    }
+
+    for (const incident of this.dailyIncidents()) {
+      if (incident.idScheduledShift === selectedShift.idScheduledShift) {
+        ids.add(incident.idIncident);
+      }
+    }
+
+    for (const coverage of this.dailyCoverages()) {
+      if (coverage.idScheduledShift === selectedShift.idScheduledShift) {
+        ids.add(coverage.idCoverageRecord);
+      }
+    }
+
+    return ids;
+  });
+  protected readonly attendanceCount = computed(() => this.dailyAttendance().length);
+  protected readonly incidentCount = computed(() => this.dailyIncidents().length);
+  protected readonly coverageCount = computed(() => this.dailyCoverages().length);
   protected readonly coveredHours = computed(() => Math.round(((this.summary()?.coveredMinutes ?? 0) / 60) * 10) / 10);
-  protected readonly expectedShiftCount = computed(() => this.dailyBoard().length);
+  protected readonly expectedShiftCount = computed(() => this.dailyShifts().length);
   protected readonly presentTodayCount = computed(
-    () => this.dailyBoard().filter((item) => item.attendance?.status === 'Present').length,
+    () => this.dailyBoard().filter((item) => this.effectiveAttendanceStatus(item.attendance) === 'Present').length,
   );
   protected readonly absentTodayCount = computed(
-    () => this.dailyBoard().filter((item) => item.attendance?.status === 'Absent').length,
+    () => this.dailyBoard().filter((item) => this.effectiveAttendanceStatus(item.attendance) === 'Absent').length,
   );
   protected readonly lateTodayCount = computed(
-    () => this.dailyBoard().filter((item) => item.attendance?.status === 'Late').length,
+    () => this.dailyBoard().filter((item) => this.effectiveAttendanceStatus(item.attendance) === 'Late').length,
   );
   protected readonly pendingCoverageCount = computed(
     () =>
       this.dailyBoard().filter(
         (item) =>
           item.attendance?.status === 'Absent' &&
-          (!item.coverage || item.coverage.status === 'Requested'),
-      ).length,
+          (!item.coverage ||
+            item.coverage.status === 'Requested' ||
+            item.coverage.status === 'Cancelled' ||
+            this.coverageHasBlockingIssue(item.coverage)),
+      ).length + this.dailyCoverages().filter((coverage) => coverage.status === 'Requested' || this.coverageHasBlockingIssue(coverage)).length,
   );
   protected readonly pendingApprovalCount = computed(
     () => this.approvalRequests().filter((approval) => approval.status === 'Pending').length,
@@ -110,12 +211,51 @@ export class OperationsPage implements OnInit {
         (closure) => closure.operationDate === this.selectedOperationDate() && closure.status === 'Closed',
       ) ?? null,
   );
+  protected readonly closureChecklist = computed<readonly ClosureChecklistItem[]>(() => [
+    {
+      label: 'Asistencia capturada',
+      detail: `${this.dailyAttendance().length} de ${this.dailyShifts().length} registros`,
+      complete: this.dailyShifts().length > 0 && this.pendingAttendanceCount() === 0,
+      blockedReason: this.dailyShifts().length === 0 ? 'No hay turnos publicados' : `${this.pendingAttendanceCount()} asistencia(s) pendiente(s)`,
+    },
+    {
+      label: 'Incidencias revisadas',
+      detail: `${this.openDailyIncidents()} incidencia(s) abiertas`,
+      complete: this.openDailyIncidents() === 0,
+      blockedReason: 'Hay incidencias abiertas por revisar',
+    },
+    {
+      label: 'Cobertura confirmada',
+      detail: `${this.pendingCoverageCount()} cobertura(s) pendiente(s), bloqueada(s) o sin confirmación`,
+      complete: this.pendingCoverageCount() === 0,
+      blockedReason: 'Hay coberturas solicitadas, bloqueadas o sin confirmación',
+    },
+    {
+      label: 'Evidencias completas',
+      detail: `${this.dailyEvidenceList().length} evidencia(s) asociadas al día`,
+      complete: this.dailyShifts().length > 0,
+      blockedReason: 'Primero publica turnos para asociar evidencias',
+    },
+    {
+      label: 'Autorizaciones resueltas',
+      detail: `${this.pendingApprovalCount()} autorización(es) pendiente(s)`,
+      complete: this.pendingApprovalCount() === 0,
+      blockedReason: 'Hay autorizaciones pendientes',
+    },
+  ]);
+  protected readonly closeDayBlockReason = computed(() => {
+    if (this.currentDayClosure()) {
+      return 'El día operativo ya está cerrado.';
+    }
+
+    if (this.dailyShifts().length === 0) {
+      return 'No puedes cerrar un día sin turnos publicados.';
+    }
+
+    return this.closureChecklist().find((item) => !item.complete)?.blockedReason ?? '';
+  });
   protected readonly canCloseDay = computed(
-    () =>
-      this.dailyBoard().length > 0 &&
-      this.pendingAttendanceCount() === 0 &&
-      this.openDailyIncidents() === 0 &&
-      !this.currentDayClosure(),
+    () => !this.currentDayClosure() && this.closureChecklist().every((item) => item.complete),
   );
   protected readonly sectionTitle = computed(() => {
     switch (this.activeSection()) {
@@ -168,12 +308,31 @@ export class OperationsPage implements OnInit {
   protected readonly publishedVersion = computed(
     () => this.scheduleVersions().find((version) => version.status === 'Published') ?? null,
   );
-  protected readonly hasPublishedShifts = computed(() => this.scheduledShifts().length > 0);
+  protected readonly hasPublishedShifts = computed(() => this.dailyShifts().length > 0);
   protected readonly selectedIncident = computed(
     () => this.incidents().find((incident) => incident.idIncident === this.selectedIncidentId()) ?? null,
   );
+  protected readonly selectedIncidentShift = computed(() => {
+    const incident = this.selectedIncident();
+    return incident?.idScheduledShift
+      ? this.scheduledShifts().find((shift) => shift.idScheduledShift === incident.idScheduledShift) ?? null
+      : null;
+  });
+  protected readonly selectedIncidentOutOfContext = computed(
+    () => Boolean(this.selectedIncident() && this.selectedIncident()?.incidentDate !== this.selectedOperationDate()),
+  );
+  protected readonly selectedIncidentStage = computed(() => this.incidentStage(this.selectedIncident()));
   protected readonly selectedCoverage = computed(
     () => this.coverages().find((coverage) => coverage.idCoverageRecord === this.selectedCoverageId()) ?? null,
+  );
+  protected readonly selectedCoverageShift = computed(() => {
+    const coverage = this.selectedCoverage();
+    return coverage
+      ? this.scheduledShifts().find((shift) => shift.idScheduledShift === coverage.idScheduledShift) ?? null
+      : null;
+  });
+  protected readonly selectedCoverageOutOfContext = computed(
+    () => Boolean(this.selectedCoverage() && !this.dailyShiftIds().has(this.selectedCoverage()?.idScheduledShift ?? '')),
   );
   protected readonly selectedEvidence = computed(
     () => this.evidences().find((evidence) => evidence.idOperationEvidence === this.selectedEvidenceId()) ?? null,
@@ -210,19 +369,23 @@ export class OperationsPage implements OnInit {
       }));
   });
   protected readonly evidenceRelatedOptions = computed(() => {
+    const dailyShiftIds = this.dailyShiftIds();
+
     switch (this.activeSection()) {
       case 'incidencias':
-        return this.incidents().map((incident) => ({
+        return this.dailyIncidents().map((incident) => ({
           value: incident.idIncident,
           label: `${incident.incidentDate} · ${incident.incidentType} · ${incident.employeeName || 'Servicio'}`,
         }));
       case 'cobertura':
-        return this.coverages().map((coverage) => ({
+        return this.dailyCoverages().map((coverage) => ({
           value: coverage.idCoverageRecord,
           label: `${coverage.originalEmployeeName} → ${coverage.replacementEmployeeName} · ${coverage.coverageStartTime}`,
         }));
       default:
-        return this.attendance().map((record) => ({
+        return this.dailyAttendance()
+          .filter((record) => dailyShiftIds.has(record.idScheduledShift))
+          .map((record) => ({
           value: record.idAttendanceRecord,
           label: `${record.attendanceDate} · ${record.employeeCode} · ${record.employeeName}`,
         }));
@@ -231,18 +394,27 @@ export class OperationsPage implements OnInit {
   protected readonly visibleEvidences = computed(() =>
     this.evidences().filter((evidence) => this.evidenceSection(evidence) === this.activeSection()),
   );
+  protected readonly dailyEvidenceList = computed(() =>
+    this.evidences().filter(
+      (evidence) =>
+        (evidence.idAttendanceRecord && this.dailyEvidenceRecordIds().has(evidence.idAttendanceRecord)) ||
+        (evidence.idIncident && this.dailyEvidenceRecordIds().has(evidence.idIncident)) ||
+        (evidence.idCoverageRecord && this.dailyEvidenceRecordIds().has(evidence.idCoverageRecord)),
+    ),
+  );
   protected readonly evidenceList = computed(() =>
-    this.activeTab() === 'evidencias' ? this.evidences() : this.visibleEvidences(),
+    this.activeTab() === 'evidencias' ? this.dailyEvidenceList() : this.visibleEvidences(),
   );
   protected readonly dailyBoard = computed<readonly OperationDayShift[]>(() => {
     const operationDate = this.selectedOperationDate();
-    return this.scheduledShifts()
+    return this.dailyShifts()
       .filter((shift) => shift.shiftDate === operationDate)
       .map((shift) => ({
         shift,
-        attendance: this.attendance().find((record) => record.idScheduledShift === shift.idScheduledShift) ?? null,
-        coverage: this.coverages().find((coverage) => coverage.idScheduledShift === shift.idScheduledShift) ?? null,
-        incidents: this.incidents().filter((incident) => incident.idScheduledShift === shift.idScheduledShift),
+        attendance:
+          this.dailyAttendance().find((record) => record.idScheduledShift === shift.idScheduledShift) ?? null,
+        coverage: this.dailyCoverages().find((coverage) => coverage.idScheduledShift === shift.idScheduledShift) ?? null,
+        incidents: this.dailyIncidents().filter((incident) => incident.idScheduledShift === shift.idScheduledShift),
       }));
   });
   protected readonly pendingAttendanceCount = computed(
@@ -273,9 +445,34 @@ export class OperationsPage implements OnInit {
 
   protected readonly incidentStatuses: readonly { value: IncidentStatus; label: string }[] = [
     { value: 'Open', label: 'Abierta' },
-    { value: 'InReview', label: 'En revisión' },
+    { value: 'InReview', label: 'En atención' },
     { value: 'Resolved', label: 'Resuelta' },
     { value: 'Cancelled', label: 'Cancelada' },
+  ];
+  protected readonly incidentCreateStatuses: readonly { value: IncidentStatus; label: string }[] = [
+    { value: 'Open', label: 'Abierta' },
+    { value: 'InReview', label: 'En atención' },
+  ];
+  protected readonly incidentTypes: readonly { value: string; label: string }[] = [
+    { value: 'RETARDO', label: 'Retardo' },
+    { value: 'AUSENCIA', label: 'Ausencia' },
+    { value: 'UNIFORME', label: 'Incumplimiento de uniforme' },
+    { value: 'OPERATIVA', label: 'Incidente operativo' },
+    { value: 'OTRO_AUTORIZADO', label: 'Otro autorizado' },
+  ];
+  protected readonly incidentResolutionResults: readonly string[] = [
+    'Amonestación verbal',
+    'Reasignación operativa',
+    'Reposición de turno',
+    'Justificación autorizada',
+    'Sin afectación operativa',
+  ];
+  protected readonly incidentResolutionReasons: readonly string[] = [
+    'Seguimiento completado',
+    'Evidencia validada',
+    'Autorización aprobada',
+    'Corrección operativa realizada',
+    'Otro motivo documentado',
   ];
 
   protected readonly coverageStatuses: readonly { value: CoverageStatus; label: string }[] = [
@@ -284,6 +481,15 @@ export class OperationsPage implements OnInit {
     { value: 'Completed', label: 'Completada' },
     { value: 'Cancelled', label: 'Cancelada' },
   ];
+  protected readonly coverageReasons: readonly string[] = [
+    'Incidencia del empleado',
+    'Falta del empleado',
+    'Retardo fuera de tolerancia',
+    'Solicitud del cliente',
+    'Refuerzo operativo',
+    'Otro motivo documentado',
+  ];
+  protected readonly coverageCandidateFilters: readonly string[] = ['Más cercano', 'Elegible', 'Sin conflicto', 'Menos horas'];
 
   protected readonly evidenceTypes: readonly { value: OperationEvidenceType; label: string }[] = [
     { value: 'Photo', label: 'Foto' },
@@ -312,23 +518,35 @@ export class OperationsPage implements OnInit {
   });
 
   protected readonly incidentForm = this.formBuilder.nonNullable.group({
-    idScheduledShift: [''],
+    idScheduledShift: ['', [Validators.required]],
     incidentDate: [this.today(), [Validators.required]],
     incidentType: ['OPERATIVA', [Validators.required, Validators.maxLength(80)]],
     severity: ['Medium' as IncidentSeverity, [Validators.required]],
     status: ['Open' as IncidentStatus, [Validators.required]],
     description: ['', [Validators.required, Validators.maxLength(1000)]],
     resolutionNotes: [''],
+    responsibleName: ['Operación', [Validators.maxLength(100)]],
+    resolutionResult: [''],
+    resolutionAction: ['', [Validators.maxLength(600)]],
+    resolutionEvidenceOrJustification: ['', [Validators.maxLength(600)]],
+    resolutionReason: [''],
+    resolutionTime: [''],
   });
 
   protected readonly coverageForm = this.formBuilder.nonNullable.group({
     idScheduledShift: ['', [Validators.required]],
     idReplacementEmployee: ['', [Validators.required]],
+    coverageReason: ['Incidencia del empleado', [Validators.required, Validators.maxLength(120)]],
     coverageStartTime: ['08:00', [Validators.required]],
     coverageEndTime: ['16:00', [Validators.required]],
     isOvernight: [false],
-    status: ['Confirmed' as CoverageStatus, [Validators.required]],
-    notes: [''],
+    status: ['Requested' as CoverageStatus, [Validators.required]],
+    notes: ['', [Validators.maxLength(800)]],
+    confirmedByName: ['Operación', [Validators.maxLength(100)]],
+    confirmationDate: [this.today()],
+    confirmationTime: [''],
+    confirmationReason: ['', [Validators.maxLength(600)]],
+    confirmationEvidence: ['', [Validators.maxLength(400)]],
   });
 
   protected readonly evidenceForm = this.formBuilder.nonNullable.group({
@@ -401,6 +619,15 @@ export class OperationsPage implements OnInit {
 
   protected onOperationDateChange(event: Event) {
     this.selectedOperationDate.set((event.target as HTMLInputElement).value);
+    this.message.set('');
+    this.error.set('');
+    this.selectedAttendanceId.set('');
+    this.selectedIncidentId.set('');
+    this.selectedCoverageId.set('');
+    this.selectedEvidenceId.set('');
+    this.incidentHistoryScope.set('day');
+    this.incidentForm.patchValue({ incidentDate: this.selectedOperationDate() });
+    this.resetShiftDefaults();
   }
 
   protected setActiveTab(tab: OperationTab) {
@@ -411,10 +638,19 @@ export class OperationsPage implements OnInit {
     }
   }
 
+  protected focusOperationDate() {
+    window.document.getElementById('operation-date-input')?.focus();
+  }
+
   protected quickAttendance(item: OperationDayShift, status: AttendanceStatus) {
     const context = this.operationContext();
 
     if (!context || this.saving()) {
+      return;
+    }
+
+    if (item.shift.shiftDate !== this.selectedOperationDate()) {
+      this.error.set('Ese turno no pertenece a la fecha operativa seleccionada.');
       return;
     }
 
@@ -457,7 +693,7 @@ export class OperationsPage implements OnInit {
     }
 
     if (!this.canCloseDay()) {
-      this.error.set('Para cerrar el día necesitas turnos publicados, asistencia completa y cero incidencias abiertas.');
+      this.error.set(this.closeDayBlockReason() || 'Para cerrar el día necesitas completar los requisitos pendientes.');
       return;
     }
 
@@ -570,6 +806,15 @@ export class OperationsPage implements OnInit {
     }
 
     const form = this.attendanceForm.getRawValue();
+    const selectedShift = this.dailyShifts().find((shift) => shift.idScheduledShift === form.idScheduledShift);
+
+    if (!selectedShift) {
+      this.error.set(`No hay turnos disponibles para ${this.operationDateLabel()}.`);
+      return;
+    }
+
+    const minutesLate = Number(form.minutesLate) || 0;
+    const automaticStatus = minutesLate > 0 && form.status === 'Present' ? 'Late' : form.status;
     this.saving.set(true);
     this.message.set('');
     this.error.set('');
@@ -580,10 +825,10 @@ export class OperationsPage implements OnInit {
         idClient: context.idClient,
         idService: context.idService,
         idScheduledShift: form.idScheduledShift,
-        status: form.status,
+        status: automaticStatus,
         actualStartTime: this.emptyToNull(form.actualStartTime),
         actualEndTime: this.emptyToNull(form.actualEndTime),
-        minutesLate: Number(form.minutesLate) || 0,
+        minutesLate,
         notes: this.emptyToNull(form.notes),
         correctionAuthorizationNotes: this.selectedAttendance()
           ? this.emptyToNull(form.correctionAuthorizationNotes)
@@ -604,6 +849,11 @@ export class OperationsPage implements OnInit {
   }
 
   protected selectAttendance(record: AttendanceRecord) {
+    if (record.attendanceDate !== this.selectedOperationDate() || !this.dailyShiftIds().has(record.idScheduledShift)) {
+      this.error.set('Registro fuera del contexto actual.');
+      return;
+    }
+
     this.selectedAttendanceId.set(record.idAttendanceRecord);
     this.attendanceForm.patchValue({
       idScheduledShift: record.idScheduledShift,
@@ -619,7 +869,7 @@ export class OperationsPage implements OnInit {
 
   protected resetAttendanceForm() {
     this.selectedAttendanceId.set('');
-    const firstShift = this.scheduledShifts()[0];
+    const firstShift = this.dailyShifts()[0];
     this.attendanceForm.reset({
       idScheduledShift: firstShift?.idScheduledShift ?? '',
       status: 'Present',
@@ -641,25 +891,49 @@ export class OperationsPage implements OnInit {
     }
 
     const form = this.incidentForm.getRawValue();
-    const shift = this.scheduledShifts().find((item) => item.idScheduledShift === form.idScheduledShift);
+    const shift = this.dailyShifts().find((item) => item.idScheduledShift === form.idScheduledShift);
+    const incidentDate = this.selectedOperationDate();
+
+    if (!shift) {
+      this.error.set(`No hay turnos disponibles para ${this.operationDateLabel()}.`);
+      return;
+    }
+
+    const selectedIncidentId = this.selectedIncidentId();
+    const creating = !selectedIncidentId;
+
+    if (creating && (form.status === 'Resolved' || form.status === 'Cancelled')) {
+      this.error.set('Una incidencia nueva debe iniciar como abierta o en atención.');
+      return;
+    }
+
+    if ((form.status === 'Resolved' || form.status === 'Cancelled') && !this.incidentResolutionReady()) {
+      this.incidentForm.markAllAsTouched();
+      this.error.set('Completa los datos de resolución antes de cerrar la incidencia.');
+      return;
+    }
+
     this.saving.set(true);
     this.message.set('');
     this.error.set('');
 
+    const resolutionNotes =
+      form.status === 'Resolved' || form.status === 'Cancelled'
+        ? this.buildResolutionNotes(form)
+        : this.emptyToNull(form.resolutionNotes);
     const payload = {
       idOrganization: context.idOrganization,
       idClient: context.idClient,
       idService: context.idService,
-      idScheduledShift: this.emptyToNull(form.idScheduledShift),
+      idScheduledShift: shift.idScheduledShift,
       idEmployee: shift?.idEmployee ?? this.selectedIncident()?.idEmployee ?? null,
-      incidentDate: form.incidentDate,
+      incidentDate,
       incidentType: form.incidentType.trim(),
       severity: form.severity,
       status: form.status,
       description: form.description.trim(),
-      resolutionNotes: this.emptyToNull(form.resolutionNotes),
+      resolutionNotes,
     };
-    const selectedIncidentId = this.selectedIncidentId();
     const request = selectedIncidentId
       ? this.api.updateIncident(context.idClient, context.idService, selectedIncidentId, payload)
       : this.api.createIncident(context.idClient, context.idService, payload);
@@ -686,6 +960,36 @@ export class OperationsPage implements OnInit {
     }
 
     const form = this.coverageForm.getRawValue();
+    const selectedShift = this.dailyShifts().find((shift) => shift.idScheduledShift === form.idScheduledShift);
+
+    if (!selectedShift) {
+      this.error.set(`No hay turnos disponibles para ${this.operationDateLabel()}.`);
+      return;
+    }
+
+    if (form.idReplacementEmployee === selectedShift.idEmployee) {
+      this.error.set('El empleado original no puede asignarse a sí mismo.');
+      return;
+    }
+
+    const blockingItems = this.coverageValidation().filter((item) => !item.valid);
+    if (blockingItems.length > 0) {
+      this.error.set('Resuelve los bloqueos para continuar.');
+      return;
+    }
+
+    const selectedCoverageId = this.selectedCoverageId();
+    const requestedStatus: CoverageStatus = selectedCoverageId ? form.status : 'Requested';
+    const isConfirming =
+      (requestedStatus === 'Confirmed' || requestedStatus === 'Completed') &&
+      !(this.selectedCoverage()?.status === 'Confirmed' || this.selectedCoverage()?.status === 'Completed');
+
+    if (isConfirming && !this.coverageConfirmationReady()) {
+      this.coverageForm.markAllAsTouched();
+      this.error.set('Para confirmar, captura quién confirma, fecha, hora y justificación.');
+      return;
+    }
+
     this.saving.set(true);
     this.message.set('');
     this.error.set('');
@@ -699,19 +1003,24 @@ export class OperationsPage implements OnInit {
       coverageStartTime: form.coverageStartTime,
       coverageEndTime: form.coverageEndTime,
       isOvernight: form.isOvernight,
-      status: form.status,
-      notes: this.emptyToNull(form.notes),
+      status: requestedStatus,
+      notes: this.buildCoverageNotes(form, requestedStatus),
     };
-    const selectedCoverageId = this.selectedCoverageId();
     const request = selectedCoverageId
       ? this.api.updateCoverageRecord(context.idClient, context.idService, selectedCoverageId, payload)
       : this.api.createCoverageRecord(context.idClient, context.idService, payload);
 
     request.subscribe({
         next: () => {
-          this.message.set(selectedCoverageId ? 'Cobertura actualizada correctamente.' : 'Cobertura registrada correctamente.');
+          this.message.set(
+            selectedCoverageId
+              ? requestedStatus === 'Confirmed'
+                ? 'Cobertura confirmada correctamente.'
+                : 'Cobertura actualizada correctamente.'
+              : 'Cobertura solicitada correctamente.',
+          );
           if (!selectedCoverageId) {
-            this.coverageForm.patchValue({ notes: '' });
+            this.resetCoverageForm();
           }
           this.loadOperationData();
         },
@@ -721,6 +1030,11 @@ export class OperationsPage implements OnInit {
   }
 
   protected selectIncident(incident: Incident) {
+    if (incident.incidentDate !== this.selectedOperationDate()) {
+      this.error.set('Registro fuera del contexto actual.');
+      return;
+    }
+
     this.selectedIncidentId.set(incident.idIncident);
     this.incidentForm.patchValue({
       idScheduledShift: incident.idScheduledShift ?? '',
@@ -730,19 +1044,31 @@ export class OperationsPage implements OnInit {
       status: incident.status,
       description: incident.description,
       resolutionNotes: incident.resolutionNotes ?? '',
+      responsibleName: 'Operación',
+      resolutionResult: '',
+      resolutionAction: '',
+      resolutionEvidenceOrJustification: '',
+      resolutionReason: '',
+      resolutionTime: '',
     });
   }
 
   protected resetIncidentForm() {
     this.selectedIncidentId.set('');
     this.incidentForm.reset({
-      idScheduledShift: this.scheduledShifts()[0]?.idScheduledShift ?? '',
-      incidentDate: this.today(),
+      idScheduledShift: this.dailyShifts()[0]?.idScheduledShift ?? '',
+      incidentDate: this.selectedOperationDate(),
       incidentType: 'OPERATIVA',
       severity: 'Medium',
       status: 'Open',
       description: '',
       resolutionNotes: '',
+      responsibleName: 'Operación',
+      resolutionResult: '',
+      resolutionAction: '',
+      resolutionEvidenceOrJustification: '',
+      resolutionReason: '',
+      resolutionTime: '',
     });
   }
 
@@ -753,9 +1079,9 @@ export class OperationsPage implements OnInit {
       return;
     }
 
-    const resolutionNotes = this.incidentForm.controls.resolutionNotes.value.trim();
-    if (!resolutionNotes) {
-      this.error.set('Para cerrar formalmente una incidencia necesitas capturar la resolución.');
+    if (!this.incidentResolutionReady()) {
+      this.incidentForm.markAllAsTouched();
+      this.error.set('Para resolver, captura resultado, acción tomada, evidencia o justificación, motivo y hora.');
       return;
     }
 
@@ -764,31 +1090,48 @@ export class OperationsPage implements OnInit {
   }
 
   protected selectCoverage(coverage: CoverageRecord) {
+    if (!this.dailyShiftIds().has(coverage.idScheduledShift)) {
+      this.error.set('Registro fuera del contexto actual.');
+      return;
+    }
+
     this.selectedCoverageId.set(coverage.idCoverageRecord);
     this.coverageForm.patchValue({
       idScheduledShift: coverage.idScheduledShift,
       idReplacementEmployee: coverage.idReplacementEmployee,
+      coverageReason: this.coverageReasonFromNotes(coverage.notes),
       coverageStartTime: coverage.coverageStartTime.slice(0, 5),
       coverageEndTime: coverage.coverageEndTime.slice(0, 5),
       isOvernight: coverage.isOvernight,
       status: coverage.status,
       notes: coverage.notes ?? '',
+      confirmedByName: 'Operación',
+      confirmationDate: this.selectedOperationDate(),
+      confirmationTime: '',
+      confirmationReason: '',
+      confirmationEvidence: '',
     });
   }
 
   protected resetCoverageForm() {
-    const firstShift = this.scheduledShifts()[0];
+    const firstShift = this.dailyShifts()[0];
     const firstReplacement = this.employees().find((employee) => employee.idEmployee !== firstShift?.idEmployee);
 
     this.selectedCoverageId.set('');
     this.coverageForm.reset({
       idScheduledShift: firstShift?.idScheduledShift ?? '',
       idReplacementEmployee: firstReplacement?.idEmployee ?? '',
+      coverageReason: 'Incidencia del empleado',
       coverageStartTime: firstShift?.startTime?.slice(0, 5) ?? '08:00',
       coverageEndTime: firstShift?.endTime?.slice(0, 5) ?? '16:00',
       isOvernight: firstShift?.isOvernight ?? false,
-      status: 'Confirmed',
+      status: 'Requested',
       notes: '',
+      confirmedByName: 'Operación',
+      confirmationDate: this.selectedOperationDate(),
+      confirmationTime: '',
+      confirmationReason: '',
+      confirmationEvidence: '',
     });
   }
 
@@ -797,6 +1140,11 @@ export class OperationsPage implements OnInit {
 
     if (!context || this.evidenceForm.invalid) {
       this.evidenceForm.markAllAsTouched();
+      return;
+    }
+
+    if (this.activeTab() === 'evidencias' && !this.selectedDailyShift()) {
+      this.error.set('Primero selecciona un turno válido del día operativo.');
       return;
     }
 
@@ -1032,6 +1380,18 @@ export class OperationsPage implements OnInit {
     return this.attendanceStatuses.find((item) => item.value === status)?.label ?? 'Sin asistencia';
   }
 
+  protected effectiveAttendanceStatus(record?: AttendanceRecord | null): AttendanceStatus | null {
+    if (!record) {
+      return null;
+    }
+
+    return record.minutesLate > 0 && record.status === 'Present' ? 'Late' : record.status;
+  }
+
+  protected effectiveAttendanceStatusLabel(record?: AttendanceRecord | null) {
+    return this.attendanceStatusLabel(this.effectiveAttendanceStatus(record));
+  }
+
   protected incidentSeverityLabel(severity: IncidentSeverity) {
     return this.incidentSeverities.find((item) => item.value === severity)?.label ?? 'Sin clasificar';
   }
@@ -1040,8 +1400,255 @@ export class OperationsPage implements OnInit {
     return this.incidentStatuses.find((item) => item.value === status)?.label ?? 'Sin estado';
   }
 
+  protected incidentTypeLabel(type: string) {
+    return this.incidentTypes.find((item) => item.value === type)?.label ?? type;
+  }
+
+  protected incidentSlaLabel(severity: IncidentSeverity) {
+    switch (severity) {
+      case 'Critical':
+        return '1 h';
+      case 'High':
+        return '2 h';
+      case 'Medium':
+        return '8 h';
+      default:
+        return '24 h';
+    }
+  }
+
+  protected incidentSlaExpired(incident: Incident) {
+    return (
+      incident.incidentDate < this.selectedOperationDate() &&
+      incident.status !== 'Resolved' &&
+      incident.status !== 'Cancelled'
+    );
+  }
+
+  protected incidentStage(incident: Incident | null): IncidentStage {
+    if (!incident) {
+      return 'detectar';
+    }
+
+    if (incident.status === 'Resolved' || incident.status === 'Cancelled') {
+      return 'resolver';
+    }
+
+    if (incident.status === 'InReview') {
+      return 'atender';
+    }
+
+    return incident.incidentType && incident.description ? 'clasificar' : 'detectar';
+  }
+
+  protected incidentStepDone(step: IncidentStage) {
+    const order: readonly IncidentStage[] = ['detectar', 'clasificar', 'atender', 'resolver'];
+    return order.indexOf(this.selectedIncidentStage()) >= order.indexOf(step);
+  }
+
+  protected incidentShiftLabel(incident: Incident) {
+    const shift = this.scheduledShifts().find((item) => item.idScheduledShift === incident.idScheduledShift);
+    return shift ? `${shift.startTime.slice(0, 5)}-${shift.endTime.slice(0, 5)}` : 'Sin turno';
+  }
+
+  protected selectedIncidentShiftLabel() {
+    const shift = this.selectedIncidentShift();
+    return shift ? `${shift.startTime.slice(0, 5)}-${shift.endTime.slice(0, 5)} · ${this.formatDate(shift.shiftDate)}` : 'Sin turno';
+  }
+
+  protected incidentResolutionReady() {
+    const form = this.incidentForm.getRawValue();
+
+    return Boolean(
+      form.resolutionResult &&
+      form.resolutionAction.trim() &&
+      form.resolutionEvidenceOrJustification.trim() &&
+      form.resolutionReason &&
+      form.resolutionTime,
+    );
+  }
+
+  protected setIncidentHistoryScope(scope: IncidentHistoryScope) {
+    this.incidentHistoryScope.set(scope);
+    this.selectedIncidentId.set('');
+    this.error.set('');
+  }
+
   protected coverageStatusLabel(status: CoverageStatus) {
     return this.coverageStatuses.find((item) => item.value === status)?.label ?? 'Sin estado';
+  }
+
+  protected coverageCandidates(): readonly CoverageCandidate[] {
+    const shift = this.dailyShifts().find((item) => item.idScheduledShift === this.coverageForm.controls.idScheduledShift.value);
+    const startTime = this.coverageForm.controls.coverageStartTime.value;
+    const endTime = this.coverageForm.controls.coverageEndTime.value;
+    const isOvernight = this.coverageForm.controls.isOvernight.value;
+    const coverageMinutes = this.durationBetween(startTime, endTime, isOvernight);
+    const service = this.selectedService();
+
+    if (!shift) {
+      return [];
+    }
+
+    return this.employees()
+      .map((employee) => {
+        const sameAsOriginal = employee.idEmployee === shift.idEmployee;
+        const conflictShifts = this.employeeConflictShifts(employee.idEmployee, shift.idScheduledShift, startTime, endTime, isOvernight);
+        const accumulatedMinutes = this.employeeWeeklyMinutes(employee.idEmployee) + coverageMinutes;
+        const maxHoursExceeded = accumulatedMinutes > 30 * 60;
+        const activeEmployee = employee.status === 'Active';
+        const serviceCompatible = true;
+        const blockingReasons = [
+          sameAsOriginal ? 'El empleado original no puede asignarse a sí mismo' : '',
+          activeEmployee ? '' : 'Empleado no activo',
+          conflictShifts.length ? 'Conflicto de horario' : '',
+          maxHoursExceeded ? 'Horas máximas excedidas' : '',
+          serviceCompatible ? '' : 'Servicio no compatible',
+        ].filter(Boolean);
+
+        return {
+          employee,
+          availabilityLabel: conflictShifts.length ? 'Ocupado' : 'Disponible',
+          eligible: activeEmployee && !sameAsOriginal,
+          conflicts: conflictShifts.map((conflict) => `${conflict.positionCode} · ${conflict.startTime.slice(0, 5)}-${conflict.endTime.slice(0, 5)}`),
+          accumulatedHours: Math.round((accumulatedMinutes / 60) * 10) / 10,
+          distanceLabel: service?.clientSiteName ? service.clientSiteName : 'Sede del servicio',
+          serviceCompatible,
+          blockingReasons,
+        };
+      })
+      .sort((left, right) => {
+        const leftBlocked = left.blockingReasons.length;
+        const rightBlocked = right.blockingReasons.length;
+
+        if (leftBlocked !== rightBlocked) {
+          return leftBlocked - rightBlocked;
+        }
+
+        return left.accumulatedHours - right.accumulatedHours;
+      });
+  }
+
+  protected selectedCoverageCandidate() {
+    const selectedEmployeeId = this.coverageForm.controls.idReplacementEmployee.value;
+    return this.coverageCandidates().find((candidate) => candidate.employee.idEmployee === selectedEmployeeId) ?? null;
+  }
+
+  protected selectCoverageCandidate(candidate: CoverageCandidate) {
+    if (candidate.blockingReasons.length) {
+      this.error.set(candidate.blockingReasons[0]);
+      return;
+    }
+
+    this.coverageForm.patchValue({ idReplacementEmployee: candidate.employee.idEmployee });
+    this.error.set('');
+  }
+
+  protected coverageValidation(): readonly CoverageValidationItem[] {
+    const form = this.coverageForm.getRawValue();
+    const shift = this.dailyShifts().find((item) => item.idScheduledShift === form.idScheduledShift) ?? null;
+    const candidate = this.selectedCoverageCandidate();
+    const conflictDetails = candidate?.conflicts.join(', ') ?? '';
+
+    return [
+      {
+        label: 'Turno dentro de fecha operativa',
+        valid: Boolean(shift && shift.shiftDate === this.selectedOperationDate()),
+        detail: shift ? `Turno ${shift.startTime.slice(0, 5)}-${shift.endTime.slice(0, 5)} · ${this.operationDateLabel()}` : `No hay turnos disponibles para ${this.operationDateLabel()}`,
+      },
+      {
+        label: 'Sustituto distinto al original',
+        valid: Boolean(shift && form.idReplacementEmployee && form.idReplacementEmployee !== shift.idEmployee),
+        detail: shift && form.idReplacementEmployee === shift.idEmployee ? 'El empleado original no puede asignarse a sí mismo' : 'Cumple',
+      },
+      {
+        label: 'Empleado elegible',
+        valid: Boolean(candidate?.eligible),
+        detail: candidate?.eligible ? 'Activo para operación' : candidate?.blockingReasons[0] ?? 'Selecciona un sustituto',
+      },
+      {
+        label: 'Sin solapamiento de horario',
+        valid: Boolean(candidate && candidate.conflicts.length === 0),
+        detail: conflictDetails || 'Sin conflictos de turno',
+      },
+      {
+        label: 'Horas máximas permitidas',
+        valid: Boolean(candidate && candidate.accumulatedHours <= 30),
+        detail: candidate ? `${candidate.accumulatedHours} h acumuladas contra límite operativo de 30 h` : 'Selecciona un sustituto',
+      },
+      {
+        label: 'Servicio compatible',
+        valid: Boolean(candidate?.serviceCompatible),
+        detail: candidate?.serviceCompatible ? `Compatible con ${this.selectedService()?.name ?? 'el servicio actual'}` : 'Servicio no compatible',
+      },
+    ];
+  }
+
+  protected coverageBlockingCount() {
+    return this.coverageValidation().filter((item) => !item.valid).length;
+  }
+
+  protected coverageConfirmationReady() {
+    const form = this.coverageForm.getRawValue();
+
+    return Boolean(
+      form.confirmedByName.trim() &&
+      form.confirmationDate &&
+      form.confirmationTime &&
+      form.confirmationReason.trim(),
+    );
+  }
+
+  protected coverageStepDone(step: CoverageStage) {
+    const form = this.coverageForm.getRawValue();
+    const candidate = this.selectedCoverageCandidate();
+
+    switch (step) {
+      case 'detectar':
+        return Boolean(form.idScheduledShift && form.coverageReason);
+      case 'sustituto':
+        return Boolean(candidate && candidate.blockingReasons.length === 0);
+      case 'validar':
+        return this.coverageBlockingCount() === 0;
+      case 'confirmar':
+        return this.coverageConfirmationReady() || this.selectedCoverage()?.status === 'Confirmed' || this.selectedCoverage()?.status === 'Completed';
+    }
+  }
+
+  protected setCoverageHistoryScope(scope: CoverageHistoryScope) {
+    this.coverageHistoryScope.set(scope);
+    this.selectedCoverageId.set('');
+    this.error.set('');
+  }
+
+  protected coverageShiftLabel(coverage: CoverageRecord) {
+    const shift = this.scheduledShifts().find((item) => item.idScheduledShift === coverage.idScheduledShift);
+    return shift ? `${shift.startTime.slice(0, 5)}-${shift.endTime.slice(0, 5)} · ${this.formatDate(shift.shiftDate)}` : 'Turno no disponible';
+  }
+
+  protected coverageOutOfContext(coverage: CoverageRecord) {
+    return !this.dailyShiftIds().has(coverage.idScheduledShift);
+  }
+
+  protected coverageConflictCount(coverage: CoverageRecord) {
+    return this.coverageHasBlockingIssue(coverage) ? 1 : 0;
+  }
+
+  protected coverageConfirmedBy(coverage: CoverageRecord) {
+    const confirmedBy = coverage.notes?.match(/Confirmado por:\s*(.+)/i)?.[1]?.trim();
+    return confirmedBy || (coverage.status === 'Confirmed' || coverage.status === 'Completed' ? 'Operación' : '—');
+  }
+
+  protected coverageStatusClass(status: CoverageStatus) {
+    if (status === 'Confirmed' || status === 'Completed') {
+      return 'is-success';
+    }
+
+    if (status === 'Cancelled') {
+      return 'is-danger';
+    }
+
+    return 'is-warning';
   }
 
   protected evidenceTypeLabel(type: OperationEvidenceType) {
@@ -1073,16 +1680,23 @@ export class OperationsPage implements OnInit {
     return value.length > 54 ? `${value.slice(0, 26)}…${value.slice(-18)}` : value;
   }
 
+  protected attendanceShiftLabel(record: AttendanceRecord) {
+    const shift = this.dailyShifts().find((item) => item.idScheduledShift === record.idScheduledShift);
+    return shift ? `${shift.startTime.slice(0, 5)}-${shift.endTime.slice(0, 5)}` : 'Registro fuera del contexto';
+  }
+
   protected shiftStatusClass(item: OperationDayShift) {
-    if (item.attendance?.status === 'Present') {
+    const status = this.effectiveAttendanceStatus(item.attendance);
+
+    if (status === 'Present') {
       return 'is-present';
     }
 
-    if (item.attendance?.status === 'Late') {
+    if (status === 'Late') {
       return 'is-late';
     }
 
-    if (item.attendance?.status === 'Absent') {
+    if (status === 'Absent') {
       return 'is-absent';
     }
 
@@ -1246,7 +1860,7 @@ export class OperationsPage implements OnInit {
   }
 
   private resetShiftDefaults() {
-    const firstShift = this.scheduledShifts()[0];
+    const firstShift = this.dailyShifts()[0];
     const firstReplacement = this.employees().find((employee) => employee.idEmployee !== firstShift?.idEmployee);
 
     this.attendanceForm.patchValue({
@@ -1257,21 +1871,26 @@ export class OperationsPage implements OnInit {
 
     this.incidentForm.patchValue({
       idScheduledShift: firstShift?.idScheduledShift ?? '',
+      incidentDate: this.selectedOperationDate(),
     });
 
     this.coverageForm.patchValue({
       idScheduledShift: firstShift?.idScheduledShift ?? '',
       idReplacementEmployee: firstReplacement?.idEmployee ?? '',
+      coverageReason: 'Incidencia del empleado',
       coverageStartTime: firstShift?.startTime?.slice(0, 5) ?? '08:00',
       coverageEndTime: firstShift?.endTime?.slice(0, 5) ?? '16:00',
       isOvernight: firstShift?.isOvernight ?? false,
+      status: 'Requested',
+      confirmationDate: this.selectedOperationDate(),
+      confirmationTime: '',
+      confirmationReason: '',
+      confirmationEvidence: '',
     });
 
-    if (!this.evidenceForm.controls.relatedRecordId.value) {
-      this.evidenceForm.patchValue({
-        relatedRecordId: this.evidenceRelatedOptions()[0]?.value ?? '',
-      });
-    }
+    this.evidenceForm.patchValue({
+      relatedRecordId: this.evidenceRelatedOptions()[0]?.value ?? '',
+    });
   }
 
   private operationContext() {
@@ -1312,8 +1931,138 @@ export class OperationsPage implements OnInit {
     return cleanValue.length > 0 ? cleanValue : null;
   }
 
+  private buildResolutionNotes(form: IncidentResolutionFormValue) {
+    const baseNotes = this.emptyToNull(form.resolutionNotes);
+    const resolution = [
+      `Resultado: ${form.resolutionResult}`,
+      `Acción tomada: ${form.resolutionAction.trim()}`,
+      `Evidencia o justificación: ${form.resolutionEvidenceOrJustification.trim()}`,
+      `Motivo: ${form.resolutionReason}`,
+      `Hora de resolución: ${this.selectedOperationDate()} ${form.resolutionTime}`,
+      `Responsable: ${form.responsibleName || 'Operación'}`,
+    ].join('\n');
+
+    return baseNotes ? `${baseNotes}\n\n${resolution}` : resolution;
+  }
+
+  private buildCoverageNotes(form: CoverageFormValue, status: CoverageStatus) {
+    const notes = [
+      `Motivo: ${form.coverageReason}`,
+      form.notes.trim() ? `Observaciones: ${form.notes.trim()}` : '',
+    ];
+
+    if ((status === 'Confirmed' || status === 'Completed') && this.coverageConfirmationReady()) {
+      notes.push(
+        `Confirmado por: ${form.confirmedByName.trim()}`,
+        `Fecha y hora: ${form.confirmationDate} ${form.confirmationTime}`,
+        `Justificación: ${form.confirmationReason.trim()}`,
+      );
+
+      if (form.confirmationEvidence.trim()) {
+        notes.push(`Evidencia: ${form.confirmationEvidence.trim()}`);
+      }
+    }
+
+    return notes.filter(Boolean).join('\n');
+  }
+
+  private coverageReasonFromNotes(notes: string | null) {
+    const reason = notes?.match(/Motivo:\s*(.+)/i)?.[1]?.trim();
+    return this.coverageReasons.includes(reason ?? '') ? reason ?? 'Incidencia del empleado' : 'Incidencia del empleado';
+  }
+
+  private coverageHasBlockingIssue(coverage: CoverageRecord) {
+    const shift = this.scheduledShifts().find((item) => item.idScheduledShift === coverage.idScheduledShift);
+    const employee = this.employees().find((item) => item.idEmployee === coverage.idReplacementEmployee);
+
+    if (!shift || !employee) {
+      return true;
+    }
+
+    if (coverage.idReplacementEmployee === shift.idEmployee || employee.status !== 'Active') {
+      return true;
+    }
+
+    const conflicts = this.employeeConflictShifts(
+      coverage.idReplacementEmployee,
+      coverage.idScheduledShift,
+      coverage.coverageStartTime.slice(0, 5),
+      coverage.coverageEndTime.slice(0, 5),
+      coverage.isOvernight,
+    );
+    const accumulatedMinutes =
+      this.employeeWeeklyMinutes(coverage.idReplacementEmployee) +
+      this.durationBetween(coverage.coverageStartTime.slice(0, 5), coverage.coverageEndTime.slice(0, 5), coverage.isOvernight);
+
+    return conflicts.length > 0 || accumulatedMinutes > 30 * 60;
+  }
+
+  private employeeConflictShifts(employeeId: string, excludedShiftId: string, startTime: string, endTime: string, isOvernight: boolean) {
+    const currentRange = this.timeRange(startTime, endTime, isOvernight);
+
+    return this.dailyShifts().filter((shift) => {
+      if (shift.idScheduledShift === excludedShiftId || shift.idEmployee !== employeeId) {
+        return false;
+      }
+
+      return this.rangesOverlap(currentRange, this.timeRange(shift.startTime.slice(0, 5), shift.endTime.slice(0, 5), shift.isOvernight));
+    });
+  }
+
+  private employeeWeeklyMinutes(employeeId: string) {
+    const selectedDate = this.dateFromIso(this.selectedOperationDate());
+    const weekStart = new Date(selectedDate);
+    const day = weekStart.getDay() || 7;
+    weekStart.setDate(weekStart.getDate() - day + 1);
+    weekStart.setHours(0, 0, 0, 0);
+
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 7);
+
+    return this.scheduledShifts()
+      .filter((shift) => {
+        const shiftDate = this.dateFromIso(shift.shiftDate);
+        return shift.idEmployee === employeeId && shiftDate >= weekStart && shiftDate < weekEnd;
+      })
+      .reduce((total, shift) => total + shift.durationMinutes, 0);
+  }
+
+  private durationBetween(startTime: string, endTime: string, isOvernight: boolean) {
+    const range = this.timeRange(startTime, endTime, isOvernight);
+    return Math.max(range.end - range.start, 0);
+  }
+
+  private timeRange(startTime: string, endTime: string, isOvernight: boolean): TimeRange {
+    const start = this.minutesFromTime(startTime);
+    let end = this.minutesFromTime(endTime);
+
+    if (isOvernight || end <= start) {
+      end += 24 * 60;
+    }
+
+    return { start, end };
+  }
+
+  private rangesOverlap(left: TimeRange, right: TimeRange) {
+    return left.start < right.end && right.start < left.end;
+  }
+
+  private minutesFromTime(value: string) {
+    const [hours = '0', minutes = '0'] = value.split(':');
+    return Number(hours) * 60 + Number(minutes);
+  }
+
+  private dateFromIso(value: string) {
+    const [year, month, day] = value.split('-').map(Number);
+    return new Date(year, month - 1, day);
+  }
+
   private evidenceRelationPayload(relatedRecordId: string) {
     if (!relatedRecordId) {
+      return null;
+    }
+
+    if (!this.evidenceRelatedOptions().some((option) => option.value === relatedRecordId)) {
       return null;
     }
 
@@ -1385,11 +2134,28 @@ export class OperationsPage implements OnInit {
   private today() {
     return new Date().toISOString().slice(0, 10);
   }
+
+  private formatDate(value: string) {
+    if (!value) {
+      return 'Sin fecha';
+    }
+
+    const [year, month, day] = value.split('-');
+    return `${day}/${month}/${year}`;
+  }
 }
 
 type OperationSection = 'asistencia' | 'incidencias' | 'cobertura';
 
 type OperationTab = OperationSection | 'evidencias' | 'cierre';
+
+type IncidentHistoryScope = 'day' | 'service';
+
+type CoverageHistoryScope = 'day' | 'service';
+
+type IncidentStage = 'detectar' | 'clasificar' | 'atender' | 'resolver';
+
+type CoverageStage = 'detectar' | 'sustituto' | 'validar' | 'confirmar';
 
 type OperationDayShift = {
   readonly shift: ScheduledShift;
@@ -1402,6 +2168,61 @@ type ApprovalTarget = {
   readonly approvalType: ApprovalRequestType;
   readonly entityType: string;
   readonly entityId: string;
+};
+
+type ClosureChecklistItem = {
+  readonly label: string;
+  readonly detail: string;
+  readonly complete: boolean;
+  readonly blockedReason: string;
+};
+
+type IncidentResolutionFormValue = {
+  readonly resolutionNotes: string;
+  readonly responsibleName: string;
+  readonly resolutionResult: string;
+  readonly resolutionAction: string;
+  readonly resolutionEvidenceOrJustification: string;
+  readonly resolutionReason: string;
+  readonly resolutionTime: string;
+};
+
+type CoverageFormValue = {
+  readonly idScheduledShift: string;
+  readonly idReplacementEmployee: string;
+  readonly coverageReason: string;
+  readonly coverageStartTime: string;
+  readonly coverageEndTime: string;
+  readonly isOvernight: boolean;
+  readonly status: CoverageStatus;
+  readonly notes: string;
+  readonly confirmedByName: string;
+  readonly confirmationDate: string;
+  readonly confirmationTime: string;
+  readonly confirmationReason: string;
+  readonly confirmationEvidence: string;
+};
+
+type CoverageCandidate = {
+  readonly employee: Employee;
+  readonly availabilityLabel: string;
+  readonly eligible: boolean;
+  readonly conflicts: readonly string[];
+  readonly accumulatedHours: number;
+  readonly distanceLabel: string;
+  readonly serviceCompatible: boolean;
+  readonly blockingReasons: readonly string[];
+};
+
+type CoverageValidationItem = {
+  readonly label: string;
+  readonly valid: boolean;
+  readonly detail: string;
+};
+
+type TimeRange = {
+  readonly start: number;
+  readonly end: number;
 };
 
 function isOperationSection(value: string | null): value is OperationSection {

@@ -68,27 +68,61 @@ export class WorkforcePage implements OnInit {
   protected readonly error = signal('');
   protected readonly search = signal('');
   protected readonly statusFilter = signal<EmployeeStatus | ''>('');
+  protected readonly fileStageFilter = signal<EmployeeFileStageFilter>('all');
   protected readonly jobTitleFilter = signal('');
   protected readonly serviceFilter = signal('');
   protected readonly eligibilityFilter = signal<EmployeeEligibilityFilter>('all');
+  protected readonly siteFilter = signal('');
+  protected readonly ineFilter = signal<EmployeeDocumentFilter>('all');
+  protected readonly skillRequirementFilter = signal<EmployeeSkillFilter>('all');
+  protected readonly employeeWizardStep = signal(1);
   protected readonly activeTab = signal<EmployeeTab>('summary');
+  protected readonly selectedOrganization = computed(
+    () => this.organizations().find((organization) => organization.idOrganization === this.selectedOrganizationId()) ?? null,
+  );
   protected readonly selectedEmployeeName = computed(() => this.selectedEmployee()?.fullName ?? 'Sin empleado seleccionado');
   protected readonly canViewSensitivePersonalData = computed(() => this.auth.hasPermission('PLATFORM.ADMIN'));
   protected readonly visibleEmployees = computed(() =>
     this.result().items
       .filter((employee) => !this.jobTitleFilter() || employee.jobTitle === this.jobTitleFilter())
+      .filter((employee) => this.fileStageFilter() === 'all' || this.employeeStage(employee) === this.fileStageFilter())
+      .filter((employee) => !this.siteFilter() || this.employeeSiteLabel(employee) === this.siteFilter())
+      .filter((employee) => {
+        if (this.ineFilter() === 'all') {
+          return true;
+        }
+
+        const hasIne = this.selectedEmployee()?.idEmployee === employee.idEmployee ? this.hasValidDocument('VoterId') : false;
+        return this.ineFilter() === 'valid' ? hasIne : !hasIne;
+      })
+      .filter((employee) => {
+        if (this.skillRequirementFilter() === 'all') {
+          return true;
+        }
+
+        const hasSkills = this.selectedEmployee()?.idEmployee === employee.idEmployee ? this.skills().length > 0 : false;
+        return this.skillRequirementFilter() === 'withSkills' ? hasSkills : !hasSkills;
+      })
       .filter((employee) => {
         const filter = this.eligibilityFilter();
         if (filter === 'all') {
           return true;
         }
 
-        const isEligible = this.eligibilityForEmployee(employee.idEmployee)?.isEligible ?? this.basicEmployeeEligibility(employee);
+        const isEligible = this.employeeIsAssignable(employee);
         return filter === 'eligible' ? isEligible : !isEligible;
       }),
   );
   protected readonly jobTitleOptions = computed(() =>
     [...new Set(this.result().items.map((employee) => employee.jobTitle).filter(Boolean) as string[])].sort(),
+  );
+  protected readonly siteOptions = computed(() =>
+    [...new Set(this.result().items.map((employee) => this.employeeSiteLabel(employee)).filter(Boolean))].sort(),
+  );
+  protected readonly activeEmployeesCount = computed(() => this.result().items.filter((employee) => employee.status === 'Active').length);
+  protected readonly candidateEmployeesCount = computed(() => this.result().items.filter((employee) => employee.status === 'Candidate').length);
+  protected readonly notEligibleEmployeesCount = computed(() =>
+    this.result().items.filter((employee) => !this.employeeIsAssignable(employee)).length,
   );
   protected readonly selectedEligibility = computed(() => {
     const employee = this.selectedEmployee();
@@ -290,6 +324,10 @@ export class WorkforcePage implements OnInit {
     this.loadEmployees(1);
   }
 
+  protected updateFileStageFilter(value: EmployeeFileStageFilter): void {
+    this.fileStageFilter.set(value);
+  }
+
   protected updateJobTitleFilter(value: string): void {
     this.jobTitleFilter.set(value);
   }
@@ -298,8 +336,33 @@ export class WorkforcePage implements OnInit {
     this.serviceFilter.set(value);
   }
 
+  protected updateSiteFilter(value: string): void {
+    this.siteFilter.set(value);
+  }
+
+  protected updateIneFilter(value: EmployeeDocumentFilter): void {
+    this.ineFilter.set(value);
+  }
+
+  protected updateSkillRequirementFilter(value: EmployeeSkillFilter): void {
+    this.skillRequirementFilter.set(value);
+  }
+
   protected updateEligibilityFilter(value: EmployeeEligibilityFilter): void {
     this.eligibilityFilter.set(value);
+  }
+
+  protected clearFilters(): void {
+    this.search.set('');
+    this.statusFilter.set('');
+    this.fileStageFilter.set('all');
+    this.jobTitleFilter.set('');
+    this.serviceFilter.set('');
+    this.eligibilityFilter.set('all');
+    this.siteFilter.set('');
+    this.ineFilter.set('all');
+    this.skillRequirementFilter.set('all');
+    this.loadEmployees(1);
   }
 
   protected showTab(tab: EmployeeTab): void {
@@ -350,6 +413,7 @@ export class WorkforcePage implements OnInit {
   protected openCreateEmployee(): void {
     this.editingEmployee.set(null);
     this.employeeForm.reset(this.emptyEmployeeForm());
+    this.employeeWizardStep.set(1);
     this.employeeEditorOpen.set(true);
   }
 
@@ -382,6 +446,7 @@ export class WorkforcePage implements OnInit {
       housingType: employee.housingType ?? '',
       residenceSinceDate: this.dateOnly(employee.residenceSinceDate),
     });
+    this.employeeWizardStep.set(1);
     this.employeeEditorOpen.set(true);
   }
 
@@ -777,24 +842,176 @@ export class WorkforcePage implements OnInit {
     return 'Sin asignación visible';
   }
 
+  protected employeeSiteLabel(_employee: Employee): string {
+    return 'Sin sede visible';
+  }
+
+  protected employmentStatusLabel(status: EmployeeStatus): string {
+    if (status === 'Active') {
+      return 'Activo';
+    }
+
+    if (status === 'OnLeave') {
+      return 'Suspendido';
+    }
+
+    if (status === 'Terminated') {
+      return 'Baja';
+    }
+
+    return 'Inactivo';
+  }
+
+  protected employeeStage(employee: Employee): EmployeeFileStageFilter {
+    if (employee.status === 'Candidate') {
+      return 'candidate';
+    }
+
+    if (employee.status === 'Terminated') {
+      return 'rejected';
+    }
+
+    if (employee.status !== 'Active') {
+      return 'review';
+    }
+
+    if (this.selectedEmployee()?.idEmployee === employee.idEmployee) {
+      return this.employeeFileComplete() ? 'complete' : 'review';
+    }
+
+    return 'review';
+  }
+
+  protected employeeStageLabel(employee: Employee): string {
+    const stage = this.employeeStage(employee);
+    const labels: Record<EmployeeFileStageFilter, string> = {
+      all: 'Todas',
+      candidate: 'Candidato',
+      capture: 'Captura',
+      review: 'En revisión',
+      complete: 'Completo',
+      rejected: 'Rechazado',
+    };
+
+    return labels[stage];
+  }
+
+  protected employeeFileStatus(employee: Employee): string {
+    return this.selectedEmployee()?.idEmployee === employee.idEmployee && this.employeeFileComplete()
+      ? 'Completo'
+      : 'Incompleto';
+  }
+
+  protected assignmentBlockedReason(employee = this.selectedEmployee()): string {
+    if (!employee) {
+      return 'Selecciona un empleado para revisar asignación.';
+    }
+
+    if (employee.status !== 'Active') {
+      return `El estado laboral actual es ${this.employmentStatusLabel(employee.status)}.`;
+    }
+
+    if (!this.hasValidDocument('VoterId')) {
+      return 'Falta INE obligatoria validada.';
+    }
+
+    if (!this.skills().length) {
+      return 'Falta una habilidad requerida.';
+    }
+
+    if (!this.hasApprovedEvaluation()) {
+      return 'Falta evaluación aprobada o vigente.';
+    }
+
+    return '';
+  }
+
+  protected employeeFileComplete(): boolean {
+    return this.hasValidDocument('VoterId') && this.hasValidDocument('Curp') && this.hasValidDocument('SocialSecurityNumber');
+  }
+
+  protected employeeIsAssignable(employee: Employee): boolean {
+    const report = this.eligibilityForEmployee(employee.idEmployee);
+    if (report) {
+      return employee.status === 'Active' && report.isEligible;
+    }
+
+    if (this.selectedEmployee()?.idEmployee === employee.idEmployee) {
+      return !this.assignmentBlockedReason(employee);
+    }
+
+    return employee.status === 'Active';
+  }
+
   protected eligibilityBadge(employee: Employee): string {
-    return (this.eligibilityForEmployee(employee.idEmployee)?.isEligible ?? this.basicEmployeeEligibility(employee))
-      ? 'Elegible'
-      : 'Revisar';
+    return this.employeeIsAssignable(employee) ? 'Elegible' : 'No elegible';
   }
 
   protected eligibilityState(employee: Employee): 'ok' | 'warn' {
-    return (this.eligibilityForEmployee(employee.idEmployee)?.isEligible ?? this.basicEmployeeEligibility(employee))
-      ? 'ok'
-      : 'warn';
+    return this.employeeIsAssignable(employee) ? 'ok' : 'warn';
   }
 
   protected isExpired(value: string | null): boolean {
     return Boolean(value && value < this.today());
   }
 
+  protected shortDate(value: string | null): string {
+    return value ? value.slice(0, 10) : 'sin actualización';
+  }
+
   protected itemStateClass(state: EmployeeEligibilityItem['state']): string {
     return `is-${state}`;
+  }
+
+  protected documentRequirementStatus(type: EmployeeDocumentType): string {
+    const document = this.documents().find((item) => item.documentType === type && item.active);
+
+    if (!document) {
+      return 'Pendiente';
+    }
+
+    if (document.expiresDate && this.isExpired(document.expiresDate)) {
+      return 'Vencido';
+    }
+
+    return this.documentStatusLabel(document.status);
+  }
+
+  protected skillRequirementStatus(): string {
+    return this.skills().length ? 'Aprobada' : 'Faltante';
+  }
+
+  protected employeeStepIsActive(step: number): boolean {
+    return this.employeeWizardStep() === step;
+  }
+
+  protected goToEmployeeStep(step: number): void {
+    if (step < 1 || step > 6) {
+      return;
+    }
+
+    this.employeeWizardStep.set(step);
+  }
+
+  protected nextEmployeeStep(): void {
+    if (this.employeeWizardStep() < 6) {
+      this.employeeWizardStep.update((step) => step + 1);
+    }
+  }
+
+  protected previousEmployeeStep(): void {
+    if (this.employeeWizardStep() > 1) {
+      this.employeeWizardStep.update((step) => step - 1);
+    }
+  }
+
+  protected isInvalid(controlName: string): boolean {
+    const control = this.employeeForm.get(controlName);
+    return Boolean(control?.invalid && (control.touched || control.dirty));
+  }
+
+  protected employeeReadyToSave(): boolean {
+    return this.employeeForm.valid;
   }
 
   private emptyEmployeeForm() {
@@ -863,7 +1080,7 @@ export class WorkforcePage implements OnInit {
     return employee.status === 'Active';
   }
 
-  private hasValidDocument(type: EmployeeDocumentType): boolean {
+  protected hasValidDocument(type: EmployeeDocumentType): boolean {
     return this.documents().some((document) =>
       document.documentType === type &&
       document.active &&
@@ -872,7 +1089,7 @@ export class WorkforcePage implements OnInit {
     );
   }
 
-  private hasApprovedEvaluation(): boolean {
+  protected hasApprovedEvaluation(): boolean {
     return this.evaluations().some((evaluation) =>
       evaluation.active &&
       ['Approved', 'ApprovedWithObservations'].includes(evaluation.result) &&
@@ -904,6 +1121,9 @@ export class WorkforcePage implements OnInit {
 
 type EmployeeTab = 'summary' | 'documents' | 'evaluations' | 'skills' | 'assignments';
 type EmployeeEligibilityFilter = 'all' | 'eligible' | 'review';
+type EmployeeFileStageFilter = 'all' | 'candidate' | 'capture' | 'review' | 'complete' | 'rejected';
+type EmployeeDocumentFilter = 'all' | 'valid' | 'pending';
+type EmployeeSkillFilter = 'all' | 'withSkills' | 'missing';
 
 type EmployeeEligibilityItem = {
   readonly state: 'ok' | 'warn' | 'fail';

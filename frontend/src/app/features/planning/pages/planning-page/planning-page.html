@@ -51,7 +51,7 @@
       <select class="gi-input" [value]="selectedVersionId()" (change)="onVersionChange($event)">
         @for (version of versions(); track version.idScheduleVersion) {
           <option [value]="version.idScheduleVersion">
-            {{ version.name }} · {{ scheduleStatusLabel(version.status) }}
+            {{ version.name }} · {{ version.idScheduleVersion === selectedVersionId() ? visualScheduleStatusLabel(version) : scheduleStatusLabel(version.status) }}
           </option>
         }
       </select>
@@ -80,19 +80,9 @@
 
   <section class="planning-summary" aria-label="Resumen de planeación">
     <article class="metric-card gi-card">
-      <span>Posiciones</span>
-      <strong>{{ positions().length }}</strong>
-      <small>configuradas</small>
-    </article>
-    <article class="metric-card gi-card">
-      <span>Personal asignado</span>
-      <strong>{{ assignedEmployees() }}</strong>
-      <small>{{ assignments().length }} asignaciones</small>
-    </article>
-    <article class="metric-card gi-card">
-      <span>Turnos</span>
-      <strong>{{ shifts().length }}</strong>
-      <small>{{ plannedHours() }} h planeadas</small>
+      <span>Cobertura</span>
+      <strong>{{ coveragePercentage() }}%</strong>
+      <small>del requerimiento</small>
     </article>
     <article class="metric-card gi-card" [class.needs-attention]="coverageGapCount() > 0">
       <span>Huecos</span>
@@ -103,6 +93,11 @@
       <span>Conflictos</span>
       <strong>{{ blockingPlanningIssues().length }}</strong>
       <small>bloquean publicación</small>
+    </article>
+    <article class="metric-card gi-card" [class.needs-attention]="eligibilityBlockCount() > 0">
+      <span>Elegibilidad</span>
+      <strong>{{ eligibilityBlockCount() }}</strong>
+      <small>bloqueos</small>
     </article>
   </section>
 
@@ -115,7 +110,7 @@
       </div>
       <div class="service-status">
         @if (selectedVersion(); as version) {
-          <span [class]="scheduleStatusClass(version.status)">{{ scheduleStatusLabel(version.status) }}</span>
+          <span [class]="visualScheduleStatusClass(version)">{{ visualScheduleStatusLabel(version) }}</span>
           <strong>{{ version.periodStartDate }} — {{ version.periodEndDate }}</strong>
         } @else {
           <span class="mini-pill is-muted">Sin versión</span>
@@ -124,6 +119,46 @@
       </div>
     </article>
   }
+
+  <article class="publish-preparation gi-card">
+    <header class="panel-heading">
+      <div>
+        <span class="eyebrow">Preparación para publicar</span>
+        <h2>{{ canPublishSelectedVersion() ? 'Versión apta para publicar' : 'Publicación bloqueada' }}</h2>
+        <p>Cumple los requisitos antes de habilitar la publicación de la versión.</p>
+      </div>
+      <div class="publish-actions">
+        @if (!canPublishSelectedVersion()) {
+          <button class="gi-button gi-button--primary" type="button" (click)="setActiveTab('conflicts')">
+            Resolver {{ planningValidation().length }} conflictos
+          </button>
+        }
+        <button
+          class="gi-button gi-button--primary"
+          type="button"
+          [disabled]="saving() || !canWrite() || !canPublishSelectedVersion()"
+          (click)="publishVersion()"
+        >
+          Publicar versión
+        </button>
+        @if (!canPublishSelectedVersion()) {
+          <small>No disponible hasta resolver bloqueos.</small>
+        }
+      </div>
+    </header>
+
+    <div class="preparation-grid">
+      @for (item of publishPreparation(); track item.label) {
+        <article class="preparation-item" [attr.data-state]="item.state">
+          <i>{{ preparationIcon(item.state) }}</i>
+          <div>
+            <strong>{{ item.label }}</strong>
+            <span>{{ item.detail }}</span>
+          </div>
+        </article>
+      }
+    </div>
+  </article>
 
   <nav class="planning-tabs gi-card" aria-label="Secciones de planeación">
     @for (tab of tabs; track tab.value) {
@@ -335,14 +370,43 @@
           </div>
         </header>
 
-        <div class="version-list">
+        <div class="versions-table" role="table" aria-label="Versiones de planeación">
+          <div class="versions-table__head" role="row">
+            <span role="columnheader">Versión</span>
+            <span role="columnheader">Estado</span>
+            <span role="columnheader">Periodo</span>
+            <span role="columnheader">Bloqueos</span>
+            <span role="columnheader">Autor</span>
+            <span role="columnheader">Última edición</span>
+            <span role="columnheader">Acciones</span>
+          </div>
           @for (version of versions(); track version.idScheduleVersion) {
-            <button class="version-card" type="button" [class.is-selected]="version.idScheduleVersion === selectedVersionId()" (click)="selectVersion(version)">
-              <span [class]="scheduleStatusClass(version.status)">{{ scheduleStatusLabel(version.status) }}</span>
-              <strong>{{ version.name }}</strong>
-              <small>{{ version.periodStartDate }} — {{ version.periodEndDate }}</small>
-              <em>{{ version.publishedByName ? 'Publicó: ' + version.publishedByName : 'Sin publicación' }}</em>
-            </button>
+            <article class="version-row" role="row" [class.is-selected]="version.idScheduleVersion === selectedVersionId()">
+              <button class="row-main" type="button" role="cell" (click)="selectVersion(version)">
+                <strong>{{ version.name }}</strong>
+                <small>{{ version.idScheduleVersion === selectedVersionId() ? 'Versión actual' : 'Ver versión' }}</small>
+              </button>
+              <span role="cell" [class]="version.idScheduleVersion === selectedVersionId() ? visualScheduleStatusClass(version) : scheduleStatusClass(version.status)">
+                {{ version.idScheduleVersion === selectedVersionId() ? visualScheduleStatusLabel(version) : scheduleStatusLabel(version.status) }}
+              </span>
+              <span class="version-cell" role="cell">{{ version.periodStartDate }} — {{ version.periodEndDate }}</span>
+              <span class="version-cell" role="cell">
+                {{ version.idScheduleVersion === selectedVersionId() ? blockingPlanningIssues().length : '—' }}
+              </span>
+              <span class="version-cell" role="cell">{{ version.publishedByName || 'Sistema' }}</span>
+              <span class="version-cell" role="cell">{{ version.publishedAt || 'Sin publicación' }}</span>
+              <span class="row-actions" role="cell">
+                @if (version.idScheduleVersion !== selectedVersionId()) {
+                  <button class="mini-action" type="button" (click)="selectVersion(version)">Ver</button>
+                }
+                @if (version.idScheduleVersion === selectedVersionId() && blockingPlanningIssues().length > 0) {
+                  <button class="mini-action danger" type="button" (click)="setActiveTab('conflicts')">Resolver conflictos</button>
+                }
+                @if (version.idScheduleVersion === selectedVersionId() && canPublishSelectedVersion()) {
+                  <button class="mini-action" type="button" [disabled]="saving()" (click)="publishVersion()">Publicar</button>
+                }
+              </span>
+            </article>
           } @empty {
             <div class="gi-empty-state">
               <h3>Sin versiones</h3>
@@ -365,7 +429,7 @@
         <button
           class="gi-button gi-button--primary"
           type="button"
-          [disabled]="saving() || !canWrite() || !selectedVersionId() || shifts().length === 0"
+          [disabled]="saving() || !canWrite() || !canPublishSelectedVersion()"
           (click)="publishVersion()"
         >
           Publicar / reemplazar
@@ -381,21 +445,83 @@
           <div>
             <span class="eyebrow">Conflictos</span>
             <h2>Validación visual</h2>
-            <p>Revisa huecos, duplicados y turnos fuera del periodo antes de publicar.</p>
+            <p>Revisa y resuelve conflictos que bloquean la publicación.</p>
           </div>
-          <span class="gi-badge">{{ planningValidation().length }} hallazgo(s)</span>
+          <span class="gi-badge">{{ filteredPlanningConflicts().length }} hallazgo(s)</span>
         </header>
 
+        <section class="conflict-filters" [formGroup]="conflictFilterForm">
+          <label class="gi-field">
+            Tipo de conflicto
+            <select class="gi-input" formControlName="type" (change)="refreshConflictFilters()">
+              <option value="">Todos</option>
+              <option value="uncovered">Posiciones sin cubrir</option>
+              <option value="duplicate">Duplicados</option>
+              <option value="outOfPeriod">Fuera de periodo</option>
+              <option value="eligibility">Elegibilidad</option>
+            </select>
+          </label>
+          <label class="gi-field">
+            Severidad
+            <select class="gi-input" formControlName="severity" (change)="refreshConflictFilters()">
+              <option value="">Todas</option>
+              <option value="Alta">Alta</option>
+              <option value="Media">Media</option>
+            </select>
+          </label>
+          <label class="gi-field">
+            Día
+            <select class="gi-input" formControlName="day" (change)="refreshConflictFilters()">
+              <option value="">Todos</option>
+              @for (day of conflictDays(); track day) {
+                <option [value]="day">{{ formatDate(day) }}</option>
+              }
+            </select>
+          </label>
+          <label class="gi-field">
+            Posición
+            <select class="gi-input" formControlName="position" (change)="refreshConflictFilters()">
+              <option value="">Todas</option>
+              @for (position of positions(); track position.idPosition) {
+                <option [value]="position.idPosition">{{ position.codePosition }} · {{ position.name }}</option>
+              }
+            </select>
+          </label>
+          <button class="gi-button gi-button--secondary" type="button" (click)="clearConflictFilters()">Limpiar</button>
+        </section>
+
+        <nav class="conflict-chips" aria-label="Resumen por tipo de conflicto">
+          <button type="button" (click)="conflictFilterForm.patchValue({ type: 'uncovered' }); refreshConflictFilters()">
+            Posiciones sin cubrir <strong>{{ conflictCount('uncovered') }}</strong>
+          </button>
+          <button type="button" (click)="conflictFilterForm.patchValue({ type: 'duplicate' }); refreshConflictFilters()">
+            Duplicados <strong>{{ conflictCount('duplicate') }}</strong>
+          </button>
+          <button type="button" (click)="conflictFilterForm.patchValue({ type: 'outOfPeriod' }); refreshConflictFilters()">
+            Fuera de periodo <strong>{{ conflictCount('outOfPeriod') }}</strong>
+          </button>
+          <button type="button" (click)="conflictFilterForm.patchValue({ type: 'eligibility' }); refreshConflictFilters()">
+            Elegibilidad <strong>{{ conflictCount('eligibility') }}</strong>
+          </button>
+        </nav>
+
         <div class="validation-list">
-          @for (issue of planningValidation(); track issue.description) {
+          @for (issue of filteredPlanningConflicts(); track issue.description) {
             <article class="validation-item" [class.is-danger]="issue.severity === 'danger'">
-              <span>{{ issue.severity === 'danger' ? '✕' : '⚠' }} {{ issue.label }}</span>
-              <strong>{{ issue.description }}</strong>
+              <div>
+                <span>{{ issue.severity === 'danger' ? '✕' : '⚠' }} {{ conflictTypeLabel(issue.type) }} · {{ issue.severityLabel }}</span>
+                <strong>{{ issue.description }}</strong>
+                <p>{{ issue.recommendedAction }}</p>
+              </div>
+              <button class="mini-action" type="button" (click)="resolveConflict(issue)">
+                {{ issue.actionLabel }}
+              </button>
             </article>
           } @empty {
             <div class="gi-empty-state">
-              <h3>Sin conflictos visibles</h3>
-              <p>La versión seleccionada no tiene huecos ni conflictos detectados por la validación visual.</p>
+              <h3>No hay conflictos con estos filtros</h3>
+              <p>Ajusta los filtros o revisa otra versión de planeación.</p>
+              <button class="gi-button gi-button--secondary" type="button" (click)="clearConflictFilters()">Limpiar filtros</button>
             </div>
           }
         </div>
@@ -617,36 +743,72 @@
         <form [formGroup]="versionForm" (ngSubmit)="saveVersion()">
           <header class="drawer-header">
             <div>
-              <span class="eyebrow">{{ selectedVersionId() ? 'Editar versión' : 'Nueva versión' }}</span>
-              <h2>Versión de planeación</h2>
-              <p>Una versión agrupa turnos de un periodo y permite publicarlos o reemplazarlos.</p>
+              <span class="eyebrow">{{ editingVersionId() ? 'Editar versión' : 'Nueva versión' }}</span>
+              <h2>Nueva versión</h2>
+              <p>Valida el contexto antes de crear el borrador. Cancelar no cambia la versión actual.</p>
             </div>
             <button class="drawer-close" type="button" aria-label="Cerrar versión" (click)="closeVersionDrawer()">×</button>
           </header>
 
-          <label class="gi-field">
-            Nombre
-            <input class="gi-input" type="text" formControlName="name" />
-          </label>
           <div class="form-row">
             <label class="gi-field">
-              Desde
+              Servicio *
+              <select class="gi-input" formControlName="idService" [disabled]="true">
+                @if (selectedService(); as service) {
+                  <option [value]="service.idService">{{ service.name }}</option>
+                }
+              </select>
+            </label>
+            <label class="gi-field">
+              Sede *
+              <input class="gi-input" type="text" [value]="selectedService()?.clientSiteName || 'Sin sede asignada'" [disabled]="true" />
+            </label>
+          </div>
+
+          <div class="form-row">
+            <label class="gi-field">
+              Periodo desde *
               <input class="gi-input" type="date" formControlName="periodStartDate" />
             </label>
             <label class="gi-field">
-              Hasta
+              Periodo hasta *
               <input class="gi-input" type="date" formControlName="periodEndDate" />
             </label>
           </div>
+
+          <div class="form-row">
+            <label class="gi-field">
+              Basar en versión *
+              <select class="gi-input" formControlName="baseVersionId">
+                <option value="">Sin duplicar turnos</option>
+                @for (version of versions(); track version.idScheduleVersion) {
+                  <option [value]="version.idScheduleVersion">{{ version.name }} · {{ scheduleStatusLabel(version.status) }}</option>
+                }
+              </select>
+            </label>
+            <label class="gi-field">
+              Nombre *
+              <input class="gi-input" type="text" formControlName="name" />
+            </label>
+          </div>
+
           <label class="gi-field">
-            Notas
-            <textarea class="gi-input" rows="4" formControlName="notes"></textarea>
+            Motivo *
+            <textarea class="gi-input" rows="4" formControlName="notes" placeholder="Ej. Planeación semanal regular, reemplazo por cambios operativos..."></textarea>
           </label>
+
+          <section class="version-validation">
+            <strong>Validación previa a la creación</strong>
+            <span [class.ok]="periodIsValid()">✓ Periodo válido</span>
+            <span>✓ Servicio y sede coherentes</span>
+            <span>✓ Versión base seleccionada cuando se duplicará contenido</span>
+            <span>✓ Tienes permisos para crear borradores</span>
+          </section>
 
           <footer class="drawer-actions">
             <button class="gi-button gi-button--secondary" type="button" (click)="closeVersionDrawer()">Cancelar</button>
             <button class="gi-button gi-button--primary" type="submit" [disabled]="saving() || !canWrite() || !selectedServiceId()">
-              {{ saving() ? 'Guardando…' : 'Guardar versión' }}
+              {{ saving() ? 'Guardando…' : editingVersionId() ? 'Guardar cambios' : 'Crear borrador' }}
             </button>
           </footer>
         </form>

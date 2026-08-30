@@ -1,18 +1,14 @@
 <section class="documents-page">
   <article class="documents-hero gi-card">
     <div>
-      <span class="eyebrow">Control documental</span>
+      <span class="context-chip">Organización actual</span>
       <h1>Documentos</h1>
       <p>
-        Consulta expedientes, vencimientos y documentos sensibles sin perder de vista a qué cliente, servicio,
-        empleado o solicitud pertenecen.
+        Documentos vinculados a clientes, servicios, contratos, empleados, evaluaciones y solicitudes.
       </p>
     </div>
 
     <div class="hero-actions">
-      <button class="gi-button gi-button--secondary" type="button" [disabled]="loading()" (click)="applyFilters()">
-        Actualizar
-      </button>
       <button class="gi-button gi-button--primary" type="button" [disabled]="!canWrite()" (click)="openCreateDocument()">
         + Subir documento
       </button>
@@ -43,7 +39,7 @@
       <label class="gi-field">
         Registro
         <select class="gi-input" formControlName="ownerId" [disabled]="!selectedFilterOwnerType()">
-          <option value="">Todos</option>
+          <option value="">{{ filterOwnerPlaceholder() }}</option>
           @for (option of filterOwnerOptions(); track option.value) {
             <option [value]="option.value">{{ option.label }}</option>
           }
@@ -56,6 +52,16 @@
           <option value="">Todos</option>
           @for (status of statuses; track status.value) {
             <option [value]="status.value">{{ status.label }}</option>
+          }
+        </select>
+      </label>
+
+      <label class="gi-field">
+        Categoría
+        <select class="gi-input" formControlName="category">
+          <option value="">Todas</option>
+          @for (category of categories; track category) {
+            <option [value]="category">{{ category }}</option>
           }
         </select>
       </label>
@@ -86,23 +92,18 @@
           <button class="search-button" type="button" [disabled]="loading()" (click)="applyFilters()">Buscar</button>
         </span>
       </label>
+
+      <div class="filter-actions">
+        <button class="gi-button gi-button--secondary" type="button" (click)="clearFilters()">Limpiar</button>
+        <button class="gi-button gi-button--primary" type="button" [disabled]="loading()" (click)="applyFilters()">Filtrar</button>
+      </div>
     </div>
 
     <div class="document-summary" aria-label="Resumen documental">
       <article class="metric-card">
         <span>Total</span>
         <strong>{{ visibleDocuments().length }}</strong>
-        <small>en la consulta</small>
-      </article>
-      <article class="metric-card" [class.needs-attention]="expiredDocuments() > 0">
-        <span>Vencidos</span>
-        <strong>{{ expiredDocuments() }}</strong>
-        <small>requieren renovación</small>
-      </article>
-      <article class="metric-card" [class.needs-attention]="dueSoonDocuments() > 0">
-        <span>Por vencer</span>
-        <strong>{{ dueSoonDocuments() }}</strong>
-        <small>próximos 30 días</small>
+        <small>documentos</small>
       </article>
       <article class="metric-card" [class.needs-attention]="pendingDocuments() > 0">
         <span>Pendientes</span>
@@ -110,9 +111,19 @@
         <small>por revisar</small>
       </article>
       <article class="metric-card">
+        <span>Validados</span>
+        <strong>{{ validatedDocuments() }}</strong>
+        <small>documentos</small>
+      </article>
+      <article class="metric-card" [class.needs-attention]="dueSoonDocuments() > 0">
+        <span>Por vencer</span>
+        <strong>{{ dueSoonDocuments() }}</strong>
+        <small>próximos 30 días</small>
+      </article>
+      <article class="metric-card">
         <span>Sensibles</span>
         <strong>{{ sensitiveDocuments() }}</strong>
-        <small>privacidad reforzada</small>
+        <small>documentos</small>
       </article>
     </div>
   </section>
@@ -144,11 +155,14 @@
       <div class="documents-table" role="table" aria-label="Documentos registrados">
         <div class="documents-table__head" role="row">
           <span role="columnheader">Documento</span>
+          <span role="columnheader">Propietario</span>
+          <span role="columnheader">Registro</span>
           <span role="columnheader">Categoría</span>
-          <span role="columnheader">Relacionado con</span>
-          <span role="columnheader">Fecha</span>
-          <span role="columnheader">Vencimiento</span>
           <span role="columnheader">Estado</span>
+          <span role="columnheader">Emisión</span>
+          <span role="columnheader">Vencimiento</span>
+          <span role="columnheader">Sensible</span>
+          <span role="columnheader">Última revisión</span>
           <span role="columnheader">Acciones</span>
         </div>
 
@@ -164,18 +178,14 @@
               <small>{{ labelForOwnerType(document.ownerType) }}</small>
             </button>
 
-            <span class="document-cell" role="cell">{{ document.category }}</span>
+            <span class="document-cell" role="cell">{{ labelForOwnerType(document.ownerType) }}</span>
 
             <span class="document-cell owner-cell" role="cell">
               <strong>{{ document.ownerLabel }}</strong>
-              <small>{{ labelForOwnerType(document.ownerType) }}</small>
+              <small>{{ document.ownerId }}</small>
             </span>
 
-            <span class="document-cell" role="cell">{{ formattedDate(document.issuedDate) }}</span>
-
-            <span class="document-cell expiry-cell" role="cell" [class.warning]="document.isExpired || isDueSoon(document)">
-              {{ expiryLabel(document) }}
-            </span>
+            <span class="document-cell" role="cell">{{ document.category }}</span>
 
             <span class="document-state" role="cell" [attr.data-tone]="statusTone(document)">
               {{ labelForStatus(document.status) }}
@@ -184,12 +194,24 @@
               }
             </span>
 
+            <span class="document-cell" role="cell">{{ formattedDate(document.issuedDate) }}</span>
+
+            <span class="document-cell expiry-cell" role="cell" [class.warning]="document.isExpired || isDueSoon(document)">
+              {{ expiryLabel(document) }}
+            </span>
+
+            <span class="document-cell" role="cell">
+              <span class="sensitive-badge" [class.is-sensitive]="document.isSensitive">{{ document.isSensitive ? 'Sí' : 'No' }}</span>
+            </span>
+
+            <span class="document-cell" role="cell">{{ formattedDate(document.updatedAt) }}</span>
+
             <span class="document-actions" role="cell">
               <button type="button" class="icon-action" title="Ver detalle" (click)="selectDocument(document)">Ver</button>
-              <button type="button" class="icon-action" title="Descargar archivo" (click)="downloadDocument(document)">
+              <button type="button" class="icon-action" title="Descargar archivo" [disabled]="!isManagedDocument(document)" (click)="downloadDocument(document)">
                 Descargar
               </button>
-              @if (canWrite()) {
+              @if (canWrite() && isManagedDocument(document)) {
                 <button type="button" class="icon-action" title="Editar metadatos" (click)="openEditDocument(document)">
                   Editar
                 </button>
@@ -198,11 +220,9 @@
           </article>
         } @empty {
           <div class="gi-empty-state">
-            <h3>Sin documentos para mostrar</h3>
-            <p>Ajusta los filtros o sube el primer documento asociado a un cliente, servicio, empleado o solicitud.</p>
-            <button class="gi-button gi-button--primary" type="button" [disabled]="!canWrite()" (click)="openCreateDocument()">
-              Subir documento
-            </button>
+            <h3>No hay documentos con estos filtros</h3>
+            <p>Intenta modificar los filtros de búsqueda para ver resultados.</p>
+            <button class="gi-button gi-button--secondary" type="button" (click)="clearFilters()">Limpiar filtros</button>
           </div>
         }
       </div>
@@ -269,17 +289,18 @@
         </section>
 
         <footer class="drawer-actions">
-          <button class="gi-button gi-button--secondary" type="button" (click)="downloadDocument(document)">Descargar</button>
-          @if (canWrite()) {
+          <button class="gi-button gi-button--secondary" type="button" [disabled]="!isManagedDocument(document)" (click)="downloadDocument(document)">Descargar</button>
+          <button class="gi-button gi-button--secondary" type="button">Ver historial</button>
+          @if (canWrite() && isManagedDocument(document)) {
             <button class="gi-button gi-button--secondary" type="button" (click)="openEditDocument(document)">
               Editar metadatos
             </button>
-            @if (document.status !== 'Validated') {
+            @if (document.status !== 'Validated' && canValidateDocument(document)) {
               <button class="gi-button gi-button--primary" type="button" [disabled]="saving()" (click)="validateDocument(document)">
                 Validar
               </button>
             }
-            @if (document.status !== 'Rejected') {
+            @if (document.status !== 'Rejected' && canValidateDocument(document)) {
               <button class="gi-button gi-button--danger" type="button" [disabled]="saving()" (click)="rejectDocument(document)">
                 Rechazar
               </button>
@@ -301,88 +322,235 @@
             <div>
               <span class="eyebrow">{{ selectedDocument() ? 'Editar documento' : 'Nuevo documento' }}</span>
               <h2>{{ selectedDocument() ? 'Actualizar metadatos' : 'Subir documento' }}</h2>
-              <p>Primero elige a qué registro pertenece. Después carga el archivo y captura vencimiento si aplica.</p>
+              <p>Guía corta en 5 pasos: propietario, registro, metadatos, archivo y revisión.</p>
             </div>
             <button class="drawer-close" type="button" aria-label="Cerrar captura" (click)="closeEditor()">×</button>
           </header>
 
-          <section class="owner-type-grid">
-            @for (type of ownerTypes; track type.value) {
-              <label class="owner-type" [class.is-selected]="documentForm.controls.ownerType.value === type.value">
-                <input type="radio" formControlName="ownerType" [value]="type.value" (change)="onOwnerTypeChange()" />
-                <strong>{{ type.label }}</strong>
-                <small>{{ type.help }}</small>
+          <ol class="wizard-steps document-wizard" aria-label="Pasos para subir documento">
+            <li [class.is-active]="stepIsActive(1)" [class.is-done]="uploadStep() > 1">
+              <span>1</span>
+              <strong>Propietario</strong>
+            </li>
+            <li [class.is-active]="stepIsActive(2)" [class.is-done]="uploadStep() > 2">
+              <span>2</span>
+              <strong>Registro</strong>
+            </li>
+            <li [class.is-active]="stepIsActive(3)" [class.is-done]="uploadStep() > 3">
+              <span>3</span>
+              <strong>Metadatos</strong>
+            </li>
+            <li [class.is-active]="stepIsActive(4)" [class.is-done]="uploadStep() > 4">
+              <span>4</span>
+              <strong>Archivo</strong>
+            </li>
+            <li [class.is-active]="stepIsActive(5)">
+              <span>5</span>
+              <strong>Revisión</strong>
+            </li>
+          </ol>
+
+          @if (uploadStep() === 1) {
+            <section class="wizard-pane">
+              <div class="wizard-copy">
+                <span class="eyebrow">Paso 1 de 5</span>
+                <h3>¿A qué pertenece el documento?</h3>
+                <p>Selecciona el tipo de expediente para mostrar sólo los registros relacionados.</p>
+              </div>
+
+              <section class="owner-type-grid">
+                @for (type of ownerTypes; track type.value) {
+                  <label class="owner-type" [class.is-selected]="documentForm.controls.ownerType.value === type.value">
+                    <input type="radio" formControlName="ownerType" [value]="type.value" (change)="onOwnerTypeChange()" />
+                    <strong>{{ type.label }}</strong>
+                    <small>{{ type.help }}</small>
+                  </label>
+                }
+              </section>
+            </section>
+          }
+
+          @if (uploadStep() === 2) {
+            <section class="wizard-pane">
+              <div class="wizard-copy">
+                <span class="eyebrow">Paso 2 de 5</span>
+                <h3>Selecciona el registro relacionado</h3>
+                <p>{{ ownerTypeHelp() }}</p>
+              </div>
+
+              <label class="gi-field">
+                Registro relacionado
+                <select class="gi-input" formControlName="ownerId" [class.is-invalid]="isInvalid('ownerId')">
+                  @if (ownerOptions().length) {
+                    @for (option of ownerOptions(); track option.value) {
+                      <option [value]="option.value">{{ option.label }}</option>
+                    }
+                  } @else {
+                    <option value="">{{ ownerEmptyLabel() }}</option>
+                  }
+                </select>
+                <small>{{ ownerSelectionHelp() }}</small>
+                @if (isInvalid('ownerId')) {
+                  <small class="field-error">Selecciona un registro antes de continuar.</small>
+                }
               </label>
-            }
-          </section>
+            </section>
+          }
 
-          <label class="gi-field">
-            Registro relacionado
-            <select class="gi-input" formControlName="ownerId">
-              @if (ownerOptions().length) {
-                @for (option of ownerOptions(); track option.value) {
-                  <option [value]="option.value">{{ option.label }}</option>
-                }
-              } @else {
-                <option value="">{{ ownerEmptyLabel() }}</option>
+          @if (uploadStep() === 3) {
+            <section class="wizard-pane">
+              <div class="wizard-copy">
+                <span class="eyebrow">Paso 3 de 5</span>
+                <h3>Completa los metadatos</h3>
+                <p>Estos datos ayudan a encontrar el documento y detectar vigencias o sensibilidad.</p>
+              </div>
+
+              <div class="form-row">
+                <label class="gi-field">
+                  Categoría *
+                  <select class="gi-input" formControlName="category" [class.is-invalid]="isInvalid('category')">
+                    @for (category of categories; track category) {
+                      <option [value]="category">{{ category }}</option>
+                    }
+                  </select>
+                  @if (isInvalid('category')) {
+                    <small class="field-error">La categoría es obligatoria.</small>
+                  }
+                </label>
+
+                <label class="gi-field">
+                  Nombre del documento *
+                  <input class="gi-input" type="text" formControlName="title" [class.is-invalid]="isInvalid('title')" placeholder="Ej. INE vigente / Contrato firmado" />
+                  @if (isInvalid('title')) {
+                    <small class="field-error">El nombre del documento es obligatorio.</small>
+                  }
+                </label>
+              </div>
+
+              <div class="form-row">
+                <label class="gi-field">
+                  Emisión
+                  <input class="gi-input" type="date" formControlName="issuedDate" />
+                </label>
+                <label class="gi-field">
+                  Vencimiento
+                  <input class="gi-input" type="date" formControlName="expiresDate" />
+                </label>
+              </div>
+
+              <div class="form-row">
+                <label class="check-row">
+                  <input type="checkbox" formControlName="isSensitive" />
+                  Documento sensible
+                </label>
+
+                <label class="gi-field">
+                  Nivel de privacidad
+                  <select class="gi-input" formControlName="privacyLevel">
+                    <option value="Operativo">Operativo</option>
+                    <option value="Confidencial">Confidencial</option>
+                    <option value="Sólo usuarios autorizados">Sólo usuarios autorizados</option>
+                  </select>
+                </label>
+              </div>
+
+              <label class="gi-field">
+                Notas
+                <textarea class="gi-input" rows="4" formControlName="notes" placeholder="Observaciones opcionales para la revisión documental"></textarea>
+              </label>
+            </section>
+          }
+
+          @if (uploadStep() === 4) {
+            <section class="wizard-pane">
+              <div class="wizard-copy">
+                <span class="eyebrow">Paso 4 de 5</span>
+                <h3>Adjunta el archivo</h3>
+                <p>Valida el formato y el tamaño antes de guardar el documento como pendiente.</p>
+              </div>
+
+              <label class="file-drop" [class.is-invalid]="isInvalid('storageReference')">
+                <input type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" [disabled]="uploading()" (change)="uploadFile($event)" />
+                <span>{{ uploading() ? 'Cargando archivo…' : 'Selecciona o arrastra un archivo' }}</span>
+                <small>PDF, JPG o PNG · máximo 10 MB</small>
+              </label>
+              <input type="hidden" formControlName="storageReference" />
+
+              @if (uploadedFileLabel()) {
+                <div class="file-chip">
+                  <span>📎 {{ uploadedFileLabel() }}</span>
+                  <button type="button" (click)="removeSelectedFile()">Quitar</button>
+                </div>
+              } @else if (isInvalid('storageReference')) {
+                <p class="field-error">Carga un archivo para continuar.</p>
               }
-            </select>
-            <small>{{ ownerSelectionHelp() }}</small>
-          </label>
+            </section>
+          }
 
-          <div class="form-row">
-            <label class="gi-field">
-              Categoría
-              <input class="gi-input" type="text" formControlName="category" placeholder="Contrato, Anexo, INE, Evaluación..." />
-            </label>
-            <label class="gi-field">
-              Estado
-              <select class="gi-input" formControlName="status">
-                @for (status of statuses; track status.value) {
-                  <option [value]="status.value">{{ status.label }}</option>
+          @if (uploadStep() === 5) {
+            <section class="wizard-pane">
+              <div class="wizard-copy">
+                <span class="eyebrow">Paso 5 de 5</span>
+                <h3>Revisa antes de guardar</h3>
+                <p>El documento quedará como pendiente de revisión. La validación se hace en una acción separada.</p>
+              </div>
+
+              <section class="review-summary">
+                <article>
+                  <span>Propietario</span>
+                  <strong>{{ labelForOwnerType(documentForm.controls.ownerType.value) }}</strong>
+                </article>
+                <article>
+                  <span>Registro</span>
+                  <strong>{{ reviewOwnerLabel() }}</strong>
+                </article>
+                <article>
+                  <span>Categoría</span>
+                  <strong>{{ documentForm.controls.category.value }}</strong>
+                </article>
+                <article>
+                  <span>Documento</span>
+                  <strong>{{ documentForm.controls.title.value || 'Sin nombre capturado' }}</strong>
+                </article>
+                <article>
+                  <span>Archivo</span>
+                  <strong>{{ uploadedFileLabel() || 'Archivo pendiente' }}</strong>
+                </article>
+                <article>
+                  <span>Privacidad</span>
+                  <strong>{{ documentForm.controls.isSensitive.value ? documentForm.controls.privacyLevel.value : 'Uso operativo' }}</strong>
+                </article>
+              </section>
+
+              <div class="review-status">
+                <strong>{{ selectedDocument() ? labelForStatus(documentForm.controls.status.value) : 'Pendiente de revisión' }}</strong>
+                <span>La validación la realiza un usuario con permiso de revisión documental después de guardar.</span>
+              </div>
+
+              @if (selectedDocument(); as editableDocument) {
+                @if (editableDocument.status !== 'Validated' && canValidateDocument(editableDocument)) {
+                  <p class="inline-note">Podrás validar este documento desde el detalle cuando termines de guardar los metadatos.</p>
                 }
-              </select>
-            </label>
-          </div>
+              }
+            </section>
+          }
 
-          <label class="gi-field">
-            Nombre del documento
-            <input class="gi-input" type="text" formControlName="title" placeholder="Ej. Contrato firmado / INE vigente" />
-          </label>
-
-          <div class="form-row">
-            <label class="gi-field">
-              Emisión
-              <input class="gi-input" type="date" formControlName="issuedDate" />
-            </label>
-            <label class="gi-field">
-              Vencimiento
-              <input class="gi-input" type="date" formControlName="expiresDate" />
-            </label>
-          </div>
-
-          <label class="file-drop">
-            <input type="file" [disabled]="uploading()" (change)="uploadFile($event)" />
-            <span>{{ uploading() ? 'Cargando archivo…' : 'Selecciona o arrastra un archivo' }}</span>
-            <small>{{ storageStatusLabel() }}</small>
-          </label>
-          <input type="hidden" formControlName="storageReference" />
-
-          <label class="check-row">
-            <input type="checkbox" formControlName="isSensitive" />
-            Documento sensible
-          </label>
-
-          <label class="gi-field">
-            Notas
-            <textarea class="gi-input" rows="4" formControlName="notes" placeholder="Observaciones o instrucciones de revisión"></textarea>
-          </label>
+          @if (currentStepHasMissingData()) {
+            <p class="validation-summary">Faltan datos para avanzar. Revisa los campos marcados.</p>
+          }
 
           <footer class="drawer-actions">
             <button class="gi-button gi-button--secondary" type="button" (click)="closeEditor()">Cancelar</button>
-            <button class="gi-button gi-button--primary" type="submit" [disabled]="saving() || uploading() || !canWrite()">
-              {{ saving() ? 'Guardando…' : selectedDocument() ? 'Guardar cambios' : 'Guardar documento' }}
-            </button>
+            @if (uploadStep() > 1) {
+              <button class="gi-button gi-button--secondary" type="button" (click)="previousStep()">Atrás</button>
+            }
+            @if (uploadStep() < 5) {
+              <button class="gi-button gi-button--primary" type="button" [disabled]="!canAdvanceStep()" (click)="nextStep()">Continuar</button>
+            } @else {
+              <button class="gi-button gi-button--primary" type="submit" [disabled]="saving() || uploading() || !canWrite()">
+                {{ saving() ? 'Guardando…' : selectedDocument() ? 'Guardar cambios' : 'Guardar como pendiente' }}
+              </button>
+            }
           </footer>
         </form>
       </aside>

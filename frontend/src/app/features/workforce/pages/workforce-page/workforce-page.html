@@ -1,12 +1,35 @@
 <section class="page-heading workforce-hero">
   <div>
-    <span class="eyebrow">Expediente operativo</span>
+    <span class="context-chip">Organización actual</span>
     <h1>Personal</h1>
-    <p>Consulta empleados, documentación, evaluaciones, habilidades y señales de elegibilidad desde una ficha clara.</p>
+    <p>{{ selectedOrganization()?.legalName || 'Selecciona una organización' }} · Consulta empleados, documentación, evaluaciones, habilidades y elegibilidad desde una ficha clara.</p>
   </div>
   <button class="button button--primary" type="button" [disabled]="!selectedOrganizationId()" (click)="openCreateEmployee()">
     <span aria-hidden="true">＋</span> Nuevo empleado
   </button>
+</section>
+
+<section class="workforce-kpis" aria-label="Indicadores de personal">
+  <article>
+    <span>Total</span>
+    <strong>{{ result().totalCount }}</strong>
+    <small>empleados</small>
+  </article>
+  <article>
+    <span>Activos</span>
+    <strong>{{ activeEmployeesCount() }}</strong>
+    <small>empleados</small>
+  </article>
+  <article>
+    <span>Candidatos</span>
+    <strong>{{ candidateEmployeesCount() }}</strong>
+    <small>en expediente</small>
+  </article>
+  <article class="needs-attention">
+    <span>No elegibles</span>
+    <strong>{{ notEligibleEmployeesCount() }}</strong>
+    <small>requieren revisión</small>
+  </article>
 </section>
 
 @if (message()) {
@@ -18,13 +41,15 @@
 
 <section class="workbench workforce-workbench">
   <article class="table-card directory-card">
-    <header class="table-toolbar">
+    <header class="table-toolbar table-toolbar--directory">
       <div>
-        <span class="eyebrow">Directorio de personal</span>
+        <span class="eyebrow">Directorio + filtros</span>
         <h2>Empleados</h2>
         <span>{{ visibleEmployees().length }} de {{ result().totalCount }} empleado(s)</span>
       </div>
-      <div class="filters">
+    </header>
+
+    <div class="filters workforce-filters" aria-label="Filtros de búsqueda de personal">
         <label>
           <span>Organización</span>
           <select [value]="selectedOrganizationId()" (change)="selectOrganization($any($event.target).value)">
@@ -33,36 +58,89 @@
             }
           </select>
         </label>
-        <input
-          type="search"
-          [placeholder]="canViewSensitivePersonalData() ? 'Buscar por nombre, número o RFC' : 'Buscar por nombre o número'"
-          [value]="search()"
-          (input)="updateSearch($any($event.target).value)"
-          (keyup.enter)="loadEmployees(1)"
-        />
-        <select [value]="statusFilter()" (change)="updateStatusFilter($any($event.target).value)">
-          <option value="">Todos</option>
-          @for (status of employeeStatuses; track status.value) {
-            <option [value]="status.value">{{ status.label }}</option>
-          }
-        </select>
-        <select [value]="jobTitleFilter()" (change)="updateJobTitleFilter($any($event.target).value)">
-          <option value="">Todos los puestos</option>
-          @for (jobTitle of jobTitleOptions(); track jobTitle) {
-            <option [value]="jobTitle">{{ jobTitle }}</option>
-          }
-        </select>
-        <select [value]="serviceFilter()" (change)="updateServiceFilter($any($event.target).value)">
-          <option value="">Todos los servicios</option>
-        </select>
-        <select [value]="eligibilityFilter()" (change)="updateEligibilityFilter($any($event.target).value)">
-          <option value="all">Toda elegibilidad</option>
-          <option value="eligible">Elegibles</option>
-          <option value="review">Por revisar</option>
-        </select>
-        <button class="button button--secondary" type="button" (click)="loadEmployees(1)">Buscar</button>
-      </div>
-    </header>
+        <label class="wide">
+          <span>Buscar nombre, código o CURP</span>
+          <input
+            type="search"
+            [placeholder]="canViewSensitivePersonalData() ? 'Buscar nombre, código, RFC o CURP' : 'Buscar nombre o código'"
+            [value]="search()"
+            (input)="updateSearch($any($event.target).value)"
+            (keyup.enter)="loadEmployees(1)"
+          />
+        </label>
+        <label>
+          <span>Estado laboral</span>
+          <select [value]="statusFilter()" (change)="updateStatusFilter($any($event.target).value)">
+            <option value="">Todos</option>
+            @for (status of employeeStatuses; track status.value) {
+              <option [value]="status.value">{{ status.label }}</option>
+            }
+          </select>
+        </label>
+        <label>
+          <span>Etapa expediente</span>
+          <select [value]="fileStageFilter()" (change)="updateFileStageFilter($any($event.target).value)">
+            <option value="all">Todas</option>
+            <option value="candidate">Candidato</option>
+            <option value="capture">Captura</option>
+            <option value="review">En revisión</option>
+            <option value="complete">Completo</option>
+            <option value="rejected">Rechazado</option>
+          </select>
+        </label>
+        <label>
+          <span>Elegibilidad</span>
+          <select [value]="eligibilityFilter()" (change)="updateEligibilityFilter($any($event.target).value)">
+            <option value="all">Todas</option>
+            <option value="eligible">Elegible</option>
+            <option value="review">No elegible</option>
+          </select>
+        </label>
+        <label>
+          <span>Puesto</span>
+          <select [value]="jobTitleFilter()" (change)="updateJobTitleFilter($any($event.target).value)">
+            <option value="">Todos</option>
+            @for (jobTitle of jobTitleOptions(); track jobTitle) {
+              <option [value]="jobTitle">{{ jobTitle }}</option>
+            }
+          </select>
+        </label>
+        <label>
+          <span>Sede</span>
+          <select [value]="siteFilter()" (change)="updateSiteFilter($any($event.target).value)">
+            <option value="">Todas</option>
+            @for (site of siteOptions(); track site) {
+              <option [value]="site">{{ site }}</option>
+            }
+          </select>
+        </label>
+        <label>
+          <span>Documento INE</span>
+          <select [value]="ineFilter()" (change)="updateIneFilter($any($event.target).value)">
+            <option value="all">Todos</option>
+            <option value="valid">Validada</option>
+            <option value="pending">Pendiente</option>
+          </select>
+        </label>
+        <label>
+          <span>Habilidad requerida</span>
+          <select [value]="skillRequirementFilter()" (change)="updateSkillRequirementFilter($any($event.target).value)">
+            <option value="all">Todas</option>
+            <option value="withSkills">Con habilidad</option>
+            <option value="missing">Faltante</option>
+          </select>
+        </label>
+        <label>
+          <span>Servicio</span>
+          <select [value]="serviceFilter()" (change)="updateServiceFilter($any($event.target).value)">
+            <option value="">Todos los servicios</option>
+          </select>
+        </label>
+        <div class="filter-actions">
+          <button class="button button--secondary" type="button" (click)="clearFilters()">Limpiar</button>
+          <button class="button button--primary" type="button" (click)="loadEmployees(1)">Filtrar</button>
+        </div>
+    </div>
 
     @if (loading()) {
       <div class="state-panel"><span class="spinner"></span> Cargando personal…</div>
@@ -83,12 +161,14 @@
         <table class="employee-table">
           <thead>
             <tr>
-              <th>Número</th>
+              <th>Código</th>
               <th>Nombre</th>
               <th>Puesto</th>
-              <th>Servicio actual</th>
-              <th>Estado</th>
+              <th>Estado laboral</th>
+              <th>Etapa expediente</th>
+              <th>Expediente</th>
               <th>Elegibilidad</th>
+              <th>Sede</th>
               <th>Acciones</th>
             </tr>
           </thead>
@@ -103,9 +183,16 @@
                   }
                 </td>
                 <td>{{ employee.jobTitle || 'Sin puesto' }}</td>
-                <td><span class="muted">{{ employeeServiceLabel(employee) }}</span></td>
-                <td><span class="status-chip" [class.is-inactive]="employee.status !== 'Active'">{{ statusLabel(employee.status) }}</span></td>
+                <td><span class="status-chip" [class.is-inactive]="employee.status !== 'Active'">{{ employmentStatusLabel(employee.status) }}</span></td>
+                <td><span class="stage-chip">{{ employeeStageLabel(employee) }}</span></td>
+                <td>
+                  <span class="file-chip" [class.is-complete]="employeeFileStatus(employee) === 'Completo'">{{ employeeFileStatus(employee) }}</span>
+                  @if (employeeFileStatus(employee) !== 'Completo') {
+                    <small>INE pendiente</small>
+                  }
+                </td>
                 <td><span class="eligibility-chip" [class.is-ok]="eligibilityState(employee) === 'ok'">{{ eligibilityBadge(employee) }}</span></td>
+                <td><span class="muted">{{ employeeSiteLabel(employee) }}</span></td>
                 <td>
                   <div class="row-actions">
                     <button type="button" (click)="selectEmployee(employee)">Ver</button>
@@ -166,9 +253,26 @@
           <header>
             <div>
               <h3>Resumen operativo</h3>
-              <span>{{ statusLabel(selectedEmployee()!.status) }}</span>
+              <span>Ficha 360° del empleado</span>
             </div>
           </header>
+          <div class="employee-state-grid">
+            <article>
+              <span>Estado laboral</span>
+              <strong>{{ employmentStatusLabel(selectedEmployee()!.status) }}</strong>
+              <small>Desde {{ selectedEmployee()?.hireDate || 'sin fecha' }}</small>
+            </article>
+            <article class="is-warning">
+              <span>Etapa de expediente</span>
+              <strong>{{ employeeStageLabel(selectedEmployee()!) }}</strong>
+              <small>Actualizado {{ shortDate(selectedEmployee()?.updatedAt ?? null) }}</small>
+            </article>
+            <article [class.is-ok]="!assignmentBlockedReason()" [class.is-danger]="assignmentBlockedReason()">
+              <span>Elegibilidad</span>
+              <strong>{{ assignmentBlockedReason() ? 'No elegible' : 'Elegible' }}</strong>
+              <small>{{ assignmentBlockedReason() || 'Listo para asignación operativa' }}</small>
+            </article>
+          </div>
           <div class="summary-layout">
             <div class="profile-grid">
               <span><strong>Ingreso</strong>{{ selectedEmployee()?.hireDate }}</span>
@@ -181,7 +285,7 @@
             </div>
             <aside class="eligibility-panel" [class.is-ok]="selectedEligibility()?.isEligible">
               <span class="eyebrow">Elegibilidad</span>
-              <h3>{{ selectedEligibility()?.isEligible ? 'Puede asignarse' : 'Requiere revisión' }}</h3>
+              <h3>{{ assignmentBlockedReason() ? 'Motivos que impiden la elegibilidad' : 'Puede asignarse' }}</h3>
               <div class="eligibility-list">
                 @for (item of eligibilityItems(); track item.label) {
                   <article [class]="itemStateClass(item.state)">
@@ -189,6 +293,13 @@
                     <span><strong>{{ item.label }}</strong><small>{{ item.hint }}</small></span>
                   </article>
                 }
+              </div>
+              <div class="assign-card" [class.is-blocked]="assignmentBlockedReason()">
+                <strong>Asignación</strong>
+                <p>{{ assignmentBlockedReason() || 'Puedes asignar este empleado a un servicio disponible.' }}</p>
+                <button class="button button--secondary" type="button" [disabled]="!!assignmentBlockedReason()">
+                  Asignar a servicio
+                </button>
               </div>
             </aside>
           </div>
@@ -199,13 +310,25 @@
         <section class="detail-section">
         <header>
           <div>
-            <h3>Habilidades</h3>
-            <span>{{ skills().length }} registro(s)</span>
+            <h3>Habilidades requeridas</h3>
+            <span>{{ skills().length }} habilidad(es) registradas</span>
           </div>
           <button class="button button--secondary" type="button" [disabled]="skillCatalog().length === 0" (click)="openCreateSkill()">
-            Nueva habilidad
+            Actualizar habilidades
           </button>
         </header>
+        <div class="requirements-grid">
+          <article [class.is-ok]="skills().length">
+            <span>Habilidad operativa</span>
+            <strong>{{ skillRequirementStatus() }}</strong>
+            <small>{{ skills().length ? 'Al menos una habilidad registrada.' : 'Agrega la habilidad requerida para poder asignar.' }}</small>
+          </article>
+          <article [class.is-ok]="hasApprovedEvaluation()">
+            <span>Evaluación</span>
+            <strong>{{ hasApprovedEvaluation() ? 'Aprobada' : 'Pendiente' }}</strong>
+            <small>Necesaria para validar el perfil operativo.</small>
+          </article>
+        </div>
 
         @if (skillCatalog().length === 0) {
           <div class="compact-state">Primero crea habilidades en Catálogos.</div>
@@ -236,11 +359,33 @@
         <section class="detail-section">
         <header>
           <div>
-            <h3>Documentos</h3>
-            <span>{{ documents().length }} registro(s)</span>
+            <h3>Documentos requeridos</h3>
+            <span>{{ documents().length }} documento(s) en expediente</span>
           </div>
-          <button class="button button--secondary" type="button" (click)="openCreateDocument()">Nuevo documento</button>
+          <button class="button button--secondary" type="button" (click)="openCreateDocument()">Subir documento</button>
         </header>
+        <div class="requirements-grid">
+          <article [class.is-ok]="documentRequirementStatus('VoterId') === 'Validado'">
+            <span>INE</span>
+            <strong>{{ documentRequirementStatus('VoterId') }}</strong>
+            <small>Identificación oficial obligatoria.</small>
+          </article>
+          <article [class.is-ok]="documentRequirementStatus('Curp') === 'Validado'">
+            <span>CURP</span>
+            <strong>{{ documentRequirementStatus('Curp') }}</strong>
+            <small>Documento base del expediente.</small>
+          </article>
+          <article [class.is-ok]="documentRequirementStatus('SocialSecurityNumber') === 'Validado'">
+            <span>NSS</span>
+            <strong>{{ documentRequirementStatus('SocialSecurityNumber') }}</strong>
+            <small>Requerido para control laboral.</small>
+          </article>
+          <article [class.is-ok]="documentRequirementStatus('ProofOfAddress') === 'Validado'">
+            <span>Comprobante de domicilio</span>
+            <strong>{{ documentRequirementStatus('ProofOfAddress') }}</strong>
+            <small>Solicitar cuando aplique al servicio.</small>
+          </article>
+        </div>
 
         @if (loadingDetail()) {
           <div class="compact-state">Cargando expediente…</div>
@@ -305,14 +450,15 @@
           <header>
             <div>
               <h3>Asignaciones</h3>
-              <span>Historial operativo</span>
+              <span>Servicios y turnos disponibles</span>
             </div>
           </header>
           <div class="assignment-placeholder">
             <span aria-hidden="true">🗓️</span>
             <div>
-              <strong>Asignaciones por empleado pendientes de integrar</strong>
-              <p>El expediente ya reserva esta sección. Cuando el backend exponga el historial por empleado, aquí se mostrará servicio, puesto, fechas, tipo de asignación y estatus.</p>
+              <strong>{{ assignmentBlockedReason() ? 'Asignación bloqueada' : 'Empleado listo para asignar' }}</strong>
+              <p>{{ assignmentBlockedReason() || 'Selecciona un servicio o turno disponible para continuar con la asignación.' }}</p>
+              <button class="button button--secondary" type="button" [disabled]="!!assignmentBlockedReason()">Asignar a servicio</button>
             </div>
           </div>
         </section>
@@ -325,40 +471,122 @@
   <div class="modal-backdrop" (click)="closeEditors()">
     <section class="modal" role="dialog" aria-modal="true" aria-labelledby="employee-editor-title" (click)="$event.stopPropagation()">
       <header>
-        <div><span class="eyebrow">Ficha del empleado</span><h2 id="employee-editor-title">{{ editingEmployee() ? 'Editar empleado' : 'Nuevo empleado' }}</h2></div>
+        <div>
+          <span class="eyebrow">Ficha del empleado</span>
+          <h2 id="employee-editor-title">{{ editingEmployee() ? 'Editar empleado' : 'Nuevo empleado' }}</h2>
+          <p>{{ editingEmployee() ? 'Actualiza la información por sección.' : 'Captura por pasos y revisa requisitos antes de guardar.' }}</p>
+        </div>
         <button type="button" aria-label="Cerrar" (click)="closeEditors()">×</button>
       </header>
       <form [formGroup]="employeeForm" (ngSubmit)="saveEmployee()">
-        <div class="form-grid">
-          <label><span>Código *</span><input formControlName="codeEmployee" [readOnly]="!!editingEmployee()" /></label>
-          <label><span>Fecha ingreso *</span><input type="date" formControlName="hireDate" /></label>
-          <label class="wide"><span>Nombre completo *</span><input formControlName="fullName" /></label>
-          <label class="wide"><span>Puesto</span><input formControlName="jobTitle" /></label>
-          <label><span>RFC</span><input formControlName="rfc" maxlength="13" /></label>
-          <label><span>CURP</span><input formControlName="curp" maxlength="18" /></label>
-          <label><span>NSS</span><input formControlName="socialSecurityNumber" /></label>
-          <label><span>INE</span><input formControlName="voterIdNumber" /></label>
-          <label><span>Fecha nacimiento</span><input type="date" formControlName="birthDate" /></label>
-          <label><span>Lugar nacimiento</span><input formControlName="birthPlace" /></label>
-          <label><span>Sexo</span><input formControlName="sex" /></label>
-          <label><span>Estado civil</span><input formControlName="maritalStatus" /></label>
-          <label><span>Correo</span><input type="email" formControlName="email" /></label>
-          <label><span>Móvil</span><input formControlName="mobilePhone" /></label>
-          <label><span>Tel. casa</span><input formControlName="homePhone" /></label>
-          <label><span>Contacto emergencia</span><input formControlName="emergencyContactName" /></label>
-          <label><span>Tel. emergencia</span><input formControlName="emergencyContactPhone" /></label>
-          <label><span>Licencia</span><input formControlName="driverLicenseNumber" /></label>
-          <label><span>Cartilla militar</span><input formControlName="militaryServiceCardNumber" /></label>
-          <label><span>Vivienda</span><input formControlName="housingType" /></label>
-          <label><span>Residencia desde</span><input type="date" formControlName="residenceSinceDate" /></label>
-          <label class="wide"><span>Domicilio</span><textarea rows="3" formControlName="address"></textarea></label>
-          <label><span>Municipio</span><input formControlName="municipality" /></label>
-          <label><span>Estado</span><input formControlName="state" /></label>
-          <label><span>Código postal</span><input formControlName="postalCode" /></label>
-        </div>
+        <ol class="wizard-steps" aria-label="Pasos para nuevo empleado">
+          <li [class.is-active]="employeeStepIsActive(1)"><span>1</span>Identidad</li>
+          <li [class.is-active]="employeeStepIsActive(2)"><span>2</span>Contacto</li>
+          <li [class.is-active]="employeeStepIsActive(3)"><span>3</span>Domicilio</li>
+          <li [class.is-active]="employeeStepIsActive(4)"><span>4</span>Datos laborales</li>
+          <li [class.is-active]="employeeStepIsActive(5)"><span>5</span>Documentos</li>
+          <li [class.is-active]="employeeStepIsActive(6)"><span>6</span>Revisión</li>
+        </ol>
+
+        @if (employeeWizardStep() === 1) {
+          <div class="form-grid">
+            <label [class.is-invalid]="isInvalid('codeEmployee')"><span>Código *</span><input formControlName="codeEmployee" [readOnly]="!!editingEmployee()" /></label>
+            <label [class.is-invalid]="isInvalid('hireDate')"><span>Fecha ingreso *</span><input type="date" formControlName="hireDate" /></label>
+            <label class="wide" [class.is-invalid]="isInvalid('fullName')"><span>Nombre completo *</span><input formControlName="fullName" placeholder="Nombre(s) y apellidos" /></label>
+            <label><span>RFC</span><input formControlName="rfc" maxlength="13" placeholder="AAAA000000XXX" /></label>
+            <label><span>CURP</span><input formControlName="curp" maxlength="18" placeholder="AAAA000000HDFLRR00" /></label>
+            <label><span>NSS</span><input formControlName="socialSecurityNumber" maxlength="20" placeholder="00000000000" /></label>
+            <label><span>Fecha nacimiento</span><input type="date" formControlName="birthDate" /></label>
+            <label><span>Lugar nacimiento</span><input formControlName="birthPlace" /></label>
+          </div>
+        }
+
+        @if (employeeWizardStep() === 2) {
+          <div class="form-grid">
+            <label><span>Correo</span><input type="email" formControlName="email" placeholder="correo@ejemplo.com" /></label>
+            <label><span>Móvil</span><input formControlName="mobilePhone" placeholder="55 1234 5678" /></label>
+            <label><span>Tel. casa</span><input formControlName="homePhone" /></label>
+            <label><span>Contacto emergencia</span><input formControlName="emergencyContactName" /></label>
+            <label><span>Tel. emergencia</span><input formControlName="emergencyContactPhone" /></label>
+          </div>
+        }
+
+        @if (employeeWizardStep() === 3) {
+          <div class="form-grid">
+            <label class="wide"><span>Domicilio</span><textarea rows="3" formControlName="address"></textarea></label>
+            <label><span>Estado</span><select formControlName="state"><option value="">Selecciona estado</option><option value="Jalisco">Jalisco</option><option value="Nuevo León">Nuevo León</option><option value="Ciudad de México">Ciudad de México</option></select></label>
+            <label><span>Municipio</span><select formControlName="municipality"><option value="">Selecciona municipio</option><option value="Guadalajara">Guadalajara</option><option value="Monterrey">Monterrey</option><option value="Benito Juárez">Benito Juárez</option></select></label>
+            <label><span>Código postal</span><input formControlName="postalCode" maxlength="10" /></label>
+            <label><span>Vivienda</span><select formControlName="housingType"><option value="">Selecciona vivienda</option><option value="Propia">Propia</option><option value="Rentada">Rentada</option><option value="Familiar">Familiar</option></select></label>
+            <label><span>Residencia desde</span><input type="date" formControlName="residenceSinceDate" /></label>
+          </div>
+        }
+
+        @if (employeeWizardStep() === 4) {
+          <div class="form-grid">
+            <label class="wide"><span>Puesto</span><select formControlName="jobTitle"><option value="">Selecciona puesto</option><option value="Guardia">Guardia</option><option value="Supervisor">Supervisor</option><option value="Monitorista">Monitorista</option><option value="Administrativo">Administrativo</option></select></label>
+            <label><span>Sexo</span><select formControlName="sex"><option value="">Selecciona sexo</option><option value="Masculino">Masculino</option><option value="Femenino">Femenino</option><option value="No especificado">No especificado</option></select></label>
+            <label><span>Estado civil</span><select formControlName="maritalStatus"><option value="">Selecciona estado civil</option><option value="Soltero">Soltero</option><option value="Casado">Casado</option><option value="Unión libre">Unión libre</option><option value="Divorciado">Divorciado</option></select></label>
+            <label><span>INE</span><input formControlName="voterIdNumber" /></label>
+            <label><span>Licencia</span><input formControlName="driverLicenseNumber" /></label>
+            <label><span>Cartilla militar</span><input formControlName="militaryServiceCardNumber" /></label>
+          </div>
+        }
+
+        @if (employeeWizardStep() === 5) {
+          <div class="review-panel">
+            <strong>Documentos que deberán validarse</strong>
+            <ul>
+              <li>INE obligatoria.</li>
+              <li>CURP y NSS para completar expediente.</li>
+              <li>Comprobante de domicilio cuando aplique al servicio.</li>
+            </ul>
+            <p>Después de guardar podrás subir documentos desde la pestaña Documentos del expediente.</p>
+          </div>
+        }
+
+        @if (employeeWizardStep() === 6) {
+          <div class="review-grid">
+            <article>
+              <h3>Identidad</h3>
+              <p>{{ employeeForm.controls.codeEmployee.value || 'Sin código' }} · {{ employeeForm.controls.fullName.value || 'Sin nombre' }}</p>
+              <small>{{ employeeForm.controls.rfc.value || 'RFC pendiente' }} · {{ employeeForm.controls.curp.value || 'CURP pendiente' }}</small>
+            </article>
+            <article>
+              <h3>Contacto</h3>
+              <p>{{ employeeForm.controls.email.value || 'Sin correo' }}</p>
+              <small>{{ employeeForm.controls.mobilePhone.value || 'Sin móvil' }}</small>
+            </article>
+            <article>
+              <h3>Domicilio</h3>
+              <p>{{ employeeForm.controls.state.value || 'Estado pendiente' }} · {{ employeeForm.controls.municipality.value || 'Municipio pendiente' }}</p>
+              <small>{{ employeeForm.controls.address.value || 'Domicilio pendiente' }}</small>
+            </article>
+            <article>
+              <h3>Datos laborales</h3>
+              <p>{{ employeeForm.controls.jobTitle.value || 'Selecciona puesto desde catálogo' }}</p>
+              <small>Ingreso: {{ employeeForm.controls.hireDate.value || 'pendiente' }}</small>
+            </article>
+            <aside [class.is-ok]="employeeReadyToSave()" class="requirements-status">
+              <strong>{{ employeeReadyToSave() ? 'Listo para guardar' : 'Faltan requisitos' }}</strong>
+              <p>{{ employeeReadyToSave() ? 'La información mínima está completa.' : 'Completa los campos obligatorios marcados para guardar.' }}</p>
+            </aside>
+          </div>
+        }
+
+        @if (employeeForm.invalid && employeeForm.touched) {
+          <p class="form-error">Faltan datos para avanzar. Revisa los campos obligatorios.</p>
+        }
         <footer>
           <button class="button button--secondary" type="button" (click)="closeEditors()">Cancelar</button>
-          <button class="button button--primary" type="submit" [disabled]="saving()">{{ saving() ? 'Guardando…' : 'Guardar empleado' }}</button>
+          @if (employeeWizardStep() > 1) {
+            <button class="button button--secondary" type="button" (click)="previousEmployeeStep()">Atrás</button>
+          }
+          @if (employeeWizardStep() < 6) {
+            <button class="button button--primary" type="button" (click)="nextEmployeeStep()">Siguiente</button>
+          } @else {
+            <button class="button button--primary" type="submit" [disabled]="saving() || !employeeReadyToSave()">{{ saving() ? 'Guardando…' : 'Guardar empleado' }}</button>
+          }
         </footer>
       </form>
     </section>

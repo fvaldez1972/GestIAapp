@@ -48,12 +48,14 @@ export class PlanningPage implements OnInit {
   protected readonly selectedPositionId = signal('');
   protected readonly selectedAssignmentId = signal('');
   protected readonly selectedShiftId = signal('');
+  protected readonly editingVersionId = signal('');
   protected readonly activeTab = signal<PlanningTab>('calendar');
   protected readonly positionDrawerOpen = signal(false);
   protected readonly assignmentDrawerOpen = signal(false);
   protected readonly versionDrawerOpen = signal(false);
   protected readonly shiftDrawerOpen = signal(false);
   protected readonly shiftDetailOpen = signal(false);
+  protected readonly conflictFilterRevision = signal(0);
   protected readonly loading = signal(false);
   protected readonly saving = signal(false);
   protected readonly message = signal('');
@@ -158,8 +160,15 @@ export class PlanningPage implements OnInit {
         if (day.isUnderCovered) {
           issues.push({
             severity: 'danger',
+            severityLabel: 'Alta',
+            type: 'uncovered',
             label: 'Posición sin cubrir',
+            day: day.date,
+            positionId: row.position.idPosition,
+            positionName: row.position.name,
             description: `${day.label} · ${row.position.codePosition}: ${day.shifts.length}/${day.requiredWorkerCount} persona(s) asignadas.`,
+            recommendedAction: 'Asignar personal elegible para cubrir el requerimiento.',
+            actionLabel: 'Asignar personal',
           });
         }
       }
@@ -175,10 +184,18 @@ export class PlanningPage implements OnInit {
 
       for (const duplicate of employeeCounts.values()) {
         if (duplicate.count > 1) {
+          const duplicateShift = day.shifts.find((shift) => shift.employeeName === duplicate.name);
           issues.push({
             severity: 'warning',
+            severityLabel: 'Media',
+            type: 'duplicate',
             label: 'Empleado duplicado',
+            day: day.date,
+            positionId: duplicateShift?.idPosition ?? '',
+            positionName: duplicateShift?.positionName ?? 'Sin posición',
             description: `${day.label} · ${duplicate.name} aparece en ${duplicate.count} turnos.`,
+            recommendedAction: 'Revisar y ajustar la asignación del día.',
+            actionLabel: 'Resolver',
           });
         }
       }
@@ -189,10 +206,34 @@ export class PlanningPage implements OnInit {
         if (shift.shiftDate < selectedVersion.periodStartDate || shift.shiftDate > selectedVersion.periodEndDate) {
           issues.push({
             severity: 'danger',
+            severityLabel: 'Media',
+            type: 'outOfPeriod',
             label: 'Fuera de periodo',
+            day: shift.shiftDate,
+            positionId: shift.idPosition,
+            positionName: shift.positionName,
             description: `${shift.shiftDate} · ${shift.employeeName} no pertenece al periodo de la versión.`,
+            recommendedAction: 'Reasignar turno dentro del periodo seleccionado.',
+            actionLabel: 'Revisar periodo',
           });
         }
+      }
+    }
+
+    for (const assignment of this.assignments()) {
+      if (!assignment.idPosition) {
+        issues.push({
+          severity: 'danger',
+          severityLabel: 'Alta',
+          type: 'eligibility',
+          label: 'Elegibilidad',
+          day: selectedVersion?.periodStartDate ?? '',
+          positionId: '',
+          positionName: 'Sin posición',
+          description: `${assignment.employeeName} no tiene una posición válida asignada.`,
+          recommendedAction: 'Asignar una posición antes de publicar.',
+          actionLabel: 'Ver detalle',
+        });
       }
     }
 
@@ -215,8 +256,84 @@ export class PlanningPage implements OnInit {
     validShifts: Math.max(this.shifts().length - this.blockingPlanningIssues().length, 0),
     gaps: this.coverageGapCount(),
     conflicts: this.blockingPlanningIssues().length,
-    notEligible: 0,
+    notEligible: this.eligibilityBlockCount(),
   }));
+  protected readonly periodIsValid = computed(() => {
+    const version = this.selectedVersion();
+
+    if (!version) {
+      return false;
+    }
+
+    return version.periodStartDate <= version.periodEndDate;
+  });
+  protected readonly coveragePercentage = computed(() => {
+    const totalRequired = this.planningMatrix().reduce(
+      (total, row) => total + row.days.reduce((dayTotal, day) => dayTotal + day.requiredWorkerCount, 0),
+      0,
+    );
+    const covered = this.planningMatrix().reduce(
+      (total, row) => total + row.days.reduce((dayTotal, day) => dayTotal + Math.min(day.shifts.length, day.requiredWorkerCount), 0),
+      0,
+    );
+
+    return totalRequired ? Math.round((covered / totalRequired) * 100) : 0;
+  });
+  protected readonly eligibilityBlockCount = computed(() =>
+    this.assignments().filter((assignment) => !assignment.idPosition).length,
+  );
+  protected readonly canPublishSelectedVersion = computed(() => {
+    const version = this.selectedVersion();
+
+    return Boolean(
+      version &&
+      version.status === 'Draft' &&
+      this.shifts().length > 0 &&
+      this.periodIsValid() &&
+      this.coverageGapCount() === 0 &&
+      this.blockingPlanningIssues().length === 0 &&
+      this.eligibilityBlockCount() === 0,
+    );
+  });
+  protected readonly publishPreparation = computed<readonly PublishPreparationItem[]>(() => [
+    {
+      label: 'Periodo válido',
+      detail: this.selectedVersion()
+        ? `${this.selectedVersion()?.periodStartDate} — ${this.selectedVersion()?.periodEndDate}`
+        : 'Selecciona una versión',
+      state: this.periodIsValid() ? 'ok' : 'blocked',
+    },
+    {
+      label: 'Cobertura completa',
+      detail: `${this.coveragePercentage()}% de cobertura · ${this.coverageGapCount()} hueco(s)`,
+      state: this.coverageGapCount() === 0 ? 'ok' : 'warning',
+    },
+    {
+      label: 'Personal elegible',
+      detail: `${this.eligibilityBlockCount()} bloqueo(s) detectado(s)`,
+      state: this.eligibilityBlockCount() === 0 ? 'ok' : 'blocked',
+    },
+    {
+      label: 'Sin conflictos',
+      detail: `${this.blockingPlanningIssues().length} conflicto(s) abiertos`,
+      state: this.blockingPlanningIssues().length === 0 ? 'ok' : 'blocked',
+    },
+  ]);
+  protected readonly filteredPlanningConflicts = computed(() => {
+    this.conflictFilterRevision();
+    const filters = this.conflictFilterForm.getRawValue();
+
+    return this.planningValidation().filter(
+      (issue) =>
+        (!filters.type || issue.type === filters.type) &&
+        (!filters.severity || issue.severityLabel === filters.severity) &&
+        (!filters.day || issue.day === filters.day) &&
+        (!filters.position || issue.positionId === filters.position),
+    );
+  });
+  protected readonly conflictDays = computed(() =>
+    [...new Set(this.planningValidation().map((issue) => issue.day).filter(Boolean))].sort(),
+  );
 
   protected readonly assignmentTypes: readonly { value: ServiceAssignmentType; label: string }[] = [
     { value: 'Primary', label: 'Titular' },
@@ -252,10 +369,19 @@ export class PlanningPage implements OnInit {
   });
 
   protected readonly versionForm = this.formBuilder.nonNullable.group({
+    idService: [''],
+    baseVersionId: [''],
     name: [`Planeación ${this.today()}`, [Validators.required, Validators.maxLength(160)]],
     periodStartDate: [this.today(), [Validators.required]],
     periodEndDate: [this.addDays(6), [Validators.required]],
-    notes: [''],
+    notes: ['', [Validators.required, Validators.maxLength(1000)]],
+  });
+
+  protected readonly conflictFilterForm = this.formBuilder.nonNullable.group({
+    type: ['' as PlanningConflictType | ''],
+    severity: ['' as PlanningConflictSeverity | ''],
+    day: [''],
+    position: [''],
   });
 
   protected readonly shiftForm = this.formBuilder.nonNullable.group({
@@ -331,7 +457,7 @@ export class PlanningPage implements OnInit {
   }
 
   protected openNewVersion() {
-    this.resetVersionForm();
+    this.prepareNewVersionForm();
     this.versionDrawerOpen.set(true);
   }
 
@@ -341,7 +467,10 @@ export class PlanningPage implements OnInit {
       return;
     }
 
+    this.editingVersionId.set(version.idScheduleVersion);
     this.versionForm.patchValue({
+      idService: this.selectedServiceId(),
+      baseVersionId: '',
       name: version.name,
       periodStartDate: version.periodStartDate,
       periodEndDate: version.periodEndDate,
@@ -351,6 +480,11 @@ export class PlanningPage implements OnInit {
   }
 
   protected closeVersionDrawer() {
+    if (!this.editingVersionId()) {
+      this.message.set('Cambios descartados. La nueva versión no fue creada. Se mantiene la versión seleccionada.');
+    }
+
+    this.editingVersionId.set('');
     this.versionDrawerOpen.set(false);
   }
 
@@ -468,6 +602,11 @@ export class PlanningPage implements OnInit {
     }
 
     const form = this.versionForm.getRawValue();
+
+    if (form.periodStartDate > form.periodEndDate) {
+      this.error.set('El periodo no es válido. La fecha inicial debe ser anterior o igual a la fecha final.');
+      return;
+    }
     const payload = {
       idOrganization: context.idOrganization,
       idClient: context.idClient,
@@ -479,19 +618,20 @@ export class PlanningPage implements OnInit {
     };
     this.beginSave();
 
-    const selectedVersionId = this.selectedVersionId();
-    const operation = selectedVersionId
-      ? this.api.updateScheduleVersion(context.idClient, context.idService, selectedVersionId, payload)
+    const editingVersionId = this.editingVersionId();
+    const operation = editingVersionId
+      ? this.api.updateScheduleVersion(context.idClient, context.idService, editingVersionId, payload)
       : this.api.createScheduleVersion(context.idClient, context.idService, payload);
 
     operation.subscribe({
         next: (version) => {
-          this.message.set(selectedVersionId ? 'Versión actualizada correctamente.' : 'Versión de planeación creada correctamente.');
+          this.message.set(editingVersionId ? 'Versión actualizada correctamente.' : 'Borrador creado correctamente.');
           this.selectedVersionId.set(version.idScheduleVersion);
+          this.editingVersionId.set('');
           this.versionDrawerOpen.set(false);
           this.loadPlanningData(undefined, version.idScheduleVersion);
         },
-        error: (error: HttpErrorResponse) => this.setError(error, selectedVersionId ? 'No se pudo actualizar la versión.' : 'No se pudo crear la versión de planeación.'),
+        error: (error: HttpErrorResponse) => this.setError(error, editingVersionId ? 'No se pudo actualizar la versión.' : 'No se pudo crear la versión de planeación.'),
         complete: () => this.saving.set(false),
       });
   }
@@ -642,15 +782,20 @@ export class PlanningPage implements OnInit {
   }
 
   protected resetVersionForm() {
-    this.selectedVersionId.set('');
+    this.prepareNewVersionForm();
+  }
+
+  protected prepareNewVersionForm() {
+    const currentVersionId = this.selectedVersionId();
+    this.editingVersionId.set('');
     this.versionForm.reset({
+      idService: this.selectedServiceId(),
+      baseVersionId: currentVersionId,
       name: `Planeación ${this.today()}`,
       periodStartDate: this.today(),
       periodEndDate: this.addDays(6),
       notes: '',
     });
-    this.shifts.set([]);
-    this.resetShiftForm();
   }
 
   protected selectShift(shift: ScheduledShift) {
@@ -745,6 +890,47 @@ export class PlanningPage implements OnInit {
     }
   }
 
+  protected visualScheduleStatusLabel(version: ScheduleVersion) {
+    const hasBlockingIssues = version.idScheduleVersion === this.selectedVersionId() && this.blockingPlanningIssues().length > 0;
+    const hasAuditableException = Boolean(version.notes?.toLowerCase().includes('excepción'));
+
+    if (version.status === 'Published' && hasBlockingIssues && hasAuditableException) {
+      return 'Publicada con excepción';
+    }
+
+    if (version.status === 'Published' && hasBlockingIssues) {
+      return 'Bloqueada';
+    }
+
+    if (version.status === 'Draft' && hasBlockingIssues) {
+      return 'Borrador con conflictos';
+    }
+
+    return this.scheduleStatusLabel(version.status);
+  }
+
+  protected visualScheduleStatusClass(version: ScheduleVersion) {
+    const label = this.visualScheduleStatusLabel(version);
+
+    if (label === 'Publicada') {
+      return 'mini-pill is-success';
+    }
+
+    if (label === 'Publicada con excepción') {
+      return 'mini-pill is-warning';
+    }
+
+    if (label === 'Bloqueada' || label === 'Borrador con conflictos') {
+      return 'mini-pill is-danger';
+    }
+
+    if (label === 'Reemplazada') {
+      return 'mini-pill is-muted';
+    }
+
+    return 'mini-pill';
+  }
+
   protected scheduleStatusClass(status: ScheduleVersion['status']) {
     switch (status) {
       case 'Published':
@@ -812,6 +998,55 @@ export class PlanningPage implements OnInit {
     return 'Se valida con reglas de elegibilidad al guardar/asignar y antes de operar.';
   }
 
+  protected preparationIcon(state: PublishPreparationItem['state']) {
+    if (state === 'ok') {
+      return '✓';
+    }
+
+    return state === 'warning' ? '⚠' : '✕';
+  }
+
+  protected conflictTypeLabel(type: PlanningConflictType) {
+    switch (type) {
+      case 'uncovered':
+        return 'Posiciones sin cubrir';
+      case 'duplicate':
+        return 'Duplicados';
+      case 'outOfPeriod':
+        return 'Fuera de periodo';
+      case 'eligibility':
+        return 'Elegibilidad';
+    }
+  }
+
+  protected conflictCount(type: PlanningConflictType) {
+    return this.planningValidation().filter((issue) => issue.type === type).length;
+  }
+
+  protected refreshConflictFilters() {
+    this.conflictFilterRevision.update((value) => value + 1);
+  }
+
+  protected clearConflictFilters() {
+    this.conflictFilterForm.reset({ type: '', severity: '', day: '', position: '' });
+    this.refreshConflictFilters();
+  }
+
+  protected resolveConflict(issue: PlanningValidationIssue) {
+    if (issue.type === 'uncovered' || issue.type === 'eligibility') {
+      this.activeTab.set('positions');
+      this.openNewAssignment();
+      return;
+    }
+
+    if (issue.type === 'outOfPeriod') {
+      this.editSelectedVersion();
+      return;
+    }
+
+    this.activeTab.set('calendar');
+  }
+
   protected publishVersion() {
     const context = this.context();
     const versionId = this.selectedVersionId();
@@ -820,8 +1055,8 @@ export class PlanningPage implements OnInit {
       return;
     }
 
-    if (this.blockingPlanningIssues().length) {
-      this.error.set('Antes de publicar, corrige las posiciones sin cubrir o los turnos fuera del periodo.');
+    if (!this.canPublishSelectedVersion()) {
+      this.error.set('No disponible hasta resolver bloqueos. Corrige conflictos, huecos obligatorios o personal no elegible antes de publicar.');
       return;
     }
 
@@ -1204,8 +1439,23 @@ type PlanningMatrixCell = {
 
 type PlanningValidationIssue = {
   readonly severity: 'warning' | 'danger';
+  readonly severityLabel: PlanningConflictSeverity;
+  readonly type: PlanningConflictType;
   readonly label: string;
+  readonly day: string;
+  readonly positionId: string;
+  readonly positionName: string;
   readonly description: string;
+  readonly recommendedAction: string;
+  readonly actionLabel: string;
 };
 
 type PlanningTab = 'calendar' | 'positions' | 'patterns' | 'versions' | 'conflicts';
+type PlanningConflictType = 'uncovered' | 'duplicate' | 'outOfPeriod' | 'eligibility';
+type PlanningConflictSeverity = 'Alta' | 'Media';
+
+type PublishPreparationItem = {
+  readonly label: string;
+  readonly detail: string;
+  readonly state: 'ok' | 'warning' | 'blocked';
+};

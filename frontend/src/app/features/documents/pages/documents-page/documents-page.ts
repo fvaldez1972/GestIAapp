@@ -8,7 +8,13 @@ import { Client, ManagedService, Organization, ServiceContract } from '../../../
 import { RequestApiService } from '../../../requests/data-access/request-api.service';
 import { OperationalRequest } from '../../../requests/data-access/request.models';
 import { WorkforceApiService } from '../../../workforce/data-access/workforce-api.service';
-import { Employee, EmployeeEvaluation } from '../../../workforce/data-access/workforce.models';
+import {
+  Employee,
+  EmployeeDocument,
+  EmployeeDocumentStatus,
+  EmployeeDocumentType,
+  EmployeeEvaluation,
+} from '../../../workforce/data-access/workforce.models';
 import { DocumentApiService } from '../../data-access/document-api.service';
 import {
   BusinessDocument,
@@ -39,12 +45,16 @@ export class DocumentsPage implements OnInit {
   protected readonly evaluations = signal<readonly DocumentEvaluationOption[]>([]);
   protected readonly requests = signal<readonly OperationalRequest[]>([]);
   protected readonly documents = signal<readonly BusinessDocument[]>([]);
+  protected readonly workforceDocuments = signal<readonly BusinessDocument[]>([]);
   protected readonly selectedOrganizationId = signal('');
   protected readonly selectedDocumentId = signal('');
   protected readonly selectedOwnerType = signal<BusinessDocumentOwnerType>('Client');
   protected readonly selectedFilterOwnerType = signal<BusinessDocumentOwnerType | ''>('');
   protected readonly expiryFilter = signal<DocumentExpiryFilter>('all');
   protected readonly sensitivityFilter = signal<DocumentSensitivityFilter>('all');
+  protected readonly uploadStep = signal(1);
+  protected readonly selectedFileName = signal('');
+  protected readonly selectedFileSize = signal('');
   protected readonly editorOpen = signal(false);
   protected readonly detailOpen = signal(false);
   protected readonly loading = signal(false);
@@ -54,19 +64,30 @@ export class DocumentsPage implements OnInit {
   protected readonly error = signal('');
 
   protected readonly canWrite = computed(() => this.auth.hasPermission('DOCUMENTS.WRITE'));
-  protected readonly selectedDocument = computed(
-    () => this.documents().find((document) => document.idBusinessDocument === this.selectedDocumentId()) ?? null,
+  protected readonly canReview = computed(() => this.auth.hasPermission('DOCUMENTS.WRITE'));
+  protected readonly selectedOrganization = computed(
+    () => this.organizations().find((organization) => organization.idOrganization === this.selectedOrganizationId()) ?? null,
   );
-  protected readonly expiredDocuments = computed(() => this.documents().filter((document) => document.isExpired).length);
+  protected readonly allDocuments = computed(() => [...this.documents(), ...this.workforceDocuments()]);
+  protected readonly selectedDocument = computed(
+    () => this.allDocuments().find((document) => document.idBusinessDocument === this.selectedDocumentId()) ?? null,
+  );
+  protected readonly visibleDocuments = computed(() =>
+    this.allDocuments().filter((document) => this.matchesVisibleDocument(document)),
+  );
+  protected readonly expiredDocuments = computed(() => this.visibleDocuments().filter((document) => document.isExpired).length);
   protected readonly pendingDocuments = computed(
-    () => this.documents().filter((document) => document.status === 'PendingReview').length,
+    () => this.visibleDocuments().filter((document) => document.status === 'PendingReview').length,
+  );
+  protected readonly validatedDocuments = computed(
+    () => this.visibleDocuments().filter((document) => document.status === 'Validated').length,
   );
   protected readonly dueSoonDocuments = computed(() => {
     const today = new Date();
     const limit = new Date();
     limit.setDate(today.getDate() + 30);
 
-    return this.documents().filter((document) => {
+    return this.visibleDocuments().filter((document) => {
       if (!document.expiresDate || document.isExpired) {
         return false;
       }
@@ -76,7 +97,7 @@ export class DocumentsPage implements OnInit {
     }).length;
   });
   protected readonly sensitiveDocuments = computed(
-    () => this.documents().filter((document) => document.isSensitive).length,
+    () => this.visibleDocuments().filter((document) => document.isSensitive).length,
   );
   protected readonly ownerOptions = computed(() => {
     switch (this.selectedOwnerType()) {
@@ -115,12 +136,6 @@ export class DocumentsPage implements OnInit {
     }
   });
   protected readonly filterOwnerOptions = computed(() => this.ownerOptionsForType(this.selectedFilterOwnerType()));
-  protected readonly visibleDocuments = computed(() =>
-    this.documents().filter(
-      (document) => this.matchesExpiryFilter(document) && this.matchesSensitivityFilter(document),
-    ),
-  );
-
   protected readonly ownerTypes: readonly { value: BusinessDocumentOwnerType; label: string; help: string }[] = [
     { value: 'Client', label: 'Cliente', help: 'Contratos, alta fiscal, requisitos iniciales.' },
     { value: 'ServiceContract', label: 'Contrato', help: 'Contrato firmado y anexos.' },
@@ -138,10 +153,41 @@ export class DocumentsPage implements OnInit {
     { value: 'Archived', label: 'Archivado' },
   ];
 
+  protected readonly categories: readonly string[] = [
+    'INE',
+    'CURP',
+    'NSS',
+    'Comprobante domicilio',
+    'Contrato',
+    'Anexo',
+    'Instructivo',
+    'Evaluación',
+    'Solicitud',
+    'Otro',
+  ];
+
+  protected readonly employeeDocumentTypes: readonly { value: EmployeeDocumentType; label: string }[] = [
+    { value: 'EmploymentApplication', label: 'Solicitud de empleo' },
+    { value: 'BirthCertificate', label: 'Acta de nacimiento' },
+    { value: 'MarriageCertificate', label: 'Acta de matrimonio' },
+    { value: 'VoterId', label: 'INE' },
+    { value: 'Curp', label: 'CURP' },
+    { value: 'SocialSecurityNumber', label: 'NSS' },
+    { value: 'Rfc', label: 'RFC' },
+    { value: 'TaxStatusCertificate', label: 'Constancia fiscal' },
+    { value: 'DriverLicense', label: 'Licencia' },
+    { value: 'ProofOfAddress', label: 'Comprobante domicilio' },
+    { value: 'ProofOfStudies', label: 'Comprobante estudios' },
+    { value: 'MilitaryServiceCard', label: 'Cartilla militar' },
+    { value: 'CriminalRecordCertificate', label: 'Antecedentes no penales' },
+    { value: 'Other', label: 'Otro' },
+  ];
+
   protected readonly filterForm = this.formBuilder.nonNullable.group({
     ownerType: ['' as BusinessDocumentOwnerType | ''],
     ownerId: [''],
     status: ['' as BusinessDocumentStatus | ''],
+    category: [''],
     search: [''],
   });
 
@@ -156,6 +202,7 @@ export class DocumentsPage implements OnInit {
     storageReference: ['', [Validators.required, Validators.maxLength(500)]],
     isSensitive: [false],
     notes: [''],
+    privacyLevel: ['Confidencial'],
   });
 
   ngOnInit() {
@@ -184,6 +231,14 @@ export class DocumentsPage implements OnInit {
     this.loadDocuments();
   }
 
+  protected clearFilters() {
+    this.filterForm.reset({ ownerType: '', ownerId: '', status: '', category: '', search: '' });
+    this.selectedFilterOwnerType.set('');
+    this.expiryFilter.set('all');
+    this.sensitivityFilter.set('all');
+    this.loadDocuments();
+  }
+
   protected selectDocument(document: BusinessDocument) {
     this.patchDocumentForm(document);
     this.detailOpen.set(true);
@@ -192,12 +247,19 @@ export class DocumentsPage implements OnInit {
 
   protected openCreateDocument() {
     this.resetForm();
+    this.uploadStep.set(1);
     this.editorOpen.set(true);
     this.detailOpen.set(false);
   }
 
   protected openEditDocument(document: BusinessDocument) {
+    if (!this.isManagedDocument(document)) {
+      this.message.set('Este documento pertenece al expediente de Personal. Ábrelo desde Personal para modificarlo.');
+      return;
+    }
+
     this.patchDocumentForm(document);
+    this.uploadStep.set(3);
     this.editorOpen.set(true);
     this.detailOpen.set(false);
   }
@@ -229,6 +291,8 @@ export class DocumentsPage implements OnInit {
   private patchDocumentForm(document: BusinessDocument) {
     this.selectedDocumentId.set(document.idBusinessDocument);
     this.selectedOwnerType.set(document.ownerType);
+    this.selectedFileName.set(document.storageReference.split('/').at(-1) ?? document.storageReference);
+    this.selectedFileSize.set('');
     this.documentForm.patchValue({
       ownerType: document.ownerType,
       ownerId: document.ownerId,
@@ -240,12 +304,16 @@ export class DocumentsPage implements OnInit {
       storageReference: document.storageReference,
       isSensitive: document.isSensitive,
       notes: document.notes ?? '',
+      privacyLevel: document.isSensitive ? 'Confidencial' : 'Operativo',
     });
   }
 
   protected resetForm() {
     this.selectedDocumentId.set('');
     this.selectedOwnerType.set('Client');
+    this.selectedFileName.set('');
+    this.selectedFileSize.set('');
+    this.uploadStep.set(1);
     this.documentForm.reset({
       ownerType: 'Client',
       ownerId: this.clients()[0]?.idClient ?? '',
@@ -257,6 +325,7 @@ export class DocumentsPage implements OnInit {
       storageReference: '',
       isSensitive: false,
       notes: '',
+      privacyLevel: 'Confidencial',
     });
   }
 
@@ -268,20 +337,20 @@ export class DocumentsPage implements OnInit {
     }
 
     const form = this.documentForm.getRawValue();
+    const selectedDocumentId = this.selectedDocumentId();
     const payload = {
       idOrganization: organizationId,
       ownerType: form.ownerType,
       ownerId: form.ownerId,
       category: form.category.trim(),
       title: form.title.trim(),
-      status: form.status,
+      status: selectedDocumentId ? form.status : 'PendingReview' as BusinessDocumentStatus,
       issuedDate: this.emptyToNull(form.issuedDate),
       expiresDate: this.emptyToNull(form.expiresDate),
       storageReference: form.storageReference.trim(),
       isSensitive: form.isSensitive,
       notes: this.emptyToNull(form.notes),
     };
-    const selectedDocumentId = this.selectedDocumentId();
     const request = selectedDocumentId
       ? this.documentsApi.updateDocument(selectedDocumentId, payload)
       : this.documentsApi.createDocument(payload);
@@ -309,9 +378,26 @@ export class DocumentsPage implements OnInit {
       return;
     }
 
+    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png'];
+    const maxSize = 10 * 1024 * 1024;
+
+    if (!allowedTypes.includes(file.type)) {
+      this.error.set('Formato no permitido. Usa PDF, JPG o PNG.');
+      input.value = '';
+      return;
+    }
+
+    if (file.size > maxSize) {
+      this.error.set('El archivo supera el máximo permitido de 10 MB.');
+      input.value = '';
+      return;
+    }
+
     this.uploading.set(true);
     this.message.set('');
     this.error.set('');
+    this.selectedFileName.set(file.name);
+    this.selectedFileSize.set(this.fileSizeLabel(file.size));
 
     this.documentsApi.uploadDocumentFile(file).subscribe({
       next: (result) => {
@@ -331,7 +417,10 @@ export class DocumentsPage implements OnInit {
 
   protected downloadDocument(document: BusinessDocument) {
     const organizationId = this.selectedOrganizationId();
-    if (!organizationId) {
+    if (!organizationId || !this.isManagedDocument(document)) {
+      if (!this.isManagedDocument(document)) {
+        this.message.set('Este documento se consulta desde el expediente de Personal.');
+      }
       return;
     }
 
@@ -343,7 +432,7 @@ export class DocumentsPage implements OnInit {
 
   protected deactivateDocument(document: BusinessDocument) {
     const organizationId = this.selectedOrganizationId();
-    if (!organizationId || !this.canWrite() || !window.confirm(`¿Desactivar el documento "${document.title}"?`)) {
+    if (!organizationId || !this.canWrite() || !this.isManagedDocument(document) || !window.confirm(`¿Archivar el documento "${document.title}"?`)) {
       return;
     }
 
@@ -441,6 +530,15 @@ export class DocumentsPage implements OnInit {
     return this.documentForm.controls.storageReference.value ? 'Archivo listo para guardar' : 'Archivo pendiente';
   }
 
+  protected uploadedFileLabel() {
+    if (this.selectedFileName()) {
+      return this.selectedFileSize() ? `${this.selectedFileName()} · ${this.selectedFileSize()}` : this.selectedFileName();
+    }
+
+    const reference = this.documentForm.controls.storageReference.value;
+    return reference ? reference.split('/').at(-1) ?? reference : '';
+  }
+
   protected ownerSelectionHelp() {
     const options = this.ownerOptions();
     if (!options.length) {
@@ -452,6 +550,96 @@ export class DocumentsPage implements OnInit {
 
   protected ownerEmptyLabel() {
     return `Sin ${this.labelForOwnerType(this.selectedOwnerType()).toLowerCase()} disponible`;
+  }
+
+  protected filterOwnerPlaceholder() {
+    const ownerType = this.selectedFilterOwnerType();
+
+    if (!ownerType) {
+      return 'Elige un propietario para seleccionar registro';
+    }
+
+    return this.filterOwnerOptions().length ? 'Todos' : `Sin ${this.labelForOwnerType(ownerType).toLowerCase()} disponible`;
+  }
+
+  protected stepIsActive(step: number) {
+    return this.uploadStep() === step;
+  }
+
+  protected goToStep(step: number) {
+    if (step < 1 || step > 5) {
+      return;
+    }
+
+    this.uploadStep.set(step);
+  }
+
+  protected nextStep() {
+    if (!this.canAdvanceStep()) {
+      this.markCurrentStepTouched();
+      return;
+    }
+
+    if (this.uploadStep() < 5) {
+      this.uploadStep.update((step) => step + 1);
+    }
+  }
+
+  protected previousStep() {
+    if (this.uploadStep() > 1) {
+      this.uploadStep.update((step) => step - 1);
+    }
+  }
+
+  protected removeSelectedFile() {
+    this.selectedFileName.set('');
+    this.selectedFileSize.set('');
+    this.documentForm.patchValue({ storageReference: '' });
+  }
+
+  protected isManagedDocument(document: BusinessDocument) {
+    return !document.idBusinessDocument.startsWith('workforce-document-');
+  }
+
+  protected canValidateDocument(document: BusinessDocument) {
+    return this.canReview() && this.isManagedDocument(document);
+  }
+
+  protected reviewOwnerLabel() {
+    return this.ownerOptions().find((option) => option.value === this.documentForm.controls.ownerId.value)?.label ?? 'Sin registro seleccionado';
+  }
+
+  protected isInvalid(controlName: string) {
+    const control = this.documentForm.get(controlName);
+    return Boolean(control?.invalid && (control.touched || control.dirty));
+  }
+
+  protected canAdvanceStep() {
+    switch (this.uploadStep()) {
+      case 1:
+        return this.documentForm.controls.ownerType.valid;
+      case 2:
+        return this.documentForm.controls.ownerId.valid;
+      case 3:
+        return this.documentForm.controls.category.valid && this.documentForm.controls.title.valid;
+      case 4:
+        return this.documentForm.controls.storageReference.valid && !this.uploading();
+      default:
+        return true;
+    }
+  }
+
+  protected currentStepHasMissingData() {
+    switch (this.uploadStep()) {
+      case 2:
+        return this.isInvalid('ownerId');
+      case 3:
+        return this.isInvalid('category') || this.isInvalid('title');
+      case 4:
+        return this.isInvalid('storageReference');
+      default:
+        return false;
+    }
   }
 
   protected isDueSoon(document: BusinessDocument) {
@@ -504,6 +692,21 @@ export class DocumentsPage implements OnInit {
     });
   }
 
+  private markCurrentStepTouched() {
+    switch (this.uploadStep()) {
+      case 2:
+        this.documentForm.controls.ownerId.markAsTouched();
+        break;
+      case 3:
+        this.documentForm.controls.category.markAsTouched();
+        this.documentForm.controls.title.markAsTouched();
+        break;
+      case 4:
+        this.documentForm.controls.storageReference.markAsTouched();
+        break;
+    }
+  }
+
   private matchesExpiryFilter(document: BusinessDocument) {
     switch (this.expiryFilter()) {
       case 'expired':
@@ -526,6 +729,46 @@ export class DocumentsPage implements OnInit {
       default:
         return true;
     }
+  }
+
+  private matchesVisibleDocument(document: BusinessDocument) {
+    const filters = this.filterForm.getRawValue();
+    const normalizedSearch = filters.search.trim().toLowerCase();
+
+    if (filters.ownerType && document.ownerType !== filters.ownerType) {
+      return false;
+    }
+
+    if (filters.ownerId && document.ownerId !== filters.ownerId) {
+      return false;
+    }
+
+    if (filters.status && document.status !== filters.status) {
+      return false;
+    }
+
+    if (filters.category && document.category !== filters.category) {
+      return false;
+    }
+
+    if (normalizedSearch) {
+      const searchableText = [
+        document.title,
+        document.category,
+        document.ownerLabel,
+        document.ownerId,
+        this.labelForOwnerType(document.ownerType),
+        this.labelForStatus(document.status),
+      ]
+        .join(' ')
+        .toLowerCase();
+
+      if (!searchableText.includes(normalizedSearch)) {
+        return false;
+      }
+    }
+
+    return this.matchesExpiryFilter(document) && this.matchesSensitivityFilter(document);
   }
 
   private loadInitialData() {
@@ -648,6 +891,11 @@ export class DocumentsPage implements OnInit {
     if (employees.length) {
       forkJoin(employees.map((employee) => this.workforceApi.getEmployee(organizationId, employee.idEmployee))).subscribe({
         next: (details) => {
+          this.workforceDocuments.set(
+            details.flatMap((detail) =>
+              detail.documents.map((document) => this.mapEmployeeDocument(document, detail.employee, organizationId)),
+            ),
+          );
           this.evaluations.set(details.flatMap((detail) =>
             detail.evaluations.map((evaluation) => ({
               ...evaluation,
@@ -657,10 +905,14 @@ export class DocumentsPage implements OnInit {
           ));
           this.patchOwnerIdIfNeeded();
         },
-        error: () => this.evaluations.set([]),
+        error: () => {
+          this.evaluations.set([]);
+          this.workforceDocuments.set([]);
+        },
       });
     } else {
       this.evaluations.set([]);
+      this.workforceDocuments.set([]);
     }
   }
 
@@ -692,6 +944,73 @@ export class DocumentsPage implements OnInit {
       });
   }
 
+  private mapEmployeeDocument(
+    document: EmployeeDocument,
+    employee: Employee,
+    organizationId: string,
+  ): BusinessDocument {
+    return {
+      idBusinessDocument: `workforce-document-${document.idEmployeeDocument}`,
+      idOrganization: organizationId,
+      ownerType: 'Employee',
+      ownerId: employee.idEmployee,
+      ownerLabel: `${employee.fullName} · ${employee.codeEmployee}`,
+      category: this.documentCategoryFromEmployeeType(document.documentType),
+      title: `${this.employeeDocumentTypeLabel(document.documentType)} · ${employee.fullName}`,
+      status: this.statusFromEmployeeDocument(document.status, document.expiresDate),
+      issuedDate: document.issuedDate,
+      expiresDate: document.expiresDate,
+      isExpired: Boolean(document.expiresDate && document.expiresDate < this.today()),
+      storageReference: document.storageReference ?? '',
+      isSensitive: true,
+      notes: document.notes,
+      active: document.active,
+      createdAt: document.receivedDate ?? employee.createdAt,
+      updatedAt: null,
+    };
+  }
+
+  private documentCategoryFromEmployeeType(type: EmployeeDocumentType): string {
+    if (type === 'VoterId') {
+      return 'INE';
+    }
+
+    if (type === 'SocialSecurityNumber') {
+      return 'NSS';
+    }
+
+    if (type === 'ProofOfAddress') {
+      return 'Comprobante domicilio';
+    }
+
+    return this.employeeDocumentTypeLabel(type);
+  }
+
+  private statusFromEmployeeDocument(status: EmployeeDocumentStatus, expiresDate: string | null): BusinessDocumentStatus {
+    if (expiresDate && expiresDate < this.today()) {
+      return 'Expired';
+    }
+
+    const statusMap: Record<EmployeeDocumentStatus, BusinessDocumentStatus> = {
+      Pending: 'PendingReview',
+      Received: 'PendingReview',
+      Validated: 'Validated',
+      Rejected: 'Rejected',
+      Expired: 'Expired',
+      NotApplicable: 'Archived',
+    };
+
+    return statusMap[status];
+  }
+
+  private employeeDocumentTypeLabel(type: EmployeeDocumentType): string {
+    return this.employeeDocumentTypes.find((item) => item.value === type)?.label ?? 'Documento';
+  }
+
+  private today(): string {
+    return new Date().toISOString().slice(0, 10);
+  }
+
   private openDownloadedBlob(response: HttpResponse<Blob>, document: BusinessDocument) {
     const blob = response.body;
     if (!blob) {
@@ -705,6 +1024,14 @@ export class DocumentsPage implements OnInit {
     link.download = document.storageReference.split('/').at(-1) || document.title;
     link.click();
     URL.revokeObjectURL(url);
+  }
+
+  private fileSizeLabel(size: number) {
+    if (size < 1024 * 1024) {
+      return `${Math.max(1, Math.round(size / 1024))} KB`;
+    }
+
+    return `${(size / 1024 / 1024).toFixed(1)} MB`;
   }
 
   private beginSave() {

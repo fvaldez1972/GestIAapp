@@ -32,16 +32,19 @@ export class ReportsPage implements OnInit {
   protected readonly selectedClientId = signal('');
   protected readonly selectedServiceId = signal('');
   protected readonly selectedReportType = signal<ReportType>('resumen');
+  protected readonly selectedExportFormat = signal<ReportExportFormat>('xlsx');
+  protected readonly showDefinitions = signal(false);
   protected readonly fromDate = signal(this.firstDayOfMonth());
   protected readonly toDate = signal(this.today());
+  protected readonly lastUpdatedAt = signal('');
   protected readonly loading = signal(false);
   protected readonly exporting = signal(false);
   protected readonly error = signal('');
 
   protected readonly attendanceRate = computed(() => {
     const summary = this.summary();
-    if (!summary || summary.attendanceRecords === 0) {
-      return 0;
+    if (!summary || !this.hasTurnDenominator()) {
+      return null;
     }
 
     return Math.round((summary.presentAttendance / summary.attendanceRecords) * 100);
@@ -49,26 +52,51 @@ export class ReportsPage implements OnInit {
 
   protected readonly absenceRate = computed(() => {
     const summary = this.summary();
-    if (!summary || summary.attendanceRecords === 0) {
-      return 0;
+    if (!summary || !this.hasTurnDenominator()) {
+      return null;
     }
 
     return Math.round((summary.absentAttendance / summary.attendanceRecords) * 100);
   });
 
+  protected readonly tardinessRate = computed(() => {
+    const summary = this.summary();
+    if (!summary || !this.hasTurnDenominator()) {
+      return null;
+    }
+
+    return Math.round((summary.lateAttendance / summary.attendanceRecords) * 100);
+  });
+
+  protected readonly hasTurnDenominator = computed(() => (this.summary()?.attendanceRecords ?? 0) > 0);
+  protected readonly turnDenominatorLabel = computed(() =>
+    this.hasTurnDenominator() ? `${this.summary()?.attendanceRecords ?? 0} turnos esperados` : 'Sin turnos esperados',
+  );
   protected readonly coveredHours = computed(() =>
     Math.round(((this.summary()?.coveredMinutes ?? 0) / 60) * 10) / 10,
   );
+  protected readonly pendingCoverages = computed(() => {
+    const summary = this.summary();
+    if (!summary) {
+      return 0;
+    }
+
+    return Math.max(summary.coverageRecords - summary.confirmedCoverages - summary.completedCoverages, 0);
+  });
   protected readonly eligibleEmployees = computed(
-    () => this.workforceEligibility().filter((employee) => employee.isEligible).length,
+    () => this.eligibilityRows().filter((employee) => employee.status === 'Elegible').length,
   );
   protected readonly nonEligibleEmployees = computed(
-    () => this.workforceEligibility().filter((employee) => !employee.isEligible).length,
+    () => this.eligibilityRows().filter((employee) => employee.status === 'No elegible').length,
+  );
+  protected readonly insufficientRulesEmployees = computed(
+    () => this.eligibilityRows().filter((employee) => employee.status === 'Sin reglas suficientes').length,
   );
   protected readonly reportTypes: readonly { value: ReportType; label: string; description: string }[] = [
-    { value: 'resumen', label: 'Resumen operativo', description: 'Vista ejecutiva del periodo' },
+    { value: 'resumen', label: 'Resumen ejecutivo', description: 'Vista ejecutiva del periodo' },
     { value: 'servicios', label: 'Operación por servicio', description: 'Comparativo por cliente y servicio' },
     { value: 'elegibilidad', label: 'Elegibilidad', description: 'Personal elegible y pendientes' },
+    { value: 'alertas', label: 'Alertas y distribución', description: 'Riesgos y severidades del periodo' },
     { value: 'exportacion', label: 'Exportación operativa', description: 'Salida para dirección o administración' },
   ];
   protected readonly selectedReport = computed(
@@ -81,23 +109,18 @@ export class ReportsPage implements OnInit {
     return [
       {
         label: 'Asistencia',
-        value: summary?.attendanceRecords ?? 0,
-        detail: `${this.attendanceRate()}% presente`,
+        value: this.rateDisplay(this.attendanceRate()),
+        detail: this.hasTurnDenominator() ? `${summary?.presentAttendance ?? 0} presentes` : 'Sin turnos esperados',
       },
       {
-        label: 'Faltas',
-        value: summary?.absentAttendance ?? 0,
-        detail: `${this.absenceRate()}% de ausentismo`,
+        label: 'Ausentismo',
+        value: this.rateDisplay(this.absenceRate()),
+        detail: this.hasTurnDenominator() ? `${summary?.absentAttendance ?? 0} faltas` : 'Sin turnos esperados',
       },
       {
         label: 'Retardos',
-        value: summary?.lateAttendance ?? 0,
-        detail: 'Registros con llegada tarde',
-      },
-      {
-        label: 'Incidencias abiertas',
-        value: summary?.openIncidents ?? 0,
-        detail: `${summary?.criticalIncidents ?? 0} críticas`,
+        value: this.rateDisplay(this.tardinessRate()),
+        detail: this.hasTurnDenominator() ? `${summary?.lateAttendance ?? 0} registros tarde` : 'Sin turnos esperados',
       },
       {
         label: 'Coberturas',
@@ -105,19 +128,19 @@ export class ReportsPage implements OnInit {
         detail: `${this.coveredHours()} h cubiertas`,
       },
       {
-        label: 'Coberturas cerradas',
-        value: summary?.completedCoverages ?? 0,
-        detail: `${summary?.confirmedCoverages ?? 0} confirmadas`,
+        label: 'Incidencias abiertas',
+        value: summary?.openIncidents ?? 0,
+        detail: `${summary?.criticalIncidents ?? 0} críticas`,
       },
       {
-        label: 'Personal elegible',
-        value: this.eligibleEmployees(),
-        detail: 'Disponible con reglas actuales',
+        label: 'Coberturas pendientes',
+        value: this.pendingCoverages(),
+        detail: 'Sin confirmar o completar',
       },
       {
-        label: 'Personal no elegible',
-        value: this.nonEligibleEmployees(),
-        detail: 'Requiere revisión documental',
+        label: 'Servicios activos',
+        value: this.services().filter((service) => service.active).length,
+        detail: 'Con operación en el alcance',
       },
       {
         label: 'Autorizaciones pendientes',
@@ -149,10 +172,14 @@ export class ReportsPage implements OnInit {
       { label: 'Justificadas', value: summary?.excusedAttendance ?? 0, className: 'is-info' },
     ].map((item) => ({
       ...item,
-      percentage: total === 0 ? 0 : Math.round((item.value / total) * 100),
+      percentage: total === 0 ? null : Math.round((item.value / total) * 100),
     }));
   });
   protected readonly donutStyle = computed(() => {
+    if (!this.hasTurnDenominator()) {
+      return 'conic-gradient(#e7edf7 0 100%)';
+    }
+
     const distribution = this.attendanceDistribution();
     const present = distribution.find((item) => item.label === 'Presentes')?.percentage ?? 0;
     const late = distribution.find((item) => item.label === 'Retardos')?.percentage ?? 0;
@@ -163,6 +190,63 @@ export class ReportsPage implements OnInit {
 
     return `conic-gradient(#20b56b 0 ${presentEnd}%, #f59e0b ${presentEnd}% ${lateEnd}%, #ef4444 ${lateEnd}% ${absentEnd}%, #38bdf8 ${absentEnd}% 100%)`;
   });
+  protected readonly alertSeverityCards = computed(() => {
+    const summary = this.summary();
+    return [
+      { label: 'Críticas', value: summary?.criticalIncidents ?? 0, detail: 'Requiere acción inmediata', className: 'is-critical' },
+      { label: 'Altas', value: Math.max((summary?.openIncidents ?? 0) - (summary?.criticalIncidents ?? 0), 0), detail: 'Atención prioritaria', className: 'is-high' },
+      { label: 'Medias', value: summary?.lateAttendance ?? 0, detail: 'Monitoreo recomendado', className: 'is-medium' },
+      { label: 'Bajas', value: summary?.excusedAttendance ?? 0, detail: 'Sin impacto crítico', className: 'is-low' },
+    ];
+  });
+  protected readonly eligibilityRows = computed(() =>
+    this.workforceEligibility().map((employee) => {
+      const reasons = employee.reasons.length ? employee.reasons : employee.isEligible ? ['Cumple requisitos actuales'] : ['Requiere revisión'];
+      const hasInsufficientRules = reasons.some((reason) => /regla|suficiente|configur/i.test(reason));
+
+      return {
+        ...employee,
+        status: hasInsufficientRules ? 'Sin reglas suficientes' : employee.isEligible ? 'Elegible' : 'No elegible',
+        fileStatus: employee.rejectedDocuments || employee.expiredDocuments ? 'Incompleto' : 'Completo',
+        documentStatus: employee.rejectedDocuments || employee.expiredDocuments ? 'Pendiente' : 'Completo',
+        skillStatus: reasons.some((reason) => /habilidad/i.test(reason)) ? 'Faltante' : 'Completo',
+        reasons,
+      } satisfies EligibilityReportRow;
+    }),
+  );
+  protected readonly metricDefinitions: readonly MetricDefinition[] = [
+    { label: 'Asistencia', formula: 'Presentes / turnos esperados' },
+    { label: 'Ausentismo', formula: 'Faltas / turnos esperados' },
+    { label: 'Retardos', formula: 'Registros de retardo / turnos esperados' },
+    { label: 'Cobertura', formula: 'Turnos cubiertos / turnos requeridos' },
+    { label: 'N/D', formula: 'No existe denominador suficiente para calcular la métrica' },
+  ];
+  protected readonly exportOptions: readonly string[] = [
+    'Incluir alcance de filtros',
+    'Incluir fecha de actualización',
+    'Incluir zona horaria',
+    'Incluir definiciones de métricas',
+    'Incluir datos N/D',
+    'Incluir auditoría de generación',
+  ];
+  protected readonly suggestedFileName = computed(
+    () => `reporte-operativo-${this.toDate()}.${this.selectedExportFormat() === 'xlsx' ? 'xlsx' : this.selectedExportFormat()}`,
+  );
+  protected readonly filterScopeLabel = computed(() => {
+    const organization = this.organizations().find((item) => item.idOrganization === this.selectedOrganizationId())?.legalName ?? 'Sin organización';
+    const client = this.clients().find((item) => item.idClient === this.selectedClientId());
+    const service = this.services().find((item) => item.idService === this.selectedServiceId());
+    return [
+      `Organización: ${organization}`,
+      `Cliente: ${client ? client.tradeName || client.legalName : 'Todos los clientes'}`,
+      `Servicio: ${service ? service.name : 'Todos los servicios'}`,
+    ].join(' · ');
+  });
+  protected readonly periodLabel = computed(() => `${this.fromDate()} - ${this.toDate()}`);
+  protected readonly timezoneLabel = computed(() => Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Mexico_City');
+  protected readonly lastUpdatedLabel = computed(() =>
+    this.lastUpdatedAt() ? new Intl.DateTimeFormat('es-MX', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(this.lastUpdatedAt())) : 'Sin actualizar',
+  );
   protected readonly executiveNotes = computed(() => {
     const summary = this.summary();
 
@@ -171,7 +255,9 @@ export class ReportsPage implements OnInit {
     }
 
     const notes = [
-      `Asistencia general del ${this.attendanceRate()}% entre ${this.fromDate()} y ${this.toDate()}.`,
+      this.hasTurnDenominator()
+        ? `Asistencia general del ${this.rateDisplay(this.attendanceRate())} entre ${this.fromDate()} y ${this.toDate()}.`
+        : 'No hay turnos esperados en el periodo seleccionado. Las métricas se muestran como N/D para evitar interpretaciones erróneas.',
       `${summary.openIncidents} incidencia(s) abierta(s), ${summary.criticalIncidents} crítica(s) y ${summary.pendingApprovals} autorización(es) pendiente(s).`,
       `${this.coveredHours()} hora(s) cubiertas en sustituciones registradas.`,
     ];
@@ -233,7 +319,15 @@ export class ReportsPage implements OnInit {
     this.selectedReportType.set(type);
   }
 
-  protected exportReport(format: 'csv' | 'xlsx' | 'pdf') {
+  protected selectExportFormat(format: ReportExportFormat) {
+    this.selectedExportFormat.set(format);
+  }
+
+  protected toggleDefinitions() {
+    this.showDefinitions.update((value) => !value);
+  }
+
+  protected exportReport(format: ReportExportFormat = this.selectedExportFormat()) {
     const organizationId = this.selectedOrganizationId();
     if (!organizationId || this.exporting()) {
       return;
@@ -252,7 +346,7 @@ export class ReportsPage implements OnInit {
         format,
       )
       .subscribe({
-        next: (blob) => this.downloadBlob(blob, `gestia-reporte-operativo-${this.fromDate()}-${this.toDate()}.${format}`),
+        next: (blob) => this.downloadBlob(blob, this.suggestedFileName()),
         error: (error: HttpErrorResponse) => this.setError(error, 'No se pudo exportar el reporte.'),
         complete: () => this.exporting.set(false),
       });
@@ -320,6 +414,7 @@ export class ReportsPage implements OnInit {
           this.serviceSummaries.set(serviceSummaries);
           this.workforceEligibility.set(workforceEligibility);
           this.services.set(services.flat());
+          this.lastUpdatedAt.set(new Date().toISOString());
         },
         error: (error: HttpErrorResponse) => this.setError(error, 'No se pudo cargar el reporte operativo.'),
         complete: () => this.loading.set(false),
@@ -387,6 +482,7 @@ export class ReportsPage implements OnInit {
           this.summary.set(summary);
           this.serviceSummaries.set(serviceSummaries);
           this.workforceEligibility.set(workforceEligibility);
+          this.lastUpdatedAt.set(new Date().toISOString());
         },
         error: (error: HttpErrorResponse) => this.setError(error, 'No se pudo actualizar el reporte.'),
         complete: () => this.loading.set(false),
@@ -395,10 +491,72 @@ export class ReportsPage implements OnInit {
 
   protected serviceAttendanceRate(service: OperationsServiceSummary) {
     if (service.attendanceRecords === 0) {
-      return 0;
+      return 'N/D';
     }
 
-    return Math.round((service.presentAttendance / service.attendanceRecords) * 100);
+    return `${Math.round((service.presentAttendance / service.attendanceRecords) * 100)}%`;
+  }
+
+  protected serviceAbsenceRate(service: OperationsServiceSummary) {
+    if (service.attendanceRecords === 0) {
+      return 'N/D';
+    }
+
+    return `${Math.round((service.absentAttendance / service.attendanceRecords) * 100)}%`;
+  }
+
+  protected serviceTardinessRate(service: OperationsServiceSummary) {
+    if (service.attendanceRecords === 0) {
+      return 'N/D';
+    }
+
+    return `${Math.round((service.lateAttendance / service.attendanceRecords) * 100)}%`;
+  }
+
+  protected serviceOperationalStatus(service: OperationsServiceSummary) {
+    if (service.attendanceRecords === 0) {
+      return 'Sin datos';
+    }
+
+    if (service.criticalIncidents > 0 || service.openIncidents > 1) {
+      return 'Riesgo';
+    }
+
+    if (service.openIncidents > 0 || service.absentAttendance > 0 || service.pendingApprovals > 0) {
+      return 'Revisar';
+    }
+
+    return 'Estable';
+  }
+
+  protected rateDisplay(value: number | null) {
+    return value === null ? 'N/D' : `${value}%`;
+  }
+
+  protected barWidth(percentage: number | null) {
+    return percentage ?? 0;
+  }
+
+  protected eligibilityStatusClass(status: EligibilityStatus) {
+    switch (status) {
+      case 'Elegible':
+        return 'ok';
+      case 'Sin reglas suficientes':
+        return 'neutral';
+      default:
+        return 'warning';
+    }
+  }
+
+  protected exportFormatLabel(format: ReportExportFormat) {
+    switch (format) {
+      case 'csv':
+        return 'CSV';
+      case 'pdf':
+        return 'PDF';
+      default:
+        return 'Excel';
+    }
   }
 
   protected serviceCoveredHours(service: OperationsServiceSummary) {
@@ -436,3 +594,22 @@ export class ReportsPage implements OnInit {
 }
 
 type ReportType = 'resumen' | 'servicios' | 'elegibilidad' | 'exportacion';
+
+type ReportExportFormat = 'csv' | 'xlsx' | 'pdf';
+
+type ReportType = 'resumen' | 'servicios' | 'elegibilidad' | 'alertas' | 'exportacion';
+
+type MetricDefinition = {
+  readonly label: string;
+  readonly formula: string;
+};
+
+type EligibilityStatus = 'Elegible' | 'No elegible' | 'Sin reglas suficientes';
+
+type EligibilityReportRow = WorkforceEligibilityReport & {
+  readonly status: EligibilityStatus;
+  readonly fileStatus: string;
+  readonly documentStatus: string;
+  readonly skillStatus: string;
+  readonly reasons: readonly string[];
+};

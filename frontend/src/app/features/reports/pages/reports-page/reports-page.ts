@@ -1,6 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { forkJoin, of, switchMap } from 'rxjs';
 import { ClientApiService } from '../../../clients/data-access/client-api.service';
 import {
@@ -14,7 +15,7 @@ import {
 
 @Component({
   selector: 'app-reports-page',
-  imports: [FormsModule],
+  imports: [FormsModule, RouterLink],
   templateUrl: './reports-page.html',
   styleUrl: './reports-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -229,6 +230,7 @@ export class ReportsPage implements OnInit {
     'Incluir datos N/D',
     'Incluir auditoría de generación',
   ];
+  protected readonly exportFormats: readonly ReportExportFormat[] = ['csv', 'xlsx', 'pdf'];
   protected readonly suggestedFileName = computed(
     () => `reporte-operativo-${this.toDate()}.${this.selectedExportFormat() === 'xlsx' ? 'xlsx' : this.selectedExportFormat()}`,
   );
@@ -592,8 +594,6 @@ export class ReportsPage implements OnInit {
     return date.toISOString().slice(0, 10);
   }
 }
-
-type ReportType = 'resumen' | 'servicios' | 'elegibilidad' | 'exportacion';
 
 type ReportExportFormat = 'csv' | 'xlsx' | 'pdf';
 

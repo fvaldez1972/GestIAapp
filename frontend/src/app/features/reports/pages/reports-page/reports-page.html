@@ -1,25 +1,14 @@
 <section class="reports-page">
   <article class="gi-card gi-card--hero reports-hero">
     <div>
-      <span class="eyebrow">Control operativo</span>
+      <span class="eyebrow">Control / Reportes</span>
       <h1>Reportes</h1>
-      <p>
-        Consulta métricas reales de asistencia, ausentismo, incidencias y coberturas por organización, cliente,
-        servicio y periodo.
-      </p>
+      <p>Consulta resultados operativos con métricas trazables, alcance claro y definiciones visibles.</p>
     </div>
     <div class="hero-actions">
-      <button class="gi-button gi-button--secondary" type="button" [disabled]="loading()" (click)="refresh()">
+      <button class="gi-button gi-button--secondary" type="button" (click)="toggleDefinitions()">Definiciones</button>
+      <button class="gi-button gi-button--primary" type="button" [disabled]="loading()" (click)="refresh()">
         {{ loading() ? 'Actualizando…' : 'Actualizar' }}
-      </button>
-      <button class="gi-button gi-button--secondary" type="button" [disabled]="!summary() || exporting()" (click)="exportReport('csv')">
-        CSV
-      </button>
-      <button class="gi-button gi-button--primary" type="button" [disabled]="!summary() || exporting()" (click)="exportReport('xlsx')">
-        {{ exporting() ? 'Exportando…' : 'Exportar Excel' }}
-      </button>
-      <button class="gi-button gi-button--secondary" type="button" [disabled]="!summary() || exporting()" (click)="exportReport('pdf')">
-        PDF
       </button>
     </div>
   </article>
@@ -64,10 +53,26 @@
       <input class="gi-input" type="date" [ngModel]="toDate()" (ngModelChange)="onToDateChange($event)" />
     </label>
 
-    <button class="gi-button gi-button--secondary" type="button" (click)="clearScope()">
-      Ver todo
-    </button>
+    <button class="gi-button gi-button--secondary" type="button" (click)="clearScope()">Ver todo</button>
   </section>
+
+  <article class="gi-card report-metadata">
+    <span>Actualizado a: <strong>{{ lastUpdatedLabel() }}</strong></span>
+    <span>Zona horaria: <strong>{{ timezoneLabel() }}</strong></span>
+    <span>Alcance: <strong>{{ filterScopeLabel() }}</strong></span>
+    <span>Periodo: <strong>{{ periodLabel() }}</strong></span>
+  </article>
+
+  @if (!hasTurnDenominator()) {
+    <article class="gi-card no-data-note">
+      <strong>No hay turnos esperados en el periodo seleccionado.</strong>
+      <span>Las métricas de asistencia, ausentismo y retardos se muestran como N/D para evitar interpretaciones erróneas.</span>
+      <div>
+        <button class="gi-button gi-button--secondary" type="button" (click)="refresh()">Ajustar filtros</button>
+        <a class="gi-button gi-button--secondary" routerLink="/planeacion">Ver planeación</a>
+      </div>
+    </article>
+  }
 
   <section class="report-type-strip" aria-label="Tipos de reporte">
     @for (report of reportTypes; track report.value) {
@@ -87,211 +92,320 @@
     <p class="gi-alert gi-alert--error">{{ error() }}</p>
   }
 
-  <section class="report-grid" aria-label="Indicadores principales">
-    @for (card of reportCards(); track card.label) {
-      <article class="gi-card metric-card">
-        <span>{{ card.label }}</span>
-        <strong>{{ card.value }}</strong>
-        <small>{{ card.detail }}</small>
-      </article>
-    }
-  </section>
-
-  <article class="gi-card report-context">
-    <div>
-      <span class="eyebrow">{{ selectedReport().label }}</span>
-      <h2>Corte ejecutivo</h2>
-    </div>
-    <ul>
-      @for (note of executiveNotes(); track note) {
-        <li>{{ note }}</li>
+  @if (selectedReportType() === 'resumen') {
+    <section class="report-grid" aria-label="Indicadores ejecutivos">
+      @for (card of reportCards(); track card.label) {
+        <article class="gi-card metric-card" [class.is-na]="card.value === 'N/D'">
+          <span>{{ card.label }}</span>
+          <strong>{{ card.value }}</strong>
+          <small>{{ card.detail }}</small>
+        </article>
       }
-    </ul>
-  </article>
+    </section>
 
-  <section class="report-panels report-panels--three">
+    <article class="gi-card report-context">
+      <div>
+        <span class="eyebrow">Resumen ejecutivo</span>
+        <h2>Corte operativo</h2>
+      </div>
+      <ul>
+        @for (note of executiveNotes(); track note) {
+          <li>{{ note }}</li>
+        }
+      </ul>
+    </article>
+
+    <section class="quick-links">
+      <button class="quick-link" type="button" (click)="selectReportType('servicios')">
+        <span>Ver comparativo por servicio</span>
+        <small>Rendimiento detallado</small>
+      </button>
+      <button class="quick-link" type="button" (click)="selectReportType('elegibilidad')">
+        <span>Ver elegibilidad</span>
+        <small>Estado del personal</small>
+      </button>
+      <button class="quick-link" type="button" (click)="selectReportType('alertas')">
+        <span>Ver alertas y distribución</span>
+        <small>Riesgos operativos</small>
+      </button>
+      <button class="quick-link" type="button" (click)="selectReportType('exportacion')">
+        <span>Exportación operativa</span>
+        <small>Datos para dirección</small>
+      </button>
+    </section>
+  }
+
+  @if (selectedReportType() === 'servicios') {
     <article class="gi-card report-panel">
-      <span class="eyebrow">Asistencia</span>
-      <h2>Distribución del periodo</h2>
-      <div class="bar-list" aria-label="Distribución de asistencia">
-        @for (item of attendanceDistribution(); track item.label) {
-          <div class="bar-row">
-            <header>
-              <span>{{ item.label }}</span>
-              <strong>{{ item.value }} · {{ item.percentage }}%</strong>
-            </header>
-            <span class="bar-track">
-              <span
-                class="bar-fill"
-                [class.is-ok]="item.className === 'is-ok'"
-                [class.is-warning]="item.className === 'is-warning'"
-                [class.is-danger]="item.className === 'is-danger'"
-                [class.is-info]="item.className === 'is-info'"
-                [style.width.%]="item.percentage"
-              ></span>
-            </span>
-          </div>
-        }
-      </div>
-    </article>
+      <span class="eyebrow">Operación por servicio</span>
+      <h2>Comparativo por servicio</h2>
+      <p class="panel-copy">Cada fila compara operación real del periodo. Las tasas usan N/D si no hay turnos esperados.</p>
 
-    <article class="gi-card report-panel donut-panel">
-      <span class="eyebrow">Estados</span>
-      <h2>Lectura rápida</h2>
-      <div class="donut-chart" [style.background]="donutStyle()">
-        <span>{{ attendanceRate() }}%</span>
-        <small>presentes</small>
-      </div>
-      <div class="donut-legend">
-        @for (item of attendanceDistribution(); track item.label) {
-          <span [class]="item.className">{{ item.label }} · {{ item.value }}</span>
-        }
-      </div>
-    </article>
-
-    <article class="gi-card report-panel">
-      <span class="eyebrow">Riesgos</span>
-      <h2>Alertas operativas</h2>
-      <div class="alert-stack">
-        @if ((summary()?.openIncidents ?? 0) > 0) {
-          <p class="soft-alert">Hay {{ summary()?.openIncidents }} incidencia(s) abiertas que requieren seguimiento.</p>
-        } @else {
-          <p class="soft-ok">Sin incidencias abiertas en el periodo seleccionado.</p>
-        }
-
-        @if ((summary()?.criticalIncidents ?? 0) > 0) {
-          <p class="soft-alert is-critical">{{ summary()?.criticalIncidents }} incidencia(s) crítica(s) detectadas.</p>
-        } @else {
-          <p class="soft-ok">Sin incidencias críticas registradas.</p>
-        }
-
-        @if (absenceRate() > 10) {
-          <p class="soft-alert">Ausentismo por arriba del 10%. Conviene revisar cobertura y personal disponible.</p>
-        } @else {
-          <p class="soft-ok">Ausentismo controlado para este corte.</p>
-        }
-      </div>
-    </article>
-  </section>
-
-  <section class="report-panels">
-    <article class="gi-card report-panel">
-      <span class="eyebrow">Servicios</span>
-      <h2>Mayor atención requerida</h2>
-
-      <div class="risk-list">
-        @for (service of highestRiskServices(); track service.idService) {
-          <article class="risk-item">
-            <div>
-              <strong>{{ service.codeService }} · {{ service.serviceName }}</strong>
-              <span>{{ service.clientName }}</span>
-            </div>
-            <small>
-              {{ service.openIncidents }} abiertas · {{ service.absentAttendance }} faltas · {{ service.lateAttendance }} retardos
-            </small>
-          </article>
-        } @empty {
-          <div class="gi-empty-state">
-            <h3>Sin focos rojos</h3>
-            <p>No hay servicios con faltas, retardos o incidencias abiertas en este corte.</p>
-          </div>
-        }
-      </div>
-    </article>
-
-    <article class="gi-card report-panel">
-      <span class="eyebrow">Reporte ejecutivo</span>
-      <h2>Interpretación del corte</h2>
-      <div class="alert-stack">
-        <p class="soft-ok">
-          El reporte está usando datos capturados entre {{ fromDate() }} y {{ toDate() }}.
-        </p>
-        <p class="soft-alert">
-          Si un servicio aparece en ceros, normalmente significa que todavía no tiene operación capturada para el periodo o que el filtro no lo incluye.
-        </p>
-      </div>
-    </article>
-  </section>
-
-  <article class="gi-card report-panel">
-    <span class="eyebrow">Detalle</span>
-    <h2>Desglose operativo por servicio</h2>
-
-    <div class="table-wrap">
-      <table class="gi-table">
-        <thead>
-          <tr>
-            <th>Servicio</th>
-            <th>Cliente</th>
-            <th>Asistencia</th>
-            <th>Retardos</th>
-            <th>Faltas</th>
-            <th>Incidencias</th>
-            <th>Cobertura</th>
-            <th>Control</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (service of serviceSummaries(); track service.idService) {
+      <div class="table-wrap">
+        <table class="gi-table">
+          <thead>
             <tr>
-              <td>
-                <strong>{{ service.codeService }}</strong>
-                <small>{{ service.serviceName }}</small>
-              </td>
-              <td>{{ service.clientName }}</td>
-              <td>{{ service.presentAttendance }} / {{ service.attendanceRecords }} · {{ serviceAttendanceRate(service) }}%</td>
-              <td>{{ service.lateAttendance }}</td>
-              <td>{{ service.absentAttendance }}</td>
-              <td>{{ service.openIncidents }} abiertas · {{ service.criticalIncidents }} críticas</td>
-              <td>{{ service.coverageRecords }} registros · {{ serviceCoveredHours(service) }} h</td>
-              <td>{{ service.pendingApprovals }} autorizaciones · {{ service.closedOperationDays }} cierres</td>
+              <th>Servicio</th>
+              <th>Turnos esperados</th>
+              <th>Asistencia</th>
+              <th>Retardos</th>
+              <th>Incidencias</th>
+              <th>Coberturas</th>
+              <th>Estado</th>
             </tr>
-          } @empty {
+          </thead>
+          <tbody>
+            @for (service of serviceSummaries(); track service.idService) {
+              <tr>
+                <td>
+                  <strong>{{ service.serviceName }}</strong>
+                  <small>{{ service.clientName }} · {{ service.codeService }}</small>
+                </td>
+                <td>{{ service.attendanceRecords || 'N/D' }}</td>
+                <td>{{ serviceAttendanceRate(service) }} <small>{{ service.presentAttendance }} presentes</small></td>
+                <td>{{ serviceTardinessRate(service) }} <small>{{ service.lateAttendance }} registros</small></td>
+                <td>{{ service.openIncidents }} abiertas · {{ service.criticalIncidents }} críticas</td>
+                <td>{{ service.coverageRecords }} registros · {{ serviceCoveredHours(service) }} h</td>
+                <td>
+                  <span
+                    class="soft-status"
+                    [class.warning]="serviceOperationalStatus(service) === 'Riesgo'"
+                    [class.neutral]="serviceOperationalStatus(service) === 'Sin datos'"
+                    [class.ok]="serviceOperationalStatus(service) === 'Estable'"
+                  >
+                    {{ serviceOperationalStatus(service) }}
+                  </span>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="7" class="empty">No hay servicios para el alcance seleccionado.</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </article>
+  }
+
+  @if (selectedReportType() === 'elegibilidad') {
+    <section class="report-grid report-grid--four" aria-label="Resumen de elegibilidad">
+      <article class="gi-card metric-card">
+        <span>Elegibles</span>
+        <strong>{{ eligibleEmployees() }}</strong>
+        <small>Personal con requisitos cumplidos</small>
+      </article>
+      <article class="gi-card metric-card danger-card">
+        <span>No elegibles</span>
+        <strong>{{ nonEligibleEmployees() }}</strong>
+        <small>Requiere corrección</small>
+      </article>
+      <article class="gi-card metric-card warning-card">
+        <span>Sin reglas suficientes</span>
+        <strong>{{ insufficientRulesEmployees() }}</strong>
+        <small>No aprobar por omisión</small>
+      </article>
+      <article class="gi-card metric-card">
+        <span>Total empleados</span>
+        <strong>{{ eligibilityRows().length }}</strong>
+        <small>En el alcance actual</small>
+      </article>
+    </section>
+
+    <article class="gi-card report-panel">
+      <span class="eyebrow">Elegibilidad</span>
+      <h2>Reporte de elegibilidad</h2>
+      <div class="table-wrap">
+        <table class="gi-table">
+          <thead>
             <tr>
-              <td colspan="8" class="empty">No hay servicios para el alcance seleccionado.</td>
+              <th>Empleado</th>
+              <th>Puesto</th>
+              <th>Estado laboral</th>
+              <th>Expediente</th>
+              <th>Documentos</th>
+              <th>Habilidades</th>
+              <th>Elegibilidad</th>
+              <th>Motivos</th>
             </tr>
+          </thead>
+          <tbody>
+            @for (employee of eligibilityRows(); track employee.idEmployee) {
+              <tr [class.row-warning]="employee.status !== 'Elegible'">
+                <td>
+                  <strong>{{ employee.fullName }}</strong>
+                  <small>{{ employee.codeEmployee }}</small>
+                </td>
+                <td>{{ employee.jobTitle || 'Sin puesto' }}</td>
+                <td>Activo</td>
+                <td><span class="soft-status" [class.warning]="employee.fileStatus !== 'Completo'" [class.ok]="employee.fileStatus === 'Completo'">{{ employee.fileStatus }}</span></td>
+                <td><span class="soft-status" [class.warning]="employee.documentStatus !== 'Completo'" [class.ok]="employee.documentStatus === 'Completo'">{{ employee.documentStatus }}</span></td>
+                <td><span class="soft-status" [class.warning]="employee.skillStatus !== 'Completo'" [class.ok]="employee.skillStatus === 'Completo'">{{ employee.skillStatus }}</span></td>
+                <td><span class="soft-status" [class]="eligibilityStatusClass(employee.status)">{{ employee.status }}</span></td>
+                <td>{{ employee.reasons.join(' · ') }}</td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="8" class="empty">No hay personal para evaluar en este alcance.</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </article>
+  }
+
+  @if (selectedReportType() === 'alertas') {
+    <section class="report-panels">
+      <article class="gi-card report-panel">
+        <span class="eyebrow">Alertas operativas</span>
+        <h2>Severidad del periodo</h2>
+        <div class="severity-grid">
+          @for (alert of alertSeverityCards(); track alert.label) {
+            <article [class]="alert.className">
+              <strong>{{ alert.value }}</strong>
+              <span>{{ alert.label }}</span>
+              <small>{{ alert.detail }}</small>
+            </article>
           }
-        </tbody>
-      </table>
-    </div>
-  </article>
+        </div>
+      </article>
 
-  <article class="gi-card report-panel">
-    <span class="eyebrow">Elegibilidad</span>
-    <h2>Personal elegible / no elegible</h2>
-
-    <div class="table-wrap">
-      <table class="gi-table">
-        <thead>
-          <tr>
-            <th>Empleado</th>
-            <th>Puesto</th>
-            <th>Estado</th>
-            <th>Razones</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (employee of workforceEligibility(); track employee.idEmployee) {
-            <tr [class.row-warning]="!employee.isEligible">
-              <td>
-                <strong>{{ employee.codeEmployee }}</strong>
-                <small>{{ employee.fullName }}</small>
-              </td>
-              <td>{{ employee.jobTitle || 'Sin puesto' }}</td>
-              <td>
-                <span [class]="employee.isEligible ? 'soft-status ok' : 'soft-status warning'">
-                  {{ employee.isEligible ? 'Elegible' : 'No elegible' }}
+      <article class="gi-card report-panel">
+        <span class="eyebrow">Distribución</span>
+        <h2>Distribución del periodo</h2>
+        @if (hasTurnDenominator()) {
+          <div class="bar-list" aria-label="Distribución de asistencia">
+            @for (item of attendanceDistribution(); track item.label) {
+              <div class="bar-row">
+                <header>
+                  <span>{{ item.label }}</span>
+                  <strong>{{ item.value }} · {{ rateDisplay(item.percentage) }}</strong>
+                </header>
+                <span class="bar-track">
+                  <span
+                    class="bar-fill"
+                    [class.is-ok]="item.className === 'is-ok'"
+                    [class.is-warning]="item.className === 'is-warning'"
+                    [class.is-danger]="item.className === 'is-danger'"
+                    [class.is-info]="item.className === 'is-info'"
+                    [style.width.%]="barWidth(item.percentage)"
+                  ></span>
                 </span>
-              </td>
-              <td>{{ employee.reasons.join(' · ') }}</td>
-            </tr>
-          } @empty {
-            <tr>
-              <td colspan="4" class="empty">No hay personal para evaluar.</td>
-            </tr>
+              </div>
+            }
+          </div>
+        } @else {
+          <div class="gi-empty-state">
+            <h3>Datos insuficientes para graficar</h3>
+            <p>No hay turnos esperados para calcular distribución de asistencia, ausentismo o retardos.</p>
+          </div>
+        }
+      </article>
+    </section>
+
+    <section class="report-grid report-grid--four severity-summary" aria-label="Resumen de distribución">
+      <article class="gi-card metric-card">
+        <span>Incidencias</span>
+        <strong>{{ summary()?.incidents ?? 0 }}</strong>
+        <small>{{ summary()?.criticalIncidents ?? 0 }} críticas</small>
+      </article>
+      <article class="gi-card metric-card" [class.is-na]="!hasTurnDenominator()">
+        <span>Ausencias</span>
+        <strong>{{ hasTurnDenominator() ? summary()?.absentAttendance : 'N/D' }}</strong>
+        <small>{{ turnDenominatorLabel() }}</small>
+      </article>
+      <article class="gi-card metric-card" [class.is-na]="!hasTurnDenominator()">
+        <span>Retardos</span>
+        <strong>{{ hasTurnDenominator() ? summary()?.lateAttendance : 'N/D' }}</strong>
+        <small>{{ turnDenominatorLabel() }}</small>
+      </article>
+      <article class="gi-card metric-card">
+        <span>Coberturas</span>
+        <strong>{{ pendingCoverages() }}</strong>
+        <small>Pendientes</small>
+      </article>
+    </section>
+  }
+
+  @if (selectedReportType() === 'exportacion') {
+    <section class="report-panels export-workspace">
+      <article class="gi-card report-panel">
+        <span class="eyebrow">Exportación operativa</span>
+        <h2>Configuración de exportación</h2>
+        <p class="panel-copy">Selecciona formato y confirma el alcance antes de generar el archivo.</p>
+
+        <div class="export-format-grid" aria-label="Formato de exportación">
+          @for (format of exportFormats; track format) {
+            <button
+              type="button"
+              class="export-format"
+              [class.is-active]="selectedExportFormat() === format"
+              (click)="selectExportFormat(format)"
+            >
+              <strong>{{ exportFormatLabel(format) }}</strong>
+              <span>
+                @if (format === 'csv') {
+                  Archivo de texto para análisis
+                } @else if (format === 'xlsx') {
+                  Hoja de cálculo recomendada
+                } @else {
+                  Documento para presentación
+                }
+              </span>
+            </button>
           }
-        </tbody>
-      </table>
-    </div>
-  </article>
+        </div>
+
+        <div class="export-options">
+          <strong>Contenido incluido</strong>
+          @for (option of exportOptions; track option) {
+            <label>
+              <input type="checkbox" checked disabled />
+              {{ option }}
+            </label>
+          }
+        </div>
+
+        <p class="soft-ok">La exportación se generará con los filtros y el alcance actuales. No se descarga automáticamente.</p>
+
+        <div class="form-actions">
+          <button class="gi-button gi-button--secondary" type="button" (click)="selectReportType('resumen')">Cancelar</button>
+          <button class="gi-button gi-button--primary" type="button" [disabled]="!summary() || exporting()" (click)="exportReport()">
+            {{ exporting() ? 'Generando…' : 'Generar exportación' }}
+          </button>
+        </div>
+      </article>
+
+      <article class="gi-card report-panel export-preview">
+        <span class="eyebrow">Vista previa</span>
+        <h2>{{ suggestedFileName() }}</h2>
+        <dl>
+          <div><dt>Formato</dt><dd>{{ exportFormatLabel(selectedExportFormat()) }}</dd></div>
+          <div><dt>Alcance</dt><dd>{{ filterScopeLabel() }}</dd></div>
+          <div><dt>Periodo</dt><dd>{{ periodLabel() }}</dd></div>
+          <div><dt>Generado por</dt><dd>Administrador GestIA</dd></div>
+          <div><dt>Zona horaria</dt><dd>{{ timezoneLabel() }}</dd></div>
+          <div><dt>Datos N/D</dt><dd>{{ hasTurnDenominator() ? 'No aplica' : 'Incluye explicación por falta de turnos esperados' }}</dd></div>
+        </dl>
+      </article>
+    </section>
+  }
+
+  @if (showDefinitions()) {
+    <aside class="definitions-drawer" aria-label="Definiciones de métricas">
+      <button type="button" class="drawer-close" (click)="toggleDefinitions()">×</button>
+      <span class="eyebrow">Definiciones de métricas</span>
+      <h2>Cómo se calcula cada indicador</h2>
+      <div class="definition-list">
+        @for (definition of metricDefinitions; track definition.label) {
+          <article>
+            <strong>{{ definition.label }}</strong>
+            <span>{{ definition.formula }}</span>
+          </article>
+        }
+      </div>
+      <p class="soft-alert">N/D no es cero: significa que falta un denominador suficiente, por ejemplo turnos esperados.</p>
+    </aside>
+  }
 </section>

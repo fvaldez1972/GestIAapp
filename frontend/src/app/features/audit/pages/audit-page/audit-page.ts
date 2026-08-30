@@ -1,6 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { AuthService } from '../../../../core/auth/auth.service';
 import { ClientApiService } from '../../../clients/data-access/client-api.service';
 import { Organization } from '../../../clients/data-access/client.models';
 import { AuditApiService } from '../../data-access/audit-api.service';
@@ -15,6 +16,7 @@ import { AuditEvent, AuditResult } from '../../data-access/audit.models';
 })
 export class AuditPage implements OnInit {
   private readonly api = inject(AuditApiService);
+  private readonly auth = inject(AuthService);
   private readonly clientApi = inject(ClientApiService);
 
   protected readonly organizations = signal<readonly Organization[]>([]);
@@ -22,7 +24,12 @@ export class AuditPage implements OnInit {
   protected readonly entities = signal<readonly string[]>([]);
   protected readonly selectedOrganizationId = signal('');
   protected readonly selectedEntity = signal('');
+  protected readonly selectedActor = signal('');
+  protected readonly selectedAction = signal('');
+  protected readonly selectedResult = signal<AuditResultFilter>('');
   protected readonly selectedEventKey = signal('');
+  protected readonly showExportConfig = signal(false);
+  protected readonly selectedTimelineFilter = signal<TimelineFilter>('all');
   protected readonly search = signal('');
   protected readonly fromDate = signal('');
   protected readonly toDate = signal('');
@@ -35,15 +42,80 @@ export class AuditPage implements OnInit {
   protected readonly error = signal('');
 
   protected readonly latestEvent = computed(() => this.events()[0] ?? null);
+  protected readonly visibleEvents = computed(() => {
+    const search = this.search().trim().toLowerCase();
+
+    return this.events().filter((event) => {
+      const matchesSearch =
+        !search ||
+        [
+          event.entity,
+          event.entityName,
+          event.recordId,
+          event.actorName,
+          event.action,
+          event.details ?? '',
+        ].some((value) => this.translateText(value).toLowerCase().includes(search));
+      const matchesActor = !this.selectedActor() || event.actorName === this.selectedActor();
+      const matchesAction = !this.selectedAction() || this.actionLabel(event.action) === this.selectedAction();
+      const matchesResult = !this.selectedResult() || this.resultStatus(event) === this.selectedResult();
+
+      return matchesSearch && matchesActor && matchesAction && matchesResult;
+    });
+  });
   protected readonly selectedEvent = computed(
     () => this.events().find((event) => this.eventKey(event) === this.selectedEventKey()) ?? null,
   );
-  protected readonly updateCount = computed(
-    () => this.events().filter((event) => event.action === 'Actualización').length,
+  protected readonly actorOptions = computed(() =>
+    [...new Set(this.events().map((event) => event.actorName).filter(Boolean))].sort((left, right) => left.localeCompare(right, 'es-MX')),
   );
-  protected readonly deactivationCount = computed(
-    () => this.events().filter((event) => event.action === 'Baja lógica').length,
+  protected readonly actionOptions = computed(() =>
+    [...new Set(this.events().map((event) => this.actionLabel(event.action)))].sort((left, right) => left.localeCompare(right, 'es-MX')),
   );
+  protected readonly createCount = computed(() =>
+    this.visibleEvents().filter((event) => this.actionLabel(event.action) === 'Alta').length,
+  );
+  protected readonly updateCount = computed(() =>
+    this.visibleEvents().filter((event) => this.actionLabel(event.action) === 'Actualización').length,
+  );
+  protected readonly deactivationCount = computed(() =>
+    this.visibleEvents().filter((event) => ['Baja', 'Baja lógica', 'Eliminación'].includes(this.actionLabel(event.action))).length,
+  );
+  protected readonly failedCount = computed(() =>
+    this.visibleEvents().filter((event) => this.resultStatus(event) === 'failed').length,
+  );
+  protected readonly selectedDiffRows = computed(() => {
+    const event = this.selectedEvent();
+    return event ? this.diffRows(event) : [];
+  });
+  protected readonly selectedTimeline = computed(() => {
+    const event = this.selectedEvent();
+
+    if (!event) {
+      return [];
+    }
+
+    return this.events()
+      .filter((item) => item.entity === event.entity && item.recordId === event.recordId)
+      .filter((item) => {
+        switch (this.selectedTimelineFilter()) {
+          case 'success':
+            return this.resultStatus(item) === 'success';
+          case 'failed':
+            return this.resultStatus(item) === 'failed';
+          case 'status':
+            return this.diffRows(item).some((row) => row.field.toLowerCase().includes('estado'));
+          default:
+            return true;
+        }
+      })
+      .sort((left, right) => new Date(right.occurredAt).getTime() - new Date(left.occurredAt).getTime());
+  });
+  protected readonly selectedOrganizationName = computed(
+    () => this.organizations().find((organization) => organization.idOrganization === this.selectedOrganizationId())?.legalName ?? 'Sin organización',
+  );
+  protected readonly exportingUserName = computed(() => this.auth.displayName() || 'Usuario actual');
+  protected readonly exportFileName = computed(() => `gestia-bitacora-${this.selectedEntity() || 'todas'}-${this.today()}.csv`);
 
   ngOnInit() {
     this.loadOrganizations();
@@ -59,6 +131,21 @@ export class AuditPage implements OnInit {
     this.selectedEntity.set(value);
     this.page.set(1);
     this.loadEvents();
+  }
+
+  protected onActorChange(value: string) {
+    this.selectedActor.set(value);
+    this.selectedEventKey.set('');
+  }
+
+  protected onActionChange(value: string) {
+    this.selectedAction.set(value);
+    this.selectedEventKey.set('');
+  }
+
+  protected onResultChange(value: AuditResultFilter) {
+    this.selectedResult.set(value);
+    this.selectedEventKey.set('');
   }
 
   protected onSearchChange(value: string) {
@@ -84,9 +171,13 @@ export class AuditPage implements OnInit {
 
   protected clearFilters() {
     this.selectedEntity.set('');
+    this.selectedActor.set('');
+    this.selectedAction.set('');
+    this.selectedResult.set('');
     this.search.set('');
     this.fromDate.set('');
     this.toDate.set('');
+    this.selectedEventKey.set('');
     this.page.set(1);
     this.loadEvents();
   }
@@ -102,6 +193,7 @@ export class AuditPage implements OnInit {
 
   protected selectEvent(event: AuditEvent) {
     this.selectedEventKey.set(this.eventKey(event));
+    this.selectedTimelineFilter.set('all');
   }
 
   protected closeEventDetail() {
@@ -109,15 +201,38 @@ export class AuditPage implements OnInit {
   }
 
   protected actionClass(action: string) {
-    if (action === 'Alta') {
+    const cleanAction = this.actionLabel(action);
+
+    if (cleanAction === 'Alta') {
       return 'status-created';
     }
 
-    if (action === 'Baja lógica') {
+    if (['Baja', 'Baja lógica', 'Eliminación'].includes(cleanAction)) {
       return 'status-deactivated';
     }
 
     return 'status-updated';
+  }
+
+  protected actionLabel(action: string) {
+    const labels: Record<string, string> = {
+      Create: 'Alta',
+      Created: 'Alta',
+      Insert: 'Alta',
+      Add: 'Alta',
+      Update: 'Actualización',
+      Updated: 'Actualización',
+      Edit: 'Actualización',
+      Publish: 'Publicación',
+      Published: 'Publicación',
+      StatusChange: 'Cambio de estado',
+      Delete: 'Eliminación',
+      Deactivate: 'Baja lógica',
+      Deactivated: 'Baja lógica',
+      Baja: 'Baja lógica',
+    };
+
+    return labels[action] ?? this.translateText(action);
   }
 
   protected entityLabel(entity: string) {
@@ -153,6 +268,10 @@ export class AuditPage implements OnInit {
   }
 
   protected formatDateTime(value: string) {
+    if (!value) {
+      value = new Date().toISOString();
+    }
+
     return new Intl.DateTimeFormat('es-MX', {
       dateStyle: 'medium',
       timeStyle: 'short',
@@ -164,15 +283,177 @@ export class AuditPage implements OnInit {
       return 'Sin detalle adicional';
     }
 
-    return value.length > 120 ? `${value.slice(0, 117)}…` : value;
+    const translated = this.translateText(value);
+    return translated.length > 120 ? `${translated.slice(0, 117)}…` : translated;
+  }
+
+  protected translateText(value: string | null | undefined) {
+    if (!value) {
+      return '';
+    }
+
+    return String(value)
+      .replaceAll('OperationalRequest', 'Solicitud operativa')
+      .replaceAll('BusinessDocument', 'Documento')
+      .replaceAll('AttendanceRecord', 'Registro de asistencia')
+      .replaceAll('CoverageRecord', 'Cobertura')
+      .replaceAll('ServiceConfiguration', 'Configuración de servicio')
+      .replaceAll('ScheduleVersion', 'Versión de planeación')
+      .replaceAll('Created', 'Creado')
+      .replaceAll('Create', 'Alta')
+      .replaceAll('Updated', 'Actualizado')
+      .replaceAll('Update', 'Actualización')
+      .replaceAll('Deleted', 'Eliminado')
+      .replaceAll('Delete', 'Eliminación')
+      .replaceAll('Published', 'Publicado')
+      .replaceAll('Draft', 'Borrador')
+      .replaceAll('Superseded', 'Reemplazado')
+      .replaceAll('Active', 'Activo')
+      .replaceAll('Inactive', 'Inactivo')
+      .replaceAll('Pending', 'Pendiente')
+      .replaceAll('Open', 'Abierto')
+      .replaceAll('Closed', 'Cerrado')
+      .replaceAll('Resolved', 'Resuelto')
+      .replaceAll('Cancelled', 'Cancelado')
+      .replaceAll('Canceled', 'Cancelado')
+      .replaceAll('Completed', 'Completado')
+      .replaceAll('Approved', 'Aprobado')
+      .replaceAll('Rejected', 'Rechazado')
+      .replaceAll('Critical', 'Crítico')
+      .replaceAll('High', 'Alta')
+      .replaceAll('Medium', 'Media')
+      .replaceAll('Low', 'Baja')
+      .replaceAll('Client', 'Cliente')
+      .replaceAll('Employee', 'Empleado')
+      .replaceAll('Service', 'Servicio')
+      .replaceAll('Contract', 'Contrato')
+      .replaceAll('Request', 'Solicitud')
+      .replaceAll('_', ' ')
+      .trim();
+  }
+
+  protected diffRows(event: AuditEvent): readonly AuditDiffRow[] {
+    const details = this.translateText(event.details);
+    const rows: AuditDiffRow[] = [];
+
+    if (this.actionLabel(event.action) === 'Alta') {
+      rows.push(
+        { field: 'Registro', before: null, after: this.translateText(event.entityName) },
+        { field: 'Estado', before: null, after: event.active ? 'Activo' : 'Inactivo' },
+      );
+    } else if (['Baja', 'Baja lógica', 'Eliminación'].includes(this.actionLabel(event.action))) {
+      rows.push(
+        { field: 'Estado', before: 'Activo', after: event.active ? 'Activo' : 'Inactivo', deleted: !event.active },
+        { field: 'Registro', before: this.translateText(event.entityName), after: event.active ? this.translateText(event.entityName) : 'Baja lógica' },
+      );
+    } else {
+      rows.push(
+        { field: 'Actualización', before: 'Valor anterior no enviado por la API', after: details || 'Cambio confirmado' },
+        { field: 'Estado actual', before: null, after: event.active ? 'Activo' : 'Inactivo' },
+      );
+    }
+
+    if (details && !rows.some((row) => row.after === details)) {
+      rows.push({ field: 'Detalle auditado', before: null, after: details });
+    }
+
+    if (this.resultStatus(event) === 'failed') {
+      rows.push({ field: 'Resultado', before: 'Pendiente', after: 'Fallido' });
+    }
+
+    return rows;
   }
 
   protected auditSentence(event: AuditEvent) {
-    return `${event.actorName} registró ${event.action.toLowerCase()} en ${this.entityLabel(event.entity)}.`;
+    const action = this.actionLabel(event.action).toLowerCase();
+    return `${event.actorName} registró ${action} sobre ${this.entityLabel(event.entity)}: ${event.entityName}.`;
   }
 
   protected resultLabel(event: AuditEvent) {
-    return event.active ? 'Registro activo después del movimiento' : 'Registro inactivo después del movimiento';
+    return this.resultStatus(event) === 'failed' ? 'Fallido' : 'Éxito';
+  }
+
+  protected resultDescription(event: AuditEvent) {
+    if (this.resultStatus(event) === 'failed') {
+      return this.compactDetails(event.details) || 'El evento no pudo completarse.';
+    }
+
+    return event.active ? 'Confirmado' : 'Registro inactivo después del evento';
+  }
+
+  protected resultStatus(event: AuditEvent): AuditResultFilter {
+    const text = `${event.action} ${event.details ?? ''}`.toLowerCase();
+    return /fall|error|failed|exception|no se pudo|rechaz/.test(text) ? 'failed' : 'success';
+  }
+
+  protected resultClass(event: AuditEvent) {
+    return this.resultStatus(event) === 'failed' ? 'result-failed' : 'result-success';
+  }
+
+  protected originLabel(event: AuditEvent) {
+    const text = `${event.details ?? ''} ${event.action}`.toLowerCase();
+
+    if (text.includes('import')) {
+      return 'Importación';
+    }
+
+    if (text.includes('api')) {
+      return 'API';
+    }
+
+    if (text.includes('autom')) {
+      return 'Proceso automático';
+    }
+
+    return 'Interfaz web';
+  }
+
+  protected correlationId(event: AuditEvent) {
+    let hash = 0;
+    const key = this.eventKey(event);
+
+    for (let index = 0; index < key.length; index += 1) {
+      hash = (hash * 31 + key.charCodeAt(index)) >>> 0;
+    }
+
+    return hash.toString(16).padStart(8, '0');
+  }
+
+  protected snapshotReference(event: AuditEvent) {
+    return `${this.entityLabel(event.entity).slice(0, 3).toUpperCase()}-${this.compactRecordId(event.recordId)}-${this.correlationId(event)}`;
+  }
+
+  protected currentObjectStatus(event: AuditEvent) {
+    return event.active ? 'Disponible para consulta' : 'Inactivo o eliminado lógicamente';
+  }
+
+  protected setTimelineFilter(filter: TimelineFilter) {
+    this.selectedTimelineFilter.set(filter);
+  }
+
+  protected openExportConfig() {
+    this.showExportConfig.set(true);
+  }
+
+  protected closeExportConfig() {
+    this.showExportConfig.set(false);
+  }
+
+  protected copyReference() {
+    const event = this.selectedEvent();
+    if (!event) {
+      return;
+    }
+
+    void navigator.clipboard?.writeText(this.snapshotReference(event));
+  }
+
+  protected valueLabel(value: string | null | undefined) {
+    if (!value || value === 'null' || value === 'undefined') {
+      return 'Sin valor anterior';
+    }
+
+    return this.translateText(String(value));
   }
 
   protected detailLines(value: string | null) {
@@ -184,6 +465,7 @@ export class AuditPage implements OnInit {
       .split(/\r?\n|;|\|/g)
       .map((line) => line.trim())
       .filter(Boolean)
+      .map((line) => this.translateText(line))
       .slice(0, 8);
   }
 
@@ -209,7 +491,10 @@ export class AuditPage implements OnInit {
         this.toDate(),
       )
       .subscribe({
-        next: (blob) => this.downloadBlob(blob, `gestia-auditoria-${this.selectedEntity() || 'todas'}.csv`),
+        next: (blob) => {
+          this.downloadBlob(blob, this.exportFileName());
+          this.showExportConfig.set(false);
+        },
         error: (error: HttpErrorResponse) => this.setError(error, 'No se pudo exportar la auditoría.'),
         complete: () => this.exporting.set(false),
       });
@@ -290,4 +575,20 @@ export class AuditPage implements OnInit {
       .replaceAll('_', ' ')
       .trim();
   }
+
+  private today() {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Mexico_City',
+    }).format(new Date());
+  }
 }
+
+type AuditResultFilter = '' | 'success' | 'failed';
+type TimelineFilter = 'all' | 'success' | 'failed' | 'status';
+
+type AuditDiffRow = {
+  readonly field: string;
+  readonly before: string | null;
+  readonly after: string | null;
+  readonly deleted?: boolean;
+};

@@ -15,6 +15,8 @@ type PermissionGroup = {
 };
 
 type SecurityTab = 'users' | 'roles' | 'permissions' | 'organizations' | 'memberships';
+type AccessWizardStep = 1 | 2 | 3 | 4 | 5;
+type PermissionAction = 'Leer' | 'Crear' | 'Editar' | 'Eliminar' | 'Aprobar' | 'Administrar';
 
 type MembershipRow = {
   readonly user: SecurityUser;
@@ -49,6 +51,13 @@ export class SecurityPage implements OnInit {
   protected readonly statusFilter = signal<'all' | 'active' | 'inactive'>('all');
   protected readonly roleFilter = signal('');
   protected readonly organizationFilter = signal('');
+  protected readonly lastAccessFilter = signal<'all' | 'recent' | 'withoutAccess'>('all');
+  protected readonly showAccessWizard = signal(false);
+  protected readonly accessWizardStep = signal<AccessWizardStep>(1);
+  protected readonly wizardMode = signal<'newUser' | 'membership'>('newUser');
+  protected readonly sensitiveAcknowledged = signal(false);
+  protected readonly sensitiveConfirmationText = signal('');
+  protected readonly sensitiveReason = signal('');
 
   protected readonly canAdministerSecurity = computed(() => this.auth.hasPermission('PLATFORM.ADMIN'));
   protected readonly selectedUser = computed(
@@ -59,14 +68,20 @@ export class SecurityPage implements OnInit {
   );
   protected readonly systemRoles = computed(() => this.roles().filter((role) => role.isSystem).length);
   protected readonly activeUsers = computed(() => this.users().filter((user) => user.active).length);
+  protected readonly criticalAlertCount = computed(() =>
+    this.users().filter((user) => this.isProtectedAdministrator(user)).length <= 1 ? 1 : 0,
+  );
   protected readonly membershipCount = computed(() =>
     this.users().reduce((total, user) => total + user.roles.length, 0),
   );
+  protected readonly currentOrganizationName = computed(() => this.auth.activeOrganization()?.legalName ?? this.organizations()[0]?.legalName ?? 'Sin organización');
   protected readonly filteredUsers = computed(() => {
     const search = this.userSearch().trim().toLowerCase();
     const status = this.statusFilter();
     const roleId = this.roleFilter();
     const organizationId = this.organizationFilter();
+    const lastAccess = this.lastAccessFilter();
+    const now = Date.now();
 
     return this.users().filter((user) => {
       const matchesSearch =
@@ -78,8 +93,13 @@ export class SecurityPage implements OnInit {
       const matchesRole = !roleId || user.roles.some((role) => role.idRole === roleId);
       const matchesOrganization =
         !organizationId || user.organizations.some((organization) => organization.idOrganization === organizationId);
+      const matchesLastAccess =
+        lastAccess === 'all' ||
+        (lastAccess === 'withoutAccess'
+          ? !user.lastLoginAt
+          : Boolean(user.lastLoginAt && now - new Date(user.lastLoginAt).getTime() <= 1000 * 60 * 60 * 24 * 30));
 
-      return matchesSearch && matchesStatus && matchesRole && matchesOrganization;
+      return matchesSearch && matchesStatus && matchesRole && matchesOrganization && matchesLastAccess;
     });
   });
   protected readonly membershipRows = computed<readonly MembershipRow[]>(() =>
@@ -97,6 +117,56 @@ export class SecurityPage implements OnInit {
     return Array.from(groups.entries())
       .map(([module, permissions]) => ({ module, permissions }))
       .sort((first, second) => first.module.localeCompare(second.module));
+  });
+  protected readonly selectedRolePermissionGroups = computed<readonly PermissionGroup[]>(() => {
+    const role = this.selectedRole();
+    if (!role) {
+      return [];
+    }
+
+    return this.groupPermissions(role.permissions);
+  });
+  protected readonly selectedWizardRole = computed(() => {
+    const idRole = this.wizardMode() === 'newUser'
+      ? this.createUserForm.controls.idRole.value
+      : this.accessForm.controls.idRole.value;
+
+    return this.roles().find((role) => role.idRole === idRole) ?? null;
+  });
+  protected readonly wizardEffectivePermissions = computed<readonly SecurityPermission[]>(() => this.selectedWizardRole()?.permissions ?? []);
+  protected readonly wizardEffectiveGroups = computed<readonly PermissionGroup[]>(() => this.groupPermissions(this.wizardEffectivePermissions()));
+  protected readonly permissionMatrixRows = computed(() => {
+    const moduleOrder = ['Inicio', 'Clientes', 'Solicitudes', 'Personal', 'Documentos', 'Catálogos', 'Planeación', 'Operación', 'Reportes', 'Auditoría', 'Seguridad'];
+    const actions: readonly PermissionAction[] = ['Leer', 'Crear', 'Editar', 'Eliminar', 'Aprobar', 'Administrar'];
+    const selectedCodes = new Set(this.wizardEffectivePermissions().map((permission) => permission.codePermission));
+
+    return moduleOrder.map((module) => ({
+      module,
+      actions: actions.map((action) => ({
+        action,
+        checked: this.permissions().some((permission) =>
+          this.permissionModuleLabel(permission.module) === module &&
+          this.permissionActionLabel(permission) === action &&
+          selectedCodes.has(permission.codePermission),
+        ),
+      })),
+    }));
+  });
+  protected readonly selectedWizardOrganizationName = computed(() => {
+    const idOrganization = this.wizardMode() === 'newUser'
+      ? this.createUserForm.controls.idOrganization.value
+      : this.accessForm.controls.idOrganization.value;
+
+    return this.organizationLabel(idOrganization);
+  });
+  protected readonly wizardIsSensitive = computed(() => this.selectedAccessRoleIsSensitive(this.selectedWizardRole()?.idRole ?? ''));
+  protected readonly sensitiveConfirmationComplete = computed(() =>
+    !this.wizardIsSensitive() ||
+    (this.sensitiveAcknowledged() && this.sensitiveConfirmationText().trim().toUpperCase() === 'ADMINISTRADOR' && this.sensitiveReason().trim().length >= 8),
+  );
+  protected readonly canFinishAccessWizard = computed(() => {
+    const formValid = this.wizardMode() === 'newUser' ? this.createUserForm.valid : Boolean(this.selectedUser()) && this.accessForm.valid;
+    return formValid && Boolean(this.selectedWizardRole()) && this.sensitiveConfirmationComplete() && !this.saving();
   });
   protected readonly selectedUserPermissionGroups = computed<readonly PermissionGroup[]>(() => {
     const user = this.selectedUser();
@@ -218,6 +288,82 @@ export class SecurityPage implements OnInit {
     this.organizationFilter.set((event.target as HTMLSelectElement).value);
   }
 
+  protected onLastAccessFilter(event: Event) {
+    this.lastAccessFilter.set((event.target as HTMLSelectElement).value as 'all' | 'recent' | 'withoutAccess');
+  }
+
+  protected clearUserFilters() {
+    this.userSearch.set('');
+    this.statusFilter.set('all');
+    this.roleFilter.set('');
+    this.organizationFilter.set('');
+    this.lastAccessFilter.set('all');
+  }
+
+  protected openAccessWizard(mode: 'newUser' | 'membership' = 'newUser') {
+    this.wizardMode.set(mode);
+    this.accessWizardStep.set(1);
+    this.sensitiveAcknowledged.set(false);
+    this.sensitiveConfirmationText.set('');
+    this.sensitiveReason.set('');
+    this.error.set('');
+
+    const safeRoleId = this.defaultSafeRoleId();
+    const organizationId = this.auth.activeOrganizationId() || this.organizations()[0]?.idOrganization || '';
+
+    if (mode === 'newUser') {
+      this.createUserForm.patchValue({
+        idOrganization: organizationId,
+        idRole: safeRoleId,
+        membershipLabel: 'Acceso básico',
+      });
+    } else {
+      this.accessForm.patchValue({
+        idOrganization: organizationId,
+        idRole: safeRoleId,
+        membershipLabel: 'Acceso básico',
+      });
+    }
+
+    this.showAccessWizard.set(true);
+  }
+
+  protected closeAccessWizard() {
+    this.showAccessWizard.set(false);
+    this.accessWizardStep.set(1);
+    this.sensitiveAcknowledged.set(false);
+    this.sensitiveConfirmationText.set('');
+    this.sensitiveReason.set('');
+  }
+
+  protected nextAccessWizardStep() {
+    if (!this.accessWizardStepIsValid()) {
+      this.markWizardStepTouched();
+      this.error.set('Faltan datos para avanzar.');
+      return;
+    }
+
+    this.error.set('');
+    this.accessWizardStep.set(Math.min(this.accessWizardStep() + 1, 5) as AccessWizardStep);
+  }
+
+  protected previousAccessWizardStep() {
+    this.error.set('');
+    this.accessWizardStep.set(Math.max(this.accessWizardStep() - 1, 1) as AccessWizardStep);
+  }
+
+  protected onSensitiveAcknowledgement(event: Event) {
+    this.sensitiveAcknowledged.set((event.target as HTMLInputElement).checked);
+  }
+
+  protected onSensitiveConfirmationText(event: Event) {
+    this.sensitiveConfirmationText.set((event.target as HTMLInputElement).value);
+  }
+
+  protected onSensitiveReason(event: Event) {
+    this.sensitiveReason.set((event.target as HTMLTextAreaElement).value);
+  }
+
   protected selectUser(user: SecurityUser) {
     this.selectedUserId.set(user.idUser);
     this.editUserForm.reset({
@@ -269,10 +415,8 @@ export class SecurityPage implements OnInit {
     }
 
     const form = this.createUserForm.getRawValue();
-    if (
-      this.selectedAccessRoleIsSensitive(form.idRole) &&
-      !window.confirm('El rol seleccionado permite administrar usuarios, roles y permisos. ¿Deseas crear este acceso administrativo?')
-    ) {
+    if (this.selectedAccessRoleIsSensitive(form.idRole) && !this.sensitiveConfirmationComplete()) {
+      this.error.set('Confirma el rol administrador antes de crear el acceso.');
       return;
     }
 
@@ -292,6 +436,7 @@ export class SecurityPage implements OnInit {
           this.message.set('Usuario creado correctamente.');
           this.selectedUserId.set(user.idUser);
           this.createUserForm.patchValue({ email: '', displayName: '', password: '' });
+          this.closeAccessWizard();
           this.loadSecurity();
         },
         error: (error: HttpErrorResponse) => this.setError(error, 'No se pudo crear el usuario.'),
@@ -308,10 +453,8 @@ export class SecurityPage implements OnInit {
     }
 
     const form = this.accessForm.getRawValue();
-    if (
-      this.selectedAccessRoleIsSensitive(form.idRole) &&
-      !window.confirm(`${user.displayName} recibirá permisos para administrar usuarios, roles y permisos. ¿Deseas continuar?`)
-    ) {
+    if (this.selectedAccessRoleIsSensitive(form.idRole) && !this.sensitiveConfirmationComplete()) {
+      this.error.set('Confirma el rol administrador antes de asignar el acceso.');
       return;
     }
 
@@ -326,6 +469,7 @@ export class SecurityPage implements OnInit {
       .subscribe({
         next: () => {
           this.message.set('Acceso asignado correctamente.');
+          this.closeAccessWizard();
           this.loadSecurity();
         },
         error: (error: HttpErrorResponse) => this.setError(error, 'No se pudo asignar el acceso.'),
@@ -341,7 +485,12 @@ export class SecurityPage implements OnInit {
       return;
     }
 
-    if (!window.confirm(`${user.displayName} tendrá una nueva contraseña temporal. ¿Deseas continuar?`)) {
+    if (this.sensitiveReason().trim().length < 8) {
+      this.error.set('Indica el motivo para cambiar la contraseña.');
+      return;
+    }
+
+    if (!window.confirm(`${user.displayName} tendrá una nueva contraseña temporal. El cambio quedará registrado en Auditoría. ¿Deseas continuar?`)) {
       return;
     }
 
@@ -360,6 +509,16 @@ export class SecurityPage implements OnInit {
   }
 
   protected deactivateUser(user: SecurityUser) {
+    if (this.isLastAdministrator(user)) {
+      this.error.set('No puedes retirar o desactivar el último administrador. Asigna otro administrador antes de continuar.');
+      return;
+    }
+
+    if (this.sensitiveReason().trim().length < 8) {
+      this.error.set('Indica el motivo para desactivar el usuario.');
+      return;
+    }
+
     if (!window.confirm(`${user.displayName} perderá acceso al portal GestIA. ¿Deseas desactivar este usuario?`)) {
       return;
     }
@@ -399,6 +558,16 @@ export class SecurityPage implements OnInit {
     const user = this.selectedUser();
 
     if (!user || !role.idOrganization) {
+      return;
+    }
+
+    if (this.isAdministratorRole(role) && this.isLastAdministrator(user)) {
+      this.error.set('No puedes retirar o desactivar el último administrador. Asigna otro administrador antes de continuar.');
+      return;
+    }
+
+    if (this.sensitiveReason().trim().length < 8) {
+      this.error.set('Indica el motivo para retirar este acceso.');
       return;
     }
 
@@ -468,6 +637,39 @@ export class SecurityPage implements OnInit {
     return Boolean(role?.permissions.some((permission) => permission.codePermission === 'PLATFORM.ADMIN'));
   }
 
+  protected isAdministratorRole(role: SecurityRole | SecurityUser['roles'][number] | null | undefined) {
+    if (!role) {
+      return false;
+    }
+
+    if ('permissions' in role) {
+      return role.permissions.some((permission) => permission.codePermission === 'PLATFORM.ADMIN');
+    }
+
+    const sourceRole = this.roles().find((item) => item.idRole === role.idRole);
+    return Boolean(sourceRole?.permissions.some((permission) => permission.codePermission === 'PLATFORM.ADMIN'));
+  }
+
+  protected isProtectedAdministrator(user: SecurityUser) {
+    return user.active && user.roles.some((role) => this.isAdministratorRole(role));
+  }
+
+  protected isLastAdministrator(user: SecurityUser) {
+    return this.isProtectedAdministrator(user) && this.users().filter((item) => this.isProtectedAdministrator(item)).length <= 1;
+  }
+
+  protected protectionLabel(user: SecurityUser) {
+    if (this.isLastAdministrator(user)) {
+      return 'Último administrador';
+    }
+
+    if (this.isProtectedAdministrator(user)) {
+      return 'Administrador protegido';
+    }
+
+    return 'Sin protección especial';
+  }
+
   protected roleCodeLabel(codeRole: string) {
     return codeRole
       .replaceAll('_', ' ')
@@ -483,8 +685,11 @@ export class SecurityPage implements OnInit {
       Documents: 'Documentos',
       Operations: 'Operación',
       Organizations: 'Organizaciones',
+      Home: 'Inicio',
+      Overview: 'Inicio',
       Planning: 'Planeación',
-      Platform: 'Plataforma',
+      Platform: 'Seguridad',
+      Security: 'Seguridad',
       Reports: 'Reportes',
       Requests: 'Solicitudes',
       Workforce: 'Personal',
@@ -500,6 +705,7 @@ export class SecurityPage implements OnInit {
       VIEW: 'Consultar',
       CREATE: 'Crear',
       UPDATE: 'Editar',
+      WRITE: 'Editar',
       EDIT: 'Editar',
       DELETE: 'Eliminar',
       DEACTIVATE: 'Desactivar',
@@ -515,6 +721,21 @@ export class SecurityPage implements OnInit {
     };
 
     return labels[action] ?? this.roleCodeLabel(action);
+  }
+
+  protected finishAccessWizard() {
+    if (!this.canFinishAccessWizard()) {
+      this.markWizardStepTouched();
+      this.error.set(this.wizardIsSensitive() ? 'Completa la confirmación reforzada para continuar.' : 'Faltan datos para avanzar.');
+      return;
+    }
+
+    if (this.wizardMode() === 'newUser') {
+      this.createUser();
+      return;
+    }
+
+    this.assignAccess();
   }
 
   protected organizationLabel(organizationId: string | null) {
@@ -630,7 +851,70 @@ export class SecurityPage implements OnInit {
       },
       error: (error: HttpErrorResponse) => this.setError(error, 'No se pudo reactivar el rol.'),
       complete: () => this.saving.set(false),
-    });
+      });
+  }
+
+  private groupPermissions(permissions: readonly SecurityPermission[]) {
+    const groups = new Map<string, SecurityPermission[]>();
+
+    for (const permission of permissions) {
+      const label = this.permissionModuleLabel(permission.module);
+      const modulePermissions = groups.get(label) ?? [];
+      modulePermissions.push(permission);
+      groups.set(label, modulePermissions);
+    }
+
+    return Array.from(groups.entries())
+      .map(([module, modulePermissions]) => ({
+        module,
+        permissions: modulePermissions.sort((left, right) =>
+          this.permissionActionLabel(left).localeCompare(this.permissionActionLabel(right), 'es-MX'),
+        ),
+      }))
+      .sort((first, second) => first.module.localeCompare(second.module, 'es-MX'));
+  }
+
+  private defaultSafeRoleId() {
+    const safeRoles = this.roles().filter((role) => role.active && !this.isAdministratorRole(role));
+    return (
+      safeRoles.find((role) => /básico|basico|basic|lectura|consulta|operativo/i.test(`${role.name} ${role.codeRole}`))?.idRole ??
+      safeRoles[0]?.idRole ??
+      ''
+    );
+  }
+
+  private accessWizardStepIsValid() {
+    const step = this.accessWizardStep();
+
+    if (step === 1 && this.wizardMode() === 'newUser') {
+      return this.createUserForm.controls.displayName.valid &&
+        this.createUserForm.controls.email.valid &&
+        this.createUserForm.controls.password.valid;
+    }
+
+    if (step === 1 && this.wizardMode() === 'membership') {
+      return Boolean(this.selectedUser());
+    }
+
+    if (step === 2) {
+      const form = this.wizardMode() === 'newUser' ? this.createUserForm : this.accessForm;
+      return form.controls.idOrganization.valid && form.controls.idRole.valid;
+    }
+
+    if (step === 5) {
+      return this.sensitiveConfirmationComplete();
+    }
+
+    return true;
+  }
+
+  private markWizardStepTouched() {
+    if (this.wizardMode() === 'newUser') {
+      this.createUserForm.markAllAsTouched();
+      return;
+    }
+
+    this.accessForm.markAllAsTouched();
   }
 
   private beginSave() {
@@ -641,7 +925,7 @@ export class SecurityPage implements OnInit {
 
   private resetDefaults() {
     const organizationId = this.organizations()[0]?.idOrganization ?? '';
-    const roleId = this.roles()[0]?.idRole ?? '';
+    const roleId = this.defaultSafeRoleId();
 
     if (!this.createUserForm.getRawValue().idOrganization) {
       this.createUserForm.patchValue({ idOrganization: organizationId, idRole: roleId });

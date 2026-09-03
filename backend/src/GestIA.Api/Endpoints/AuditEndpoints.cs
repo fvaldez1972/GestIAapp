@@ -13,6 +13,7 @@ public static class AuditEndpoints
             .WithTags("Audit");
 
         group.MapGet("/events", async (
+            HttpContext context,
             Guid organizationId,
             string? entity,
             string? search,
@@ -23,6 +24,11 @@ public static class AuditEndpoints
             IAuditService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.SearchAsync(
                 new AuditQuery(
                     organizationId,
@@ -39,6 +45,7 @@ public static class AuditEndpoints
             .WithName("ListAuditEvents");
 
         group.MapGet("/events/export", async (
+            HttpContext context,
             Guid organizationId,
             string? entity,
             string? search,
@@ -47,6 +54,11 @@ public static class AuditEndpoints
             IAuditService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.SearchAsync(
                 new AuditQuery(
                     organizationId,

@@ -38,6 +38,20 @@ public sealed class Organization : AuditableEntity
         DateTime occurredAt) =>
         new(Guid.NewGuid(), codeOrganization, legalName, rfc, actorId, actorName, occurredAt);
 
+    public void UpdateProfile(
+        string codeOrganization,
+        string legalName,
+        string? rfc,
+        Guid actorId,
+        string actorName,
+        DateTime occurredAt)
+    {
+        CodeOrganization = Required(codeOrganization, nameof(codeOrganization));
+        LegalName = Required(legalName, nameof(legalName));
+        Rfc = Optional(rfc);
+        RegisterUpdate(actorId, actorName, occurredAt);
+    }
+
     private static string Required(string value, string parameterName)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(value, parameterName);

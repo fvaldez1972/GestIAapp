@@ -12,11 +12,17 @@ public static class ServiceManagementEndpoints
             .WithTags("Services");
 
         serviceGroup.MapGet("", async (
+            HttpContext context,
             Guid idClient,
             Guid organizationId,
             IServiceManagementService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var services = await service.ListServicesAsync(organizationId, idClient, cancellationToken);
             return Results.Ok(services);
         })
@@ -24,11 +30,17 @@ public static class ServiceManagementEndpoints
             .WithName("ListServices");
 
         serviceGroup.MapPost("", async (
+            HttpContext context,
             Guid idClient,
             CreateServiceRequest request,
             IServiceManagementService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, request.IdOrganization) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.CreateServiceAsync(request with { IdClient = idClient }, cancellationToken);
             return Results.Created($"/api/v1/clients/{idClient}/services/{result.IdService}", result);
         })
@@ -36,12 +48,18 @@ public static class ServiceManagementEndpoints
             .WithName("CreateService");
 
         serviceGroup.MapPut("/{idService:guid}", async (
+            HttpContext context,
             Guid idClient,
             Guid idService,
             UpdateServiceRequest request,
             IServiceManagementService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, request.IdOrganization) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.UpdateServiceAsync(
                 idService,
                 request with { IdClient = idClient },
@@ -52,12 +70,18 @@ public static class ServiceManagementEndpoints
             .WithName("UpdateService");
 
         serviceGroup.MapDelete("/{idService:guid}", async (
+            HttpContext context,
             Guid idClient,
             Guid idService,
             Guid organizationId,
             IServiceManagementService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             await service.DeactivateServiceAsync(organizationId, idClient, idService, cancellationToken);
             return Results.NoContent();
         })
@@ -65,12 +89,18 @@ public static class ServiceManagementEndpoints
             .WithName("DeactivateService");
 
         serviceGroup.MapGet("/{idService:guid}/configurations", async (
+            HttpContext context,
             Guid idClient,
             Guid idService,
             Guid organizationId,
             IServiceManagementService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var configurations = await service.ListConfigurationsAsync(
                 organizationId,
                 idClient,
@@ -82,12 +112,18 @@ public static class ServiceManagementEndpoints
             .WithName("ListServiceConfigurations");
 
         serviceGroup.MapPost("/{idService:guid}/configurations", async (
+            HttpContext context,
             Guid idClient,
             Guid idService,
             CreateServiceConfigurationRequest request,
             IServiceManagementService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, request.IdOrganization) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.CreateConfigurationAsync(
                 request with { IdClient = idClient, IdService = idService },
                 cancellationToken);
@@ -99,6 +135,7 @@ public static class ServiceManagementEndpoints
             .WithName("CreateServiceConfiguration");
 
         serviceGroup.MapPut("/{idService:guid}/configurations/{idServiceConfiguration:guid}", async (
+            HttpContext context,
             Guid idClient,
             Guid idService,
             Guid idServiceConfiguration,
@@ -106,6 +143,11 @@ public static class ServiceManagementEndpoints
             IServiceManagementService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, request.IdOrganization) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.UpdateConfigurationAsync(
                 idServiceConfiguration,
                 request with { IdClient = idClient, IdService = idService },
@@ -116,6 +158,7 @@ public static class ServiceManagementEndpoints
             .WithName("UpdateServiceConfiguration");
 
         serviceGroup.MapDelete("/{idService:guid}/configurations/{idServiceConfiguration:guid}", async (
+            HttpContext context,
             Guid idClient,
             Guid idService,
             Guid idServiceConfiguration,
@@ -123,6 +166,11 @@ public static class ServiceManagementEndpoints
             IServiceManagementService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             await service.DeactivateConfigurationAsync(
                 organizationId,
                 idClient,
@@ -138,11 +186,17 @@ public static class ServiceManagementEndpoints
             .WithTags("Service Contracts");
 
         contractGroup.MapGet("", async (
+            HttpContext context,
             Guid idClient,
             Guid organizationId,
             IServiceManagementService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var contracts = await service.ListContractsAsync(organizationId, idClient, cancellationToken);
             return Results.Ok(contracts);
         })
@@ -150,11 +204,17 @@ public static class ServiceManagementEndpoints
             .WithName("ListServiceContracts");
 
         contractGroup.MapPost("", async (
+            HttpContext context,
             Guid idClient,
             CreateServiceContractRequest request,
             IServiceManagementService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, request.IdOrganization) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.CreateContractAsync(request with { IdClient = idClient }, cancellationToken);
             return Results.Created($"/api/v1/clients/{idClient}/contracts/{result.IdServiceContract}", result);
         })
@@ -162,12 +222,18 @@ public static class ServiceManagementEndpoints
             .WithName("CreateServiceContract");
 
         contractGroup.MapPut("/{idServiceContract:guid}", async (
+            HttpContext context,
             Guid idClient,
             Guid idServiceContract,
             UpdateServiceContractRequest request,
             IServiceManagementService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, request.IdOrganization) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.UpdateContractAsync(
                 idServiceContract,
                 request with { IdClient = idClient },
@@ -178,12 +244,18 @@ public static class ServiceManagementEndpoints
             .WithName("UpdateServiceContract");
 
         contractGroup.MapDelete("/{idServiceContract:guid}", async (
+            HttpContext context,
             Guid idClient,
             Guid idServiceContract,
             Guid organizationId,
             IServiceManagementService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             await service.DeactivateContractAsync(organizationId, idClient, idServiceContract, cancellationToken);
             return Results.NoContent();
         })

@@ -19,6 +19,13 @@ public sealed class OrganizationRepository(GestIaDbContext dbContext) : IOrganiz
                 organization => organization.IdOrganization == idOrganization,
                 cancellationToken);
 
+    public Task<Organization?> GetTrackedAsync(Guid idOrganization, CancellationToken cancellationToken) =>
+        dbContext.Organizations
+            .IgnoreQueryFilters()
+            .SingleOrDefaultAsync(
+                organization => organization.IdOrganization == idOrganization,
+                cancellationToken);
+
     public Task<bool> ExistsAsync(Guid idOrganization, CancellationToken cancellationToken) =>
         dbContext.Organizations.AnyAsync(
             organization => organization.IdOrganization == idOrganization,

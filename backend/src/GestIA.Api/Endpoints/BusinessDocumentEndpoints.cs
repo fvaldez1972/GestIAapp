@@ -16,6 +16,7 @@ public static class BusinessDocumentEndpoints
             .WithTags("Documents");
 
         group.MapGet("", async (
+            HttpContext context,
             Guid organizationId,
             BusinessDocumentOwnerType? ownerType,
             Guid? ownerId,
@@ -26,6 +27,11 @@ public static class BusinessDocumentEndpoints
             IBusinessDocumentService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.ListAsync(
                 new BusinessDocumentQuery(
                     organizationId,
@@ -42,11 +48,17 @@ public static class BusinessDocumentEndpoints
             .WithName("ListBusinessDocuments");
 
         group.MapGet("/{idBusinessDocument:guid}", async (
+            HttpContext context,
             Guid idBusinessDocument,
             Guid organizationId,
             IBusinessDocumentService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.GetAsync(organizationId, idBusinessDocument, cancellationToken);
             return Results.Ok(result);
         })
@@ -54,10 +66,16 @@ public static class BusinessDocumentEndpoints
             .WithName("GetBusinessDocument");
 
         group.MapPost("", async (
+            HttpContext context,
             CreateBusinessDocumentRequest request,
             IBusinessDocumentService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, request.IdOrganization) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.CreateAsync(request, cancellationToken);
             return Results.Created($"/api/v1/documents/{result.IdBusinessDocument}", result);
         })
@@ -65,11 +83,17 @@ public static class BusinessDocumentEndpoints
             .WithName("CreateBusinessDocument");
 
         group.MapPut("/{idBusinessDocument:guid}", async (
+            HttpContext context,
             Guid idBusinessDocument,
             UpdateBusinessDocumentRequest request,
             IBusinessDocumentService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, request.IdOrganization) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.UpdateAsync(idBusinessDocument, request, cancellationToken);
             return Results.Ok(result);
         })
@@ -77,11 +101,17 @@ public static class BusinessDocumentEndpoints
             .WithName("UpdateBusinessDocument");
 
         group.MapDelete("/{idBusinessDocument:guid}", async (
+            HttpContext context,
             Guid idBusinessDocument,
             Guid organizationId,
             IBusinessDocumentService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             await service.DeactivateAsync(organizationId, idBusinessDocument, cancellationToken);
             return Results.NoContent();
         })
@@ -104,6 +134,7 @@ public static class BusinessDocumentEndpoints
             .WithName("UploadBusinessDocumentFile");
 
         group.MapGet("/{idBusinessDocument:guid}/download", async (
+            HttpContext context,
             Guid idBusinessDocument,
             Guid organizationId,
             IBusinessDocumentService service,
@@ -111,6 +142,11 @@ public static class BusinessDocumentEndpoints
             IWebHostEnvironment environment,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var document = await service.GetAsync(organizationId, idBusinessDocument, cancellationToken);
             var root = ResolveStorageRoot(configuration, environment);
             var fullPath = ResolveStoragePath(root, document.StorageReference);

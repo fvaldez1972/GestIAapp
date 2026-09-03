@@ -115,6 +115,10 @@ public sealed class ClientServiceTests
             Guid idOrganization,
             CancellationToken cancellationToken) => Task.FromResult<Organization?>(null);
 
+        public Task<Organization?> GetTrackedAsync(
+            Guid idOrganization,
+            CancellationToken cancellationToken) => Task.FromResult<Organization?>(null);
+
         public Task<bool> ExistsAsync(Guid idOrganization, CancellationToken cancellationToken) =>
             Task.FromResult(idOrganization == OrganizationId);
 

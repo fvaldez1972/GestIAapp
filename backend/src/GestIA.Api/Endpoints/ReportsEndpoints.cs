@@ -16,6 +16,7 @@ public static class ReportsEndpoints
             .WithTags("Reports");
 
         group.MapGet("/operations-summary", async (
+            HttpContext context,
             Guid organizationId,
             Guid? clientId,
             Guid? serviceId,
@@ -24,6 +25,11 @@ public static class ReportsEndpoints
             IReportsService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.GetOperationsSummaryAsync(
                 new OperationsSummaryQuery(organizationId, clientId, serviceId, fromDate, toDate),
                 cancellationToken);
@@ -33,6 +39,7 @@ public static class ReportsEndpoints
             .WithName("GetOperationsSummary");
 
         group.MapGet("/operations-by-service", async (
+            HttpContext context,
             Guid organizationId,
             Guid? clientId,
             Guid? serviceId,
@@ -41,6 +48,11 @@ public static class ReportsEndpoints
             IReportsService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.GetOperationsByServiceAsync(
                 new OperationsSummaryQuery(organizationId, clientId, serviceId, fromDate, toDate),
                 cancellationToken);
@@ -50,12 +62,18 @@ public static class ReportsEndpoints
             .WithName("GetOperationsByService");
 
         group.MapGet("/workforce-eligibility", async (
+            HttpContext context,
             Guid organizationId,
             DateOnly? referenceDate,
             string? search,
             IReportsService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.GetWorkforceEligibilityAsync(
                 new WorkforceEligibilityQuery(
                     organizationId,
@@ -68,6 +86,7 @@ public static class ReportsEndpoints
             .WithName("GetWorkforceEligibility");
 
         group.MapGet("/operations-export", async (
+            HttpContext context,
             Guid organizationId,
             Guid? clientId,
             Guid? serviceId,
@@ -76,6 +95,11 @@ public static class ReportsEndpoints
             IReportsService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var query = new OperationsSummaryQuery(organizationId, clientId, serviceId, fromDate, toDate);
             var summary = await service.GetOperationsSummaryAsync(query, cancellationToken);
             var services = await service.GetOperationsByServiceAsync(query, cancellationToken);
@@ -95,6 +119,7 @@ public static class ReportsEndpoints
             .WithName("ExportOperationsReport");
 
         group.MapGet("/operations-export.xlsx", async (
+            HttpContext context,
             Guid organizationId,
             Guid? clientId,
             Guid? serviceId,
@@ -103,6 +128,11 @@ public static class ReportsEndpoints
             IReportsService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var rows = await BuildOperationsRowsAsync(
                 service,
                 new OperationsSummaryQuery(organizationId, clientId, serviceId, fromDate, toDate),
@@ -119,6 +149,7 @@ public static class ReportsEndpoints
             .WithName("ExportOperationsReportExcel");
 
         group.MapGet("/operations-export.pdf", async (
+            HttpContext context,
             Guid organizationId,
             Guid? clientId,
             Guid? serviceId,
@@ -127,6 +158,11 @@ public static class ReportsEndpoints
             IReportsService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var rows = await BuildOperationsRowsAsync(
                 service,
                 new OperationsSummaryQuery(organizationId, clientId, serviceId, fromDate, toDate),

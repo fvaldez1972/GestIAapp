@@ -86,6 +86,7 @@ app.MapBusinessDocumentEndpoints();
 app.MapCatalogEndpoints();
 app.MapReportsEndpoints();
 app.MapSecurityAdministrationEndpoints();
+app.MapOrganizationSecurityEndpoints();
 app.MapOperationalRequestEndpoints();
 app.MapAuditEndpoints();
 

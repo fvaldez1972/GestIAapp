@@ -23,7 +23,15 @@ public sealed class SecurityDataSeeder(
         var organization = await EnsureOrganizationAsync(occurredAt, cancellationToken);
         var permissions = await EnsurePermissionsAsync(cancellationToken);
         var role = await EnsureAdministratorRoleAsync(occurredAt, cancellationToken);
+        var organizationAdminRole = await EnsureOrganizationAdminRoleAsync(occurredAt, cancellationToken);
+        var supervisorRole = await EnsureOperationalRoleAsync("ORG_SUPERVISOR", "Supervisor operativo", occurredAt, cancellationToken);
+        var operatorRole = await EnsureOperationalRoleAsync("ORG_OPERATOR", "Operador", occurredAt, cancellationToken);
+        var viewerRole = await EnsureOperationalRoleAsync("ORG_VIEWER", "Consulta operativa", occurredAt, cancellationToken);
         await EnsureRolePermissionsAsync(role, permissions, cancellationToken);
+        await EnsureRolePermissionsAsync(organizationAdminRole, permissions.Where(IsOrganizationAdminPermission).ToArray(), cancellationToken);
+        await EnsureRolePermissionsAsync(supervisorRole, permissions.Where(IsSupervisorPermission).ToArray(), cancellationToken);
+        await EnsureRolePermissionsAsync(operatorRole, permissions.Where(IsOperatorPermission).ToArray(), cancellationToken);
+        await EnsureRolePermissionsAsync(viewerRole, permissions.Where(IsViewerPermission).ToArray(), cancellationToken);
         var user = await EnsureAdministratorUserAsync(occurredAt, cancellationToken);
         var membership = await EnsureMembershipAsync(user, organization, occurredAt, cancellationToken);
         await EnsureUserRoleAsync(user, role, membership, occurredAt, cancellationToken);
@@ -63,6 +71,8 @@ public sealed class SecurityDataSeeder(
             (SecurityPermissions.PlatformAdmin, "Plataforma", "Administrar plataforma local"),
             (SecurityPermissions.OrganizationsRead, "Organizaciones", "Consultar organizaciones"),
             (SecurityPermissions.OrganizationsWrite, "Organizaciones", "Administrar organizaciones"),
+            (SecurityPermissions.UsersRead, "Usuarios", "Consultar usuarios de la organización"),
+            (SecurityPermissions.UsersWrite, "Usuarios", "Administrar usuarios de la organización"),
             (SecurityPermissions.ClientsRead, "Clientes", "Consultar clientes"),
             (SecurityPermissions.ClientsWrite, "Clientes", "Administrar clientes"),
             (SecurityPermissions.DocumentsRead, "Documentos", "Consultar documentos de clientes, servicios y personal"),
@@ -118,6 +128,44 @@ public sealed class SecurityDataSeeder(
         return role;
     }
 
+    private async Task<Role> EnsureOrganizationAdminRoleAsync(
+        DateTime occurredAt,
+        CancellationToken cancellationToken)
+    {
+        var role = await dbContext.Roles
+            .IgnoreQueryFilters()
+            .SingleOrDefaultAsync(item => item.CodeRole == "ORGANIZATION_ADMIN", cancellationToken);
+
+        if (role is not null)
+        {
+            return role;
+        }
+
+        role = Role.CreateSystem("ORGANIZATION_ADMIN", "Admin de organización", SeedActorId, SeedActorName, occurredAt);
+        await dbContext.Roles.AddAsync(role, cancellationToken);
+        return role;
+    }
+
+    private async Task<Role> EnsureOperationalRoleAsync(
+        string codeRole,
+        string name,
+        DateTime occurredAt,
+        CancellationToken cancellationToken)
+    {
+        var role = await dbContext.Roles
+            .IgnoreQueryFilters()
+            .SingleOrDefaultAsync(item => item.CodeRole == codeRole, cancellationToken);
+
+        if (role is not null)
+        {
+            return role;
+        }
+
+        role = Role.CreateSystem(codeRole, name, SeedActorId, SeedActorName, occurredAt);
+        await dbContext.Roles.AddAsync(role, cancellationToken);
+        return role;
+    }
+
     private async Task EnsureRolePermissionsAsync(
         Role role,
         IReadOnlyList<Permission> permissions,
@@ -137,6 +185,48 @@ public sealed class SecurityDataSeeder(
             }
         }
     }
+
+    private static bool IsOrganizationAdminPermission(Permission permission) =>
+        permission.CodePermission != SecurityPermissions.PlatformAdmin &&
+        permission.CodePermission != SecurityPermissions.OrganizationsWrite;
+
+    private static bool IsSupervisorPermission(Permission permission) =>
+        permission.CodePermission is SecurityPermissions.ClientsRead
+            or SecurityPermissions.DocumentsRead
+            or SecurityPermissions.DocumentsWrite
+            or SecurityPermissions.CatalogsRead
+            or SecurityPermissions.WorkforceRead
+            or SecurityPermissions.WorkforceWrite
+            or SecurityPermissions.PlanningRead
+            or SecurityPermissions.PlanningWrite
+            or SecurityPermissions.OperationsRead
+            or SecurityPermissions.OperationsWrite
+            or SecurityPermissions.RequestsRead
+            or SecurityPermissions.RequestsWrite
+            or SecurityPermissions.ReportsRead
+            or SecurityPermissions.AuditRead;
+
+    private static bool IsOperatorPermission(Permission permission) =>
+        permission.CodePermission is SecurityPermissions.ClientsRead
+            or SecurityPermissions.DocumentsRead
+            or SecurityPermissions.CatalogsRead
+            or SecurityPermissions.WorkforceRead
+            or SecurityPermissions.PlanningRead
+            or SecurityPermissions.OperationsRead
+            or SecurityPermissions.OperationsWrite
+            or SecurityPermissions.RequestsRead
+            or SecurityPermissions.RequestsWrite
+            or SecurityPermissions.ReportsRead;
+
+    private static bool IsViewerPermission(Permission permission) =>
+        permission.CodePermission is SecurityPermissions.ClientsRead
+            or SecurityPermissions.DocumentsRead
+            or SecurityPermissions.CatalogsRead
+            or SecurityPermissions.WorkforceRead
+            or SecurityPermissions.PlanningRead
+            or SecurityPermissions.OperationsRead
+            or SecurityPermissions.RequestsRead
+            or SecurityPermissions.ReportsRead;
 
     private async Task<User> EnsureAdministratorUserAsync(
         DateTime occurredAt,

@@ -48,11 +48,13 @@ No se generan tablas con `EnsureCreated` ni se aplican migraciones automáticame
 Después del primer inicio local, aplicar las migraciones desde el repositorio:
 
 ```powershell
+Set-Location backend
 dotnet tool restore
 $env:GESTIA_SQL_CONNECTION = "Server=localhost,1433;Database=db-gestia-dev;User Id=sa;Password=<la misma de .env>;Encrypt=True;TrustServerCertificate=True"
 dotnet tool run dotnet-ef database update `
-  --project .\backend\src\GestIA.Infrastructure `
-  --startup-project .\backend\src\GestIA.Infrastructure
+  --project .\src\GestIA.Infrastructure `
+  --startup-project .\src\GestIA.Infrastructure
+Set-Location ..
 ```
 
 ## Diagnóstico

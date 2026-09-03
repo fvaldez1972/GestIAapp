@@ -12,12 +12,18 @@ public static class AssignmentEndpoints
             .WithTags("Assignments");
 
         group.MapGet("", async (
+            HttpContext context,
             Guid idClient,
             Guid idService,
             Guid organizationId,
             IAssignmentService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.ListAssignmentsAsync(organizationId, idClient, idService, cancellationToken);
             return Results.Ok(result);
         })
@@ -25,12 +31,18 @@ public static class AssignmentEndpoints
             .WithName("ListServiceAssignments");
 
         group.MapPost("", async (
+            HttpContext context,
             Guid idClient,
             Guid idService,
             CreateServiceAssignmentRequest request,
             IAssignmentService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, request.IdOrganization) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.CreateAssignmentAsync(
                 request with { IdClient = idClient, IdService = idService },
                 cancellationToken);
@@ -42,6 +54,7 @@ public static class AssignmentEndpoints
             .WithName("CreateServiceAssignment");
 
         group.MapPut("/{idServiceAssignment:guid}", async (
+            HttpContext context,
             Guid idClient,
             Guid idService,
             Guid idServiceAssignment,
@@ -49,6 +62,11 @@ public static class AssignmentEndpoints
             IAssignmentService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, request.IdOrganization) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.UpdateAssignmentAsync(
                 idServiceAssignment,
                 request with { IdClient = idClient, IdService = idService },
@@ -59,6 +77,7 @@ public static class AssignmentEndpoints
             .WithName("UpdateServiceAssignment");
 
         group.MapDelete("/{idServiceAssignment:guid}", async (
+            HttpContext context,
             Guid idClient,
             Guid idService,
             Guid idServiceAssignment,
@@ -66,6 +85,11 @@ public static class AssignmentEndpoints
             IAssignmentService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             await service.DeactivateAssignmentAsync(
                 organizationId,
                 idClient,

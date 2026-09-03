@@ -59,7 +59,16 @@ export class SecurityPage implements OnInit {
   protected readonly sensitiveConfirmationText = signal('');
   protected readonly sensitiveReason = signal('');
 
-  protected readonly canAdministerSecurity = computed(() => this.auth.hasPermission('PLATFORM.ADMIN'));
+  protected readonly isPlatformAdmin = computed(() => this.auth.hasPermission('PLATFORM.ADMIN'));
+  protected readonly canAdministerSecurity = computed(() => this.auth.hasPermission('USERS.READ') || this.isPlatformAdmin());
+  protected readonly securityTitle = computed(() =>
+    this.isPlatformAdmin() ? 'Seguridad y administración' : 'Usuarios de la organización',
+  );
+  protected readonly securitySubtitle = computed(() =>
+    this.isPlatformAdmin()
+      ? 'Administra usuarios, roles, permisos, organizaciones y membresías con mínimo privilegio y trazabilidad.'
+      : 'Administra usuarios internos y accesos operativos sólo dentro de tu organización.',
+  );
   protected readonly selectedUser = computed(
     () => this.users().find((user) => user.idUser === this.selectedUserId()) ?? null,
   );
@@ -269,6 +278,11 @@ export class SecurityPage implements OnInit {
   }
 
   protected selectTab(tab: SecurityTab) {
+    if (!this.isPlatformAdmin() && !['users', 'memberships'].includes(tab)) {
+      this.activeTab.set('users');
+      return;
+    }
+
     this.activeTab.set(tab);
   }
 

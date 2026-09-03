@@ -63,6 +63,9 @@ h3 {
 }
 
 .button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-height: 2.5rem;
   padding: 0.55rem 0.9rem;
   border: 1px solid transparent;
@@ -70,6 +73,14 @@ h3 {
   font-size: 0.76rem;
   font-weight: 750;
   cursor: pointer;
+  text-decoration: none;
+}
+
+.header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  justify-content: flex-end;
 }
 
 .button:disabled,
@@ -109,6 +120,28 @@ button:disabled {
   font-size: 0.68rem;
   font-weight: 750;
   text-transform: uppercase;
+}
+
+.scope-readonly {
+  display: grid;
+  gap: 0.2rem;
+  min-height: 2.55rem;
+  padding: 0.5rem 0.72rem;
+  border: 1px solid #d7eef6;
+  border-radius: 0.72rem;
+  background: #f4fcff;
+}
+
+.scope-readonly span {
+  color: var(--gestia-muted);
+  font-size: 0.68rem;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.scope-readonly strong {
+  color: var(--gestia-navy);
+  font-size: 0.82rem;
 }
 
 select,
@@ -515,6 +548,7 @@ textarea {
   }
 
   .workforce-kpis,
+  .admin-config-strip,
   .directory-card .workforce-filters,
   .employee-state-grid,
   .requirements-grid,
@@ -577,6 +611,7 @@ textarea {
   }
 
   .workforce-kpis,
+  .admin-config-strip,
   .directory-card .workforce-filters,
   .employee-state-grid,
   .requirements-grid,
@@ -1142,6 +1177,13 @@ textarea {
   margin-bottom: 1rem;
 }
 
+.admin-config-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.85rem;
+  margin-bottom: 1rem;
+}
+
 .workforce-kpis article {
   display: grid;
   gap: 0.28rem;
@@ -1156,6 +1198,17 @@ textarea {
   box-shadow: 0 0.8rem 1.8rem rgb(16 16 78 / 5%);
 }
 
+.admin-config-strip article {
+  display: grid;
+  gap: 0.28rem;
+  min-height: 5.8rem;
+  align-content: center;
+  border: 1px solid #cbeff8;
+  border-radius: 1rem;
+  padding: 1rem;
+  background: #f2fcff;
+}
+
 .workforce-kpis article.needs-attention {
   background:
     radial-gradient(circle at 91% 26%, rgb(239 68 68 / 10%), transparent 4.8rem),
@@ -1163,6 +1216,7 @@ textarea {
 }
 
 .workforce-kpis span,
+.admin-config-strip span,
 .requirements-grid span {
   color: var(--gestia-muted);
   font-size: 0.65rem;
@@ -1177,9 +1231,16 @@ textarea {
   line-height: 1;
 }
 
-.workforce-kpis small {
+.workforce-kpis small,
+.admin-config-strip small {
   color: var(--gestia-muted);
   font-size: 0.72rem;
+}
+
+.admin-config-strip strong {
+  color: var(--gestia-navy);
+  font-size: 1.35rem;
+  line-height: 1;
 }
 
 .table-toolbar--directory {

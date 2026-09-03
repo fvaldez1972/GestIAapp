@@ -1,6 +1,6 @@
 <article class="page-hero operation-hero">
   <div>
-    <span class="kicker">Operación / {{ tabTitle() }}</span>
+    <span class="kicker">{{ operationScopeLabel() }} / {{ tabTitle() }}</span>
     <h1>{{ tabTitle() }}</h1>
     <p>{{ tabDescription() }}</p>
   </div>
@@ -12,14 +12,21 @@
 </article>
 
 <section class="filters context-bar" aria-label="Contexto operativo fijo">
-  <label>
-    Organización
-    <select [value]="selectedOrganizationId()" (change)="onOrganizationChange($event)">
-      @for (organization of organizations(); track organization.idOrganization) {
-        <option [value]="organization.idOrganization">{{ organization.legalName }}</option>
-      }
-    </select>
-  </label>
+  @if (isPlatformAdmin()) {
+    <label>
+      Organización
+      <select [value]="selectedOrganizationId()" (change)="onOrganizationChange($event)">
+        @for (organization of organizations(); track organization.idOrganization) {
+          <option [value]="organization.idOrganization">{{ organization.legalName }}</option>
+        }
+      </select>
+    </label>
+  } @else {
+    <div class="scope-readonly">
+      <span>Organización actual</span>
+      <strong>{{ selectedOrganization()?.legalName || 'Sin organización asignada' }}</strong>
+    </div>
+  }
 
   <label>
     Cliente

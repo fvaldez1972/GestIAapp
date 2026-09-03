@@ -89,10 +89,69 @@
   min-width: min(22rem, 100%);
 }
 
+.scope-readonly {
+  display: grid;
+  gap: .25rem;
+  min-height: 2.85rem;
+  padding: .62rem .82rem;
+  border: 1px solid #d7eef6;
+  border-radius: .78rem;
+  background: #f4fcff;
+}
+
+.scope-readonly span {
+  color: #46536d;
+  font-size: .7rem;
+  font-weight: 850;
+}
+
+.scope-readonly strong {
+  color: #050b4f;
+  font-size: .86rem;
+}
+
 .catalog-summary {
   display: grid;
   gap: .9rem;
   grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.document-governance-grid {
+  display: grid;
+  gap: .9rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.document-governance-card {
+  background: #f2fcff;
+  border-color: #cbeff8;
+  display: grid;
+  gap: .3rem;
+  min-height: 6rem;
+  padding: 1rem;
+}
+
+.document-governance-card span {
+  color: #007da3;
+  font-size: .68rem;
+  font-weight: 950;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.document-governance-card strong {
+  color: #050b4f;
+  font-size: 1.55rem;
+  line-height: 1;
+}
+
+.document-governance-card small {
+  color: #687894;
+}
+
+.document-governance-card.needs-attention {
+  background: #fffbeb;
+  border-color: #fde68a;
 }
 
 .minimum-checklist {
@@ -811,6 +870,10 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .document-governance-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .catalog-filters {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -840,6 +903,7 @@
   }
 
   .catalog-summary,
+  .document-governance-grid,
   .catalog-tabs,
   .checklist-grid,
   .catalog-filters,

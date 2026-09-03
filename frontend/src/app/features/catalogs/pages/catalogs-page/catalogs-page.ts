@@ -60,6 +60,23 @@ export class CatalogsPage implements OnInit {
   protected readonly eligibilityResult = signal<EligibilityCheck | null>(null);
 
   protected readonly canWrite = computed(() => this.auth.hasPermission('CATALOGS.WRITE'));
+  protected readonly isPlatformAdmin = computed(() => this.auth.hasPermission('PLATFORM.ADMIN'));
+  protected readonly selectedOrganization = computed(
+    () => this.organizations().find((organization) => organization.idOrganization === this.selectedOrganizationId()) ?? null,
+  );
+  protected readonly heroCopy = computed(() =>
+    this.isPlatformAdmin()
+      ? {
+        eyebrow: 'Configuración plataforma',
+        title: 'Catálogos por organización',
+        description: 'Gobierna catálogos, tipos y reglas por organización sin mezclar operación ni archivos cargados.',
+      }
+      : {
+        eyebrow: 'Configuración / Catálogos',
+        title: 'Catálogos de la organización',
+        description: 'Define valores operativos, requisitos documentales, bloqueos y reglas que usará el cliente en operación.',
+      },
+  );
   protected readonly selectedCatalogItem = computed(
     () => this.items().find((item) => item.idCatalogItem === this.selectedCatalogItemId()) ?? null,
   );
@@ -96,6 +113,29 @@ export class CatalogsPage implements OnInit {
   });
   protected readonly activeCatalogItems = computed(() => this.items().filter((item) => item.active).length);
   protected readonly activeRequirements = computed(() => this.requirements().filter((requirement) => requirement.active).length);
+  protected readonly documentGovernanceCards = computed<readonly DocumentGovernanceCard[]>(() => [
+    {
+      title: 'Tipos documentales',
+      value: this.countCatalogItems('DocumentRequirement'),
+      detail: 'qué documento se pide',
+    },
+    {
+      title: 'Requisitos activos',
+      value: this.activeRequirements(),
+      detail: 'a quién aplican',
+    },
+    {
+      title: 'Bloqueos',
+      value: this.blockingRequirements(),
+      detail: 'impiden asignación',
+      warning: this.blockingRequirements() > 0,
+    },
+    {
+      title: 'Evaluaciones',
+      value: this.countCatalogItems('EvaluationRequirement'),
+      detail: 'validaciones requeridas',
+    },
+  ]);
   protected readonly valuesPendingReview = computed(() =>
     this.items().filter((item) => !item.active).length + this.minimumChecklist().filter((item) => item.status !== 'complete').length,
   );
@@ -193,7 +233,7 @@ export class CatalogsPage implements OnInit {
   protected readonly tabs: readonly { value: CatalogTab; label: string; help: string }[] = [
     { value: 'general', label: 'Generales', help: 'Habilidades, puestos y zonas base.' },
     { value: 'operational', label: 'Operativos', help: 'Motivos usados en operación diaria.' },
-    { value: 'eligibility', label: 'Elegibilidad', help: 'Reglas para decidir si alguien puede asignarse.' },
+    { value: 'eligibility', label: 'Reglas', help: 'Requisitos, bloqueos y vigencias documentales.' },
   ];
 
   protected readonly catalogCategories: readonly CatalogCategory[] = [
@@ -1058,6 +1098,13 @@ type MinimumChecklistItem = {
   readonly status: MinimumChecklistStatus;
   readonly description: string;
   readonly action: string;
+};
+
+type DocumentGovernanceCard = {
+  readonly title: string;
+  readonly value: number;
+  readonly detail: string;
+  readonly warning?: boolean;
 };
 
 type EligibilityUiState = 'eligible' | 'notEligible' | 'insufficient';

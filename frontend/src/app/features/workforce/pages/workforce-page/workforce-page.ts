@@ -1,6 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { CatalogApiService } from '../../../catalogs/data-access/catalog-api.service';
@@ -26,7 +27,7 @@ import {
 
 @Component({
   selector: 'app-workforce-page',
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, RouterLink],
   templateUrl: './workforce-page.html',
   styleUrl: './workforce-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -81,7 +82,43 @@ export class WorkforcePage implements OnInit {
     () => this.organizations().find((organization) => organization.idOrganization === this.selectedOrganizationId()) ?? null,
   );
   protected readonly selectedEmployeeName = computed(() => this.selectedEmployee()?.fullName ?? 'Sin empleado seleccionado');
+  protected readonly isPlatformAdmin = computed(() => this.auth.hasPermission('PLATFORM.ADMIN'));
+  protected readonly heroCopy = computed(() =>
+    this.isPlatformAdmin()
+      ? {
+        eyebrow: 'Configuración / Personal',
+        title: 'Personal por organización',
+        description: `${this.selectedOrganization()?.legalName || 'Selecciona una organización'} · Consulta expedientes, documentos, evaluaciones, habilidades y elegibilidad por organización administrada.`,
+      }
+      : {
+        eyebrow: 'Configuración / Personal',
+        title: 'Configuración de personal',
+        description: `${this.selectedOrganization()?.legalName || 'Selecciona una organización'} · Administra expedientes, documentos requeridos, evaluaciones, habilidades y asignaciones del cliente operativo.`,
+      },
+  );
   protected readonly canViewSensitivePersonalData = computed(() => this.auth.hasPermission('PLATFORM.ADMIN'));
+  protected readonly adminConfigurationCards = computed<readonly AdminConfigurationCard[]>(() => [
+    {
+      label: 'Expedientes',
+      value: this.result().totalCount,
+      help: 'personas en la organización',
+    },
+    {
+      label: 'Documentos',
+      value: this.documents().length,
+      help: 'del expediente abierto',
+    },
+    {
+      label: 'Evaluaciones',
+      value: this.evaluations().length,
+      help: 'historial contextual',
+    },
+    {
+      label: 'Habilidades',
+      value: this.skills().length,
+      help: 'validan asignaciones',
+    },
+  ]);
   protected readonly visibleEmployees = computed(() =>
     this.result().items
       .filter((employee) => !this.jobTitleFilter() || employee.jobTitle === this.jobTitleFilter())
@@ -1124,6 +1161,12 @@ type EmployeeEligibilityFilter = 'all' | 'eligible' | 'review';
 type EmployeeFileStageFilter = 'all' | 'candidate' | 'capture' | 'review' | 'complete' | 'rejected';
 type EmployeeDocumentFilter = 'all' | 'valid' | 'pending';
 type EmployeeSkillFilter = 'all' | 'withSkills' | 'missing';
+
+type AdminConfigurationCard = {
+  readonly label: string;
+  readonly value: number;
+  readonly help: string;
+};
 
 type EmployeeEligibilityItem = {
   readonly state: 'ok' | 'warn' | 'fail';

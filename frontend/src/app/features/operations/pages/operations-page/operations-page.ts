@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } 
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
+import { AuthService } from '../../../../core/auth/auth.service';
 import { ClientApiService } from '../../../clients/data-access/client-api.service';
 import {
   AttendanceRecord,
@@ -38,6 +39,7 @@ import { Employee } from '../../../workforce/data-access/workforce.models';
 export class OperationsPage implements OnInit {
   private readonly api = inject(ClientApiService);
   private readonly workforceApi = inject(WorkforceApiService);
+  private readonly auth = inject(AuthService);
   private readonly formBuilder = inject(FormBuilder);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
@@ -84,6 +86,12 @@ export class OperationsPage implements OnInit {
   );
   protected readonly selectedOrganization = computed(
     () => this.organizations().find((organization) => organization.idOrganization === this.selectedOrganizationId()) ?? null,
+  );
+  protected readonly isPlatformAdmin = computed(() => this.auth.hasPermission('PLATFORM.ADMIN'));
+  protected readonly operationScopeLabel = computed(() =>
+    this.isPlatformAdmin()
+      ? `Operación por organización · ${this.selectedOrganization()?.legalName || 'Sin organización'}`
+      : `Operación del cliente · ${this.selectedClient()?.tradeName || this.selectedClient()?.legalName || 'Sin cliente'}`,
   );
   protected readonly dailyShifts = computed(() =>
     this.scheduledShifts().filter((shift) => shift.shiftDate === this.selectedOperationDate()),

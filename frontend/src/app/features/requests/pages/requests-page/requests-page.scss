@@ -76,6 +76,19 @@
   display: block;
 }
 
+.requests-page .scope-readonly {
+  border: 1px solid #d7eef6;
+  border-radius: .78rem;
+  min-height: 2.85rem;
+  padding: .62rem .82rem;
+  background: #f4fcff;
+}
+
+.requests-page .scope-readonly strong {
+  color: var(--request-navy);
+  font-size: .86rem;
+}
+
 .requests-page textarea.gi-input {
   line-height: 1.5;
   min-height: 6rem;
@@ -163,6 +176,43 @@
 .hero-action span {
   font-size: 1.1rem;
   line-height: 1;
+}
+
+.control-scope-grid {
+  display: grid;
+  gap: .85rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.scope-card {
+  display: grid;
+  gap: .3rem;
+  min-height: 6.2rem;
+}
+
+.scope-card span {
+  color: #64718a;
+  font-size: .68rem;
+  font-weight: 900;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.scope-card strong {
+  color: var(--request-navy);
+  font-size: 1.75rem;
+  line-height: 1;
+}
+
+.scope-card small {
+  color: var(--request-muted);
+  font-size: .72rem;
+  font-weight: 750;
+}
+
+.scope-card.has-warning {
+  background: #fff9ef;
+  border-color: #ffd994;
 }
 
 .requests-control {
@@ -1639,6 +1689,7 @@
 
   .request-type-grid,
   .detail-info-grid,
+  .control-scope-grid,
   .request-cycle,
   .preview-metrics {
     grid-template-columns: 1fr;
@@ -1667,6 +1718,7 @@
 
   .request-filters,
   .request-filters--advanced,
+  .control-scope-grid,
   .request-summary {
     grid-template-columns: 1fr;
   }

@@ -1,12 +1,22 @@
 <section class="page-heading workforce-hero">
   <div>
-    <span class="context-chip">Organización actual</span>
-    <h1>Personal</h1>
-    <p>{{ selectedOrganization()?.legalName || 'Selecciona una organización' }} · Consulta empleados, documentación, evaluaciones, habilidades y elegibilidad desde una ficha clara.</p>
+    <span class="context-chip">{{ heroCopy().eyebrow }}</span>
+    <h1>{{ heroCopy().title }}</h1>
+    <p>{{ heroCopy().description }}</p>
   </div>
   <button class="button button--primary" type="button" [disabled]="!selectedOrganizationId()" (click)="openCreateEmployee()">
     <span aria-hidden="true">＋</span> Nuevo empleado
   </button>
+</section>
+
+<section class="admin-config-strip" aria-label="Configuración documental de personal">
+  @for (card of adminConfigurationCards(); track card.label) {
+    <article>
+      <span>{{ card.label }}</span>
+      <strong>{{ card.value }}</strong>
+      <small>{{ card.help }}</small>
+    </article>
+  }
 </section>
 
 <section class="workforce-kpis" aria-label="Indicadores de personal">
@@ -43,21 +53,28 @@
   <article class="table-card directory-card">
     <header class="table-toolbar table-toolbar--directory">
       <div>
-        <span class="eyebrow">Directorio + filtros</span>
-        <h2>Empleados</h2>
+        <span class="eyebrow">Configuración contextual</span>
+        <h2>Expedientes de personal</h2>
         <span>{{ visibleEmployees().length }} de {{ result().totalCount }} empleado(s)</span>
       </div>
     </header>
 
     <div class="filters workforce-filters" aria-label="Filtros de búsqueda de personal">
-        <label>
-          <span>Organización</span>
-          <select [value]="selectedOrganizationId()" (change)="selectOrganization($any($event.target).value)">
-            @for (organization of organizations(); track organization.idOrganization) {
-              <option [value]="organization.idOrganization">{{ organization.legalName }}</option>
-            }
-          </select>
-        </label>
+        @if (isPlatformAdmin()) {
+          <label>
+            <span>Organización</span>
+            <select [value]="selectedOrganizationId()" (change)="selectOrganization($any($event.target).value)">
+              @for (organization of organizations(); track organization.idOrganization) {
+                <option [value]="organization.idOrganization">{{ organization.legalName }}</option>
+              }
+            </select>
+          </label>
+        } @else {
+          <div class="scope-readonly">
+            <span>Organización actual</span>
+            <strong>{{ selectedOrganization()?.legalName || 'Sin organización asignada' }}</strong>
+          </div>
+        }
         <label class="wide">
           <span>Buscar nombre, código o CURP</span>
           <input
@@ -362,7 +379,20 @@
             <h3>Documentos requeridos</h3>
             <span>{{ documents().length }} documento(s) en expediente</span>
           </div>
-          <button class="button button--secondary" type="button" (click)="openCreateDocument()">Subir documento</button>
+          <div class="header-actions">
+            <a
+              class="button button--secondary"
+              routerLink="/documentos"
+              [queryParams]="{
+                organizationId: selectedOrganizationId(),
+                ownerType: 'Employee',
+                ownerId: selectedEmployee()?.idEmployee
+              }"
+            >
+              Abrir en Documentos
+            </a>
+            <button class="button button--secondary" type="button" (click)="openCreateDocument()">Subir documento</button>
+          </div>
         </header>
         <div class="requirements-grid">
           <article [class.is-ok]="documentRequirementStatus('VoterId') === 'Validado'">

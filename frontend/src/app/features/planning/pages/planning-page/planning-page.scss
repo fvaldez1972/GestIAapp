@@ -328,6 +328,25 @@
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.scope-readonly {
+  border: 1px solid #d7eef6;
+  border-radius: .78rem;
+  min-height: 2.85rem;
+  padding: .62rem .82rem;
+  background: #f4fcff;
+}
+
+.scope-readonly span {
+  color: #46536d;
+  font-size: .7rem;
+  font-weight: 850;
+}
+
+.scope-readonly strong {
+  color: #050b4f;
+  font-size: .86rem;
+}
+
 .planning-summary {
   display: grid;
   gap: .9rem;

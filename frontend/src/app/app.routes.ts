@@ -35,6 +35,29 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'servicios',
+        title: 'GestIA | Servicios',
+        data: { permission: 'CLIENTS.READ' },
+        loadComponent: () =>
+          import('./features/clients/pages/clients-page/clients-page').then(
+            (component) => component.ClientsPage,
+          ),
+      },
+      {
+        path: 'plataforma/organizaciones',
+        title: 'GestIA | Organizaciones',
+        data: { permission: 'PLATFORM.ADMIN' },
+        loadComponent: () =>
+          import('./features/platform/pages/platform-page/platform-page').then(
+            (component) => component.PlatformPage,
+          ),
+      },
+      {
+        path: 'plataforma/clientes-gestia',
+        redirectTo: 'plataforma/organizaciones',
+        pathMatch: 'full',
+      },
+      {
         path: 'solicitudes',
         title: 'GestIA | Solicitudes',
         data: { permission: 'REQUESTS.READ' },
@@ -97,6 +120,15 @@ export const routes: Routes = [
         path: 'seguridad',
         title: 'GestIA | Seguridad',
         data: { permission: 'PLATFORM.ADMIN' },
+        loadComponent: () =>
+          import('./features/security/pages/security-page/security-page').then(
+            (component) => component.SecurityPage,
+          ),
+      },
+      {
+        path: 'usuarios',
+        title: 'GestIA | Usuarios',
+        data: { permission: 'USERS.READ' },
         loadComponent: () =>
           import('./features/security/pages/security-page/security-page').then(
             (component) => component.SecurityPage,

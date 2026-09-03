@@ -63,6 +63,26 @@ export class PlanningPage implements OnInit {
   protected readonly generationWarnings = signal<readonly string[]>([]);
 
   protected readonly canWrite = computed(() => this.auth.hasPermission('PLANNING.WRITE'));
+  protected readonly isPlatformAdmin = computed(() => this.auth.hasPermission('PLATFORM.ADMIN'));
+  protected readonly selectedClient = computed(
+    () => this.clients().find((client) => client.idClient === this.selectedClientId()) ?? null,
+  );
+  protected readonly selectedOrganization = computed(
+    () => this.organizations().find((organization) => organization.idOrganization === this.selectedOrganizationId()) ?? null,
+  );
+  protected readonly heroCopy = computed(() =>
+    this.isPlatformAdmin()
+      ? {
+        eyebrow: 'Operación / Planeación',
+        title: 'Planeación por organización',
+        description: `Valida turnos, posiciones y versiones publicadas para ${this.selectedOrganization()?.legalName || 'la organización seleccionada'}.`,
+      }
+      : {
+        eyebrow: 'Operación / Planeación',
+        title: 'Planeación del cliente',
+        description: `Visualiza turnos por semana, valida huecos y publica versiones listas para operar en ${this.selectedClient()?.tradeName || this.selectedClient()?.legalName || 'el cliente seleccionado'}.`,
+      },
+  );
   protected readonly selectedService = computed(
     () => this.services().find((service) => service.idService === this.selectedServiceId()) ?? null,
   );

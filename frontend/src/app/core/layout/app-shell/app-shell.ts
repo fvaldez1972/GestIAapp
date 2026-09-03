@@ -20,6 +20,9 @@ export class AppShell {
   protected readonly navigation = computed(() => this.filterNavigation(GESTIA_NAVIGATION));
   protected readonly breadcrumbs = computed(() => this.resolveBreadcrumbs(this.currentUrl()));
   protected readonly pageTitle = computed(() => this.breadcrumbs().at(-1) ?? 'GestIA');
+  protected readonly userScope = computed(() =>
+    this.auth.session()?.permissions.includes('PLATFORM.ADMIN') ? 'Super Admin' : 'Admin organización',
+  );
 
   constructor() {
     this.router.events
@@ -33,10 +36,22 @@ export class AppShell {
   }
 
   private filterNavigation(groups: readonly NavigationGroup[]) {
+    const isPlatformAdmin = this.auth.session()?.permissions.includes('PLATFORM.ADMIN') ?? false;
+
     return groups
       .map((group) => ({
         ...group,
-        items: group.items.filter((item) => !item.permission || this.auth.hasPermission(item.permission)),
+        items: group.items.filter((item) => {
+          if (item.platformOnly && !isPlatformAdmin) {
+            return false;
+          }
+
+          if (item.hideForPlatformAdmin && isPlatformAdmin) {
+            return false;
+          }
+
+          return !item.permission || this.auth.hasPermission(item.permission);
+        }),
       }))
       .filter((group) => group.items.length > 0);
   }
@@ -47,27 +62,38 @@ export class AppShell {
     }
 
     if (url.startsWith('/clientes')) {
-      return ['Gestión', 'Clientes'];
+      return ['Configuración', 'Clientes'];
+    }
+
+    if (url.startsWith('/plataforma/organizaciones')) {
+      return ['Configuración', 'Organizaciones'];
+    }
+    if (url.startsWith('/usuarios')) {
+      return ['Configuración', 'Usuarios'];
+    }
+
+    if (url.startsWith('/servicios')) {
+      return ['Configuración', 'Servicios'];
     }
 
     if (url.startsWith('/solicitudes')) {
-      return ['Gestión', 'Solicitudes'];
+      return ['Control', 'Solicitudes'];
     }
 
     if (url.startsWith('/personal')) {
-      return ['Gestión', 'Personal'];
+      return ['Configuración', 'Personal'];
     }
 
     if (url.startsWith('/documentos')) {
-      return ['Gestión', 'Documentos'];
+      return ['Configuración', 'Documentos'];
     }
 
     if (url.startsWith('/catalogos')) {
-      return ['Gestión', 'Catálogos'];
+      return ['Configuración', 'Catálogos'];
     }
 
     if (url.startsWith('/planeacion')) {
-      return ['Gestión', 'Planeación'];
+      return ['Operación', 'Planeación'];
     }
 
     if (url.startsWith('/operacion/asistencia')) {

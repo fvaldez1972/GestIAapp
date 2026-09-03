@@ -267,6 +267,7 @@ textarea {
 
 .detail-actions button,
 .mini-actions button,
+.mini-actions a,
 .pagination button,
 .modal header > button {
   border: 0;
@@ -275,6 +276,7 @@ textarea {
   font-weight: 750;
   background: transparent;
   cursor: pointer;
+  text-decoration: none;
 }
 
 .detail-actions .danger,
@@ -993,6 +995,30 @@ textarea {
 }
 
 .organization-picker small {
+  color: var(--gestia-muted);
+  font-size: .72rem;
+}
+
+.organization-summary {
+  display: grid;
+  gap: .2rem;
+  min-width: min(32rem, 100%);
+}
+
+.organization-summary span {
+  color: var(--gestia-muted);
+  font-size: .68rem;
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.organization-summary strong {
+  color: var(--gestia-navy);
+  font-size: 1rem;
+}
+
+.organization-summary small {
   color: var(--gestia-muted);
   font-size: .72rem;
 }

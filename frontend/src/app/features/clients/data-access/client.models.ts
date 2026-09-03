@@ -12,6 +12,8 @@ export type CreateOrganization = {
   readonly rfc: string | null;
 };
 
+export type UpdateOrganization = CreateOrganization;
+
 export type Client = {
   readonly idClient: string;
   readonly idOrganization: string;

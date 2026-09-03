@@ -100,6 +100,27 @@ h1 {
   grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
 }
 
+.scope-readonly {
+  display: grid;
+  gap: .25rem;
+  min-height: 2.55rem;
+  padding: .52rem .72rem;
+  border: 1px solid #d7eef6;
+  border-radius: .72rem;
+  background: #f4fcff;
+}
+
+.scope-readonly span {
+  color: var(--gestia-muted);
+  font-size: .68rem;
+  font-weight: 750;
+}
+
+.scope-readonly strong {
+  color: var(--gestia-navy);
+  font-size: .82rem;
+}
+
 .context-notice {
   align-items: center;
   background: #effaf2;

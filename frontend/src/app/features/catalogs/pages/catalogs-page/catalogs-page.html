@@ -1,22 +1,29 @@
 <section class="catalogs-page">
   <article class="catalogs-hero gi-card">
     <div>
-      <span class="context-chip">Organización actual</span>
-      <h1>Catálogos</h1>
+      <span class="context-chip">{{ heroCopy().eyebrow }}</span>
+      <h1>{{ heroCopy().title }}</h1>
       <p>
-        Configura y gobierna catálogos maestros utilizados en toda la plataforma.
+        {{ heroCopy().description }}
       </p>
     </div>
 
     <div class="hero-side">
-      <label class="gi-field compact-field">
-        Organización
-        <select class="gi-input" [value]="selectedOrganizationId()" (change)="selectOrganization($any($event.target).value)">
-          @for (organization of organizations(); track organization.idOrganization) {
-            <option [value]="organization.idOrganization">{{ organization.legalName }}</option>
-          }
-        </select>
-      </label>
+      @if (isPlatformAdmin()) {
+        <label class="gi-field compact-field">
+          Organización
+          <select class="gi-input" [value]="selectedOrganizationId()" (change)="selectOrganization($any($event.target).value)">
+            @for (organization of organizations(); track organization.idOrganization) {
+              <option [value]="organization.idOrganization">{{ organization.legalName }}</option>
+            }
+          </select>
+        </label>
+      } @else {
+        <div class="compact-field scope-readonly">
+          <span>Organización actual</span>
+          <strong>{{ selectedOrganization()?.legalName || 'Sin organización asignada' }}</strong>
+        </div>
+      }
       <button class="gi-button gi-button--primary" type="button" [disabled]="!canWrite()" (click)="openNewCatalogItem()">
         + Nuevo registro
       </button>
@@ -62,6 +69,16 @@
       <strong>{{ linkedModules() }}</strong>
       <small>usan catálogos</small>
     </article>
+  </section>
+
+  <section class="document-governance-grid" aria-label="Gobierno documental">
+    @for (card of documentGovernanceCards(); track card.title) {
+      <article class="document-governance-card gi-card" [class.needs-attention]="card.warning">
+        <span>{{ card.title }}</span>
+        <strong>{{ card.value }}</strong>
+        <small>{{ card.detail }}</small>
+      </article>
+    }
   </section>
 
   <nav class="catalog-tabs gi-card" aria-label="Secciones de catálogos">

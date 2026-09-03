@@ -1,36 +1,30 @@
 <article class="dashboard-hero">
   <div class="hero-copy">
-    <span class="kicker">Inicio</span>
-    <h1>Hola, {{ displayName() || 'equipo' }}.</h1>
+    <span class="kicker">{{ dashboardKicker() }}</span>
+    <h1>{{ dashboardTitle() }}</h1>
     <p>
       {{ todayLabel }} ·
       {{ activeOrganization()?.legalName || 'Sin organización activa' }}
     </p>
-    <strong>Tu operación está resumida para detectar excepciones y actuar rápido.</strong>
+    <strong>{{ dashboardSubtitle() }}</strong>
   </div>
 
   <aside class="hero-status" [class.hero-status--attention]="riskServicesCount() > 0 || pendingCoverages() > 0 || (operationsSummary()?.openIncidents ?? 0) > 0">
     <div class="status-heading">
       <span class="status-indicator" aria-hidden="true"></span>
       <div>
-        <small>Estado operativo</small>
-        <strong>{{ riskServicesCount() > 0 || pendingCoverages() > 0 || (operationsSummary()?.openIncidents ?? 0) > 0 ? 'Requiere atención' : 'Sin alertas críticas' }}</strong>
+        <small>{{ dashboardStatusLabel() }}</small>
+        <strong>{{ dashboardStatusValue() }}</strong>
       </div>
     </div>
 
     <div class="status-grid">
-      <div>
-        <strong>{{ operationsSummary()?.openIncidents ?? 0 }}</strong>
-        <span>Incidencias</span>
-      </div>
-      <div>
-        <strong>{{ pendingCoverages() }}</strong>
-        <span>Coberturas</span>
-      </div>
-      <div>
-        <strong>{{ openRequestsCount() }}</strong>
-        <span>Solicitudes</span>
-      </div>
+      @for (item of dashboardStatusItems(); track item.label) {
+        <div>
+          <strong>{{ item.value }}</strong>
+          <span>{{ item.label }}</span>
+        </div>
+      }
     </div>
   </aside>
 </article>
@@ -66,12 +60,36 @@
   }
 </section>
 
+<section class="module-flow gi-card">
+  <header class="section-heading">
+    <div>
+      <span class="kicker">Orden final</span>
+      <h2>{{ isPlatformAdmin() ? 'Módulos de gobierno de plataforma' : 'Módulos por prioridad del admin' }}</h2>
+      <p>La experiencia queda organizada por prioridad: primero contexto, luego operación, después control y al final configuración.</p>
+    </div>
+  </header>
+
+  <div class="module-flow-grid">
+    @for (module of moduleFlow(); track module.title; let index = $index) {
+      <a class="module-flow-card" [routerLink]="module.route">
+        <span>{{ index + 1 }}</span>
+        <strong>{{ module.title }}</strong>
+        <small>
+          @for (item of module.items; track item; let last = $last) {
+            {{ item }}@if (!last) { · }
+          }
+        </small>
+      </a>
+    }
+  </div>
+</section>
+
 <section class="today-section gi-card">
   <header class="section-heading">
     <div>
-      <span class="kicker">Operación de hoy</span>
-      <h2>Resumen de operación de hoy</h2>
-      <p>Indicadores del día para asistencia, excepciones y coberturas.</p>
+      <span class="kicker">{{ isPlatformAdmin() ? 'Operación global' : 'Operación del cliente' }}</span>
+      <h2>{{ isPlatformAdmin() ? 'Resumen operativo entre organizaciones' : 'Resumen de operación de hoy' }}</h2>
+      <p>{{ isPlatformAdmin() ? 'Lectura transversal para soporte y seguimiento auditado.' : 'Indicadores del día para asistencia, excepciones y coberturas.' }}</p>
     </div>
     <a routerLink="/operacion/asistencia">Abrir operación</a>
   </header>

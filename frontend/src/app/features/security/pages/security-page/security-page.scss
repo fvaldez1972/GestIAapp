@@ -607,6 +607,26 @@
   background: #fbfdff;
 }
 
+.scope-readonly {
+  border: 1px solid #d7eef6;
+  border-radius: .78rem;
+  min-height: 2.85rem;
+  padding: .62rem .82rem;
+  background: #f4fcff;
+}
+
+.scope-readonly span {
+  color: #46536d;
+  display: block;
+  font-size: .7rem;
+  font-weight: 850;
+}
+
+.scope-readonly strong {
+  color: #050b4f;
+  font-size: .86rem;
+}
+
 .admin-confirmation {
   display: grid;
   gap: .75rem;

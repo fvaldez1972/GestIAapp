@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } 
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { forkJoin, of, switchMap } from 'rxjs';
+import { AuthService } from '../../../../core/auth/auth.service';
 import { ClientApiService } from '../../../clients/data-access/client-api.service';
 import {
   Client,
@@ -22,6 +23,7 @@ import {
 })
 export class ReportsPage implements OnInit {
   private readonly api = inject(ClientApiService);
+  private readonly auth = inject(AuthService);
 
   protected readonly organizations = signal<readonly Organization[]>([]);
   protected readonly clients = signal<readonly Client[]>([]);
@@ -41,6 +43,23 @@ export class ReportsPage implements OnInit {
   protected readonly loading = signal(false);
   protected readonly exporting = signal(false);
   protected readonly error = signal('');
+  protected readonly isPlatformAdmin = computed(() => this.auth.session()?.permissions.includes('PLATFORM.ADMIN') ?? false);
+  protected readonly selectedOrganization = computed(
+    () => this.organizations().find((organization) => organization.idOrganization === this.selectedOrganizationId()) ?? null,
+  );
+  protected readonly heroCopy = computed(() =>
+    this.isPlatformAdmin()
+      ? {
+        eyebrow: 'Control plataforma',
+        title: 'Reportes por organización',
+        description: 'Consulta indicadores operativos por cliente y organización sin convertir Documentos en un repositorio global.',
+      }
+      : {
+        eyebrow: 'Control / Reportes',
+        title: 'Reportes',
+        description: 'Consulta resultados operativos con métricas trazables, alcance claro y definiciones visibles.',
+      },
+  );
 
   protected readonly attendanceRate = computed(() => {
     const summary = this.summary();
@@ -239,7 +258,7 @@ export class ReportsPage implements OnInit {
     const client = this.clients().find((item) => item.idClient === this.selectedClientId());
     const service = this.services().find((item) => item.idService === this.selectedServiceId());
     return [
-      `Organización: ${organization}`,
+      `${this.isPlatformAdmin() ? 'Organización administrada' : 'Organización'}: ${organization}`,
       `Cliente: ${client ? client.tradeName || client.legalName : 'Todos los clientes'}`,
       `Servicio: ${service ? service.name : 'Todos los servicios'}`,
     ].join(' · ');

@@ -18,6 +18,7 @@ import {
   CreateManagedService,
   CreateServiceContract,
   CreateOrganization,
+  UpdateOrganization,
   CreateServicePosition,
   CreateServiceAssignment,
   CreateShiftPattern,
@@ -69,6 +70,18 @@ export class ClientApiService {
 
   createOrganization(request: CreateOrganization) {
     return this.http.post<Organization>(`${this.baseUrl}/organizations`, request);
+  }
+
+  updateOrganization(idOrganization: string, request: UpdateOrganization) {
+    return this.http.put<Organization>(`${this.baseUrl}/organizations/${idOrganization}`, request);
+  }
+
+  deactivateOrganization(idOrganization: string) {
+    return this.http.delete<void>(`${this.baseUrl}/organizations/${idOrganization}`);
+  }
+
+  activateOrganization(idOrganization: string) {
+    return this.http.patch<Organization>(`${this.baseUrl}/organizations/${idOrganization}/activate`, {});
   }
 
   listClients(organizationId: string, search = '', page = 1, pageSize = 20) {

@@ -114,6 +114,23 @@ export class AuditPage implements OnInit {
   protected readonly selectedOrganizationName = computed(
     () => this.organizations().find((organization) => organization.idOrganization === this.selectedOrganizationId())?.legalName ?? 'Sin organización',
   );
+  protected readonly isPlatformAdmin = computed(() => this.auth.session()?.permissions.includes('PLATFORM.ADMIN') ?? false);
+  protected readonly heroCopy = computed(() =>
+    this.isPlatformAdmin()
+      ? {
+        eyebrow: 'Control plataforma',
+        title: 'Auditoría por organización',
+        description: 'Investiga cambios administrativos y operativos con trazabilidad por organización, entidad y registro.',
+      }
+      : {
+        eyebrow: 'Control / Auditoría',
+        title: 'Auditoría',
+        description: 'Investiga cambios del sistema con lenguaje de negocio, filtros claros y trazabilidad por registro.',
+      },
+  );
+  protected readonly auditScopeLabel = computed(
+    () => `${this.isPlatformAdmin() ? 'Organización administrada' : 'Organización actual'} · ${this.selectedOrganizationName()}`,
+  );
   protected readonly exportingUserName = computed(() => this.auth.displayName() || 'Usuario actual');
   protected readonly exportFileName = computed(() => `gestia-bitacora-${this.selectedEntity() || 'todas'}-${this.today()}.csv`);
 

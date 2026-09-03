@@ -1,8 +1,9 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { finalize, forkJoin, map, of, switchMap } from 'rxjs';
+import { AuthService } from '../../../../core/auth/auth.service';
 import { WorkforceApiService } from '../../../workforce/data-access/workforce-api.service';
 import { Employee } from '../../../workforce/data-access/workforce.models';
 import { ClientApiService } from '../../data-access/client-api.service';
@@ -63,6 +64,8 @@ type ClientDocumentsFilter = 'all' | 'pending' | 'complete';
 export class ClientsPage implements OnInit {
   private readonly api = inject(ClientApiService);
   private readonly workforceApi = inject(WorkforceApiService);
+  private readonly auth = inject(AuthService);
+  private readonly route = inject(ActivatedRoute);
   private readonly formBuilder = inject(FormBuilder);
 
   protected readonly organizations = signal<readonly Organization[]>([]);
@@ -135,6 +138,22 @@ export class ClientsPage implements OnInit {
   protected readonly selectedOrganization = computed(
     () => this.organizations().find((organization) => organization.idOrganization === this.selectedOrganizationId()) ?? null,
   );
+  protected readonly canAdministerPlatform = computed(() => this.auth.session()?.permissions.includes('PLATFORM.ADMIN') ?? false);
+  protected readonly isServicesConfigurationRoute = computed(() => this.route.snapshot.routeConfig?.path === 'servicios');
+  protected readonly pageHeadingTitle = computed(() => {
+    if (this.isServicesConfigurationRoute()) {
+      return 'Configuración de servicios';
+    }
+
+    return this.canAdministerPlatform() ? 'Clientes operativos' : 'Configuración del cliente';
+  });
+  protected readonly pageHeadingDescription = computed(() =>
+    this.isServicesConfigurationRoute()
+      ? 'Configura los servicios contratados por cliente: sedes, contratos, jornadas, posiciones, asignaciones y planeación base.'
+      : this.canAdministerPlatform()
+        ? 'Administra la cartera de clientes de la organización, abre su expediente 360 y configura sedes, servicios, contratos, contactos y documentos relacionados.'
+        : 'Define la base operativa del cliente: datos, sedes, servicios, contratos, contactos y documentos en su entidad correspondiente.',
+  );
   protected readonly todayContext = computed(() => {
     const date = new Intl.DateTimeFormat('es-MX', {
       day: '2-digit',
@@ -197,7 +216,9 @@ export class ClientsPage implements OnInit {
   protected readonly primarySite = computed(() => this.sites()[0] ?? null);
   protected readonly newClientDisabledReason = computed(() => {
     if (!this.selectedOrganizationId()) {
-      return 'Selecciona o crea una organización para asociar el cliente.';
+      return this.canAdministerPlatform()
+        ? 'Selecciona o crea una organización para asociar el cliente.'
+        : 'Tu usuario no tiene una organización asignada.';
     }
 
     if (this.selectedOrganization()?.active === false) {
@@ -207,6 +228,15 @@ export class ClientsPage implements OnInit {
     return '';
   });
   protected readonly canCreateClient = computed(() => !this.newClientDisabledReason());
+  protected readonly primaryActionLabel = computed(() => this.isServicesConfigurationRoute() ? 'Nuevo servicio' : 'Nuevo cliente');
+  protected readonly primaryActionDisabledReason = computed(() => {
+    if (this.isServicesConfigurationRoute() && !this.selectedClient()) {
+      return 'Selecciona un cliente para crear un servicio.';
+    }
+
+    return this.newClientDisabledReason();
+  });
+  protected readonly canRunPrimaryAction = computed(() => !this.primaryActionDisabledReason());
   protected readonly clientTabs: readonly { value: ClientTab; label: string; count?: () => number }[] = [
     { value: 'summary', label: 'Resumen' },
     { value: 'sites', label: 'Sedes', count: () => this.sites().length },
@@ -402,6 +432,10 @@ export class ClientsPage implements OnInit {
   });
 
   ngOnInit(): void {
+    if (this.isServicesConfigurationRoute()) {
+      this.activeClientTab.set('services');
+    }
+
     this.loadOrganizations();
   }
 
@@ -619,11 +653,21 @@ export class ClientsPage implements OnInit {
   }
 
   protected openCreateOrganization(): void {
+    if (!this.canAdministerPlatform()) {
+      this.error.set('Sólo el Super Admin BKT puede crear organizaciones.');
+      return;
+    }
+
     this.organizationForm.reset({ codeOrganization: '', legalName: '', rfc: '', status: 'active' });
     this.organizationEditorOpen.set(true);
   }
 
   protected saveOrganization(): void {
+    if (!this.canAdministerPlatform()) {
+      this.error.set('Sólo el Super Admin BKT puede crear organizaciones.');
+      return;
+    }
+
     if (this.organizationForm.invalid) {
       this.organizationForm.markAllAsTouched();
       return;
@@ -665,6 +709,15 @@ export class ClientsPage implements OnInit {
       contactEmail: '',
     });
     this.clientEditorOpen.set(true);
+  }
+
+  protected openPrimaryConfigurationAction(): void {
+    if (this.isServicesConfigurationRoute()) {
+      this.openCreateService();
+      return;
+    }
+
+    this.openCreateClient();
   }
 
   protected openEditClient(client: Client): void {

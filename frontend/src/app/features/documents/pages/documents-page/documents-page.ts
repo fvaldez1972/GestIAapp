@@ -1,6 +1,7 @@
 import { HttpErrorResponse, HttpResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { ClientApiService } from '../../../clients/data-access/client-api.service';
@@ -24,7 +25,7 @@ import {
 
 @Component({
   selector: 'app-documents-page',
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, RouterLink],
   templateUrl: './documents-page.html',
   styleUrl: './documents-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -35,6 +36,7 @@ export class DocumentsPage implements OnInit {
   private readonly workforceApi = inject(WorkforceApiService);
   private readonly requestApi = inject(RequestApiService);
   private readonly auth = inject(AuthService);
+  private readonly route = inject(ActivatedRoute);
   private readonly formBuilder = inject(FormBuilder);
 
   protected readonly organizations = signal<readonly Organization[]>([]);
@@ -65,6 +67,20 @@ export class DocumentsPage implements OnInit {
 
   protected readonly canWrite = computed(() => this.auth.hasPermission('DOCUMENTS.WRITE'));
   protected readonly canReview = computed(() => this.auth.hasPermission('DOCUMENTS.WRITE'));
+  protected readonly isPlatformAdmin = computed(() => this.auth.hasPermission('PLATFORM.ADMIN'));
+  protected readonly heroCopy = computed(() =>
+    this.isPlatformAdmin()
+      ? {
+        eyebrow: 'Configuración documental',
+        title: 'Documentos por entidad',
+        description: 'Consulta archivos por organización, cliente, servicio, contrato, personal o solicitud; las reglas se gobiernan en Catálogos.',
+      }
+      : {
+        eyebrow: 'Gestión contextual',
+        title: 'Documentos por entidad',
+        description: 'El archivo se administra donde pertenece: cliente, servicio, contrato, personal o solicitud. Configuración conserva las reglas, tipos y requisitos documentales.',
+      },
+  );
   protected readonly selectedOrganization = computed(
     () => this.organizations().find((organization) => organization.idOrganization === this.selectedOrganizationId()) ?? null,
   );
@@ -99,6 +115,34 @@ export class DocumentsPage implements OnInit {
   protected readonly sensitiveDocuments = computed(
     () => this.visibleDocuments().filter((document) => document.isSensitive).length,
   );
+  protected readonly documentContextCards = computed(() => {
+    const documents = this.visibleDocuments();
+    const countByOwner = (ownerTypes: readonly BusinessDocumentOwnerType[]) =>
+      documents.filter((document) => ownerTypes.includes(document.ownerType)).length;
+
+    return [
+      {
+        label: 'Cliente',
+        count: countByOwner(['Client']),
+        detail: 'Contratos, RFC y alta fiscal.',
+      },
+      {
+        label: 'Servicio',
+        count: countByOwner(['Service', 'ServiceContract']),
+        detail: 'Anexos, órdenes e instrucciones.',
+      },
+      {
+        label: 'Personal',
+        count: countByOwner(['Employee', 'EmployeeEvaluation']),
+        detail: 'INE, NSS, habilidades y evaluaciones.',
+      },
+      {
+        label: 'Control',
+        count: countByOwner(['OperationalRequest']),
+        detail: 'Soportes ligados a solicitudes.',
+      },
+    ];
+  });
   protected readonly ownerOptions = computed(() => {
     switch (this.selectedOwnerType()) {
       case 'Client':
@@ -776,13 +820,38 @@ export class DocumentsPage implements OnInit {
     this.clientApi.listOrganizations().subscribe({
       next: (organizations) => {
         this.organizations.set(organizations);
-        this.selectedOrganizationId.set(organizations[0]?.idOrganization ?? '');
+        const params = this.route.snapshot.queryParamMap;
+        const requestedOrganizationId = params.get('organizationId') ?? '';
+        const organizationId = organizations.some((organization) => organization.idOrganization === requestedOrganizationId)
+          ? requestedOrganizationId
+          : organizations[0]?.idOrganization ?? '';
+        const ownerType = this.normalizeOwnerType(params.get('ownerType'));
+        const ownerId = params.get('ownerId') ?? '';
+        const status = this.normalizeStatus(params.get('status'));
+
+        this.selectedOrganizationId.set(organizationId);
+        this.selectedFilterOwnerType.set(ownerType);
+        this.filterForm.patchValue({
+          ownerType,
+          ownerId,
+          status,
+          category: params.get('category') ?? '',
+          search: params.get('search') ?? '',
+        });
         this.loadCatalogs();
         this.loadDocuments();
       },
       error: (error: HttpErrorResponse) => this.setError(error, 'No se pudieron cargar las organizaciones.'),
       complete: () => this.loading.set(false),
     });
+  }
+
+  private normalizeOwnerType(value: string | null): BusinessDocumentOwnerType | '' {
+    return this.ownerTypes.some((type) => type.value === value) ? value as BusinessDocumentOwnerType : '';
+  }
+
+  private normalizeStatus(value: string | null): BusinessDocumentStatus | '' {
+    return this.statuses.some((status) => status.value === value) ? value as BusinessDocumentStatus : '';
   }
 
   private ownerOptionsForType(ownerType: BusinessDocumentOwnerType | '') {

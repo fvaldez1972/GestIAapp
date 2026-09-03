@@ -3,7 +3,7 @@ import { RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { ClientApiService } from '../../../clients/data-access/client-api.service';
-import { OperationsServiceSummary, OperationsSummary } from '../../../clients/data-access/client.models';
+import { Client, OperationsServiceSummary, OperationsSummary } from '../../../clients/data-access/client.models';
 import { RequestApiService } from '../../../requests/data-access/request-api.service';
 import { WorkforceApiService } from '../../../workforce/data-access/workforce-api.service';
 
@@ -27,6 +27,7 @@ export class OverviewPage {
   protected readonly activeServicesCount = signal(0);
   protected readonly openRequestsCount = signal(0);
   protected readonly riskServicesCount = signal(0);
+  protected readonly clients = signal<readonly Client[]>([]);
   protected readonly operationsSummary = signal<OperationsSummary | null>(null);
   protected readonly serviceSummaries = signal<readonly OperationsServiceSummary[]>([]);
   protected readonly todayClosuresCount = signal(0);
@@ -36,6 +37,7 @@ export class OverviewPage {
 
   protected readonly displayName = this.auth.displayName;
   protected readonly activeOrganization = this.auth.activeOrganization;
+  protected readonly isPlatformAdmin = computed(() => this.auth.session()?.permissions.includes('PLATFORM.ADMIN') ?? false);
   protected readonly todayIso = new Date().toISOString().slice(0, 10);
   protected readonly todayLabel = new Intl.DateTimeFormat('es-MX', {
     weekday: 'long',
@@ -46,6 +48,52 @@ export class OverviewPage {
 
   protected readonly coveredHours = computed(() =>
     Math.round(((this.operationsSummary()?.coveredMinutes ?? 0) / 60) * 10) / 10);
+
+  protected readonly activeClientName = computed(() =>
+    this.serviceSummaries()[0]?.clientName ?? this.clients()[0]?.tradeName ?? this.clients()[0]?.legalName ?? 'Cliente operativo',
+  );
+
+  protected readonly dashboardKicker = computed(() =>
+    this.isPlatformAdmin() ? 'Vista plataforma' : 'Cliente operativo activo',
+  );
+
+  protected readonly dashboardTitle = computed(() =>
+    this.isPlatformAdmin() ? 'Gobierno de GestIA' : this.activeClientName(),
+  );
+
+  protected readonly dashboardSubtitle = computed(() =>
+    this.isPlatformAdmin()
+      ? 'Administra organizaciones, soporte y seguridad sin operar como usuario de campo.'
+      : 'Vista principal del admin por cliente, con operación primero y configuración al final.',
+  );
+
+  protected readonly dashboardStatusLabel = computed(() =>
+    this.isPlatformAdmin() ? 'Perfil plataforma' : 'Estado operativo',
+  );
+
+  protected readonly dashboardStatusValue = computed(() => {
+    if (this.isPlatformAdmin()) {
+      return 'Super Admin';
+    }
+
+    return this.riskServicesCount() > 0 || this.pendingCoverages() > 0 || (this.operationsSummary()?.openIncidents ?? 0) > 0
+      ? 'Requiere atención'
+      : 'Sin alertas críticas';
+  });
+
+  protected readonly dashboardStatusItems = computed(() =>
+    this.isPlatformAdmin()
+      ? [
+          { label: 'Organizaciones', value: this.auth.organizations().length.toString() },
+          { label: 'Clientes operativos', value: this.clientsCount().toString() },
+          { label: 'Alertas', value: (this.riskServicesCount() + this.openRequestsCount()).toString() },
+        ]
+      : [
+          { label: 'Incidencias', value: (this.operationsSummary()?.openIncidents ?? 0).toString() },
+          { label: 'Coberturas', value: this.pendingCoverages().toString() },
+          { label: 'Solicitudes', value: this.openRequestsCount().toString() },
+        ],
+  );
 
   protected readonly pendingCoverages = computed(() => {
     const summary = this.operationsSummary();
@@ -100,41 +148,110 @@ export class OverviewPage {
     )`;
   });
 
-  protected readonly primaryMetrics = computed(() => [
+  protected readonly primaryMetrics = computed(() => {
+    if (this.isPlatformAdmin()) {
+      return [
+        {
+          label: 'Organizaciones',
+          value: this.auth.organizations().length.toString(),
+          detail: 'Empresas que usan el sistema',
+          route: '/plataforma/organizaciones',
+          tone: 'neutral',
+        },
+        {
+          label: 'Clientes operativos',
+          value: this.clientsCount().toString(),
+          detail: 'Contratantes dentro de la organización activa',
+          route: '/clientes',
+          tone: 'neutral',
+        },
+        {
+          label: 'Servicios activos',
+          value: this.activeServicesCount().toString(),
+          detail: 'Servicios monitoreables',
+          route: '/servicios',
+          tone: 'neutral',
+        },
+        {
+          label: 'Solicitudes globales',
+          value: this.openRequestsCount().toString(),
+          detail: 'Cambios y aprobaciones sensibles',
+          route: '/solicitudes',
+          tone: this.openRequestsCount() > 0 ? 'attention' : 'neutral',
+        },
+        {
+          label: 'Alertas operativas',
+          value: this.riskServicesCount().toString(),
+          detail: 'Servicios que requieren soporte',
+          route: '/reportes',
+          tone: this.riskServicesCount() > 0 ? 'attention' : 'positive',
+        },
+      ];
+    }
+
+    return [
+      {
+        label: 'Turnos hoy',
+        value: this.expectedShifts().toString(),
+        detail: 'Base operativa del día',
+        route: '/operacion/asistencia',
+        tone: 'neutral',
+      },
+      {
+        label: 'Incidencias',
+        value: (this.operationsSummary()?.openIncidents ?? 0).toString(),
+        detail: 'Requieren seguimiento',
+        route: '/operacion/incidencias',
+        tone: (this.operationsSummary()?.openIncidents ?? 0) > 0 ? 'attention' : 'positive',
+      },
+      {
+        label: 'Servicios',
+        value: this.activeServicesCount().toString(),
+        detail: 'Configurados para operar',
+        route: '/servicios',
+        tone: 'neutral',
+      },
+      {
+        label: 'Personal activo',
+        value: this.activeEmployeesCount().toString(),
+        detail: 'Disponible para asignación',
+        route: '/personal',
+        tone: 'neutral',
+      },
+      {
+        label: 'Solicitudes',
+        value: this.openRequestsCount().toString(),
+        detail: 'Cambios abiertos o listos para ejecutar',
+        route: '/solicitudes',
+        tone: this.openRequestsCount() > 0 ? 'attention' : 'neutral',
+      },
+    ];
+  });
+
+  protected readonly moduleFlow = computed(() => [
     {
-      label: 'Solicitudes',
-      value: this.openRequestsCount().toString(),
-      detail: 'Abiertas o listas para ejecutar',
+      title: 'Principal',
+      route: '/',
+      items: this.isPlatformAdmin() ? ['Inicio plataforma', 'Organizaciones'] : ['Inicio', 'Cliente activo'],
+    },
+    {
+      title: 'Operación',
+      route: '/operacion/asistencia',
+      items: this.isPlatformAdmin()
+        ? ['Monitor global', 'Soporte auditado']
+        : ['Planeación', 'Asistencia', 'Incidencias', 'Cobertura'],
+    },
+    {
+      title: 'Control',
       route: '/solicitudes',
-      tone: this.openRequestsCount() > 0 ? 'attention' : 'neutral',
+      items: ['Solicitudes', 'Reportes', 'Auditoría', 'Seguridad'],
     },
     {
-      label: 'Servicios activos',
-      value: this.activeServicesCount().toString(),
-      detail: 'Configurados para operar',
-      route: '/clientes',
-      tone: 'neutral',
-    },
-    {
-      label: 'Personal activo',
-      value: this.activeEmployeesCount().toString(),
-      detail: 'Disponible para asignación',
-      route: '/personal',
-      tone: 'neutral',
-    },
-    {
-      label: 'Incidencias de hoy',
-      value: (this.operationsSummary()?.openIncidents ?? 0).toString(),
-      detail: 'Requieren seguimiento',
-      route: '/operacion/incidencias',
-      tone: (this.operationsSummary()?.openIncidents ?? 0) > 0 ? 'attention' : 'positive',
-    },
-    {
-      label: 'Coberturas pendientes',
-      value: this.pendingCoverages().toString(),
-      detail: 'Sustituciones por cerrar',
-      route: '/operacion/cobertura',
-      tone: this.pendingCoverages() > 0 ? 'attention' : 'positive',
+      title: 'Configuración',
+      route: this.isPlatformAdmin() ? '/plataforma/organizaciones' : '/clientes',
+      items: this.isPlatformAdmin()
+        ? ['Organizaciones', 'Admins org.']
+        : ['Clientes', 'Servicios', 'Personal', 'Documentos'],
     },
   ]);
 
@@ -185,44 +302,77 @@ export class OverviewPage {
       .slice(0, 4),
   );
 
-  protected readonly quickActions = computed(() => [
-    {
-      label: 'Nueva solicitud',
-      route: '/solicitudes',
-      detail: 'Alta, cambio o cobertura.',
-      permission: 'REQUESTS.WRITE',
-    },
-    {
-      label: 'Nuevo cliente',
-      route: '/clientes',
-      detail: 'Crear expediente comercial.',
-      permission: 'CLIENTS.WRITE',
-    },
-    {
-      label: 'Planeación semanal',
-      route: '/planeacion',
-      detail: 'Revisar turnos publicados.',
-      permission: 'PLANNING.READ',
-    },
-    {
-      label: 'Registrar incidencia',
-      route: '/operacion/incidencias',
-      detail: 'Capturar excepción operativa.',
-      permission: 'OPERATIONS.WRITE',
-    },
-    {
-      label: 'Cierre del día',
-      route: '/operacion/asistencia',
-      detail: 'Validar y cerrar operación.',
-      permission: 'OPERATIONS.WRITE',
-    },
-    {
-      label: 'Reportes',
-      route: '/reportes',
-      detail: 'Consultar indicadores.',
-      permission: 'REPORTS.READ',
-    },
-  ].filter((action) => this.auth.hasPermission(action.permission)));
+  protected readonly quickActions = computed(() => {
+    const platformActions = [
+      {
+        label: 'Revisar seguridad',
+        route: '/seguridad',
+        detail: 'Roles, usuarios y permisos.',
+        permission: 'PLATFORM.ADMIN',
+      },
+      {
+        label: 'Auditoría global',
+        route: '/auditoria',
+        detail: 'Actividad sensible y soporte.',
+        permission: 'AUDIT.READ',
+      },
+      {
+        label: 'Reporte global',
+        route: '/reportes',
+        detail: 'Indicadores por organización.',
+        permission: 'REPORTS.READ',
+      },
+      {
+        label: 'Organizaciones',
+        route: '/plataforma/organizaciones',
+        detail: 'Alta de organizaciones y admins.',
+        permission: 'PLATFORM.ADMIN',
+      },
+    ];
+
+    const adminActions = [
+      {
+        label: 'Nueva solicitud',
+        route: '/solicitudes',
+        detail: 'Alta, cambio o cobertura.',
+        permission: 'REQUESTS.WRITE',
+      },
+      {
+        label: 'Nuevo cliente',
+        route: '/clientes',
+        detail: 'Crear expediente comercial.',
+        permission: 'CLIENTS.WRITE',
+      },
+      {
+        label: 'Planeación semanal',
+        route: '/planeacion',
+        detail: 'Revisar turnos publicados.',
+        permission: 'PLANNING.READ',
+      },
+      {
+        label: 'Registrar incidencia',
+        route: '/operacion/incidencias',
+        detail: 'Capturar excepción operativa.',
+        permission: 'OPERATIONS.WRITE',
+      },
+      {
+        label: 'Cierre del día',
+        route: '/operacion/asistencia',
+        detail: 'Validar y cerrar operación.',
+        permission: 'OPERATIONS.WRITE',
+      },
+      {
+        label: 'Documentos',
+        route: '/documentos',
+        detail: 'Expedientes por entidad.',
+        permission: 'DOCUMENTS.READ',
+      },
+    ];
+
+    return (this.isPlatformAdmin() ? platformActions : adminActions).filter((action) =>
+      this.auth.hasPermission(action.permission),
+    );
+  });
 
   protected readonly recentActivity = computed(() => {
     const summary = this.operationsSummary();
@@ -309,6 +459,7 @@ export class OverviewPage {
       .subscribe({
         next: ({ clients, employees, summary, services, closures, submittedRequests, reviewRequests, approvedRequests }) => {
           this.clientsCount.set(clients.totalCount);
+          this.clients.set(clients.items);
           this.activeEmployeesCount.set(employees.totalCount);
           this.operationsSummary.set(summary);
           this.serviceSummaries.set(services);

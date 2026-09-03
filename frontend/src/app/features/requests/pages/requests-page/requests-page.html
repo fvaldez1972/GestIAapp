@@ -1,26 +1,52 @@
 <section class="requests-page">
   <article class="gi-card gi-card--hero requests-hero">
     <div>
-      <span class="eyebrow">Gestión de solicitudes</span>
-      <h1>Solicitudes</h1>
-      <p>Centraliza altas, cambios y apoyos antes de llevarlos a la operación diaria.</p>
-      <small class="hero-context">{{ selectedOrganization()?.legalName || 'Organización actual' }} · Hoy, {{ todayLabel() }}</small>
+      <span class="eyebrow">{{ heroCopy().eyebrow }}</span>
+      <h1>{{ heroCopy().title }}</h1>
+      <p>{{ heroCopy().description }}</p>
+      <small class="hero-context">{{ requestScopeLabel() }} · Hoy, {{ todayLabel() }}</small>
     </div>
-    <button class="gi-button gi-button--primary hero-action" type="button" (click)="openNewRequest()">
+    <button class="gi-button gi-button--primary hero-action" type="button" [disabled]="isGlobalPlatformScope()" (click)="openNewRequest()">
       <span aria-hidden="true">＋</span> Nueva solicitud
     </button>
   </article>
 
+  @if (isPlatformAdmin()) {
+    <section class="control-scope-grid" aria-label="Alcance de control plataforma">
+      @for (card of controlScopeCards(); track card.label) {
+        <article class="gi-card scope-card" [class.has-warning]="card.warning">
+          <span>{{ card.label }}</span>
+          <strong>{{ card.value }}</strong>
+          <small>{{ card.help }}</small>
+        </article>
+      }
+    </section>
+  }
+
+  @if (isGlobalPlatformScope()) {
+    <p class="gi-alert gi-alert--info" role="status">
+      Vista global de lectura. Selecciona una organización para crear solicitudes, cambiar estados o ejecutar impactos.
+    </p>
+  }
+
   <section class="gi-card requests-control" aria-label="Consulta de solicitudes">
     <div class="request-filters request-filters--advanced">
-      <label class="gi-field">
-        <span>Organización</span>
-        <select class="gi-input" [value]="selectedOrganizationId()" (change)="onOrganizationChange($event)">
-          @for (organization of organizations(); track organization.idOrganization) {
-            <option [value]="organization.idOrganization">{{ organization.legalName }}</option>
-          }
-        </select>
-      </label>
+      @if (isPlatformAdmin()) {
+        <label class="gi-field">
+          <span>Organización</span>
+          <select class="gi-input" [value]="selectedOrganizationId()" (change)="onOrganizationChange($event)">
+            <option value="">Todas las organizaciones</option>
+            @for (organization of organizations(); track organization.idOrganization) {
+              <option [value]="organization.idOrganization">{{ organization.legalName }}</option>
+            }
+          </select>
+        </label>
+      } @else {
+        <div class="gi-field scope-readonly">
+          <span>Organización actual</span>
+          <strong>{{ requestScopeLabel() }}</strong>
+        </div>
+      }
       <label class="gi-field request-search">
         <span>Buscar</span>
         <input class="gi-input" type="search" [value]="search()" (input)="onSearchChange($event)" (keyup.enter)="applySearch()" placeholder="ID, cliente o solicitante" />
@@ -92,9 +118,9 @@
   <section class="gi-card request-board" aria-label="Flujo de solicitudes">
     <header class="board-heading">
       <div>
-        <span class="eyebrow">Flujo operativo</span>
-        <h2>Seguimiento por etapa</h2>
-      <p>Filtra rápido, revisa prioridad y abre el detalle sin perder el listado.</p>
+        <span class="eyebrow">{{ isPlatformAdmin() ? 'Control auditado' : 'Flujo operativo' }}</span>
+        <h2>{{ isPlatformAdmin() ? 'Seguimiento por organización' : 'Seguimiento por etapa' }}</h2>
+      <p>{{ isPlatformAdmin() ? 'Filtra por organización para intervenir; en vista global sólo se consulta y prioriza.' : 'Filtra rápido, revisa prioridad y abre el detalle sin perder el listado.' }}</p>
       </div>
       @if (stageFilter() !== 'all' || filterPriority() || filterStatus() || filterType() || filterServiceId() || search()) { <button class="text-action" type="button" (click)="clearQuickFilters()">Limpiar filtros</button> }
     </header>
@@ -167,13 +193,13 @@
                       <div class="row-actions">
                         <button class="mini-flow-action" type="button" (click)="selectRequest(request)">Ver</button>
                         @if (request.status !== 'Completed') {
-                          <button class="mini-flow-action" type="button" (click)="openEditRequest(request)">Editar</button>
+                          <button class="mini-flow-action" type="button" [disabled]="isGlobalPlatformScope()" (click)="openEditRequest(request)">Editar</button>
                         }
                         @if (nextStatus(request); as next) {
-                          <button class="mini-flow-action" type="button" [disabled]="saving()" (click)="transitionTo(request, next)">{{ actionLabelForRequest(request) }}</button>
+                          <button class="mini-flow-action" type="button" [disabled]="saving() || isGlobalPlatformScope()" (click)="transitionTo(request, next)">{{ actionLabelForRequest(request) }}</button>
                         }
                         @if (request.status === 'Approved') {
-                          <button class="mini-flow-action is-success" type="button" [disabled]="saving()" (click)="prepareExecution(request)">Impacto</button>
+                          <button class="mini-flow-action is-success" type="button" [disabled]="saving() || isGlobalPlatformScope()" (click)="prepareExecution(request)">Impacto</button>
                         } @else if (request.status === 'Completed') {
                           <button class="mini-flow-action is-success" type="button" (click)="selectRequest(request, { open: true, tab: 'execution' })">Resultado</button>
                         }
@@ -282,11 +308,11 @@
             </div>
             <label class="gi-field"><span>Nuevo estado</span><select class="gi-input" formControlName="status">@for (status of statuses; track status.value) { <option [value]="status.value">{{ status.label }}</option> }</select></label>
             <label class="gi-field"><span>Nota de seguimiento</span><textarea class="gi-input" rows="6" formControlName="resolutionNotes" placeholder="Escribe el acuerdo, motivo o siguiente paso"></textarea></label>
-            <button class="gi-button gi-button--primary" type="submit" [disabled]="saving() || !statusForm.value.idOperationalRequest">Guardar seguimiento</button>
+            <button class="gi-button gi-button--primary" type="submit" [disabled]="saving() || isGlobalPlatformScope() || !statusForm.value.idOperationalRequest">Guardar seguimiento</button>
             <section class="transition-list" aria-label="Transiciones disponibles">
               <h3>Transiciones disponibles</h3>
               @for (transition of primaryTransitions(request); track transition.label) {
-                <button type="button" [disabled]="!transition.enabled || saving()" (click)="transitionTo(request, transition.target)">
+                <button type="button" [disabled]="!transition.enabled || saving() || isGlobalPlatformScope()" (click)="transitionTo(request, transition.target)">
                   <strong>{{ transition.label }}</strong>
                   @if (!transition.enabled) { <span>{{ transition.reason }}</span> }
                 </button>
@@ -300,8 +326,18 @@
             <div class="document-placeholder">
               <span aria-hidden="true">📎</span>
               <h3>Documentos relacionados</h3>
-              <p>Los soportes de solicitudes se administran desde Documentos para mantener un solo expediente trazable.</p>
-              <a class="gi-button gi-button--secondary" routerLink="/documentos">Abrir Documentos</a>
+              <p>Los soportes se consultan dentro de la solicitud o de la entidad que corresponda; Configuración conserva las reglas documentales.</p>
+              <a
+                class="gi-button gi-button--secondary"
+                routerLink="/documentos"
+                [queryParams]="{
+                  organizationId: request.idOrganization,
+                  ownerType: 'OperationalRequest',
+                  ownerId: request.idOperationalRequest
+                }"
+              >
+                Abrir Documentos
+              </a>
             </div>
           </section>
         }
@@ -323,7 +359,7 @@
             } @else if (request.status !== 'Approved') {
               <div class="execution-guidance"><strong>La solicitud requiere aprobación.</strong><span>Primero apruébala desde Seguimiento para habilitar la validación de impacto.</span><button type="button" (click)="showDetailPanelTab('status')">Ir a seguimiento</button></div>
             } @else {
-              <button class="gi-button gi-button--secondary" type="button" [disabled]="saving()" (click)="selectRequest(request, { modal: true, open: false, tab: 'execution' })">Revisar impacto y ejecutar</button>
+              <button class="gi-button gi-button--secondary" type="button" [disabled]="saving() || isGlobalPlatformScope()" (click)="selectRequest(request, { modal: true, open: false, tab: 'execution' })">Revisar impacto y ejecutar</button>
               <p class="muted">La ejecución se abre en el panel ancho para validar datos antes de crear o modificar registros.</p>
             }
           </section>
@@ -331,19 +367,19 @@
 
         <footer class="detail-actions">
           @if (request.status === 'Draft') {
-            <button class="gi-button gi-button--primary" type="button" [disabled]="saving()" (click)="transitionTo(request, 'Submitted')">Enviar a revisión</button>
+            <button class="gi-button gi-button--primary" type="button" [disabled]="saving() || isGlobalPlatformScope()" (click)="transitionTo(request, 'Submitted')">Enviar a revisión</button>
           } @else if (request.status === 'Submitted') {
-            <button class="gi-button gi-button--primary" type="button" [disabled]="saving()" (click)="transitionTo(request, 'InReview')">Tomar revisión</button>
+            <button class="gi-button gi-button--primary" type="button" [disabled]="saving() || isGlobalPlatformScope()" (click)="transitionTo(request, 'InReview')">Tomar revisión</button>
           } @else if (request.status === 'InReview') {
-            <button class="gi-button gi-button--primary" type="button" [disabled]="saving()" (click)="transitionTo(request, 'Approved')">Aprobar</button>
-            <button class="gi-button gi-button--ghost-danger" type="button" [disabled]="saving()" (click)="transitionTo(request, 'Rejected')">Rechazar</button>
+            <button class="gi-button gi-button--primary" type="button" [disabled]="saving() || isGlobalPlatformScope()" (click)="transitionTo(request, 'Approved')">Aprobar</button>
+            <button class="gi-button gi-button--ghost-danger" type="button" [disabled]="saving() || isGlobalPlatformScope()" (click)="transitionTo(request, 'Rejected')">Rechazar</button>
           } @else if (request.status === 'Approved') {
-            <button class="gi-button gi-button--primary" type="button" [disabled]="saving()" (click)="selectRequest(request, { modal: true, open: false, tab: 'execution' })">Revisar impacto</button>
+            <button class="gi-button gi-button--primary" type="button" [disabled]="saving() || isGlobalPlatformScope()" (click)="selectRequest(request, { modal: true, open: false, tab: 'execution' })">Revisar impacto</button>
           } @else if (request.status === 'Completed') {
             <a class="gi-button gi-button--secondary" routerLink="/clientes">Ver resultado</a>
           }
           @if (request.status !== 'Completed') {
-            <button class="gi-button gi-button--secondary" type="button" (click)="openEditRequest(request)">Editar datos</button>
+            <button class="gi-button gi-button--secondary" type="button" [disabled]="isGlobalPlatformScope()" (click)="openEditRequest(request)">Editar datos</button>
           }
         </footer>
       </aside>
@@ -397,8 +433,10 @@
                 <div class="quick-create-note"><span aria-hidden="true">i</span> La ejecución se validará después, cuando la solicitud esté aprobada.</div>
 
                 <div class="form-grid">
-                  @if (!selectedRequest()) {
+                  @if (!selectedRequest() && isPlatformAdmin()) {
                     <label class="gi-field form-span-2"><span>Organización</span><select class="gi-input" [value]="selectedOrganizationId()" (change)="onOrganizationChange($event)">@for (organization of organizations(); track organization.idOrganization) { <option [value]="organization.idOrganization">{{ organization.legalName }}</option> }</select></label>
+                  } @else if (!selectedRequest()) {
+                    <div class="gi-field form-span-2 scope-readonly"><span>Organización actual</span><strong>{{ requestScopeLabel() }}</strong></div>
                   } @else {
                     <label class="gi-field"><span>Folio</span><input class="gi-input" type="text" formControlName="codeOperationalRequest" /></label>
                     <label class="gi-field"><span>Tipo</span><select class="gi-input" formControlName="requestType" (change)="onRequestTypeChange($event)">@for (type of requestTypes; track type.value) { <option [value]="type.value">{{ type.label }}</option> }</select></label>
@@ -573,7 +611,16 @@
                 }
                 <div class="result-links">
                   <a routerLink="/clientes">Ir a Clientes</a>
-                  <a routerLink="/documentos">Ir a Documentos</a>
+                  <a
+                    routerLink="/documentos"
+                    [queryParams]="selectedRequest() ? {
+                      organizationId: selectedRequest()!.idOrganization,
+                      ownerType: 'OperationalRequest',
+                      ownerId: selectedRequest()!.idOperationalRequest
+                    } : null"
+                  >
+                    Ir a Documentos
+                  </a>
                 </div>
               </div>
             </section>

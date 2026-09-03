@@ -24,6 +24,26 @@
   grid-template-columns: 1.2fr 1fr 1fr .75fr .75fr auto;
 }
 
+.scope-readonly {
+  border: 1px solid #d7eef6;
+  border-radius: .78rem;
+  min-height: 2.85rem;
+  padding: .62rem .82rem;
+  background: #f4fcff;
+}
+
+.scope-readonly span {
+  color: #46536d;
+  display: block;
+  font-size: .7rem;
+  font-weight: 850;
+}
+
+.scope-readonly strong {
+  color: #050b4f;
+  font-size: .86rem;
+}
+
 .report-grid {
   display: grid;
   gap: 1rem;

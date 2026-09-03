@@ -1,38 +1,48 @@
 <section class="page-heading page-heading--clients">
   <div>
-    <span class="context-chip">Organización actual</span>
+    <span class="context-chip">{{ isServicesConfigurationRoute() ? 'Configuración / Servicios' : 'Configuración / Clientes' }}</span>
     <p class="context-line">{{ todayContext() }}</p>
-    <h1>Clientes</h1>
-    <p>Estás viendo clientes asociados a esta organización. Consulta, filtra y abre el expediente sin perder contexto.</p>
+    <h1>{{ pageHeadingTitle() }}</h1>
+    <p>{{ pageHeadingDescription() }}</p>
   </div>
   <div class="heading-actions">
-    <button class="button button--secondary" type="button" (click)="openCreateOrganization()">Nueva organización</button>
+    @if (canAdministerPlatform()) {
+      <button class="button button--secondary" type="button" (click)="openCreateOrganization()">Nueva organización</button>
+    }
     <button
       class="button button--primary"
       type="button"
-      [disabled]="!canCreateClient()"
-      [title]="newClientDisabledReason()"
-      (click)="openCreateClient()"
+      [disabled]="!canRunPrimaryAction()"
+      [title]="primaryActionDisabledReason()"
+      (click)="openPrimaryConfigurationAction()"
     >
-      <span aria-hidden="true">＋</span> Nuevo cliente
+      <span aria-hidden="true">＋</span> {{ primaryActionLabel() }}
     </button>
   </div>
 </section>
 
 <section class="context-card context-card--clients" aria-label="Contexto de organización">
-  <label class="organization-picker">
-    <span>Organización</span>
-    <select [value]="selectedOrganizationId()" (change)="selectOrganization($any($event.target).value)">
-      <option value="" disabled>Selecciona una organización</option>
-      @if (!organizations().length) {
-        <option value="">Sin organizaciones registradas</option>
-      }
-      @for (organization of organizations(); track organization.idOrganization) {
-        <option [value]="organization.idOrganization">{{ organization.legalName }}</option>
-      }
-    </select>
-    <small>{{ selectedOrganization()?.legalName || 'Crea una organización para comenzar' }}</small>
-  </label>
+  @if (canAdministerPlatform()) {
+    <label class="organization-picker">
+      <span>Organización para soporte</span>
+      <select [value]="selectedOrganizationId()" (change)="selectOrganization($any($event.target).value)">
+        <option value="" disabled>Selecciona una organización</option>
+        @if (!organizations().length) {
+          <option value="">Sin organizaciones registradas</option>
+        }
+        @for (organization of organizations(); track organization.idOrganization) {
+          <option [value]="organization.idOrganization">{{ organization.legalName }}</option>
+        }
+      </select>
+      <small>{{ selectedOrganization()?.legalName || 'Crea una organización para comenzar' }}</small>
+    </label>
+  } @else {
+    <div class="organization-summary">
+      <span>Organización actual</span>
+      <strong>{{ selectedOrganization()?.legalName || 'Sin organización asignada' }}</strong>
+      <small>Los clientes, servicios, personal y documentos se administran dentro de este alcance.</small>
+    </div>
+  }
 
   @if (newClientDisabledReason()) {
     <p class="context-warning">{{ newClientDisabledReason() }}</p>
@@ -41,9 +51,9 @@
 
 <section class="client-kpis" aria-label="Indicadores de clientes">
   <article>
-    <span>Organizaciones</span>
-    <strong>{{ organizations().length }}</strong>
-    <small>contextos registrados</small>
+    <span>{{ canAdministerPlatform() ? 'Organizaciones' : 'Organización actual' }}</span>
+    <strong>{{ canAdministerPlatform() ? organizations().length : (selectedOrganization()?.codeOrganization || '—') }}</strong>
+    <small>{{ canAdministerPlatform() ? 'contextos registrados' : (selectedOrganization()?.legalName || 'sin alcance asignado') }}</small>
   </article>
   <article>
     <span>Clientes</span>
@@ -74,7 +84,7 @@
     <header class="table-toolbar table-toolbar--stacked">
       <div>
         <span class="eyebrow">Directorio + contexto</span>
-        <h2>Directorio de clientes</h2>
+        <h2>Directorio de clientes operativos</h2>
         <span>{{ visibleClients().length }} visibles de {{ result().totalCount }} registrados</span>
       </div>
     </header>
@@ -90,18 +100,20 @@
           (keyup.enter)="loadClients(1)"
         />
       </label>
-      <label>
-        <span>Organización</span>
-        <select [value]="selectedOrganizationId()" (change)="selectOrganization($any($event.target).value)">
-          <option value="" disabled>Selecciona una organización</option>
-          @if (!organizations().length) {
-            <option value="">Sin organizaciones</option>
-          }
-          @for (organization of organizations(); track organization.idOrganization) {
-            <option [value]="organization.idOrganization">{{ organization.legalName }}</option>
-          }
-        </select>
-      </label>
+      @if (canAdministerPlatform()) {
+        <label>
+          <span>Organización</span>
+          <select [value]="selectedOrganizationId()" (change)="selectOrganization($any($event.target).value)">
+            <option value="" disabled>Selecciona una organización</option>
+            @if (!organizations().length) {
+              <option value="">Sin organizaciones</option>
+            }
+            @for (organization of organizations(); track organization.idOrganization) {
+              <option [value]="organization.idOrganization">{{ organization.legalName }}</option>
+            }
+          </select>
+        </label>
+      }
       <label>
         <span>Estado</span>
         <select [value]="clientStatusFilter()" (change)="updateClientStatusFilter($any($event.target).value)">
@@ -177,9 +189,11 @@
     } @else if (!organizations().length) {
       <div class="state-panel state-panel--empty">
         <span class="empty-icon">⌂</span>
-        <strong>Esta cuenta aún no tiene organizaciones</strong>
-        <p>Puedes registrar un contexto empresarial para comenzar a administrar clientes.</p>
-        <button class="button button--primary" type="button" (click)="openCreateOrganization()">Nueva organización</button>
+        <strong>Esta cuenta no tiene organización asignada</strong>
+        <p>El Super Admin BKT debe asignar una organización antes de administrar clientes.</p>
+        @if (canAdministerPlatform()) {
+          <button class="button button--primary" type="button" (click)="openCreateOrganization()">Nueva organización</button>
+        }
       </div>
     } @else if (!selectedOrganizationId()) {
       <div class="state-panel state-panel--empty">
@@ -190,11 +204,13 @@
     } @else if (!result().items.length) {
       <div class="state-panel state-panel--empty">
         <span class="empty-icon">👥</span>
-        <strong>Esta organización aún no tiene clientes</strong>
-        <p>Puedes registrar un cliente para comenzar o cambiar de organización.</p>
+        <strong>Aún no hay clientes operativos</strong>
+        <p>{{ canAdministerPlatform() ? 'Puedes registrar un cliente para comenzar o cambiar de organización.' : 'Registra el primer cliente operativo de tu organización.' }}</p>
         <div class="empty-actions">
           <button class="button button--primary" type="button" [disabled]="!canCreateClient()" [title]="newClientDisabledReason()" (click)="openCreateClient()">Nuevo cliente</button>
-          <button class="button button--secondary" type="button" (click)="openCreateOrganization()">Cambiar / nueva organización</button>
+          @if (canAdministerPlatform()) {
+            <button class="button button--secondary" type="button" (click)="openCreateOrganization()">Cambiar / nueva organización</button>
+          }
         </div>
       </div>
     } @else if (!visibleClients().length) {
@@ -443,6 +459,16 @@
                 </div>
                 <div class="mini-actions">
                   <button type="button" (click)="openEditContract(contract)">Editar</button>
+                  <a
+                    routerLink="/documentos"
+                    [queryParams]="{
+                      organizationId: selectedOrganizationId(),
+                      ownerType: 'ServiceContract',
+                      ownerId: contract.idServiceContract
+                    }"
+                  >
+                    Documentos
+                  </a>
                   <button class="danger" type="button" (click)="deactivateContract(contract)">Desactivar</button>
                 </div>
               </article>
@@ -476,6 +502,16 @@
                 </button>
                 <div class="mini-actions">
                   <button type="button" (click)="openEditService(service)">Editar</button>
+                  <a
+                    routerLink="/documentos"
+                    [queryParams]="{
+                      organizationId: selectedOrganizationId(),
+                      ownerType: 'Service',
+                      ownerId: service.idService
+                    }"
+                  >
+                    Documentos
+                  </a>
                   <button class="danger" type="button" (click)="deactivateService(service)">Desactivar</button>
                 </div>
               </article>
@@ -729,21 +765,31 @@
         <header>
           <div>
             <h3>Documentos del cliente</h3>
-            <span>Expediente documental integrado</span>
+            <span>Documentos dentro de la entidad correspondiente</span>
           </div>
-          <a class="button button--secondary" routerLink="/documentos">Abrir documentos</a>
+          <a
+            class="button button--secondary"
+            routerLink="/documentos"
+            [queryParams]="{
+              organizationId: selectedOrganizationId(),
+              ownerType: 'Client',
+              ownerId: selectedClient()?.idClient
+            }"
+          >
+            Abrir documentos del expediente
+          </a>
         </header>
 
         <div class="document-integration-card">
-          <strong>Gestión documental centralizada</strong>
+          <strong>Gestión documental contextual</strong>
           <p>
-            Los documentos de clientes, contratos y servicios se administran desde el módulo Documentos para evitar duplicar lógica,
-            permisos y reglas de privacidad.
+            Los documentos de clientes, contratos y servicios se consultan desde esta entidad y se administran con la misma relación
+            documental para evitar duplicados. Las reglas, requisitos y bloqueos quedan en Configuración.
           </p>
           <ul>
-            <li>Categorías y vencimientos.</li>
-            <li>Consulta y descarga del archivo.</li>
-            <li>Reglas para documentos sensibles.</li>
+            <li>Cliente: contratos, RFC y alta fiscal.</li>
+            <li>Servicio: anexos, órdenes e instrucciones.</li>
+            <li>Control: auditoría, vencimientos y privacidad.</li>
           </ul>
         </div>
       </section>
@@ -771,15 +817,17 @@
             <li><span>4</span>Contactos</li>
             <li><span>5</span>Documentos</li>
           </ol>
-          <div class="inline-note">El cliente se asociará a la organización seleccionada: {{ selectedOrganization()?.legalName || 'sin organización seleccionada' }}.</div>
+          <div class="inline-note">{{ canAdministerPlatform() ? 'El cliente se asociará a la organización seleccionada: ' : 'El cliente se registrará en tu organización: ' }}{{ selectedOrganization()?.legalName || 'sin organización seleccionada' }}.</div>
         }
         <div class="form-grid">
-          <label>
-            <span>Organización *</span>
-            <select [value]="selectedOrganizationId()" disabled>
-              <option>{{ selectedOrganization()?.legalName || 'Selecciona una organización' }}</option>
-            </select>
-          </label>
+          @if (canAdministerPlatform()) {
+            <label>
+              <span>Organización *</span>
+              <select [value]="selectedOrganizationId()" disabled>
+                <option>{{ selectedOrganization()?.legalName || 'Selecciona una organización' }}</option>
+              </select>
+            </label>
+          }
           <label [class.is-invalid]="isInvalid('client', 'codeClient')">
             <span>Código *</span>
             <input formControlName="codeClient" [readOnly]="!!editingClient()" />
@@ -1150,7 +1198,7 @@
   </div>
 }
 
-@if (organizationEditorOpen()) {
+@if (organizationEditorOpen() && canAdministerPlatform()) {
   <div class="modal-backdrop" (click)="closeEditors()">
     <section class="modal modal--small" role="dialog" aria-modal="true" aria-labelledby="organization-editor-title" (click)="$event.stopPropagation()">
       <header>

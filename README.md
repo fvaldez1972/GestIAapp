@@ -67,6 +67,7 @@ GestIAapp/
 - `docs/architecture/08-source-model-analysis.md`
 - `docs/database/DATABASE_STANDARDS.md`
 - `docs/adr/0005-database-standards.md`
+- `docs/adr/0006-eliminacion-modo-soporte.md`
 - `docs/adr/0003-sql-server.md`
 - `docs/integrations/inspinia-5.md`
 - `docs/deployment/containers.md`

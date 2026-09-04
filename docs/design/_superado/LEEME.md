@@ -18,7 +18,8 @@ Son anteriores a dos decisiones que cambiaron la forma del producto:
    a la organización mediante una sesión de soporte, con su diálogo de motivo y duración, su
    indicador en la barra superior y las rutas operativas bloqueadas hasta activarlo. Ese
    mecanismo ya no forma parte del producto, así que cualquier elemento visual que lo
-   represente sobra.
+   represente sobra. La decisión y su alcance están en
+   [`../../adr/0006-eliminacion-modo-soporte.md`](../../adr/0006-eliminacion-modo-soporte.md).
 
 2. **El menú pasó de dieciséis a once entradas.** La navegación se recortó. Estos diseños
    están construidos sobre la estructura larga anterior, de modo que su jerarquía, sus accesos

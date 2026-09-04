@@ -1,7 +1,25 @@
+> ## ⚠ Documento superado
+>
+> **Este documento ya no es el alcance vigente.** Fue sustituido por
+> [`../fase-1/ALCANCE.md`](../fase-1/ALCANCE.md), que es el que gobierna el trabajo actual.
+>
+> Además, **describe un estado del sistema anterior al 2 de septiembre de 2026**. Buena parte
+> de lo que pide ya estaba implementado cuando se escribió: los paquetes A, B y C se
+> entregaron en el commit `4bf43e9`, cuyo mensaje es literalmente *"Configuracion para cambios
+> pedidos el dia 31 de agosto"*, y el módulo de Servicios que el paquete D describe como nuevo
+> existe desde la primera migración.
+>
+> La demostración está en
+> [`RECONOCIMIENTO.md`](RECONOCIMIENTO.md), que contrasta paquete por paquete lo que este
+> documento pide contra lo que el código ya hacía.
+>
+> Se conserva como historia y como origen de las decisiones. **No se implementa desde aquí.**
+
+---
+
 # Ajustes 31-08-26: reorganización funcional, roles y módulo de Servicios
 
 Fuente: `Ajustes310826.docx`. Este documento traduce la propuesta a alcance ejecutable.
-Ubicación sugerida en el repo: `docs/design/ajustes-310826/ALCANCE.md`.
 
 ## Decisión de dirección
 

@@ -15,6 +15,7 @@ using GestIA.Application.Services;
 using GestIA.Application.Support;
 using GestIA.Application.Workforce;
 using GestIA.Infrastructure.Persistence;
+using GestIA.Infrastructure.Persistence.DemoData;
 using GestIA.Infrastructure.Persistence.Repositories;
 using GestIA.Infrastructure.Security;
 using Microsoft.EntityFrameworkCore;
@@ -66,6 +67,12 @@ public static class DependencyInjection
         services.AddScoped<ISupportSessionRepository, SupportSessionRepository>();
         services.AddSingleton<IPasswordHashService, Pbkdf2PasswordHashService>();
         services.AddScoped<SecurityDataSeeder>();
+
+        // El sembrador demo se registra siempre pero no hace nada sin DemoData__Enabled=true.
+        services.Configure<DemoDataOptions>(options => DemoDataOptions.Bind(
+            configuration.GetSection(DemoDataOptions.SectionName),
+            options));
+        services.AddScoped<DemoDataSeeder>();
 
         services
             .AddHealthChecks()

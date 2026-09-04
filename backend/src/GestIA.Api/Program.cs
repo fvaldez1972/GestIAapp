@@ -6,6 +6,7 @@ using GestIA.Application.Common;
 using GestIA.Application.Security;
 using GestIA.Infrastructure;
 using GestIA.Infrastructure.Persistence;
+using GestIA.Infrastructure.Persistence.DemoData;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Http.Json;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -46,6 +47,12 @@ if (app.Environment.IsDevelopment())
 if (app.Configuration.GetValue("SecuritySeed:Enabled", true))
 {
     await SeedSecurityDataAsync(app);
+}
+
+// Datos demo: pieza separada del bootstrap, apagada salvo que se pida explícitamente.
+if (app.Configuration.GetValue($"{DemoDataOptions.SectionName}:Enabled", false))
+{
+    await SeedDemoDataAsync(app);
 }
 
 var livenessOptions = new HealthCheckOptions
@@ -98,6 +105,13 @@ static async Task SeedSecurityDataAsync(WebApplication app)
 {
     using var scope = app.Services.CreateScope();
     var seeder = scope.ServiceProvider.GetRequiredService<SecurityDataSeeder>();
+    await seeder.SeedAsync(app.Lifetime.ApplicationStopping);
+}
+
+static async Task SeedDemoDataAsync(WebApplication app)
+{
+    using var scope = app.Services.CreateScope();
+    var seeder = scope.ServiceProvider.GetRequiredService<DemoDataSeeder>();
     await seeder.SeedAsync(app.Lifetime.ApplicationStopping);
 }
 

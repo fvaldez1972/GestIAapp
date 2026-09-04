@@ -3,6 +3,20 @@ using GestIA.Domain.Organizations;
 
 namespace GestIA.Domain.Support;
 
+/// <summary>
+/// Sesión de soporte. <b>El mecanismo fue eliminado:</b> el super admin entra directamente a
+/// cualquier organización y ya no existe diálogo, motivo, duración ni expiración. Nada crea ni
+/// consulta estas sesiones para autorizar.
+///
+/// La entidad y su mapeo se conservan a propósito, y sólo por eso: mantienen viva la tabla
+/// <c>SupportSessions</c> con las sesiones históricas, que siguen consultables desde Auditoría.
+/// Quitar la entidad obligaría a una migración que borre la tabla, y esa decisión depende de
+/// una pregunta todavía abierta: si se registra o no qué organizaciones abre el super admin.
+///
+/// Cuando esa pregunta se resuelva, esta entidad se elimina junto con la tabla mediante una
+/// migración compensatoria, o el registro se hace en una tabla nueva. Lo que no se hará es
+/// reutilizar ésta para guardar otra cosa.
+/// </summary>
 public sealed class SupportSession : AuditableEntity
 {
     private SupportSession()

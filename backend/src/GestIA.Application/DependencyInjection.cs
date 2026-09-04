@@ -11,7 +11,6 @@ using GestIA.Application.Requests;
 using GestIA.Application.Scheduling;
 using GestIA.Application.Security;
 using GestIA.Application.Services;
-using GestIA.Application.Support;
 using GestIA.Application.Workforce;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -40,7 +39,6 @@ public static class DependencyInjection
         services.AddScoped<IOperationalRequestService, OperationalRequestService>();
         services.AddScoped<IAuditService, AuditService>();
         services.AddScoped<IAuthenticationService, AuthenticationService>();
-        services.AddScoped<ISupportSessionService, SupportSessionService>();
 
         return services;
     }

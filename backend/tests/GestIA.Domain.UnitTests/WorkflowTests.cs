@@ -2,7 +2,6 @@ using GestIA.Domain.Common;
 using GestIA.Domain.Documents;
 using GestIA.Domain.Operations;
 using GestIA.Domain.Requests;
-using GestIA.Domain.Support;
 
 namespace GestIA.Domain.UnitTests;
 
@@ -73,17 +72,6 @@ public sealed class WorkflowTests
         coverage.UpdateProfile(profile with { Status = CoverageStatus.Confirmed }, ActorId, "Admin", Now);
         coverage.UpdateProfile(profile, ActorId, "Admin", Now);
         Assert.Equal(CoverageStatus.Completed, coverage.Status);
-    }
-
-    [Fact]
-    public void SupportSessionIsBoundToActorAndExpiration()
-    {
-        var session = SupportSession.Start(Guid.NewGuid(), "Configuration support", Now, Now.AddMinutes(30), ActorId, "BKT");
-        Assert.True(session.IsValidFor(ActorId, Now));
-        Assert.False(session.IsValidFor(Guid.NewGuid(), Now));
-        Assert.False(session.IsValidFor(ActorId, Now.AddMinutes(30)));
-        session.End(ActorId, "BKT", Now.AddMinutes(5));
-        Assert.False(session.IsValidFor(ActorId, Now.AddMinutes(6)));
     }
 
     private static BusinessDocument CreateDocument() => BusinessDocument.Create(Guid.NewGuid(), DocumentProfile(), ActorId, "Admin", Now);

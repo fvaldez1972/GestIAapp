@@ -12,7 +12,6 @@ using GestIA.Application.Requests;
 using GestIA.Application.Scheduling;
 using GestIA.Application.Security;
 using GestIA.Application.Services;
-using GestIA.Application.Support;
 using GestIA.Application.Workforce;
 using GestIA.Infrastructure.Persistence;
 using GestIA.Infrastructure.Persistence.DemoData;
@@ -64,7 +63,6 @@ public static class DependencyInjection
         services.AddScoped<IOperationalRequestRepository, OperationalRequestRepository>();
         services.AddScoped<IAuditRepository, AuditRepository>();
         services.AddScoped<IUserAccessRepository, UserAccessRepository>();
-        services.AddScoped<ISupportSessionRepository, SupportSessionRepository>();
         services.AddSingleton<IPasswordHashService, Pbkdf2PasswordHashService>();
         services.AddScoped<SecurityDataSeeder>();
 

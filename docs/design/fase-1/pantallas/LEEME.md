@@ -1,0 +1,67 @@
+# Pantallas de la fase 1
+
+Diseños terminados a 1440 px. Cada archivo `.html` se abre directo en el navegador y contiene
+todas las vistas de esa pantalla, una debajo de otra.
+
+## Regla que manda sobre todo lo demás
+
+**[`../SISTEMA-COMPONENTES-CERRADO.md`](../SISTEMA-COMPONENTES-CERRADO.md) manda sobre
+cualquier decisión visual de estos archivos.** Si un diseño y el sistema de componentes no
+coinciden, gana el sistema. Los diseños son la aplicación del sistema a un caso concreto, no
+una fuente alterna de reglas.
+
+## Los colores están en hex crudo
+
+Estos archivos traen los colores escritos a mano, como `#10104e`, y **no** usan
+`var(--gestia-*)`. Al implementar hay que traducirlos a los tokens de la aplicación; copiar el
+hex directo al código es un error, porque rompe el tema y duplica la definición del color.
+
+La tabla de equivalencias está en el sistema de componentes y en
+[`../../refactor-ux/BRIEF-COMPONENTES.md`](../../refactor-ux/BRIEF-COMPONENTES.md).
+
+## Terminadas
+
+### Servicios — 6 vistas
+
+`servicios/servicios.html`. Cubre los pasos 5, 6 y 8 del recorrido.
+
+| Vista | Qué muestra |
+| --- | --- |
+| 1 | Listado de servicios, sin cascada |
+| 2 | Ficha en panel lateral, pestaña Datos |
+| 3 | Pestaña Posiciones, patrón semanal |
+| 3-B | Patrón cíclico, N días anclados a una fecha |
+| 4 | Pestaña Asignaciones, vacantes visibles |
+| 5 | Titular dado de baja y el calendario no se mueve |
+
+### Inicio — 4 vistas y un anexo
+
+`inicio/inicio.html`.
+
+| Vista | Qué muestra |
+| --- | --- |
+| 1 | Organización recién creada; todo el cuerpo es el camino de configuración |
+| 2 | Configuración a medias; el camino se encoge y aparece la primera franja |
+| 3 | Organización en operación; el camino queda en una línea y manda el tablero |
+| 4 | La vista 3 vista por un super admin que entró a la organización |
+| Anexo | Los cuatro estados de la tarjeta de indicador y los tokens que usan |
+
+## Compartido entre pantallas
+
+`componentes/side-menu.html` vive en su propia carpeta porque **lo usan todas las pantallas**,
+no solo estas dos. Cualquier cambio ahí afecta a la aplicación entera.
+
+## Faltan por diseñar
+
+- Clientes
+- Personal
+- Planeación
+- Asistencia
+- Incidencias con Cobertura
+
+## Se implementan sin pasar por diseño terminado
+
+**Organizaciones**, **Catálogos** y **Seguridad** se construyen directo desde
+[`../recorrido/boceto.html`](../recorrido/boceto.html), aplicando el sistema de componentes.
+No van a tener un archivo de diseño terminado en esta carpeta, y no hace falta esperarlo para
+empezarlas.

@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  body { margin:0; background:#f4f6fa; font-family:Archivo, system-ui, sans-serif; color:#253040; text-wrap:pretty; font-variant-numeric:tabular-nums; }
+  a { color:#087f9c; text-decoration:none; }
+  a:hover { color:#10104e; text-decoration:underline; }
+</style>
+</helmet>
+
+<div style="display:flex;flex-direction:column;gap:52px;padding:52px 60px 100px">
+
+  <div style="display:flex;flex-direction:column;gap:10px;max-width:1440px">
+    <div style="font:600 11px Archivo,sans-serif;letter-spacing:.16em;color:#5f6b7a">SERVICIOS · DISEÑO TERMINADO · 1440 PX · TOKENS DE MARCA</div>
+    <div style="font:700 30px/1.15 Archivo,sans-serif;color:#10104e">Pasos 5, 6 y 8: servicio, posiciones y asignaciones</div>
+    <div style="font:400 14px/1.5 Archivo,sans-serif;color:#5f6b7a;max-width:90ch">Seis vistas. Misma lógica del boceto aprobado: listado sin cascada, ficha en panel lateral con cuatro pestañas, patrón que pertenece a la posición, vacante visible. Barra de contexto de super admin dentro de una organización, sin modo soporte.</div>
+  </div>
+
+  <section data-screen-label="Vista 1 · Listado" id="v1" style="display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;align-items:baseline;gap:12px">
+      <span style="font:600 11.5px Archivo,sans-serif;letter-spacing:.14em;color:#5f6b7a">VISTA 1</span>
+      <span style="font:600 19px Archivo,sans-serif;color:#10104e">Listado de servicios, sin cascada</span>
+    </div>
+    <div style="width:1440px;border:1px solid #dce2e9;border-radius:6px;overflow:hidden;background:#f4f6fa">
+      <div style="height:4.5rem;background:#ffffff;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:12px;padding:0 20px">
+        <div style="display:flex;align-items:center;gap:10px;border:1px solid #dce2e9;border-radius:6px;padding:7px 11px;background:#ffffff">
+          <span style="font:400 11px Archivo,sans-serif;color:#5f6b7a">Organización activa</span>
+          <span style="font:600 13px Archivo,sans-serif;color:#10104e">Seguridad Vanguardia S.A.</span>
+          <span style="width:1px;height:16px;background:#dce2e9"></span>
+          <span style="font:600 12px Archivo,sans-serif;color:#087f9c">Cambiar organización</span>
+        </div>
+        <span style="border:1px solid #22c6ee;background:#e9f7fa;border-radius:6px;padding:6px 10px;font:600 11.5px Archivo,sans-serif;color:#087f9c">Dentro como super admin</span>
+        <span style="font:400 12.5px Archivo,sans-serif;color:#5f6b7a">Fecha operativa <span style="color:#253040;font-weight:600">04 sep 2026</span></span>
+        <span style="margin-left:auto;border:1px solid #dce2e9;border-radius:6px;padding:0 14px;height:2.5rem;display:flex;align-items:center;font:600 12.5px Archivo,sans-serif;color:#253040;background:#ffffff">Salir a la vista de plataforma</span>
+      </div>
+      <div style="display:flex;min-height:880px">
+        <dc-import name="SideMenu" active="Servicios" role="super-org" hint-size="272px,880px"></dc-import>
+        <div style="flex:1;padding:16px 20px 20px;display:flex;flex-direction:column;gap:16px;min-width:0">
+          <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px">
+            <div>
+              <div style="font:600 11px Archivo,sans-serif;letter-spacing:.1em;color:#5f6b7a;padding-bottom:5px">SERVICIOS</div>
+              <div style="font:700 22px/1.2 Archivo,sans-serif;color:#10104e">Servicios</div>
+              <div style="font:400 13px Archivo,sans-serif;color:#5f6b7a;padding-top:4px">Ocho clientes. La organización se hereda de la barra de contexto.</div>
+            </div>
+            <div style="background:#10104e;color:#ffffff;border-radius:6px;padding:0 16px;height:2.5rem;display:flex;align-items:center;font:600 13px Archivo,sans-serif">Nuevo servicio</div>
+          </div>
+          <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;display:flex;flex-direction:column">
+            <div style="padding:16px;display:flex;flex-direction:column;gap:12px;border-bottom:1px solid #dce2e9">
+              <div style="display:flex;gap:12px;align-items:center">
+                <div style="flex:1;height:2.5rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;gap:9px;padding:0 12px;min-width:0">
+                  <span style="width:14px;height:14px;border:1.5px solid #5f6b7a;border-radius:50%;flex:none"></span>
+                  <span style="font:400 13px Archivo,sans-serif;color:#5f6b7a">Buscar servicio, cliente o sede</span>
+                </div>
+                <span style="font:400 12.5px Archivo,sans-serif;color:#5f6b7a;flex:none">14 resultados</span>
+                <span style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;padding:0 14px;display:flex;align-items:center;gap:8px;font:600 12.5px Archivo,sans-serif;color:#253040;flex:none">Filtros <span style="border:1px solid #22c6ee;background:#e9f7fa;border-radius:6px;padding:1px 6px;font:600 11px Archivo,sans-serif;color:#087f9c">2</span></span>
+              </div>
+              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                <span style="border:1px solid #dce2e9;background:#f7f9fb;border-radius:6px;padding:5px 9px;font:500 12px Archivo,sans-serif;color:#253040;display:flex;gap:8px;align-items:center">Zona: Poniente <span style="color:#5f6b7a">✕</span></span>
+                <span style="border:1px solid #dce2e9;background:#f7f9fb;border-radius:6px;padding:5px 9px;font:500 12px Archivo,sans-serif;color:#253040;display:flex;gap:8px;align-items:center">Con vacantes <span style="color:#5f6b7a">✕</span></span>
+                <span style="font:600 12px Archivo,sans-serif;color:#087f9c">Quitar todos</span>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;padding:11px 16px;background:#f7f9fb;border-bottom:1px solid #dce2e9;font:600 10.5px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">
+              <span style="flex:2.2;min-width:0">SERVICIO</span><span style="flex:1.7;min-width:0">CLIENTE · SEDE</span><span style="width:200px;flex:none">VIGENCIA</span><span style="width:150px;flex:none">POSICIONES</span><span style="width:120px;flex:none">ESTADO</span><span style="width:52px;flex:none;text-align:right">·</span>
+            </div>
+            <sc-for list="{{ rows }}" as="r" hint-placeholder-count="14">
+              <div style="display:flex;align-items:center;padding:{{ r.pad }};border-bottom:1px solid #dce2e9;background:{{ r.bg }}">
+                <span style="flex:2.2;min-width:0;font:600 13px Archivo,sans-serif;color:#253040;padding-right:16px">{{ r.nombre }}</span>
+                <span style="flex:1.7;min-width:0;font:400 12.5px Archivo,sans-serif;color:#5f6b7a;padding-right:16px">{{ r.clienteSede }}</span>
+                <span style="width:200px;flex:none;font:400 12.5px Archivo,sans-serif;color:#5f6b7a">{{ r.vig }}</span>
+                <span style="width:150px;flex:none;display:flex;align-items:center;gap:9px">
+                  <span style="font:600 13px Archivo,sans-serif;color:{{ r.posColor }}">{{ r.pos }}</span>
+                  <span style="border:1px solid {{ r.vacBorder }};background:{{ r.vacBg }};border-radius:6px;padding:2px 7px;font:600 11px Archivo,sans-serif;color:{{ r.vacColor }}">{{ r.vacText }}</span>
+                </span>
+                <span style="width:120px;flex:none;display:flex;align-items:center;gap:7px;font:500 12px Archivo,sans-serif;color:#253040">
+                  <span style="width:7px;height:7px;border-radius:50%;background:{{ r.estadoDot }};flex:none"></span>{{ r.estado }}
+                </span>
+                <span style="width:52px;flex:none;display:flex;justify-content:flex-end">
+                  <span style="width:28px;height:28px;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;justify-content:center;font:600 13px Archivo,sans-serif;color:#5f6b7a">⋯</span>
+                </span>
+              </div>
+            </sc-for>
+            <div style="padding:14px 16px;display:flex;justify-content:space-between;align-items:center;font:400 12.5px Archivo,sans-serif;color:#5f6b7a">
+              <span>14 de 14 servicios</span>
+              <span style="display:flex;gap:8px;align-items:center"><span style="border:1px solid #dce2e9;border-radius:6px;padding:5px 10px;color:#253040;font-weight:600">Anterior</span><span style="border:1px solid #dce2e9;border-radius:6px;padding:5px 10px;color:#253040;font-weight:600">Siguiente</span></span>
+            </div>
+          </div>
+          <div style="display:flex;gap:16px;align-items:flex-start">
+            <div style="width:300px;flex:none;background:#ffffff;border:1px solid #dce2e9;border-radius:6px;overflow:hidden">
+              <div style="padding:11px 14px;background:#f7f9fb;border-bottom:1px solid #dce2e9;font:600 10.5px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">ACCIONES DE FILA · MENÚ ABIERTO</div>
+              <div style="display:flex;flex-direction:column;padding:6px 0">
+                <span style="padding:10px 14px;font:500 13px Archivo,sans-serif;color:#253040">Editar servicio</span>
+                <span style="padding:10px 14px;font:500 13px Archivo,sans-serif;color:#253040;background:#e9f7fa">Ver posiciones</span>
+                <span style="padding:10px 14px;font:500 13px Archivo,sans-serif;color:#253040">Documentos</span>
+                <span style="height:1px;background:#dce2e9;margin:6px 0"></span>
+                <span style="padding:10px 14px;font:600 13px Archivo,sans-serif;color:#dc2626">Desactivar servicio</span>
+              </div>
+            </div>
+            <div style="flex:1;background:#ffffff;border:1px solid #dce2e9;border-radius:6px;padding:16px;display:flex;gap:28px">
+              <div style="flex:1"><div style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a;padding-bottom:7px">LO QUE SE FUE DE ESTA PANTALLA</div><div style="font:400 12.5px/1.6 Archivo,sans-serif;color:#253040">La cascada organización → cliente → servicio. Los siete controles de filtro expuestos. El botón «Actualizar». Los tres enlaces de acción por fila con «Desactivar» al mismo peso que «Editar».</div></div>
+              <div style="flex:1"><div style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a;padding-bottom:7px">CÓMO SE LEE LA COBERTURA</div><div style="font:400 12.5px/1.6 Archivo,sans-serif;color:#253040">La columna Posiciones dice asignados sobre requeridos. Cuando falta gente, el número y la píldora van en <span style="color:#dc2626;font-weight:600">danger</span>: el hueco se ve desde el listado, sin abrir la ficha.</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section data-screen-label="Vista 2 · Datos" id="v2" style="display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;align-items:baseline;gap:12px">
+      <span style="font:600 11.5px Archivo,sans-serif;letter-spacing:.14em;color:#5f6b7a">VISTA 2</span>
+      <span style="font:600 19px Archivo,sans-serif;color:#10104e">Ficha en panel lateral · pestaña Datos</span>
+    </div>
+    <div style="width:1440px;border:1px solid #dce2e9;border-radius:6px;overflow:hidden;background:#f4f6fa">
+      <div style="height:4.5rem;background:#ffffff;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:12px;padding:0 20px">
+        <div style="display:flex;align-items:center;gap:10px;border:1px solid #dce2e9;border-radius:6px;padding:7px 11px;background:#ffffff">
+          <span style="font:400 11px Archivo,sans-serif;color:#5f6b7a">Organización activa</span>
+          <span style="font:600 13px Archivo,sans-serif;color:#10104e">Seguridad Vanguardia S.A.</span>
+          <span style="width:1px;height:16px;background:#dce2e9"></span>
+          <span style="font:600 12px Archivo,sans-serif;color:#087f9c">Cambiar organización</span>
+        </div>
+        <span style="border:1px solid #22c6ee;background:#e9f7fa;border-radius:6px;padding:6px 10px;font:600 11.5px Archivo,sans-serif;color:#087f9c">Dentro como super admin</span>
+        <span style="font:400 12.5px Archivo,sans-serif;color:#5f6b7a">Fecha operativa <span style="color:#253040;font-weight:600">04 sep 2026</span></span>
+        <span style="margin-left:auto;border:1px solid #dce2e9;border-radius:6px;padding:0 14px;height:2.5rem;display:flex;align-items:center;font:600 12.5px Archivo,sans-serif;color:#253040;background:#ffffff">Salir a la vista de plataforma</span>
+      </div>
+      <div style="display:flex;min-height:820px">
+        <dc-import name="SideMenu" active="Servicios" role="super-org" hint-size="272px,820px"></dc-import>
+        <div style="flex:1;padding:16px 20px 20px;display:flex;flex-direction:column;gap:16px;min-width:0">
+          <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px">
+            <div>
+              <div style="font:600 11px Archivo,sans-serif;letter-spacing:.1em;color:#5f6b7a;padding-bottom:5px">SERVICIOS</div>
+              <div style="font:700 22px/1.2 Archivo,sans-serif;color:#10104e">Servicios</div>
+            </div>
+            <div style="background:#10104e;color:#ffffff;border-radius:6px;padding:0 16px;height:2.5rem;display:flex;align-items:center;font:600 13px Archivo,sans-serif">Nuevo servicio</div>
+          </div>
+          <div style="display:flex;gap:16px;align-items:flex-start;min-width:0">
+            <div style="flex:1;min-width:0;background:#ffffff;border:1px solid #dce2e9;border-radius:6px;display:flex;flex-direction:column;overflow:hidden">
+              <div style="padding:12px 14px;border-bottom:1px solid #dce2e9;display:flex;gap:10px;align-items:center">
+                <div style="flex:1;height:2.25rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;padding:0 11px;font:400 12.5px Archivo,sans-serif;color:#5f6b7a;min-width:0">Buscar servicio, cliente o sede</div>
+                <span style="height:2.25rem;border:1px solid #dce2e9;border-radius:6px;padding:0 12px;display:flex;align-items:center;font:600 12px Archivo,sans-serif;color:#253040;flex:none">Filtros</span>
+              </div>
+              <div style="display:flex;align-items:center;padding:10px 14px;background:#f7f9fb;border-bottom:1px solid #dce2e9;font:600 10.5px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">
+                <span style="flex:1.6;min-width:0">SERVICIO</span><span style="width:110px;flex:none">POSICIONES</span><span style="width:100px;flex:none">ESTADO</span>
+              </div>
+              <sc-for list="{{ compact }}" as="c" hint-placeholder-count="8">
+                <div style="display:flex;align-items:center;padding:13px 14px;border-bottom:1px solid #dce2e9;background:{{ c.bg }};border-left:3px solid {{ c.markLeft }}">
+                  <span style="flex:1.6;min-width:0;padding-right:12px">
+                    <span style="display:block;font:600 12.5px Archivo,sans-serif;color:#253040">{{ c.nombre }}</span>
+                    <span style="display:block;font:400 11.5px Archivo,sans-serif;color:#5f6b7a;padding-top:3px">{{ c.clienteSede }}</span>
+                  </span>
+                  <span style="width:110px;flex:none;display:flex;flex-direction:column;gap:3px">
+                    <span style="font:600 12.5px Archivo,sans-serif;color:{{ c.posColor }}">{{ c.pos }}</span>
+                    <span style="font:500 11px Archivo,sans-serif;color:{{ c.vacColor }}">{{ c.vacText }}</span>
+                  </span>
+                  <span style="width:100px;flex:none;display:flex;align-items:center;gap:7px;font:500 11.5px Archivo,sans-serif;color:#253040"><span style="width:7px;height:7px;border-radius:50%;background:{{ c.estadoDot }};flex:none"></span>{{ c.estado }}</span>
+                </div>
+              </sc-for>
+            </div>
+            <div style="width:620px;flex:none;background:#ffffff;border:1px solid #dce2e9;border-radius:6px;display:flex;flex-direction:column;overflow:hidden">
+              <div style="padding:15px 18px;border-bottom:1px solid #dce2e9;display:flex;justify-content:space-between;align-items:flex-start;gap:14px">
+                <div>
+                  <div style="font:700 17px/1.25 Archivo,sans-serif;color:#10104e">Vigilancia intramuros Torre Altavista</div>
+                  <div style="font:400 12.5px Archivo,sans-serif;color:#5f6b7a;padding-top:5px">Corporativo Altavista · Torre Altavista</div>
+                </div>
+                <span style="width:28px;height:28px;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;justify-content:center;font:500 13px Archivo,sans-serif;color:#5f6b7a;flex:none">✕</span>
+              </div>
+              <div style="display:flex;gap:22px;padding:0 18px;border-bottom:1px solid #dce2e9;font:600 13px Archivo,sans-serif;color:#5f6b7a">
+                <span style="padding:13px 0;border-bottom:2px solid #22c6ee;color:#10104e">Datos</span>
+                <span style="padding:13px 0">Configuración</span>
+                <span style="padding:13px 0">Posiciones</span>
+                <span style="padding:13px 0;display:flex;gap:8px;align-items:center">Asignaciones <span style="border:1px solid #dc2626;border-radius:6px;padding:1px 6px;font:600 11px Archivo,sans-serif;color:#dc2626">1</span></span>
+              </div>
+              <div style="padding:18px;display:flex;flex-direction:column;gap:18px">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+                  <div style="display:flex;flex-direction:column;gap:6px"><span style="font:500 11.5px Archivo,sans-serif;color:#5f6b7a">Nombre del servicio</span><span style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;padding:0 11px;font:500 13px Archivo,sans-serif;color:#253040">Vigilancia intramuros Torre Altavista</span></div>
+                  <div style="display:flex;flex-direction:column;gap:6px"><span style="font:500 11.5px Archivo,sans-serif;color:#5f6b7a">Zona</span><span style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;justify-content:space-between;padding:0 11px;font:500 13px Archivo,sans-serif;color:#253040">Poniente <span style="color:#5f6b7a">▾</span></span></div>
+                  <div style="display:flex;flex-direction:column;gap:6px"><span style="font:500 11.5px Archivo,sans-serif;color:#5f6b7a">Cliente</span><span style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;justify-content:space-between;padding:0 11px;font:500 13px Archivo,sans-serif;color:#253040">Corporativo Altavista <span style="color:#5f6b7a">▾</span></span></div>
+                  <div style="display:flex;flex-direction:column;gap:6px"><span style="font:500 11.5px Archivo,sans-serif;color:#5f6b7a">Sede</span><span style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;justify-content:space-between;padding:0 11px;font:500 13px Archivo,sans-serif;color:#253040">Torre Altavista <span style="color:#5f6b7a">▾</span></span></div>
+                  <div style="display:flex;flex-direction:column;gap:6px"><span style="font:500 11.5px Archivo,sans-serif;color:#5f6b7a">Inicio de vigencia</span><span style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;padding:0 11px;font:500 13px Archivo,sans-serif;color:#253040">01 sep 2026</span></div>
+                  <div style="display:flex;flex-direction:column;gap:6px"><span style="font:500 11.5px Archivo,sans-serif;color:#5f6b7a">Término de vigencia</span><span style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;padding:0 11px;font:400 13px Archivo,sans-serif;color:#5f6b7a">Sin término</span></div>
+                </div>
+                <div style="border:1px solid #dce2e9;border-radius:6px;overflow:hidden">
+                  <div style="padding:11px 14px;background:#f7f9fb;border-bottom:1px solid #dce2e9;font:600 10.5px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">CONTACTO OPERATIVO EN LA SEDE</div>
+                  <div style="padding:14px;display:flex;gap:26px;font:400 13px Archivo,sans-serif;color:#253040">
+                    <span><span style="display:block;font:500 11.5px Archivo,sans-serif;color:#5f6b7a;padding-bottom:3px">Nombre</span>Adriana Quiñones</span>
+                    <span><span style="display:block;font:500 11.5px Archivo,sans-serif;color:#5f6b7a;padding-bottom:3px">Puesto</span>Jefa de seguridad</span>
+                    <span><span style="display:block;font:500 11.5px Archivo,sans-serif;color:#5f6b7a;padding-bottom:3px">Teléfono</span>55 4821 9033</span>
+                  </div>
+                </div>
+                <div style="border:1px solid #dce2e9;border-radius:6px;overflow:hidden">
+                  <div style="padding:11px 14px;background:#f7f9fb;border-bottom:1px solid #dce2e9;display:flex;justify-content:space-between;align-items:center">
+                    <span style="font:600 10.5px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">CONTRATO</span>
+                    <span style="font:600 12px Archivo,sans-serif;color:#087f9c">Adjuntar</span>
+                  </div>
+                  <div style="padding:14px;font:400 12.5px Archivo,sans-serif;color:#5f6b7a">Opcional. Sin contrato el servicio opera igual: no bloquea posiciones ni planeación.</div>
+                </div>
+                <div style="display:flex;gap:10px;align-items:center;border:1px solid #dce2e9;border-radius:6px;padding:12px 14px;background:#f7f9fb">
+                  <span style="width:7px;height:7px;border-radius:50%;background:#16a34a;flex:none"></span>
+                  <span style="font:500 12.5px Archivo,sans-serif;color:#253040">Servicio activo</span>
+                  <span style="margin-left:auto;font:600 12.5px Archivo,sans-serif;color:#dc2626">Desactivar</span>
+                </div>
+              </div>
+              <div style="margin-top:auto;border-top:1px solid #dce2e9;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;background:#ffffff">
+                <span style="font:400 12px Archivo,sans-serif;color:#5f6b7a">Última edición 03 sep 2026 · Renata Villaseñor</span>
+                <span style="display:flex;gap:10px;align-items:center">
+                  <span style="height:2.5rem;display:flex;align-items:center;padding:0 12px;font:600 12.5px Archivo,sans-serif;color:#5f6b7a">Descartar</span>
+                  <span style="height:2.5rem;display:flex;align-items:center;padding:0 16px;background:#10104e;color:#ffffff;border-radius:6px;font:600 12.5px Archivo,sans-serif">Guardar cambios</span>
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section data-screen-label="Vista 3 · Posiciones semanal" id="v3" style="display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;align-items:baseline;gap:12px">
+      <span style="font:600 11.5px Archivo,sans-serif;letter-spacing:.14em;color:#5f6b7a">VISTA 3</span>
+      <span style="font:600 19px Archivo,sans-serif;color:#10104e">Pestaña Posiciones · patrón semanal</span>
+    </div>
+    <div style="width:1440px;border:1px solid #dce2e9;border-radius:6px;overflow:hidden;background:#f4f6fa">
+      <div style="height:4.5rem;background:#ffffff;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:12px;padding:0 20px">
+        <div style="display:flex;align-items:center;gap:10px;border:1px solid #dce2e9;border-radius:6px;padding:7px 11px;background:#ffffff">
+          <span style="font:400 11px Archivo,sans-serif;color:#5f6b7a">Organización activa</span>
+          <span style="font:600 13px Archivo,sans-serif;color:#10104e">Seguridad Vanguardia S.A.</span>
+          <span style="width:1px;height:16px;background:#dce2e9"></span>
+          <span style="font:600 12px Archivo,sans-serif;color:#087f9c">Cambiar organización</span>
+        </div>
+        <span style="border:1px solid #22c6ee;background:#e9f7fa;border-radius:6px;padding:6px 10px;font:600 11.5px Archivo,sans-serif;color:#087f9c">Dentro como super admin</span>
+        <span style="font:400 12.5px Archivo,sans-serif;color:#5f6b7a">Fecha operativa <span style="color:#253040;font-weight:600">04 sep 2026</span></span>
+        <span style="margin-left:auto;border:1px solid #dce2e9;border-radius:6px;padding:0 14px;height:2.5rem;display:flex;align-items:center;font:600 12.5px Archivo,sans-serif;color:#253040;background:#ffffff">Salir a la vista de plataforma</span>
+      </div>
+      <div style="display:flex;min-height:840px">
+        <dc-import name="SideMenu" active="Servicios" role="super-org" hint-size="272px,840px"></dc-import>
+        <div style="flex:1;padding:16px 20px 20px;display:flex;flex-direction:column;gap:16px;min-width:0">
+          <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px">
+            <div>
+              <div style="font:600 11px Archivo,sans-serif;letter-spacing:.1em;color:#5f6b7a;padding-bottom:5px">SERVICIOS</div>
+              <div style="font:700 22px/1.2 Archivo,sans-serif;color:#10104e">Servicios</div>
+            </div>
+            <div style="background:#10104e;color:#ffffff;border-radius:6px;padding:0 16px;height:2.5rem;display:flex;align-items:center;font:600 13px Archivo,sans-serif">Nuevo servicio</div>
+          </div>
+          <div style="display:flex;gap:16px;align-items:flex-start;min-width:0">
+            <div style="width:330px;flex:none;background:#ffffff;border:1px solid #dce2e9;border-radius:6px;display:flex;flex-direction:column;overflow:hidden">
+              <div style="padding:12px 14px;border-bottom:1px solid #dce2e9;font:600 10.5px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">SERVICIOS · 14</div>
+              <sc-for list="{{ compact }}" as="c" hint-placeholder-count="8">
+                <div style="display:flex;align-items:center;padding:12px 14px;border-bottom:1px solid #dce2e9;background:{{ c.bg }};border-left:3px solid {{ c.markLeft }}">
+                  <span style="flex:1;min-width:0;padding-right:10px">
+                    <span style="display:block;font:600 12.5px Archivo,sans-serif;color:#253040">{{ c.nombre }}</span>
+                    <span style="display:block;font:400 11.5px Archivo,sans-serif;color:#5f6b7a;padding-top:3px">{{ c.clienteSede }}</span>
+                  </span>
+                  <span style="font:600 12px Archivo,sans-serif;color:{{ c.posColor }};flex:none">{{ c.pos }}</span>
+                </div>
+              </sc-for>
+            </div>
+            <div style="flex:1;min-width:0;background:#ffffff;border:1px solid #dce2e9;border-radius:6px;display:flex;flex-direction:column;overflow:hidden">
+              <div style="padding:15px 18px;border-bottom:1px solid #dce2e9;display:flex;justify-content:space-between;align-items:flex-start;gap:14px">
+                <div>
+                  <div style="font:700 17px/1.25 Archivo,sans-serif;color:#10104e">Vigilancia intramuros Torre Altavista</div>
+                  <div style="font:400 12.5px Archivo,sans-serif;color:#5f6b7a;padding-top:5px">Corporativo Altavista · Torre Altavista · 4 elementos requeridos</div>
+                </div>
+                <span style="width:28px;height:28px;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;justify-content:center;font:500 13px Archivo,sans-serif;color:#5f6b7a;flex:none">✕</span>
+              </div>
+              <div style="display:flex;gap:22px;padding:0 18px;border-bottom:1px solid #dce2e9;font:600 13px Archivo,sans-serif;color:#5f6b7a">
+                <span style="padding:13px 0">Datos</span>
+                <span style="padding:13px 0">Configuración</span>
+                <span style="padding:13px 0;border-bottom:2px solid #22c6ee;color:#10104e">Posiciones</span>
+                <span style="padding:13px 0;display:flex;gap:8px;align-items:center">Asignaciones <span style="border:1px solid #dc2626;border-radius:6px;padding:1px 6px;font:600 11px Archivo,sans-serif;color:#dc2626">1</span></span>
+                <span style="margin-left:auto;align-self:center;background:#10104e;color:#ffffff;border-radius:6px;padding:0 14px;height:2.25rem;display:flex;align-items:center;font:600 12.5px Archivo,sans-serif">Nueva posición</span>
+              </div>
+              <div style="display:flex;align-items:stretch;min-height:600px">
+                <div style="width:250px;flex:none;border-right:1px solid #dce2e9;display:flex;flex-direction:column">
+                  <div style="padding:10px 14px;background:#f7f9fb;border-bottom:1px solid #dce2e9;font:600 10.5px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">3 POSICIONES</div>
+                  <div style="padding:12px 14px;border-bottom:1px solid #dce2e9;background:#e9f7fa;border-left:3px solid #22c6ee">
+                    <div style="font:600 13px Archivo,sans-serif;color:#10104e">P-01 Acceso principal</div>
+                    <div style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a;padding-top:4px">Semanal · cupo 2</div>
+                  </div>
+                  <div style="padding:12px 14px;border-bottom:1px solid #dce2e9">
+                    <div style="font:600 13px Archivo,sans-serif;color:#253040">P-02 Rondín nocturno</div>
+                    <div style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a;padding-top:4px">Cíclico 24x48 · cupo 1</div>
+                  </div>
+                  <div style="padding:12px 14px;border-bottom:1px solid #dce2e9">
+                    <div style="font:600 13px Archivo,sans-serif;color:#253040">P-03 Monitoreo CCTV</div>
+                    <div style="font:500 11.5px Archivo,sans-serif;color:#dc2626;padding-top:4px">Patrón incompleto · 2 días</div>
+                  </div>
+                  <div style="padding:14px;font:400 11.5px/1.55 Archivo,sans-serif;color:#5f6b7a">La suma de cupos se cuenta contra los 4 elementos requeridos de la configuración vigente.</div>
+                </div>
+                <div style="flex:1;min-width:0;padding:18px;display:flex;flex-direction:column;gap:16px">
+                  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px">
+                    <div>
+                      <div style="font:700 16px Archivo,sans-serif;color:#10104e">P-01 · Acceso principal</div>
+                      <div style="font:400 12.5px Archivo,sans-serif;color:#5f6b7a;padding-top:4px">El turno y el descanso son de la posición. Quien la ocupe hereda este calendario.</div>
+                    </div>
+                    <span style="border:1px solid #dce2e9;border-radius:6px;padding:0 13px;height:2.25rem;display:flex;align-items:center;font:600 12.5px Archivo,sans-serif;color:#253040;flex:none">Duplicar</span>
+                  </div>
+                  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">
+                    <div style="display:flex;flex-direction:column;gap:6px"><span style="font:500 11.5px Archivo,sans-serif;color:#5f6b7a">Elementos requeridos</span><span style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;padding:0 11px;font:600 13px Archivo,sans-serif;color:#253040">2</span></div>
+                    <div style="display:flex;flex-direction:column;gap:6px"><span style="font:500 11.5px Archivo,sans-serif;color:#5f6b7a">Perfil requerido</span><span style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;justify-content:space-between;padding:0 11px;font:500 13px Archivo,sans-serif;color:#253040">Guardia de acceso <span style="color:#5f6b7a">▾</span></span></div>
+                    <div style="display:flex;flex-direction:column;gap:6px"><span style="font:500 11.5px Archivo,sans-serif;color:#5f6b7a">Vigente desde</span><span style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;padding:0 11px;font:500 13px Archivo,sans-serif;color:#253040">01 sep 2026</span></div>
+                  </div>
+                  <div style="border:1px solid #dce2e9;border-radius:6px;overflow:hidden">
+                    <div style="padding:12px 14px;background:#f7f9fb;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:14px">
+                      <span style="font:600 10.5px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">ANCLA DEL PATRÓN</span>
+                      <span style="display:flex;border:1px solid #dce2e9;border-radius:6px;overflow:hidden">
+                        <span style="padding:7px 14px;background:#10104e;color:#ffffff;font:600 12px Archivo,sans-serif">Semanal</span>
+                        <span style="padding:7px 14px;background:#ffffff;color:#253040;font:500 12px Archivo,sans-serif;border-left:1px solid #dce2e9">Cíclico de N días</span>
+                      </span>
+                      <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Siete días anclados al día de la semana</span>
+                    </div>
+                    <div style="display:grid;grid-template-columns:repeat(7,1fr)">
+                      <div style="padding:10px 8px;border-right:1px solid #dce2e9;border-bottom:1px solid #dce2e9;background:#ffffff;font:600 11px Archivo,sans-serif;color:#5f6b7a;text-align:center">LUNES</div>
+                      <div style="padding:10px 8px;border-right:1px solid #dce2e9;border-bottom:1px solid #dce2e9;font:600 11px Archivo,sans-serif;color:#5f6b7a;text-align:center">MARTES</div>
+                      <div style="padding:10px 8px;border-right:1px solid #dce2e9;border-bottom:1px solid #dce2e9;font:600 11px Archivo,sans-serif;color:#5f6b7a;text-align:center">MIÉRCOLES</div>
+                      <div style="padding:10px 8px;border-right:1px solid #dce2e9;border-bottom:1px solid #dce2e9;font:600 11px Archivo,sans-serif;color:#5f6b7a;text-align:center">JUEVES</div>
+                      <div style="padding:10px 8px;border-right:1px solid #dce2e9;border-bottom:1px solid #dce2e9;font:600 11px Archivo,sans-serif;color:#5f6b7a;text-align:center">VIERNES</div>
+                      <div style="padding:10px 8px;border-right:1px solid #dce2e9;border-bottom:1px solid #dce2e9;font:600 11px Archivo,sans-serif;color:#5f6b7a;text-align:center">SÁBADO</div>
+                      <div style="padding:10px 8px;border-bottom:1px solid #dce2e9;font:600 11px Archivo,sans-serif;color:#5f6b7a;text-align:center">DOMINGO</div>
+                    </div>
+                    <div style="display:grid;grid-template-columns:repeat(7,1fr)">
+                      <div style="border-right:1px solid #dce2e9;padding:16px 8px;background:#e9f7fa;display:flex;flex-direction:column;gap:6px;align-items:center"><span style="font:700 12px Archivo,sans-serif;color:#087f9c">TURNO</span><span style="font:500 12px Archivo,sans-serif;color:#253040">07:00–19:00</span></div>
+                      <div style="border-right:1px solid #dce2e9;padding:16px 8px;background:#e9f7fa;display:flex;flex-direction:column;gap:6px;align-items:center"><span style="font:700 12px Archivo,sans-serif;color:#087f9c">TURNO</span><span style="font:500 12px Archivo,sans-serif;color:#253040">07:00–19:00</span></div>
+                      <div style="border-right:1px solid #dce2e9;padding:16px 8px;background:#e9f7fa;display:flex;flex-direction:column;gap:6px;align-items:center"><span style="font:700 12px Archivo,sans-serif;color:#087f9c">TURNO</span><span style="font:500 12px Archivo,sans-serif;color:#253040">07:00–19:00</span></div>
+                      <div style="border-right:1px solid #dce2e9;padding:16px 8px;background:#f7f9fb;display:flex;flex-direction:column;gap:6px;align-items:center"><span style="font:700 12px Archivo,sans-serif;color:#5f6b7a">DESCANSO</span><span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">declarado</span></div>
+                      <div style="border-right:1px solid #dce2e9;padding:16px 8px;background:#e9f7fa;display:flex;flex-direction:column;gap:6px;align-items:center"><span style="font:700 12px Archivo,sans-serif;color:#087f9c">TURNO</span><span style="font:500 12px Archivo,sans-serif;color:#253040">07:00–19:00</span></div>
+                      <div style="border-right:1px solid #dce2e9;padding:16px 8px;background:#e9f7fa;display:flex;flex-direction:column;gap:6px;align-items:center"><span style="font:700 12px Archivo,sans-serif;color:#087f9c">TURNO</span><span style="font:500 12px Archivo,sans-serif;color:#253040">07:00–19:00</span></div>
+                      <div style="padding:16px 8px;background:#f7f9fb;display:flex;flex-direction:column;gap:6px;align-items:center"><span style="font:700 12px Archivo,sans-serif;color:#5f6b7a">DESCANSO</span><span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">declarado</span></div>
+                    </div>
+                    <div style="border-top:1px solid #dce2e9;padding:12px 14px;display:flex;gap:20px;align-items:center;background:#ffffff">
+                      <span style="display:flex;gap:8px;align-items:center;font:400 12px Archivo,sans-serif;color:#5f6b7a"><span style="width:14px;height:14px;background:#e9f7fa;border:1px solid #22c6ee;border-radius:3px"></span>Turno</span>
+                      <span style="display:flex;gap:8px;align-items:center;font:400 12px Archivo,sans-serif;color:#5f6b7a"><span style="width:14px;height:14px;background:#f7f9fb;border:1px solid #dce2e9;border-radius:3px"></span>Descanso declarado</span>
+                      <span style="display:flex;gap:8px;align-items:center;font:400 12px Archivo,sans-serif;color:#5f6b7a"><span style="width:14px;height:14px;background:#ffffff;border:1px dashed #dc2626;border-radius:3px"></span>Sin declarar</span>
+                      <span style="margin-left:auto;font:600 12px Archivo,sans-serif;color:#16a34a">Patrón completo</span>
+                    </div>
+                  </div>
+                  <div style="border:1px solid #dc2626;border-radius:6px;overflow:hidden">
+                    <div style="padding:12px 14px;display:flex;gap:14px;align-items:center;border-bottom:1px solid #dce2e9">
+                      <span style="border:1px solid #dc2626;border-radius:6px;padding:2px 8px;font:600 11px Archivo,sans-serif;color:#dc2626;flex:none">P-03</span>
+                      <span style="flex:1;font:500 13px Archivo,sans-serif;color:#253040">Patrón incompleto: sábado y domingo sin declarar</span>
+                      <span style="background:#10104e;color:#ffffff;border-radius:6px;padding:0 13px;height:2.25rem;display:flex;align-items:center;font:600 12.5px Archivo,sans-serif;flex:none">Declarar los 2 días</span>
+                    </div>
+                    <div style="display:grid;grid-template-columns:repeat(7,1fr)">
+                      <div style="border-right:1px solid #dce2e9;padding:11px 4px;text-align:center;background:#e9f7fa;font:600 11px Archivo,sans-serif;color:#087f9c">TURNO</div>
+                      <div style="border-right:1px solid #dce2e9;padding:11px 4px;text-align:center;background:#e9f7fa;font:600 11px Archivo,sans-serif;color:#087f9c">TURNO</div>
+                      <div style="border-right:1px solid #dce2e9;padding:11px 4px;text-align:center;background:#e9f7fa;font:600 11px Archivo,sans-serif;color:#087f9c">TURNO</div>
+                      <div style="border-right:1px solid #dce2e9;padding:11px 4px;text-align:center;background:#e9f7fa;font:600 11px Archivo,sans-serif;color:#087f9c">TURNO</div>
+                      <div style="border-right:1px solid #dce2e9;padding:11px 4px;text-align:center;background:#f7f9fb;font:600 11px Archivo,sans-serif;color:#5f6b7a">DESCANSO</div>
+                      <div style="border-right:1px solid #dce2e9;padding:11px 4px;text-align:center;border:1px dashed #dc2626;font:600 11px Archivo,sans-serif;color:#dc2626">SIN DECLARAR</div>
+                      <div style="padding:11px 4px;text-align:center;border:1px dashed #dc2626;font:600 11px Archivo,sans-serif;color:#dc2626">SIN DECLARAR</div>
+                    </div>
+                  </div>
+                  <div style="margin-top:auto;border-top:1px solid #dce2e9;padding-top:14px;display:flex;justify-content:space-between;align-items:center">
+                    <span style="font:400 12px Archivo,sans-serif;color:#5f6b7a">Cupo total definido: 3 de 4 elementos requeridos</span>
+                    <span style="display:flex;gap:10px;align-items:center">
+                      <span style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;padding:0 14px;display:flex;align-items:center;font:600 12.5px Archivo,sans-serif;color:#253040">Dar de alta empleados</span>
+                      <span style="height:2.5rem;background:#10104e;color:#ffffff;border-radius:6px;padding:0 16px;display:flex;align-items:center;font:600 12.5px Archivo,sans-serif">Asignar personal</span>
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section data-screen-label="Vista 3B · Patrón cíclico" id="v3b" style="display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;align-items:baseline;gap:12px">
+      <span style="font:600 11.5px Archivo,sans-serif;letter-spacing:.14em;color:#5f6b7a">VISTA 3-B</span>
+      <span style="font:600 19px Archivo,sans-serif;color:#10104e">Patrón cíclico · N días anclados a una fecha</span>
+    </div>
+    <div style="width:1440px;border:1px solid #dce2e9;border-radius:6px;overflow:hidden;background:#f4f6fa">
+      <div style="height:4.5rem;background:#ffffff;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:12px;padding:0 20px">
+        <div style="display:flex;align-items:center;gap:10px;border:1px solid #dce2e9;border-radius:6px;padding:7px 11px;background:#ffffff">
+          <span style="font:400 11px Archivo,sans-serif;color:#5f6b7a">Organización activa</span>
+          <span style="font:600 13px Archivo,sans-serif;color:#10104e">Seguridad Vanguardia S.A.</span>
+          <span style="width:1px;height:16px;background:#dce2e9"></span>
+          <span style="font:600 12px Archivo,sans-serif;color:#087f9c">Cambiar organización</span>
+        </div>
+        <span style="border:1px solid #22c6ee;background:#e9f7fa;border-radius:6px;padding:6px 10px;font:600 11.5px Archivo,sans-serif;color:#087f9c">Dentro como super admin</span>
+        <span style="font:400 12.5px Archivo,sans-serif;color:#5f6b7a">Fecha operativa <span style="color:#253040;font-weight:600">04 sep 2026</span></span>
+        <span style="margin-left:auto;border:1px solid #dce2e9;border-radius:6px;padding:0 14px;height:2.5rem;display:flex;align-items:center;font:600 12.5px Archivo,sans-serif;color:#253040;background:#ffffff">Salir a la vista de plataforma</span>
+      </div>
+      <div style="display:flex;min-height:800px">
+        <dc-import name="SideMenu" active="Servicios" role="super-org" hint-size="272px,800px"></dc-import>
+        <div style="flex:1;padding:16px 20px 20px;display:flex;flex-direction:column;gap:16px;min-width:0">
+          <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px">
+            <div>
+              <div style="font:600 11px Archivo,sans-serif;letter-spacing:.1em;color:#5f6b7a;padding-bottom:5px">SERVICIOS</div>
+              <div style="font:700 22px/1.2 Archivo,sans-serif;color:#10104e">Servicios</div>
+            </div>
+            <div style="background:#10104e;color:#ffffff;border-radius:6px;padding:0 16px;height:2.5rem;display:flex;align-items:center;font:600 13px Archivo,sans-serif">Nuevo servicio</div>
+          </div>
+          <div style="display:flex;gap:16px;align-items:flex-start;min-width:0">
+            <div style="width:250px;flex:none;background:#ffffff;border:1px solid #dce2e9;border-radius:6px;overflow:hidden">
+              <div style="padding:11px 14px;background:#f7f9fb;border-bottom:1px solid #dce2e9;font:600 10.5px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">SERVICIOS · 14</div>
+              <sc-for list="{{ compact }}" as="c" hint-placeholder-count="6">
+                <div style="padding:12px 14px;border-bottom:1px solid #dce2e9;background:{{ c.bg }};border-left:3px solid {{ c.markLeft }}">
+                  <span style="display:block;font:600 12.5px Archivo,sans-serif;color:#253040">{{ c.nombre }}</span>
+                  <span style="display:block;font:400 11.5px Archivo,sans-serif;color:#5f6b7a;padding-top:3px">{{ c.clienteSede }}</span>
+                </div>
+              </sc-for>
+            </div>
+            <div style="flex:1;min-width:0;background:#ffffff;border:1px solid #dce2e9;border-radius:6px;display:flex;flex-direction:column;overflow:hidden">
+              <div style="padding:15px 18px;border-bottom:1px solid #dce2e9;display:flex;justify-content:space-between;align-items:flex-start;gap:14px">
+                <div>
+                  <div style="font:700 17px/1.25 Archivo,sans-serif;color:#10104e">Vigilancia intramuros Torre Altavista</div>
+                  <div style="font:400 12.5px Archivo,sans-serif;color:#5f6b7a;padding-top:5px">P-02 · Rondín nocturno · cupo 1</div>
+                </div>
+                <span style="width:28px;height:28px;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;justify-content:center;font:500 13px Archivo,sans-serif;color:#5f6b7a;flex:none">✕</span>
+              </div>
+              <div style="display:flex;gap:22px;padding:0 18px;border-bottom:1px solid #dce2e9;font:600 13px Archivo,sans-serif;color:#5f6b7a">
+                <span style="padding:13px 0">Datos</span>
+                <span style="padding:13px 0">Configuración</span>
+                <span style="padding:13px 0;border-bottom:2px solid #22c6ee;color:#10104e">Posiciones</span>
+                <span style="padding:13px 0;display:flex;gap:8px;align-items:center">Asignaciones <span style="border:1px solid #dc2626;border-radius:6px;padding:1px 6px;font:600 11px Archivo,sans-serif;color:#dc2626">1</span></span>
+              </div>
+              <div style="padding:18px;display:flex;flex-direction:column;gap:16px">
+                <div style="border:1px solid #dce2e9;border-radius:6px;overflow:hidden">
+                  <div style="padding:12px 14px;background:#f7f9fb;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+                    <span style="font:600 10.5px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">ANCLA DEL PATRÓN</span>
+                    <span style="display:flex;border:1px solid #dce2e9;border-radius:6px;overflow:hidden">
+                      <span style="padding:7px 14px;background:#ffffff;color:#253040;font:500 12px Archivo,sans-serif">Semanal</span>
+                      <span style="padding:7px 14px;background:#10104e;color:#ffffff;font:600 12px Archivo,sans-serif;border-left:1px solid #dce2e9">Cíclico de N días</span>
+                    </span>
+                    <span style="display:flex;gap:10px;align-items:center">
+                      <span style="font:500 11.5px Archivo,sans-serif;color:#5f6b7a">Días del ciclo</span>
+                      <span style="height:2.25rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;padding:0 11px;background:#ffffff;font:600 13px Archivo,sans-serif;color:#253040">3</span>
+                    </span>
+                    <span style="display:flex;gap:10px;align-items:center">
+                      <span style="font:500 11.5px Archivo,sans-serif;color:#5f6b7a">Fecha ancla</span>
+                      <span style="height:2.25rem;border:1px solid #22c6ee;border-radius:6px;display:flex;align-items:center;padding:0 11px;background:#ffffff;font:600 13px Archivo,sans-serif;color:#253040">01 sep 2026</span>
+                    </span>
+                    <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">24x48: un turno de 24 horas y dos días de descanso</span>
+                  </div>
+                  <div style="display:grid;grid-template-columns:repeat(3,1fr)">
+                    <div style="border-right:1px solid #dce2e9;border-bottom:1px solid #dce2e9;padding:10px;text-align:center;font:600 11px Archivo,sans-serif;color:#5f6b7a">DÍA 1 DEL CICLO</div>
+                    <div style="border-right:1px solid #dce2e9;border-bottom:1px solid #dce2e9;padding:10px;text-align:center;font:600 11px Archivo,sans-serif;color:#5f6b7a">DÍA 2 DEL CICLO</div>
+                    <div style="border-bottom:1px solid #dce2e9;padding:10px;text-align:center;font:600 11px Archivo,sans-serif;color:#5f6b7a">DÍA 3 DEL CICLO</div>
+                  </div>
+                  <div style="display:grid;grid-template-columns:repeat(3,1fr)">
+                    <div style="border-right:1px solid #dce2e9;padding:20px;background:#e9f7fa;display:flex;flex-direction:column;gap:7px;align-items:center"><span style="font:700 13px Archivo,sans-serif;color:#087f9c">TURNO</span><span style="font:600 13px Archivo,sans-serif;color:#253040">19:00 → 19:00</span><span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">24 horas, cierra al día siguiente</span></div>
+                    <div style="border-right:1px solid #dce2e9;padding:20px;background:#f7f9fb;display:flex;flex-direction:column;gap:7px;align-items:center"><span style="font:700 13px Archivo,sans-serif;color:#5f6b7a">DESCANSO</span><span style="font:400 12px Archivo,sans-serif;color:#5f6b7a">declarado</span></div>
+                    <div style="padding:20px;background:#f7f9fb;display:flex;flex-direction:column;gap:7px;align-items:center"><span style="font:700 13px Archivo,sans-serif;color:#5f6b7a">DESCANSO</span><span style="font:400 12px Archivo,sans-serif;color:#5f6b7a">declarado</span></div>
+                  </div>
+                </div>
+                <div style="border:1px solid #dce2e9;border-radius:6px;overflow:hidden">
+                  <div style="padding:12px 14px;background:#f7f9fb;border-bottom:1px solid #dce2e9;display:flex;justify-content:space-between;align-items:center">
+                    <span style="font:600 10.5px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">CÓMO CAE EL CICLO EN EL CALENDARIO · SEPTIEMBRE 2026</span>
+                    <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">El ciclo no se alinea con la semana: el turno se mueve de día cada semana</span>
+                  </div>
+                  <div style="display:grid;grid-template-columns:repeat(7,1fr)">
+                    <div style="border-right:1px solid #dce2e9;border-bottom:1px solid #dce2e9;padding:8px;text-align:center;font:600 10.5px Archivo,sans-serif;color:#5f6b7a">LUN</div>
+                    <div style="border-right:1px solid #dce2e9;border-bottom:1px solid #dce2e9;padding:8px;text-align:center;font:600 10.5px Archivo,sans-serif;color:#5f6b7a">MAR</div>
+                    <div style="border-right:1px solid #dce2e9;border-bottom:1px solid #dce2e9;padding:8px;text-align:center;font:600 10.5px Archivo,sans-serif;color:#5f6b7a">MIÉ</div>
+                    <div style="border-right:1px solid #dce2e9;border-bottom:1px solid #dce2e9;padding:8px;text-align:center;font:600 10.5px Archivo,sans-serif;color:#5f6b7a">JUE</div>
+                    <div style="border-right:1px solid #dce2e9;border-bottom:1px solid #dce2e9;padding:8px;text-align:center;font:600 10.5px Archivo,sans-serif;color:#5f6b7a">VIE</div>
+                    <div style="border-right:1px solid #dce2e9;border-bottom:1px solid #dce2e9;padding:8px;text-align:center;font:600 10.5px Archivo,sans-serif;color:#5f6b7a">SÁB</div>
+                    <div style="border-bottom:1px solid #dce2e9;padding:8px;text-align:center;font:600 10.5px Archivo,sans-serif;color:#5f6b7a">DOM</div>
+                  </div>
+                  <div style="display:grid;grid-template-columns:repeat(7,1fr)">
+                  <sc-for list="{{ ciclo }}" as="d" hint-placeholder-count="35">
+                    <div style="border-right:1px solid #dce2e9;border-bottom:1px solid #dce2e9;padding:10px 8px;min-height:62px;background:{{ d.bg }};display:flex;flex-direction:column;gap:5px">
+                      <span style="font:600 11.5px Archivo,sans-serif;color:{{ d.numColor }}">{{ d.num }}</span>
+                      <span style="font:600 10.5px Archivo,sans-serif;color:{{ d.color }}">{{ d.etiqueta }}</span>
+                      <span style="font:400 10px Archivo,sans-serif;color:#5f6b7a">{{ d.nota }}</span>
+                    </div>
+                  </sc-for>
+                  </div>
+                </div>
+                <div style="display:flex;gap:20px;align-items:center;padding:0 2px">
+                  <span style="display:flex;gap:8px;align-items:center;font:400 12px Archivo,sans-serif;color:#5f6b7a"><span style="width:14px;height:14px;background:#e9f7fa;border:1px solid #22c6ee;border-radius:3px"></span>Turno de 24 h</span>
+                  <span style="display:flex;gap:8px;align-items:center;font:400 12px Archivo,sans-serif;color:#5f6b7a"><span style="width:14px;height:14px;background:#f7f9fb;border:1px solid #dce2e9;border-radius:3px"></span>Descanso del ciclo</span>
+                  <span style="display:flex;gap:8px;align-items:center;font:400 12px Archivo,sans-serif;color:#5f6b7a"><span style="width:14px;height:14px;background:#ffffff;border:1px solid #22c6ee;border-radius:3px"></span>Fecha ancla</span>
+                  <span style="margin-left:auto;display:flex;gap:10px;align-items:center">
+                    <span style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;padding:0 14px;display:flex;align-items:center;font:600 12.5px Archivo,sans-serif;color:#253040">Ver octubre</span>
+                    <span style="height:2.5rem;background:#10104e;color:#ffffff;border-radius:6px;padding:0 16px;display:flex;align-items:center;font:600 12.5px Archivo,sans-serif">Guardar patrón</span>
+                  </span>
+                </div>
+                <div style="border:1px solid #d97706;border-radius:6px;padding:13px 14px;display:flex;gap:14px;align-items:center;background:#ffffff">
+                  <span style="border:1px solid #d97706;border-radius:6px;padding:2px 8px;font:600 11px Archivo,sans-serif;color:#d97706;flex:none">PENDIENTE</span>
+                  <span style="flex:1;font:400 12.5px Archivo,sans-serif;color:#253040">Qué pasa cuando el ciclo cae en festivo o en el corte de semana sigue sin decidirse. El calendario lo muestra tal cual cae; no aplica ninguna regla de ajuste.</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section data-screen-label="Vista 4 · Asignaciones" id="v4" style="display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;align-items:baseline;gap:12px">
+      <span style="font:600 11.5px Archivo,sans-serif;letter-spacing:.14em;color:#5f6b7a">VISTA 4</span>
+      <span style="font:600 19px Archivo,sans-serif;color:#10104e">Pestaña Asignaciones · vacantes visibles</span>
+    </div>
+    <div style="width:1440px;border:1px solid #dce2e9;border-radius:6px;overflow:hidden;background:#f4f6fa">
+      <div style="height:4.5rem;background:#ffffff;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:12px;padding:0 20px">
+        <div style="display:flex;align-items:center;gap:10px;border:1px solid #dce2e9;border-radius:6px;padding:7px 11px;background:#ffffff">
+          <span style="font:400 11px Archivo,sans-serif;color:#5f6b7a">Organización activa</span>
+          <span style="font:600 13px Archivo,sans-serif;color:#10104e">Seguridad Vanguardia S.A.</span>
+          <span style="width:1px;height:16px;background:#dce2e9"></span>
+          <span style="font:600 12px Archivo,sans-serif;color:#087f9c">Cambiar organización</span>
+        </div>
+        <span style="border:1px solid #22c6ee;background:#e9f7fa;border-radius:6px;padding:6px 10px;font:600 11.5px Archivo,sans-serif;color:#087f9c">Dentro como super admin</span>
+        <span style="font:400 12.5px Archivo,sans-serif;color:#5f6b7a">Fecha operativa <span style="color:#253040;font-weight:600">04 sep 2026</span></span>
+        <span style="margin-left:auto;border:1px solid #dce2e9;border-radius:6px;padding:0 14px;height:2.5rem;display:flex;align-items:center;font:600 12.5px Archivo,sans-serif;color:#253040;background:#ffffff">Salir a la vista de plataforma</span>
+      </div>
+      <div style="display:flex;min-height:840px">
+        <dc-import name="SideMenu" active="Servicios" role="super-org" hint-size="272px,840px"></dc-import>
+        <div style="flex:1;padding:16px 20px 20px;display:flex;flex-direction:column;gap:16px;min-width:0">
+          <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px">
+            <div>
+              <div style="font:600 11px Archivo,sans-serif;letter-spacing:.1em;color:#5f6b7a;padding-bottom:5px">SERVICIOS</div>
+              <div style="font:700 22px/1.2 Archivo,sans-serif;color:#10104e">Servicios</div>
+            </div>
+            <div style="background:#10104e;color:#ffffff;border-radius:6px;padding:0 16px;height:2.5rem;display:flex;align-items:center;font:600 13px Archivo,sans-serif">Nuevo servicio</div>
+          </div>
+          <div style="display:flex;gap:16px;align-items:flex-start;min-width:0">
+            <div style="width:250px;flex:none;background:#ffffff;border:1px solid #dce2e9;border-radius:6px;overflow:hidden">
+              <div style="padding:11px 14px;background:#f7f9fb;border-bottom:1px solid #dce2e9;font:600 10.5px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">SERVICIOS · 14</div>
+              <sc-for list="{{ compact }}" as="c" hint-placeholder-count="6">
+                <div style="padding:12px 14px;border-bottom:1px solid #dce2e9;background:{{ c.bg }};border-left:3px solid {{ c.markLeft }};display:flex;justify-content:space-between;gap:10px;align-items:center">
+                  <span style="min-width:0"><span style="display:block;font:600 12.5px Archivo,sans-serif;color:#253040">{{ c.nombre }}</span><span style="display:block;font:400 11.5px Archivo,sans-serif;color:#5f6b7a;padding-top:3px">{{ c.clienteSede }}</span></span>
+                  <span style="font:600 12px Archivo,sans-serif;color:{{ c.posColor }};flex:none">{{ c.pos }}</span>
+                </div>
+              </sc-for>
+            </div>
+            <div style="flex:1;min-width:0;background:#ffffff;border:1px solid #dce2e9;border-radius:6px;display:flex;flex-direction:column;overflow:hidden">
+              <div style="padding:15px 18px;border-bottom:1px solid #dce2e9;display:flex;justify-content:space-between;align-items:flex-start;gap:14px">
+                <div>
+                  <div style="font:700 17px/1.25 Archivo,sans-serif;color:#10104e">Vigilancia intramuros Torre Altavista</div>
+                  <div style="font:400 12.5px Archivo,sans-serif;color:#5f6b7a;padding-top:5px">4 requeridos · 3 asignados · <span style="color:#dc2626;font-weight:600">1 vacante</span></div>
+                </div>
+                <span style="width:28px;height:28px;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;justify-content:center;font:500 13px Archivo,sans-serif;color:#5f6b7a;flex:none">✕</span>
+              </div>
+              <div style="display:flex;gap:22px;padding:0 18px;border-bottom:1px solid #dce2e9;font:600 13px Archivo,sans-serif;color:#5f6b7a">
+                <span style="padding:13px 0">Datos</span>
+                <span style="padding:13px 0">Configuración</span>
+                <span style="padding:13px 0">Posiciones</span>
+                <span style="padding:13px 0;border-bottom:2px solid #22c6ee;color:#10104e;display:flex;gap:8px;align-items:center">Asignaciones <span style="border:1px solid #dc2626;background:#ffffff;border-radius:6px;padding:1px 6px;font:600 11px Archivo,sans-serif;color:#dc2626">1</span></span>
+                <span style="margin-left:auto;align-self:center;background:#10104e;color:#ffffff;border-radius:6px;padding:0 14px;height:2.25rem;display:flex;align-items:center;font:600 12.5px Archivo,sans-serif">Generar planeación</span>
+              </div>
+              <div style="padding:18px;display:flex;flex-direction:column;gap:16px">
+                <div style="border:1px solid #dce2e9;border-radius:6px;overflow:hidden">
+                  <div style="display:flex;align-items:center;padding:11px 14px;background:#f7f9fb;border-bottom:1px solid #dce2e9;font:600 10.5px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">
+                    <span style="flex:1.5;min-width:0">POSICIÓN</span><span style="width:130px;flex:none">REQ. / ASIG.</span><span style="flex:1.3;min-width:0">TITULAR</span><span style="flex:1.2;min-width:0">CUBRE-DESCANSOS</span><span style="width:130px;flex:none">ESTADO</span>
+                  </div>
+                  <div style="display:flex;align-items:center;padding:14px;border-bottom:1px solid #dce2e9;background:#ffffff">
+                    <span style="flex:1.5;min-width:0;padding-right:12px"><span style="display:block;font:600 13px Archivo,sans-serif;color:#253040">P-01 Acceso principal</span><span style="display:block;font:400 11.5px Archivo,sans-serif;color:#5f6b7a;padding-top:3px">Semanal · descanso jueves y domingo</span></span>
+                    <span style="width:130px;flex:none;font:600 13px Archivo,sans-serif;color:#dc2626">2 / 1</span>
+                    <span style="flex:1.3;min-width:0;font:400 12.5px Archivo,sans-serif;color:#253040">Laura Sánchez Pineda</span>
+                    <span style="flex:1.2;min-width:0;font:400 12.5px Archivo,sans-serif;color:#5f6b7a">Sin asignar</span>
+                    <span style="width:130px;flex:none"><span style="border:1px solid #dc2626;border-radius:6px;padding:3px 9px;font:600 11.5px Archivo,sans-serif;color:#dc2626">1 vacante</span></span>
+                  </div>
+                  <div style="display:flex;align-items:center;padding:14px;border-bottom:1px solid #dce2e9;background:#f7f9fb">
+                    <span style="flex:1.5;min-width:0;padding-right:12px"><span style="display:block;font:600 13px Archivo,sans-serif;color:#253040">P-02 Rondín nocturno</span><span style="display:block;font:400 11.5px Archivo,sans-serif;color:#5f6b7a;padding-top:3px">Cíclico 24x48 · ancla 01 sep 2026</span></span>
+                    <span style="width:130px;flex:none;font:600 13px Archivo,sans-serif;color:#253040">1 / 1</span>
+                    <span style="flex:1.3;min-width:0;font:400 12.5px Archivo,sans-serif;color:#253040">Jorge Iván Peña</span>
+                    <span style="flex:1.2;min-width:0;font:400 12.5px Archivo,sans-serif;color:#253040">Rubén Ortiz Cañas</span>
+                    <span style="width:130px;flex:none;display:flex;gap:7px;align-items:center;font:500 12px Archivo,sans-serif;color:#253040"><span style="width:7px;height:7px;border-radius:50%;background:#16a34a"></span>Completa</span>
+                  </div>
+                  <div style="display:flex;align-items:center;padding:14px;background:#ffffff">
+                    <span style="flex:1.5;min-width:0;padding-right:12px"><span style="display:block;font:600 13px Archivo,sans-serif;color:#253040">P-03 Monitoreo CCTV</span><span style="display:block;font:500 11.5px Archivo,sans-serif;color:#dc2626;padding-top:3px">Patrón incompleto · 2 días sin declarar</span></span>
+                    <span style="width:130px;flex:none;font:600 13px Archivo,sans-serif;color:#253040">1 / 1</span>
+                    <span style="flex:1.3;min-width:0;font:400 12.5px Archivo,sans-serif;color:#253040">Ana Ruiz Montaño</span>
+                    <span style="flex:1.2;min-width:0;font:400 12.5px Archivo,sans-serif;color:#5f6b7a">Sin asignar</span>
+                    <span style="width:130px;flex:none"><span style="border:1px solid #d97706;border-radius:6px;padding:3px 9px;font:600 11.5px Archivo,sans-serif;color:#d97706">Revisar patrón</span></span>
+                  </div>
+                </div>
+                <div style="display:flex;gap:16px;align-items:stretch">
+                  <div style="flex:1;min-width:0;border:1px solid #dce2e9;border-radius:6px;overflow:hidden;display:flex;flex-direction:column">
+                    <div style="padding:12px 14px;background:#f7f9fb;border-bottom:1px solid #dce2e9;font:600 13px Archivo,sans-serif;color:#10104e">Asignar a P-01 · Acceso principal</div>
+                    <div style="padding:14px;display:flex;flex-direction:column;gap:13px">
+                      <div style="display:flex;gap:12px">
+                        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px"><span style="font:500 11.5px Archivo,sans-serif;color:#5f6b7a">Empleado</span><span style="height:2.5rem;border:1px solid #22c6ee;border-radius:6px;display:flex;align-items:center;justify-content:space-between;padding:0 11px;font:500 13px Archivo,sans-serif;color:#253040">Rubén Ortiz Cañas <span style="color:#5f6b7a">▾</span></span></div>
+                        <div style="width:150px;flex:none;display:flex;flex-direction:column;gap:6px"><span style="font:500 11.5px Archivo,sans-serif;color:#5f6b7a">Tipo</span><span style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;justify-content:space-between;padding:0 11px;font:500 13px Archivo,sans-serif;color:#253040">Titular <span style="color:#5f6b7a">▾</span></span></div>
+                        <div style="width:140px;flex:none;display:flex;flex-direction:column;gap:6px"><span style="font:500 11.5px Archivo,sans-serif;color:#5f6b7a">Vigente desde</span><span style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;padding:0 11px;font:500 13px Archivo,sans-serif;color:#253040">04 sep 2026</span></div>
+                      </div>
+                      <div style="border:1px solid #dc2626;border-radius:6px;overflow:hidden">
+                        <div style="padding:11px 13px;border-bottom:1px solid #dce2e9;display:flex;gap:10px;align-items:center">
+                          <span style="border:1px solid #dc2626;border-radius:6px;padding:2px 8px;font:600 11px Archivo,sans-serif;color:#dc2626;flex:none">TRASLAPE · {{ traslapeModo }}</span>
+                          <span style="flex:1;font:500 12.5px Archivo,sans-serif;color:#253040">Rubén Ortiz Cañas ya tiene turno en P-02 el jueves 07:00–19:00</span>
+                        </div>
+                        <div style="padding:11px 13px;display:flex;flex-direction:column;gap:10px;background:#ffffff">
+                          <span style="font:400 12px/1.45 Archivo,sans-serif;color:#5f6b7a">{{ traslapeTexto }}</span>
+                          <span style="display:flex;gap:10px;align-items:center">
+                            <span style="border:1px solid #dce2e9;border-radius:6px;padding:0 12px;height:2.25rem;display:flex;align-items:center;font:600 12px Archivo,sans-serif;color:#253040">Ver el turno</span>
+                            <span style="border:1px solid #dce2e9;border-radius:6px;padding:0 12px;height:2.25rem;display:flex;align-items:center;font:600 12px Archivo,sans-serif;color:#253040">Otro empleado</span>
+                          </span>
+                        </div>
+                      </div>
+                      <div style="border:1px solid #d97706;border-radius:6px;padding:12px 13px;display:flex;flex-direction:column;gap:9px">
+                        <div style="display:flex;gap:10px;align-items:center">
+                          <span style="border:1px solid #d97706;border-radius:6px;padding:2px 8px;font:600 11px Archivo,sans-serif;color:#d97706;flex:none">ELEGIBILIDAD</span>
+                          <span style="flex:1;font:500 12.5px Archivo,sans-serif;color:#253040">Su puesto dice «Guardia acceso» y el perfil de la posición «Guardia de acceso»</span>
+                        </div>
+                        <div style="display:flex;flex-direction:column;gap:10px">
+                          <span style="font:400 12px/1.45 Archivo,sans-serif;color:#5f6b7a">Se comparan como texto libre, así que una diferencia de redacción bloquea.</span>
+                          <span style="display:flex;gap:10px;align-items:center">
+                            <span style="border:1px solid #dce2e9;border-radius:6px;padding:0 12px;height:2.25rem;display:flex;align-items:center;font:600 12px Archivo,sans-serif;color:#253040">Corregir en Personal</span>
+                            <span style="background:#10104e;color:#ffffff;border-radius:6px;padding:0 13px;height:2.25rem;display:flex;align-items:center;font:600 12px Archivo,sans-serif">Asignar de todos modos</span>
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div style="width:340px;flex:none;border:1px solid #dce2e9;border-radius:6px;overflow:hidden;display:flex;flex-direction:column">
+                    <div style="padding:12px 14px;background:#f7f9fb;border-bottom:1px solid #dce2e9;font:600 10.5px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">SIN EMPLEADOS DISPONIBLES</div>
+                    <div style="padding:14px;display:flex;flex-direction:column;gap:12px">
+                      <div style="font:500 13px/1.45 Archivo,sans-serif;color:#253040">Cuando la lista queda sin nadie, dice cuál de las tres razones aplica:</div>
+                      <div style="display:flex;flex-direction:column;gap:9px;font:400 12.5px/1.45 Archivo,sans-serif;color:#253040">
+                        <span style="display:flex;gap:9px"><span style="color:#5f6b7a;font-weight:600;flex:none">1</span>No hay empleados dados de alta</span>
+                        <span style="display:flex;gap:9px"><span style="color:#5f6b7a;font-weight:600;flex:none">2</span>Ninguno con puesto que coincida con el perfil</span>
+                        <span style="display:flex;gap:9px"><span style="color:#5f6b7a;font-weight:600;flex:none">3</span>Todos los elegibles ya tienen turno ese día</span>
+                      </div>
+                      <div style="display:flex;flex-direction:column;gap:9px;padding-top:2px">
+                        <span style="height:2.5rem;background:#10104e;color:#ffffff;border-radius:6px;display:flex;align-items:center;justify-content:center;font:600 12.5px Archivo,sans-serif">Dar de alta empleado</span>
+                        <span style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;justify-content:center;font:600 12.5px Archivo,sans-serif;color:#253040">Revisar el perfil de P-01</span>
+                      </div>
+                      <div style="font:400 11.5px/1.5 Archivo,sans-serif;color:#5f6b7a;border-top:1px solid #dce2e9;padding-top:11px">Nunca un selector vacío: siempre la razón y la salida.</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div style="margin-top:auto;border-top:1px solid #dce2e9;padding:14px 18px;display:flex;justify-content:space-between;align-items:center">
+                <span style="font:400 12px Archivo,sans-serif;color:#5f6b7a">Las vacantes se calculan al vuelo: requeridos menos asignaciones vigentes al 04 sep 2026</span>
+                <span style="display:flex;gap:10px;align-items:center">
+                  <span style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;padding:0 14px;display:flex;align-items:center;font:600 12.5px Archivo,sans-serif;color:#253040">Cancelar</span>
+                  <span style="height:2.5rem;background:#10104e;color:#ffffff;border-radius:6px;padding:0 16px;display:flex;align-items:center;font:600 12.5px Archivo,sans-serif">Guardar asignación</span>
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section data-screen-label="Vista 5 · Titular de baja" id="v5" style="display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap">
+      <span style="font:600 11.5px Archivo,sans-serif;letter-spacing:.14em;color:#5f6b7a">VISTA 5</span>
+      <span style="font:600 19px Archivo,sans-serif;color:#10104e">Titular dado de baja · el calendario no se mueve</span>
+    </div>
+    <div style="width:1440px;border:1px solid #dce2e9;border-radius:6px;overflow:hidden;background:#f4f6fa">
+      <div style="height:4.5rem;background:#ffffff;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:12px;padding:0 20px">
+        <div style="display:flex;align-items:center;gap:10px;border:1px solid #dce2e9;border-radius:6px;padding:7px 11px;background:#ffffff">
+          <span style="font:400 11px Archivo,sans-serif;color:#5f6b7a">Organización activa</span>
+          <span style="font:600 13px Archivo,sans-serif;color:#10104e">Seguridad Vanguardia S.A.</span>
+          <span style="width:1px;height:16px;background:#dce2e9"></span>
+          <span style="font:600 12px Archivo,sans-serif;color:#087f9c">Cambiar organización</span>
+        </div>
+        <span style="border:1px solid #22c6ee;background:#e9f7fa;border-radius:6px;padding:6px 10px;font:600 11.5px Archivo,sans-serif;color:#087f9c">Dentro como super admin</span>
+        <span style="font:400 12.5px Archivo,sans-serif;color:#5f6b7a">Fecha operativa <span style="color:#253040;font-weight:600">04 sep 2026</span></span>
+        <span style="margin-left:auto;border:1px solid #dce2e9;border-radius:6px;padding:0 14px;height:2.5rem;display:flex;align-items:center;font:600 12.5px Archivo,sans-serif;color:#253040;background:#ffffff">Salir a la vista de plataforma</span>
+      </div>
+      <div style="display:flex;min-height:820px">
+        <dc-import name="SideMenu" active="Servicios" role="super-org" hint-size="272px,820px"></dc-import>
+        <div style="flex:1;padding:16px 20px 20px;display:flex;flex-direction:column;gap:16px;min-width:0">
+          <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px">
+            <div>
+              <div style="font:600 11px Archivo,sans-serif;letter-spacing:.1em;color:#5f6b7a;padding-bottom:5px">SERVICIOS › VIGILANCIA INTRAMUROS TORRE ALTAVISTA › P-01</div>
+              <div style="font:700 22px/1.2 Archivo,sans-serif;color:#10104e">P-01 · Acceso principal</div>
+            </div>
+            <div style="background:#10104e;color:#ffffff;border-radius:6px;padding:0 16px;height:2.5rem;display:flex;align-items:center;font:600 13px Archivo,sans-serif">Asignar titular</div>
+          </div>
+          <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;display:flex;flex-direction:column;overflow:hidden">
+            <div style="display:flex;gap:22px;padding:0 18px;border-bottom:1px solid #dce2e9;font:600 13px Archivo,sans-serif;color:#5f6b7a">
+              <span style="padding:13px 0">Datos</span>
+              <span style="padding:13px 0">Configuración</span>
+              <span style="padding:13px 0;border-bottom:2px solid #22c6ee;color:#10104e">Posiciones</span>
+              <span style="padding:13px 0;display:flex;gap:8px;align-items:center">Asignaciones <span style="border:1px solid #dc2626;border-radius:6px;padding:1px 6px;font:600 11px Archivo,sans-serif;color:#dc2626">1</span></span>
+            </div>
+            <div style="padding:22px;display:flex;flex-direction:column;gap:0">
+              <div style="display:flex;align-items:stretch;gap:0">
+                <div style="width:190px;flex:none;display:flex;align-items:center;font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">OCUPANTE DE LA POSICIÓN</div>
+                <div style="flex:1;display:flex;gap:16px;align-items:stretch;min-width:0">
+                  <div style="flex:1;min-width:0;border:1px solid #dce2e9;border-radius:6px;overflow:hidden;background:#f7f9fb">
+                    <div style="padding:9px 14px;border-bottom:1px solid #dce2e9;font:600 10.5px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a;background:#ffffff">HASTA EL 03 SEP 2026</div>
+                    <div style="padding:16px;display:flex;align-items:center;gap:14px">
+                      <span style="width:42px;height:42px;border-radius:50%;border:1px solid #dce2e9;background:#ffffff;display:flex;align-items:center;justify-content:center;font:600 14px Archivo,sans-serif;color:#5f6b7a;flex:none">MR</span>
+                      <span style="min-width:0"><span style="display:block;font:600 15px Archivo,sans-serif;color:#5f6b7a;text-decoration:line-through">Miguel Ramos Delgado</span><span style="display:block;font:500 12px Archivo,sans-serif;color:#5f6b7a;padding-top:4px">Titular · baja el 03 sep 2026</span></span>
+                    </div>
+                  </div>
+                  <div style="width:52px;flex:none;display:flex;align-items:center;justify-content:center;font:600 20px Archivo,sans-serif;color:#5f6b7a">→</div>
+                  <div style="flex:1;min-width:0;border:1px solid #dc2626;border-radius:6px;overflow:hidden;background:#ffffff">
+                    <div style="padding:9px 14px;border-bottom:1px solid #dce2e9;font:600 10.5px Archivo,sans-serif;letter-spacing:.07em;color:#dc2626;background:#ffffff">DESDE EL 04 SEP 2026</div>
+                    <div style="padding:16px;display:flex;align-items:center;gap:14px">
+                      <span style="width:42px;height:42px;border-radius:50%;border:1px dashed #dc2626;display:flex;align-items:center;justify-content:center;font:600 18px Archivo,sans-serif;color:#dc2626;flex:none">?</span>
+                      <span style="min-width:0;flex:1"><span style="display:block;font:700 15px Archivo,sans-serif;color:#dc2626">Vacante</span><span style="display:block;font:500 12px Archivo,sans-serif;color:#5f6b7a;padding-top:4px">Cupo 2 · 1 asignado</span></span>
+                      <span style="background:#10104e;color:#ffffff;border-radius:6px;padding:0 13px;height:2.25rem;display:flex;align-items:center;font:600 12.5px Archivo,sans-serif;flex:none">Asignar</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div style="display:flex;align-items:stretch;gap:0;padding:14px 0 0">
+                <div style="width:190px;flex:none"></div>
+                <div style="flex:1;display:flex;align-items:center;gap:0;min-width:0">
+                  <div style="flex:1;height:22px;border-left:1px solid #dce2e9;border-bottom:1px solid #dce2e9;border-right:1px solid #dce2e9;border-bottom-left-radius:6px;border-bottom-right-radius:6px"></div>
+                </div>
+              </div>
+              <div style="display:flex;align-items:stretch;gap:0;padding-top:14px">
+                <div style="width:190px;flex:none;display:flex;flex-direction:column;justify-content:center;gap:7px;padding-right:16px">
+                  <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#10104e">CALENDARIO DE LA POSICIÓN</span>
+                  <span style="font:500 12px/1.4 Archivo,sans-serif;color:#5f6b7a">El mismo antes y después</span>
+                </div>
+                <div style="flex:1;min-width:0;border:1px solid #10104e;border-radius:6px;overflow:hidden">
+                  <div style="display:grid;grid-template-columns:repeat(7,1fr);background:#ffffff">
+                    <div style="padding:10px 8px;border-right:1px solid #dce2e9;border-bottom:1px solid #dce2e9;text-align:center;font:600 11px Archivo,sans-serif;color:#5f6b7a">LUNES</div>
+                    <div style="padding:10px 8px;border-right:1px solid #dce2e9;border-bottom:1px solid #dce2e9;text-align:center;font:600 11px Archivo,sans-serif;color:#5f6b7a">MARTES</div>
+                    <div style="padding:10px 8px;border-right:1px solid #dce2e9;border-bottom:1px solid #dce2e9;text-align:center;font:600 11px Archivo,sans-serif;color:#5f6b7a">MIÉRCOLES</div>
+                    <div style="padding:10px 8px;border-right:1px solid #dce2e9;border-bottom:1px solid #dce2e9;text-align:center;font:600 11px Archivo,sans-serif;color:#5f6b7a">JUEVES</div>
+                    <div style="padding:10px 8px;border-right:1px solid #dce2e9;border-bottom:1px solid #dce2e9;text-align:center;font:600 11px Archivo,sans-serif;color:#5f6b7a">VIERNES</div>
+                    <div style="padding:10px 8px;border-right:1px solid #dce2e9;border-bottom:1px solid #dce2e9;text-align:center;font:600 11px Archivo,sans-serif;color:#5f6b7a">SÁBADO</div>
+                    <div style="padding:10px 8px;border-bottom:1px solid #dce2e9;text-align:center;font:600 11px Archivo,sans-serif;color:#5f6b7a">DOMINGO</div>
+                  </div>
+                  <div style="display:grid;grid-template-columns:repeat(7,1fr)">
+                    <div style="border-right:1px solid #dce2e9;padding:22px 8px;background:#e9f7fa;display:flex;flex-direction:column;gap:6px;align-items:center"><span style="font:700 13px Archivo,sans-serif;color:#087f9c">TURNO</span><span style="font:600 12.5px Archivo,sans-serif;color:#253040">07:00–19:00</span></div>
+                    <div style="border-right:1px solid #dce2e9;padding:22px 8px;background:#e9f7fa;display:flex;flex-direction:column;gap:6px;align-items:center"><span style="font:700 13px Archivo,sans-serif;color:#087f9c">TURNO</span><span style="font:600 12.5px Archivo,sans-serif;color:#253040">07:00–19:00</span></div>
+                    <div style="border-right:1px solid #dce2e9;padding:22px 8px;background:#e9f7fa;display:flex;flex-direction:column;gap:6px;align-items:center"><span style="font:700 13px Archivo,sans-serif;color:#087f9c">TURNO</span><span style="font:600 12.5px Archivo,sans-serif;color:#253040">07:00–19:00</span></div>
+                    <div style="border-right:1px solid #dce2e9;padding:22px 8px;background:#f7f9fb;display:flex;flex-direction:column;gap:6px;align-items:center"><span style="font:700 13px Archivo,sans-serif;color:#5f6b7a">DESCANSO</span><span style="font:400 12px Archivo,sans-serif;color:#5f6b7a">declarado</span></div>
+                    <div style="border-right:1px solid #dce2e9;padding:22px 8px;background:#e9f7fa;display:flex;flex-direction:column;gap:6px;align-items:center"><span style="font:700 13px Archivo,sans-serif;color:#087f9c">TURNO</span><span style="font:600 12.5px Archivo,sans-serif;color:#253040">07:00–19:00</span></div>
+                    <div style="border-right:1px solid #dce2e9;padding:22px 8px;background:#e9f7fa;display:flex;flex-direction:column;gap:6px;align-items:center"><span style="font:700 13px Archivo,sans-serif;color:#087f9c">TURNO</span><span style="font:600 12.5px Archivo,sans-serif;color:#253040">07:00–19:00</span></div>
+                    <div style="padding:22px 8px;background:#f7f9fb;display:flex;flex-direction:column;gap:6px;align-items:center"><span style="font:700 13px Archivo,sans-serif;color:#5f6b7a">DESCANSO</span><span style="font:400 12px Archivo,sans-serif;color:#5f6b7a">declarado</span></div>
+                  </div>
+                </div>
+              </div>
+              <div style="display:flex;gap:0;padding-top:18px">
+                <div style="width:190px;flex:none;display:flex;align-items:center;font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">LO QUE CAMBIÓ</div>
+                <div style="flex:1;display:flex;gap:12px;min-width:0">
+                  <span style="border:1px solid #dc2626;border-radius:6px;padding:10px 14px;font:600 12.5px Archivo,sans-serif;color:#dc2626;background:#ffffff">Ocupante: Miguel Ramos → Vacante</span>
+                  <span style="border:1px solid #dce2e9;border-radius:6px;padding:10px 14px;font:500 12.5px Archivo,sans-serif;color:#5f6b7a;background:#f7f9fb">Patrón semanal: sin cambio</span>
+                  <span style="border:1px solid #dce2e9;border-radius:6px;padding:10px 14px;font:500 12.5px Archivo,sans-serif;color:#5f6b7a;background:#f7f9fb">Descansos jueves y domingo: sin cambio</span>
+                  <span style="border:1px solid #dce2e9;border-radius:6px;padding:10px 14px;font:500 12.5px Archivo,sans-serif;color:#5f6b7a;background:#f7f9fb">Cupo y perfil: sin cambio</span>
+                </div>
+              </div>
+            </div>
+            <div style="border-top:1px solid #dce2e9;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;background:#f7f9fb">
+              <span style="font:400 12.5px Archivo,sans-serif;color:#5f6b7a">Quien entre a P-01 hereda este calendario. No hay nada que volver a configurar.</span>
+              <span style="height:2.5rem;background:#10104e;color:#ffffff;border-radius:6px;padding:0 16px;display:flex;align-items:center;font:600 12.5px Archivo,sans-serif">Asignar titular a P-01</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section data-screen-label="Cierre" id="cierre" style="display:flex;flex-direction:column;gap:18px;max-width:1440px">
+    <div style="font:700 22px Archivo,sans-serif;color:#10104e">Cierre</div>
+    <div style="display:flex;gap:16px;align-items:flex-start">
+      <div style="flex:1.4;background:#ffffff;border:1px solid #dce2e9;border-radius:6px;padding:18px;display:flex;flex-direction:column;gap:12px">
+        <div style="font:600 11px Archivo,sans-serif;letter-spacing:.1em;color:#5f6b7a">AGREGADO EN ESTE PASO, CON SU JUSTIFICACIÓN</div>
+        <div style="display:flex;flex-direction:column;font:400 12.5px/1.5 Archivo,sans-serif;color:#253040">
+          <div style="display:flex;gap:14px;padding:10px 0;border-bottom:1px solid #dce2e9"><span style="width:220px;flex:none;font-weight:600">Columna Vigencia en el listado</span><span style="flex:1;color:#5f6b7a">La configuración con vigencia ya existe en el alcance; sin fecha visible no se distingue un servicio corriente de uno terminado. Muestra inicio y término, o «sin término».</span></div>
+          <div style="display:flex;gap:14px;padding:10px 0;border-bottom:1px solid #dce2e9"><span style="width:220px;flex:none;font-weight:600">Estado «Vigencia terminada»</span><span style="flex:1;color:#5f6b7a">Pediste un servicio con vigencia terminada. Se distingue de «Inactivo» con punto en warning, no solo con color.</span></div>
+          <div style="display:flex;gap:14px;padding:10px 0;border-bottom:1px solid #dce2e9"><span style="width:220px;flex:none;font-weight:600">Contacto operativo en la pestaña Datos</span><span style="flex:1;color:#5f6b7a">El contacto es del cliente y su sede, que el paso 4 ya captura. Aquí se muestra en lectura para no ir a Clientes durante la operación. Si sobra, se quita sin tocar el flujo.</span></div>
+          <div style="display:flex;gap:14px;padding:10px 0;border-bottom:1px solid #dce2e9"><span style="width:220px;flex:none;font-weight:600">Leyenda del patrón</span><span style="flex:1;color:#5f6b7a">Turno, descanso declarado y sin declarar son tres estados que el boceto ya distingue; con color de marca hace falta decir cuál es cuál.</span></div>
+          <div style="display:flex;gap:14px;padding:10px 0;border-bottom:1px solid #dce2e9"><span style="width:220px;flex:none;font-weight:600">Calendario del mes en el patrón cíclico</span><span style="flex:1;color:#5f6b7a">El boceto pedía «vista de cómo cae en el calendario». Es proyección del propio patrón, no dato nuevo.</span></div>
+          <div style="display:flex;gap:14px;padding:10px 0;border-bottom:1px solid #dce2e9"><span style="width:220px;flex:none;font-weight:600">«Ver octubre»</span><span style="flex:1;color:#5f6b7a">Un ciclo de tres días no se entiende en cuatro semanas. Es navegación del mismo calendario, sin selector de fecha de librería.</span></div>
+          <div style="display:flex;gap:14px;padding:10px 0;border-bottom:1px solid #dce2e9"><span style="width:220px;flex:none;font-weight:600">Contador de vacantes en la pestaña</span><span style="flex:1;color:#5f6b7a">La vacancia consultable debe verse sin abrir la pestaña. Es el mismo cálculo, mostrado en el tabulador.</span></div>
+          <div style="display:flex;gap:14px;padding:10px 0;border-bottom:1px solid #dce2e9"><span style="width:220px;flex:none;font-weight:600">Fila «Lo que cambió» en la vista 5</span><span style="flex:1;color:#5f6b7a">Sustituye al párrafo explicativo: cuatro etiquetas, una en danger y tres en «sin cambio». Es la vista de la junta y debía entenderse sin leer.</span></div>
+          <div style="display:flex;gap:14px;padding:10px 0;border-bottom:1px solid #dce2e9"><span style="width:220px;flex:none;font-weight:600">Iniciales y línea tachada del titular de baja</span><span style="flex:1;color:#5f6b7a">Recurso visual para que la baja se lea de un golpe. No es dato nuevo del expediente.</span></div>
+          <div style="display:flex;gap:14px;padding:10px 0;border-bottom:1px solid #dce2e9"><span style="width:220px;flex:none;font-weight:600">Paginación del listado</span><span style="flex:1;color:#5f6b7a">Catorce servicios de demo caben, pero una organización real no. Sin ella la tabla no está terminada.</span></div>
+          <div style="display:flex;gap:14px;padding:10px 0"><span style="width:220px;flex:none;font-weight:600">Datos de ejemplo</span><span style="flex:1;color:#5f6b7a">Catorce servicios, ocho clientes, nombres con acentos y eñes, uno sin término, uno con vigencia terminada, uno inactivo y cobertura desigual. El alcance pide datos de demo realistas como requisito.</span></div>
+        </div>
+      </div>
+      <div style="flex:1;display:flex;flex-direction:column;gap:16px">
+        <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;padding:18px;display:flex;flex-direction:column;gap:12px">
+          <div style="font:600 11px Archivo,sans-serif;letter-spacing:.1em;color:#5f6b7a">TOKENS USADOS</div>
+          <div style="display:flex;flex-direction:column;font:400 12px/1.45 Archivo,sans-serif;color:#253040">
+            <div style="display:flex;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid #dce2e9"><span style="width:16px;height:16px;background:#10104e;border:1px solid #dce2e9;border-radius:3px;flex:none"></span><span style="flex:1"><code>--gestia-navy</code></span><span style="color:#5f6b7a">Menú, títulos, botón primario</span></div>
+            <div style="display:flex;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid #dce2e9"><span style="width:16px;height:16px;background:#1c1c66;border:1px solid #dce2e9;border-radius:3px;flex:none"></span><span style="flex:1"><code>--gestia-navy-soft</code></span><span style="color:#5f6b7a">Entrada activa del menú</span></div>
+            <div style="display:flex;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid #dce2e9"><span style="width:16px;height:16px;background:#22c6ee;border:1px solid #dce2e9;border-radius:3px;flex:none"></span><span style="flex:1"><code>--gestia-cyan</code></span><span style="color:#5f6b7a">Pestaña activa, foco, indicador</span></div>
+            <div style="display:flex;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid #dce2e9"><span style="width:16px;height:16px;background:#087f9c;border:1px solid #dce2e9;border-radius:3px;flex:none"></span><span style="flex:1"><code>--gestia-cyan-dark</code></span><span style="color:#5f6b7a">Texto en cian: «Cambiar», «Turno»</span></div>
+            <div style="display:flex;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid #dce2e9"><span style="width:16px;height:16px;background:#e9f7fa;border:1px solid #dce2e9;border-radius:3px;flex:none"></span><span style="flex:1"><code>--gestia-cyan-soft</code></span><span style="color:#5f6b7a">Fila seleccionada, celda de turno</span></div>
+            <div style="display:flex;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid #dce2e9"><span style="width:16px;height:16px;background:#f4f6fa;border:1px solid #dce2e9;border-radius:3px;flex:none"></span><span style="flex:1"><code>--gestia-canvas</code></span><span style="color:#5f6b7a">Fondo de página</span></div>
+            <div style="display:flex;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid #dce2e9"><span style="width:16px;height:16px;background:#ffffff;border:1px solid #dce2e9;border-radius:3px;flex:none"></span><span style="flex:1"><code>--gestia-surface</code></span><span style="color:#5f6b7a">Tarjetas, tabla, panel</span></div>
+            <div style="display:flex;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid #dce2e9"><span style="width:16px;height:16px;background:#f7f9fb;border:1px solid #dce2e9;border-radius:3px;flex:none"></span><span style="flex:1"><code>--gestia-surface-soft</code></span><span style="color:#5f6b7a">Encabezado de tabla, descanso, fila alterna</span></div>
+            <div style="display:flex;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid #dce2e9"><span style="width:16px;height:16px;background:#dce2e9;border:1px solid #dce2e9;border-radius:3px;flex:none"></span><span style="flex:1"><code>--gestia-border</code></span><span style="color:#5f6b7a">Todo borde y separador</span></div>
+            <div style="display:flex;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid #dce2e9"><span style="width:16px;height:16px;background:#253040;border:1px solid #dce2e9;border-radius:3px;flex:none"></span><span style="flex:1"><code>--gestia-text</code></span><span style="color:#5f6b7a">Texto principal</span></div>
+            <div style="display:flex;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid #dce2e9"><span style="width:16px;height:16px;background:#5f6b7a;border:1px solid #dce2e9;border-radius:3px;flex:none"></span><span style="flex:1"><code>--gestia-muted</code></span><span style="color:#5f6b7a">Etiquetas, texto secundario</span></div>
+            <div style="display:flex;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid #dce2e9"><span style="width:16px;height:16px;background:#16a34a;border:1px solid #dce2e9;border-radius:3px;flex:none"></span><span style="flex:1"><code>--gestia-success</code></span><span style="color:#5f6b7a">Activo, patrón completo, cobertura completa</span></div>
+            <div style="display:flex;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid #dce2e9"><span style="width:16px;height:16px;background:#d97706;border:1px solid #dce2e9;border-radius:3px;flex:none"></span><span style="flex:1"><code>--gestia-warning</code></span><span style="color:#5f6b7a">Vigencia terminada, elegibilidad, pendiente</span></div>
+            <div style="display:flex;gap:10px;align-items:center;padding:7px 0"><span style="width:16px;height:16px;background:#dc2626;border:1px solid #dce2e9;border-radius:3px;flex:none"></span><span style="flex:1"><code>--gestia-danger</code></span><span style="color:#5f6b7a">Vacante, sin declarar, traslape, desactivar</span></div>
+          </div>
+          <div style="font:400 11.5px/1.5 Archivo,sans-serif;color:#5f6b7a;border-top:1px solid #dce2e9;padding-top:11px">Estructura: <code>sidebar-width 17rem</code>, <code>topbar-height 4.5rem</code>, <code>page-gap</code> y <code>card-padding 1rem</code>, <code>radius 6px</code>, <code>control-height 2.5rem</code>, sombras en <code>none</code>. Sin usar: <code>--gestia-info</code>, que no tiene caso en esta pantalla.</div>
+        </div>
+        <div style="background:#ffffff;border:1px solid #d97706;border-radius:6px;padding:18px;display:flex;flex-direction:column;gap:12px">
+          <div style="font:600 11px Archivo,sans-serif;letter-spacing:.1em;color:#5f6b7a">PREGUNTAS, NO DISEÑADAS</div>
+          <div style="display:flex;flex-direction:column;font:400 12.5px/1.5 Archivo,sans-serif;color:#253040">
+            <div style="padding:9px 0;border-bottom:1px solid #dce2e9"><span style="font-weight:600">Qué significa «estado» al filtrar servicios.</span> Aquí conviven activo, inactivo y vigencia terminada como una sola columna. Si son dos conceptos distintos, la columna y el filtro cambian.</div>
+            <div style="padding:9px 0;border-bottom:1px solid #dce2e9"><span style="font-weight:600">La fecha ancla sin selector de librería.</span> Va como campo con formato <code>04 sep 2026</code>. Falta decidir si se construye el selector o entra Flatpickr con su caso funcional.</div>
+            <div style="padding:9px 0;border-bottom:1px solid #dce2e9"><span style="font-weight:600">Editar una configuración con vigencia pasada.</span> El panel la muestra editable. Si se conserva valor anterior, motivo, usuario y fecha, esa pestaña necesita historial.</div>
+            <div style="padding:9px 0;border-bottom:1px solid #dce2e9"><span style="font-weight:600">Traslape: bloquea o advierte.</span> Dibujado como advertencia con salida. El interruptor de la entrega muestra las dos formas.</div>
+            <div style="padding:9px 0"><span style="font-weight:600">Cuántos días de descanso tiene una posición típica.</span> P-01 lleva dos. Si es uno, el patrón semanal se lee distinto.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;traslape&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Advierte&quot;,&quot;Bloquea&quot;],&quot;default&quot;:&quot;Advierte&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Decisiones pendientes&quot;},&quot;densidad&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Cómoda&quot;,&quot;Compacta&quot;],&quot;default&quot;:&quot;Cómoda&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Tabla&quot;},&quot;vacante&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Píldora&quot;,&quot;Texto&quot;],&quot;default&quot;:&quot;Píldora&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Tabla&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const raw = [
+      ['Vigilancia intramuros Torre Altavista','Corporativo Altavista','Torre Altavista','01 sep 2026 — sin término',4,3,'Activo'],
+      ['Custodia de traslados Bajío','Transportes Iñíguez','Patio León','15 ago 2026 — 14 ago 2027',6,6,'Activo'],
+      ['Monitoreo CCTV Plaza Peñón','Inmobiliaria Peñón','Plaza Peñón','01 jul 2026 — sin término',3,1,'Activo'],
+      ['Rondín nocturno Corporativo Iñíguez','Transportes Iñíguez','Corporativo Norte','01 sep 2026 — 31 dic 2026',2,2,'Activo'],
+      ['Control de accesos Campus Sur','Universidad del Valle Sur','Campus Sur','01 feb 2026 — 31 ago 2026',5,0,'Vigencia terminada'],
+      ['Vigilancia perimetral Nave 4','Manufacturas Cañedo','Parque Industrial Cañedo','10 mar 2026 — sin término',4,4,'Activo'],
+      ['Guardia de acceso Muñoz Hermanos','Muñoz Hermanos','Bodega Central','01 jun 2026 — 31 may 2027',2,1,'Activo'],
+      ['Seguridad de eventos Foro Alameda','Grupo Alameda','Foro Alameda','20 ago 2026 — 20 sep 2026',8,5,'Activo'],
+      ['Vigilancia diurna Sucursal Reforma','Banca Reforma','Sucursal Reforma','01 ene 2026 — sin término',2,2,'Activo'],
+      ['Rondín Bodega Tlalnepantla','Distribuidora Núñez','Bodega Tlalnepantla','05 sep 2026 — 04 sep 2027',3,3,'Activo'],
+      ['Monitoreo remoto Altavista II','Corporativo Altavista','Torre Altavista','01 sep 2026 — sin término',1,0,'Activo'],
+      ['Custodia de valores Ruta Occidente','Banca Reforma','Centro de canje','01 abr 2026 — 31 mar 2027',4,2,'Inactivo'],
+      ['Vigilancia Escuela Niños Héroes','Colegio Niños Héroes','Plantel Coyoacán','12 ago 2026 — 30 jun 2027',2,2,'Activo'],
+      ['Apoyo operativo Almacén Zapopan','Manufacturas Cañedo','Almacén Zapopan','01 sep 2026 — 30 nov 2026',3,2,'Activo']
+    ];
+    const compacta = this.props.densidad === 'Compacta';
+    const pildora = (this.props.vacante ?? 'Píldora') === 'Píldora';
+    const dot = { 'Activo': '#16a34a', 'Inactivo': '#5f6b7a', 'Vigencia terminada': '#d97706' };
+    const rows = raw.map((r, i) => {
+      const [nombre, cliente, sede, vig, req, asig, estado] = r;
+      const vac = req - asig;
+      const hay = vac > 0;
+      return {
+        nombre, vig, estado,
+        clienteSede: cliente + ' · ' + sede,
+        pos: asig + ' / ' + req,
+        posColor: hay ? '#dc2626' : '#253040',
+        vacText: hay ? (vac === 1 ? '1 vacante' : vac + ' vacantes') : 'Completa',
+        vacColor: hay ? '#dc2626' : '#5f6b7a',
+        vacBorder: hay && pildora ? '#dc2626' : 'transparent',
+        vacBg: '#ffffff',
+        estadoDot: dot[estado] || '#5f6b7a',
+        bg: i === 0 ? '#e9f7fa' : (i % 2 ? '#f7f9fb' : '#ffffff'),
+        pad: compacta ? '9px 16px' : '14px 16px'
+      };
+    });
+    const compact = rows.slice(0, 8).map((r, i) => ({
+      ...r,
+      bg: i === 0 ? '#e9f7fa' : '#ffffff',
+      markLeft: i === 0 ? '#22c6ee' : 'transparent'
+    }));
+
+    // Septiembre 2026: 01 = martes. Ciclo de 3 días anclado al 01 sep (día 1 = turno).
+    const ciclo = [];
+    for (let cell = 0; cell < 35; cell++) {
+      const num = cell - 0; // lunes 31 ago en la primera casilla
+      const dia = num; // desplazamiento: casilla 0 = lun 31 ago
+      const fecha = num;
+      const esSep = fecha >= 1;
+      const numero = esSep ? fecha : 31;
+      if (cell === 0) {
+        ciclo.push({ num: '31 ago', etiqueta: '', nota: '', bg: '#ffffff', color: '#5f6b7a', numColor: '#5f6b7a' });
+        continue;
+      }
+      if (fecha > 30) {
+        ciclo.push({ num: (fecha - 30) + ' oct', etiqueta: '', nota: '', bg: '#ffffff', color: '#5f6b7a', numColor: '#5f6b7a' });
+        continue;
+      }
+      const pos = (fecha - 1) % 3;
+      const turno = pos === 0;
+      ciclo.push({
+        num: String(numero).padStart(2, '0') + ' sep',
+        etiqueta: turno ? 'TURNO 24 H' : 'DESCANSO',
+        nota: turno ? '19:00 → 19:00' : 'día ' + (pos + 1) + ' del ciclo',
+        bg: turno ? '#e9f7fa' : '#f7f9fb',
+        color: turno ? '#087f9c' : '#5f6b7a',
+        numColor: fecha === 1 ? '#087f9c' : '#253040'
+      });
+    }
+
+    const modo = this.props.traslape ?? 'Advierte';
+    return {
+      rows, compact, ciclo,
+      traslapeModo: modo === 'Bloquea' ? 'BLOQUEA' : 'ADVIERTE',
+      traslapeTexto: modo === 'Bloquea'
+        ? 'La asignación no se guarda hasta resolver el traslape.'
+        : 'Se puede guardar; el traslape queda registrado en la asignación.'
+    };
+  }
+}
+</script>
+</body>
+</html>

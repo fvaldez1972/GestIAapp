@@ -1,4 +1,5 @@
 import { HttpErrorResponse, HttpResponse } from '@angular/common/http';
+import { CatalogSelect } from '../../../../shared/ui/catalog-select/catalog-select';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -31,7 +32,7 @@ import { Employee } from '../../../workforce/data-access/workforce.models';
 
 @Component({
   selector: 'app-operations-page',
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, CatalogSelect],
   templateUrl: './operations-page.html',
   styleUrl: './operations-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -489,14 +490,6 @@ export class OperationsPage implements OnInit {
     { value: 'Completed', label: 'Completada' },
     { value: 'Cancelled', label: 'Cancelada' },
   ];
-  protected readonly coverageReasons: readonly string[] = [
-    'Incidencia del empleado',
-    'Falta del empleado',
-    'Retardo fuera de tolerancia',
-    'Solicitud del cliente',
-    'Refuerzo operativo',
-    'Otro motivo documentado',
-  ];
   protected readonly coverageCandidateFilters: readonly string[] = ['Más cercano', 'Elegible', 'Sin conflicto', 'Menos horas'];
 
   protected readonly evidenceTypes: readonly { value: OperationEvidenceType; label: string }[] = [
@@ -528,7 +521,7 @@ export class OperationsPage implements OnInit {
   protected readonly incidentForm = this.formBuilder.nonNullable.group({
     idScheduledShift: ['', [Validators.required]],
     incidentDate: [this.today(), [Validators.required]],
-    incidentType: ['OPERATIVA', [Validators.required, Validators.maxLength(80)]],
+    incidentType: ['', [Validators.required, Validators.maxLength(80)]],
     severity: ['Medium' as IncidentSeverity, [Validators.required]],
     status: ['Open' as IncidentStatus, [Validators.required]],
     description: ['', [Validators.required, Validators.maxLength(1000)]],
@@ -544,7 +537,7 @@ export class OperationsPage implements OnInit {
   protected readonly coverageForm = this.formBuilder.nonNullable.group({
     idScheduledShift: ['', [Validators.required]],
     idReplacementEmployee: ['', [Validators.required]],
-    coverageReason: ['Incidencia del empleado', [Validators.required, Validators.maxLength(120)]],
+    coverageReason: ['', [Validators.maxLength(120)]],
     coverageStartTime: ['08:00', [Validators.required]],
     coverageEndTime: ['16:00', [Validators.required]],
     isOvernight: [false],
@@ -988,6 +981,10 @@ export class OperationsPage implements OnInit {
 
     const selectedCoverageId = this.selectedCoverageId();
     const requestedStatus: CoverageStatus = selectedCoverageId ? form.status : 'Requested';
+    if (!selectedCoverageId && !form.coverageReason) {
+      this.error.set('Selecciona un motivo de cobertura.');
+      return;
+    }
     const isConfirming =
       (requestedStatus === 'Confirmed' || requestedStatus === 'Completed') &&
       !(this.selectedCoverage()?.status === 'Confirmed' || this.selectedCoverage()?.status === 'Completed');
@@ -1012,6 +1009,7 @@ export class OperationsPage implements OnInit {
       coverageEndTime: form.coverageEndTime,
       isOvernight: form.isOvernight,
       status: requestedStatus,
+      idCoverageReason: form.coverageReason || null,
       notes: this.buildCoverageNotes(form, requestedStatus),
     };
     const request = selectedCoverageId
@@ -1066,7 +1064,7 @@ export class OperationsPage implements OnInit {
     this.incidentForm.reset({
       idScheduledShift: this.dailyShifts()[0]?.idScheduledShift ?? '',
       incidentDate: this.selectedOperationDate(),
-      incidentType: 'OPERATIVA',
+      incidentType: '',
       severity: 'Medium',
       status: 'Open',
       description: '',
@@ -1107,7 +1105,7 @@ export class OperationsPage implements OnInit {
     this.coverageForm.patchValue({
       idScheduledShift: coverage.idScheduledShift,
       idReplacementEmployee: coverage.idReplacementEmployee,
-      coverageReason: this.coverageReasonFromNotes(coverage.notes),
+      coverageReason: coverage.idCoverageReason ?? '',
       coverageStartTime: coverage.coverageStartTime.slice(0, 5),
       coverageEndTime: coverage.coverageEndTime.slice(0, 5),
       isOvernight: coverage.isOvernight,
@@ -1129,7 +1127,7 @@ export class OperationsPage implements OnInit {
     this.coverageForm.reset({
       idScheduledShift: firstShift?.idScheduledShift ?? '',
       idReplacementEmployee: firstReplacement?.idEmployee ?? '',
-      coverageReason: 'Incidencia del empleado',
+      coverageReason: '',
       coverageStartTime: firstShift?.startTime?.slice(0, 5) ?? '08:00',
       coverageEndTime: firstShift?.endTime?.slice(0, 5) ?? '16:00',
       isOvernight: firstShift?.isOvernight ?? false,
@@ -1200,8 +1198,9 @@ export class OperationsPage implements OnInit {
   protected onEvidenceFileSelected(event: Event) {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
+    const context = this.operationContext();
 
-    if (!file) {
+    if (!file || !context) {
       return;
     }
 
@@ -1209,7 +1208,7 @@ export class OperationsPage implements OnInit {
     this.message.set('');
     this.error.set('');
 
-    this.api.uploadOperationEvidenceFile(file).subscribe({
+    this.api.uploadOperationEvidenceFile(file, context.idOrganization).subscribe({
       next: (result) => {
         this.evidenceForm.patchValue({
           title: this.evidenceForm.controls.title.value || result.originalFileName,
@@ -1217,7 +1216,11 @@ export class OperationsPage implements OnInit {
         });
         this.message.set('Archivo cargado correctamente. Guarda la evidencia para ligarlo al registro.');
       },
-      error: (error: HttpErrorResponse) => this.setError(error, 'No se pudo cargar el archivo.'),
+      error: (error: HttpErrorResponse) => {
+        this.uploadingEvidenceFile.set(false);
+        input.value = '';
+        this.setError(error, 'No se pudo cargar el archivo.');
+      },
       complete: () => {
         this.uploadingEvidenceFile.set(false);
         input.value = '';
@@ -1277,12 +1280,14 @@ export class OperationsPage implements OnInit {
   }
 
   protected downloadEvidence(evidence: OperationEvidence) {
+    const context = this.operationContext();
+    if (!context) return;
     if (!evidence.storageReference) {
       this.error.set('La evidencia no tiene una referencia de archivo para descargar.');
       return;
     }
 
-    this.api.downloadOperationEvidenceFile(evidence.storageReference).subscribe({
+    this.api.downloadOperationEvidenceFile(context.idOrganization, context.idClient, context.idService, evidence.idOperationEvidence).subscribe({
       next: (response) => this.openDownloadedEvidence(response, evidence),
       error: (error: HttpErrorResponse) => this.setError(error, 'No se pudo descargar la evidencia.'),
     });
@@ -1613,7 +1618,7 @@ export class OperationsPage implements OnInit {
 
     switch (step) {
       case 'detectar':
-        return Boolean(form.idScheduledShift && form.coverageReason);
+        return Boolean(form.idScheduledShift && (this.selectedCoverageId() || form.coverageReason));
       case 'sustituto':
         return Boolean(candidate && candidate.blockingReasons.length === 0);
       case 'validar':
@@ -1734,8 +1739,11 @@ export class OperationsPage implements OnInit {
     this.api.listOrganizations().subscribe({
       next: (organizations) => {
         this.organizations.set(organizations);
-        this.selectedOrganizationId.set(organizations[0]?.idOrganization ?? '');
-        this.loadClients();
+        const organizationId = this.auth.resolveOperationalOrganizationId(organizations);
+        this.selectedOrganizationId.set(organizationId);
+        if (organizationId) {
+          this.loadClients();
+        }
       },
       error: (error: HttpErrorResponse) => this.setError(error, 'No se pudieron cargar las organizaciones.'),
       complete: () => this.loading.set(false),
@@ -1752,7 +1760,7 @@ export class OperationsPage implements OnInit {
     this.loading.set(true);
     this.error.set('');
 
-    this.api.listClients(organizationId, '', 1, 100).subscribe({
+    this.api.listClientOptions(organizationId).subscribe({
       next: (result) => {
         this.clients.set(result.items);
         this.selectedClientId.set(result.items[0]?.idClient ?? '');
@@ -1807,7 +1815,7 @@ export class OperationsPage implements OnInit {
       closures: this.api.listOperationDayClosures(organizationId, serviceId),
       summary: this.api.getOperationsSummary(organizationId, clientId, serviceId),
       versions: this.api.listScheduleVersions(organizationId, clientId, serviceId),
-      employees: this.workforceApi.listEmployees(organizationId, '', 'Active', 1, 100),
+      employees: this.workforceApi.listEmployeeOptions(organizationId),
     }).subscribe({
       next: ({ attendance, incidents, coverages, evidences, approvals, closures, summary, versions, employees }) => {
         this.attendance.set(attendance);
@@ -1885,7 +1893,7 @@ export class OperationsPage implements OnInit {
     this.coverageForm.patchValue({
       idScheduledShift: firstShift?.idScheduledShift ?? '',
       idReplacementEmployee: firstReplacement?.idEmployee ?? '',
-      coverageReason: 'Incidencia del empleado',
+      coverageReason: '',
       coverageStartTime: firstShift?.startTime?.slice(0, 5) ?? '08:00',
       coverageEndTime: firstShift?.endTime?.slice(0, 5) ?? '16:00',
       isOvernight: firstShift?.isOvernight ?? false,
@@ -1955,7 +1963,6 @@ export class OperationsPage implements OnInit {
 
   private buildCoverageNotes(form: CoverageFormValue, status: CoverageStatus) {
     const notes = [
-      `Motivo: ${form.coverageReason}`,
       form.notes.trim() ? `Observaciones: ${form.notes.trim()}` : '',
     ];
 
@@ -1974,10 +1981,6 @@ export class OperationsPage implements OnInit {
     return notes.filter(Boolean).join('\n');
   }
 
-  private coverageReasonFromNotes(notes: string | null) {
-    const reason = notes?.match(/Motivo:\s*(.+)/i)?.[1]?.trim();
-    return this.coverageReasons.includes(reason ?? '') ? reason ?? 'Incidencia del empleado' : 'Incidencia del empleado';
-  }
 
   private coverageHasBlockingIssue(coverage: CoverageRecord) {
     const shift = this.scheduledShifts().find((item) => item.idScheduledShift === coverage.idScheduledShift);

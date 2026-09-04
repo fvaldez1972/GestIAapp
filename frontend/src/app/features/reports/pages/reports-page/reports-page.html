@@ -17,7 +17,7 @@
     @if (isPlatformAdmin()) {
       <label class="gi-field">
         Organización
-        <select class="gi-input" [ngModel]="selectedOrganizationId()" (ngModelChange)="onOrganizationChange($event)">
+        <select class="gi-input" [ngModel]="selectedOrganizationId()" [disabled]="isPlatformAdmin()" (ngModelChange)="onOrganizationChange($event)">
           @for (organization of organizations(); track organization.idOrganization) {
             <option [value]="organization.idOrganization">{{ organization.legalName }}</option>
           }

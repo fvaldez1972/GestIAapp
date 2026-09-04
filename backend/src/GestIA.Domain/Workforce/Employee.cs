@@ -27,7 +27,8 @@ public sealed record EmployeeProfile(
     string? State,
     string? PostalCode,
     string? HousingType,
-    DateOnly? ResidenceSinceDate);
+    DateOnly? ResidenceSinceDate,
+    string? CountryCode = null);
 
 public sealed class Employee : AuditableEntity
 {
@@ -86,6 +87,7 @@ public sealed class Employee : AuditableEntity
     public string? Address { get; private set; }
     public string? Municipality { get; private set; }
     public string? State { get; private set; }
+    public string? CountryCode { get; private set; }
     public string? PostalCode { get; private set; }
     public string? HousingType { get; private set; }
     public DateOnly? ResidenceSinceDate { get; private set; }
@@ -179,6 +181,7 @@ public sealed class Employee : AuditableEntity
         Address = Normalize(profile.Address);
         Municipality = Normalize(profile.Municipality);
         State = Normalize(profile.State);
+        CountryCode = Normalize(profile.CountryCode)?.ToUpperInvariant();
         PostalCode = Normalize(profile.PostalCode);
         HousingType = Normalize(profile.HousingType);
         ResidenceSinceDate = profile.ResidenceSinceDate;

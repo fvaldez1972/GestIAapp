@@ -142,7 +142,8 @@ public sealed record OperationalRequestCoverageInput(
     TimeOnly CoverageEndTime,
     bool IsOvernight,
     CoverageStatus Status,
-    string? Notes);
+    string? Notes,
+    Guid? IdCoverageReason = null);
 
 public sealed record OperationalRequestResponse(
     Guid IdOperationalRequest,

@@ -524,8 +524,11 @@ export class AuditPage implements OnInit {
     this.clientApi.listOrganizations().subscribe({
       next: (organizations) => {
         this.organizations.set(organizations);
-        this.selectedOrganizationId.set(organizations[0]?.idOrganization ?? '');
-        this.loadEvents();
+        const organizationId = this.auth.resolveOperationalOrganizationId(organizations);
+        this.selectedOrganizationId.set(organizationId);
+        if (organizationId) {
+          this.loadEvents();
+        }
       },
       error: (error: HttpErrorResponse) => this.setError(error, 'No se pudieron cargar las organizaciones.'),
       complete: () => this.loading.set(false),

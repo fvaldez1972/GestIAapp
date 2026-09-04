@@ -1143,8 +1143,11 @@ export class PlanningPage implements OnInit {
     this.api.listOrganizations().subscribe({
       next: (organizations) => {
         this.organizations.set(organizations);
-        this.selectedOrganizationId.set(organizations[0]?.idOrganization ?? '');
-        this.loadClients();
+        const organizationId = this.auth.resolveOperationalOrganizationId(organizations);
+        this.selectedOrganizationId.set(organizationId);
+        if (organizationId) {
+          this.loadClients();
+        }
       },
       error: (error: HttpErrorResponse) => this.setError(error, 'No se pudieron cargar las organizaciones.'),
       complete: () => this.loading.set(false),
@@ -1161,7 +1164,7 @@ export class PlanningPage implements OnInit {
     this.loading.set(true);
     this.error.set('');
 
-    this.api.listClients(organizationId, '', 1, 100).subscribe({
+    this.api.listClientOptions(organizationId).subscribe({
       next: (result) => {
         this.clients.set(result.items);
         this.selectedClientId.set(result.items[0]?.idClient ?? '');
@@ -1209,7 +1212,7 @@ export class PlanningPage implements OnInit {
       positions: this.api.listPositions(context.idOrganization, context.idClient, context.idService),
       assignments: this.api.listAssignments(context.idOrganization, context.idClient, context.idService),
       versions: this.api.listScheduleVersions(context.idOrganization, context.idClient, context.idService),
-      employees: this.workforceApi.listEmployees(context.idOrganization, '', 'Active', 1, 100),
+      employees: this.workforceApi.listEmployeeOptions(context.idOrganization),
     }).subscribe({
       next: ({ positions, assignments, versions, employees }) => {
         this.positions.set(positions);

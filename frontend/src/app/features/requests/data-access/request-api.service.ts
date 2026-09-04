@@ -1,5 +1,6 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
+import { EMPTY, expand, reduce } from 'rxjs';
 import {
   ChangeOperationalRequestStatus,
   CreateOperationalRequest,
@@ -44,6 +45,15 @@ export class RequestApiService {
     }
 
     return this.http.get<PagedResult<OperationalRequest>>(this.baseUrl, { params });
+  }
+
+  listBoardRequests(organizationId: string) {
+    return this.listRequests(organizationId, '', '', '', 1, 100).pipe(
+      expand(result => result.items.length > 0 && result.page * result.pageSize < result.totalCount
+        ? this.listRequests(organizationId, '', '', '', result.page + 1, 100)
+        : EMPTY),
+      reduce((items, result) => [...items, ...result.items], [] as readonly OperationalRequest[]),
+    );
   }
 
   createRequest(request: CreateOperationalRequest) {

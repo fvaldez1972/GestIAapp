@@ -1,24 +1,18 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, NgForm } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { catchError, forkJoin, map, of, switchMap } from 'rxjs';
+import { forkJoin } from 'rxjs';
 import { ClientApiService } from '../../../clients/data-access/client-api.service';
-import { Client, Organization, PagedResult } from '../../../clients/data-access/client.models';
+import { Organization, OrganizationClientSummary } from '../../../clients/data-access/client.models';
 import { SecurityApiService } from '../../../security/data-access/security-api.service';
 import { SecurityRole, SecurityUser } from '../../../security/data-access/security.models';
 
 type OrganizationPlatformSummary = {
   readonly organization: Organization;
-  readonly clients: readonly Client[];
+  readonly clients: readonly OrganizationClientSummary[];
   readonly usersCount: number;
   readonly adminsCount: number;
-};
-
-type OrganizationCreationResult = {
-  readonly organization: Organization;
-  readonly adminCreated: boolean;
-  readonly partial?: boolean;
 };
 
 @Component({
@@ -49,6 +43,8 @@ export class PlatformPage implements OnInit {
   protected readonly initialAdminName = signal('');
   protected readonly initialAdminEmail = signal('');
   protected readonly initialAdminPassword = signal('');
+  protected readonly organizationStep = signal(1);
+  protected readonly organizationStepError = signal('');
 
   protected readonly selectedAdminName = signal('');
   protected readonly selectedAdminEmail = signal('');
@@ -81,12 +77,7 @@ export class PlatformPage implements OnInit {
   protected readonly adminRole = computed(
     () =>
       this.roles().find((role) => role.active && role.codeRole === 'ORGANIZATION_ADMIN') ??
-      this.roles().find((role) => role.active && !this.hasPlatformPermission(role) && this.isAdminRole(role.codeRole, role.name)) ??
-      this.roles().find((role) => role.active && this.isAdminRole(role.codeRole, role.name)) ??
       null,
-  );
-  protected readonly initialAdminStarted = computed(() =>
-    Boolean(this.initialAdminName().trim() || this.initialAdminEmail().trim() || this.initialAdminPassword().trim()),
   );
   protected readonly initialAdminReady = computed(() =>
     Boolean(
@@ -101,7 +92,7 @@ export class PlatformPage implements OnInit {
       !this.savingOrganization() &&
         this.newOrganizationCode().trim() &&
         this.newOrganizationLegalName().trim() &&
-        (!this.initialAdminStarted() || this.initialAdminReady()),
+        this.initialAdminReady(),
     ),
   );
   protected readonly canCreateAdminForSelected = computed(() =>
@@ -163,65 +154,27 @@ export class PlatformPage implements OnInit {
       return;
     }
 
-    const shouldCreateAdmin = this.initialAdminReady();
-    const role = this.adminRole();
     this.savingOrganization.set(true);
     this.error.set('');
     this.success.set('');
 
     this.clientApi
-      .createOrganization({
+      .createOrganizationWithAdmin({
         codeOrganization: this.newOrganizationCode().trim(),
         legalName: this.newOrganizationLegalName().trim(),
         rfc: this.normalizeOptional(this.newOrganizationRfc()),
+        admin: {
+          displayName: this.initialAdminName().trim(),
+          email: this.initialAdminEmail().trim(),
+          password: this.initialAdminPassword(),
+        },
       })
-      .pipe(
-        switchMap((organization) => {
-          if (!shouldCreateAdmin || !role) {
-            return of({
-              organization,
-              adminCreated: false,
-              partial: false,
-            } satisfies OrganizationCreationResult);
-          }
-
-          return this.securityApi
-            .createUser({
-              email: this.initialAdminEmail().trim(),
-              displayName: this.initialAdminName().trim(),
-              password: this.initialAdminPassword(),
-              idOrganization: organization.idOrganization,
-              membershipLabel: 'Admin de organización',
-              idRole: role.idRole,
-            })
-            .pipe(
-              map(() => ({
-                organization,
-                adminCreated: true,
-                partial: false,
-              }) satisfies OrganizationCreationResult),
-              catchError((error: HttpErrorResponse) => {
-                this.error.set(`La organización se creó, pero no se pudo crear el admin: ${this.extractError(error)}`);
-                return of({
-                  organization,
-                  adminCreated: false,
-                  partial: true,
-                } satisfies OrganizationCreationResult);
-              }),
-            );
-        }),
-      )
       .subscribe({
         next: (result) => {
           this.selectedOrganizationId.set(result.organization.idOrganization);
           this.clearOrganizationForm();
-          if (!result.partial) {
-            this.success.set(
-              result.adminCreated
-                ? 'Organización creada con su admin inicial.'
-                : 'Organización creada. Puedes asignar su admin desde el panel lateral.',
-            );
-          }
+          this.organizationStep.set(1);
+          this.success.set('Organización creada con su admin inicial.');
           this.loadPlatform();
         },
         error: (error: HttpErrorResponse) => {
@@ -229,6 +182,28 @@ export class PlatformPage implements OnInit {
           this.savingOrganization.set(false);
         },
       });
+  }
+
+  protected submitOrganizationStep(form: NgForm) {
+    this.organizationStepError.set('');
+    if (this.organizationStep() < 3) {
+      form.control.markAllAsTouched();
+      if (form.invalid || (this.organizationStep() === 1 && (!this.newOrganizationCode().trim() || !this.newOrganizationLegalName().trim())) ||
+        (this.organizationStep() === 2 && !this.initialAdminReady())) {
+        this.organizationStepError.set('Revisa los campos obligatorios y su formato antes de continuar.');
+        return;
+      }
+      this.organizationStep.update(step => step + 1);
+      return;
+    }
+    this.createOrganizationWithAdmin();
+  }
+
+  protected cancelOrganizationCreation() {
+    if (this.savingOrganization()) { return; }
+    this.clearOrganizationForm();
+    this.organizationStep.set(1);
+    this.organizationStepError.set('');
   }
 
   protected createAdminForSelected() {
@@ -335,10 +310,11 @@ export class PlatformPage implements OnInit {
 
     forkJoin({
       organizations: this.clientApi.listOrganizations(),
+      governance: this.clientApi.listOrganizationGovernance(),
       users: this.securityApi.listUsers(),
       roles: this.securityApi.listRoles(),
     }).subscribe({
-      next: ({ organizations, users, roles }) => {
+      next: ({ organizations, governance, users, roles }) => {
         this.organizations.set(organizations);
         this.users.set(users);
         this.roles.set(roles);
@@ -347,68 +323,13 @@ export class PlatformPage implements OnInit {
         if (selectedOrganization) {
           this.syncOrganizationEditor(selectedOrganization);
         }
-        this.loadOrganizationSummaries(organizations, users);
+        this.summaries.set(governance);
+        this.loading.set(false);
+        this.savingOrganization.set(false);
+        this.savingAdmin.set(false);
       },
       error: (error: HttpErrorResponse) => {
         this.error.set(error.error?.detail ?? 'No se pudo cargar la información de organizaciones.');
-        this.loading.set(false);
-        this.savingOrganization.set(false);
-        this.savingAdmin.set(false);
-      },
-    });
-  }
-
-  private loadOrganizationSummaries(organizations: readonly Organization[], users: readonly SecurityUser[]) {
-    if (!organizations.length) {
-      this.summaries.set([]);
-      this.loading.set(false);
-      this.savingOrganization.set(false);
-      this.savingAdmin.set(false);
-      return;
-    }
-
-    const clientRequests = Object.fromEntries(
-      organizations.map((organization) => [
-        organization.idOrganization,
-        this.clientApi.listClients(organization.idOrganization, '', 1, 100).pipe(
-          catchError(() =>
-            of({
-              items: [],
-              totalCount: 0,
-              page: 1,
-              pageSize: 100,
-              totalPages: 0,
-            } satisfies PagedResult<Client>),
-          ),
-        ),
-      ]),
-    );
-
-    forkJoin(clientRequests).subscribe({
-      next: (clientsByOrganization) => {
-        this.summaries.set(
-          organizations.map((organization) => {
-            const organizationUsers = users.filter((user) =>
-              user.organizations.some((userOrganization) => userOrganization.idOrganization === organization.idOrganization),
-            );
-            const adminsCount = organizationUsers.filter((user) =>
-              user.roles.some((role) => role.idOrganization === organization.idOrganization && this.isAdminRole(role.codeRole, role.name)),
-            ).length;
-
-            return {
-              organization,
-              clients: clientsByOrganization[organization.idOrganization]?.items ?? [],
-              usersCount: organizationUsers.length,
-              adminsCount,
-            };
-          }),
-        );
-        this.loading.set(false);
-        this.savingOrganization.set(false);
-        this.savingAdmin.set(false);
-      },
-      error: () => {
-        this.error.set('No se pudo cargar el resumen por organización.');
         this.loading.set(false);
         this.savingOrganization.set(false);
         this.savingAdmin.set(false);
@@ -465,7 +386,4 @@ export class PlatformPage implements OnInit {
     return /admin|administrador|super/i.test(`${codeRole} ${name}`);
   }
 
-  private hasPlatformPermission(role: SecurityRole) {
-    return role.permissions.some((permission) => permission.codePermission === 'PLATFORM.ADMIN');
-  }
 }

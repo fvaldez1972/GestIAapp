@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using GestIA.Api.Security;
 using GestIA.Application.Security;
+using GestIA.Application.Support;
 using Microsoft.AspNetCore.Http;
 
 namespace GestIA.IntegrationTests;
@@ -33,14 +34,26 @@ public sealed class OrganizationAccessGuardTests
     }
 
     [Fact]
-    public void PlatformAdminCanAccessAnyOrganization()
+    public void PlatformAdminCannotAccessOrganizationWithoutSupportSession()
     {
         var context = CreateContext(
             permissions: [SecurityPermissions.PlatformAdmin],
             organizations: [BktOrganizationId]);
 
+        Assert.False(OrganizationAccessGuard.CanAccess(context, OtherOrganizationId));
+        Assert.NotNull(OrganizationAccessGuard.ForbidIfUnauthorized(context, OtherOrganizationId));
+    }
+
+    [Fact]
+    public void PlatformAdminCanOnlyAccessSupportOrganization()
+    {
+        var context = CreateContext([SecurityPermissions.PlatformAdmin], [BktOrganizationId]);
+        var now = DateTime.UtcNow;
+        context.Items[SupportSessionContext.ItemKey] = new SupportSessionResponse(
+            Guid.NewGuid(), OtherOrganizationId, "Organization", "Configuration support", now, now.AddHours(1), null, "BKT", true);
+
         Assert.True(OrganizationAccessGuard.CanAccess(context, OtherOrganizationId));
-        Assert.Null(OrganizationAccessGuard.ForbidIfUnauthorized(context, OtherOrganizationId));
+        Assert.False(OrganizationAccessGuard.CanAccess(context, BktOrganizationId));
     }
 
     private static DefaultHttpContext CreateContext(

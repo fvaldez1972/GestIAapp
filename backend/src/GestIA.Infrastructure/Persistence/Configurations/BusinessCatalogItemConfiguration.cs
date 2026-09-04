@@ -1,6 +1,8 @@
 using GestIA.Domain.Catalogs;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
+using System.Text.Json;
 
 namespace GestIA.Infrastructure.Persistence.Configurations;
 
@@ -18,10 +20,23 @@ public sealed class BusinessCatalogItemConfiguration : IEntityTypeConfiguration<
         builder.Property(entity => entity.Code).HasMaxLength(80).IsUnicode(false).IsRequired();
         builder.Property(entity => entity.Name).HasMaxLength(160).IsRequired();
         builder.Property(entity => entity.Description).HasMaxLength(1000);
+        builder.Property(entity => entity.Group).HasColumnName("CatalogGroup").HasMaxLength(80).HasDefaultValue("General").IsRequired();
+        builder.Property(entity => entity.Order).HasColumnName("DisplayOrder").HasDefaultValue(1);
+        builder.Property(entity => entity.Synonyms)
+            .HasConversion(
+                value => JsonSerializer.Serialize(value, (JsonSerializerOptions?)null),
+                value => JsonSerializer.Deserialize<string[]>(value, (JsonSerializerOptions?)null) ?? Array.Empty<string>())
+            .HasDefaultValueSql("N'[]'")
+            .Metadata.SetValueComparer(new ValueComparer<string[]>(
+                (left, right) => left!.SequenceEqual(right!),
+                value => value.Aggregate(0, (hash, entry) => HashCode.Combine(hash, entry.GetHashCode())),
+                value => value.ToArray()));
         builder.HasOne(entity => entity.Organization)
             .WithMany()
             .HasForeignKey(entity => entity.IdOrganization)
             .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<BusinessCatalogItem>().WithMany()
+            .HasForeignKey(entity => entity.IdParentCatalogItem).OnDelete(DeleteBehavior.Restrict);
         builder.HasIndex(entity => new { entity.IdOrganization, entity.Type, entity.Code }).IsUnique();
     }
 }

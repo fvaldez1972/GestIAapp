@@ -13,6 +13,8 @@ public sealed class CoverageRecordConfiguration : IEntityTypeConfiguration<Cover
         builder.HasKey(entity => entity.IdCoverageRecord);
         builder.Property(entity => entity.Status).HasConversion<string>().HasMaxLength(30).IsUnicode(false).IsRequired();
         builder.Property(entity => entity.Notes).HasMaxLength(1000);
+        builder.HasOne<GestIA.Domain.Catalogs.BusinessCatalogItem>()
+            .WithMany().HasForeignKey(entity => entity.IdCoverageReason).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne(entity => entity.ScheduledShift)
             .WithMany()
             .HasForeignKey(entity => entity.IdScheduledShift)

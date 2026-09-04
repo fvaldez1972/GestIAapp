@@ -17,8 +17,15 @@ public static class OrganizationAccessGuard
             statusCode: StatusCodes.Status403Forbidden);
     }
 
-    public static bool CanAccess(HttpContext context, Guid organizationId) =>
-        IsPlatformAdmin(context) || UserOrganizationIds(context).Contains(organizationId);
+    public static bool CanAccess(HttpContext context, Guid organizationId)
+    {
+        if (!IsPlatformAdmin(context))
+        {
+            return UserOrganizationIds(context).Contains(organizationId);
+        }
+
+        return SupportSessionContext.Current(context)?.IdOrganization == organizationId;
+    }
 
     public static bool IsPlatformAdmin(HttpContext context) =>
         context.User.HasClaim("permission", SecurityPermissions.PlatformAdmin);

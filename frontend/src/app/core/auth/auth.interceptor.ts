@@ -13,13 +13,12 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
     return next(request);
   }
 
-  return next(
-    request.clone({
-      setHeaders: {
-        Authorization: `Bearer ${token}`,
-      },
-    }),
-  ).pipe(
+  const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
+  if (auth.isSupportModeActive() && auth.supportSession() && !request.url.includes('/api/v1/support-sessions')) {
+    headers['X-GestIA-Support-Session'] = auth.supportSession()!.idSupportSession;
+  }
+
+  return next(request.clone({ setHeaders: headers })).pipe(
     catchError((error: unknown) => {
       if (error instanceof HttpErrorResponse && error.status === 401) {
         auth.logout();

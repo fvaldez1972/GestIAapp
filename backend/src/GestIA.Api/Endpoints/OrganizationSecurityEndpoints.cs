@@ -61,7 +61,7 @@ public static class OrganizationSecurityEndpoints
                 return forbidden;
             }
 
-            var assignableRoleIds = QueryAssignableRoles(dbContext, organizationId)
+            var assignableRoleIds = QueryAssignableRoleEntities(dbContext, organizationId)
                 .Select(role => role.IdRole);
             var permissions = await dbContext.RolePermissions
                 .AsNoTracking()
@@ -509,7 +509,7 @@ public static class OrganizationSecurityEndpoints
                             : userRole.OrganizationMembership.Organization.LegalName))
                     .ToList()));
 
-    private static IQueryable<SecurityRoleResponse> QueryAssignableRoles(GestIaDbContext dbContext, Guid organizationId) =>
+    private static IQueryable<GestIA.Domain.Security.Role> QueryAssignableRoleEntities(GestIaDbContext dbContext, Guid organizationId) =>
         dbContext.Roles
             .AsNoTracking()
             .Where(role =>
@@ -519,7 +519,10 @@ public static class OrganizationSecurityEndpoints
                 role.CodeRole != "ORGANIZATION_ADMIN" &&
                 !dbContext.RolePermissions.Any(rolePermission =>
                     rolePermission.IdRole == role.IdRole &&
-                    rolePermission.Permission.CodePermission == SecurityPermissions.PlatformAdmin))
+                    rolePermission.Permission.CodePermission == SecurityPermissions.PlatformAdmin));
+
+    private static IQueryable<SecurityRoleResponse> QueryAssignableRoles(GestIaDbContext dbContext, Guid organizationId) =>
+        QueryAssignableRoleEntities(dbContext, organizationId)
             .OrderBy(role => role.Name)
             .Select(role => new SecurityRoleResponse(
                 role.IdRole,

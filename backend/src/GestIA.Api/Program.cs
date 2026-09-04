@@ -36,6 +36,7 @@ var app = builder.Build();
 
 app.UseExceptionHandler();
 app.UseMiddleware<JwtAuthenticationMiddleware>();
+app.UseMiddleware<SupportSessionMiddleware>();
 
 if (app.Environment.IsDevelopment())
 {
@@ -71,6 +72,7 @@ app.MapGet("/api/v1/system/info", () => Results.Ok(new
     .WithTags("System");
 
 app.MapAuthEndpoints();
+app.MapSupportSessionEndpoints();
 app.MapOrganizationEndpoints();
 app.MapClientEndpoints();
 app.MapClientSiteEndpoints();

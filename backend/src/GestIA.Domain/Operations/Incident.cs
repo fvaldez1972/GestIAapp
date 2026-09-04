@@ -32,6 +32,8 @@ public sealed class Incident : AuditableEntity
         IdIncident = idIncident;
         IdService = idService;
         ApplyProfile(profile);
+        Status = IncidentStatus.Open;
+        ResolutionNotes = null;
         RegisterCreation(actorId, actorName, occurredAt);
     }
 
@@ -63,6 +65,22 @@ public sealed class Incident : AuditableEntity
         string actorName,
         DateTime occurredAt)
     {
+        var allowed = Status == profile.Status || (Status, profile.Status) switch
+        {
+            (IncidentStatus.Open, IncidentStatus.InReview or IncidentStatus.Resolved or IncidentStatus.Cancelled) => true,
+            (IncidentStatus.InReview, IncidentStatus.Resolved or IncidentStatus.Cancelled) => true,
+            _ => false
+        };
+        if (!allowed)
+        {
+            throw new DomainRuleException("La incidencia cerrada no puede cambiar de estado.");
+        }
+
+        if (profile.Status is IncidentStatus.Resolved or IncidentStatus.Cancelled && string.IsNullOrWhiteSpace(profile.ResolutionNotes))
+        {
+            throw new DomainRuleException("Registra la resolución antes de cerrar la incidencia.");
+        }
+
         ApplyProfile(profile);
         RegisterUpdate(actorId, actorName, occurredAt);
     }

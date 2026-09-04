@@ -27,7 +27,8 @@ public sealed class BusinessDocumentService(
                 query.Status,
                 search,
                 (query.Page - 1) * query.PageSize,
-                query.PageSize),
+                query.PageSize,
+                CanAccessSensitive),
             cancellationToken);
 
         return result.ToPagedResult();
@@ -41,6 +42,7 @@ public sealed class BusinessDocumentService(
         var document = await repository.GetAsync(idOrganization, idBusinessDocument, cancellationToken)
             ?? throw new ResourceNotFoundException("No se encontró el documento solicitado.");
 
+        await AuthorizeAsync(document, cancellationToken);
         return Map(document);
     }
 
@@ -48,7 +50,9 @@ public sealed class BusinessDocumentService(
         CreateBusinessDocumentRequest request,
         CancellationToken cancellationToken)
     {
+        RequireSensitivePermission(request.IsSensitive, write: true);
         var profile = await ValidateAsync(request, cancellationToken);
+        await ValidateStorageAsync(request.IdOrganization, profile, null, cancellationToken);
         var document = BusinessDocument.Create(
             request.IdOrganization,
             profile,
@@ -57,6 +61,7 @@ public sealed class BusinessDocumentService(
             clock.UtcNow);
 
         await repository.AddAsync(document, cancellationToken);
+        await RecordEventAsync(document, "Created", null, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
         var saved = await repository.GetAsync(request.IdOrganization, document.IdBusinessDocument, cancellationToken)
             ?? document;
@@ -68,15 +73,59 @@ public sealed class BusinessDocumentService(
         UpdateBusinessDocumentRequest request,
         CancellationToken cancellationToken)
     {
-        var profile = await ValidateAsync(request, cancellationToken);
         var document = await repository.GetAsync(request.IdOrganization, idBusinessDocument, cancellationToken)
             ?? throw new ResourceNotFoundException("No se encontró el documento solicitado.");
 
+        await AuthorizeAsync(document, cancellationToken, write: true);
+        RequireSensitivePermission(request.IsSensitive, write: true);
+        if (request.OwnerType != document.OwnerType || request.OwnerId != document.OwnerId)
+        {
+            throw new ResourceConflictException("El propietario del documento no puede cambiarse.");
+        }
+
+        if ((document.IsSensitive || await repository.IsSensitiveStorageReferenceAsync(document.StorageReference, cancellationToken)) && !request.IsSensitive)
+        {
+            throw new ResourceConflictException("El documento debe conservar su clasificación sensible.");
+        }
+
+        var profile = await ValidateAsync(request, cancellationToken);
+        await ValidateStorageAsync(request.IdOrganization, profile, document.StorageReference, cancellationToken);
+        var before = BusinessDocumentSnapshot.Capture(document);
         document.UpdateProfile(profile, actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
+        await RecordEventAsync(document, "Updated", before, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
         var saved = await repository.GetAsync(request.IdOrganization, idBusinessDocument, cancellationToken)
             ?? document;
         return Map(saved);
+    }
+
+    public async Task<BusinessDocumentResponse> ReviewAsync(
+        Guid idBusinessDocument,
+        ReviewBusinessDocumentRequest request,
+        CancellationToken cancellationToken)
+    {
+        var errors = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
+        ValidateOrganization(request.IdOrganization, errors);
+        if (request.Status is not BusinessDocumentStatus.Validated and not BusinessDocumentStatus.Rejected)
+        {
+            errors[nameof(request.Status)] = ["La revisión sólo puede validar o rechazar el documento."];
+        }
+
+        var reviewNotes = InputValidation.Optional(request.ReviewNotes, nameof(request.ReviewNotes), 1000, errors);
+        if (request.Status == BusinessDocumentStatus.Rejected && string.IsNullOrWhiteSpace(reviewNotes))
+        {
+            errors[nameof(request.ReviewNotes)] = ["Indica el motivo del rechazo."];
+        }
+
+        InputValidation.ThrowIfInvalid(errors);
+        var document = await repository.GetAsync(request.IdOrganization, idBusinessDocument, cancellationToken)
+            ?? throw new ResourceNotFoundException("No se encontró el documento solicitado.");
+        await AuthorizeAsync(document, cancellationToken, write: true);
+        var before = BusinessDocumentSnapshot.Capture(document);
+        document.Review(request.Status, reviewNotes, actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
+        await RecordEventAsync(document, "Reviewed", before, cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+        return Map(document);
     }
 
     public async Task DeactivateAsync(
@@ -87,8 +136,60 @@ public sealed class BusinessDocumentService(
         var document = await repository.GetAsync(idOrganization, idBusinessDocument, cancellationToken)
             ?? throw new ResourceNotFoundException("No se encontró el documento solicitado.");
 
-        document.Deactivate(actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
+        await AuthorizeAsync(document, cancellationToken, write: true);
+        var before = BusinessDocumentSnapshot.Capture(document);
+        document.Archive(actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
+        await RecordEventAsync(document, "Archived", before, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<BusinessDocumentEventResponse>> ListEventsAsync(Guid idOrganization, Guid idBusinessDocument, CancellationToken cancellationToken)
+    {
+        var document = await repository.GetAsync(idOrganization, idBusinessDocument, cancellationToken)
+            ?? throw new ResourceNotFoundException("No se encontró el documento solicitado.");
+        await AuthorizeAsync(document, cancellationToken);
+        var events = await repository.ListEventsAsync(idOrganization, idBusinessDocument, cancellationToken);
+        return events.Select(item => new BusinessDocumentEventResponse(item.IdBusinessDocumentEvent, item.Action, item.Status, item.Notes, item.ActorName, item.OccurredAt, item.BeforeSnapshot, item.AfterSnapshot)).ToArray();
+    }
+
+    private Task RecordEventAsync(BusinessDocument document, string action, string? beforeSnapshot, CancellationToken cancellationToken) =>
+        repository.AddEventAsync(BusinessDocumentEvent.Record(document, action, null, actorContext.ActorId, actorContext.ActorName, clock.UtcNow, beforeSnapshot), cancellationToken);
+
+    private bool CanAccessSensitive => actorContext.HasPermission(BusinessDocumentPermissions.SensitiveRead);
+
+    private void RequireSensitivePermission(bool isSensitive, bool write = false)
+    {
+        if (isSensitive && (!CanAccessSensitive || (write && !actorContext.HasPermission(BusinessDocumentPermissions.SensitiveWrite))))
+        {
+            throw new ResourceForbiddenException("No tienes permiso para acceder a documentos sensibles.");
+        }
+    }
+
+    private async Task AuthorizeAsync(BusinessDocument document, CancellationToken cancellationToken, bool write = false)
+    {
+        RequireSensitivePermission(document.IsSensitive ||
+            await repository.IsSensitiveStorageReferenceAsync(document.StorageReference, cancellationToken), write);
+    }
+
+    private async Task ValidateStorageAsync(Guid organizationId, BusinessDocumentProfile profile, string? existingReference, CancellationToken cancellationToken)
+    {
+        if (!string.Equals(profile.StorageReference, existingReference, StringComparison.Ordinal) &&
+            !DocumentStorageReference.BelongsToOrganization(profile.StorageReference, organizationId))
+        {
+            throw new RequestValidationException(new Dictionary<string, string[]>
+            {
+                [nameof(profile.StorageReference)] = ["Carga el archivo dentro de la organización del documento."]
+            });
+        }
+
+        if (await repository.IsSensitiveStorageReferenceAsync(profile.StorageReference, cancellationToken))
+        {
+            RequireSensitivePermission(true, write: true);
+            if (!profile.IsSensitive)
+            {
+                throw new ResourceConflictException("El archivo pertenece a un documento sensible.");
+            }
+        }
     }
 
     private async Task<BusinessDocumentProfile> ValidateAsync(
@@ -200,6 +301,9 @@ public sealed class BusinessDocumentService(
             document.StorageReference,
             document.IsSensitive,
             document.Notes,
+            document.ReviewNotes,
+            document.ReviewedAt,
+            document.ReviewedByName,
             document.Active,
             document.CreatedAt,
             document.UpdatedAt);

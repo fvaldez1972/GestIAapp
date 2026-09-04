@@ -11,7 +11,8 @@ public sealed class SecurityDataSeeder(
     GestIaDbContext dbContext,
     IPasswordHashService passwordHashService,
     IConfiguration configuration,
-    ILogger<SecurityDataSeeder> logger)
+    ILogger<SecurityDataSeeder> logger,
+    GestIA.Application.Catalogs.OrganizationCatalogDefaults catalogDefaults)
 {
     private static readonly Guid SeedActorId =
         Guid.Parse("00000000-0000-0000-0000-000000000001");
@@ -61,6 +62,7 @@ public sealed class SecurityDataSeeder(
             SeedActorName,
             occurredAt);
         await dbContext.Organizations.AddAsync(organization, cancellationToken);
+        await catalogDefaults.StageAsync(organization.IdOrganization, cancellationToken);
         return organization;
     }
 
@@ -77,6 +79,8 @@ public sealed class SecurityDataSeeder(
             (SecurityPermissions.ClientsWrite, "Clientes", "Administrar clientes"),
             (SecurityPermissions.DocumentsRead, "Documentos", "Consultar documentos de clientes, servicios y personal"),
             (SecurityPermissions.DocumentsWrite, "Documentos", "Administrar documentos de clientes, servicios y personal"),
+            (SecurityPermissions.DocumentsSensitiveRead, "Documentos", "Consultar documentos sensibles dentro de la organizacion autorizada"),
+            (SecurityPermissions.DocumentsSensitiveWrite, "Documentos", "Administrar documentos sensibles dentro de la organizacion autorizada"),
             (SecurityPermissions.CatalogsRead, "Catálogos", "Consultar catálogos y reglas de elegibilidad"),
             (SecurityPermissions.CatalogsWrite, "Catálogos", "Administrar catálogos y reglas de elegibilidad"),
             (SecurityPermissions.WorkforceRead, "Personal", "Consultar personal operativo"),

@@ -1,4 +1,6 @@
 using GestIA.Application.Common;
+using GestIA.Application.Catalogs;
+using GestIA.Domain.Catalogs;
 using GestIA.Application.Organizations;
 using GestIA.Domain.Clients;
 
@@ -9,7 +11,7 @@ public sealed class ClientService(
     IOrganizationRepository organizationRepository,
     IUnitOfWork unitOfWork,
     IActorContext actorContext,
-    IClock clock) : IClientService
+    IClock clock, FormCatalogValidator catalogs) : IClientService
 {
     public async Task<PagedResult<ClientResponse>> ListAsync(
         ClientListQuery query,
@@ -50,6 +52,7 @@ public sealed class ClientService(
         CancellationToken cancellationToken)
     {
         var input = Validate(request);
+        await catalogs.ValueAsync(request.IdOrganization, BusinessCatalogItemType.Nationality, input.Profile.Nationality, null, cancellationToken);
 
         if (!await organizationRepository.ExistsAsync(request.IdOrganization, cancellationToken))
         {
@@ -91,6 +94,7 @@ public sealed class ClientService(
             input.Rfc,
             idClient,
             cancellationToken);
+        await catalogs.ValueAsync(request.IdOrganization, BusinessCatalogItemType.Nationality, input.Nationality, client.Nationality, cancellationToken);
 
         client.UpdateProfile(
             input,

@@ -82,7 +82,8 @@ public sealed record CreateCoverageRequest(
     TimeOnly CoverageEndTime,
     bool IsOvernight,
     CoverageStatus Status,
-    string? Notes);
+    string? Notes,
+    Guid? IdCoverageReason = null);
 
 public sealed record UpdateCoverageRequest(
     Guid IdOrganization,
@@ -93,7 +94,8 @@ public sealed record UpdateCoverageRequest(
     TimeOnly CoverageEndTime,
     bool IsOvernight,
     CoverageStatus Status,
-    string? Notes);
+    string? Notes,
+    Guid? IdCoverageReason = null);
 
 public sealed record CoverageRecordResponse(
     Guid IdCoverageRecord,
@@ -110,7 +112,8 @@ public sealed record CoverageRecordResponse(
     int DurationMinutes,
     CoverageStatus Status,
     string? Notes,
-    bool Active);
+    bool Active,
+    Guid? IdCoverageReason = null);
 
 public sealed record OperationEvidenceInput(
     Guid IdOrganization,

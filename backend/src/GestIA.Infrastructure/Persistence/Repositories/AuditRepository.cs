@@ -1,11 +1,12 @@
 using GestIA.Application.Audit;
 using GestIA.Application.Common;
+using GestIA.Application.Documents;
 using Microsoft.EntityFrameworkCore;
 using System.Globalization;
 
 namespace GestIA.Infrastructure.Persistence.Repositories;
 
-public sealed class AuditRepository(GestIaDbContext dbContext) : IAuditRepository
+public sealed class AuditRepository(GestIaDbContext dbContext, IActorContext actorContext) : IAuditRepository
 {
     private static readonly string[] EntityNames =
     [
@@ -33,13 +34,15 @@ public sealed class AuditRepository(GestIaDbContext dbContext) : IAuditRepositor
         "Evidencias",
         "Autorizaciones",
         "Cierres diarios",
-        "Solicitudes"
+        "Solicitudes",
+        "Sesiones de soporte"
     ];
 
     public async Task<AuditResult> SearchAsync(AuditQuery query, CancellationToken cancellationToken)
     {
         var rows = new List<AuditRow>();
         var entity = Normalize(query.Entity);
+        var canReadSensitive = actorContext.HasPermission(BusinessDocumentPermissions.SensitiveRead);
 
         if (Matches(entity, "Organizaciones"))
         {
@@ -56,6 +59,24 @@ public sealed class AuditRepository(GestIaDbContext dbContext) : IAuditRepositor
                     item.UpdatedByName,
                     item.UpdatedAt,
                     item.CodeOrganization))
+                .ToArrayAsync(cancellationToken));
+        }
+
+        if (Matches(entity, "Sesiones de soporte"))
+        {
+            AddRows(rows, await dbContext.SupportSessions
+                .IgnoreQueryFilters()
+                .Where(item => item.IdOrganization == query.IdOrganization)
+                .Select(item => new AuditableRecord(
+                    "Sesiones de soporte",
+                    item.Organization.LegalName,
+                    item.IdSupportSession,
+                    item.Active,
+                    item.CreatedByName,
+                    item.CreatedAt,
+                    item.UpdatedByName,
+                    item.UpdatedAt,
+                    item.Reason))
                 .ToArrayAsync(cancellationToken));
         }
 
@@ -185,7 +206,7 @@ public sealed class AuditRepository(GestIaDbContext dbContext) : IAuditRepositor
                 .ToArrayAsync(cancellationToken));
         }
 
-        if (Matches(entity, "Documentos"))
+        if (Matches(entity, "Documentos") && canReadSensitive)
         {
             AddRows(rows, await dbContext.EmployeeDocuments
                 .IgnoreQueryFilters()
@@ -202,9 +223,20 @@ public sealed class AuditRepository(GestIaDbContext dbContext) : IAuditRepositor
                     item.DocumentType.ToString()))
                 .ToArrayAsync(cancellationToken));
 
+        }
+
+        if (Matches(entity, "Documentos"))
+        {
             AddRows(rows, await dbContext.BusinessDocuments
                 .IgnoreQueryFilters()
                 .Where(item => item.IdOrganization == query.IdOrganization)
+                .Where(item => canReadSensitive || (!item.IsSensitive &&
+                    !dbContext.BusinessDocuments.IgnoreQueryFilters().Any(other => other.IsSensitive &&
+                        EF.Functions.Collate(other.StorageReference.Replace("\\", "/"), "Latin1_General_100_CI_AS") == item.StorageReference.Replace("\\", "/")) &&
+                    !dbContext.EmployeeDocuments.IgnoreQueryFilters().Any(other => other.StorageReference != null &&
+                        EF.Functions.Collate(other.StorageReference.Replace("\\", "/"), "Latin1_General_100_CI_AS") == item.StorageReference.Replace("\\", "/")) &&
+                    !dbContext.EmployeeEvaluations.IgnoreQueryFilters().Any(other => other.StorageReference != null &&
+                        EF.Functions.Collate(other.StorageReference.Replace("\\", "/"), "Latin1_General_100_CI_AS") == item.StorageReference.Replace("\\", "/"))))
                 .Select(item => new AuditableRecord(
                     "Documentos",
                     item.Title,
@@ -218,7 +250,7 @@ public sealed class AuditRepository(GestIaDbContext dbContext) : IAuditRepositor
                 .ToArrayAsync(cancellationToken));
         }
 
-        if (Matches(entity, "Evaluaciones"))
+        if (Matches(entity, "Evaluaciones") && canReadSensitive)
         {
             AddRows(rows, await dbContext.EmployeeEvaluations
                 .IgnoreQueryFilters()

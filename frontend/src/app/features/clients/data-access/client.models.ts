@@ -14,6 +14,37 @@ export type CreateOrganization = {
 
 export type UpdateOrganization = CreateOrganization;
 
+export type CreateOrganizationWithAdmin = CreateOrganization & {
+  readonly admin: {
+    readonly displayName: string;
+    readonly email: string;
+    readonly password: string;
+  };
+};
+
+export type OrganizationProvisioningResult = {
+  readonly organization: Organization;
+  readonly idAdminUser: string;
+  readonly adminEmail: string;
+  readonly adminDisplayName: string;
+};
+
+export type OrganizationClientSummary = {
+  readonly idClient: string;
+  readonly codeClient: string;
+  readonly legalName: string;
+  readonly tradeName: string | null;
+  readonly rfc: string;
+  readonly active: boolean;
+};
+
+export type OrganizationGovernanceSummary = {
+  readonly organization: Organization;
+  readonly clients: readonly OrganizationClientSummary[];
+  readonly usersCount: number;
+  readonly adminsCount: number;
+};
+
 export type Client = {
   readonly idClient: string;
   readonly idOrganization: string;
@@ -496,6 +527,7 @@ export type IncidentInput = {
 export type CoverageStatus = 'Requested' | 'Confirmed' | 'Completed' | 'Cancelled';
 
 export type CoverageRecord = {
+  readonly idCoverageReason?: string | null;
   readonly idCoverageRecord: string;
   readonly idScheduledShift: string;
   readonly idOriginalEmployee: string;
@@ -514,6 +546,7 @@ export type CoverageRecord = {
 };
 
 export type CoverageInput = {
+  readonly idCoverageReason?: string | null;
   readonly idOrganization: string;
   readonly idClient: string;
   readonly idService: string;

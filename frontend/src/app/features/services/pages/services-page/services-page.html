@@ -1,0 +1,1190 @@
+<div class="services-workspace">
+  <header class="page-heading">
+    <div>
+      <span class="eyebrow">Configuración</span>
+      <h1>Servicios</h1>
+    </div>
+    <button
+      class="button button--primary"
+      type="button"
+      [disabled]="!canWriteClients() || loading() || saving() || !hasActiveSite()"
+      (click)="openCreateService()"
+    >
+      Nuevo servicio
+    </button>
+  </header>
+  @if (platformAdmin() && !supportAllowed()) {
+    <p class="notice">
+      Inicia una sesión de soporte para consultar los servicios de una organización.
+    </p>
+  }
+  <div class="context-bar">
+    <label
+      ><span>Organización</span
+      ><select
+        aria-label="Organización"
+        [ngModel]="selectedOrganizationId()"
+        [disabled]="platformAdmin() || saving()"
+        (ngModelChange)="selectOrganization($event)"
+      >
+        <option value="">Selecciona una organización</option>
+        @for (organization of organizations(); track organization.idOrganization) {
+          <option [value]="organization.idOrganization">{{ organization.legalName }}</option>
+        }
+      </select></label
+    >
+    @if (canRead()) {
+      <form class="client-search" (submit)="$event.preventDefault(); loadClients()">
+        <label
+          ><span>Buscar cliente</span
+          ><input
+            type="search"
+            [value]="clientSearch()"
+            (input)="clientSearch.set($any($event.target).value)"
+        /></label>
+        <button class="button" type="submit" [disabled]="saving()">Buscar</button>
+      </form>
+      <label
+        ><span>Cliente</span
+        ><select
+          aria-label="Cliente"
+          [ngModel]="selectedClient()?.idClient || ''"
+          [disabled]="saving()"
+          (ngModelChange)="selectClient($event)"
+        >
+          <option value="">Selecciona un cliente</option>
+          @for (client of clientOptions(); track client.idClient) {
+            <option [value]="client.idClient">
+              {{ client.legalName }} ({{ client.codeClient }}){{
+                client.active ? '' : ' · Inactivo'
+              }}
+            </option>
+          }
+        </select></label
+      >
+      <div class="pagination">
+        <button
+          type="button"
+          aria-label="Clientes anteriores"
+          [disabled]="result().page <= 1 || loading() || saving()"
+          (click)="loadClients(result().page - 1)"
+        >
+          &#8592;
+        </button>
+        <span
+          >{{ result().page }} / {{ result().totalPages || 1 }} ·
+          {{ result().totalCount }} clientes</span
+        >
+        <button
+          type="button"
+          aria-label="Clientes siguientes"
+          [disabled]="result().page >= result().totalPages || loading() || saving()"
+          (click)="loadClients(result().page + 1)"
+        >
+          &#8594;
+        </button>
+      </div>
+    }
+  </div>
+  @if (error()) {
+    <p class="notice notice--error" role="alert">{{ error() }}</p>
+  }
+  @if (message()) {
+    <p class="notice notice--success" role="status">{{ message() }}</p>
+  }
+  @if (loading()) {
+    <p class="loading" role="status">Cargando datos…</p>
+  }
+  @if (canRead()) {
+    <section class="directory" aria-label="Directorio de servicios" [attr.aria-busy]="loading()">
+      <header class="section-heading">
+        <h2>{{ selectedClientName() || 'Directorio de servicios' }}</h2>
+        <button class="button" type="button" [disabled]="loading() || saving()" (click)="refresh()">
+          Actualizar
+        </button>
+      </header>
+      @if (!selectedClient()) {
+        <p class="compact-state">
+          {{ result().totalCount ? 'Selecciona un cliente.' : 'No se encontraron clientes.' }}
+        </p>
+      } @else {
+        <div class="filters">
+          <label
+            ><span>Buscar servicio</span
+            ><input
+              type="search"
+              [value]="search()"
+              (input)="search.set($any($event.target).value)"
+          /></label>
+          <label
+            ><span>Estado</span
+            ><select [value]="status()" (change)="status.set($any($event.target).value)">
+              <option value="all">Todos</option>
+              <option value="active">Activos</option>
+              <option value="inactive">Inactivos</option>
+            </select></label
+          >
+          <span>{{ visibleServices().length }} de {{ services().length }} servicios</span>
+        </div>
+        @if (!loading() && !hasActiveSite()) {
+          <p class="notice">
+            El cliente no tiene sedes activas. <a routerLink="/clientes">Ir a Clientes</a>
+          </p>
+        }
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Servicio</th>
+                <th>Sede / contrato</th>
+                <th>Vigencia</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (service of visibleServices(); track service.idService) {
+                <tr [class.is-active]="selectedService()?.idService === service.idService">
+                  <td>
+                    <button
+                      class="entity-link"
+                      type="button"
+                      [disabled]="saving()"
+                      (click)="selectService(service)"
+                    >
+                      {{ service.name }}</button
+                    ><small>{{ service.codeService }}</small>
+                  </td>
+                  <td>
+                    {{ service.clientSiteName || 'Sede no disponible'
+                    }}<small>{{ service.serviceContractCode || 'Sin contrato ligado' }}</small>
+                  </td>
+                  <td>
+                    {{ service.startDate
+                    }}<small>{{ service.endDate || 'Sin fecha de término' }}</small>
+                  </td>
+                  <td>
+                    <span class="pill" [class.pill--muted]="!service.active">{{
+                      service.active ? 'Activo' : 'Inactivo'
+                    }}</span>
+                  </td>
+                  <td>
+                    <div class="mini-actions">
+                      @if (canWriteClients()) {
+                        <button
+                          type="button"
+                          [disabled]="saving() || loading()"
+                          (click)="openEditService(service)"
+                        >
+                          Editar
+                        </button>
+                        @if (service.active) {
+                          <button
+                            class="danger"
+                            type="button"
+                            [disabled]="saving()"
+                            (click)="deactivateService(service)"
+                          >
+                            Desactivar
+                          </button>
+                        }
+                      }
+                      @if (canReadDocuments()) {
+                        <a
+                          routerLink="/documentos"
+                          [queryParams]="{
+                            ownerType: 'Service',
+                            ownerId: service.idService,
+                            organizationId: selectedOrganizationId(),
+                          }"
+                          >Documentos</a
+                        >
+                      }
+                    </div>
+                  </td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="5">
+                    {{
+                      loading()
+                        ? 'Cargando servicios…'
+                        : 'Sin servicios para los filtros seleccionados.'
+                    }}
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </section>
+    @if (selectedService(); as service) {
+      <section class="service-detail" aria-label="Ficha del servicio">
+        <header class="section-heading">
+          <div>
+            <span class="eyebrow">{{ service.codeService }}</span>
+            <h2>{{ service.name }}</h2>
+            <p>{{ service.description }}</p>
+          </div>
+          @if (canReadPlanning()) {
+            <a
+              class="button button--secondary"
+              routerLink="/planeacion"
+              [queryParams]="{
+                organizationId: selectedOrganizationId(),
+                clientId: selectedClient()?.idClient,
+                serviceId: service.idService,
+              }"
+              ><app-icon name="calendar" /> Ir a planeación</a
+            >
+          }
+        </header>
+        @if (service.invoiceDescription) {
+          <p>Descripción para factura: {{ service.invoiceDescription }}</p>
+        }
+        <nav class="tabs" aria-label="Detalle del servicio">
+          @for (tab of tabs; track tab.value) {
+            @if (
+              tab.value === 'configuration' ||
+              (tab.value === 'documents' ? canReadDocuments() : canReadPlanning())
+            ) {
+              <button
+                type="button"
+                [class.is-active]="activeTab() === tab.value"
+                [attr.aria-pressed]="activeTab() === tab.value"
+                (click)="activeTab.set(tab.value)"
+              >
+                {{ tab.label }}
+              </button>
+            }
+          }
+        </nav>
+        @if (activeTab() === 'documents' && canReadDocuments()) {
+          <app-entity-documents
+            [organizationId]="selectedOrganizationId()"
+            ownerType="Service"
+            [ownerId]="service.idService"
+            [ownerLabel]="service.name"
+          />
+        }
+        <section class="detail-section" [hidden]="activeTab() !== 'configuration'">
+          <header>
+            <div>
+              <h3>Configuración del servicio</h3>
+              <span>{{ selectedServiceName() }}</span>
+            </div>
+            <button
+              class="button button--secondary"
+              type="button"
+              [disabled]="
+                !(canWriteClients() && selectedService()?.active) ||
+                saving() ||
+                loading() ||
+                !selectedService()
+              "
+              (click)="openCreateConfiguration()"
+            >
+              Nueva configuración
+            </button>
+          </header>
+
+          @if (!selectedService()) {
+            <div class="compact-state">
+              Selecciona un servicio para ver su configuración operativa y comercial.
+            </div>
+          } @else if (!configurations().length) {
+            <div class="compact-state">Sin configuraciones registradas para este servicio.</div>
+          } @else {
+            <div class="cards-list">
+              @for (configuration of configurations(); track configuration.idServiceConfiguration) {
+                <article class="mini-card">
+                  <div>
+                    <span class="pill"
+                      >{{ configuration.requiredWorkerCount }} elemento(s) ·
+                      {{ configuration.hoursPerDay }} h/día</span
+                    >
+                    <strong
+                      >{{
+                        money(configuration.monthlyPrice, configuration.currencyCode)
+                      }}
+                      mensual</strong
+                    >
+                    <small
+                      >{{ configuration.daysPerWeek }} días/semana ·
+                      {{ configuration.averageMonthlyHours }} h/mes ·
+                      {{ configuration.isTaxIncluded ? 'IVA incluido' : 'IVA no incluido' }}</small
+                    >
+                    <small>{{ configuration.workScheduleDescription }}</small>
+                    <small
+                      >Vigencia: {{ configuration.effectiveFromDate }} -
+                      {{ configuration.effectiveToDate || 'sin fecha de término' }}</small
+                    >
+                    <small
+                      >{{ configuration.active ? 'Activa' : 'Inactiva' }} · Preparación:
+                      {{ configuration.preparationLeadDays }} días</small
+                    >
+                    @if (configuration.specificInstructions) {
+                      <small>{{ configuration.specificInstructions }}</small>
+                    }
+                  </div>
+                  <small>{{ configuration.active ? 'Activo' : 'Inactivo' }}</small>
+                  <div class="mini-actions">
+                    <button
+                      [disabled]="
+                        !(canWriteClients() && selectedService()?.active) || saving() || loading()
+                      "
+                      type="button"
+                      (click)="openEditConfiguration(configuration)"
+                    >
+                      Editar
+                    </button>
+                    <button
+                      [disabled]="
+                        !(canWriteClients() && selectedService()?.active) ||
+                        saving() ||
+                        loading() ||
+                        !configuration.active
+                      "
+                      class="danger"
+                      type="button"
+                      (click)="deactivateConfiguration(configuration)"
+                    >
+                      Desactivar
+                    </button>
+                  </div>
+                </article>
+              }
+            </div>
+          }
+        </section>
+        @if (canReadPlanning()) {
+          <section class="detail-section" [hidden]="activeTab() !== 'positions'">
+            <header>
+              <div>
+                <h3>Posiciones requeridas</h3>
+                <span>{{ selectedServiceName() }}</span>
+              </div>
+              <button
+                class="button button--secondary"
+                type="button"
+                [disabled]="!canWritePlanning() || saving() || loading() || !selectedService()"
+                (click)="openCreatePosition()"
+              >
+                Nueva posición
+              </button>
+            </header>
+
+            @if (!selectedService()) {
+              <div class="compact-state">Selecciona un servicio para configurar posiciones.</div>
+            } @else if (!positions().length) {
+              <div class="compact-state">Sin posiciones registradas para este servicio.</div>
+            } @else {
+              <div class="cards-list">
+                @for (position of positions(); track position.idPosition) {
+                  <article
+                    class="mini-card selectable"
+                    [class.is-active]="selectedPosition()?.idPosition === position.idPosition"
+                  >
+                    <button
+                      [disabled]="saving()"
+                      class="mini-card__main"
+                      type="button"
+                      (click)="selectPosition(position)"
+                    >
+                      <span class="code">{{ position.codePosition }}</span>
+                      <strong>{{ position.name }}</strong>
+                      <small>{{ position.requiredWorkerCount }} elemento(s) requeridos</small>
+                      <small>{{
+                        position.requiredSkillProfile ||
+                          position.notes ||
+                          'Sin perfil requerido capturado'
+                      }}</small>
+                    </button>
+                    <small>{{ position.active ? 'Activo' : 'Inactivo' }}</small>
+                    <div class="mini-actions">
+                      <button
+                        [disabled]="!canWritePlanning() || saving() || loading()"
+                        type="button"
+                        (click)="openEditPosition(position)"
+                      >
+                        Editar
+                      </button>
+                      <button
+                        [disabled]="
+                          !canWritePlanning() || saving() || loading() || !position.active
+                        "
+                        class="danger"
+                        type="button"
+                        (click)="deactivatePosition(position)"
+                      >
+                        Desactivar
+                      </button>
+                    </div>
+                  </article>
+                }
+              </div>
+            }
+          </section>
+        }
+        @if (canReadPlanning()) {
+          <section class="detail-section" [hidden]="activeTab() !== 'positions'">
+            <header>
+              <div>
+                <h3>Patrones de turno</h3>
+                <span>{{ selectedPositionName() }}</span>
+              </div>
+              <button
+                class="button button--secondary"
+                type="button"
+                [disabled]="
+                  !canWritePlanning() || saving() || loading() || !selectedPosition()?.active
+                "
+                (click)="openCreateShiftPattern()"
+              >
+                Nuevo patrón
+              </button>
+            </header>
+
+            @if (!selectedPosition()) {
+              <div class="compact-state">Selecciona una posición para configurar sus patrones.</div>
+            } @else if (!shiftPatterns().length) {
+              <div class="compact-state">Sin patrones registrados para esta posición.</div>
+            } @else {
+              <div class="cards-list">
+                @for (pattern of shiftPatterns(); track pattern.idShiftPattern) {
+                  <article
+                    class="mini-card selectable"
+                    [class.is-active]="
+                      selectedShiftPattern()?.idShiftPattern === pattern.idShiftPattern
+                    "
+                  >
+                    <button
+                      [disabled]="saving()"
+                      class="mini-card__main"
+                      type="button"
+                      (click)="selectShiftPattern(pattern)"
+                    >
+                      <span class="code">{{ pattern.codeShiftPattern }}</span>
+                      <strong>{{ pattern.name }}</strong>
+                      <small
+                        >Vigencia: {{ pattern.effectiveFromDate }} -
+                        {{ pattern.effectiveToDate || 'sin fecha de término' }}</small
+                      >
+                      <small>{{ pattern.description || 'Sin descripción capturada' }}</small>
+                    </button>
+                    <small>{{ pattern.active ? 'Activo' : 'Inactivo' }}</small>
+                    <div class="mini-actions">
+                      <button
+                        [disabled]="!canWritePlanning() || saving() || loading()"
+                        type="button"
+                        (click)="openEditShiftPattern(pattern)"
+                      >
+                        Editar
+                      </button>
+                      <button
+                        [disabled]="!canWritePlanning() || saving() || loading() || !pattern.active"
+                        class="danger"
+                        type="button"
+                        (click)="deactivateShiftPattern(pattern)"
+                      >
+                        Desactivar
+                      </button>
+                    </div>
+                  </article>
+                }
+              </div>
+            }
+          </section>
+        }
+        @if (canReadPlanning()) {
+          <section class="detail-section" [hidden]="activeTab() !== 'positions'">
+            <header>
+              <div>
+                <h3>Segmentos semanales</h3>
+                <span>{{ selectedShiftPatternName() }}</span>
+              </div>
+              <button
+                class="button button--secondary"
+                type="button"
+                [disabled]="
+                  !canWritePlanning() ||
+                  saving() ||
+                  loading() ||
+                  !selectedPosition()?.active ||
+                  !selectedShiftPattern()?.active
+                "
+                (click)="openCreateShiftSegment()"
+              >
+                Nuevo segmento
+              </button>
+            </header>
+
+            @if (!selectedShiftPattern()) {
+              <div class="compact-state">Selecciona un patrón para ver sus horarios.</div>
+            } @else if (!shiftSegments().length) {
+              <div class="compact-state">Sin segmentos registrados para este patrón.</div>
+            } @else {
+              <div class="schedule-grid">
+                @for (segment of shiftSegments(); track segment.idShiftSegment) {
+                  <article class="schedule-card">
+                    <div>
+                      <span class="pill"
+                        >{{ dayLabel(segment.dayOfWeek)
+                        }}{{ segment.isOvernight ? ' · Nocturno' : '' }}</span
+                      >
+                      <strong>{{ segment.startTime }} - {{ segment.endTime }}</strong>
+                      <small
+                        >{{ durationLabel(segment.durationMinutes) }} ·
+                        {{ segment.requiredWorkerCount }} elemento(s)</small
+                      >
+                      <small>{{ segment.notes || 'Sin observaciones' }}</small>
+                    </div>
+                    <small>{{ segment.active ? 'Activo' : 'Inactivo' }}</small>
+                    <div class="mini-actions">
+                      <button
+                        [disabled]="!canWritePlanning() || saving() || loading()"
+                        type="button"
+                        (click)="openEditShiftSegment(segment)"
+                      >
+                        Editar
+                      </button>
+                      <button
+                        [disabled]="!canWritePlanning() || saving() || loading() || !segment.active"
+                        class="danger"
+                        type="button"
+                        (click)="deactivateShiftSegment(segment)"
+                      >
+                        Desactivar
+                      </button>
+                    </div>
+                  </article>
+                }
+              </div>
+            }
+          </section>
+        }
+        @if (canReadPlanning()) {
+          <section class="detail-section" [hidden]="activeTab() !== 'assignments'">
+            @if (!canReadEmployees()) {
+              <p class="notice">
+                La selección de personal requiere permiso de lectura de Personal.
+              </p>
+            }
+            <header>
+              <div>
+                <h3>Asignaciones de personal</h3>
+                <span>{{ selectedServiceName() }}</span>
+              </div>
+              <button
+                class="button button--secondary"
+                type="button"
+                [disabled]="
+                  !canWritePlanning() ||
+                  !canReadEmployees() ||
+                  saving() ||
+                  loading() ||
+                  !hasActivePosition() ||
+                  !activeEmployees().length
+                "
+                (click)="openCreateAssignment()"
+              >
+                Nueva asignación
+              </button>
+            </header>
+
+            @if (!selectedService()) {
+              <div class="compact-state">Selecciona un servicio para asignar personal.</div>
+            } @else if (!assignments().length) {
+              <div class="compact-state">Sin personal asignado a este servicio.</div>
+            } @else {
+              <div class="cards-list">
+                @for (assignment of assignments(); track assignment.idServiceAssignment) {
+                  <article class="mini-card">
+                    <div>
+                      <span class="pill"
+                        >{{ assignmentTypeLabel(assignment.assignmentType)
+                        }}{{ assignment.isPrimary ? ' · Principal' : '' }}</span
+                      >
+                      <strong>{{ assignment.employeeName }}</strong>
+                      <small
+                        >{{ assignment.employeeCode }} ·
+                        {{ assignment.positionCode || 'Sin posición' }}
+                        {{ assignment.positionName ? '· ' + assignment.positionName : '' }}</small
+                      >
+                      <small
+                        >Vigencia: {{ assignment.startDate }} -
+                        {{ assignment.endDate || 'sin fecha de término' }}</small
+                      >
+                      <small>{{ assignment.notes || 'Sin observaciones' }}</small>
+                    </div>
+                    <small>{{ assignment.active ? 'Activo' : 'Inactivo' }}</small>
+                    <div class="mini-actions">
+                      <button
+                        [disabled]="!canWritePlanning() || saving() || loading()"
+                        type="button"
+                        (click)="openEditAssignment(assignment)"
+                      >
+                        Editar
+                      </button>
+                      <button
+                        [disabled]="
+                          !canWritePlanning() || saving() || loading() || !assignment.active
+                        "
+                        class="danger"
+                        type="button"
+                        (click)="deactivateAssignment(assignment)"
+                      >
+                        Desactivar
+                      </button>
+                    </div>
+                  </article>
+                }
+              </div>
+            }
+          </section>
+        }
+      </section>
+    }
+  }
+</div>
+@if (serviceEditorOpen() && canRead()) {
+  <div class="modal-backdrop" (click)="closeEditors()">
+    <section
+      serviceDialog
+      (dismiss)="closeEditors()"
+      class="modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="service-editor-title"
+      (click)="$event.stopPropagation()"
+    >
+      <header>
+        <div>
+          <span class="eyebrow">Servicio contratado</span>
+          <h2 id="service-editor-title">
+            {{ editingService() ? 'Editar servicio' : 'Nuevo servicio' }}
+          </h2>
+        </div>
+        <button type="button" [disabled]="saving()" aria-label="Cerrar" (click)="closeEditors()">
+          ×
+        </button>
+      </header>
+      <form [formGroup]="serviceForm" (ngSubmit)="saveService()">
+        @if (serviceForm.hasError('dateRange')) {
+          <p class="notice notice--error" role="alert">La fecha de fin debe ser igual o posterior al inicio.</p>
+        }
+        @if (error()) {
+          <p class="notice notice--error" role="alert">{{ error() }}</p>
+        }
+        <fieldset [disabled]="saving()">
+          <ol
+            class="wizard-steps wizard-steps--three"
+            aria-label="Progreso de configuración del servicio"
+          >
+            <li
+              [class.is-active]="serviceWizardStep() === 1"
+              [class.is-complete]="serviceWizardStep() > 1"
+            >
+              <span>1</span>Base
+            </li>
+            <li
+              [class.is-active]="serviceWizardStep() === 2"
+              [class.is-complete]="serviceWizardStep() > 2"
+            >
+              <span>2</span>Descripción
+            </li>
+            <li [class.is-active]="serviceWizardStep() === 3"><span>3</span>Vigencia</li>
+          </ol>
+
+          @if (serviceWizardStep() === 1) {
+            <section class="wizard-panel" aria-labelledby="service-step-base">
+              <div class="wizard-panel__heading">
+                <span>Paso 1 de 3</span>
+                <h3 id="service-step-base">Base del servicio</h3>
+              </div>
+              <div class="form-grid">
+                <label
+                  ><span>Código *</span
+                  ><input formControlName="codeService" [readOnly]="!!editingService()"
+                /></label>
+                <label
+                  ><span>Sede *</span
+                  ><select formControlName="idClientSite">
+                    @for (site of sites(); track site.idClientSite) {
+                      <option
+                        [disabled]="
+                          !site.active && site.idClientSite !== editingService()?.idClientSite
+                        "
+                        [value]="site.idClientSite"
+                      >
+                        {{ site.name }}
+                      </option>
+                    }
+                  </select></label
+                >
+                <label
+                  ><span>Contrato</span
+                  ><select formControlName="idServiceContract">
+                    <option value="">Sin contrato ligado</option>
+                    @for (contract of contracts(); track contract.idServiceContract) {
+                      <option
+                        [disabled]="
+                          !contract.active &&
+                          contract.idServiceContract !== editingService()?.idServiceContract
+                        "
+                        [value]="contract.idServiceContract"
+                      >
+                        {{ contract.codeServiceContract }}
+                      </option>
+                    }
+                  </select></label
+                >
+                <label class="wide"><span>Nombre *</span><input formControlName="name" /></label>
+              </div>
+            </section>
+          } @else if (serviceWizardStep() === 2) {
+            <section class="wizard-panel" aria-labelledby="service-step-description">
+              <div class="wizard-panel__heading">
+                <span>Paso 2 de 3</span>
+                <h3 id="service-step-description">Alcance comercial</h3>
+              </div>
+              <div class="form-grid">
+                <label class="wide"
+                  ><span>Descripción *</span
+                  ><textarea rows="4" formControlName="description"></textarea>
+                </label>
+                <label class="wide"
+                  ><span>Descripción para factura</span><input formControlName="invoiceDescription"
+                /></label>
+              </div>
+            </section>
+          } @else {
+            <section class="wizard-panel" aria-labelledby="service-step-term">
+              <div class="wizard-panel__heading">
+                <span>Paso 3 de 3</span>
+                <h3 id="service-step-term">Vigencia</h3>
+              </div>
+              <div class="form-grid">
+                <label
+                  ><span>Inicio *</span><input type="date" formControlName="startDate"
+                /></label>
+                <label><span>Fin</span><input type="date" formControlName="endDate" /></label>
+              </div>
+            </section>
+          }
+          <footer>
+            <button class="button button--secondary" type="button" (click)="closeEditors()">
+              Cancelar
+            </button>
+            <div class="wizard-actions">
+              @if (serviceWizardStep() > 1) {
+                <button
+                  class="button button--secondary"
+                  type="button"
+                  (click)="previousServiceWizardStep()"
+                >
+                  Anterior
+                </button>
+              }
+              @if (serviceWizardStep() < 3) {
+                <button
+                  class="button button--primary"
+                  type="button"
+                  (click)="nextServiceWizardStep()"
+                >
+                  Siguiente
+                </button>
+              } @else {
+                <button
+                  class="button button--primary"
+                  type="submit"
+                  [disabled]="saving() || serviceForm.invalid"
+                >
+                  {{
+                    saving()
+                      ? 'Guardando…'
+                      : editingService()
+                        ? 'Guardar cambios'
+                        : 'Crear servicio'
+                  }}
+                </button>
+              }
+            </div>
+          </footer>
+        </fieldset>
+      </form>
+    </section>
+  </div>
+}
+
+@if (configurationEditorOpen() && canRead()) {
+  <div class="modal-backdrop" (click)="closeEditors()">
+    <section
+      serviceDialog
+      (dismiss)="closeEditors()"
+      class="modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="configuration-editor-title"
+      (click)="$event.stopPropagation()"
+    >
+      <header>
+        <div>
+          <span class="eyebrow">Configuración operativa</span>
+          <h2 id="configuration-editor-title">
+            {{ editingConfiguration() ? 'Editar configuración' : 'Nueva configuración' }}
+          </h2>
+        </div>
+        <button type="button" [disabled]="saving()" aria-label="Cerrar" (click)="closeEditors()">
+          ×
+        </button>
+      </header>
+      <form [formGroup]="configurationForm" (ngSubmit)="saveConfiguration()">
+        @if (configurationForm.hasError('dateRange')) {
+          <p class="notice notice--error" role="alert">La fecha de fin debe ser igual o posterior al inicio.</p>
+        }
+        @if (error()) {
+          <p class="notice notice--error" role="alert">{{ error() }}</p>
+        }
+        <fieldset [disabled]="saving()">
+          <div class="form-grid">
+            <label
+              ><span>Inicio vigencia *</span><input type="date" formControlName="effectiveFromDate"
+            /></label>
+            <label
+              ><span>Fin vigencia</span><input type="date" formControlName="effectiveToDate"
+            /></label>
+            <label
+              ><span>Personas requeridas *</span
+              ><input type="number" formControlName="requiredWorkerCount" min="1"
+            /></label>
+            <label
+              ><span>Horas/día *</span
+              ><input type="number" formControlName="hoursPerDay" min="0.5" step="0.5"
+            /></label>
+            <label
+              ><span>Días/semana *</span
+              ><input type="number" formControlName="daysPerWeek" min="1" max="7"
+            /></label>
+            <label
+              ><span>Horas/mes *</span
+              ><input type="number" formControlName="averageMonthlyHours" min="1" step="0.5"
+            /></label>
+            <label
+              ><span>Días preparación *</span
+              ><input type="number" formControlName="preparationLeadDays" min="0"
+            /></label>
+            <label
+              ><span>Precio mensual *</span
+              ><input type="number" formControlName="monthlyPrice" min="0" step="0.01"
+            /></label>
+            <label
+              ><span>Moneda *</span><input formControlName="currencyCode" maxlength="3"
+            /></label>
+            <label class="check"
+              ><input type="checkbox" formControlName="isTaxIncluded" /><span
+                >IVA incluido</span
+              ></label
+            >
+            <label class="wide"
+              ><span>Horario / jornada *</span
+              ><textarea rows="3" formControlName="workScheduleDescription"></textarea>
+            </label>
+            <label class="wide"
+              ><span>Instrucciones específicas</span
+              ><textarea rows="3" formControlName="specificInstructions"></textarea>
+            </label>
+          </div>
+          <footer>
+            <button class="button button--secondary" type="button" (click)="closeEditors()">
+              Cancelar
+            </button>
+            <button class="button button--primary" type="submit" [disabled]="saving()">
+              {{ saving() ? 'Guardando…' : 'Guardar configuración' }}
+            </button>
+          </footer>
+        </fieldset>
+      </form>
+    </section>
+  </div>
+}
+
+@if (positionEditorOpen() && canRead()) {
+  <div class="modal-backdrop" (click)="closeEditors()">
+    <section
+      serviceDialog
+      (dismiss)="closeEditors()"
+      class="modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="position-editor-title"
+      (click)="$event.stopPropagation()"
+    >
+      <header>
+        <div>
+          <span class="eyebrow">Posición requerida</span>
+          <h2 id="position-editor-title">
+            {{ editingPosition() ? 'Editar posición' : 'Nueva posición' }}
+          </h2>
+        </div>
+        <button type="button" [disabled]="saving()" aria-label="Cerrar" (click)="closeEditors()">
+          ×
+        </button>
+      </header>
+      <form [formGroup]="positionForm" (ngSubmit)="savePosition()">
+        @if (error()) {
+          <p class="notice notice--error" role="alert">{{ error() }}</p>
+        }
+        <fieldset [disabled]="saving()">
+          <div class="form-grid">
+            <label
+              ><span>Código *</span
+              ><input formControlName="codePosition" [readOnly]="!!editingPosition()"
+            /></label>
+            <label
+              ><span>Personas requeridas *</span
+              ><input type="number" formControlName="requiredWorkerCount" min="1"
+            /></label>
+            <label class="wide"><span>Nombre *</span><input formControlName="name" /></label>
+            <label class="wide"
+              ><span>Perfil requerido</span
+              ><textarea rows="3" formControlName="requiredSkillProfile"></textarea>
+            </label>
+            <label class="wide"
+              ><span>Notas</span><textarea rows="3" formControlName="notes"></textarea>
+            </label>
+          </div>
+          <footer>
+            <button class="button button--secondary" type="button" (click)="closeEditors()">
+              Cancelar
+            </button>
+            <button class="button button--primary" type="submit" [disabled]="saving()">
+              {{ saving() ? 'Guardando…' : 'Guardar posición' }}
+            </button>
+          </footer>
+        </fieldset>
+      </form>
+    </section>
+  </div>
+}
+
+@if (assignmentEditorOpen() && canRead()) {
+  <div class="modal-backdrop" (click)="closeEditors()">
+    <section
+      serviceDialog
+      (dismiss)="closeEditors()"
+      class="modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="assignment-editor-title"
+      (click)="$event.stopPropagation()"
+    >
+      <header>
+        <div>
+          <span class="eyebrow">Planeación operativa</span>
+          <h2 id="assignment-editor-title">
+            {{ editingAssignment() ? 'Editar asignación' : 'Nueva asignación' }}
+          </h2>
+        </div>
+        <button type="button" [disabled]="saving()" aria-label="Cerrar" (click)="closeEditors()">
+          ×
+        </button>
+      </header>
+      <form [formGroup]="assignmentForm" (ngSubmit)="saveAssignment()">
+        @if (assignmentForm.hasError('dateRange')) {
+          <p class="notice notice--error" role="alert">La fecha de fin debe ser igual o posterior al inicio.</p>
+        }
+        @if (error()) {
+          <p class="notice notice--error" role="alert">{{ error() }}</p>
+        }
+        <fieldset [disabled]="saving()">
+          <div class="form-grid">
+            <label class="wide">
+              <span>Empleado activo *</span>
+              <select formControlName="idEmployee">
+                @if (editingAssignment(); as assignment) {
+                  <option [value]="assignment.idEmployee">{{ assignment.employeeName }}</option>
+                }
+                @for (employee of activeEmployees(); track employee.idEmployee) {
+                  <option [value]="employee.idEmployee">
+                    {{ employee.codeEmployee }} · {{ employee.fullName }}
+                  </option>
+                }
+              </select>
+            </label>
+            <label class="wide">
+              <span>Posición *</span>
+              <select formControlName="idPosition">
+                @for (position of positions(); track position.idPosition) {
+                  <option
+                    [disabled]="
+                      !position.active && position.idPosition !== editingAssignment()?.idPosition
+                    "
+                    [value]="position.idPosition"
+                  >
+                    {{ position.codePosition }} · {{ position.name }}
+                  </option>
+                }
+              </select>
+            </label>
+            <label>
+              <span>Tipo *</span>
+              <select formControlName="assignmentType">
+                @for (type of assignmentTypes; track type.value) {
+                  <option [value]="type.value">{{ type.label }}</option>
+                }
+              </select>
+            </label>
+            <label><span>Inicio *</span><input type="date" formControlName="startDate" /></label>
+            <label><span>Fin</span><input type="date" formControlName="endDate" /></label>
+            <label class="check"
+              ><input type="checkbox" formControlName="isPrimary" /><span
+                >Asignación principal</span
+              ></label
+            >
+            <label class="wide"
+              ><span>Notas</span><textarea rows="3" formControlName="notes"></textarea>
+            </label>
+          </div>
+          <footer>
+            <button class="button button--secondary" type="button" (click)="closeEditors()">
+              Cancelar
+            </button>
+            <button class="button button--primary" type="submit" [disabled]="saving()">
+              {{ saving() ? 'Guardando…' : 'Guardar asignación' }}
+            </button>
+          </footer>
+        </fieldset>
+      </form>
+    </section>
+  </div>
+}
+
+@if (shiftPatternEditorOpen() && canRead()) {
+  <div class="modal-backdrop" (click)="closeEditors()">
+    <section
+      serviceDialog
+      (dismiss)="closeEditors()"
+      class="modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="shift-pattern-editor-title"
+      (click)="$event.stopPropagation()"
+    >
+      <header>
+        <div>
+          <span class="eyebrow">Patrón de turno</span>
+          <h2 id="shift-pattern-editor-title">
+            {{ editingShiftPattern() ? 'Editar patrón' : 'Nuevo patrón' }}
+          </h2>
+        </div>
+        <button type="button" [disabled]="saving()" aria-label="Cerrar" (click)="closeEditors()">
+          ×
+        </button>
+      </header>
+      <form [formGroup]="shiftPatternForm" (ngSubmit)="saveShiftPattern()">
+        @if (shiftPatternForm.hasError('dateRange')) {
+          <p class="notice notice--error" role="alert">La fecha de fin debe ser igual o posterior al inicio.</p>
+        }
+        @if (error()) {
+          <p class="notice notice--error" role="alert">{{ error() }}</p>
+        }
+        <fieldset [disabled]="saving()">
+          <div class="form-grid">
+            <label
+              ><span>Código *</span
+              ><input formControlName="codeShiftPattern" [readOnly]="!!editingShiftPattern()"
+            /></label>
+            <label
+              ><span>Inicio vigencia *</span><input type="date" formControlName="effectiveFromDate"
+            /></label>
+            <label
+              ><span>Fin vigencia</span><input type="date" formControlName="effectiveToDate"
+            /></label>
+            <label class="wide"><span>Nombre *</span><input formControlName="name" /></label>
+            <label class="wide"
+              ><span>Descripción</span><textarea rows="3" formControlName="description"></textarea>
+            </label>
+          </div>
+          <footer>
+            <button class="button button--secondary" type="button" (click)="closeEditors()">
+              Cancelar
+            </button>
+            <button class="button button--primary" type="submit" [disabled]="saving()">
+              {{ saving() ? 'Guardando…' : 'Guardar patrón' }}
+            </button>
+          </footer>
+        </fieldset>
+      </form>
+    </section>
+  </div>
+}
+
+@if (shiftSegmentEditorOpen() && canRead()) {
+  <div class="modal-backdrop" (click)="closeEditors()">
+    <section
+      serviceDialog
+      (dismiss)="closeEditors()"
+      class="modal modal--small"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="shift-segment-editor-title"
+      (click)="$event.stopPropagation()"
+    >
+      <header>
+        <div>
+          <span class="eyebrow">Segmento semanal</span>
+          <h2 id="shift-segment-editor-title">
+            {{ editingShiftSegment() ? 'Editar segmento' : 'Nuevo segmento' }}
+          </h2>
+        </div>
+        <button type="button" [disabled]="saving()" aria-label="Cerrar" (click)="closeEditors()">
+          ×
+        </button>
+      </header>
+      <form [formGroup]="shiftSegmentForm" (ngSubmit)="saveShiftSegment()">
+        @if (shiftSegmentForm.hasError('shiftInterval')) {
+          <p class="notice notice--error" role="alert">Revisa los horarios y si el turno cruza medianoche. La duración debe ser mayor a cero y no superar 24 horas.</p>
+        }
+        @if (error()) {
+          <p class="notice notice--error" role="alert">{{ error() }}</p>
+        }
+        <fieldset [disabled]="saving()">
+          <div class="form-grid">
+            <label
+              ><span>Día *</span
+              ><select formControlName="dayOfWeek">
+                @for (day of weekDays; track day.value) {
+                  <option [value]="day.value">{{ day.label }}</option>
+                }
+              </select></label
+            >
+            <label
+              ><span>Personas requeridas *</span
+              ><input type="number" formControlName="requiredWorkerCount" min="1"
+            /></label>
+            <label><span>Inicio *</span><input type="time" formControlName="startTime" /></label>
+            <label><span>Fin *</span><input type="time" formControlName="endTime" /></label>
+            <label class="check"
+              ><input type="checkbox" formControlName="isOvernight" /><span
+                >Cruza medianoche</span
+              ></label
+            >
+            <label class="wide"
+              ><span>Notas</span><textarea rows="3" formControlName="notes"></textarea>
+            </label>
+          </div>
+          <footer>
+            <button class="button button--secondary" type="button" (click)="closeEditors()">
+              Cancelar
+            </button>
+            <button class="button button--primary" type="submit" [disabled]="saving()">
+              {{ saving() ? 'Guardando…' : 'Guardar segmento' }}
+            </button>
+          </footer>
+        </fieldset>
+      </form>
+    </section>
+  </div>
+}

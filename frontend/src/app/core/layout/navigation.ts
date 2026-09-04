@@ -20,6 +20,7 @@ export type NavigationItem = {
   readonly permission?: string;
   readonly platformOnly?: boolean;
   readonly hideForPlatformAdmin?: boolean;
+  readonly availableInSupport?: boolean;
 };
 
 export type NavigationGroup = {
@@ -35,7 +36,7 @@ export const GESTIA_NAVIGATION: readonly NavigationGroup[] = [
   {
     label: 'Operación',
     items: [
-      { label: 'Monitor global', icon: 'report', route: '/reportes', permission: 'REPORTS.READ', platformOnly: true },
+      { label: 'Monitor global', icon: 'report', route: '/monitor', permission: 'REPORTS.READ', platformOnly: true },
       { label: 'Planeación', icon: 'calendar', route: '/planeacion', permission: 'PLANNING.READ' },
       { label: 'Asistencia', icon: 'attendance', route: '/operacion/asistencia', permission: 'OPERATIONS.READ' },
       { label: 'Incidencias', icon: 'incident', route: '/operacion/incidencias', permission: 'OPERATIONS.READ' },
@@ -48,19 +49,19 @@ export const GESTIA_NAVIGATION: readonly NavigationGroup[] = [
       { label: 'Solicitudes', icon: 'request', route: '/solicitudes', permission: 'REQUESTS.READ' },
       { label: 'Reportes', icon: 'report', route: '/reportes', permission: 'REPORTS.READ' },
       { label: 'Auditoría', icon: 'audit', route: '/auditoria', permission: 'AUDIT.READ' },
-      { label: 'Seguridad', icon: 'security', route: '/seguridad', permission: 'PLATFORM.ADMIN' },
+      { label: 'Seguridad', icon: 'security', route: '/seguridad', permission: 'PLATFORM.ADMIN', platformOnly: true },
+      { label: 'Seguridad', icon: 'security', route: '/usuarios', permission: 'USERS.READ', hideForPlatformAdmin: true },
     ],
   },
   {
     label: 'Configuración',
     items: [
       { label: 'Organizaciones', icon: 'security', route: '/plataforma/organizaciones', permission: 'PLATFORM.ADMIN', platformOnly: true },
-      { label: 'Clientes', icon: 'customer', route: '/clientes', permission: 'CLIENTS.READ', hideForPlatformAdmin: true },
-      { label: 'Servicios', icon: 'coverage', route: '/servicios', permission: 'CLIENTS.READ', hideForPlatformAdmin: true },
-      { label: 'Personal', icon: 'people', route: '/personal', permission: 'WORKFORCE.READ', hideForPlatformAdmin: true },
-      { label: 'Catálogos', icon: 'catalog', route: '/catalogos', permission: 'CATALOGS.READ', hideForPlatformAdmin: true },
-      { label: 'Documentos', icon: 'document', route: '/documentos', permission: 'DOCUMENTS.READ', hideForPlatformAdmin: true },
-      { label: 'Usuarios', icon: 'security', route: '/usuarios', permission: 'USERS.READ', hideForPlatformAdmin: true },
+      { label: 'Clientes', icon: 'customer', route: '/clientes', permission: 'CLIENTS.READ', hideForPlatformAdmin: true, availableInSupport: true },
+      { label: 'Servicios', icon: 'coverage', route: '/servicios', permission: 'CLIENTS.READ', hideForPlatformAdmin: true, availableInSupport: true },
+      { label: 'Personal', icon: 'people', route: '/personal', permission: 'WORKFORCE.READ', hideForPlatformAdmin: true, availableInSupport: true },
+      { label: 'Catálogos', icon: 'catalog', route: '/catalogos', permission: 'CATALOGS.READ', hideForPlatformAdmin: true, availableInSupport: true },
+      { label: 'Reglas documentales', icon: 'document', route: '/configuracion/documentos', permission: 'CATALOGS.READ', hideForPlatformAdmin: true, availableInSupport: true },
     ],
   },
 ];

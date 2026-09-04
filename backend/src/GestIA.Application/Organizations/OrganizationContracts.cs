@@ -16,3 +16,17 @@ public sealed record OrganizationResponse(
     string LegalName,
     string? Rfc,
     bool Active);
+
+public sealed record OrganizationClientSummaryResponse(
+    Guid IdClient,
+    string CodeClient,
+    string LegalName,
+    string? TradeName,
+    string Rfc,
+    bool Active);
+
+public sealed record OrganizationGovernanceSummaryResponse(
+    OrganizationResponse Organization,
+    IReadOnlyList<OrganizationClientSummaryResponse> Clients,
+    int UsersCount,
+    int AdminsCount);

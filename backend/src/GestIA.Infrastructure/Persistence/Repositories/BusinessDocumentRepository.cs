@@ -13,6 +13,17 @@ public sealed class BusinessDocumentRepository(GestIaDbContext dbContext) : IBus
         var query = IncludeOwner(dbContext.BusinessDocuments.AsNoTracking())
             .Where(document => document.IdOrganization == criteria.IdOrganization);
 
+        if (!criteria.IncludeSensitive)
+        {
+            query = query.Where(document => !document.IsSensitive &&
+                !dbContext.BusinessDocuments.IgnoreQueryFilters().Any(other => other.IsSensitive &&
+                    EF.Functions.Collate(other.StorageReference.Replace("\\", "/"), "Latin1_General_100_CI_AS") == document.StorageReference.Replace("\\", "/")) &&
+                !dbContext.EmployeeDocuments.IgnoreQueryFilters().Any(other => other.StorageReference != null &&
+                    EF.Functions.Collate(other.StorageReference.Replace("\\", "/"), "Latin1_General_100_CI_AS") == document.StorageReference.Replace("\\", "/")) &&
+                !dbContext.EmployeeEvaluations.IgnoreQueryFilters().Any(other => other.StorageReference != null &&
+                    EF.Functions.Collate(other.StorageReference.Replace("\\", "/"), "Latin1_General_100_CI_AS") == document.StorageReference.Replace("\\", "/")));
+        }
+
         if (criteria.OwnerType is not null)
         {
             query = query.Where(document => document.OwnerType == criteria.OwnerType);
@@ -96,6 +107,31 @@ public sealed class BusinessDocumentRepository(GestIaDbContext dbContext) : IBus
     public Task AddAsync(BusinessDocument document, CancellationToken cancellationToken) =>
         dbContext.BusinessDocuments.AddAsync(document, cancellationToken).AsTask();
 
+    public async Task<bool> IsSensitiveStorageReferenceAsync(string storageReference, CancellationToken cancellationToken) =>
+        await dbContext.BusinessDocuments.IgnoreQueryFilters().AnyAsync(document => document.IsSensitive &&
+            EF.Functions.Collate(document.StorageReference.Replace("\\", "/"), "Latin1_General_100_CI_AS") == storageReference.Replace("\\", "/"), cancellationToken) ||
+        await IsLegacyStorageReferenceAsync(storageReference, cancellationToken);
+
+    public async Task<bool> IsDocumentStorageReferenceAsync(string storageReference, CancellationToken cancellationToken) =>
+        await dbContext.BusinessDocuments.IgnoreQueryFilters().AnyAsync(document =>
+            EF.Functions.Collate(document.StorageReference.Replace("\\", "/"), "Latin1_General_100_CI_AS") == storageReference.Replace("\\", "/"), cancellationToken) ||
+        await IsLegacyStorageReferenceAsync(storageReference, cancellationToken);
+
+    private async Task<bool> IsLegacyStorageReferenceAsync(string storageReference, CancellationToken cancellationToken) =>
+        await dbContext.EmployeeDocuments.IgnoreQueryFilters().AnyAsync(document => document.StorageReference != null &&
+            EF.Functions.Collate(document.StorageReference.Replace("\\", "/"), "Latin1_General_100_CI_AS") == storageReference.Replace("\\", "/"), cancellationToken) ||
+        await dbContext.EmployeeEvaluations.IgnoreQueryFilters().AnyAsync(document => document.StorageReference != null &&
+            EF.Functions.Collate(document.StorageReference.Replace("\\", "/"), "Latin1_General_100_CI_AS") == storageReference.Replace("\\", "/"), cancellationToken);
+
+    public Task AddEventAsync(BusinessDocumentEvent documentEvent, CancellationToken cancellationToken) =>
+        dbContext.BusinessDocumentEvents.AddAsync(documentEvent, cancellationToken).AsTask();
+
+    public async Task<IReadOnlyList<BusinessDocumentEvent>> ListEventsAsync(Guid idOrganization, Guid idBusinessDocument, CancellationToken cancellationToken) =>
+        await dbContext.BusinessDocumentEvents.AsNoTracking()
+            .Where(item => item.IdOrganization == idOrganization && item.IdBusinessDocument == idBusinessDocument)
+            .OrderByDescending(item => item.OccurredAt).ThenByDescending(item => item.IdBusinessDocumentEvent)
+            .Take(100).ToArrayAsync(cancellationToken);
+
     private static IQueryable<BusinessDocument> IncludeOwner(IQueryable<BusinessDocument> query) =>
         query
             .Include(document => document.Client)
@@ -121,6 +157,9 @@ public sealed class BusinessDocumentRepository(GestIaDbContext dbContext) : IBus
             document.StorageReference,
             document.IsSensitive,
             document.Notes,
+            document.ReviewNotes,
+            document.ReviewedAt,
+            document.ReviewedByName,
             document.Active,
             document.CreatedAt,
             document.UpdatedAt);

@@ -7,6 +7,7 @@ using GestIA.Domain.Planning;
 using GestIA.Domain.Requests;
 using GestIA.Domain.Security;
 using GestIA.Domain.Services;
+using GestIA.Domain.Support;
 using GestIA.Domain.Workforce;
 using Microsoft.EntityFrameworkCore;
 using GestIA.Infrastructure.Persistence.Conventions;
@@ -40,6 +41,7 @@ public sealed class GestIaDbContext(DbContextOptions<GestIaDbContext> options)
     public DbSet<OperationDayClosure> OperationDayClosures => Set<OperationDayClosure>();
     public DbSet<OperationalRequest> OperationalRequests => Set<OperationalRequest>();
     public DbSet<BusinessDocument> BusinessDocuments => Set<BusinessDocument>();
+    public DbSet<BusinessDocumentEvent> BusinessDocumentEvents => Set<BusinessDocumentEvent>();
     public DbSet<BusinessCatalogItem> BusinessCatalogItems => Set<BusinessCatalogItem>();
     public DbSet<EligibilityRequirement> EligibilityRequirements => Set<EligibilityRequirement>();
     public DbSet<EmployeeSkill> EmployeeSkills => Set<EmployeeSkill>();
@@ -49,6 +51,27 @@ public sealed class GestIaDbContext(DbContextOptions<GestIaDbContext> options)
     public DbSet<Permission> Permissions => Set<Permission>();
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
     public DbSet<UserRole> UserRoles => Set<UserRole>();
+    public DbSet<SupportSession> SupportSessions => Set<SupportSession>();
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        EnsureDocumentHistoryIsAppendOnly();
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+
+    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        EnsureDocumentHistoryIsAppendOnly();
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+    }
+
+    private void EnsureDocumentHistoryIsAppendOnly()
+    {
+        if (ChangeTracker.Entries<BusinessDocumentEvent>().Any(entry => entry.State is EntityState.Modified or EntityState.Deleted))
+        {
+            throw new InvalidOperationException("El historial documental no puede modificarse ni eliminarse.");
+        }
+    }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

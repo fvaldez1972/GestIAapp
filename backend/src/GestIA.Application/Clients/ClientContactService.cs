@@ -1,5 +1,7 @@
 using System.Text.RegularExpressions;
 using GestIA.Application.Common;
+using GestIA.Application.Catalogs;
+using GestIA.Domain.Catalogs;
 using GestIA.Domain.Clients;
 
 namespace GestIA.Application.Clients;
@@ -10,7 +12,8 @@ public sealed partial class ClientContactService(
     IClientContactRepository contactRepository,
     IUnitOfWork unitOfWork,
     IActorContext actorContext,
-    IClock clock) : IClientContactService
+    IClock clock,
+    FormCatalogValidator catalogValidator) : IClientContactService
 {
     public async Task<IReadOnlyList<ClientContactResponse>> ListAsync(
         Guid idOrganization,
@@ -30,6 +33,7 @@ public sealed partial class ClientContactService(
         await EnsureSiteAsync(request.IdClient, request.IdClientSite, cancellationToken);
         var details = Validate(request);
 
+        await catalogValidator.ValueAsync(request.IdOrganization, BusinessCatalogItemType.JobPosition, details.JobTitle, null, cancellationToken);
         var contact = ClientContact.Create(
             request.IdClient,
             request.IdClientSite,
@@ -54,6 +58,7 @@ public sealed partial class ClientContactService(
         var contact = await contactRepository.GetAsync(request.IdClient, idClientContact, cancellationToken)
             ?? throw new ResourceNotFoundException("No se encontró el contacto solicitado.");
 
+        await catalogValidator.ValueAsync(request.IdOrganization, BusinessCatalogItemType.JobPosition, details.JobTitle, contact.JobTitle, cancellationToken);
         contact.UpdateDetails(
             request.IdClientSite,
             details,

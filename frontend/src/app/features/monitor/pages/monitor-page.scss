@@ -1,0 +1,14 @@
+:host { display: block; min-width: 0; }
+.monitor-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+h1 { font-size: 24px; margin: 4px 0; } h2 { font-size: 18px; margin: 0; } p { color: var(--gestia-muted); }
+.monitor-metrics { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); border-block: 1px solid var(--gestia-border); margin: 16px 0 24px; }
+.monitor-metrics > div { padding: 16px; display: grid; gap: 8px; border-right: 1px solid var(--gestia-border); }
+.monitor-metrics strong { font-size: 26px; } .monitor-metrics .context-name { font-size: 15px; overflow-wrap: anywhere; }
+.monitor-toolbar { display: flex; gap: 16px; align-items: end; flex-wrap: wrap; margin-bottom: 16px; }
+label { display: grid; gap: 6px; min-width: 0; } .monitor-toolbar label:first-child { flex: 1 1 220px; }
+.monitor-table { width: 100%; overflow-x: auto; } table { width: 100%; min-width: 650px; } th, td { padding: 12px; text-align: left; } td strong, td small { display: block; }
+.monitor-operations { margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--gestia-border); }
+.monitor-backdrop { position: fixed; inset: 0; z-index: 1100; background: rgb(0 0 0 / 40%); display: grid; place-items: center; padding: 16px; }
+.monitor-dialog { width: min(100%, 500px); max-height: 90dvh; overflow: auto; padding: 24px; background: white; border-radius: 8px; }
+form { display: grid; gap: 16px; } footer { display: flex; justify-content: end; gap: 10px; }
+@media(max-width:700px) { .monitor-metrics { grid-template-columns: repeat(2,minmax(0,1fr)); } .monitor-toolbar { align-items: stretch; } }

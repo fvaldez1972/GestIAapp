@@ -88,7 +88,7 @@ public sealed class ScheduleVersion : AuditableEntity
     {
         if (Status != ScheduleVersionStatus.Draft)
         {
-            throw new InvalidOperationException("La planeación publicada no puede modificarse directamente.");
+            throw new DomainRuleException("La planeación publicada no puede modificarse directamente.");
         }
     }
 

@@ -21,6 +21,7 @@ public sealed class CatalogRepository(GestIaDbContext dbContext) : ICatalogRepos
         CancellationToken cancellationToken)
     {
         var query = dbContext.BusinessCatalogItems
+            .IgnoreQueryFilters()
             .AsNoTracking()
             .Where(item => item.IdOrganization == idOrganization);
 
@@ -31,6 +32,7 @@ public sealed class CatalogRepository(GestIaDbContext dbContext) : ICatalogRepos
 
         return await query
             .OrderBy(item => item.Type)
+            .ThenBy(item => item.Order)
             .ThenBy(item => item.Name)
             .ToArrayAsync(cancellationToken);
     }
@@ -39,7 +41,7 @@ public sealed class CatalogRepository(GestIaDbContext dbContext) : ICatalogRepos
         Guid idOrganization,
         Guid idCatalogItem,
         CancellationToken cancellationToken) =>
-        dbContext.BusinessCatalogItems.SingleOrDefaultAsync(
+        dbContext.BusinessCatalogItems.IgnoreQueryFilters().SingleOrDefaultAsync(
             item => item.IdOrganization == idOrganization && item.IdBusinessCatalogItem == idCatalogItem,
             cancellationToken);
 

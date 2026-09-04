@@ -1,5 +1,6 @@
 using GestIA.Application.Scheduling;
 using GestIA.Domain.Planning;
+using GestIA.Domain.Operations;
 using GestIA.Domain.Workforce;
 using Microsoft.EntityFrameworkCore;
 using ServiceEntity = GestIA.Domain.Services.Service;
@@ -8,6 +9,9 @@ namespace GestIA.Infrastructure.Persistence.Repositories;
 
 public sealed class SchedulingRepository(GestIaDbContext dbContext) : ISchedulingRepository
 {
+    public Task<T> ExecuteAtomicAsync<T>(Func<CancellationToken, Task<T>> action, CancellationToken cancellationToken) =>
+        OperationalTransaction.ExecuteAsync(dbContext, action, cancellationToken);
+
     public Task<ServiceEntity?> GetServiceAsync(Guid idOrganization, Guid idClient, Guid idService, CancellationToken cancellationToken) =>
         dbContext.Services.SingleOrDefaultAsync(
             service =>
@@ -108,6 +112,8 @@ public sealed class SchedulingRepository(GestIaDbContext dbContext) : ISchedulin
             .ToArrayAsync(cancellationToken);
 
     public async Task<bool> HasEmployeeShiftOverlapAsync(
+        Guid idOrganization,
+        Guid idScheduleVersion,
         Guid idEmployee,
         DateOnly shiftDate,
         TimeOnly startTime,
@@ -115,28 +121,60 @@ public sealed class SchedulingRepository(GestIaDbContext dbContext) : ISchedulin
         Guid? excludedScheduledShiftId,
         CancellationToken cancellationToken)
     {
-        var newStart = Minutes(startTime);
-        var newEnd = newStart + durationMinutes;
+        var version = await dbContext.ScheduleVersions.AsNoTracking().SingleAsync(
+            item => item.IdScheduleVersion == idScheduleVersion &&
+                item.Service.Client.IdOrganization == idOrganization, cancellationToken);
+        var interval = new ShiftInterval(shiftDate, startTime, durationMinutes);
+        var firstDate = shiftDate.AddDays(-1);
+        var lastDate = shiftDate.AddDays(1);
         var existingShifts = await dbContext.ScheduledShifts
             .AsNoTracking()
             .Where(shift =>
                 shift.IdEmployee == idEmployee &&
-                shift.ShiftDate == shiftDate &&
+                shift.ScheduleVersion.Service.Client.IdOrganization == idOrganization &&
+                shift.ShiftDate >= firstDate && shift.ShiftDate <= lastDate &&
+                (shift.IdScheduleVersion == idScheduleVersion ||
+                    (shift.ScheduleVersion.Status == ScheduleVersionStatus.Published &&
+                        !(shift.ScheduleVersion.IdService == version.IdService &&
+                            shift.ScheduleVersion.PeriodStartDate <= version.PeriodEndDate &&
+                            shift.ScheduleVersion.PeriodEndDate >= version.PeriodStartDate))) &&
                 (!excludedScheduledShiftId.HasValue || shift.IdScheduledShift != excludedScheduledShiftId.Value))
             .Select(shift => new
             {
+                shift.ShiftDate,
                 shift.StartTime,
                 shift.DurationMinutes
             })
             .ToArrayAsync(cancellationToken);
 
-        return existingShifts.Any(shift =>
+        if (existingShifts.Any(shift => interval.Overlaps(new ShiftInterval(shift.ShiftDate, shift.StartTime, shift.DurationMinutes))))
         {
-            var existingStart = Minutes(shift.StartTime);
-            var existingEnd = existingStart + shift.DurationMinutes;
-            return newStart < existingEnd && existingStart < newEnd;
-        });
+            return true;
+        }
+
+        // Generation stages multiple shifts before saving; database queries do not include those rows.
+        if (dbContext.ChangeTracker.Entries<ScheduledShift>().Any(entry =>
+            entry.State == EntityState.Added && entry.Entity.Active &&
+            entry.Entity.IdScheduleVersion == idScheduleVersion &&
+            entry.Entity.IdEmployee == idEmployee &&
+            interval.Overlaps(new ShiftInterval(entry.Entity.ShiftDate, entry.Entity.StartTime, entry.Entity.DurationMinutes))))
+        {
+            return true;
+        }
+
+        return await CoverageConflicts.HasOverlapAsync(
+            dbContext, idOrganization, idEmployee, interval, null, null, cancellationToken);
     }
+
+    public async Task<bool> HasOperationalActivityAsync(Guid idScheduleVersion, CancellationToken cancellationToken) =>
+        await dbContext.AttendanceRecords.AnyAsync(
+            record => record.ScheduledShift.IdScheduleVersion == idScheduleVersion, cancellationToken) ||
+        await dbContext.CoverageRecords.AnyAsync(
+            record => record.ScheduledShift.IdScheduleVersion == idScheduleVersion &&
+                record.Status != CoverageStatus.Cancelled, cancellationToken) ||
+        await dbContext.Incidents.AnyAsync(
+            record => record.ScheduledShift != null &&
+                record.ScheduledShift.IdScheduleVersion == idScheduleVersion, cancellationToken);
 
     public Task<bool> HasPublishedVersionOverlapAsync(
         Guid idService,
@@ -171,5 +209,4 @@ public sealed class SchedulingRepository(GestIaDbContext dbContext) : ISchedulin
     public Task AddScheduledShiftAsync(ScheduledShift scheduledShift, CancellationToken cancellationToken) =>
         dbContext.ScheduledShifts.AddAsync(scheduledShift, cancellationToken).AsTask();
 
-    private static int Minutes(TimeOnly time) => time.Hour * 60 + time.Minute;
 }

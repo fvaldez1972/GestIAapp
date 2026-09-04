@@ -4,6 +4,7 @@ import {
   BusinessCatalogItemType,
   CatalogItem,
   CatalogItemInput,
+  CatalogDefinition,
   EligibilityCheck,
   EligibilityRequirement,
   EligibilityRequirementInput,
@@ -16,12 +17,21 @@ export class CatalogApiService {
   private readonly http = inject(HttpClient);
   private readonly baseUrl = '/api/v1/catalogs';
 
-  listItems(organizationId: string, type?: BusinessCatalogItemType | '') {
+  listDefinitions() {
+    return this.http.get<readonly CatalogDefinition[]>(`${this.baseUrl}/definitions`);
+  }
+
+  listOptions(organizationId: string) {
+    return this.http.get<readonly CatalogItem[]>(`${this.baseUrl}/options`, { params: { organizationId } });
+  }
+
+  listItems(organizationId: string, type?: BusinessCatalogItemType | '', includeInactive = false) {
     let params = new HttpParams().set('organizationId', organizationId);
 
     if (type) {
       params = params.set('type', type);
     }
+    if (includeInactive) params = params.set('includeInactive', true);
 
     return this.http.get<readonly CatalogItem[]>(`${this.baseUrl}/items`, { params });
   }

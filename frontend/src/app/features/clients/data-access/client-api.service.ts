@@ -1,5 +1,6 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
+import { activeOptions } from '../../../shared/data-access/active-options';
 import {
   AttendanceRecord,
   ApprovalRequest,
@@ -18,6 +19,7 @@ import {
   CreateManagedService,
   CreateServiceContract,
   CreateOrganization,
+  CreateOrganizationWithAdmin,
   UpdateOrganization,
   CreateServicePosition,
   CreateServiceAssignment,
@@ -37,6 +39,8 @@ import {
   OperationEvidenceInput,
   OperationDayClosure,
   Organization,
+  OrganizationGovernanceSummary,
+  OrganizationProvisioningResult,
   PagedResult,
   ServiceAssignment,
   ServiceAssignmentInput,
@@ -68,8 +72,16 @@ export class ClientApiService {
     return this.http.get<readonly Organization[]>(`${this.baseUrl}/organizations`);
   }
 
+  listOrganizationGovernance() {
+    return this.http.get<readonly OrganizationGovernanceSummary[]>(`${this.baseUrl}/organizations/governance`);
+  }
+
   createOrganization(request: CreateOrganization) {
     return this.http.post<Organization>(`${this.baseUrl}/organizations`, request);
+  }
+
+  createOrganizationWithAdmin(request: CreateOrganizationWithAdmin) {
+    return this.http.post<OrganizationProvisioningResult>(`${this.baseUrl}/organizations/with-admin`, request);
   }
 
   updateOrganization(idOrganization: string, request: UpdateOrganization) {
@@ -95,6 +107,10 @@ export class ClientApiService {
     }
 
     return this.http.get<PagedResult<Client>>(`${this.baseUrl}/clients`, { params });
+  }
+
+  listClientOptions(organizationId: string) {
+    return activeOptions(page => this.listClients(organizationId, '', page, 100));
   }
 
   createClient(request: CreateClient) {
@@ -579,14 +595,16 @@ export class ClientApiService {
     );
   }
 
-  uploadOperationEvidenceFile(file: File) {
+  uploadOperationEvidenceFile(file: File, organizationId: string) {
     const formData = new FormData();
     formData.append('file', file, file.name);
-    return this.http.post<FileUploadResponse>(`${this.baseUrl}/files/operation-evidence`, formData);
+    const params = new HttpParams().set('organizationId', organizationId);
+    return this.http.post<FileUploadResponse>(`${this.baseUrl}/files/operation-evidence`, formData, { params });
   }
 
-  downloadOperationEvidenceFile(storageReference: string) {
-    const params = new HttpParams().set('storageReference', storageReference);
+  downloadOperationEvidenceFile(organizationId: string, clientId: string, serviceId: string, evidenceId: string) {
+    const params = new HttpParams().set('organizationId', organizationId)
+      .set('clientId', clientId).set('serviceId', serviceId).set('evidenceId', evidenceId);
     return this.http.get(`${this.baseUrl}/files/operation-evidence/download`, {
       params,
       observe: 'response',

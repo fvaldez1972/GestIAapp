@@ -5,6 +5,11 @@
       <img class="brand-logo brand-logo--compact" src="brand/gestia-app-icon.svg" alt="" aria-hidden="true" />
     </a>
 
+    <div class="workspace-context">
+      <span>{{ workspaceLabel() }}</span>
+      <strong>{{ workspaceName() }}</strong>
+    </div>
+
     <nav class="side-nav">
       @for (group of navigation(); track group.label) {
         <section class="menu-group">
@@ -34,8 +39,11 @@
     </nav>
 
     <div class="sidebar-foot">
-      <span>Control operativo</span>
-      <small>Información clara y trazable</small>
+      <span class="sidebar-avatar">{{ userInitials() }}</span>
+      <span class="sidebar-user">
+        <strong>{{ auth.displayName() || 'GestIA' }}</strong>
+        <small>{{ userScope() }}</small>
+      </span>
     </div>
   </aside>
 
@@ -67,7 +75,17 @@
       </div>
 
       <div class="topbar-actions">
-        @if (auth.organizations().length > 1) {
+        <span class="scope-badge">{{ isPlatformAdmin() ? 'Plataforma' : 'Organización' }}</span>
+        @if (isPlatformAdmin()) {
+          @if (auth.isSupportModeActive() && auth.supportSession()) {
+            <div class="support-control support-control--active">
+              <span><strong>Soporte activo</strong><small>{{ auth.supportSession()?.organizationName }} · hasta {{ supportExpiresLabel() }}</small></span>
+              <button type="button" [disabled]="supportSaving()" (click)="endSupport()">Salir</button>
+            </div>
+          } @else {
+            <button class="support-launch" type="button" (click)="openSupportDialog()">Abrir soporte</button>
+          }
+        } @else if (auth.organizations().length > 1) {
           <label class="org-switcher">
             <span>Organización</span>
             <select [value]="auth.activeOrganization()?.idOrganization ?? ''" (change)="auth.setActiveOrganization($any($event.target).value)">
@@ -78,15 +96,30 @@
           </label>
         }
         <button class="profile" type="button" aria-label="Cerrar sesión" (click)="logout()">
-          <span class="profile-avatar">GI</span>
+          <span class="profile-avatar">{{ userInitials() }}</span>
           <span class="profile-copy"><strong>{{ auth.displayName() || 'GestIA' }}</strong><small>{{ userScope() }} · Salir</small></span>
           <span class="profile-chevron" aria-hidden="true">⌄</span>
         </button>
       </div>
     </header>
 
+    @if (isPlatformAdmin() && auth.isSupportModeActive() && auth.supportSession()) {
+      <aside class="support-banner" role="status">
+        <span><strong>Modo soporte</strong> Estás operando dentro de {{ auth.supportSession()?.organizationName }}. Las acciones quedan asociadas a esta sesión.</span>
+        <button type="button" (click)="endSupport()">Finalizar soporte</button>
+      </aside>
+    }
+
     <main>
-      <router-outlet />
+      @if (requiresSupport()) {
+        <section class="support-required" aria-labelledby="support-required-title">
+          <h1 id="support-required-title">{{ pageTitle() }}</h1>
+          <p>Esta consulta requiere una sesión de soporte activa para una organización.</p>
+          <button class="gi-button gi-button--primary" type="button" (click)="openSupportDialog()">Iniciar soporte</button>
+        </section>
+      } @else {
+        <router-outlet />
+      }
     </main>
 
     <footer class="app-footer">
@@ -95,3 +128,24 @@
     </footer>
   </div>
 </div>
+
+@if (supportDialogOpen()) {
+  <div class="support-modal-backdrop" (click)="closeSupportDialog()">
+    <section class="support-modal" role="dialog" aria-modal="true" aria-labelledby="support-modal-title" (click)="$event.stopPropagation()">
+      <header>
+        <div><span>Acceso controlado</span><h2 id="support-modal-title">Iniciar modo soporte</h2><p>Selecciona la organización y documenta por qué necesitas entrar a su operación.</p></div>
+        <button type="button" aria-label="Cerrar" (click)="closeSupportDialog()">×</button>
+      </header>
+      <div class="support-modal__body">
+        <label><span>Organización *</span><select [value]="supportOrganizationId()" (change)="supportOrganizationId.set($any($event.target).value)"><option value="" disabled>Selecciona una organización</option>@for (organization of auth.platformOrganizations(); track organization.idOrganization) { <option [value]="organization.idOrganization">{{ organization.legalName }}</option> }</select></label>
+        <label><span>Motivo del soporte *</span><textarea rows="4" maxlength="500" placeholder="Ej. Revisar configuración reportada en el ticket..." [value]="supportReason()" (input)="supportReason.set($any($event.target).value)"></textarea><small>Mínimo 10 caracteres. El motivo quedará en auditoría.</small></label>
+        <label><span>Duración</span><select [value]="supportDurationMinutes()" (change)="supportDurationMinutes.set(+$any($event.target).value)"><option value="30">30 minutos</option><option value="60">1 hora</option><option value="120">2 horas</option><option value="240">4 horas</option></select></label>
+        @if (supportError()) { <p class="support-modal__error" role="alert">{{ supportError() }}</p> }
+      </div>
+      <footer>
+        <button class="button button--secondary" type="button" (click)="closeSupportDialog()">Cancelar</button>
+        <button class="button button--primary" type="button" [disabled]="supportSaving()" (click)="startSupport()">{{ supportSaving() ? 'Iniciando…' : 'Iniciar soporte' }}</button>
+      </footer>
+    </section>
+  </div>
+}

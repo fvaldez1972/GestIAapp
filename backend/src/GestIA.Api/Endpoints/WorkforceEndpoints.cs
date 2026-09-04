@@ -1,4 +1,5 @@
 using GestIA.Api.Security;
+using GestIA.Application.Documents;
 using GestIA.Application.Security;
 using GestIA.Application.Workforce;
 using GestIA.Domain.Workforce;
@@ -278,6 +279,62 @@ public static class WorkforceEndpoints
             .RequirePermission(SecurityPermissions.WorkforceWrite)
             .WithName("DeactivateEmployeeEvaluation");
 
+        group.MapGet("/{idEmployee:guid}/documents/{idEmployeeDocument:guid}/download", async (
+            HttpContext context,
+            Guid organizationId,
+            Guid idEmployee,
+            Guid idEmployeeDocument,
+            IWorkforceService service,
+            IConfiguration configuration,
+            IWebHostEnvironment environment,
+            CancellationToken cancellationToken) =>
+        {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
+            var documents = await service.ListDocumentsAsync(organizationId, idEmployee, cancellationToken);
+            var document = documents.SingleOrDefault(item => item.IdEmployeeDocument == idEmployeeDocument);
+            return DownloadLegacyFile(document?.StorageReference, configuration, environment);
+        })
+            .RequirePermission(SecurityPermissions.WorkforceRead)
+            .WithName("DownloadEmployeeDocument");
+
+        group.MapGet("/{idEmployee:guid}/evaluations/{idEmployeeEvaluation:guid}/download", async (
+            HttpContext context,
+            Guid organizationId,
+            Guid idEmployee,
+            Guid idEmployeeEvaluation,
+            IWorkforceService service,
+            IConfiguration configuration,
+            IWebHostEnvironment environment,
+            CancellationToken cancellationToken) =>
+        {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
+            var evaluations = await service.ListEvaluationsAsync(organizationId, idEmployee, cancellationToken);
+            var evaluation = evaluations.SingleOrDefault(item => item.IdEmployeeEvaluation == idEmployeeEvaluation);
+            return DownloadLegacyFile(evaluation?.StorageReference, configuration, environment);
+        })
+            .RequirePermission(SecurityPermissions.WorkforceRead)
+            .WithName("DownloadEmployeeEvaluation");
+
         return endpoints;
+    }
+
+    private static IResult DownloadLegacyFile(string? reference, IConfiguration configuration, IWebHostEnvironment environment)
+    {
+        if (reference is null || !DocumentStorageReference.IsSafeRelativePath(reference))
+        {
+            return Results.NotFound();
+        }
+
+        var root = BusinessDocumentEndpoints.ResolveStorageRoot(configuration, environment);
+        var path = BusinessDocumentEndpoints.ResolveStoragePath(root, reference);
+        return File.Exists(path) ? Results.File(path, "application/octet-stream", Path.GetFileName(path)) : Results.NotFound();
     }
 }

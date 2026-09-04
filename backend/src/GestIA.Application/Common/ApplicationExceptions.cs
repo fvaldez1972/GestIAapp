@@ -4,6 +4,8 @@ public sealed class ResourceNotFoundException(string message) : Exception(messag
 
 public sealed class ResourceConflictException(string message) : Exception(message);
 
+public sealed class ResourceForbiddenException(string message) : Exception(message);
+
 public sealed class RequestValidationException : Exception
 {
     public RequestValidationException(IReadOnlyDictionary<string, string[]> errors)

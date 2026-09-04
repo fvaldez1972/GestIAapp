@@ -19,6 +19,7 @@ import {
 import { DocumentApiService } from '../../data-access/document-api.service';
 import {
   BusinessDocument,
+  BusinessDocumentEvent,
   BusinessDocumentOwnerType,
   BusinessDocumentStatus,
 } from '../../data-access/document.models';
@@ -49,6 +50,7 @@ export class DocumentsPage implements OnInit {
   protected readonly documents = signal<readonly BusinessDocument[]>([]);
   protected readonly workforceDocuments = signal<readonly BusinessDocument[]>([]);
   protected readonly selectedOrganizationId = signal('');
+  protected readonly ownerContext = signal<{ ownerType: BusinessDocumentOwnerType; ownerId: string } | null>(null);
   protected readonly selectedDocumentId = signal('');
   protected readonly selectedOwnerType = signal<BusinessDocumentOwnerType>('Client');
   protected readonly selectedFilterOwnerType = signal<BusinessDocumentOwnerType | ''>('');
@@ -59,6 +61,14 @@ export class DocumentsPage implements OnInit {
   protected readonly selectedFileSize = signal('');
   protected readonly editorOpen = signal(false);
   protected readonly detailOpen = signal(false);
+  protected readonly historyOpen = signal(false);
+  protected readonly historyLoading = signal(false);
+  protected readonly historyError = signal('');
+  protected readonly history = signal<readonly BusinessDocumentEvent[]>([]);
+  protected readonly reviewDecision = signal<'Validated' | 'Rejected' | null>(null);
+  protected readonly reviewForm = this.formBuilder.nonNullable.group({
+    notes: ['', [Validators.maxLength(1000)]],
+  });
   protected readonly loading = signal(false);
   protected readonly saving = signal(false);
   protected readonly uploading = signal(false);
@@ -66,6 +76,7 @@ export class DocumentsPage implements OnInit {
   protected readonly error = signal('');
 
   protected readonly canWrite = computed(() => this.auth.hasPermission('DOCUMENTS.WRITE'));
+  protected readonly canWriteSensitive = computed(() => this.auth.hasPermission('DOCUMENTS.SENSITIVE.READ') && this.auth.hasPermission('DOCUMENTS.SENSITIVE.WRITE'));
   protected readonly canReview = computed(() => this.auth.hasPermission('DOCUMENTS.WRITE'));
   protected readonly isPlatformAdmin = computed(() => this.auth.hasPermission('PLATFORM.ADMIN'));
   protected readonly heroCopy = computed(() =>
@@ -246,7 +257,6 @@ export class DocumentsPage implements OnInit {
     storageReference: ['', [Validators.required, Validators.maxLength(500)]],
     isSensitive: [false],
     notes: [''],
-    privacyLevel: ['Confidencial'],
   });
 
   ngOnInit() {
@@ -276,14 +286,18 @@ export class DocumentsPage implements OnInit {
   }
 
   protected clearFilters() {
-    this.filterForm.reset({ ownerType: '', ownerId: '', status: '', category: '', search: '' });
-    this.selectedFilterOwnerType.set('');
+    const context = this.ownerContext();
+    this.filterForm.reset({ ownerType: context?.ownerType ?? '', ownerId: context?.ownerId ?? '', status: '', category: '', search: '' });
+    this.selectedFilterOwnerType.set(context?.ownerType ?? '');
     this.expiryFilter.set('all');
     this.sensitivityFilter.set('all');
     this.loadDocuments();
   }
 
   protected selectDocument(document: BusinessDocument) {
+    this.historyOpen.set(false);
+    this.history.set([]);
+    this.reviewDecision.set(null);
     this.patchDocumentForm(document);
     this.detailOpen.set(true);
     this.editorOpen.set(false);
@@ -294,6 +308,10 @@ export class DocumentsPage implements OnInit {
     this.uploadStep.set(1);
     this.editorOpen.set(true);
     this.detailOpen.set(false);
+  }
+
+  protected canEditDocument(document: BusinessDocument) {
+    return this.canWrite() && (!document.isSensitive || this.canWriteSensitive());
   }
 
   protected openEditDocument(document: BusinessDocument) {
@@ -313,6 +331,7 @@ export class DocumentsPage implements OnInit {
   }
 
   protected closeDetail() {
+    this.reviewDecision.set(null);
     this.detailOpen.set(false);
   }
 
@@ -325,11 +344,27 @@ export class DocumentsPage implements OnInit {
   }
 
   protected validateDocument(document: BusinessDocument) {
-    this.updateDocumentStatus(document, 'Validated');
+    this.selectedDocumentId.set(document.idBusinessDocument);
+    this.reviewForm.reset();
+    this.reviewDecision.set('Validated');
   }
 
   protected rejectDocument(document: BusinessDocument) {
-    this.updateDocumentStatus(document, 'Rejected');
+    this.selectedDocumentId.set(document.idBusinessDocument);
+    this.reviewForm.reset();
+    this.reviewDecision.set('Rejected');
+  }
+
+  protected submitReview() {
+    const document = this.selectedDocument();
+    const decision = this.reviewDecision();
+    const notes = this.reviewForm.controls.notes.value.trim();
+    if (!document || !decision || this.reviewForm.invalid || (decision === 'Rejected' && !notes)) {
+      this.reviewForm.markAllAsTouched();
+      return;
+    }
+
+    this.updateDocumentStatus(document, decision, notes || null);
   }
 
   private patchDocumentForm(document: BusinessDocument) {
@@ -348,19 +383,19 @@ export class DocumentsPage implements OnInit {
       storageReference: document.storageReference,
       isSensitive: document.isSensitive,
       notes: document.notes ?? '',
-      privacyLevel: document.isSensitive ? 'Confidencial' : 'Operativo',
     });
   }
 
   protected resetForm() {
+    const context = this.ownerContext();
     this.selectedDocumentId.set('');
-    this.selectedOwnerType.set('Client');
+    this.selectedOwnerType.set(context?.ownerType ?? 'Client');
     this.selectedFileName.set('');
     this.selectedFileSize.set('');
     this.uploadStep.set(1);
     this.documentForm.reset({
-      ownerType: 'Client',
-      ownerId: this.clients()[0]?.idClient ?? '',
+      ownerType: context?.ownerType ?? 'Client',
+      ownerId: context?.ownerId ?? this.clients()[0]?.idClient ?? '',
       category: 'Contrato',
       title: '',
       status: 'PendingReview',
@@ -369,7 +404,6 @@ export class DocumentsPage implements OnInit {
       storageReference: '',
       isSensitive: false,
       notes: '',
-      privacyLevel: 'Confidencial',
     });
   }
 
@@ -381,6 +415,10 @@ export class DocumentsPage implements OnInit {
     }
 
     const form = this.documentForm.getRawValue();
+    if (form.isSensitive && !this.canWriteSensitive()) {
+      this.error.set('No tienes permiso para administrar documentos sensibles.');
+      return;
+    }
     const selectedDocumentId = this.selectedDocumentId();
     const payload = {
       idOrganization: organizationId,
@@ -443,7 +481,7 @@ export class DocumentsPage implements OnInit {
     this.selectedFileName.set(file.name);
     this.selectedFileSize.set(this.fileSizeLabel(file.size));
 
-    this.documentsApi.uploadDocumentFile(file).subscribe({
+    this.documentsApi.uploadDocumentFile(file, this.selectedOrganizationId()).subscribe({
       next: (result) => {
         this.documentForm.patchValue({
           title: this.documentForm.controls.title.value || result.originalFileName,
@@ -472,6 +510,34 @@ export class DocumentsPage implements OnInit {
       next: (response) => this.openDownloadedBlob(response, document),
       error: (error: HttpErrorResponse) => this.setError(error, 'No se pudo descargar el archivo.'),
     });
+  }
+
+  protected loadDocumentHistory(document: BusinessDocument) {
+    if (!this.isManagedDocument(document)) {
+      return;
+    }
+    this.historyOpen.set(true);
+    this.historyLoading.set(true);
+    this.historyError.set('');
+    this.history.set([]);
+    this.documentsApi.listHistory(document.idOrganization, document.idBusinessDocument).subscribe({
+      next: events => {
+        if (this.selectedDocumentId() === document.idBusinessDocument) {
+          this.history.set(events);
+          this.historyLoading.set(false);
+        }
+      },
+      error: () => {
+        if (this.selectedDocumentId() === document.idBusinessDocument) {
+          this.historyError.set('No se pudo consultar el historial.');
+          this.historyLoading.set(false);
+        }
+      },
+    });
+  }
+
+  protected historyActionLabel(action: string) {
+    return ({ Created: 'Alta', Updated: 'Edición', Reviewed: 'Revisión', Archived: 'Archivo' } as Record<string, string>)[action] ?? action;
   }
 
   protected deactivateDocument(document: BusinessDocument) {
@@ -547,11 +613,13 @@ export class DocumentsPage implements OnInit {
       return 'No capturada';
     }
 
+    const date = new Date(/^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00` : value);
+    if (Number.isNaN(date.getTime())) return 'Fecha no disponible';
     return new Intl.DateTimeFormat('es-MX', {
       day: '2-digit',
       month: 'short',
       year: 'numeric',
-    }).format(new Date(`${value}T00:00:00`));
+    }).format(date);
   }
 
   protected documentSignals(document: BusinessDocument) {
@@ -702,7 +770,7 @@ export class DocumentsPage implements OnInit {
     return this.ownerTypes.find((item) => item.value === this.selectedOwnerType())?.help ?? '';
   }
 
-  private updateDocumentStatus(document: BusinessDocument, status: BusinessDocumentStatus) {
+  private updateDocumentStatus(document: BusinessDocument, status: 'Validated' | 'Rejected', reviewNotes: string | null) {
     const organizationId = this.selectedOrganizationId();
     if (!organizationId || !this.canWrite() || this.saving()) {
       return;
@@ -710,21 +778,17 @@ export class DocumentsPage implements OnInit {
 
     const payload = {
       idOrganization: organizationId,
-      ownerType: document.ownerType,
-      ownerId: document.ownerId,
-      category: document.category,
-      title: document.title,
       status,
-      issuedDate: document.issuedDate,
-      expiresDate: document.expiresDate,
-      storageReference: document.storageReference,
-      isSensitive: document.isSensitive,
-      notes: document.notes,
+      reviewNotes,
     };
 
     this.beginSave();
-    this.documentsApi.updateDocument(document.idBusinessDocument, payload).subscribe({
+    this.documentsApi.reviewDocument(document.idBusinessDocument, payload).subscribe({
       next: (updatedDocument) => {
+        this.reviewDecision.set(null);
+        if (this.historyOpen()) {
+          this.loadDocumentHistory(updatedDocument);
+        }
         this.message.set(
           status === 'Validated' ? 'Documento validado correctamente.' : 'Documento rechazado correctamente.',
         );
@@ -822,11 +886,22 @@ export class DocumentsPage implements OnInit {
         this.organizations.set(organizations);
         const params = this.route.snapshot.queryParamMap;
         const requestedOrganizationId = params.get('organizationId') ?? '';
-        const organizationId = organizations.some((organization) => organization.idOrganization === requestedOrganizationId)
+        const scopedOrganizationId = this.auth.resolveOperationalOrganizationId(organizations);
+        const organizationId = requestedOrganizationId === scopedOrganizationId
           ? requestedOrganizationId
-          : organizations[0]?.idOrganization ?? '';
+          : scopedOrganizationId;
         const ownerType = this.normalizeOwnerType(params.get('ownerType'));
         const ownerId = params.get('ownerId') ?? '';
+        if (ownerType && ownerId) {
+          this.ownerContext.set({ ownerType, ownerId });
+          this.documentForm.patchValue({ ownerType, ownerId });
+          this.selectedOwnerType.set(ownerType);
+          this.documentForm.controls.ownerType.disable();
+          this.documentForm.controls.ownerId.disable();
+          this.filterForm.controls.ownerType.disable();
+          this.filterForm.controls.ownerId.disable();
+        }
+        if (!this.canWriteSensitive()) this.documentForm.controls.isSensitive.disable();
         const status = this.normalizeStatus(params.get('status'));
 
         this.selectedOrganizationId.set(organizationId);
@@ -838,8 +913,10 @@ export class DocumentsPage implements OnInit {
           category: params.get('category') ?? '',
           search: params.get('search') ?? '',
         });
-        this.loadCatalogs();
-        this.loadDocuments();
+        if (organizationId) {
+          this.loadCatalogs();
+          this.loadDocuments();
+        }
       },
       error: (error: HttpErrorResponse) => this.setError(error, 'No se pudieron cargar las organizaciones.'),
       complete: () => this.loading.set(false),
@@ -897,6 +974,7 @@ export class DocumentsPage implements OnInit {
   }
 
   private patchOwnerIdIfNeeded() {
+    if (this.ownerContext()) return;
     const currentOwnerId = this.documentForm.controls.ownerId.value;
     const options = this.ownerOptions();
 
@@ -912,8 +990,8 @@ export class DocumentsPage implements OnInit {
     }
 
     forkJoin({
-      clients: this.clientApi.listClients(organizationId, '', 1, 100),
-      employees: this.workforceApi.listEmployees(organizationId, '', '', 1, 100),
+      clients: this.clientApi.listClientOptions(organizationId),
+      employees: this.workforceApi.listEmployeeOptions(organizationId),
       requests: this.requestApi.listRequests(organizationId, '', '', '', 1, 100),
     }).subscribe({
       next: ({ clients, employees, requests }) => {
@@ -921,7 +999,7 @@ export class DocumentsPage implements OnInit {
         this.employees.set(employees.items);
         this.requests.set(requests.items);
         this.loadRelatedOwnerOptions(clients.items, employees.items);
-        this.documentForm.patchValue({ ownerId: this.ownerOptions()[0]?.value ?? '' });
+        if (!this.ownerContext()) this.documentForm.patchValue({ ownerId: this.ownerOptions()[0]?.value ?? '' });
       },
       error: (error: HttpErrorResponse) => this.setError(error, 'No se pudieron cargar los catálogos de documentos.'),
     });
@@ -957,7 +1035,7 @@ export class DocumentsPage implements OnInit {
       this.contracts.set([]);
     }
 
-    if (employees.length) {
+    if (employees.length && this.auth.hasPermission('DOCUMENTS.SENSITIVE.READ')) {
       forkJoin(employees.map((employee) => this.workforceApi.getEmployee(organizationId, employee.idEmployee))).subscribe({
         next: (details) => {
           this.workforceDocuments.set(
@@ -1033,6 +1111,9 @@ export class DocumentsPage implements OnInit {
       storageReference: document.storageReference ?? '',
       isSensitive: true,
       notes: document.notes,
+      reviewNotes: null,
+      reviewedAt: null,
+      reviewedByName: null,
       active: document.active,
       createdAt: document.receivedDate ?? employee.createdAt,
       updatedAt: null,

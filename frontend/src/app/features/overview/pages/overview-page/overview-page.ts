@@ -35,9 +35,21 @@ export class OverviewPage {
   protected readonly reviewRequestsCount = signal(0);
   protected readonly approvedRequestsCount = signal(0);
 
-  protected readonly displayName = this.auth.displayName;
-  protected readonly activeOrganization = this.auth.activeOrganization;
   protected readonly isPlatformAdmin = computed(() => this.auth.session()?.permissions.includes('PLATFORM.ADMIN') ?? false);
+  protected readonly displayName = this.auth.displayName;
+  protected readonly organizations = computed(() =>
+    this.isPlatformAdmin() ? this.auth.platformOrganizations() : this.auth.organizations(),
+  );
+  protected readonly activeOrganization = computed(() => {
+    const support = this.auth.supportSession();
+    if (this.isPlatformAdmin()) {
+      return support
+        ? { idOrganization: support.idOrganization, codeOrganization: '', legalName: support.organizationName }
+        : null;
+    }
+
+    return this.auth.activeOrganization();
+  });
   protected readonly todayIso = new Date().toISOString().slice(0, 10);
   protected readonly todayLabel = new Intl.DateTimeFormat('es-MX', {
     weekday: 'long',
@@ -54,17 +66,17 @@ export class OverviewPage {
   );
 
   protected readonly dashboardKicker = computed(() =>
-    this.isPlatformAdmin() ? 'Vista plataforma' : 'Cliente operativo activo',
+    this.isPlatformAdmin() ? 'Gobierno de plataforma' : 'Mi organización',
   );
 
   protected readonly dashboardTitle = computed(() =>
-    this.isPlatformAdmin() ? 'Gobierno de GestIA' : this.activeClientName(),
+    this.isPlatformAdmin() ? 'Tu plataforma, de un vistazo' : 'Tu operación, bajo control',
   );
 
   protected readonly dashboardSubtitle = computed(() =>
     this.isPlatformAdmin()
-      ? 'Administra organizaciones, soporte y seguridad sin operar como usuario de campo.'
-      : 'Vista principal del admin por cliente, con operación primero y configuración al final.',
+      ? 'Supervisa organizaciones y atiende lo que necesita una decisión.'
+      : 'Consulta y resuelve la operación de tus clientes desde un único contexto.',
   );
 
   protected readonly dashboardStatusLabel = computed(() =>
@@ -84,7 +96,7 @@ export class OverviewPage {
   protected readonly dashboardStatusItems = computed(() =>
     this.isPlatformAdmin()
       ? [
-          { label: 'Organizaciones', value: this.auth.organizations().length.toString() },
+          { label: 'Organizaciones', value: this.organizations().length.toString() },
           { label: 'Clientes operativos', value: this.clientsCount().toString() },
           { label: 'Alertas', value: (this.riskServicesCount() + this.openRequestsCount()).toString() },
         ]
@@ -150,41 +162,35 @@ export class OverviewPage {
 
   protected readonly primaryMetrics = computed(() => {
     if (this.isPlatformAdmin()) {
+      const selectedOrganization = this.activeOrganization()?.legalName ?? 'Sin contexto';
       return [
         {
           label: 'Organizaciones',
-          value: this.auth.organizations().length.toString(),
-          detail: 'Empresas que usan el sistema',
+          value: this.organizations().length.toString(),
+          detail: 'Entidades que utilizan GestIA',
           route: '/plataforma/organizaciones',
           tone: 'neutral',
         },
         {
-          label: 'Clientes operativos',
-          value: this.clientsCount().toString(),
-          detail: 'Contratantes dentro de la organización activa',
-          route: '/clientes',
-          tone: 'neutral',
-        },
-        {
-          label: 'Servicios activos',
-          value: this.activeServicesCount().toString(),
-          detail: 'Servicios monitoreables',
-          route: '/servicios',
-          tone: 'neutral',
-        },
-        {
-          label: 'Solicitudes globales',
+          label: 'Solicitudes abiertas',
           value: this.openRequestsCount().toString(),
-          detail: 'Cambios y aprobaciones sensibles',
+          detail: `Contexto: ${selectedOrganization}`,
           route: '/solicitudes',
-          tone: this.openRequestsCount() > 0 ? 'attention' : 'neutral',
+          tone: this.openRequestsCount() > 0 ? 'attention' : 'positive',
         },
         {
-          label: 'Alertas operativas',
-          value: this.riskServicesCount().toString(),
-          detail: 'Servicios que requieren soporte',
-          route: '/reportes',
-          tone: this.riskServicesCount() > 0 ? 'attention' : 'positive',
+          label: 'Incidencias abiertas',
+          value: (this.operationsSummary()?.openIncidents ?? 0).toString(),
+          detail: `Contexto: ${selectedOrganization}`,
+          route: '/monitor',
+          tone: (this.operationsSummary()?.openIncidents ?? 0) > 0 ? 'attention' : 'positive',
+        },
+        {
+          label: 'Servicios supervisados',
+          value: this.activeServicesCount().toString(),
+          detail: `Contexto: ${selectedOrganization}`,
+          route: '/monitor',
+          tone: 'neutral',
         },
       ];
     }
@@ -198,32 +204,27 @@ export class OverviewPage {
         tone: 'neutral',
       },
       {
-        label: 'Incidencias',
+        label: 'Asistencia',
+        value: this.expectedShifts() > 0 ? `${this.attendanceRate()}%` : 'N/D',
+        detail: this.expectedShifts() > 0
+          ? `${this.operationsSummary()?.presentAttendance ?? 0} presentes de ${this.expectedShifts()}`
+          : 'Sin turnos esperados',
+        route: '/operacion/asistencia',
+        tone: this.expectedShifts() > 0 && this.attendanceRate() < 90 ? 'attention' : 'positive',
+      },
+      {
+        label: 'Incidencias abiertas',
         value: (this.operationsSummary()?.openIncidents ?? 0).toString(),
         detail: 'Requieren seguimiento',
         route: '/operacion/incidencias',
         tone: (this.operationsSummary()?.openIncidents ?? 0) > 0 ? 'attention' : 'positive',
       },
       {
-        label: 'Servicios',
-        value: this.activeServicesCount().toString(),
-        detail: 'Configurados para operar',
-        route: '/servicios',
-        tone: 'neutral',
-      },
-      {
-        label: 'Personal activo',
-        value: this.activeEmployeesCount().toString(),
-        detail: 'Disponible para asignación',
-        route: '/personal',
-        tone: 'neutral',
-      },
-      {
-        label: 'Solicitudes',
-        value: this.openRequestsCount().toString(),
-        detail: 'Cambios abiertos o listos para ejecutar',
-        route: '/solicitudes',
-        tone: this.openRequestsCount() > 0 ? 'attention' : 'neutral',
+        label: 'Coberturas pendientes',
+        value: this.pendingCoverages().toString(),
+        detail: 'Solicitadas, sin completar',
+        route: '/operacion/cobertura',
+        tone: this.pendingCoverages() > 0 ? 'attention' : 'positive',
       },
     ];
   });
@@ -436,7 +437,9 @@ export class OverviewPage {
   }
 
   private loadDashboard() {
-    const organizationId = this.auth.activeOrganization()?.idOrganization;
+    const organizationId = this.isPlatformAdmin()
+      ? this.auth.supportSession()?.idOrganization
+      : this.auth.activeOrganization()?.idOrganization;
 
     if (!organizationId) {
       return;
@@ -491,6 +494,10 @@ export class OverviewPage {
     ].filter((signal): signal is string => Boolean(signal));
 
     return signals.join(' · ');
+  }
+
+  protected servicesForClient(idClient: string) {
+    return this.serviceSummaries().filter((service) => service.idClient === idClient).length;
   }
 
   private countLabel(value: number, singular: string, plural: string) {

@@ -9,6 +9,9 @@ namespace GestIA.Infrastructure.Persistence.Repositories;
 
 public sealed class OperationsRepository(GestIaDbContext dbContext) : IOperationsRepository
 {
+    public Task<T> ExecuteAtomicAsync<T>(Func<CancellationToken, Task<T>> action, CancellationToken cancellationToken) =>
+        OperationalTransaction.ExecuteAsync(dbContext, action, cancellationToken);
+
     public Task<ServiceEntity?> GetServiceAsync(Guid idOrganization, Guid idClient, Guid idService, CancellationToken cancellationToken) =>
         dbContext.Services.SingleOrDefaultAsync(
             service =>
@@ -123,6 +126,30 @@ public sealed class OperationsRepository(GestIaDbContext dbContext) : IOperation
 
     public Task AddCoverageAsync(CoverageRecord coverage, CancellationToken cancellationToken) =>
         dbContext.CoverageRecords.AddAsync(coverage, cancellationToken).AsTask();
+
+    public async Task<bool> HasCoverageConflictAsync(
+        Guid idOrganization, Guid idEmployee, Guid idScheduledShift, ShiftInterval interval,
+        Guid? excludedCoverageId, CancellationToken cancellationToken)
+    {
+        if (await CoverageConflicts.HasOverlapAsync(dbContext, idOrganization, idEmployee,
+            interval, idScheduledShift, excludedCoverageId, cancellationToken))
+        {
+            return true;
+        }
+
+        var firstDate = interval.Date.AddDays(-1);
+        var lastDate = interval.Date.AddDays(1);
+        var shifts = await dbContext.ScheduledShifts.AsNoTracking()
+            .Where(shift =>
+                shift.IdEmployee == idEmployee &&
+                shift.ScheduleVersion.Service.Client.IdOrganization == idOrganization &&
+                shift.ScheduleVersion.Status == ScheduleVersionStatus.Published &&
+                shift.ShiftDate >= firstDate && shift.ShiftDate <= lastDate)
+            .Select(shift => new { shift.ShiftDate, shift.StartTime, shift.DurationMinutes })
+            .ToArrayAsync(cancellationToken);
+        return shifts.Any(shift =>
+            interval.Overlaps(new ShiftInterval(shift.ShiftDate, shift.StartTime, shift.DurationMinutes)));
+    }
 
     public Task<bool> AttendanceBelongsToServiceAsync(
         Guid idService,

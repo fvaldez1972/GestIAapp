@@ -63,7 +63,8 @@ public sealed class ClientSiteServiceTests
             new StubClientContactRepository(),
             new StubUnitOfWork(),
             new StubActorContext(),
-            new StubClock());
+            new StubClock(),
+            new GestIA.Application.Catalogs.FormCatalogValidator(null!));
 
         var request = new CreateClientContactRequest(
             OrganizationId,
@@ -89,7 +90,7 @@ public sealed class ClientSiteServiceTests
             siteRepository,
             new StubUnitOfWork(),
             new StubActorContext(),
-            new StubClock());
+            new StubClock(), null!);
 
     private sealed class StubClientRepository(Client? client) : IClientRepository
     {

@@ -1,6 +1,6 @@
 <section class="page-heading page-heading--clients">
   <div>
-    <span class="context-chip">{{ isServicesConfigurationRoute() ? 'Configuración / Servicios' : 'Configuración / Clientes' }}</span>
+    <span class="context-chip">Configuración / Clientes</span>
     <p class="context-line">{{ todayContext() }}</p>
     <h1>{{ pageHeadingTitle() }}</h1>
     <p>{{ pageHeadingDescription() }}</p>
@@ -12,11 +12,11 @@
     <button
       class="button button--primary"
       type="button"
-      [disabled]="!canRunPrimaryAction()"
-      [title]="primaryActionDisabledReason()"
-      (click)="openPrimaryConfigurationAction()"
+      [disabled]="!canCreateClient()"
+      [title]="newClientDisabledReason()"
+      (click)="openCreateClient()"
     >
-      <span aria-hidden="true">＋</span> {{ primaryActionLabel() }}
+      <span aria-hidden="true">＋</span> Nuevo cliente
     </button>
   </div>
 </section>
@@ -25,7 +25,7 @@
   @if (canAdministerPlatform()) {
     <label class="organization-picker">
       <span>Organización para soporte</span>
-      <select [value]="selectedOrganizationId()" (change)="selectOrganization($any($event.target).value)">
+      <select [value]="selectedOrganizationId()" [disabled]="canAdministerPlatform()" (change)="selectOrganization($any($event.target).value)">
         <option value="" disabled>Selecciona una organización</option>
         @if (!organizations().length) {
           <option value="">Sin organizaciones registradas</option>
@@ -34,7 +34,7 @@
           <option [value]="organization.idOrganization">{{ organization.legalName }}</option>
         }
       </select>
-      <small>{{ selectedOrganization()?.legalName || 'Crea una organización para comenzar' }}</small>
+      <small>{{ selectedOrganization()?.legalName || 'Inicia soporte desde la barra superior para entrar a una organización' }}</small>
     </label>
   } @else {
     <div class="organization-summary">
@@ -66,7 +66,7 @@
     <small>del expediente abierto</small>
   </article>
   <article>
-    <span>Servicios activos</span>
+    <span>Servicios</span>
     <strong>{{ knownServicesCount() }}</strong>
     <small>en resultados visibles</small>
   </article>
@@ -103,7 +103,7 @@
       @if (canAdministerPlatform()) {
         <label>
           <span>Organización</span>
-          <select [value]="selectedOrganizationId()" (change)="selectOrganization($any($event.target).value)">
+          <select [value]="selectedOrganizationId()" disabled (change)="selectOrganization($any($event.target).value)">
             <option value="" disabled>Selecciona una organización</option>
             @if (!organizations().length) {
               <option value="">Sin organizaciones</option>
@@ -126,8 +126,8 @@
         <span>Servicio</span>
         <select [value]="clientServiceFilter()" (change)="updateClientServiceFilter($any($event.target).value)">
           <option value="all">Todos</option>
-          <option value="withServices">Con servicios activos</option>
-          <option value="withoutServices">Sin servicios activos</option>
+          <option value="withServices">Con servicios</option>
+          <option value="withoutServices">Sin servicios</option>
         </select>
       </label>
       <label>
@@ -180,7 +180,7 @@
         <button type="button" (click)="applySavedFilter('active')">Activos</button>
         <button type="button" (click)="applySavedFilter('withoutContract')">Sin contrato vigente</button>
         <button type="button" (click)="applySavedFilter('pendingDocuments')">Con documentos pendientes</button>
-        <button type="button" (click)="applySavedFilter('withServices')">Servicios activos</button>
+        <button type="button" (click)="applySavedFilter('withServices')">Con servicios</button>
       </div>
     </div>
 
@@ -229,7 +229,7 @@
               <th>RFC</th>
               <th>Contacto principal</th>
               <th>Sede principal</th>
-              <th>Servicios activos</th>
+              <th>Servicios</th>
               <th>Estado</th>
               <th>Acciones</th>
             </tr>
@@ -294,7 +294,7 @@
           <p>{{ selectedClient()?.rfc }} · {{ selectedClient()?.organizationName }}</p>
           <div class="detail-badges">
             <span class="pill" [class.pill--muted]="!selectedClient()?.active">{{ clientStatusLabel(selectedClient()!) }}</span>
-            <span class="pill" [class.pill--muted]="!services().length">{{ services().length ? 'Servicio activo' : 'Sin servicios activos' }}</span>
+            <span class="pill" [class.pill--muted]="!services().length">{{ services().length ? 'Con servicios' : 'Sin servicios' }}</span>
             <span class="pill" [class.pill--muted]="!activeContractsCount()">{{ activeContractsCount() ? 'Contrato vigente' : 'Sin contrato vigente' }}</span>
           </div>
         }
@@ -320,7 +320,7 @@
           <strong>{{ sites().length }}</strong>
         </article>
         <article>
-          <span>Servicios activos</span>
+          <span>Servicios</span>
           <strong>{{ services().length }}</strong>
         </article>
         <article>
@@ -362,7 +362,7 @@
           <span><strong>Teléfono</strong>{{ primaryContact()?.phone || primaryContact()?.mobilePhone || 'Sin teléfono capturado' }}</span>
           <span><strong>Correo</strong>{{ primaryContact()?.email || 'Sin correo capturado' }}</span>
           <span><strong>Sede principal</strong>{{ primarySite()?.name || 'Sin sede principal' }}</span>
-          <span><strong>Servicios activos</strong>{{ services().length }}</span>
+          <span><strong>Servicios</strong>{{ services().length }}</span>
           <span><strong>Contratos vigentes</strong>{{ activeContractsCount() }}</span>
           <span class="wide"><strong>Domicilio fiscal</strong>{{ selectedClient()?.taxAddress || 'Sin domicilio fiscal capturado' }}</span>
         </div>
@@ -459,16 +459,7 @@
                 </div>
                 <div class="mini-actions">
                   <button type="button" (click)="openEditContract(contract)">Editar</button>
-                  <a
-                    routerLink="/documentos"
-                    [queryParams]="{
-                      organizationId: selectedOrganizationId(),
-                      ownerType: 'ServiceContract',
-                      ownerId: contract.idServiceContract
-                    }"
-                  >
-                    Documentos
-                  </a>
+                  <button type="button" (click)="documentContract.set(contract)">Documentos</button>
                   <button class="danger" type="button" (click)="deactivateContract(contract)">Desactivar</button>
                 </div>
               </article>
@@ -479,73 +470,24 @@
 
       <section class="detail-section" [hidden]="activeClientTab() !== 'services'">
         <header>
-          <div>
-            <h3>Servicios</h3>
-            <span>{{ services().length }} registro(s)</span>
-          </div>
-          <button class="button button--secondary" type="button" [disabled]="!sites().length" (click)="openCreateService()">Nuevo servicio</button>
+          <div><h3>Servicios</h3><span>{{ services().length }} registro(s)</span></div>
+          <a class="button button--secondary" routerLink="/servicios" [queryParams]="{ clientId: selectedClient()?.idClient, organizationId: selectedOrganizationId() }">Ir a servicios</a>
         </header>
-
-        @if (!sites().length) {
-          <div class="compact-state">Primero registra una sede para poder configurar servicios.</div>
-        } @else if (!services().length) {
+        @if (!services().length) {
           <div class="compact-state">Sin servicios registrados.</div>
         } @else {
           <div class="cards-list">
             @for (service of services(); track service.idService) {
-              <article class="mini-card selectable" [class.is-active]="selectedService()?.idService === service.idService">
-                <button class="mini-card__main" type="button" (click)="selectService(service)">
+              <article class="mini-card">
+                <div>
                   <span class="code">{{ service.codeService }}</span>
                   <strong>{{ service.name }}</strong>
-                  <small>{{ service.clientSiteName || siteName(service.idClientSite) }} · {{ service.serviceContractCode || 'Sin contrato ligado' }}</small>
+                  <small>{{ service.clientSiteName || 'Sede no disponible' }} · {{ service.serviceContractCode || 'Sin contrato ligado' }}</small>
                   <small>{{ service.description }}</small>
-                </button>
-                <div class="mini-actions">
-                  <button type="button" (click)="openEditService(service)">Editar</button>
-                  <a
-                    routerLink="/documentos"
-                    [queryParams]="{
-                      organizationId: selectedOrganizationId(),
-                      ownerType: 'Service',
-                      ownerId: service.idService
-                    }"
-                  >
-                    Documentos
-                  </a>
-                  <button class="danger" type="button" (click)="deactivateService(service)">Desactivar</button>
-                </div>
-              </article>
-            }
-          </div>
-        }
-      </section>
-
-      <section class="detail-section" [hidden]="activeClientTab() !== 'services'">
-        <header>
-          <div>
-            <h3>Configuración del servicio</h3>
-            <span>{{ selectedServiceName() }}</span>
-          </div>
-          <button class="button button--secondary" type="button" [disabled]="!selectedService()" (click)="openCreateConfiguration()">Nueva configuración</button>
-        </header>
-
-        @if (!selectedService()) {
-          <div class="compact-state">Selecciona un servicio para ver su configuración operativa y comercial.</div>
-        } @else if (!configurations().length) {
-          <div class="compact-state">Sin configuraciones registradas para este servicio.</div>
-        } @else {
-          <div class="cards-list">
-            @for (configuration of configurations(); track configuration.idServiceConfiguration) {
-              <article class="mini-card">
-                <div>
-                  <span class="pill">{{ configuration.requiredWorkerCount }} elemento(s) · {{ configuration.hoursPerDay }} h/día</span>
-                  <strong>{{ money(configuration.monthlyPrice, configuration.currencyCode) }} mensual</strong>
-                  <small>{{ configuration.daysPerWeek }} días/semana · {{ configuration.averageMonthlyHours }} h/mes · {{ configuration.isTaxIncluded ? 'IVA incluido' : 'IVA no incluido' }}</small>
-                  <small>{{ configuration.workScheduleDescription }}</small>
+                  <small>{{ service.active ? 'Activo' : 'Inactivo' }} · {{ service.startDate }} - {{ service.endDate || 'sin fecha de término' }}</small>
                 </div>
                 <div class="mini-actions">
-                  <button type="button" (click)="openEditConfiguration(configuration)">Editar</button>
-                  <button class="danger" type="button" (click)="deactivateConfiguration(configuration)">Desactivar</button>
+                  <a routerLink="/servicios" [queryParams]="{ clientId: selectedClient()?.idClient, serviceId: service.idService, organizationId: selectedOrganizationId() }">Abrir servicio</a>
                 </div>
               </article>
             }
@@ -553,246 +495,12 @@
         }
       </section>
 
-      <section class="detail-section" [hidden]="activeClientTab() !== 'services'">
-        <header>
-          <div>
-            <h3>Posiciones requeridas</h3>
-            <span>{{ selectedServiceName() }}</span>
-          </div>
-          <button class="button button--secondary" type="button" [disabled]="!selectedService()" (click)="openCreatePosition()">Nueva posición</button>
-        </header>
-
-        @if (!selectedService()) {
-          <div class="compact-state">Selecciona un servicio para configurar posiciones.</div>
-        } @else if (!positions().length) {
-          <div class="compact-state">Sin posiciones registradas para este servicio.</div>
-        } @else {
-          <div class="cards-list">
-            @for (position of positions(); track position.idPosition) {
-              <article class="mini-card selectable" [class.is-active]="selectedPosition()?.idPosition === position.idPosition">
-                <button class="mini-card__main" type="button" (click)="selectPosition(position)">
-                  <span class="code">{{ position.codePosition }}</span>
-                  <strong>{{ position.name }}</strong>
-                  <small>{{ position.requiredWorkerCount }} elemento(s) requeridos</small>
-                  <small>{{ position.requiredSkillProfile || position.notes || 'Sin perfil requerido capturado' }}</small>
-                </button>
-                <div class="mini-actions">
-                  <button type="button" (click)="openEditPosition(position)">Editar</button>
-                  <button class="danger" type="button" (click)="deactivatePosition(position)">Desactivar</button>
-                </div>
-              </article>
-            }
-          </div>
-        }
-      </section>
-
-      <section class="detail-section" [hidden]="activeClientTab() !== 'services'">
-        <header>
-          <div>
-            <h3>Patrones de turno</h3>
-            <span>{{ selectedPositionName() }}</span>
-          </div>
-          <button class="button button--secondary" type="button" [disabled]="!selectedPosition()" (click)="openCreateShiftPattern()">Nuevo patrón</button>
-        </header>
-
-        @if (!selectedPosition()) {
-          <div class="compact-state">Selecciona una posición para configurar sus patrones.</div>
-        } @else if (!shiftPatterns().length) {
-          <div class="compact-state">Sin patrones registrados para esta posición.</div>
-        } @else {
-          <div class="cards-list">
-            @for (pattern of shiftPatterns(); track pattern.idShiftPattern) {
-              <article class="mini-card selectable" [class.is-active]="selectedShiftPattern()?.idShiftPattern === pattern.idShiftPattern">
-                <button class="mini-card__main" type="button" (click)="selectShiftPattern(pattern)">
-                  <span class="code">{{ pattern.codeShiftPattern }}</span>
-                  <strong>{{ pattern.name }}</strong>
-                  <small>Vigencia: {{ pattern.effectiveFromDate }} - {{ pattern.effectiveToDate || 'sin fecha de término' }}</small>
-                  <small>{{ pattern.description || 'Sin descripción capturada' }}</small>
-                </button>
-                <div class="mini-actions">
-                  <button type="button" (click)="openEditShiftPattern(pattern)">Editar</button>
-                  <button class="danger" type="button" (click)="deactivateShiftPattern(pattern)">Desactivar</button>
-                </div>
-              </article>
-            }
-          </div>
-        }
-      </section>
-
-      <section class="detail-section" [hidden]="activeClientTab() !== 'services'">
-        <header>
-          <div>
-            <h3>Asignaciones de personal</h3>
-            <span>{{ selectedServiceName() }}</span>
-          </div>
-          <button class="button button--secondary" type="button" [disabled]="!selectedService() || !positions().length || !activeEmployees().length" (click)="openCreateAssignment()">Nueva asignación</button>
-        </header>
-
-        @if (!selectedService()) {
-          <div class="compact-state">Selecciona un servicio para asignar personal.</div>
-        } @else if (!positions().length) {
-          <div class="compact-state">Primero registra posiciones para este servicio.</div>
-        } @else if (!activeEmployees().length) {
-          <div class="compact-state">No hay empleados activos disponibles para asignar.</div>
-        } @else if (!assignments().length) {
-          <div class="compact-state">Sin personal asignado a este servicio.</div>
-        } @else {
-          <div class="cards-list">
-            @for (assignment of assignments(); track assignment.idServiceAssignment) {
-              <article class="mini-card">
-                <div>
-                  <span class="pill">{{ assignmentTypeLabel(assignment.assignmentType) }}{{ assignment.isPrimary ? ' · Principal' : '' }}</span>
-                  <strong>{{ assignment.employeeName }}</strong>
-                  <small>{{ assignment.employeeCode }} · {{ assignment.positionCode || 'Sin posición' }} {{ assignment.positionName ? '· ' + assignment.positionName : '' }}</small>
-                  <small>Vigencia: {{ assignment.startDate }} - {{ assignment.endDate || 'sin fecha de término' }}</small>
-                  <small>{{ assignment.notes || 'Sin observaciones' }}</small>
-                </div>
-                <div class="mini-actions">
-                  <button type="button" (click)="openEditAssignment(assignment)">Editar</button>
-                  <button class="danger" type="button" (click)="deactivateAssignment(assignment)">Desactivar</button>
-                </div>
-              </article>
-            }
-          </div>
-        }
-      </section>
-
-      <section class="detail-section" [hidden]="activeClientTab() !== 'services'">
-        <header>
-          <div>
-            <h3>Planeación versionada</h3>
-            <span>{{ selectedServiceName() }}</span>
-          </div>
-          <button class="button button--secondary" type="button" [disabled]="!selectedService()" (click)="openCreateScheduleVersion()">Nueva planeación</button>
-        </header>
-
-        @if (!selectedService()) {
-          <div class="compact-state">Selecciona un servicio para ver sus planeaciones.</div>
-        } @else if (!scheduleVersions().length) {
-          <div class="compact-state">Sin versiones de planeación para este servicio.</div>
-        } @else {
-          <div class="cards-list">
-            @for (version of scheduleVersions(); track version.idScheduleVersion) {
-              <article class="mini-card selectable" [class.is-active]="selectedScheduleVersion()?.idScheduleVersion === version.idScheduleVersion">
-                <button class="mini-card__main" type="button" (click)="selectScheduleVersion(version)">
-                  <span class="pill">{{ scheduleStatusLabel(version.status) }}</span>
-                  <strong>{{ version.name }}</strong>
-                  <small>{{ version.periodStartDate }} - {{ version.periodEndDate }}</small>
-                  <small>{{ version.publishedByName ? 'Publicado por ' + version.publishedByName : version.notes || 'Sin observaciones' }}</small>
-                </button>
-                <div class="mini-actions">
-                  @if (version.status === 'Draft') {
-                    <button type="button" (click)="openEditScheduleVersion(version)">Editar</button>
-                    <button type="button" (click)="publishScheduleVersion(version)">Publicar</button>
-                  }
-                </div>
-              </article>
-            }
-          </div>
-        }
-      </section>
-
-      <section class="detail-section" [hidden]="activeClientTab() !== 'services'">
-        <header>
-          <div>
-            <h3>Turnos programados</h3>
-            <span>{{ selectedScheduleVersionName() }}</span>
-          </div>
-          <button class="button button--secondary" type="button" [disabled]="!selectedScheduleVersion() || selectedScheduleVersion()?.status !== 'Draft' || !positions().length || !activeEmployees().length" (click)="openCreateScheduledShift()">Nuevo turno</button>
-        </header>
-
-        @if (!selectedScheduleVersion()) {
-          <div class="compact-state">Selecciona una planeación para ver sus turnos.</div>
-        } @else if (!scheduledShifts().length) {
-          <div class="compact-state">Sin turnos programados para esta planeación.</div>
-        } @else {
-          <div class="schedule-grid">
-            @for (shift of scheduledShifts(); track shift.idScheduledShift) {
-              <article class="schedule-card">
-                <div>
-                  <span class="pill">{{ shift.shiftDate }}{{ shift.isOvernight ? ' · Nocturno' : '' }}</span>
-                  <strong>{{ shift.startTime }} - {{ shift.endTime }}</strong>
-                  <small>{{ shift.employeeCode }} · {{ shift.employeeName }}</small>
-                  <small>{{ shift.positionCode }} · {{ shift.positionName }} · {{ durationLabel(shift.durationMinutes) }}</small>
-                  <small>{{ shift.notes || 'Sin observaciones' }}</small>
-                </div>
-                @if (selectedScheduleVersion()?.status === 'Draft') {
-                  <div class="mini-actions">
-                    <button type="button" (click)="openEditScheduledShift(shift)">Editar</button>
-                    <button class="danger" type="button" (click)="deactivateScheduledShift(shift)">Desactivar</button>
-                  </div>
-                }
-              </article>
-            }
-          </div>
-        }
-      </section>
-
-      <section class="detail-section" [hidden]="activeClientTab() !== 'services'">
-        <header>
-          <div>
-            <h3>Segmentos semanales</h3>
-            <span>{{ selectedShiftPatternName() }}</span>
-          </div>
-          <button class="button button--secondary" type="button" [disabled]="!selectedShiftPattern()" (click)="openCreateShiftSegment()">Nuevo segmento</button>
-        </header>
-
-        @if (!selectedShiftPattern()) {
-          <div class="compact-state">Selecciona un patrón para ver sus horarios.</div>
-        } @else if (!shiftSegments().length) {
-          <div class="compact-state">Sin segmentos registrados para este patrón.</div>
-        } @else {
-          <div class="schedule-grid">
-            @for (segment of shiftSegments(); track segment.idShiftSegment) {
-              <article class="schedule-card">
-                <div>
-                  <span class="pill">{{ dayLabel(segment.dayOfWeek) }}{{ segment.isOvernight ? ' · Nocturno' : '' }}</span>
-                  <strong>{{ segment.startTime }} - {{ segment.endTime }}</strong>
-                  <small>{{ durationLabel(segment.durationMinutes) }} · {{ segment.requiredWorkerCount }} elemento(s)</small>
-                  <small>{{ segment.notes || 'Sin observaciones' }}</small>
-                </div>
-                <div class="mini-actions">
-                  <button type="button" (click)="openEditShiftSegment(segment)">Editar</button>
-                  <button class="danger" type="button" (click)="deactivateShiftSegment(segment)">Desactivar</button>
-                </div>
-              </article>
-            }
-          </div>
-        }
-      </section>
-
-      <section class="detail-section documents-link-section" [hidden]="activeClientTab() !== 'documents'">
-        <header>
-          <div>
-            <h3>Documentos del cliente</h3>
-            <span>Documentos dentro de la entidad correspondiente</span>
-          </div>
-          <a
-            class="button button--secondary"
-            routerLink="/documentos"
-            [queryParams]="{
-              organizationId: selectedOrganizationId(),
-              ownerType: 'Client',
-              ownerId: selectedClient()?.idClient
-            }"
-          >
-            Abrir documentos del expediente
-          </a>
-        </header>
-
-        <div class="document-integration-card">
-          <strong>Gestión documental contextual</strong>
-          <p>
-            Los documentos de clientes, contratos y servicios se consultan desde esta entidad y se administran con la misma relación
-            documental para evitar duplicados. Las reglas, requisitos y bloqueos quedan en Configuración.
-          </p>
-          <ul>
-            <li>Cliente: contratos, RFC y alta fiscal.</li>
-            <li>Servicio: anexos, órdenes e instrucciones.</li>
-            <li>Control: auditoría, vencimientos y privacidad.</li>
-          </ul>
-        </div>
-      </section>
+      @if (activeClientTab() === 'documents' && selectedClient(); as client) {
+        <app-entity-documents [organizationId]="selectedOrganizationId()" ownerType="Client" [ownerId]="client.idClient" [ownerLabel]="client.tradeName || client.legalName" />
+      }
+      @if (activeClientTab() === 'contracts' && documentContract(); as contract) {
+        <app-entity-documents [organizationId]="selectedOrganizationId()" ownerType="ServiceContract" [ownerId]="contract.idServiceContract" [ownerLabel]="contract.codeServiceContract" />
+      }
     }
   </article>
 </section>
@@ -809,61 +517,59 @@
         <button type="button" aria-label="Cerrar" (click)="closeEditors()">×</button>
       </header>
       <form [formGroup]="clientForm" (ngSubmit)="saveClient()">
-        @if (!editingClient()) {
-          <ol class="wizard-steps" aria-label="Pasos para nuevo cliente">
-            <li class="is-active"><span>1</span>Datos básicos</li>
-            <li><span>2</span>Sedes</li>
-            <li><span>3</span>Servicios</li>
-            <li><span>4</span>Contactos</li>
-            <li><span>5</span>Documentos</li>
-          </ol>
-          <div class="inline-note">{{ canAdministerPlatform() ? 'El cliente se asociará a la organización seleccionada: ' : 'El cliente se registrará en tu organización: ' }}{{ selectedOrganization()?.legalName || 'sin organización seleccionada' }}.</div>
+        <ol class="wizard-steps wizard-steps--three" aria-label="Progreso del expediente del cliente">
+          <li [class.is-active]="clientWizardStep() === 1" [class.is-complete]="clientWizardStep() > 1"><span>1</span>Identidad</li>
+          <li [class.is-active]="clientWizardStep() === 2" [class.is-complete]="clientWizardStep() > 2"><span>2</span>Contacto</li>
+          <li [class.is-active]="clientWizardStep() === 3"><span>3</span>Datos fiscales</li>
+        </ol>
+        <div class="inline-note">{{ canAdministerPlatform() ? 'El cliente se asociará a la organización seleccionada: ' : 'El cliente se registrará en tu organización: ' }}{{ selectedOrganization()?.legalName || 'sin organización seleccionada' }}.</div>
+
+        @if (clientWizardStep() === 1) {
+          <section class="wizard-panel" aria-labelledby="client-step-identity">
+            <div class="wizard-panel__heading"><span>Paso 1 de 3</span><h3 id="client-step-identity">Identidad del cliente</h3><p>Datos que identifican el expediente comercial.</p></div>
+            <div class="form-grid">
+              @if (canAdministerPlatform()) {
+                <label><span>Organización *</span><select [value]="selectedOrganizationId()" disabled><option>{{ selectedOrganization()?.legalName || 'Selecciona una organización' }}</option></select></label>
+              }
+              <label [class.is-invalid]="isInvalid('client', 'codeClient')"><span>Código *</span><input formControlName="codeClient" [readOnly]="!!editingClient()" />@if (isInvalid('client', 'codeClient')) { <small>El código es obligatorio.</small> }</label>
+              <label [class.is-invalid]="isInvalid('client', 'rfc')"><span>RFC *</span><input formControlName="rfc" maxlength="13" />@if (isInvalid('client', 'rfc')) { <small>Captura un RFC válido de 12 a 13 caracteres.</small> }</label>
+              <label class="wide" [class.is-invalid]="isInvalid('client', 'legalName')"><span>Razón social *</span><input formControlName="legalName" />@if (isInvalid('client', 'legalName')) { <small>La razón social es obligatoria.</small> }</label>
+              <label class="wide"><span>Nombre comercial</span><input formControlName="tradeName" /></label>
+            </div>
+          </section>
+        } @else if (clientWizardStep() === 2) {
+          <section class="wizard-panel" aria-labelledby="client-step-contact">
+            <div class="wizard-panel__heading"><span>Paso 2 de 3</span><h3 id="client-step-contact">Contacto principal</h3><p>Puede quedar pendiente y completarse después desde el expediente.</p></div>
+            <div class="form-grid">
+              <label class="wide"><span>Nombre completo</span><input formControlName="contactFullName" placeholder="Nombre del contacto" /></label>
+              <label><span>Teléfono</span><input formControlName="contactPhone" placeholder="55 1234 5678" /></label>
+              <label [class.is-invalid]="isInvalid('client', 'contactEmail')"><span>Correo</span><input type="email" formControlName="contactEmail" placeholder="correo@ejemplo.com" />@if (isInvalid('client', 'contactEmail')) { <small>Captura un correo válido.</small> }</label>
+            </div>
+          </section>
+        } @else {
+          <section class="wizard-panel" aria-labelledby="client-step-tax">
+            <div class="wizard-panel__heading"><span>Paso 3 de 3</span><h3 id="client-step-tax">Datos fiscales y laborales</h3><p>Completa el contexto administrativo antes de guardar.</p></div>
+            <div class="form-grid">
+              <label><span>Nacionalidad</span><app-catalog-select formControlName="nationality" [organizationId]="selectedOrganizationId()" type="Nationality" label="Nacionalidad" /></label>
+              <label><span>Registro patronal</span><input formControlName="employerRegistrationNumber" /></label>
+              <label class="wide"><span>Actividad fiscal</span><textarea formControlName="taxActivity" rows="2"></textarea></label>
+              <label class="wide"><span>Domicilio fiscal</span><textarea formControlName="taxAddress" rows="3"></textarea></label>
+            </div>
+          </section>
         }
-        <div class="form-grid">
-          @if (canAdministerPlatform()) {
-            <label>
-              <span>Organización *</span>
-              <select [value]="selectedOrganizationId()" disabled>
-                <option>{{ selectedOrganization()?.legalName || 'Selecciona una organización' }}</option>
-              </select>
-            </label>
-          }
-          <label [class.is-invalid]="isInvalid('client', 'codeClient')">
-            <span>Código *</span>
-            <input formControlName="codeClient" [readOnly]="!!editingClient()" />
-            @if (isInvalid('client', 'codeClient')) { <small>El código es obligatorio.</small> }
-          </label>
-          <label [class.is-invalid]="isInvalid('client', 'rfc')">
-            <span>RFC *</span>
-            <input formControlName="rfc" maxlength="13" />
-            @if (isInvalid('client', 'rfc')) { <small>Captura un RFC válido de 12 a 13 caracteres.</small> }
-          </label>
-          <label class="wide" [class.is-invalid]="isInvalid('client', 'legalName')">
-            <span>Razón social *</span>
-            <input formControlName="legalName" />
-            @if (isInvalid('client', 'legalName')) { <small>La razón social es obligatoria.</small> }
-          </label>
-          <label class="wide"><span>Nombre comercial</span><input formControlName="tradeName" /></label>
-          <label><span>Contacto principal</span><input formControlName="contactFullName" placeholder="Nombre del contacto" /></label>
-          <label><span>Teléfono</span><input formControlName="contactPhone" placeholder="55 1234 5678" /></label>
-          <label [class.is-invalid]="isInvalid('client', 'contactEmail')">
-            <span>Correo</span>
-            <input type="email" formControlName="contactEmail" placeholder="correo@ejemplo.com" />
-            @if (isInvalid('client', 'contactEmail')) { <small>Captura un correo válido.</small> }
-          </label>
-          <label><span>Nacionalidad</span><input formControlName="nationality" /></label>
-          <label><span>Registro patronal</span><input formControlName="employerRegistrationNumber" /></label>
-          <label class="wide"><span>Actividad fiscal</span><textarea formControlName="taxActivity" rows="2"></textarea></label>
-          <label class="wide"><span>Domicilio fiscal</span><textarea formControlName="taxAddress" rows="3"></textarea></label>
-        </div>
         @if (clientForm.invalid && clientForm.touched) {
           <p class="form-error">Faltan datos para avanzar. Revisa los campos marcados.</p>
         }
         <footer>
           <button class="button button--secondary" type="button" (click)="closeEditors()">Cancelar</button>
-          <button class="button button--primary" type="submit" [disabled]="saving() || clientForm.invalid">
-            {{ saving() ? 'Guardando…' : editingClient() ? 'Guardar cambios' : 'Siguiente' }}
-          </button>
+          <div class="wizard-actions">
+            @if (clientWizardStep() > 1) { <button class="button button--secondary" type="button" (click)="previousClientWizardStep()">Anterior</button> }
+            @if (clientWizardStep() < 3) {
+              <button class="button button--primary" type="button" (click)="nextClientWizardStep()">Siguiente</button>
+            } @else {
+              <button class="button button--primary" type="submit" [disabled]="saving() || clientForm.invalid">{{ saving() ? 'Guardando…' : editingClient() ? 'Guardar cambios' : 'Crear cliente' }}</button>
+            }
+          </div>
         </footer>
       </form>
     </section>
@@ -885,11 +591,11 @@
           <label><span>No. exterior</span><input formControlName="exteriorNumber" /></label>
           <label><span>No. interior</span><input formControlName="interiorNumber" /></label>
           <label><span>Colonia</span><input formControlName="neighborhood" /></label>
-          <label><span>Municipio *</span><input formControlName="municipality" /></label>
-          <label><span>Estado *</span><input formControlName="state" /></label>
+          <label><span>País</span><app-catalog-select formControlName="countryCode" [organizationId]="selectedOrganizationId()" type="Country" label="País" [useCode]="true" (selectionChange)="siteForm.patchValue({state: '', municipality: ''})" /></label>
+          <label><span>Estado *</span><app-catalog-select formControlName="state" [organizationId]="selectedOrganizationId()" type="State" label="Estado" [country]="siteForm.controls.countryCode.value" (selectionChange)="siteForm.patchValue({municipality: ''})" /></label>
+          <label><span>Municipio / ciudad *</span><app-catalog-select formControlName="municipality" [organizationId]="selectedOrganizationId()" type="City" label="Municipio" [country]="siteForm.controls.countryCode.value" [state]="siteForm.controls.state.value" /></label>
           <label><span>Código postal *</span><input formControlName="postalCode" /></label>
-          <label><span>País</span><input formControlName="countryCode" maxlength="2" /></label>
-          <label><span>Zona horaria</span><input formControlName="timeZoneId" /></label>
+          <label><span>Zona horaria</span><select formControlName="timeZoneId">@if (siteForm.controls.timeZoneId.value && !timeZones.includes(siteForm.controls.timeZoneId.value)) { <option [value]="siteForm.controls.timeZoneId.value" disabled>{{ siteForm.controls.timeZoneId.value }} (valor anterior)</option> }@for (zone of timeZones; track zone) { <option [value]="zone">{{ zone }}</option> }</select></label>
           <label class="wide"><span>Instrucciones de acceso</span><textarea rows="3" formControlName="accessInstructions"></textarea></label>
         </div>
         <footer>
@@ -913,7 +619,7 @@
           <label><span>Tipo *</span><select formControlName="purpose">@for (purpose of contactPurposes; track purpose.value) { <option [value]="purpose.value">{{ purpose.label }}</option> }</select></label>
           <label><span>Sede</span><select formControlName="idClientSite"><option value="">Cliente general</option>@for (site of sites(); track site.idClientSite) { <option [value]="site.idClientSite">{{ site.name }}</option> }</select></label>
           <label class="wide"><span>Nombre completo *</span><input formControlName="fullName" /></label>
-          <label class="wide"><span>Puesto</span><input formControlName="jobTitle" /></label>
+          <label class="wide"><span>Puesto</span><app-catalog-select formControlName="jobTitle" [organizationId]="selectedOrganizationId()" type="JobPosition" label="Puesto" /></label>
           <label><span>Correo</span><input type="email" formControlName="email" /></label>
           <label><span>Teléfono</span><input formControlName="phone" /></label>
           <label><span>Móvil</span><input formControlName="mobilePhone" /></label>
@@ -951,247 +657,6 @@
         <footer>
           <button class="button button--secondary" type="button" (click)="closeEditors()">Cancelar</button>
           <button class="button button--primary" type="submit" [disabled]="saving()">{{ saving() ? 'Guardando…' : 'Guardar contrato' }}</button>
-        </footer>
-      </form>
-    </section>
-  </div>
-}
-
-@if (serviceEditorOpen()) {
-  <div class="modal-backdrop" (click)="closeEditors()">
-    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="service-editor-title" (click)="$event.stopPropagation()">
-      <header>
-        <div><span class="eyebrow">Servicio contratado</span><h2 id="service-editor-title">{{ editingService() ? 'Editar servicio' : 'Nuevo servicio' }}</h2></div>
-        <button type="button" aria-label="Cerrar" (click)="closeEditors()">×</button>
-      </header>
-      <form [formGroup]="serviceForm" (ngSubmit)="saveService()">
-        <div class="form-grid">
-          <label><span>Código *</span><input formControlName="codeService" [readOnly]="!!editingService()" /></label>
-          <label><span>Sede *</span><select formControlName="idClientSite">@for (site of sites(); track site.idClientSite) { <option [value]="site.idClientSite">{{ site.name }}</option> }</select></label>
-          <label><span>Contrato</span><select formControlName="idServiceContract"><option value="">Sin contrato ligado</option>@for (contract of contracts(); track contract.idServiceContract) { <option [value]="contract.idServiceContract">{{ contract.codeServiceContract }}</option> }</select></label>
-          <label><span>Inicio *</span><input type="date" formControlName="startDate" /></label>
-          <label><span>Fin</span><input type="date" formControlName="endDate" /></label>
-          <label class="wide"><span>Nombre *</span><input formControlName="name" /></label>
-          <label class="wide"><span>Descripción *</span><textarea rows="3" formControlName="description"></textarea></label>
-          <label class="wide"><span>Descripción para factura</span><input formControlName="invoiceDescription" /></label>
-        </div>
-        <footer>
-          <button class="button button--secondary" type="button" (click)="closeEditors()">Cancelar</button>
-          <button class="button button--primary" type="submit" [disabled]="saving()">{{ saving() ? 'Guardando…' : 'Guardar servicio' }}</button>
-        </footer>
-      </form>
-    </section>
-  </div>
-}
-
-@if (configurationEditorOpen()) {
-  <div class="modal-backdrop" (click)="closeEditors()">
-    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="configuration-editor-title" (click)="$event.stopPropagation()">
-      <header>
-        <div><span class="eyebrow">Configuración operativa</span><h2 id="configuration-editor-title">{{ editingConfiguration() ? 'Editar configuración' : 'Nueva configuración' }}</h2></div>
-        <button type="button" aria-label="Cerrar" (click)="closeEditors()">×</button>
-      </header>
-      <form [formGroup]="configurationForm" (ngSubmit)="saveConfiguration()">
-        <div class="form-grid">
-          <label><span>Inicio vigencia *</span><input type="date" formControlName="effectiveFromDate" /></label>
-          <label><span>Fin vigencia</span><input type="date" formControlName="effectiveToDate" /></label>
-          <label><span>Personas requeridas *</span><input type="number" formControlName="requiredWorkerCount" min="1" /></label>
-          <label><span>Horas/día *</span><input type="number" formControlName="hoursPerDay" min="0.5" step="0.5" /></label>
-          <label><span>Días/semana *</span><input type="number" formControlName="daysPerWeek" min="1" max="7" /></label>
-          <label><span>Horas/mes *</span><input type="number" formControlName="averageMonthlyHours" min="1" step="0.5" /></label>
-          <label><span>Días preparación *</span><input type="number" formControlName="preparationLeadDays" min="0" /></label>
-          <label><span>Precio mensual *</span><input type="number" formControlName="monthlyPrice" min="0" step="0.01" /></label>
-          <label><span>Moneda *</span><input formControlName="currencyCode" maxlength="3" /></label>
-          <label class="check"><input type="checkbox" formControlName="isTaxIncluded" /><span>IVA incluido</span></label>
-          <label class="wide"><span>Horario / jornada *</span><textarea rows="3" formControlName="workScheduleDescription"></textarea></label>
-          <label class="wide"><span>Instrucciones específicas</span><textarea rows="3" formControlName="specificInstructions"></textarea></label>
-        </div>
-        <footer>
-          <button class="button button--secondary" type="button" (click)="closeEditors()">Cancelar</button>
-          <button class="button button--primary" type="submit" [disabled]="saving()">{{ saving() ? 'Guardando…' : 'Guardar configuración' }}</button>
-        </footer>
-      </form>
-    </section>
-  </div>
-}
-
-@if (positionEditorOpen()) {
-  <div class="modal-backdrop" (click)="closeEditors()">
-    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="position-editor-title" (click)="$event.stopPropagation()">
-      <header>
-        <div><span class="eyebrow">Posición requerida</span><h2 id="position-editor-title">{{ editingPosition() ? 'Editar posición' : 'Nueva posición' }}</h2></div>
-        <button type="button" aria-label="Cerrar" (click)="closeEditors()">×</button>
-      </header>
-      <form [formGroup]="positionForm" (ngSubmit)="savePosition()">
-        <div class="form-grid">
-          <label><span>Código *</span><input formControlName="codePosition" [readOnly]="!!editingPosition()" /></label>
-          <label><span>Personas requeridas *</span><input type="number" formControlName="requiredWorkerCount" min="1" /></label>
-          <label class="wide"><span>Nombre *</span><input formControlName="name" /></label>
-          <label class="wide"><span>Perfil requerido</span><textarea rows="3" formControlName="requiredSkillProfile"></textarea></label>
-          <label class="wide"><span>Notas</span><textarea rows="3" formControlName="notes"></textarea></label>
-        </div>
-        <footer>
-          <button class="button button--secondary" type="button" (click)="closeEditors()">Cancelar</button>
-          <button class="button button--primary" type="submit" [disabled]="saving()">{{ saving() ? 'Guardando…' : 'Guardar posición' }}</button>
-        </footer>
-      </form>
-    </section>
-  </div>
-}
-
-@if (assignmentEditorOpen()) {
-  <div class="modal-backdrop" (click)="closeEditors()">
-    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="assignment-editor-title" (click)="$event.stopPropagation()">
-      <header>
-        <div><span class="eyebrow">Planeación operativa</span><h2 id="assignment-editor-title">{{ editingAssignment() ? 'Editar asignación' : 'Nueva asignación' }}</h2></div>
-        <button type="button" aria-label="Cerrar" (click)="closeEditors()">×</button>
-      </header>
-      <form [formGroup]="assignmentForm" (ngSubmit)="saveAssignment()">
-        <div class="form-grid">
-          <label class="wide">
-            <span>Empleado activo *</span>
-            <select formControlName="idEmployee">
-              @for (employee of activeEmployees(); track employee.idEmployee) {
-                <option [value]="employee.idEmployee">{{ employee.codeEmployee }} · {{ employee.fullName }}</option>
-              }
-            </select>
-          </label>
-          <label class="wide">
-            <span>Posición *</span>
-            <select formControlName="idPosition">
-              @for (position of positions(); track position.idPosition) {
-                <option [value]="position.idPosition">{{ position.codePosition }} · {{ position.name }}</option>
-              }
-            </select>
-          </label>
-          <label>
-            <span>Tipo *</span>
-            <select formControlName="assignmentType">
-              @for (type of assignmentTypes; track type.value) {
-                <option [value]="type.value">{{ type.label }}</option>
-              }
-            </select>
-          </label>
-          <label><span>Inicio *</span><input type="date" formControlName="startDate" /></label>
-          <label><span>Fin</span><input type="date" formControlName="endDate" /></label>
-          <label class="check"><input type="checkbox" formControlName="isPrimary" /><span>Asignación principal</span></label>
-          <label class="wide"><span>Notas</span><textarea rows="3" formControlName="notes"></textarea></label>
-        </div>
-        <footer>
-          <button class="button button--secondary" type="button" (click)="closeEditors()">Cancelar</button>
-          <button class="button button--primary" type="submit" [disabled]="saving()">{{ saving() ? 'Guardando…' : 'Guardar asignación' }}</button>
-        </footer>
-      </form>
-    </section>
-  </div>
-}
-
-@if (scheduleVersionEditorOpen()) {
-  <div class="modal-backdrop" (click)="closeEditors()">
-    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="schedule-version-editor-title" (click)="$event.stopPropagation()">
-      <header>
-        <div><span class="eyebrow">Planeación versionada</span><h2 id="schedule-version-editor-title">{{ editingScheduleVersion() ? 'Editar planeación' : 'Nueva planeación' }}</h2></div>
-        <button type="button" aria-label="Cerrar" (click)="closeEditors()">×</button>
-      </header>
-      <form [formGroup]="scheduleVersionForm" (ngSubmit)="saveScheduleVersion()">
-        <div class="form-grid">
-          <label class="wide"><span>Nombre *</span><input formControlName="name" /></label>
-          <label><span>Inicio periodo *</span><input type="date" formControlName="periodStartDate" /></label>
-          <label><span>Fin periodo *</span><input type="date" formControlName="periodEndDate" /></label>
-          <label class="wide"><span>Notas</span><textarea rows="3" formControlName="notes"></textarea></label>
-        </div>
-        <footer>
-          <button class="button button--secondary" type="button" (click)="closeEditors()">Cancelar</button>
-          <button class="button button--primary" type="submit" [disabled]="saving()">{{ saving() ? 'Guardando…' : 'Guardar planeación' }}</button>
-        </footer>
-      </form>
-    </section>
-  </div>
-}
-
-@if (scheduledShiftEditorOpen()) {
-  <div class="modal-backdrop" (click)="closeEditors()">
-    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="scheduled-shift-editor-title" (click)="$event.stopPropagation()">
-      <header>
-        <div><span class="eyebrow">Turno programado</span><h2 id="scheduled-shift-editor-title">{{ editingScheduledShift() ? 'Editar turno' : 'Nuevo turno' }}</h2></div>
-        <button type="button" aria-label="Cerrar" (click)="closeEditors()">×</button>
-      </header>
-      <form [formGroup]="scheduledShiftForm" (ngSubmit)="saveScheduledShift()">
-        <div class="form-grid">
-          <label class="wide">
-            <span>Empleado activo *</span>
-            <select formControlName="idEmployee">
-              @for (employee of activeEmployees(); track employee.idEmployee) {
-                <option [value]="employee.idEmployee">{{ employee.codeEmployee }} · {{ employee.fullName }}</option>
-              }
-            </select>
-          </label>
-          <label class="wide">
-            <span>Posición *</span>
-            <select formControlName="idPosition">
-              @for (position of positions(); track position.idPosition) {
-                <option [value]="position.idPosition">{{ position.codePosition }} · {{ position.name }}</option>
-              }
-            </select>
-          </label>
-          <label><span>Fecha *</span><input type="date" formControlName="shiftDate" /></label>
-          <label><span>Inicio *</span><input type="time" formControlName="startTime" /></label>
-          <label><span>Fin *</span><input type="time" formControlName="endTime" /></label>
-          <label class="check"><input type="checkbox" formControlName="isOvernight" /><span>Cruza medianoche</span></label>
-          <label class="wide"><span>Notas</span><textarea rows="3" formControlName="notes"></textarea></label>
-        </div>
-        <footer>
-          <button class="button button--secondary" type="button" (click)="closeEditors()">Cancelar</button>
-          <button class="button button--primary" type="submit" [disabled]="saving()">{{ saving() ? 'Guardando…' : 'Guardar turno' }}</button>
-        </footer>
-      </form>
-    </section>
-  </div>
-}
-
-@if (shiftPatternEditorOpen()) {
-  <div class="modal-backdrop" (click)="closeEditors()">
-    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="shift-pattern-editor-title" (click)="$event.stopPropagation()">
-      <header>
-        <div><span class="eyebrow">Patrón de turno</span><h2 id="shift-pattern-editor-title">{{ editingShiftPattern() ? 'Editar patrón' : 'Nuevo patrón' }}</h2></div>
-        <button type="button" aria-label="Cerrar" (click)="closeEditors()">×</button>
-      </header>
-      <form [formGroup]="shiftPatternForm" (ngSubmit)="saveShiftPattern()">
-        <div class="form-grid">
-          <label><span>Código *</span><input formControlName="codeShiftPattern" [readOnly]="!!editingShiftPattern()" /></label>
-          <label><span>Inicio vigencia *</span><input type="date" formControlName="effectiveFromDate" /></label>
-          <label><span>Fin vigencia</span><input type="date" formControlName="effectiveToDate" /></label>
-          <label class="wide"><span>Nombre *</span><input formControlName="name" /></label>
-          <label class="wide"><span>Descripción</span><textarea rows="3" formControlName="description"></textarea></label>
-        </div>
-        <footer>
-          <button class="button button--secondary" type="button" (click)="closeEditors()">Cancelar</button>
-          <button class="button button--primary" type="submit" [disabled]="saving()">{{ saving() ? 'Guardando…' : 'Guardar patrón' }}</button>
-        </footer>
-      </form>
-    </section>
-  </div>
-}
-
-@if (shiftSegmentEditorOpen()) {
-  <div class="modal-backdrop" (click)="closeEditors()">
-    <section class="modal modal--small" role="dialog" aria-modal="true" aria-labelledby="shift-segment-editor-title" (click)="$event.stopPropagation()">
-      <header>
-        <div><span class="eyebrow">Segmento semanal</span><h2 id="shift-segment-editor-title">{{ editingShiftSegment() ? 'Editar segmento' : 'Nuevo segmento' }}</h2></div>
-        <button type="button" aria-label="Cerrar" (click)="closeEditors()">×</button>
-      </header>
-      <form [formGroup]="shiftSegmentForm" (ngSubmit)="saveShiftSegment()">
-        <div class="form-grid">
-          <label><span>Día *</span><select formControlName="dayOfWeek">@for (day of weekDays; track day.value) { <option [value]="day.value">{{ day.label }}</option> }</select></label>
-          <label><span>Personas requeridas *</span><input type="number" formControlName="requiredWorkerCount" min="1" /></label>
-          <label><span>Inicio *</span><input type="time" formControlName="startTime" /></label>
-          <label><span>Fin *</span><input type="time" formControlName="endTime" /></label>
-          <label class="check"><input type="checkbox" formControlName="isOvernight" /><span>Cruza medianoche</span></label>
-          <label class="wide"><span>Notas</span><textarea rows="3" formControlName="notes"></textarea></label>
-        </div>
-        <footer>
-          <button class="button button--secondary" type="button" (click)="closeEditors()">Cancelar</button>
-          <button class="button button--primary" type="submit" [disabled]="saving()">{{ saving() ? 'Guardando…' : 'Guardar segmento' }}</button>
         </footer>
       </form>
     </section>

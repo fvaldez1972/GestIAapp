@@ -22,6 +22,13 @@ public static class OrganizationEndpoints
             .RequirePermission(SecurityPermissions.OrganizationsRead)
             .WithName("ListOrganizations");
 
+        group.MapGet("/governance", async (
+            IOrganizationService service,
+            CancellationToken cancellationToken) =>
+            Results.Ok(await service.ListGovernanceAsync(cancellationToken)))
+            .RequirePermission(SecurityPermissions.PlatformAdmin)
+            .WithName("ListOrganizationGovernance");
+
         group.MapGet("/{idOrganization:guid}", async (
             HttpContext context,
             Guid idOrganization,
@@ -52,6 +59,17 @@ public static class OrganizationEndpoints
         })
             .RequirePermission(SecurityPermissions.OrganizationsWrite)
             .WithName("CreateOrganization");
+
+        group.MapPost("/with-admin", async (
+            CreateOrganizationWithAdminRequest request,
+            IOrganizationProvisioningService service,
+            CancellationToken cancellationToken) =>
+        {
+            var result = await service.CreateWithAdminAsync(request, cancellationToken);
+            return Results.Created($"/api/v1/organizations/{result.Organization.IdOrganization}", result);
+        })
+            .RequirePermission(SecurityPermissions.OrganizationsWrite)
+            .WithName("CreateOrganizationWithAdmin");
 
         group.MapPut("/{idOrganization:guid}", async (
             Guid idOrganization,

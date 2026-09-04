@@ -12,10 +12,15 @@ public static class CatalogEndpoints
         var group = endpoints.MapGroup("/api/v1/catalogs")
             .WithTags("Catalogs");
 
+        group.MapGet("/definitions", () => Results.Ok(CatalogDefinitions.All))
+            .RequirePermission(SecurityPermissions.CatalogsRead)
+            .WithName("ListCatalogDefinitions");
+
         group.MapGet("/items", async (
             HttpContext context,
             Guid organizationId,
             BusinessCatalogItemType? type,
+            bool? includeInactive,
             ICatalogService service,
             CancellationToken cancellationToken) =>
         {
@@ -24,11 +29,21 @@ public static class CatalogEndpoints
                 return forbidden;
             }
 
-            var items = await service.ListCatalogItemsAsync(organizationId, type, cancellationToken);
-            return Results.Ok(items);
+            var items = await service.ListCatalogItemsAsync(organizationId, null, cancellationToken);
+            return Results.Ok((includeInactive == true ? items : CatalogOptions.Active(items))
+                .Where(item => type is null || item.Type == type));
         })
             .RequirePermission(SecurityPermissions.CatalogsRead)
             .WithName("ListCatalogItems");
+
+        group.MapGet("/options", async (HttpContext context, Guid organizationId, ICatalogService service, CancellationToken cancellationToken) =>
+        {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden) return forbidden;
+            var allowed = new[] { SecurityPermissions.CatalogsRead, SecurityPermissions.ClientsRead, SecurityPermissions.WorkforceRead,
+                SecurityPermissions.RequestsRead, SecurityPermissions.OperationsRead, SecurityPermissions.PlanningRead };
+            if (!allowed.Any(permission => context.User.HasClaim("permission", permission))) return Results.StatusCode(StatusCodes.Status403Forbidden);
+            return Results.Ok(CatalogOptions.Active(await service.ListCatalogItemsAsync(organizationId, null, cancellationToken)));
+        }).WithName("ListActiveCatalogOptions");
 
         group.MapPost("/items", async (
             HttpContext context,

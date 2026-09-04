@@ -1,14 +1,17 @@
 import { HttpErrorResponse } from '@angular/common/http';
+import { CatalogSelect } from '../../../../shared/ui/catalog-select/catalog-select';
 import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { RouterLink } from '@angular/router';
-import { finalize } from 'rxjs';
+import { finalize, forkJoin } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { CatalogApiService } from '../../../catalogs/data-access/catalog-api.service';
-import { CatalogItem, EmployeeSkill, EmployeeSkillInput } from '../../../catalogs/data-access/catalog.models';
+import { CatalogItem, EligibilityRequirement, EmployeeSkill, EmployeeSkillInput } from '../../../catalogs/data-access/catalog.models';
+import { employeeStepFields, validateEmployeeStep } from './employee-wizard';
 import { ClientApiService } from '../../../clients/data-access/client-api.service';
 import { Organization, WorkforceEligibilityReport } from '../../../clients/data-access/client.models';
 import { WorkforceApiService } from '../../data-access/workforce-api.service';
+import { EntityDocuments } from '../../../documents/components/entity-documents/entity-documents';
+import { DocumentApiService } from '../../../documents/data-access/document-api.service';
 import {
   CreateEmployee,
   Employee,
@@ -27,13 +30,14 @@ import {
 
 @Component({
   selector: 'app-workforce-page',
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, EntityDocuments, CatalogSelect],
   templateUrl: './workforce-page.html',
   styleUrl: './workforce-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class WorkforcePage implements OnInit {
   private readonly api = inject(WorkforceApiService);
+  private readonly documentApi = inject(DocumentApiService);
   private readonly auth = inject(AuthService);
   private readonly catalogApi = inject(CatalogApiService);
   private readonly clientApi = inject(ClientApiService);
@@ -46,6 +50,10 @@ export class WorkforcePage implements OnInit {
   protected readonly evaluations = signal<readonly EmployeeEvaluation[]>([]);
   protected readonly skills = signal<readonly EmployeeSkill[]>([]);
   protected readonly skillCatalog = signal<readonly CatalogItem[]>([]);
+  protected readonly positionCatalog = signal<readonly CatalogItem[]>([]);
+  protected readonly documentRequirements = signal<readonly EligibilityRequirement[]>([]);
+  protected readonly requirementsLoading = signal(false);
+  protected readonly requirementsError = signal('');
   protected readonly workforceEligibility = signal<readonly WorkforceEligibilityReport[]>([]);
   protected readonly result = signal<PagedResult<Employee>>({
     items: [],
@@ -57,6 +65,11 @@ export class WorkforcePage implements OnInit {
   protected readonly loading = signal(false);
   protected readonly loadingDetail = signal(false);
   protected readonly saving = signal(false);
+  protected readonly uploadingFile = signal(false);
+  protected readonly canReadFiles = computed(() => this.auth.hasPermission('DOCUMENTS.SENSITIVE.READ'));
+  protected readonly canWriteFiles = computed(() => this.canReadFiles()
+    && this.auth.hasPermission('DOCUMENTS.SENSITIVE.WRITE') && this.auth.hasPermission('WORKFORCE.WRITE'));
+  protected readonly canUploadFiles = computed(() => this.canWriteFiles() && this.auth.hasPermission('DOCUMENTS.WRITE'));
   protected readonly employeeEditorOpen = signal(false);
   protected readonly documentEditorOpen = signal(false);
   protected readonly evaluationEditorOpen = signal(false);
@@ -264,8 +277,8 @@ export class WorkforcePage implements OnInit {
   ];
 
   protected readonly employeeForm = this.formBuilder.nonNullable.group({
-    codeEmployee: ['', [Validators.required, Validators.maxLength(30)]],
-    fullName: ['', [Validators.required, Validators.maxLength(200)]],
+    codeEmployee: ['', [Validators.required, Validators.pattern(/\S/), Validators.maxLength(30)]],
+    fullName: ['', [Validators.required, Validators.pattern(/\S/), Validators.maxLength(200)]],
     jobTitle: ['', [Validators.maxLength(120)]],
     hireDate: ['', [Validators.required]],
     birthDate: [''],
@@ -286,6 +299,7 @@ export class WorkforcePage implements OnInit {
     address: ['', [Validators.maxLength(500)]],
     municipality: ['', [Validators.maxLength(120)]],
     state: ['', [Validators.maxLength(120)]],
+    countryCode: ['', [Validators.maxLength(2)]],
     postalCode: ['', [Validators.maxLength(10)]],
     housingType: ['', [Validators.maxLength(30)]],
     residenceSinceDate: [''],
@@ -331,7 +345,7 @@ export class WorkforcePage implements OnInit {
       .subscribe({
         next: (organizations) => {
           this.organizations.set(organizations);
-          const organizationId = this.selectedOrganizationId() || organizations[0]?.idOrganization || '';
+          const organizationId = this.auth.resolveOperationalOrganizationId(organizations);
           this.selectedOrganizationId.set(organizationId);
           if (organizationId) {
             this.loadSkillCatalog(organizationId);
@@ -479,6 +493,7 @@ export class WorkforcePage implements OnInit {
       address: employee.address ?? '',
       municipality: employee.municipality ?? '',
       state: employee.state ?? '',
+      countryCode: employee.countryCode ?? '',
       postalCode: employee.postalCode ?? '',
       housingType: employee.housingType ?? '',
       residenceSinceDate: this.dateOnly(employee.residenceSinceDate),
@@ -488,8 +503,15 @@ export class WorkforcePage implements OnInit {
   }
 
   protected saveEmployee(): void {
+    if (this.saving()) {
+      return;
+    }
     if (this.employeeForm.invalid || !this.selectedOrganizationId()) {
       this.employeeForm.markAllAsTouched();
+      const invalidStep = employeeStepFields.findIndex(fields => fields.some(field => this.employeeForm.get(field)?.invalid));
+      if (invalidStep >= 0) {
+        this.employeeWizardStep.set(invalidStep + 1);
+      }
       return;
     }
 
@@ -517,6 +539,7 @@ export class WorkforcePage implements OnInit {
       address: this.optional(form.address),
       municipality: this.optional(form.municipality),
       state: this.optional(form.state),
+      countryCode: this.optional(form.countryCode),
       postalCode: this.optional(form.postalCode),
       housingType: this.optional(form.housingType),
       residenceSinceDate: this.optional(form.residenceSinceDate),
@@ -578,8 +601,49 @@ export class WorkforcePage implements OnInit {
     });
   }
 
+  protected uploadEmployeeFile(event: Event, kind: 'documents' | 'evaluations'): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    const employee = this.selectedEmployee();
+    const organizationId = this.selectedOrganizationId();
+    if (!file || !employee || !this.canUploadFiles() || this.uploadingFile()) return;
+    if (file.size > 20 * 1024 * 1024) {
+      this.error.set('El archivo supera el limite de 20 MB.');
+      input.value = '';
+      return;
+    }
+    this.uploadingFile.set(true);
+    this.documentApi.uploadDocumentFile(file, organizationId).pipe(finalize(() => {
+      this.uploadingFile.set(false);
+      input.value = '';
+    })).subscribe({
+      next: result => {
+        if (this.selectedOrganizationId() !== organizationId || this.selectedEmployee()?.idEmployee !== employee.idEmployee) return;
+        const form = kind === 'documents' ? this.documentForm : this.evaluationForm;
+        form.controls.storageReference.setValue(result.storageReference);
+      },
+      error: (error: HttpErrorResponse) => this.setError(error),
+    });
+  }
+
+  protected downloadEmployeeFile(kind: 'documents' | 'evaluations', recordId: string): void {
+    const employee = this.selectedEmployee();
+    if (!employee || !this.canReadFiles()) return;
+    this.api.downloadFile(this.selectedOrganizationId(), employee.idEmployee, kind, recordId).subscribe({
+      next: blob => {
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = `${kind}-${recordId}`;
+        anchor.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      },
+      error: (error: HttpErrorResponse) => this.setError(error),
+    });
+  }
+
   protected openCreateDocument(): void {
-    if (!this.selectedEmployee()) {
+    if (!this.selectedEmployee() || !this.canWriteFiles()) {
       return;
     }
 
@@ -598,6 +662,7 @@ export class WorkforcePage implements OnInit {
   }
 
   protected openEditDocument(document: EmployeeDocument): void {
+    if (!this.canWriteFiles()) return;
     this.editingDocument.set(document);
     this.documentForm.reset({
       documentType: document.documentType,
@@ -613,6 +678,7 @@ export class WorkforcePage implements OnInit {
   }
 
   protected saveDocument(): void {
+    if (!this.canWriteFiles() || this.uploadingFile()) return;
     const employee = this.selectedEmployee();
     if (!employee || this.documentForm.invalid) {
       this.documentForm.markAllAsTouched();
@@ -649,6 +715,7 @@ export class WorkforcePage implements OnInit {
   }
 
   protected deactivateDocument(document: EmployeeDocument): void {
+    if (!this.canWriteFiles()) return;
     const employee = this.selectedEmployee();
     if (!employee || !window.confirm('¿Deseas desactivar este documento?')) {
       return;
@@ -665,7 +732,7 @@ export class WorkforcePage implements OnInit {
   }
 
   protected openCreateEvaluation(): void {
-    if (!this.selectedEmployee()) {
+    if (!this.selectedEmployee() || !this.canWriteFiles()) {
       return;
     }
 
@@ -683,6 +750,7 @@ export class WorkforcePage implements OnInit {
   }
 
   protected openEditEvaluation(evaluation: EmployeeEvaluation): void {
+    if (!this.canWriteFiles()) return;
     this.editingEvaluation.set(evaluation);
     this.evaluationForm.reset({
       evaluationType: evaluation.evaluationType,
@@ -697,6 +765,7 @@ export class WorkforcePage implements OnInit {
   }
 
   protected saveEvaluation(): void {
+    if (!this.canWriteFiles() || this.uploadingFile()) return;
     const employee = this.selectedEmployee();
     if (!employee || this.evaluationForm.invalid) {
       this.evaluationForm.markAllAsTouched();
@@ -732,6 +801,7 @@ export class WorkforcePage implements OnInit {
   }
 
   protected deactivateEvaluation(evaluation: EmployeeEvaluation): void {
+    if (!this.canWriteFiles()) return;
     const employee = this.selectedEmployee();
     if (!employee || !window.confirm('¿Deseas desactivar esta evaluación?')) {
       return;
@@ -825,6 +895,7 @@ export class WorkforcePage implements OnInit {
   }
 
   protected closeEditors(): void {
+    if (this.uploadingFile()) return;
     this.employeeEditorOpen.set(false);
     this.documentEditorOpen.set(false);
     this.evaluationEditorOpen.set(false);
@@ -1027,13 +1098,17 @@ export class WorkforcePage implements OnInit {
       return;
     }
 
+    for (let current = this.employeeWizardStep(); current < step; current++) {
+      if (!validateEmployeeStep(this.employeeForm, current)) {
+        this.employeeWizardStep.set(current);
+        return;
+      }
+    }
     this.employeeWizardStep.set(step);
   }
 
   protected nextEmployeeStep(): void {
-    if (this.employeeWizardStep() < 6) {
-      this.employeeWizardStep.update((step) => step + 1);
-    }
+    this.goToEmployeeStep(this.employeeWizardStep() + 1);
   }
 
   protected previousEmployeeStep(): void {
@@ -1075,6 +1150,7 @@ export class WorkforcePage implements OnInit {
       address: '',
       municipality: '',
       state: '',
+      countryCode: 'MX',
       postalCode: '',
       housingType: '',
       residenceSinceDate: '',
@@ -1082,9 +1158,21 @@ export class WorkforcePage implements OnInit {
   }
 
   private loadSkillCatalog(organizationId: string): void {
-    this.catalogApi.listItems(organizationId, 'Skill').subscribe({
-      next: (items) => this.skillCatalog.set(items.filter((item) => item.active)),
-      error: (error: HttpErrorResponse) => this.setError(error),
+    this.skillCatalog.set([]);
+    this.positionCatalog.set([]);
+    this.documentRequirements.set([]);
+    this.requirementsLoading.set(true);
+    this.requirementsError.set('');
+    forkJoin({
+      items: this.catalogApi.listItems(organizationId),
+      requirements: this.catalogApi.listEligibilityRequirements(organizationId),
+    }).pipe(finalize(() => this.requirementsLoading.set(false))).subscribe({
+      next: ({ items, requirements }) => {
+        this.skillCatalog.set(items.filter(item => item.active && item.type === 'Skill'));
+        this.positionCatalog.set(items.filter(item => item.active && item.type === 'JobPosition'));
+        this.documentRequirements.set(requirements.filter(item => item.active && item.requirementType === 'Document' && item.targetType === 'Organization'));
+      },
+      error: () => this.requirementsError.set('No se pudieron consultar los catálogos y requisitos.'),
     });
   }
 

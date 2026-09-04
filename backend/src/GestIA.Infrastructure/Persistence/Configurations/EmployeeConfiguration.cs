@@ -31,6 +31,7 @@ public sealed class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
         builder.Property(entity => entity.Address).HasMaxLength(500);
         builder.Property(entity => entity.Municipality).HasMaxLength(120);
         builder.Property(entity => entity.State).HasMaxLength(120);
+        builder.Property(entity => entity.CountryCode).HasMaxLength(2).IsUnicode(false);
         builder.Property(entity => entity.PostalCode).HasMaxLength(10).IsUnicode(false);
         builder.Property(entity => entity.HousingType).HasMaxLength(30);
         builder.HasOne(entity => entity.Organization)

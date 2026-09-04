@@ -1,4 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
+import { CatalogSelect } from '../../../../shared/ui/catalog-select/catalog-select';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -9,6 +10,7 @@ import { Client, ManagedService, Organization, PagedResult as ClientPagedResult,
 import { WorkforceApiService } from '../../../workforce/data-access/workforce-api.service';
 import { Employee, PagedResult as WorkforcePagedResult } from '../../../workforce/data-access/workforce.models';
 import { RequestApiService } from '../../data-access/request-api.service';
+import { EntityDocuments } from '../../../documents/components/entity-documents/entity-documents';
 import {
   ExecuteOperationalRequest,
   ExecuteOperationalRequestResult,
@@ -22,7 +24,7 @@ import {
 
 @Component({
   selector: 'app-requests-page',
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, EntityDocuments, CatalogSelect],
   templateUrl: './requests-page.html',
   styleUrl: './requests-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -267,6 +269,9 @@ export class RequestsPage implements OnInit {
     siteStreet: [''],
     siteMunicipality: [''],
     siteState: [''],
+    siteCountryCode: ['MX'],
+    clientNationality: [''],
+    idCoverageReason: [''],
     sitePostalCode: [''],
     serviceCode: [''],
     serviceName: [''],
@@ -999,7 +1004,7 @@ export class RequestsPage implements OnInit {
     this.clientApi.listOrganizations().subscribe({
       next: (organizations) => {
         this.organizations.set(organizations);
-        this.selectedOrganizationId.set(this.isPlatformAdmin() ? '' : organizations[0]?.idOrganization ?? '');
+        this.selectedOrganizationId.set(this.auth.resolveOperationalOrganizationId(organizations));
         this.loadClients();
         this.loadEmployees();
         this.loadRequests();
@@ -1020,7 +1025,7 @@ export class RequestsPage implements OnInit {
 
     forkJoin(
       organizationIds.map((organizationId) =>
-        this.clientApi.listClients(organizationId, '', 1, 100).pipe(
+        this.clientApi.listClientOptions(organizationId).pipe(
           catchError(() =>
             of({
               items: [],
@@ -1088,7 +1093,7 @@ export class RequestsPage implements OnInit {
 
     forkJoin(
       organizationIds.map((organizationId) =>
-        this.workforceApi.listEmployees(organizationId, '', 'Active', 1, 100).pipe(
+        this.workforceApi.listEmployeeOptions(organizationId).pipe(
           catchError(() =>
             of({
               items: [],
@@ -1170,25 +1175,19 @@ export class RequestsPage implements OnInit {
 
     forkJoin(
       organizationIds.map((organizationId) =>
-        this.api.listRequests(organizationId, '', '', '', 1, 200).pipe(
+        this.api.listBoardRequests(organizationId).pipe(
           catchError((error: HttpErrorResponse) => {
             if (organizationIds.length === 1) {
               this.setError(error, 'No se pudieron cargar las solicitudes.');
             }
 
-            return of({
-              items: [],
-              totalCount: 0,
-              page: 1,
-              pageSize: 200,
-              totalPages: 0,
-            } satisfies RequestPagedResult<OperationalRequest>);
+            return of([] as readonly OperationalRequest[]);
           }),
         ),
       ),
     )
       .subscribe({
-        next: (results) => this.setLoadedRequests(results.flatMap((result) => result.items)),
+        next: (results) => this.setLoadedRequests(results.flat()),
         error: (error: HttpErrorResponse) => this.setError(error, 'No se pudieron cargar las solicitudes.'),
         complete: () => this.loading.set(false),
       });
@@ -1221,7 +1220,7 @@ export class RequestsPage implements OnInit {
       return [organizationId];
     }
 
-    return this.isPlatformAdmin() ? this.organizations().map((organization) => organization.idOrganization) : [];
+    return [];
   }
 
   private resolveOrganizationIdForClient(clientId: string) {
@@ -1301,6 +1300,9 @@ export class RequestsPage implements OnInit {
       siteStreet: '',
       siteMunicipality: '',
       siteState: '',
+      siteCountryCode: 'MX',
+      clientNationality: '',
+      idCoverageReason: '',
       sitePostalCode: '',
       serviceCode: '',
       serviceName: '',
@@ -1354,7 +1356,7 @@ export class RequestsPage implements OnInit {
         legalName: form.clientLegalName.trim(),
         tradeName: this.emptyToNull(form.clientTradeName),
         rfc: form.clientRfc.trim(),
-        nationality: 'Mexicana',
+        nationality: form.clientNationality || null,
         taxActivity: null,
         taxAddress: null,
         publicRegistryDate: null,
@@ -1377,7 +1379,7 @@ export class RequestsPage implements OnInit {
         municipality: form.siteMunicipality.trim(),
         state: form.siteState.trim(),
         postalCode: form.sitePostalCode.trim(),
-        countryCode: 'MX',
+        countryCode: form.siteCountryCode,
         accessInstructions: null,
         timeZoneId: 'America/Mexico_City',
       };
@@ -1441,6 +1443,7 @@ export class RequestsPage implements OnInit {
         isOvernight: form.coverageIsOvernight,
         status: form.coverageStatus,
         notes: this.emptyToNull(form.coverageNotes),
+        idCoverageReason: form.idCoverageReason || null,
       };
     }
 

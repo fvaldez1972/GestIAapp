@@ -206,5 +206,5 @@ public sealed class WorkforceRepository(GestIaDbContext dbContext) : IWorkforceR
             employee.ResidenceSinceDate,
             employee.Active,
             employee.CreatedAt,
-            employee.UpdatedAt);
+            employee.UpdatedAt, employee.CountryCode);
 }

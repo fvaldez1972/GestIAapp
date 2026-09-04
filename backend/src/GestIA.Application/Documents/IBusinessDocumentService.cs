@@ -22,6 +22,13 @@ public interface IBusinessDocumentService
         UpdateBusinessDocumentRequest request,
         CancellationToken cancellationToken);
 
+    Task<BusinessDocumentResponse> ReviewAsync(
+        Guid idBusinessDocument,
+        ReviewBusinessDocumentRequest request,
+        CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<BusinessDocumentEventResponse>> ListEventsAsync(Guid idOrganization, Guid idBusinessDocument, CancellationToken cancellationToken);
+
     Task DeactivateAsync(
         Guid idOrganization,
         Guid idBusinessDocument,

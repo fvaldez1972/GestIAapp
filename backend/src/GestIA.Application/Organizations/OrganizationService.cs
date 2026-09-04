@@ -1,14 +1,21 @@
 using GestIA.Application.Common;
+using GestIA.Application.Catalogs;
 using GestIA.Domain.Organizations;
 
 namespace GestIA.Application.Organizations;
 
 public sealed class OrganizationService(
     IOrganizationRepository repository,
+    IOrganizationGovernanceRepository governanceRepository,
     IUnitOfWork unitOfWork,
     IActorContext actorContext,
-    IClock clock) : IOrganizationService
+    IClock clock,
+    OrganizationCatalogDefaults catalogDefaults) : IOrganizationService
 {
+    public Task<IReadOnlyList<OrganizationGovernanceSummaryResponse>> ListGovernanceAsync(
+        CancellationToken cancellationToken) =>
+        governanceRepository.ListAsync(cancellationToken);
+
     public async Task<IReadOnlyList<OrganizationResponse>> ListAsync(
         CancellationToken cancellationToken)
     {
@@ -64,6 +71,7 @@ public sealed class OrganizationService(
             clock.UtcNow);
 
         await repository.AddAsync(organization, cancellationToken);
+        await catalogDefaults.StageAsync(organization.IdOrganization, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return Map(organization);
     }

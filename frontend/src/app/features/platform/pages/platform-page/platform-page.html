@@ -40,8 +40,8 @@
     </article>
     <article>
       <span>Rol para alta</span>
-      <strong>{{ adminRole()?.codeRole || 'Pendiente' }}</strong>
-      <small>{{ adminRole() ? 'disponible para admins iniciales' : 'configura un rol admin' }}</small>
+      <strong>{{ adminRole()?.name || 'Pendiente' }}</strong>
+      <small>{{ adminRole()?.codeRole || 'configura un rol admin' }}</small>
     </article>
   </section>
 
@@ -51,17 +51,24 @@
         <div>
           <span class="eyebrow">Nueva organización</span>
           <h2>Alta de organización</h2>
-          <p>Crea la empresa que usará GestIA. El admin inicial es opcional, pero recomendado para dejarla lista para operar.</p>
+          <p>Crea la empresa que usará GestIA junto con su administrador inicial. Ambos registros se guardan en una sola operación.</p>
         </div>
       </header>
 
-      <form class="creation-form" (ngSubmit)="createOrganizationWithAdmin()">
+      <form class="creation-form" #organizationForm="ngForm" (ngSubmit)="submitOrganizationStep(organizationForm)">
+        <ol class="organization-steps" aria-label="Alta de organización">
+          <li [attr.aria-current]="organizationStep() === 1 ? 'step' : null">1. Organización</li>
+          <li [attr.aria-current]="organizationStep() === 2 ? 'step' : null">2. Administrador</li>
+          <li [attr.aria-current]="organizationStep() === 3 ? 'step' : null">3. Revisión</li>
+        </ol>
+        @if (organizationStep() === 1) {
         <div class="form-grid form-grid--two">
           <label>
             <span>Código</span>
             <input
               type="text"
               name="newOrganizationCode"
+              required maxlength="30"
               autocomplete="off"
               placeholder="BKT"
               [ngModel]="newOrganizationCode()"
@@ -73,6 +80,7 @@
             <input
               type="text"
               name="newOrganizationRfc"
+              maxlength="13"
               autocomplete="off"
               placeholder="Opcional"
               [ngModel]="newOrganizationRfc()"
@@ -86,6 +94,7 @@
           <input
             type="text"
             name="newOrganizationLegalName"
+            required maxlength="200"
             autocomplete="organization"
             placeholder="Nombre de la organización"
             [ngModel]="newOrganizationLegalName()"
@@ -93,6 +102,8 @@
           />
         </label>
 
+        }
+        @if (organizationStep() === 2) {
         <fieldset>
           <legend>Admin inicial</legend>
           <div class="form-grid form-grid--two">
@@ -101,6 +112,7 @@
               <input
                 type="text"
                 name="initialAdminName"
+                required maxlength="150"
                 autocomplete="name"
                 placeholder="Admin organización"
                 [ngModel]="initialAdminName()"
@@ -112,6 +124,7 @@
               <input
                 type="email"
                 name="initialAdminEmail"
+                required email maxlength="254"
                 autocomplete="email"
                 placeholder="admin@empresa.com"
                 [ngModel]="initialAdminEmail()"
@@ -124,6 +137,7 @@
             <input
               type="password"
               name="initialAdminPassword"
+              required minlength="12" maxlength="200"
               autocomplete="new-password"
               placeholder="Mínimo 12 caracteres"
               [ngModel]="initialAdminPassword()"
@@ -131,10 +145,27 @@
             />
           </label>
         </fieldset>
-
-        <button class="gi-button gi-button--primary" type="submit" [disabled]="!canCreateOrganization()">
-          {{ savingOrganization() ? 'Guardando...' : 'Crear organización' }}
-        </button>
+        }
+        @if (organizationStep() === 3) {
+          <dl class="organization-review">
+            <dt>Organización</dt><dd>{{ newOrganizationLegalName() }}</dd>
+            <dt>Código</dt><dd>{{ newOrganizationCode() }}</dd>
+            <dt>RFC</dt><dd>{{ newOrganizationRfc() || 'No capturado' }}</dd>
+            <dt>Administrador</dt><dd>{{ initialAdminName() }}</dd>
+            <dt>Correo</dt><dd>{{ initialAdminEmail() }}</dd>
+            <dt>Rol</dt><dd>Admin de organización</dd>
+          </dl>
+        }
+        @if (organizationStepError()) { <p class="gi-alert gi-alert--error" role="alert">{{ organizationStepError() }}</p> }
+        <div class="hero-actions">
+          <button class="gi-button gi-button--secondary" type="button" [disabled]="savingOrganization()" (click)="cancelOrganizationCreation()">Cancelar</button>
+          @if (organizationStep() > 1) {
+            <button class="gi-button gi-button--secondary" type="button" [disabled]="savingOrganization()" (click)="organizationStep.set(organizationStep() - 1)">Atrás</button>
+          }
+          <button class="gi-button gi-button--primary" type="submit" [disabled]="savingOrganization() || (organizationStep() === 3 && !canCreateOrganization())">
+            {{ savingOrganization() ? 'Guardando...' : organizationStep() === 3 ? 'Crear organización' : 'Continuar' }}
+          </button>
+        </div>
       </form>
 
       <section class="organization-directory">

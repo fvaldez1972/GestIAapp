@@ -39,8 +39,8 @@ export const routes: Routes = [
         title: 'GestIA | Servicios',
         data: { permission: 'CLIENTS.READ' },
         loadComponent: () =>
-          import('./features/clients/pages/clients-page/clients-page').then(
-            (component) => component.ClientsPage,
+          import('./features/services/pages/services-page/services-page').then(
+            (component) => component.ServicesPage,
           ),
       },
       {
@@ -94,6 +94,12 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'configuracion/documentos',
+        title: 'GestIA | Reglas documentales',
+        data: { permission: 'CATALOGS.READ', catalogTab: 'eligibility' },
+        loadComponent: () => import('./features/catalogs/pages/catalogs-page/catalogs-page').then(component => component.CatalogsPage),
+      },
+      {
         path: 'planeacion',
         title: 'GestIA | Planeación',
         data: { permission: 'PLANNING.READ' },
@@ -135,9 +141,18 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'monitor',
+        title: 'GestIA | Monitor global',
+        data: { permission: 'PLATFORM.ADMIN', platformOnly: true },
+        loadComponent: () =>
+          import('./features/monitor/pages/monitor-page').then(
+            (component) => component.MonitorPage,
+          ),
+      },
+      {
         path: 'reportes',
         title: 'GestIA | Reportes',
-        data: { permission: 'REPORTS.READ' },
+        data: { permission: 'REPORTS.READ', reportMode: 'reports' },
         loadComponent: () =>
           import('./features/reports/pages/reports-page/reports-page').then(
             (component) => component.ReportsPage,

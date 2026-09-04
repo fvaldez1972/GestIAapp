@@ -4,4 +4,5 @@ public interface IActorContext
 {
     Guid ActorId { get; }
     string ActorName { get; }
+    bool HasPermission(string permission) => false;
 }

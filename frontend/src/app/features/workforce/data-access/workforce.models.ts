@@ -58,6 +58,7 @@ export type Employee = {
   readonly address: string | null;
   readonly municipality: string | null;
   readonly state: string | null;
+  readonly countryCode?: string | null;
   readonly postalCode: string | null;
   readonly housingType: string | null;
   readonly residenceSinceDate: string | null;

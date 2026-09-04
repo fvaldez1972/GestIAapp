@@ -34,8 +34,7 @@
       @if (isPlatformAdmin()) {
         <label class="gi-field">
           <span>Organización</span>
-          <select class="gi-input" [value]="selectedOrganizationId()" (change)="onOrganizationChange($event)">
-            <option value="">Todas las organizaciones</option>
+          <select class="gi-input" [value]="selectedOrganizationId()" [disabled]="isPlatformAdmin()" (change)="onOrganizationChange($event)">
             @for (organization of organizations(); track organization.idOrganization) {
               <option [value]="organization.idOrganization">{{ organization.legalName }}</option>
             }
@@ -323,22 +322,7 @@
 
         @if (detailPanelTab() === 'documents') {
           <section class="detail-tab-body">
-            <div class="document-placeholder">
-              <span aria-hidden="true">📎</span>
-              <h3>Documentos relacionados</h3>
-              <p>Los soportes se consultan dentro de la solicitud o de la entidad que corresponda; Configuración conserva las reglas documentales.</p>
-              <a
-                class="gi-button gi-button--secondary"
-                routerLink="/documentos"
-                [queryParams]="{
-                  organizationId: request.idOrganization,
-                  ownerType: 'OperationalRequest',
-                  ownerId: request.idOperationalRequest
-                }"
-              >
-                Abrir Documentos
-              </a>
-            </div>
+            <app-entity-documents [organizationId]="request.idOrganization" ownerType="OperationalRequest" [ownerId]="request.idOperationalRequest" [ownerLabel]="request.codeOperationalRequest" />
           </section>
         }
 
@@ -525,6 +509,7 @@
               <div class="form-grid">
                 <label class="gi-field"><span>Código de cliente</span><input class="gi-input" formControlName="clientCode" /></label><label class="gi-field"><span>RFC</span><input class="gi-input" formControlName="clientRfc" /></label>
                 <label class="gi-field"><span>Razón social</span><input class="gi-input" formControlName="clientLegalName" /></label><label class="gi-field"><span>Nombre comercial</span><input class="gi-input" formControlName="clientTradeName" /></label>
+                <label class="gi-field"><span>Nacionalidad</span><app-catalog-select formControlName="clientNationality" [organizationId]="selectedOrganizationId()" type="Nationality" label="Nacionalidad" /></label>
               </div>
             </section>
             <section class="execution-section">
@@ -532,7 +517,9 @@
               <div class="form-grid">
                 <label class="gi-field"><span>Código de sede</span><input class="gi-input" formControlName="siteCode" /></label><label class="gi-field"><span>Nombre de la sede</span><input class="gi-input" formControlName="siteName" /></label>
                 <label class="gi-field form-span-2"><span>Calle y número</span><input class="gi-input" formControlName="siteStreet" /></label>
-                <label class="gi-field"><span>Municipio</span><input class="gi-input" formControlName="siteMunicipality" /></label><label class="gi-field"><span>Estado</span><input class="gi-input" formControlName="siteState" /></label>
+                <label class="gi-field"><span>País</span><app-catalog-select formControlName="siteCountryCode" [organizationId]="selectedOrganizationId()" type="Country" label="País" [useCode]="true" (selectionChange)="executionForm.patchValue({siteState: '', siteMunicipality: ''})" /></label>
+                <label class="gi-field"><span>Estado</span><app-catalog-select formControlName="siteState" [organizationId]="selectedOrganizationId()" type="State" label="Estado" [country]="executionForm.controls.siteCountryCode.value" (selectionChange)="executionForm.patchValue({siteMunicipality: ''})" /></label>
+                <label class="gi-field"><span>Municipio</span><app-catalog-select formControlName="siteMunicipality" [organizationId]="selectedOrganizationId()" type="City" label="Municipio" [country]="executionForm.controls.siteCountryCode.value" [state]="executionForm.controls.siteState.value" /></label>
                 <label class="gi-field"><span>Código postal</span><input class="gi-input" formControlName="sitePostalCode" /></label>
               </div>
             </section>
@@ -581,6 +568,7 @@
                 <label class="gi-field"><span>Hora de inicio</span><input class="gi-input" type="time" formControlName="coverageStartTime" /></label><label class="gi-field"><span>Hora de fin</span><input class="gi-input" type="time" formControlName="coverageEndTime" /></label>
                 <label class="gi-field"><span>Estado de cobertura</span><select class="gi-input" formControlName="coverageStatus"><option value="Requested">Solicitada</option><option value="Confirmed">Confirmada</option><option value="Completed">Completada</option><option value="Cancelled">Cancelada</option></select></label><label class="gi-check"><input type="checkbox" formControlName="coverageIsOvernight" /><span>El turno cruza medianoche</span></label>
                 <label class="gi-field form-span-2"><span>Notas</span><textarea class="gi-input" rows="3" formControlName="coverageNotes"></textarea></label>
+                <label class="gi-field form-span-2"><span>Motivo de cobertura</span><app-catalog-select formControlName="idCoverageReason" [organizationId]="selectedOrganizationId()" type="CoverageReason" label="Motivo de cobertura" [useId]="true" /></label>
               </div>
             </section>
           }

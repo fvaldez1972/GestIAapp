@@ -1,231 +1,168 @@
-<article class="dashboard-hero">
-  <div class="hero-copy">
-    <span class="kicker">{{ dashboardKicker() }}</span>
-    <h1>{{ dashboardTitle() }}</h1>
-    <p>
-      {{ todayLabel }} ·
-      {{ activeOrganization()?.legalName || 'Sin organización activa' }}
-    </p>
-    <strong>{{ dashboardSubtitle() }}</strong>
-  </div>
-
-  <aside class="hero-status" [class.hero-status--attention]="riskServicesCount() > 0 || pendingCoverages() > 0 || (operationsSummary()?.openIncidents ?? 0) > 0">
-    <div class="status-heading">
-      <span class="status-indicator" aria-hidden="true"></span>
-      <div>
-        <small>{{ dashboardStatusLabel() }}</small>
-        <strong>{{ dashboardStatusValue() }}</strong>
-      </div>
+<section class="overview-page">
+  <header class="page-heading">
+    <div>
+      <span class="eyebrow">{{ dashboardKicker() }}</span>
+      <h1>{{ dashboardTitle() }}</h1>
+      <p>{{ dashboardSubtitle() }}</p>
     </div>
 
-    <div class="status-grid">
-      @for (item of dashboardStatusItems(); track item.label) {
-        <div>
-          <strong>{{ item.value }}</strong>
-          <span>{{ item.label }}</span>
-        </div>
-      }
-    </div>
-  </aside>
-</article>
-
-@if (loading()) {
-  <section class="dashboard-skeleton" aria-live="polite">
-    <span></span>
-    <span></span>
-    <span></span>
-    <span></span>
-  </section>
-}
-
-@if (error()) {
-  <section class="dashboard-state dashboard-state--error gi-card" role="alert">{{ error() }}</section>
-}
-
-<section class="primary-metrics" aria-label="Indicadores principales">
-  @for (metric of primaryMetrics(); track metric.label) {
     <a
-      class="metric-card"
-      [class.metric-card--attention]="metric.tone === 'attention'"
-      [class.metric-card--positive]="metric.tone === 'positive'"
-      [routerLink]="metric.route"
+      class="gi-button gi-button--primary heading-action"
+      [routerLink]="isPlatformAdmin() ? '/plataforma/organizaciones' : '/operacion/asistencia'"
     >
-      <span>{{ metric.label }}</span>
-      <strong>{{ metric.value }}</strong>
-      <small>{{ metric.detail }}</small>
-      @if (metric.tone === 'attention') {
-        <em>Atención</em>
-      }
+      <span aria-hidden="true">{{ isPlatformAdmin() ? '+' : '→' }}</span>
+      {{ isPlatformAdmin() ? 'Nueva organización' : 'Ir a asistencia' }}
     </a>
-  }
-</section>
-
-<section class="module-flow gi-card">
-  <header class="section-heading">
-    <div>
-      <span class="kicker">Orden final</span>
-      <h2>{{ isPlatformAdmin() ? 'Módulos de gobierno de plataforma' : 'Módulos por prioridad del admin' }}</h2>
-      <p>La experiencia queda organizada por prioridad: primero contexto, luego operación, después control y al final configuración.</p>
-    </div>
   </header>
 
-  <div class="module-flow-grid">
-    @for (module of moduleFlow(); track module.title; let index = $index) {
-      <a class="module-flow-card" [routerLink]="module.route">
-        <span>{{ index + 1 }}</span>
-        <strong>{{ module.title }}</strong>
-        <small>
-          @for (item of module.items; track item; let last = $last) {
-            {{ item }}@if (!last) { · }
-          }
-        </small>
-      </a>
+  <section class="context-strip gi-card" aria-label="Contexto de trabajo">
+    <div class="context-item context-item--wide">
+      <span>{{ isPlatformAdmin() ? 'Alcance de consulta' : 'Organización' }}</span>
+      <strong>
+        {{ isPlatformAdmin() ? 'Plataforma · todas las organizaciones' : (activeOrganization()?.legalName || 'Sin organización activa') }}
+      </strong>
+    </div>
+    @if (!isPlatformAdmin()) {
+      <div class="context-item">
+        <span>Cliente de referencia</span>
+        <strong>{{ activeClientName() }}</strong>
+      </div>
     }
-  </div>
-</section>
-
-<section class="today-section gi-card">
-  <header class="section-heading">
-    <div>
-      <span class="kicker">{{ isPlatformAdmin() ? 'Operación global' : 'Operación del cliente' }}</span>
-      <h2>{{ isPlatformAdmin() ? 'Resumen operativo entre organizaciones' : 'Resumen de operación de hoy' }}</h2>
-      <p>{{ isPlatformAdmin() ? 'Lectura transversal para soporte y seguimiento auditado.' : 'Indicadores del día para asistencia, excepciones y coberturas.' }}</p>
+    <div class="context-item context-item--date">
+      <span>Fecha operativa</span>
+      <strong>{{ todayLabel }}</strong>
     </div>
-    <a routerLink="/operacion/asistencia">Abrir operación</a>
-  </header>
+    <div class="timezone"><span aria-hidden="true">◷</span>America/Mexico_City</div>
+  </section>
 
-  <div class="today-grid">
-    @for (metric of todaySummary(); track metric.label) {
-      <article class="today-kpi" [class.today-kpi--attention]="metric.tone === 'attention'" [class.today-kpi--positive]="metric.tone === 'positive'">
+  @if (loading()) {
+    <section class="dashboard-skeleton" aria-live="polite" aria-label="Cargando indicadores">
+      <span></span><span></span><span></span><span></span>
+    </section>
+  }
+
+  @if (error()) {
+    <p class="gi-alert gi-alert--error" role="alert">{{ error() }}</p>
+  }
+
+  <section class="metric-grid" aria-label="Indicadores principales">
+    @for (metric of primaryMetrics(); track metric.label) {
+      <a
+        class="metric-card gi-card"
+        [class.metric-card--attention]="metric.tone === 'attention'"
+        [class.metric-card--positive]="metric.tone === 'positive'"
+        [routerLink]="metric.route"
+      >
         <span>{{ metric.label }}</span>
         <strong>{{ metric.value }}</strong>
         <small>{{ metric.detail }}</small>
-      </article>
+        @if (metric.tone === 'attention') { <em>Requiere atención</em> }
+      </a>
     }
-  </div>
-</section>
+  </section>
 
-<section class="dashboard-workspace">
-  <article class="attendance-panel gi-card">
-    <header class="section-heading">
-      <div>
-        <span class="kicker">Asistencia del día</span>
-        <h2>{{ attendanceRate() }}% de asistencia</h2>
-        <p>Distribución de registros capturados para la operación actual.</p>
+  <section class="overview-grid">
+    <article class="operation-panel gi-card">
+      <header class="panel-heading">
+        <div>
+          <span class="eyebrow">{{ isPlatformAdmin() ? 'Contexto de soporte' : 'Operación de hoy' }}</span>
+          <h2>{{ isPlatformAdmin() ? 'Lectura operativa de la organización seleccionada' : 'Distribución de asistencia' }}</h2>
+          <p>Los resultados corresponden al contexto activo y a la fecha operativa.</p>
+        </div>
+        <a [routerLink]="isPlatformAdmin() ? '/monitor' : '/operacion/asistencia'">Ver detalle <span aria-hidden="true">→</span></a>
+      </header>
+
+      <div class="operation-summary">
+        <div class="donut" [style.background]="donutStyle()" aria-label="Distribución de asistencia">
+          <span><strong>{{ expectedShifts() }}</strong><small>turnos esperados</small></span>
+        </div>
+        <div class="donut-legend">
+          @for (item of attendanceBreakdown(); track item.label) {
+            <div [class]="'legend-item legend-item--' + item.tone">
+              <i aria-hidden="true"></i><span>{{ item.label }}</span><strong>{{ item.value }}</strong>
+            </div>
+          }
+        </div>
       </div>
-    </header>
+    </article>
 
-    <div class="attendance-content">
-      <div class="donut" [style.background]="donutStyle()" aria-label="Gráfica de asistencia">
-        <span>
-          <strong>{{ attendanceRate() }}%</strong>
-          <small>asistencia</small>
-        </span>
-      </div>
+    <article class="attention-panel gi-card">
+      <header class="panel-heading">
+        <div>
+          <span class="eyebrow">Prioridad</span>
+          <h2>Necesita tu atención</h2>
+          <p>Pendientes ordenados para actuar desde su módulo.</p>
+        </div>
+        <span class="today-badge">Hoy</span>
+      </header>
 
-      <div class="donut-legend">
-        @for (item of attendanceBreakdown(); track item.label) {
-          <div [class]="'legend-item legend-item--' + item.tone">
-            <i aria-hidden="true"></i>
-            <span>{{ item.label }}</span>
-            <strong>{{ item.value }}</strong>
+      <div class="activity-list">
+        @for (activity of recentActivity(); track activity.title) {
+          <a class="activity-item" [routerLink]="activity.route">
+            <i aria-hidden="true">{{ activity.icon }}</i>
+            <span><strong>{{ activity.title }}</strong><small>{{ activity.context }}</small></span>
+            <em>{{ activity.when }}</em><b aria-hidden="true">→</b>
+          </a>
+        } @empty {
+          <div class="empty-state">
+            <span aria-hidden="true">✓</span>
+            <div><strong>Sin pendientes críticos</strong><small>No hay incidencias, coberturas o solicitudes que requieran atención inmediata.</small></div>
           </div>
         }
       </div>
-    </div>
-  </article>
+    </article>
+  </section>
 
-  <article class="activity-panel gi-card">
-    <header class="section-heading">
+  <article class="directory-panel gi-card">
+    <header class="panel-heading">
       <div>
-        <span class="kicker">Actividad reciente</span>
-        <h2>Últimos movimientos relevantes</h2>
-        <p>Eventos operativos derivados de la información disponible hoy.</p>
+        <span class="eyebrow">{{ isPlatformAdmin() ? 'Gobierno' : 'Cartera operativa' }}</span>
+        <h2>{{ isPlatformAdmin() ? 'Organizaciones en seguimiento' : 'Clientes de tu organización' }}</h2>
+        <p>
+          {{ isPlatformAdmin()
+            ? 'Selecciona una organización para configurarla o atenderla en contexto de soporte.'
+            : 'Cada cliente conserva sus servicios y expediente dentro de tu organización.' }}
+        </p>
       </div>
+      <a [routerLink]="isPlatformAdmin() ? '/plataforma/organizaciones' : '/clientes'">Ver todos <span aria-hidden="true">→</span></a>
     </header>
 
-    <div class="activity-list">
-      @for (activity of recentActivity(); track activity.title) {
-        <a class="activity-item" [routerLink]="activity.route">
-          <i aria-hidden="true">{{ activity.icon }}</i>
-          <span>
-            <strong>{{ activity.title }}</strong>
-            <small>{{ activity.context }}</small>
-          </span>
-          <em>{{ activity.when }}</em>
-        </a>
-      } @empty {
-        <div class="focus-empty">
-          <span class="empty-check" aria-hidden="true">✓</span>
-          <div>
-            <strong>Sin actividad crítica</strong>
-            <span>No hay incidencias, coberturas o solicitudes que requieran atención inmediata.</span>
-          </div>
+    <div class="directory-table" role="table">
+      @if (isPlatformAdmin()) {
+        <div class="directory-row directory-row--head" role="row">
+          <span>Organización</span><span>Código</span><span>Estado</span><span aria-label="Acciones"></span>
         </div>
-      }
-    </div>
-  </article>
-</section>
-
-<section class="dashboard-workspace dashboard-workspace--secondary">
-  <article class="focus-panel gi-card">
-    <header class="section-heading">
-      <div>
-        <span class="kicker">Atención sugerida</span>
-        <h2>Servicios que requieren seguimiento</h2>
-        <p>Priorizados por incidencias, faltas y retardos registrados.</p>
-      </div>
-      <a routerLink="/reportes">Ver reportes</a>
-    </header>
-
-    <div class="focus-list">
-      @for (service of highestRiskServices(); track service.idService) {
-        <a class="focus-item" routerLink="/reportes">
-          <span>
-            <strong>{{ service.serviceName }}</strong>
-            <small>{{ service.clientName }} · {{ service.codeService }}</small>
-          </span>
-          <em>{{ serviceRiskSummary(service) }}</em>
-        </a>
-      } @empty {
-        <div class="focus-empty">
-          <span class="empty-check" aria-hidden="true">✓</span>
-          <div>
-            <strong>Sin servicios en riesgo</strong>
-            <span>No hay faltas, retardos o incidencias abiertas en los servicios consultados.</span>
-          </div>
+        @for (organization of organizations(); track organization.idOrganization) {
+          <a class="directory-row" role="row" routerLink="/plataforma/organizaciones">
+            <span class="identity-cell"><i>{{ organization.legalName.slice(0, 2).toUpperCase() }}</i><strong>{{ organization.legalName }}</strong></span>
+            <span>{{ organization.codeOrganization }}</span>
+            <span><em class="status-badge status-badge--success">Disponible</em></span>
+            <span class="row-arrow" aria-hidden="true">→</span>
+          </a>
+        } @empty {
+          <div class="table-empty">No hay organizaciones disponibles para este usuario.</div>
+        }
+      } @else {
+        <div class="directory-row directory-row--head directory-row--clients" role="row">
+          <span>Cliente</span><span>Código</span><span>Servicios</span><span>Estado</span><span aria-label="Acciones"></span>
         </div>
+        @for (client of clients().slice(0, 5); track client.idClient) {
+          <a class="directory-row directory-row--clients" role="row" routerLink="/clientes">
+            <span class="identity-cell"><i>{{ (client.tradeName || client.legalName).slice(0, 2).toUpperCase() }}</i><strong>{{ client.tradeName || client.legalName }}</strong></span>
+            <span>{{ client.codeClient }}</span><span>{{ servicesForClient(client.idClient) }}</span>
+            <span><em class="status-badge" [class.status-badge--success]="client.active">{{ client.active ? 'Activo' : 'Inactivo' }}</em></span>
+            <span class="row-arrow" aria-hidden="true">→</span>
+          </a>
+        } @empty {
+          <div class="table-empty">Todavía no hay clientes operativos registrados.</div>
+        }
       }
     </div>
   </article>
 
-  <aside class="actions-panel gi-card">
-    <header class="section-heading">
-      <div>
-        <span class="kicker">Accesos rápidos</span>
-        <h2>Acciones frecuentes</h2>
-        <p>Se muestran según los permisos del usuario.</p>
-      </div>
-    </header>
-
-    <nav class="quick-actions" aria-label="Accesos rápidos">
-      @for (action of quickActions(); track action.route) {
-        <a [routerLink]="action.route">
-          <span>
-            <strong>{{ action.label }}</strong>
-            <small>{{ action.detail }}</small>
-          </span>
-          <i aria-hidden="true">→</i>
-        </a>
-      } @empty {
-        <div class="focus-empty">
-          <span class="empty-check" aria-hidden="true">i</span>
-          <div>
-            <strong>Sin acciones disponibles</strong>
-            <span>Tu usuario no tiene acciones rápidas asignadas por ahora.</span>
-          </div>
-        </div>
-      }
-    </nav>
-  </aside>
+  <nav class="quick-links" aria-label="Accesos rápidos">
+    @for (action of quickActions(); track action.route) {
+      <a [routerLink]="action.route"><span><strong>{{ action.label }}</strong><small>{{ action.detail }}</small></span><i aria-hidden="true">→</i></a>
+    }
+  </nav>
 </section>

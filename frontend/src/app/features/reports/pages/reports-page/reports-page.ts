@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { forkJoin, of, switchMap } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { ClientApiService } from '../../../clients/data-access/client-api.service';
@@ -24,6 +24,7 @@ import {
 export class ReportsPage implements OnInit {
   private readonly api = inject(ClientApiService);
   private readonly auth = inject(AuthService);
+  private readonly route = inject(ActivatedRoute);
 
   protected readonly organizations = signal<readonly Organization[]>([]);
   protected readonly clients = signal<readonly Client[]>([]);
@@ -44,11 +45,18 @@ export class ReportsPage implements OnInit {
   protected readonly exporting = signal(false);
   protected readonly error = signal('');
   protected readonly isPlatformAdmin = computed(() => this.auth.session()?.permissions.includes('PLATFORM.ADMIN') ?? false);
+  protected readonly isMonitorMode = this.route.snapshot.data['reportMode'] === 'monitor';
   protected readonly selectedOrganization = computed(
     () => this.organizations().find((organization) => organization.idOrganization === this.selectedOrganizationId()) ?? null,
   );
   protected readonly heroCopy = computed(() =>
-    this.isPlatformAdmin()
+    this.isMonitorMode
+      ? {
+        eyebrow: 'Operación / Plataforma',
+        title: 'Monitor global',
+        description: 'Supervisa el estado operativo por organización y abre el contexto que requiere soporte.',
+      }
+      : this.isPlatformAdmin()
       ? {
         eyebrow: 'Control plataforma',
         title: 'Reportes por organización',
@@ -384,8 +392,11 @@ export class ReportsPage implements OnInit {
     this.api.listOrganizations().subscribe({
       next: (organizations) => {
         this.organizations.set(organizations);
-        this.selectedOrganizationId.set(organizations[0]?.idOrganization ?? '');
-        this.loadClients();
+        const organizationId = this.auth.resolveOperationalOrganizationId(organizations);
+        this.selectedOrganizationId.set(organizationId);
+        if (organizationId) {
+          this.loadClients();
+        }
       },
       error: (error: HttpErrorResponse) => this.setError(error, 'No se pudieron cargar las organizaciones.'),
       complete: () => this.loading.set(false),
@@ -403,7 +414,7 @@ export class ReportsPage implements OnInit {
     this.error.set('');
 
     this.api
-      .listClients(organizationId, '', 1, 100)
+      .listClientOptions(organizationId)
       .pipe(
         switchMap((clients) => {
           this.clients.set(clients.items);

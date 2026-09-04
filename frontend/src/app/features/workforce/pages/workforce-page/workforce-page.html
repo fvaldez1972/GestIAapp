@@ -63,7 +63,7 @@
         @if (isPlatformAdmin()) {
           <label>
             <span>Organización</span>
-            <select [value]="selectedOrganizationId()" (change)="selectOrganization($any($event.target).value)">
+            <select [value]="selectedOrganizationId()" [disabled]="isPlatformAdmin()" (change)="selectOrganization($any($event.target).value)">
               @for (organization of organizations(); track organization.idOrganization) {
                 <option [value]="organization.idOrganization">{{ organization.legalName }}</option>
               }
@@ -372,7 +372,10 @@
       </section>
       }
 
-      @if (activeTab() === 'documents') {
+      @if (activeTab() === 'documents' && !canReadFiles()) {
+        <p role="status">No tienes permiso para consultar los documentos sensibles del expediente.</p>
+      }
+      @if (activeTab() === 'documents' && canReadFiles()) {
         <section class="detail-section">
         <header>
           <div>
@@ -380,18 +383,7 @@
             <span>{{ documents().length }} documento(s) en expediente</span>
           </div>
           <div class="header-actions">
-            <a
-              class="button button--secondary"
-              routerLink="/documentos"
-              [queryParams]="{
-                organizationId: selectedOrganizationId(),
-                ownerType: 'Employee',
-                ownerId: selectedEmployee()?.idEmployee
-              }"
-            >
-              Abrir en Documentos
-            </a>
-            <button class="button button--secondary" type="button" (click)="openCreateDocument()">Subir documento</button>
+            <button class="button button--secondary" type="button" [disabled]="!canWriteFiles()" (click)="openCreateDocument()">Nuevo documento</button>
           </div>
         </header>
         <div class="requirements-grid">
@@ -432,8 +424,9 @@
                   <small [title]="document.storageReference || ''">{{ document.notes || compactReference(document.storageReference) || 'Sin observaciones' }}</small>
                 </div>
                 <div class="mini-actions">
-                  <button type="button" (click)="openEditDocument(document)">Editar</button>
-                  <button class="danger" type="button" (click)="deactivateDocument(document)">Desactivar</button>
+                  <button type="button" [disabled]="!document.storageReference" (click)="downloadEmployeeFile('documents', document.idEmployeeDocument)">Descargar</button>
+                  <button type="button" [disabled]="!canWriteFiles()" (click)="openEditDocument(document)">Editar</button>
+                  <button class="danger" type="button" [disabled]="!canWriteFiles()" (click)="deactivateDocument(document)">Desactivar</button>
                 </div>
               </article>
             }
@@ -442,14 +435,21 @@
       </section>
       }
 
-      @if (activeTab() === 'evaluations') {
+      @if (activeTab() === 'documents' && selectedEmployee(); as employee) {
+        <app-entity-documents [organizationId]="selectedOrganizationId()" ownerType="Employee" [ownerId]="employee.idEmployee" [ownerLabel]="employee.fullName" />
+      }
+
+      @if (activeTab() === 'evaluations' && !canReadFiles()) {
+        <p role="status">No tienes permiso para consultar las evaluaciones del expediente.</p>
+      }
+      @if (activeTab() === 'evaluations' && canReadFiles()) {
         <section class="detail-section">
         <header>
           <div>
             <h3>Evaluaciones</h3>
             <span>{{ evaluations().length }} registro(s)</span>
           </div>
-          <button class="button button--secondary" type="button" (click)="openCreateEvaluation()">Nueva evaluación</button>
+          <button class="button button--secondary" type="button" [disabled]="!canWriteFiles()" (click)="openCreateEvaluation()">Nueva evaluación</button>
         </header>
 
         @if (!evaluations().length) {
@@ -465,8 +465,9 @@
                   <small>{{ evaluation.certificateNumber || evaluation.notes || 'Sin folio u observaciones' }}</small>
                 </div>
                 <div class="mini-actions">
-                  <button type="button" (click)="openEditEvaluation(evaluation)">Editar</button>
-                  <button class="danger" type="button" (click)="deactivateEvaluation(evaluation)">Desactivar</button>
+                  <button type="button" [disabled]="!evaluation.storageReference" (click)="downloadEmployeeFile('evaluations', evaluation.idEmployeeEvaluation)">Descargar</button>
+                  <button type="button" [disabled]="!canWriteFiles()" (click)="openEditEvaluation(evaluation)">Editar</button>
+                  <button class="danger" type="button" [disabled]="!canWriteFiles()" (click)="deactivateEvaluation(evaluation)">Desactivar</button>
                 </div>
               </article>
             }
@@ -544,8 +545,9 @@
         @if (employeeWizardStep() === 3) {
           <div class="form-grid">
             <label class="wide"><span>Domicilio</span><textarea rows="3" formControlName="address"></textarea></label>
-            <label><span>Estado</span><select formControlName="state"><option value="">Selecciona estado</option><option value="Jalisco">Jalisco</option><option value="Nuevo León">Nuevo León</option><option value="Ciudad de México">Ciudad de México</option></select></label>
-            <label><span>Municipio</span><select formControlName="municipality"><option value="">Selecciona municipio</option><option value="Guadalajara">Guadalajara</option><option value="Monterrey">Monterrey</option><option value="Benito Juárez">Benito Juárez</option></select></label>
+            <label><span>País</span><app-catalog-select formControlName="countryCode" [organizationId]="selectedOrganizationId()" type="Country" label="País" [useCode]="true" (selectionChange)="employeeForm.patchValue({state: '', municipality: ''})" /></label>
+            <label><span>Estado</span><app-catalog-select formControlName="state" [organizationId]="selectedOrganizationId()" type="State" label="Estado" [country]="employeeForm.controls.countryCode.value" (selectionChange)="employeeForm.patchValue({municipality: ''})" /></label>
+            <label><span>Municipio / ciudad</span><app-catalog-select formControlName="municipality" [organizationId]="selectedOrganizationId()" type="City" label="Municipio" [country]="employeeForm.controls.countryCode.value" [state]="employeeForm.controls.state.value" /></label>
             <label><span>Código postal</span><input formControlName="postalCode" maxlength="10" /></label>
             <label><span>Vivienda</span><select formControlName="housingType"><option value="">Selecciona vivienda</option><option value="Propia">Propia</option><option value="Rentada">Rentada</option><option value="Familiar">Familiar</option></select></label>
             <label><span>Residencia desde</span><input type="date" formControlName="residenceSinceDate" /></label>
@@ -554,7 +556,7 @@
 
         @if (employeeWizardStep() === 4) {
           <div class="form-grid">
-            <label class="wide"><span>Puesto</span><select formControlName="jobTitle"><option value="">Selecciona puesto</option><option value="Guardia">Guardia</option><option value="Supervisor">Supervisor</option><option value="Monitorista">Monitorista</option><option value="Administrativo">Administrativo</option></select></label>
+            <label class="wide"><span>Puesto</span><app-catalog-select formControlName="jobTitle" [organizationId]="selectedOrganizationId()" type="JobPosition" label="Puesto" /></label>
             <label><span>Sexo</span><select formControlName="sex"><option value="">Selecciona sexo</option><option value="Masculino">Masculino</option><option value="Femenino">Femenino</option><option value="No especificado">No especificado</option></select></label>
             <label><span>Estado civil</span><select formControlName="maritalStatus"><option value="">Selecciona estado civil</option><option value="Soltero">Soltero</option><option value="Casado">Casado</option><option value="Unión libre">Unión libre</option><option value="Divorciado">Divorciado</option></select></label>
             <label><span>INE</span><input formControlName="voterIdNumber" /></label>
@@ -565,13 +567,20 @@
 
         @if (employeeWizardStep() === 5) {
           <div class="review-panel">
-            <strong>Documentos que deberán validarse</strong>
-            <ul>
-              <li>INE obligatoria.</li>
-              <li>CURP y NSS para completar expediente.</li>
-              <li>Comprobante de domicilio cuando aplique al servicio.</li>
-            </ul>
-            <p>Después de guardar podrás subir documentos desde la pestaña Documentos del expediente.</p>
+            <strong>Requisitos documentales de la organización</strong>
+            @if (requirementsLoading()) {
+              <p role="status">Consultando requisitos...</p>
+            } @else if (requirementsError()) {
+              <p role="alert">{{ requirementsError() }}</p>
+            } @else {
+              <ul>
+                @for (requirement of documentRequirements(); track requirement.idEligibilityRequirement) {
+                  <li>{{ requirement.name }} · {{ requirement.isBlocking ? 'Bloqueante' : 'Informativo' }}</li>
+                } @empty {
+                  <li>Sin requisitos documentales configurados a nivel organización.</li>
+                }
+              </ul>
+            }
           </div>
         }
 
@@ -668,12 +677,12 @@
           <label><span>Recibido</span><input type="date" formControlName="receivedDate" /></label>
           <label><span>Emitido</span><input type="date" formControlName="issuedDate" /></label>
           <label><span>Vence</span><input type="date" formControlName="expiresDate" /></label>
-          <label class="wide"><span>Referencia del archivo</span><input formControlName="storageReference" placeholder="Folio, liga o ubicación del respaldo" /></label>
+          <label class="wide"><span>Archivo</span><input type="file" [disabled]="uploadingFile() || !canUploadFiles()" (change)="uploadEmployeeFile($event, 'documents')" /><small>{{ uploadingFile() ? 'Cargando archivo...' : documentForm.controls.storageReference.value ? 'Archivo adjunto' : 'Sin archivo adjunto' }}</small></label>
           <label class="wide"><span>Notas</span><textarea rows="3" formControlName="notes"></textarea></label>
         </div>
         <footer>
           <button class="button button--secondary" type="button" (click)="closeEditors()">Cancelar</button>
-          <button class="button button--primary" type="submit" [disabled]="saving()">{{ saving() ? 'Guardando…' : 'Guardar documento' }}</button>
+          <button class="button button--primary" type="submit" [disabled]="saving() || uploadingFile() || !canWriteFiles()">{{ saving() ? 'Guardando…' : 'Guardar documento' }}</button>
         </footer>
       </form>
     </section>
@@ -694,12 +703,12 @@
           <label><span>Evaluado *</span><input type="date" formControlName="evaluatedDate" /></label>
           <label><span>Vence</span><input type="date" formControlName="expiresDate" /></label>
           <label class="wide"><span>Certificado/folio</span><input formControlName="certificateNumber" /></label>
-          <label class="wide"><span>Referencia del archivo</span><input formControlName="storageReference" placeholder="Folio, liga o ubicación del respaldo" /></label>
+          <label class="wide"><span>Archivo</span><input type="file" [disabled]="uploadingFile() || !canUploadFiles()" (change)="uploadEmployeeFile($event, 'evaluations')" /><small>{{ uploadingFile() ? 'Cargando archivo...' : evaluationForm.controls.storageReference.value ? 'Archivo adjunto' : 'Sin archivo adjunto' }}</small></label>
           <label class="wide"><span>Notas</span><textarea rows="3" formControlName="notes"></textarea></label>
         </div>
         <footer>
           <button class="button button--secondary" type="button" (click)="closeEditors()">Cancelar</button>
-          <button class="button button--primary" type="submit" [disabled]="saving()">{{ saving() ? 'Guardando…' : 'Guardar evaluación' }}</button>
+          <button class="button button--primary" type="submit" [disabled]="saving() || uploadingFile() || !canWriteFiles()">{{ saving() ? 'Guardando…' : 'Guardar evaluación' }}</button>
         </footer>
       </form>
     </section>

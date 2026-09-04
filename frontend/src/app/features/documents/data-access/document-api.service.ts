@@ -2,11 +2,13 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import {
   BusinessDocument,
+  BusinessDocumentEvent,
   BusinessDocumentInput,
   BusinessDocumentOwnerType,
   BusinessDocumentPage,
   BusinessDocumentStatus,
   FileUploadResponse,
+  ReviewBusinessDocumentInput,
 } from './document.models';
 
 @Injectable({ providedIn: 'root' })
@@ -60,10 +62,19 @@ export class DocumentApiService {
     return this.http.delete<void>(`${this.baseUrl}/${idBusinessDocument}`, { params });
   }
 
-  uploadDocumentFile(file: File) {
+  reviewDocument(idBusinessDocument: string, request: ReviewBusinessDocumentInput) {
+    return this.http.post<BusinessDocument>(`${this.baseUrl}/${idBusinessDocument}/review`, request);
+  }
+
+  listHistory(organizationId: string, idBusinessDocument: string) {
+    const params = new HttpParams().set('organizationId', organizationId);
+    return this.http.get<readonly BusinessDocumentEvent[]>(`${this.baseUrl}/${idBusinessDocument}/history`, { params });
+  }
+
+  uploadDocumentFile(file: File, organizationId: string) {
     const formData = new FormData();
     formData.append('file', file, file.name);
-    return this.http.post<FileUploadResponse>(`${this.baseUrl}/upload`, formData);
+    return this.http.post<FileUploadResponse>(`${this.baseUrl}/upload`, formData, { params: new HttpParams().set('organizationId', organizationId) });
   }
 
   downloadDocument(organizationId: string, idBusinessDocument: string) {

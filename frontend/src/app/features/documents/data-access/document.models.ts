@@ -25,6 +25,9 @@ export type BusinessDocument = {
   readonly storageReference: string;
   readonly isSensitive: boolean;
   readonly notes: string | null;
+  readonly reviewNotes: string | null;
+  readonly reviewedAt: string | null;
+  readonly reviewedByName: string | null;
   readonly active: boolean;
   readonly createdAt: string;
   readonly updatedAt: string | null;
@@ -45,6 +48,23 @@ export type BusinessDocumentInput = {
 };
 
 export type BusinessDocumentPage = PagedResult<BusinessDocument>;
+
+export type BusinessDocumentEvent = {
+  readonly idBusinessDocumentEvent: string;
+  readonly action: string;
+  readonly status: BusinessDocumentStatus;
+  readonly notes: string | null;
+  readonly actorName: string;
+  readonly occurredAt: string;
+  readonly beforeSnapshot?: string | null;
+  readonly afterSnapshot?: string | null;
+};
+
+export type ReviewBusinessDocumentInput = {
+  readonly idOrganization: string;
+  readonly status: 'Validated' | 'Rejected';
+  readonly reviewNotes: string | null;
+};
 
 export type FileUploadResponse = {
   readonly originalFileName: string;

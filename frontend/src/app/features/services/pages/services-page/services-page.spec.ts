@@ -19,23 +19,22 @@ describe('ServicesPage organization-scoped workflows', () => {
   // Tests exercise protected user actions without adding a public production API.
   let page: any;
   let permissions: ReturnType<typeof signal<string[]>>;
-  let support: ReturnType<typeof signal<boolean>>;
+  // Para un super admin: si ya entró a una organización. Sustituye al viejo modo soporte.
+  let organizationOpen: ReturnType<typeof signal<boolean>>;
   let activeOrganization: ReturnType<typeof signal<string>>;
   let params: BehaviorSubject<ReturnType<typeof convertToParamMap>>;
 
   beforeEach(() => {
     permissions = signal(['CLIENTS.READ', 'CLIENTS.WRITE', 'PLANNING.READ', 'PLANNING.WRITE', 'WORKFORCE.READ', 'DOCUMENTS.READ']);
-    support = signal(false);
+    organizationOpen = signal(false);
     activeOrganization = signal('org-a');
     params = new BehaviorSubject(convertToParamMap({}));
     const auth = {
       session: () => ({ permissions: permissions() }),
       hasPermission: (p: string) => permissions().includes(p) || permissions().includes('PLATFORM.ADMIN'),
-      isSupportModeActive: support,
-      supportSession: () => support() ? { idOrganization: 'org-a' } : null,
       setActiveOrganization: (id: string) => { if (['org-a', 'org-b'].includes(id)) activeOrganization.set(id); },
       resolveOperationalOrganizationId: (organizations: typeof organization[]) =>
-        permissions().includes('PLATFORM.ADMIN') && !support() ? '' :
+        permissions().includes('PLATFORM.ADMIN') && !organizationOpen() ? '' :
           organizations.find(o => o.idOrganization === activeOrganization())?.idOrganization ?? '',
     };
     TestBed.configureTestingModule({
@@ -91,7 +90,7 @@ describe('ServicesPage organization-scoped workflows', () => {
     http.expectOne(r => r.url === '/api/v1/employees').flush({ items: [], page: 1, totalPages: 1 });
   }
 
-  it('blocks operational requests and writes for platform admins without support', () => {
+  it('bloquea consultas y escrituras al super admin que no ha entrado a una organización', () => {
     permissions.set(['PLATFORM.ADMIN']);
     start();
     expect(page.canRead()).toBe(false);
@@ -170,13 +169,13 @@ describe('ServicesPage organization-scoped workflows', () => {
     flushService();
   });
 
-  it('clears scoped data immediately when support expires', () => {
+  it('limpia los datos de la organización en cuanto el super admin sale de ella', () => {
     permissions.set(['PLATFORM.ADMIN']);
-    support.set(true);
+    organizationOpen.set(true);
     selectClient();
     page.selectService(service);
     const requests = http.match(() => true);
-    support.set(false);
+    organizationOpen.set(false);
     TestBed.tick();
     expect(requests.every(r => r.cancelled)).toBe(true);
     expect(page.selectedClient()).toBeNull();

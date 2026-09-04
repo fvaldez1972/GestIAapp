@@ -20,7 +20,6 @@ export type NavigationItem = {
   readonly permission?: string;
   readonly platformOnly?: boolean;
   readonly hideForPlatformAdmin?: boolean;
-  readonly availableInSupport?: boolean;
 };
 
 export type NavigationGroup = {
@@ -57,11 +56,11 @@ export const GESTIA_NAVIGATION: readonly NavigationGroup[] = [
     label: 'Configuración',
     items: [
       { label: 'Organizaciones', icon: 'security', route: '/plataforma/organizaciones', permission: 'PLATFORM.ADMIN', platformOnly: true },
-      { label: 'Clientes', icon: 'customer', route: '/clientes', permission: 'CLIENTS.READ', hideForPlatformAdmin: true, availableInSupport: true },
-      { label: 'Servicios', icon: 'coverage', route: '/servicios', permission: 'CLIENTS.READ', hideForPlatformAdmin: true, availableInSupport: true },
-      { label: 'Personal', icon: 'people', route: '/personal', permission: 'WORKFORCE.READ', hideForPlatformAdmin: true, availableInSupport: true },
-      { label: 'Catálogos', icon: 'catalog', route: '/catalogos', permission: 'CATALOGS.READ', hideForPlatformAdmin: true, availableInSupport: true },
-      { label: 'Reglas documentales', icon: 'document', route: '/configuracion/documentos', permission: 'CATALOGS.READ', hideForPlatformAdmin: true, availableInSupport: true },
+      { label: 'Clientes', icon: 'customer', route: '/clientes', permission: 'CLIENTS.READ', hideForPlatformAdmin: true },
+      { label: 'Servicios', icon: 'coverage', route: '/servicios', permission: 'CLIENTS.READ', hideForPlatformAdmin: true },
+      { label: 'Personal', icon: 'people', route: '/personal', permission: 'WORKFORCE.READ', hideForPlatformAdmin: true },
+      { label: 'Catálogos', icon: 'catalog', route: '/catalogos', permission: 'CATALOGS.READ', hideForPlatformAdmin: true },
+      { label: 'Reglas documentales', icon: 'document', route: '/configuracion/documentos', permission: 'CATALOGS.READ', hideForPlatformAdmin: true },
     ],
   },
 ];

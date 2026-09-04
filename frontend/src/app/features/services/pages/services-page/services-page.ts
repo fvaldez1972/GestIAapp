@@ -120,16 +120,9 @@ export class ServicesPage implements OnInit, OnDestroy {
   protected readonly platformAdmin = computed(
     () => this.auth.session()?.permissions.includes('PLATFORM.ADMIN') ?? false,
   );
-  protected readonly supportAllowed = computed(
-    () =>
-      !this.platformAdmin() ||
-      (this.auth.isSupportModeActive() &&
-        this.auth.supportSession()?.idOrganization === this.selectedOrganizationId()),
-  );
   protected readonly canRead = computed(
     () =>
       this.auth.hasPermission('CLIENTS.READ') &&
-      this.supportAllowed() &&
       !!this.selectedOrganizationId(),
   );
   protected readonly canReadPlanning = computed(
@@ -200,10 +193,9 @@ export class ServicesPage implements OnInit, OnDestroy {
     effect(() => {
       const id = this.auth.resolveOperationalOrganizationId(this.organizations());
       const permission = this.auth.hasPermission('CLIENTS.READ');
-      // React to support expiry as well as shell organization changes.
-      const support = !this.platformAdmin() || this.auth.isSupportModeActive();
+      // Reacciona a los cambios de organización hechos desde la barra superior.
       untracked(() => {
-        const next = permission && support ? id : '';
+        const next = permission ? id : '';
         if (next !== this.selectedOrganizationId()) this.changeOrganization(next);
       });
     });

@@ -29,7 +29,6 @@ describe('Services context selectors', () => {
           session: () => ({ permissions: ['CLIENTS.READ'] }),
           hasPermission: (permission: string) => permission === 'CLIENTS.READ',
           resolveOperationalOrganizationId: (organizations: any[]) => organizations[0]?.idOrganization ?? '',
-          isSupportModeActive: () => false,
         } },
       ],
     });

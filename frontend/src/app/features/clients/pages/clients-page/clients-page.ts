@@ -131,8 +131,8 @@ export class ClientsPage implements OnInit {
   );
   protected readonly primarySite = computed(() => this.sites()[0] ?? null);
   protected readonly newClientDisabledReason = computed(() => {
-    if (this.canAdministerPlatform() && !this.auth.isSupportModeActive()) {
-      return 'Inicia el modo soporte para operar dentro de una organización.';
+    if (this.canAdministerPlatform() && !this.auth.activeOrganization()) {
+      return 'Selecciona una organización en la barra superior para operar dentro de ella.';
     }
 
     if (!this.selectedOrganizationId()) {
@@ -264,7 +264,7 @@ export class ClientsPage implements OnInit {
   }
 
   protected selectOrganization(organizationId: string): void {
-    if (this.canAdministerPlatform() && this.auth.supportSession()?.idOrganization !== organizationId) {
+    if (this.canAdministerPlatform() && this.auth.activeOrganizationId() !== organizationId) {
       this.error.set('Finaliza el soporte actual e inicia una nueva sesión para cambiar de organización.');
       return;
     }
@@ -949,9 +949,9 @@ export class ClientsPage implements OnInit {
 
   private resolveOrganizationSelection(preferredId: string | undefined, organizations: readonly Organization[]): string {
     if (this.canAdministerPlatform()) {
-      const supportOrganizationId = this.auth.supportSession()?.idOrganization;
-      return supportOrganizationId && organizations.some((organization) => organization.idOrganization === supportOrganizationId)
-        ? supportOrganizationId
+      const activeId = this.auth.activeOrganizationId();
+      return activeId && organizations.some((organization) => organization.idOrganization === activeId)
+        ? activeId
         : '';
     }
 

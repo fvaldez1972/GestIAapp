@@ -40,16 +40,7 @@ export class OverviewPage {
   protected readonly organizations = computed(() =>
     this.isPlatformAdmin() ? this.auth.platformOrganizations() : this.auth.organizations(),
   );
-  protected readonly activeOrganization = computed(() => {
-    const support = this.auth.supportSession();
-    if (this.isPlatformAdmin()) {
-      return support
-        ? { idOrganization: support.idOrganization, codeOrganization: '', legalName: support.organizationName }
-        : null;
-    }
-
-    return this.auth.activeOrganization();
-  });
+  protected readonly activeOrganization = computed(() => this.auth.activeOrganization());
   protected readonly todayIso = new Date().toISOString().slice(0, 10);
   protected readonly todayLabel = new Intl.DateTimeFormat('es-MX', {
     weekday: 'long',
@@ -437,9 +428,7 @@ export class OverviewPage {
   }
 
   private loadDashboard() {
-    const organizationId = this.isPlatformAdmin()
-      ? this.auth.supportSession()?.idOrganization
-      : this.auth.activeOrganization()?.idOrganization;
+    const organizationId = this.auth.activeOrganization()?.idOrganization;
 
     if (!organizationId) {
       return;

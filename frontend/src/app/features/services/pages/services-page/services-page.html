@@ -13,9 +13,9 @@
       Nuevo servicio
     </button>
   </header>
-  @if (platformAdmin() && !supportAllowed()) {
+  @if (platformAdmin() && !selectedOrganizationId()) {
     <p class="notice">
-      Inicia una sesión de soporte para consultar los servicios de una organización.
+      Selecciona una organización en la barra superior para consultar sus servicios.
     </p>
   }
   <div class="context-bar">

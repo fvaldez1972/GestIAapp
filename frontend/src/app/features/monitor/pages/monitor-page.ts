@@ -29,11 +29,6 @@ export class MonitorPage {
   protected readonly operationDate = signal(new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Mexico_City' }).format(new Date()));
   protected readonly refreshVersion = signal(0);
   protected readonly increment = (value: number) => value + 1;
-  protected readonly supportTarget = signal<OrganizationGovernanceSummary | null>(null);
-  protected readonly reason = signal('');
-  protected readonly duration = signal(60);
-  protected readonly supportSaving = signal(false);
-  protected readonly supportError = signal('');
   protected readonly visibleOrganizations = computed(() => this.organizations().filter(item => {
     const text = `${item.organization.legalName} ${item.organization.codeOrganization}`.toLowerCase();
     return text.includes(this.search().trim().toLowerCase()) &&
@@ -45,21 +40,21 @@ export class MonitorPage {
   constructor() {
     this.reload();
     effect(onCleanup => {
-      const support = this.auth.supportSession();
+      const organization = this.auth.activeOrganization();
       const date = this.operationDate();
       this.refreshVersion();
       this.summary.set(null);
       this.services.set([]);
       this.operationsError.set('');
       this.operationsLoading.set(false);
-      if (!support || !this.auth.isSupportModeActive() || !date) return;
+      if (!organization || !date) return;
       this.operationsLoading.set(true);
       const request = forkJoin({
-        summary: this.api.getOperationsSummary(support.idOrganization, undefined, undefined, date, date),
-        services: this.api.getOperationsByService(support.idOrganization, undefined, undefined, date, date),
+        summary: this.api.getOperationsSummary(organization.idOrganization, undefined, undefined, date, date),
+        services: this.api.getOperationsByService(organization.idOrganization, undefined, undefined, date, date),
       }).subscribe({
         next: result => { this.summary.set(result.summary); this.services.set(result.services); this.operationsLoading.set(false); },
-        error: () => { this.operationsError.set('No se pudo consultar la operacion del contexto de soporte.'); this.operationsLoading.set(false); },
+        error: () => { this.operationsError.set('No se pudo consultar la operacion de la organizacion seleccionada.'); this.operationsLoading.set(false); },
       });
       onCleanup(() => request.unsubscribe());
     });
@@ -71,23 +66,6 @@ export class MonitorPage {
     this.api.listOrganizationGovernance().subscribe({
       next: result => { this.organizations.set(result); this.loading.set(false); },
       error: () => { this.error.set('No se pudo cargar el monitor de organizaciones.'); this.loading.set(false); },
-    });
-  }
-
-  protected openSupport(item: OrganizationGovernanceSummary) {
-    this.reason.set('');
-    this.supportError.set('');
-    this.supportTarget.set(item);
-  }
-
-  protected startSupport() {
-    const item = this.supportTarget();
-    if (!item || !item.organization.active || this.reason().trim().length < 10 || this.supportSaving()) return;
-    this.supportSaving.set(true);
-    this.supportError.set('');
-    this.auth.startSupportSession({ idOrganization: item.organization.idOrganization, reason: this.reason().trim(), durationMinutes: this.duration() }).subscribe({
-      next: () => { this.supportSaving.set(false); this.supportTarget.set(null); },
-      error: () => { this.supportSaving.set(false); this.supportError.set('No se pudo iniciar soporte. Revisa el estado de la organizacion.'); },
     });
   }
 }

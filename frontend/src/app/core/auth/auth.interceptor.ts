@@ -14,9 +14,6 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
   }
 
   const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
-  if (auth.isSupportModeActive() && auth.supportSession() && !request.url.includes('/api/v1/support-sessions')) {
-    headers['X-GestIA-Support-Session'] = auth.supportSession()!.idSupportSession;
-  }
 
   return next(request.clone({ setHeaders: headers })).pipe(
     catchError((error: unknown) => {

@@ -22,21 +22,3 @@ export interface AuthSession {
   organizations: readonly OrganizationAccess[];
   permissions: readonly string[];
 }
-
-export interface SupportSession {
-  idSupportSession: string;
-  idOrganization: string;
-  organizationName: string;
-  reason: string;
-  startsAt: string;
-  expiresAt: string;
-  endedAt: string | null;
-  startedBy: string;
-  active: boolean;
-}
-
-export interface StartSupportSessionRequest {
-  idOrganization: string;
-  reason: string;
-  durationMinutes: number;
-}

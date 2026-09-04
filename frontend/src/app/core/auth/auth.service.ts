@@ -1,26 +1,25 @@
 import { HttpClient } from '@angular/common/http';
-import { computed, inject, Injectable, OnDestroy, signal } from '@angular/core';
+import { computed, inject, Injectable, signal } from '@angular/core';
 import { tap } from 'rxjs';
-import { AuthSession, LoginRequest, OrganizationAccess, StartSupportSessionRequest, SupportSession } from './auth.models';
+import { AuthSession, LoginRequest, OrganizationAccess } from './auth.models';
 
 const storageKey = 'gestia.auth.session';
 const activeOrganizationStorageKey = 'gestia.auth.activeOrganizationId';
-const supportSessionStorageKey = 'gestia.auth.supportSession';
+
+/**
+ * Clave que usaba el modo soporte, ya eliminado. Se borra una sola vez al arrancar para no
+ * dejar dato muerto en el navegador de quien ya había usado la aplicación.
+ */
+const legacySupportSessionStorageKey = 'gestia.auth.supportSession';
 
 @Injectable({ providedIn: 'root' })
-export class AuthService implements OnDestroy {
+export class AuthService {
   private readonly http = inject(HttpClient);
   private readonly sessionState = signal<AuthSession | null>(loadSession());
-  private readonly supportSessionState = signal<SupportSession | null>(loadSupportSession());
   private readonly platformOrganizationsState = signal<readonly OrganizationAccess[]>([]);
-  private supportExpiryTimer: ReturnType<typeof setTimeout> | undefined;
 
   constructor() {
-    this.scheduleSupportExpiry(this.supportSessionState());
-  }
-
-  ngOnDestroy() {
-    clearTimeout(this.supportExpiryTimer);
+    removeLegacySupportSession();
   }
 
   readonly session = this.sessionState.asReadonly();
@@ -31,16 +30,27 @@ export class AuthService implements OnDestroy {
   readonly displayName = computed(() => this.sessionState()?.user.displayName ?? '');
   readonly organizations = computed(() => this.sessionState()?.organizations ?? []);
   readonly activeOrganizationId = signal(loadActiveOrganizationId());
-  readonly supportSession = this.supportSessionState.asReadonly();
   readonly platformOrganizations = this.platformOrganizationsState.asReadonly();
-  readonly isSupportModeActive = computed(() => {
-    const session = this.supportSessionState();
-    return !!session && session.active && new Date(session.expiresAt).getTime() > Date.now();
-  });
+  readonly isPlatformAdmin = computed(
+    () => this.sessionState()?.permissions.includes('PLATFORM.ADMIN') ?? false,
+  );
+
+  /**
+   * De dónde puede elegir el usuario. El super admin elige entre todas las organizaciones de
+   * la plataforma; cualquier otro rol, sólo entre aquellas donde tiene membresía.
+   */
+  readonly availableOrganizations = computed<readonly OrganizationAccess[]>(() =>
+    this.isPlatformAdmin() ? this.platformOrganizations() : this.organizations(),
+  );
+
   readonly activeOrganization = computed(() => {
     const selectedId = this.activeOrganizationId();
-    const organizations = this.organizations();
-    return organizations.find((organization) => organization.idOrganization === selectedId) ?? organizations[0] ?? null;
+    const available = this.availableOrganizations();
+    const selected = available.find((organization) => organization.idOrganization === selectedId);
+
+    // El super admin no cae a la primera organización por omisión: entra a una cuando la
+    // elige, y mientras tanto no está dentro de ninguna.
+    return selected ?? (this.isPlatformAdmin() ? null : available[0] ?? null);
   });
 
   login(request: LoginRequest) {
@@ -50,13 +60,10 @@ export class AuthService implements OnDestroy {
   }
 
   logout() {
-    clearTimeout(this.supportExpiryTimer);
     localStorage.removeItem(storageKey);
     localStorage.removeItem(activeOrganizationStorageKey);
-    localStorage.removeItem(supportSessionStorageKey);
     this.sessionState.set(null);
     this.activeOrganizationId.set('');
-    this.supportSessionState.set(null);
     this.platformOrganizationsState.set([]);
   }
 
@@ -76,25 +83,27 @@ export class AuthService implements OnDestroy {
     return !!session && (session.permissions.includes(permission) || session.permissions.includes('PLATFORM.ADMIN'));
   }
 
+  /**
+   * Organización sobre la que operan las pantallas. Para el super admin es la que eligió en
+   * la topbar; si no ha elegido ninguna, devuelve cadena vacía y la pantalla queda en espera.
+   */
   resolveOperationalOrganizationId(organizations: readonly OrganizationAccess[]) {
-    if (this.sessionState()?.permissions.includes('PLATFORM.ADMIN')) {
-      if (!this.isSupportModeActive()) {
-        return '';
-      }
-      const supportOrganizationId = this.supportSessionState()?.idOrganization ?? '';
-      return organizations.some((organization) => organization.idOrganization === supportOrganizationId)
-        ? supportOrganizationId
-        : '';
+    const activeOrganizationId = this.activeOrganizationId();
+    const isKnown = organizations.some(
+      (organization) => organization.idOrganization === activeOrganizationId,
+    );
+
+    if (this.isPlatformAdmin()) {
+      return isKnown ? activeOrganizationId : '';
     }
 
-    const activeOrganizationId = this.activeOrganizationId();
-    return organizations.some((organization) => organization.idOrganization === activeOrganizationId)
-      ? activeOrganizationId
-      : organizations[0]?.idOrganization ?? '';
+    return isKnown ? activeOrganizationId : organizations[0]?.idOrganization ?? '';
   }
 
   setActiveOrganization(idOrganization: string) {
-    const exists = this.organizations().some((organization) => organization.idOrganization === idOrganization);
+    const exists = this.availableOrganizations().some(
+      (organization) => organization.idOrganization === idOrganization,
+    );
 
     if (!exists) {
       return;
@@ -104,73 +113,41 @@ export class AuthService implements OnDestroy {
     this.activeOrganizationId.set(idOrganization);
   }
 
+  /** Salir de la organización sin cerrar sesión. Es la contraparte de entrar a una. */
+  clearActiveOrganization() {
+    localStorage.removeItem(activeOrganizationStorageKey);
+    this.activeOrganizationId.set('');
+  }
+
   loadPlatformOrganizations() {
     return this.http.get<readonly OrganizationAccess[]>('/api/v1/organizations').pipe(
       tap((organizations) => this.platformOrganizationsState.set(organizations)),
     );
   }
 
-  loadCurrentSupportSession() {
-    return this.http.get<SupportSession | null>('/api/v1/support-sessions/current').pipe(
-      tap((session) => this.storeSupportSession(session)),
-    );
-  }
-
-  startSupportSession(request: StartSupportSessionRequest) {
-    return this.http.post<SupportSession>('/api/v1/support-sessions', request).pipe(
-      tap((session) => this.storeSupportSession(session)),
-    );
-  }
-
-  endSupportSession() {
-    const session = this.supportSessionState();
-    if (!session) {
-      return null;
-    }
-
-    return this.http.delete<void>(`/api/v1/support-sessions/${session.idSupportSession}`).pipe(
-      tap(() => this.storeSupportSession(null)),
-    );
-  }
-
-  clearSupportSession() {
-    this.storeSupportSession(null);
-  }
-
   private storeSession(session: AuthSession) {
-    this.storeSupportSession(null);
     localStorage.setItem(storageKey, JSON.stringify(session));
+    const isPlatformAdmin = session.permissions.includes('PLATFORM.ADMIN');
     const currentOrganizationId = this.activeOrganizationId();
-    const activeOrganizationId = session.organizations.some((organization) => organization.idOrganization === currentOrganizationId)
-      ? currentOrganizationId
-      : session.organizations[0]?.idOrganization ?? '';
+    const belongsToSession = session.organizations.some(
+      (organization) => organization.idOrganization === currentOrganizationId,
+    );
+
+    // El super admin arranca fuera de toda organización y elige a cuál entrar.
+    const activeOrganizationId = isPlatformAdmin
+      ? ''
+      : belongsToSession
+        ? currentOrganizationId
+        : session.organizations[0]?.idOrganization ?? '';
 
     if (activeOrganizationId) {
       localStorage.setItem(activeOrganizationStorageKey, activeOrganizationId);
+    } else {
+      localStorage.removeItem(activeOrganizationStorageKey);
     }
 
     this.activeOrganizationId.set(activeOrganizationId);
     this.sessionState.set(session);
-  }
-
-  private storeSupportSession(session: SupportSession | null) {
-    clearTimeout(this.supportExpiryTimer);
-    if (!session || !session.active || new Date(session.expiresAt).getTime() <= Date.now()) {
-      localStorage.removeItem(supportSessionStorageKey);
-      this.supportSessionState.set(null);
-      return;
-    }
-
-    localStorage.setItem(supportSessionStorageKey, JSON.stringify(session));
-    this.supportSessionState.set(session);
-    this.scheduleSupportExpiry(session);
-  }
-
-  private scheduleSupportExpiry(session: SupportSession | null) {
-    if (session) {
-      const delay = Math.max(0, new Date(session.expiresAt).getTime() - Date.now());
-      this.supportExpiryTimer = setTimeout(() => this.storeSupportSession(null), delay);
-    }
   }
 }
 
@@ -194,22 +171,10 @@ function loadActiveOrganizationId(): string {
   return localStorage.getItem(activeOrganizationStorageKey) ?? '';
 }
 
-function loadSupportSession(): SupportSession | null {
-  const value = localStorage.getItem(supportSessionStorageKey);
-  if (!value) {
-    return null;
-  }
-
+function removeLegacySupportSession(): void {
   try {
-    const session = JSON.parse(value) as SupportSession;
-    if (!session.active || new Date(session.expiresAt).getTime() <= Date.now()) {
-      localStorage.removeItem(supportSessionStorageKey);
-      return null;
-    }
-
-    return session;
+    localStorage.removeItem(legacySupportSessionStorageKey);
   } catch {
-    localStorage.removeItem(supportSessionStorageKey);
-    return null;
+    // Un navegador con almacenamiento bloqueado no tiene nada que limpiar.
   }
 }

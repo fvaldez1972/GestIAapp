@@ -165,6 +165,27 @@ public sealed partial class DemoDataSeeder
 
         dbContext.AddRange(withoutDocuments, withExpired);
 
+        // 11. Variantes del perfil de puesto escritas a mano, que es como llegan los datos
+        //     reales. Existen para que el mapeo tolerante de la tanda F1 tenga qué ejercitar: si
+        //     todos los valores fueran idénticos al catálogo, la tolerancia mapearía todo y no
+        //     sabríamos si sirve.
+        //
+        //     Las tres primeras DEBEN mapear a "Guardia de seguridad" —difieren sólo en
+        //     mayúsculas, espacios de sobra y un acento sobrante—. La cuarta NO debe mapear:
+        //     "Vigilante nocturno" no está en el catálogo de puestos, y su columna tiene que
+        //     quedar nula sin que eso bloquee asignar a esa persona.
+        foreach (var (suffix, profile) in HardCaseJobTitleVariants)
+        {
+            dbContext.Add(Employee.Create(
+                organizationId, $"{HardCasePrefix}-E-{suffix}", $"Empleado con perfil {suffix}", profile,
+                Today.AddYears(-1), DemoActorId, DemoActorName, OccurredAt));
+
+            dbContext.Add(Position.Create(
+                organizationId, openEnded.IdService, $"{HardCasePrefix}-P-{suffix}",
+                new PositionProfile($"Puesto con perfil {suffix}", 1, profile, null),
+                DemoActorId, DemoActorName, OccurredAt));
+        }
+
         dbContext.Add(EmployeeDocument.Create(
             organizationId, withExpired.IdEmployee,
             new EmployeeDocumentProfile(
@@ -228,6 +249,19 @@ public sealed partial class DemoDataSeeder
 
         await dbContext.SaveChangesAsync(cancellationToken);
     }
+
+    /// <summary>
+    /// Variantes de perfil tal como las escribe una persona. Las tres primeras son la misma
+    /// entrada de catálogo escrita distinto; la última no existe en el catálogo y debe quedar sin
+    /// mapear.
+    /// </summary>
+    private static readonly (string Suffix, string Profile)[] HardCaseJobTitleVariants =
+    [
+        ("MINUSCULA", "guardia de seguridad"),
+        ("ESPACIOS", "  Guardia de Seguridad  "),
+        ("ACENTO", "Guardía de seguridad"),
+        ("SINMAPEO", "Vigilante nocturno")
+    ];
 
     /// <summary>
     /// Un nombre de exactamente <see cref="ClientNameMaxLength"/> caracteres, con acentos, para

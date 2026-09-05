@@ -23,6 +23,17 @@ namespace GestIA.Infrastructure.Persistence.DemoData;
 /// materializaron las 19 migraciones existentes.</item>
 /// </list>
 /// </summary>
+/// <remarks>
+/// <b>Por qué el sembrador apaga también el filtro de organización.</b> Corre al arrancar la
+/// aplicación, fuera de cualquier petición, así que no hay guard que haya fijado una
+/// organización autorizada y el filtro global no encontraría ninguna fila. Sus lecturas de
+/// verificación —las que lo hacen idempotente— devolverían vacío y volvería a sembrar todo en
+/// cada arranque.
+///
+/// No cruza organizaciones: trabaja con la única que él mismo crea. Está en la lista blanca de
+/// <c>OrganizationFilterBypassTests</c>, que es lo que impide que el bypass se extienda en
+/// silencio a otros archivos.
+/// </remarks>
 public sealed partial class DemoDataSeeder(
     GestIaDbContext dbContext,
     OrganizationCatalogDefaults catalogDefaults,
@@ -78,7 +89,7 @@ public sealed partial class DemoDataSeeder(
     {
         var code = this.options.CodeOrganization.ToUpperInvariant();
         var existing = await dbContext.Organizations
-            .IgnoreQueryFilters()
+            .IgnoreQueryFilters(["Active", "Organization"])
             .SingleOrDefaultAsync(item => item.CodeOrganization == code, cancellationToken);
 
         if (existing is not null)
@@ -111,7 +122,7 @@ public sealed partial class DemoDataSeeder(
         CancellationToken cancellationToken)
     {
         var hasGeography = await dbContext.BusinessCatalogItems
-            .IgnoreQueryFilters()
+            .IgnoreQueryFilters(["Active", "Organization"])
             .AnyAsync(
                 item => item.IdOrganization == organization.IdOrganization &&
                     item.Type == BusinessCatalogItemType.State,
@@ -124,7 +135,7 @@ public sealed partial class DemoDataSeeder(
         }
 
         var hasJobPositions = await dbContext.BusinessCatalogItems
-            .IgnoreQueryFilters()
+            .IgnoreQueryFilters(["Active", "Organization"])
             .AnyAsync(
                 item => item.IdOrganization == organization.IdOrganization &&
                     item.Type == BusinessCatalogItemType.JobPosition,
@@ -151,7 +162,7 @@ public sealed partial class DemoDataSeeder(
         }
 
         report.CatalogItems = await dbContext.BusinessCatalogItems
-            .IgnoreQueryFilters()
+            .IgnoreQueryFilters(["Active", "Organization"])
             .CountAsync(item => item.IdOrganization == organization.IdOrganization, cancellationToken);
     }
 
@@ -181,7 +192,7 @@ public sealed partial class DemoDataSeeder(
         CancellationToken cancellationToken)
     {
         var existing = await dbContext.EligibilityRequirements
-            .IgnoreQueryFilters()
+            .IgnoreQueryFilters(["Active", "Organization"])
             .CountAsync(item => item.IdOrganization == organization.IdOrganization, cancellationToken);
 
         if (existing == 0)
@@ -210,7 +221,7 @@ public sealed partial class DemoDataSeeder(
         }
 
         report.EligibilityRules = await dbContext.EligibilityRequirements
-            .IgnoreQueryFilters()
+            .IgnoreQueryFilters(["Active", "Organization"])
             .CountAsync(item => item.IdOrganization == organization.IdOrganization, cancellationToken);
     }
 

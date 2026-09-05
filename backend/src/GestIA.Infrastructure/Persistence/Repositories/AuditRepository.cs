@@ -47,7 +47,7 @@ public sealed class AuditRepository(GestIaDbContext dbContext, IActorContext act
         if (Matches(entity, "Organizaciones"))
         {
             AddRows(rows, await dbContext.Organizations
-                .IgnoreQueryFilters()
+                .IgnoreQueryFilters(["Active"])
                 .Where(item => item.IdOrganization == query.IdOrganization)
                 .Select(item => new AuditableRecord(
                     "Organizaciones",
@@ -65,7 +65,7 @@ public sealed class AuditRepository(GestIaDbContext dbContext, IActorContext act
         if (Matches(entity, "Sesiones de soporte"))
         {
             AddRows(rows, await dbContext.SupportSessions
-                .IgnoreQueryFilters()
+                .IgnoreQueryFilters(["Active"])
                 .Where(item => item.IdOrganization == query.IdOrganization)
                 .Select(item => new AuditableRecord(
                     "Sesiones de soporte",
@@ -83,7 +83,7 @@ public sealed class AuditRepository(GestIaDbContext dbContext, IActorContext act
         if (Matches(entity, "Clientes"))
         {
             AddRows(rows, await dbContext.Clients
-                .IgnoreQueryFilters()
+                .IgnoreQueryFilters(["Active"])
                 .Where(item => item.IdOrganization == query.IdOrganization)
                 .Select(item => new AuditableRecord(
                     "Clientes",
@@ -101,7 +101,7 @@ public sealed class AuditRepository(GestIaDbContext dbContext, IActorContext act
         if (Matches(entity, "Sedes"))
         {
             AddRows(rows, await dbContext.ClientSites
-                .IgnoreQueryFilters()
+                .IgnoreQueryFilters(["Active"])
                 .Where(item => item.Client.IdOrganization == query.IdOrganization)
                 .Select(item => new AuditableRecord(
                     "Sedes",
@@ -119,7 +119,7 @@ public sealed class AuditRepository(GestIaDbContext dbContext, IActorContext act
         if (Matches(entity, "Contactos"))
         {
             AddRows(rows, await dbContext.ClientContacts
-                .IgnoreQueryFilters()
+                .IgnoreQueryFilters(["Active"])
                 .Where(item => item.Client.IdOrganization == query.IdOrganization)
                 .Select(item => new AuditableRecord(
                     "Contactos",
@@ -137,7 +137,7 @@ public sealed class AuditRepository(GestIaDbContext dbContext, IActorContext act
         if (Matches(entity, "Contratos"))
         {
             AddRows(rows, await dbContext.ServiceContracts
-                .IgnoreQueryFilters()
+                .IgnoreQueryFilters(["Active"])
                 .Where(item => item.IdOrganization == query.IdOrganization)
                 .Select(item => new AuditableRecord(
                     "Contratos",
@@ -155,7 +155,7 @@ public sealed class AuditRepository(GestIaDbContext dbContext, IActorContext act
         if (Matches(entity, "Servicios"))
         {
             AddRows(rows, await dbContext.Services
-                .IgnoreQueryFilters()
+                .IgnoreQueryFilters(["Active"])
                 .Where(item => item.IdOrganization == query.IdOrganization)
                 .Select(item => new AuditableRecord(
                     "Servicios",
@@ -173,7 +173,7 @@ public sealed class AuditRepository(GestIaDbContext dbContext, IActorContext act
         if (Matches(entity, "Configuraciones"))
         {
             AddRows(rows, await dbContext.ServiceConfigurations
-                .IgnoreQueryFilters()
+                .IgnoreQueryFilters(["Active"])
                 .Where(item => item.IdOrganization == query.IdOrganization)
                 .Select(item => new AuditableRecord(
                     "Configuraciones",
@@ -191,7 +191,7 @@ public sealed class AuditRepository(GestIaDbContext dbContext, IActorContext act
         if (Matches(entity, "Personal"))
         {
             AddRows(rows, await dbContext.Employees
-                .IgnoreQueryFilters()
+                .IgnoreQueryFilters(["Active"])
                 .Where(item => item.IdOrganization == query.IdOrganization)
                 .Select(item => new AuditableRecord(
                     "Personal",
@@ -209,7 +209,7 @@ public sealed class AuditRepository(GestIaDbContext dbContext, IActorContext act
         if (Matches(entity, "Documentos") && canReadSensitive)
         {
             AddRows(rows, await dbContext.EmployeeDocuments
-                .IgnoreQueryFilters()
+                .IgnoreQueryFilters(["Active"])
                 .Where(item => item.Employee.IdOrganization == query.IdOrganization)
                 .Select(item => new AuditableRecord(
                     "Documentos",
@@ -228,14 +228,14 @@ public sealed class AuditRepository(GestIaDbContext dbContext, IActorContext act
         if (Matches(entity, "Documentos"))
         {
             AddRows(rows, await dbContext.BusinessDocuments
-                .IgnoreQueryFilters()
+                .IgnoreQueryFilters(["Active"])
                 .Where(item => item.IdOrganization == query.IdOrganization)
                 .Where(item => canReadSensitive || (!item.IsSensitive &&
-                    !dbContext.BusinessDocuments.IgnoreQueryFilters().Any(other => other.IsSensitive &&
+                    !dbContext.BusinessDocuments.IgnoreQueryFilters(QueryFilterNames.ActiveOnly).Any(other => other.IsSensitive &&
                         EF.Functions.Collate(other.StorageReference.Replace("\\", "/"), "Latin1_General_100_CI_AS") == item.StorageReference.Replace("\\", "/")) &&
-                    !dbContext.EmployeeDocuments.IgnoreQueryFilters().Any(other => other.StorageReference != null &&
+                    !dbContext.EmployeeDocuments.IgnoreQueryFilters(QueryFilterNames.ActiveOnly).Any(other => other.StorageReference != null &&
                         EF.Functions.Collate(other.StorageReference.Replace("\\", "/"), "Latin1_General_100_CI_AS") == item.StorageReference.Replace("\\", "/")) &&
-                    !dbContext.EmployeeEvaluations.IgnoreQueryFilters().Any(other => other.StorageReference != null &&
+                    !dbContext.EmployeeEvaluations.IgnoreQueryFilters(QueryFilterNames.ActiveOnly).Any(other => other.StorageReference != null &&
                         EF.Functions.Collate(other.StorageReference.Replace("\\", "/"), "Latin1_General_100_CI_AS") == item.StorageReference.Replace("\\", "/"))))
                 .Select(item => new AuditableRecord(
                     "Documentos",
@@ -253,7 +253,7 @@ public sealed class AuditRepository(GestIaDbContext dbContext, IActorContext act
         if (Matches(entity, "Evaluaciones") && canReadSensitive)
         {
             AddRows(rows, await dbContext.EmployeeEvaluations
-                .IgnoreQueryFilters()
+                .IgnoreQueryFilters(["Active"])
                 .Where(item => item.Employee.IdOrganization == query.IdOrganization)
                 .Select(item => new AuditableRecord(
                     "Evaluaciones",
@@ -271,7 +271,7 @@ public sealed class AuditRepository(GestIaDbContext dbContext, IActorContext act
         if (Matches(entity, "Catálogos"))
         {
             AddRows(rows, await dbContext.BusinessCatalogItems
-                .IgnoreQueryFilters()
+                .IgnoreQueryFilters(["Active"])
                 .Where(item => item.IdOrganization == query.IdOrganization)
                 .Select(item => new AuditableRecord(
                     "Catálogos",
@@ -289,7 +289,7 @@ public sealed class AuditRepository(GestIaDbContext dbContext, IActorContext act
         if (Matches(entity, "Reglas de elegibilidad"))
         {
             AddRows(rows, await dbContext.EligibilityRequirements
-                .IgnoreQueryFilters()
+                .IgnoreQueryFilters(["Active"])
                 .Where(item => item.IdOrganization == query.IdOrganization)
                 .Select(item => new AuditableRecord(
                     "Reglas de elegibilidad",
@@ -307,7 +307,7 @@ public sealed class AuditRepository(GestIaDbContext dbContext, IActorContext act
         if (Matches(entity, "Habilidades"))
         {
             AddRows(rows, await dbContext.EmployeeSkills
-                .IgnoreQueryFilters()
+                .IgnoreQueryFilters(["Active"])
                 .Where(item => item.Employee.IdOrganization == query.IdOrganization)
                 .Select(item => new AuditableRecord(
                     "Habilidades",
@@ -325,7 +325,7 @@ public sealed class AuditRepository(GestIaDbContext dbContext, IActorContext act
         if (Matches(entity, "Posiciones"))
         {
             AddRows(rows, await dbContext.Positions
-                .IgnoreQueryFilters()
+                .IgnoreQueryFilters(["Active"])
                 .Where(item => item.IdOrganization == query.IdOrganization)
                 .Select(item => new AuditableRecord(
                     "Posiciones",
@@ -343,7 +343,7 @@ public sealed class AuditRepository(GestIaDbContext dbContext, IActorContext act
         if (Matches(entity, "Patrones"))
         {
             AddRows(rows, await dbContext.ShiftPatterns
-                .IgnoreQueryFilters()
+                .IgnoreQueryFilters(["Active"])
                 .Where(item => item.IdOrganization == query.IdOrganization)
                 .Select(item => new AuditableRecord(
                     "Patrones",
@@ -361,7 +361,7 @@ public sealed class AuditRepository(GestIaDbContext dbContext, IActorContext act
         if (Matches(entity, "Segmentos"))
         {
             AddRows(rows, await dbContext.ShiftSegments
-                .IgnoreQueryFilters()
+                .IgnoreQueryFilters(["Active"])
                 .Where(item => item.IdOrganization == query.IdOrganization)
                 .Select(item => new AuditableRecord(
                     "Segmentos",
@@ -379,7 +379,7 @@ public sealed class AuditRepository(GestIaDbContext dbContext, IActorContext act
         if (Matches(entity, "Versiones"))
         {
             AddRows(rows, await dbContext.ScheduleVersions
-                .IgnoreQueryFilters()
+                .IgnoreQueryFilters(["Active"])
                 .Where(item => item.IdOrganization == query.IdOrganization)
                 .Select(item => new AuditableRecord(
                     "Versiones",
@@ -397,7 +397,7 @@ public sealed class AuditRepository(GestIaDbContext dbContext, IActorContext act
         if (Matches(entity, "Turnos"))
         {
             AddRows(rows, await dbContext.ScheduledShifts
-                .IgnoreQueryFilters()
+                .IgnoreQueryFilters(["Active"])
                 .Where(item => item.IdOrganization == query.IdOrganization)
                 .Select(item => new AuditableRecord(
                     "Turnos",
@@ -415,7 +415,7 @@ public sealed class AuditRepository(GestIaDbContext dbContext, IActorContext act
         if (Matches(entity, "Asistencia"))
         {
             AddRows(rows, await dbContext.AttendanceRecords
-                .IgnoreQueryFilters()
+                .IgnoreQueryFilters(["Active"])
                 .Where(item => item.IdOrganization == query.IdOrganization)
                 .Select(item => new AuditableRecord(
                     "Asistencia",
@@ -433,7 +433,7 @@ public sealed class AuditRepository(GestIaDbContext dbContext, IActorContext act
         if (Matches(entity, "Incidencias"))
         {
             AddRows(rows, await dbContext.Incidents
-                .IgnoreQueryFilters()
+                .IgnoreQueryFilters(["Active"])
                 .Where(item => item.IdOrganization == query.IdOrganization)
                 .Select(item => new AuditableRecord(
                     "Incidencias",
@@ -451,7 +451,7 @@ public sealed class AuditRepository(GestIaDbContext dbContext, IActorContext act
         if (Matches(entity, "Coberturas"))
         {
             AddRows(rows, await dbContext.CoverageRecords
-                .IgnoreQueryFilters()
+                .IgnoreQueryFilters(["Active"])
                 .Where(item => item.IdOrganization == query.IdOrganization)
                 .Select(item => new AuditableRecord(
                     "Coberturas",
@@ -469,7 +469,7 @@ public sealed class AuditRepository(GestIaDbContext dbContext, IActorContext act
         if (Matches(entity, "Evidencias"))
         {
             AddRows(rows, await dbContext.OperationEvidences
-                .IgnoreQueryFilters()
+                .IgnoreQueryFilters(["Active"])
                 .Where(item => item.IdOrganization == query.IdOrganization)
                 .Select(item => new AuditableRecord(
                     "Evidencias",
@@ -487,7 +487,7 @@ public sealed class AuditRepository(GestIaDbContext dbContext, IActorContext act
         if (Matches(entity, "Autorizaciones"))
         {
             AddRows(rows, await dbContext.ApprovalRequests
-                .IgnoreQueryFilters()
+                .IgnoreQueryFilters(["Active"])
                 .Where(item => item.IdOrganization == query.IdOrganization)
                 .Select(item => new AuditableRecord(
                     "Autorizaciones",
@@ -505,7 +505,7 @@ public sealed class AuditRepository(GestIaDbContext dbContext, IActorContext act
         if (Matches(entity, "Cierres diarios"))
         {
             AddRows(rows, await dbContext.OperationDayClosures
-                .IgnoreQueryFilters()
+                .IgnoreQueryFilters(["Active"])
                 .Where(item => item.IdOrganization == query.IdOrganization)
                 .Select(item => new AuditableRecord(
                     "Cierres diarios",
@@ -523,7 +523,7 @@ public sealed class AuditRepository(GestIaDbContext dbContext, IActorContext act
         if (Matches(entity, "Solicitudes"))
         {
             AddRows(rows, await dbContext.OperationalRequests
-                .IgnoreQueryFilters()
+                .IgnoreQueryFilters(["Active"])
                 .Where(item => item.IdOrganization == query.IdOrganization)
                 .Select(item => new AuditableRecord(
                     "Solicitudes",

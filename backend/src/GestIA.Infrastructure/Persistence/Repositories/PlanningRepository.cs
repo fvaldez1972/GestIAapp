@@ -42,7 +42,7 @@ public sealed class PlanningRepository(GestIaDbContext dbContext) : IPlanningRep
         Guid? excludedPositionId,
         CancellationToken cancellationToken) =>
         dbContext.Positions
-            .IgnoreQueryFilters()
+            .IgnoreQueryFilters(["Active"])
             .AnyAsync(
                 position =>
                     position.IdService == idService &&
@@ -77,7 +77,7 @@ public sealed class PlanningRepository(GestIaDbContext dbContext) : IPlanningRep
         Guid? excludedShiftPatternId,
         CancellationToken cancellationToken) =>
         dbContext.ShiftPatterns
-            .IgnoreQueryFilters()
+            .IgnoreQueryFilters(["Active"])
             .AnyAsync(
                 pattern =>
                     pattern.IdPosition == idPosition &&

@@ -16,11 +16,11 @@ public sealed class BusinessDocumentRepository(GestIaDbContext dbContext) : IBus
         if (!criteria.IncludeSensitive)
         {
             query = query.Where(document => !document.IsSensitive &&
-                !dbContext.BusinessDocuments.IgnoreQueryFilters().Any(other => other.IsSensitive &&
+                !dbContext.BusinessDocuments.IgnoreQueryFilters(QueryFilterNames.ActiveOnly).Any(other => other.IsSensitive &&
                     EF.Functions.Collate(other.StorageReference.Replace("\\", "/"), "Latin1_General_100_CI_AS") == document.StorageReference.Replace("\\", "/")) &&
-                !dbContext.EmployeeDocuments.IgnoreQueryFilters().Any(other => other.StorageReference != null &&
+                !dbContext.EmployeeDocuments.IgnoreQueryFilters(QueryFilterNames.ActiveOnly).Any(other => other.StorageReference != null &&
                     EF.Functions.Collate(other.StorageReference.Replace("\\", "/"), "Latin1_General_100_CI_AS") == document.StorageReference.Replace("\\", "/")) &&
-                !dbContext.EmployeeEvaluations.IgnoreQueryFilters().Any(other => other.StorageReference != null &&
+                !dbContext.EmployeeEvaluations.IgnoreQueryFilters(QueryFilterNames.ActiveOnly).Any(other => other.StorageReference != null &&
                     EF.Functions.Collate(other.StorageReference.Replace("\\", "/"), "Latin1_General_100_CI_AS") == document.StorageReference.Replace("\\", "/")));
         }
 
@@ -108,19 +108,19 @@ public sealed class BusinessDocumentRepository(GestIaDbContext dbContext) : IBus
         dbContext.BusinessDocuments.AddAsync(document, cancellationToken).AsTask();
 
     public async Task<bool> IsSensitiveStorageReferenceAsync(string storageReference, CancellationToken cancellationToken) =>
-        await dbContext.BusinessDocuments.IgnoreQueryFilters().AnyAsync(document => document.IsSensitive &&
+        await dbContext.BusinessDocuments.IgnoreQueryFilters(["Active"]).AnyAsync(document => document.IsSensitive &&
             EF.Functions.Collate(document.StorageReference.Replace("\\", "/"), "Latin1_General_100_CI_AS") == storageReference.Replace("\\", "/"), cancellationToken) ||
         await IsLegacyStorageReferenceAsync(storageReference, cancellationToken);
 
     public async Task<bool> IsDocumentStorageReferenceAsync(string storageReference, CancellationToken cancellationToken) =>
-        await dbContext.BusinessDocuments.IgnoreQueryFilters().AnyAsync(document =>
+        await dbContext.BusinessDocuments.IgnoreQueryFilters(["Active"]).AnyAsync(document =>
             EF.Functions.Collate(document.StorageReference.Replace("\\", "/"), "Latin1_General_100_CI_AS") == storageReference.Replace("\\", "/"), cancellationToken) ||
         await IsLegacyStorageReferenceAsync(storageReference, cancellationToken);
 
     private async Task<bool> IsLegacyStorageReferenceAsync(string storageReference, CancellationToken cancellationToken) =>
-        await dbContext.EmployeeDocuments.IgnoreQueryFilters().AnyAsync(document => document.StorageReference != null &&
+        await dbContext.EmployeeDocuments.IgnoreQueryFilters(["Active"]).AnyAsync(document => document.StorageReference != null &&
             EF.Functions.Collate(document.StorageReference.Replace("\\", "/"), "Latin1_General_100_CI_AS") == storageReference.Replace("\\", "/"), cancellationToken) ||
-        await dbContext.EmployeeEvaluations.IgnoreQueryFilters().AnyAsync(document => document.StorageReference != null &&
+        await dbContext.EmployeeEvaluations.IgnoreQueryFilters(["Active"]).AnyAsync(document => document.StorageReference != null &&
             EF.Functions.Collate(document.StorageReference.Replace("\\", "/"), "Latin1_General_100_CI_AS") == storageReference.Replace("\\", "/"), cancellationToken);
 
     public Task AddEventAsync(BusinessDocumentEvent documentEvent, CancellationToken cancellationToken) =>

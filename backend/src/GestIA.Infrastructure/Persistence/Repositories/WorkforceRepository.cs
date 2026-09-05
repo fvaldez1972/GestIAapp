@@ -60,7 +60,7 @@ public sealed class WorkforceRepository(GestIaDbContext dbContext) : IWorkforceR
         Guid? excludedEmployeeId,
         CancellationToken cancellationToken) =>
         dbContext.Employees
-            .IgnoreQueryFilters()
+            .IgnoreQueryFilters(["Active"])
             .AnyAsync(
                 employee =>
                     employee.IdOrganization == idOrganization &&
@@ -74,7 +74,7 @@ public sealed class WorkforceRepository(GestIaDbContext dbContext) : IWorkforceR
         Guid? excludedEmployeeId,
         CancellationToken cancellationToken) =>
         dbContext.Employees
-            .IgnoreQueryFilters()
+            .IgnoreQueryFilters(["Active"])
             .AnyAsync(
                 employee =>
                     employee.IdOrganization == idOrganization &&
@@ -88,7 +88,7 @@ public sealed class WorkforceRepository(GestIaDbContext dbContext) : IWorkforceR
         Guid? excludedEmployeeId,
         CancellationToken cancellationToken) =>
         dbContext.Employees
-            .IgnoreQueryFilters()
+            .IgnoreQueryFilters(["Active"])
             .AnyAsync(
                 employee =>
                     employee.IdOrganization == idOrganization &&
@@ -102,7 +102,7 @@ public sealed class WorkforceRepository(GestIaDbContext dbContext) : IWorkforceR
         Guid? excludedEmployeeId,
         CancellationToken cancellationToken) =>
         dbContext.Employees
-            .IgnoreQueryFilters()
+            .IgnoreQueryFilters(["Active"])
             .AnyAsync(
                 employee =>
                     employee.IdOrganization == idOrganization &&
@@ -161,7 +161,7 @@ public sealed class WorkforceRepository(GestIaDbContext dbContext) : IWorkforceR
         Guid? excludedEmployeeEvaluationId,
         CancellationToken cancellationToken) =>
         dbContext.EmployeeEvaluations
-            .IgnoreQueryFilters()
+            .IgnoreQueryFilters(["Active"])
             .AnyAsync(
                 evaluation =>
                     evaluation.IdEmployee == idEmployee &&

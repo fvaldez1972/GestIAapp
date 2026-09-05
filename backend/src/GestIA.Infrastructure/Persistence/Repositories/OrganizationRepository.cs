@@ -21,7 +21,7 @@ public sealed class OrganizationRepository(GestIaDbContext dbContext) : IOrganiz
 
     public Task<Organization?> GetTrackedAsync(Guid idOrganization, CancellationToken cancellationToken) =>
         dbContext.Organizations
-            .IgnoreQueryFilters()
+            .IgnoreQueryFilters(["Active"])
             .SingleOrDefaultAsync(
                 organization => organization.IdOrganization == idOrganization,
                 cancellationToken);
@@ -33,14 +33,14 @@ public sealed class OrganizationRepository(GestIaDbContext dbContext) : IOrganiz
 
     public Task<bool> IsCodeInUseAsync(string codeOrganization, CancellationToken cancellationToken) =>
         dbContext.Organizations
-            .IgnoreQueryFilters()
+            .IgnoreQueryFilters(["Active"])
             .AnyAsync(
                 organization => organization.CodeOrganization == codeOrganization,
                 cancellationToken);
 
     public Task<bool> IsRfcInUseAsync(string rfc, CancellationToken cancellationToken) =>
         dbContext.Organizations
-            .IgnoreQueryFilters()
+            .IgnoreQueryFilters(["Active"])
             .AnyAsync(organization => organization.Rfc == rfc, cancellationToken);
 
     public Task AddAsync(Organization organization, CancellationToken cancellationToken) =>

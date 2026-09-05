@@ -21,7 +21,7 @@ public sealed class CatalogRepository(GestIaDbContext dbContext) : ICatalogRepos
         CancellationToken cancellationToken)
     {
         var query = dbContext.BusinessCatalogItems
-            .IgnoreQueryFilters()
+            .IgnoreQueryFilters(["Active"])
             .AsNoTracking()
             .Where(item => item.IdOrganization == idOrganization);
 
@@ -41,7 +41,7 @@ public sealed class CatalogRepository(GestIaDbContext dbContext) : ICatalogRepos
         Guid idOrganization,
         Guid idCatalogItem,
         CancellationToken cancellationToken) =>
-        dbContext.BusinessCatalogItems.IgnoreQueryFilters().SingleOrDefaultAsync(
+        dbContext.BusinessCatalogItems.IgnoreQueryFilters(["Active"]).SingleOrDefaultAsync(
             item => item.IdOrganization == idOrganization && item.IdBusinessCatalogItem == idCatalogItem,
             cancellationToken);
 
@@ -55,7 +55,7 @@ public sealed class CatalogRepository(GestIaDbContext dbContext) : ICatalogRepos
         var normalizedCode = code.Trim().ToUpperInvariant();
 
         return dbContext.BusinessCatalogItems
-            .IgnoreQueryFilters()
+            .IgnoreQueryFilters(["Active"])
             .AnyAsync(
                 item =>
                     item.IdOrganization == idOrganization &&

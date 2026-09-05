@@ -9,7 +9,7 @@ public sealed class OrganizationAdminProvisioningRepository(GestIaDbContext dbCo
 {
     public Task<bool> EmailExistsAsync(string normalizedEmail, CancellationToken cancellationToken) =>
         dbContext.Users
-            .IgnoreQueryFilters()
+            .IgnoreQueryFilters(["Active"])
             .AnyAsync(user => user.NormalizedEmail == normalizedEmail, cancellationToken);
 
     public Task<Role?> GetOrganizationAdminRoleAsync(CancellationToken cancellationToken) =>

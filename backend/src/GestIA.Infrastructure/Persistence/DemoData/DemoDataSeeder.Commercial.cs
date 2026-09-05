@@ -19,7 +19,7 @@ public sealed partial class DemoDataSeeder
         CancellationToken cancellationToken)
     {
         var existing = await dbContext.Clients
-            .IgnoreQueryFilters()
+            .IgnoreQueryFilters(["Active", "Organization"])
             .AnyAsync(item => item.IdOrganization == organization.IdOrganization, cancellationToken);
 
         if (existing)
@@ -59,13 +59,13 @@ public sealed partial class DemoDataSeeder
             await dbContext.SaveChangesAsync(cancellationToken);
         }
 
-        report.Clients = await dbContext.Clients.IgnoreQueryFilters()
+        report.Clients = await dbContext.Clients.IgnoreQueryFilters(["Active", "Organization"])
             .CountAsync(item => item.IdOrganization == organization.IdOrganization, cancellationToken);
-        report.ClientSites = await dbContext.ClientSites.IgnoreQueryFilters()
+        report.ClientSites = await dbContext.ClientSites.IgnoreQueryFilters(["Active", "Organization"])
             .CountAsync(item => item.Client.IdOrganization == organization.IdOrganization, cancellationToken);
-        report.ClientContacts = await dbContext.ClientContacts.IgnoreQueryFilters()
+        report.ClientContacts = await dbContext.ClientContacts.IgnoreQueryFilters(["Active", "Organization"])
             .CountAsync(item => item.Client.IdOrganization == organization.IdOrganization, cancellationToken);
-        report.ServiceContracts = await dbContext.ServiceContracts.IgnoreQueryFilters()
+        report.ServiceContracts = await dbContext.ServiceContracts.IgnoreQueryFilters(["Active", "Organization"])
             .CountAsync(item => item.IdOrganization == organization.IdOrganization, cancellationToken);
     }
 
@@ -171,7 +171,7 @@ public sealed partial class DemoDataSeeder
         CancellationToken cancellationToken)
     {
         var existing = await dbContext.Services
-            .IgnoreQueryFilters()
+            .IgnoreQueryFilters(["Active", "Organization"])
             .AnyAsync(item => item.IdOrganization == organization.IdOrganization, cancellationToken);
 
         if (existing)
@@ -181,7 +181,7 @@ public sealed partial class DemoDataSeeder
         else
         {
             var clients = await dbContext.Clients
-                .IgnoreQueryFilters()
+                .IgnoreQueryFilters(["Active", "Organization"])
                 .Where(item => item.IdOrganization == organization.IdOrganization)
                 .OrderBy(item => item.CodeClient)
                 .ToListAsync(cancellationToken);
@@ -198,12 +198,12 @@ public sealed partial class DemoDataSeeder
             {
                 var definition = DemoCatalog.Clients.Single(item => item.Code == client.CodeClient);
                 var sites = await dbContext.ClientSites
-                    .IgnoreQueryFilters()
+                    .IgnoreQueryFilters(["Active", "Organization"])
                     .Where(item => item.IdClient == client.IdClient)
                     .OrderBy(item => item.CodeClientSite)
                     .ToListAsync(cancellationToken);
                 var contracts = await dbContext.ServiceContracts
-                    .IgnoreQueryFilters()
+                    .IgnoreQueryFilters(["Active", "Organization"])
                     .Where(item => item.IdClient == client.IdClient)
                     .OrderBy(item => item.CodeServiceContract)
                     .ToListAsync(cancellationToken);
@@ -248,9 +248,9 @@ public sealed partial class DemoDataSeeder
             await dbContext.SaveChangesAsync(cancellationToken);
         }
 
-        report.Services = await dbContext.Services.IgnoreQueryFilters()
+        report.Services = await dbContext.Services.IgnoreQueryFilters(["Active", "Organization"])
             .CountAsync(item => item.IdOrganization == organization.IdOrganization, cancellationToken);
-        report.ServiceConfigurations = await dbContext.ServiceConfigurations.IgnoreQueryFilters()
+        report.ServiceConfigurations = await dbContext.ServiceConfigurations.IgnoreQueryFilters(["Active", "Organization"])
             .CountAsync(item => item.IdOrganization == organization.IdOrganization, cancellationToken);
     }
 
@@ -302,7 +302,7 @@ public sealed partial class DemoDataSeeder
         CancellationToken cancellationToken)
     {
         var existing = await dbContext.Positions
-            .IgnoreQueryFilters()
+            .IgnoreQueryFilters(["Active", "Organization"])
             .AnyAsync(item => item.IdOrganization == organization.IdOrganization, cancellationToken);
 
         if (existing)
@@ -312,7 +312,7 @@ public sealed partial class DemoDataSeeder
         else
         {
             var services = await dbContext.Services
-                .IgnoreQueryFilters()
+                .IgnoreQueryFilters(["Active", "Organization"])
                 .Where(item => item.IdOrganization == organization.IdOrganization)
                 .OrderBy(item => item.CodeService)
                 .ToListAsync(cancellationToken);
@@ -349,11 +349,11 @@ public sealed partial class DemoDataSeeder
             await dbContext.SaveChangesAsync(cancellationToken);
         }
 
-        report.Positions = await dbContext.Positions.IgnoreQueryFilters()
+        report.Positions = await dbContext.Positions.IgnoreQueryFilters(["Active", "Organization"])
             .CountAsync(item => item.IdOrganization == organization.IdOrganization, cancellationToken);
-        report.ShiftPatterns = await dbContext.ShiftPatterns.IgnoreQueryFilters()
+        report.ShiftPatterns = await dbContext.ShiftPatterns.IgnoreQueryFilters(["Active", "Organization"])
             .CountAsync(item => item.IdOrganization == organization.IdOrganization, cancellationToken);
-        report.ShiftSegments = await dbContext.ShiftSegments.IgnoreQueryFilters()
+        report.ShiftSegments = await dbContext.ShiftSegments.IgnoreQueryFilters(["Active", "Organization"])
             .CountAsync(
                 item => item.IdOrganization == organization.IdOrganization,
                 cancellationToken);

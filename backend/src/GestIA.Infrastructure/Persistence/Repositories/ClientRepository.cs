@@ -52,7 +52,7 @@ public sealed class ClientRepository(GestIaDbContext dbContext) : IClientReposit
         Guid? excludedClientId,
         CancellationToken cancellationToken) =>
         dbContext.Clients
-            .IgnoreQueryFilters()
+            .IgnoreQueryFilters(["Active"])
             .AnyAsync(
                 client => client.IdOrganization == idOrganization &&
                     client.CodeClient == codeClient &&
@@ -65,7 +65,7 @@ public sealed class ClientRepository(GestIaDbContext dbContext) : IClientReposit
         Guid? excludedClientId,
         CancellationToken cancellationToken) =>
         dbContext.Clients
-            .IgnoreQueryFilters()
+            .IgnoreQueryFilters(["Active"])
             .AnyAsync(
                 client => client.IdOrganization == idOrganization &&
                     client.Rfc == rfc &&

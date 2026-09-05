@@ -32,7 +32,7 @@ public sealed class ServiceManagementRepository(GestIaDbContext dbContext) : ISe
         Guid? excludedServiceContractId,
         CancellationToken cancellationToken) =>
         dbContext.ServiceContracts
-            .IgnoreQueryFilters()
+            .IgnoreQueryFilters(["Active"])
             .AnyAsync(
                 contract =>
                     contract.IdClient == idClient &&
@@ -73,7 +73,7 @@ public sealed class ServiceManagementRepository(GestIaDbContext dbContext) : ISe
         Guid? excludedServiceId,
         CancellationToken cancellationToken) =>
         dbContext.Services
-            .IgnoreQueryFilters()
+            .IgnoreQueryFilters(["Active"])
             .AnyAsync(
                 service =>
                     service.IdClient == idClient &&
@@ -109,7 +109,7 @@ public sealed class ServiceManagementRepository(GestIaDbContext dbContext) : ISe
         Guid? excludedServiceConfigurationId,
         CancellationToken cancellationToken) =>
         dbContext.ServiceConfigurations
-            .IgnoreQueryFilters()
+            .IgnoreQueryFilters(["Active"])
             .AnyAsync(
                 configuration =>
                     configuration.IdService == idService &&

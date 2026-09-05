@@ -122,7 +122,7 @@ public static class OrganizationSecurityEndpoints
 
             var normalizedEmail = User.NormalizeEmail(request.Email);
             var emailInUse = await dbContext.Users
-                .IgnoreQueryFilters()
+                .IgnoreQueryFilters(["Active"])
                 .AnyAsync(user => user.NormalizedEmail == normalizedEmail, cancellationToken);
 
             if (emailInUse)
@@ -203,7 +203,7 @@ public static class OrganizationSecurityEndpoints
             }
 
             var user = await dbContext.Users
-                .IgnoreQueryFilters()
+                .IgnoreQueryFilters(["Active"])
                 .SingleOrDefaultAsync(item => item.IdUser == idUser, cancellationToken);
 
             if (user is null)
@@ -213,7 +213,7 @@ public static class OrganizationSecurityEndpoints
 
             var normalizedEmail = User.NormalizeEmail(request.Email);
             var emailInUse = await dbContext.Users
-                .IgnoreQueryFilters()
+                .IgnoreQueryFilters(["Active"])
                 .AnyAsync(
                     item => item.NormalizedEmail == normalizedEmail && item.IdUser != idUser,
                     cancellationToken);
@@ -447,7 +447,7 @@ public static class OrganizationSecurityEndpoints
             }
 
             var user = await dbContext.Users
-                .IgnoreQueryFilters()
+                .IgnoreQueryFilters(["Active"])
                 .SingleOrDefaultAsync(item => item.IdUser == idUser, cancellationToken);
 
             if (user is null)
@@ -467,7 +467,7 @@ public static class OrganizationSecurityEndpoints
 
     private static IQueryable<SecurityUserResponse> QueryOrganizationUsers(GestIaDbContext dbContext, Guid organizationId) =>
         dbContext.Users
-            .IgnoreQueryFilters()
+            .IgnoreQueryFilters(["Active"])
             .AsNoTracking()
             .Where(user => dbContext.OrganizationMemberships.Any(membership =>
                 membership.IdUser == user.IdUser &&

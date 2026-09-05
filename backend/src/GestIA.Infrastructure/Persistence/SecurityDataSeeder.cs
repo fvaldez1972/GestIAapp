@@ -46,7 +46,7 @@ public sealed class SecurityDataSeeder(
         CancellationToken cancellationToken)
     {
         var organization = await dbContext.Organizations
-            .IgnoreQueryFilters()
+            .IgnoreQueryFilters(["Active"])
             .SingleOrDefaultAsync(item => item.CodeOrganization == "GESTIA", cancellationToken);
 
         if (organization is not null)
@@ -119,7 +119,7 @@ public sealed class SecurityDataSeeder(
         CancellationToken cancellationToken)
     {
         var role = await dbContext.Roles
-            .IgnoreQueryFilters()
+            .IgnoreQueryFilters(["Active"])
             .SingleOrDefaultAsync(item => item.CodeRole == "ADMINISTRATOR", cancellationToken);
 
         if (role is not null)
@@ -137,7 +137,7 @@ public sealed class SecurityDataSeeder(
         CancellationToken cancellationToken)
     {
         var role = await dbContext.Roles
-            .IgnoreQueryFilters()
+            .IgnoreQueryFilters(["Active"])
             .SingleOrDefaultAsync(item => item.CodeRole == "ORGANIZATION_ADMIN", cancellationToken);
 
         if (role is not null)
@@ -157,7 +157,7 @@ public sealed class SecurityDataSeeder(
         CancellationToken cancellationToken)
     {
         var role = await dbContext.Roles
-            .IgnoreQueryFilters()
+            .IgnoreQueryFilters(["Active"])
             .SingleOrDefaultAsync(item => item.CodeRole == codeRole, cancellationToken);
 
         if (role is not null)
@@ -240,7 +240,7 @@ public sealed class SecurityDataSeeder(
         var password = configuration["BootstrapAdmin:Password"] ?? "GestIA.Local.2026!";
         var normalizedEmail = User.NormalizeEmail(email);
         var user = await dbContext.Users
-            .IgnoreQueryFilters()
+            .IgnoreQueryFilters(["Active"])
             .SingleOrDefaultAsync(item => item.NormalizedEmail == normalizedEmail, cancellationToken);
 
         if (user is not null)
@@ -270,7 +270,7 @@ public sealed class SecurityDataSeeder(
         CancellationToken cancellationToken)
     {
         var membership = await dbContext.OrganizationMemberships
-            .IgnoreQueryFilters()
+            .IgnoreQueryFilters(["Active"])
             .SingleOrDefaultAsync(
                 item => item.IdUser == user.IdUser && item.IdOrganization == organization.IdOrganization,
                 cancellationToken);
@@ -299,7 +299,7 @@ public sealed class SecurityDataSeeder(
         CancellationToken cancellationToken)
     {
         var exists = await dbContext.UserRoles
-            .IgnoreQueryFilters()
+            .IgnoreQueryFilters(["Active"])
             .AnyAsync(
                 item =>
                     item.IdUser == user.IdUser &&

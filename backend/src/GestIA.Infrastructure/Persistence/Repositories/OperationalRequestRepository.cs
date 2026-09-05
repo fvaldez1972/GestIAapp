@@ -70,7 +70,7 @@ public sealed class OperationalRequestRepository(GestIaDbContext dbContext) : IO
         Guid? excludedOperationalRequestId,
         CancellationToken cancellationToken) =>
         dbContext.Set<OperationalRequest>()
-            .IgnoreQueryFilters()
+            .IgnoreQueryFilters(["Active"])
             .AnyAsync(
                 request => request.IdOrganization == idOrganization &&
                     request.CodeOperationalRequest == codeOperationalRequest &&

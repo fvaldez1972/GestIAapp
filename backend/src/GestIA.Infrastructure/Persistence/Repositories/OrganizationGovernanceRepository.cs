@@ -10,7 +10,7 @@ public sealed class OrganizationGovernanceRepository(GestIaDbContext dbContext)
         CancellationToken cancellationToken)
     {
         var organizations = await dbContext.Organizations
-            .IgnoreQueryFilters()
+            .IgnoreQueryFilters(["Active"])
             .AsNoTracking()
             .OrderBy(organization => organization.LegalName)
             .Select(organization => new
@@ -21,8 +21,10 @@ public sealed class OrganizationGovernanceRepository(GestIaDbContext dbContext)
                     organization.LegalName,
                     organization.Rfc,
                     organization.Active),
+                // Vista de plataforma: lista las organizaciones con sus clientes, así que cruza
+                // organizaciones a propósito. El endpoint exige PLATFORM.ADMIN.
                 Clients = dbContext.Clients
-                    .IgnoreQueryFilters()
+                    .IgnoreQueryFilters(QueryFilterNames.ActiveAndOrganization)
                     .Where(client => client.IdOrganization == organization.IdOrganization)
                     .OrderBy(client => client.LegalName)
                     .Select(client => new OrganizationClientSummaryResponse(
@@ -34,10 +36,10 @@ public sealed class OrganizationGovernanceRepository(GestIaDbContext dbContext)
                         client.Active))
                     .ToArray(),
                 UsersCount = dbContext.OrganizationMemberships
-                    .IgnoreQueryFilters()
+                    .IgnoreQueryFilters(QueryFilterNames.ActiveOnly)
                     .Count(membership => membership.IdOrganization == organization.IdOrganization && membership.Active),
                 AdminsCount = dbContext.UserRoles
-                    .IgnoreQueryFilters()
+                    .IgnoreQueryFilters(QueryFilterNames.ActiveOnly)
                     .Count(userRole =>
                         userRole.Active &&
                         userRole.Role.CodeRole == "ORGANIZATION_ADMIN" &&

@@ -63,12 +63,12 @@
                 <button type="button" style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;background:#ffffff;padding:0 14px;display:flex;align-items:center;gap:8px;font:600 12.5px Archivo,sans-serif;color:#253040;flex:none;cursor:pointer">Filtros <span style="border:1px solid #22c6ee;background:#e9f7fa;border-radius:3px;padding:1px 6px;font:600 10.5px Archivo,sans-serif;color:#087f9c">1</span></button>
               </div>
               <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-                <span style="border:1px solid #dce2e9;background:#f7f9fb;border-radius:3px;padding:5px 9px;font:500 12px Archivo,sans-serif;color:#253040;display:flex;gap:8px;align-items:center">Zona: Poniente <button type="button" aria-label="Quitar filtro Zona: Poniente" style="border:0;background:transparent;padding:0;font:600 11px Archivo,sans-serif;color:#5f6b7a;cursor:pointer">✕</button></span>
+                <span style="border:1px solid #dce2e9;background:#f7f9fb;border-radius:3px;padding:5px 9px;font:500 12px Archivo,sans-serif;color:#253040;display:flex;gap:8px;align-items:center">Municipio: Zapopan <button type="button" aria-label="Quitar filtro Municipio: Zapopan" style="border:0;background:transparent;padding:0;font:600 11px Archivo,sans-serif;color:#5f6b7a;cursor:pointer">✕</button></span>
                 <button type="button" style="border:0;background:transparent;padding:0;font:600 12px Archivo,sans-serif;color:#087f9c;cursor:pointer">Quitar todos</button>
               </div>
             </div>
             <div style="display:flex;align-items:center;padding:11px 16px;background:#f7f9fb;border-bottom:1px solid #dce2e9;font:600 10.5px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">
-              <span style="width:220px;flex:none">CLIENTE</span><span style="flex:1;min-width:0">ZONA · MUNICIPIO</span><span style="width:190px;flex:none">SEDES</span><span style="width:130px;flex:none">SERVICIOS</span><span style="width:130px;flex:none">ESTADO</span><span style="width:52px;flex:none"></span>
+              <span style="width:220px;flex:none">CLIENTE</span><span style="flex:1;min-width:0">ESTADO · MUNICIPIO</span><span style="width:190px;flex:none">SEDES</span><span style="width:130px;flex:none">SERVICIOS</span><span style="width:130px;flex:none">ESTADO</span><span style="width:52px;flex:none"></span>
             </div>
             <sc-for list="{{ rows }}" as="r" hint-placeholder-count="9">
               <div style="display:flex;align-items:center;padding:13px 16px;border-bottom:1px solid #dce2e9;background:#ffffff">
@@ -97,8 +97,8 @@
               <div style="padding:11px 14px;background:#f7f9fb;border-bottom:1px solid #dce2e9;font:600 10.5px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">PANEL DE FILTROS · ABIERTO</div>
               <div style="padding:14px;display:flex;flex-direction:column;gap:13px">
                 <div style="display:flex;flex-direction:column;gap:5px">
-                  <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">ZONA</span>
-                  <span style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;justify-content:space-between;padding:0 11px;font:600 12.5px Archivo,sans-serif;color:#253040">Poniente <span style="font-size:10px;color:#5f6b7a">▾</span></span>
+                  <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">MUNICIPIO</span>
+                  <span style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;justify-content:space-between;padding:0 11px;font:600 12.5px Archivo,sans-serif;color:#253040">Zapopan <span style="font-size:10px;color:#5f6b7a">▾</span></span>
                 </div>
                 <div style="display:flex;flex-direction:column;gap:5px">
                   <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">MUNICIPIO</span>
@@ -128,6 +128,7 @@
             </div>
             <div style="flex:1;background:#ffffff;border:1px solid #dce2e9;border-radius:6px;padding:16px;display:flex;flex-direction:column;gap:16px;min-width:0">
               <div><div style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a;padding-bottom:7px">LO QUE SE FUE DE ESTA PANTALLA</div><div style="font:400 12.5px/1.6 Archivo,sans-serif;color:#253040">Los nueve filtros expuestos, ahora buscador más panel plegado. Las dos apariciones del selector de organización: se hereda de la barra de contexto. El botón «Nueva organización», que no pertenece aquí. El par duplicado «Editar cliente» y «Editar ficha»: queda uno, dentro del menú de fila.</div></div>
+              <div><div style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a;padding-bottom:7px">CORREGIDO EL 05 SEP 2026</div><div style="font:400 12.5px/1.6 Archivo,sans-serif;color:#253040"><b>La zona no existe en el modelo:</b> no la tienen ni el cliente ni la sede, y el catálogo <span style="font-weight:600">Zone</span> —uno de los cinco que el paso 1 de Inicio obliga a llenar— no lo referencia ninguna entidad. Se cambió por <span style="font-weight:600">Estado · Municipio</span> de la sede principal, que sí existen. Y el <b>RFC no es opcional</b>: el servicio lo usa para la unicidad del cliente junto con el código, así que sin él no se puede guardar ni el expediente.</div></div>
               <div><div style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a;padding-bottom:7px">CÓMO SE LEE LA SEDE</div><div style="font:400 12.5px/1.6 Archivo,sans-serif;color:#253040">La columna Sedes es el prerrequisito del paso siguiente. Cero sedes se muestra como raya más píldora <span style="color:#d97706;font-weight:600">Sin sede</span>, no como cero: un cero diría que está en orden. Los seis botones sin nombre accesible —menú de fila, cierre del panel, equis de los chips— ya lo llevan.</div></div>
             </div>
           </div>
@@ -207,7 +208,7 @@
                 <div style="display:flex;flex-direction:column;gap:11px">
                   <div style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">UBICACIÓN</div>
                   <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px 16px">
-                    <div style="display:flex;flex-direction:column;gap:3px"><span style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">ZONA</span><span style="font:600 12.5px Archivo,sans-serif;color:#253040">Poniente</span></div>
+                    <div style="display:flex;flex-direction:column;gap:3px"><span style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">SEDE PRINCIPAL</span><span style="font:600 12.5px Archivo,sans-serif;color:#253040">Torre Altavista</span></div>
                     <div style="display:flex;flex-direction:column;gap:3px"><span style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">ESTADO</span><span style="font:600 12.5px Archivo,sans-serif;color:#253040">Jalisco</span></div>
                     <div style="display:flex;flex-direction:column;gap:3px"><span style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">MUNICIPIO</span><span style="font:600 12.5px Archivo,sans-serif;color:#253040">Zapopan</span></div>
                   </div>
@@ -409,14 +410,14 @@
                       <input id="ac-corto" type="text" value="Peñasco" style="height:2.5rem;box-sizing:border-box;border:1px solid #dce2e9;border-radius:6px;padding:0 11px;font:600 12.5px Archivo,sans-serif;color:#253040;background:#ffffff;width:100%">
                     </div>
                     <div style="display:flex;flex-direction:column;gap:5px">
-                      <label for="ac-rfc" style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">RFC · OPCIONAL</label>
-                      <input id="ac-rfc" type="text" placeholder="Trece caracteres" style="height:2.5rem;box-sizing:border-box;border:1px solid #dce2e9;border-radius:6px;padding:0 11px;font:400 12.5px Archivo,sans-serif;color:#253040;background:#ffffff;width:100%">
+                      <label for="ac-rfc" style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">RFC</label>
+                      <input id="ac-rfc" type="text" placeholder="Doce o trece caracteres" style="height:2.5rem;box-sizing:border-box;border:1px solid #dce2e9;border-radius:6px;padding:0 11px;font:400 12.5px Archivo,sans-serif;color:#253040;background:#ffffff;width:100%">
                     </div>
                   </div>
                   <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
                     <div style="display:flex;flex-direction:column;gap:5px">
-                      <span style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">ZONA</span>
-                      <span style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;justify-content:space-between;padding:0 11px;font:600 12.5px Archivo,sans-serif;color:#253040">Norte <span style="font-size:10px;color:#5f6b7a">▾</span></span>
+                      <span style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">COLONIA</span>
+                      <span style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;justify-content:space-between;padding:0 11px;font:400 12.5px Archivo,sans-serif;color:#5f6b7a">Se captura con la sede</span>
                     </div>
                     <div style="display:flex;flex-direction:column;gap:5px">
                       <span style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">ESTADO</span>

@@ -114,9 +114,23 @@ describe('GiEmptyState', () => {
   });
 
   describe('lo que rompe en desarrollo', () => {
-    it('una falta de prerrequisito sin enlace no se dibuja: sería un callejón sin salida', () => {
+    it('una falta de prerrequisito sin salida no se dibuja: sería un callejón', () => {
       expect(() => montar((host) => host.variant.set('missing-prerequisite')))
         .toThrowError(/missing-prerequisite/);
+    });
+
+    /**
+     * A veces el prerrequisito se obtiene **aquí mismo** y no en otro módulo: la sede de un
+     * cliente se agrega en su propio panel. La acción vale como salida; lo que no vale es no
+     * ofrecer ninguna.
+     */
+    it('con la acción que lo resuelve aquí mismo, sí se dibuja', () => {
+      expect(() =>
+        montar((host) => {
+          host.variant.set('missing-prerequisite');
+          host.actionLabel.set('Agregar sede');
+        }),
+      ).not.toThrow();
     });
 
     it('un vacío sin permiso con acción tampoco: prometería algo que el permiso impide', () => {

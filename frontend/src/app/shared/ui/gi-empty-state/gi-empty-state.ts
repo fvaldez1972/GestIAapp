@@ -123,17 +123,27 @@ export class GiEmptyState implements OnInit {
   readonly title = input('');
   readonly description = input('');
   readonly actionLabel = input('');
-  /** Ruta del módulo donde se obtiene lo que falta. Obligatoria en `missing-prerequisite`. */
+  /**
+   * Ruta del módulo donde se obtiene lo que falta.
+   *
+   * <p>En `missing-prerequisite` hace falta **o esta ruta o una acción**: lo que no se admite es
+   * decir que falta algo sin decir cómo obtenerlo.</p>
+   */
   readonly link = input<string | readonly unknown[] | null>(null);
   readonly action = output<void>();
 
   protected readonly textos = computed(() => POR_OMISION[this.variant()]);
 
   ngOnInit(): void {
+    // La regla pedía el enlace a otro módulo, y eso dejaba fuera un caso real: a veces el
+    // prerrequisito se obtiene **aquí mismo**. La sede de un cliente se agrega en su propio panel,
+    // sin salir. Lo que sigue prohibido es lo de siempre: decir que falta algo y no ofrecer cómo
+    // obtenerlo.
     devAssert(
-      this.variant() !== 'missing-prerequisite' || !!this.link(),
+      this.variant() !== 'missing-prerequisite' || !!this.link() || !!this.actionLabel(),
       'gi-empty-state: la variante "missing-prerequisite" necesita el enlace al módulo donde se ' +
-        'obtiene lo que falta. Sin él, el vacío dice que falta algo y no dice dónde conseguirlo.',
+        'obtiene lo que falta, o la acción que lo resuelve aquí mismo. Sin ninguno de los dos, el ' +
+        'vacío dice que falta algo y no dice cómo conseguirlo.',
     );
 
     devAssert(

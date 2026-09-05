@@ -176,6 +176,21 @@ en orden.
 **Regla:** si el prerrequisito del dato no existe, es "sin datos aún", no cero. Un cero
 dice "todo bien" cuando en realidad nadie ha publicado nada.
 
+**Quién decide cuál es cuál: el servidor.** Es una regla de negocio, no una deducción de la
+pantalla. `GET /api/v1/overview` manda el estado de cada indicador ya resuelto, y el frontend
+sólo lo redacta. La regla es del dato y no del calendario: si ayer no hubo planeación publicada,
+el indicador del día anterior dice que falta el prerrequisito aunque la organización ya opere.
+
+**Corregido el 05 sep 2026 — el token de la píldora.** La píldora de "sin datos aún" se pintaba
+en `--gestia-warning`, y eso dice algo falso: un dato que todavía no existe no es una
+advertencia, es un hueco. Va en borde `--gestia-border` y texto `--gestia-muted`, como marca el
+anexo del bosquejo de Inicio. El ámbar queda para cuando hay un número que sí preocupa.
+
+**Dos entradas más, del mismo anexo.** `tone` —`neutral`, `success`, `warning`, `danger`— para
+el valor cuando el número existe, y `pillLabel` para la palabra que lo acompaña: "Vacante" junto
+a un 3 en rojo, "Todo cubierto" con su punto junto a un cero real. El tono nunca es lo único que
+lo dice: la palabra va dentro de la píldora.
+
 ### Agregador de pendientes
 
 Bloque de la pantalla de Inicio que reúne lo que necesita atención hoy, ordenado por lo que
@@ -231,8 +246,18 @@ Construidos el 5 de septiembre de 2026 en `frontend/src/app/shared/ui/`, y expor
 `design-system.spec.ts` comprueba sobre esos archivos que no haya colores escritos a mano,
 tamaños fuera de la escala, radios fuera de los tres, ni selectores nativos.
 
-Siguen sin construir, porque son de pantalla y no compartidos: la cuadrícula de proyección, el
-agregador de pendientes y el camino de configuración.
+**Desde el 05 sep 2026 la comprobación también cubre las pantallas ya rehechas**, no sólo
+`shared/ui`: hoy `features/overview` completo, incluidos sus `.html` y `.scss`. El sistema no
+sirve de nada si la pantalla que lo usa se inventa un color al lado. El resto de las features
+queda fuera **a propósito, porque hoy fallarían** —hay hex a mano en catorce hojas de estilo—, y
+convertirlas es su propia tanda. Esa lista crece con cada pantalla que se rehace.
+
+Sigue sin construir, porque es de pantalla y no compartida: la cuadrícula de proyección.
+
+**Construidas en la pantalla de Inicio**, en `features/overview/ui/`, con plantilla y estilos en
+línea como las compartidas: el **camino de configuración** (`SetupPath` más `SetupStep`, con sus
+tres densidades) y el **agregador de pendientes** (`AttentionList`). Se quedan en la feature
+mientras sólo las use una pantalla; suben a `shared/ui` cuando una segunda las necesite.
 
 ---
 

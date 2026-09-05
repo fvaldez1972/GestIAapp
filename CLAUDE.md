@@ -198,19 +198,20 @@ dotnet tool run dotnet-ef database update --project .\src\GestIA.Infrastructure 
 (ADR 0003, sección "Consecuencias"; reiterado en las restricciones heredadas del alcance
 vigente.)
 
-Esto no es teórico aquí. Hay **22 migraciones** en
+Esto no es teórico aquí. Hay **24 migraciones** en
 `backend/src/GestIA.Infrastructure/Persistence/Migrations/`, y **no todas están aplicadas en
 todas las bases**:
 
 | Base | Migraciones aplicadas | Hasta |
 |---|---|---|
 | `db-gestia-dev` | 19 | `20260903214645_CoverageCatalogReference` |
-| `db-gestia-demo` | 22 | `20260905120426_AddOrganizationToClientAndEmployeeDetails` |
+| `db-gestia-demo` | 24 | `20260905125754_AddConcurrencyTokens` |
 
 Las 19 de `db-gestia-dev` están documentadas en `docs/V5-AVANCE-2026-09-03.md` y
-`docs/CATALOGOS-CIERRE-2026-09-03.md`. Las tres siguientes —organización denormalizada, bitácora
-funcional y organización en las entidades de detalle— se aplicaron sólo en `db-gestia-demo`, con
-respaldo `COPY_ONLY` verificado y ensayo sobre copia antes de cada una.
+`docs/CATALOGOS-CIERRE-2026-09-03.md`. Las cinco siguientes —organización denormalizada, bitácora
+funcional, organización en las entidades de detalle, puesto por catálogo y tokens de
+concurrencia— se aplicaron sólo en `db-gestia-demo`, con respaldo `COPY_ONLY` verificado y ensayo
+sobre copia antes de cada una.
 
 **Consecuencia práctica: el código actual no arranca contra `db-gestia-dev`.** El modelo espera
 columnas que esa base todavía no tiene. Ponerla al día es una decisión con respaldo y ensayo, no

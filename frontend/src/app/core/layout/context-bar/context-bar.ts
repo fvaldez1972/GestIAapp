@@ -65,7 +65,15 @@ import { formatOperationalDate } from '../../../shared/util/operational-date';
     </div>
   `,
   styles: `
-    :host { display: block; }
+    /* La topbar que va debajo es pegajosa con z-index 40, y por orden de documento ganaba: la
+       lista del selector se abría por detrás de ella y el clic no llegaba. Se descubrió al
+       verificar en el navegador contra la demo, no en las pruebas. El 46 la deja por encima de la
+       topbar y por debajo del sidebar móvil, que es 50. */
+    :host {
+      display: block;
+      position: relative;
+      z-index: 46;
+    }
 
     .context-bar {
       display: flex;

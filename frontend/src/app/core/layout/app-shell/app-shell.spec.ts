@@ -1,13 +1,25 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { Component } from '@angular/core';
+import { Router, provideRouter } from '@angular/router';
+import { AuthService } from '../../auth/auth.service';
 import { AppShell } from './app-shell';
+
+/** Cuenta cuántas veces la monta el enrutador. */
+@Component({ template: 'pantalla' })
+class PantallaDeModulo {
+  static montajes = 0;
+  constructor() {
+    PantallaDeModulo.montajes += 1;
+  }
+}
 
 const ALFA = { idOrganization: 'org-a', codeOrganization: 'ALFA', legalName: 'Alfa Seguridad Privada' };
 const BETA = { idOrganization: 'org-b', codeOrganization: 'BETA', legalName: 'Beta Custodia' };
 
-const TODOS_LOS_PERMISOS_DE_ORGANIZACION = [
+/** Los permisos que el menú consulta. El rol real trae más; ninguno de los otros abre entradas. */
+const PERMISOS_QUE_EL_MENU_CONSULTA = [
   'USERS.READ',
   'CLIENTS.READ',
   'DOCUMENTS.READ',
@@ -58,7 +70,11 @@ describe('AppShell', () => {
     }
 
     TestBed.configureTestingModule({
-      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
+      providers: [
+        provideRouter([{ path: '', component: PantallaDeModulo }]),
+        provideHttpClient(),
+        provideHttpClientTesting(),
+      ],
     });
     http = TestBed.inject(HttpTestingController);
 
@@ -122,7 +138,7 @@ describe('AppShell', () => {
     TestBed.resetTestingModule();
     localStorage.clear();
 
-    const organizacion = montar(TODOS_LOS_PERMISOS_DE_ORGANIZACION, [ALFA]);
+    const organizacion = montar(PERMISOS_QUE_EL_MENU_CONSULTA, [ALFA]);
     expect(entradas(organizacion.raiz)).toHaveLength(11);
     expect(entradas(organizacion.raiz)).not.toContain('Organizaciones');
   });
@@ -170,5 +186,32 @@ describe('AppShell', () => {
     const { raiz } = montar(['PLATFORM.ADMIN'], [ALFA], 'org-a');
 
     expect(raiz.querySelector('aside')?.getAttribute('aria-label')).toBe('Navegación principal');
+  });
+
+  /**
+   * La regresión que encontró la verificación en el navegador, no las pruebas: al cambiar de
+   * organización desde la barra, la pantalla abierta seguía mostrando los datos de la anterior.
+   * Las once pantallas de módulo cargan en `ngOnInit` y ninguna vigila la organización activa, así
+   * que el shell las vuelve a montar. Cuando cada pantalla lo resuelva por su cuenta, esta prueba
+   * dirá si se puede quitar el atajo.
+   */
+  it('cambiar de organización vuelve a montar la pantalla abierta', async () => {
+    PantallaDeModulo.montajes = 0;
+
+    const { fixture } = montar(['PLATFORM.ADMIN'], [ALFA], 'org-a');
+    const auth = TestBed.inject(AuthService);
+
+    await TestBed.inject(Router).navigateByUrl('/');
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const despuesDeAbrir = PantallaDeModulo.montajes;
+    expect(despuesDeAbrir).toBeGreaterThan(0);
+
+    auth.setActiveOrganization('org-b');
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(PantallaDeModulo.montajes).toBe(despuesDeAbrir + 1);
   });
 });

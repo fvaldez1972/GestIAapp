@@ -2,9 +2,10 @@ import { routes } from '../../app.routes';
 import { GESTIA_NAVIGATION, NavigationAudience, visibleNavigation } from './navigation';
 
 /**
- * Permisos del rol ORG_ADMIN según `SecurityDataSeeder`: todos menos `PLATFORM.ADMIN` y
- * `ORGANIZATIONS.WRITE`. Se enumeran aquí para que la prueba falle si el rol cambia de forma
- * y nadie revisó qué pasa con el menú.
+ * Los 21 permisos del rol ORGANIZATION_ADMIN, copiados de lo que devuelve el inicio de sesión
+ * contra `db-gestia-demo`. Son todos menos `PLATFORM.ADMIN` y `ORGANIZATIONS.WRITE`. Se enumeran
+ * aquí, y no se derivan, para que la prueba falle si el rol cambia de forma y nadie revisó qué
+ * pasa con el menú.
  */
 const PERMISOS_ADMIN_ORGANIZACION = [
   'ORGANIZATIONS.READ',
@@ -26,6 +27,8 @@ const PERMISOS_ADMIN_ORGANIZACION = [
   'REQUESTS.READ',
   'REQUESTS.WRITE',
   'AUDIT.READ',
+  'DOCUMENTS.SENSITIVE.READ',
+  'DOCUMENTS.SENSITIVE.WRITE',
 ];
 
 /** El super admin pasa cualquier permiso, como hace `AuthService.hasPermission`. */

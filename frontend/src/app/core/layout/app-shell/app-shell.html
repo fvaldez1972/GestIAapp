@@ -76,7 +76,19 @@
           <p>Selecciona una organización en la barra de contexto para ver su operación.</p>
         </section>
       } @else {
-        <router-outlet />
+        <!--
+          La pantalla se vuelve a montar cuando cambia la organización.
+
+          Las once pantallas de módulo cargan sus datos en `ngOnInit` y ninguna vigila la
+          organización activa: sin esto, cambiarla en la barra dejaba la franja diciendo una
+          organización y la tabla mostrando la anterior hasta que alguien recargara. Volver a
+          montar consigue por el camino corto lo que cada pantalla hará por el suyo en la tanda de
+          pantallas, y de paso descarta un formulario a medio llenar en la organización que se
+          acaba de dejar, que no debería poder enviarse a la nueva.
+        -->
+        @for (scope of [auth.activeOrganizationId()]; track scope) {
+          <router-outlet />
+        }
       }
     </main>
 

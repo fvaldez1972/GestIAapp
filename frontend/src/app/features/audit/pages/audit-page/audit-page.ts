@@ -2,6 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../../../core/auth/auth.service';
+import { SystemInfoService } from '../../../../core/system/system-info.service';
 import { AuditApiService } from '../../data-access/audit-api.service';
 import { AuditEvent, AuditResult } from '../../data-access/audit.models';
 
@@ -15,6 +16,7 @@ import { AuditEvent, AuditResult } from '../../data-access/audit.models';
 export class AuditPage implements OnInit {
   private readonly api = inject(AuditApiService);
   private readonly auth = inject(AuthService);
+  private readonly systemInfo = inject(SystemInfoService);
 
   protected readonly events = signal<readonly AuditEvent[]>([]);
   protected readonly entities = signal<readonly string[]>([]);
@@ -580,9 +582,11 @@ export class AuditPage implements OnInit {
   }
 
   private today() {
-    return new Intl.DateTimeFormat('en-CA', {
-      timeZone: 'America/Mexico_City',
-    }).format(new Date());
+    // El día operativo lo dice el servidor. Calcularlo aquí con `toISOString()` daba el día UTC:
+    // a las 19:00 hora de Ciudad de México del 4 de septiembre devolvía el 5, y la pantalla
+    // proponía el día siguiente todas las tardes. Es el mismo defecto que el reloj operativo
+    // cerró en el servidor. Cadena vacía mientras no se sabe: vacío se nota, un día equivocado no.
+    return this.systemInfo.operationDate();
   }
 }
 

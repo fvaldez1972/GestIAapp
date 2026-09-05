@@ -1,10 +1,11 @@
 import { HttpErrorResponse, HttpResponse } from '@angular/common/http';
 import { CatalogSelect } from '../../../../shared/ui/catalog-select/catalog-select';
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal, linkedSignal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
+import { SystemInfoService } from '../../../../core/system/system-info.service';
 import { ClientApiService } from '../../../clients/data-access/client-api.service';
 import {
   AttendanceRecord,
@@ -41,6 +42,7 @@ export class OperationsPage implements OnInit {
   private readonly api = inject(ClientApiService);
   private readonly workforceApi = inject(WorkforceApiService);
   private readonly auth = inject(AuthService);
+  private readonly systemInfo = inject(SystemInfoService);
   private readonly formBuilder = inject(FormBuilder);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
@@ -66,7 +68,12 @@ export class OperationsPage implements OnInit {
   protected readonly selectedEvidenceId = signal('');
   protected readonly selectedApprovalRequestId = signal('');
   protected readonly selectedAttendanceId = signal('');
-  protected readonly selectedOperationDate = signal(this.today());
+  /**
+   * Filtro de fecha con el día operativo por omisión. Es un `linkedSignal` y no un `signal` porque
+   * el día llega del servidor y puede no estar todavía cuando se construye la pantalla: así el
+   * filtro se llena solo en cuanto se sabe, y sigue pudiendo cambiarlo quien la usa.
+   */
+  protected readonly selectedOperationDate = linkedSignal(() => this.today());
   protected readonly incidentHistoryScope = signal<IncidentHistoryScope>('day');
   protected readonly coverageHistoryScope = signal<CoverageHistoryScope>('day');
   protected readonly activeSection = signal<OperationSection>('asistencia');
@@ -2124,7 +2131,11 @@ export class OperationsPage implements OnInit {
   }
 
   private today() {
-    return new Date().toISOString().slice(0, 10);
+    // El día operativo lo dice el servidor. Calcularlo aquí con `toISOString()` daba el día UTC:
+    // a las 19:00 hora de Ciudad de México del 4 de septiembre devolvía el 5, y la pantalla
+    // proponía el día siguiente todas las tardes. Es el mismo defecto que el reloj operativo
+    // cerró en el servidor. Cadena vacía mientras no se sabe: vacío se nota, un día equivocado no.
+    return this.systemInfo.operationDate();
   }
 
   private formatDate(value: string) {

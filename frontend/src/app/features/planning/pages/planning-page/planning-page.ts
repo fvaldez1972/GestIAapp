@@ -3,6 +3,8 @@ import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } 
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { forkJoin } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
+import { operationalDatesBetween, shiftOperationalDate } from '../../../../shared/util/operational-date';
+import { SystemInfoService } from '../../../../core/system/system-info.service';
 import { ClientApiService } from '../../../clients/data-access/client-api.service';
 import {
   Client,
@@ -29,6 +31,7 @@ export class PlanningPage implements OnInit {
   private readonly api = inject(ClientApiService);
   private readonly workforceApi = inject(WorkforceApiService);
   private readonly auth = inject(AuthService);
+  private readonly systemInfo = inject(SystemInfoService);
   private readonly formBuilder = inject(FormBuilder);
 
   protected readonly clients = signal<readonly Client[]>([]);
@@ -1324,25 +1327,20 @@ export class PlanningPage implements OnInit {
   }
 
   private today() {
-    return new Date().toISOString().slice(0, 10);
+    // El día operativo lo dice el servidor. Calcularlo aquí con `toISOString()` daba el día UTC:
+    // a las 19:00 hora de Ciudad de México del 4 de septiembre devolvía el 5, y la pantalla
+    // proponía el día siguiente todas las tardes. Es el mismo defecto que el reloj operativo
+    // cerró en el servidor. Cadena vacía mientras no se sabe: vacío se nota, un día equivocado no.
+    return this.systemInfo.operationDate();
   }
 
+  /** Días contados desde el día operativo, no desde el reloj del navegador. */
   private addDays(days: number) {
-    const date = new Date();
-    date.setDate(date.getDate() + days);
-    return date.toISOString().slice(0, 10);
+    return shiftOperationalDate(this.today(), days);
   }
 
   private dateRange(startDate: string, endDate: string) {
-    const start = new Date(`${startDate}T00:00:00`);
-    const end = new Date(`${endDate}T00:00:00`);
-    const dates: string[] = [];
-
-    for (const date = new Date(start); date <= end; date.setDate(date.getDate() + 1)) {
-      dates.push(date.toISOString().slice(0, 10));
-    }
-
-    return dates;
+    return [...operationalDatesBetween(startDate, endDate)];
   }
 
   private weekdayLabel(date: string) {

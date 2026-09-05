@@ -1,9 +1,11 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal, linkedSignal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { forkJoin, of, switchMap } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
+import { firstDayOfOperationalMonth } from '../../../../shared/util/operational-date';
+import { SystemInfoService } from '../../../../core/system/system-info.service';
 import { ClientApiService } from '../../../clients/data-access/client-api.service';
 import {
   Client,
@@ -24,6 +26,7 @@ import {
 export class ReportsPage implements OnInit {
   private readonly api = inject(ClientApiService);
   private readonly auth = inject(AuthService);
+  private readonly systemInfo = inject(SystemInfoService);
   private readonly route = inject(ActivatedRoute);
 
   protected readonly clients = signal<readonly Client[]>([]);
@@ -38,8 +41,13 @@ export class ReportsPage implements OnInit {
   protected readonly selectedReportType = signal<ReportType>('resumen');
   protected readonly selectedExportFormat = signal<ReportExportFormat>('xlsx');
   protected readonly showDefinitions = signal(false);
-  protected readonly fromDate = signal(this.firstDayOfMonth());
-  protected readonly toDate = signal(this.today());
+  /**
+   * Filtro de fecha con el día operativo por omisión. Es un `linkedSignal` y no un `signal` porque
+   * el día llega del servidor y puede no estar todavía cuando se construye la pantalla: así el
+   * filtro se llena solo en cuanto se sabe, y sigue pudiendo cambiarlo quien la usa.
+   */
+  protected readonly fromDate = linkedSignal(() => this.firstDayOfMonth());
+  protected readonly toDate = linkedSignal(() => this.today());
   protected readonly lastUpdatedAt = signal('');
   protected readonly loading = signal(false);
   protected readonly exporting = signal(false);
@@ -597,13 +605,16 @@ export class ReportsPage implements OnInit {
   }
 
   private today() {
-    return new Date().toISOString().slice(0, 10);
+    // El día operativo lo dice el servidor. Calcularlo aquí con `toISOString()` daba el día UTC:
+    // a las 19:00 hora de Ciudad de México del 4 de septiembre devolvía el 5, y la pantalla
+    // proponía el día siguiente todas las tardes. Es el mismo defecto que el reloj operativo
+    // cerró en el servidor. Cadena vacía mientras no se sabe: vacío se nota, un día equivocado no.
+    return this.systemInfo.operationDate();
   }
 
+  /** El primer día del mes operativo, no del mes del navegador. */
   private firstDayOfMonth() {
-    const date = new Date();
-    date.setDate(1);
-    return date.toISOString().slice(0, 10);
+    return firstDayOfOperationalMonth(this.today());
   }
 }
 

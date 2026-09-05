@@ -4,6 +4,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } 
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { finalize, forkJoin } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
+import { SystemInfoService } from '../../../../core/system/system-info.service';
 import { CatalogApiService } from '../../../catalogs/data-access/catalog-api.service';
 import { CatalogItem, EligibilityRequirement, EmployeeSkill, EmployeeSkillInput } from '../../../catalogs/data-access/catalog.models';
 import { employeeStepFields, validateEmployeeStep } from './employee-wizard';
@@ -39,6 +40,7 @@ export class WorkforcePage implements OnInit {
   private readonly api = inject(WorkforceApiService);
   private readonly documentApi = inject(DocumentApiService);
   private readonly auth = inject(AuthService);
+  private readonly systemInfo = inject(SystemInfoService);
   private readonly catalogApi = inject(CatalogApiService);
   private readonly clientApi = inject(ClientApiService);
   private readonly formBuilder = inject(FormBuilder);
@@ -1042,8 +1044,16 @@ export class WorkforcePage implements OnInit {
     return this.employeeIsAssignable(employee) ? 'ok' : 'warn';
   }
 
+  /** Vencido respecto del día operativo. // Sin día operativo no se afirma nada: no se marca vencido ni se da por vigente. */
   protected isExpired(value: string | null): boolean {
-    return Boolean(value && value < this.today());
+    const today = this.today();
+    return Boolean(today && value && value < today);
+  }
+
+  /** Vigente respecto del día operativo. Sin día operativo, nada se da por vigente. */
+  private isCurrent(expiresDate: string | null): boolean {
+    const today = this.today();
+    return !!today && (!expiresDate || expiresDate >= today);
   }
 
   protected shortDate(value: string | null): string {
@@ -1169,7 +1179,9 @@ export class WorkforcePage implements OnInit {
   private loadWorkforceEligibility(): void {
     const organizationId = this.selectedOrganizationId();
 
-    if (!organizationId) {
+    // Sin día operativo no se consulta: la respuesta del servidor depende de la fecha, y mandarla
+    // vacía devolvería algo que no es la elegibilidad de hoy.
+    if (!organizationId || !this.today()) {
       this.workforceEligibility.set([]);
       return;
     }
@@ -1193,7 +1205,7 @@ export class WorkforcePage implements OnInit {
       document.documentType === type &&
       document.active &&
       document.status === 'Validated' &&
-      (!document.expiresDate || document.expiresDate >= this.today()),
+      this.isCurrent(document.expiresDate),
     );
   }
 
@@ -1201,7 +1213,7 @@ export class WorkforcePage implements OnInit {
     return this.evaluations().some((evaluation) =>
       evaluation.active &&
       ['Approved', 'ApprovedWithObservations'].includes(evaluation.result) &&
-      (!evaluation.expiresDate || evaluation.expiresDate >= this.today()),
+      this.isCurrent(evaluation.expiresDate),
     );
   }
 
@@ -1215,7 +1227,11 @@ export class WorkforcePage implements OnInit {
   }
 
   private today(): string {
-    return new Date().toISOString().slice(0, 10);
+    // El día operativo lo dice el servidor. Calcularlo aquí con `toISOString()` daba el día UTC:
+    // a las 19:00 hora de Ciudad de México del 4 de septiembre devolvía el 5, y la pantalla
+    // proponía el día siguiente todas las tardes. Es el mismo defecto que el reloj operativo
+    // cerró en el servidor. Cadena vacía mientras no se sabe: vacío se nota, un día equivocado no.
+    return this.systemInfo.operationDate();
   }
 
   private setError(error: HttpErrorResponse): void {

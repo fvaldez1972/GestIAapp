@@ -8,6 +8,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, convertToParamMap } from '@angular/router';
 import { of } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
+import { SystemInfoService } from '../../../../core/system/system-info.service';
 import { ServicesPage } from './services-page';
 
 describe('Services context selectors', () => {
@@ -33,6 +34,14 @@ describe('Services context selectors', () => {
       providers: [
         provideHttpClient(), provideHttpClientTesting(),
         { provide: ActivatedRoute, useValue: { queryParamMap: of(params), snapshot: { queryParamMap: params } } },
+        // La pantalla lee el día operativo del servidor; el doble lo fija para que la prueba no
+        // dependa del reloj de quien la corre.
+        { provide: SystemInfoService, useValue: {
+          operationDate: () => '2026-09-04',
+          timeZoneId: () => 'America/Mexico_City',
+          info: () => null,
+          refresh: () => undefined,
+        } },
         { provide: AuthService, useValue: {
           session: () => ({ permissions: ['CLIENTS.READ'] }),
           hasPermission: (permission: string) => permission === 'CLIENTS.READ',

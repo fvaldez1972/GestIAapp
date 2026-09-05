@@ -1,10 +1,11 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { CatalogSelect } from '../../../../shared/ui/catalog-select/catalog-select';
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal, linkedSignal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { catchError, forkJoin, of, switchMap } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
+import { SystemInfoService } from '../../../../core/system/system-info.service';
 import { ClientApiService } from '../../../clients/data-access/client-api.service';
 import { Client, ManagedService, Organization, PagedResult as ClientPagedResult, ScheduledShift, ServicePosition } from '../../../clients/data-access/client.models';
 import { WorkforceApiService } from '../../../workforce/data-access/workforce-api.service';
@@ -32,6 +33,7 @@ import {
 export class RequestsPage implements OnInit {
   private readonly api = inject(RequestApiService);
   private readonly auth = inject(AuthService);
+  private readonly systemInfo = inject(SystemInfoService);
   private readonly clientApi = inject(ClientApiService);
   private readonly workforceApi = inject(WorkforceApiService);
   private readonly formBuilder = inject(FormBuilder);
@@ -52,8 +54,13 @@ export class RequestsPage implements OnInit {
   protected readonly filterPriority = signal<OperationalRequestPriority | ''>('');
   protected readonly filterServiceId = signal('');
   protected readonly filterResponsible = signal('');
-  protected readonly filterDateFrom = signal(this.today());
-  protected readonly filterDateTo = signal(this.today());
+  /**
+   * Filtro de fecha con el día operativo por omisión. Es un `linkedSignal` y no un `signal` porque
+   * el día llega del servidor y puede no estar todavía cuando se construye la pantalla: así el
+   * filtro se llena solo en cuanto se sabe, y sigue pudiendo cambiarlo quien la usa.
+   */
+  protected readonly filterDateFrom = linkedSignal(() => this.today());
+  protected readonly filterDateTo = linkedSignal(() => this.today());
   protected readonly search = signal('');
   protected readonly sortMode = signal<RequestSortMode>('recent');
   protected readonly loading = signal(false);
@@ -967,8 +974,10 @@ export class RequestsPage implements OnInit {
     }).format(new Date(`${value.slice(0, 10)}T00:00:00Z`));
   }
 
+  /** Atrasada respecto del día operativo. // Sin día operativo no se afirma nada: no se marca vencido ni se da por vigente. */
   protected isOverdue(request: OperationalRequest) {
-    return Boolean(request.neededByDate && request.neededByDate < this.today() && request.status !== 'Completed');
+    const today = this.today();
+    return Boolean(today && request.neededByDate && request.neededByDate < today && request.status !== 'Completed');
   }
 
   protected todayLabel() {
@@ -1495,7 +1504,11 @@ export class RequestsPage implements OnInit {
   }
 
   protected today() {
-    return new Date().toISOString().slice(0, 10);
+    // El día operativo lo dice el servidor. Calcularlo aquí con `toISOString()` daba el día UTC:
+    // a las 19:00 hora de Ciudad de México del 4 de septiembre devolvía el 5, y la pantalla
+    // proponía el día siguiente todas las tardes. Es el mismo defecto que el reloj operativo
+    // cerró en el servidor. Cadena vacía mientras no se sabe: vacío se nota, un día equivocado no.
+    return this.systemInfo.operationDate();
   }
 
   private nextRequestCode() {

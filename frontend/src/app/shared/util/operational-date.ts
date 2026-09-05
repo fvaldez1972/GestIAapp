@@ -65,3 +65,52 @@ export function formatOperationalInstant(isoInstant: string | null | undefined):
 
   return `${day} ${MESES[instant.getMonth()]} ${instant.getFullYear()} ${hours}:${minutes}`;
 }
+
+/**
+ * Suma (o resta) días a un día operativo.
+ *
+ * **Toda la aritmética ocurre en UTC y a propósito.** No es que el día sea UTC —viene del
+ * servidor, que ya lo calculó en el huso operativo— sino que construir un `Date` con la hora local
+ * y volver a leerlo con `toISOString()` puede correr el resultado un día en cualquiera de los dos
+ * sentidos, según el signo del huso del navegador. Fijando entrada y salida en UTC, la suma es
+ * pura aritmética de calendario y el navegador no interviene.
+ *
+ * Devuelve cadena vacía si el día de partida no se conoce: sin día no hay día siguiente.
+ */
+export function shiftOperationalDate(isoDate: string | null | undefined, days: number): string {
+  if (!isoDate || !/^\d{4}-\d{2}-\d{2}$/.test(isoDate.trim())) {
+    return '';
+  }
+
+  const [year, month, day] = isoDate.trim().split('-').map(Number);
+  const moved = new Date(Date.UTC(year, month - 1, day + days));
+
+  return moved.toISOString().slice(0, 10);
+}
+
+/** El primer día del mes de un día operativo. Cadena vacía si el día no se conoce. */
+export function firstDayOfOperationalMonth(isoDate: string | null | undefined): string {
+  if (!isoDate || !/^\d{4}-\d{2}-\d{2}$/.test(isoDate.trim())) {
+    return '';
+  }
+
+  return `${isoDate.trim().slice(0, 8)}01`;
+}
+
+/**
+ * Los días de un rango, extremos incluidos. Misma razón que arriba para hacerlo en UTC: iterar con
+ * fechas locales y formatear con `toISOString()` corre el día en husos al este de Greenwich.
+ */
+export function operationalDatesBetween(startIso: string, endIso: string): readonly string[] {
+  const days: string[] = [];
+
+  if (!shiftOperationalDate(startIso, 0) || !shiftOperationalDate(endIso, 0)) {
+    return days;
+  }
+
+  for (let day = startIso; day <= endIso; day = shiftOperationalDate(day, 1)) {
+    days.push(day);
+  }
+
+  return days;
+}

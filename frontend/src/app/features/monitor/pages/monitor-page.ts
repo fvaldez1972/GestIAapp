@@ -1,8 +1,9 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, linkedSignal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
+import { SystemInfoService } from '../../../core/system/system-info.service';
 import { AppIcon } from '../../../shared/ui/app-icon/app-icon';
 import { ClientApiService } from '../../clients/data-access/client-api.service';
 import { OperationsServiceSummary, OperationsSummary, OrganizationGovernanceSummary } from '../../clients/data-access/client.models';
@@ -16,6 +17,7 @@ import { OperationsServiceSummary, OperationsSummary, OrganizationGovernanceSumm
 })
 export class MonitorPage {
   protected readonly auth = inject(AuthService);
+  private readonly systemInfo = inject(SystemInfoService);
   private readonly api = inject(ClientApiService);
   protected readonly organizations = signal<readonly OrganizationGovernanceSummary[]>([]);
   protected readonly search = signal('');
@@ -26,7 +28,11 @@ export class MonitorPage {
   protected readonly services = signal<readonly OperationsServiceSummary[]>([]);
   protected readonly operationsLoading = signal(false);
   protected readonly operationsError = signal('');
-  protected readonly operationDate = signal(new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Mexico_City' }).format(new Date()));
+  /**
+   * El día operativo del servidor, que el usuario puede cambiar. Antes el huso venía escrito a
+   * mano aquí; ahora lo dice quien lo sabe, y si cambia no queda una copia desactualizada.
+   */
+  protected readonly operationDate = linkedSignal(() => this.systemInfo.operationDate());
   protected readonly refreshVersion = signal(0);
   protected readonly increment = (value: number) => value + 1;
   protected readonly visibleOrganizations = computed(() => this.organizations().filter(item => {

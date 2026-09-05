@@ -2,6 +2,7 @@ import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
+import { SystemInfoService } from '../../../../core/system/system-info.service';
 import { ClientApiService } from '../../../clients/data-access/client-api.service';
 import { Client, OperationsServiceSummary, OperationsSummary } from '../../../clients/data-access/client.models';
 import { RequestApiService } from '../../../requests/data-access/request-api.service';
@@ -15,6 +16,7 @@ import { WorkforceApiService } from '../../../workforce/data-access/workforce-ap
 })
 export class OverviewPage {
   private readonly auth = inject(AuthService);
+  private readonly systemInfo = inject(SystemInfoService);
   private readonly clientApi = inject(ClientApiService);
   private readonly requestApi = inject(RequestApiService);
   private readonly workforceApi = inject(WorkforceApiService);
@@ -41,7 +43,11 @@ export class OverviewPage {
     this.isPlatformAdmin() ? this.auth.platformOrganizations() : this.auth.organizations(),
   );
   protected readonly activeOrganization = computed(() => this.auth.activeOrganization());
-  protected readonly todayIso = new Date().toISOString().slice(0, 10);
+  /**
+   * El día operativo del servidor. Antes se calculaba con `toISOString()`, que da el día UTC: cada
+   * tarde, de las 18:00 en adelante, el tablero pedía la operación del día siguiente.
+   */
+  protected readonly todayIso = computed(() => this.systemInfo.operationDate());
   protected readonly todayLabel = new Intl.DateTimeFormat('es-MX', {
     weekday: 'long',
     day: '2-digit',
@@ -441,9 +447,9 @@ export class OverviewPage {
     forkJoin({
       clients: this.clientApi.listClients(organizationId, '', 1, 50),
       employees: this.workforceApi.listEmployees(organizationId, '', 'Active', 1, 1),
-      summary: this.clientApi.getOperationsSummary(organizationId, undefined, undefined, this.todayIso, this.todayIso),
-      services: this.clientApi.getOperationsByService(organizationId, undefined, undefined, this.todayIso, this.todayIso),
-      closures: this.clientApi.listOperationDayClosures(organizationId, '', this.todayIso, this.todayIso),
+      summary: this.clientApi.getOperationsSummary(organizationId, undefined, undefined, this.todayIso(), this.todayIso()),
+      services: this.clientApi.getOperationsByService(organizationId, undefined, undefined, this.todayIso(), this.todayIso()),
+      closures: this.clientApi.listOperationDayClosures(organizationId, '', this.todayIso(), this.todayIso()),
       submittedRequests: this.requestApi.listRequests(organizationId, 'Submitted', '', '', 1, 1),
       reviewRequests: this.requestApi.listRequests(organizationId, 'InReview', '', '', 1, 1),
       approvedRequests: this.requestApi.listRequests(organizationId, 'Approved', '', '', 1, 1),

@@ -5,6 +5,7 @@ import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap } from '@angular/router';
 import { BehaviorSubject } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
+import { SystemInfoService } from '../../../../core/system/system-info.service';
 import { ServicesPage } from './services-page';
 import { ClientsPage } from '../../../clients/pages/clients-page/clients-page';
 
@@ -44,6 +45,14 @@ describe('ServicesPage organization-scoped workflows', () => {
     TestBed.configureTestingModule({
       providers: [
         provideHttpClient(), provideHttpClientTesting(),
+        // La pantalla lee el día operativo del servidor; el doble lo fija para que la prueba no
+        // dependa del reloj de quien la corre.
+        { provide: SystemInfoService, useValue: {
+          operationDate: () => '2026-09-04',
+          timeZoneId: () => 'America/Mexico_City',
+          info: () => null,
+          refresh: () => undefined,
+        } },
         { provide: AuthService, useValue: auth },
         { provide: ActivatedRoute, useValue: { queryParamMap: params, snapshot: { get queryParamMap() { return params.value; } } } },
       ],

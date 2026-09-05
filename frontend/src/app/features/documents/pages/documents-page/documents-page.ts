@@ -4,6 +4,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
+import { SystemInfoService } from '../../../../core/system/system-info.service';
 import { ClientApiService } from '../../../clients/data-access/client-api.service';
 import { Client, ManagedService, Organization, ServiceContract } from '../../../clients/data-access/client.models';
 import { RequestApiService } from '../../../requests/data-access/request-api.service';
@@ -37,6 +38,7 @@ export class DocumentsPage implements OnInit {
   private readonly workforceApi = inject(WorkforceApiService);
   private readonly requestApi = inject(RequestApiService);
   private readonly auth = inject(AuthService);
+  private readonly systemInfo = inject(SystemInfoService);
   private readonly route = inject(ActivatedRoute);
   private readonly formBuilder = inject(FormBuilder);
 
@@ -1097,7 +1099,7 @@ export class DocumentsPage implements OnInit {
       status: this.statusFromEmployeeDocument(document.status, document.expiresDate),
       issuedDate: document.issuedDate,
       expiresDate: document.expiresDate,
-      isExpired: Boolean(document.expiresDate && document.expiresDate < this.today()),
+      isExpired: this.isExpired(document.expiresDate),
       storageReference: document.storageReference ?? '',
       isSensitive: true,
       notes: document.notes,
@@ -1126,8 +1128,16 @@ export class DocumentsPage implements OnInit {
     return this.employeeDocumentTypeLabel(type);
   }
 
+  /**
+   * Vencido respecto del día operativo. // Sin día operativo no se afirma nada: no se marca vencido ni se da por vigente.
+   */
+  private isExpired(expiresDate: string | null): boolean {
+    const today = this.today();
+    return Boolean(today && expiresDate && expiresDate < today);
+  }
+
   private statusFromEmployeeDocument(status: EmployeeDocumentStatus, expiresDate: string | null): BusinessDocumentStatus {
-    if (expiresDate && expiresDate < this.today()) {
+    if (this.isExpired(expiresDate)) {
       return 'Expired';
     }
 
@@ -1148,7 +1158,11 @@ export class DocumentsPage implements OnInit {
   }
 
   private today(): string {
-    return new Date().toISOString().slice(0, 10);
+    // El día operativo lo dice el servidor. Calcularlo aquí con `toISOString()` daba el día UTC:
+    // a las 19:00 hora de Ciudad de México del 4 de septiembre devolvía el 5, y la pantalla
+    // proponía el día siguiente todas las tardes. Es el mismo defecto que el reloj operativo
+    // cerró en el servidor. Cadena vacía mientras no se sabe: vacío se nota, un día equivocado no.
+    return this.systemInfo.operationDate();
   }
 
   private openDownloadedBlob(response: HttpResponse<Blob>, document: BusinessDocument) {

@@ -5,6 +5,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { finalize, forkJoin, map, of, switchMap } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
+import { SystemInfoService } from '../../../../core/system/system-info.service';
 import { ClientApiService } from '../../data-access/client-api.service';
 import { EntityDocuments } from '../../../documents/components/entity-documents/entity-documents';
 import { Client, ClientContact, ClientContactInput, ClientContactPurpose, ClientInput, ClientSite, ClientSiteInput, CreateClient, CreateClientSite, CreateServiceContract, ManagedService, Organization, PagedResult, ServiceContract, ServiceContractInput, ServiceContractStatus } from '../../data-access/client.models';
@@ -27,6 +28,7 @@ export class ClientsPage implements OnInit {
   protected readonly timeZones = Intl.supportedValuesOf('timeZone');
   private readonly api = inject(ClientApiService);
   private readonly auth = inject(AuthService);
+  private readonly systemInfo = inject(SystemInfoService);
   private readonly formBuilder = inject(FormBuilder);
 
   /**
@@ -960,7 +962,11 @@ export class ClientsPage implements OnInit {
   }
 
   private today(): string {
-    return new Date().toISOString().slice(0, 10);
+    // El día operativo lo dice el servidor. Calcularlo aquí con `toISOString()` daba el día UTC:
+    // a las 19:00 hora de Ciudad de México del 4 de septiembre devolvía el 5, y la pantalla
+    // proponía el día siguiente todas las tardes. Es el mismo defecto que el reloj operativo
+    // cerró en el servidor. Cadena vacía mientras no se sabe: vacío se nota, un día equivocado no.
+    return this.systemInfo.operationDate();
   }
 
   private setError(error: HttpErrorResponse): void {

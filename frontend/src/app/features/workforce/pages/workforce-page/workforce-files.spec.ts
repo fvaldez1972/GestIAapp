@@ -2,6 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { AuthService } from '../../../../core/auth/auth.service';
+import { SystemInfoService } from '../../../../core/system/system-info.service';
 import { Employee } from '../../data-access/workforce.models';
 import { WorkforcePage } from './workforce-page';
 
@@ -17,6 +18,14 @@ describe('Workforce contextual file upload', () => {
       provideHttpClient(), provideHttpClientTesting(),
       // La organización ya no la fija la pantalla: la hereda de la barra de contexto, así que el
       // doble la expone igual que AuthService.
+      // La pantalla lee el día operativo del servidor; el doble lo fija para que la prueba no
+      // dependa del reloj de quien la corre.
+      { provide: SystemInfoService, useValue: {
+        operationDate: () => '2026-09-04',
+        timeZoneId: () => 'America/Mexico_City',
+        info: () => null,
+        refresh: () => undefined,
+      } },
       { provide: AuthService, useValue: {
         hasPermission: (value: string) => permissions.includes(value),
         operationalOrganizationId: () => 'org-1',

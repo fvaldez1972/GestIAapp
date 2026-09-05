@@ -2,6 +2,7 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 import { AuthService } from '../../../core/auth/auth.service';
+import { SystemInfoService } from '../../../core/system/system-info.service';
 import { OrganizationAccess } from '../../../core/auth/auth.models';
 import { ClientApiService } from '../../clients/data-access/client-api.service';
 import { MonitorPage } from './monitor-page';
@@ -18,6 +19,13 @@ describe('Monitor organization boundary', () => {
     TestBed.configureTestingModule({
       providers: [
         { provide: ClientApiService, useValue: api },
+        // La pantalla lee el día operativo del servidor; el doble lo fija.
+        { provide: SystemInfoService, useValue: {
+          operationDate: () => '2026-09-04',
+          timeZoneId: () => 'America/Mexico_City',
+          info: () => null,
+          refresh: () => undefined,
+        } },
         {
           provide: AuthService,
           useValue: {

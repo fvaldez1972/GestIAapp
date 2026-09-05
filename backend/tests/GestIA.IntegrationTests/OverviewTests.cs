@@ -143,6 +143,26 @@ public sealed class OverviewTests(OperationalSqlDatabase database)
     }
 
     /// <summary>
+    /// Una semana cuya planeación publicada sólo cubre un día no es una semana planeada, y el
+    /// indicador tiene que poder decirlo. Salió al mirar la pantalla con los datos de la demo,
+    /// donde la planeación termina a fin de mes.
+    /// </summary>
+    [OperationalSqlFact]
+    public async Task TheWeekReportsHowManyOfItsDaysActuallyHaveShifts()
+    {
+        var organizationId = await SeedAsync("DIA", Level.Assignments);
+
+        await PublishAsync(organizationId, WeekStart, WeekEnd, withShiftOn: WeekStart);
+
+        var overview = await OverviewAsync(organizationId);
+        var planned = Metric(overview, OverviewMetricKey.PlannedShifts);
+
+        Assert.Equal(OverviewMetricState.Ready, planned.State);
+        Assert.Equal(1, planned.Value);
+        Assert.Equal(1, planned.CoveredDays);
+    }
+
+    /// <summary>
     /// El mismo indicador, con ayer sí planeado y sin faltas: <b>cero real</b>, y se muestra con
     /// la fecha que lo respalda porque es un logro operativo, no una ausencia.
     /// </summary>

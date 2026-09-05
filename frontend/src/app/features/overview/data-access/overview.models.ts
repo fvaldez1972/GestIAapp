@@ -79,6 +79,8 @@ export type OverviewMetric = {
   readonly serviceCount: number;
   readonly asOfDate: string | null;
   readonly route: string | null;
+  /** Cuántos días de la semana tienen turnos. Sólo lo usa «turnos planeados». */
+  readonly coveredDays: number;
 };
 
 export type OverviewAttentionItem = {
@@ -311,9 +313,18 @@ export function metricPill(metric: OverviewMetric): string {
  */
 export function metricHint(metric: OverviewMetric): string {
   switch (metric.key) {
-    case 'PlannedShifts':
-      return `En ${plural(metric.serviceCount, 'servicio', 'servicios')} y ` +
+    case 'PlannedShifts': {
+      const alcance = `En ${plural(metric.serviceCount, 'servicio', 'servicios')} y ` +
         `${plural(metric.total, 'posición', 'posiciones')}.`;
+
+      // Una semana planeada sólo el lunes no es una semana planeada. Callarlo dejaría un número
+      // que parece calculado apoyado en un prerrequisito a medias, que es la trampa que esta
+      // pantalla viene a cerrar.
+      return metric.coveredDays >= 7
+        ? alcance
+        : `${alcance} Sólo ${plural(metric.coveredDays, 'día', 'días')} de los 7 con turnos ` +
+            'publicados.';
+    }
 
     case 'PositionsWithoutPrimary':
       return metric.value > 0

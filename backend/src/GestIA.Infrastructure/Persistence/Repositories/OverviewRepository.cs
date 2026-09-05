@@ -121,6 +121,13 @@ public sealed class OverviewRepository(GestIaDbContext dbContext) : IOverviewRep
             && shift.ScheduleVersion.Status == ScheduleVersionStatus.Published);
 
         var plannedShiftsInWeek = await weekShifts.CountAsync(cancellationToken);
+
+        // Cuántos de los siete días tienen al menos un turno. Sin esto, una versión que cubre el
+        // lunes hace que la semana entera parezca planeada.
+        var plannedDaysInWeek = await weekShifts
+            .Select(shift => shift.ShiftDate)
+            .Distinct()
+            .CountAsync(cancellationToken);
         var servicesPlannedInWeek = await weekShifts
             .Select(shift => shift.ScheduleVersion.IdService)
             .Distinct()
@@ -246,6 +253,7 @@ public sealed class OverviewRepository(GestIaDbContext dbContext) : IOverviewRep
             clientWithoutContactName,
             firstServiceName,
             plannedShiftsInWeek,
+            plannedDaysInWeek,
             servicesPlannedInWeek,
             positionsPlannedInWeek,
             weekHasPublishedPlan,

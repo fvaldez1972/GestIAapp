@@ -150,6 +150,12 @@ public sealed record OverviewSetupResponse(
 /// <para><c>Total</c> es el universo contra el que se compara —posiciones, empleados, turnos del
 /// día— y <c>ServiceCount</c> en cuántos servicios ocurre. Los dos existen porque un número solo
 /// no dice de qué: «3» no es lo mismo que «3 de 38, en 2 servicios».</para>
+///
+/// <para><c>CoveredDays</c> sólo lo usa «turnos planeados de la semana», y existe por un caso que
+/// apareció con datos reales: una versión publicada que cubre <b>un</b> día de la semana hace que
+/// el indicador diga «27 turnos» como si la semana estuviera planeada, cuando seis de sus siete
+/// días no tienen nada. Un número que parece calculado apoyado en un prerrequisito a medias es la
+/// misma trampa que «sin datos aún», sólo que peor disimulada.</para>
 /// </summary>
 public sealed record OverviewMetricResponse(
     OverviewMetricKey Key,
@@ -159,7 +165,8 @@ public sealed record OverviewMetricResponse(
     int Total,
     int ServiceCount,
     DateOnly? AsOfDate,
-    string? Route);
+    string? Route,
+    int CoveredDays = 0);
 
 public sealed record OverviewAttentionResponse(
     OverviewAttentionKey Key,
@@ -184,6 +191,7 @@ public sealed record OverviewFacts(
     string? ClientWithoutContactName,
     string? FirstServiceName,
     int PlannedShiftsInWeek,
+    int PlannedDaysInWeek,
     int ServicesPlannedInWeek,
     int PositionsPlannedInWeek,
     bool WeekHasPublishedPlan,

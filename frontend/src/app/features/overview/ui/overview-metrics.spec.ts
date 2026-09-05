@@ -114,6 +114,31 @@ describe('La franja de indicadores', () => {
     expect(raiz.querySelector('.gi-metric__pill--danger')?.textContent?.trim()).toBe('Vacante');
   });
 
+  /**
+   * Salió al mirar la pantalla con datos reales: la demo tiene la planeación publicada hasta el
+   * 31 de agosto, así que la semana en curso está planeada **sólo su primer día**. El indicador
+   * decía «27 turnos» como si la semana entera estuviera cubierta.
+   */
+  it('una semana planeada a medias lo dice, en vez de parecer completa', () => {
+    const { raiz } = montar((host) =>
+      host.metrics.set([
+        indicador({ key: 'PlannedShifts', value: 27, tone: 'Neutral', total: 12, serviceCount: 6, coveredDays: 1 }),
+      ]),
+    );
+
+    expect(raiz.textContent).toContain('Sólo 1 día de los 7 con turnos publicados');
+  });
+
+  it('una semana planeada entera no agrega la advertencia', () => {
+    const { raiz } = montar((host) =>
+      host.metrics.set([
+        indicador({ key: 'PlannedShifts', value: 412, tone: 'Neutral', total: 38, serviceCount: 14, coveredDays: 7 }),
+      ]),
+    );
+
+    expect(raiz.textContent).not.toContain('de los 7 con turnos publicados');
+  });
+
   it('la nota de arriba dice cuántos no se pueden calcular todavía', () => {
     const { nota } = montar((host) =>
       host.metrics.set([indicador(), indicador({ key: 'PlannedShifts', state: 'Pending' })]),

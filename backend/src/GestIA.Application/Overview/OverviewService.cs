@@ -141,7 +141,8 @@ public sealed class OverviewService(
                 facts.PositionsPlannedInWeek,
                 facts.ServicesPlannedInWeek,
                 null,
-                "/planeacion"));
+                "/planeacion",
+                facts.PlannedDaysInWeek));
 
             // Sin ninguna posición definida no hay cupo contra el que comparar: el hueco no es
             // cero, es incalculable.

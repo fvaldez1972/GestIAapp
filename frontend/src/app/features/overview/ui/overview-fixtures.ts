@@ -102,6 +102,7 @@ export function indicador(extra: Partial<OverviewMetric> = {}): OverviewMetric {
     serviceCount: 2,
     asOfDate: null,
     route: '/servicios',
+    coveredDays: 7,
     ...extra,
   };
 }

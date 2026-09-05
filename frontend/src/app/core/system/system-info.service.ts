@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { DestroyRef, inject, Injectable, signal } from '@angular/core';
+import { computed, DestroyRef, inject, Injectable, signal } from '@angular/core';
 
 export type SystemInfo = {
   readonly application: string;
@@ -30,6 +30,22 @@ export class SystemInfoService {
   private readonly infoState = signal<SystemInfo | null>(null);
 
   readonly info = this.infoState.asReadonly();
+
+  /**
+   * El día operativo, como `yyyy-MM-dd`. **Cadena vacía mientras el servidor no lo diga.**
+   *
+   * Las pantallas lo usan para el valor por omisión de sus filtros de fecha. Antes cada una hacía
+   * `new Date().toISOString().slice(0, 10)`, que es el día **UTC**: a las 19:00 hora de Ciudad de
+   * México del 4 de septiembre eso devuelve el 5, y la pantalla proponía el día siguiente todas
+   * las tardes. Es el mismo defecto que el reloj operativo cerró en el servidor.
+   *
+   * Devuelve vacío, y no el día del navegador, cuando todavía no hay respuesta: un filtro vacío se
+   * nota y se llena; un día equivocado se usa sin que nadie lo mire.
+   */
+  readonly operationDate = computed(() => this.infoState()?.operationDate ?? '');
+
+  /** El huso operativo del servidor. Nadie debería volver a escribirlo a mano en el navegador. */
+  readonly timeZoneId = computed(() => this.infoState()?.timeZoneId ?? '');
 
   constructor() {
     this.refresh();

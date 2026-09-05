@@ -102,6 +102,7 @@ app.MapFileUploadEndpoints();
 app.MapBusinessDocumentEndpoints();
 app.MapCatalogEndpoints();
 app.MapReportsEndpoints();
+app.MapOverviewEndpoints();
 app.MapSecurityAdministrationEndpoints();
 app.MapOrganizationSecurityEndpoints();
 app.MapOperationalRequestEndpoints();

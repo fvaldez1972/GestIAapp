@@ -1,668 +1,162 @@
-<section class="page-heading page-heading--clients">
-  <div>
-    <span class="context-chip">Configuración / Clientes</span>
-    <h1>{{ pageHeadingTitle() }}</h1>
-    <p>{{ pageHeadingDescription() }}</p>
-  </div>
-  <div class="heading-actions">
-    @if (canAdministerPlatform()) {
-      <button class="button button--secondary" type="button" (click)="openCreateOrganization()">Nueva organización</button>
-    }
-    <button
-      class="button button--primary"
-      type="button"
-      [disabled]="!canCreateClient()"
-      [title]="newClientDisabledReason()"
-      (click)="openCreateClient()"
-    >
-      <span aria-hidden="true">＋</span> Nuevo cliente
-    </button>
-  </div>
-</section>
-
-<!-- Sin el bloque de organización, que ahora vive en la barra de contexto, esta franja sólo
-     existe cuando hay algo que advertir. Dibujarla vacía dejaba una caja en blanco. -->
-@if (newClientDisabledReason()) {
-  <section class="context-card context-card--clients" aria-label="Aviso de contexto">
-    <p class="context-warning">{{ newClientDisabledReason() }}</p>
-  </section>
-}
-
-<section class="client-kpis" aria-label="Indicadores de clientes">
-  <article>
-    <span>{{ canAdministerPlatform() ? 'Organizaciones' : 'Organización actual' }}</span>
-    <strong>{{ canAdministerPlatform() ? organizations().length : (selectedOrganization()?.codeOrganization || '—') }}</strong>
-    <small>{{ canAdministerPlatform() ? 'contextos registrados' : (selectedOrganization()?.legalName || 'sin alcance asignado') }}</small>
-  </article>
-  <article>
-    <span>Clientes</span>
-    <strong>{{ result().totalCount }}</strong>
-    <small>en la consulta</small>
-  </article>
-  <article>
-    <span>Sedes</span>
-    <strong>{{ sites().length }}</strong>
-    <small>del expediente abierto</small>
-  </article>
-  <article>
-    <span>Servicios</span>
-    <strong>{{ knownServicesCount() }}</strong>
-    <small>en resultados visibles</small>
-  </article>
-</section>
-
-@if (message()) {
-  <div class="alert alert--success" role="status">{{ message() }}</div>
-}
-@if (error()) {
-  <div class="alert alert--error" role="alert">{{ error() }}</div>
-}
-
-<section class="workbench">
-  <article class="table-card">
-    <header class="table-toolbar table-toolbar--stacked">
-      <div>
-        <span class="eyebrow">Directorio + contexto</span>
-        <h2>Directorio de clientes operativos</h2>
-        <span>{{ visibleClients().length }} visibles de {{ result().totalCount }} registrados</span>
-      </div>
-    </header>
-
-    <div class="client-filters client-filters--advanced" aria-label="Filtros avanzados de clientes">
-      <label class="wide">
-        <span>Buscar cliente, RFC o contacto</span>
-        <input
-          type="search"
-          placeholder="Buscar..."
-          [value]="search()"
-          (input)="updateSearch($any($event.target).value)"
-          (keyup.enter)="loadClients(1)"
-        />
-      </label>
-      <label>
-        <span>Estado</span>
-        <select [value]="clientStatusFilter()" (change)="updateClientStatusFilter($any($event.target).value)">
-          <option value="all">Todos</option>
-          <option value="active">Activo</option>
-          <option value="inactive">Inactivo</option>
-        </select>
-      </label>
-      <label>
-        <span>Servicio</span>
-        <select [value]="clientServiceFilter()" (change)="updateClientServiceFilter($any($event.target).value)">
-          <option value="all">Todos</option>
-          <option value="withServices">Con servicios</option>
-          <option value="withoutServices">Sin servicios</option>
-        </select>
-      </label>
-      <label>
-        <span>Sede</span>
-        <select [value]="clientSiteFilter()" (change)="updateClientSiteFilter($any($event.target).value)">
-          <option value="all">Todas</option>
-          <option value="withSite">Con sede conocida</option>
-          <option value="withoutSite">Sin sede capturada</option>
-        </select>
-      </label>
-      <label>
-        <span>Contrato</span>
-        <select [value]="clientContractFilter()" (change)="updateClientContractFilter($any($event.target).value)">
-          <option value="all">Todos</option>
-          <option value="withActiveContract">Con contrato vigente</option>
-          <option value="withoutActiveContract">Sin contrato vigente</option>
-        </select>
-      </label>
-      <label>
-        <span>Documentos</span>
-        <select [value]="clientDocumentsFilter()" (change)="updateClientDocumentsFilter($any($event.target).value)">
-          <option value="all">Todos</option>
-          <option value="pending">Con documentos pendientes</option>
-          <option value="complete">Sin pendientes visibles</option>
-        </select>
-      </label>
-      <label>
-        <span>Responsable</span>
-        <input
-          type="search"
-          placeholder="Nombre del contacto"
-          [value]="responsibleFilter()"
-          (input)="updateResponsibleFilter($any($event.target).value)"
-        />
-      </label>
-      <label>
-        <span>Rango de fechas</span>
-        <input type="date" [value]="startDateFilter()" (input)="updateStartDateFilter($any($event.target).value)" />
-      </label>
-      <label>
-        <span>Hasta</span>
-        <input type="date" [value]="endDateFilter()" (input)="updateEndDateFilter($any($event.target).value)" />
-      </label>
-      <div class="filter-actions">
-        <button class="button button--secondary" type="button" (click)="clearFilters()">Limpiar</button>
-        <button class="button button--primary" type="button" (click)="loadClients(1)">Filtrar</button>
-      </div>
-      <div class="saved-filters">
-        <span>Filtros guardados</span>
-        <button type="button" (click)="applySavedFilter('active')">Activos</button>
-        <button type="button" (click)="applySavedFilter('withoutContract')">Sin contrato vigente</button>
-        <button type="button" (click)="applySavedFilter('pendingDocuments')">Con documentos pendientes</button>
-        <button type="button" (click)="applySavedFilter('withServices')">Con servicios</button>
-      </div>
+<div class="clients">
+  <header class="clients__heading">
+    <div>
+      <p class="clients__eyebrow">CLIENTES</p>
+      <h1 class="clients__title">Clientes</h1>
+      <p class="clients__subtitle">{{ subtitle() }}</p>
     </div>
-
-    @if (loading()) {
-      <div class="state-panel"><span class="spinner"></span> Cargando información…</div>
-    } @else if (!organizations().length) {
-      <div class="state-panel state-panel--empty">
-        <span class="empty-icon">⌂</span>
-        <strong>Esta cuenta no tiene organización asignada</strong>
-        <p>El Super Admin BKT debe asignar una organización antes de administrar clientes.</p>
-        @if (canAdministerPlatform()) {
-          <button class="button button--primary" type="button" (click)="openCreateOrganization()">Nueva organización</button>
-        }
-      </div>
-    } @else if (!selectedOrganizationId()) {
-      <div class="state-panel state-panel--empty">
-        <span class="empty-icon">⌄</span>
-        <strong>Selecciona una organización</strong>
-        <p>Los clientes se muestran según la organización activa.</p>
-      </div>
-    } @else if (!result().items.length) {
-      <div class="state-panel state-panel--empty">
-        <span class="empty-icon">👥</span>
-        <strong>Aún no hay clientes operativos</strong>
-        <p>{{ canAdministerPlatform() ? 'Puedes registrar un cliente para comenzar o cambiar de organización.' : 'Registra el primer cliente operativo de tu organización.' }}</p>
-        <div class="empty-actions">
-          <button class="button button--primary" type="button" [disabled]="!canCreateClient()" [title]="newClientDisabledReason()" (click)="openCreateClient()">Nuevo cliente</button>
-          @if (canAdministerPlatform()) {
-            <button class="button button--secondary" type="button" (click)="openCreateOrganization()">Cambiar / nueva organización</button>
-          }
-        </div>
-      </div>
-    } @else if (!visibleClients().length) {
-      <div class="state-panel state-panel--empty">
-        <span class="empty-icon">⌕</span>
-        <strong>No hay clientes con estos filtros</strong>
-        <p>Intenta ajustar la búsqueda, limpiar filtros o usar otro filtro guardado.</p>
-        <button class="button button--primary" type="button" (click)="clearFilters()">Limpiar filtros</button>
-      </div>
-    } @else {
-      <div class="client-table-wrap">
-        <table class="client-table">
-          <thead>
-            <tr>
-              <th>Cliente</th>
-              <th>RFC</th>
-              <th>Contacto principal</th>
-              <th>Sede principal</th>
-              <th>Servicios</th>
-              <th>Estado</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (client of visibleClients(); track client.idClient) {
-              <tr [class.is-active]="selectedClient()?.idClient === client.idClient">
-                <td>
-                  <button class="client-cell" type="button" (click)="selectClient(client)">
-                    <strong>{{ client.legalName }}</strong>
-                    <small>{{ client.tradeName || 'Sin nombre comercial' }}</small>
-                  </button>
-                </td>
-                <td>{{ client.rfc }}</td>
-                <td>
-                  @if (selectedClient()?.idClient === client.idClient && primaryContact()) {
-                    <strong class="cell-main">{{ primaryContact()?.fullName }}</strong>
-                    <small>{{ primaryContact()?.email || primaryContact()?.phone || 'Sin dato de contacto' }}</small>
-                  } @else {
-                    <span class="muted-cell">Selecciona para consultar</span>
-                  }
-                </td>
-                <td>{{ clientLocationSummary(client) }}</td>
-                <td>{{ serviceCount(client) }}</td>
-                <td><span class="pill" [class.pill--muted]="!client.active">{{ clientStatusLabel(client) }}</span></td>
-                <td>
-                  <div class="row-actions">
-                    <button type="button" title="Ver expediente del cliente" (click)="selectClient(client)">Ver</button>
-                    <button type="button" title="Editar cliente" (click)="openEditClient(client)">Editar</button>
-                    <button class="danger" type="button" title="Desactivar cliente" (click)="deactivate(client)">Desactivar</button>
-                  </div>
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      </div>
-      <footer class="pagination">
-        <span>Página {{ result().page }} de {{ result().totalPages || 1 }}</span>
-        <div>
-          <button type="button" [disabled]="result().page <= 1" (click)="loadClients(result().page - 1)">Anterior</button>
-          <button type="button" [disabled]="result().page >= result().totalPages" (click)="loadClients(result().page + 1)">Siguiente</button>
-          <label class="page-size">
-            <span>Por página</span>
-            <select [value]="result().pageSize" (change)="updatePageSize($any($event.target).value)">
-              <option value="10">10</option>
-              <option value="20">20</option>
-              <option value="50">50</option>
-            </select>
-          </label>
-        </div>
-      </footer>
+    @if (canWrite()) {
+      <button class="button button--primary" type="button" (click)="startCreate()">Nuevo cliente</button>
     }
-  </article>
+  </header>
 
-  <article class="detail-card">
-    <header class="detail-header">
-      <div>
-        <span class="eyebrow">Expediente del cliente</span>
-        <h2>{{ selectedClientName() }}</h2>
-        @if (selectedClient()) {
-          <p>{{ selectedClient()?.rfc }} · {{ selectedClient()?.organizationName }}</p>
-          <div class="detail-badges">
-            <span class="pill" [class.pill--muted]="!selectedClient()?.active">{{ clientStatusLabel(selectedClient()!) }}</span>
-            <span class="pill" [class.pill--muted]="!services().length">{{ services().length ? 'Con servicios' : 'Sin servicios' }}</span>
-            <span class="pill" [class.pill--muted]="!activeContractsCount()">{{ activeContractsCount() ? 'Contrato vigente' : 'Sin contrato vigente' }}</span>
-          </div>
-        }
-      </div>
-      @if (selectedClient()) {
-        <div class="detail-actions">
-          <button type="button" (click)="openEditClient(selectedClient()!)">Editar ficha</button>
-          <button class="danger" type="button" (click)="deactivate(selectedClient()!)">Desactivar</button>
-        </div>
-      }
-    </header>
-
-    @if (!selectedClient()) {
-      <div class="state-panel state-panel--empty">
-        <span class="empty-icon">☰</span>
-        <strong>Selecciona un cliente</strong>
-        <p>Su expediente 360 aparecerá aquí sin sacarte del directorio.</p>
-      </div>
-    } @else {
-      <section class="client-360-summary">
-        <article>
-          <span>Sedes</span>
-          <strong>{{ sites().length }}</strong>
-        </article>
-        <article>
-          <span>Servicios</span>
-          <strong>{{ services().length }}</strong>
-        </article>
-        <article>
-          <span>Contratos vigentes</span>
-          <strong>{{ activeContractsCount() }}</strong>
-        </article>
-        <article>
-          <span>Contactos</span>
-          <strong>{{ contacts().length }}</strong>
-        </article>
-      </section>
-
-      <nav class="client-tabs" aria-label="Secciones de cliente">
-        @for (tab of clientTabs; track tab.value) {
-          <button type="button" [class.is-active]="activeClientTab() === tab.value" (click)="showClientTab(tab.value)">
-            <span>{{ tab.label }}</span>
-            @if (tab.count) {
-              <strong>{{ tab.count() }}</strong>
-            }
-          </button>
-        }
-      </nav>
-
-      <section class="detail-section client-overview" [hidden]="activeClientTab() !== 'summary'">
-        <header>
-          <div>
-            <h3>Información general</h3>
-            <span>Datos fiscales y comerciales</span>
-          </div>
-        </header>
-
-        <div class="profile-grid profile-grid--client">
-          <span><strong>Organización</strong>{{ selectedClient()?.organizationName }}</span>
-          <span><strong>RFC</strong>{{ selectedClient()?.rfc }}</span>
-          <span><strong>Nombre comercial</strong>{{ selectedClient()?.tradeName || 'Sin nombre comercial' }}</span>
-          <span><strong>Nacionalidad</strong>{{ selectedClient()?.nationality || 'Sin nacionalidad capturada' }}</span>
-          <span><strong>Actividad</strong>{{ selectedClient()?.taxActivity || 'Sin actividad capturada' }}</span>
-          <span><strong>Contacto principal</strong>{{ primaryContact()?.fullName || 'Sin contacto principal' }}</span>
-          <span><strong>Teléfono</strong>{{ primaryContact()?.phone || primaryContact()?.mobilePhone || 'Sin teléfono capturado' }}</span>
-          <span><strong>Correo</strong>{{ primaryContact()?.email || 'Sin correo capturado' }}</span>
-          <span><strong>Sede principal</strong>{{ primarySite()?.name || 'Sin sede principal' }}</span>
-          <span><strong>Servicios</strong>{{ services().length }}</span>
-          <span><strong>Contratos vigentes</strong>{{ activeContractsCount() }}</span>
-          <span class="wide"><strong>Domicilio fiscal</strong>{{ selectedClient()?.taxAddress || 'Sin domicilio fiscal capturado' }}</span>
-        </div>
-
-        <div class="summary-hint">
-          <strong>Expediente vivo</strong>
-          <span>Desde las pestañas puedes administrar sedes, servicios, contratos, contactos y documentos relacionados.</span>
-        </div>
-      </section>
-
-      <section class="detail-section" [hidden]="activeClientTab() !== 'sites'">
-        <header>
-          <div>
-            <h3>Sedes</h3>
-            <span>{{ sites().length }} registro(s)</span>
-          </div>
-          <button class="button button--secondary" type="button" (click)="openCreateSite()">Nueva sede</button>
-        </header>
-
-        @if (loadingDetail()) {
-          <div class="compact-state">Cargando expediente…</div>
-        } @else if (!sites().length) {
-          <div class="compact-state">Sin sedes registradas.</div>
-        } @else {
-          <div class="cards-list">
-            @for (site of sites(); track site.idClientSite) {
-              <article class="mini-card">
-                <div>
-                  <span class="code">{{ site.codeClientSite }}</span>
-                  <strong>{{ site.name }}</strong>
-                  <small>{{ address(site) }}</small>
-                </div>
-                <div class="mini-actions">
-                  <button type="button" (click)="openEditSite(site)">Editar</button>
-                  <button class="danger" type="button" (click)="deactivateSite(site)">Desactivar</button>
-                </div>
-              </article>
-            }
-          </div>
-        }
-      </section>
-
-      <section class="detail-section" [hidden]="activeClientTab() !== 'contacts'">
-        <header>
-          <div>
-            <h3>Contactos</h3>
-            <span>{{ contacts().length }} registro(s)</span>
-          </div>
-          <button class="button button--secondary" type="button" (click)="openCreateContact()">Nuevo contacto</button>
-        </header>
-
-        @if (!contacts().length) {
-          <div class="compact-state">Sin contactos registrados.</div>
-        } @else {
-          <div class="cards-list">
-            @for (contact of contacts(); track contact.idClientContact) {
-              <article class="mini-card">
-                <div>
-                  <span class="pill">{{ purposeLabel(contact.purpose) }}{{ contact.isPrimary ? ' · Principal' : '' }}</span>
-                  <strong>{{ contact.fullName }}</strong>
-                  <small>{{ contact.jobTitle || 'Sin puesto' }} · {{ contact.clientSiteName || 'Cliente general' }}</small>
-                  <small>{{ contact.email || contact.phone || contact.mobilePhone }}</small>
-                </div>
-                <div class="mini-actions">
-                  <button type="button" (click)="openEditContact(contact)">Editar</button>
-                  <button class="danger" type="button" (click)="deactivateContact(contact)">Desactivar</button>
-                </div>
-              </article>
-            }
-          </div>
-        }
-      </section>
-
-      <section class="detail-section" [hidden]="activeClientTab() !== 'contracts'">
-        <header>
-          <div>
-            <h3>Contratos de servicio</h3>
-            <span>{{ contracts().length }} registro(s)</span>
-          </div>
-          <button class="button button--secondary" type="button" (click)="openCreateContract()">Nuevo contrato</button>
-        </header>
-
-        @if (!contracts().length) {
-          <div class="compact-state">Sin contratos registrados.</div>
-        } @else {
-          <div class="cards-list">
-            @for (contract of contracts(); track contract.idServiceContract) {
-              <article class="mini-card">
-                <div>
-                  <span class="code">{{ contract.codeServiceContract }}</span>
-                  <strong>{{ contractStatusLabel(contract.status) }}</strong>
-                  <small>Vigencia: {{ contract.effectiveFromDate }} - {{ contract.effectiveToDate || 'sin fecha de término' }}</small>
-                  <small>{{ contract.paymentTermDays }} días crédito · {{ contract.currencyCode }}</small>
-                </div>
-                <div class="mini-actions">
-                  <button type="button" (click)="openEditContract(contract)">Editar</button>
-                  <button type="button" (click)="documentContract.set(contract)">Documentos</button>
-                  <button class="danger" type="button" (click)="deactivateContract(contract)">Desactivar</button>
-                </div>
-              </article>
-            }
-          </div>
-        }
-      </section>
-
-      <section class="detail-section" [hidden]="activeClientTab() !== 'services'">
-        <header>
-          <div><h3>Servicios</h3><span>{{ services().length }} registro(s)</span></div>
-          <a class="button button--secondary" routerLink="/servicios" [queryParams]="{ clientId: selectedClient()?.idClient }">Ir a servicios</a>
-        </header>
-        @if (!services().length) {
-          <div class="compact-state">Sin servicios registrados.</div>
-        } @else {
-          <div class="cards-list">
-            @for (service of services(); track service.idService) {
-              <article class="mini-card">
-                <div>
-                  <span class="code">{{ service.codeService }}</span>
-                  <strong>{{ service.name }}</strong>
-                  <small>{{ service.clientSiteName || 'Sede no disponible' }} · {{ service.serviceContractCode || 'Sin contrato ligado' }}</small>
-                  <small>{{ service.description }}</small>
-                  <small>{{ service.active ? 'Activo' : 'Inactivo' }} · {{ service.startDate }} - {{ service.endDate || 'sin fecha de término' }}</small>
-                </div>
-                <div class="mini-actions">
-                  <a routerLink="/servicios" [queryParams]="{ clientId: selectedClient()?.idClient, serviceId: service.idService }">Abrir servicio</a>
-                </div>
-              </article>
-            }
-          </div>
-        }
-      </section>
-
-      @if (activeClientTab() === 'documents' && selectedClient(); as client) {
-        <app-entity-documents [organizationId]="selectedOrganizationId()" ownerType="Client" [ownerId]="client.idClient" [ownerLabel]="client.tradeName || client.legalName" />
-      }
-      @if (activeClientTab() === 'contracts' && documentContract(); as contract) {
-        <app-entity-documents [organizationId]="selectedOrganizationId()" ownerType="ServiceContract" [ownerId]="contract.idServiceContract" [ownerLabel]="contract.codeServiceContract" />
-      }
+  @if (!organizationId()) {
+    <gi-empty-state
+      variant="missing-prerequisite"
+      title="Elige una organización para ver sus clientes"
+      description="Los clientes pertenecen a una organización. Elígela en la barra de contexto, arriba."
+    />
+  } @else if (!canRead()) {
+    <gi-empty-state variant="no-permission" />
+  } @else {
+    @if (message()) {
+      <p class="clients__note" role="status">{{ message() }}</p>
     }
-  </article>
-</section>
 
-@if (clientEditorOpen()) {
-  <div class="modal-backdrop" (click)="closeEditors()">
-    <section class="modal modal--client" role="dialog" aria-modal="true" aria-labelledby="client-editor-title" (click)="$event.stopPropagation()">
-      <header>
-        <div>
-          <span class="eyebrow">Expediente comercial</span>
-          <h2 id="client-editor-title">{{ editingClient() ? 'Editar cliente' : 'Nuevo cliente' }}</h2>
-          <p>{{ editingClient() ? 'Actualiza la información principal del cliente.' : 'Completa sólo lo esencial; sedes, servicios y documentos se agregan desde el expediente.' }}</p>
-        </div>
-        <button type="button" aria-label="Cerrar" (click)="closeEditors()">×</button>
-      </header>
-      <form [formGroup]="clientForm" (ngSubmit)="saveClient()">
-        <ol class="wizard-steps wizard-steps--three" aria-label="Progreso del expediente del cliente">
-          <li [class.is-active]="clientWizardStep() === 1" [class.is-complete]="clientWizardStep() > 1"><span>1</span>Identidad</li>
-          <li [class.is-active]="clientWizardStep() === 2" [class.is-complete]="clientWizardStep() > 2"><span>2</span>Contacto</li>
-          <li [class.is-active]="clientWizardStep() === 3"><span>3</span>Datos fiscales</li>
-        </ol>
-        <div class="inline-note">{{ canAdministerPlatform() ? 'El cliente se asociará a la organización seleccionada: ' : 'El cliente se registrará en tu organización: ' }}{{ selectedOrganization()?.legalName || 'sin organización seleccionada' }}.</div>
+    <!--
+      El aviso de la vista 5. Llega al volver al listado y **se va solo** en cuanto el cliente
+      tiene sede: no hay que cerrarlo, se resolvió.
+    -->
+    @if (savedWithoutSite(); as pending) {
+      <aside class="warning" role="status">
+        <span class="warning__bar" aria-hidden="true"></span>
+        <span class="warning__body">
+          <span class="warning__title">{{ name(pending) }} se guardó sin sede</span>
+          <span class="warning__detail">
+            El expediente es válido, pero no permite crear servicios: el servicio se liga a una
+            sede. Se resuelve agregando la primera sede.
+          </span>
+        </span>
+        <button class="button button--primary" type="button" (click)="addSite()">Agregar sede</button>
+      </aside>
+    }
 
-        @if (clientWizardStep() === 1) {
-          <section class="wizard-panel" aria-labelledby="client-step-identity">
-            <div class="wizard-panel__heading"><span>Paso 1 de 3</span><h3 id="client-step-identity">Identidad del cliente</h3><p>Datos que identifican el expediente comercial.</p></div>
-            <div class="form-grid">
-              @if (canAdministerPlatform()) {
-                <div class="gi-field scope-readonly"><span>Organización</span><strong>{{ selectedOrganization()?.legalName || 'Sin organización' }}</strong></div>
-              }
-              <label [class.is-invalid]="isInvalid('client', 'codeClient')"><span>Código *</span><input formControlName="codeClient" [readOnly]="!!editingClient()" />@if (isInvalid('client', 'codeClient')) { <small>El código es obligatorio.</small> }</label>
-              <label [class.is-invalid]="isInvalid('client', 'rfc')"><span>RFC *</span><input formControlName="rfc" maxlength="13" />@if (isInvalid('client', 'rfc')) { <small>Captura un RFC válido de 12 a 13 caracteres.</small> }</label>
-              <label class="wide" [class.is-invalid]="isInvalid('client', 'legalName')"><span>Razón social *</span><input formControlName="legalName" />@if (isInvalid('client', 'legalName')) { <small>La razón social es obligatoria.</small> }</label>
-              <label class="wide"><span>Nombre comercial</span><input formControlName="tradeName" /></label>
-            </div>
-          </section>
-        } @else if (clientWizardStep() === 2) {
-          <section class="wizard-panel" aria-labelledby="client-step-contact">
-            <div class="wizard-panel__heading"><span>Paso 2 de 3</span><h3 id="client-step-contact">Contacto principal</h3><p>Puede quedar pendiente y completarse después desde el expediente.</p></div>
-            <div class="form-grid">
-              <label class="wide"><span>Nombre completo</span><input formControlName="contactFullName" placeholder="Nombre del contacto" /></label>
-              <label><span>Teléfono</span><input formControlName="contactPhone" placeholder="55 1234 5678" /></label>
-              <label [class.is-invalid]="isInvalid('client', 'contactEmail')"><span>Correo</span><input type="email" formControlName="contactEmail" placeholder="correo@ejemplo.com" />@if (isInvalid('client', 'contactEmail')) { <small>Captura un correo válido.</small> }</label>
-            </div>
-          </section>
-        } @else {
-          <section class="wizard-panel" aria-labelledby="client-step-tax">
-            <div class="wizard-panel__heading"><span>Paso 3 de 3</span><h3 id="client-step-tax">Datos fiscales y laborales</h3><p>Completa el contexto administrativo antes de guardar.</p></div>
-            <div class="form-grid">
-              <label><span>Nacionalidad</span><app-catalog-select formControlName="nationality" [organizationId]="selectedOrganizationId()" type="Nationality" label="Nacionalidad" /></label>
-              <label><span>Registro patronal</span><input formControlName="employerRegistrationNumber" /></label>
-              <label class="wide"><span>Actividad fiscal</span><textarea formControlName="taxActivity" rows="2"></textarea></label>
-              <label class="wide"><span>Domicilio fiscal</span><textarea formControlName="taxAddress" rows="3"></textarea></label>
-            </div>
-          </section>
-        }
-        @if (clientForm.invalid && clientForm.touched) {
-          <p class="form-error">Faltan datos para avanzar. Revisa los campos marcados.</p>
-        }
-        <footer>
-          <button class="button button--secondary" type="button" (click)="closeEditors()">Cancelar</button>
-          <div class="wizard-actions">
-            @if (clientWizardStep() > 1) { <button class="button button--secondary" type="button" (click)="previousClientWizardStep()">Anterior</button> }
-            @if (clientWizardStep() < 3) {
-              <button class="button button--primary" type="button" (click)="nextClientWizardStep()">Siguiente</button>
+    <div class="clients__workspace" [class.clients__workspace--split]="selected() || creating()">
+      <div class="clients__list">
+        <gi-filter-bar
+          [search]="search()"
+          searchLabel="Buscar cliente"
+          searchPlaceholder="Cliente, RFC o sede"
+          [groups]="filterGroups()"
+          [resultCount]="total()"
+          (searchChange)="onSearch($event)"
+          (filterChange)="onFilter($event)"
+          (clearAll)="clearFilters()"
+        />
+
+        <app-client-table
+          [clients]="clients()"
+          [state]="tableState()"
+          [selectedId]="selected()?.idClient ?? null"
+          [errorMessage]="error()"
+          [compact]="!!selected() || creating()"
+          [canWrite]="canWrite()"
+          (open)="open($event)"
+          (create)="startCreate()"
+          (retry)="load()"
+          (action)="onRowAction($event)"
+        />
+      </div>
+
+      @if (creating()) {
+        <gi-detail-panel
+          title="Nuevo cliente"
+          subtitle="El código y la fecha de alta los pone el sistema"
+          (close)="creating.set(false)"
+        >
+          <app-client-form
+            [saving]="saving()"
+            [problem]="formProblem()"
+            (cancel)="creating.set(false)"
+            (save)="saveNew($event)"
+          />
+        </gi-detail-panel>
+      } @else if (selected(); as client) {
+        <gi-detail-panel
+          [title]="name(client)"
+          [subtitle]="client.active ? 'Activo' : 'Inactivo'"
+          [tabs]="panelTabs()"
+          [activeTab]="activeTab()"
+          (tabChange)="activeTab.set($event)"
+          (close)="closePanel()"
+        >
+          <ng-template giTab="data">
+            <app-client-data [client]="client" [sites]="sites()" />
+          </ng-template>
+
+          <ng-template giTab="sites">
+            <app-client-sites
+              [sites]="sites()"
+              [contacts]="contacts()"
+              [canWrite]="canWrite()"
+              [saving]="saving()"
+              [openAdd]="addingSite()"
+              (create)="createSite($event)"
+              (act)="onSiteAction($event)"
+            />
+          </ng-template>
+
+          <ng-template giTab="contacts">
+            <app-client-contacts [contacts]="contacts()" [canWrite]="canWrite()" />
+          </ng-template>
+
+          <ng-template giTab="documents">
+            <app-entity-documents
+              [organizationId]="organizationId()"
+              ownerType="Client"
+              [ownerId]="client.idClient"
+              [ownerLabel]="name(client)"
+            />
+          </ng-template>
+
+          <!--
+            El pie es la transición al paso siguiente. Cuando no se puede, **la razón se escribe al
+            lado**, no se deja en un botón gris que obliga a adivinar.
+          -->
+          <footer class="panel-footer">
+            @if (blockReason()) {
+              <span class="panel-footer__reason" id="motivo-bloqueo">{{ blockReason() }}</span>
             } @else {
-              <button class="button button--primary" type="submit" [disabled]="saving() || clientForm.invalid">{{ saving() ? 'Guardando…' : editingClient() ? 'Guardar cambios' : 'Crear cliente' }}</button>
+              <span class="panel-footer__summary">
+                {{ client.siteCount }} {{ client.siteCount === 1 ? 'sede' : 'sedes' }} ·
+                {{ client.contactCount }} {{ client.contactCount === 1 ? 'contacto' : 'contactos' }}
+              </span>
             }
-          </div>
-        </footer>
-      </form>
-    </section>
-  </div>
-}
 
-@if (siteEditorOpen()) {
-  <div class="modal-backdrop" (click)="closeEditors()">
-    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="site-editor-title" (click)="$event.stopPropagation()">
-      <header>
-        <div><span class="eyebrow">Sede operativa</span><h2 id="site-editor-title">{{ editingSite() ? 'Editar sede' : 'Nueva sede' }}</h2></div>
-        <button type="button" aria-label="Cerrar" (click)="closeEditors()">×</button>
-      </header>
-      <form [formGroup]="siteForm" (ngSubmit)="saveSite()">
-        <div class="form-grid">
-          <label><span>Código *</span><input formControlName="codeClientSite" [readOnly]="!!editingSite()" /></label>
-          <label><span>Nombre *</span><input formControlName="name" /></label>
-          <label class="wide"><span>Calle *</span><input formControlName="street" /></label>
-          <label><span>No. exterior</span><input formControlName="exteriorNumber" /></label>
-          <label><span>No. interior</span><input formControlName="interiorNumber" /></label>
-          <label><span>Colonia</span><input formControlName="neighborhood" /></label>
-          <label><span>País</span><app-catalog-select formControlName="countryCode" [organizationId]="selectedOrganizationId()" type="Country" label="País" [useCode]="true" (selectionChange)="siteForm.patchValue({state: '', municipality: ''})" /></label>
-          <label><span>Estado *</span><app-catalog-select formControlName="state" [organizationId]="selectedOrganizationId()" type="State" label="Estado" [country]="siteForm.controls.countryCode.value" (selectionChange)="siteForm.patchValue({municipality: ''})" /></label>
-          <label><span>Municipio / ciudad *</span><app-catalog-select formControlName="municipality" [organizationId]="selectedOrganizationId()" type="City" label="Municipio" [country]="siteForm.controls.countryCode.value" [state]="siteForm.controls.state.value" /></label>
-          <label><span>Código postal *</span><input formControlName="postalCode" /></label>
-          <label><span>Zona horaria</span><select formControlName="timeZoneId">@if (siteForm.controls.timeZoneId.value && !timeZones.includes(siteForm.controls.timeZoneId.value)) { <option [value]="siteForm.controls.timeZoneId.value" disabled>{{ siteForm.controls.timeZoneId.value }} (valor anterior)</option> }@for (zone of timeZones; track zone) { <option [value]="zone">{{ zone }}</option> }</select></label>
-          <label class="wide"><span>Instrucciones de acceso</span><textarea rows="3" formControlName="accessInstructions"></textarea></label>
-        </div>
-        <footer>
-          <button class="button button--secondary" type="button" (click)="closeEditors()">Cancelar</button>
-          <button class="button button--primary" type="submit" [disabled]="saving()">{{ saving() ? 'Guardando…' : 'Guardar sede' }}</button>
-        </footer>
-      </form>
-    </section>
-  </div>
-}
+            <button
+              class="button button--primary"
+              type="button"
+              [disabled]="!!blockReason()"
+              [attr.aria-describedby]="blockReason() ? 'motivo-bloqueo' : null"
+              (click)="goToServices(client)"
+            >
+              Crear servicio de este cliente
+            </button>
+          </footer>
+        </gi-detail-panel>
+      }
+    </div>
+  }
+</div>
 
-@if (contactEditorOpen()) {
-  <div class="modal-backdrop" (click)="closeEditors()">
-    <section class="modal modal--small" role="dialog" aria-modal="true" aria-labelledby="contact-editor-title" (click)="$event.stopPropagation()">
-      <header>
-        <div><span class="eyebrow">Contacto</span><h2 id="contact-editor-title">{{ editingContact() ? 'Editar contacto' : 'Nuevo contacto' }}</h2></div>
-        <button type="button" aria-label="Cerrar" (click)="closeEditors()">×</button>
-      </header>
-      <form [formGroup]="contactForm" (ngSubmit)="saveContact()">
-        <div class="form-grid">
-          <label><span>Tipo *</span><select formControlName="purpose">@for (purpose of contactPurposes; track purpose.value) { <option [value]="purpose.value">{{ purpose.label }}</option> }</select></label>
-          <label><span>Sede</span><select formControlName="idClientSite"><option value="">Cliente general</option>@for (site of sites(); track site.idClientSite) { <option [value]="site.idClientSite">{{ site.name }}</option> }</select></label>
-          <label class="wide"><span>Nombre completo *</span><input formControlName="fullName" /></label>
-          <label class="wide"><span>Puesto</span><app-catalog-select formControlName="jobTitle" [organizationId]="selectedOrganizationId()" type="JobPosition" label="Puesto" /></label>
-          <label><span>Correo</span><input type="email" formControlName="email" /></label>
-          <label><span>Teléfono</span><input formControlName="phone" /></label>
-          <label><span>Móvil</span><input formControlName="mobilePhone" /></label>
-          <label class="check"><input type="checkbox" formControlName="isPrimary" /><span>Contacto principal</span></label>
-        </div>
-        <footer>
-          <button class="button button--secondary" type="button" (click)="closeEditors()">Cancelar</button>
-          <button class="button button--primary" type="submit" [disabled]="saving()">{{ saving() ? 'Guardando…' : 'Guardar contacto' }}</button>
-        </footer>
-      </form>
-    </section>
-  </div>
-}
-
-@if (contractEditorOpen()) {
-  <div class="modal-backdrop" (click)="closeEditors()">
-    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="contract-editor-title" (click)="$event.stopPropagation()">
-      <header>
-        <div><span class="eyebrow">Contrato de servicio</span><h2 id="contract-editor-title">{{ editingContract() ? 'Editar contrato' : 'Nuevo contrato' }}</h2></div>
-        <button type="button" aria-label="Cerrar" (click)="closeEditors()">×</button>
-      </header>
-      <form [formGroup]="contractForm" (ngSubmit)="saveContract()">
-        <div class="form-grid">
-          <label><span>Código *</span><input formControlName="codeServiceContract" [readOnly]="!!editingContract()" /></label>
-          <label><span>Estado *</span><select formControlName="status">@for (status of contractStatuses; track status.value) { <option [value]="status.value">{{ status.label }}</option> }</select></label>
-          <label><span>Fecha firma</span><input type="date" formControlName="signedDate" /></label>
-          <label><span>Inicio vigencia *</span><input type="date" formControlName="effectiveFromDate" /></label>
-          <label><span>Fin vigencia</span><input type="date" formControlName="effectiveToDate" /></label>
-          <label><span>Días crédito *</span><input type="number" formControlName="paymentTermDays" min="0" /></label>
-          <label><span>Preaviso baja *</span><input type="number" formControlName="terminationNoticeDays" min="0" /></label>
-          <label><span>Moneda *</span><input formControlName="currencyCode" maxlength="3" /></label>
-          <label class="wide"><span>Referencia documental</span><input formControlName="documentReference" /></label>
-          <label class="wide"><span>Notas</span><textarea rows="3" formControlName="notes"></textarea></label>
-        </div>
-        <footer>
-          <button class="button button--secondary" type="button" (click)="closeEditors()">Cancelar</button>
-          <button class="button button--primary" type="submit" [disabled]="saving()">{{ saving() ? 'Guardando…' : 'Guardar contrato' }}</button>
-        </footer>
-      </form>
-    </section>
-  </div>
-}
-
-@if (organizationEditorOpen() && canAdministerPlatform()) {
-  <div class="modal-backdrop" (click)="closeEditors()">
-    <section class="modal modal--small" role="dialog" aria-modal="true" aria-labelledby="organization-editor-title" (click)="$event.stopPropagation()">
-      <header>
-        <div><span class="eyebrow">Contexto empresarial</span><h2 id="organization-editor-title">Nueva organización</h2></div>
-        <button type="button" aria-label="Cerrar" (click)="closeEditors()">×</button>
-      </header>
-      <form [formGroup]="organizationForm" (ngSubmit)="saveOrganization()">
-        <div class="form-grid">
-          <label [class.is-invalid]="isInvalid('organization', 'codeOrganization')">
-            <span>Código *</span>
-            <input formControlName="codeOrganization" />
-            @if (isInvalid('organization', 'codeOrganization')) { <small>El código es obligatorio.</small> }
-          </label>
-          <label [class.is-invalid]="isInvalid('organization', 'rfc')"><span>RFC</span><input formControlName="rfc" maxlength="13" /></label>
-          <label class="wide" [class.is-invalid]="isInvalid('organization', 'legalName')">
-            <span>Razón social *</span>
-            <input formControlName="legalName" />
-            @if (isInvalid('organization', 'legalName')) { <small>La razón social es obligatoria.</small> }
-          </label>
-          <label>
-            <span>Estado</span>
-            <select formControlName="status" [disabled]="true">
-              <option value="active">Activo al crear</option>
-            </select>
-          </label>
-        </div>
-        @if (organizationForm.invalid && organizationForm.touched) {
-          <p class="form-error">Faltan datos para crear la organización.</p>
-        }
-        <footer>
-          <button class="button button--secondary" type="button" (click)="closeEditors()">Cancelar</button>
-          <button class="button button--primary" type="submit" [disabled]="saving() || organizationForm.invalid">{{ saving() ? 'Guardando…' : 'Crear organización' }}</button>
-        </footer>
-      </form>
-    </section>
-  </div>
+@if (confirming(); as target) {
+  <gi-confirm-dialog
+    [open]="true"
+    title="Desactivar cliente"
+    [subject]="name(target)"
+    consequence="Dejará de aparecer en las listas y no se le podrán crear servicios. Sus registros se conservan y se puede reactivar."
+    confirmLabel="Desactivar cliente"
+    (confirm)="confirmDeactivate()"
+    (cancel)="confirming.set(null)"
+  />
 }

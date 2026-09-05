@@ -1,0 +1,407 @@
+import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { GiEmptyState, GiRowAction, GiRowActions } from '../../../shared/ui/gi-ui';
+import { ClientContact, ClientSite } from '../data-access/client.models';
+
+/** Lo que hace falta para dar de alta una sede. Nada más: el código lo pone el sistema. */
+export type NewSite = {
+  readonly name: string;
+  readonly street: string;
+  readonly neighborhood: string;
+  readonly municipality: string;
+  readonly state: string;
+  readonly postalCode: string;
+};
+
+/**
+ * La pestaña de Sedes.
+ *
+ * <p>Aquí se dice lo que la pantalla existe para decir: <b>sin sede no se puede crear un
+ * servicio</b>, porque el servicio se liga a una sede. El aviso llega al mirar al cliente y no dos
+ * pantallas después, al fallar el alta del servicio.</p>
+ *
+ * <p>El vacío no es «no hay nada»: es <b>falta un prerrequisito</b>, y por eso usa esa variante y
+ * ofrece, ahí mismo, el formulario que lo resuelve.</p>
+ */
+@Component({
+  selector: 'app-client-sites',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [FormsModule, GiEmptyState, GiRowActions],
+  template: `
+    <section class="sites">
+      @if (adding()) {
+        <form class="new" (ngSubmit)="$event.preventDefault()">
+          <p class="new__kicker">NUEVA SEDE</p>
+
+          <label class="field" for="ns-nombre">
+            <span class="field__label">NOMBRE DE LA SEDE</span>
+            <input id="ns-nombre" name="name" type="text" [ngModel]="siteName()" (ngModelChange)="siteName.set($event)" [ngModelOptions]="{ standalone: true }" autocomplete="off" />
+          </label>
+
+          <div class="new__row new__row--calle">
+            <label class="field" for="ns-calle">
+              <span class="field__label">CALLE Y NÚMERO</span>
+              <input id="ns-calle" name="street" type="text" [ngModel]="street()" (ngModelChange)="street.set($event)" [ngModelOptions]="{ standalone: true }" autocomplete="off" />
+            </label>
+            <label class="field" for="ns-cp">
+              <span class="field__label">CÓDIGO POSTAL</span>
+              <input id="ns-cp" name="postalCode" type="text" [ngModel]="postalCode()" (ngModelChange)="postalCode.set($event)" [ngModelOptions]="{ standalone: true }" autocomplete="off" />
+            </label>
+          </div>
+
+          <div class="new__row new__row--three">
+            <label class="field" for="ns-colonia">
+              <span class="field__label">COLONIA</span>
+              <input id="ns-colonia" name="neighborhood" type="text" [ngModel]="neighborhood()" (ngModelChange)="neighborhood.set($event)" [ngModelOptions]="{ standalone: true }" autocomplete="off" />
+            </label>
+            <label class="field" for="ns-estado">
+              <span class="field__label">ESTADO</span>
+              <input id="ns-estado" name="state" type="text" [ngModel]="state()" (ngModelChange)="state.set($event)" [ngModelOptions]="{ standalone: true }" autocomplete="off" />
+            </label>
+            <label class="field" for="ns-municipio">
+              <span class="field__label">MUNICIPIO</span>
+              <input id="ns-municipio" name="municipality" type="text" [ngModel]="municipality()" (ngModelChange)="municipality.set($event)" [ngModelOptions]="{ standalone: true }" autocomplete="off" />
+            </label>
+          </div>
+
+          <p class="new__footer">
+            <button class="button" type="button" (click)="cancelAdd()">Cancelar</button>
+            <button
+              class="button button--primary"
+              type="button"
+              [disabled]="saving() || !ready()"
+              [attr.aria-describedby]="ready() ? null : 'ns-falta'"
+              (click)="submit()"
+            >Guardar sede</button>
+          </p>
+
+          <!-- La razón se escribe. Un botón gris sin explicación obliga a adivinar. -->
+          <p class="new__reason" id="ns-falta" [hidden]="ready()">
+            Hacen falta el nombre, la calle, el municipio, el estado y el código postal.
+          </p>
+        </form>
+      } @else if (sites().length === 0) {
+        @if (canWrite()) {
+          <gi-empty-state
+            variant="missing-prerequisite"
+            title="Este cliente todavía no tiene sede"
+            description="El servicio se liga a una sede, así que sin sede no se puede crear el servicio de este cliente. Con la dirección y un contacto queda resuelto."
+            actionLabel="Agregar sede"
+            (action)="startAdd()"
+          />
+        } @else {
+          <!--
+            Sin permiso de escritura esto sí es un callejón, y el sistema prohíbe con razón un
+            vacío que no ofrece salida. Se dice la verdad en su lugar: falta la sede, y quién
+            puede ponerla.
+          -->
+          <p class="sites__blocked">
+            <span class="sites__blocked-title">Este cliente todavía no tiene sede</span>
+            <span class="sites__blocked-body">
+              Sin sede no se le pueden crear servicios. Lo resuelve quien administra clientes en tu
+              organización.
+            </span>
+          </p>
+        }
+      } @else {
+        <p class="sites__intro">
+          <span>Cada servicio se liga a una sede. Al crear el servicio se elige de esta lista.</span>
+          @if (canWrite()) {
+            <button class="sites__add" type="button" (click)="startAdd()">Agregar sede</button>
+          }
+        </p>
+
+        <ul class="sites__list">
+          @for (site of sites(); track site.idClientSite) {
+            @let contact = contactOf(site.idClientSite);
+            <li class="site">
+              <p class="site__header">
+                <span class="site__name">{{ site.name }}</span>
+                @if (!contact) {
+                  <span class="site__pill">Sin contacto</span>
+                }
+                <span class="site__actions">
+                  <gi-row-actions
+                    [actions]="actions()"
+                    [label]="'Acciones de la sede ' + site.name"
+                    (select)="act.emit({ id: $event.id, site })"
+                  />
+                </span>
+              </p>
+
+              <div class="site__body">
+                <span class="site__field">
+                  <span class="site__label">DIRECCIÓN</span>
+                  <span class="site__value">{{ address(site) }}</span>
+                </span>
+                <span class="site__field">
+                  <span class="site__label">CONTACTO</span>
+                  @if (contact) {
+                    <span class="site__value site__value--strong">{{ contact.fullName }}</span>
+                    <span class="site__note">{{ contact.jobTitle || 'Sin puesto registrado' }}</span>
+                  } @else {
+                    <span class="site__value site__value--missing">Sin contacto</span>
+                    <span class="site__note">La sede funciona, pero nadie responde por ella.</span>
+                  }
+                </span>
+              </div>
+            </li>
+          }
+        </ul>
+      }
+    </section>
+  `,
+  styles: `
+    :host { display: block; }
+
+    .sites { display: flex; flex-direction: column; gap: 0.75rem; }
+
+    .sites__intro {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin: 0;
+      color: var(--gestia-muted);
+      font-size: 12px;
+    }
+
+    .sites__add {
+      flex: none;
+      margin-left: auto;
+      height: var(--gestia-control-height);
+      padding: 0 0.8rem;
+      border: 1px solid var(--gestia-border);
+      border-radius: var(--gestia-radius);
+      background: var(--gestia-surface);
+      color: var(--gestia-text);
+      font: inherit;
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .sites__add:focus-visible { outline: 2px solid var(--gestia-cyan); outline-offset: 2px; }
+
+    .sites__blocked {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      margin: 0;
+      padding: var(--gestia-card-padding);
+      border: 1px solid var(--gestia-border);
+      border-radius: var(--gestia-radius);
+      background: var(--gestia-surface-soft);
+    }
+
+    .sites__blocked-title { color: var(--gestia-text); font-size: 13px; font-weight: 600; }
+    .sites__blocked-body { color: var(--gestia-muted); font-size: 12.5px; }
+
+    .sites__list { display: flex; flex-direction: column; gap: 0.75rem; margin: 0; padding: 0; list-style: none; }
+
+    .site { border: 1px solid var(--gestia-border); border-radius: var(--gestia-radius); }
+
+    .site__header {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      margin: 0;
+      padding: 0.7rem 0.8rem;
+      border-bottom: 1px solid var(--gestia-border);
+      background: var(--gestia-surface-soft);
+    }
+
+    .site__name { color: var(--gestia-text); font-size: 12.5px; font-weight: 600; }
+
+    .site__pill {
+      padding: 0.1rem 0.4rem;
+      border: 1px solid var(--gestia-border);
+      border-radius: var(--gestia-radius-pill);
+      color: var(--gestia-muted);
+      font-size: 10.5px;
+      font-weight: 600;
+    }
+
+    .site__actions { margin-left: auto; display: flex; }
+
+    .site__body { display: flex; gap: 1.25rem; padding: 0.7rem 0.8rem; }
+
+    .site__field { display: flex; flex: 1; flex-direction: column; gap: 0.2rem; min-width: 0; }
+
+    .site__label { color: var(--gestia-muted); font-size: 11px; font-weight: 600; letter-spacing: 0.06em; }
+
+    .site__value { color: var(--gestia-text); font-size: 12px; overflow-wrap: anywhere; }
+    .site__value--strong { font-weight: 600; }
+    .site__value--missing { color: var(--gestia-warning); font-weight: 600; }
+
+    .site__note { color: var(--gestia-muted); font-size: 11.5px; }
+
+    .new {
+      display: flex;
+      flex-direction: column;
+      gap: 0.7rem;
+      padding: var(--gestia-card-padding);
+      border: 1px solid var(--gestia-border);
+      border-radius: var(--gestia-radius);
+      background: var(--gestia-surface-soft);
+    }
+
+    .new__kicker {
+      margin: 0;
+      color: var(--gestia-muted);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+    }
+
+    .new__row { display: grid; gap: 0.7rem; }
+    .new__row--three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .new__row--calle { grid-template-columns: 2fr 1fr; }
+
+    .field { display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; }
+
+    .field__label {
+      color: var(--gestia-muted);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+    }
+
+    .field input {
+      box-sizing: border-box;
+      width: 100%;
+      height: var(--gestia-control-height);
+      padding: 0 0.7rem;
+      border: 1px solid var(--gestia-border);
+      border-radius: var(--gestia-radius);
+      background: var(--gestia-surface);
+      color: var(--gestia-text);
+      font: inherit;
+      font-size: 12.5px;
+    }
+
+    .field input:focus-visible { outline: 2px solid var(--gestia-cyan); outline-offset: 1px; }
+
+    .new__footer { display: flex; justify-content: flex-end; gap: 0.55rem; margin: 0; }
+
+    .new__reason { margin: 0; color: var(--gestia-muted); font-size: 11.5px; }
+
+    .button {
+      height: var(--gestia-control-height);
+      padding: 0 0.85rem;
+      border: 1px solid var(--gestia-border);
+      border-radius: var(--gestia-radius);
+      background: var(--gestia-surface);
+      color: var(--gestia-text);
+      font: inherit;
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .button:focus-visible { outline: 2px solid var(--gestia-cyan); outline-offset: 2px; }
+    .button:disabled { color: var(--gestia-muted); cursor: not-allowed; }
+
+    .button--primary {
+      border-color: var(--gestia-navy);
+      background: var(--gestia-navy);
+      color: var(--gestia-surface);
+    }
+
+    .button--primary:disabled { border-color: var(--gestia-border); background: var(--gestia-surface); }
+
+    @media (width < 45rem) {
+      .site__body { flex-direction: column; gap: 0.6rem; }
+      .new__row--three, .new__row--calle { grid-template-columns: minmax(0, 1fr); }
+    }
+  `,
+})
+export class ClientSites {
+  readonly sites = input.required<readonly ClientSite[]>();
+  readonly contacts = input<readonly ClientContact[]>([]);
+  readonly canWrite = input(false);
+  readonly saving = input(false);
+  /** Se abre desde fuera cuando el aviso de «guardado sin sede» manda aquí. */
+  readonly openAdd = input(false);
+
+  readonly act = output<{ id: string; site: ClientSite }>();
+  readonly create = output<NewSite>();
+
+  private readonly addingByHand = signal(false);
+  protected readonly adding = computed(() => this.addingByHand() || this.openAdd());
+
+  protected readonly siteName = signal('');
+  protected readonly street = signal('');
+  protected readonly neighborhood = signal('');
+  protected readonly municipality = signal('');
+  protected readonly state = signal('');
+  protected readonly postalCode = signal('');
+
+  /** Lo mínimo para que la sede sea una dirección y no un nombre suelto. */
+  protected readonly ready = computed(
+    () =>
+      !!this.siteName().trim() &&
+      !!this.street().trim() &&
+      !!this.municipality().trim() &&
+      !!this.state().trim() &&
+      !!this.postalCode().trim(),
+  );
+
+  protected readonly actions = computed<readonly GiRowAction[]>(() => [
+    {
+      id: 'edit',
+      label: 'Editar sede',
+      disabled: !this.canWrite(),
+      disabledReason: 'Necesitas permiso de escritura sobre clientes',
+    },
+    { id: 'contacts', label: 'Ver contactos' },
+    {
+      id: 'deactivate',
+      label: 'Desactivar sede',
+      destructive: true,
+      disabled: !this.canWrite(),
+      disabledReason: 'Necesitas permiso de escritura sobre clientes',
+    },
+  ]);
+
+  protected startAdd(): void {
+    this.addingByHand.set(true);
+  }
+
+  protected cancelAdd(): void {
+    this.addingByHand.set(false);
+    this.siteName.set('');
+    this.street.set('');
+    this.neighborhood.set('');
+    this.municipality.set('');
+    this.state.set('');
+    this.postalCode.set('');
+  }
+
+  protected submit(): void {
+    this.create.emit({
+      name: this.siteName().trim(),
+      street: this.street().trim(),
+      neighborhood: this.neighborhood().trim(),
+      municipality: this.municipality().trim(),
+      state: this.state().trim(),
+      postalCode: this.postalCode().trim(),
+    });
+  }
+
+  /** El primer contacto de la sede. La marca de principal no siempre está puesta. */
+  protected contactOf(idClientSite: string): ClientContact | undefined {
+    return this.contacts().find((contact) => contact.idClientSite === idClientSite);
+  }
+
+  protected address(site: ClientSite): string {
+    return [
+      [site.street, site.exteriorNumber].filter(Boolean).join(' '),
+      site.neighborhood,
+      site.municipality,
+      site.state,
+      site.postalCode,
+    ]
+      .filter((part) => !!part)
+      .join(', ');
+  }
+}

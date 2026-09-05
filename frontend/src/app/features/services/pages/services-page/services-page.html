@@ -874,14 +874,41 @@
               ><span>Instrucciones específicas</span
               ><textarea rows="3" formControlName="specificInstructions"></textarea>
             </label>
+
+            <!--
+              El motivo aparece cuando el servidor dice que hace falta, y **llega vacío**: un
+              motivo prellenado deja de ser un motivo. La regla de cuándo se exige vive en el
+              servidor, no aquí.
+            -->
+            @if (correctionReasonRequired()) {
+              <label class="wide">
+                <span>Motivo de la corrección *</span>
+                <textarea
+                  rows="2"
+                  minlength="10"
+                  placeholder=""
+                  [value]="correctionReason()"
+                  (input)="correctionReason.set($any($event.target).value)"
+                ></textarea>
+                <small>Explica por qué se corrige una configuración cuya vigencia ya pasó.</small>
+              </label>
+            }
           </div>
           <footer>
             <button class="button button--secondary" type="button" (click)="closeEditors()">
               Cancelar
             </button>
-            <button class="button button--primary" type="submit" [disabled]="saving()">
+            <button
+              class="button button--primary"
+              type="submit"
+              [disabled]="saving() || (correctionReasonRequired() && correctionReason().trim().length < 10)"
+            >
               {{ saving() ? 'Guardando…' : 'Guardar configuración' }}
             </button>
+            @if (correctionReasonRequired() && correctionReason().trim().length < 10) {
+              <!-- Un botón apagado sin explicación deja al usuario adivinando qué le falta. -->
+              <small class="razon">Escribe al menos diez caracteres de motivo.</small>
+            }
           </footer>
         </fieldset>
       </form>

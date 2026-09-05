@@ -8,6 +8,46 @@ public static class ServiceManagementEndpoints
 {
     public static IEndpointRouteBuilder MapServiceManagementEndpoints(this IEndpointRouteBuilder endpoints)
     {
+        // Lista de servicios de la organización, sin pasar por el cliente. Es lo que permite que
+        // la pantalla de Servicios deje de exigir la cascada organización -> cliente -> servicio;
+        // el grupo anidado de abajo se queda para el detalle, el alta y las configuraciones.
+        var organizationServiceGroup = endpoints.MapGroup("/api/v1/services").WithTags("Services");
+
+        organizationServiceGroup.MapGet("", async (
+            HttpContext context,
+            Guid organizationId,
+            string? search,
+            Guid? idClient,
+            Guid? idClientSite,
+            Guid? idServiceContract,
+            bool? active,
+            int? page,
+            int? pageSize,
+            IServiceManagementService service,
+            CancellationToken cancellationToken) =>
+        {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
+            var result = await service.SearchServicesAsync(
+                new ServiceListQuery(
+                    organizationId,
+                    search,
+                    idClient,
+                    idClientSite,
+                    idServiceContract,
+                    active,
+                    page ?? 1,
+                    pageSize ?? 20),
+                cancellationToken);
+
+            return Results.Ok(result);
+        })
+            .RequirePermission(SecurityPermissions.ClientsRead)
+            .WithName("SearchServicesByOrganization");
+
         var serviceGroup = endpoints.MapGroup("/api/v1/clients/{idClient:guid}/services")
             .WithTags("Services");
 

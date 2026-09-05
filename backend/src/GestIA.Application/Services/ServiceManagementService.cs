@@ -80,6 +80,32 @@ public sealed class ServiceManagementService(
         await unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task<PagedResult<ServiceListItemResponse>> SearchServicesAsync(
+        ServiceListQuery query,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        var errors = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
+        InputValidation.Page(query.Page, query.PageSize, errors);
+        var search = InputValidation.Optional(query.Search, nameof(query.Search), 200, errors);
+        InputValidation.ThrowIfInvalid(errors);
+
+        var (items, totalCount) = await repository.SearchServicesAsync(
+            new ServiceSearchCriteria(
+                query.IdOrganization,
+                search,
+                query.IdClient,
+                query.IdClientSite,
+                query.IdServiceContract,
+                query.Active,
+                (query.Page - 1) * query.PageSize,
+                query.PageSize),
+            cancellationToken);
+
+        return new PagedResult<ServiceListItemResponse>(items, totalCount, query.Page, query.PageSize);
+    }
+
     public async Task<IReadOnlyList<ServiceResponse>> ListServicesAsync(
         Guid idOrganization,
         Guid idClient,

@@ -44,6 +44,87 @@ public sealed class ServiceManagementRepository(GestIaDbContext dbContext) : ISe
     public Task AddContractAsync(ServiceContract contract, CancellationToken cancellationToken) =>
         dbContext.ServiceContracts.AddAsync(contract, cancellationToken).AsTask();
 
+    /// <summary>
+    /// Servicios de la organización, proyectados directamente a la respuesta.
+    ///
+    /// <para><b>No hay join a <c>Clients</c> para acotar por organización</b>: desde la tanda A
+    /// <c>Service</c> guarda la suya, y el filtro global de la tanda B ya la aplica. El join al
+    /// cliente que sí queda es sólo para traer su nombre.</para>
+    ///
+    /// <para><b>Sobre el filtro de estado.</b> Omitirlo devuelve sólo los activos, como el resto
+    /// de las listas. Pedir los inactivos exige apagar el borrado lógico —y sólo ése: el
+    /// aislamiento entre organizaciones sigue en pie—. No existe la opción de pedir ambos a la
+    /// vez; si la pantalla la necesita, es una decisión que hay que tomar, no un descuido.</para>
+    /// </summary>
+    public async Task<(IReadOnlyList<ServiceListItemResponse> Items, int TotalCount)> SearchServicesAsync(
+        ServiceSearchCriteria criteria,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(criteria);
+
+        var query = dbContext.Services.AsNoTracking();
+
+        if (criteria.Active == false)
+        {
+            query = query.IgnoreQueryFilters(["Active"]).Where(service => !service.Active);
+        }
+
+        if (criteria.IdClient is { } idClient)
+        {
+            query = query.Where(service => service.IdClient == idClient);
+        }
+
+        if (criteria.IdClientSite is { } idClientSite)
+        {
+            query = query.Where(service => service.IdClientSite == idClientSite);
+        }
+
+        if (criteria.IdServiceContract is { } idServiceContract)
+        {
+            query = query.Where(service => service.IdServiceContract == idServiceContract);
+        }
+
+        if (!string.IsNullOrWhiteSpace(criteria.Search))
+        {
+            var search = criteria.Search.Trim();
+            query = query.Where(service =>
+                service.CodeService.Contains(search) ||
+                service.Name.Contains(search) ||
+                service.Description.Contains(search) ||
+                service.Client.LegalName.Contains(search) ||
+                (service.Client.TradeName != null && service.Client.TradeName.Contains(search)));
+        }
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var items = await query
+            .OrderBy(service => service.Name)
+            .ThenBy(service => service.CodeService)
+            .Skip(criteria.Skip)
+            .Take(criteria.Take)
+            .Select(service => new ServiceListItemResponse(
+                service.IdService,
+                service.IdClient,
+                service.Client.TradeName ?? service.Client.LegalName,
+                service.IdClientSite,
+                service.ClientSite.Name,
+                service.IdServiceContract,
+                service.ServiceContract != null ? service.ServiceContract.CodeServiceContract : null,
+                service.CodeService,
+                service.Name,
+                service.Description,
+                service.InvoiceDescription,
+                service.StartDate,
+                service.EndDate,
+                // Subconsulta correlacionada: una sola sentencia, sin materializar posiciones.
+                // Cuenta las activas, porque Positions conserva aquí sus propios filtros.
+                dbContext.Positions.Count(position => position.IdService == service.IdService),
+                service.Active))
+            .ToArrayAsync(cancellationToken);
+
+        return (items, totalCount);
+    }
+
     public async Task<IReadOnlyList<ServiceEntity>> ListServicesAsync(
         Guid idClient,
         CancellationToken cancellationToken) =>

@@ -16,6 +16,7 @@ import {
   ServiceAssignmentType,
   ServicePosition,
   ShiftPattern,
+  ClientListItem,
 } from '../../../clients/data-access/client.models';
 import { WorkforceApiService } from '../../../workforce/data-access/workforce-api.service';
 import { Employee } from '../../../workforce/data-access/workforce.models';
@@ -34,7 +35,7 @@ export class PlanningPage implements OnInit {
   private readonly systemInfo = inject(SystemInfoService);
   private readonly formBuilder = inject(FormBuilder);
 
-  protected readonly clients = signal<readonly Client[]>([]);
+  protected readonly clients = signal<readonly ClientListItem[]>([]);
   protected readonly services = signal<readonly ManagedService[]>([]);
   protected readonly positions = signal<readonly ServicePosition[]>([]);
   protected readonly assignments = signal<readonly ServiceAssignment[]>([]);

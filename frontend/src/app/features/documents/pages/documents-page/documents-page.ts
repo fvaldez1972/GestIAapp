@@ -6,7 +6,7 @@ import { forkJoin } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { SystemInfoService } from '../../../../core/system/system-info.service';
 import { ClientApiService } from '../../../clients/data-access/client-api.service';
-import { Client, ManagedService, Organization, ServiceContract } from '../../../clients/data-access/client.models';
+import { Client, ManagedService, Organization, ServiceContract, ClientListItem, } from '../../../clients/data-access/client.models';
 import { RequestApiService } from '../../../requests/data-access/request-api.service';
 import { OperationalRequest } from '../../../requests/data-access/request.models';
 import { WorkforceApiService } from '../../../workforce/data-access/workforce-api.service';
@@ -42,7 +42,7 @@ export class DocumentsPage implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly formBuilder = inject(FormBuilder);
 
-  protected readonly clients = signal<readonly Client[]>([]);
+  protected readonly clients = signal<readonly ClientListItem[]>([]);
   protected readonly contracts = signal<readonly ServiceContract[]>([]);
   protected readonly services = signal<readonly ManagedService[]>([]);
   protected readonly employees = signal<readonly Employee[]>([]);
@@ -997,7 +997,7 @@ export class DocumentsPage implements OnInit {
     });
   }
 
-  private loadRelatedOwnerOptions(clients: readonly Client[], employees: readonly Employee[]) {
+  private loadRelatedOwnerOptions(clients: readonly ClientListItem[], employees: readonly Employee[]) {
     const organizationId = this.selectedOrganizationId();
     if (!organizationId) {
       this.services.set([]);

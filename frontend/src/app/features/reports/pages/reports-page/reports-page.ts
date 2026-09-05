@@ -14,6 +14,7 @@ import {
   OperationsSummary,
   Organization,
   WorkforceEligibilityReport,
+  ClientListItem,
 } from '../../../clients/data-access/client.models';
 
 @Component({
@@ -29,7 +30,7 @@ export class ReportsPage implements OnInit {
   private readonly systemInfo = inject(SystemInfoService);
   private readonly route = inject(ActivatedRoute);
 
-  protected readonly clients = signal<readonly Client[]>([]);
+  protected readonly clients = signal<readonly ClientListItem[]>([]);
   protected readonly services = signal<readonly ManagedService[]>([]);
   protected readonly summary = signal<OperationsSummary | null>(null);
   protected readonly serviceSummaries = signal<readonly OperationsServiceSummary[]>([]);

@@ -7,7 +7,7 @@ import { catchError, forkJoin, of, switchMap } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { SystemInfoService } from '../../../../core/system/system-info.service';
 import { ClientApiService } from '../../../clients/data-access/client-api.service';
-import { Client, ManagedService, Organization, PagedResult as ClientPagedResult, ScheduledShift, ServicePosition } from '../../../clients/data-access/client.models';
+import { Client, ManagedService, Organization, PagedResult as ClientPagedResult, ScheduledShift, ServicePosition, ClientListItem, } from '../../../clients/data-access/client.models';
 import { WorkforceApiService } from '../../../workforce/data-access/workforce-api.service';
 import { Employee, PagedResult as WorkforcePagedResult } from '../../../workforce/data-access/workforce.models';
 import { RequestApiService } from '../../data-access/request-api.service';
@@ -38,7 +38,7 @@ export class RequestsPage implements OnInit {
   private readonly workforceApi = inject(WorkforceApiService);
   private readonly formBuilder = inject(FormBuilder);
 
-  protected readonly clients = signal<readonly Client[]>([]);
+  protected readonly clients = signal<readonly ClientListItem[]>([]);
   protected readonly services = signal<readonly ManagedService[]>([]);
   protected readonly filterServices = signal<readonly ManagedService[]>([]);
   protected readonly employees = signal<readonly Employee[]>([]);
@@ -1009,7 +1009,7 @@ export class RequestsPage implements OnInit {
               page: 1,
               pageSize: 100,
               totalPages: 0,
-            } satisfies ClientPagedResult<Client>),
+            } satisfies ClientPagedResult<ClientListItem>),
           ),
         ),
       ),
@@ -1023,7 +1023,7 @@ export class RequestsPage implements OnInit {
     });
   }
 
-  private loadFilterServices(clients: readonly Client[]) {
+  private loadFilterServices(clients: readonly ClientListItem[]) {
     if (clients.length === 0) {
       this.filterServices.set([]);
       return;

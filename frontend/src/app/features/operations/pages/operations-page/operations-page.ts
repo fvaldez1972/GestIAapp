@@ -27,6 +27,7 @@ import {
   Organization,
   ScheduledShift,
   ScheduleVersion,
+  ClientListItem,
 } from '../../../clients/data-access/client.models';
 import { WorkforceApiService } from '../../../workforce/data-access/workforce-api.service';
 import { Employee } from '../../../workforce/data-access/workforce.models';
@@ -47,7 +48,7 @@ export class OperationsPage implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
-  protected readonly clients = signal<readonly Client[]>([]);
+  protected readonly clients = signal<readonly ClientListItem[]>([]);
   protected readonly services = signal<readonly ManagedService[]>([]);
   protected readonly attendance = signal<readonly AttendanceRecord[]>([]);
   protected readonly incidents = signal<readonly Incident[]>([]);

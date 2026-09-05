@@ -8,7 +8,7 @@ import { AppIcon } from '../../../../shared/ui/app-icon/app-icon';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { SystemInfoService } from '../../../../core/system/system-info.service';
 import { ClientApiService } from '../../../clients/data-access/client-api.service';
-import { Client, ManagedService, PagedResult, ServicePosition } from '../../../clients/data-access/client.models';
+import { Client, ManagedService, PagedResult, ServicePosition, ClientListItem, } from '../../../clients/data-access/client.models';
 import { OperationalRequest } from '../../../requests/data-access/request.models';
 import { WorkforceApiService } from '../../../workforce/data-access/workforce-api.service';
 import { Employee } from '../../../workforce/data-access/workforce.models';
@@ -56,7 +56,7 @@ export class CatalogsPage implements OnInit {
   private readonly systemInfo = inject(SystemInfoService);
   private readonly formBuilder = inject(FormBuilder);
 
-  protected readonly clients = signal<readonly Client[]>([]);
+  protected readonly clients = signal<readonly ClientListItem[]>([]);
   protected readonly services = signal<readonly ManagedService[]>([]);
   protected readonly positions = signal<readonly ServicePosition[]>([]);
   protected readonly employees = signal<readonly Employee[]>([]);
@@ -493,7 +493,7 @@ export class CatalogsPage implements OnInit {
       next: ({ definitions, items, requirements, clients, employees }) => {
         if (organizationId !== this.selectedOrganizationId()) return;
         this.definitions.set(definitions);
-        const clientItems = (clients as PagedResult<Client>).items;
+        const clientItems = (clients as PagedResult<ClientListItem>).items;
         this.items.set(items);
         this.requirements.set(requirements);
         this.clients.set(clientItems);
@@ -1076,7 +1076,7 @@ export class CatalogsPage implements OnInit {
     });
   }
 
-  private loadOperationalContext(clients: readonly Client[]): void {
+  private loadOperationalContext(clients: readonly ClientListItem[]): void {
     this.services.set([]);
     this.positions.set([]);
 

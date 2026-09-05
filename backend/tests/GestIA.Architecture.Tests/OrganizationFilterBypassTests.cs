@@ -50,8 +50,10 @@ public sealed class OrganizationFilterBypassTests
     /// <item><b>OrganizationGovernanceRepository</b>: vista de plataforma del super admin, que
     /// lista todas las organizaciones con sus clientes. El endpoint exige
     /// <c>PLATFORM.ADMIN</c>.</item>
-    /// <item><b>DemoDataSeeder</b> y sus parciales: corren al arrancar, fuera de toda petición,
-    /// así que no hay organización autorizada que el filtro pueda usar.</item>
+    /// <item><b>DemoDataSeeder</b> y sus parciales —incluido el de casos feos— corren al
+    /// arrancar, fuera de toda petición, así que no hay organización autorizada que el filtro
+    /// pueda usar. Esta prueba atrapó el parcial nuevo cuando se agregó, que es justo su
+    /// función: entrar a la lista tiene que ser una línea visible en el diff.</item>
     /// </list>
     ///
     /// Rutas relativas a <c>backend/</c>, con separador <c>/</c>.
@@ -62,7 +64,8 @@ public sealed class OrganizationFilterBypassTests
         "src/GestIA.Infrastructure/Persistence/DemoData/DemoDataSeeder.cs",
         "src/GestIA.Infrastructure/Persistence/DemoData/DemoDataSeeder.Commercial.cs",
         "src/GestIA.Infrastructure/Persistence/DemoData/DemoDataSeeder.Daily.cs",
-        "src/GestIA.Infrastructure/Persistence/DemoData/DemoDataSeeder.Operational.cs"
+        "src/GestIA.Infrastructure/Persistence/DemoData/DemoDataSeeder.Operational.cs",
+        "src/GestIA.Infrastructure/Persistence/DemoData/DemoDataSeeder.HardCases.cs"
     };
 
     [Fact]

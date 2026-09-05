@@ -78,6 +78,7 @@ public sealed partial class DemoDataSeeder(
         await EnsureOperationsAsync(organization, report, cancellationToken);
         await EnsureRequestsAsync(organization, report, cancellationToken);
         await EnsureBusinessDocumentsAsync(organization, report, cancellationToken);
+        await EnsureHardCasesAsync(organization, report, cancellationToken);
 
         var summary = report.ToString();
         DemoSeedLog.Completed(logger, this.options.CodeOrganization, summary);
@@ -263,6 +264,11 @@ public sealed class DemoSeedReport
     public int OperationalRequests { get; set; }
     public int BusinessDocuments { get; set; }
 
+    /// <summary>Los casos feos: los datos que rompen una pantalla mal hecha.</summary>
+    public int HardCaseClients { get; set; }
+
+    public int HardCaseServices { get; set; }
+
     public override string ToString() =>
         $"clientes={Clients} sedes={ClientSites} contactos={ClientContacts} contratos={ServiceContracts} " +
         $"servicios={Services} configuraciones={ServiceConfigurations} posiciones={Positions} " +
@@ -271,7 +277,7 @@ public sealed class DemoSeedReport
         $"asignaciones={Assignments} versiones={ScheduleVersions} turnos={ScheduledShifts} " +
         $"asistencia={AttendanceRecords} incidencias={Incidents} coberturas={CoverageRecords} " +
         $"solicitudes={OperationalRequests} documentos={BusinessDocuments} catalogos={CatalogItems} " +
-        $"reglas={EligibilityRules}";
+        $"reglas={EligibilityRules} casosFeosClientes={HardCaseClients} casosFeosServicios={HardCaseServices}";
 }
 
 internal static partial class DemoSeedLog
@@ -299,4 +305,10 @@ internal static partial class DemoSeedLog
         Level = LogLevel.Information,
         Message = "Demo phase {Phase} already present, skipped.")]
     public static partial void PhaseSkipped(ILogger logger, string phase);
+
+    [LoggerMessage(
+        EventId = 4005,
+        Level = LogLevel.Information,
+        Message = "Demo hard cases created: {Clients} clients and {Services} services with long names, accents, missing sites, expired terms and inactive rows.")]
+    public static partial void HardCasesCreated(ILogger logger, int clients, int services);
 }

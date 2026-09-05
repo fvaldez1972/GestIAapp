@@ -18,9 +18,9 @@ namespace GestIA.IntegrationTests;
 /// organizaciones sembradas con los mismos datos. Es la diferencia entre afirmar que el filtro
 /// existe y demostrar que separa.
 ///
-/// <para><b>Cobertura.</b> Se siembran 21 de las 24 entidades con alcance de organización. Las
+/// <para><b>Cobertura.</b> Se siembran 26 de las 29 entidades con alcance de organización. Las
 /// tres que faltan —<c>ApprovalRequest</c>, <c>OperationDayClosure</c> y <c>SupportSession</c>—
-/// se consultan igual: el filtro lo aplica una sola convención a las 24 por igual, y
+/// se consultan igual: el filtro lo aplica una sola convención a las 29 por igual, y
 /// <see cref="OrganizationFilterModelTests"/> ya comprueba que ninguna se quedó sin él en el
 /// modelo. Sembrar más grafos probaría constructores, no el filtro.</para>
 ///
@@ -167,11 +167,18 @@ public sealed class OrganizationIsolationTests(OperationalSqlDatabase database)
         await Check(context.SupportSessions);
         await Check(context.OperationalEvents);
 
+        // Tanda E: las cinco que dejaron de llegar a su organización por el padre.
+        await Check(context.ClientSites);
+        await Check(context.ClientContacts);
+        await Check(context.EmployeeDocuments);
+        await Check(context.EmployeeEvaluations);
+        await Check(context.EmployeeSkills);
+
         if (expectRows)
         {
             // Sin esto la prueba pasaría igual con la base vacía, que es la forma más fácil de
             // que una prueba de aislamiento deje de comprobar nada.
-            Assert.Equal(21, seeded);
+            Assert.Equal(26, seeded);
         }
     }
 
@@ -201,7 +208,7 @@ public sealed class OrganizationIsolationTests(OperationalSqlDatabase database)
         var client = Client.Create(
             organizationId, $"{prefix}-CLI", "Cliente", "EXA010101AA1", ActorId, ActorName, Now);
         var site = ClientSite.Create(
-            client.IdClient, $"{prefix}-SED", "Sede", "Calle", "Ciudad", "Estado", "01000", ActorId, ActorName, Now);
+            client.IdOrganization, client.IdClient, $"{prefix}-SED", "Sede", "Calle", "Ciudad", "Estado", "01000", ActorId, ActorName, Now);
         var service = Service.Create(
             organizationId, client.IdClient, site.IdClientSite, null,
             $"{prefix}-SER", "Servicio", "Servicio", Day, ActorId, ActorName, Now);
@@ -277,10 +284,34 @@ public sealed class OrganizationIsolationTests(OperationalSqlDatabase database)
         var documentEvent = BusinessDocumentEvent.Record(
             document, "Created", null, ActorId, ActorName, Now);
 
+        // Las cinco de la tanda E, para que la comprobación de aislamiento sobre ellas no sea
+        // vacía: una prueba que recorre un conjunto sin filas no comprueba nada.
+        var contact = ClientContact.Create(
+            organizationId, client.IdClient, site.IdClientSite,
+            new(ClientContactPurpose.Operational, $"Contacto {prefix}", null, null, null, null, true),
+            ActorId, ActorName, Now);
+        var employeeDocument = EmployeeDocument.Create(
+            organizationId, employee.IdEmployee,
+            new(EmployeeDocumentType.VoterId, EmployeeDocumentStatus.Validated,
+                null, null, null, null, $"employee-documents/{prefix}.pdf", null),
+            ActorId, ActorName, Now);
+        var employeeEvaluation = EmployeeEvaluation.Create(
+            organizationId, employee.IdEmployee,
+            new(EmployeeEvaluationType.Polygraph, EmployeeEvaluationResult.Approved, Day, null, null, null, null),
+            ActorId, ActorName, Now);
+        var skillCatalogItem = BusinessCatalogItem.Create(
+            organizationId, new(BusinessCatalogItemType.Skill, $"{prefix}-HAB", "Habilidad", null),
+            ActorId, ActorName, Now);
+        var employeeSkill = EmployeeSkill.Create(
+            organizationId, employee.IdEmployee,
+            new(skillCatalogItem.IdBusinessCatalogItem, Day, null, null),
+            ActorId, ActorName, Now);
+
         context.AddRange(
             organization, client, site, service, contract, configuration, position, pattern, segment,
             employee, replacement, version, shift, assignment, attendance, coverage, incident, evidence,
-            catalogItem, requirement, request, document, documentEvent);
+            catalogItem, requirement, request, document, documentEvent,
+            contact, employeeDocument, employeeEvaluation, skillCatalogItem, employeeSkill);
 
         await context.SaveChangesAsync();
 

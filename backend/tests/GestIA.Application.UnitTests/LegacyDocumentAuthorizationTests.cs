@@ -71,7 +71,7 @@ public sealed class LegacyDocumentAuthorizationTests
         public Task<IReadOnlyList<EmployeeDocument>> ListDocumentsAsync(Guid idEmployee, CancellationToken cancellationToken)
         {
             CollectionReads++;
-            return Task.FromResult<IReadOnlyList<EmployeeDocument>>([EmployeeDocument.Create(idEmployee,
+            return Task.FromResult<IReadOnlyList<EmployeeDocument>>([EmployeeDocument.Create(Employee.IdOrganization, idEmployee,
                 new EmployeeDocumentProfile(EmployeeDocumentType.EmploymentApplication, EmployeeDocumentStatus.Pending,
                     "secret-number", null, null, null, "business-documents/private.pdf", "private-notes"),
                 Guid.NewGuid(), "Tester", DateTime.UtcNow)]);

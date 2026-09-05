@@ -200,7 +200,7 @@ public sealed class ServiceSearchTests(OperationalSqlDatabase database)
             ActorId, ActorName, Now);
 
         var site = ClientSite.Create(
-            client.IdClient, $"{prefix}-SED", $"Sede {prefix}", "Calle", "Ciudad", "Estado", "01000",
+            client.IdOrganization, client.IdClient, $"{prefix}-SED", $"Sede {prefix}", "Calle", "Ciudad", "Estado", "01000",
             ActorId, ActorName, Now);
 
         var contract = ServiceContract.Create(

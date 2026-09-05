@@ -127,7 +127,7 @@ public sealed class CatalogMetadataTests(OperationalSqlDatabase database) : ICla
         var org = await SeedAsync();
         await using var context = database.Context();
         var client = GestIA.Domain.Clients.Client.Create(org, "BACKFILL", "Client", "EXA010101AA1", TestActor.ActorId, TestActor.ActorName, DateTime.UtcNow);
-        var site = GestIA.Domain.Clients.ClientSite.Create(client.IdClient, "SITE", "Site", "Street", "Monterrey", "Nuevo Leon", "64000", TestActor.ActorId, TestActor.ActorName, DateTime.UtcNow);
+        var site = GestIA.Domain.Clients.ClientSite.Create(client.IdOrganization, client.IdClient, "SITE", "Site", "Street", "Monterrey", "Nuevo Leon", "64000", TestActor.ActorId, TestActor.ActorName, DateTime.UtcNow);
         context.AddRange(client, site);
         await context.SaveChangesAsync();
         var migration = new GestIA.Infrastructure.Persistence.Migrations.GeographicCatalogRelations();

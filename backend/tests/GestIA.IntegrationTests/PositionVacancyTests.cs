@@ -185,7 +185,7 @@ public sealed class PositionVacancyTests(OperationalSqlDatabase database)
         var client = Client.Create(
             organization.IdOrganization, $"{prefix}-CLI", "Cliente", "EXA010101AA1", ActorId, ActorName, Now);
         var site = ClientSite.Create(
-            client.IdClient, $"{prefix}-SED", "Sede", "Calle", "Ciudad", "Estado", "01000", ActorId, ActorName, Now);
+            client.IdOrganization, client.IdClient, $"{prefix}-SED", "Sede", "Calle", "Ciudad", "Estado", "01000", ActorId, ActorName, Now);
         var service = Service.Create(
             organization.IdOrganization, client.IdClient, site.IdClientSite, null,
             $"{prefix}-SER", "Servicio", "Servicio", Today.AddYears(-1), ActorId, ActorName, Now);

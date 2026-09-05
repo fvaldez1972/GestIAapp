@@ -1,3 +1,4 @@
+using GestIA.Domain.Catalogs;
 using GestIA.Domain.Clients;
 using GestIA.Domain.Common;
 using GestIA.Domain.Operations;
@@ -31,7 +32,14 @@ public sealed class OrganizationColumnTests
         { typeof(AttendanceRecord), "AttendanceRecords" },
         { typeof(CoverageRecord), "CoverageRecords" },
         { typeof(Incident), "Incidents" },
-        { typeof(OperationEvidence), "OperationEvidences" }
+        { typeof(OperationEvidence), "OperationEvidences" },
+
+        // La tanda E: las cinco que llegaban a su organización por el padre.
+        { typeof(ClientSite), "ClientSites" },
+        { typeof(ClientContact), "ClientContacts" },
+        { typeof(EmployeeDocument), "EmployeeDocuments" },
+        { typeof(EmployeeEvaluation), "EmployeeEvaluations" },
+        { typeof(EmployeeSkill), "EmployeeSkills" }
     };
 
     [Theory]
@@ -54,20 +62,41 @@ public sealed class OrganizationColumnTests
     }
 
     /// <summary>
-    /// Un salto no justifica denormalizar. Sede y contacto llegan a la organización por el
-    /// cliente, y quedan deliberadamente fuera: si alguien les agrega la columna, que sea una
-    /// decisión y no un descuido.
+    /// <b>Esta prueba está invertida a propósito, y la versión anterior cumplió su función.</b>
+    ///
+    /// <para>En la tanda A afirmaba lo contrario: que sede y contacto <i>no</i> debían tener la
+    /// columna, porque llegaban a su organización a un solo salto. Se escribió justamente para que
+    /// agregarla no se pudiera hacer por descuido, y cuando la tanda E la agregó, falló. Eso era lo
+    /// que se buscaba: obligó a decidirlo en vez de dejarlo pasar.</para>
+    ///
+    /// <para><b>Por qué se decidió al revés.</b> La regla "un salto no justifica denormalizar" se
+    /// escribió cuando la alternativa era una columna redundante contra ningún costo. Con el filtro
+    /// global de la tanda B la alternativa pasó a ser un filtro por navegación, que hace que <b>el
+    /// filtro del hijo dependa del filtro del padre</b>: apagar uno sin el otro da resultados que
+    /// hay que razonar caso por caso, que es exactamente lo que la tanda B vino a eliminar. Y la
+    /// precondición que hacía peligrosa la denormalización —que el dueño pudiera cambiar de
+    /// organización— ya está cerrada por <c>OrganizationScopeTests</c>.</para>
+    ///
+    /// <para>Ahora comprueba lo contrario: que las cinco la llevan. Si alguien intenta quitarla,
+    /// esta prueba se lo dirá, igual que la anterior avisó cuando se agregó.</para>
     /// </summary>
     [Theory]
     [InlineData(typeof(ClientSite))]
     [InlineData(typeof(ClientContact))]
-    public void SingleHopEntitiesDoNotDuplicateTheOrganization(Type clrType)
+    [InlineData(typeof(EmployeeDocument))]
+    [InlineData(typeof(EmployeeEvaluation))]
+    [InlineData(typeof(EmployeeSkill))]
+    public void SingleHopEntitiesAlsoCarryTheOrganization(Type clrType)
     {
         using var context = CreateContext();
         var entityType = context.Model.FindEntityType(clrType)
             ?? throw new InvalidOperationException($"{clrType.Name} mapping was not found.");
 
-        Assert.Null(entityType.FindProperty(nameof(IOrganizationScopedEntity.IdOrganization)));
+        var property = entityType.FindProperty(nameof(IOrganizationScopedEntity.IdOrganization))
+            ?? throw new InvalidOperationException($"{clrType.Name} must map IdOrganization.");
+
+        Assert.False(property.IsNullable);
+        Assert.True(typeof(IOrganizationScopedEntity).IsAssignableFrom(clrType));
     }
 
     private static GestIaDbContext CreateContext()

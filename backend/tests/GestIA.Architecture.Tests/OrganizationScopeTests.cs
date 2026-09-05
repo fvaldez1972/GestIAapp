@@ -1,3 +1,4 @@
+using GestIA.Domain.Catalogs;
 using System.Reflection;
 using GestIA.Domain.Clients;
 using GestIA.Domain.Common;
@@ -40,7 +41,15 @@ public sealed class OrganizationScopeTests
         typeof(AttendanceRecord),
         typeof(CoverageRecord),
         typeof(Incident),
-        typeof(OperationEvidence)
+        typeof(OperationEvidence),
+
+        // Tanda E: cuelgan de Client o de Employee, que son raíces inmutables. Esa inmutabilidad
+        // es la precondición de que denormalizar sea seguro, y la comprueba esta misma clase.
+        typeof(ClientSite),
+        typeof(ClientContact),
+        typeof(EmployeeDocument),
+        typeof(EmployeeEvaluation),
+        typeof(EmployeeSkill)
     ];
 
     public static TheoryData<Type> Roots() => [.. OrganizationRoots];

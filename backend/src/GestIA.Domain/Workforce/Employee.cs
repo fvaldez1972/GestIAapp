@@ -28,7 +28,8 @@ public sealed record EmployeeProfile(
     string? PostalCode,
     string? HousingType,
     DateOnly? ResidenceSinceDate,
-    string? CountryCode = null);
+    string? CountryCode = null,
+    Guid? IdJobPositionCatalogItem = null);
 
 public sealed class Employee : AuditableEntity, IOrganizationScopedEntity
 {
@@ -67,6 +68,20 @@ public sealed class Employee : AuditableEntity, IOrganizationScopedEntity
     public string CodeEmployee { get; private set; } = string.Empty;
     public EmployeeStatus Status { get; private set; }
     public string FullName { get; private set; } = string.Empty;
+    /// <summary>
+    /// El puesto de la persona, por identificador contra el catálogo <c>JobPosition</c>.
+    ///
+    /// <para><b>Es nulable, y eso significa algo distinto de "no cumple".</b> Un valor nulo dice
+    /// "no sabemos cuál es su puesto", normalmente porque el texto libre heredado no correspondía
+    /// a ninguna entrada del catálogo. La elegibilidad <b>no bloquea</b> por un nulo: no es lo
+    /// mismo no cumplir el perfil que no saber cuál es, y tratarlos igual impediría asignar a
+    /// gente que sí puede.</para>
+    ///
+    /// <para>Convive con el texto libre, que se conserva sin tocar hasta que no queden nulos. La
+    /// comparación de elegibilidad usa este identificador; el texto ya no decide nada.</para>
+    /// </summary>
+    public Guid? IdJobPositionCatalogItem { get; private set; }
+
     public string? JobTitle { get; private set; }
     public DateOnly HireDate { get; private set; }
     public DateOnly? BirthDate { get; private set; }
@@ -161,6 +176,7 @@ public sealed class Employee : AuditableEntity, IOrganizationScopedEntity
         ArgumentException.ThrowIfNullOrWhiteSpace(profile.FullName);
 
         FullName = profile.FullName.Trim();
+        IdJobPositionCatalogItem = profile.IdJobPositionCatalogItem;
         JobTitle = Normalize(profile.JobTitle);
         HireDate = profile.HireDate;
         BirthDate = profile.BirthDate;

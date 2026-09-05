@@ -7,7 +7,8 @@ public sealed record PositionProfile(
     string Name,
     int RequiredWorkerCount,
     string? RequiredSkillProfile,
-    string? Notes);
+    string? Notes,
+    Guid? IdJobPositionCatalogItem = null);
 
 public sealed class Position : AuditableEntity, IOrganizationScopedEntity
 {
@@ -41,6 +42,20 @@ public sealed class Position : AuditableEntity, IOrganizationScopedEntity
     public string CodePosition { get; private set; } = string.Empty;
     public string Name { get; private set; } = string.Empty;
     public int RequiredWorkerCount { get; private set; }
+    /// <summary>
+    /// El puesto, por identificador contra el catálogo <c>JobPosition</c>.
+    ///
+    /// <para><b>Es nulable, y eso significa algo distinto de "no cumple".</b> Un valor nulo dice
+    /// "no sabemos cuál es su puesto", normalmente porque el texto libre heredado no correspondía
+    /// a ninguna entrada del catálogo. La elegibilidad <b>no bloquea</b> por un nulo: no es lo
+    /// mismo no cumplir el perfil que no saber cuál es, y tratarlos igual impediría asignar a
+    /// gente que sí puede.</para>
+    ///
+    /// <para>Convive con el texto libre, que se conserva sin tocar hasta que no queden nulos. La
+    /// comparación de elegibilidad usa este identificador; el texto ya no decide nada.</para>
+    /// </summary>
+    public Guid? IdJobPositionCatalogItem { get; private set; }
+
     public string? RequiredSkillProfile { get; private set; }
     public string? Notes { get; private set; }
     public Service Service { get; private set; } = null!;
@@ -76,6 +91,7 @@ public sealed class Position : AuditableEntity, IOrganizationScopedEntity
 
         Name = Required(profile.Name, nameof(profile.Name));
         RequiredWorkerCount = profile.RequiredWorkerCount;
+        IdJobPositionCatalogItem = profile.IdJobPositionCatalogItem;
         RequiredSkillProfile = Optional(profile.RequiredSkillProfile);
         Notes = Optional(profile.Notes);
     }

@@ -1,6 +1,6 @@
 import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { GiMetricCard, GiMetricState } from './gi-metric-card';
+import { GiMetricCard, GiMetricState, GiMetricTone } from './gi-metric-card';
 
 @Component({
   imports: [GiMetricCard],
@@ -10,6 +10,8 @@ import { GiMetricCard, GiMetricState } from './gi-metric-card';
       [value]="value()"
       [hint]="hint()"
       [state]="state()"
+      [tone]="tone()"
+      [pillLabel]="pillLabel()"
       [pendingLabel]="pendingLabel()"
       [pendingActionLabel]="pendingActionLabel()"
       (pendingAction)="acciones.set(acciones() + 1)"
@@ -21,6 +23,8 @@ class Anfitrion {
   readonly value = signal<number | string>(7);
   readonly hint = signal('Requieren seguimiento hoy');
   readonly state = signal<GiMetricState>('ready');
+  readonly tone = signal<GiMetricTone>('neutral');
+  readonly pillLabel = signal('');
   readonly pendingLabel = signal('Sin datos aún');
   readonly pendingActionLabel = signal('');
   readonly acciones = signal(0);
@@ -105,6 +109,53 @@ describe('GiMetricCard', () => {
       fixture.detectChanges();
 
       expect(host.acciones()).toBe(1);
+    });
+  });
+
+  /**
+   * El anexo del bosquejo de Inicio: un cero que vale mostrarse lleva su palabra al lado, y un
+   * número que preocupa se lee también sin color.
+   */
+  describe('el número con su palabra', () => {
+    it('un cero real puede llevar la píldora que dice por qué es bueno', () => {
+      const { raiz, valor } = montar((host) => {
+        host.value.set(0);
+        host.tone.set('success');
+        host.pillLabel.set('Todo cubierto');
+        host.hint.set('03 sep 2026: las 4 incidencias se resolvieron con cubre-descansos');
+      });
+
+      expect(valor()).toBe('0');
+      expect(raiz.querySelector('.gi-metric__pill')?.textContent?.trim()).toBe('Todo cubierto');
+      expect(raiz.querySelector('.gi-metric__pill--success')).not.toBeNull();
+    });
+
+    it('el tono nunca es lo único que lo dice: la palabra va dentro de la píldora', () => {
+      const { raiz } = montar((host) => {
+        host.value.set(3);
+        host.tone.set('danger');
+        host.pillLabel.set('Vacante');
+        host.hint.set('De 38 posiciones, en 2 servicios');
+      });
+
+      expect(raiz.querySelector('.gi-metric__value--danger')).not.toBeNull();
+      expect(raiz.textContent).toContain('Vacante');
+    });
+
+    /**
+     * La corrección del anexo. Un dato que todavía no existe **no es una advertencia**: la píldora
+     * de «sin datos aún» va en el token neutro, y el ámbar queda para cuando hay un número que sí
+     * preocupa.
+     */
+    it('la píldora de sin datos aún es neutra, no ámbar', () => {
+      const { raiz } = montar((host) => {
+        host.state.set('pending');
+        host.pendingActionLabel.set('Ir a Planeación');
+      });
+
+      const pildora = raiz.querySelector('.gi-metric__pill')!;
+      expect(pildora.classList.contains('gi-metric__pill--warning')).toBe(false);
+      expect(pildora.classList.contains('gi-metric__pill--danger')).toBe(false);
     });
   });
 

@@ -23,7 +23,7 @@ export type { GiEmptyVariant } from './gi-empty-state/gi-empty-state';
 export { GiConfirmDialog } from './gi-confirm-dialog/gi-confirm-dialog';
 
 export { GiMetricCard } from './gi-metric-card/gi-metric-card';
-export type { GiMetricState } from './gi-metric-card/gi-metric-card';
+export type { GiMetricState, GiMetricTone } from './gi-metric-card/gi-metric-card';
 
 export { GiSelect } from './gi-select/gi-select';
 export type { GiSelectOption } from './gi-select/gi-select';

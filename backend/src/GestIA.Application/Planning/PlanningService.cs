@@ -1,3 +1,4 @@
+using GestIA.Application.Catalogs;
 using GestIA.Application.Common;
 using GestIA.Domain.Planning;
 
@@ -5,6 +6,7 @@ namespace GestIA.Application.Planning;
 
 public sealed class PlanningService(
     IPlanningRepository repository,
+    ICatalogService catalogService,
     IUnitOfWork unitOfWork,
     IActorContext actorContext,
     IClock clock) : IPlanningService
@@ -41,7 +43,10 @@ public sealed class PlanningService(
     {
         await EnsureServiceAsync(request.IdOrganization, request.IdClient, request.IdService, cancellationToken);
         var code = NormalizeCode(request.CodePosition, nameof(request.CodePosition));
-        var profile = ValidatePosition(request.Name, request.RequiredWorkerCount, request.RequiredSkillProfile, request.Notes);
+        var profile = ValidatePosition(
+            request.Name, request.RequiredWorkerCount, request.RequiredSkillProfile,
+            request.Notes, request.IdJobPositionCatalogItem);
+        await EnsureJobPositionAsync(request.IdOrganization, profile.IdJobPositionCatalogItem, cancellationToken);
 
         if (await repository.IsPositionCodeInUseAsync(request.IdService, code, null, cancellationToken))
         {
@@ -69,7 +74,10 @@ public sealed class PlanningService(
     {
         await EnsureServiceAsync(request.IdOrganization, request.IdClient, request.IdService, cancellationToken);
         var position = await EnsurePositionAsync(request.IdService, idPosition, cancellationToken);
-        var profile = ValidatePosition(request.Name, request.RequiredWorkerCount, request.RequiredSkillProfile, request.Notes);
+        var profile = ValidatePosition(
+            request.Name, request.RequiredWorkerCount, request.RequiredSkillProfile,
+            request.Notes, request.IdJobPositionCatalogItem);
+        await EnsureJobPositionAsync(request.IdOrganization, profile.IdJobPositionCatalogItem, cancellationToken);
 
         position.UpdateProfile(profile, actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
         await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -316,11 +324,27 @@ public sealed class PlanningService(
         }
     }
 
+    /// <summary>
+    /// El puesto es opcional. Un nulo no bloquea nada: significa que no se declaró, no que la
+    /// posición acepte a cualquiera.
+    /// </summary>
+    private async Task EnsureJobPositionAsync(
+        Guid idOrganization,
+        Guid? idJobPositionCatalogItem,
+        CancellationToken cancellationToken)
+    {
+        if (idJobPositionCatalogItem is { } id)
+        {
+            await catalogService.EnsureJobPositionCatalogItemAsync(idOrganization, id, cancellationToken);
+        }
+    }
+
     private static PositionProfile ValidatePosition(
         string name,
         int requiredWorkerCount,
         string? requiredSkillProfile,
-        string? notes)
+        string? notes,
+        Guid? idJobPositionCatalogItem)
     {
         var errors = new Dictionary<string, string[]>();
         Required(name, nameof(name), 150, errors);
@@ -332,7 +356,7 @@ public sealed class PlanningService(
         }
 
         ThrowIfInvalid(errors);
-        return new PositionProfile(name, requiredWorkerCount, requiredSkillProfile, notes);
+        return new PositionProfile(name, requiredWorkerCount, requiredSkillProfile, notes, idJobPositionCatalogItem);
     }
 
     private static ShiftPatternProfile ValidateShiftPattern(
@@ -428,6 +452,7 @@ public sealed class PlanningService(
             position.Name,
             position.RequiredWorkerCount,
             position.RequiredSkillProfile,
+            position.IdJobPositionCatalogItem,
             position.Notes,
             position.Active);
 

@@ -13,7 +13,7 @@ public sealed class LegacyDocumentAuthorizationTests
     public async Task EmployeeDetailAndListsHideLegacyCollectionsWithoutSensitiveRead(bool permitted)
     {
         var repository = new Repository();
-        var service = new WorkforceService(repository, new Unit(), new Actor(permitted), new Clock(), null!);
+        var service = new WorkforceService(repository, new Unit(), new Actor(permitted), new Clock(), null!, null!);
         var detail = await service.GetEmployeeAsync(repository.Employee.IdOrganization, repository.Employee.IdEmployee, default);
         var documents = await service.ListDocumentsAsync(repository.Employee.IdOrganization, repository.Employee.IdEmployee, default);
         var evaluations = await service.ListEvaluationsAsync(repository.Employee.IdOrganization, repository.Employee.IdEmployee, default);
@@ -27,7 +27,7 @@ public sealed class LegacyDocumentAuthorizationTests
     public async Task SensitivePermissionDoesNotBypassEmployeeOrganization()
     {
         var repository = new Repository();
-        var service = new WorkforceService(repository, new Unit(), new Actor(true), new Clock(), null!);
+        var service = new WorkforceService(repository, new Unit(), new Actor(true), new Clock(), null!, null!);
         await Assert.ThrowsAsync<ResourceNotFoundException>(() =>
             service.GetEmployeeAsync(Guid.NewGuid(), repository.Employee.IdEmployee, default));
         Assert.Equal(0, repository.CollectionReads);
@@ -37,7 +37,7 @@ public sealed class LegacyDocumentAuthorizationTests
     public async Task SensitiveReadAloneCannotArchiveLegacyDocumentsOrEvaluations()
     {
         var repository = new Repository();
-        var service = new WorkforceService(repository, new Unit(), new Actor(true), new Clock(), null!);
+        var service = new WorkforceService(repository, new Unit(), new Actor(true), new Clock(), null!, null!);
         await Assert.ThrowsAsync<ResourceForbiddenException>(() =>
             service.DeactivateDocumentAsync(repository.Employee.IdOrganization, repository.Employee.IdEmployee, Guid.NewGuid(), default));
         await Assert.ThrowsAsync<ResourceForbiddenException>(() =>

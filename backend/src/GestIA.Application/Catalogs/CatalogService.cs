@@ -495,6 +495,20 @@ public sealed class CatalogService(
         }
     }
 
+    public async Task EnsureJobPositionCatalogItemAsync(
+        Guid idOrganization,
+        Guid idCatalogItem,
+        CancellationToken cancellationToken)
+    {
+        var item = await repository.GetCatalogItemAsync(idOrganization, idCatalogItem, cancellationToken)
+            ?? throw new ResourceNotFoundException("No se encontró el puesto seleccionado.");
+
+        if (item.Type != BusinessCatalogItemType.JobPosition || !item.Active)
+        {
+            throw new ResourceConflictException("El catálogo seleccionado no es un puesto activo.");
+        }
+    }
+
     private async Task EnsureSkillCatalogItemAsync(
         Guid idOrganization,
         Guid idSkillCatalogItem,

@@ -229,12 +229,20 @@ public sealed class AssignmentService(
                 $"El empleado no es elegible para asignación: tiene evaluaciones vencidas o no aprobadas ({string.Join(", ", invalidEvaluations)}).");
         }
 
-        if (!string.IsNullOrWhiteSpace(position.RequiredSkillProfile) &&
-            !string.IsNullOrWhiteSpace(employee.JobTitle) &&
-            !employee.JobTitle.Contains(position.RequiredSkillProfile, StringComparison.OrdinalIgnoreCase))
+        // El puesto se compara por identificador, no por texto.
+        //
+        // Antes esto era un Contains sobre dos campos de texto libre, y fallaba en las dos
+        // direcciones: bloqueaba a alguien capaz por una diferencia de redacción, y habilitaba a
+        // alguien por una coincidencia accidental de subcadena.
+        //
+        // Un nulo en cualquiera de los dos lados NO bloquea, y es deliberado: significa "no
+        // sabemos cuál es su puesto", normalmente porque el texto heredado no correspondía a
+        // ninguna entrada del catálogo. No es lo mismo que "no cumple el perfil", y tratarlos
+        // igual impediría asignar a gente que sí puede mientras se limpian los datos.
+        if (JobPositionEligibility.IsBlocked(position.IdJobPositionCatalogItem, employee.IdJobPositionCatalogItem))
         {
             throw new ResourceConflictException(
-                $"El empleado no coincide con el perfil requerido para la posición: {position.RequiredSkillProfile}.");
+                "El empleado no tiene el puesto que la posición requiere.");
         }
     }
 

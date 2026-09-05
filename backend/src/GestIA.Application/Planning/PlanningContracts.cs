@@ -10,7 +10,8 @@ public sealed record CreatePositionRequest(
     string Name,
     int RequiredWorkerCount,
     string? RequiredSkillProfile,
-    string? Notes);
+    string? Notes,
+    Guid? IdJobPositionCatalogItem = null);
 
 public sealed record UpdatePositionRequest(
     Guid IdOrganization,
@@ -19,7 +20,8 @@ public sealed record UpdatePositionRequest(
     string Name,
     int RequiredWorkerCount,
     string? RequiredSkillProfile,
-    string? Notes);
+    string? Notes,
+    Guid? IdJobPositionCatalogItem = null);
 
 public sealed record PositionResponse(
     Guid IdPosition,
@@ -28,6 +30,7 @@ public sealed record PositionResponse(
     string Name,
     int RequiredWorkerCount,
     string? RequiredSkillProfile,
+    Guid? IdJobPositionCatalogItem,
     string? Notes,
     bool Active);
 

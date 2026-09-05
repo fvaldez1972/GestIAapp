@@ -10,7 +10,7 @@ public sealed class WorkforceService(
     IWorkforceRepository repository,
     IUnitOfWork unitOfWork,
     IActorContext actorContext,
-    IClock clock, FormCatalogValidator catalogs) : IWorkforceService
+    IClock clock, FormCatalogValidator catalogs, ICatalogService catalogService) : IWorkforceService
 {
     public async Task<PagedResult<EmployeeResponse>> ListEmployeesAsync(
         EmployeeQuery query,
@@ -407,7 +407,8 @@ public sealed class WorkforceService(
             request.State,
             request.PostalCode,
             request.HousingType,
-            request.ResidenceSinceDate, request.CountryCode);
+            request.ResidenceSinceDate, request.CountryCode,
+            request.IdJobPositionCatalogItem);
 
     private static EmployeeProfile Validate(UpdateEmployeeRequest request) =>
         ValidateProfile(
@@ -434,7 +435,8 @@ public sealed class WorkforceService(
             request.State,
             request.PostalCode,
             request.HousingType,
-            request.ResidenceSinceDate, request.CountryCode);
+            request.ResidenceSinceDate, request.CountryCode,
+            request.IdJobPositionCatalogItem);
 
     private static EmployeeProfile ValidateProfile(
         string fullName,
@@ -460,7 +462,8 @@ public sealed class WorkforceService(
         string? state,
         string? postalCode,
         string? housingType,
-        DateOnly? residenceSinceDate, string? countryCode)
+        DateOnly? residenceSinceDate, string? countryCode,
+        Guid? idJobPositionCatalogItem)
     {
         var errors = new Dictionary<string, string[]>();
         Required(fullName, nameof(fullName), 200, errors);
@@ -511,7 +514,21 @@ public sealed class WorkforceService(
             state,
             postalCode,
             housingType,
-            residenceSinceDate, countryCode);
+            residenceSinceDate, countryCode, idJobPositionCatalogItem);
+    }
+
+    /// <summary>
+    /// El puesto es opcional. Un nulo significa que no se declaró, no que la persona no tenga.
+    /// </summary>
+    private async Task EnsureJobPositionAsync(
+        Guid idOrganization,
+        Guid? idJobPositionCatalogItem,
+        CancellationToken cancellationToken)
+    {
+        if (idJobPositionCatalogItem is { } id)
+        {
+            await catalogService.EnsureJobPositionCatalogItemAsync(idOrganization, id, cancellationToken);
+        }
     }
 
     private static EmployeeDocumentProfile Validate(CreateEmployeeDocumentRequest request) =>

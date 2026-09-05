@@ -7,6 +7,7 @@ using GestIA.Application.Documents;
 using GestIA.Application.Operations;
 using GestIA.Application.Organizations;
 using GestIA.Application.Planning;
+using GestIA.Application.Overview;
 using GestIA.Application.Reports;
 using GestIA.Application.Requests;
 using GestIA.Application.Scheduling;
@@ -38,6 +39,7 @@ public static class DependencyInjection
         services.AddScoped<ISchedulingService, SchedulingService>();
         services.AddScoped<IOperationsService, OperationsService>();
         services.AddScoped<IReportsService, ReportsService>();
+        services.AddScoped<IOverviewService, OverviewService>();
         services.AddScoped<IOperationalRequestService, OperationalRequestService>();
         services.AddScoped<IAuditService, AuditService>();
         services.AddScoped<IAuthenticationService, AuthenticationService>();

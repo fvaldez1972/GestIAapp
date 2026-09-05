@@ -46,6 +46,7 @@ public static class DependencyInjection
         services.AddDbContext<GestIaDbContext>(options =>
             SqlServerDbContextOptions.Configure(options, connectionString));
 
+        services.AddScoped<IConcurrencyGuard, EfConcurrencyGuard>();
         services.AddScoped<IOperationalHistoryRecorder, OperationalHistoryRecorder>();
         services.AddScoped<IOperationalHistoryRepository, OperationalHistoryRepository>();
         services.AddScoped<IUnitOfWork, EfUnitOfWork>();

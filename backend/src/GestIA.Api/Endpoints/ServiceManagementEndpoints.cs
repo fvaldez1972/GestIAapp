@@ -203,6 +203,7 @@ public static class ServiceManagementEndpoints
             Guid idService,
             Guid idServiceConfiguration,
             Guid organizationId,
+            string? rowVersion,
             IServiceManagementService service,
             CancellationToken cancellationToken) =>
         {
@@ -216,6 +217,7 @@ public static class ServiceManagementEndpoints
                 idClient,
                 idService,
                 idServiceConfiguration,
+                ParseRowVersion(rowVersion),
                 cancellationToken);
             return Results.NoContent();
         })
@@ -303,5 +305,26 @@ public static class ServiceManagementEndpoints
             .WithName("DeactivateServiceContract");
 
         return endpoints;
+    }
+
+    /// <summary>
+    /// El token de concurrencia llega en la consulta y no en el cuerpo, porque un DELETE no lleva
+    /// cuerpo. Lo correcto en HTTP seria el encabezado <c>If-Match</c>; se eligio el parametro por
+    /// consistencia con el resto de esta API, que ya pasa <c>organizationId</c> asi.
+    ///
+    /// <b>Deuda menor anotada.</b> Un token mal formado se trata como ausente: no comprueba nada,
+    /// que es el mismo comportamiento que no mandarlo, y nunca hace fallar la peticion por una
+    /// razon que el usuario no puede entender.
+    /// </summary>
+    private static byte[]? ParseRowVersion(string? rowVersion)
+    {
+        if (string.IsNullOrWhiteSpace(rowVersion))
+        {
+            return null;
+        }
+
+        return Convert.TryFromBase64String(rowVersion, new byte[rowVersion.Length], out _)
+            ? Convert.FromBase64String(rowVersion)
+            : null;
     }
 }

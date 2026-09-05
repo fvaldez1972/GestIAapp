@@ -1,3 +1,4 @@
+using GestIA.Application.Common;
 using GestIA.Application.Scheduling;
 using GestIA.Domain.Planning;
 using GestIA.Domain.Operations;
@@ -7,10 +8,10 @@ using ServiceEntity = GestIA.Domain.Services.Service;
 
 namespace GestIA.Infrastructure.Persistence.Repositories;
 
-public sealed class SchedulingRepository(GestIaDbContext dbContext) : ISchedulingRepository
+public sealed class SchedulingRepository(GestIaDbContext dbContext, IClock clock) : ISchedulingRepository
 {
     public Task<T> ExecuteAtomicAsync<T>(Func<CancellationToken, Task<T>> action, CancellationToken cancellationToken) =>
-        OperationalTransaction.ExecuteAsync(dbContext, action, cancellationToken);
+        OperationalTransaction.ExecuteAsync(dbContext, clock.OperationalTimeZone, action, cancellationToken);
 
     public Task<ServiceEntity?> GetServiceAsync(Guid idOrganization, Guid idClient, Guid idService, CancellationToken cancellationToken) =>
         dbContext.Services.SingleOrDefaultAsync(

@@ -15,7 +15,8 @@ public sealed record UpsertAttendanceRequest(
     int MinutesLate,
     string? Notes,
     Guid? IdApprovalRequest,
-    string? CorrectionReason = null);
+    string? CorrectionReason = null,
+    byte[]? RowVersion = null);
 
 public sealed record AttendanceRecordResponse(
     Guid IdAttendanceRecord,
@@ -29,7 +30,8 @@ public sealed record AttendanceRecordResponse(
     TimeOnly? ActualEndTime,
     int MinutesLate,
     string? Notes,
-    bool Active);
+    bool Active,
+    byte[] RowVersion);
 
 public sealed record CreateIncidentRequest(
     Guid IdOrganization,
@@ -56,7 +58,8 @@ public sealed record UpdateIncidentRequest(
     IncidentStatus Status,
     string Description,
     string? ResolutionNotes,
-    string? CorrectionReason = null);
+    string? CorrectionReason = null,
+    byte[]? RowVersion = null);
 
 public sealed record IncidentResponse(
     Guid IdIncident,
@@ -71,7 +74,8 @@ public sealed record IncidentResponse(
     IncidentStatus Status,
     string Description,
     string? ResolutionNotes,
-    bool Active);
+    bool Active,
+    byte[] RowVersion);
 
 public sealed record CreateCoverageRequest(
     Guid IdOrganization,
@@ -97,7 +101,8 @@ public sealed record UpdateCoverageRequest(
     CoverageStatus Status,
     string? Notes,
     Guid? IdCoverageReason = null,
-    string? CorrectionReason = null);
+    string? CorrectionReason = null,
+    byte[]? RowVersion = null);
 
 public sealed record CoverageRecordResponse(
     Guid IdCoverageRecord,
@@ -115,7 +120,8 @@ public sealed record CoverageRecordResponse(
     CoverageStatus Status,
     string? Notes,
     bool Active,
-    Guid? IdCoverageReason = null);
+    Guid? IdCoverageReason = null,
+    byte[]? RowVersion = null);
 
 public sealed record OperationEvidenceInput(
     Guid IdOrganization,
@@ -194,7 +200,8 @@ public sealed record CloseOperationDayRequest(
 
 public sealed record ReopenOperationDayRequest(
     Guid IdOrganization,
-    string Reason);
+    string Reason,
+    byte[]? RowVersion = null);
 
 public sealed record OperationDayClosureResponse(
     Guid IdOperationDayClosure,
@@ -213,4 +220,5 @@ public sealed record OperationDayClosureResponse(
     DateTime? ReopenedAt,
     string? ReopenedByName,
     string? ReopenReason,
-    bool Active);
+    bool Active,
+    byte[] RowVersion);

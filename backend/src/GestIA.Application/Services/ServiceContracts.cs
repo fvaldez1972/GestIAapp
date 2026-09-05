@@ -170,7 +170,8 @@ public sealed record UpdateServiceConfigurationRequest(
     decimal MonthlyPrice,
     string? CurrencyCode,
     bool IsTaxIncluded,
-    string? CorrectionReason = null);
+    string? CorrectionReason = null,
+    byte[]? RowVersion = null);
 
 public sealed record ServiceConfigurationResponse(
     Guid IdServiceConfiguration,
@@ -188,4 +189,5 @@ public sealed record ServiceConfigurationResponse(
     decimal MonthlyPrice,
     string CurrencyCode,
     bool IsTaxIncluded,
-    bool Active);
+    bool Active,
+    byte[] RowVersion);

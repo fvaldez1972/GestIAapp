@@ -257,5 +257,8 @@ public sealed class CatalogMetadataTests(OperationalSqlDatabase database) : ICla
 
         // Doble de prueba: la fecha sale del instante simulado, sin huso.
         public DateOnly Today => DateOnly.FromDateTime(UtcNow);
+
+        // Doble de prueba: sin huso, la hora local es la UTC.
+        public TimeZoneInfo OperationalTimeZone => TimeZoneInfo.Utc;
     }
 }

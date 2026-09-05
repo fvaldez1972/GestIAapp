@@ -12,6 +12,7 @@ public sealed class ServiceManagementService(
     IServiceManagementRepository repository,
     IUnitOfWork unitOfWork,
     IActorContext actorContext,
+    IConcurrencyGuard concurrency,
     IOperationReasonContext reasonContext,
     IClock clock) : IServiceManagementService
 {
@@ -257,6 +258,7 @@ public sealed class ServiceManagementService(
             request.CorrectionReason, requirement, "CorrectionReason", reasonErrors);
         InputValidation.ThrowIfInvalid(reasonErrors);
         reasonContext.SetReason(reason, requirement is not null);
+        concurrency.Expect(configuration, request.RowVersion);
 
         configuration.UpdateProfile(profile, actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
         await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -268,12 +270,17 @@ public sealed class ServiceManagementService(
         Guid idClient,
         Guid idService,
         Guid idServiceConfiguration,
+        byte[]? rowVersion,
         CancellationToken cancellationToken)
     {
         await EnsureServiceAsync(idOrganization, idClient, idService, cancellationToken);
         var configuration = await repository.GetConfigurationAsync(idService, idServiceConfiguration, cancellationToken)
             ?? throw new ResourceNotFoundException("No se encontró la configuración solicitada.");
 
+        // El token llega por parametro de consulta porque un DELETE no lleva cuerpo. Lo correcto
+        // en HTTP seria el encabezado If-Match; se eligio el parametro por consistencia con el
+        // resto de esta API, que ya pasa organizationId asi. Queda anotado como deuda menor.
+        concurrency.Expect(configuration, rowVersion);
         configuration.Deactivate(actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
         await unitOfWork.SaveChangesAsync(cancellationToken);
     }
@@ -605,5 +612,6 @@ public sealed class ServiceManagementService(
         configuration.MonthlyPrice,
         configuration.CurrencyCode,
         configuration.IsTaxIncluded,
-        configuration.Active);
+        configuration.Active,
+        configuration.RowVersion);
 }

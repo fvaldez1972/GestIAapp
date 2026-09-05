@@ -12,6 +12,7 @@ public sealed class OperationsService(
     ICatalogService catalogService,
     IUnitOfWork unitOfWork,
     IActorContext actorContext,
+    IConcurrencyGuard concurrency,
     IOperationReasonContext reasonContext,
     IClock clock) : IOperationsService
 {
@@ -105,6 +106,10 @@ public sealed class OperationsService(
 
             await RequireCorrectionReasonAsync(
                 request.IdService, existing.AttendanceDate, request.CorrectionReason, cancellationToken);
+
+            // Sólo al corregir. Un alta no lleva token porque no hay nada que pisar, y este mismo
+            // endpoint crea o corrige.
+            concurrency.Expect(existing, request.RowVersion);
 
             // Las notas del registro se quedan como las escribió el supervisor. La justificación
             // de la corrección viaja por CorrectionReason y se guarda en el evento de historial,
@@ -202,6 +207,7 @@ public sealed class OperationsService(
         await ValidateIncidentCatalogAsync(request.IdOrganization, profile.IncidentType, incident.IncidentType, cancellationToken);
         await RequireCorrectionReasonAsync(
             request.IdService, incident.IncidentDate, request.CorrectionReason, cancellationToken);
+        concurrency.Expect(incident, request.RowVersion);
         incident.UpdateProfile(profile, actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return Map(await repository.GetIncidentAsync(request.IdService, idIncident, cancellationToken) ?? incident);
@@ -315,6 +321,7 @@ public sealed class OperationsService(
         // La cobertura no guarda su fecha: la toma del turno que cubre.
         await RequireCorrectionReasonAsync(
             request.IdService, coverage.ScheduledShift.ShiftDate, request.CorrectionReason, cancellationToken);
+        concurrency.Expect(coverage, request.RowVersion);
         coverage.UpdateProfile(profile, actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return Map(await repository.GetCoverageAsync(request.IdService, idCoverageRecord, cancellationToken) ?? coverage);
@@ -581,6 +588,10 @@ public sealed class OperationsService(
         var reason = InputValidation.Required(request.Reason, nameof(request.Reason), 1200, errors);
         InputValidation.ThrowIfInvalid(errors);
 
+        // El cierre de dia es el conflicto mas probable de todos: dos personas cerrando el turno
+        // a la vez. Y no lleva bitacora, asi que si hay conflicto el mensaje sale de los campos de
+        // auditoria de la propia fila.
+        concurrency.Expect(closure, request.RowVersion);
         closure.Reopen(reason, actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return Map(closure);
@@ -946,7 +957,8 @@ public sealed class OperationsService(
             record.ActualEndTime,
             record.MinutesLate,
             record.Notes,
-            record.Active);
+            record.Active,
+            record.RowVersion);
 
     private static IncidentResponse Map(Incident incident) =>
         new(
@@ -962,7 +974,8 @@ public sealed class OperationsService(
             incident.Status,
             incident.Description,
             incident.ResolutionNotes,
-            incident.Active);
+            incident.Active,
+            incident.RowVersion);
 
     private static CoverageRecordResponse Map(CoverageRecord coverage) =>
         new(
@@ -1034,7 +1047,8 @@ public sealed class OperationsService(
             closure.ReopenedAt,
             closure.ReopenedByName,
             closure.ReopenReason,
-            closure.Active);
+            closure.Active,
+            closure.RowVersion);
 
     private static int DurationMinutes(TimeOnly startTime, TimeOnly endTime, bool isOvernight)
     {

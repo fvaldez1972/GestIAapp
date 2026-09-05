@@ -22,5 +22,6 @@ public interface IAssignmentService
         Guid idClient,
         Guid idService,
         Guid idServiceAssignment,
+        byte[]? rowVersion,
         CancellationToken cancellationToken);
 }

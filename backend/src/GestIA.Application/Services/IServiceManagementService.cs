@@ -23,5 +23,5 @@ public interface IServiceManagementService
     Task<IReadOnlyList<ServiceConfigurationResponse>> ListConfigurationsAsync(Guid idOrganization, Guid idClient, Guid idService, CancellationToken cancellationToken);
     Task<ServiceConfigurationResponse> CreateConfigurationAsync(CreateServiceConfigurationRequest request, CancellationToken cancellationToken);
     Task<ServiceConfigurationResponse> UpdateConfigurationAsync(Guid idServiceConfiguration, UpdateServiceConfigurationRequest request, CancellationToken cancellationToken);
-    Task DeactivateConfigurationAsync(Guid idOrganization, Guid idClient, Guid idService, Guid idServiceConfiguration, CancellationToken cancellationToken);
+    Task DeactivateConfigurationAsync(Guid idOrganization, Guid idClient, Guid idService, Guid idServiceConfiguration, byte[]? rowVersion, CancellationToken cancellationToken);
 }

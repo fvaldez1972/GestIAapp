@@ -1,13 +1,14 @@
+using GestIA.Application.Common;
 using GestIA.Application.Requests;
 using GestIA.Domain.Requests;
 using Microsoft.EntityFrameworkCore;
 
 namespace GestIA.Infrastructure.Persistence.Repositories;
 
-public sealed class OperationalRequestRepository(GestIaDbContext dbContext) : IOperationalRequestRepository
+public sealed class OperationalRequestRepository(GestIaDbContext dbContext, IClock clock) : IOperationalRequestRepository
 {
     public Task<T> ExecuteAtomicAsync<T>(Func<CancellationToken, Task<T>> action, CancellationToken cancellationToken) =>
-        OperationalTransaction.ExecuteAsync(dbContext, action, cancellationToken);
+        OperationalTransaction.ExecuteAsync(dbContext, clock.OperationalTimeZone, action, cancellationToken);
 
     public async Task<(IReadOnlyList<OperationalRequest> Items, int TotalCount)> SearchAsync(
         OperationalRequestSearchCriteria criteria,

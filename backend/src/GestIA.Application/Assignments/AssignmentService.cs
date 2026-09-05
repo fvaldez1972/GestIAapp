@@ -10,6 +10,7 @@ public sealed class AssignmentService(
     ICatalogService catalogService,
     IUnitOfWork unitOfWork,
     IActorContext actorContext,
+    IConcurrencyGuard concurrency,
     IOperationReasonContext reasonContext,
     IClock clock) : IAssignmentService
 {
@@ -102,6 +103,7 @@ public sealed class AssignmentService(
             request.CorrectionReason, requirement, "CorrectionReason", reasonErrors);
         InputValidation.ThrowIfInvalid(reasonErrors);
         reasonContext.SetReason(reason, requirement is not null);
+        concurrency.Expect(assignment, request.RowVersion);
 
         assignment.UpdateProfile(profile, actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
         await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -114,10 +116,16 @@ public sealed class AssignmentService(
         Guid idClient,
         Guid idService,
         Guid idServiceAssignment,
+        byte[]? rowVersion,
         CancellationToken cancellationToken)
     {
         await EnsureServiceAsync(idOrganization, idClient, idService, cancellationToken);
         var assignment = await EnsureAssignmentAsync(idService, idServiceAssignment, cancellationToken);
+
+        // El token llega por parametro de consulta porque un DELETE no lleva cuerpo. Lo correcto
+        // en HTTP seria el encabezado If-Match; se eligio el parametro por consistencia con el
+        // resto de esta API, que ya pasa organizationId asi. Queda anotado como deuda menor.
+        concurrency.Expect(assignment, rowVersion);
         assignment.Deactivate(actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
         await unitOfWork.SaveChangesAsync(cancellationToken);
     }
@@ -347,5 +355,6 @@ public sealed class AssignmentService(
             assignment.EndDate,
             assignment.IsPrimary,
             assignment.Notes,
-            assignment.Active);
+            assignment.Active,
+            assignment.RowVersion);
 }

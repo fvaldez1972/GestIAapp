@@ -29,4 +29,11 @@ public interface IClock
     /// defecto que esta propiedad viene a cerrar, y en silencio.</para>
     /// </summary>
     DateOnly Today { get; }
+
+    /// <summary>
+    /// El huso operativo. Se expone porque el reloj es el único lugar que lo conoce, y hay
+    /// mensajes que tienen que mostrar una hora local: decirle "16:05" a un supervisor cuyo reloj
+    /// marca las 10:05 no le ayuda a encontrar el cambio, lo manda a buscar donde no está.
+    /// </summary>
+    TimeZoneInfo OperationalTimeZone { get; }
 }

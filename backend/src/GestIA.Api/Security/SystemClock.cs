@@ -15,6 +15,8 @@ public sealed class SystemClock(TimeZoneInfo operationalTimeZone) : IClock
 
     public DateTime UtcNow => DateTime.UtcNow;
 
+    public TimeZoneInfo OperationalTimeZone => operationalTimeZone;
+
     public DateOnly Today =>
         DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, operationalTimeZone));
 

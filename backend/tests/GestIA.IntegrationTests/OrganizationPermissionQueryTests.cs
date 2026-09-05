@@ -60,5 +60,5 @@ public sealed class OrganizationPermissionQueryTests(OperationalSqlDatabase data
         public Guid ActorId { get; } = Guid.NewGuid();
         public string ActorName => "Query test";
     }
-    private sealed class Clock : IClock { public DateTime UtcNow => DateTime.UtcNow; public DateOnly Today => DateOnly.FromDateTime(UtcNow); }
+    private sealed class Clock : IClock { public DateTime UtcNow => DateTime.UtcNow; public DateOnly Today => DateOnly.FromDateTime(UtcNow); public TimeZoneInfo OperationalTimeZone => TimeZoneInfo.Utc; }
 }

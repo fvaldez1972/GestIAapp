@@ -240,6 +240,7 @@ public sealed class CatalogMetadataTests(OperationalSqlDatabase database) : ICla
         var services = new ServiceCollection().AddLogging().AddApplication().AddInfrastructure(configuration);
         services.AddSingleton<IActorContext>(TestActor);
         services.AddSingleton<IOrganizationContext>(database.Organization);
+        services.AddSingleton<IOperationReasonContext>(database.Reason);
         services.AddSingleton<IClock>(new Clock());
         return services.BuildServiceProvider();
     }

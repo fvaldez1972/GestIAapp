@@ -89,7 +89,7 @@ public sealed class AuditDocumentAuthorizationTests
         var capture = new CaptureCommands();
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
-        builder.Services.AddOrganizationContext();
+        builder.Services.AddGestIaRequestContext();
         builder.Services.AddScoped(_ => CreateContext(capture));
         builder.Services.AddSingleton<IActorContext>(new Actor(null));
         builder.Services.AddScoped<IAuditRepository, AuditRepository>();
@@ -115,7 +115,8 @@ public sealed class AuditDocumentAuthorizationTests
         new DbContextOptionsBuilder<GestIaDbContext>()
             .UseSqlServer("Server=localhost;Database=Unused;Integrated Security=true;TrustServerCertificate=true")
             .AddInterceptors(new SuppressConnection(), capture).Options,
-        FixedOrganizationContext.For(OrganizationId));
+        FixedOrganizationContext.For(OrganizationId),
+        new NoHistoryRecorder());
 
     private static void AssertRestrictedDocumentSql(string sql)
     {

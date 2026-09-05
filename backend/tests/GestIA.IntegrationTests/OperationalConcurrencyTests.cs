@@ -15,6 +15,7 @@ using GestIA.Domain.Services;
 using GestIA.Domain.Workforce;
 using GestIA.Infrastructure;
 using GestIA.Infrastructure.Persistence;
+using GestIA.Infrastructure.Persistence.History;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -459,6 +460,7 @@ public sealed class OperationalConcurrencyTests : IClassFixture<OperationalSqlDa
         var services = new ServiceCollection().AddLogging().AddApplication().AddInfrastructure(configuration);
         services.AddSingleton<IActorContext>(Actor);
         services.AddSingleton<IOrganizationContext>(database.Organization);
+        services.AddSingleton<IOperationReasonContext>(database.Reason);
         services.AddSingleton<IClock>(new TestClock());
         if (interceptor is not null)
         {
@@ -617,8 +619,22 @@ public sealed class OperationalSqlDatabase : IAsyncLifetime
     /// </summary>
     public FixedOrganizationContext Organization { get; } = FixedOrganizationContext.None();
 
+    /// <summary>
+    /// El motivo de la corrección en curso. En producción lo fija la capa de aplicación; aquí lo
+    /// fija la prueba antes de guardar.
+    /// </summary>
+    public TestOperationReasonContext Reason { get; } = new();
+
+    /// <summary>
+    /// Bitácora real, no apagada: estas pruebas corren contra una base de verdad y son las que
+    /// comprueban que el evento y el cambio se guardan juntos.
+    /// </summary>
+    public IOperationalHistoryRecorder History => new OperationalHistoryRecorder(
+        new TestHistoryActor(), new TestHistoryClock(), Reason);
+
     public GestIaDbContext Context() => new(new DbContextOptionsBuilder<GestIaDbContext>()
-        .UseSqlServer(ConnectionString, options => options.EnableRetryOnFailure()).Options, Organization);
+        .UseSqlServer(ConnectionString, options => options.EnableRetryOnFailure()).Options,
+        Organization, History);
 
     public async Task DisposeAsync()
     {

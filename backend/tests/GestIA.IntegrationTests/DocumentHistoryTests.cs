@@ -11,7 +11,7 @@ public sealed class DocumentHistoryTests
     {
         var options = new DbContextOptionsBuilder<GestIaDbContext>()
             .UseSqlServer("Server=localhost;Database=Unused;Integrated Security=true;TrustServerCertificate=true").Options;
-        using var context = new GestIaDbContext(options, FixedOrganizationContext.None());
+        using var context = new GestIaDbContext(options, FixedOrganizationContext.None(), new NoHistoryRecorder());
         var entity = context.Model.FindEntityType(typeof(BusinessDocumentEvent))!;
         foreach (var name in new[] { nameof(BusinessDocumentEvent.BeforeSnapshot), nameof(BusinessDocumentEvent.AfterSnapshot) })
         {
@@ -29,7 +29,7 @@ public sealed class DocumentHistoryTests
         var options = new DbContextOptionsBuilder<GestIaDbContext>()
             .UseSqlServer("Server=localhost;Database=Unused;Integrated Security=true;TrustServerCertificate=true").Options;
         // Adjunta y guarda; no consulta, así que el filtro de organización no interviene.
-        await using var context = new GestIaDbContext(options, FixedOrganizationContext.None());
+        await using var context = new GestIaDbContext(options, FixedOrganizationContext.None(), new NoHistoryRecorder());
         var actorId = Guid.NewGuid();
         var document = BusinessDocument.Create(Guid.NewGuid(), new BusinessDocumentProfile(
             BusinessDocumentOwnerType.Client, Guid.NewGuid(), "Contract", "Test", BusinessDocumentStatus.PendingReview,

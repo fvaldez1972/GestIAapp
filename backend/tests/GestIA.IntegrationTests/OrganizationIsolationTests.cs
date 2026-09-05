@@ -18,9 +18,9 @@ namespace GestIA.IntegrationTests;
 /// organizaciones sembradas con los mismos datos. Es la diferencia entre afirmar que el filtro
 /// existe y demostrar que separa.
 ///
-/// <para><b>Cobertura.</b> Se siembran 20 de las 23 entidades con alcance de organización. Las
+/// <para><b>Cobertura.</b> Se siembran 21 de las 24 entidades con alcance de organización. Las
 /// tres que faltan —<c>ApprovalRequest</c>, <c>OperationDayClosure</c> y <c>SupportSession</c>—
-/// se consultan igual: el filtro lo aplica una sola convención a las 23 por igual, y
+/// se consultan igual: el filtro lo aplica una sola convención a las 24 por igual, y
 /// <see cref="OrganizationFilterModelTests"/> ya comprueba que ninguna se quedó sin él en el
 /// modelo. Sembrar más grafos probaría constructores, no el filtro.</para>
 ///
@@ -165,12 +165,13 @@ public sealed class OrganizationIsolationTests(OperationalSqlDatabase database)
         await Check(context.ApprovalRequests);
         await Check(context.OperationDayClosures);
         await Check(context.SupportSessions);
+        await Check(context.OperationalEvents);
 
         if (expectRows)
         {
             // Sin esto la prueba pasaría igual con la base vacía, que es la forma más fácil de
             // que una prueba de aislamiento deje de comprobar nada.
-            Assert.Equal(20, seeded);
+            Assert.Equal(21, seeded);
         }
     }
 
@@ -282,6 +283,17 @@ public sealed class OrganizationIsolationTests(OperationalSqlDatabase database)
             catalogItem, requirement, request, document, documentEvent);
 
         await context.SaveChangesAsync();
+
+        // Una corrección deliberada tras el alta, para que la bitácora tenga datos: las altas no
+        // generan evento, así que sin esto OperationalEvents quedaría vacía y la comprobación de
+        // aislamiento sobre ella no comprobaría nada.
+        database.Organization.SetAuthorizedOrganization(organizationId);
+        database.Reason.SetReason("Se corrigió la asistencia tras el cierre del día", true);
+        attendance.UpdateProfile(
+            new(AttendanceStatus.Late, new TimeOnly(8, 30), new TimeOnly(16, 0), 30, null),
+            ActorId, ActorName, Now);
+        await context.SaveChangesAsync();
+        database.Organization.Clear();
 
         return organizationId;
     }

@@ -70,6 +70,6 @@ public sealed class BusinessModelTests
             .Options;
 
         // Sólo lee el modelo: no consulta, así que no necesita organización.
-        return new GestIaDbContext(options, FixedOrganizationContext.None());
+        return new GestIaDbContext(options, FixedOrganizationContext.None(), new NoHistoryRecorder());
     }
 }

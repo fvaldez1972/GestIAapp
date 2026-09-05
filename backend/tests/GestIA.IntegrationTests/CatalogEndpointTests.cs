@@ -81,7 +81,7 @@ public sealed class CatalogEndpointTests
     {
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
-        builder.Services.AddOrganizationContext();
+        builder.Services.AddGestIaRequestContext();
         builder.Services.AddSingleton(DispatchProxy.Create<ICatalogService, CatalogProxy>());
         var app = builder.Build();
         app.Use(async (context, next) =>

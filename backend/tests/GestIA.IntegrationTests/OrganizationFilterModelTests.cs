@@ -99,11 +99,13 @@ public sealed class OrganizationFilterModelTests
     /// esta prueba se lo dice en lugar de contarla sola y no enterarse.
     /// </summary>
     [Fact]
-    public void TwentyThreeEntitiesAreScoped()
+    public void TwentyFourEntitiesAreScoped()
     {
         using var context = CreateContext();
 
-        Assert.Equal(23, ScopedEntityTypes(context).Count());
+        // 23 desde la tanda B, más OperationalEvent: la bitácora también pertenece a una
+        // organización y se consulta con el mismo filtro que el registro que documenta.
+        Assert.Equal(24, ScopedEntityTypes(context).Count());
     }
 
     [Theory]
@@ -135,6 +137,6 @@ public sealed class OrganizationFilterModelTests
             .Options;
 
         // Sólo lee el modelo: no consulta, así que no necesita organización.
-        return new GestIaDbContext(options, FixedOrganizationContext.None());
+        return new GestIaDbContext(options, FixedOrganizationContext.None(), new NoHistoryRecorder());
     }
 }

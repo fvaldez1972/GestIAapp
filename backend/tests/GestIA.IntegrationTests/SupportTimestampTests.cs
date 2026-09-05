@@ -14,7 +14,7 @@ public sealed class SupportTimestampTests
     {
         var options = new DbContextOptionsBuilder<GestIaDbContext>()
             .UseSqlServer("Server=localhost;Database=Unused;Integrated Security=true;TrustServerCertificate=true").Options;
-        using var context = new GestIaDbContext(options, FixedOrganizationContext.None());
+        using var context = new GestIaDbContext(options, FixedOrganizationContext.None(), new NoHistoryRecorder());
         var property = context.Model.FindEntityType(typeof(SupportSession))!.FindProperty(propertyName)!;
         Assert.Equal("datetime2(7)", property.GetColumnType());
     }

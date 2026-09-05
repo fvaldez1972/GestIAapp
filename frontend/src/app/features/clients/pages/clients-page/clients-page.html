@@ -20,11 +20,13 @@
   </div>
 </section>
 
-<section class="context-card context-card--clients" aria-label="Contexto de organización">
-  @if (newClientDisabledReason()) {
+<!-- Sin el bloque de organización, que ahora vive en la barra de contexto, esta franja sólo
+     existe cuando hay algo que advertir. Dibujarla vacía dejaba una caja en blanco. -->
+@if (newClientDisabledReason()) {
+  <section class="context-card context-card--clients" aria-label="Aviso de contexto">
     <p class="context-warning">{{ newClientDisabledReason() }}</p>
-  }
-</section>
+  </section>
+}
 
 <section class="client-kpis" aria-label="Indicadores de clientes">
   <article>

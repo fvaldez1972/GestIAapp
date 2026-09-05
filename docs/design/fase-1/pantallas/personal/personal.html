@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  body { margin:0; background:#f4f6fa; font-family:Archivo, system-ui, sans-serif; color:#253040; text-wrap:pretty; font-variant-numeric:tabular-nums; }
+  a { color:#087f9c; text-decoration:none; }
+  a:hover { color:#10104e; text-decoration:underline; }
+  button { font-family:Archivo, system-ui, sans-serif; }
+</style>
+</helmet>
+
+<div style="display:flex;flex-direction:column;gap:52px;padding:52px 60px 100px">
+
+  <div style="display:flex;flex-direction:column;gap:10px;max-width:1440px">
+    <div style="font:600 11px Archivo,sans-serif;letter-spacing:.16em;color:#5f6b7a">PERSONAL · DISEÑO TERMINADO · 1440 PX · TOKENS DE MARCA</div>
+    <div style="font:700 30px/1.15 Archivo,sans-serif;color:#10104e">Paso 7: alta de empleados con expediente mínimo</div>
+    <div style="font:400 14px/1.5 Archivo,sans-serif;color:#5f6b7a;max-width:90ch">Cinco vistas. Sesión de administrador de organización: menú de diez entradas, y la barra de contexto sin Cambiar ni Salir. Los nueve filtros quedan en cuatro; las cinco pestañas de la ficha, en tres. El expediente mínimo es identidad, contacto, zona, puesto, fecha de ingreso y los documentos indispensables: antidoping, uniformes, psicometría, Infonavit y registro estatal quedan fuera de la fase 1.</div>
+  </div>
+
+  <section data-screen-label="Vista 1 · Listado" id="v1" style="display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;align-items:baseline;gap:12px">
+      <span style="font:600 11.5px Archivo,sans-serif;letter-spacing:.14em;color:#5f6b7a">VISTA 1</span>
+      <span style="font:600 19px Archivo,sans-serif;color:#10104e">Listado con cuatro filtros y el vencimiento a la vista</span>
+    </div>
+    <div style="width:1440px;border:1px solid #dce2e9;border-radius:6px;overflow:hidden;background:#f4f6fa">
+      <div style="height:4.5rem;background:#ffffff;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:14px;padding:0 20px">
+        <div style="display:flex;align-items:center;gap:10px;border:1px solid #dce2e9;border-radius:6px;padding:7px 11px;background:#ffffff">
+          <span style="font:400 11px Archivo,sans-serif;color:#5f6b7a">Organización activa</span>
+          <span style="font:600 13px Archivo,sans-serif;color:#10104e">{{ organizacion }}</span>
+        </div>
+        <span style="font:400 12.5px Archivo,sans-serif;color:#5f6b7a">Fecha operativa <span style="color:#253040;font-weight:600">{{ fecha }}</span></span>
+      </div>
+      <div style="display:flex;min-height:880px">
+        <dc-import name="SideMenu" active="Personal" role="admin" usuario="Renata Villaseñor" hint-size="272px,880px"></dc-import>
+        <div style="flex:1;padding:16px 20px 20px;display:flex;flex-direction:column;gap:16px;min-width:0">
+          <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px">
+            <div>
+              <div style="font:600 11px Archivo,sans-serif;letter-spacing:.1em;color:#5f6b7a;padding-bottom:5px">PERSONAL</div>
+              <div style="font:700 22px/1.2 Archivo,sans-serif;color:#10104e">Personal</div>
+              <div style="font:400 13px Archivo,sans-serif;color:#5f6b7a;padding-top:4px">Veintiocho empleados. El puesto sale del catálogo de la organización y decide a qué posiciones se puede asignar a cada uno.</div>
+            </div>
+            <button type="button" style="background:#10104e;color:#ffffff;border:1px solid #10104e;border-radius:6px;padding:0 16px;height:2.5rem;display:flex;align-items:center;font:600 13px Archivo,sans-serif;cursor:pointer">Nuevo empleado</button>
+          </div>
+          <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;display:flex;flex-direction:column">
+            <div style="padding:16px;display:flex;flex-direction:column;gap:12px;border-bottom:1px solid #dce2e9">
+              <div style="display:flex;gap:12px;align-items:center">
+                <div style="flex:1;height:2.5rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;gap:9px;padding:0 12px;min-width:0">
+                  <span style="width:14px;height:14px;border:1.5px solid #5f6b7a;border-radius:50%;flex:none"></span>
+                  <span style="font:400 13px Archivo,sans-serif;color:#5f6b7a">Buscar empleado, CURP o puesto</span>
+                </div>
+                <span style="font:400 12.5px Archivo,sans-serif;color:#5f6b7a;flex:none">9 resultados</span>
+                <button type="button" style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;background:#ffffff;padding:0 14px;display:flex;align-items:center;gap:8px;font:600 12.5px Archivo,sans-serif;color:#253040;flex:none;cursor:pointer">Filtros <span style="border:1px solid #22c6ee;background:#e9f7fa;border-radius:3px;padding:1px 6px;font:600 10.5px Archivo,sans-serif;color:#087f9c">2</span></button>
+              </div>
+              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                <span style="border:1px solid #dce2e9;background:#f7f9fb;border-radius:3px;padding:5px 9px;font:500 12px Archivo,sans-serif;color:#253040;display:flex;gap:8px;align-items:center">Zona: Poniente <button type="button" aria-label="Quitar filtro Zona: Poniente" style="border:0;background:transparent;padding:0;font:600 11px Archivo,sans-serif;color:#5f6b7a;cursor:pointer">✕</button></span>
+                <span style="border:1px solid #dce2e9;background:#f7f9fb;border-radius:3px;padding:5px 9px;font:500 12px Archivo,sans-serif;color:#253040;display:flex;gap:8px;align-items:center">Vigencia: vencidos y por vencer <button type="button" aria-label="Quitar filtro Vigencia: vencidos y por vencer" style="border:0;background:transparent;padding:0;font:600 11px Archivo,sans-serif;color:#5f6b7a;cursor:pointer">✕</button></span>
+                <button type="button" style="border:0;background:transparent;padding:0;font:600 12px Archivo,sans-serif;color:#087f9c;cursor:pointer">Quitar todos</button>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;padding:11px 16px;background:#f7f9fb;border-bottom:1px solid #dce2e9;font:600 10.5px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">
+              <span style="width:220px;flex:none">EMPLEADO</span><span style="width:190px;flex:none">PUESTO</span><span style="flex:1;min-width:0">ZONA</span><span style="width:130px;flex:none">INGRESO</span><span style="width:150px;flex:none">DOCUMENTOS</span><span style="width:130px;flex:none">ESTADO</span><span style="width:52px;flex:none"></span>
+            </div>
+            <sc-for list="{{ rows }}" as="r" hint-placeholder-count="9">
+              <div style="display:flex;align-items:center;padding:13px 16px;border-bottom:1px solid #dce2e9;background:#ffffff">
+                <span style="width:220px;flex:none;font:600 13px Archivo,sans-serif;color:#253040;padding-right:16px">{{ r.nombre }}</span>
+                <span style="width:190px;flex:none;font:400 12.5px Archivo,sans-serif;color:#5f6b7a;padding-right:16px">{{ r.puesto }}</span>
+                <span style="flex:1;min-width:0;font:400 12.5px Archivo,sans-serif;color:#5f6b7a;padding-right:16px">{{ r.zona }}</span>
+                <span style="width:130px;flex:none;font:400 12px Archivo,sans-serif;color:#5f6b7a">{{ r.ingreso }}</span>
+                <span style="width:150px;flex:none;padding-right:12px">
+                  <span style="border:1px solid {{ r.docBorder }};background:{{ r.docBg }};border-radius:3px;padding:3px 8px;font:600 10.5px Archivo,sans-serif;color:{{ r.docColor }}">{{ r.docText }}</span>
+                </span>
+                <span style="width:130px;flex:none;display:flex;align-items:center;gap:7px;font:500 12px Archivo,sans-serif;color:{{ r.estadoColor }}">
+                  <span style="width:7px;height:7px;border-radius:{{ r.dotRadius }};background:{{ r.dotBg }};border:1.5px solid {{ r.dotBorder }};flex:none;box-sizing:border-box"></span>{{ r.estado }}
+                </span>
+                <span style="width:52px;flex:none;display:flex;justify-content:flex-end">
+                  <button type="button" aria-label="Acciones de {{ r.nombre }}" style="width:28px;height:28px;border:1px solid #dce2e9;background:#ffffff;border-radius:6px;display:flex;align-items:center;justify-content:center;font:600 13px Archivo,sans-serif;color:#5f6b7a;cursor:pointer">⋯</button>
+                </span>
+              </div>
+            </sc-for>
+            <div style="padding:14px 16px;display:flex;justify-content:space-between;align-items:center;font:400 12.5px Archivo,sans-serif;color:#5f6b7a">
+              <span>9 de 28 empleados</span>
+              <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Los cinco estados del empleado se leen en la última columna, cada uno con su palabra.</span>
+            </div>
+          </div>
+          <div style="display:flex;gap:16px;align-items:flex-start">
+            <div style="width:300px;flex:none;background:#ffffff;border:1px solid #dce2e9;border-radius:6px;overflow:hidden">
+              <div style="padding:11px 14px;background:#f7f9fb;border-bottom:1px solid #dce2e9;font:600 10.5px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">PANEL DE FILTROS · ABIERTO</div>
+              <div style="padding:14px;display:flex;flex-direction:column;gap:13px">
+                <div style="display:flex;flex-direction:column;gap:5px">
+                  <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">ZONA</span>
+                  <span style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;justify-content:space-between;padding:0 11px;font:600 12.5px Archivo,sans-serif;color:#253040">Poniente <span style="font-size:10px;color:#5f6b7a">▾</span></span>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:5px">
+                  <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">PUESTO</span>
+                  <span style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;justify-content:space-between;padding:0 11px;font:400 12.5px Archivo,sans-serif;color:#5f6b7a">Todos <span style="font-size:10px">▾</span></span>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:7px">
+                  <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">ESTADO DEL EMPLEADO</span>
+                  <span style="display:flex;align-items:center;gap:9px;font:400 12.5px Archivo,sans-serif;color:#253040"><span style="width:15px;height:15px;border:1px solid #dce2e9;border-radius:3px;flex:none"></span>Candidato</span>
+                  <span style="display:flex;align-items:center;gap:9px;font:400 12.5px Archivo,sans-serif;color:#253040"><span style="width:15px;height:15px;border:1px solid #dce2e9;border-radius:3px;flex:none"></span>Activo</span>
+                  <span style="display:flex;align-items:center;gap:9px;font:400 12.5px Archivo,sans-serif;color:#253040"><span style="width:15px;height:15px;border:1px solid #dce2e9;border-radius:3px;flex:none"></span>Permiso</span>
+                  <span style="display:flex;align-items:center;gap:9px;font:400 12.5px Archivo,sans-serif;color:#253040"><span style="width:15px;height:15px;border:1px solid #dce2e9;border-radius:3px;flex:none"></span>Inactivo</span>
+                  <span style="display:flex;align-items:center;gap:9px;font:400 12.5px Archivo,sans-serif;color:#253040"><span style="width:15px;height:15px;border:1px solid #dce2e9;border-radius:3px;flex:none"></span>Baja</span>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:7px">
+                  <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">VIGENCIA DOCUMENTAL</span>
+                  <span style="display:flex;align-items:center;gap:9px;font:400 12.5px Archivo,sans-serif;color:#253040"><span style="width:15px;height:15px;border:1.5px solid #22c6ee;background:#e9f7fa;border-radius:3px;flex:none;box-sizing:border-box"></span>Vencidos</span>
+                  <span style="display:flex;align-items:center;gap:9px;font:400 12.5px Archivo,sans-serif;color:#253040"><span style="width:15px;height:15px;border:1.5px solid #22c6ee;background:#e9f7fa;border-radius:3px;flex:none;box-sizing:border-box"></span>Por vencer en {{ umbral }} días</span>
+                  <span style="display:flex;align-items:center;gap:9px;font:400 12.5px Archivo,sans-serif;color:#253040"><span style="width:15px;height:15px;border:1px solid #dce2e9;border-radius:3px;flex:none"></span>Sin cargar</span>
+                  <span style="display:flex;align-items:center;gap:9px;font:400 12.5px Archivo,sans-serif;color:#253040"><span style="width:15px;height:15px;border:1px solid #dce2e9;border-radius:3px;flex:none"></span>Al día</span>
+                </div>
+                <div style="font:400 11.5px/1.5 Archivo,sans-serif;color:#5f6b7a;border-top:1px solid #dce2e9;padding-top:11px">Los {{ umbral }} días son el valor por defecto de la organización, configurable. Sin botón «Filtrar»: se aplican al cambiar.</div>
+              </div>
+            </div>
+            <div style="width:260px;flex:none;background:#ffffff;border:1px solid #dce2e9;border-radius:6px;overflow:hidden">
+              <div style="padding:11px 14px;background:#f7f9fb;border-bottom:1px solid #dce2e9;font:600 10.5px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">ACCIONES DE FILA · MENÚ ABIERTO</div>
+              <div style="display:flex;flex-direction:column;padding:6px 0">
+                <span style="padding:10px 14px;font:500 13px Archivo,sans-serif;color:#253040;background:#e9f7fa">Editar empleado</span>
+                <span style="padding:10px 14px;font:500 13px Archivo,sans-serif;color:#253040">Asignar a una posición</span>
+                <span style="padding:10px 14px;font:500 13px Archivo,sans-serif;color:#253040">Registrar permiso</span>
+                <span style="height:1px;background:#dce2e9;margin:6px 0"></span>
+                <span style="padding:10px 14px;font:600 13px Archivo,sans-serif;color:#dc2626">Dar de baja</span>
+              </div>
+              <div style="padding:12px 14px;border-top:1px solid #dce2e9;font:400 11.5px/1.5 Archivo,sans-serif;color:#5f6b7a">Documentos no está aquí: ya existe como pestaña del panel.</div>
+            </div>
+            <div style="flex:1;background:#ffffff;border:1px solid #dce2e9;border-radius:6px;padding:16px;display:flex;flex-direction:column;gap:16px;min-width:0">
+              <div><div style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a;padding-bottom:7px">LO QUE SE FUE DE ESTA PANTALLA</div><div style="font:400 12.5px/1.6 Archivo,sans-serif;color:#253040">De nueve filtros expuestos quedan cuatro. Se van «Sin sede visible» y «Todos los servicios», que tienen una sola opción real; el selector de organización, que se hereda de la barra de contexto; y los que repetían el buscador. De cinco pestañas en la ficha quedan tres.</div></div>
+              <div><div style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a;padding-bottom:7px">CÓMO SE LEE EL VENCIMIENTO</div><div style="font:400 12.5px/1.6 Archivo,sans-serif;color:#253040">La píldora de documentos dice cuántos y en qué estado: <span style="color:#dc2626;font-weight:600">vencidos</span>, <span style="color:#d97706;font-weight:600">por vencer</span>, sin cargar o al día. Es lo que hoy obliga a abrir la ficha una por una. El color acompaña al texto; el conteo se lee igual en blanco y negro.</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section data-screen-label="Vista 2 · Panel Datos" id="v2" style="display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;align-items:baseline;gap:12px">
+      <span style="font:600 11.5px Archivo,sans-serif;letter-spacing:.14em;color:#5f6b7a">VISTA 2</span>
+      <span style="font:600 19px Archivo,sans-serif;color:#10104e">Panel de detalle, pestaña Datos, con la franja de elegibilidad</span>
+    </div>
+    <div style="width:1440px;border:1px solid #dce2e9;border-radius:6px;overflow:hidden;background:#f4f6fa">
+      <div style="height:4.5rem;background:#ffffff;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:14px;padding:0 20px">
+        <div style="display:flex;align-items:center;gap:10px;border:1px solid #dce2e9;border-radius:6px;padding:7px 11px;background:#ffffff">
+          <span style="font:400 11px Archivo,sans-serif;color:#5f6b7a">Organización activa</span>
+          <span style="font:600 13px Archivo,sans-serif;color:#10104e">{{ organizacion }}</span>
+        </div>
+        <span style="font:400 12.5px Archivo,sans-serif;color:#5f6b7a">Fecha operativa <span style="color:#253040;font-weight:600">{{ fecha }}</span></span>
+      </div>
+      <div style="display:flex;min-height:880px">
+        <dc-import name="SideMenu" active="Personal" role="admin" usuario="Renata Villaseñor" hint-size="272px,880px"></dc-import>
+        <div style="flex:1;padding:16px 20px 20px;display:flex;flex-direction:column;gap:16px;min-width:0">
+          <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px">
+            <div>
+              <div style="font:600 11px Archivo,sans-serif;letter-spacing:.1em;color:#5f6b7a;padding-bottom:5px">PERSONAL</div>
+              <div style="font:700 22px/1.2 Archivo,sans-serif;color:#10104e">Personal</div>
+            </div>
+            <button type="button" style="background:#10104e;color:#ffffff;border:1px solid #10104e;border-radius:6px;padding:0 16px;height:2.5rem;display:flex;align-items:center;font:600 13px Archivo,sans-serif;cursor:pointer">Nuevo empleado</button>
+          </div>
+          <div style="display:flex;gap:16px;align-items:stretch;min-width:0">
+            <div style="flex:1;min-width:0;background:#ffffff;border:1px solid #dce2e9;border-radius:6px;display:flex;flex-direction:column">
+              <div style="padding:12px;border-bottom:1px solid #dce2e9;display:flex;gap:10px;align-items:center">
+                <div style="flex:1;height:2.5rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;gap:9px;padding:0 11px;min-width:0">
+                  <span style="width:14px;height:14px;border:1.5px solid #5f6b7a;border-radius:50%;flex:none"></span>
+                  <span style="font:400 12.5px Archivo,sans-serif;color:#5f6b7a">Buscar empleado</span>
+                </div>
+                <button type="button" style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;background:#ffffff;padding:0 12px;font:600 12px Archivo,sans-serif;color:#253040;flex:none;cursor:pointer">Filtros</button>
+              </div>
+              <div style="display:flex;align-items:center;padding:10px 12px;background:#f7f9fb;border-bottom:1px solid #dce2e9;font:600 10.5px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">
+                <span style="flex:1;min-width:0">EMPLEADO</span><span style="width:104px;flex:none">DOCUMENTOS</span><span style="width:40px;flex:none"></span>
+              </div>
+              <sc-for list="{{ rowsA }}" as="r" hint-placeholder-count="9">
+                <div style="display:flex;align-items:center;padding:12px;border-bottom:1px solid #dce2e9;background:{{ r.bg }}">
+                  <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;padding-right:10px">
+                    <span style="font:600 12.5px Archivo,sans-serif;color:#253040">{{ r.nombre }}</span>
+                    <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">{{ r.puesto }}</span>
+                  </span>
+                  <span style="width:104px;flex:none">
+                    <span style="border:1px solid {{ r.docBorder }};background:{{ r.docBg }};border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:{{ r.docColor }}">{{ r.docText }}</span>
+                  </span>
+                  <span style="width:40px;flex:none;display:flex;justify-content:flex-end">
+                    <button type="button" aria-label="Acciones de {{ r.nombre }}" style="width:26px;height:26px;border:1px solid #dce2e9;background:#ffffff;border-radius:6px;display:flex;align-items:center;justify-content:center;font:600 12px Archivo,sans-serif;color:#5f6b7a;cursor:pointer">⋯</button>
+                  </span>
+                </div>
+              </sc-for>
+              <div style="padding:12px;font:400 11.5px Archivo,sans-serif;color:#5f6b7a">9 de 28 empleados · la tabla se comprime, no se oculta</div>
+            </div>
+            <div style="width:620px;flex:none;background:#ffffff;border:1px solid #dce2e9;border-radius:6px;display:flex;flex-direction:column">
+              <div style="padding:14px 16px;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:12px">
+                <span style="font:700 13px Archivo,sans-serif;color:#10104e">Miguel Ángel Peñaloza Iñiguez</span>
+                <span style="display:flex;align-items:center;gap:6px;border:1px solid #dce2e9;background:#f7f9fb;border-radius:3px;padding:3px 8px;font:600 10.5px Archivo,sans-serif;color:#253040"><span style="width:6px;height:6px;border-radius:50%;background:#16a34a"></span>ACTIVO</span>
+                <button type="button" aria-label="Cerrar el panel de Miguel Ángel Peñaloza Iñiguez" style="margin-left:auto;width:28px;height:28px;border:1px solid #dce2e9;background:#ffffff;border-radius:6px;display:flex;align-items:center;justify-content:center;font:600 12px Archivo,sans-serif;color:#5f6b7a;cursor:pointer">✕</button>
+              </div>
+              <div style="display:flex;gap:20px;padding:0 16px;border-bottom:1px solid #dce2e9">
+                <span style="padding:12px 0;border-bottom:2px solid #22c6ee;font:600 12.5px Archivo,sans-serif;color:#10104e">Datos</span>
+                <span style="padding:12px 0;border-bottom:2px solid transparent;font:500 12.5px Archivo,sans-serif;color:#5f6b7a">Documentos <span style="color:#253040;font-weight:600">5</span></span>
+                <span style="padding:12px 0;border-bottom:2px solid transparent;font:500 12.5px Archivo,sans-serif;color:#5f6b7a">Asignaciones <span style="color:#253040;font-weight:600">0</span></span>
+              </div>
+              <div style="padding:16px;display:flex;flex-direction:column;gap:18px">
+                <div style="display:flex;flex-direction:column;gap:11px">
+                  <div style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">IDENTIDAD</div>
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px 16px">
+                    <div style="display:flex;flex-direction:column;gap:3px;grid-column:span 2"><span style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">NOMBRE COMPLETO</span><span style="font:600 12.5px Archivo,sans-serif;color:#253040">Miguel Ángel Peñaloza Iñiguez</span></div>
+                    <div style="display:flex;flex-direction:column;gap:3px"><span style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">CURP</span><span style="font:600 12.5px Archivo,sans-serif;color:#253040">PEIM880314HJCLÑG04</span></div>
+                    <div style="display:flex;flex-direction:column;gap:3px"><span style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">FECHA DE NACIMIENTO</span><span style="font:600 12.5px Archivo,sans-serif;color:#253040">14 mar 1988</span></div>
+                  </div>
+                </div>
+                <div style="height:1px;background:#dce2e9"></div>
+                <div style="display:flex;flex-direction:column;gap:11px">
+                  <div style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">CONTACTO</div>
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px 16px">
+                    <div style="display:flex;flex-direction:column;gap:3px"><span style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">TELÉFONO</span><span style="font:600 12.5px Archivo,sans-serif;color:#253040">33 1476 8823</span></div>
+                    <div style="display:flex;flex-direction:column;gap:3px"><span style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">CORREO</span><span style="font:500 12.5px Archivo,sans-serif;color:#5f6b7a">Sin correo registrado</span></div>
+                    <div style="display:flex;flex-direction:column;gap:3px;grid-column:span 2"><span style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">DOMICILIO</span><span style="font:600 12.5px Archivo,sans-serif;color:#253040">Calle Rincón de la Peñita 218, Col. Lomas del Refugio, Zapopan, Jalisco</span></div>
+                  </div>
+                </div>
+                <div style="height:1px;background:#dce2e9"></div>
+                <div style="display:flex;flex-direction:column;gap:11px">
+                  <div style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">ADSCRIPCIÓN</div>
+                  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px 16px">
+                    <div style="display:flex;flex-direction:column;gap:3px"><span style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">ZONA</span><span style="font:600 12.5px Archivo,sans-serif;color:#253040">Poniente</span></div>
+                    <div style="display:flex;flex-direction:column;gap:3px"><span style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">PUESTO</span><span style="font:600 12.5px Archivo,sans-serif;color:#253040">Guardia acceso</span></div>
+                    <div style="display:flex;flex-direction:column;gap:3px"><span style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">FECHA DE INGRESO</span><span style="font:600 12.5px Archivo,sans-serif;color:#253040">28 ago 2026</span></div>
+                  </div>
+                </div>
+                <div style="border:1px solid #d97706;border-radius:6px;background:#ffffff;padding:14px;display:flex;flex-direction:column;gap:11px">
+                  <div style="display:flex;align-items:center;gap:9px">
+                    <span style="border:1px solid #d97706;border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:#d97706">NO ELEGIBLE</span>
+                    <span style="font:600 12.5px Archivo,sans-serif;color:#253040">para la posición P-01 · Acceso principal</span>
+                  </div>
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                    <div style="border:1px solid #dce2e9;background:#f7f9fb;border-radius:6px;padding:11px;display:flex;flex-direction:column;gap:4px">
+                      <span style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">PUESTO DEL EMPLEADO</span>
+                      <span style="font:600 12.5px Archivo,sans-serif;color:#253040">Guardia acceso</span>
+                    </div>
+                    <div style="border:1px solid #dce2e9;background:#f7f9fb;border-radius:6px;padding:11px;display:flex;flex-direction:column;gap:4px">
+                      <span style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">PERFIL REQUERIDO DE LA POSICIÓN</span>
+                      <span style="font:600 12.5px Archivo,sans-serif;color:#253040">Guardia de acceso</span>
+                    </div>
+                  </div>
+                  <div style="font:400 12px/1.55 Archivo,sans-serif;color:#253040">Las dos cadenas se comparan como texto y difieren en una palabra, así que el sistema no lo habilita. No es una diferencia de capacidad: es de redacción. Se corrige unificando el puesto contra el catálogo, aquí y no en el paso de asignación.</div>
+                  <div style="display:flex;gap:9px;align-items:center">
+                    <button type="button" style="height:2.5rem;border:1px solid #dce2e9;background:#ffffff;border-radius:6px;padding:0 13px;font:600 12.5px Archivo,sans-serif;color:#253040;cursor:pointer">Corregir el puesto</button>
+                    <button type="button" style="height:2.5rem;border:1px solid #dce2e9;background:#ffffff;border-radius:6px;padding:0 13px;font:600 12.5px Archivo,sans-serif;color:#253040;cursor:pointer">Ver el catálogo de puestos</button>
+                  </div>
+                </div>
+              </div>
+              <div style="margin-top:auto;border-top:1px solid #dce2e9;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px">
+                <span style="font:400 11.5px/1.4 Archivo,sans-serif;color:#5f6b7a;max-width:30ch">Documentos al día. Lo único pendiente es el puesto.</span>
+                <span style="display:flex;gap:9px;align-items:center">
+                  <button type="button" style="height:2.5rem;border:1px solid #dce2e9;background:#ffffff;border-radius:6px;padding:0 13px;font:600 12.5px Archivo,sans-serif;color:#253040;cursor:pointer">Editar empleado</button>
+                  <button type="button" style="height:2.5rem;background:#10104e;color:#ffffff;border:1px solid #10104e;border-radius:6px;padding:0 15px;font:600 12.5px Archivo,sans-serif;cursor:pointer">Asignar a una posición</button>
+                </span>
+              </div>
+            </div>
+          </div>
+          <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;padding:16px;display:flex;gap:28px">
+            <div style="flex:1"><div style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a;padding-bottom:7px">ADVERTENCIA DEL ANEXO, VISIBLE ANTES DE TROPEZAR</div><div style="font:400 12.5px/1.6 Archivo,sans-serif;color:#253040">Puesto y perfil son texto libre en ambos lados. Sin esta franja, el defecto aparece en el paso 8 como «ningún empleado es elegible», sin decir por qué. Aquí se nombra el motivo y se ofrece la corrección.</div></div>
+            <div style="flex:1"><div style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a;padding-bottom:7px">TRES PESTAÑAS, NO CINCO</div><div style="font:400 12.5px/1.6 Archivo,sans-serif;color:#253040">Datos · Documentos · Asignaciones, cada una con su conteo. La activa se marca en <span style="color:#087f9c;font-weight:600">cian</span>; la fila seleccionada, en <span style="color:#087f9c;font-weight:600">cyan-soft</span>. Elegibilidad no es pestaña: es una condición del expediente y vive junto al puesto.</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section data-screen-label="Vista 3 · Panel Documentos" id="v3" style="display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;align-items:baseline;gap:12px">
+      <span style="font:600 11.5px Archivo,sans-serif;letter-spacing:.14em;color:#5f6b7a">VISTA 3</span>
+      <span style="font:600 19px Archivo,sans-serif;color:#10104e">Panel, pestaña Documentos, con vigencias</span>
+    </div>
+    <div style="width:1440px;border:1px solid #dce2e9;border-radius:6px;overflow:hidden;background:#f4f6fa">
+      <div style="height:4.5rem;background:#ffffff;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:14px;padding:0 20px">
+        <div style="display:flex;align-items:center;gap:10px;border:1px solid #dce2e9;border-radius:6px;padding:7px 11px;background:#ffffff">
+          <span style="font:400 11px Archivo,sans-serif;color:#5f6b7a">Organización activa</span>
+          <span style="font:600 13px Archivo,sans-serif;color:#10104e">{{ organizacion }}</span>
+        </div>
+        <span style="font:400 12.5px Archivo,sans-serif;color:#5f6b7a">Fecha operativa <span style="color:#253040;font-weight:600">{{ fecha }}</span></span>
+      </div>
+      <div style="display:flex;min-height:880px">
+        <dc-import name="SideMenu" active="Personal" role="admin" usuario="Renata Villaseñor" hint-size="272px,880px"></dc-import>
+        <div style="flex:1;padding:16px 20px 20px;display:flex;flex-direction:column;gap:16px;min-width:0">
+          <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px">
+            <div>
+              <div style="font:600 11px Archivo,sans-serif;letter-spacing:.1em;color:#5f6b7a;padding-bottom:5px">PERSONAL</div>
+              <div style="font:700 22px/1.2 Archivo,sans-serif;color:#10104e">Personal</div>
+            </div>
+            <button type="button" style="background:#10104e;color:#ffffff;border:1px solid #10104e;border-radius:6px;padding:0 16px;height:2.5rem;display:flex;align-items:center;font:600 13px Archivo,sans-serif;cursor:pointer">Nuevo empleado</button>
+          </div>
+          <div style="display:flex;gap:16px;align-items:stretch;min-width:0">
+            <div style="flex:1;min-width:0;background:#ffffff;border:1px solid #dce2e9;border-radius:6px;display:flex;flex-direction:column">
+              <div style="padding:12px;border-bottom:1px solid #dce2e9;display:flex;gap:10px;align-items:center">
+                <div style="flex:1;height:2.5rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;gap:9px;padding:0 11px;min-width:0">
+                  <span style="width:14px;height:14px;border:1.5px solid #5f6b7a;border-radius:50%;flex:none"></span>
+                  <span style="font:400 12.5px Archivo,sans-serif;color:#5f6b7a">Buscar empleado</span>
+                </div>
+                <button type="button" style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;background:#ffffff;padding:0 12px;font:600 12px Archivo,sans-serif;color:#253040;flex:none;cursor:pointer">Filtros</button>
+              </div>
+              <div style="display:flex;align-items:center;padding:10px 12px;background:#f7f9fb;border-bottom:1px solid #dce2e9;font:600 10.5px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">
+                <span style="flex:1;min-width:0">EMPLEADO</span><span style="width:104px;flex:none">DOCUMENTOS</span><span style="width:40px;flex:none"></span>
+              </div>
+              <sc-for list="{{ rowsB }}" as="r" hint-placeholder-count="9">
+                <div style="display:flex;align-items:center;padding:12px;border-bottom:1px solid #dce2e9;background:{{ r.bg }}">
+                  <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;padding-right:10px">
+                    <span style="font:600 12.5px Archivo,sans-serif;color:#253040">{{ r.nombre }}</span>
+                    <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">{{ r.puesto }}</span>
+                  </span>
+                  <span style="width:104px;flex:none">
+                    <span style="border:1px solid {{ r.docBorder }};background:{{ r.docBg }};border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:{{ r.docColor }}">{{ r.docText }}</span>
+                  </span>
+                  <span style="width:40px;flex:none;display:flex;justify-content:flex-end">
+                    <button type="button" aria-label="Acciones de {{ r.nombre }}" style="width:26px;height:26px;border:1px solid #dce2e9;background:#ffffff;border-radius:6px;display:flex;align-items:center;justify-content:center;font:600 12px Archivo,sans-serif;color:#5f6b7a;cursor:pointer">⋯</button>
+                  </span>
+                </div>
+              </sc-for>
+              <div style="padding:12px;font:400 11.5px Archivo,sans-serif;color:#5f6b7a">9 de 28 empleados</div>
+            </div>
+            <div style="width:620px;flex:none;background:#ffffff;border:1px solid #dce2e9;border-radius:6px;display:flex;flex-direction:column">
+              <div style="padding:14px 16px;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:12px">
+                <span style="font:700 13px Archivo,sans-serif;color:#10104e">José Ramón Villalobos Cázares</span>
+                <span style="display:flex;align-items:center;gap:6px;border:1px solid #dce2e9;background:#f7f9fb;border-radius:3px;padding:3px 8px;font:600 10.5px Archivo,sans-serif;color:#253040"><span style="width:6px;height:6px;border-radius:50%;background:#16a34a"></span>ACTIVO</span>
+                <button type="button" aria-label="Cerrar el panel de José Ramón Villalobos Cázares" style="margin-left:auto;width:28px;height:28px;border:1px solid #dce2e9;background:#ffffff;border-radius:6px;display:flex;align-items:center;justify-content:center;font:600 12px Archivo,sans-serif;color:#5f6b7a;cursor:pointer">✕</button>
+              </div>
+              <div style="display:flex;gap:20px;padding:0 16px;border-bottom:1px solid #dce2e9">
+                <span style="padding:12px 0;border-bottom:2px solid transparent;font:500 12.5px Archivo,sans-serif;color:#5f6b7a">Datos</span>
+                <span style="padding:12px 0;border-bottom:2px solid #22c6ee;font:600 12.5px Archivo,sans-serif;color:#10104e">Documentos <span style="color:#253040;font-weight:600">5</span></span>
+                <span style="padding:12px 0;border-bottom:2px solid transparent;font:500 12.5px Archivo,sans-serif;color:#5f6b7a">Asignaciones <span style="color:#253040;font-weight:600">2</span></span>
+              </div>
+              <div style="padding:16px;display:flex;flex-direction:column;gap:14px">
+                <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap">
+                  <span style="border:1px solid #dc2626;border-radius:3px;padding:3px 8px;font:600 10.5px Archivo,sans-serif;color:#dc2626">2 VENCIDOS</span>
+                  <span style="border:1px solid #d97706;border-radius:3px;padding:3px 8px;font:600 10.5px Archivo,sans-serif;color:#d97706">1 POR VENCER</span>
+                  <span style="border:1px solid #dce2e9;background:#f7f9fb;border-radius:3px;padding:3px 8px;font:600 10.5px Archivo,sans-serif;color:#5f6b7a">2 VIGENTES</span>
+                  <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a;margin-left:auto">Por vencer: {{ umbral }} días o menos</span>
+                </div>
+                <div style="border:1px solid #dce2e9;border-radius:6px;overflow:hidden">
+                  <div style="display:flex;align-items:center;padding:10px 13px;background:#f7f9fb;border-bottom:1px solid #dce2e9;font:600 10.5px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">
+                    <span style="flex:1;min-width:0">REQUISITO DOCUMENTAL</span><span style="width:150px;flex:none">VIGENCIA</span><span style="width:118px;flex:none">ESTADO</span>
+                  </div>
+                  <sc-for list="{{ docs }}" as="d" hint-placeholder-count="5">
+                    <div style="display:flex;align-items:center;padding:12px 13px;border-bottom:1px solid #dce2e9;background:#ffffff">
+                      <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;padding-right:12px">
+                        <span style="font:600 12.5px Archivo,sans-serif;color:#253040">{{ d.nombre }}</span>
+                        <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">{{ d.nota }}</span>
+                      </span>
+                      <span style="width:150px;flex:none;font:500 12px Archivo,sans-serif;color:{{ d.vigColor }}">{{ d.vigencia }}</span>
+                      <span style="width:118px;flex:none;display:flex;align-items:center;gap:8px">
+                        <span style="border:1px solid {{ d.pillBorder }};background:{{ d.pillBg }};border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:{{ d.pillColor }}">{{ d.pill }}</span>
+                        <button type="button" aria-label="Reemplazar {{ d.nombre }}" style="width:24px;height:24px;border:1px solid #dce2e9;background:#ffffff;border-radius:6px;display:flex;align-items:center;justify-content:center;font:600 12px Archivo,sans-serif;color:#5f6b7a;cursor:pointer">↑</button>
+                      </span>
+                    </div>
+                  </sc-for>
+                </div>
+                <div style="border:1px solid #dce2e9;background:#f7f9fb;border-radius:6px;padding:13px;display:flex;flex-direction:column;gap:5px">
+                  <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">CONFIGURADO POR LA ORGANIZACIÓN, NO FIJO DEL SISTEMA</span>
+                  <span style="font:400 12px/1.55 Archivo,sans-serif;color:#253040">Estos cinco requisitos son los que esta organización definió en su catálogo documental. Otra organización tendrá otros, y el expediente se evalúa contra los suyos. Antidoping, uniformes, psicometría, Infonavit y registro estatal quedan fuera de la fase 1, aunque la organización los pida en papel.</span>
+                </div>
+              </div>
+              <div style="margin-top:auto;border-top:1px solid #dce2e9;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px">
+                <span style="font:400 11.5px/1.4 Archivo,sans-serif;color:#5f6b7a;max-width:34ch">Tiene 2 asignaciones vigentes: el vencimiento no las interrumpe, lo hace visible.</span>
+                <span style="display:flex;gap:9px;align-items:center">
+                  <button type="button" style="height:2.5rem;border:1px solid #dce2e9;background:#ffffff;border-radius:6px;padding:0 13px;font:600 12.5px Archivo,sans-serif;color:#253040;cursor:pointer">Editar empleado</button>
+                  <button type="button" style="height:2.5rem;background:#10104e;color:#ffffff;border:1px solid #10104e;border-radius:6px;padding:0 15px;font:600 12.5px Archivo,sans-serif;cursor:pointer">Cargar documento vencido</button>
+                </span>
+              </div>
+            </div>
+          </div>
+          <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;padding:16px;display:flex;gap:28px">
+            <div style="flex:1"><div style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a;padding-bottom:7px">CUATRO ESTADOS DE VIGENCIA</div><div style="font:400 12.5px/1.6 Archivo,sans-serif;color:#253040"><span style="color:#dc2626;font-weight:600">Vencido</span> con la fecha en que caducó, <span style="color:#d97706;font-weight:600">por vencer</span> con los días que faltan, vigente con su fecha, y sin cargar cuando no hay archivo. Un documento sin vencimiento lo dice en su lugar; no se le inventa una fecha.</div></div>
+            <div style="flex:1"><div style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a;padding-bottom:7px">EL MISMO DATO EN DOS ESCALAS</div><div style="font:400 12.5px/1.6 Archivo,sans-serif;color:#253040">En el listado es una píldora con el conteo del peor estado. Aquí es el detalle documento por documento. El listado sirve para localizar; la pestaña, para resolver.</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section data-screen-label="Vista 4 · Alta" id="v4" style="display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;align-items:baseline;gap:12px">
+      <span style="font:600 11.5px Archivo,sans-serif;letter-spacing:.14em;color:#5f6b7a">VISTA 4</span>
+      <span style="font:600 19px Archivo,sans-serif;color:#10104e">Formulario de alta: el expediente mínimo, completo</span>
+    </div>
+    <div style="width:1440px;border:1px solid #dce2e9;border-radius:6px;overflow:hidden;background:#f4f6fa">
+      <div style="height:4.5rem;background:#ffffff;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:14px;padding:0 20px">
+        <div style="display:flex;align-items:center;gap:10px;border:1px solid #dce2e9;border-radius:6px;padding:7px 11px;background:#ffffff">
+          <span style="font:400 11px Archivo,sans-serif;color:#5f6b7a">Organización activa</span>
+          <span style="font:600 13px Archivo,sans-serif;color:#10104e">{{ organizacion }}</span>
+        </div>
+        <span style="font:400 12.5px Archivo,sans-serif;color:#5f6b7a">Fecha operativa <span style="color:#253040;font-weight:600">{{ fecha }}</span></span>
+      </div>
+      <div style="display:flex;min-height:880px">
+        <dc-import name="SideMenu" active="Personal" role="admin" usuario="Renata Villaseñor" hint-size="272px,880px"></dc-import>
+        <div style="flex:1;padding:16px 20px 20px;display:flex;flex-direction:column;gap:16px;min-width:0">
+          <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px">
+            <div>
+              <div style="font:600 11px Archivo,sans-serif;letter-spacing:.1em;color:#5f6b7a;padding-bottom:5px">PERSONAL</div>
+              <div style="font:700 22px/1.2 Archivo,sans-serif;color:#10104e">Personal</div>
+              <div style="font:400 13px Archivo,sans-serif;color:#5f6b7a;padding-top:4px">Vienes de la posición P-01 · Acceso principal, que necesita 2 elementos con perfil «Guardia de acceso».</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:16px;align-items:stretch;min-width:0">
+            <div style="flex:1;min-width:0;background:#ffffff;border:1px solid #dce2e9;border-radius:6px;display:flex;flex-direction:column">
+              <div style="padding:12px;border-bottom:1px solid #dce2e9;display:flex;gap:10px;align-items:center">
+                <div style="flex:1;height:2.5rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;gap:9px;padding:0 11px;min-width:0">
+                  <span style="width:14px;height:14px;border:1.5px solid #5f6b7a;border-radius:50%;flex:none"></span>
+                  <span style="font:400 12.5px Archivo,sans-serif;color:#5f6b7a">Buscar empleado</span>
+                </div>
+                <button type="button" style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;background:#ffffff;padding:0 12px;font:600 12px Archivo,sans-serif;color:#253040;flex:none;cursor:pointer">Filtros</button>
+              </div>
+              <div style="display:flex;align-items:center;padding:10px 12px;background:#f7f9fb;border-bottom:1px solid #dce2e9;font:600 10.5px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">
+                <span style="flex:1;min-width:0">EMPLEADO</span><span style="width:104px;flex:none">DOCUMENTOS</span><span style="width:40px;flex:none"></span>
+              </div>
+              <sc-for list="{{ rowsPlain }}" as="r" hint-placeholder-count="9">
+                <div style="display:flex;align-items:center;padding:12px;border-bottom:1px solid #dce2e9;background:#ffffff">
+                  <span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;padding-right:10px">
+                    <span style="font:600 12.5px Archivo,sans-serif;color:#253040">{{ r.nombre }}</span>
+                    <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">{{ r.puesto }}</span>
+                  </span>
+                  <span style="width:104px;flex:none">
+                    <span style="border:1px solid {{ r.docBorder }};background:{{ r.docBg }};border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:{{ r.docColor }}">{{ r.docText }}</span>
+                  </span>
+                  <span style="width:40px;flex:none;display:flex;justify-content:flex-end">
+                    <button type="button" aria-label="Acciones de {{ r.nombre }}" style="width:26px;height:26px;border:1px solid #dce2e9;background:#ffffff;border-radius:6px;display:flex;align-items:center;justify-content:center;font:600 12px Archivo,sans-serif;color:#5f6b7a;cursor:pointer">⋯</button>
+                  </span>
+                </div>
+              </sc-for>
+              <div style="padding:12px;font:400 11.5px Archivo,sans-serif;color:#5f6b7a">9 de 28 empleados</div>
+            </div>
+            <div style="width:620px;flex:none;background:#ffffff;border:1px solid #dce2e9;border-radius:6px;display:flex;flex-direction:column">
+              <div style="padding:14px 16px;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:12px">
+                <span style="font:700 13px Archivo,sans-serif;color:#10104e">Nuevo empleado</span>
+                <span style="border:1px solid #dce2e9;background:#f7f9fb;border-radius:3px;padding:3px 8px;font:600 10.5px Archivo,sans-serif;color:#5f6b7a">SE GUARDA COMO CANDIDATO</span>
+                <button type="button" aria-label="Cerrar el formulario de nuevo empleado" style="margin-left:auto;width:28px;height:28px;border:1px solid #dce2e9;background:#ffffff;border-radius:6px;display:flex;align-items:center;justify-content:center;font:600 12px Archivo,sans-serif;color:#5f6b7a;cursor:pointer">✕</button>
+              </div>
+              <div style="padding:16px;display:flex;flex-direction:column;gap:18px">
+                <div style="display:flex;flex-direction:column;gap:11px">
+                  <div style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">IDENTIDAD</div>
+                  <div style="display:flex;flex-direction:column;gap:5px">
+                    <label for="v4-nombre" style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">NOMBRE COMPLETO</label>
+                    <input id="v4-nombre" value="Perla Guadalupe Zúñiga Bañuelos" style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;padding:0 11px;font:600 12.5px Archivo,sans-serif;color:#253040;background:#ffffff;box-sizing:border-box">
+                  </div>
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                    <div style="display:flex;flex-direction:column;gap:5px">
+                      <label for="v4-curp" style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">CURP</label>
+                      <input id="v4-curp" value="ZUBP920718MJCÑÑR07" style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;padding:0 11px;font:600 12.5px Archivo,sans-serif;color:#253040;background:#ffffff;box-sizing:border-box">
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:5px">
+                      <label for="v4-nac" style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">FECHA DE NACIMIENTO</label>
+                      <input id="v4-nac" value="18 jul 1992" style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;padding:0 11px;font:600 12.5px Archivo,sans-serif;color:#253040;background:#ffffff;box-sizing:border-box">
+                    </div>
+                  </div>
+                </div>
+                <div style="height:1px;background:#dce2e9"></div>
+                <div style="display:flex;flex-direction:column;gap:11px">
+                  <div style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">CONTACTO</div>
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                    <div style="display:flex;flex-direction:column;gap:5px">
+                      <label for="v4-tel" style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">TELÉFONO</label>
+                      <input id="v4-tel" value="33 2318 9074" style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;padding:0 11px;font:600 12.5px Archivo,sans-serif;color:#253040;background:#ffffff;box-sizing:border-box">
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:5px">
+                      <label for="v4-correo" style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">CORREO · OPCIONAL</label>
+                      <input id="v4-correo" placeholder="Sin correo" style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;padding:0 11px;font:400 12.5px Archivo,sans-serif;color:#5f6b7a;background:#ffffff;box-sizing:border-box">
+                    </div>
+                  </div>
+                </div>
+                <div style="height:1px;background:#dce2e9"></div>
+                <div style="display:flex;flex-direction:column;gap:11px">
+                  <div style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">ADSCRIPCIÓN</div>
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                    <div style="display:flex;flex-direction:column;gap:5px">
+                      <label for="v4-zona" style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">ZONA</label>
+                      <span id="v4-zona" style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;justify-content:space-between;padding:0 11px;font:600 12.5px Archivo,sans-serif;color:#253040">Poniente <span style="font-size:10px;color:#5f6b7a">▾</span></span>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:5px">
+                      <label for="v4-puesto" style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">PUESTO</label>
+                      <span id="v4-puesto" style="height:2.5rem;border:1.5px solid #22c6ee;border-radius:6px;display:flex;align-items:center;justify-content:space-between;padding:0 11px;font:600 12.5px Archivo,sans-serif;color:#253040;box-sizing:border-box">Guardia de acceso <span style="font-size:10px;color:#5f6b7a">▾</span></span>
+                    </div>
+                  </div>
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                    <div style="display:flex;flex-direction:column;gap:5px">
+                      <label for="v4-ingreso" style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">FECHA DE INGRESO</label>
+                      <input id="v4-ingreso" value="04 sep 2026" style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;padding:0 11px;font:600 12.5px Archivo,sans-serif;color:#253040;background:#ffffff;box-sizing:border-box">
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:5px;justify-content:flex-end">
+                      <span style="font:400 11.5px/1.45 Archivo,sans-serif;color:#5f6b7a">El puesto se toma del catálogo tal cual está escrito. Elegirlo de la lista es lo que evita el bloqueo del paso 8.</span>
+                    </div>
+                  </div>
+                </div>
+                <div style="border:1px solid #dce2e9;border-radius:6px;overflow:hidden">
+                  <div style="padding:11px 13px;background:#f7f9fb;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:10px">
+                    <span style="font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">DOCUMENTOS INDISPENSABLES</span>
+                    <span style="border:1px solid #dce2e9;background:#ffffff;border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:#5f6b7a">CONFIGURADO POR LA ORGANIZACIÓN, NO FIJO DEL SISTEMA</span>
+                  </div>
+                  <sc-for list="{{ altaDocs }}" as="d" hint-placeholder-count="5">
+                    <div style="display:flex;align-items:center;gap:12px;padding:11px 13px;border-bottom:1px solid #dce2e9;background:#ffffff">
+                      <span style="flex:1;min-width:0;font:500 12.5px Archivo,sans-serif;color:#253040">{{ d.nombre }}</span>
+                      <span style="font:600 10.5px Archivo,sans-serif;color:{{ d.color }}">{{ d.estado }}</span>
+                      <button type="button" style="height:32px;border:1px solid #dce2e9;background:#ffffff;border-radius:6px;padding:0 11px;font:600 12px Archivo,sans-serif;color:#253040;cursor:pointer">{{ d.accion }}</button>
+                    </div>
+                  </sc-for>
+                  <div style="padding:11px 13px;font:400 11.5px/1.5 Archivo,sans-serif;color:#5f6b7a">Se puede guardar con documentos pendientes: el expediente queda incompleto y el listado lo dice. Lo que no se puede es asignar sin puesto.</div>
+                </div>
+              </div>
+              <div style="margin-top:auto;border-top:1px solid #dce2e9;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px">
+                <span style="font:400 11.5px/1.4 Archivo,sans-serif;color:#5f6b7a;max-width:32ch">Al guardar vuelve a P-01 · Acceso principal, a la pestaña Asignaciones.</span>
+                <span style="display:flex;gap:9px;align-items:center">
+                  <button type="button" style="height:2.5rem;border:1px solid #dce2e9;background:#ffffff;border-radius:6px;padding:0 13px;font:600 12.5px Archivo,sans-serif;color:#253040;cursor:pointer">Cancelar</button>
+                  <button type="button" style="height:2.5rem;background:#10104e;color:#ffffff;border:1px solid #10104e;border-radius:6px;padding:0 15px;font:600 12.5px Archivo,sans-serif;cursor:pointer">Guardar y asignar</button>
+                </span>
+              </div>
+            </div>
+          </div>
+          <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;padding:16px;display:flex;gap:28px">
+            <div style="flex:1"><div style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a;padding-bottom:7px">EXPEDIENTE MÍNIMO, LITERAL</div><div style="font:400 12.5px/1.6 Archivo,sans-serif;color:#253040">Identidad, contacto, zona, puesto, fecha de ingreso y documentos indispensables. Nada más. Lo que la fase 1 dejó fuera no aparece ni como campo deshabilitado.</div></div>
+            <div style="flex:1"><div style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a;padding-bottom:7px">LA FECHA, SIN LIBRERÍA</div><div style="font:400 12.5px/1.6 Archivo,sans-serif;color:#253040">Los campos de fecha se dibujan con el formato único <span style="font-weight:600;color:#253040">04 sep 2026</span> y control propio de 42 px. Si se resuelve con el campo nativo, el formato lo pone el sistema operativo y se rompe la regla: es la decisión pendiente del brief.</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section data-screen-label="Vista 5 · Sin puestos" id="v5" style="display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;align-items:baseline;gap:12px">
+      <span style="font:600 11.5px Archivo,sans-serif;letter-spacing:.14em;color:#5f6b7a">VISTA 5</span>
+      <span style="font:600 19px Archivo,sans-serif;color:#10104e">Sin puestos en catálogo: se crea aquí, o se va y se vuelve sin perder nada</span>
+    </div>
+    <div style="width:1440px;border:1px solid #dce2e9;border-radius:6px;overflow:hidden;background:#f4f6fa">
+      <div style="height:4.5rem;background:#ffffff;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:14px;padding:0 20px">
+        <div style="display:flex;align-items:center;gap:10px;border:1px solid #dce2e9;border-radius:6px;padding:7px 11px;background:#ffffff">
+          <span style="font:400 11px Archivo,sans-serif;color:#5f6b7a">Organización activa</span>
+          <span style="font:600 13px Archivo,sans-serif;color:#10104e">{{ organizacion }}</span>
+        </div>
+        <span style="font:400 12.5px Archivo,sans-serif;color:#5f6b7a">Fecha operativa <span style="color:#253040;font-weight:600">{{ fecha }}</span></span>
+      </div>
+      <div style="display:flex;min-height:880px">
+        <dc-import name="SideMenu" active="Personal" role="admin" usuario="Renata Villaseñor" hint-size="272px,880px"></dc-import>
+        <div style="flex:1;padding:16px 20px 20px;display:flex;flex-direction:column;gap:16px;min-width:0">
+          <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px">
+            <div>
+              <div style="font:600 11px Archivo,sans-serif;letter-spacing:.1em;color:#5f6b7a;padding-bottom:5px">PERSONAL</div>
+              <div style="font:700 22px/1.2 Archivo,sans-serif;color:#10104e">Personal</div>
+              <div style="font:400 13px Archivo,sans-serif;color:#5f6b7a;padding-top:4px">Organización recién configurada: no hay empleados todavía, y el catálogo de puestos está vacío.</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:16px;align-items:stretch;min-width:0">
+            <div style="flex:1;min-width:0;background:#ffffff;border:1px solid #dce2e9;border-radius:6px;display:flex;flex-direction:column">
+              <div style="padding:12px;border-bottom:1px solid #dce2e9;display:flex;gap:10px;align-items:center">
+                <div style="flex:1;height:2.5rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;gap:9px;padding:0 11px;min-width:0;background:#f7f9fb">
+                  <span style="width:14px;height:14px;border:1.5px solid #5f6b7a;border-radius:50%;flex:none"></span>
+                  <span style="font:400 12.5px Archivo,sans-serif;color:#5f6b7a">Buscar empleado</span>
+                </div>
+                <button type="button" disabled style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;background:#f7f9fb;padding:0 12px;font:600 12px Archivo,sans-serif;color:#5f6b7a">Filtros</button>
+              </div>
+              <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:28px">
+                <div style="border:1px solid #dce2e9;border-radius:6px;background:#ffffff;padding:24px 20px;display:flex;flex-direction:column;gap:10px;align-items:flex-start;max-width:44ch">
+                  <span style="font:600 13px Archivo,sans-serif;color:#10104e">Todavía no hay empleados</span>
+                  <span style="font:400 12.5px/1.6 Archivo,sans-serif;color:#253040">El primer empleado se da de alta con el expediente mínimo. Sin empleados no se pueden asignar titulares a las posiciones, y sin asignaciones no hay planeación que publicar.</span>
+                  <span style="font:400 11.5px/1.5 Archivo,sans-serif;color:#5f6b7a">Antes hace falta un puesto en el catálogo: el formulario lo resuelve sin salir.</span>
+                </div>
+              </div>
+            </div>
+            <div style="width:620px;flex:none;background:#ffffff;border:1px solid #dce2e9;border-radius:6px;display:flex;flex-direction:column">
+              <div style="padding:14px 16px;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:12px">
+                <span style="font:700 13px Archivo,sans-serif;color:#10104e">Nuevo empleado</span>
+                <span style="border:1px solid #d97706;border-radius:3px;padding:3px 8px;font:600 10.5px Archivo,sans-serif;color:#d97706">FALTA UN PRERREQUISITO</span>
+                <button type="button" aria-label="Cerrar el formulario de nuevo empleado" style="margin-left:auto;width:28px;height:28px;border:1px solid #dce2e9;background:#ffffff;border-radius:6px;display:flex;align-items:center;justify-content:center;font:600 12px Archivo,sans-serif;color:#5f6b7a;cursor:pointer">✕</button>
+              </div>
+              <div style="padding:16px;display:flex;flex-direction:column;gap:16px">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                  <div style="display:flex;flex-direction:column;gap:5px;grid-column:span 2">
+                    <label for="v5-nombre" style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">NOMBRE COMPLETO</label>
+                    <input id="v5-nombre" value="Ignacio Peña Zúñiga" style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;padding:0 11px;font:600 12.5px Archivo,sans-serif;color:#253040;background:#ffffff;box-sizing:border-box">
+                  </div>
+                  <div style="display:flex;flex-direction:column;gap:5px">
+                    <label for="v5-curp" style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">CURP</label>
+                    <input id="v5-curp" value="PEZI850226HJCÑÑG01" style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;padding:0 11px;font:600 12.5px Archivo,sans-serif;color:#253040;background:#ffffff;box-sizing:border-box">
+                  </div>
+                  <div style="display:flex;flex-direction:column;gap:5px">
+                    <label for="v5-tel" style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">TELÉFONO</label>
+                    <input id="v5-tel" value="33 1902 4471" style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;padding:0 11px;font:600 12.5px Archivo,sans-serif;color:#253040;background:#ffffff;box-sizing:border-box">
+                  </div>
+                  <div style="display:flex;flex-direction:column;gap:5px">
+                    <label for="v5-zona" style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">ZONA</label>
+                    <span id="v5-zona" style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;justify-content:space-between;padding:0 11px;font:600 12.5px Archivo,sans-serif;color:#253040">Centro <span style="font-size:10px;color:#5f6b7a">▾</span></span>
+                  </div>
+                  <div style="display:flex;flex-direction:column;gap:5px">
+                    <label for="v5-ingreso" style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">FECHA DE INGRESO</label>
+                    <input id="v5-ingreso" value="04 sep 2026" style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;padding:0 11px;font:600 12.5px Archivo,sans-serif;color:#253040;background:#ffffff;box-sizing:border-box">
+                  </div>
+                </div>
+                <div style="border:1px solid #d97706;border-radius:6px;background:#ffffff;padding:14px;display:flex;flex-direction:column;gap:11px">
+                  <div style="display:flex;flex-direction:column;gap:4px">
+                    <span style="font:600 12.5px Archivo,sans-serif;color:#253040">El catálogo de puestos está vacío</span>
+                    <span style="font:400 12px/1.55 Archivo,sans-serif;color:#253040">En lugar de un selector sin opciones, se escribe el puesto aquí y queda guardado en Catálogos junto con el empleado. Es el mismo texto que después se compara contra el perfil de la posición, así que conviene escribirlo como se va a pedir.</span>
+                  </div>
+                  <div style="display:flex;flex-direction:column;gap:5px">
+                    <label for="v5-puesto" style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">PUESTO NUEVO</label>
+                    <input id="v5-puesto" value="Guardia de acceso" style="height:2.5rem;border:1.5px solid #22c6ee;border-radius:6px;padding:0 11px;font:600 12.5px Archivo,sans-serif;color:#253040;background:#ffffff;box-sizing:border-box">
+                  </div>
+                  <div style="display:flex;gap:9px;align-items:center;flex-wrap:wrap">
+                    <button type="button" style="height:2.5rem;background:#10104e;color:#ffffff;border:1px solid #10104e;border-radius:6px;padding:0 14px;font:600 12.5px Archivo,sans-serif;cursor:pointer">Crear el puesto y usarlo</button>
+                    <button type="button" style="height:2.5rem;border:1px solid #dce2e9;background:#ffffff;border-radius:6px;padding:0 13px;font:600 12.5px Archivo,sans-serif;color:#253040;cursor:pointer">Ir a Catálogos y volver</button>
+                  </div>
+                  <div style="border:1px solid #dce2e9;background:#f7f9fb;border-radius:6px;padding:11px;display:flex;flex-direction:column;gap:4px">
+                    <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">SI SALE A CATÁLOGOS, ESTO REGRESA ESCRITO</span>
+                    <span style="font:400 12px/1.5 Archivo,sans-serif;color:#253040">Ignacio Peña Zúñiga · PEZI850226HJCÑÑG01 · 33 1902 4471 · Centro · ingreso 04 sep 2026. El formulario se conserva y vuelve a abrirse en este punto, con el puesto ya disponible.</span>
+                  </div>
+                </div>
+                <div style="border:1px solid #dce2e9;border-radius:6px;background:#f7f9fb;padding:13px;display:flex;flex-direction:column;gap:4px">
+                  <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">DOCUMENTOS INDISPENSABLES</span>
+                  <span style="font:400 12px/1.55 Archivo,sans-serif;color:#253040">Se adjuntan una vez resuelto el puesto. Los requisitos los define esta organización en su catálogo documental; no son una lista fija del sistema.</span>
+                </div>
+              </div>
+              <div style="margin-top:auto;border-top:1px solid #dce2e9;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px">
+                <span style="font:400 11.5px/1.4 Archivo,sans-serif;color:#5f6b7a;max-width:32ch">No se puede guardar: falta el puesto, que es obligatorio del expediente.</span>
+                <span style="display:flex;gap:9px;align-items:center">
+                  <button type="button" style="height:2.5rem;border:1px solid #dce2e9;background:#ffffff;border-radius:6px;padding:0 13px;font:600 12.5px Archivo,sans-serif;color:#253040;cursor:pointer">Cancelar</button>
+                  <button type="button" disabled aria-describedby="v5-razon" style="height:2.5rem;border:1px solid #dce2e9;background:#f7f9fb;border-radius:6px;padding:0 15px;font:600 12.5px Archivo,sans-serif;color:#5f6b7a">Guardar y asignar</button>
+                </span>
+              </div>
+              <span id="v5-razon" style="display:none">Necesita un puesto del catálogo</span>
+            </div>
+          </div>
+          <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;padding:16px;display:flex;gap:28px">
+            <div style="flex:1"><div style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a;padding-bottom:7px">POR QUÉ NO ES UN CALLEJÓN</div><div style="font:400 12.5px/1.6 Archivo,sans-serif;color:#253040">El sistema dice qué falta y ofrece las dos salidas en el mismo lugar: crear el puesto sin moverse, o ir a Catálogos con la promesa escrita de que lo capturado regresa. Nunca un selector vacío.</div></div>
+            <div style="flex:1"><div style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a;padding-bottom:7px">SIN DEPENDER DEL COLOR</div><div style="font:400 12.5px/1.6 Archivo,sans-serif;color:#253040">El encabezado del panel dice «Falta un prerrequisito», el bloque nombra el catálogo vacío, y el pie escribe la razón por la que Guardar está deshabilitado. El <span style="color:#d97706;font-weight:600">warning</span> acompaña al texto; nunca lo sustituye.</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;organizacion&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Seguridad Vanguardia S.A.&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Contexto&quot;},&quot;fecha&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;04 sep 2026&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Contexto&quot;},&quot;umbral&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:30,&quot;min&quot;:5,&quot;max&quot;:90,&quot;step&quot;:5,&quot;unit&quot;:&quot;días&quot;,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Vigencia documental&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const alDia = { docText: 'Al día', docBorder: '#dce2e9', docBg: '#f7f9fb', docColor: '#5f6b7a' };
+    const venc = (n) => ({ docText: n + (n === 1 ? ' vencido' : ' vencidos'), docBorder: '#dc2626', docBg: '#ffffff', docColor: '#dc2626' });
+    const porVencer = (n) => ({ docText: n + ' por vencer', docBorder: '#d97706', docBg: '#ffffff', docColor: '#d97706' });
+    const sinCargar = (n) => ({ docText: n + ' sin cargar', docBorder: '#dce2e9', docBg: '#ffffff', docColor: '#5f6b7a' });
+
+    const estados = {
+      candidato: { estado: 'Candidato', estadoColor: '#253040', dotBg: '#ffffff', dotBorder: '#0284c7', dotRadius: '50%' },
+      activo: { estado: 'Activo', estadoColor: '#253040', dotBg: '#16a34a', dotBorder: '#16a34a', dotRadius: '50%' },
+      permiso: { estado: 'Permiso', estadoColor: '#253040', dotBg: '#d97706', dotBorder: '#d97706', dotRadius: '50%' },
+      inactivo: { estado: 'Inactivo', estadoColor: '#5f6b7a', dotBg: '#ffffff', dotBorder: '#5f6b7a', dotRadius: '50%' },
+      baja: { estado: 'Baja', estadoColor: '#5f6b7a', dotBg: '#5f6b7a', dotBorder: '#5f6b7a', dotRadius: '1px' }
+    };
+
+    const base = [
+      { nombre: 'Laura Sánchez Pineda', puesto: 'Guardia de acceso', zona: 'Poniente · Zapopan', ingreso: '01 sep 2026', doc: alDia, est: 'activo' },
+      { nombre: 'José Ramón Villalobos Cázares', puesto: 'Guardia intramuros', zona: 'Poniente · Guadalajara', ingreso: '14 mar 2025', doc: venc(2), est: 'activo' },
+      { nombre: 'Ana Yáñez', puesto: 'Supervisora de zona', zona: 'Poniente · Zapopan', ingreso: '03 ene 2024', doc: porVencer(1), est: 'activo' },
+      { nombre: 'Miguel Ángel Peñaloza Iñiguez', puesto: 'Guardia acceso', zona: 'Poniente · Zapopan', ingreso: '28 ago 2026', doc: alDia, est: 'activo' },
+      { nombre: 'Rocío Alcántara Muñoz', puesto: 'Monitorista', zona: 'Poniente · Tlaquepaque', ingreso: '19 jun 2025', doc: alDia, est: 'permiso' },
+      { nombre: 'Efraín Ceniceros', puesto: 'Guardia de acceso', zona: 'Poniente · Tonalá', ingreso: '05 feb 2023', doc: porVencer(1), est: 'activo' },
+      { nombre: 'Xóchitl Aguayo Rentería', puesto: 'Monitorista', zona: 'Poniente · Zapopan', ingreso: '31 jul 2026', doc: sinCargar(3), est: 'candidato' },
+      { nombre: 'Norma Leticia Bañuelos Treviño', puesto: 'Guardia intramuros', zona: 'Poniente · Tlajomulco de Zúñiga', ingreso: '22 nov 2024', doc: alDia, est: 'inactivo' },
+      { nombre: 'Ismael Quiñones Ordóñez', puesto: 'Supervisor de turno', zona: 'Poniente · Guadalajara', ingreso: '09 abr 2026', doc: venc(1), est: 'baja' }
+    ];
+
+    const wide = base.map(e => Object.assign({
+      nombre: e.nombre, puesto: e.puesto, zona: e.zona, ingreso: e.ingreso
+    }, e.doc, estados[e.est]));
+
+    const narrow = (seleccion) => base.map(e => Object.assign({
+      nombre: e.nombre, puesto: e.puesto, bg: e.nombre === seleccion ? '#e9f7fa' : '#ffffff'
+    }, e.doc));
+
+    const docs = [
+      { nombre: 'INE', nota: 'Cargada el 14 mar 2025', vigencia: 'Venció 04 ago 2026', vigColor: '#dc2626', pill: 'VENCIDO', pillBorder: '#dc2626', pillBg: '#ffffff', pillColor: '#dc2626' },
+      { nombre: 'CURP', nota: 'Cargada el 14 mar 2025', vigencia: 'Sin vencimiento', vigColor: '#5f6b7a', pill: 'VIGENTE', pillBorder: '#dce2e9', pillBg: '#f7f9fb', pillColor: '#5f6b7a' },
+      { nombre: 'Comprobante de domicilio', nota: 'Cargado el 12 ene 2026', vigencia: 'Venció 18 jul 2026', vigColor: '#dc2626', pill: 'VENCIDO', pillBorder: '#dc2626', pillBg: '#ffffff', pillColor: '#dc2626' },
+      { nombre: 'Acta de nacimiento', nota: 'Cargada el 14 mar 2025', vigencia: 'Sin vencimiento', vigColor: '#5f6b7a', pill: 'VIGENTE', pillBorder: '#dce2e9', pillBg: '#f7f9fb', pillColor: '#5f6b7a' },
+      { nombre: 'Número de seguridad social', nota: 'Cargado el 21 sep 2025', vigencia: 'Vence 21 sep 2026 · 17 días', vigColor: '#d97706', pill: 'POR VENCER', pillBorder: '#d97706', pillBg: '#ffffff', pillColor: '#d97706' }
+    ];
+
+    const altaDocs = [
+      { nombre: 'INE', estado: 'ADJUNTA', color: '#16a34a', accion: 'Reemplazar' },
+      { nombre: 'CURP', estado: 'ADJUNTA', color: '#16a34a', accion: 'Reemplazar' },
+      { nombre: 'Comprobante de domicilio', estado: 'PENDIENTE', color: '#5f6b7a', accion: 'Adjuntar' },
+      { nombre: 'Acta de nacimiento', estado: 'ADJUNTA', color: '#16a34a', accion: 'Reemplazar' },
+      { nombre: 'Número de seguridad social', estado: 'PENDIENTE', color: '#5f6b7a', accion: 'Adjuntar' }
+    ];
+
+    return {
+      organizacion: this.props.organizacion ?? 'Seguridad Vanguardia S.A.',
+      fecha: this.props.fecha ?? '04 sep 2026',
+      umbral: this.props.umbral ?? 30,
+      rows: wide,
+      rowsA: narrow('Miguel Ángel Peñaloza Iñiguez'),
+      rowsB: narrow('José Ramón Villalobos Cázares'),
+      rowsPlain: narrow(null),
+      docs,
+      altaDocs
+    };
+  }
+}
+</script>
+</body>
+</html>

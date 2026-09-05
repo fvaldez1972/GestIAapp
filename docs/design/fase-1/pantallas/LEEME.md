@@ -28,6 +28,7 @@ vista de plataforma.
 | Pantalla | Rol con el que está dibujada |
 | --- | --- |
 | Clientes | Admin de organización |
+| Personal | Admin de organización |
 | Servicios | Super admin dentro de una organización |
 | Inicio | Ambos: las vistas 1 a 3 como admin de organización, la 4 como super admin que entró |
 
@@ -45,6 +46,19 @@ de plataforma, porque quien administra la cartera de clientes es la organizació
 | 3 | Panel abierto, pestaña Sedes |
 | 4 | Formulario de alta de cliente |
 | 5 | Cliente guardado sin sede: el aviso llega aquí, con la salida a un clic |
+
+### Personal — 5 vistas
+
+`personal/personal.html`. Dibujada como **admin de organización**. El panel de detalle lleva
+tres pestañas: **Datos · Documentos · Asignaciones**.
+
+| Vista | Qué muestra |
+| --- | --- |
+| 1 | Listado con cuatro filtros y el vencimiento a la vista |
+| 2 | Panel de detalle, pestaña Datos, con la franja de elegibilidad |
+| 3 | Panel, pestaña Documentos, con vigencias |
+| 4 | Formulario de alta: el expediente mínimo, completo |
+| 5 | Sin puestos en catálogo: se crea aquí, o se va y se vuelve sin perder nada |
 
 ### Servicios — 6 vistas
 
@@ -76,16 +90,15 @@ plataforma.
 ## Compartido entre pantallas
 
 `componentes/side-menu.html` vive en su propia carpeta porque **lo usan todas las pantallas**,
-no solo estas tres. Cualquier cambio ahí afecta a la aplicación entera.
+no solo estas cuatro. Cualquier cambio ahí afecta a la aplicación entera.
 
 ## Faltan por diseñar
 
-Quedan cuatro, en este orden:
+Quedan tres, en este orden:
 
-1. Personal
-2. Planeación
-3. Asistencia
-4. Incidencias con Cobertura
+1. Planeación
+2. Asistencia
+3. Incidencias con Cobertura
 
 ## Se implementan sin pasar por diseño terminado
 

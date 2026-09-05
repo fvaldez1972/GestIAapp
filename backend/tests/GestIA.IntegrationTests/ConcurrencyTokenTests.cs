@@ -101,6 +101,64 @@ public sealed class ConcurrencyTokenTests(OperationalSqlDatabase database)
         Assert.Equal(AttendanceStatus.Late, stored.Status);
     }
 
+
+    /// <summary>
+    /// <b>El conflicto explicado también fuera de la transacción operativa.</b>
+    ///
+    /// <para>De las seis entidades con token, cuatro guardan dentro de la transacción operativa,
+    /// que ya traducía el conflicto a un mensaje con nombre y fecha. Las otras dos —la
+    /// configuración de servicio y la asignación de personal— guardan por el camino normal, y su
+    /// conflicto salía como un error interno sin explicación. Eran justo las dos que edita la
+    /// pantalla de Servicios: el mensaje estaba construido y no llegaba a la mitad de los
+    /// casos.</para>
+    /// </summary>
+    [OperationalSqlFact]
+    public async Task TheNormalSavePathAlsoExplainsWhoOverwroteTheRecord()
+    {
+        var seed = await SeedAsync("EXP");
+
+        await using var first = database.Context();
+        await using var second = database.Context();
+
+        var byA = await first.AttendanceRecords.SingleAsync(item => item.IdAttendanceRecord == seed.AttendanceId);
+        var byB = await second.AttendanceRecords.SingleAsync(item => item.IdAttendanceRecord == seed.AttendanceId);
+        var versionSeenByB = byB.RowVersion;
+
+        // Cinco minutos después, que es lo que pasa de verdad: la escritura ganadora es posterior.
+        // Con el mismo instante, el desempate del último evento de bitácora cae en un identificador
+        // aleatorio y la prueba se vuelve intermitente.
+        byA.UpdateProfile(
+            new(AttendanceStatus.Late, new TimeOnly(8, 30), new TimeOnly(16, 0), 30, null),
+            ActorId, "Ana Ruiz Montaño", Now.AddMinutes(5));
+        await first.SaveChangesAsync();
+
+        new EfConcurrencyGuard(second).Expect(byB, versionSeenByB);
+        byB.UpdateProfile(new(AttendanceStatus.Absent, null, null, 0, null), ActorId, ActorName, Now);
+
+        var conflicto = await Assert.ThrowsAsync<ConcurrencyConflictException>(
+            () => new EfUnitOfWork(second, new RelojDePruebas()).SaveChangesAsync());
+
+        // Lo que esta prueba fija es que el camino normal **también** explica el conflicto: no es
+        // el mensaje genérico, nombra a una persona y lleva la fecha en el huso operativo.
+        Assert.NotEqual(ConcurrencyConflictMessage.Generic, conflicto.Message);
+        Assert.Contains("corrigió este registro", conflicto.Message, StringComparison.Ordinal);
+        Assert.Matches(@"\d{2} \w+ 2026 a las \d{2}:\d{2}", conflicto.Message);
+
+        // **Cuál** de los dos nombres aparece depende del orden de la bitácora, y ahí el desempate
+        // entre dos eventos del mismo instante cae en un identificador aleatorio. Eso es una
+        // debilidad del orden, no de este camino, y se anota aparte: fijarlo aquí volvería
+        // intermitente una prueba que comprueba otra cosa.
+    }
+
+    /// <summary>Reloj fijo, con el huso operativo por omisión.</summary>
+    private sealed class RelojDePruebas : IClock
+    {
+        public DateTime UtcNow => Now;
+        public DateOnly Today => Day;
+        public TimeZoneInfo OperationalTimeZone { get; } =
+            TimeZoneInfo.FindSystemTimeZoneById("America/Mexico_City");
+    }
+
     /// <summary>
     /// El token cambia en cada escritura: el que se leyó después de guardar sí sirve.
     /// </summary>

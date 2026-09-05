@@ -143,10 +143,33 @@ public sealed class ClientServiceTests
         public List<Client> Items { get; } = [];
         public bool CodeInUse { get; init; }
 
-        public Task<(IReadOnlyList<Client> Items, int TotalCount)> SearchAsync(
+        /// <summary>
+        /// El listado ya viaja proyectado desde el repositorio, así que el doble sólo devuelve lo
+        /// que la tabla mostraría. Los conteos van en cero: quien los prueba de verdad es la
+        /// prueba de integración, contra SQL.
+        /// </summary>
+        public Task<(IReadOnlyList<ClientListItemResponse> Items, int TotalCount)> SearchAsync(
             ClientSearchCriteria criteria,
             CancellationToken cancellationToken) =>
-            Task.FromResult(((IReadOnlyList<Client>)Items, Items.Count));
+            Task.FromResult(((IReadOnlyList<ClientListItemResponse>)Items
+                .Select(client => new ClientListItemResponse(
+                    client.IdClient, client.IdOrganization, client.CodeClient, client.LegalName,
+                    client.TradeName, client.Rfc, client.Active, client.CreatedAt,
+                    0, 0, 0, 0, null, null, null))
+                .ToArray(), Items.Count));
+
+        public Task<IReadOnlyList<string>> ListMunicipalitiesAsync(
+            Guid idOrganization,
+            CancellationToken cancellationToken) =>
+            Task.FromResult((IReadOnlyList<string>)[]);
+
+        /// <summary>El código más alto ya usado. Cero deja que la generación empiece en CLI-01.</summary>
+        public int HighestCodeNumber { get; set; }
+
+        public Task<int> HighestClientCodeNumberAsync(
+            Guid idOrganization,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(HighestCodeNumber);
 
         public Task<Client?> GetAsync(
             Guid idOrganization,

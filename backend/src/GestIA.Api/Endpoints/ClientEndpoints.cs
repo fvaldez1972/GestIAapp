@@ -15,6 +15,9 @@ public static class ClientEndpoints
             HttpContext context,
             Guid organizationId,
             string? search,
+            ClientStatusFilter? status,
+            ClientSitePresenceFilter? sitePresence,
+            string? municipality,
             int? page,
             int? pageSize,
             IClientService service,
@@ -29,6 +32,9 @@ public static class ClientEndpoints
                 new ClientListQuery(
                     organizationId,
                     search,
+                    status ?? ClientStatusFilter.Active,
+                    sitePresence ?? ClientSitePresenceFilter.Any,
+                    municipality,
                     page ?? 1,
                     pageSize ?? 20),
                 cancellationToken);
@@ -36,6 +42,24 @@ public static class ClientEndpoints
         })
             .RequirePermission(SecurityPermissions.ClientsRead)
             .WithName("ListClients");
+
+        // Las opciones del filtro de municipio. Sacarlas de la página ya traída daría una lista
+        // distinta en cada página, que es la clase de filtro que miente.
+        group.MapGet("/municipalities", async (
+            HttpContext context,
+            Guid organizationId,
+            IClientService service,
+            CancellationToken cancellationToken) =>
+        {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
+            return Results.Ok(await service.ListMunicipalitiesAsync(organizationId, cancellationToken));
+        })
+            .RequirePermission(SecurityPermissions.ClientsRead)
+            .WithName("ListClientMunicipalities");
 
         group.MapGet("/{idClient:guid}", async (
             HttpContext context,

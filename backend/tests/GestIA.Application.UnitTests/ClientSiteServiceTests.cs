@@ -94,8 +94,14 @@ public sealed class ClientSiteServiceTests
 
     private sealed class StubClientRepository(Client? client) : IClientRepository
     {
-        public Task<(IReadOnlyList<Client> Items, int TotalCount)> SearchAsync(ClientSearchCriteria criteria, CancellationToken cancellationToken) =>
-            Task.FromResult(((IReadOnlyList<Client>)[], 0));
+        public Task<(IReadOnlyList<ClientListItemResponse> Items, int TotalCount)> SearchAsync(ClientSearchCriteria criteria, CancellationToken cancellationToken) =>
+            Task.FromResult(((IReadOnlyList<ClientListItemResponse>)[], 0));
+
+        public Task<IReadOnlyList<string>> ListMunicipalitiesAsync(Guid idOrganization, CancellationToken cancellationToken) =>
+            Task.FromResult((IReadOnlyList<string>)[]);
+
+        public Task<int> HighestClientCodeNumberAsync(Guid idOrganization, CancellationToken cancellationToken) =>
+            Task.FromResult(0);
 
         public Task<Client?> GetAsync(Guid idOrganization, Guid idClient, CancellationToken cancellationToken) =>
             Task.FromResult(client?.IdOrganization == idOrganization && client.IdClient == idClient ? client : null);

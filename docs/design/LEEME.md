@@ -27,11 +27,11 @@ El alcance activo y todo lo que lo acompaña.
 | `pantallas/` | Diseños terminados a 1440 px, pantalla por pantalla. Ver [`pantallas/LEEME.md`](fase-1/pantallas/LEEME.md) |
 
 Dentro de `pantallas/`: **Clientes**, **Personal** y **Planeación** con cinco vistas cada una,
-**Servicios** con seis e **Inicio** con cuatro más un anexo están terminadas; el menú lateral
-vive aparte en `pantallas/componentes/` porque lo comparten todas las pantallas. Cada pantalla
-se dibuja con el rol que realmente la usa. Faltan Asistencia e Incidencias con Cobertura.
-Organizaciones, Catálogos y Seguridad se implementan directo desde el boceto, sin diseño
-terminado.
+**Servicios** con seis, e **Inicio** y **Asistencia** con cuatro más un anexo están terminadas;
+el menú lateral vive aparte en `pantallas/componentes/` porque lo comparten todas las
+pantallas. Cada pantalla se dibuja con el rol que realmente la usa. Queda **Incidencias con
+Cobertura**. Organizaciones, Catálogos y Seguridad se implementan directo desde el boceto, sin
+diseño terminado.
 
 ### `refactor-ux/` — vigente, de apoyo
 

@@ -130,6 +130,11 @@ resaltada en `--gestia-cyan-soft`.
 Encabezado fijo con título y cierre. Cuerpo con pestañas, la activa marcada en
 `--gestia-cyan`. Pie con acciones.
 
+**El panel lleva pestañas cuando hay varios destinos independientes.** Cuando es un solo
+propósito con una continuación —como el registro de asistencia, que sigue a incidencia— va
+**sin pestañas**, y el pie lleva al siguiente paso. Dos pestañas donde la segunda es la
+consecuencia de la primera ponen a elegir entre cosas que en realidad son una secuencia.
+
 La primera pestaña se llama **Datos**, nunca Ficha. En Servicios son Datos · Configuración ·
 Posiciones · Asignaciones; en Clientes, Datos · Sedes · Contactos · Documentos. Cada pestaña
 lleva su conteo cuando aplique, para no abrirla y descubrir que está vacía. Un destino que ya

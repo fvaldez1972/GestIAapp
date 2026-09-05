@@ -74,12 +74,14 @@
           subtitle="El código y la fecha de alta los pone el sistema"
           (close)="creating.set(false)"
         >
-          <app-client-form
-            [saving]="saving()"
-            [problem]="formProblem()"
-            (cancel)="creating.set(false)"
-            (save)="saveNew($event)"
-          />
+          <ng-template giTab="">
+            <app-client-form
+              [saving]="saving()"
+              [problem]="formProblem()"
+              (cancel)="creating.set(false)"
+              (save)="saveNew($event)"
+            />
+          </ng-template>
         </gi-detail-panel>
       } @else if (selected(); as client) {
         <gi-detail-panel
@@ -123,7 +125,7 @@
             El pie es la transición al paso siguiente. Cuando no se puede, **la razón se escribe al
             lado**, no se deja en un botón gris que obliga a adivinar.
           -->
-          <footer class="panel-footer">
+          <footer class="panel-footer" panelFooter>
             @if (blockReason()) {
               <span class="panel-footer__reason" id="motivo-bloqueo">{{ blockReason() }}</span>
             } @else {

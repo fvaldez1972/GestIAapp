@@ -501,7 +501,10 @@ export class ClientsPage {
     }
 
     this.api
-      .searchClients({ organizationId, status: 'All', pageSize: 200 })
+      // El tope del servidor es 100 por página. Pedir más devuelve un 400 de validación, y el
+      // alta terminaba sin poder decir que el cliente quedó sin sede, que es justo lo que esta
+      // pantalla existe para decir.
+      .searchClients({ organizationId, status: 'All', pageSize: 100 })
       .subscribe({
         next: (result) => {
           const created = result.items.find((item) => item.idClient === idClient) ?? null;

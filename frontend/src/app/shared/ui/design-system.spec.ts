@@ -2,7 +2,8 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 /**
- * Las cuatro reglas del sistema cerrado, aplicadas a los componentes compartidos.
+ * Las reglas del sistema cerrado, aplicadas a los componentes compartidos **y a las pantallas ya
+ * rehechas**.
  *
  * <p>El documento dice que estas decisiones «ya no se discuten en cada pantalla: se aplican». Una
  * regla que sólo vive en un documento se discute igual, porque nadie lo relee al escribir el
@@ -12,7 +13,20 @@ import { join, resolve } from 'node:path';
  * archivo, que es exactamente lo que se busca.</p>
  */
 
-const UI = resolve('src/app/shared/ui');
+/**
+ * Hasta dónde llega la regla.
+ *
+ * <p>`shared/ui` son las piezas del sistema. Junto a ellas van **las pantallas ya rehechas**, una
+ * a una: el sistema no sirve de nada si la pantalla que lo usa se inventa un color al lado.</p>
+ *
+ * <p>El resto de las features **queda fuera a propósito, y hoy fallarían**: hay hex a mano en
+ * catorce hojas de estilo y tamaños fuera de la escala. Convertirlas es su propia tanda. Esta
+ * lista crece con cada pantalla que se rehace, y esa es justamente la señal de avance.</p>
+ */
+const RAICES = [
+  resolve('src/app/shared/ui'),
+  resolve('src/app/features/overview'),
+];
 
 /** Los siete tamaños de la escala. Ni uno más; el 13.5 px está prohibido por nombre. */
 const ESCALA = ['22px', '13px', '12.5px', '12px', '11.5px', '11px', '10.5px'];
@@ -22,9 +36,9 @@ const ESCALA = ['22px', '13px', '12.5px', '12px', '11.5px', '11px', '10.5px'];
  * ciento y pico de la aplicación, y se convierte con su caso. No es contexto de trabajo ni una
  * pieza del sistema cerrado.
  */
-const EXCEPCIONES_DE_SELECT_NATIVO = new Set(['catalog-select/catalog-select.ts']);
+const EXCEPCIONES_DE_SELECT_NATIVO = new Set(['shared/ui/catalog-select/catalog-select.ts']);
 
-function archivos(directorio = UI): readonly string[] {
+function archivos(directorio: string): readonly string[] {
   return readdirSync(directorio).flatMap((entrada) => {
     const ruta = join(directorio, entrada);
 
@@ -32,16 +46,29 @@ function archivos(directorio = UI): readonly string[] {
       return archivos(ruta);
     }
 
-    return ruta.endsWith('.ts') && !ruta.endsWith('.spec.ts') ? [ruta] : [];
+    // También `.html` y `.scss`: una pantalla puede sacar su plantilla a un archivo aparte, y la
+    // regla dejaría de valer justo donde más estilo se escribe.
+    return /\.(ts|html|scss)$/.test(ruta) && !ruta.endsWith('.spec.ts') ? [ruta] : [];
   });
 }
 
-const relativo = (ruta: string) => ruta.slice(UI.length + 1).replace(/\\/g, '/');
+const APP = resolve('src/app');
+const relativo = (ruta: string) => ruta.slice(APP.length + 1).replace(/\\/g, '/');
 
-const piezas = archivos().map((ruta) => ({ ruta: relativo(ruta), texto: readFileSync(ruta, 'utf8') }));
+const piezas = RAICES.flatMap((raiz) => archivos(raiz)).map((ruta) => ({
+  ruta: relativo(ruta),
+  texto: readFileSync(ruta, 'utf8'),
+}));
 
-/** Sólo la parte de estilos: el resto del archivo puede nombrar un color al explicarlo. */
-const estilosDe = (texto: string) => {
+/**
+ * Sólo la parte de estilos: el resto del archivo puede nombrar un color al explicarlo. En un
+ * `.scss` el archivo entero es estilo, así que se toma completo.
+ */
+const estilosDe = (texto: string, ruta = '') => {
+  if (ruta.endsWith('.scss')) {
+    return texto;
+  }
+
   const inicio = texto.indexOf('styles: `');
   return inicio === -1 ? '' : texto.slice(inicio, texto.indexOf('`,', inicio));
 };
@@ -50,19 +77,23 @@ const estilosDe = (texto: string) => {
  * Sólo el marcado. Se busca el uso, no la palabra: varios componentes explican en un comentario
  * por qué **no** usan un `<select>` nativo, y eso no es usarlo.
  */
-const plantillaDe = (texto: string) => {
+const plantillaDe = (texto: string, ruta = '') => {
+  if (ruta.endsWith('.html')) {
+    return texto;
+  }
+
   const inicio = texto.indexOf('template: `');
   return inicio === -1 ? '' : texto.slice(inicio, texto.indexOf('`,', inicio));
 };
 
-describe('Los componentes compartidos aplican el sistema, no lo reinterpretan', () => {
+describe('El sistema se aplica en shared/ui y en las pantallas ya rehechas', () => {
   /**
    * Los cinco bosquejos de diseño usan quince colores y los quince son los quince tokens. Un hex
    * en un componente significa que alguien decidió un color nuevo por su cuenta.
    */
   it('ningún color se escribe a mano: todos salen de un token', () => {
     const culpables = piezas
-      .map(({ ruta, texto }) => ({ ruta, hex: estilosDe(texto).match(/#[0-9a-fA-F]{3,8}\b/g) ?? [] }))
+      .map(({ ruta, texto }) => ({ ruta, hex: estilosDe(texto, ruta).match(/#[0-9a-fA-F]{3,8}\b/g) ?? [] }))
       .filter(({ hex }) => hex.length)
       .map(({ ruta, hex }) => `${ruta}: ${hex.join(', ')}`);
 
@@ -77,7 +108,7 @@ describe('Los componentes compartidos aplican el sistema, no lo reinterpretan', 
     const culpables = piezas
       .map(({ ruta, texto }) => ({
         ruta,
-        fuera: (estilosDe(texto).match(/font-size:\s*[^;]+;/g) ?? [])
+        fuera: (estilosDe(texto, ruta).match(/font-size:\s*[^;]+;/g) ?? [])
           .map((declaracion) => declaracion.replace(/font-size:\s*|;/g, '').trim())
           .filter((valor) => !ESCALA.includes(valor) && !valor.startsWith('inherit')),
       }))
@@ -98,7 +129,7 @@ describe('Los componentes compartidos aplican el sistema, no lo reinterpretan', 
     const culpables = piezas
       .map(({ ruta, texto }) => ({
         ruta,
-        fuera: (estilosDe(texto).match(/border-radius:\s*[^;]+;/g) ?? [])
+        fuera: (estilosDe(texto, ruta).match(/border-radius:\s*[^;]+;/g) ?? [])
           .map((declaracion) => declaracion.replace(/border-radius:\s*|;/g, '').trim())
           .filter((valor) => !permitidos.includes(valor)),
       }))
@@ -111,7 +142,7 @@ describe('Los componentes compartidos aplican el sistema, no lo reinterpretan', 
   it('ningún selector nativo, salvo la excepción nombrada', () => {
     const culpables = piezas
       .filter(({ ruta }) => !EXCEPCIONES_DE_SELECT_NATIVO.has(ruta))
-      .filter(({ texto }) => /<select\b/.test(plantillaDe(texto)))
+      .filter(({ ruta, texto }) => /<select\b/.test(plantillaDe(texto, ruta)))
       .map(({ ruta }) => ruta);
 
     expect(culpables, 'Usa gi-select').toEqual([]);
@@ -128,9 +159,9 @@ describe('Los componentes compartidos aplican el sistema, no lo reinterpretan', 
    * control nativo es además lo único que queda: el navegador ya no lo pone.
    */
   it('todo componente que se enfoca marca el foco en cian', () => {
-    const conFoco = piezas.filter(({ texto }) => /:focus-visible/.test(estilosDe(texto)));
+    const conFoco = piezas.filter(({ ruta, texto }) => /:focus-visible/.test(estilosDe(texto, ruta)));
     const sinCian = conFoco
-      .filter(({ texto }) => !/outline:\s*2px solid var\(--gestia-cyan\)/.test(estilosDe(texto)))
+      .filter(({ ruta, texto }) => !/outline:\s*2px solid var\(--gestia-cyan\)/.test(estilosDe(texto, ruta)))
       .map(({ ruta }) => ruta);
 
     expect(conFoco.length).toBeGreaterThan(4);

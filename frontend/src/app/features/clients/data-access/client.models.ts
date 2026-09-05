@@ -254,6 +254,12 @@ export type ServiceConfiguration = {
   readonly currencyCode: string;
   readonly isTaxIncluded: boolean;
   readonly active: boolean;
+  /**
+   * Token de concurrencia. Es `rowversion` en la base y viaja como **base64**: no se interpreta,
+   * no se compara y no se construye. Se lee al abrir y se devuelve igual al guardar; si alguien
+   * corrigió el registro entre una cosa y la otra, el servidor responde 409 y dice quién fue.
+   */
+  readonly rowVersion: string;
 };
 
 export type ServiceConfigurationInput = {
@@ -272,6 +278,10 @@ export type ServiceConfigurationInput = {
   readonly monthlyPrice: number;
   readonly currencyCode: string | null;
   readonly isTaxIncluded: boolean;
+  /** El token que se leyó al abrir. Sin él no hay comprobación de concurrencia. */
+  readonly rowVersion?: string;
+  /** Por qué se corrige. Obligatorio cuando la regla del servidor lo exige. */
+  readonly correctionReason?: string;
 };
 
 export type ServicePosition = {
@@ -369,6 +379,8 @@ export type ServiceAssignment = {
   readonly isPrimary: boolean;
   readonly notes: string | null;
   readonly active: boolean;
+  /** Token de concurrencia. Ver la nota de `ServiceConfiguration`. */
+  readonly rowVersion: string;
 };
 
 export type ServiceAssignmentInput = {
@@ -381,6 +393,10 @@ export type ServiceAssignmentInput = {
   readonly endDate: string | null;
   readonly isPrimary: boolean;
   readonly notes: string | null;
+  /** El token que se leyó al abrir. Sin él no hay comprobación de concurrencia. */
+  readonly rowVersion?: string;
+  /** Por qué se corrige. Obligatorio cuando la regla del servidor lo exige. */
+  readonly correctionReason?: string;
 };
 
 export type CreateServiceAssignment = ServiceAssignmentInput & {

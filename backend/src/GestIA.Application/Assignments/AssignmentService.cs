@@ -95,7 +95,7 @@ public sealed class AssignmentService(
         // Motivo obligatorio sólo si el periodo ya terminó. Una asignación sin fecha de fin sigue
         // viva y editarla es operación normal, no corrección.
         var requirement = CorrectionReasonPolicy.AssignmentRequirement(
-            assignment, DateOnly.FromDateTime(clock.UtcNow));
+            assignment, clock.Today);
 
         var reasonErrors = new Dictionary<string, string[]>();
         var reason = CorrectionReasonPolicy.Validate(

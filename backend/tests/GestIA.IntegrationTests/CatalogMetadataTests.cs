@@ -254,5 +254,8 @@ public sealed class CatalogMetadataTests(OperationalSqlDatabase database) : ICla
     private sealed class Clock : IClock
     {
         public DateTime UtcNow => DateTime.UtcNow;
+
+        // Doble de prueba: la fecha sale del instante simulado, sin huso.
+        public DateOnly Today => DateOnly.FromDateTime(UtcNow);
     }
 }

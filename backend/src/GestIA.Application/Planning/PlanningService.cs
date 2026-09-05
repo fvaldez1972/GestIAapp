@@ -22,7 +22,7 @@ public sealed class PlanningService(
 
         return await repository.ListPositionVacancyAsync(
             idService,
-            operationDate ?? DateOnly.FromDateTime(clock.UtcNow),
+            operationDate ?? clock.Today,
             cancellationToken);
     }
 

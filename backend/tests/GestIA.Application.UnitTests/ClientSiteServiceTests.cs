@@ -154,5 +154,8 @@ public sealed class ClientSiteServiceTests
     private sealed class StubClock : IClock
     {
         public DateTime UtcNow => DateTime.UtcNow;
+
+        // Doble de prueba: la fecha sale del instante simulado, sin huso.
+        public DateOnly Today => DateOnly.FromDateTime(UtcNow);
     }
 }

@@ -23,7 +23,9 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 builder.Services.AddScoped<IActorContext, HttpActorContext>();
 builder.Services.AddGestIaRequestContext();
-builder.Services.AddSingleton<IClock, SystemClock>();
+// El huso se resuelve aqui, al arrancar, para que un identificador invalido detenga el
+// arranque con un mensaje claro en vez de fallar en la primera consulta que use "hoy".
+builder.Services.AddSingleton<IClock>(new SystemClock(SystemClock.ResolveTimeZone(builder.Configuration)));
 builder.Services.AddSingleton<IAccessTokenService, JwtAccessTokenService>();
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);

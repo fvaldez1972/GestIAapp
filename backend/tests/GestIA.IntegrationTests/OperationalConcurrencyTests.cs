@@ -554,6 +554,9 @@ public sealed class OperationalConcurrencyTests : IClassFixture<OperationalSqlDa
     private sealed class TestClock : IClock
     {
         public DateTime UtcNow => new(2026, 9, 3, 12, 0, 0, DateTimeKind.Utc);
+
+        // Doble de prueba: la fecha sale del instante simulado, sin huso.
+        public DateOnly Today => DateOnly.FromDateTime(UtcNow);
     }
 
     private sealed class ReadBarrier(string table) : DbCommandInterceptor

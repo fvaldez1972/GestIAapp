@@ -1,10 +1,11 @@
+using GestIA.Application.Common;
 using GestIA.Application.Documents;
 using GestIA.Domain.Documents;
 using Microsoft.EntityFrameworkCore;
 
 namespace GestIA.Infrastructure.Persistence.Repositories;
 
-public sealed class BusinessDocumentRepository(GestIaDbContext dbContext) : IBusinessDocumentRepository
+public sealed class BusinessDocumentRepository(GestIaDbContext dbContext, IClock clock) : IBusinessDocumentRepository
 {
     public async Task<BusinessDocumentSearchResult> SearchAsync(
         BusinessDocumentSearchCriteria criteria,
@@ -141,7 +142,7 @@ public sealed class BusinessDocumentRepository(GestIaDbContext dbContext) : IBus
             .Include(document => document.EmployeeEvaluation)
             .Include(document => document.OperationalRequest);
 
-    private static BusinessDocumentResponse Map(BusinessDocument document) =>
+    private BusinessDocumentResponse Map(BusinessDocument document) =>
         new(
             document.IdBusinessDocument,
             document.IdOrganization,
@@ -153,7 +154,8 @@ public sealed class BusinessDocumentRepository(GestIaDbContext dbContext) : IBus
             document.Status,
             document.IssuedDate,
             document.ExpiresDate,
-            document.ExpiresDate.HasValue && document.ExpiresDate.Value < DateOnly.FromDateTime(DateTime.UtcNow),
+            // El dia operativo, no el dia UTC: un documento no esta vencido siete horas antes.
+            document.ExpiresDate.HasValue && document.ExpiresDate.Value < clock.Today,
             document.StorageReference,
             document.IsSensitive,
             document.Notes,

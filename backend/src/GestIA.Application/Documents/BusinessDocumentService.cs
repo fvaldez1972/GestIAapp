@@ -43,7 +43,7 @@ public sealed class BusinessDocumentService(
             ?? throw new ResourceNotFoundException("No se encontró el documento solicitado.");
 
         await AuthorizeAsync(document, cancellationToken);
-        return Map(document);
+        return Map(document, clock.Today);
     }
 
     public async Task<BusinessDocumentResponse> CreateAsync(
@@ -65,7 +65,7 @@ public sealed class BusinessDocumentService(
         await unitOfWork.SaveChangesAsync(cancellationToken);
         var saved = await repository.GetAsync(request.IdOrganization, document.IdBusinessDocument, cancellationToken)
             ?? document;
-        return Map(saved);
+        return Map(saved, clock.Today);
     }
 
     public async Task<BusinessDocumentResponse> UpdateAsync(
@@ -96,7 +96,7 @@ public sealed class BusinessDocumentService(
         await unitOfWork.SaveChangesAsync(cancellationToken);
         var saved = await repository.GetAsync(request.IdOrganization, idBusinessDocument, cancellationToken)
             ?? document;
-        return Map(saved);
+        return Map(saved, clock.Today);
     }
 
     public async Task<BusinessDocumentResponse> ReviewAsync(
@@ -125,7 +125,7 @@ public sealed class BusinessDocumentService(
         document.Review(request.Status, reviewNotes, actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
         await RecordEventAsync(document, "Reviewed", before, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
-        return Map(document);
+        return Map(document, clock.Today);
     }
 
     public async Task DeactivateAsync(
@@ -285,7 +285,11 @@ public sealed class BusinessDocumentService(
         }
     }
 
-    private static BusinessDocumentResponse Map(BusinessDocument document) =>
+    /// <summary>
+    /// Recibe el día operativo en vez de calcularlo: la bandera de vencido depende del huso, y
+    /// un método estático no puede leer el reloj inyectado.
+    /// </summary>
+    private static BusinessDocumentResponse Map(BusinessDocument document, DateOnly today) =>
         new(
             document.IdBusinessDocument,
             document.IdOrganization,
@@ -297,7 +301,7 @@ public sealed class BusinessDocumentService(
             document.Status,
             document.IssuedDate,
             document.ExpiresDate,
-            document.ExpiresDate.HasValue && document.ExpiresDate.Value < DateOnly.FromDateTime(DateTime.UtcNow),
+            document.ExpiresDate.HasValue && document.ExpiresDate.Value < today,
             document.StorageReference,
             document.IsSensitive,
             document.Notes,

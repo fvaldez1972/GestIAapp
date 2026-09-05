@@ -60,4 +60,7 @@ public sealed class TestHistoryActor : IActorContext
 public sealed class TestHistoryClock : IClock
 {
     public DateTime UtcNow { get; } = new(2026, 9, 5, 12, 0, 0, DateTimeKind.Utc);
+
+    // Doble de prueba: la fecha sale del instante simulado, sin huso.
+    public DateOnly Today => DateOnly.FromDateTime(UtcNow);
 }

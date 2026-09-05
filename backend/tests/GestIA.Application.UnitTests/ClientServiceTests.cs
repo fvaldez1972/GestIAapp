@@ -93,6 +93,9 @@ public sealed class ClientServiceTests
     private sealed class FakeClock : IClock
     {
         public DateTime UtcNow => Now;
+
+        // Doble de prueba: la fecha sale del instante simulado, sin huso.
+        public DateOnly Today => DateOnly.FromDateTime(UtcNow);
     }
 
     private sealed class FakeUnitOfWork : IUnitOfWork

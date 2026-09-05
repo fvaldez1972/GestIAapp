@@ -250,7 +250,7 @@ public sealed class ServiceManagementService(
         // vigente es más delicado que corregir una vigencia pasada, no menos.
         var requirement = CorrectionReasonPolicy.ConfigurationRequirement(
             configuration, profile.MonthlyPrice, profile.CurrencyCode, profile.IsTaxIncluded,
-            DateOnly.FromDateTime(clock.UtcNow));
+            clock.Today);
 
         var reasonErrors = new Dictionary<string, string[]>();
         var reason = CorrectionReasonPolicy.Validate(

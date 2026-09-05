@@ -233,6 +233,9 @@ public sealed class BusinessDocumentServiceTests
     private sealed class Clock : IClock
     {
         public DateTime UtcNow => Now;
+
+        // Doble de prueba: la fecha sale del instante simulado, sin huso.
+        public DateOnly Today => DateOnly.FromDateTime(UtcNow);
     }
 
     private sealed class UnitOfWork : IUnitOfWork

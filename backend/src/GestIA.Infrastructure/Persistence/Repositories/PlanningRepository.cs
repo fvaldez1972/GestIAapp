@@ -19,6 +19,22 @@ public sealed class PlanningRepository(GestIaDbContext dbContext) : IPlanningRep
                 service.IdOrganization == idOrganization,
             cancellationToken);
 
+    public async Task<IReadOnlyList<PositionVacancyResponse>> ListPositionVacancyAsync(
+        Guid idService,
+        DateOnly operationDate,
+        CancellationToken cancellationToken) =>
+        // El orden va sobre las posiciones y no sobre la proyección: ordenar por una propiedad
+        // del registro proyectado no se traduce a SQL, y el Select conserva el orden de entrada.
+        await PositionVacancy
+            .Project(
+                dbContext.Positions
+                    .AsNoTracking()
+                    .Where(position => position.IdService == idService)
+                    .OrderBy(position => position.CodePosition),
+                dbContext.ServiceAssignments.AsNoTracking(),
+                operationDate)
+            .ToArrayAsync(cancellationToken);
+
     public async Task<IReadOnlyList<Position>> ListPositionsAsync(
         Guid idService,
         CancellationToken cancellationToken) =>

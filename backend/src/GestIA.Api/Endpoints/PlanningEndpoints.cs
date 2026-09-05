@@ -11,6 +11,30 @@ public static class PlanningEndpoints
         var positionGroup = endpoints.MapGroup("/api/v1/clients/{idClient:guid}/services/{idService:guid}/positions")
             .WithTags("Planning");
 
+        // La vacancia va aparte de la lista de posiciones porque depende de una fecha y la
+        // posición no: el mismo puesto tiene hueco un día y no lo tiene al siguiente.
+        positionGroup.MapGet("/vacancy", async (
+            HttpContext context,
+            Guid idClient,
+            Guid idService,
+            Guid organizationId,
+            DateOnly? date,
+            IPlanningService service,
+            CancellationToken cancellationToken) =>
+        {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
+            var result = await service.ListPositionVacancyAsync(
+                organizationId, idClient, idService, date, cancellationToken);
+
+            return Results.Ok(result);
+        })
+            .RequirePermission(SecurityPermissions.PlanningRead)
+            .WithName("ListPositionVacancy");
+
         positionGroup.MapGet("", async (
             HttpContext context,
             Guid idClient,

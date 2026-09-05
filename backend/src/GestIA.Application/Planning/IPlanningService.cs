@@ -2,6 +2,16 @@ namespace GestIA.Application.Planning;
 
 public interface IPlanningService
 {
+    /// <summary>
+    /// Vacancia de las posiciones de un servicio a una fecha. Si no se indica fecha, hoy.
+    /// </summary>
+    Task<IReadOnlyList<PositionVacancyResponse>> ListPositionVacancyAsync(
+        Guid idOrganization,
+        Guid idClient,
+        Guid idService,
+        DateOnly? operationDate,
+        CancellationToken cancellationToken);
+
     Task<IReadOnlyList<PositionResponse>> ListPositionsAsync(
         Guid idOrganization,
         Guid idClient,

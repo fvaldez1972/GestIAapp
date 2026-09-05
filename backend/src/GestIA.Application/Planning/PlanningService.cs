@@ -9,6 +9,21 @@ public sealed class PlanningService(
     IActorContext actorContext,
     IClock clock) : IPlanningService
 {
+    public async Task<IReadOnlyList<PositionVacancyResponse>> ListPositionVacancyAsync(
+        Guid idOrganization,
+        Guid idClient,
+        Guid idService,
+        DateOnly? operationDate,
+        CancellationToken cancellationToken)
+    {
+        await EnsureServiceAsync(idOrganization, idClient, idService, cancellationToken);
+
+        return await repository.ListPositionVacancyAsync(
+            idService,
+            operationDate ?? DateOnly.FromDateTime(clock.UtcNow),
+            cancellationToken);
+    }
+
     public async Task<IReadOnlyList<PositionResponse>> ListPositionsAsync(
         Guid idOrganization,
         Guid idClient,

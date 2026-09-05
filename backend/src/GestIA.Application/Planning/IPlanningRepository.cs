@@ -11,6 +11,14 @@ public interface IPlanningRepository
         Guid idService,
         CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Vacancia de las posiciones de un servicio a una fecha. Ver <see cref="PositionVacancy"/>.
+    /// </summary>
+    Task<IReadOnlyList<PositionVacancyResponse>> ListPositionVacancyAsync(
+        Guid idService,
+        DateOnly operationDate,
+        CancellationToken cancellationToken);
+
     Task<IReadOnlyList<Position>> ListPositionsAsync(Guid idService, CancellationToken cancellationToken);
 
     Task<Position?> GetPositionAsync(

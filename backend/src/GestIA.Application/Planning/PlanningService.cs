@@ -34,6 +34,7 @@ public sealed class PlanningService(
         }
 
         var position = Position.Create(
+            request.IdOrganization,
             request.IdService,
             code,
             profile,
@@ -99,6 +100,7 @@ public sealed class PlanningService(
         }
 
         var pattern = ShiftPattern.Create(
+            request.IdOrganization,
             request.IdPosition,
             code,
             profile,
@@ -173,6 +175,7 @@ public sealed class PlanningService(
         await EnsureNoOverlapAsync(request.IdShiftPattern, profile, null, cancellationToken);
 
         var segment = ShiftSegment.Create(
+            request.IdOrganization,
             request.IdShiftPattern,
             profile,
             actorContext.ActorId,

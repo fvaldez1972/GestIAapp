@@ -1,6 +1,7 @@
+using GestIA.Domain.Organizations;
 using GestIA.Domain.Planning;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Microsoft.EntityFrameworkCore;
 
 namespace GestIA.Infrastructure.Persistence.Configurations;
 
@@ -22,5 +23,10 @@ public sealed class PositionConfiguration : IEntityTypeConfiguration<Position>
             .HasForeignKey(entity => entity.IdService)
             .OnDelete(DeleteBehavior.Restrict);
         builder.HasIndex(entity => new { entity.IdService, entity.CodePosition }).IsUnique();
+        builder.HasOne<Organization>()
+            .WithMany()
+            .HasForeignKey(entity => entity.IdOrganization)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasIndex(entity => new { entity.IdOrganization, entity.CodePosition });
     }
 }

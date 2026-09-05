@@ -9,7 +9,7 @@ public sealed record PositionProfile(
     string? RequiredSkillProfile,
     string? Notes);
 
-public sealed class Position : AuditableEntity
+public sealed class Position : AuditableEntity, IOrganizationScopedEntity
 {
     private readonly List<ShiftPattern> shiftPatterns = [];
 
@@ -19,6 +19,7 @@ public sealed class Position : AuditableEntity
 
     private Position(
         Guid idPosition,
+        Guid idOrganization,
         Guid idService,
         string codePosition,
         PositionProfile profile,
@@ -27,6 +28,7 @@ public sealed class Position : AuditableEntity
         DateTime occurredAt)
     {
         IdPosition = idPosition;
+        IdOrganization = idOrganization;
         IdService = idService;
         CodePosition = Required(codePosition, nameof(codePosition)).ToUpperInvariant();
         ApplyProfile(profile);
@@ -34,6 +36,7 @@ public sealed class Position : AuditableEntity
     }
 
     public Guid IdPosition { get; private set; }
+    public Guid IdOrganization { get; private set; }
     public Guid IdService { get; private set; }
     public string CodePosition { get; private set; } = string.Empty;
     public string Name { get; private set; } = string.Empty;
@@ -44,13 +47,14 @@ public sealed class Position : AuditableEntity
     public IReadOnlyCollection<ShiftPattern> ShiftPatterns => shiftPatterns;
 
     public static Position Create(
+        Guid idOrganization,
         Guid idService,
         string codePosition,
         PositionProfile profile,
         Guid actorId,
         string actorName,
         DateTime occurredAt) =>
-        new(Guid.NewGuid(), idService, codePosition, profile, actorId, actorName, occurredAt);
+        new(Guid.NewGuid(), idOrganization, idService, codePosition, profile, actorId, actorName, occurredAt);
 
     public void UpdateProfile(
         PositionProfile profile,

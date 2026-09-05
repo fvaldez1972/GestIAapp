@@ -1,6 +1,7 @@
+using GestIA.Domain.Organizations;
 using GestIA.Domain.Planning;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Microsoft.EntityFrameworkCore;
 
 namespace GestIA.Infrastructure.Persistence.Configurations;
 
@@ -31,5 +32,10 @@ public sealed class ScheduledShiftConfiguration : IEntityTypeConfiguration<Sched
         builder.HasIndex(entity => new { entity.IdScheduleVersion, entity.ShiftDate });
         builder.HasIndex(entity => new { entity.IdEmployee, entity.ShiftDate, entity.StartTime });
         builder.HasIndex(entity => new { entity.IdPosition, entity.ShiftDate, entity.StartTime });
+        builder.HasOne<Organization>()
+            .WithMany()
+            .HasForeignKey(entity => entity.IdOrganization)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasIndex(entity => new { entity.IdOrganization, entity.ShiftDate });
     }
 }

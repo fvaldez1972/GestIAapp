@@ -1,6 +1,7 @@
+using GestIA.Domain.Organizations;
 using GestIA.Domain.Services;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Microsoft.EntityFrameworkCore;
 
 namespace GestIA.Infrastructure.Persistence.Configurations;
 
@@ -32,5 +33,10 @@ public sealed class ServiceContractConfiguration : IEntityTypeConfiguration<Serv
             .OnDelete(DeleteBehavior.Restrict);
         builder.HasIndex(entity => new { entity.IdClient, entity.CodeServiceContract }).IsUnique();
         builder.HasIndex(entity => new { entity.IdClient, entity.Status });
+        builder.HasOne<Organization>()
+            .WithMany()
+            .HasForeignKey(entity => entity.IdOrganization)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasIndex(entity => new { entity.IdOrganization, entity.Status });
     }
 }

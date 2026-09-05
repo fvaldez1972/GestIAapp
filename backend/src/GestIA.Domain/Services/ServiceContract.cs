@@ -3,7 +3,7 @@ using GestIA.Domain.Common;
 
 namespace GestIA.Domain.Services;
 
-public sealed class ServiceContract : AuditableEntity
+public sealed class ServiceContract : AuditableEntity, IOrganizationScopedEntity
 {
     private ServiceContract()
     {
@@ -11,6 +11,7 @@ public sealed class ServiceContract : AuditableEntity
 
     private ServiceContract(
         Guid idServiceContract,
+        Guid idOrganization,
         Guid idClient,
         string codeServiceContract,
         ServiceContractTerms terms,
@@ -19,6 +20,7 @@ public sealed class ServiceContract : AuditableEntity
         DateTime occurredAt)
     {
         IdServiceContract = idServiceContract;
+        IdOrganization = idOrganization;
         IdClient = idClient;
         CodeServiceContract = Required(codeServiceContract, nameof(codeServiceContract)).ToUpperInvariant();
         Status = ServiceContractStatus.Draft;
@@ -27,6 +29,7 @@ public sealed class ServiceContract : AuditableEntity
     }
 
     public Guid IdServiceContract { get; private set; }
+    public Guid IdOrganization { get; private set; }
     public Guid IdClient { get; private set; }
     public string CodeServiceContract { get; private set; } = string.Empty;
     public ServiceContractStatus Status { get; private set; }
@@ -41,6 +44,7 @@ public sealed class ServiceContract : AuditableEntity
     public Client Client { get; private set; } = null!;
 
     public static ServiceContract Create(
+        Guid idOrganization,
         Guid idClient,
         string codeServiceContract,
         DateOnly effectiveFromDate,
@@ -51,6 +55,7 @@ public sealed class ServiceContract : AuditableEntity
         string actorName,
         DateTime occurredAt) =>
         Create(
+            idOrganization,
             idClient,
             codeServiceContract,
             new ServiceContractTerms(
@@ -68,13 +73,14 @@ public sealed class ServiceContract : AuditableEntity
             occurredAt);
 
     public static ServiceContract Create(
+        Guid idOrganization,
         Guid idClient,
         string codeServiceContract,
         ServiceContractTerms terms,
         Guid actorId,
         string actorName,
         DateTime occurredAt) =>
-        new(Guid.NewGuid(), idClient, codeServiceContract, terms, actorId, actorName, occurredAt);
+        new(Guid.NewGuid(), idOrganization, idClient, codeServiceContract, terms, actorId, actorName, occurredAt);
 
     public void UpdateTerms(
         ServiceContractTerms terms,

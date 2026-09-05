@@ -1,6 +1,7 @@
+using GestIA.Domain.Organizations;
 using GestIA.Domain.Workforce;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Microsoft.EntityFrameworkCore;
 
 namespace GestIA.Infrastructure.Persistence.Configurations;
 
@@ -30,5 +31,10 @@ public sealed class ServiceAssignmentConfiguration : IEntityTypeConfiguration<Se
         builder.HasIndex(entity => new { entity.IdEmployee, entity.StartDate });
         builder.HasIndex(entity => new { entity.IdService, entity.StartDate });
         builder.HasIndex(entity => new { entity.IdPosition, entity.StartDate });
+        builder.HasOne<Organization>()
+            .WithMany()
+            .HasForeignKey(entity => entity.IdOrganization)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasIndex(entity => new { entity.IdOrganization, entity.StartDate });
     }
 }

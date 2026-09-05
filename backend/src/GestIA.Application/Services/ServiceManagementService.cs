@@ -37,6 +37,7 @@ public sealed class ServiceManagementService(
         }
 
         var contract = ServiceContract.Create(
+            request.IdOrganization,
             request.IdClient,
             code,
             terms,
@@ -103,6 +104,7 @@ public sealed class ServiceManagementService(
         }
 
         var service = ServiceEntity.Create(
+            request.IdOrganization,
             request.IdClient,
             request.IdClientSite,
             request.IdServiceContract,
@@ -182,6 +184,7 @@ public sealed class ServiceManagementService(
         }
 
         var configuration = ServiceConfigurationEntity.Create(
+            request.IdOrganization,
             request.IdService,
             profile,
             actorContext.ActorId,

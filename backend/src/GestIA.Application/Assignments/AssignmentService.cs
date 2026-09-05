@@ -47,6 +47,7 @@ public sealed class AssignmentService(
         await EnsureNoOverlapAsync(employee.IdEmployee, request.StartDate, request.EndDate, null, cancellationToken);
 
         var assignment = ServiceAssignment.Create(
+            request.IdOrganization,
             employee.IdEmployee,
             request.IdService,
             profile,

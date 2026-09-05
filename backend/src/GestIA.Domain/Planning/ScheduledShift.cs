@@ -12,7 +12,7 @@ public sealed record ScheduledShiftProfile(
     bool IsOvernight,
     string? Notes);
 
-public sealed class ScheduledShift : AuditableEntity
+public sealed class ScheduledShift : AuditableEntity, IOrganizationScopedEntity
 {
     private ScheduledShift()
     {
@@ -20,6 +20,7 @@ public sealed class ScheduledShift : AuditableEntity
 
     private ScheduledShift(
         Guid idScheduledShift,
+        Guid idOrganization,
         Guid idScheduleVersion,
         ScheduledShiftProfile profile,
         Guid actorId,
@@ -27,12 +28,14 @@ public sealed class ScheduledShift : AuditableEntity
         DateTime occurredAt)
     {
         IdScheduledShift = idScheduledShift;
+        IdOrganization = idOrganization;
         IdScheduleVersion = idScheduleVersion;
         ApplyProfile(profile);
         RegisterCreation(actorId, actorName, occurredAt);
     }
 
     public Guid IdScheduledShift { get; private set; }
+    public Guid IdOrganization { get; private set; }
     public Guid IdScheduleVersion { get; private set; }
     public Guid IdPosition { get; private set; }
     public Guid IdEmployee { get; private set; }
@@ -47,12 +50,13 @@ public sealed class ScheduledShift : AuditableEntity
     public Employee Employee { get; private set; } = null!;
 
     public static ScheduledShift Create(
+        Guid idOrganization,
         Guid idScheduleVersion,
         ScheduledShiftProfile profile,
         Guid actorId,
         string actorName,
         DateTime occurredAt) =>
-        new(Guid.NewGuid(), idScheduleVersion, profile, actorId, actorName, occurredAt);
+        new(Guid.NewGuid(), idOrganization, idScheduleVersion, profile, actorId, actorName, occurredAt);
 
     public void UpdateProfile(
         ScheduledShiftProfile profile,

@@ -46,6 +46,7 @@ public sealed class OperationsService(
         if (existing is null)
         {
             existing = AttendanceRecord.Create(
+                request.IdOrganization,
                 shift.IdScheduledShift,
                 shift.IdEmployee,
                 shift.ShiftDate,
@@ -138,6 +139,7 @@ public sealed class OperationsService(
             request.ResolutionNotes);
         await ValidateIncidentCatalogAsync(request.IdOrganization, profile.IncidentType, null, cancellationToken);
         var incident = Incident.Create(
+            request.IdOrganization,
             request.IdService,
             profile,
             actorContext.ActorId,
@@ -245,6 +247,7 @@ public sealed class OperationsService(
         await EnsureCoverageAllocationAsync(request.IdOrganization, request.IdClient, request.IdService,
             shift, profile, null, cancellationToken);
         var coverage = CoverageRecord.Create(
+            request.IdOrganization,
             shift.IdScheduledShift,
             shift.IdEmployee,
             profile,
@@ -320,6 +323,7 @@ public sealed class OperationsService(
             request.StorageReference,
             request.Notes);
         var evidence = OperationEvidence.Create(
+            request.IdOrganization,
             request.IdService,
             profile,
             actorContext.ActorId,

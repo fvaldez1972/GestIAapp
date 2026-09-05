@@ -12,7 +12,7 @@ public sealed record ServiceAssignmentProfile(
     bool IsPrimary,
     string? Notes);
 
-public sealed class ServiceAssignment : AuditableEntity
+public sealed class ServiceAssignment : AuditableEntity, IOrganizationScopedEntity
 {
     private ServiceAssignment()
     {
@@ -20,6 +20,7 @@ public sealed class ServiceAssignment : AuditableEntity
 
     private ServiceAssignment(
         Guid idServiceAssignment,
+        Guid idOrganization,
         Guid idEmployee,
         Guid idService,
         ServiceAssignmentProfile profile,
@@ -28,6 +29,7 @@ public sealed class ServiceAssignment : AuditableEntity
         DateTime occurredAt)
     {
         IdServiceAssignment = idServiceAssignment;
+        IdOrganization = idOrganization;
         IdEmployee = idEmployee;
         IdService = idService;
         ApplyProfile(profile);
@@ -35,6 +37,7 @@ public sealed class ServiceAssignment : AuditableEntity
     }
 
     public Guid IdServiceAssignment { get; private set; }
+    public Guid IdOrganization { get; private set; }
     public Guid IdEmployee { get; private set; }
     public Guid IdService { get; private set; }
     public Guid? IdPosition { get; private set; }
@@ -48,6 +51,7 @@ public sealed class ServiceAssignment : AuditableEntity
     public Position? Position { get; private set; }
 
     public static ServiceAssignment Create(
+        Guid idOrganization,
         Guid idEmployee,
         Guid idService,
         ServiceAssignmentProfile profile,
@@ -56,6 +60,7 @@ public sealed class ServiceAssignment : AuditableEntity
         DateTime occurredAt) =>
         new(
             Guid.NewGuid(),
+            idOrganization,
             idEmployee,
             idService,
             profile,

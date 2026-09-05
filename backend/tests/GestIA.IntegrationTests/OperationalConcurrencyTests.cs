@@ -149,7 +149,7 @@ public sealed class OperationalConcurrencyTests : IClassFixture<OperationalSqlDa
         }
         await using (var context = database.Context())
         {
-            context.ScheduledShifts.Add(Shift(seed.VersionId, seed.PositionId, seed.ReplacementId));
+            context.ScheduledShifts.Add(Shift(seed.OrganizationId, seed.VersionId, seed.PositionId, seed.ReplacementId));
             await context.SaveChangesAsync();
         }
         await using var second = provider.CreateAsyncScope();
@@ -222,13 +222,13 @@ public sealed class OperationalConcurrencyTests : IClassFixture<OperationalSqlDa
         await using (var context = database.Context())
         {
             var originalService = await context.Services.SingleAsync(item => item.IdService == seed.ServiceId);
-            var otherService = Service.Create(seed.ClientId, originalService.IdClientSite, null, "OTHER",
+            var otherService = Service.Create(seed.OrganizationId, seed.ClientId, originalService.IdClientSite, null, "OTHER",
                 "Other", "Other service", Day, Actor.ActorId, Actor.ActorName, Now);
-            var position = Position.Create(otherService.IdService, "P", new("Position", 1, null, null),
+            var position = Position.Create(seed.OrganizationId, otherService.IdService, "P", new("Position", 1, null, null),
                 Actor.ActorId, Actor.ActorName, Now);
-            var version = Version(otherService.IdService);
+            var version = Version(seed.OrganizationId, otherService.IdService);
             version.Publish(Actor.ActorId, Actor.ActorName, Now);
-            context.AddRange(otherService, position, version, Shift(version.IdScheduleVersion, position.IdPosition, seed.EmployeeId));
+            context.AddRange(otherService, position, version, Shift(seed.OrganizationId, version.IdScheduleVersion, position.IdPosition, seed.EmployeeId));
             await context.SaveChangesAsync();
         }
 
@@ -272,14 +272,14 @@ public sealed class OperationalConcurrencyTests : IClassFixture<OperationalSqlDa
         var draft = await DraftAsync(seed);
         await using (var context = database.Context())
         {
-            var pattern = ShiftPattern.Create(seed.PositionId, "PATTERN",
+            var pattern = ShiftPattern.Create(seed.OrganizationId, seed.PositionId, "PATTERN",
                 new("Pattern", null, Day, Day), Actor.ActorId, Actor.ActorName, Now);
             context.AddRange(pattern,
-                ShiftSegment.Create(pattern.IdShiftPattern, new(Day.DayOfWeek,
+                ShiftSegment.Create(seed.OrganizationId, pattern.IdShiftPattern, new(Day.DayOfWeek,
                     new TimeOnly(8, 0), new TimeOnly(16, 0), false, 1, null), Actor.ActorId, Actor.ActorName, Now),
-                ShiftSegment.Create(pattern.IdShiftPattern, new(Day.DayOfWeek,
+                ShiftSegment.Create(seed.OrganizationId, pattern.IdShiftPattern, new(Day.DayOfWeek,
                     new TimeOnly(9, 0), new TimeOnly(17, 0), false, 1, null), Actor.ActorId, Actor.ActorName, Now),
-                ServiceAssignment.Create(seed.EmployeeId, seed.ServiceId,
+                ServiceAssignment.Create(seed.OrganizationId, seed.EmployeeId, seed.ServiceId,
                     new(seed.PositionId, ServiceAssignmentType.Primary, Day, null, true, null),
                     Actor.ActorId, Actor.ActorName, Now));
             await context.SaveChangesAsync();
@@ -434,7 +434,7 @@ public sealed class OperationalConcurrencyTests : IClassFixture<OperationalSqlDa
         var seed = await SeedAsync();
         await using var context = database.Context();
         const string notes = "Motivo: Falta\nObservaciones: Historic note";
-        var coverage = CoverageRecord.Create(seed.ShiftId, seed.EmployeeId,
+        var coverage = CoverageRecord.Create(seed.OrganizationId, seed.ShiftId, seed.EmployeeId,
             new(seed.ReplacementId, new(8,0), new(16,0), false, CoverageStatus.Requested, notes), Actor.ActorId, Actor.ActorName, Now);
         context.Add(coverage);
         await context.SaveChangesAsync();
@@ -468,13 +468,13 @@ public sealed class OperationalConcurrencyTests : IClassFixture<OperationalSqlDa
         var organization = Organization.Create(Guid.NewGuid().ToString("N")[..24], "Test", null, Actor.ActorId, Actor.ActorName, Now);
         var client = Client.Create(organization.IdOrganization, "CLIENT", "Client", "EXA010101AA1", Actor.ActorId, Actor.ActorName, Now);
         var site = ClientSite.Create(client.IdClient, "SITE", "Site", "Street", "City", "State", "01000", Actor.ActorId, Actor.ActorName, Now);
-        var service = Service.Create(client.IdClient, site.IdClientSite, null, "SERVICE", "Service", "Service", Day, Actor.ActorId, Actor.ActorName, Now);
-        var position = Position.Create(service.IdService, "POSITION", new("Position", 1, null, null), Actor.ActorId, Actor.ActorName, Now);
+        var service = Service.Create(organization.IdOrganization, client.IdClient, site.IdClientSite, null, "SERVICE", "Service", "Service", Day, Actor.ActorId, Actor.ActorName, Now);
+        var position = Position.Create(organization.IdOrganization, service.IdService, "POSITION", new("Position", 1, null, null), Actor.ActorId, Actor.ActorName, Now);
         var employee = Employee.Create(organization.IdOrganization, "EMPLOYEE", "Employee", null, Day, Actor.ActorId, Actor.ActorName, Now);
         var replacement = Employee.Create(organization.IdOrganization, "REPLACEMENT", "Replacement", null, Day, Actor.ActorId, Actor.ActorName, Now);
-        var version = Version(service.IdService);
+        var version = Version(organization.IdOrganization, service.IdService);
         version.Publish(Actor.ActorId, Actor.ActorName, Now);
-        var shift = Shift(version.IdScheduleVersion, position.IdPosition, employee.IdEmployee);
+        var shift = Shift(organization.IdOrganization, version.IdScheduleVersion, position.IdPosition, employee.IdEmployee);
         context.AddRange(organization, client, site, service, position, employee, replacement, version, shift);
         var country = BusinessCatalogItem.Create(organization.IdOrganization, new(BusinessCatalogItemType.Country, "MX", "Mexico", null), Actor.ActorId, Actor.ActorName, Now);
         var state = BusinessCatalogItem.Create(organization.IdOrganization, new(BusinessCatalogItemType.State, "STATE", "State", null, IdParentCatalogItem: country.IdBusinessCatalogItem), Actor.ActorId, Actor.ActorName, Now);
@@ -504,11 +504,11 @@ public sealed class OperationalConcurrencyTests : IClassFixture<OperationalSqlDa
     private async Task<Guid> DraftAsync(Seed seed, bool withShift = false)
     {
         await using var context = database.Context();
-        var version = Version(seed.ServiceId);
+        var version = Version(seed.OrganizationId, seed.ServiceId);
         context.Add(version);
         if (withShift)
         {
-            context.Add(Shift(version.IdScheduleVersion, seed.PositionId, seed.EmployeeId));
+            context.Add(Shift(seed.OrganizationId, version.IdScheduleVersion, seed.PositionId, seed.EmployeeId));
         }
         await context.SaveChangesAsync();
         return version.IdScheduleVersion;
@@ -526,11 +526,11 @@ public sealed class OperationalConcurrencyTests : IClassFixture<OperationalSqlDa
         new(seed.OrganizationId, seed.ClientId, seed.ServiceId, versionId, seed.PositionId, seed.EmployeeId,
             Day, new TimeOnly(8, 0), new TimeOnly(16, 0), false, null);
 
-    private static ScheduleVersion Version(Guid serviceId) =>
-        ScheduleVersion.Create(serviceId, new("Version", Day, Day.AddDays(1), null), Actor.ActorId, Actor.ActorName, Now);
+    private static ScheduleVersion Version(Guid organizationId, Guid serviceId) =>
+        ScheduleVersion.Create(organizationId, serviceId, new("Version", Day, Day.AddDays(1), null), Actor.ActorId, Actor.ActorName, Now);
 
-    private static ScheduledShift Shift(Guid versionId, Guid positionId, Guid employeeId) =>
-        ScheduledShift.Create(versionId, new(positionId, employeeId, Day, new TimeOnly(8, 0),
+    private static ScheduledShift Shift(Guid organizationId, Guid versionId, Guid positionId, Guid employeeId) =>
+        ScheduledShift.Create(organizationId, versionId, new(positionId, employeeId, Day, new TimeOnly(8, 0),
             new TimeOnly(16, 0), false, null), Actor.ActorId, Actor.ActorName, Now);
 
     private sealed record Seed(Guid OrganizationId, Guid ClientId, Guid ServiceId, Guid PositionId,

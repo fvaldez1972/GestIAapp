@@ -1,6 +1,7 @@
+using GestIA.Domain.Organizations;
 using GestIA.Domain.Planning;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Microsoft.EntityFrameworkCore;
 
 namespace GestIA.Infrastructure.Persistence.Configurations;
 
@@ -21,5 +22,10 @@ public sealed class ShiftPatternConfiguration : IEntityTypeConfiguration<ShiftPa
             .HasForeignKey(entity => entity.IdPosition)
             .OnDelete(DeleteBehavior.Restrict);
         builder.HasIndex(entity => new { entity.IdPosition, entity.CodeShiftPattern }).IsUnique();
+        builder.HasOne<Organization>()
+            .WithMany()
+            .HasForeignKey(entity => entity.IdOrganization)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasIndex(entity => new { entity.IdOrganization, entity.CodeShiftPattern });
     }
 }

@@ -13,7 +13,7 @@ public sealed record CoverageRecordProfile(
     string? Notes,
     Guid? IdCoverageReason = null);
 
-public sealed class CoverageRecord : AuditableEntity
+public sealed class CoverageRecord : AuditableEntity, IOrganizationScopedEntity
 {
     private CoverageRecord()
     {
@@ -21,6 +21,7 @@ public sealed class CoverageRecord : AuditableEntity
 
     private CoverageRecord(
         Guid idCoverageRecord,
+        Guid idOrganization,
         Guid idScheduledShift,
         Guid idOriginalEmployee,
         CoverageRecordProfile profile,
@@ -29,6 +30,7 @@ public sealed class CoverageRecord : AuditableEntity
         DateTime occurredAt)
     {
         IdCoverageRecord = idCoverageRecord;
+        IdOrganization = idOrganization;
         IdScheduledShift = idScheduledShift;
         IdOriginalEmployee = idOriginalEmployee;
         ApplyProfile(profile);
@@ -37,6 +39,7 @@ public sealed class CoverageRecord : AuditableEntity
     }
 
     public Guid IdCoverageRecord { get; private set; }
+    public Guid IdOrganization { get; private set; }
     public Guid IdScheduledShift { get; private set; }
     public Guid IdOriginalEmployee { get; private set; }
     public Guid IdReplacementEmployee { get; private set; }
@@ -52,13 +55,14 @@ public sealed class CoverageRecord : AuditableEntity
     public Employee ReplacementEmployee { get; private set; } = null!;
 
     public static CoverageRecord Create(
+        Guid idOrganization,
         Guid idScheduledShift,
         Guid idOriginalEmployee,
         CoverageRecordProfile profile,
         Guid actorId,
         string actorName,
         DateTime occurredAt) =>
-        new(Guid.NewGuid(), idScheduledShift, idOriginalEmployee, profile, actorId, actorName, occurredAt);
+        new(Guid.NewGuid(), idOrganization, idScheduledShift, idOriginalEmployee, profile, actorId, actorName, occurredAt);
 
     public void UpdateProfile(
         CoverageRecordProfile profile,

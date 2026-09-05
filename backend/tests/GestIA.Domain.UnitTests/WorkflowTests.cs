@@ -56,7 +56,7 @@ public sealed class WorkflowTests
     {
         var profile = new IncidentProfile(null, null, DateOnly.FromDateTime(Now), "Absence", IncidentSeverity.Low,
             IncidentStatus.Open, "Description", null);
-        var incident = Incident.Create(Guid.NewGuid(), profile, ActorId, "Admin", Now);
+        var incident = Incident.Create(Guid.NewGuid(), Guid.NewGuid(), profile, ActorId, "Admin", Now);
         Assert.Throws<DomainRuleException>(() => incident.UpdateProfile(profile with { Status = IncidentStatus.Resolved }, ActorId, "Admin", Now));
         incident.UpdateProfile(profile with { Status = IncidentStatus.Resolved, ResolutionNotes = "Replacement assigned" }, ActorId, "Admin", Now);
         Assert.Equal(IncidentStatus.Resolved, incident.Status);
@@ -66,7 +66,7 @@ public sealed class WorkflowTests
     public void CoverageRequiresSeparateConfirmation()
     {
         var profile = new CoverageRecordProfile(Guid.NewGuid(), new TimeOnly(7, 0), new TimeOnly(19, 0), false, CoverageStatus.Completed, null);
-        var coverage = CoverageRecord.Create(Guid.NewGuid(), Guid.NewGuid(), profile, ActorId, "Admin", Now);
+        var coverage = CoverageRecord.Create(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), profile, ActorId, "Admin", Now);
         Assert.Equal(CoverageStatus.Requested, coverage.Status);
         Assert.Throws<DomainRuleException>(() => coverage.UpdateProfile(profile, ActorId, "Admin", Now));
         coverage.UpdateProfile(profile with { Status = CoverageStatus.Confirmed }, ActorId, "Admin", Now);

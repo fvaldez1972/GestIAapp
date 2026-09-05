@@ -1,6 +1,7 @@
 using GestIA.Domain.Operations;
-using Microsoft.EntityFrameworkCore;
+using GestIA.Domain.Organizations;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Microsoft.EntityFrameworkCore;
 
 namespace GestIA.Infrastructure.Persistence.Configurations;
 
@@ -23,5 +24,10 @@ public sealed class AttendanceRecordConfiguration : IEntityTypeConfiguration<Att
             .OnDelete(DeleteBehavior.Restrict);
         builder.HasIndex(entity => entity.IdScheduledShift).IsUnique();
         builder.HasIndex(entity => new { entity.IdEmployee, entity.AttendanceDate });
+        builder.HasOne<Organization>()
+            .WithMany()
+            .HasForeignKey(entity => entity.IdOrganization)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasIndex(entity => new { entity.IdOrganization, entity.AttendanceDate });
     }
 }

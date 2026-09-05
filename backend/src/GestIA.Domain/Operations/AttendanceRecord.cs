@@ -11,7 +11,7 @@ public sealed record AttendanceRecordProfile(
     int MinutesLate,
     string? Notes);
 
-public sealed class AttendanceRecord : AuditableEntity
+public sealed class AttendanceRecord : AuditableEntity, IOrganizationScopedEntity
 {
     private AttendanceRecord()
     {
@@ -19,6 +19,7 @@ public sealed class AttendanceRecord : AuditableEntity
 
     private AttendanceRecord(
         Guid idAttendanceRecord,
+        Guid idOrganization,
         Guid idScheduledShift,
         Guid idEmployee,
         DateOnly attendanceDate,
@@ -28,6 +29,7 @@ public sealed class AttendanceRecord : AuditableEntity
         DateTime occurredAt)
     {
         IdAttendanceRecord = idAttendanceRecord;
+        IdOrganization = idOrganization;
         IdScheduledShift = idScheduledShift;
         IdEmployee = idEmployee;
         AttendanceDate = attendanceDate;
@@ -36,6 +38,7 @@ public sealed class AttendanceRecord : AuditableEntity
     }
 
     public Guid IdAttendanceRecord { get; private set; }
+    public Guid IdOrganization { get; private set; }
     public Guid IdScheduledShift { get; private set; }
     public Guid IdEmployee { get; private set; }
     public DateOnly AttendanceDate { get; private set; }
@@ -48,6 +51,7 @@ public sealed class AttendanceRecord : AuditableEntity
     public Employee Employee { get; private set; } = null!;
 
     public static AttendanceRecord Create(
+        Guid idOrganization,
         Guid idScheduledShift,
         Guid idEmployee,
         DateOnly attendanceDate,
@@ -55,7 +59,7 @@ public sealed class AttendanceRecord : AuditableEntity
         Guid actorId,
         string actorName,
         DateTime occurredAt) =>
-        new(Guid.NewGuid(), idScheduledShift, idEmployee, attendanceDate, profile, actorId, actorName, occurredAt);
+        new(Guid.NewGuid(), idOrganization, idScheduledShift, idEmployee, attendanceDate, profile, actorId, actorName, occurredAt);
 
     public void UpdateProfile(
         AttendanceRecordProfile profile,

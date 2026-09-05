@@ -15,7 +15,7 @@ public sealed class OperationalSafeguardTests
     public void ClosedCoverageOnlyAcceptsAnIdenticalReplay(CoverageStatus status)
     {
         var profile = Profile();
-        var coverage = CoverageRecord.Create(Guid.NewGuid(), Guid.NewGuid(), profile, Actor, "Test", Now);
+        var coverage = CoverageRecord.Create(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), profile, Actor, "Test", Now);
         coverage.UpdateProfile(profile with { Status = CoverageStatus.Confirmed }, Actor, "Test", Now);
         profile = profile with { Status = status };
         coverage.UpdateProfile(profile, Actor, "Test", Now);
@@ -34,7 +34,7 @@ public sealed class OperationalSafeguardTests
     public void ConfirmedCoverageCannotChangeAllocationWhileCompleting()
     {
         var profile = Profile();
-        var coverage = CoverageRecord.Create(Guid.NewGuid(), Guid.NewGuid(), profile, Actor, "Test", Now);
+        var coverage = CoverageRecord.Create(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), profile, Actor, "Test", Now);
         coverage.UpdateProfile(profile with { Status = CoverageStatus.Confirmed }, Actor, "Test", Now);
         Assert.Throws<DomainRuleException>(() => coverage.UpdateProfile(
             profile with { Status = CoverageStatus.Completed, CoverageEndTime = new TimeOnly(16, 0) },
@@ -45,7 +45,7 @@ public sealed class OperationalSafeguardTests
     public void CancellationCannotReassignCoverage()
     {
         var profile = Profile();
-        var coverage = CoverageRecord.Create(Guid.NewGuid(), Guid.NewGuid(), profile, Actor, "Test", Now);
+        var coverage = CoverageRecord.Create(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), profile, Actor, "Test", Now);
         Assert.Throws<DomainRuleException>(() => coverage.UpdateProfile(
             profile with { Status = CoverageStatus.Cancelled, IdReplacementEmployee = Guid.NewGuid() },
             Actor, "Test", Now));

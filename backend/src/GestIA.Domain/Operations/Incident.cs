@@ -15,7 +15,7 @@ public sealed record IncidentProfile(
     string Description,
     string? ResolutionNotes);
 
-public sealed class Incident : AuditableEntity
+public sealed class Incident : AuditableEntity, IOrganizationScopedEntity
 {
     private Incident()
     {
@@ -23,6 +23,7 @@ public sealed class Incident : AuditableEntity
 
     private Incident(
         Guid idIncident,
+        Guid idOrganization,
         Guid idService,
         IncidentProfile profile,
         Guid actorId,
@@ -30,6 +31,7 @@ public sealed class Incident : AuditableEntity
         DateTime occurredAt)
     {
         IdIncident = idIncident;
+        IdOrganization = idOrganization;
         IdService = idService;
         ApplyProfile(profile);
         Status = IncidentStatus.Open;
@@ -38,6 +40,7 @@ public sealed class Incident : AuditableEntity
     }
 
     public Guid IdIncident { get; private set; }
+    public Guid IdOrganization { get; private set; }
     public Guid IdService { get; private set; }
     public Guid? IdScheduledShift { get; private set; }
     public Guid? IdEmployee { get; private set; }
@@ -52,12 +55,13 @@ public sealed class Incident : AuditableEntity
     public Employee? Employee { get; private set; }
 
     public static Incident Create(
+        Guid idOrganization,
         Guid idService,
         IncidentProfile profile,
         Guid actorId,
         string actorName,
         DateTime occurredAt) =>
-        new(Guid.NewGuid(), idService, profile, actorId, actorName, occurredAt);
+        new(Guid.NewGuid(), idOrganization, idService, profile, actorId, actorName, occurredAt);
 
     public void UpdateProfile(
         IncidentProfile profile,

@@ -1,6 +1,7 @@
 using GestIA.Domain.Operations;
-using Microsoft.EntityFrameworkCore;
+using GestIA.Domain.Organizations;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Microsoft.EntityFrameworkCore;
 
 namespace GestIA.Infrastructure.Persistence.Configurations;
 
@@ -29,5 +30,10 @@ public sealed class CoverageRecordConfiguration : IEntityTypeConfiguration<Cover
             .OnDelete(DeleteBehavior.Restrict);
         builder.HasIndex(entity => entity.IdScheduledShift);
         builder.HasIndex(entity => entity.IdReplacementEmployee);
+        builder.HasOne<Organization>()
+            .WithMany()
+            .HasForeignKey(entity => entity.IdOrganization)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasIndex(entity => new { entity.IdOrganization, entity.Status });
     }
 }

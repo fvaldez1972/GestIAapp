@@ -30,6 +30,7 @@ public sealed class SchedulingService(
         await EnsureServiceAsync(request.IdOrganization, request.IdClient, request.IdService, cancellationToken);
         var profile = ValidateVersionProfile(request.Name, request.PeriodStartDate, request.PeriodEndDate, request.Notes);
         var version = ScheduleVersion.Create(
+            request.IdOrganization,
             request.IdService,
             profile,
             actorContext.ActorId,
@@ -278,6 +279,7 @@ public sealed class SchedulingService(
                         }
 
                         var shift = ScheduledShift.Create(
+                            request.IdOrganization,
                             request.IdScheduleVersion,
                             profile,
                             actorContext.ActorId,
@@ -347,6 +349,7 @@ public sealed class SchedulingService(
         await EnsureNoShiftOverlapAsync(request.IdOrganization, request.IdScheduleVersion, profile, null, cancellationToken);
 
         var shift = ScheduledShift.Create(
+            request.IdOrganization,
             request.IdScheduleVersion,
             profile,
             actorContext.ActorId,

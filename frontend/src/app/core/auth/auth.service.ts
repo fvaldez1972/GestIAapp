@@ -17,6 +17,13 @@ export class AuthService {
   private readonly http = inject(HttpClient);
   private readonly sessionState = signal<AuthSession | null>(loadSession());
   private readonly platformOrganizationsState = signal<readonly OrganizationAccess[]>([]);
+  /**
+   * La organización activa sólo se escribe desde este servicio, y sólo pasando por la
+   * comprobación de membresía de `setActiveOrganization`. Antes la señal se exponía escribible:
+   * el `readonly` protegía la referencia, no el valor, así que cualquier componente podía
+   * asignarla y saltarse esa comprobación.
+   */
+  private readonly activeOrganizationIdState = signal(loadActiveOrganizationId());
 
   constructor() {
     removeLegacySupportSession();
@@ -29,7 +36,7 @@ export class AuthService {
   });
   readonly displayName = computed(() => this.sessionState()?.user.displayName ?? '');
   readonly organizations = computed(() => this.sessionState()?.organizations ?? []);
-  readonly activeOrganizationId = signal(loadActiveOrganizationId());
+  readonly activeOrganizationId = this.activeOrganizationIdState.asReadonly();
   readonly platformOrganizations = this.platformOrganizationsState.asReadonly();
   readonly isPlatformAdmin = computed(
     () => this.sessionState()?.permissions.includes('PLATFORM.ADMIN') ?? false,
@@ -53,6 +60,24 @@ export class AuthService {
     return selected ?? (this.isPlatformAdmin() ? null : available[0] ?? null);
   });
 
+  /**
+   * La organización sobre la que operan las pantallas. **Fuente única.**
+   *
+   * No recibe argumentos, y eso es lo que arregla. `resolveOperationalOrganizationId` recibía la
+   * lista de organizaciones de cada pantalla y, si la activa no estaba en ella, caía en silencio
+   * a la primera de esa lista. Dos pantallas con listas distintas —porque una cargó las de
+   * plataforma y otra las de la sesión, o porque una respondió antes que la otra— resolvían
+   * organizaciones distintas a partir del mismo valor activo. La barra de contexto decía una y la
+   * pantalla mostraba otra, y las dos creían tener razón.
+   *
+   * Deriva de `activeOrganization()`, que ya conoce la regla del super admin: fuera de toda
+   * organización devuelve cadena vacía, y la pantalla queda en espera en vez de mostrar datos de
+   * una organización que nadie eligió.
+   */
+  readonly operationalOrganizationId = computed(
+    () => this.activeOrganization()?.idOrganization ?? '',
+  );
+
   login(request: LoginRequest) {
     return this.http.post<AuthSession>('/api/v1/auth/login', request).pipe(
       tap((session) => this.storeSession(session)),
@@ -63,7 +88,7 @@ export class AuthService {
     localStorage.removeItem(storageKey);
     localStorage.removeItem(activeOrganizationStorageKey);
     this.sessionState.set(null);
-    this.activeOrganizationId.set('');
+    this.activeOrganizationIdState.set('');
     this.platformOrganizationsState.set([]);
   }
 
@@ -84,20 +109,17 @@ export class AuthService {
   }
 
   /**
-   * Organización sobre la que operan las pantallas. Para el super admin es la que eligió en
-   * la topbar; si no ha elegido ninguna, devuelve cadena vacía y la pantalla queda en espera.
+   * @deprecated Usa `operationalOrganizationId`. Se conserva sólo mientras las once pantallas de
+   * módulo la llaman; se borra en la tanda de pantallas, junto con las copias locales de
+   * `selectedOrganizationId`.
+   *
+   * **La lista se ignora a propósito.** Era el origen de la divergencia: cuando la organización
+   * activa no aparecía en la lista que traía la pantalla, esto caía a `organizations[0]` sin
+   * avisar. Ahora delega en la fuente única y devuelve lo mismo a todos sus llamadores, que es
+   * justamente lo que antes no hacía.
    */
-  resolveOperationalOrganizationId(organizations: readonly OrganizationAccess[]) {
-    const activeOrganizationId = this.activeOrganizationId();
-    const isKnown = organizations.some(
-      (organization) => organization.idOrganization === activeOrganizationId,
-    );
-
-    if (this.isPlatformAdmin()) {
-      return isKnown ? activeOrganizationId : '';
-    }
-
-    return isKnown ? activeOrganizationId : organizations[0]?.idOrganization ?? '';
+  resolveOperationalOrganizationId(_organizations: readonly OrganizationAccess[]) {
+    return this.operationalOrganizationId();
   }
 
   setActiveOrganization(idOrganization: string) {
@@ -110,13 +132,13 @@ export class AuthService {
     }
 
     localStorage.setItem(activeOrganizationStorageKey, idOrganization);
-    this.activeOrganizationId.set(idOrganization);
+    this.activeOrganizationIdState.set(idOrganization);
   }
 
   /** Salir de la organización sin cerrar sesión. Es la contraparte de entrar a una. */
   clearActiveOrganization() {
     localStorage.removeItem(activeOrganizationStorageKey);
-    this.activeOrganizationId.set('');
+    this.activeOrganizationIdState.set('');
   }
 
   loadPlatformOrganizations() {
@@ -146,7 +168,7 @@ export class AuthService {
       localStorage.removeItem(activeOrganizationStorageKey);
     }
 
-    this.activeOrganizationId.set(activeOrganizationId);
+    this.activeOrganizationIdState.set(activeOrganizationId);
     this.sessionState.set(session);
   }
 }

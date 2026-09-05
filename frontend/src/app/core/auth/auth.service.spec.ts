@@ -93,4 +93,39 @@ describe('AuthService', () => {
 
     expect(service.activeOrganization()?.idOrganization).toBe('org-a');
   });
+
+  /**
+   * La regresión de la deriva. Antes, `resolveOperationalOrganizationId` consultaba la lista que
+   * le pasaba cada pantalla y, si la organización activa no estaba en ella, caía en silencio a la
+   * primera de esa lista. Dos pantallas con listas distintas resolvían organizaciones distintas
+   * partiendo del mismo valor activo, y por eso la barra decía una cosa y la pantalla otra.
+   */
+  it('dos pantallas con listas distintas resuelven la misma organización', () => {
+    const service = TestBed.inject(AuthService);
+    const propias = [
+      { idOrganization: 'org-a', codeOrganization: 'A', legalName: 'Alfa' },
+      { idOrganization: 'org-b', codeOrganization: 'B', legalName: 'Beta' },
+    ];
+
+    service.login({ email: 'admin@alfa.mx', password: 'x' }).subscribe();
+    TestBed.inject(HttpTestingController)
+      .expectOne('/api/v1/auth/login')
+      .flush(session(['CLIENTS.READ'], propias));
+
+    service.setActiveOrganization('org-b');
+
+    // Una pantalla que todavía no terminó de cargar y sólo conoce la primera organización.
+    const listaIncompleta = [propias[0]];
+
+    expect(service.operationalOrganizationId()).toBe('org-b');
+    expect(service.resolveOperationalOrganizationId(propias)).toBe('org-b');
+    expect(service.resolveOperationalOrganizationId(listaIncompleta)).toBe('org-b');
+    expect(service.resolveOperationalOrganizationId([])).toBe('org-b');
+  });
+
+  it('la organización activa no se puede escribir desde fuera del servicio', () => {
+    const service = TestBed.inject(AuthService);
+
+    expect((service.activeOrganizationId as { set?: unknown }).set).toBeUndefined();
+  });
 });

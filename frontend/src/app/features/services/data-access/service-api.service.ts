@@ -19,6 +19,8 @@ export class ServiceApiService {
    */
   searchServices(options: {
     organizationId: string;
+    /** Restringe la lista a un cliente. Lo usa la transición desde Clientes. */
+    clientId?: string;
     search?: string;
     status?: ServiceStatusFilter;
     coverageDate?: string;
@@ -29,6 +31,10 @@ export class ServiceApiService {
       .set('organizationId', options.organizationId)
       .set('page', String(options.page ?? 1))
       .set('pageSize', String(options.pageSize ?? 20));
+
+    if (options.clientId) {
+      params = params.set('clientId', options.clientId);
+    }
 
     if (options.search?.trim()) {
       params = params.set('search', options.search.trim());

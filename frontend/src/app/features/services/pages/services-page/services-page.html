@@ -40,6 +40,24 @@
 
   <div class="services-body">
     <div class="services-list">
+      <!--
+        El enlace desde Clientes trae un cliente elegido. Se dice con todas sus letras y se puede
+        quitar: un filtro activo que no se ve es la forma más rápida de que alguien jure que faltan
+        servicios.
+      -->
+      @if (linkedClientId() && selectedClient(); as cliente) {
+        <p class="linked" role="status">
+          <span class="linked__label">Mostrando sólo los servicios de</span>
+          <span class="linked__name">{{ cliente.tradeName || cliente.legalName }}</span>
+          <button
+            class="linked__clear"
+            type="button"
+            [attr.aria-label]="'Quitar el filtro por ' + (cliente.tradeName || cliente.legalName)"
+            (click)="clearLinkedClient()"
+          >Ver todos los servicios</button>
+        </p>
+      }
+
       <gi-filter-bar
         [search]="search()"
         searchPlaceholder="Buscar servicio, cliente o sede"

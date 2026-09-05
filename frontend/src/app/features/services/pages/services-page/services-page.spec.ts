@@ -153,9 +153,14 @@ describe('ServicesPage organization-scoped workflows', () => {
     start({ clientId: 'client-a', serviceId: 'service-a' });
     flushList();
     http.expectOne('/api/v1/clients/client-a?organizationId=org-a').flush(client);
-    // El listado acotado que resuelve el enlace.
-    http.expectOne(r => r.url === '/api/v1/services')
-      .flush({ items: [listItem], totalCount: 1, page: 1, pageSize: 200, totalPages: 1 });
+
+    // Dos consultas con motivos distintos: la lista visible, **ya filtrada por el cliente** del
+    // enlace, y la acotada que busca el servicio enlazado aunque esté en otra página o inactivo.
+    const consultas = http.match(r => r.url === '/api/v1/services');
+    expect(consultas).toHaveLength(2);
+    expect(consultas[0].request.params.get('clientId')).toBe('client-a');
+    consultas.forEach(c =>
+      c.flush({ items: [listItem], totalCount: 1, page: 1, pageSize: 200, totalPages: 1 }));
 
     expect(page.selectedService().idService).toBe('service-a');
     flushClientContext();
@@ -166,8 +171,8 @@ describe('ServicesPage organization-scoped workflows', () => {
     start({ clientId: 'client-a', serviceId: 'missing' });
     flushList();
     http.expectOne('/api/v1/clients/client-a?organizationId=org-a').flush(client);
-    http.expectOne(r => r.url === '/api/v1/services')
-      .flush({ items: [listItem], totalCount: 1, page: 1, pageSize: 200, totalPages: 1 });
+    http.match(r => r.url === '/api/v1/services').forEach(c =>
+      c.flush({ items: [listItem], totalCount: 1, page: 1, pageSize: 200, totalPages: 1 }));
 
     expect(page.selectedService()).toBeNull();
     expect(page.error()).toContain('no está disponible');
@@ -247,25 +252,32 @@ describe('ServicesPage organization-scoped workflows', () => {
     expect(page.error()).toBe('El código ya existe.');
   });
 
-  it('keeps client detail read-only for services and never fetches planning resources', () => {
+  /**
+   * La frontera entre las dos pantallas: **Clientes lee, Servicios escribe**. Clientes muestra
+   * sedes y contactos del cliente y no toca nada de planeación; el alta del servicio vive aquí.
+   *
+   * La prueba se reescribió con la pantalla: en la tanda 6 la ficha pasó a pedir sólo lo que sus
+   * pestañas muestran, y dejó de traer contratos y servicios que nadie pintaba.
+   */
+  it('la ficha de cliente sólo lee lo suyo, y no pide nada de planeación', () => {
     const clientsPage: any = TestBed.runInInjectionContext(() => new ClientsPage());
-    clientsPage.selectedClient.set(client);
-    clientsPage.loadClientDetail();
+
+    clientsPage.open({ idClient: 'client-a', siteCount: 1, contactCount: 1 });
+
     const requests = http.match(() => true);
     expect(requests.map(r => r.request.url).sort()).toEqual([
-      '/api/v1/clients/client-a/contacts', '/api/v1/clients/client-a/contracts',
-      '/api/v1/clients/client-a/services', '/api/v1/clients/client-a/sites',
+      '/api/v1/clients/client-a/contacts',
+      '/api/v1/clients/client-a/sites',
     ]);
     requests.forEach(r => r.flush([]));
+
+    // Nada de planeación ni de asignaciones: eso es de Servicios.
     expect(clientsPage.openCreateService).toBeUndefined();
     expect(clientsPage.saveAssignment).toBeUndefined();
-    expect(clientsPage.openCreateSite).toBeTypeOf('function');
-    expect(clientsPage.openCreateContact).toBeTypeOf('function');
-    expect(clientsPage.openCreateContract).toBeTypeOf('function');
-    clientsPage.documentContract.set({ idServiceContract: 'contract-a' });
-    clientsPage.selectClient(client);
-    expect(clientsPage.documentContract()).toBeNull();
-    http.match(() => true).forEach(r => r.flush([]));
+    expect(clientsPage.loadPositionVacancy).toBeUndefined();
+
+    // Y lo que sí es suyo: la sede, que es el prerrequisito del paso siguiente.
+    expect(clientsPage.createSite).toBeTypeOf('function');
   });
 
   it.each([

@@ -533,3 +533,44 @@ footer {
 }
 
 .vacantes { margin-top: 1rem; }
+
+/* El aviso del enlace desde Clientes. Va antes de la barra de filtros porque describe qué está
+   viendo el usuario, no cómo filtrar. */
+.linked {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 12px 16px;
+  border: 1px solid var(--gestia-border);
+  border-radius: var(--gestia-radius);
+  background: var(--gestia-surface);
+}
+
+.linked__label {
+  color: var(--gestia-muted);
+  font-size: 12px;
+}
+
+.linked__name {
+  color: var(--gestia-text);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.linked__clear {
+  margin-left: auto;
+  border: 0;
+  background: transparent;
+  color: var(--gestia-cyan-dark);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.linked__clear:focus-visible {
+  outline: 2px solid var(--gestia-cyan);
+  outline-offset: 2px;
+}

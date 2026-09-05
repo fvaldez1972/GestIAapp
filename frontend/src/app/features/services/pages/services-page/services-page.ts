@@ -304,6 +304,14 @@ export class ServicesPage implements OnInit, OnDestroy {
    * El listado, en **una sola llamada**. Antes eran tres pasos —listar clientes, elegir uno,
    * listar sus servicios— y no se veía un servicio hasta el tercero.
    */
+  /**
+   * El cliente con el que llegó el enlace desde Clientes.
+   *
+   * <p>Existe porque la lista tiene que <b>mostrarse filtrada</b> y decirlo: guardarlo sólo por
+   * dentro dejaba al usuario mirando la lista completa sin saber que venía de un cliente.</p>
+   */
+  protected readonly linkedClientId = signal('');
+
   protected loadServices(page = 1): void {
     if (!this.canRead()) return;
     this.listChanges.next();
@@ -312,6 +320,10 @@ export class ServicesPage implements OnInit, OnDestroy {
       this.serviceApi
         .searchServices({
           organizationId: this.selectedOrganizationId(),
+          // La transición desde Clientes llega con el cliente elegido, y la lista tiene que
+          // mostrarlo filtrado. Antes el identificador se guardaba y la lista seguía completa:
+          // el usuario aterrizaba aquí sin señal de que venía de un cliente concreto.
+          clientId: this.linkedClientId() || undefined,
           search: this.search(),
           status: this.statusFilter(),
           // Sin día operativo no se manda ninguno: el servidor pone el suyo, que es el bueno.
@@ -327,6 +339,13 @@ export class ServicesPage implements OnInit, OnDestroy {
 
   protected onSearch(value: string): void {
     this.search.set(value);
+    this.loadServices(1);
+  }
+
+  /** Quita el filtro que trajo el enlace y deja la lista completa. */
+  protected clearLinkedClient(): void {
+    this.linkedClientId.set('');
+    this.selectedClient.set(null);
     this.loadServices(1);
   }
 
@@ -354,6 +373,7 @@ export class ServicesPage implements OnInit, OnDestroy {
     this.contracts.set([]);
     this.clearServiceDetail();
     this.pendingServiceLink = params.get('serviceId') ?? '';
+    this.linkedClientId.set(clientId);
     const org = this.selectedOrganizationId();
     this.read(this.contextApi.getClient(org, clientId), 1, (client) => {
       if (client.idOrganization !== org) {
@@ -361,6 +381,8 @@ export class ServicesPage implements OnInit, OnDestroy {
         return;
       }
       this.selectedClient.set(client);
+      // La lista se vuelve a pedir ya filtrada por el cliente del enlace.
+      this.loadServices(1);
       this.openLinkedService(client.idClient);
     });
   }
@@ -411,9 +433,11 @@ export class ServicesPage implements OnInit, OnDestroy {
   }
 
   /**
-   * Abre el servicio que venía en la URL. Antes esto cargaba la lista de servicios del cliente y
-   * buscaba el enlazado dentro; ahora se pide el listado acotado a ese cliente, que es una sola
-   * consulta y ya trae la cobertura.
+   * Abre el servicio que venía en la URL.
+   *
+   * <p>Es una segunda consulta y tiene su motivo: la lista visible trae la primera página de los
+   * activos, y el servicio enlazado puede estar en la tercera o estar dado de baja. Ésta va
+   * acotada al cliente y con los tres estados, sólo para encontrarlo.</p>
    */
   private openLinkedService(idClient: string): void {
     const enlazado = this.pendingServiceLink;
@@ -426,6 +450,7 @@ export class ServicesPage implements OnInit, OnDestroy {
     this.read(
       this.serviceApi.searchServices({
         organizationId: this.selectedOrganizationId(),
+        clientId: idClient,
         status: 'All',
         coverageDate: this.operationDate() || undefined,
         pageSize: 200,

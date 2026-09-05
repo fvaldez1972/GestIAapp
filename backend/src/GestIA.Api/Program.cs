@@ -10,6 +10,7 @@ using GestIA.Infrastructure.Persistence.DemoData;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Http.Json;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using System.Globalization;
 using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -70,12 +71,18 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
     ResponseWriter = WriteReadinessResponseAsync
 });
 
-app.MapGet("/api/v1/system/info", () => Results.Ok(new
+// El día operativo y el huso salen de aquí porque el navegador no puede calcularlos: en UTC el
+// día empieza entre seis y siete horas antes que en México, y una barra de contexto que hiciera
+// `new Date()` mostraría un día distinto del que el servidor usa para decidir vigencias y
+// elegibilidad. Sería el mismo defecto que el reloj operativo cerró, movido de capa.
+app.MapGet("/api/v1/system/info", (IClock clock) => Results.Ok(new
 {
     application = "GestIA",
     apiVersion = "v1",
     status = "ready",
-    persistence = "SQL Server"
+    persistence = "SQL Server",
+    operationDate = clock.Today.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+    timeZoneId = clock.OperationalTimeZone.Id
 }))
     .WithName("GetSystemInfo")
     .WithTags("System");

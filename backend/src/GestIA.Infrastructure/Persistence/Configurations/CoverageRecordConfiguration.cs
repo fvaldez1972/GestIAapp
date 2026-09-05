@@ -28,6 +28,9 @@ public sealed class CoverageRecordConfiguration : IEntityTypeConfiguration<Cover
             .WithMany()
             .HasForeignKey(entity => entity.IdReplacementEmployee)
             .OnDelete(DeleteBehavior.Restrict);
+        // Lo genera SQL Server en cada escritura; el modelo solo lo lee.
+        builder.Property(entity => entity.RowVersion).IsRowVersion();
+
         builder.HasIndex(entity => entity.IdScheduledShift);
         builder.HasIndex(entity => entity.IdReplacementEmployee);
         builder.HasOne<Organization>()

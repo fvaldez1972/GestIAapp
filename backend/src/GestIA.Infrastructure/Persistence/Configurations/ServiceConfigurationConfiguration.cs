@@ -39,6 +39,9 @@ public sealed class ServiceConfigurationConfiguration : IEntityTypeConfiguration
             .WithMany(service => service.Configurations)
             .HasForeignKey(entity => entity.IdService)
             .OnDelete(DeleteBehavior.Restrict);
+        // Lo genera SQL Server en cada escritura; el modelo solo lo lee.
+        builder.Property(entity => entity.RowVersion).IsRowVersion();
+
         builder.HasIndex(entity => new { entity.IdService, entity.EffectiveFromDate }).IsUnique();
         builder.HasOne<Organization>()
             .WithMany()

@@ -38,6 +38,22 @@ public sealed class OperationDayClosure : AuditableEntity, IOrganizationScopedEn
 
     public Guid IdOperationDayClosure { get; private set; }
     public Guid IdOrganization { get; private set; }
+
+    /// <summary>
+    /// Token de concurrencia. Lo genera y lo mantiene SQL Server; nadie lo asigna.
+    ///
+    /// <para><b>Para qué sirve, si las escrituras operativas ya corren en transacciones
+    /// serializables.</b> La transacción protege contra escrituras que se cruzan <i>dentro</i> de
+    /// la base. La pérdida que este token detecta vive <i>fuera</i>: el supervisor B abrió la
+    /// pantalla a las 10:01, A guardó a las 10:05, y B guarda a las 10:06 con lo que tenía en
+    /// pantalla desde antes. La transacción de B lee el registro ya actualizado por A y lo pisa
+    /// con datos viejos, correctamente y sin error. El desfase está en el navegador, y por eso el
+    /// token tiene que viajar en la respuesta y volver en la petición.</para>
+    ///
+    /// <para>Y aquí importa más que en otras tablas: esta entidad lleva bitácora, así que una
+    /// pérdida silenciosa dejaría un historial que registra un cambio que otro pisó.</para>
+    /// </summary>
+    public byte[] RowVersion { get; private set; } = [];
     public Guid IdService { get; private set; }
     public DateOnly OperationDate { get; private set; }
     public int ExpectedShifts { get; private set; }

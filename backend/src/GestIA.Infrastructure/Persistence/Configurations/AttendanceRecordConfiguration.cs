@@ -22,6 +22,9 @@ public sealed class AttendanceRecordConfiguration : IEntityTypeConfiguration<Att
             .WithMany()
             .HasForeignKey(entity => entity.IdEmployee)
             .OnDelete(DeleteBehavior.Restrict);
+        // Lo genera SQL Server en cada escritura; el modelo solo lo lee.
+        builder.Property(entity => entity.RowVersion).IsRowVersion();
+
         builder.HasIndex(entity => entity.IdScheduledShift).IsUnique();
         builder.HasIndex(entity => new { entity.IdEmployee, entity.AttendanceDate });
         builder.HasOne<Organization>()

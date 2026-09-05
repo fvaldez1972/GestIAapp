@@ -177,6 +177,7 @@ public sealed class CatalogService(
         await EnsureSkillCatalogItemAsync(request.IdOrganization, request.IdSkillCatalogItem, cancellationToken);
         var profile = ValidateEmployeeSkillProfile(request);
         var skill = EmployeeSkill.Create(
+            request.IdOrganization,
             request.IdEmployee,
             profile,
             actorContext.ActorId,

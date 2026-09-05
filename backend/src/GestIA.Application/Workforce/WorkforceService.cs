@@ -153,6 +153,7 @@ public sealed class WorkforceService(
         var profile = Validate(request);
         ValidateDocumentStorage(request.IdOrganization, profile.StorageReference);
         var document = EmployeeDocument.Create(
+            request.IdOrganization,
             request.IdEmployee,
             profile,
             actorContext.ActorId,
@@ -231,6 +232,7 @@ public sealed class WorkforceService(
         }
 
         var evaluation = EmployeeEvaluation.Create(
+            request.IdOrganization,
             request.IdEmployee,
             profile,
             actorContext.ActorId,

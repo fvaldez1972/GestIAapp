@@ -195,6 +195,7 @@ public sealed partial class DemoDataSeeder
             }
 
             var document = EmployeeDocument.Create(
+                employee.IdOrganization,
                 employee.IdEmployee,
                 new EmployeeDocumentProfile(
                     types[index],
@@ -245,6 +246,7 @@ public sealed partial class DemoDataSeeder
             var evaluatedDate = Days(-(30 + (index * 45) + (number % 20)));
 
             var evaluation = EmployeeEvaluation.Create(
+                employee.IdOrganization,
                 employee.IdEmployee,
                 new EmployeeEvaluationProfile(
                     types[index],
@@ -287,6 +289,7 @@ public sealed partial class DemoDataSeeder
             }
 
             var employeeSkill = EmployeeSkill.Create(
+                employee.IdOrganization,
                 employee.IdEmployee,
                 new EmployeeSkillProfile(
                     skill.IdBusinessCatalogItem,

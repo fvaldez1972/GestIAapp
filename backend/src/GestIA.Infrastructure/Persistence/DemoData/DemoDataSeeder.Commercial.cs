@@ -78,6 +78,7 @@ public sealed partial class DemoDataSeeder
         {
             var place = DemoCatalog.Municipalities[(index + definition.Code.Length) % DemoCatalog.Municipalities.Length];
             var site = ClientSite.Create(
+                client.IdOrganization,
                 client.IdClient,
                 $"{definition.Code}-S{index + 1:00}",
                 new ClientSiteAddress(
@@ -108,6 +109,7 @@ public sealed partial class DemoDataSeeder
         {
             var fullName = $"{Pick(DemoCatalog.ContactFirstNames)} {Pick(DemoCatalog.ContactLastNames)} {Pick(DemoCatalog.ContactLastNames)}";
             var contact = ClientContact.Create(
+                client.IdOrganization,
                 client.IdClient,
                 null,
                 new ClientContactDetails(

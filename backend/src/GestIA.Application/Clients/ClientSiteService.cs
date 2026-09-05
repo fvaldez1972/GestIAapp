@@ -35,6 +35,7 @@ public sealed class ClientSiteService(
 
         await catalogs.AddressAsync(request.IdOrganization, address.CountryCode, address.State, address.Municipality, null, null, null, cancellationToken);
         var site = ClientSite.Create(
+            request.IdOrganization,
             request.IdClient,
             code,
             address,

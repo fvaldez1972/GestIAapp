@@ -35,6 +35,7 @@ public sealed partial class ClientContactService(
 
         await catalogValidator.ValueAsync(request.IdOrganization, BusinessCatalogItemType.JobPosition, details.JobTitle, null, cancellationToken);
         var contact = ClientContact.Create(
+            request.IdOrganization,
             request.IdClient,
             request.IdClientSite,
             details,

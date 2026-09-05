@@ -26,11 +26,11 @@ El alcance activo y todo lo que lo acompaña.
 | `recorrido/nav-componente.html` | Componente de navegación del boceto |
 | `pantallas/` | Diseños terminados a 1440 px, pantalla por pantalla. Ver [`pantallas/LEEME.md`](fase-1/pantallas/LEEME.md) |
 
-Dentro de `pantallas/`: **Servicios** con seis vistas e **Inicio** con cuatro vistas y un
-anexo están terminadas; el menú lateral vive aparte en `pantallas/componentes/` porque lo
-comparten todas las pantallas. Faltan Clientes, Personal, Planeación, Asistencia e Incidencias
-con Cobertura. Organizaciones, Catálogos y Seguridad se implementan directo desde el boceto,
-sin diseño terminado.
+Dentro de `pantallas/`: **Clientes** con cinco vistas, **Servicios** con seis e **Inicio** con
+cuatro más un anexo están terminadas; el menú lateral vive aparte en `pantallas/componentes/`
+porque lo comparten todas las pantallas. Cada pantalla se dibuja con el rol que realmente la
+usa. Faltan Personal, Planeación, Asistencia e Incidencias con Cobertura. Organizaciones,
+Catálogos y Seguridad se implementan directo desde el boceto, sin diseño terminado.
 
 ### `refactor-ux/` — vigente, de apoyo
 

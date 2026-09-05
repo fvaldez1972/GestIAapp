@@ -19,11 +19,38 @@ hex directo al código es un error, porque rompe el tema y duplica la definició
 La tabla de equivalencias está en el sistema de componentes y en
 [`../../refactor-ux/BRIEF-COMPONENTES.md`](../../refactor-ux/BRIEF-COMPONENTES.md).
 
+## Cada pantalla se dibuja con el rol que realmente la usa
+
+No todas las pantallas están dibujadas desde el mismo rol, y es deliberado: cada una se dibuja
+con el rol que de verdad la opera. Se nota en el menú lateral y en si aparece la salida a la
+vista de plataforma.
+
+| Pantalla | Rol con el que está dibujada |
+| --- | --- |
+| Clientes | Admin de organización |
+| Servicios | Super admin dentro de una organización |
+| Inicio | Ambos: las vistas 1 a 3 como admin de organización, la 4 como super admin que entró |
+
 ## Terminadas
+
+### Clientes — 5 vistas
+
+`clientes/clientes.html`. Dibujada como **admin de organización**: no lleva salida a la vista
+de plataforma, porque quien administra la cartera de clientes es la organización misma.
+
+| Vista | Qué muestra |
+| --- | --- |
+| 1 | Listado con la barra de filtros del sistema |
+| 2 | Panel de detalle abierto, pestaña Datos |
+| 3 | Panel abierto, pestaña Sedes |
+| 4 | Formulario de alta de cliente |
+| 5 | Cliente guardado sin sede: el aviso llega aquí, con la salida a un clic |
 
 ### Servicios — 6 vistas
 
-`servicios/servicios.html`. Cubre los pasos 5, 6 y 8 del recorrido.
+`servicios/servicios.html`. Cubre los pasos 5, 6 y 8 del recorrido. Dibujada como
+**super admin dentro de una organización**, así que sí lleva la salida a la vista de
+plataforma.
 
 | Vista | Qué muestra |
 | --- | --- |
@@ -49,15 +76,16 @@ La tabla de equivalencias está en el sistema de componentes y en
 ## Compartido entre pantallas
 
 `componentes/side-menu.html` vive en su propia carpeta porque **lo usan todas las pantallas**,
-no solo estas dos. Cualquier cambio ahí afecta a la aplicación entera.
+no solo estas tres. Cualquier cambio ahí afecta a la aplicación entera.
 
 ## Faltan por diseñar
 
-- Clientes
-- Personal
-- Planeación
-- Asistencia
-- Incidencias con Cobertura
+Quedan cuatro, en este orden:
+
+1. Personal
+2. Planeación
+3. Asistencia
+4. Incidencias con Cobertura
 
 ## Se implementan sin pasar por diseño terminado
 

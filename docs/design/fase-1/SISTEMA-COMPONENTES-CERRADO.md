@@ -17,8 +17,14 @@ define cómo se usan.
 | Tipografía | Archivo, system-ui, sans-serif. Una sola familia |
 | Radio general | 6 px |
 | Radio de píldoras y etiquetas pequeñas | 3 px |
-| Alto de control | 42 px |
+| Alto de control | **40 px** (`--gestia-control-height`, 2.5 rem) |
 | Superficie | Plana. Sin sombra, separación por borde de 1 px y color de superficie |
+
+> **Corrección del 5 de septiembre de 2026.** Este cuadro decía 42 px de alto de control. El
+> bosquejo del que se extrajo el sistema —`pantallas/servicios/servicios.html`— usa `height:2.5rem`
+> **treinta y siete veces** y `42px` no aparece ni una vez; el token de la aplicación vale lo mismo.
+> Se corrige el documento en vez de mover todos los controles ya construidos por una línea de prosa
+> que su propia fuente desmiente.
 
 ## Escala tipográfica
 
@@ -80,9 +86,14 @@ marca izquierda de 3 px en `--gestia-cyan`. Pie con nombre de usuario y rótulo 
 
 ### Encabezado de página
 
-Etiqueta de sección en 11 px 600 sobre `--gestia-muted`, título en 13 px 700 sobre
+Etiqueta de sección en 11 px 600 sobre `--gestia-muted`, título en **22 px 700** sobre
 `--gestia-navy`, descripción opcional de una línea, y **una sola acción principal** a la
 derecha.
+
+> **Corrección del 5 de septiembre de 2026.** Aquí decía 13 px, y la escala tipográfica de arriba
+> dice 22 px para el título de pantalla. No pueden ser las dos. Vale el **22 px**: 13 px es el
+> tamaño del nombre de registro en una fila de tabla, y un título no puede medir lo mismo que una
+> celda.
 
 El breadcrumb existe una vez. No se repite en la topbar y en el encabezado.
 
@@ -201,6 +212,30 @@ Variantes: sin permiso, sin datos aún, sin resultados por filtro, y falta un pr
 
 ---
 
+## Dónde vive cada componente
+
+Construidos el 5 de septiembre de 2026 en `frontend/src/app/shared/ui/`, y exportados desde
+`gi-ui.ts`. Lo que no está en esa lista no es una pieza del sistema.
+
+| Componente del documento | Código |
+|---|---|
+| Tabla de datos | `GiDataTable` |
+| Panel de detalle lateral | `GiDetailPanel` |
+| Barra de filtros | `GiFilterBar` |
+| Acciones de fila | `GiRowActions` |
+| Estado vacío | `GiEmptyState` |
+| Diálogo de confirmación destructiva | `GiConfirmDialog` |
+| Tarjeta de indicador | `GiMetricCard` |
+| Barra de contexto | `ContextBar`, en `core/layout` |
+
+`design-system.spec.ts` comprueba sobre esos archivos que no haya colores escritos a mano,
+tamaños fuera de la escala, radios fuera de los tres, ni selectores nativos.
+
+Siguen sin construir, porque son de pantalla y no compartidos: la cuadrícula de proyección, el
+agregador de pendientes y el camino de configuración.
+
+---
+
 ## Reglas transversales
 
 | Regla | Detalle |
@@ -230,6 +265,12 @@ Variantes: sin permiso, sin datos aún, sin resultados por filtro, y falta un pr
 | Texto en cian sobre fondo claro | `--gestia-cyan-dark` |
 
 Ningún estado depende solo del color: siempre lleva texto o forma que lo acompañe.
+
+**Píldora de estado:** borde de 1 px y texto en el token que corresponda, sobre
+`--gestia-surface`, radio 3 px, 10.5 px 600. **No hay fondos suaves derivados de los tokens de
+color**, porque el sistema sólo autoriza un valor derivado y es el velo del diálogo. Es lo que
+hace el bosquejo, de donde salen sus veinte `border-radius:3px`, y en una tabla densa un fondo
+sólido pesa demasiado.
 
 **Velo de diálogo:** `--gestia-navy` **al 28 % de opacidad**, es decir `rgba(16, 16, 78, 0.28)`.
 Es el **único valor derivado de un token** en todo el sistema, y queda escrito aquí justo para

@@ -48,7 +48,7 @@ describe('AuthService', () => {
     expect(service.isPlatformAdmin()).toBe(true);
     expect(service.activeOrganizationId()).toBe('');
     expect(service.activeOrganization()).toBeNull();
-    expect(service.resolveOperationalOrganizationId(organizations)).toBe('');
+    expect(service.operationalOrganizationId()).toBe('');
   });
 
   it('permite al super admin entrar a cualquier organización de la plataforma y salir', () => {
@@ -95,12 +95,13 @@ describe('AuthService', () => {
   });
 
   /**
-   * La regresión de la deriva. Antes, `resolveOperationalOrganizationId` consultaba la lista que
-   * le pasaba cada pantalla y, si la organización activa no estaba en ella, caía en silencio a la
-   * primera de esa lista. Dos pantallas con listas distintas resolvían organizaciones distintas
-   * partiendo del mismo valor activo, y por eso la barra decía una cosa y la pantalla otra.
+   * La regresión de la deriva. El método que había antes consultaba la lista que le pasaba cada
+   * pantalla y, si la organización activa no estaba en ella, caía en silencio a la primera de esa
+   * lista. Dos pantallas con listas distintas resolvían organizaciones distintas partiendo del
+   * mismo valor activo, y por eso la barra decía una cosa y la pantalla otra. Ya no hay lista que
+   * pasar: la lectura es una y no admite argumentos.
    */
-  it('dos pantallas con listas distintas resuelven la misma organización', () => {
+  it('la organización operativa se lee sin pasar ninguna lista', () => {
     const service = TestBed.inject(AuthService);
     const propias = [
       { idOrganization: 'org-a', codeOrganization: 'A', legalName: 'Alfa' },
@@ -114,13 +115,9 @@ describe('AuthService', () => {
 
     service.setActiveOrganization('org-b');
 
-    // Una pantalla que todavía no terminó de cargar y sólo conoce la primera organización.
-    const listaIncompleta = [propias[0]];
-
     expect(service.operationalOrganizationId()).toBe('org-b');
-    expect(service.resolveOperationalOrganizationId(propias)).toBe('org-b');
-    expect(service.resolveOperationalOrganizationId(listaIncompleta)).toBe('org-b');
-    expect(service.resolveOperationalOrganizationId([])).toBe('org-b');
+    expect((service as unknown as Record<string, unknown>)['resolveOperationalOrganizationId'])
+      .toBeUndefined();
   });
 
   it('la organización activa no se puede escribir desde fuera del servicio', () => {

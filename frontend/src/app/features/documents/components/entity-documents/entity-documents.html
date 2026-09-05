@@ -100,12 +100,12 @@
                   <div class="entity-meta"><span>{{ document.category }}</span>
                     <span class="gi-badge" [class.gi-badge--success]="document.status === 'Validated'" [class.gi-badge--danger]="document.status === 'Rejected' || document.isExpired" [class.gi-badge--muted]="document.status === 'Archived'">{{ statusLabels[document.status] }}</span>
                     @if (document.isSensitive) { <span class="gi-badge gi-badge--warning"><app-icon name="security" /> Sensible</span> }
-                    @if (document.expiresDate) { <span>Vence: {{ document.expiresDate | date:'dd/MM/yyyy' }}</span> }
+                    @if (document.expiresDate) { <span>Vence: {{ formatDate(document.expiresDate) }}</span> }
                   </div>
                   @if (document.notes) { <p class="entity-notes">{{ document.notes }}</p> }
                   @if (document.reviewNotes || document.reviewedByName) {
                     <p class="entity-notes"><strong>Revision</strong>@if (document.reviewedByName) { : {{ document.reviewedByName }} }
-                      @if (document.reviewedAt) { <span> ({{ document.reviewedAt | date:'dd/MM/yyyy HH:mm' }})</span> }
+                      @if (document.reviewedAt) { <span> ({{ formatInstant(document.reviewedAt) }})</span> }
                       @if (document.reviewNotes) { <span> - {{ document.reviewNotes }}</span> }
                     </p>
                   }
@@ -152,7 +152,7 @@
     <ol class="entity-history-list">
       @for (event of history(); track event.idBusinessDocumentEvent) {
         <li><strong>{{ eventLabel(event.action) }}</strong> <span class="gi-badge">{{ statusLabels[event.status] }}</span>
-          <p>{{ event.actorName }} <time>{{ event.occurredAt | date:'dd/MM/yyyy HH:mm' }}</time></p>
+          <p>{{ event.actorName }} <time>{{ formatInstant(event.occurredAt) }}</time></p>
           @if (event.notes) { <p class="entity-notes">{{ event.notes }}</p> }
           @if (event.changes.length) {
             <table class="gi-table entity-changes" aria-label="Cambios del documento">

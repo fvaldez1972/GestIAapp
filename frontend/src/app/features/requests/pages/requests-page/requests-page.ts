@@ -980,14 +980,6 @@ export class RequestsPage implements OnInit {
     return Boolean(today && request.neededByDate && request.neededByDate < today && request.status !== 'Completed');
   }
 
-  protected todayLabel() {
-    return new Intl.DateTimeFormat('es-MX', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    }).format(new Date());
-  }
-
   /**
    * Ya no se carga una lista de organizaciones para elegir: la organización la fija la barra de
    * contexto. Cuando cambia, el shell vuelve a montar la pantalla y esto corre de nuevo.

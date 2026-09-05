@@ -63,12 +63,13 @@ export class AuthService {
   /**
    * La organización sobre la que operan las pantallas. **Fuente única.**
    *
-   * No recibe argumentos, y eso es lo que arregla. `resolveOperationalOrganizationId` recibía la
-   * lista de organizaciones de cada pantalla y, si la activa no estaba en ella, caía en silencio
-   * a la primera de esa lista. Dos pantallas con listas distintas —porque una cargó las de
-   * plataforma y otra las de la sesión, o porque una respondió antes que la otra— resolvían
-   * organizaciones distintas a partir del mismo valor activo. La barra de contexto decía una y la
-   * pantalla mostraba otra, y las dos creían tener razón.
+   * No recibe argumentos, y eso es lo que arregla. El método que sustituyó,
+   * `resolveOperationalOrganizationId`, recibía la lista de organizaciones de cada pantalla y, si
+   * la activa no estaba en ella, caía en silencio a la primera de esa lista. Dos pantallas con
+   * listas distintas —porque una cargó las de plataforma y otra las de la sesión, o porque una
+   * respondió antes que la otra— resolvían organizaciones distintas a partir del mismo valor
+   * activo. La barra de contexto decía una y la pantalla mostraba otra, y las dos creían tener
+   * razón. Con el método fuera, no queda ninguna forma de resolverla que no sea ésta.
    *
    * Deriva de `activeOrganization()`, que ya conoce la regla del super admin: fuera de toda
    * organización devuelve cadena vacía, y la pantalla queda en espera en vez de mostrar datos de
@@ -106,20 +107,6 @@ export class AuthService {
   hasPermission(permission: string) {
     const session = this.sessionState();
     return !!session && (session.permissions.includes(permission) || session.permissions.includes('PLATFORM.ADMIN'));
-  }
-
-  /**
-   * @deprecated Usa `operationalOrganizationId`. Se conserva sólo mientras las once pantallas de
-   * módulo la llaman; se borra en la tanda de pantallas, junto con las copias locales de
-   * `selectedOrganizationId`.
-   *
-   * **La lista se ignora a propósito.** Era el origen de la divergencia: cuando la organización
-   * activa no aparecía en la lista que traía la pantalla, esto caía a `organizations[0]` sin
-   * avisar. Ahora delega en la fuente única y devuelve lo mismo a todos sus llamadores, que es
-   * justamente lo que antes no hacía.
-   */
-  resolveOperationalOrganizationId(_organizations: readonly OrganizationAccess[]) {
-    return this.operationalOrganizationId();
   }
 
   setActiveOrganization(idOrganization: string) {

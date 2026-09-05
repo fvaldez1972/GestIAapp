@@ -1,4 +1,3 @@
-import { DatePipe } from '@angular/common';
 import { HttpErrorResponse, HttpResponse } from '@angular/common/http';
 import {
   ChangeDetectionStrategy, Component, ElementRef, OnDestroy, computed, effect, inject,
@@ -8,6 +7,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Observable, Subscription, finalize, map, of, switchMap, tap } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { AppIcon } from '../../../../shared/ui/app-icon/app-icon';
+import { formatOperationalDate, formatOperationalInstant } from '../../../../shared/util/operational-date';
 import { DocumentApiService } from '../../data-access/document-api.service';
 import { documentStatusLabels, historyChanges } from './entity-document-history';
 import {
@@ -20,12 +20,23 @@ type EditorMode = 'create' | 'edit' | 'review' | 'archive';
 
 @Component({
   selector: 'app-entity-documents',
-  imports: [ReactiveFormsModule, DatePipe, AppIcon],
+  imports: [ReactiveFormsModule, AppIcon],
   templateUrl: './entity-documents.html',
   styleUrl: './entity-documents.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class EntityDocuments implements OnDestroy {
+  /**
+   * El formato único de la aplicación, `04 sep 2026`. `DatePipe` no lo produce: sin `LOCALE_ID`
+   * escribe en inglés y con `es-MX` escribe `4 sept 2026`, día sin cero y mes de cuatro letras.
+   *
+   * La fecha de vencimiento es un **día de negocio** y va por el formateador que no pasa por
+   * `new Date`; la revisión es un **instante** y va por el que sí. Confundirlos correría el día,
+   * que es la misma distinción que el servidor hace entre columnas `Date` y columnas `At`.
+   */
+  protected readonly formatDate = formatOperationalDate;
+  protected readonly formatInstant = formatOperationalInstant;
+
   readonly organizationId = input.required<string>();
   readonly ownerType = input.required<BusinessDocumentOwnerType>();
   readonly ownerId = input.required<string>();

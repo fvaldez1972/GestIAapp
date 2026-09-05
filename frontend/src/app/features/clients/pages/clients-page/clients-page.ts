@@ -82,14 +82,6 @@ export class ClientsPage implements OnInit {
   protected readonly canAdministerPlatform = computed(() => this.auth.session()?.permissions.includes('PLATFORM.ADMIN') ?? false);
   protected readonly pageHeadingTitle = computed(() => this.canAdministerPlatform() ? 'Clientes operativos' : 'Configuración del cliente');
   protected readonly pageHeadingDescription = computed(() => this.canAdministerPlatform() ? 'Cartera de clientes operativos de la organización.' : 'Expediente comercial del cliente.');
-  protected readonly todayContext = computed(() => {
-    const date = new Intl.DateTimeFormat('es-MX', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    }).format(new Date());
-    return `Organización actual · Hoy, ${date.replace('.', '')}`;
-  });
   protected readonly selectedClientName = computed(() => this.selectedClient()?.legalName ?? 'Sin cliente seleccionado');
   protected readonly visibleClients = computed(() =>
     this.result().items.filter((client) => {

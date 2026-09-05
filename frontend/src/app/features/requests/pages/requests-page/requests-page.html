@@ -4,7 +4,6 @@
       <span class="eyebrow">{{ heroCopy().eyebrow }}</span>
       <h1>{{ heroCopy().title }}</h1>
       <p>{{ heroCopy().description }}</p>
-      <small class="hero-context">{{ requestScopeLabel() }} · Hoy, {{ todayLabel() }}</small>
     </div>
     <button class="gi-button gi-button--primary hero-action" type="button" [disabled]="isGlobalPlatformScope()" (click)="openNewRequest()">
       <span aria-hidden="true">＋</span> Nueva solicitud

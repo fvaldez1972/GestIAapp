@@ -30,9 +30,9 @@
     }
     <div class="context-item context-item--date">
       <span>Fecha operativa</span>
-      <strong>{{ todayLabel }}</strong>
+      <strong>{{ todayLabel() }}</strong>
     </div>
-    <div class="timezone"><span aria-hidden="true">◷</span>America/Mexico_City</div>
+    <div class="timezone"><span aria-hidden="true">◷</span>{{ timeZoneLabel() }}</div>
   </section>
 
   @if (loading()) {

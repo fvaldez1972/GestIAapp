@@ -278,7 +278,13 @@ export class ReportsPage implements OnInit {
     ].join(' · ');
   });
   protected readonly periodLabel = computed(() => `${this.fromDate()} - ${this.toDate()}`);
-  protected readonly timezoneLabel = computed(() => Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Mexico_City');
+  /**
+   * El huso del reporte es el **operativo**, no el del navegador de quien lo abre. Antes decía
+   * el huso que el navegador declara tener: un supervisor en Tijuana veía el mismo
+   * reporte rotulado con otro huso que uno en Mérida, y ninguno de los dos era el que el servidor
+   * usó para calcular los números.
+   */
+  protected readonly timezoneLabel = computed(() => this.systemInfo.timeZoneId() || 'Sin huso');
   protected readonly lastUpdatedLabel = computed(() =>
     this.lastUpdatedAt() ? new Intl.DateTimeFormat('es-MX', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(this.lastUpdatedAt())) : 'Sin actualizar',
   );

@@ -1,9 +1,9 @@
-import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { forkJoin } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
+import { formatOperationalInstant } from '../../../../shared/util/operational-date';
 import { ClientApiService } from '../../../clients/data-access/client-api.service';
 import { Organization } from '../../../clients/data-access/client.models';
 import { SecurityApiService } from '../../data-access/security-api.service';
@@ -25,11 +25,14 @@ type MembershipRow = {
 
 @Component({
   selector: 'app-security-page',
-  imports: [DatePipe, ReactiveFormsModule],
+  imports: [ReactiveFormsModule],
   templateUrl: './security-page.html',
   styleUrl: './security-page.scss',
 })
 export class SecurityPage implements OnInit {
+  /** El formato único de la aplicación. El último acceso es un instante, no un día de negocio. */
+  protected readonly formatInstant = formatOperationalInstant;
+
   private readonly api = inject(SecurityApiService);
   private readonly clientApi = inject(ClientApiService);
   private readonly formBuilder = inject(FormBuilder);

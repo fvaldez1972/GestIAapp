@@ -35,7 +35,13 @@ export class PlatformPage implements OnInit {
   protected readonly users = signal<readonly SecurityUser[]>([]);
   protected readonly roles = signal<readonly SecurityRole[]>([]);
   protected readonly summaries = signal<readonly OrganizationPlatformSummary[]>([]);
-  protected readonly selectedOrganizationId = signal('');
+  /**
+   * Qué fila de la tabla está abierta. **No es el contexto de trabajo**, que vive en la barra de
+   * contexto: esta pantalla administra organizaciones desde fuera de todas ellas. Se llamaba
+   * `selectedOrganizationId`, igual que la copia que tenían las demás pantallas, y por eso se
+   * confundía con ella al leer el código.
+   */
+  protected readonly selectedOrganizationRowId = signal('');
 
   protected readonly newOrganizationCode = signal('');
   protected readonly newOrganizationLegalName = signal('');
@@ -54,7 +60,7 @@ export class PlatformPage implements OnInit {
   protected readonly editOrganizationRfc = signal('');
 
   protected readonly selectedSummary = computed(
-    () => this.summaries().find((summary) => summary.organization.idOrganization === this.selectedOrganizationId()) ?? this.summaries()[0] ?? null,
+    () => this.summaries().find((summary) => summary.organization.idOrganization === this.selectedOrganizationRowId()) ?? this.summaries()[0] ?? null,
   );
   protected readonly activeOrganizationsCount = computed(() =>
     this.summaries().filter((summary) => summary.organization.active).length,
@@ -119,7 +125,7 @@ export class PlatformPage implements OnInit {
   }
 
   protected selectOrganization(idOrganization: string) {
-    this.selectedOrganizationId.set(idOrganization);
+    this.selectedOrganizationRowId.set(idOrganization);
     const organization = this.organizations().find((item) => item.idOrganization === idOrganization);
     if (organization) {
       this.syncOrganizationEditor(organization);
@@ -171,7 +177,7 @@ export class PlatformPage implements OnInit {
       })
       .subscribe({
         next: (result) => {
-          this.selectedOrganizationId.set(result.organization.idOrganization);
+          this.selectedOrganizationRowId.set(result.organization.idOrganization);
           this.clearOrganizationForm();
           this.organizationStep.set(1);
           this.success.set('Organización creada con su admin inicial.');
@@ -258,7 +264,7 @@ export class PlatformPage implements OnInit {
       })
       .subscribe({
         next: (organization) => {
-          this.selectedOrganizationId.set(organization.idOrganization);
+          this.selectedOrganizationRowId.set(organization.idOrganization);
           this.success.set('Organización actualizada correctamente.');
           this.loadPlatform();
         },
@@ -318,8 +324,8 @@ export class PlatformPage implements OnInit {
         this.organizations.set(organizations);
         this.users.set(users);
         this.roles.set(roles);
-        this.selectedOrganizationId.set(this.selectedOrganizationId() || organizations[0]?.idOrganization || '');
-        const selectedOrganization = organizations.find((organization) => organization.idOrganization === this.selectedOrganizationId()) ?? organizations[0];
+        this.selectedOrganizationRowId.set(this.selectedOrganizationRowId() || organizations[0]?.idOrganization || '');
+        const selectedOrganization = organizations.find((organization) => organization.idOrganization === this.selectedOrganizationRowId()) ?? organizations[0];
         if (selectedOrganization) {
           this.syncOrganizationEditor(selectedOrganization);
         }

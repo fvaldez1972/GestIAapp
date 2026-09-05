@@ -2,6 +2,7 @@ import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
+import { formatOperationalDate } from '../../../../shared/util/operational-date';
 import { SystemInfoService } from '../../../../core/system/system-info.service';
 import { ClientApiService } from '../../../clients/data-access/client-api.service';
 import { Client, OperationsServiceSummary, OperationsSummary } from '../../../clients/data-access/client.models';
@@ -48,12 +49,14 @@ export class OverviewPage {
    * tarde, de las 18:00 en adelante, el tablero pedía la operación del día siguiente.
    */
   protected readonly todayIso = computed(() => this.systemInfo.operationDate());
-  protected readonly todayLabel = new Intl.DateTimeFormat('es-MX', {
-    weekday: 'long',
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric',
-  }).format(new Date());
+  /**
+   * La fecha operativa del tablero. Aquí es contenido y no rótulo —dice de qué día son los
+   * números— así que se queda, pero sale del servidor como todo lo demás.
+   */
+  protected readonly todayLabel = computed(() => formatOperationalDate(this.todayIso()));
+
+  /** El huso lo dice el servidor. Antes estaba escrito a mano en la plantilla. */
+  protected readonly timeZoneLabel = computed(() => this.systemInfo.timeZoneId() || 'Sin huso');
 
   protected readonly coveredHours = computed(() =>
     Math.round(((this.operationsSummary()?.coveredMinutes ?? 0) / 60) * 10) / 10);

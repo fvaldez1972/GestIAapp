@@ -171,7 +171,7 @@
                       </td>
                     }
                     <td><span class="mini-pill" [class.is-danger]="!user.active">{{ user.active ? 'Activo' : 'Inactivo' }}</span></td>
-                    <td>{{ user.lastLoginAt ? (user.lastLoginAt | date: 'dd/MM/yyyy HH:mm') : 'Sin ingreso' }}</td>
+                    <td>{{ user.lastLoginAt ? formatInstant(user.lastLoginAt) : 'Sin ingreso' }}</td>
                     <td>
                       <span class="mini-pill" [class.is-admin]="isProtectedAdministrator(user)" [class.is-danger]="isLastAdministrator(user)">
                         {{ protectionLabel(user) }}
@@ -463,7 +463,7 @@
           <div class="detail-list">
             <div><span>{{ isPlatformAdmin() ? 'Organización principal' : 'Alcance' }}</span><strong>{{ user.organizations[0]?.legalName || 'Sin organización' }}</strong></div>
             <div><span>Rol principal</span><strong>{{ user.roles[0]?.name || 'Sin rol' }}</strong></div>
-            <div><span>Último acceso</span><strong>{{ user.lastLoginAt ? (user.lastLoginAt | date: 'dd/MM/yyyy HH:mm') : 'Sin ingreso' }}</strong></div>
+            <div><span>Último acceso</span><strong>{{ user.lastLoginAt ? formatInstant(user.lastLoginAt) : 'Sin ingreso' }}</strong></div>
           </div>
         </section>
 

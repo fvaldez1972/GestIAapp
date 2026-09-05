@@ -75,12 +75,22 @@ esa forma cambia. Si agregas una `ProjectReference`, esa prueba te lo dirá.
 - **Domain y Application no referencian EF Core** ni tipos propios de SQL Server. Domain no
   tiene ninguna `PackageReference`; Application solo tiene las abstracciones de DI.
 - **La configuración física va con Fluent API en Infrastructure**, en
-  `Persistence/Configurations/*.cs` (hoy 35 clases `IEntityTypeConfiguration<T>`). No se usan
+  `Persistence/Configurations/*.cs` (hoy 36 clases `IEntityTypeConfiguration<T>`). No se usan
   atributos de mapeo en las entidades de Domain.
 - **Sin reglas de negocio protegibles en el frontend.** Ocultar una opción del menú no es
   autorización. Toda consulta multiempresa lleva el identificador de alcance autorizado desde
   el servidor: en la práctica, `OrganizationAccessGuard.ForbidIfUnauthorized(context, orgId)`
   al inicio de cada endpoint, más `.RequirePermission(...)`.
+- **El aislamiento entre organizaciones es un filtro global, no una condición que cada consulta
+  repita.** El guard fija la organización autorizada en `IOrganizationContext` y un filtro con
+  nombre la aplica a las **29 entidades** que declaran `IOrganizationScopedEntity`. Falla
+  cerrado: sin organización fijada, la consulta devuelve **cero filas**, no todas. Apagarlo exige
+  `IgnoreQueryFilters(["Organization"])`, que sólo pueden usar los archivos de la lista blanca de
+  `OrganizationFilterBypassTests`; `IgnoreQueryFilters()` sin argumentos rompe el build.
+- **Las correcciones de registros operativos dejan rastro.** `SaveChanges` emite un
+  `OperationalEvent` por cada cambio a las cinco entidades con historial, en la misma transacción
+  que el cambio. Las bitácoras son de sólo agregar y sus fotos guardan metadatos con lista
+  blanca: el texto libre no se copia, sólo si estaba lleno o vacío.
 - **Los registros operativos no se eliminan.** Se usa borrado lógico (`Active`) vía
   `IActivatableEntity` y auditoría vía `IAuditableEntity`.
 - **En producción la API no usa `sa` ni crea bases al iniciar.** No hay `EnsureCreated` ni
@@ -188,12 +198,26 @@ dotnet tool run dotnet-ef database update --project .\src\GestIA.Infrastructure 
 (ADR 0003, sección "Consecuencias"; reiterado en las restricciones heredadas del alcance
 vigente.)
 
-Esto no es teórico aquí. Las 19 migraciones de
-`backend/src/GestIA.Infrastructure/Persistence/Migrations/` están aplicadas en `db-gestia-dev`
-según `docs/V5-AVANCE-2026-09-03.md` y `docs/CATALOGOS-CIERRE-2026-09-03.md`, hasta
-`20260903214645_CoverageCatalogReference`, con respaldos verificados antes de cada cambio de
-esquema. Editar el archivo de una migración ya aplicada deja el `__EFMigrationsHistory` de esa
-base inconsistente con el código.
+Esto no es teórico aquí. Hay **22 migraciones** en
+`backend/src/GestIA.Infrastructure/Persistence/Migrations/`, y **no todas están aplicadas en
+todas las bases**:
+
+| Base | Migraciones aplicadas | Hasta |
+|---|---|---|
+| `db-gestia-dev` | 19 | `20260903214645_CoverageCatalogReference` |
+| `db-gestia-demo` | 22 | `20260905120426_AddOrganizationToClientAndEmployeeDetails` |
+
+Las 19 de `db-gestia-dev` están documentadas en `docs/V5-AVANCE-2026-09-03.md` y
+`docs/CATALOGOS-CIERRE-2026-09-03.md`. Las tres siguientes —organización denormalizada, bitácora
+funcional y organización en las entidades de detalle— se aplicaron sólo en `db-gestia-demo`, con
+respaldo `COPY_ONLY` verificado y ensayo sobre copia antes de cada una.
+
+**Consecuencia práctica: el código actual no arranca contra `db-gestia-dev`.** El modelo espera
+columnas que esa base todavía no tiene. Ponerla al día es una decisión con respaldo y ensayo, no
+un paso automático.
+
+Editar el archivo de una migración ya aplicada deja el `__EFMigrationsHistory` de esa base
+inconsistente con el código.
 
 Reglas que acompañan a cada migración nueva:
 

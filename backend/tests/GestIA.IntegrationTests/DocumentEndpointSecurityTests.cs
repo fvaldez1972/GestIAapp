@@ -102,6 +102,7 @@ public sealed class DocumentEndpointSecurityTests
         builder.WebHost.UseTestServer();
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?> { ["Storage:RootPath"] = root });
         builder.Services.AddHttpContextAccessor();
+        builder.Services.AddOrganizationContext();
         builder.Services.AddScoped<IActorContext, HttpActorContext>();
         builder.Services.AddScoped<IBusinessDocumentService, BusinessDocumentService>();
         builder.Services.AddSingleton<IBusinessDocumentRepository, Repository>();

@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Reflection;
 using System.Security.Claims;
 using GestIA.Api.Endpoints;
+using GestIA.Api.Security;
 using GestIA.Application.Catalogs;
 using GestIA.Application.Security;
 using GestIA.Domain.Catalogs;
@@ -80,6 +81,7 @@ public sealed class CatalogEndpointTests
     {
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
+        builder.Services.AddOrganizationContext();
         builder.Services.AddSingleton(DispatchProxy.Create<ICatalogService, CatalogProxy>());
         var app = builder.Build();
         app.Use(async (context, next) =>

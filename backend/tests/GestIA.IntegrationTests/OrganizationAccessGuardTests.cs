@@ -1,7 +1,9 @@
 using System.Security.Claims;
 using GestIA.Api.Security;
+using GestIA.Application.Common;
 using GestIA.Application.Security;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace GestIA.IntegrationTests;
 
@@ -24,6 +26,10 @@ public sealed class OrganizationAccessGuardTests
 
         Assert.True(OrganizationAccessGuard.CanAccess(context, BktOrganizationId));
         Assert.Null(OrganizationAccessGuard.ForbidIfUnauthorized(context, BktOrganizationId));
+
+        // Autorizar y fijar la organización son el mismo acto: el filtro de consulta va a usar
+        // exactamente el identificador que se acaba de validar.
+        Assert.Equal(BktOrganizationId, AuthorizedOrganization(context));
     }
 
     [Fact]
@@ -35,6 +41,9 @@ public sealed class OrganizationAccessGuardTests
 
         Assert.False(OrganizationAccessGuard.CanAccess(context, OtherOrganizationId));
         Assert.NotNull(OrganizationAccessGuard.ForbidIfUnauthorized(context, OtherOrganizationId));
+
+        // Denegar no deja nada fijado: sin organización, el filtro no devuelve filas.
+        Assert.Null(AuthorizedOrganization(context));
     }
 
     /// <summary>
@@ -91,9 +100,17 @@ public sealed class OrganizationAccessGuardTests
             .Select(permission => new Claim("permission", permission))
             .Concat(organizations.Select(organization => new Claim("organization", organization.ToString())));
 
+        var services = new ServiceCollection()
+            .AddScoped<IOrganizationContext>(_ => FixedOrganizationContext.None())
+            .BuildServiceProvider();
+
         return new DefaultHttpContext
         {
-            User = new ClaimsPrincipal(new ClaimsIdentity(claims, "GestIATest"))
+            User = new ClaimsPrincipal(new ClaimsIdentity(claims, "GestIATest")),
+            RequestServices = services
         };
     }
+
+    private static Guid? AuthorizedOrganization(HttpContext context) =>
+        context.RequestServices.GetRequiredService<IOrganizationContext>().CurrentOrganizationId;
 }

@@ -2,6 +2,7 @@ using System.Data;
 using System.Data.Common;
 using System.Security.Claims;
 using GestIA.Api.Endpoints;
+using GestIA.Api.Security;
 using GestIA.Application.Audit;
 using GestIA.Application.Common;
 using GestIA.Application.Documents;
@@ -88,6 +89,7 @@ public sealed class AuditDocumentAuthorizationTests
         var capture = new CaptureCommands();
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
+        builder.Services.AddOrganizationContext();
         builder.Services.AddScoped(_ => CreateContext(capture));
         builder.Services.AddSingleton<IActorContext>(new Actor(null));
         builder.Services.AddScoped<IAuditRepository, AuditRepository>();
@@ -112,7 +114,8 @@ public sealed class AuditDocumentAuthorizationTests
     private static GestIaDbContext CreateContext(CaptureCommands capture) => new(
         new DbContextOptionsBuilder<GestIaDbContext>()
             .UseSqlServer("Server=localhost;Database=Unused;Integrated Security=true;TrustServerCertificate=true")
-            .AddInterceptors(new SuppressConnection(), capture).Options);
+            .AddInterceptors(new SuppressConnection(), capture).Options,
+        FixedOrganizationContext.For(OrganizationId));
 
     private static void AssertRestrictedDocumentSql(string sql)
     {

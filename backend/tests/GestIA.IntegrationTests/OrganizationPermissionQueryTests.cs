@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using System.Security.Claims;
 using GestIA.Api.Endpoints;
+using GestIA.Api.Security;
 using GestIA.Application;
 using GestIA.Application.Common;
 using GestIA.Application.Security;
@@ -36,6 +37,7 @@ public sealed class OrganizationPermissionQueryTests(OperationalSqlDatabase data
         builder.WebHost.UseTestServer();
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?> { ["ConnectionStrings:GestIa"] = database.ConnectionString });
         builder.Services.AddApplication().AddInfrastructure(builder.Configuration);
+        builder.Services.AddOrganizationContext();
         builder.Services.AddSingleton<IActorContext>(actor);
         builder.Services.AddSingleton<IClock>(new Clock());
         await using var app = builder.Build();

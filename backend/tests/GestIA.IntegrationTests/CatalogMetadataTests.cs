@@ -55,6 +55,8 @@ public sealed class CatalogMetadataTests(OperationalSqlDatabase database) : ICla
     {
         var organization = await SeedAsync();
         var other = await SeedAsync();
+        // Sembrar la segunda dejó el contexto ahí; la prueba opera desde la primera.
+        database.Organization.SetAuthorizedOrganization(organization);
         using var provider = Provider();
         await using var scope = provider.CreateAsyncScope();
         var service = scope.ServiceProvider.GetRequiredService<ICatalogService>();
@@ -92,6 +94,8 @@ public sealed class CatalogMetadataTests(OperationalSqlDatabase database) : ICla
             TestActor.ActorId, TestActor.ActorName, DateTime.UtcNow);
         context.Add(organization);
         await context.SaveChangesAsync();
+        // Como haría el guard al autorizar la petición: a partir de aquí se opera dentro de ella.
+        database.Organization.SetAuthorizedOrganization(organization.IdOrganization);
         return organization.IdOrganization;
     }
 
@@ -100,6 +104,8 @@ public sealed class CatalogMetadataTests(OperationalSqlDatabase database) : ICla
     {
         var org = await SeedAsync();
         var other = await SeedAsync();
+        // Sembrar la segunda dejó el contexto ahí; la prueba opera desde la primera.
+        database.Organization.SetAuthorizedOrganization(org);
         using var provider = Provider();
         await using var scope = provider.CreateAsyncScope();
         var service = scope.ServiceProvider.GetRequiredService<ICatalogService>();
@@ -158,6 +164,9 @@ public sealed class CatalogMetadataTests(OperationalSqlDatabase database) : ICla
         await using var check = database.Context();
         foreach (var id in new[] { plain.IdOrganization, provisioned.Organization.IdOrganization })
         {
+            // Se revisa una organización a la vez, como haría cualquier petición real. De paso
+            // demuestra que cambiar de organización sobre el MISMO contexto cambia lo que ve.
+            database.Organization.SetAuthorizedOrganization(id);
             var items = await check.BusinessCatalogItems.Where(item => item.IdOrganization == id).ToArrayAsync();
             Assert.Equal(32, items.Count(item => item.Type == BusinessCatalogItemType.State));
             Assert.Equal(2478, items.Count(item => item.Type == BusinessCatalogItemType.City));
@@ -172,6 +181,8 @@ public sealed class CatalogMetadataTests(OperationalSqlDatabase database) : ICla
     {
         var org = await SeedAsync();
         var other = await SeedAsync();
+        // Sembrar la segunda dejó el contexto ahí; la prueba opera desde la primera.
+        database.Organization.SetAuthorizedOrganization(org);
         using var provider = Provider();
         await using var scope = provider.CreateAsyncScope();
         var catalogs = scope.ServiceProvider.GetRequiredService<ICatalogService>();
@@ -228,6 +239,7 @@ public sealed class CatalogMetadataTests(OperationalSqlDatabase database) : ICla
         { ["ConnectionStrings:GestIa"] = database.ConnectionString }).Build();
         var services = new ServiceCollection().AddLogging().AddApplication().AddInfrastructure(configuration);
         services.AddSingleton<IActorContext>(TestActor);
+        services.AddSingleton<IOrganizationContext>(database.Organization);
         services.AddSingleton<IClock>(new Clock());
         return services.BuildServiceProvider();
     }

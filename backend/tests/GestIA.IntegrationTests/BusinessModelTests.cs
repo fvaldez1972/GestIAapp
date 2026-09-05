@@ -69,6 +69,7 @@ public sealed class BusinessModelTests
                 "Password=Only_for_model_tests_2026!;Encrypt=True;TrustServerCertificate=True")
             .Options;
 
-        return new GestIaDbContext(options);
+        // Sólo lee el modelo: no consulta, así que no necesita organización.
+        return new GestIaDbContext(options, FixedOrganizationContext.None());
     }
 }

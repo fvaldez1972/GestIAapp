@@ -140,6 +140,8 @@ public sealed class OperationalConcurrencyTests : IClassFixture<OperationalSqlDa
     {
         var seed = await SeedAsync();
         var other = await SeedAsync();
+        // Sembrar la segunda dejó el contexto apuntando ahí; la prueba opera desde la primera.
+        database.Organization.SetAuthorizedOrganization(seed.OrganizationId);
         using var provider = Provider();
         await using (var scope = provider.CreateAsyncScope())
         {
@@ -408,6 +410,8 @@ public sealed class OperationalConcurrencyTests : IClassFixture<OperationalSqlDa
     {
         var seed = await SeedAsync();
         var other = await SeedAsync();
+        // Sembrar la segunda dejó el contexto apuntando ahí; la prueba opera desde la primera.
+        database.Organization.SetAuthorizedOrganization(seed.OrganizationId);
         using var provider = Provider();
         await using var scope = provider.CreateAsyncScope();
         var service = scope.ServiceProvider.GetRequiredService<IOperationsService>();
@@ -454,6 +458,7 @@ public sealed class OperationalConcurrencyTests : IClassFixture<OperationalSqlDa
         }).Build();
         var services = new ServiceCollection().AddLogging().AddApplication().AddInfrastructure(configuration);
         services.AddSingleton<IActorContext>(Actor);
+        services.AddSingleton<IOrganizationContext>(database.Organization);
         services.AddSingleton<IClock>(new TestClock());
         if (interceptor is not null)
         {
@@ -483,6 +488,8 @@ public sealed class OperationalConcurrencyTests : IClassFixture<OperationalSqlDa
         var reason = BusinessCatalogItem.Create(organization.IdOrganization, new(BusinessCatalogItemType.CoverageReason, "FALTA", "Falta", null), Actor.ActorId, Actor.ActorName, Now);
         context.Add(reason);
         await context.SaveChangesAsync();
+        // El alta escribe sin filtro; a partir de aquí las lecturas van dentro de esta organización.
+        database.Organization.SetAuthorizedOrganization(organization.IdOrganization);
         return new(organization.IdOrganization, client.IdClient, service.IdService, position.IdPosition,
             employee.IdEmployee, replacement.IdEmployee, version.IdScheduleVersion, shift.IdScheduledShift, reason.IdBusinessCatalogItem);
     }
@@ -603,8 +610,15 @@ public sealed class OperationalSqlDatabase : IAsyncLifetime
         await context.Database.EnsureCreatedAsync();
     }
 
+    /// <summary>
+    /// La organización autorizada de la prueba en curso, compartida por los contextos que crea
+    /// esta base y por el contenedor de <c>Provider()</c>. En producción la fija el guard al
+    /// autorizar la petición; aquí la fija <c>SeedAsync</c> al crear la organización.
+    /// </summary>
+    public FixedOrganizationContext Organization { get; } = FixedOrganizationContext.None();
+
     public GestIaDbContext Context() => new(new DbContextOptionsBuilder<GestIaDbContext>()
-        .UseSqlServer(ConnectionString, options => options.EnableRetryOnFailure()).Options);
+        .UseSqlServer(ConnectionString, options => options.EnableRetryOnFailure()).Options, Organization);
 
     public async Task DisposeAsync()
     {

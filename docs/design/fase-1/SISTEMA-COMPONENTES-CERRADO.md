@@ -59,13 +59,21 @@ Ocupa el ancho del área de contenido, arriba de todo. Lleva **organización act
 Es el único lugar de la aplicación donde vive el contexto de organización. Ninguna
 pantalla de módulo vuelve a preguntarlo.
 
-Tres estados de menú lateral, resueltos en el componente `SideMenu`:
+Tres estados de menú lateral, resueltos en `frontend/src/app/core/layout/navigation.ts`:
 
 | Rol | Entradas | Cuáles |
 |---|---|---|
 | Super admin fuera de organización | 3 | Inicio, Organizaciones, Seguridad |
-| Super admin dentro de organización | 11 | Todas, incluida Organizaciones para salir o cambiar |
-| Admin de organización | 10 | Todas menos Organizaciones |
+| Super admin dentro de organización | 12 | Las 3 más Catálogos, Clientes, Servicios, Personal, Planeación, Asistencia, Incidencias, Cobertura y Auditoría |
+| Admin de organización | 11 | Las 12 menos Organizaciones; Seguridad apunta a `/usuarios` |
+
+> **Corrección del 5 de septiembre de 2026.** Este cuadro decía 3 / 11 / 10. La diferencia es
+> **Auditoría**, que se hizo visible por decisión posterior al bosquejo. Se corrige aquí en vez de
+> dejar que el número del documento y el de la aplicación se separen en silencio. La cuenta viva
+> está fijada en `navigation.spec.ts`, que falla si alguien la mueve.
+
+Los módulos de fase 2 —Monitor global, Solicitudes, Reportes y Reglas documentales— **están
+ocultos, no borrados**: sus rutas siguen registradas y volver a mostrarlos es quitar una marca.
 
 Sidebar de 17 rem sobre `--gestia-navy`. Elemento activo con fondo `--gestia-navy-soft` y
 marca izquierda de 3 px en `--gestia-cyan`. Pie con nombre de usuario y rótulo de rol.

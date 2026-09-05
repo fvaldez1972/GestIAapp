@@ -31,10 +31,39 @@ vista de plataforma.
 | Personal | Admin de organización |
 | Planeación | Admin de organización |
 | Asistencia | Admin de organización |
+| Incidencias con Cobertura | Admin de organización |
 | Servicios | Super admin dentro de una organización |
 | Inicio | Ambos: las vistas 1 a 3 como admin de organización, la 4 como super admin que entró |
 
 ## Terminadas
+
+**Las siete pantallas de la fase 1 están terminadas.** No queda ninguna pendiente de diseño.
+
+### Incidencias con Cobertura — 5 vistas y un anexo
+
+`incidencias-cobertura/incidencias-cobertura.html`. Dibujada como **admin de organización**.
+Cubre el paso 11: de la excepción de Asistencia a la incidencia, y de ahí a la cobertura.
+
+| Vista | Qué muestra |
+| --- | --- |
+| 1 | Registro de incidencia, con el turno y la excepción ya en contexto |
+| 2 | El motivo sale del catálogo que la organización configuró en el paso 3 |
+| 3 | Cobertura: elegir quién cubre, con la situación del día de cada candidato |
+| 4 | Cierre con el hueco cubierto |
+| 5 | Cierre con el turno declarado sin cubrir |
+| Anexo | Los estados que el paso 11 tiene que aguantar |
+
+#### Cuatro preguntas abiertas que dejó este diseño
+
+1. **El traslape queda dibujado en dos versiones, sin decidir** cuál se implementa.
+2. **¿Un retardo cuenta igual que una falta** para la conciliación con el cliente?
+3. **Qué documentos del expediente bloquean cubrir y cuáles sólo advierten.**
+4. **Quién puede reabrir un día cerrado, y con qué rastro.** La entidad ya guarda el estado
+   reabierto —`OperationDayClosure` tiene `Reopened`, `ReopenedBy` y `ReopenReason`— pero el
+   flujo no está definido: falta decidir qué rol reabre y qué queda registrado.
+
+La primera coincide con la pregunta que ya venía de Planeación y del propio código, donde hoy
+el traslape bloquea con 409.
 
 ### Clientes — 5 vistas
 
@@ -161,11 +190,7 @@ plataforma.
 ## Compartido entre pantallas
 
 `componentes/side-menu.html` vive en su propia carpeta porque **lo usan todas las pantallas**,
-no solo estas seis. Cualquier cambio ahí afecta a la aplicación entera.
-
-## Faltan por diseñar
-
-Queda una: **Incidencias con Cobertura**.
+no solo estas siete. Cualquier cambio ahí afecta a la aplicación entera.
 
 ## Se implementan sin pasar por diseño terminado
 

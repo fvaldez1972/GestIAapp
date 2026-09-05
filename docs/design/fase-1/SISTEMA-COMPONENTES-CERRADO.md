@@ -222,3 +222,7 @@ Variantes: sin permiso, sin datos aún, sin resultados por filtro, y falta un pr
 | Texto en cian sobre fondo claro | `--gestia-cyan-dark` |
 
 Ningún estado depende solo del color: siempre lleva texto o forma que lo acompañe.
+
+**Velo de diálogo:** `--gestia-navy` **al 28 % de opacidad**, es decir `rgba(16, 16, 78, 0.28)`.
+Es el **único valor derivado de un token** en todo el sistema, y queda escrito aquí justo para
+que nadie invente otro. No se usa negro, ni gris, ni otra opacidad.

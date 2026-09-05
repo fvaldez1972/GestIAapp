@@ -15,36 +15,10 @@
   display: flex;
   width: var(--gestia-sidebar-width);
   flex-direction: column;
-  color: rgb(255 255 255 / 74%);
+  color: var(--gestia-cyan-soft);
   background: var(--gestia-navy);
-  border-right: 1px solid rgb(255 255 255 / 8%);
+  border-right: 1px solid var(--gestia-navy-soft);
   transition: width 220ms ease, transform 220ms ease;
-}
-
-.workspace-context {
-  display: grid;
-  gap: 0.28rem;
-  margin: 1rem 0.75rem 0;
-  border: 1px solid rgb(255 255 255 / 11%);
-  border-radius: 0.75rem;
-  padding: 0.8rem 0.9rem;
-  background: rgb(255 255 255 / 4%);
-}
-
-.workspace-context span {
-  color: rgb(255 255 255 / 48%);
-  font-size: 0.58rem;
-  font-weight: 800;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.workspace-context strong {
-  overflow: hidden;
-  color: #fff;
-  font-size: 0.76rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .logo-box {
@@ -90,21 +64,6 @@
   scrollbar-color: rgb(255 255 255 / 18%) transparent;
 }
 
-.menu-group + .menu-group {
-  margin-top: 1.15rem;
-}
-
-.menu-title {
-  margin: 0 0 0.35rem;
-  padding: 0 0.75rem;
-  color: rgb(255 255 255 / 38%);
-  font-size: 0.62rem;
-  font-weight: 800;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
 .menu-link {
   position: relative;
   display: flex;
@@ -121,19 +80,26 @@
 
 a.menu-link:hover,
 .menu-link.active {
-  color: #fff;
-  background: rgb(255 255 255 / 9%);
+  /* --gestia-surface sobre --gestia-navy-soft: en el bosquejo son #ffffff sobre #1c1c66. El
+     token de superficie hace de tinta aquí porque es el mismo valor y no amerita alias nuevo. */
+  color: var(--gestia-surface);
+  background: var(--gestia-navy-soft);
 }
 
-a.menu-link:hover {
-  transform: translateX(2px);
+.menu-link.active {
+  font-weight: 600;
 }
 
+a.menu-link:focus-visible {
+  outline: 2px solid var(--gestia-cyan);
+  outline-offset: -2px;
+}
+
+/* La marca de 3 px del bosquejo. Va pegada al borde del sidebar, no al del enlace. */
 .menu-link.active::before {
   position: absolute;
-  inset: 0.6rem auto 0.6rem -0.75rem;
-  width: 0.2rem;
-  border-radius: 0 99rem 99rem 0;
+  inset: 0 auto 0 -0.75rem;
+  width: 3px;
   background: var(--gestia-cyan);
   content: '';
 }
@@ -142,7 +108,14 @@ a.menu-link:hover {
   display: inline-flex;
   width: 1.25rem;
   flex: 0 0 1.25rem;
+  color: var(--gestia-cyan-soft);
+  opacity: 0.55;
+}
+
+.menu-link.active .menu-icon,
+a.menu-link:hover .menu-icon {
   color: var(--gestia-cyan);
+  opacity: 1;
 }
 
 .menu-text {
@@ -151,18 +124,13 @@ a.menu-link:hover {
   white-space: nowrap;
 }
 
-.menu-link.is-disabled {
-  cursor: default;
-  opacity: 0.5;
-}
-
 .sidebar-foot {
   display: flex;
   min-height: 4.25rem;
   align-items: center;
   gap: 0.65rem;
   padding: 0.9rem 1.25rem;
-  border-top: 1px solid rgb(255 255 255 / 8%);
+  border-top: 1px solid var(--gestia-navy-soft);
 }
 
 .sidebar-avatar {
@@ -172,10 +140,10 @@ a.menu-link:hover {
   flex: 0 0 auto;
   place-items: center;
   border-radius: 0.55rem;
-  color: #fff;
+  color: var(--gestia-cyan);
   font-size: 0.64rem;
   font-weight: 850;
-  background: rgb(255 255 255 / 9%);
+  background: var(--gestia-navy-soft);
 }
 
 .sidebar-user {
@@ -191,13 +159,13 @@ a.menu-link:hover {
 }
 
 .sidebar-user strong {
-  color: rgb(255 255 255 / 88%);
+  color: var(--gestia-surface);
   font-size: 0.68rem;
 }
 
 .sidebar-user small {
   margin-top: 0.12rem;
-  color: rgb(255 255 255 / 38%);
+  color: var(--gestia-cyan-soft);
   font-size: 0.6rem;
 }
 
@@ -375,10 +343,8 @@ main {
 }
 
 .wrapper.is-condensed .brand-logo--full,
-.wrapper.is-condensed .menu-title,
 .wrapper.is-condensed .menu-text,
-.wrapper.is-condensed .sidebar-user,
-.wrapper.is-condensed .workspace-context {
+.wrapper.is-condensed .sidebar-user {
   display: none;
 }
 
@@ -426,10 +392,8 @@ main {
   }
 
   .wrapper.is-condensed .brand-logo--full,
-  .wrapper.is-condensed .menu-title,
   .wrapper.is-condensed .menu-text,
-  .wrapper.is-condensed .sidebar-user,
-  .wrapper.is-condensed .workspace-context {
+  .wrapper.is-condensed .sidebar-user {
     display: block;
   }
 

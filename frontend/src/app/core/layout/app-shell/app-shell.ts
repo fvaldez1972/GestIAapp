@@ -4,7 +4,7 @@ import { filter } from 'rxjs';
 import { AuthService } from '../../auth/auth.service';
 import { AppIcon } from '../../../shared/ui/app-icon/app-icon';
 import { LayoutService } from '../layout.service';
-import { GESTIA_NAVIGATION, NavigationGroup } from '../navigation';
+import { visibleNavigation } from '../navigation';
 import { ContextBar } from '../context-bar/context-bar';
 
 @Component({
@@ -18,7 +18,13 @@ export class AppShell {
   protected readonly auth = inject(AuthService);
   protected readonly layout = inject(LayoutService);
   private readonly currentUrl = signal(this.router.url);
-  protected readonly navigation = computed(() => this.filterNavigation(GESTIA_NAVIGATION));
+  protected readonly navigation = computed(() =>
+    visibleNavigation({
+      isPlatformAdmin: this.isPlatformAdmin(),
+      hasActiveOrganization: !!this.auth.activeOrganization(),
+      hasPermission: (permission) => this.auth.hasPermission(permission),
+    }),
+  );
   protected readonly breadcrumbs = computed(() => this.resolveBreadcrumbs(this.currentUrl()));
   protected readonly pageTitle = computed(() => this.breadcrumbs().at(-1) ?? 'GestIA');
   protected readonly isPlatformAdmin = computed(() =>
@@ -37,13 +43,6 @@ export class AppShell {
 
   protected readonly userScope = computed(() =>
     this.isPlatformAdmin() ? 'Super Admin BKT' : 'Admin de organización',
-  );
-  protected readonly workspaceLabel = computed(() =>
-    this.isPlatformAdmin() ? 'Espacio de plataforma' : 'Espacio de trabajo',
-  );
-  protected readonly workspaceName = computed(() =>
-    this.auth.activeOrganization()?.legalName
-      ?? (this.isPlatformAdmin() ? 'Gobierno de GestIA' : 'Sin organización'),
   );
   protected readonly userInitials = computed(() =>
     (this.auth.displayName() || 'GestIA')
@@ -67,28 +66,6 @@ export class AppShell {
   protected logout() {
     this.auth.logout();
     void this.router.navigateByUrl('/login');
-  }
-
-  private filterNavigation(groups: readonly NavigationGroup[]) {
-    const isPlatformAdmin = this.auth.session()?.permissions.includes('PLATFORM.ADMIN') ?? false;
-
-    return groups
-      .map((group) => ({
-        ...group,
-        items: group.items.filter((item) => {
-          if (item.platformOnly && !isPlatformAdmin) {
-            return false;
-          }
-
-          // El super admin ve el menú completo en cuanto entra a una organización.
-          if (item.hideForPlatformAdmin && isPlatformAdmin && !this.auth.activeOrganization()) {
-            return false;
-          }
-
-          return !item.permission || this.auth.hasPermission(item.permission);
-        }),
-      }))
-      .filter((group) => group.items.length > 0);
   }
 
   private resolveBreadcrumbs(url: string) {

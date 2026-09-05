@@ -5,36 +5,19 @@
       <img class="brand-logo brand-logo--compact" src="brand/gestia-app-icon.svg" alt="" aria-hidden="true" />
     </a>
 
-    <div class="workspace-context">
-      <span>{{ workspaceLabel() }}</span>
-      <strong>{{ workspaceName() }}</strong>
-    </div>
-
     <nav class="side-nav">
-      @for (group of navigation(); track group.label) {
-        <section class="menu-group">
-          <p class="menu-title">{{ group.label }}</p>
-          @for (item of group.items; track item.label) {
-            @if (item.route) {
-              <a
-                class="menu-link"
-                [routerLink]="item.route"
-                routerLinkActive="active"
-                [routerLinkActiveOptions]="{ exact: true }"
-                [title]="layout.isCondensed() ? item.label : ''"
-                (click)="layout.closeMobileNavigation()"
-              >
-                <span class="menu-icon"><app-icon [name]="item.icon" /></span>
-                <span class="menu-text">{{ item.label }}</span>
-              </a>
-            } @else {
-              <span class="menu-link is-disabled" [title]="layout.isCondensed() ? item.label : item.label">
-                <span class="menu-icon"><app-icon [name]="item.icon" /></span>
-                <span class="menu-text">{{ item.label }}</span>
-              </span>
-            }
-          }
-        </section>
+      @for (item of navigation(); track item.route) {
+        <a
+          class="menu-link"
+          [routerLink]="item.route"
+          routerLinkActive="active"
+          [routerLinkActiveOptions]="{ exact: item.route === '/' }"
+          [title]="layout.isCondensed() ? item.label : ''"
+          (click)="layout.closeMobileNavigation()"
+        >
+          <span class="menu-icon"><app-icon [name]="item.icon" /></span>
+          <span class="menu-text">{{ item.label }}</span>
+        </a>
       }
     </nav>
 

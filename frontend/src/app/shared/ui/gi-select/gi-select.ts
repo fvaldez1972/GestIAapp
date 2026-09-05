@@ -165,7 +165,7 @@ let instances = 0;
 
     .gi-select__option.is-active { background: var(--gestia-cyan-soft); }
     .gi-select__option[aria-selected='true'] .gi-select__option-label { font-weight: 600; }
-    .gi-select__option-hint { color: var(--gestia-muted); font-size: 0.75rem; }
+    .gi-select__option-hint { color: var(--gestia-muted); font-size: 12px; }
 
     .gi-select__empty {
       padding: 0.45rem 0.6rem;

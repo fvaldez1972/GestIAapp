@@ -1,3 +1,4 @@
+using GestIA.Application.Common;
 using GestIA.Application.Security;
 
 namespace GestIA.Api.Security;
@@ -26,10 +27,17 @@ namespace GestIA.Api.Security;
 /// </summary>
 public static class OrganizationAccessGuard
 {
+    /// <summary>
+    /// Autoriza la petición y, si pasa, fija la organización en
+    /// <see cref="IOrganizationContext"/>. Las dos cosas van juntas a propósito: el filtro de
+    /// consulta usa exactamente el identificador que se acaba de validar, así que no existe la
+    /// posibilidad de consultar una organización distinta de la autorizada.
+    /// </summary>
     public static IResult? ForbidIfUnauthorized(HttpContext context, Guid organizationId)
     {
         if (CanAccess(context, organizationId))
         {
+            context.RequestServices.GetRequiredService<IOrganizationContext>().SetAuthorizedOrganization(organizationId);
             return null;
         }
 

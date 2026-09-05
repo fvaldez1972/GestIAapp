@@ -30,7 +30,7 @@ public sealed record EmployeeProfile(
     DateOnly? ResidenceSinceDate,
     string? CountryCode = null);
 
-public sealed class Employee : AuditableEntity
+public sealed class Employee : AuditableEntity, IOrganizationScopedEntity
 {
     private readonly List<EmployeeDocument> documents = [];
     private readonly List<EmployeeEvaluation> evaluations = [];

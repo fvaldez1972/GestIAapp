@@ -5,7 +5,7 @@ using GestIA.Domain.Services;
 
 namespace GestIA.Domain.Requests;
 
-public sealed class OperationalRequest : AuditableEntity
+public sealed class OperationalRequest : AuditableEntity, IOrganizationScopedEntity
 {
     private OperationalRequest()
     {

@@ -1,3 +1,4 @@
+using GestIA.Application.Common;
 using GestIA.Domain.Catalogs;
 using GestIA.Domain.Clients;
 using GestIA.Domain.Documents;
@@ -14,9 +15,20 @@ using GestIA.Infrastructure.Persistence.Conventions;
 
 namespace GestIA.Infrastructure.Persistence;
 
-public sealed class GestIaDbContext(DbContextOptions<GestIaDbContext> options)
+public sealed class GestIaDbContext(
+    DbContextOptions<GestIaDbContext> options,
+    IOrganizationContext organization)
     : DbContext(options)
 {
+    /// <summary>
+    /// La organización autorizada para la petición en curso, o <c>null</c> fuera de una petición.
+    ///
+    /// El filtro global de organización lee esta propiedad en lugar del proveedor directamente,
+    /// porque EF sustituye las referencias al <c>DbContext</c> dentro de un filtro por la
+    /// instancia vigente de cada consulta. Ver <see cref="Conventions.OrganizationQueryFilter"/>.
+    /// </summary>
+    public Guid? CurrentOrganizationId => organization.CurrentOrganizationId;
+
     public DbSet<Organization> Organizations => Set<Organization>();
     public DbSet<Client> Clients => Set<Client>();
     public DbSet<ClientSite> ClientSites => Set<ClientSite>();
@@ -79,5 +91,6 @@ public sealed class GestIaDbContext(DbContextOptions<GestIaDbContext> options)
 
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(GestIaDbContext).Assembly);
         modelBuilder.ApplyGestIaDatabaseStandards();
+        modelBuilder.ApplyOrganizationQueryFilter(this);
     }
 }

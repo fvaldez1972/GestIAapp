@@ -14,7 +14,7 @@ public sealed record OperationDayClosureProfile(
     int CoverageRecords,
     string? Notes);
 
-public sealed class OperationDayClosure : AuditableEntity
+public sealed class OperationDayClosure : AuditableEntity, IOrganizationScopedEntity
 {
     private OperationDayClosure()
     {

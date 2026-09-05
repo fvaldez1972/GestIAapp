@@ -1,6 +1,8 @@
+using GestIA.Domain.Common;
+
 namespace GestIA.Domain.Documents;
 
-public sealed class BusinessDocumentEvent
+public sealed class BusinessDocumentEvent : IOrganizationScopedEntity
 {
     private BusinessDocumentEvent() { }
 

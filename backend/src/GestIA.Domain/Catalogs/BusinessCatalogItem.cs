@@ -13,7 +13,7 @@ public sealed record BusinessCatalogItemProfile(
     string[]? Synonyms = null,
     Guid? IdParentCatalogItem = null);
 
-public sealed class BusinessCatalogItem : AuditableEntity
+public sealed class BusinessCatalogItem : AuditableEntity, IOrganizationScopedEntity
 {
     private BusinessCatalogItem()
     {

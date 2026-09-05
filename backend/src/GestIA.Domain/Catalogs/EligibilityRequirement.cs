@@ -17,7 +17,7 @@ public sealed record EligibilityRequirementProfile(
     string? Description,
     bool IsBlocking);
 
-public sealed class EligibilityRequirement : AuditableEntity
+public sealed class EligibilityRequirement : AuditableEntity, IOrganizationScopedEntity
 {
     private EligibilityRequirement()
     {

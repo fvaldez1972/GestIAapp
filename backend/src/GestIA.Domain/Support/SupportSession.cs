@@ -17,7 +17,7 @@ namespace GestIA.Domain.Support;
 /// migración compensatoria, o el registro se hace en una tabla nueva. Lo que no se hará es
 /// reutilizar ésta para guardar otra cosa.
 /// </summary>
-public sealed class SupportSession : AuditableEntity
+public sealed class SupportSession : AuditableEntity, IOrganizationScopedEntity
 {
     private SupportSession()
     {

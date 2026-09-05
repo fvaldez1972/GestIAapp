@@ -18,7 +18,7 @@ public sealed record BusinessDocumentProfile(
     bool IsSensitive,
     string? Notes);
 
-public sealed class BusinessDocument : AuditableEntity
+public sealed class BusinessDocument : AuditableEntity, IOrganizationScopedEntity
 {
     private BusinessDocument()
     {

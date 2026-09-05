@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  body { margin:0; background:#f4f6fa; font-family:Archivo, system-ui, sans-serif; color:#253040; text-wrap:pretty; font-variant-numeric:tabular-nums; }
+  a { color:#087f9c; text-decoration:none; }
+  a:hover { color:#10104e; text-decoration:underline; }
+</style>
+</helmet>
+
+<div style="display:flex;flex-direction:column;gap:52px;padding:52px 60px 100px">
+
+  <div style="display:flex;flex-direction:column;gap:10px;max-width:1440px">
+    <div style="font:600 11px Archivo,sans-serif;letter-spacing:.16em;color:#5f6b7a">PLANEACIÓN · PASO 9 · 1440 PX · TOKENS DE MARCA</div>
+    <div style="font:700 30px/1.15 Archivo,sans-serif;color:#10104e">Generar y publicar la planeación de la semana</div>
+    <div style="font:400 14px/1.5 Archivo,sans-serif;color:#5f6b7a;max-width:90ch">Alcance por servicio y semana. Rol admin de organización. La acción principal cambia con el estado: publicar cuando no hay conflictos, resolverlos cuando los hay. Cada conflicto lleva a donde se resuelve.</div>
+  </div>
+
+  <section data-screen-label="Vista 1 · Sin conflictos" id="v1" style="display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;align-items:baseline;gap:12px">
+      <span style="font:600 11.5px Archivo,sans-serif;letter-spacing:.14em;color:#5f6b7a">VISTA 1</span>
+      <span style="font:600 19px Archivo,sans-serif;color:#10104e">Proyección generada, sin conflictos</span>
+    </div>
+    <div style="width:1440px;border:1px solid #dce2e9;border-radius:6px;overflow:hidden;background:#f4f6fa">
+      <div style="height:4.5rem;background:#ffffff;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:12px;padding:0 20px">
+        <div style="display:flex;align-items:center;gap:10px;border:1px solid #dce2e9;border-radius:6px;padding:7px 11px;background:#ffffff">
+          <span style="font:400 11px Archivo,sans-serif;color:#5f6b7a">Organización activa</span>
+          <span style="font:600 13px Archivo,sans-serif;color:#10104e">{{ organizacion }}</span>
+        </div>
+        <span style="font:400 12.5px Archivo,sans-serif;color:#5f6b7a">Fecha operativa <span style="color:#253040;font-weight:600">{{ fecha }}</span></span>
+      </div>
+      <div style="display:flex;min-height:900px">
+        <dc-import name="SideMenu" active="Planeación" role="admin" usuario="Renata Villaseñor" hint-size="272px,900px"></dc-import>
+        <div style="flex:1;padding:16px 20px 20px;display:flex;flex-direction:column;gap:16px;min-width:0">
+
+          <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px">
+            <div>
+              <div style="font:600 11px Archivo,sans-serif;letter-spacing:.1em;color:#5f6b7a;padding-bottom:5px">PLANEACIÓN</div>
+              <div style="font:700 22px/1.2 Archivo,sans-serif;color:#10104e">Planeación</div>
+              <div style="font:400 13px Archivo,sans-serif;color:#5f6b7a;padding-top:4px">La proyección se arma con el patrón de cada posición del servicio.</div>
+            </div>
+            <div style="background:#10104e;color:#ffffff;border-radius:6px;padding:0 16px;height:2.5rem;display:flex;align-items:center;font:600 13px Archivo,sans-serif">Publicar la semana</div>
+          </div>
+
+          <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;padding:12px 14px;display:flex;align-items:center;gap:14px">
+            <span style="display:flex;align-items:center;gap:8px">
+              <span style="width:2rem;height:2rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;justify-content:center;font:600 12px Archivo,sans-serif;color:#5f6b7a">‹</span>
+              <span style="font:600 13px Archivo,sans-serif;color:#253040">Semana 07 – 13 sep 2026</span>
+              <span style="width:2rem;height:2rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;justify-content:center;font:600 12px Archivo,sans-serif;color:#5f6b7a">›</span>
+            </span>
+            <span style="width:1px;height:20px;background:#dce2e9"></span>
+            <span style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;gap:10px;padding:0 12px;font:500 13px Archivo,sans-serif;color:#253040">{{ servicio }} <span style="color:#5f6b7a">▾</span></span>
+            <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Corporativo Altavista · Torre Altavista</span>
+            <span style="margin-left:auto;font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Versión 1 · borrador generado 04 sep 2026 09:12</span>
+            <span style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;padding:0 12px;display:flex;align-items:center;font:600 12.5px Archivo,sans-serif;color:#253040">Regenerar</span>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
+            <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;padding:16px;display:flex;flex-direction:column;gap:6px">
+              <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">TURNOS PROYECTADOS</span>
+              <span style="font:600 22px/1.1 Archivo,sans-serif;color:#10104e">31</span>
+              <span style="font:400 12px Archivo,sans-serif;color:#5f6b7a">Siete días por las cinco posiciones con patrón declarado.</span>
+            </div>
+            <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;padding:16px;display:flex;flex-direction:column;gap:6px">
+              <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">HUECOS DE COBERTURA</span>
+              <span style="display:flex;align-items:center;gap:9px">
+                <span style="font:600 22px/1.1 Archivo,sans-serif;color:#10104e">0</span>
+                <span style="border:1px solid #16a34a;border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:#16a34a">Cero real</span>
+              </span>
+              <span style="font:400 12px Archivo,sans-serif;color:#5f6b7a">Cada turno proyectado tiene a alguien asignado.</span>
+            </div>
+            <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;padding:16px;display:flex;flex-direction:column;gap:6px">
+              <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">PERSONAS EN LA SEMANA</span>
+              <span style="font:600 22px/1.1 Archivo,sans-serif;color:#10104e">7</span>
+              <span style="font:400 12px Archivo,sans-serif;color:#5f6b7a">Seis titulares y un cubre-descansos.</span>
+            </div>
+          </div>
+
+          <div style="background:#ffffff;border:1px solid #16a34a;border-radius:6px;padding:13px 14px;display:flex;align-items:center;gap:11px">
+            <span style="width:8px;height:8px;border-radius:50%;background:#16a34a;flex:none"></span>
+            <span style="font:600 13px Archivo,sans-serif;color:#253040">Sin conflictos</span>
+            <span style="font:400 12.5px Archivo,sans-serif;color:#5f6b7a">Los siete días de las cinco posiciones están declarados y cubiertos. La semana se puede publicar.</span>
+          </div>
+
+          <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;overflow:hidden">
+            <div style="padding:11px 14px;background:#f7f9fb;border-bottom:1px solid #dce2e9;display:flex;justify-content:space-between;align-items:center">
+              <span style="font:600 10.5px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">PROYECCIÓN DE LA SEMANA</span>
+              <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">5 posiciones · 07 – 13 sep 2026</span>
+            </div>
+            <div style="display:grid;grid-template-columns:230px repeat(7,1fr);border-bottom:1px solid #dce2e9;background:#f7f9fb">
+              <span style="padding:9px 14px;border-right:1px solid #dce2e9;font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">POSICIÓN</span>
+              <sc-for list="{{ dias }}" as="d" hint-placeholder-count="7">
+                <span style="padding:9px 8px;border-right:1px solid #dce2e9;font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a;text-align:center">{{ d }}</span>
+              </sc-for>
+            </div>
+            <sc-for list="{{ filasLimpia }}" as="r" hint-placeholder-count="5">
+              <div style="display:grid;grid-template-columns:230px repeat(7,1fr);border-bottom:1px solid #dce2e9">
+                <span style="padding:12px 14px;border-right:1px solid #dce2e9;display:flex;flex-direction:column;gap:3px">
+                  <span style="font:600 13px Archivo,sans-serif;color:#253040">{{ r.pos }}</span>
+                  <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">{{ r.meta }}</span>
+                </span>
+                <sc-for list="{{ r.cells }}" as="c" hint-placeholder-count="7">
+                  <span style="padding:8px 6px;border-right:1px solid #dce2e9;background:{{ c.bg }};display:flex">
+                    <span style="flex:1;border:1px solid {{ c.bd }};background:{{ c.ibg }};border-radius:6px;padding:7px 6px;display:flex;flex-direction:column;gap:2px;align-items:center;justify-content:center;text-align:center">
+                      <span style="font:600 12px Archivo,sans-serif;color:{{ c.tc }}">{{ c.t }}</span>
+                      <span style="font:{{ c.sf }};color:{{ c.sc }}">{{ c.s }}</span>
+                    </span>
+                  </span>
+                </sc-for>
+              </div>
+            </sc-for>
+            <div style="padding:12px 14px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;background:#ffffff">
+              <span style="font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">LEYENDA</span>
+              <sc-for list="{{ leyenda }}" as="l" hint-placeholder-count="5">
+                <span style="display:flex;align-items:center;gap:8px">
+                  <span style="width:14px;height:14px;border-radius:3px;border:1px solid {{ l.bd }};background:{{ l.bg }};flex:none"></span>
+                  <span style="font:500 11.5px Archivo,sans-serif;color:#253040">{{ l.txt }}</span>
+                  <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">{{ l.nota }}</span>
+                </span>
+              </sc-for>
+            </div>
+          </div>
+
+          <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;padding:14px 16px;display:flex;align-items:center;gap:16px">
+            <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a;flex:none">AL PUBLICAR</span>
+            <span style="font:400 12.5px/1.5 Archivo,sans-serif;color:#253040;flex:1">La versión queda publicada e inmutable. Toda modificación posterior entra como incidencia trazable: el rol publicado no se edita.</span>
+            <span style="font:600 12.5px Archivo,sans-serif;color:#087f9c;flex:none">Ver versiones de esta semana</span>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section data-screen-label="Vista 2 · Con conflictos" id="v2" style="display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;align-items:baseline;gap:12px">
+      <span style="font:600 11.5px Archivo,sans-serif;letter-spacing:.14em;color:#5f6b7a">VISTA 2</span>
+      <span style="font:600 19px Archivo,sans-serif;color:#10104e">Proyección con conflictos, el estado normal</span>
+    </div>
+    <div style="width:1440px;border:1px solid #dce2e9;border-radius:6px;overflow:hidden;background:#f4f6fa">
+      <div style="height:4.5rem;background:#ffffff;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:12px;padding:0 20px">
+        <div style="display:flex;align-items:center;gap:10px;border:1px solid #dce2e9;border-radius:6px;padding:7px 11px;background:#ffffff">
+          <span style="font:400 11px Archivo,sans-serif;color:#5f6b7a">Organización activa</span>
+          <span style="font:600 13px Archivo,sans-serif;color:#10104e">{{ organizacion }}</span>
+        </div>
+        <span style="font:400 12.5px Archivo,sans-serif;color:#5f6b7a">Fecha operativa <span style="color:#253040;font-weight:600">{{ fecha }}</span></span>
+      </div>
+      <div style="display:flex;min-height:960px">
+        <dc-import name="SideMenu" active="Planeación" role="admin" usuario="Renata Villaseñor" hint-size="272px,960px"></dc-import>
+        <div style="flex:1;padding:16px 20px 20px;display:flex;flex-direction:column;gap:16px;min-width:0">
+
+          <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px">
+            <div>
+              <div style="font:600 11px Archivo,sans-serif;letter-spacing:.1em;color:#5f6b7a;padding-bottom:5px">PLANEACIÓN</div>
+              <div style="font:700 22px/1.2 Archivo,sans-serif;color:#10104e">Planeación</div>
+              <div style="font:400 13px Archivo,sans-serif;color:#5f6b7a;padding-top:4px">Tres conflictos impiden publicar la semana.</div>
+            </div>
+            <div style="background:#10104e;color:#ffffff;border-radius:6px;padding:0 16px;height:2.5rem;display:flex;align-items:center;gap:9px;font:600 13px Archivo,sans-serif">
+              Resolver 3 conflictos
+              <span style="border:1px solid #22c6ee;background:#1c1c66;border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:#22c6ee">3</span>
+            </div>
+          </div>
+
+          <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;padding:12px 14px;display:flex;align-items:center;gap:14px">
+            <span style="display:flex;align-items:center;gap:8px">
+              <span style="width:2rem;height:2rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;justify-content:center;font:600 12px Archivo,sans-serif;color:#5f6b7a">‹</span>
+              <span style="font:600 13px Archivo,sans-serif;color:#253040">Semana 07 – 13 sep 2026</span>
+              <span style="width:2rem;height:2rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;justify-content:center;font:600 12px Archivo,sans-serif;color:#5f6b7a">›</span>
+            </span>
+            <span style="width:1px;height:20px;background:#dce2e9"></span>
+            <span style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;gap:10px;padding:0 12px;font:500 13px Archivo,sans-serif;color:#253040">{{ servicio }} <span style="color:#5f6b7a">▾</span></span>
+            <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Corporativo Altavista · Torre Altavista</span>
+            <span style="margin-left:auto;font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Versión 1 · borrador generado 04 sep 2026 09:12</span>
+            <span style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;padding:0 12px;display:flex;align-items:center;font:600 12.5px Archivo,sans-serif;color:#253040">Regenerar</span>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
+            <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;padding:16px;display:flex;flex-direction:column;gap:6px">
+              <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">TURNOS PROYECTADOS</span>
+              <span style="font:600 22px/1.1 Archivo,sans-serif;color:#10104e">29</span>
+              <span style="font:400 12px Archivo,sans-serif;color:#5f6b7a">Dos días de P-03 no se proyectan: su patrón está incompleto.</span>
+            </div>
+            <div style="background:#ffffff;border:1px solid #dc2626;border-radius:6px;padding:16px;display:flex;flex-direction:column;gap:6px">
+              <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">HUECOS DE COBERTURA</span>
+              <span style="display:flex;align-items:center;gap:9px">
+                <span style="font:600 22px/1.1 Archivo,sans-serif;color:#dc2626">3</span>
+                <span style="border:1px solid #dc2626;background:#ffffff;border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:#dc2626">Sin cubrir</span>
+              </span>
+              <span style="font:400 12px Archivo,sans-serif;color:#5f6b7a">Tres turnos sin nadie asignado, en dos posiciones.</span>
+            </div>
+            <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;padding:16px;display:flex;flex-direction:column;gap:6px">
+              <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">PERSONAS EN LA SEMANA</span>
+              <span style="font:600 22px/1.1 Archivo,sans-serif;color:#10104e">6</span>
+              <span style="font:400 12px Archivo,sans-serif;color:#5f6b7a">Cinco titulares y un cubre-descansos.</span>
+            </div>
+          </div>
+
+          <div style="background:#ffffff;border:1px solid #dc2626;border-radius:6px;overflow:hidden">
+            <div style="padding:13px 16px;border-bottom:1px solid #dce2e9;display:flex;justify-content:space-between;align-items:center">
+              <span style="font:700 13px Archivo,sans-serif;color:#10104e">Conflictos que impiden publicar</span>
+              <span style="font:400 12px Archivo,sans-serif;color:#5f6b7a">3 de 3 sin resolver</span>
+            </div>
+
+            <div style="padding:9px 16px;background:#f7f9fb;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:9px">
+              <span style="font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">HUECO DE COBERTURA</span>
+              <span style="border:1px solid #dc2626;border-radius:3px;padding:1px 7px;font:600 10.5px Archivo,sans-serif;color:#dc2626">2</span>
+              <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">3 turnos sin nadie. Se resuelven asignando en la ficha del servicio.</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:14px;padding:14px 16px;border-bottom:1px solid #dce2e9">
+              <span style="width:8px;height:8px;border-radius:50%;background:#dc2626;flex:none"></span>
+              <span style="flex:1;min-width:0">
+                <span style="display:block;font:600 13px Archivo,sans-serif;color:#253040">P-01 Acceso principal · 2 turnos sin cubrir</span>
+                <span style="display:block;font:400 12px Archivo,sans-serif;color:#5f6b7a;padding-top:3px">Jueves 10 y viernes 11 sep, turno 07–19. Falta 1 de 2 elementos requeridos.</span>
+              </span>
+              <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a;width:210px;flex:none">Servicios › Asignaciones · posición P-01</span>
+              <span style="background:#10104e;color:#ffffff;border-radius:6px;padding:0 14px;height:2.5rem;display:flex;align-items:center;font:600 12.5px Archivo,sans-serif;flex:none">Ir a asignar P-01</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:14px;padding:14px 16px;border-bottom:1px solid #dce2e9">
+              <span style="width:8px;height:8px;border-radius:50%;background:#dc2626;flex:none"></span>
+              <span style="flex:1;min-width:0">
+                <span style="display:block;font:600 13px Archivo,sans-serif;color:#253040">P-05 Recepción vespertina · 1 turno sin cubrir</span>
+                <span style="display:block;font:400 12px Archivo,sans-serif;color:#5f6b7a;padding-top:3px">Sábado 12 sep, turno 14–22. La titular causó baja el 02 sep; la posición conserva su calendario.</span>
+              </span>
+              <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a;width:210px;flex:none">Servicios › Asignaciones · posición P-05</span>
+              <span style="background:#10104e;color:#ffffff;border-radius:6px;padding:0 14px;height:2.5rem;display:flex;align-items:center;font:600 12.5px Archivo,sans-serif;flex:none">Ir a asignar P-05</span>
+            </div>
+
+            <div style="padding:9px 16px;background:#f7f9fb;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:9px">
+              <span style="font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">PATRÓN INCOMPLETO</span>
+              <span style="border:1px solid #d97706;border-radius:3px;padding:1px 7px;font:600 10.5px Archivo,sans-serif;color:#d97706">1</span>
+              <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Días sin declarar. Se resuelven en el patrón de la posición.</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:14px;padding:14px 16px">
+              <span style="width:8px;height:8px;border-radius:50%;background:#d97706;flex:none"></span>
+              <span style="flex:1;min-width:0">
+                <span style="display:block;font:600 13px Archivo,sans-serif;color:#253040">P-03 Monitoreo CCTV · sábado y domingo sin declarar</span>
+                <span style="display:block;font:400 12px Archivo,sans-serif;color:#5f6b7a;padding-top:3px">La proyección no sabe si esos dos días son turno o descanso, y no los proyecta.</span>
+              </span>
+              <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a;width:210px;flex:none">Servicios › Posiciones · patrón de P-03</span>
+              <span style="background:#10104e;color:#ffffff;border-radius:6px;padding:0 14px;height:2.5rem;display:flex;align-items:center;font:600 12.5px Archivo,sans-serif;flex:none">Ir al patrón de P-03</span>
+            </div>
+          </div>
+
+          <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;overflow:hidden">
+            <div style="padding:11px 14px;background:#f7f9fb;border-bottom:1px solid #dce2e9;display:flex;justify-content:space-between;align-items:center">
+              <span style="font:600 10.5px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">PROYECCIÓN DE LA SEMANA</span>
+              <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">5 posiciones · 07 – 13 sep 2026</span>
+            </div>
+            <div style="display:grid;grid-template-columns:230px repeat(7,1fr);border-bottom:1px solid #dce2e9;background:#f7f9fb">
+              <span style="padding:9px 14px;border-right:1px solid #dce2e9;font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">POSICIÓN</span>
+              <sc-for list="{{ dias }}" as="d" hint-placeholder-count="7">
+                <span style="padding:9px 8px;border-right:1px solid #dce2e9;font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a;text-align:center">{{ d }}</span>
+              </sc-for>
+            </div>
+            <sc-for list="{{ filasConflicto }}" as="r" hint-placeholder-count="5">
+              <div style="display:grid;grid-template-columns:230px repeat(7,1fr);border-bottom:1px solid #dce2e9">
+                <span style="padding:12px 14px;border-right:1px solid #dce2e9;display:flex;flex-direction:column;gap:3px">
+                  <span style="font:600 13px Archivo,sans-serif;color:#253040">{{ r.pos }}</span>
+                  <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">{{ r.meta }}</span>
+                </span>
+                <sc-for list="{{ r.cells }}" as="c" hint-placeholder-count="7">
+                  <span style="padding:8px 6px;border-right:1px solid #dce2e9;background:{{ c.bg }};display:flex">
+                    <span style="flex:1;border:1px solid {{ c.bd }};background:{{ c.ibg }};border-radius:6px;padding:7px 6px;display:flex;flex-direction:column;gap:2px;align-items:center;justify-content:center;text-align:center">
+                      <span style="font:600 12px Archivo,sans-serif;color:{{ c.tc }}">{{ c.t }}</span>
+                      <span style="font:{{ c.sf }};color:{{ c.sc }}">{{ c.s }}</span>
+                    </span>
+                  </span>
+                </sc-for>
+              </div>
+            </sc-for>
+            <div style="padding:12px 14px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;background:#ffffff">
+              <span style="font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">LEYENDA</span>
+              <sc-for list="{{ leyenda }}" as="l" hint-placeholder-count="5">
+                <span style="display:flex;align-items:center;gap:8px">
+                  <span style="width:14px;height:14px;border-radius:3px;border:1px solid {{ l.bd }};background:{{ l.bg }};flex:none"></span>
+                  <span style="font:500 11.5px Archivo,sans-serif;color:#253040">{{ l.txt }}</span>
+                  <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">{{ l.nota }}</span>
+                </span>
+              </sc-for>
+            </div>
+          </div>
+
+          <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;padding:14px 16px;display:flex;align-items:center;gap:16px">
+            <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a;flex:none">AL PUBLICAR</span>
+            <span style="font:400 12.5px/1.5 Archivo,sans-serif;color:#253040;flex:1">La versión queda publicada e inmutable. Publicar se habilita cuando la lista de conflictos llega a cero.</span>
+            <span style="border:1px solid #dce2e9;background:#f7f9fb;border-radius:6px;padding:0 14px;height:2.5rem;display:flex;align-items:center;font:600 12.5px Archivo,sans-serif;color:#5f6b7a;flex:none">Publicar la semana · 3 conflictos</span>
+          </div>
+
+          <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;padding:16px;display:flex;gap:28px">
+            <div style="flex:1"><div style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a;padding-bottom:7px">POR QUÉ CAMBIA LA ACCIÓN PRINCIPAL</div><div style="font:400 12.5px/1.6 Archivo,sans-serif;color:#253040">Con conflictos, la única acción sólida del encabezado es resolverlos. Publicar baja al pie, inhabilitado y diciendo por qué. Sin conflictos se invierte: publicar sube al encabezado.</div></div>
+            <div style="flex:1"><div style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a;padding-bottom:7px">CADA CONFLICTO LLEVA A DONDE SE RESUELVE</div><div style="font:400 12.5px/1.6 Archivo,sans-serif;color:#253040">Ningún renglón solo cuenta: cada uno nombra el módulo destino y trae su propio botón. Los huecos van a Asignaciones; el patrón incompleto, a Posiciones.</div></div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section data-screen-label="Vista 3 · Conflicto abierto" id="v3" style="display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;align-items:baseline;gap:12px">
+      <span style="font:600 11.5px Archivo,sans-serif;letter-spacing:.14em;color:#5f6b7a">VISTA 3</span>
+      <span style="font:600 19px Archivo,sans-serif;color:#10104e">Un conflicto abierto, con su resolución</span>
+    </div>
+    <div style="width:1440px;border:1px solid #dce2e9;border-radius:6px;overflow:hidden;background:#f4f6fa">
+      <div style="height:4.5rem;background:#ffffff;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:12px;padding:0 20px">
+        <div style="display:flex;align-items:center;gap:10px;border:1px solid #dce2e9;border-radius:6px;padding:7px 11px;background:#ffffff">
+          <span style="font:400 11px Archivo,sans-serif;color:#5f6b7a">Organización activa</span>
+          <span style="font:600 13px Archivo,sans-serif;color:#10104e">{{ organizacion }}</span>
+        </div>
+        <span style="font:400 12.5px Archivo,sans-serif;color:#5f6b7a">Fecha operativa <span style="color:#253040;font-weight:600">{{ fecha }}</span></span>
+      </div>
+      <div style="display:flex;min-height:940px">
+        <dc-import name="SideMenu" active="Planeación" role="admin" usuario="Renata Villaseñor" hint-size="272px,940px"></dc-import>
+        <div style="flex:1;padding:16px 20px 20px;display:flex;flex-direction:column;gap:16px;min-width:0">
+
+          <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px">
+            <div>
+              <div style="font:600 11px Archivo,sans-serif;letter-spacing:.1em;color:#5f6b7a;padding-bottom:5px">PLANEACIÓN</div>
+              <div style="font:700 22px/1.2 Archivo,sans-serif;color:#10104e">Planeación</div>
+              <div style="font:400 13px Archivo,sans-serif;color:#5f6b7a;padding-top:4px">Semana 07 – 13 sep 2026 · {{ servicio }}</div>
+            </div>
+            <div style="background:#10104e;color:#ffffff;border-radius:6px;padding:0 16px;height:2.5rem;display:flex;align-items:center;gap:9px;font:600 13px Archivo,sans-serif">
+              Resolver 2 conflictos
+              <span style="border:1px solid #22c6ee;background:#1c1c66;border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:#22c6ee">2</span>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:16px;align-items:flex-start;min-width:0">
+            <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:16px">
+
+              <div style="background:#ffffff;border:1px solid #dc2626;border-radius:6px;overflow:hidden">
+                <div style="padding:13px 14px;border-bottom:1px solid #dce2e9;display:flex;justify-content:space-between;align-items:center;gap:10px">
+                  <span style="font:700 13px Archivo,sans-serif;color:#10104e">Conflictos</span>
+                  <span style="font:400 12px Archivo,sans-serif;color:#5f6b7a">2 sin resolver · 1 resuelto</span>
+                </div>
+                <div style="display:flex;align-items:flex-start;gap:11px;padding:13px 14px;border-bottom:1px solid #dce2e9;background:#e9f7fa;border-left:3px solid #22c6ee">
+                  <span style="width:8px;height:8px;border-radius:50%;background:#dc2626;flex:none;margin-top:5px"></span>
+                  <span style="flex:1;min-width:0">
+                    <span style="display:block;font:600 13px Archivo,sans-serif;color:#253040">P-01 Acceso principal · 2 turnos sin cubrir</span>
+                    <span style="display:block;font:400 12px Archivo,sans-serif;color:#5f6b7a;padding-top:3px">Jueves 10 y viernes 11 sep, 07–19 · abierto a la derecha</span>
+                  </span>
+                </div>
+                <div style="display:flex;align-items:flex-start;gap:11px;padding:13px 14px;border-bottom:1px solid #dce2e9">
+                  <span style="width:8px;height:8px;border-radius:50%;background:#d97706;flex:none;margin-top:5px"></span>
+                  <span style="flex:1;min-width:0">
+                    <span style="display:block;font:600 13px Archivo,sans-serif;color:#253040">P-03 Monitoreo CCTV · 2 días sin declarar</span>
+                    <span style="display:block;font:400 12px Archivo,sans-serif;color:#5f6b7a;padding-top:3px">Servicios › Posiciones · patrón de P-03</span>
+                  </span>
+                  <span style="border:1px solid #dce2e9;border-radius:6px;padding:0 11px;height:2.25rem;display:flex;align-items:center;font:600 12px Archivo,sans-serif;color:#253040;flex:none">Ir al patrón</span>
+                </div>
+                <div style="display:flex;align-items:flex-start;gap:11px;padding:13px 14px;background:#f7f9fb">
+                  <span style="width:8px;height:8px;border-radius:50%;background:#16a34a;flex:none;margin-top:5px"></span>
+                  <span style="flex:1;min-width:0">
+                    <span style="display:block;font:600 13px Archivo,sans-serif;color:#5f6b7a">P-05 Recepción vespertina · sábado 12 sep</span>
+                    <span style="display:block;font:400 12px Archivo,sans-serif;color:#5f6b7a;padding-top:3px">Cubierto por Rubén Darío Ortiz · asignación vigente desde el 12 sep</span>
+                  </span>
+                  <span style="border:1px solid #16a34a;border-radius:3px;padding:3px 8px;font:600 10.5px Archivo,sans-serif;color:#16a34a;flex:none">Resuelto</span>
+                </div>
+              </div>
+
+              <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;overflow:hidden">
+                <div style="padding:11px 14px;background:#f7f9fb;border-bottom:1px solid #dce2e9;font:600 10.5px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">PROYECCIÓN DE LA SEMANA</div>
+                <div style="display:grid;grid-template-columns:130px repeat(7,1fr);border-bottom:1px solid #dce2e9;background:#f7f9fb">
+                  <span style="padding:8px 10px;border-right:1px solid #dce2e9;font:600 11px Archivo,sans-serif;letter-spacing:.05em;color:#5f6b7a">POSICIÓN</span>
+                  <sc-for list="{{ dias }}" as="d" hint-placeholder-count="7">
+                    <span style="padding:8px 2px;border-right:1px solid #dce2e9;font:600 11px Archivo,sans-serif;color:#5f6b7a;text-align:center">{{ d }}</span>
+                  </sc-for>
+                </div>
+                <sc-for list="{{ filasCompacta }}" as="r" hint-placeholder-count="5">
+                  <div style="display:grid;grid-template-columns:130px repeat(7,1fr);border-bottom:1px solid #dce2e9">
+                    <span style="padding:10px;border-right:1px solid #dce2e9;display:flex;flex-direction:column;gap:2px">
+                      <span style="font:600 12px Archivo,sans-serif;color:#253040">{{ r.pos }}</span>
+                      <span style="font:400 11px Archivo,sans-serif;color:#5f6b7a">{{ r.meta }}</span>
+                    </span>
+                    <sc-for list="{{ r.cells }}" as="c" hint-placeholder-count="7">
+                      <span style="padding:6px 3px;border-right:1px solid #dce2e9;background:{{ c.bg }};display:flex">
+                        <span style="flex:1;border:1px solid {{ c.bd }};background:{{ c.ibg }};border-radius:6px;padding:6px 2px;display:flex;flex-direction:column;gap:1px;align-items:center;justify-content:center;text-align:center">
+                          <span style="font:{{ c.sf }};color:{{ c.tc }}">{{ c.t }}</span>
+                          <span style="font:400 10.5px Archivo,sans-serif;color:{{ c.sc }}">{{ c.s }}</span>
+                        </span>
+                      </span>
+                    </sc-for>
+                  </div>
+                </sc-for>
+                <div style="padding:11px 14px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+                  <span style="font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">LEYENDA</span>
+                  <sc-for list="{{ leyenda }}" as="l" hint-placeholder-count="5">
+                    <span style="display:flex;align-items:center;gap:7px">
+                      <span style="width:13px;height:13px;border-radius:3px;border:1px solid {{ l.bd }};background:{{ l.bg }};flex:none"></span>
+                      <span style="font:500 11.5px Archivo,sans-serif;color:#253040">{{ l.txt }}</span>
+                    </span>
+                  </sc-for>
+                </div>
+              </div>
+
+            </div>
+
+            <div style="width:620px;flex:none;background:#ffffff;border:1px solid #dce2e9;border-radius:6px;display:flex;flex-direction:column;overflow:hidden">
+              <div style="padding:15px 18px;border-bottom:1px solid #dce2e9;display:flex;justify-content:space-between;align-items:flex-start;gap:14px">
+                <div>
+                  <div style="font:700 17px/1.25 Archivo,sans-serif;color:#10104e">Hueco de cobertura · P-01 Acceso principal</div>
+                  <div style="font:400 12.5px Archivo,sans-serif;color:#5f6b7a;padding-top:5px">Jueves 10 sep 2026 · turno 07–19</div>
+                </div>
+                <span style="width:28px;height:28px;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;justify-content:center;font:500 13px Archivo,sans-serif;color:#5f6b7a;flex:none">✕</span>
+              </div>
+              <div style="display:flex;gap:22px;padding:0 18px;border-bottom:1px solid #dce2e9;font:600 13px Archivo,sans-serif;color:#5f6b7a">
+                <span style="padding:13px 0;border-bottom:2px solid #22c6ee;color:#10104e">Datos</span>
+                <span style="padding:13px 0;display:flex;gap:8px;align-items:center">Candidatos <span style="border:1px solid #dce2e9;border-radius:3px;padding:1px 6px;font:600 10.5px Archivo,sans-serif;color:#5f6b7a">4</span></span>
+              </div>
+              <div style="padding:18px;display:flex;flex-direction:column;gap:16px">
+                <div style="border:1px solid #dc2626;border-radius:6px;padding:13px 14px;display:flex;align-items:flex-start;gap:11px">
+                  <span style="width:8px;height:8px;border-radius:50%;background:#dc2626;flex:none;margin-top:4px"></span>
+                  <span>
+                    <span style="display:block;font:600 12.5px Archivo,sans-serif;color:#dc2626">1 de 2 elementos requeridos sin asignar</span>
+                    <span style="display:block;font:400 12px/1.5 Archivo,sans-serif;color:#253040;padding-top:4px">El viernes 11 sep tiene el mismo hueco. Una asignación vigente desde el 10 sep resuelve los dos turnos.</span>
+                  </span>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+                  <div style="display:flex;flex-direction:column;gap:5px"><span style="font:500 11.5px Archivo,sans-serif;color:#5f6b7a">Posición</span><span style="font:600 12.5px Archivo,sans-serif;color:#253040">P-01 Acceso principal</span></div>
+                  <div style="display:flex;flex-direction:column;gap:5px"><span style="font:500 11.5px Archivo,sans-serif;color:#5f6b7a">Servicio</span><span style="font:600 12.5px Archivo,sans-serif;color:#253040">{{ servicio }}</span></div>
+                  <div style="display:flex;flex-direction:column;gap:5px"><span style="font:500 11.5px Archivo,sans-serif;color:#5f6b7a">Día proyectado</span><span style="font:600 12.5px Archivo,sans-serif;color:#253040">Jueves 10 sep 2026</span></div>
+                  <div style="display:flex;flex-direction:column;gap:5px"><span style="font:500 11.5px Archivo,sans-serif;color:#5f6b7a">Turno</span><span style="font:600 12.5px Archivo,sans-serif;color:#253040">07–19 · 12 horas</span></div>
+                  <div style="display:flex;flex-direction:column;gap:5px"><span style="font:500 11.5px Archivo,sans-serif;color:#5f6b7a">Elementos requeridos</span><span style="font:600 12.5px Archivo,sans-serif;color:#253040">2</span></div>
+                  <div style="display:flex;flex-direction:column;gap:5px"><span style="font:500 11.5px Archivo,sans-serif;color:#5f6b7a">Asignados vigentes</span><span style="font:600 12.5px Archivo,sans-serif;color:#dc2626">1</span></div>
+                  <div style="display:flex;flex-direction:column;gap:5px"><span style="font:500 11.5px Archivo,sans-serif;color:#5f6b7a">Titular vigente</span><span style="font:600 12.5px Archivo,sans-serif;color:#253040">Laura Menchaca Ordóñez</span></div>
+                  <div style="display:flex;flex-direction:column;gap:5px"><span style="font:500 11.5px Archivo,sans-serif;color:#5f6b7a">Patrón de la posición</span><span style="font:600 12.5px Archivo,sans-serif;color:#253040">Semanal · descanso domingo</span></div>
+                </div>
+                <div style="border:1px solid #d97706;border-radius:6px;padding:12px 14px;font:400 12px/1.5 Archivo,sans-serif;color:#253040">
+                  <span style="display:block;font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#d97706;padding-bottom:5px">ELEGIBILIDAD POR TEXTO LIBRE</span>
+                  La elegibilidad compara el puesto del empleado contra el perfil requerido de la posición, y ambos son texto libre. Una diferencia de redacción bloquea a alguien capaz. Revisa el candidato antes de descartarlo.
+                </div>
+                <div style="border:1px solid #dce2e9;border-radius:6px;overflow:hidden">
+                  <div style="padding:10px 14px;background:#f7f9fb;border-bottom:1px solid #dce2e9;display:flex;justify-content:space-between;align-items:center">
+                    <span style="font:600 10.5px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">CANDIDATOS PARA EL JUEVES 10 SEP</span>
+                    <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">4 · dos elegibles sin aviso</span>
+                  </div>
+                  <sc-for list="{{ candidatos }}" as="k" hint-placeholder-count="4">
+                    <div style="padding:12px 14px;border-bottom:1px solid #dce2e9;display:flex;flex-direction:column;gap:5px">
+                      <div style="display:flex;align-items:center;gap:10px">
+                        <span style="font:600 13px Archivo,sans-serif;color:#253040;flex:1;min-width:0">{{ k.nombre }}</span>
+                        <span style="border:1px solid {{ k.pillColor }};border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:{{ k.pillColor }};flex:none">{{ k.pill }}</span>
+                        <span style="border:1px solid #dce2e9;border-radius:6px;padding:0 11px;height:2.25rem;display:flex;align-items:center;font:600 12px Archivo,sans-serif;color:#253040;flex:none">Elegir</span>
+                      </div>
+                      <span style="font:400 12px Archivo,sans-serif;color:#5f6b7a">{{ k.puesto }} · {{ k.zona }}</span>
+                      <span style="font:400 11.5px/1.45 Archivo,sans-serif;color:{{ k.pillColor }}">{{ k.aviso }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+              <div style="margin-top:auto;border-top:1px solid #dce2e9;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;gap:14px">
+                <span style="font:400 11.5px/1.45 Archivo,sans-serif;color:#5f6b7a;flex:1">La asignación queda registrada en la ficha del servicio, pestaña Asignaciones. Al volver, la proyección se regenera.</span>
+                <span style="display:flex;gap:12px;align-items:center;flex:none">
+                  <span style="font:600 12.5px Archivo,sans-serif;color:#087f9c">Abrir en Servicios › Asignaciones</span>
+                  <span style="height:2.5rem;display:flex;align-items:center;padding:0 16px;background:#10104e;color:#ffffff;border-radius:6px;font:600 12.5px Archivo,sans-serif">Asignar cobertura</span>
+                </span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section data-screen-label="Vista 4 · Publicada" id="v4" style="display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;align-items:baseline;gap:12px">
+      <span style="font:600 11.5px Archivo,sans-serif;letter-spacing:.14em;color:#5f6b7a">VISTA 4</span>
+      <span style="font:600 19px Archivo,sans-serif;color:#10104e">Versión publicada, inmutable</span>
+    </div>
+    <div style="width:1440px;border:1px solid #dce2e9;border-radius:6px;overflow:hidden;background:#f4f6fa">
+      <div style="height:4.5rem;background:#ffffff;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:12px;padding:0 20px">
+        <div style="display:flex;align-items:center;gap:10px;border:1px solid #dce2e9;border-radius:6px;padding:7px 11px;background:#ffffff">
+          <span style="font:400 11px Archivo,sans-serif;color:#5f6b7a">Organización activa</span>
+          <span style="font:600 13px Archivo,sans-serif;color:#10104e">{{ organizacion }}</span>
+        </div>
+        <span style="font:400 12.5px Archivo,sans-serif;color:#5f6b7a">Fecha operativa <span style="color:#253040;font-weight:600">{{ fecha }}</span></span>
+      </div>
+      <div style="display:flex;min-height:940px">
+        <dc-import name="SideMenu" active="Planeación" role="admin" usuario="Renata Villaseñor" hint-size="272px,940px"></dc-import>
+        <div style="flex:1;padding:16px 20px 20px;display:flex;flex-direction:column;gap:16px;min-width:0">
+
+          <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px">
+            <div>
+              <div style="font:600 11px Archivo,sans-serif;letter-spacing:.1em;color:#5f6b7a;padding-bottom:5px">PLANEACIÓN</div>
+              <div style="display:flex;align-items:center;gap:10px">
+                <span style="font:700 22px/1.2 Archivo,sans-serif;color:#10104e">Planeación</span>
+                <span style="border:1px solid #16a34a;border-radius:3px;padding:3px 8px;font:600 10.5px Archivo,sans-serif;color:#16a34a">Versión 2 · publicada</span>
+              </div>
+              <div style="font:400 13px Archivo,sans-serif;color:#5f6b7a;padding-top:4px">Semana 07 – 13 sep 2026 · publicada 04 sep 2026 09:41 por Renata Villaseñor</div>
+            </div>
+            <div style="background:#10104e;color:#ffffff;border-radius:6px;padding:0 16px;height:2.5rem;display:flex;align-items:center;font:600 13px Archivo,sans-serif">Ir a la operación del día</div>
+          </div>
+
+          <div style="background:#ffffff;border:1px solid #0284c7;border-radius:6px;padding:14px 16px;display:flex;align-items:center;gap:14px">
+            <span style="border:1px solid #0284c7;border-radius:3px;padding:3px 8px;font:600 10.5px Archivo,sans-serif;color:#0284c7;flex:none">PUBLICADA · NO SE EDITA</span>
+            <span style="flex:1;font:400 12.5px/1.5 Archivo,sans-serif;color:#253040">El rol publicado no se modifica. Todo cambio posterior —una falta, un retardo, un relevo— entra como incidencia trazable ligada a esta versión, con su motivo, quién cubre y quién autoriza.</span>
+            <span style="border:1px solid #dce2e9;border-radius:6px;padding:0 14px;height:2.5rem;display:flex;align-items:center;font:600 12.5px Archivo,sans-serif;color:#253040;flex:none">Registrar incidencia</span>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
+            <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;padding:16px;display:flex;flex-direction:column;gap:6px">
+              <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">TURNOS PUBLICADOS</span>
+              <span style="font:600 22px/1.1 Archivo,sans-serif;color:#10104e">31</span>
+              <span style="font:400 12px Archivo,sans-serif;color:#5f6b7a">Cinco posiciones, siete días, sin huecos al publicar.</span>
+            </div>
+            <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;padding:16px;display:flex;flex-direction:column;gap:6px">
+              <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">INCIDENCIAS SOBRE ESTA VERSIÓN</span>
+              <span style="display:flex;align-items:center;gap:9px">
+                <span style="font:600 22px/1.1 Archivo,sans-serif;color:#10104e">0</span>
+                <span style="border:1px solid #16a34a;border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:#16a34a">Cero real</span>
+              </span>
+              <span style="font:400 12px Archivo,sans-serif;color:#5f6b7a">Lo planeado sigue vigente tal como se publicó.</span>
+            </div>
+            <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;padding:16px;display:flex;flex-direction:column;gap:6px">
+              <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">VERSIONES DE LA SEMANA</span>
+              <span style="font:600 22px/1.1 Archivo,sans-serif;color:#10104e">2</span>
+              <span style="font:400 12px Archivo,sans-serif;color:#5f6b7a">La 1 quedó sustituida. Ninguna se borra.</span>
+            </div>
+          </div>
+
+          <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;overflow:hidden">
+            <div style="padding:11px 14px;background:#f7f9fb;border-bottom:1px solid #dce2e9;display:flex;justify-content:space-between;align-items:center">
+              <span style="font:600 10.5px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">PROYECCIÓN PUBLICADA · SOLO LECTURA</span>
+              <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Sin acciones de fila: la versión no se edita</span>
+            </div>
+            <div style="display:grid;grid-template-columns:230px repeat(7,1fr);border-bottom:1px solid #dce2e9;background:#f7f9fb">
+              <span style="padding:9px 14px;border-right:1px solid #dce2e9;font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">POSICIÓN</span>
+              <sc-for list="{{ dias }}" as="d" hint-placeholder-count="7">
+                <span style="padding:9px 8px;border-right:1px solid #dce2e9;font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a;text-align:center">{{ d }}</span>
+              </sc-for>
+            </div>
+            <sc-for list="{{ filasLimpia }}" as="r" hint-placeholder-count="5">
+              <div style="display:grid;grid-template-columns:230px repeat(7,1fr);border-bottom:1px solid #dce2e9">
+                <span style="padding:12px 14px;border-right:1px solid #dce2e9;display:flex;flex-direction:column;gap:3px">
+                  <span style="font:600 13px Archivo,sans-serif;color:#253040">{{ r.pos }}</span>
+                  <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">{{ r.meta }}</span>
+                </span>
+                <sc-for list="{{ r.cells }}" as="c" hint-placeholder-count="7">
+                  <span style="padding:8px 6px;border-right:1px solid #dce2e9;background:{{ c.bg }};display:flex">
+                    <span style="flex:1;border:1px solid {{ c.bd }};background:{{ c.ibg }};border-radius:6px;padding:7px 6px;display:flex;flex-direction:column;gap:2px;align-items:center;justify-content:center;text-align:center">
+                      <span style="font:600 12px Archivo,sans-serif;color:{{ c.tc }}">{{ c.t }}</span>
+                      <span style="font:{{ c.sf }};color:{{ c.sc }}">{{ c.s }}</span>
+                    </span>
+                  </span>
+                </sc-for>
+              </div>
+            </sc-for>
+            <div style="padding:12px 14px;display:flex;align-items:center;gap:18px;flex-wrap:wrap">
+              <span style="font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">LEYENDA</span>
+              <sc-for list="{{ leyenda }}" as="l" hint-placeholder-count="5">
+                <span style="display:flex;align-items:center;gap:8px">
+                  <span style="width:14px;height:14px;border-radius:3px;border:1px solid {{ l.bd }};background:{{ l.bg }};flex:none"></span>
+                  <span style="font:500 11.5px Archivo,sans-serif;color:#253040">{{ l.txt }}</span>
+                  <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">{{ l.nota }}</span>
+                </span>
+              </sc-for>
+            </div>
+          </div>
+
+          <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;overflow:hidden">
+            <div style="padding:11px 14px;background:#f7f9fb;border-bottom:1px solid #dce2e9;display:flex;justify-content:space-between;align-items:center">
+              <span style="font:600 10.5px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">HISTORIAL DE VERSIONES DE ESTA SEMANA</span>
+              <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Aquí no se borra historia: la versión anterior queda sustituida y se puede consultar</span>
+            </div>
+            <div style="display:flex;align-items:center;padding:11px 14px;border-bottom:1px solid #dce2e9;font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">
+              <span style="width:150px;flex:none">VERSIÓN</span><span style="width:190px;flex:none">PUBLICADA</span><span style="flex:1;min-width:0">AUTOR</span><span style="width:300px;flex:none">SITUACIÓN</span><span style="width:110px;flex:none;text-align:right">CONSULTA</span>
+            </div>
+            <div style="display:flex;align-items:center;padding:14px;border-bottom:1px solid #dce2e9;background:#e9f7fa;border-left:3px solid #22c6ee">
+              <span style="width:150px;flex:none;font:600 13px Archivo,sans-serif;color:#253040">Versión 2</span>
+              <span style="width:190px;flex:none;font:400 12.5px Archivo,sans-serif;color:#253040">04 sep 2026 09:41</span>
+              <span style="flex:1;min-width:0;font:400 12.5px Archivo,sans-serif;color:#5f6b7a">Renata Villaseñor</span>
+              <span style="width:300px;flex:none;display:flex;align-items:center;gap:8px">
+                <span style="width:7px;height:7px;border-radius:50%;background:#16a34a;flex:none"></span>
+                <span style="font:600 12px Archivo,sans-serif;color:#253040">Vigente e inmutable</span>
+              </span>
+              <span style="width:110px;flex:none;text-align:right;font:600 12px Archivo,sans-serif;color:#087f9c">Ver</span>
+            </div>
+            <div style="display:flex;align-items:center;padding:14px;background:#f7f9fb">
+              <span style="width:150px;flex:none;font:600 13px Archivo,sans-serif;color:#5f6b7a">Versión 1</span>
+              <span style="width:190px;flex:none;font:400 12.5px Archivo,sans-serif;color:#5f6b7a">03 sep 2026 17:20</span>
+              <span style="flex:1;min-width:0;font:400 12.5px Archivo,sans-serif;color:#5f6b7a">Renata Villaseñor</span>
+              <span style="width:300px;flex:none;display:flex;flex-direction:column;gap:3px">
+                <span style="display:flex;align-items:center;gap:8px">
+                  <span style="border:1px solid #5f6b7a;border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:#5f6b7a">Sustituida</span>
+                  <span style="font:500 12px Archivo,sans-serif;color:#5f6b7a">por la versión 2</span>
+                </span>
+                <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">04 sep 2026 09:41 · no se borró</span>
+              </span>
+              <span style="width:110px;flex:none;text-align:right;font:600 12px Archivo,sans-serif;color:#087f9c">Ver</span>
+            </div>
+          </div>
+
+          <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;padding:16px;display:flex;gap:28px">
+            <div style="flex:1"><div style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a;padding-bottom:7px">POR QUÉ NO HAY BOTÓN DE EDITAR</div><div style="font:400 12.5px/1.6 Archivo,sans-serif;color:#253040">Publicada, la semana es el compromiso contra el que se registra la asistencia. Editarla borraría la diferencia entre lo planeado y lo ocurrido, que es justo lo que después se concilia con el cliente.</div></div>
+            <div style="flex:1"><div style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a;padding-bottom:7px">SUSTITUIDA, NO BORRADA</div><div style="font:400 12.5px/1.6 Archivo,sans-serif;color:#253040">Una versión anterior conserva su fecha, su autor y su contenido, y dice qué versión la sustituyó y cuándo. Se consulta completa desde el historial.</div></div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section data-screen-label="Vista 5 · Nada que proyectar" id="v5" style="display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;align-items:baseline;gap:12px">
+      <span style="font:600 11.5px Archivo,sans-serif;letter-spacing:.14em;color:#5f6b7a">VISTA 5</span>
+      <span style="font:600 19px Archivo,sans-serif;color:#10104e">Sin posiciones ni asignaciones</span>
+    </div>
+    <div style="width:1440px;border:1px solid #dce2e9;border-radius:6px;overflow:hidden;background:#f4f6fa">
+      <div style="height:4.5rem;background:#ffffff;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:12px;padding:0 20px">
+        <div style="display:flex;align-items:center;gap:10px;border:1px solid #dce2e9;border-radius:6px;padding:7px 11px;background:#ffffff">
+          <span style="font:400 11px Archivo,sans-serif;color:#5f6b7a">Organización activa</span>
+          <span style="font:600 13px Archivo,sans-serif;color:#10104e">{{ organizacion }}</span>
+        </div>
+        <span style="font:400 12.5px Archivo,sans-serif;color:#5f6b7a">Fecha operativa <span style="color:#253040;font-weight:600">{{ fecha }}</span></span>
+      </div>
+      <div style="display:flex;min-height:760px">
+        <dc-import name="SideMenu" active="Planeación" role="admin" usuario="Renata Villaseñor" hint-size="272px,760px"></dc-import>
+        <div style="flex:1;padding:16px 20px 20px;display:flex;flex-direction:column;gap:16px;min-width:0">
+
+          <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px">
+            <div>
+              <div style="font:600 11px Archivo,sans-serif;letter-spacing:.1em;color:#5f6b7a;padding-bottom:5px">PLANEACIÓN</div>
+              <div style="font:700 22px/1.2 Archivo,sans-serif;color:#10104e">Planeación</div>
+              <div style="font:400 13px Archivo,sans-serif;color:#5f6b7a;padding-top:4px">Semana 07 – 13 sep 2026 · Mantenimiento Plaza Encinos</div>
+            </div>
+            <div style="border:1px solid #dce2e9;background:#f7f9fb;border-radius:6px;padding:0 16px;height:2.5rem;display:flex;align-items:center;font:600 13px Archivo,sans-serif;color:#5f6b7a">Generar proyección</div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
+            <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;padding:16px;display:flex;flex-direction:column;gap:6px">
+              <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">TURNOS PROYECTADOS</span>
+              <span style="display:flex;align-items:center;gap:9px">
+                <span style="font:600 22px/1.1 Archivo,sans-serif;color:#5f6b7a">—</span>
+                <span style="border:1px solid #dce2e9;background:#f7f9fb;border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:#253040">Sin datos aún · definir posiciones</span>
+              </span>
+              <span style="font:400 12px Archivo,sans-serif;color:#5f6b7a">No es cero: no hay con qué proyectar todavía.</span>
+            </div>
+            <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;padding:16px;display:flex;flex-direction:column;gap:6px">
+              <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">HUECOS DE COBERTURA</span>
+              <span style="display:flex;align-items:center;gap:9px">
+                <span style="font:600 22px/1.1 Archivo,sans-serif;color:#5f6b7a">—</span>
+                <span style="border:1px solid #dce2e9;background:#f7f9fb;border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:#253040">Sin datos aún · asignar titulares</span>
+              </span>
+              <span style="font:400 12px Archivo,sans-serif;color:#5f6b7a">Un cero diría que todo está cubierto, y nadie ha asignado nada.</span>
+            </div>
+            <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;padding:16px;display:flex;flex-direction:column;gap:6px">
+              <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">PERSONAS EN LA SEMANA</span>
+              <span style="display:flex;align-items:center;gap:9px">
+                <span style="font:600 22px/1.1 Archivo,sans-serif;color:#5f6b7a">—</span>
+                <span style="border:1px solid #dce2e9;background:#f7f9fb;border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:#253040">Sin datos aún · asignar titulares</span>
+              </span>
+              <span style="font:400 12px Archivo,sans-serif;color:#5f6b7a">Se cuenta a partir de las asignaciones vigentes.</span>
+            </div>
+          </div>
+
+          <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;padding:24px;display:flex;flex-direction:column;gap:18px">
+            <div style="display:flex;flex-direction:column;gap:7px">
+              <span style="font:700 17px Archivo,sans-serif;color:#10104e">No hay nada que proyectar en esta semana</span>
+              <span style="font:400 12.5px/1.55 Archivo,sans-serif;color:#5f6b7a;max-width:80ch">La proyección se arma con el patrón de cada posición y con quién está asignado a ella. Faltan las dos cosas, y las dos se resuelven en el módulo de Servicios.</span>
+            </div>
+            <div style="border:1px solid #dce2e9;border-radius:6px;overflow:hidden">
+              <div style="display:flex;align-items:center;gap:14px;padding:16px;border-bottom:1px solid #dce2e9">
+                <span style="width:26px;height:26px;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;justify-content:center;font:600 11px Archivo,sans-serif;color:#5f6b7a;flex:none">1</span>
+                <span style="flex:1;min-width:0">
+                  <span style="display:block;font:600 13px Archivo,sans-serif;color:#253040">El servicio no tiene posiciones</span>
+                  <span style="display:block;font:400 12px Archivo,sans-serif;color:#5f6b7a;padding-top:3px">Sin posiciones no hay turnos que proyectar. Cada posición lleva su patrón de turno y descanso.</span>
+                </span>
+                <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a;width:230px;flex:none">Servicios › ficha del servicio › Posiciones</span>
+                <span style="background:#10104e;color:#ffffff;border-radius:6px;padding:0 14px;height:2.5rem;display:flex;align-items:center;font:600 12.5px Archivo,sans-serif;flex:none">Definir posiciones</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:14px;padding:16px">
+                <span style="width:26px;height:26px;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;justify-content:center;font:600 11px Archivo,sans-serif;color:#5f6b7a;flex:none">2</span>
+                <span style="flex:1;min-width:0">
+                  <span style="display:block;font:600 13px Archivo,sans-serif;color:#253040">Las posiciones no tienen a nadie asignado</span>
+                  <span style="display:block;font:400 12px Archivo,sans-serif;color:#5f6b7a;padding-top:3px">Se necesita al menos una asignación vigente. Si no hay empleados de alta, el paso previo es Personal.</span>
+                </span>
+                <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a;width:230px;flex:none">Servicios › ficha del servicio › Asignaciones</span>
+                <span style="border:1px solid #dce2e9;border-radius:6px;padding:0 14px;height:2.5rem;display:flex;align-items:center;font:600 12.5px Archivo,sans-serif;color:#253040;flex:none">Asignar titulares</span>
+              </div>
+            </div>
+            <span style="font:400 12px Archivo,sans-serif;color:#5f6b7a">Generar proyección se habilita cuando exista al menos una posición con patrón completo y una asignación vigente.</span>
+          </div>
+
+          <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;padding:16px;display:flex;gap:28px">
+            <div style="flex:1"><div style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a;padding-bottom:7px">POR QUÉ RAYA Y NO CERO</div><div style="font:400 12.5px/1.6 Archivo,sans-serif;color:#253040">Un cero en huecos de cobertura dice «todo está cubierto». Aquí nadie ha asignado a nadie: el prerrequisito no existe, así que el indicador muestra raya, la píldora dice qué falta, y la acción está en la píldora.</div></div>
+            <div style="flex:1"><div style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a;padding-bottom:7px">DOS FALTANTES, DOS SALIDAS</div><div style="font:400 12.5px/1.6 Archivo,sans-serif;color:#253040">El estado vacío no dice solo qué falta: nombra el módulo exacto de cada faltante y trae su acción. Una sola acción sólida, la que va primero en el orden de dependencias.</div></div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;organizacion&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Seguridad Vanguardia S.A.&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;fecha&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;04 sep 2026&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;servicio&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Vigilancia intramuros Torre Altavista&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const sf = '400 11px Archivo,sans-serif';
+    const T = (t, s) => ({ bg:'#ffffff', bd:'transparent', ibg:'transparent', t, tc:'#253040', s, sc:'#5f6b7a', sf });
+    const T2 = (a, b) => ({ bg:'#ffffff', bd:'transparent', ibg:'transparent', t:a, tc:'#253040', s:b, sc:'#253040', sf:'500 11px Archivo,sans-serif' });
+    const D = () => ({ bg:'#f7f9fb', bd:'transparent', ibg:'transparent', t:'Descanso', tc:'#5f6b7a', s:'', sc:'#5f6b7a', sf });
+    const C = (t) => ({ bg:'#ffffff', bd:'#22c6ee', ibg:'#e9f7fa', t, tc:'#253040', s:'Cubre-descansos', sc:'#087f9c', sf:'600 10.5px Archivo,sans-serif' });
+    const H2 = (a) => ({ bg:'#ffffff', bd:'#dc2626', ibg:'#ffffff', t:a, tc:'#253040', s:'Falta 1 de 2', sc:'#dc2626', sf:'600 10.5px Archivo,sans-serif' });
+    const H = (s) => ({ bg:'#ffffff', bd:'#dc2626', ibg:'#ffffff', t:'Sin cubrir', tc:'#dc2626', s, sc:'#dc2626', sf:'600 10.5px Archivo,sans-serif' });
+    const W = () => ({ bg:'#ffffff', bd:'#d97706', ibg:'#ffffff', t:'Sin declarar', tc:'#d97706', s:'Turno o descanso', sc:'#d97706', sf:'600 10.5px Archivo,sans-serif' });
+
+    const p1 = { pos:'P-01 Acceso principal', meta:'2 elementos · 07–19 · semanal' };
+    const p2 = { pos:'P-02 Rondín nocturno', meta:'1 elemento · 19–07 · cíclico 4×2' };
+    const p3 = { pos:'P-03 Monitoreo CCTV', meta:'1 elemento · 07–19 · semanal' };
+    const p4 = { pos:'P-04 Rondín perimetral', meta:'1 elemento · 07–15 · semanal' };
+    const p5 = { pos:'P-05 Recepción vespertina', meta:'1 elemento · 14–22 · semanal' };
+
+    const laura = () => T2('Laura Menchaca', 'Óscar Zúñiga');
+    const jorge = () => T('Jorge Iván Peñaloza', '19–07');
+    const ana = () => T('Ana Sofía Rentería', '07–19');
+    const mafer = () => T('M. Fernanda Cifuentes', '07–15');
+    const norma = () => T('Norma Alicia Berrones', '14–22');
+
+    const filasLimpia = [
+      { ...p1, cells: [laura(), laura(), laura(), laura(), laura(), laura(), D()] },
+      { ...p2, cells: [jorge(), jorge(), jorge(), jorge(), D(), D(), jorge()] },
+      { ...p3, cells: [ana(), ana(), ana(), ana(), ana(), D(), D()] },
+      { ...p4, cells: [mafer(), mafer(), C('Rubén Darío Ortiz'), mafer(), mafer(), mafer(), D()] },
+      { ...p5, cells: [D(), norma(), norma(), norma(), norma(), norma(), norma()] }
+    ];
+
+    const filasConflicto = [
+      { ...p1, cells: [laura(), laura(), laura(), H2('Laura Menchaca'), H2('Laura Menchaca'), laura(), D()] },
+      { ...p2, cells: [jorge(), jorge(), jorge(), jorge(), D(), D(), jorge()] },
+      { ...p3, cells: [ana(), ana(), ana(), ana(), ana(), W(), W()] },
+      { ...p4, cells: [mafer(), mafer(), C('Rubén Darío Ortiz'), mafer(), mafer(), mafer(), D()] },
+      { ...p5, cells: [D(), norma(), norma(), norma(), norma(), H('Titular de baja'), norma()] }
+    ];
+
+    const cf = '600 10.5px Archivo,sans-serif';
+    const cT = (t) => ({ bg:'#ffffff', bd:'transparent', ibg:'transparent', t, tc:'#253040', sf:cf, sc:'#5f6b7a', s:'' });
+    const cD = () => ({ bg:'#f7f9fb', bd:'transparent', ibg:'transparent', t:'D', tc:'#5f6b7a', sf:cf, sc:'#5f6b7a', s:'' });
+    const cC = (t) => ({ bg:'#ffffff', bd:'#22c6ee', ibg:'#e9f7fa', t, tc:'#253040', sf:cf, sc:'#087f9c', s:'cubre' });
+    const cH = () => ({ bg:'#ffffff', bd:'#dc2626', ibg:'#ffffff', t:'Hueco', tc:'#dc2626', sf:cf, sc:'#dc2626', s:'' });
+    const cW = () => ({ bg:'#ffffff', bd:'#d97706', ibg:'#ffffff', t:'?', tc:'#d97706', sf:cf, sc:'#d97706', s:'' });
+
+    const filasCompacta = [
+      { pos:'P-01 Acceso principal', meta:'2 elementos · 07–19', cells:[cT('Laura'), cT('Laura'), cT('Laura'), cH(), cH(), cT('Laura'), cD()] },
+      { pos:'P-02 Rondín nocturno', meta:'1 elemento · 19–07', cells:[cT('Jorge'), cT('Jorge'), cT('Jorge'), cT('Jorge'), cD(), cD(), cT('Jorge')] },
+      { pos:'P-03 Monitoreo CCTV', meta:'1 elemento · 07–19', cells:[cT('Ana'), cT('Ana'), cT('Ana'), cT('Ana'), cT('Ana'), cW(), cW()] },
+      { pos:'P-04 Rondín perimetral', meta:'1 elemento · 07–15', cells:[cT('Fernanda'), cT('Fernanda'), cC('Rubén'), cT('Fernanda'), cT('Fernanda'), cT('Fernanda'), cD()] },
+      { pos:'P-05 Recepción vespertina', meta:'1 elemento · 14–22', cells:[cD(), cT('Norma'), cT('Norma'), cT('Norma'), cT('Norma'), cC('Rubén'), cT('Norma')] }
+    ];
+
+    const candidatos = [
+      { nombre:'Ismael Trujano Bermúdez', puesto:'Guardia de acceso', zona:'Zona Poniente · sin turno el jueves 10', bd:'#dce2e9', bg:'#ffffff', pill:'Elegible', pillColor:'#16a34a', aviso:'' },
+      { nombre:'Yolanda Castañeda Pineda', puesto:'Guardia de acceso', zona:'Zona Poniente · sin turno el jueves 10', bd:'#dce2e9', bg:'#ffffff', pill:'Elegible', pillColor:'#16a34a', aviso:'' },
+      { nombre:'Efraín Solórzano', puesto:'Guardia intramuros', zona:'Zona Centro · sin turno el jueves 10', bd:'#d97706', bg:'#ffffff', pill:'Revisar puesto', pillColor:'#d97706', aviso:'El perfil requerido de P-01 dice «Guardia de acceso». Los dos son texto libre: la diferencia es de redacción, no de capacidad.' },
+      { nombre:'Rubén Darío Ortiz', puesto:'Guardia de acceso', zona:'Zona Poniente · cubre P-04 el jueves 10, 07–15', bd:'#dc2626', bg:'#ffffff', pill:'Traslape', pillColor:'#dc2626', aviso:'Se traslapa con su turno de cubre-descansos en P-04. Si bloquea o solo advierte está pendiente de definir.' }
+    ];
+
+    return {
+      filasCompacta,
+      candidatos,
+      organizacion: this.props.organizacion ?? 'Seguridad Vanguardia S.A.',
+      fecha: this.props.fecha ?? '04 sep 2026',
+      servicio: this.props.servicio ?? 'Vigilancia intramuros Torre Altavista',
+      dias: ['LUN 07','MAR 08','MIÉ 09','JUE 10','VIE 11','SÁB 12','DOM 13'],
+      leyenda: [
+        { bd:'#dce2e9', bg:'#ffffff', txt:'Turno con titular', nota:'' },
+        { bd:'#22c6ee', bg:'#e9f7fa', txt:'Cubre-descansos', nota:'fijo o por asignación: pendiente' },
+        { bd:'#dce2e9', bg:'#f7f9fb', txt:'Descanso', nota:'declarado en el patrón' },
+        { bd:'#dc2626', bg:'#ffffff', txt:'Hueco de cobertura', nota:'requeridos > asignados' },
+        { bd:'#d97706', bg:'#ffffff', txt:'Día sin declarar', nota:'patrón incompleto' }
+      ],
+      filasLimpia,
+      filasConflicto
+    };
+  }
+}
+</script>
+</body>
+</html>

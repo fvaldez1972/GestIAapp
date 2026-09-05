@@ -26,8 +26,8 @@ Siete tamaños, ni uno más. Es una herramienta operativa: densa a propósito.
 
 | Tamaño | Peso | Uso |
 |---|---|---|
-| 22 px | 600 | **Valor de tarjeta de indicador, y solo eso.** Un número que se lee como métrica, no como texto de tabla |
-| 13 px | 700 | Título de pantalla, nombre en encabezado de panel |
+| 22 px | 700 / 600 | **Título de pantalla** (peso 700) y **valor de tarjeta de indicador** (peso 600). Un número que se lee como métrica, no como texto de tabla |
+| 13 px | 700 | Nombre en encabezado de panel |
 | 13 px | 600 | Nombre de registro en fila de tabla |
 | 12.5 px | 600 / 400 | Texto de contenido, valores de ficha |
 | 12 px | 600 / 500 / 400 | Datos secundarios, celdas de apoyo |
@@ -37,7 +37,7 @@ Siete tamaños, ni uno más. Es una herramienta operativa: densa a propósito.
 
 **Regla:** la jerarquía se hace con peso y color antes que con tamaño. El cuerpo de la
 aplicación vive entre 10.5 y 13 px; el 22 px es la única excepción y está reservado al
-valor de indicador.
+título de pantalla y al valor de indicador.
 
 **Prohibido el 13.5 px** y cualquier tamaño intermedio. Está tan cerca del 13 que solo
 difumina la escala sin aportar jerarquía.
@@ -98,6 +98,29 @@ destructiva va separada dentro del menú.
 
 Estados obligatorios: cargando con esqueleto —no spinner—, con datos, vacío por filtro,
 vacío sin datos, y error.
+
+### Cuadrícula de proyección
+
+Rejilla de **posición por siete días**. Es el componente de Planeación y **Asistencia va a
+necesitar exactamente el mismo**, así que se define una sola vez aquí.
+
+Una fila por posición, siete columnas por día. Cada celda es un estado, no un texto libre.
+
+**La leyenda es obligatoria y vive dentro de la propia cuadrícula**, no en una nota al pie ni
+en un tooltip. Sin leyenda, la rejilla es un mosaico de colores que nadie sabe leer. Son cinco
+entradas, siempre las cinco, aunque alguna no aparezca esa semana:
+
+| Entrada | Cómo se ve |
+|---|---|
+| Turno con titular | Borde `--gestia-border`, fondo `--gestia-surface` |
+| Cubre-descansos | Borde `--gestia-cyan`, fondo `--gestia-cyan-soft` |
+| Descanso | Borde `--gestia-border`, fondo `--gestia-surface-soft` |
+| Hueco de cobertura | Borde `--gestia-danger`. Requeridos por encima de asignados |
+| Día sin declarar | Borde `--gestia-warning`. El patrón está incompleto |
+
+Las dos últimas son las que importan: un hueco de cobertura y un día sin declarar **no son lo
+mismo** y no pueden verse igual. El primero es una falta de personal; el segundo, una falta de
+configuración, y se resuelven en módulos distintos.
 
 ### Panel de detalle lateral
 
@@ -178,6 +201,7 @@ Variantes: sin permiso, sin datos aún, sin resultados por filtro, y falta un pr
 | Sin librerías | No hay ECharts, Flatpickr, Preline ni Simplebar |
 | Datos de ejemplo verosímiles | Español, con acentos y eñes, nombres largos y cortos, y casos incompletos |
 | Nombres inventados | Nunca usar nombres de personas reales del proyecto |
+| Botón primario inhabilitado | Borde `--gestia-border`, fondo `--gestia-surface-soft`, texto `--gestia-muted`, **y la razón escrita al lado**. Nunca solo el estado visual: un botón apagado sin explicación deja al usuario adivinando qué le falta |
 
 ---
 

@@ -29,6 +29,7 @@ vista de plataforma.
 | --- | --- |
 | Clientes | Admin de organización |
 | Personal | Admin de organización |
+| Planeación | Admin de organización |
 | Servicios | Super admin dentro de una organización |
 | Inicio | Ambos: las vistas 1 a 3 como admin de organización, la 4 como super admin que entró |
 
@@ -60,6 +61,34 @@ tres pestañas: **Datos · Documentos · Asignaciones**.
 | 4 | Formulario de alta: el expediente mínimo, completo |
 | 5 | Sin puestos en catálogo: se crea aquí, o se va y se vuelve sin perder nada |
 
+### Planeación — 5 vistas
+
+`planeacion/planeacion.html`. Dibujada como **admin de organización**. Introduce la
+**cuadrícula de proyección**, posición por siete días, que Asistencia va a reutilizar tal cual.
+
+| Vista | Qué muestra |
+| --- | --- |
+| 1 | Proyección generada, sin conflictos |
+| 2 | Proyección con conflictos, el estado normal |
+| 3 | Un conflicto abierto, con su resolución |
+| 4 | Versión publicada, inmutable |
+| 5 | Sin posiciones ni asignaciones |
+
+#### Tres preguntas abiertas que dejó este diseño
+
+Están escritas dentro del propio archivo y **ninguna se resuelve desde diseño**: son decisiones
+de negocio.
+
+1. **El traslape, ¿bloquea o solo advierte?** El diseño lo deja anotado literalmente: *"Si
+   bloquea o solo advierte está pendiente de definir."* Hoy el código bloquea con 409, así que
+   cambiarlo sería alterar conducta ya desplegada.
+2. **El cubre-descansos, ¿es fijo o va por asignación?** La leyenda de la cuadrícula lo marca
+   como *"fijo o por asignación: pendiente"*.
+3. **La elegibilidad por texto libre.** El diseño advierte que se compara el puesto del
+   empleado contra el perfil requerido de la posición y **ambos son texto libre**, de modo que
+   una diferencia de redacción bloquea a alguien capaz. Queda por decidir si se mantiene así o
+   pasa por el catálogo de habilidades.
+
 ### Servicios — 6 vistas
 
 `servicios/servicios.html`. Cubre los pasos 5, 6 y 8 del recorrido. Dibujada como
@@ -90,15 +119,17 @@ plataforma.
 ## Compartido entre pantallas
 
 `componentes/side-menu.html` vive en su propia carpeta porque **lo usan todas las pantallas**,
-no solo estas cuatro. Cualquier cambio ahí afecta a la aplicación entera.
+no solo estas cinco. Cualquier cambio ahí afecta a la aplicación entera.
 
 ## Faltan por diseñar
 
-Quedan tres, en este orden:
+Quedan dos, en este orden:
 
-1. Planeación
-2. Asistencia
-3. Incidencias con Cobertura
+1. Asistencia
+2. Incidencias con Cobertura
+
+Asistencia reutiliza la **cuadrícula de proyección** de Planeación, ya definida en el sistema
+de componentes.
 
 ## Se implementan sin pasar por diseño terminado
 

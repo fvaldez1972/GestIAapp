@@ -35,6 +35,13 @@ public sealed class ProblemDetailsExceptionHandler(
                 StatusCodes.Status404NotFound,
                 "Recurso no encontrado",
                 exception.Message),
+            // Los dos son 409, pero no se resuelven igual: el de concurrencia no se arregla
+            // reintentando, así que la pantalla necesita poder distinguirlo. Por el estado no
+            // puede; por el título sí.
+            ConcurrencyConflictException => (
+                StatusCodes.Status409Conflict,
+                "Conflicto de concurrencia",
+                exception.Message),
             ResourceConflictException or DomainRuleException => (
                 StatusCodes.Status409Conflict,
                 "Conflicto de datos",

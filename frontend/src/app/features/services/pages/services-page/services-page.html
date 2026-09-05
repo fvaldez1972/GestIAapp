@@ -3,6 +3,7 @@
     <div>
       <span class="eyebrow">Configuración</span>
       <h1>Servicios</h1>
+      <p>La organización se hereda de la barra de contexto.</p>
     </div>
     <button
       class="button button--primary"
@@ -13,247 +14,170 @@
       Nuevo servicio
     </button>
   </header>
+
   @if (platformAdmin() && !selectedOrganizationId()) {
     <p class="notice">
-      Selecciona una organización en la barra superior para consultar sus servicios.
+      Selecciona una organización en la barra de contexto para consultar sus servicios.
     </p>
   }
-  <div class="client-context">
-    @if (canRead()) {
-      <form class="client-search" (submit)="$event.preventDefault(); loadClients()">
-        <label
-          ><span>Buscar cliente</span
-          ><input
-            type="search"
-            [value]="clientSearch()"
-            (input)="clientSearch.set($any($event.target).value)"
-        /></label>
-        <button class="button" type="submit" [disabled]="saving()">Buscar</button>
-      </form>
-      <label
-        ><span>Cliente</span
-        ><select
-          aria-label="Cliente"
-          [ngModel]="selectedClient()?.idClient || ''"
-          [disabled]="saving()"
-          (ngModelChange)="selectClient($event)"
-        >
-          <option value="">Selecciona un cliente</option>
-          @for (client of clientOptions(); track client.idClient) {
-            <option [value]="client.idClient">
-              {{ client.legalName }} ({{ client.codeClient }}){{
-                client.active ? '' : ' · Inactivo'
-              }}
-            </option>
-          }
-        </select></label
+
+  @if (message()) { <p class="gi-alert gi-alert--success" role="status">{{ message() }}</p> }
+  @if (error()) { <p class="gi-alert gi-alert--error" role="alert">{{ error() }}</p> }
+
+  <!--
+    El conflicto de concurrencia no es un error cualquiera y por eso no va en la misma franja: no
+    se arregla reintentando. El servidor lo construye con la bitácora y dice quién corrigió el
+    registro y cuándo; lo único que se puede hacer es ver qué cambió la otra persona.
+  -->
+  @if (conflict(); as aviso) {
+    <div class="conflict" role="alert">
+      <p>{{ aviso }}</p>
+      <button class="button button--secondary" type="button" (click)="reloadAfterConflict()">
+        Volver a cargar
+      </button>
+    </div>
+  }
+
+  <div class="services-body">
+    <div class="services-list">
+      <gi-filter-bar
+        [search]="search()"
+        searchPlaceholder="Buscar servicio, cliente o sede"
+        [groups]="statusGroups()"
+        [resultCount]="serviceList().totalCount"
+        (searchChange)="onSearch($event)"
+        (filterChange)="onStatusFilter($event.value)"
+        (clearAll)="clearFilters()"
+      />
+
+      <gi-data-table
+        label="Servicios de la organización"
+        [columns]="columns"
+        [rows]="serviceList().items"
+        [rowId]="porId"
+        [state]="tableState()"
+        [selectedId]="selectedService()?.idService ?? null"
+        [errorMessage]="error()"
+        [emptyTitle]="tableState() === 'empty' ? 'Todavía no hay servicios' : ''"
+        [emptyDescription]="
+          tableState() === 'empty' ? 'Registra el primero para empezar a planear su operación.' : ''
+        "
+        [emptyActionLabel]="tableState() === 'empty' ? 'Nuevo servicio' : 'Quitar filtros'"
+        (rowSelect)="openService($event)"
+        (retry)="loadServices(serviceList().page)"
+        (emptyAction)="tableState() === 'empty' ? openCreateService() : clearFilters()"
       >
-      <div class="pagination">
-        <button
-          type="button"
-          aria-label="Clientes anteriores"
-          [disabled]="result().page <= 1 || loading() || saving()"
-          (click)="loadClients(result().page - 1)"
-        >
-          &#8592;
-        </button>
-        <span
-          >{{ result().page }} / {{ result().totalPages || 1 }} ·
-          {{ result().totalCount }} clientes</span
-        >
-        <button
-          type="button"
-          aria-label="Clientes siguientes"
-          [disabled]="result().page >= result().totalPages || loading() || saving()"
-          (click)="loadClients(result().page + 1)"
-        >
-          &#8594;
-        </button>
-      </div>
-    }
-  </div>
-  @if (error()) {
-    <p class="notice notice--error" role="alert">{{ error() }}</p>
-  }
-  @if (message()) {
-    <p class="notice notice--success" role="status">{{ message() }}</p>
-  }
-  @if (loading()) {
-    <p class="loading" role="status">Cargando datos…</p>
-  }
-  @if (canRead()) {
-    <section class="directory" aria-label="Directorio de servicios" [attr.aria-busy]="loading()">
-      <header class="section-heading">
-        <h2>{{ selectedClientName() || 'Directorio de servicios' }}</h2>
-        <button class="button" type="button" [disabled]="loading() || saving()" (click)="refresh()">
-          Actualizar
-        </button>
-      </header>
-      @if (!selectedClient()) {
-        <p class="compact-state">
-          {{ result().totalCount ? 'Selecciona un cliente.' : 'No se encontraron clientes.' }}
-        </p>
-      } @else {
-        <div class="filters">
-          <label
-            ><span>Buscar servicio</span
-            ><input
-              type="search"
-              [value]="search()"
-              (input)="search.set($any($event.target).value)"
-          /></label>
-          <label
-            ><span>Estado</span
-            ><select [value]="status()" (change)="status.set($any($event.target).value)">
-              <option value="all">Todos</option>
-              <option value="active">Activos</option>
-              <option value="inactive">Inactivos</option>
-            </select></label
+        <ng-template giCell="clientSite" let-row>
+          {{ row.clientName }}@if (row.clientSiteName) { · {{ row.clientSiteName }} }
+        </ng-template>
+
+        <ng-template giCell="term" let-row>{{ vigencia(row) }}</ng-template>
+
+        <!--
+          Asignados sobre requeridos, para que el hueco se vea sin abrir la ficha. El excedente
+          se muestra en negativo: más gente que cupo revela una violación de control.
+        -->
+        <ng-template giCell="coverage" let-row>
+          <span class="coverage" [class.has-vacancy]="vacantes(row) > 0">
+            {{ row.assignedWorkerCount }} / {{ row.requiredWorkerCount }}
+          </span>
+          @if (vacantes(row) > 0) {
+            <span class="pill pill--danger">{{ vacantes(row) }} vacante@if (vacantes(row) !== 1) {s}</span>
+          } @else if (vacantes(row) < 0) {
+            <span class="pill pill--warning">{{ -vacantes(row) }} de más</span>
+          }
+        </ng-template>
+
+        <ng-template giCell="state" let-row>
+          <span class="pill" [class]="'pill--' + estado(row)">{{ estadoTexto(row) }}</span>
+        </ng-template>
+
+        <ng-template giCell="actions" let-row>
+          <!--
+            El clic del menú no puede burbujear a la fila: abrir las acciones abriría además la
+            ficha, y quien sólo quería ver el menú se encuentra el panel encima.
+          -->
+          <gi-row-actions
+            (click)="$event.stopPropagation()"
+            (keydown)="$event.stopPropagation()"
+            [actions]="rowActions()"
+            [label]="'Acciones de ' + row.name"
+            (select)="onRowAction(row, $event)"
+          />
+        </ng-template>
+      </gi-data-table>
+
+      @if (serviceList().totalPages > 1) {
+        <div class="pager">
+          <span>{{ serviceList().items.length }} de {{ serviceList().totalCount }} servicios</span>
+          <button
+            class="button button--secondary"
+            type="button"
+            [disabled]="serviceList().page <= 1 || loading()"
+            (click)="loadServices(serviceList().page - 1)"
           >
-          <span>{{ visibleServices().length }} de {{ services().length }} servicios</span>
-        </div>
-        @if (!loading() && !hasActiveSite()) {
-          <p class="notice">
-            El cliente no tiene sedes activas. <a routerLink="/clientes">Ir a Clientes</a>
-          </p>
-        }
-        <div class="table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>Servicio</th>
-                <th>Sede / contrato</th>
-                <th>Vigencia</th>
-                <th>Estado</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (service of visibleServices(); track service.idService) {
-                <tr [class.is-active]="selectedService()?.idService === service.idService">
-                  <td>
-                    <button
-                      class="entity-link"
-                      type="button"
-                      [disabled]="saving()"
-                      (click)="selectService(service)"
-                    >
-                      {{ service.name }}</button
-                    ><small>{{ service.codeService }}</small>
-                  </td>
-                  <td>
-                    {{ service.clientSiteName || 'Sede no disponible'
-                    }}<small>{{ service.serviceContractCode || 'Sin contrato ligado' }}</small>
-                  </td>
-                  <td>
-                    {{ service.startDate
-                    }}<small>{{ service.endDate || 'Sin fecha de término' }}</small>
-                  </td>
-                  <td>
-                    <span class="pill" [class.pill--muted]="!service.active">{{
-                      service.active ? 'Activo' : 'Inactivo'
-                    }}</span>
-                  </td>
-                  <td>
-                    <div class="mini-actions">
-                      @if (canWriteClients()) {
-                        <button
-                          type="button"
-                          [disabled]="saving() || loading()"
-                          (click)="openEditService(service)"
-                        >
-                          Editar
-                        </button>
-                        @if (service.active) {
-                          <button
-                            class="danger"
-                            type="button"
-                            [disabled]="saving()"
-                            (click)="deactivateService(service)"
-                          >
-                            Desactivar
-                          </button>
-                        }
-                      }
-                      @if (canReadDocuments()) {
-                        <a
-                          routerLink="/documentos"
-                          [queryParams]="{
-                            ownerType: 'Service',
-                            ownerId: service.idService,
-                            organizationId: selectedOrganizationId(),
-                          }"
-                          >Documentos</a
-                        >
-                      }
-                    </div>
-                  </td>
-                </tr>
-              } @empty {
-                <tr>
-                  <td colspan="5">
-                    {{
-                      loading()
-                        ? 'Cargando servicios…'
-                        : 'Sin servicios para los filtros seleccionados.'
-                    }}
-                  </td>
-                </tr>
-              }
-            </tbody>
-          </table>
+            Anterior
+          </button>
+          <button
+            class="button button--secondary"
+            type="button"
+            [disabled]="serviceList().page >= serviceList().totalPages || loading()"
+            (click)="loadServices(serviceList().page + 1)"
+          >
+            Siguiente
+          </button>
         </div>
       }
-    </section>
+    </div>
+
+    
     @if (selectedService(); as service) {
-      <section class="service-detail" aria-label="Ficha del servicio">
-        <header class="section-heading">
-          <div>
-            <span class="eyebrow">{{ service.codeService }}</span>
-            <h2>{{ service.name }}</h2>
-            <p>{{ service.description }}</p>
-          </div>
-          @if (canReadPlanning()) {
-            <a
-              class="button button--secondary"
-              routerLink="/planeacion"
-              [queryParams]="{
-                organizationId: selectedOrganizationId(),
-                clientId: selectedClient()?.idClient,
-                serviceId: service.idService,
-              }"
-              ><app-icon name="calendar" /> Ir a planeación</a
-            >
-          }
-        </header>
-        @if (service.invoiceDescription) {
-          <p>Descripción para factura: {{ service.invoiceDescription }}</p>
-        }
-        <nav class="tabs" aria-label="Detalle del servicio">
-          @for (tab of tabs; track tab.value) {
-            @if (
-              tab.value === 'configuration' ||
-              (tab.value === 'documents' ? canReadDocuments() : canReadPlanning())
-            ) {
-              <button
-                type="button"
-                [class.is-active]="activeTab() === tab.value"
-                [attr.aria-pressed]="activeTab() === tab.value"
-                (click)="activeTab.set(tab.value)"
-              >
-                {{ tab.label }}
-              </button>
+      <!--
+        La ficha va **al lado** de la tabla, no debajo: 620 px de columna. Antes se apilaba en el
+        mismo scroll, así que abrir un servicio empujaba la lista fuera de la pantalla.
+      -->
+      <gi-detail-panel
+        [title]="service.name"
+        [subtitle]="service.codeService + ' · ' + (selectedClient()?.legalName ?? '')"
+        [tabs]="panelTabs()"
+        [activeTab]="activeTab()"
+        (tabChange)="activeTab.set($event)"
+        (close)="closePanel()"
+      >
+        <ng-template giTab="data">
+          <dl class="ficha">
+            <div><dt>Cliente</dt><dd>{{ selectedClient()?.legalName || '—' }}</dd></div>
+            <div><dt>Sede</dt><dd>{{ service.clientSiteName || '—' }}</dd></div>
+            <div><dt>Vigencia</dt><dd>{{ vigencia(service) }}</dd></div>
+            <div><dt>Estado</dt><dd>{{ estadoTexto(service) }}</dd></div>
+            <div class="ficha__wide"><dt>Alcance</dt><dd>{{ service.description }}</dd></div>
+            @if (service.invoiceDescription) {
+              <div class="ficha__wide"><dt>Descripción para factura</dt><dd>{{ service.invoiceDescription }}</dd></div>
             }
+            <div>
+              <dt>Contrato</dt>
+              <dd>{{ service.serviceContractCode || 'Sin contrato' }}</dd>
+            </div>
+          </dl>
+
+          @if (contactoOperativo(); as contacto) {
+            <!--
+              El contacto es del cliente y su sede: se muestra en lectura para no ir a Clientes
+              durante la operación.
+            -->
+            <section class="contacto" aria-label="Contacto operativo en la sede">
+              <h3>Contacto operativo en la sede</h3>
+              <dl class="ficha">
+                <div><dt>Nombre</dt><dd>{{ contacto.fullName }}</dd></div>
+                <div><dt>Puesto</dt><dd>{{ contacto.jobTitle || '—' }}</dd></div>
+                <div><dt>Teléfono</dt><dd>{{ contacto.phone || contacto.mobilePhone || '—' }}</dd></div>
+              </dl>
+            </section>
           }
-        </nav>
-        @if (activeTab() === 'documents' && canReadDocuments()) {
-          <app-entity-documents
-            [organizationId]="selectedOrganizationId()"
-            ownerType="Service"
-            [ownerId]="service.idService"
-            [ownerLabel]="service.name"
-          />
-        }
+        </ng-template>
+
+        <ng-template giTab="configuration">
+        
         <section class="detail-section" [hidden]="activeTab() !== 'configuration'">
           <header>
             <div>
@@ -344,6 +268,15 @@
             </div>
           }
         </section>
+        </ng-template>
+
+        <ng-template giTab="positions">
+        <!--
+          Sin cambios de contenido. Esta pestaña depende de tres decisiones de negocio que siguen
+          abiertas —si el traslape bloquea o advierte, cuántos descansos tiene una posición típica,
+          y si la fecha ancla lleva selector propio o entra una librería con su caso— y hasta que
+          se tomen, se queda como estaba.
+        -->
         @if (canReadPlanning()) {
           <section class="detail-section" [hidden]="activeTab() !== 'positions'">
             <header>
@@ -550,6 +483,9 @@
             }
           </section>
         }
+        </ng-template>
+
+        <ng-template giTab="assignments">
         @if (canReadPlanning()) {
           <section class="detail-section" [hidden]="activeTab() !== 'assignments'">
             @if (!canReadEmployees()) {
@@ -630,8 +566,65 @@
             }
           </section>
         }
-      </section>
+
+          <!--
+            La cobertura por posición, al día operativo. El excedente va en negativo: si sobra
+            gente, se ve.
+          -->
+          @if (canReadPlanning() && positionVacancy().length) {
+            <section class="vacantes" aria-label="Cobertura por posición">
+              <h3>Cobertura al {{ operationDate() ? formatearFecha(operationDate()) : 'día operativo' }}</h3>
+              <table class="gi-table">
+                <thead>
+                  <tr><th scope="col">Posición</th><th scope="col">Req. / Asig.</th><th scope="col">Estado</th></tr>
+                </thead>
+                <tbody>
+                  @for (posicion of positionVacancy(); track posicion.idPosition) {
+                    <tr>
+                      <td>{{ posicion.codePosition }} {{ posicion.name }}</td>
+                      <td>{{ posicion.requiredWorkerCount }} / {{ posicion.assignedWorkerCount }}</td>
+                      <td>
+                        @if (vacantesDePosicion(posicion) > 0) {
+                          <span class="pill pill--danger">{{ vacantesDePosicion(posicion) }} vacante@if (vacantesDePosicion(posicion) !== 1) {s}</span>
+                        } @else if (vacantesDePosicion(posicion) < 0) {
+                          <span class="pill pill--warning">{{ -vacantesDePosicion(posicion) }} de más</span>
+                        } @else {
+                          <span class="pill pill--active">Completa</span>
+                        }
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </section>
+          }
+        </ng-template>
+
+        @if (canReadPlanning()) {
+          <a
+            panelFooter
+            class="button button--secondary"
+            routerLink="/planeacion"
+            [queryParams]="{ clientId: selectedClient()?.idClient, serviceId: service.idService }"
+            ><app-icon name="calendar" /> Ir a planeación</a
+          >
+        }
+      </gi-detail-panel>
     }
+  </div>
+
+  <!--
+    El diálogo del sistema, en vez del `window.confirm` que sólo sabía decir «¿estás seguro?».
+    Nombra el servicio y explica qué deja de funcionar, que es lo que se lee antes de contestar.
+  -->
+  @if (serviceToDeactivate(); as porDesactivar) {
+    <gi-confirm-dialog
+      [open]="true"
+      [subject]="porDesactivar.codeService + ' · ' + porDesactivar.name"
+      consequence="Sus posiciones dejan de programarse y no se generarán turnos futuros. Lo ya registrado se conserva."
+      (confirm)="deactivateService(porDesactivar)"
+      (cancel)="cancelDeactivateService()"
+    />
   }
 </div>
 @if (serviceEditorOpen() && canRead()) {

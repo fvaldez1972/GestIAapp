@@ -42,7 +42,10 @@ export type ServiceListItem = {
  */
 export type ServiceState = 'inactive' | 'expired' | 'active';
 
-export function serviceState(service: ServiceListItem, operationDate: string): ServiceState {
+export function serviceState(
+  service: { readonly active: boolean; readonly endDate: string | null },
+  operationDate: string,
+): ServiceState {
   if (!service.active) {
     return 'inactive';
   }

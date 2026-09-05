@@ -48,7 +48,7 @@ internal static class OperationalTransaction
             }
             catch (DbUpdateConcurrencyException exception)
             {
-                throw new ResourceConflictException(
+                throw new ConcurrencyConflictException(
                     await DescribeConflictAsync(dbContext, operationalTimeZone, exception, cancellationToken));
             }
             finally

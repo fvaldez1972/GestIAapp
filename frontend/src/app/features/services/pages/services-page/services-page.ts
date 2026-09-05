@@ -11,7 +11,7 @@ import {
   untracked,
 } from '@angular/core';
 import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import {
   EMPTY,
   Observable,
@@ -24,12 +24,38 @@ import {
   takeUntil,
 } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
+import {
+  GiColumn,
+  GiDataTable,
+  GiCell,
+  GiDetailPanel,
+  GiTabContent,
+  GiFilterBar,
+  GiFilterGroup,
+  GiRowActions,
+  GiRowAction,
+  GiConfirmDialog,
+  GiTab,
+  GiTableState,
+} from '../../../../shared/ui/gi-ui';
+import { formatOperationalDate } from '../../../../shared/util/operational-date';
+import { ServiceApiService } from '../../data-access/service-api.service';
+import {
+  PositionVacancy,
+  ServiceListItem,
+  ServiceState,
+  ServiceStatusFilter,
+  positionVacancy,
+  serviceState,
+  serviceVacancy,
+} from '../../data-access/service.models';
 import { SystemInfoService } from '../../../../core/system/system-info.service';
 import { WorkforceApiService } from '../../../workforce/data-access/workforce-api.service';
 import { Employee } from '../../../workforce/data-access/workforce.models';
 import { ClientApiService } from '../../../clients/data-access/client-api.service';
 import {
   Client,
+  ClientContact,
   ClientSite,
   CreateManagedService,
   CreateServiceAssignment,
@@ -60,7 +86,20 @@ import { dateRangeValidator, shiftIntervalValidator } from '../../ui/service-val
 
 @Component({
   selector: 'app-services-page',
-  imports: [FormsModule, ReactiveFormsModule, RouterLink, ServiceDialog, EntityDocuments, AppIcon],
+  imports: [
+    FormsModule,
+    ReactiveFormsModule,
+    RouterLink,
+    ServiceDialog,
+    AppIcon,
+    GiFilterBar,
+    GiDataTable,
+    GiCell,
+    GiDetailPanel,
+    GiTabContent,
+    GiRowActions,
+    GiConfirmDialog,
+  ],
   templateUrl: './services-page.html',
   styleUrl: './services-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -68,7 +107,9 @@ import { dateRangeValidator, shiftIntervalValidator } from '../../ui/service-val
 export class ServicesPage implements OnInit, OnDestroy {
   private readonly api = inject(ClientApiService);
   private readonly contextApi = inject(ServiceContextApi);
+  private readonly serviceApi = inject(ServiceApiService);
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private pendingServiceLink = '';
   private readonly workforceApi = inject(WorkforceApiService);
   private readonly auth = inject(AuthService);
@@ -77,7 +118,7 @@ export class ServicesPage implements OnInit, OnDestroy {
   // A parent selection invalidates all requests below it.
   private readonly scopeChanges = new Subject<number>();
   private readonly destroyed = new Subject<void>();
-  private readonly clientSearchChanges = new Subject<void>();
+  private readonly listChanges = new Subject<void>();
   /** La organización de trabajo la fija la barra de contexto, y sólo ella. */
   protected readonly selectedOrganizationId = this.auth.operationalOrganizationId;
   protected readonly selectedClient = signal<Client | null>(null);
@@ -90,14 +131,33 @@ export class ServicesPage implements OnInit, OnDestroy {
     this.positions().some((position) => position.active),
   );
   protected readonly contracts = signal<readonly ServiceContract[]>([]);
+  protected readonly contacts = signal<readonly ClientContact[]>([]);
   protected readonly services = signal<readonly ManagedService[]>([]);
   protected readonly configurations = signal<readonly ServiceConfiguration[]>([]);
   protected readonly positions = signal<readonly ServicePosition[]>([]);
   protected readonly shiftPatterns = signal<readonly ShiftPattern[]>([]);
   protected readonly shiftSegments = signal<readonly ShiftSegment[]>([]);
   protected readonly assignments = signal<readonly ServiceAssignment[]>([]);
+  protected readonly positionVacancy = signal<readonly PositionVacancy[]>([]);
+  /** El servicio que se va a desactivar, mientras el diálogo pregunta. */
+  protected readonly serviceToDeactivate = signal<ManagedService | null>(null);
+  /**
+   * Quién pisó el cambio y cuándo, cuando el servidor responde 409. Lo construye el backend con
+   * la bitácora; aquí sólo se muestra y se ofrece recargar.
+   */
+  protected readonly conflict = signal('');
+  /**
+   * Por qué se corrige. **Va vacío y no se sugiere nada**: un motivo prellenado deja de ser un
+   * motivo. El servidor decide si hace falta, y lo dice en el error.
+   */
+  protected readonly correctionReason = signal('');
+  protected readonly correctionReasonRequired = signal(false);
   protected readonly activeEmployees = signal<readonly Employee[]>([]);
-  protected readonly result = signal<PagedResult<Client>>({
+  /**
+   * El listado de la organización. **Antes esto era la lista de clientes**, y no se veía un solo
+   * servicio hasta elegir uno: la cascada organización → cliente → servicio.
+   */
+  protected readonly serviceList = signal<PagedResult<ServiceListItem>>({
     items: [],
     totalCount: 0,
     page: 1,
@@ -109,16 +169,9 @@ export class ServicesPage implements OnInit, OnDestroy {
   protected readonly saving = signal(false);
   protected readonly error = signal('');
   protected readonly message = signal('');
-  protected readonly clientSearch = signal('');
   protected readonly search = signal('');
-  protected readonly status = signal('all');
-  protected readonly activeTab = signal('configuration');
-  protected readonly tabs = [
-    { value: 'configuration', label: 'Configuraciones' },
-    { value: 'positions', label: 'Posiciones y turnos' },
-    { value: 'assignments', label: 'Asignaciones' },
-    { value: 'documents', label: 'Documentos' },
-  ];
+  protected readonly statusFilter = signal<ServiceStatusFilter>('Active');
+  protected readonly activeTab = signal('data');
   protected readonly platformAdmin = computed(
     () => this.auth.session()?.permissions.includes('PLATFORM.ADMIN') ?? false,
   );
@@ -151,22 +204,38 @@ export class ServicesPage implements OnInit, OnDestroy {
       !!this.selectedClient()?.active &&
       !!this.selectedService()?.active,
   );
-  protected readonly visibleServices = computed(() => {
-    const search = this.search().trim().toLocaleLowerCase();
-    return this.services().filter(
-      (s) =>
-        (this.status() === 'all' || (this.status() === 'active') === s.active) &&
-        [s.codeService, s.name, s.clientSiteName ?? '', s.serviceContractCode ?? ''].some((v) =>
-          v.toLocaleLowerCase().includes(search),
-        ),
-    );
+  /** El día al que se calcula la cobertura. Lo dice el servidor, no el navegador. */
+  protected readonly operationDate = computed(() => this.systemInfo.operationDate());
+
+  protected readonly tableState = computed<GiTableState>(() => {
+    if (this.error()) return 'error';
+    if (this.loading() && !this.serviceList().items.length) return 'loading';
+    if (this.serviceList().items.length) return 'ready';
+    return this.search().trim() || this.statusFilter() !== 'Active' ? 'empty-filtered' : 'empty';
   });
-  protected readonly clientOptions = computed(() => {
-    const selected = this.selectedClient();
-    return selected && !this.result().items.some((c) => c.idClient === selected.idClient)
-      ? [selected, ...this.result().items]
-      : this.result().items;
-  });
+
+  /** Los cuatro anchos de referencia del sistema, más el de la columna de acciones. */
+  protected readonly columns: readonly GiColumn[] = [
+    { key: 'name', label: 'Servicio', width: '220px', kind: 'name' },
+    { key: 'clientSite', label: 'Cliente · Sede', width: '190px' },
+    { key: 'term', label: 'Vigencia', width: '150px', kind: 'meta' },
+    { key: 'coverage', label: 'Posiciones', width: '130px', align: 'end' },
+    { key: 'state', label: 'Estado', width: '130px' },
+    { key: 'actions', label: '', width: '52px', align: 'end' },
+  ];
+
+  protected readonly statusGroups = computed<readonly GiFilterGroup[]>(() => [
+    {
+      id: 'status',
+      label: 'Estado',
+      allLabel: 'Todos',
+      value: this.statusFilter() === 'All' ? '' : this.statusFilter(),
+      options: [
+        { value: 'Active', label: 'Activos' },
+        { value: 'Inactive', label: 'Inactivos' },
+      ],
+    },
+  ]);
   protected readonly selectedClientName = computed(() => this.selectedClient()?.legalName ?? '');
   protected readonly selectedServiceName = computed(() => this.selectedService()?.name ?? '');
   protected readonly selectedPositionName = computed(() => this.selectedPosition()?.name ?? '');
@@ -202,7 +271,7 @@ export class ServicesPage implements OnInit, OnDestroy {
     this.destroyed.next();
     this.destroyed.complete();
     this.scopeChanges.complete();
-    this.clientSearchChanges.complete();
+    this.listChanges.complete();
   }
 
   /**
@@ -212,10 +281,51 @@ export class ServicesPage implements OnInit, OnDestroy {
    */
   private loadForActiveOrganization(): void {
     if (this.selectedOrganizationId()) {
-      // El cliente enlazado lo trae la suscripción a los parámetros de la URL, que ya corre con
+      // El servicio enlazado lo trae la suscripción a los parámetros de la URL, que ya corre con
       // la organización puesta. Pedirlo también aquí lo pediría dos veces.
-      this.loadClients();
+      this.loadServices();
     }
+  }
+
+  /**
+   * El listado, en **una sola llamada**. Antes eran tres pasos —listar clientes, elegir uno,
+   * listar sus servicios— y no se veía un servicio hasta el tercero.
+   */
+  protected loadServices(page = 1): void {
+    if (!this.canRead()) return;
+    this.listChanges.next();
+    this.error.set('');
+    this.read(
+      this.serviceApi
+        .searchServices({
+          organizationId: this.selectedOrganizationId(),
+          search: this.search(),
+          status: this.statusFilter(),
+          // Sin día operativo no se manda ninguno: el servidor pone el suyo, que es el bueno.
+          coverageDate: this.operationDate() || undefined,
+          page,
+          pageSize: 20,
+        })
+        .pipe(takeUntil(this.listChanges)),
+      0,
+      (result) => this.serviceList.set(result),
+    );
+  }
+
+  protected onSearch(value: string): void {
+    this.search.set(value);
+    this.loadServices(1);
+  }
+
+  protected onStatusFilter(value: string): void {
+    this.statusFilter.set((value || 'All') as ServiceStatusFilter);
+    this.loadServices(1);
+  }
+
+  protected clearFilters(): void {
+    this.search.set('');
+    this.statusFilter.set('Active');
+    this.loadServices(1);
   }
 
   private loadLinkedClient(): void {
@@ -238,87 +348,117 @@ export class ServicesPage implements OnInit, OnDestroy {
         return;
       }
       this.selectedClient.set(client);
-      this.loadClientDetail(client);
+      this.openLinkedService(client.idClient);
     });
   }
 
-  protected loadClients(page = 1): void {
-    if (!this.canRead()) return;
-    this.clientSearchChanges.next();
-    this.read(
-      this.api
-        .listClients(this.selectedOrganizationId(), this.clientSearch(), page, 20)
-        .pipe(takeUntil(this.clientSearchChanges)),
-      0,
-      (result) => this.result.set(result),
-    );
-  }
-
-  protected selectClient(id: string): void {
+  /**
+   * Abre la ficha de un servicio del listado. La sede, el contrato y el cliente se piden aquí
+   * porque el listado no los trae completos: trae los nombres para pintarlos, no las listas para
+   * editarlos.
+   */
+  protected openService(item: ServiceListItem): void {
     if (this.saving() || !this.canRead()) return;
-    const client = this.clientOptions().find((c) => c.idClient === id) ?? null;
     this.scopeChanges.next(1);
     this.pendingServiceLink = '';
     this.closeEditors();
-    this.selectedClient.set(client);
-    this.selectedService.set(null);
-    this.services.set([]);
-    this.sites.set([]);
-    this.contracts.set([]);
+    this.selectedService.set(item);
+    this.activeTab.set('data');
     this.clearServiceDetail();
-    this.search.set('');
-    this.status.set('all');
-    this.error.set('');
     this.message.set('');
-    if (client) this.loadClientDetail(client);
+    this.loadClientContext(item.idClient);
+    this.loadServiceDetail(item);
   }
 
-  protected loadClientDetail(client = this.selectedClient()): void {
-    if (!client || !this.canRead()) return;
-    this.scopeChanges.next(1);
+  protected closePanel(): void {
+    if (this.saving()) return;
+    this.closeEditors();
+    this.selectedService.set(null);
+    this.selectedClient.set(null);
+    this.clearServiceDetail();
+  }
+
+  private loadClientContext(idClient: string): void {
     const org = this.selectedOrganizationId();
     this.read(
       forkJoin({
-        services: this.api.listServices(org, client.idClient),
-        sites: this.api.listSites(org, client.idClient),
-        contracts: this.api.listContracts(org, client.idClient),
+        client: this.contextApi.getClient(org, idClient),
+        sites: this.api.listSites(org, idClient),
+        contracts: this.api.listContracts(org, idClient),
+        contacts: this.api.listContacts(org, idClient),
       }),
       1,
       (data) => {
-        this.services.set(data.services);
+        this.selectedClient.set(data.client);
         this.sites.set(data.sites);
         this.contracts.set(data.contracts);
-        const linkedService = this.pendingServiceLink;
-        this.pendingServiceLink = '';
-        const current = data.services.find(
-          (s) => s.idService === (linkedService || this.selectedService()?.idService),
-        );
-        if (current) this.selectService(current);
-        else {
-          this.selectedService.set(null);
-          this.clearServiceDetail();
-        }
-        if (linkedService && !current)
-          this.error.set('El servicio solicitado no está disponible para este cliente.');
+        this.contacts.set(data.contacts);
       },
     );
   }
 
-  protected selectService(service: ManagedService): void {
-    if (this.saving() || !this.canRead()) return;
-    this.scopeChanges.next(2);
-    this.closeEditors();
-    this.selectedService.set(service);
-    this.clearServiceDetail();
+  /**
+   * Abre el servicio que venía en la URL. Antes esto cargaba la lista de servicios del cliente y
+   * buscaba el enlazado dentro; ahora se pide el listado acotado a ese cliente, que es una sola
+   * consulta y ya trae la cobertura.
+   */
+  private openLinkedService(idClient: string): void {
+    const enlazado = this.pendingServiceLink;
+    this.pendingServiceLink = '';
+
+    if (!enlazado) {
+      return;
+    }
+
+    this.read(
+      this.serviceApi.searchServices({
+        organizationId: this.selectedOrganizationId(),
+        status: 'All',
+        coverageDate: this.operationDate() || undefined,
+        pageSize: 200,
+      }),
+      1,
+      (result) => {
+        const servicio = result.items.find((item) => item.idService === enlazado);
+
+        if (servicio) {
+          this.openService(servicio);
+        } else {
+          this.error.set('El servicio solicitado no está disponible en esta organización.');
+        }
+      },
+    );
+  }
+
+  private loadServiceDetail(service: ManagedService): void {
     this.loadConfigurations(service);
     if (this.canReadPlanning()) {
       this.loadPositions(service);
       this.loadAssignments(service);
+      this.loadPositionVacancy(service);
       this.loadActiveEmployees();
     }
   }
 
+  /**
+   * La cobertura por posición, al día operativo. Va aparte de la lista de posiciones porque
+   * depende de una fecha y la posición no: el mismo puesto tiene hueco un día y no al siguiente.
+   */
+  private loadPositionVacancy(service: ManagedService): void {
+    this.read(
+      this.serviceApi.listPositionVacancy(
+        this.selectedOrganizationId(),
+        service.idClient,
+        service.idService,
+        this.operationDate() || undefined,
+      ),
+      2,
+      (vacancy) => this.positionVacancy.set(vacancy),
+    );
+  }
+
   private clearServiceDetail(): void {
+    this.positionVacancy.set([]);
     this.activeEmployees.set([]);
     this.configurations.set([]);
     this.positions.set([]);
@@ -329,20 +469,98 @@ export class ServicesPage implements OnInit, OnDestroy {
     this.shiftSegments.set([]);
   }
 
+  /** El estado que se pinta en la fila. Ver la nota de `serviceState`: vencido no es inactivo. */
+  protected estado(item: { active: boolean; endDate: string | null }): ServiceState {
+    return serviceState(item, this.operationDate());
+  }
+
+  protected estadoTexto(item: { active: boolean; endDate: string | null }): string {
+    return { inactive: 'Inactivo', expired: 'Vigencia terminada', active: 'Activo' }[this.estado(item)];
+  }
+
+  /** Lo que falta. **Negativo si sobra gente**, y así se muestra. */
+  protected vacantes(item: ServiceListItem): number {
+    return serviceVacancy(item);
+  }
+
+  protected vacantesDePosicion(position: PositionVacancy): number {
+    return positionVacancy(position);
+  }
+
+  protected readonly porId = (item: ServiceListItem) => item.idService;
+
+  protected readonly formatearFecha = formatOperationalDate;
+
+  /**
+   * El contacto operativo de la sede del servicio. Es dato del cliente, y aquí se muestra en
+   * lectura para no salir a Clientes en mitad de la operación.
+   */
+  protected readonly contactoOperativo = computed(() => {
+    const sede = this.selectedService()?.idClientSite;
+    return (
+      this.contacts().find(
+        (contacto) => contacto.idClientSite === sede && contacto.purpose === 'Operational',
+      ) ?? null
+    );
+  });
+
+  protected vigencia(item: { startDate: string; endDate: string | null }): string {
+    const inicio = formatOperationalDate(item.startDate);
+    return item.endDate ? `${inicio} — ${formatOperationalDate(item.endDate)}` : `${inicio} — sin término`;
+  }
+
+  /** Las vacantes de todo el servicio, para el contador de la pestaña. */
+  protected readonly vacantesAbiertas = computed(() =>
+    this.positionVacancy().reduce((total, position) => total + Math.max(0, positionVacancy(position)), 0),
+  );
+
+  protected readonly panelTabs = computed<readonly GiTab[]>(() => [
+    { id: 'data', label: 'Datos' },
+    { id: 'configuration', label: 'Configuración', count: this.configurations().length },
+    { id: 'positions', label: 'Posiciones', count: this.positions().length },
+    { id: 'assignments', label: 'Asignaciones', count: this.vacantesAbiertas() },
+  ]);
+
+  protected readonly rowActions = computed<readonly GiRowAction[]>(() => [
+    { id: 'edit', label: 'Editar servicio', disabled: !this.canWriteClients(), disabledReason: 'No tienes permiso para editar servicios' },
+    { id: 'positions', label: 'Ver posiciones' },
+    { id: 'documents', label: 'Documentos' },
+    {
+      id: 'deactivate',
+      label: 'Desactivar servicio',
+      destructive: true,
+      disabled: !this.canWriteClients(),
+      disabledReason: 'No tienes permiso para desactivar servicios',
+    },
+  ]);
+
+  protected onRowAction(item: ServiceListItem, action: GiRowAction): void {
+    this.openService(item);
+
+    if (action.id === 'edit') this.openEditService(item);
+    if (action.id === 'positions') this.activeTab.set('positions');
+    if (action.id === 'documents') {
+      void this.router.navigate(['/documentos'], {
+        queryParams: { ownerType: 'Service', ownerId: item.idService },
+      });
+    }
+    if (action.id === 'deactivate') this.confirmDeactivateService(item);
+  }
+
   protected refresh(): void {
     if (this.saving()) return;
     this.error.set('');
-    if (this.selectedClient()) this.loadClientDetail();
-    else this.loadClients();
+    const service = this.selectedService();
+    if (service) this.loadServiceDetail(service);
+    this.loadServices(this.serviceList().page);
   }
 
   protected loadConfigurations(service = this.selectedService()): void {
-    const client = this.selectedClient();
-    if (!client || !service || !this.canRead()) return;
+    if (!service || !this.canRead()) return;
     this.read(
       this.api.listServiceConfigurations(
         this.selectedOrganizationId(),
-        client.idClient,
+        service.idClient,
         service.idService,
       ),
       2,
@@ -354,10 +572,9 @@ export class ServicesPage implements OnInit, OnDestroy {
   }
 
   protected loadPositions(service = this.selectedService()): void {
-    const client = this.selectedClient();
-    if (!client || !service || !this.canReadPlanning()) return;
+    if (!service || !this.canReadPlanning()) return;
     this.read(
-      this.api.listPositions(this.selectedOrganizationId(), client.idClient, service.idService),
+      this.api.listPositions(this.selectedOrganizationId(), service.idClient, service.idService),
       2,
       (rows) => {
         this.positions.set(rows);
@@ -437,10 +654,9 @@ export class ServicesPage implements OnInit, OnDestroy {
   }
 
   protected loadAssignments(service = this.selectedService()): void {
-    const client = this.selectedClient();
-    if (!client || !service || !this.canReadPlanning()) return;
+    if (!service || !this.canReadPlanning()) return;
     this.read(
-      this.api.listAssignments(this.selectedOrganizationId(), client.idClient, service.idService),
+      this.api.listAssignments(this.selectedOrganizationId(), service.idClient, service.idService),
       2,
       (rows) => this.assignments.set(rows),
     );
@@ -701,17 +917,32 @@ export class ServicesPage implements OnInit, OnDestroy {
             editing ? 'Servicio actualizado correctamente.' : 'Servicio creado correctamente.',
           );
           this.selectedService.set(service);
-          this.loadClientDetail(client);
+          this.loadServices(this.serviceList().page);
         },
         error: (error: HttpErrorResponse) => this.setError(error),
       });
   }
 
+  /**
+   * Pregunta antes de desactivar. **No con un `window.confirm`**, que sólo sabe decir «¿estás
+   * seguro?»: el diálogo del sistema nombra el servicio y explica qué deja de funcionar, que es lo
+   * que se lee antes de contestar.
+   */
+  protected confirmDeactivateService(service: ManagedService): void {
+    if (!this.allowWrite(false)) return;
+    this.serviceToDeactivate.set(service);
+  }
+
+  protected cancelDeactivateService(): void {
+    this.serviceToDeactivate.set(null);
+  }
+
   protected deactivateService(service: ManagedService): void {
     if (!this.allowWrite(false)) return;
     this.error.set('');
+    this.serviceToDeactivate.set(null);
     const client = this.selectedClient();
-    if (!client || !window.confirm(`¿Deseas desactivar el servicio ${service.name}?`)) {
+    if (!client) {
       return;
     }
 
@@ -735,7 +966,7 @@ export class ServicesPage implements OnInit, OnDestroy {
             this.selectedPosition.set(null);
             this.selectedShiftPattern.set(null);
           }
-          this.loadClientDetail(client);
+          this.loadServices(this.serviceList().page);
         },
         error: (error: HttpErrorResponse) => this.setError(error),
       });
@@ -929,6 +1160,7 @@ export class ServicesPage implements OnInit, OnDestroy {
     if (!this.allowWrite(false)) return;
     if (!this.selectedService()?.active) return;
     this.error.set('');
+    this.conflict.set('');
     const client = this.selectedClient();
     const service = this.selectedService();
     if (!client || !service || this.configurationForm.invalid) {
@@ -954,6 +1186,10 @@ export class ServicesPage implements OnInit, OnDestroy {
       monthlyPrice: Number(form.monthlyPrice),
       currencyCode: this.optional(form.currencyCode),
       isTaxIncluded: form.isTaxIncluded,
+      // El token que se leyó al abrir. Se devuelve tal cual: si alguien corrigió el registro
+      // mientras tanto, el servidor responde 409 y dice quién fue.
+      rowVersion: this.editingConfiguration()?.rowVersion,
+      correctionReason: this.correctionReason().trim() || undefined,
     };
     const editing = this.editingConfiguration();
     const request = editing
@@ -1472,11 +1708,49 @@ export class ServicesPage implements OnInit, OnDestroy {
     return value.length === 5 ? `${value}:00` : value;
   }
 
+  /**
+   * El error del servidor, con dos casos que no son «algo salió mal».
+   *
+   * <p><b>409 de concurrencia.</b> El servidor construye el mensaje con la bitácora y dice quién
+   * corrigió el registro y cuándo. Se muestra aparte, con la salida que corresponde —volver a
+   * cargar—, porque no se arregla reintentando: hay que ver qué cambió la otra persona.</p>
+   *
+   * <p><b>Motivo obligatorio.</b> Cuando la regla del servidor lo exige, se abre el campo. Va
+   * vacío: un motivo prellenado deja de ser un motivo.</p>
+   */
   private setError(error: HttpErrorResponse): void {
     const detail =
       typeof error.error === 'object' && error.error !== null
         ? (error.error as Record<string, unknown>)['detail']
         : null;
-    this.error.set(typeof detail === 'string' ? detail : 'No fue posible completar la operación.');
+    const title =
+      typeof error.error === 'object' && error.error !== null
+        ? (error.error as Record<string, unknown>)['title']
+        : null;
+    const mensaje = typeof detail === 'string' ? detail : 'No fue posible completar la operación.';
+
+    // **No todo 409 es concurrencia.** Un código repetido también lo es, y se arregla cambiando el
+    // código. El de concurrencia no se arregla reintentando, y el servidor lo distingue por el
+    // título justo para que aquí se pueda ofrecer la salida correcta.
+    if (error.status === 409 && title === 'Conflicto de concurrencia') {
+      this.conflict.set(mensaje);
+      return;
+    }
+
+    if (/motivo/i.test(mensaje)) {
+      this.correctionReasonRequired.set(true);
+    }
+
+    this.error.set(mensaje);
+  }
+
+  /** Vuelve a leer la configuración para quedarse con el token bueno y el valor de la otra persona. */
+  protected reloadAfterConflict(): void {
+    this.conflict.set('');
+    this.configurationEditorOpen.set(false);
+    this.editingConfiguration.set(null);
+    this.correctionReason.set('');
+    this.correctionReasonRequired.set(false);
+    this.loadConfigurations();
   }
 }

@@ -12,6 +12,18 @@ import { ClientsPage } from '../../../clients/pages/clients-page/clients-page';
 const organization = { idOrganization: 'org-a', legalName: 'Organization A', codeOrganization: 'A', active: true };
 const client = { idClient: 'client-a', idOrganization: 'org-a', legalName: 'Client A', codeClient: 'A', active: true };
 const service = { idService: 'service-a', idClient: 'client-a', idClientSite: 'site-a', name: 'Service A', codeService: 'SA', description: 'Scope', startDate: '2026-09-03', endDate: null, active: true };
+const listItem = {
+  ...service,
+  clientName: 'Client A',
+  clientSiteName: 'Site A',
+  idServiceContract: null,
+  serviceContractCode: null,
+  invoiceDescription: null,
+  positionsCount: 1,
+  requiredWorkerCount: 2,
+  assignedWorkerCount: 1,
+  coverageDate: '2026-09-04',
+};
 const site = { idClientSite: 'site-a', idClient: 'client-a', name: 'Site A', active: true };
 const position = { idPosition: 'position-a', idService: 'service-a', name: 'Position A', codePosition: 'PA', requiredWorkerCount: 1, active: true };
 
@@ -74,14 +86,17 @@ describe('ServicesPage organization-scoped workflows', () => {
     TestBed.tick();
   }
 
-  function flushClients() {
-    const request = http.expectOne(r => r.url === '/api/v1/clients');
+  /** El listado plano: **una sola llamada**, sin elegir cliente antes. */
+  function flushList(rows = [listItem]) {
+    const request = http.expectOne(r => r.url === '/api/v1/services');
     expect(request.request.params.get('organizationId')).toBe(activeOrganization());
-    request.flush({ items: [client], totalCount: 1, page: 1, pageSize: 20, totalPages: 1 });
+    request.flush({ items: rows, totalCount: rows.length, page: 1, pageSize: 20, totalPages: 1 });
   }
 
-  function flushDetail(rows = [service]) {
-    for (const [suffix, data] of [['services', rows], ['sites', [site]], ['contracts', []]] as const) {
+  /** Lo que la ficha pide al abrirse: el cliente, sus sedes, sus contratos y sus contactos. */
+  function flushClientContext() {
+    http.expectOne(r => r.url === '/api/v1/clients/client-a').flush(client);
+    for (const [suffix, data] of [['sites', [site]], ['contacts', []], ['contracts', []]] as const) {
       const request = http.expectOne(r => r.url === '/api/v1/clients/client-a/' + suffix);
       expect(request.request.params.get('organizationId')).toBe('org-a');
       request.flush(data);
@@ -90,15 +105,17 @@ describe('ServicesPage organization-scoped workflows', () => {
 
   function selectClient() {
     start();
-    flushClients();
-    page.selectClient('client-a');
-    flushDetail();
+    flushList();
+    page.openService(listItem);
+    flushClientContext();
+    flushService();
   }
 
   function flushService() {
     http.expectOne(r => r.url.endsWith('/configurations')).flush([]);
     http.expectOne(r => r.url.endsWith('/positions')).flush([]);
     http.expectOne(r => r.url.endsWith('/assignments')).flush([]);
+    http.expectOne(r => r.url.endsWith('/positions/vacancy')).flush([]);
     http.expectOne(r => r.url === '/api/v1/employees').flush({ items: [], page: 1, totalPages: 1 });
   }
 
@@ -114,8 +131,11 @@ describe('ServicesPage organization-scoped workflows', () => {
 
   it('requires write permissions separately and skips planning/employee APIs without read permissions', () => {
     permissions.set(['CLIENTS.READ']);
-    selectClient();
-    page.selectService(service);
+    start();
+    flushList();
+    page.openService(listItem);
+    flushClientContext();
+    // Sin permiso de planeación no se piden ni posiciones, ni asignaciones, ni la cobertura.
     http.expectOne(r => r.url.endsWith('/configurations')).flush([]);
     page.openCreatePosition();
     page.saveService();
@@ -125,42 +145,38 @@ describe('ServicesPage organization-scoped workflows', () => {
     http.expectNone(r => r.url.endsWith('/positions') || r.url === '/api/v1/employees' || r.method !== 'GET');
   });
 
-  it('resolves client and service deep links outside the current client page', () => {
+  /**
+   * El enlace profundo sigue valiendo, con otra forma: ya no pasa por la página del cliente
+   * porque no hay tal página. Abre el servicio directamente.
+   */
+  it('abre el servicio enlazado por la URL sin pasar por el cliente', () => {
     start({ clientId: 'client-a', serviceId: 'service-a' });
-    flushClients();
-    const request = http.expectOne('/api/v1/clients/client-a?organizationId=org-a');
-    request.flush(client);
-    flushDetail();
-    expect(page.selectedClient().idClient).toBe('client-a');
+    flushList();
+    http.expectOne('/api/v1/clients/client-a?organizationId=org-a').flush(client);
+    // El listado acotado que resuelve el enlace.
+    http.expectOne(r => r.url === '/api/v1/services')
+      .flush({ items: [listItem], totalCount: 1, page: 1, pageSize: 200, totalPages: 1 });
+
     expect(page.selectedService().idService).toBe('service-a');
+    flushClientContext();
     flushService();
   });
 
-  it('accepts a client-only link for new services without selecting an existing service', () => {
-    start({ clientId: 'client-a' });
-    flushClients();
-    http.expectOne('/api/v1/clients/client-a?organizationId=org-a').flush(client);
-    flushDetail();
-    page.openCreateService();
-    expect(page.serviceEditorOpen()).toBe(true);
-    expect(page.selectedService()).toBeNull();
-    expect(page.serviceForm.getRawValue().idClientSite).toBe('site-a');
-  });
-
-  it('reports a missing linked service instead of selecting a different service', () => {
+  it('avisa cuando el servicio enlazado no existe, en vez de abrir otro', () => {
     start({ clientId: 'client-a', serviceId: 'missing' });
-    flushClients();
+    flushList();
     http.expectOne('/api/v1/clients/client-a?organizationId=org-a').flush(client);
-    flushDetail();
+    http.expectOne(r => r.url === '/api/v1/services')
+      .flush({ items: [listItem], totalCount: 1, page: 1, pageSize: 200, totalPages: 1 });
+
     expect(page.selectedService()).toBeNull();
     expect(page.error()).toContain('no está disponible');
   });
 
   it('cancels old service reads when another service is selected', () => {
     selectClient();
-    page.selectService(service);
     const requests = http.match(() => true);
-    page.selectService({ ...service, idService: 'service-b' });
+    page.openService({ ...listItem, idService: 'service-b' });
     expect(requests.every(r => r.cancelled)).toBe(true);
     expect(page.configurations()).toEqual([]);
     expect(page.positions()).toEqual([]);
@@ -181,15 +197,15 @@ describe('ServicesPage organization-scoped workflows', () => {
     expect(request.request.method).toBe('POST');
     expect(request.request.body).toMatchObject({ idOrganization: 'org-a', idClient: 'client-a', idClientSite: 'site-a', codeService: 'NEW' });
     request.flush(service);
-    flushDetail();
-    flushService();
+    flushList();
     expect(page.serviceEditorOpen()).toBe(false);
     expect(page.selectedService().idService).toBe('service-a');
   });
 
   it('loads every employee page for assignment selection', () => {
     selectClient();
-    page.selectService(service);
+    page.openService(listItem);
+    flushClientContext();
     http.expectOne(r => r.url.endsWith('/configurations')).flush([]);
     http.expectOne(r => r.url.endsWith('/positions')).flush([]);
     http.expectOne(r => r.url.endsWith('/assignments')).flush([]);
@@ -297,15 +313,37 @@ describe('ServicesPage organization-scoped workflows', () => {
     http.expectOne(url + '?organizationId=org-a').flush([]);
   });
 
-  it('deactivates a service with organization scope and refreshes the directory', () => {
+  /**
+   * Desactivar pasa por el diálogo del sistema, no por un `window.confirm`: el diálogo nombra el
+   * servicio y explica qué deja de funcionar antes de preguntar.
+   */
+  it('pregunta con el diálogo del sistema antes de desactivar, y recarga el listado', () => {
     selectClient();
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
-    page.deactivateService(service);
+
+    page.confirmDeactivateService(listItem);
+    expect(page.serviceToDeactivate().idService).toBe('service-a');
+    // Nada se manda mientras el diálogo pregunta.
+    http.expectNone(r => r.method === 'DELETE');
+
+    page.deactivateService(listItem);
+    expect(page.serviceToDeactivate()).toBeNull();
+
     const request = http.expectOne('/api/v1/clients/client-a/services/service-a?organizationId=org-a');
     expect(request.request.method).toBe('DELETE');
     request.flush(null);
-    flushDetail([]);
-    expect(page.services()).toEqual([]);
+
+    flushList([]);
+    expect(page.serviceList().items).toEqual([]);
     expect(page.selectedService()).toBeNull();
+  });
+
+  it('cancelar no desactiva nada', () => {
+    selectClient();
+
+    page.confirmDeactivateService(listItem);
+    page.cancelDeactivateService();
+
+    expect(page.serviceToDeactivate()).toBeNull();
+    http.expectNone(r => r.method === 'DELETE');
   });
 });

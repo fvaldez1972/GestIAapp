@@ -12,6 +12,7 @@ public sealed class ServiceManagementService(
     IServiceManagementRepository repository,
     IUnitOfWork unitOfWork,
     IActorContext actorContext,
+    IOperationReasonContext reasonContext,
     IClock clock) : IServiceManagementService
 {
     public async Task<IReadOnlyList<ServiceContractResponse>> ListContractsAsync(
@@ -217,6 +218,19 @@ public sealed class ServiceManagementService(
         {
             throw new ResourceConflictException("Ya existe una configuración con la misma fecha de inicio.");
         }
+
+        // Motivo obligatorio si la vigencia ya terminó, o si el cambio toca el precio, la moneda
+        // o el impuesto: ése es el dato que se le factura al cliente, y cambiarlo mientras está
+        // vigente es más delicado que corregir una vigencia pasada, no menos.
+        var requirement = CorrectionReasonPolicy.ConfigurationRequirement(
+            configuration, profile.MonthlyPrice, profile.CurrencyCode, profile.IsTaxIncluded,
+            DateOnly.FromDateTime(clock.UtcNow));
+
+        var reasonErrors = new Dictionary<string, string[]>();
+        var reason = CorrectionReasonPolicy.Validate(
+            request.CorrectionReason, requirement, "CorrectionReason", reasonErrors);
+        InputValidation.ThrowIfInvalid(reasonErrors);
+        reasonContext.SetReason(reason, requirement is not null);
 
         configuration.UpdateProfile(profile, actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
         await unitOfWork.SaveChangesAsync(cancellationToken);

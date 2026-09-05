@@ -1,4 +1,5 @@
 using GestIA.Domain.Catalogs;
+using GestIA.Domain.History;
 using GestIA.Domain.Clients;
 using GestIA.Domain.Documents;
 using GestIA.Domain.Operations;
@@ -62,7 +63,8 @@ public static class CatalogDefinitions
         Fixed<ApprovalRequestStatus>("Estados de autorizacion", "Operacion"),
         Fixed<ScheduleVersionStatus>("Estados de planeacion", "Planeacion"),
         Fixed<EligibilityRequirementType>("Tipos de regla", "Catalogos"),
-        Fixed<EligibilityRequirementTargetType>("Alcances de regla", "Catalogos")
+        Fixed<EligibilityRequirementTargetType>("Alcances de regla", "Catalogos"),
+        Fixed<OperationalEntityType>("Registros con historial", "Auditoria")
     ];
 
     private static CatalogDefinition Editable(BusinessCatalogItemType type, string name, string module) =>
@@ -92,6 +94,8 @@ public static class CatalogDefinitions
         "ApprovedWithObservations" => "Aprobado con observaciones", "NotApproved" => "No aprobado", "Inconclusive" => "No concluyente",
         "Candidate" => "Candidato", "Active" => "Activo", "OnLeave" => "En licencia", "Inactive" => "Inactivo", "Terminated" => "Baja",
         "Primary" => "Principal", "Support" => "Apoyo", "Relief" => "Relevo", "TemporaryReplacement" => "Reemplazo temporal",
+        "AttendanceRecord" => "Asistencia", "ServiceConfiguration" => "Configuracion de servicio",
+        "Incident" => "Incidencia", "CoverageRecord" => "Cobertura", "ServiceAssignment" => "Asignacion",
         "Executed" => "Firmado", "Effective" => "Vigente", "PendingReview" => "Pendiente de revision", "Archived" => "Archivado",
         "Client" => "Cliente", "ServiceContract" => "Contrato", "Service" => "Servicio", "Employee" => "Empleado",
         "EmployeeEvaluation" => "Evaluacion del empleado", "OperationalRequest" => "Solicitud", "Organization" => "Organizacion",

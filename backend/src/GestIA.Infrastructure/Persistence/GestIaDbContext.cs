@@ -2,6 +2,7 @@ using GestIA.Application.Common;
 using GestIA.Domain.Catalogs;
 using GestIA.Domain.Clients;
 using GestIA.Domain.Documents;
+using GestIA.Domain.History;
 using GestIA.Domain.Organizations;
 using GestIA.Domain.Operations;
 using GestIA.Domain.Planning;
@@ -12,12 +13,14 @@ using GestIA.Domain.Support;
 using GestIA.Domain.Workforce;
 using Microsoft.EntityFrameworkCore;
 using GestIA.Infrastructure.Persistence.Conventions;
+using GestIA.Infrastructure.Persistence.History;
 
 namespace GestIA.Infrastructure.Persistence;
 
 public sealed class GestIaDbContext(
     DbContextOptions<GestIaDbContext> options,
-    IOrganizationContext organization)
+    IOrganizationContext organization,
+    IOperationalHistoryRecorder history)
     : DbContext(options)
 {
     /// <summary>
@@ -64,24 +67,63 @@ public sealed class GestIaDbContext(
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
     public DbSet<UserRole> UserRoles => Set<UserRole>();
     public DbSet<SupportSession> SupportSessions => Set<SupportSession>();
+    public DbSet<OperationalEvent> OperationalEvents => Set<OperationalEvent>();
 
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
-        EnsureDocumentHistoryIsAppendOnly();
-        return base.SaveChanges(acceptAllChangesOnSuccess);
+        EnsureHistoryIsAppendOnly();
+        RecordOperationalHistory();
+        var saved = base.SaveChanges(acceptAllChangesOnSuccess);
+        history.Complete();
+        return saved;
     }
 
-    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    public override async Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
     {
-        EnsureDocumentHistoryIsAppendOnly();
-        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+        EnsureHistoryIsAppendOnly();
+        RecordOperationalHistory();
+        var saved = await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+        history.Complete();
+        return saved;
     }
 
-    private void EnsureDocumentHistoryIsAppendOnly()
+    /// <summary>
+    /// Las bitácoras son de sólo agregar. Una vez escrito, un evento no se corrige ni se
+    /// elimina: si pudiera, dejaría de servir para lo único que sirve.
+    ///
+    /// La lista está escrita a mano y una prueba de arquitectura comprueba que no falte ninguna
+    /// entidad de bitácora, porque una tabla nueva que nadie agregue aquí quedaría editable sin
+    /// que nada lo advierta.
+    /// </summary>
+    private void EnsureHistoryIsAppendOnly()
     {
         if (ChangeTracker.Entries<BusinessDocumentEvent>().Any(entry => entry.State is EntityState.Modified or EntityState.Deleted))
         {
             throw new InvalidOperationException("El historial documental no puede modificarse ni eliminarse.");
+        }
+
+        if (ChangeTracker.Entries<OperationalEvent>().Any(entry => entry.State is EntityState.Modified or EntityState.Deleted))
+        {
+            throw new InvalidOperationException("La bitácora operativa no puede modificarse ni eliminarse.");
+        }
+    }
+
+    /// <summary>
+    /// Emite los eventos de historial de las correcciones pendientes, <b>dentro</b> del mismo
+    /// guardado que las escribe.
+    ///
+    /// Ésta es la razón de que la bitácora no pueda mentir: los eventos entran al mismo lote y a
+    /// la misma transacción que el cambio que documentan, así que no existe el estado "cambio
+    /// guardado, evento perdido". Y como los emite el guardado y no cada servicio, tampoco existe
+    /// el de "alguien olvidó registrarlo".
+    /// </summary>
+    private void RecordOperationalHistory()
+    {
+        var events = history.Capture(ChangeTracker);
+
+        if (events.Count > 0)
+        {
+            OperationalEvents.AddRange(events);
         }
     }
 

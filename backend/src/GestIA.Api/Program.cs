@@ -22,7 +22,7 @@ builder.Services.AddExceptionHandler<ProblemDetailsExceptionHandler>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 builder.Services.AddScoped<IActorContext, HttpActorContext>();
-builder.Services.AddOrganizationContext();
+builder.Services.AddGestIaRequestContext();
 builder.Services.AddSingleton<IClock, SystemClock>();
 builder.Services.AddSingleton<IAccessTokenService, JwtAccessTokenService>();
 builder.Services.AddApplication();
@@ -97,6 +97,7 @@ app.MapSecurityAdministrationEndpoints();
 app.MapOrganizationSecurityEndpoints();
 app.MapOperationalRequestEndpoints();
 app.MapAuditEndpoints();
+app.MapOperationalHistoryEndpoints();
 
 app.Run();
 

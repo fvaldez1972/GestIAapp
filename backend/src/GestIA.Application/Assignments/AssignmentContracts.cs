@@ -23,7 +23,8 @@ public sealed record UpdateServiceAssignmentRequest(
     DateOnly StartDate,
     DateOnly? EndDate,
     bool IsPrimary,
-    string? Notes);
+    string? Notes,
+    string? CorrectionReason = null);
 
 public sealed record ServiceAssignmentResponse(
     Guid IdServiceAssignment,

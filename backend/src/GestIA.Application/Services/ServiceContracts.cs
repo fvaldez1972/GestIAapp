@@ -114,7 +114,8 @@ public sealed record UpdateServiceConfigurationRequest(
     string? SpecificInstructions,
     decimal MonthlyPrice,
     string? CurrencyCode,
-    bool IsTaxIncluded);
+    bool IsTaxIncluded,
+    string? CorrectionReason = null);
 
 public sealed record ServiceConfigurationResponse(
     Guid IdServiceConfiguration,

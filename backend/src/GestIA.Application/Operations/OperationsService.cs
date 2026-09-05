@@ -12,8 +12,32 @@ public sealed class OperationsService(
     ICatalogService catalogService,
     IUnitOfWork unitOfWork,
     IActorContext actorContext,
+    IOperationReasonContext reasonContext,
     IClock clock) : IOperationsService
 {
+    /// <summary>
+    /// Decide si la corrección exige motivo, lo valida y lo deja en el contexto ambiental para
+    /// que <c>SaveChanges</c> lo estampe en el evento de historial que va a emitir.
+    ///
+    /// Se llama <b>antes</b> de tocar el registro: si el motivo falta o es demasiado corto, la
+    /// petición se rechaza sin haber cambiado nada.
+    /// </summary>
+    private async Task RequireCorrectionReasonAsync(
+        Guid idService,
+        DateOnly operationDate,
+        string? reason,
+        CancellationToken cancellationToken)
+    {
+        var closure = await repository.GetDayClosureAsync(idService, operationDate, cancellationToken);
+        var requirement = CorrectionReasonPolicy.DayClosureRequirement(closure);
+
+        var errors = new Dictionary<string, string[]>();
+        var validated = CorrectionReasonPolicy.Validate(reason, requirement, "CorrectionReason", errors);
+        InputValidation.ThrowIfInvalid(errors);
+
+        reasonContext.SetReason(validated, requirement is not null);
+    }
+
     public async Task<IReadOnlyList<AttendanceRecordResponse>> ListAttendanceAsync(
         AttendanceQuery query,
         CancellationToken cancellationToken)
@@ -86,6 +110,9 @@ public sealed class OperationsService(
                     request.IdApprovalRequest.Value,
                     cancellationToken);
             }
+
+            await RequireCorrectionReasonAsync(
+                request.IdService, existing.AttendanceDate, request.CorrectionReason, cancellationToken);
 
             existing.UpdateProfile(
                 profile with
@@ -180,6 +207,8 @@ public sealed class OperationsService(
             request.Description,
             request.ResolutionNotes);
         await ValidateIncidentCatalogAsync(request.IdOrganization, profile.IncidentType, incident.IncidentType, cancellationToken);
+        await RequireCorrectionReasonAsync(
+            request.IdService, incident.IncidentDate, request.CorrectionReason, cancellationToken);
         incident.UpdateProfile(profile, actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return Map(await repository.GetIncidentAsync(request.IdService, idIncident, cancellationToken) ?? incident);
@@ -290,6 +319,9 @@ public sealed class OperationsService(
             await EnsureCoverageAllocationAsync(request.IdOrganization, request.IdClient, request.IdService,
                 coverage.ScheduledShift, profile, idCoverageRecord, cancellationToken);
         }
+        // La cobertura no guarda su fecha: la toma del turno que cubre.
+        await RequireCorrectionReasonAsync(
+            request.IdService, coverage.ScheduledShift.ShiftDate, request.CorrectionReason, cancellationToken);
         coverage.UpdateProfile(profile, actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return Map(await repository.GetCoverageAsync(request.IdService, idCoverageRecord, cancellationToken) ?? coverage);

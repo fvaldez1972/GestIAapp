@@ -18,3 +18,19 @@ internal sealed class NoOrganizationContext : IOrganizationContext
         throw new InvalidOperationException(
             "Fuera de una petición no hay organización que fijar.");
 }
+
+/// <summary>
+/// Bitácora vacía, para el mismo punto: en tiempo de diseño no hay correcciones que registrar
+/// porque no hay guardados. Es <c>internal</c> por la misma razón que
+/// <see cref="NoOrganizationContext"/>: registrarla en el contenedor apagaría el historial de
+/// toda la aplicación sin que se notara.
+/// </summary>
+internal sealed class NoOperationalHistoryRecorder : History.IOperationalHistoryRecorder
+{
+    public IReadOnlyList<Domain.History.OperationalEvent> Capture(
+        Microsoft.EntityFrameworkCore.ChangeTracking.ChangeTracker changeTracker) => [];
+
+    public void Complete()
+    {
+    }
+}

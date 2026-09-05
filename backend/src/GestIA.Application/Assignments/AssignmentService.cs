@@ -10,6 +10,7 @@ public sealed class AssignmentService(
     ICatalogService catalogService,
     IUnitOfWork unitOfWork,
     IActorContext actorContext,
+    IOperationReasonContext reasonContext,
     IClock clock) : IAssignmentService
 {
     public async Task<IReadOnlyList<ServiceAssignmentResponse>> ListAssignmentsAsync(
@@ -90,6 +91,17 @@ public sealed class AssignmentService(
             request.EndDate,
             idServiceAssignment,
             cancellationToken);
+
+        // Motivo obligatorio sólo si el periodo ya terminó. Una asignación sin fecha de fin sigue
+        // viva y editarla es operación normal, no corrección.
+        var requirement = CorrectionReasonPolicy.AssignmentRequirement(
+            assignment, DateOnly.FromDateTime(clock.UtcNow));
+
+        var reasonErrors = new Dictionary<string, string[]>();
+        var reason = CorrectionReasonPolicy.Validate(
+            request.CorrectionReason, requirement, "CorrectionReason", reasonErrors);
+        InputValidation.ThrowIfInvalid(reasonErrors);
+        reasonContext.SetReason(reason, requirement is not null);
 
         assignment.UpdateProfile(profile, actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
         await unitOfWork.SaveChangesAsync(cancellationToken);

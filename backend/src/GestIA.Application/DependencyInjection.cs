@@ -1,4 +1,5 @@
 using GestIA.Application.Audit;
+using GestIA.Application.History;
 using GestIA.Application.Clients;
 using GestIA.Application.Assignments;
 using GestIA.Application.Catalogs;
@@ -21,6 +22,7 @@ public static class DependencyInjection
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
         services.AddScoped<IOrganizationService, OrganizationService>();
+        services.AddScoped<IOperationalHistoryService, OperationalHistoryService>();
         services.AddScoped<IOrganizationProvisioningService, OrganizationProvisioningService>();
         services.AddScoped<IClientService, ClientService>();
         services.AddScoped<IClientSiteService, ClientSiteService>();

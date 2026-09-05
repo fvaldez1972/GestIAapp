@@ -4,6 +4,7 @@ using GestIA.Application.Assignments;
 using GestIA.Application.Catalogs;
 using GestIA.Application.Common;
 using GestIA.Application.Documents;
+using GestIA.Application.History;
 using GestIA.Application.Operations;
 using GestIA.Application.Organizations;
 using GestIA.Application.Planning;
@@ -15,6 +16,7 @@ using GestIA.Application.Services;
 using GestIA.Application.Workforce;
 using GestIA.Infrastructure.Persistence;
 using GestIA.Infrastructure.Persistence.DemoData;
+using GestIA.Infrastructure.Persistence.History;
 using GestIA.Infrastructure.Persistence.Repositories;
 using GestIA.Infrastructure.Security;
 using Microsoft.EntityFrameworkCore;
@@ -44,6 +46,8 @@ public static class DependencyInjection
         services.AddDbContext<GestIaDbContext>(options =>
             SqlServerDbContextOptions.Configure(options, connectionString));
 
+        services.AddScoped<IOperationalHistoryRecorder, OperationalHistoryRecorder>();
+        services.AddScoped<IOperationalHistoryRepository, OperationalHistoryRepository>();
         services.AddScoped<IUnitOfWork, EfUnitOfWork>();
         services.AddScoped<IOrganizationRepository, OrganizationRepository>();
         services.AddScoped<IOrganizationGovernanceRepository, OrganizationGovernanceRepository>();

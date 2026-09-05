@@ -15,7 +15,8 @@ public sealed record UpsertAttendanceRequest(
     int MinutesLate,
     string? Notes,
     string? CorrectionAuthorizationNotes,
-    Guid? IdApprovalRequest);
+    Guid? IdApprovalRequest,
+    string? CorrectionReason = null);
 
 public sealed record AttendanceRecordResponse(
     Guid IdAttendanceRecord,
@@ -55,7 +56,8 @@ public sealed record UpdateIncidentRequest(
     IncidentSeverity Severity,
     IncidentStatus Status,
     string Description,
-    string? ResolutionNotes);
+    string? ResolutionNotes,
+    string? CorrectionReason = null);
 
 public sealed record IncidentResponse(
     Guid IdIncident,
@@ -95,7 +97,8 @@ public sealed record UpdateCoverageRequest(
     bool IsOvernight,
     CoverageStatus Status,
     string? Notes,
-    Guid? IdCoverageReason = null);
+    Guid? IdCoverageReason = null,
+    string? CorrectionReason = null);
 
 public sealed record CoverageRecordResponse(
     Guid IdCoverageRecord,

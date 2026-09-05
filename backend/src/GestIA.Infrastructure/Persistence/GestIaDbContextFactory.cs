@@ -22,6 +22,7 @@ public sealed class GestIaDbContextFactory : IDesignTimeDbContextFactory<GestIaD
         SqlServerDbContextOptions.Configure(optionsBuilder, connectionString);
 
         // En tiempo de diseño sólo se construye el modelo: no hay consultas ni organización.
-        return new GestIaDbContext(optionsBuilder.Options, new NoOrganizationContext());
+        return new GestIaDbContext(
+            optionsBuilder.Options, new NoOrganizationContext(), new NoOperationalHistoryRecorder());
     }
 }

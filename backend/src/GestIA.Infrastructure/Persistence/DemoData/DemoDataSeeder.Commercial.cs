@@ -66,7 +66,7 @@ public sealed partial class DemoDataSeeder
         report.ClientContacts = await dbContext.ClientContacts.IgnoreQueryFilters()
             .CountAsync(item => item.Client.IdOrganization == organization.IdOrganization, cancellationToken);
         report.ServiceContracts = await dbContext.ServiceContracts.IgnoreQueryFilters()
-            .CountAsync(item => item.Client.IdOrganization == organization.IdOrganization, cancellationToken);
+            .CountAsync(item => item.IdOrganization == organization.IdOrganization, cancellationToken);
     }
 
     private async Task AddSitesAsync(
@@ -143,6 +143,7 @@ public sealed partial class DemoDataSeeder
             };
 
             var contract = ServiceContract.Create(
+                client.IdOrganization,
                 client.IdClient,
                 $"{definition.Code}-CTR-{index + 1:00}",
                 new ServiceContractTerms(
@@ -171,7 +172,7 @@ public sealed partial class DemoDataSeeder
     {
         var existing = await dbContext.Services
             .IgnoreQueryFilters()
-            .AnyAsync(item => item.Client.IdOrganization == organization.IdOrganization, cancellationToken);
+            .AnyAsync(item => item.IdOrganization == organization.IdOrganization, cancellationToken);
 
         if (existing)
         {
@@ -218,6 +219,7 @@ public sealed partial class DemoDataSeeder
                         : contracts.Count > 0 ? contracts[index % contracts.Count] : null;
 
                     var service = Service.Create(
+                        client.IdOrganization,
                         client.IdClient,
                         site.IdClientSite,
                         contract?.IdServiceContract,
@@ -247,9 +249,9 @@ public sealed partial class DemoDataSeeder
         }
 
         report.Services = await dbContext.Services.IgnoreQueryFilters()
-            .CountAsync(item => item.Client.IdOrganization == organization.IdOrganization, cancellationToken);
+            .CountAsync(item => item.IdOrganization == organization.IdOrganization, cancellationToken);
         report.ServiceConfigurations = await dbContext.ServiceConfigurations.IgnoreQueryFilters()
-            .CountAsync(item => item.Service.Client.IdOrganization == organization.IdOrganization, cancellationToken);
+            .CountAsync(item => item.IdOrganization == organization.IdOrganization, cancellationToken);
     }
 
     /// <summary>
@@ -270,6 +272,7 @@ public sealed partial class DemoDataSeeder
             var daysPerWeek = (byte)Rng.Next(5, 8);
 
             var configuration = ServiceConfiguration.Create(
+                service.IdOrganization,
                 service.IdService,
                 new ServiceConfigurationProfile(
                     from,
@@ -300,7 +303,7 @@ public sealed partial class DemoDataSeeder
     {
         var existing = await dbContext.Positions
             .IgnoreQueryFilters()
-            .AnyAsync(item => item.Service.Client.IdOrganization == organization.IdOrganization, cancellationToken);
+            .AnyAsync(item => item.IdOrganization == organization.IdOrganization, cancellationToken);
 
         if (existing)
         {
@@ -310,7 +313,7 @@ public sealed partial class DemoDataSeeder
         {
             var services = await dbContext.Services
                 .IgnoreQueryFilters()
-                .Where(item => item.Client.IdOrganization == organization.IdOrganization)
+                .Where(item => item.IdOrganization == organization.IdOrganization)
                 .OrderBy(item => item.CodeService)
                 .ToListAsync(cancellationToken);
 
@@ -324,6 +327,7 @@ public sealed partial class DemoDataSeeder
                 {
                     var job = DemoCatalog.JobPositions[(serviceIndex + index) % DemoCatalog.JobPositions.Length];
                     var position = Position.Create(
+                        service.IdOrganization,
                         service.IdService,
                         $"{service.CodeService}-P{index + 1:00}",
                         new PositionProfile(
@@ -346,12 +350,12 @@ public sealed partial class DemoDataSeeder
         }
 
         report.Positions = await dbContext.Positions.IgnoreQueryFilters()
-            .CountAsync(item => item.Service.Client.IdOrganization == organization.IdOrganization, cancellationToken);
+            .CountAsync(item => item.IdOrganization == organization.IdOrganization, cancellationToken);
         report.ShiftPatterns = await dbContext.ShiftPatterns.IgnoreQueryFilters()
-            .CountAsync(item => item.Position.Service.Client.IdOrganization == organization.IdOrganization, cancellationToken);
+            .CountAsync(item => item.IdOrganization == organization.IdOrganization, cancellationToken);
         report.ShiftSegments = await dbContext.ShiftSegments.IgnoreQueryFilters()
             .CountAsync(
-                item => item.ShiftPattern.Position.Service.Client.IdOrganization == organization.IdOrganization,
+                item => item.IdOrganization == organization.IdOrganization,
                 cancellationToken);
     }
 
@@ -362,6 +366,7 @@ public sealed partial class DemoDataSeeder
     {
         var isNightPattern = positionIndex % 2 == 1;
         var pattern = ShiftPattern.Create(
+            position.IdOrganization,
             position.IdPosition,
             $"{position.CodePosition}-PAT01",
             new ShiftPatternProfile(
@@ -383,6 +388,7 @@ public sealed partial class DemoDataSeeder
         foreach (var day in days)
         {
             var segment = ShiftSegment.Create(
+                pattern.IdOrganization,
                 pattern.IdShiftPattern,
                 new ShiftSegmentProfile(
                     day,

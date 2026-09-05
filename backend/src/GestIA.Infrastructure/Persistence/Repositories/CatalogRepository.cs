@@ -124,7 +124,7 @@ public sealed class CatalogRepository(GestIaDbContext dbContext) : ICatalogRepos
         dbContext.Services
             .Include(service => service.Client)
             .SingleOrDefaultAsync(
-                service => service.Client.IdOrganization == idOrganization && service.IdService == idService,
+                service => service.IdOrganization == idOrganization && service.IdService == idService,
                 cancellationToken);
 
     public Task<Position?> GetPositionAsync(
@@ -137,7 +137,7 @@ public sealed class CatalogRepository(GestIaDbContext dbContext) : ICatalogRepos
             .SingleOrDefaultAsync(
                 position =>
                     position.IdPosition == idPosition &&
-                    position.Service.Client.IdOrganization == idOrganization,
+                    position.IdOrganization == idOrganization,
                 cancellationToken);
 
     public async Task<IReadOnlyList<EmployeeSkill>> ListEmployeeSkillsAsync(

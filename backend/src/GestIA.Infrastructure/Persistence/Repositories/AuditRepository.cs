@@ -138,7 +138,7 @@ public sealed class AuditRepository(GestIaDbContext dbContext, IActorContext act
         {
             AddRows(rows, await dbContext.ServiceContracts
                 .IgnoreQueryFilters()
-                .Where(item => item.Client.IdOrganization == query.IdOrganization)
+                .Where(item => item.IdOrganization == query.IdOrganization)
                 .Select(item => new AuditableRecord(
                     "Contratos",
                     item.CodeServiceContract,
@@ -156,7 +156,7 @@ public sealed class AuditRepository(GestIaDbContext dbContext, IActorContext act
         {
             AddRows(rows, await dbContext.Services
                 .IgnoreQueryFilters()
-                .Where(item => item.Client.IdOrganization == query.IdOrganization)
+                .Where(item => item.IdOrganization == query.IdOrganization)
                 .Select(item => new AuditableRecord(
                     "Servicios",
                     item.Name,
@@ -174,7 +174,7 @@ public sealed class AuditRepository(GestIaDbContext dbContext, IActorContext act
         {
             AddRows(rows, await dbContext.ServiceConfigurations
                 .IgnoreQueryFilters()
-                .Where(item => item.Service.Client.IdOrganization == query.IdOrganization)
+                .Where(item => item.IdOrganization == query.IdOrganization)
                 .Select(item => new AuditableRecord(
                     "Configuraciones",
                     item.Service.Name,
@@ -326,7 +326,7 @@ public sealed class AuditRepository(GestIaDbContext dbContext, IActorContext act
         {
             AddRows(rows, await dbContext.Positions
                 .IgnoreQueryFilters()
-                .Where(item => item.Service.Client.IdOrganization == query.IdOrganization)
+                .Where(item => item.IdOrganization == query.IdOrganization)
                 .Select(item => new AuditableRecord(
                     "Posiciones",
                     item.Name,
@@ -344,7 +344,7 @@ public sealed class AuditRepository(GestIaDbContext dbContext, IActorContext act
         {
             AddRows(rows, await dbContext.ShiftPatterns
                 .IgnoreQueryFilters()
-                .Where(item => item.Position.Service.Client.IdOrganization == query.IdOrganization)
+                .Where(item => item.IdOrganization == query.IdOrganization)
                 .Select(item => new AuditableRecord(
                     "Patrones",
                     item.Name,
@@ -362,7 +362,7 @@ public sealed class AuditRepository(GestIaDbContext dbContext, IActorContext act
         {
             AddRows(rows, await dbContext.ShiftSegments
                 .IgnoreQueryFilters()
-                .Where(item => item.ShiftPattern.Position.Service.Client.IdOrganization == query.IdOrganization)
+                .Where(item => item.IdOrganization == query.IdOrganization)
                 .Select(item => new AuditableRecord(
                     "Segmentos",
                     item.ShiftPattern.Name,
@@ -380,7 +380,7 @@ public sealed class AuditRepository(GestIaDbContext dbContext, IActorContext act
         {
             AddRows(rows, await dbContext.ScheduleVersions
                 .IgnoreQueryFilters()
-                .Where(item => item.Service.Client.IdOrganization == query.IdOrganization)
+                .Where(item => item.IdOrganization == query.IdOrganization)
                 .Select(item => new AuditableRecord(
                     "Versiones",
                     item.Name,
@@ -398,7 +398,7 @@ public sealed class AuditRepository(GestIaDbContext dbContext, IActorContext act
         {
             AddRows(rows, await dbContext.ScheduledShifts
                 .IgnoreQueryFilters()
-                .Where(item => item.ScheduleVersion.Service.Client.IdOrganization == query.IdOrganization)
+                .Where(item => item.IdOrganization == query.IdOrganization)
                 .Select(item => new AuditableRecord(
                     "Turnos",
                     item.Employee.FullName,
@@ -416,7 +416,7 @@ public sealed class AuditRepository(GestIaDbContext dbContext, IActorContext act
         {
             AddRows(rows, await dbContext.AttendanceRecords
                 .IgnoreQueryFilters()
-                .Where(item => item.ScheduledShift.ScheduleVersion.Service.Client.IdOrganization == query.IdOrganization)
+                .Where(item => item.IdOrganization == query.IdOrganization)
                 .Select(item => new AuditableRecord(
                     "Asistencia",
                     item.Employee.FullName,
@@ -434,7 +434,7 @@ public sealed class AuditRepository(GestIaDbContext dbContext, IActorContext act
         {
             AddRows(rows, await dbContext.Incidents
                 .IgnoreQueryFilters()
-                .Where(item => item.Service.Client.IdOrganization == query.IdOrganization)
+                .Where(item => item.IdOrganization == query.IdOrganization)
                 .Select(item => new AuditableRecord(
                     "Incidencias",
                     item.IncidentType,
@@ -452,7 +452,7 @@ public sealed class AuditRepository(GestIaDbContext dbContext, IActorContext act
         {
             AddRows(rows, await dbContext.CoverageRecords
                 .IgnoreQueryFilters()
-                .Where(item => item.ScheduledShift.ScheduleVersion.Service.Client.IdOrganization == query.IdOrganization)
+                .Where(item => item.IdOrganization == query.IdOrganization)
                 .Select(item => new AuditableRecord(
                     "Coberturas",
                     item.ReplacementEmployee.FullName,
@@ -470,7 +470,7 @@ public sealed class AuditRepository(GestIaDbContext dbContext, IActorContext act
         {
             AddRows(rows, await dbContext.OperationEvidences
                 .IgnoreQueryFilters()
-                .Where(item => item.Service.Client.IdOrganization == query.IdOrganization)
+                .Where(item => item.IdOrganization == query.IdOrganization)
                 .Select(item => new AuditableRecord(
                     "Evidencias",
                     item.Title,

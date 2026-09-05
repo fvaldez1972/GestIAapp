@@ -87,10 +87,10 @@ public sealed class BusinessDocumentRepository(GestIaDbContext dbContext) : IBus
                 item => item.IdOrganization == idOrganization && item.IdClient == ownerId,
                 cancellationToken),
             BusinessDocumentOwnerType.ServiceContract => dbContext.ServiceContracts.AnyAsync(
-                item => item.IdServiceContract == ownerId && item.Client.IdOrganization == idOrganization,
+                item => item.IdServiceContract == ownerId && item.IdOrganization == idOrganization,
                 cancellationToken),
             BusinessDocumentOwnerType.Service => dbContext.Services.AnyAsync(
-                item => item.IdService == ownerId && item.Client.IdOrganization == idOrganization,
+                item => item.IdService == ownerId && item.IdOrganization == idOrganization,
                 cancellationToken),
             BusinessDocumentOwnerType.Employee => dbContext.Employees.AnyAsync(
                 item => item.IdEmployee == ownerId && item.IdOrganization == idOrganization,

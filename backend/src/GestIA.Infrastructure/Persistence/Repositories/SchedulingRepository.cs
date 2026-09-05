@@ -17,7 +17,7 @@ public sealed class SchedulingRepository(GestIaDbContext dbContext) : ISchedulin
             service =>
                 service.IdService == idService &&
                 service.IdClient == idClient &&
-                service.Client.IdOrganization == idOrganization,
+                service.IdOrganization == idOrganization,
             cancellationToken);
 
     public Task<Position?> GetPositionAsync(Guid idService, Guid idPosition, CancellationToken cancellationToken) =>
@@ -123,7 +123,7 @@ public sealed class SchedulingRepository(GestIaDbContext dbContext) : ISchedulin
     {
         var version = await dbContext.ScheduleVersions.AsNoTracking().SingleAsync(
             item => item.IdScheduleVersion == idScheduleVersion &&
-                item.Service.Client.IdOrganization == idOrganization, cancellationToken);
+                item.IdOrganization == idOrganization, cancellationToken);
         var interval = new ShiftInterval(shiftDate, startTime, durationMinutes);
         var firstDate = shiftDate.AddDays(-1);
         var lastDate = shiftDate.AddDays(1);
@@ -131,7 +131,7 @@ public sealed class SchedulingRepository(GestIaDbContext dbContext) : ISchedulin
             .AsNoTracking()
             .Where(shift =>
                 shift.IdEmployee == idEmployee &&
-                shift.ScheduleVersion.Service.Client.IdOrganization == idOrganization &&
+                shift.IdOrganization == idOrganization &&
                 shift.ShiftDate >= firstDate && shift.ShiftDate <= lastDate &&
                 (shift.IdScheduleVersion == idScheduleVersion ||
                     (shift.ScheduleVersion.Status == ScheduleVersionStatus.Published &&

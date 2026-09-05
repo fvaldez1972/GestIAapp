@@ -20,7 +20,7 @@ internal static class CoverageConflicts
         var lastDate = interval.Date.AddDays(1);
         var coverages = await dbContext.CoverageRecords.AsNoTracking()
             .Where(record =>
-                record.ScheduledShift.ScheduleVersion.Service.Client.IdOrganization == idOrganization &&
+                record.IdOrganization == idOrganization &&
                 record.Status != CoverageStatus.Cancelled &&
                 (record.IdReplacementEmployee == idEmployee || record.IdScheduledShift == idScheduledShift) &&
                 record.IdCoverageRecord != excludedCoverageId &&

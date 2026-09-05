@@ -16,7 +16,7 @@ public sealed class PlanningRepository(GestIaDbContext dbContext) : IPlanningRep
             service =>
                 service.IdService == idService &&
                 service.IdClient == idClient &&
-                service.Client.IdOrganization == idOrganization,
+                service.IdOrganization == idOrganization,
             cancellationToken);
 
     public async Task<IReadOnlyList<Position>> ListPositionsAsync(

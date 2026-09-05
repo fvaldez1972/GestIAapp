@@ -17,12 +17,12 @@ public sealed class OperationsRepository(GestIaDbContext dbContext) : IOperation
             service =>
                 service.IdService == idService &&
                 service.IdClient == idClient &&
-                service.Client.IdOrganization == idOrganization,
+                service.IdOrganization == idOrganization,
             cancellationToken);
 
     public Task<ServiceEntity?> GetServiceAsync(Guid idOrganization, Guid idService, CancellationToken cancellationToken) =>
         dbContext.Services.SingleOrDefaultAsync(
-            service => service.IdService == idService && service.Client.IdOrganization == idOrganization,
+            service => service.IdService == idService && service.IdOrganization == idOrganization,
             cancellationToken);
 
     public Task<ScheduledShift?> GetScheduledShiftAsync(Guid idService, Guid idScheduledShift, CancellationToken cancellationToken) =>
@@ -142,7 +142,7 @@ public sealed class OperationsRepository(GestIaDbContext dbContext) : IOperation
         var shifts = await dbContext.ScheduledShifts.AsNoTracking()
             .Where(shift =>
                 shift.IdEmployee == idEmployee &&
-                shift.ScheduleVersion.Service.Client.IdOrganization == idOrganization &&
+                shift.IdOrganization == idOrganization &&
                 shift.ScheduleVersion.Status == ScheduleVersionStatus.Published &&
                 shift.ShiftDate >= firstDate && shift.ShiftDate <= lastDate)
             .Select(shift => new { shift.ShiftDate, shift.StartTime, shift.DurationMinutes })

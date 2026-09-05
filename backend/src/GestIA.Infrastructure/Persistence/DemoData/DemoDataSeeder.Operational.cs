@@ -322,7 +322,7 @@ public sealed partial class DemoDataSeeder
         {
             var positions = await dbContext.Positions
                 .IgnoreQueryFilters()
-                .Where(item => item.Service.Client.IdOrganization == organization.IdOrganization)
+                .Where(item => item.IdOrganization == organization.IdOrganization)
                 .OrderBy(item => item.CodePosition)
                 .ToListAsync(cancellationToken);
 
@@ -343,6 +343,7 @@ public sealed partial class DemoDataSeeder
 
                     await dbContext.ServiceAssignments.AddAsync(
                         ServiceAssignment.Create(
+                            position.IdOrganization,
                             employee.IdEmployee,
                             position.IdService,
                             new ServiceAssignmentProfile(
@@ -366,6 +367,7 @@ public sealed partial class DemoDataSeeder
                     var otherPosition = positions[1];
                     await dbContext.ServiceAssignments.AddAsync(
                         ServiceAssignment.Create(
+                            otherPosition.IdOrganization,
                             conflicted.IdEmployee,
                             otherPosition.IdService,
                             new ServiceAssignmentProfile(
@@ -402,7 +404,7 @@ public sealed partial class DemoDataSeeder
         var existing = await dbContext.ScheduleVersions
             .IgnoreQueryFilters()
             .AnyAsync(
-                item => item.Service.Client.IdOrganization == organization.IdOrganization,
+                item => item.IdOrganization == organization.IdOrganization,
                 cancellationToken);
 
         if (existing)
@@ -413,7 +415,7 @@ public sealed partial class DemoDataSeeder
         {
             var services = await dbContext.Services
                 .IgnoreQueryFilters()
-                .Where(item => item.Client.IdOrganization == organization.IdOrganization)
+                .Where(item => item.IdOrganization == organization.IdOrganization)
                 .OrderBy(item => item.CodeService)
                 .ToListAsync(cancellationToken);
 
@@ -447,6 +449,7 @@ public sealed partial class DemoDataSeeder
 
                 // Sustituida: periodo anterior, ya reemplazada.
                 var superseded = ScheduleVersion.Create(
+                    service.IdOrganization,
                     service.IdService,
                     new ScheduleVersionProfile(
                         $"{service.CodeService} · {periodStart.AddMonths(-1):yyyy-MM} v1",
@@ -462,6 +465,7 @@ public sealed partial class DemoDataSeeder
 
                 // Publicada: el mes que alimenta la operación diaria.
                 var published = ScheduleVersion.Create(
+                    service.IdOrganization,
                     service.IdService,
                     new ScheduleVersionProfile(
                         $"{service.CodeService} · {periodStart:yyyy-MM} v2",
@@ -476,6 +480,7 @@ public sealed partial class DemoDataSeeder
 
                 // Borrador: el periodo siguiente, todavía editable.
                 var draft = ScheduleVersion.Create(
+                    service.IdOrganization,
                     service.IdService,
                     new ScheduleVersionProfile(
                         $"{service.CodeService} · {periodEnd.AddDays(1):yyyy-MM} v1",
@@ -494,10 +499,10 @@ public sealed partial class DemoDataSeeder
         }
 
         report.ScheduleVersions = await dbContext.ScheduleVersions.IgnoreQueryFilters()
-            .CountAsync(item => item.Service.Client.IdOrganization == organization.IdOrganization, cancellationToken);
+            .CountAsync(item => item.IdOrganization == organization.IdOrganization, cancellationToken);
         report.ScheduledShifts = await dbContext.ScheduledShifts.IgnoreQueryFilters()
             .CountAsync(
-                item => item.ScheduleVersion.Service.Client.IdOrganization == organization.IdOrganization,
+                item => item.IdOrganization == organization.IdOrganization,
                 cancellationToken);
     }
 
@@ -521,6 +526,7 @@ public sealed partial class DemoDataSeeder
             {
                 var isNight = position.CodePosition.EndsWith("P02", StringComparison.Ordinal);
                 var shift = ScheduledShift.Create(
+                    version.IdOrganization,
                     version.IdScheduleVersion,
                     new ScheduledShiftProfile(
                         position.IdPosition,

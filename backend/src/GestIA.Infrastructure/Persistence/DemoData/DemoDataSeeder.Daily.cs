@@ -22,7 +22,7 @@ public sealed partial class DemoDataSeeder
         var existing = await dbContext.AttendanceRecords
             .IgnoreQueryFilters()
             .AnyAsync(
-                item => item.ScheduledShift.ScheduleVersion.Service.Client.IdOrganization == organization.IdOrganization,
+                item => item.IdOrganization == organization.IdOrganization,
                 cancellationToken);
 
         if (existing)
@@ -33,7 +33,7 @@ public sealed partial class DemoDataSeeder
         {
             var shifts = await dbContext.ScheduledShifts
                 .IgnoreQueryFilters()
-                .Where(item => item.ScheduleVersion.Service.Client.IdOrganization == organization.IdOrganization &&
+                .Where(item => item.IdOrganization == organization.IdOrganization &&
                     item.ScheduleVersion.Status == GestIA.Domain.Planning.ScheduleVersionStatus.Published)
                 .OrderBy(item => item.ShiftDate)
                 .ThenBy(item => item.IdScheduledShift)
@@ -56,7 +56,7 @@ public sealed partial class DemoDataSeeder
 
             var serviceByShift = await dbContext.ScheduledShifts
                 .IgnoreQueryFilters()
-                .Where(item => item.ScheduleVersion.Service.Client.IdOrganization == organization.IdOrganization)
+                .Where(item => item.IdOrganization == organization.IdOrganization)
                 .Select(item => new { item.IdScheduledShift, item.ScheduleVersion.IdService })
                 .ToDictionaryAsync(item => item.IdScheduledShift, item => item.IdService, cancellationToken);
 
@@ -86,6 +86,7 @@ public sealed partial class DemoDataSeeder
 
                 await dbContext.AttendanceRecords.AddAsync(
                     AttendanceRecord.Create(
+                        organization.IdOrganization,
                         shift.IdScheduledShift,
                         shift.IdEmployee,
                         shift.ShiftDate,
@@ -109,7 +110,7 @@ public sealed partial class DemoDataSeeder
                 if (status is AttendanceStatus.Absent or AttendanceStatus.Late &&
                     serviceByShift.TryGetValue(shift.IdScheduledShift, out var idService))
                 {
-                    await AddIncidentAsync(idService, shift.IdScheduledShift, shift.IdEmployee, shift.ShiftDate, status, cancellationToken);
+                    await AddIncidentAsync(organization.IdOrganization, idService, shift.IdScheduledShift, shift.IdEmployee, shift.ShiftDate, status, cancellationToken);
                 }
 
                 if (status == AttendanceStatus.Absent && replacements.Count > 0 && coverageReasons.Count > 0)
@@ -127,6 +128,7 @@ public sealed partial class DemoDataSeeder
                         };
 
                         var coverage = CoverageRecord.Create(
+                            organization.IdOrganization,
                             shift.IdScheduledShift,
                             shift.IdEmployee,
                             new CoverageRecordProfile(
@@ -162,13 +164,13 @@ public sealed partial class DemoDataSeeder
 
         report.AttendanceRecords = await dbContext.AttendanceRecords.IgnoreQueryFilters()
             .CountAsync(
-                item => item.ScheduledShift.ScheduleVersion.Service.Client.IdOrganization == organization.IdOrganization,
+                item => item.IdOrganization == organization.IdOrganization,
                 cancellationToken);
         report.Incidents = await dbContext.Incidents.IgnoreQueryFilters()
-            .CountAsync(item => item.Service.Client.IdOrganization == organization.IdOrganization, cancellationToken);
+            .CountAsync(item => item.IdOrganization == organization.IdOrganization, cancellationToken);
         report.CoverageRecords = await dbContext.CoverageRecords.IgnoreQueryFilters()
             .CountAsync(
-                item => item.ScheduledShift.ScheduleVersion.Service.Client.IdOrganization == organization.IdOrganization,
+                item => item.IdOrganization == organization.IdOrganization,
                 cancellationToken);
     }
 
@@ -210,6 +212,7 @@ public sealed partial class DemoDataSeeder
     }
 
     private async Task AddIncidentAsync(
+        Guid idOrganization,
         Guid idService,
         Guid idScheduledShift,
         Guid idEmployee,
@@ -232,6 +235,7 @@ public sealed partial class DemoDataSeeder
             : "El elemento ingresó fuera de la tolerancia acordada con el cliente.";
 
         var incident = Incident.Create(
+            idOrganization,
             idService,
             new IncidentProfile(idScheduledShift, idEmployee, date, type, severity, IncidentStatus.Open, description, null),
             DemoActorId,
@@ -291,7 +295,7 @@ public sealed partial class DemoDataSeeder
 
             var services = await dbContext.Services
                 .IgnoreQueryFilters()
-                .Where(item => item.Client.IdOrganization == organization.IdOrganization)
+                .Where(item => item.IdOrganization == organization.IdOrganization)
                 .OrderBy(item => item.CodeService)
                 .ToListAsync(cancellationToken);
 
@@ -432,12 +436,12 @@ public sealed partial class DemoDataSeeder
                 .Select(item => new { item.IdClient, item.CodeClient })
                 .ToListAsync(cancellationToken);
             var contracts = await dbContext.ServiceContracts.IgnoreQueryFilters()
-                .Where(item => item.Client.IdOrganization == organization.IdOrganization)
+                .Where(item => item.IdOrganization == organization.IdOrganization)
                 .OrderBy(item => item.CodeServiceContract)
                 .Select(item => new { item.IdServiceContract, item.CodeServiceContract })
                 .ToListAsync(cancellationToken);
             var services = await dbContext.Services.IgnoreQueryFilters()
-                .Where(item => item.Client.IdOrganization == organization.IdOrganization)
+                .Where(item => item.IdOrganization == organization.IdOrganization)
                 .OrderBy(item => item.CodeService)
                 .Select(item => new { item.IdService, item.CodeService })
                 .ToListAsync(cancellationToken);

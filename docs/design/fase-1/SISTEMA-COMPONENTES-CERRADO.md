@@ -107,6 +107,11 @@ resaltada en `--gestia-cyan-soft`.
 Encabezado fijo con título y cierre. Cuerpo con pestañas, la activa marcada en
 `--gestia-cyan`. Pie con acciones.
 
+La primera pestaña se llama **Datos**, nunca Ficha. En Servicios son Datos · Configuración ·
+Posiciones · Asignaciones; en Clientes, Datos · Sedes · Contactos · Documentos. Cada pestaña
+lleva su conteo cuando aplique, para no abrirla y descubrir que está vacía. Un destino que ya
+existe como pestaña no se repite como acción de fila.
+
 Nunca se apila debajo de la tabla.
 
 ### Tarjeta de indicador

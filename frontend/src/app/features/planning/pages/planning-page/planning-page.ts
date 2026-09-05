@@ -31,7 +31,6 @@ export class PlanningPage implements OnInit {
   private readonly auth = inject(AuthService);
   private readonly formBuilder = inject(FormBuilder);
 
-  protected readonly organizations = signal<readonly Organization[]>([]);
   protected readonly clients = signal<readonly Client[]>([]);
   protected readonly services = signal<readonly ManagedService[]>([]);
   protected readonly positions = signal<readonly ServicePosition[]>([]);
@@ -41,7 +40,8 @@ export class PlanningPage implements OnInit {
   protected readonly publishedShifts = signal<readonly ScheduledShift[]>([]);
   protected readonly employees = signal<readonly Employee[]>([]);
   protected readonly shiftPatterns = signal<readonly ShiftPattern[]>([]);
-  protected readonly selectedOrganizationId = signal('');
+  /** La organización de trabajo la fija la barra de contexto, y sólo ella. */
+  protected readonly selectedOrganizationId = this.auth.operationalOrganizationId;
   protected readonly selectedClientId = signal('');
   protected readonly selectedServiceId = signal('');
   protected readonly selectedVersionId = signal('');
@@ -67,9 +67,7 @@ export class PlanningPage implements OnInit {
   protected readonly selectedClient = computed(
     () => this.clients().find((client) => client.idClient === this.selectedClientId()) ?? null,
   );
-  protected readonly selectedOrganization = computed(
-    () => this.organizations().find((organization) => organization.idOrganization === this.selectedOrganizationId()) ?? null,
-  );
+  protected readonly selectedOrganization = this.auth.activeOrganization;
   protected readonly heroCopy = computed(() =>
     this.isPlatformAdmin()
       ? {
@@ -415,18 +413,7 @@ export class PlanningPage implements OnInit {
   });
 
   ngOnInit() {
-    this.loadOrganizations();
-  }
-
-  protected onOrganizationChange(event: Event) {
-    this.selectedOrganizationId.set((event.target as HTMLSelectElement).value);
-    this.selectedClientId.set('');
-    this.selectedServiceId.set('');
-    this.selectedVersionId.set('');
-    this.clients.set([]);
-    this.services.set([]);
-    this.clearPlanningData();
-    this.loadClients();
+    this.loadForActiveOrganization();
   }
 
   protected onClientChange(event: Event) {
@@ -1136,22 +1123,15 @@ export class PlanningPage implements OnInit {
       });
   }
 
-  private loadOrganizations() {
-    this.loading.set(true);
-    this.error.set('');
-
-    this.api.listOrganizations().subscribe({
-      next: (organizations) => {
-        this.organizations.set(organizations);
-        const organizationId = this.auth.resolveOperationalOrganizationId(organizations);
-        this.selectedOrganizationId.set(organizationId);
-        if (organizationId) {
-          this.loadClients();
-        }
-      },
-      error: (error: HttpErrorResponse) => this.setError(error, 'No se pudieron cargar las organizaciones.'),
-      complete: () => this.loading.set(false),
-    });
+  /**
+   * Ya no se carga una lista de organizaciones para elegir: la organización la fija la barra de
+   * contexto. Si hay una, se cargan sus datos; si no, la pantalla espera a que se elija. Cuando
+   * cambia, el shell vuelve a montar la pantalla y esto corre de nuevo.
+   */
+  private loadForActiveOrganization() {
+    if (this.selectedOrganizationId()) {
+      this.loadClients();
+    }
   }
 
   private loadClients() {

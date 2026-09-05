@@ -43,8 +43,8 @@ export class WorkforcePage implements OnInit {
   private readonly clientApi = inject(ClientApiService);
   private readonly formBuilder = inject(FormBuilder);
 
-  protected readonly organizations = signal<readonly Organization[]>([]);
-  protected readonly selectedOrganizationId = signal('');
+  /** La organización de trabajo la fija la barra de contexto, y sólo ella. */
+  protected readonly selectedOrganizationId = this.auth.operationalOrganizationId;
   protected readonly selectedEmployee = signal<Employee | null>(null);
   protected readonly documents = signal<readonly EmployeeDocument[]>([]);
   protected readonly evaluations = signal<readonly EmployeeEvaluation[]>([]);
@@ -91,9 +91,7 @@ export class WorkforcePage implements OnInit {
   protected readonly skillRequirementFilter = signal<EmployeeSkillFilter>('all');
   protected readonly employeeWizardStep = signal(1);
   protected readonly activeTab = signal<EmployeeTab>('summary');
-  protected readonly selectedOrganization = computed(
-    () => this.organizations().find((organization) => organization.idOrganization === this.selectedOrganizationId()) ?? null,
-  );
+  protected readonly selectedOrganization = this.auth.activeOrganization;
   protected readonly selectedEmployeeName = computed(() => this.selectedEmployee()?.fullName ?? 'Sin empleado seleccionado');
   protected readonly isPlatformAdmin = computed(() => this.auth.hasPermission('PLATFORM.ADMIN'));
   protected readonly heroCopy = computed(() =>
@@ -334,36 +332,21 @@ export class WorkforcePage implements OnInit {
   });
 
   ngOnInit(): void {
-    this.loadOrganizations();
+    this.loadForActiveOrganization();
   }
 
-  protected loadOrganizations(): void {
-    this.loading.set(true);
-    this.clientApi
-      .listOrganizations()
-      .pipe(finalize(() => this.loading.set(false)))
-      .subscribe({
-        next: (organizations) => {
-          this.organizations.set(organizations);
-          const organizationId = this.auth.resolveOperationalOrganizationId(organizations);
-          this.selectedOrganizationId.set(organizationId);
-          if (organizationId) {
-            this.loadSkillCatalog(organizationId);
-            this.loadEmployees(1);
-          }
-        },
-        error: (error: HttpErrorResponse) => this.setError(error),
-      });
-  }
+  /**
+   * Ya no se carga una lista de organizaciones para elegir: la organización la fija la barra de
+   * contexto. Si hay una, se cargan sus datos; si no, la pantalla espera a que se elija. Cuando
+   * cambia, el shell vuelve a montar la pantalla y esto corre de nuevo.
+   */
+  protected loadForActiveOrganization(): void {
+    const organizationId = this.selectedOrganizationId();
 
-  protected selectOrganization(organizationId: string): void {
-    this.selectedOrganizationId.set(organizationId);
-    this.selectedEmployee.set(null);
-    this.documents.set([]);
-    this.evaluations.set([]);
-    this.skills.set([]);
-    this.loadSkillCatalog(organizationId);
-    this.loadEmployees(1);
+    if (organizationId) {
+      this.loadSkillCatalog(organizationId);
+      this.loadEmployees(1);
+    }
   }
 
   protected updateSearch(value: string): void {

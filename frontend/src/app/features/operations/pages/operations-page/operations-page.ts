@@ -45,7 +45,6 @@ export class OperationsPage implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
-  protected readonly organizations = signal<readonly Organization[]>([]);
   protected readonly clients = signal<readonly Client[]>([]);
   protected readonly services = signal<readonly ManagedService[]>([]);
   protected readonly attendance = signal<readonly AttendanceRecord[]>([]);
@@ -58,7 +57,8 @@ export class OperationsPage implements OnInit {
   protected readonly scheduledShifts = signal<readonly ScheduledShift[]>([]);
   protected readonly employees = signal<readonly Employee[]>([]);
   protected readonly summary = signal<OperationsSummary | null>(null);
-  protected readonly selectedOrganizationId = signal('');
+  /** La organización de trabajo la fija la barra de contexto, y sólo ella. */
+  protected readonly selectedOrganizationId = this.auth.operationalOrganizationId;
   protected readonly selectedClientId = signal('');
   protected readonly selectedServiceId = signal('');
   protected readonly selectedIncidentId = signal('');
@@ -85,9 +85,7 @@ export class OperationsPage implements OnInit {
   protected readonly selectedClient = computed(
     () => this.clients().find((client) => client.idClient === this.selectedClientId()) ?? null,
   );
-  protected readonly selectedOrganization = computed(
-    () => this.organizations().find((organization) => organization.idOrganization === this.selectedOrganizationId()) ?? null,
-  );
+  protected readonly selectedOrganization = this.auth.activeOrganization;
   protected readonly isPlatformAdmin = computed(() => this.auth.hasPermission('PLATFORM.ADMIN'));
   protected readonly operationScopeLabel = computed(() =>
     this.isPlatformAdmin()
@@ -588,17 +586,7 @@ export class OperationsPage implements OnInit {
       void this.router.navigateByUrl('/operacion/asistencia');
     });
 
-    this.loadOrganizations();
-  }
-
-  protected onOrganizationChange(event: Event) {
-    this.selectedOrganizationId.set((event.target as HTMLSelectElement).value);
-    this.selectedClientId.set('');
-    this.selectedServiceId.set('');
-    this.clients.set([]);
-    this.services.set([]);
-    this.clearOperationLists();
-    this.loadClients();
+    this.loadForActiveOrganization();
   }
 
   protected onClientChange(event: Event) {
@@ -1732,22 +1720,15 @@ export class OperationsPage implements OnInit {
     return 'Pendiente de confirmar';
   }
 
-  private loadOrganizations() {
-    this.loading.set(true);
-    this.error.set('');
-
-    this.api.listOrganizations().subscribe({
-      next: (organizations) => {
-        this.organizations.set(organizations);
-        const organizationId = this.auth.resolveOperationalOrganizationId(organizations);
-        this.selectedOrganizationId.set(organizationId);
-        if (organizationId) {
-          this.loadClients();
-        }
-      },
-      error: (error: HttpErrorResponse) => this.setError(error, 'No se pudieron cargar las organizaciones.'),
-      complete: () => this.loading.set(false),
-    });
+  /**
+   * Ya no se carga una lista de organizaciones para elegir: la organización la fija la barra de
+   * contexto. Si hay una, se cargan sus datos; si no, la pantalla espera a que se elija. Cuando
+   * cambia, el shell vuelve a montar la pantalla y esto corre de nuevo.
+   */
+  private loadForActiveOrganization() {
+    if (this.selectedOrganizationId()) {
+      this.loadClients();
+    }
   }
 
   private loadClients() {

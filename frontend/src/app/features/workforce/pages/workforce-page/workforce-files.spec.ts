@@ -15,11 +15,17 @@ describe('Workforce contextual file upload', () => {
     permissions = ['DOCUMENTS.SENSITIVE.READ', 'DOCUMENTS.SENSITIVE.WRITE', 'DOCUMENTS.WRITE', 'WORKFORCE.WRITE'];
     TestBed.configureTestingModule({ providers: [
       provideHttpClient(), provideHttpClientTesting(),
-      { provide: AuthService, useValue: { hasPermission: (value: string) => permissions.includes(value) } },
+      // La organización ya no la fija la pantalla: la hereda de la barra de contexto, así que el
+      // doble la expone igual que AuthService.
+      { provide: AuthService, useValue: {
+        hasPermission: (value: string) => permissions.includes(value),
+        operationalOrganizationId: () => 'org-1',
+        activeOrganization: () => ({ idOrganization: 'org-1', codeOrganization: 'ORG1', legalName: 'Organización 1' }),
+        availableOrganizations: () => [{ idOrganization: 'org-1', codeOrganization: 'ORG1', legalName: 'Organización 1' }],
+      } },
     ] });
     http = TestBed.inject(HttpTestingController);
     page = TestBed.runInInjectionContext(() => new WorkforcePage());
-    page['selectedOrganizationId'].set('org-1');
     page['selectedEmployee'].set({ idEmployee: 'employee-1' } as Employee);
   });
 

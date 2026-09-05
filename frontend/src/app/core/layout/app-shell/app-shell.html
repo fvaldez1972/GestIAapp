@@ -77,14 +77,17 @@
         </section>
       } @else {
         <!--
-          La pantalla se vuelve a montar cuando cambia la organización.
+          La pantalla se vuelve a montar cuando cambia la organización. **Es el mecanismo, no un
+          atajo.**
 
-          Las once pantallas de módulo cargan sus datos en `ngOnInit` y ninguna vigila la
-          organización activa: sin esto, cambiarla en la barra dejaba la franja diciendo una
-          organización y la tabla mostrando la anterior hasta que alguien recargara. Volver a
-          montar consigue por el camino corto lo que cada pantalla hará por el suyo en la tanda de
-          pantallas, y de paso descarta un formulario a medio llenar en la organización que se
-          acaba de dejar, que no debería poder enviarse a la nueva.
+          Heredar de la barra arregla de dónde sale el identificador de organización, no cuándo se
+          piden los datos: las pantallas cargan en `ngOnInit` y nadie las vuelve a llamar. Sin
+          esto, cambiar de organización dejaría en pantalla la tabla de la anterior con la franja
+          diciendo otra cosa. Convertir cada pantalla a carga reactiva sería rediseñar su carga; el
+          remonte lo consigue en un sitio y para todas.
+
+          De paso descarta un formulario a medio llenar en la organización que se acaba de dejar,
+          que no debería poder enviarse a la nueva.
         -->
         @for (scope of [auth.activeOrganizationId()]; track scope) {
           <router-outlet />

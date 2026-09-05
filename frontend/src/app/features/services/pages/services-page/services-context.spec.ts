@@ -13,12 +13,20 @@ import { ServicesPage } from './services-page';
 describe('Services context selectors', () => {
   afterEach(() => TestBed.resetTestingModule());
 
-  it('renders asynchronously loaded organization and deep-linked client as the selected options', async () => {
+  /**
+   * Antes esta prueba comprobaba dos cosas: que la organización cargada por HTTP y el cliente
+   * traído por enlace aparecieran como opciones elegidas. La primera se fue con el selector de
+   * organización, que ya no existe: la organización la fija la barra de contexto. Queda la
+   * segunda, que es la que cuidaba un caso real —el cliente enlazado llega después de una página
+   * de resultados distinta— y se le añade la comprobación de que la organización usada en las
+   * peticiones es la de la barra.
+   */
+  it('renders the deep-linked client as the selected option, scoped by the context bar', async () => {
     const source = readFileSync(resolve('src/app/features/services/pages/services-page/services-page.html'), 'utf8');
     const parsed = parseTemplate(source, 'services-page.html');
     const workspace: any = parsed.nodes[0];
     const context = workspace.children.find((node: any) =>
-      node.attributes?.some((attribute: any) => attribute.name === 'class' && attribute.value === 'context-bar'));
+      node.attributes?.some((attribute: any) => attribute.name === 'class' && attribute.value === 'client-context'));
     const template = source.slice(context.sourceSpan.start.offset, context.sourceSpan.end.offset);
     const params = convertToParamMap({ clientId: 'client-a' });
     TestBed.configureTestingModule({
@@ -28,7 +36,9 @@ describe('Services context selectors', () => {
         { provide: AuthService, useValue: {
           session: () => ({ permissions: ['CLIENTS.READ'] }),
           hasPermission: (permission: string) => permission === 'CLIENTS.READ',
-          resolveOperationalOrganizationId: (organizations: any[]) => organizations[0]?.idOrganization ?? '',
+          operationalOrganizationId: () => 'org-a',
+          activeOrganization: () => ({ idOrganization: 'org-a', codeOrganization: 'A', legalName: 'Organization A' }),
+          availableOrganizations: () => [{ idOrganization: 'org-a', codeOrganization: 'A', legalName: 'Organization A' }],
         } },
       ],
     });
@@ -37,10 +47,6 @@ describe('Services context selectors', () => {
     });
     const fixture = TestBed.createComponent(ServicesPage);
     const http = TestBed.inject(HttpTestingController);
-    fixture.detectChanges();
-    http.expectOne('/api/v1/organizations').flush([
-      { idOrganization: 'org-a', legalName: 'Organization A', active: true },
-    ]);
     fixture.detectChanges();
     // The linked client intentionally arrives after a different search-result page.
     http.expectOne(request => request.url === '/api/v1/clients').flush({
@@ -55,10 +61,9 @@ describe('Services context selectors', () => {
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
-    const organization: HTMLSelectElement = fixture.nativeElement.querySelector('select[aria-label="Organización"]');
+    // Ya no hay selector de organización en la pantalla: eso es lo que se busca.
+    expect(fixture.nativeElement.querySelector('select[aria-label="Organización"]')).toBeNull();
     const client: HTMLSelectElement = fixture.nativeElement.querySelector('select[aria-label="Cliente"]');
-    expect(organization.value).toBe('org-a');
-    expect(organization.selectedOptions[0].textContent).toContain('Organization A');
     expect(client.value).toBe('client-a');
     expect(client.selectedOptions[0].textContent).toContain('Client A');
     http.verify();

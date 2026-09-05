@@ -36,7 +36,6 @@ export class RequestsPage implements OnInit {
   private readonly workforceApi = inject(WorkforceApiService);
   private readonly formBuilder = inject(FormBuilder);
 
-  protected readonly organizations = signal<readonly Organization[]>([]);
   protected readonly clients = signal<readonly Client[]>([]);
   protected readonly services = signal<readonly ManagedService[]>([]);
   protected readonly filterServices = signal<readonly ManagedService[]>([]);
@@ -44,7 +43,8 @@ export class RequestsPage implements OnInit {
   protected readonly positions = signal<readonly ServicePosition[]>([]);
   protected readonly scheduledShifts = signal<readonly ScheduledShift[]>([]);
   protected readonly requests = signal<readonly OperationalRequest[]>([]);
-  protected readonly selectedOrganizationId = signal('');
+  /** La organización de trabajo la fija la barra de contexto, y sólo ella. */
+  protected readonly selectedOrganizationId = this.auth.operationalOrganizationId;
   protected readonly selectedClientId = signal('');
   protected readonly filterStatus = signal<OperationalRequestStatus | ''>('');
   protected readonly stageFilter = signal<RequestStageFilter>('all');
@@ -71,9 +71,7 @@ export class RequestsPage implements OnInit {
   protected readonly attemptedNewRequestNext = signal(false);
   protected readonly executionPreview = signal<OperationalRequestExecutionPreview | null>(null);
   protected readonly executionResult = signal<ExecuteOperationalRequestResult | null>(null);
-  protected readonly selectedOrganization = computed(
-    () => this.organizations().find((organization) => organization.idOrganization === this.selectedOrganizationId()) ?? null,
-  );
+  protected readonly selectedOrganization = this.auth.activeOrganization;
   protected readonly isPlatformAdmin = computed(() => this.auth.session()?.permissions.includes('PLATFORM.ADMIN') ?? false);
   protected readonly isGlobalPlatformScope = computed(() => this.isPlatformAdmin() && !this.selectedOrganizationId());
   protected readonly requestScopeLabel = computed(
@@ -171,7 +169,7 @@ export class RequestsPage implements OnInit {
     () => this.filteredRequests().filter((request) => request.priority === 'Critical' || this.isOverdue(request)).length,
   );
   protected readonly controlScopeCards = computed<readonly ControlScopeCard[]>(() => {
-    const scopedOrganizationCount = this.selectedOrganizationId() ? 1 : this.organizations().length;
+    const scopedOrganizationCount = this.selectedOrganizationId() ? 1 : this.auth.availableOrganizations().length;
 
     return [
       {
@@ -301,23 +299,7 @@ export class RequestsPage implements OnInit {
   });
 
   ngOnInit() {
-    this.loadOrganizations();
-  }
-
-  protected onOrganizationChange(event: Event) {
-    this.selectedOrganizationId.set((event.target as HTMLSelectElement).value);
-    this.selectedClientId.set('');
-    this.clients.set([]);
-    this.services.set([]);
-    this.filterServices.set([]);
-    this.positions.set([]);
-    this.scheduledShifts.set([]);
-    this.employees.set([]);
-    this.executionPreview.set(null);
-    this.requestForm.patchValue({ idClient: '', idService: '' });
-    this.loadClients();
-    this.loadEmployees();
-    this.loadRequests();
+    this.loadForActiveOrganization();
   }
 
   protected onClientChange(event: Event) {
@@ -997,21 +979,14 @@ export class RequestsPage implements OnInit {
     }).format(new Date());
   }
 
-  private loadOrganizations() {
-    this.loading.set(true);
-    this.error.set('');
-
-    this.clientApi.listOrganizations().subscribe({
-      next: (organizations) => {
-        this.organizations.set(organizations);
-        this.selectedOrganizationId.set(this.auth.resolveOperationalOrganizationId(organizations));
-        this.loadClients();
-        this.loadEmployees();
-        this.loadRequests();
-      },
-      error: (error: HttpErrorResponse) => this.setError(error, 'No se pudieron cargar las organizaciones.'),
-      complete: () => this.loading.set(false),
-    });
+  /**
+   * Ya no se carga una lista de organizaciones para elegir: la organización la fija la barra de
+   * contexto. Cuando cambia, el shell vuelve a montar la pantalla y esto corre de nuevo.
+   */
+  private loadForActiveOrganization() {
+    this.loadClients();
+    this.loadEmployees();
+    this.loadRequests();
   }
 
   private loadClients() {

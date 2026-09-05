@@ -18,21 +18,7 @@
       Selecciona una organización en la barra superior para consultar sus servicios.
     </p>
   }
-  <div class="context-bar">
-    <label
-      ><span>Organización</span
-      ><select
-        aria-label="Organización"
-        [ngModel]="selectedOrganizationId()"
-        [disabled]="platformAdmin() || saving()"
-        (ngModelChange)="selectOrganization($event)"
-      >
-        <option value="">Selecciona una organización</option>
-        @for (organization of organizations(); track organization.idOrganization) {
-          <option [value]="organization.idOrganization">{{ organization.legalName }}</option>
-        }
-      </select></label
-    >
+  <div class="client-context">
     @if (canRead()) {
       <form class="client-search" (submit)="$event.preventDefault(); loadClients()">
         <label

@@ -59,14 +59,14 @@ footer {
 .section-heading p {
   margin-top: 8px;
 }
-.context-bar,
+.client-context,
 .filters {
   display: flex;
   align-items: end;
   gap: 12px;
   flex-wrap: wrap;
 }
-.context-bar {
+.client-context {
   padding: 16px 0;
   border-block: 1px solid var(--gestia-border);
 }
@@ -76,7 +76,7 @@ label {
   min-width: 0;
   font-size: 13px;
 }
-.context-bar > label {
+.client-context > label {
   flex: 1 1 220px;
   max-width: 100%;
 }
@@ -424,7 +424,7 @@ footer {
   .mini-card__main {
     flex-basis: 100%;
   }
-  .context-bar > label,
+  .client-context > label,
   .client-search {
     flex-basis: 100%;
   }

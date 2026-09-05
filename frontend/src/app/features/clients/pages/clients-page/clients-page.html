@@ -22,28 +22,6 @@
 </section>
 
 <section class="context-card context-card--clients" aria-label="Contexto de organización">
-  @if (canAdministerPlatform()) {
-    <label class="organization-picker">
-      <span>Organización para soporte</span>
-      <select [value]="selectedOrganizationId()" [disabled]="canAdministerPlatform()" (change)="selectOrganization($any($event.target).value)">
-        <option value="" disabled>Selecciona una organización</option>
-        @if (!organizations().length) {
-          <option value="">Sin organizaciones registradas</option>
-        }
-        @for (organization of organizations(); track organization.idOrganization) {
-          <option [value]="organization.idOrganization">{{ organization.legalName }}</option>
-        }
-      </select>
-      <small>{{ selectedOrganization()?.legalName || 'Inicia soporte desde la barra superior para entrar a una organización' }}</small>
-    </label>
-  } @else {
-    <div class="organization-summary">
-      <span>Organización actual</span>
-      <strong>{{ selectedOrganization()?.legalName || 'Sin organización asignada' }}</strong>
-      <small>Los clientes, servicios, personal y documentos se administran dentro de este alcance.</small>
-    </div>
-  }
-
   @if (newClientDisabledReason()) {
     <p class="context-warning">{{ newClientDisabledReason() }}</p>
   }
@@ -100,20 +78,6 @@
           (keyup.enter)="loadClients(1)"
         />
       </label>
-      @if (canAdministerPlatform()) {
-        <label>
-          <span>Organización</span>
-          <select [value]="selectedOrganizationId()" disabled (change)="selectOrganization($any($event.target).value)">
-            <option value="" disabled>Selecciona una organización</option>
-            @if (!organizations().length) {
-              <option value="">Sin organizaciones</option>
-            }
-            @for (organization of organizations(); track organization.idOrganization) {
-              <option [value]="organization.idOrganization">{{ organization.legalName }}</option>
-            }
-          </select>
-        </label>
-      }
       <label>
         <span>Estado</span>
         <select [value]="clientStatusFilter()" (change)="updateClientStatusFilter($any($event.target).value)">
@@ -471,7 +435,7 @@
       <section class="detail-section" [hidden]="activeClientTab() !== 'services'">
         <header>
           <div><h3>Servicios</h3><span>{{ services().length }} registro(s)</span></div>
-          <a class="button button--secondary" routerLink="/servicios" [queryParams]="{ clientId: selectedClient()?.idClient, organizationId: selectedOrganizationId() }">Ir a servicios</a>
+          <a class="button button--secondary" routerLink="/servicios" [queryParams]="{ clientId: selectedClient()?.idClient }">Ir a servicios</a>
         </header>
         @if (!services().length) {
           <div class="compact-state">Sin servicios registrados.</div>
@@ -487,7 +451,7 @@
                   <small>{{ service.active ? 'Activo' : 'Inactivo' }} · {{ service.startDate }} - {{ service.endDate || 'sin fecha de término' }}</small>
                 </div>
                 <div class="mini-actions">
-                  <a routerLink="/servicios" [queryParams]="{ clientId: selectedClient()?.idClient, serviceId: service.idService, organizationId: selectedOrganizationId() }">Abrir servicio</a>
+                  <a routerLink="/servicios" [queryParams]="{ clientId: selectedClient()?.idClient, serviceId: service.idService }">Abrir servicio</a>
                 </div>
               </article>
             }
@@ -529,7 +493,7 @@
             <div class="wizard-panel__heading"><span>Paso 1 de 3</span><h3 id="client-step-identity">Identidad del cliente</h3><p>Datos que identifican el expediente comercial.</p></div>
             <div class="form-grid">
               @if (canAdministerPlatform()) {
-                <label><span>Organización *</span><select [value]="selectedOrganizationId()" disabled><option>{{ selectedOrganization()?.legalName || 'Selecciona una organización' }}</option></select></label>
+                <div class="gi-field scope-readonly"><span>Organización</span><strong>{{ selectedOrganization()?.legalName || 'Sin organización' }}</strong></div>
               }
               <label [class.is-invalid]="isInvalid('client', 'codeClient')"><span>Código *</span><input formControlName="codeClient" [readOnly]="!!editingClient()" />@if (isInvalid('client', 'codeClient')) { <small>El código es obligatorio.</small> }</label>
               <label [class.is-invalid]="isInvalid('client', 'rfc')"><span>RFC *</span><input formControlName="rfc" maxlength="13" />@if (isInvalid('client', 'rfc')) { <small>Captura un RFC válido de 12 a 13 caracteres.</small> }</label>

@@ -14,21 +14,6 @@
   </article>
 
   <section class="gi-card report-filters" aria-label="Filtros del reporte">
-    @if (isPlatformAdmin()) {
-      <label class="gi-field">
-        Organización
-        <select class="gi-input" [ngModel]="selectedOrganizationId()" [disabled]="isPlatformAdmin()" (ngModelChange)="onOrganizationChange($event)">
-          @for (organization of organizations(); track organization.idOrganization) {
-            <option [value]="organization.idOrganization">{{ organization.legalName }}</option>
-          }
-        </select>
-      </label>
-    } @else {
-      <div class="gi-field scope-readonly">
-        <span>Organización actual</span>
-        <strong>{{ selectedOrganization()?.legalName || 'Sin organización asignada' }}</strong>
-      </div>
-    }
 
     <label class="gi-field">
       Cliente

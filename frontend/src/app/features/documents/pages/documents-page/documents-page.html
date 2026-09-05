@@ -28,21 +28,6 @@
 
   <section class="document-control gi-card" [formGroup]="filterForm" aria-label="Filtros de documentos">
     <div class="document-filters">
-      @if (isPlatformAdmin()) {
-        <label class="gi-field">
-          Organización
-          <select class="gi-input" [value]="selectedOrganizationId()" [disabled]="isPlatformAdmin()" (change)="onOrganizationChange($event)">
-            @for (organization of organizations(); track organization.idOrganization) {
-              <option [value]="organization.idOrganization">{{ organization.legalName }}</option>
-            }
-          </select>
-        </label>
-      } @else {
-        <div class="gi-field scope-readonly">
-          <span>Organización actual</span>
-          <strong>{{ selectedOrganization()?.legalName || 'Sin organización asignada' }}</strong>
-        </div>
-      }
 
       <label class="gi-field">
         Entidad documental

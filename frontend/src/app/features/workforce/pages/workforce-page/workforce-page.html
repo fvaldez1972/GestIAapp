@@ -60,21 +60,6 @@
     </header>
 
     <div class="filters workforce-filters" aria-label="Filtros de búsqueda de personal">
-        @if (isPlatformAdmin()) {
-          <label>
-            <span>Organización</span>
-            <select [value]="selectedOrganizationId()" [disabled]="isPlatformAdmin()" (change)="selectOrganization($any($event.target).value)">
-              @for (organization of organizations(); track organization.idOrganization) {
-                <option [value]="organization.idOrganization">{{ organization.legalName }}</option>
-              }
-            </select>
-          </label>
-        } @else {
-          <div class="scope-readonly">
-            <span>Organización actual</span>
-            <strong>{{ selectedOrganization()?.legalName || 'Sin organización asignada' }}</strong>
-          </div>
-        }
         <label class="wide">
           <span>Buscar nombre, código o CURP</span>
           <input

@@ -1,17 +1,23 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import { Component } from '@angular/core';
+import { Component, OnDestroy } from '@angular/core';
 import { Router, provideRouter } from '@angular/router';
 import { AuthService } from '../../auth/auth.service';
 import { AppShell } from './app-shell';
 
-/** Cuenta cuántas veces la monta el enrutador. */
+/** Cuenta cuántas veces la monta y la destruye el enrutador. */
 @Component({ template: 'pantalla' })
-class PantallaDeModulo {
+class PantallaDeModulo implements OnDestroy {
   static montajes = 0;
+  static destrucciones = 0;
+
   constructor() {
     PantallaDeModulo.montajes += 1;
+  }
+
+  ngOnDestroy() {
+    PantallaDeModulo.destrucciones += 1;
   }
 }
 
@@ -189,14 +195,20 @@ describe('AppShell', () => {
   });
 
   /**
-   * La regresión que encontró la verificación en el navegador, no las pruebas: al cambiar de
-   * organización desde la barra, la pantalla abierta seguía mostrando los datos de la anterior.
-   * Las once pantallas de módulo cargan en `ngOnInit` y ninguna vigila la organización activa, así
-   * que el shell las vuelve a montar. Cuando cada pantalla lo resuelva por su cuenta, esta prueba
-   * dirá si se puede quitar el atajo.
+   * **El mecanismo por el que cambiar de organización cambia lo que se ve.**
+   *
+   * Heredar de la barra arregla de dónde sale el identificador de organización, no cuándo se piden
+   * los datos: las pantallas cargan en `ngOnInit` y nadie las vuelve a llamar. Sin el remonte,
+   * cambiar de organización dejaría en pantalla la tabla de la anterior mientras la franja dice
+   * otra cosa, que es el defecto que apareció al verificar en el navegador.
+   *
+   * La destrucción importa tanto como el montaje: es la que cancela las peticiones en vuelo de la
+   * organización que se deja. Dos pruebas de la pantalla de Servicios cuidaban esa garantía cuando
+   * el cambio de organización vivía allí; se retiraron con ese mecanismo y la garantía vive aquí.
    */
-  it('cambiar de organización vuelve a montar la pantalla abierta', async () => {
+  it('cambiar de organización destruye la pantalla abierta y monta una nueva', async () => {
     PantallaDeModulo.montajes = 0;
+    PantallaDeModulo.destrucciones = 0;
 
     const { fixture } = montar(['PLATFORM.ADMIN'], [ALFA], 'org-a');
     const auth = TestBed.inject(AuthService);
@@ -213,5 +225,6 @@ describe('AppShell', () => {
     await fixture.whenStable();
 
     expect(PantallaDeModulo.montajes).toBe(despuesDeAbrir + 1);
+    expect(PantallaDeModulo.destrucciones).toBe(1);
   });
 });

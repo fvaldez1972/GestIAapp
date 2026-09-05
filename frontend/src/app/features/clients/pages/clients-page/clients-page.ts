@@ -29,8 +29,14 @@ export class ClientsPage implements OnInit {
   private readonly auth = inject(AuthService);
   private readonly formBuilder = inject(FormBuilder);
 
-  protected readonly organizations = signal<readonly Organization[]>([]);
-  protected readonly selectedOrganizationId = signal('');
+  /**
+   * La lista compartida, no una copia. La pantalla ya no la pide por su cuenta: la barra de
+   * contexto la carga una vez y aquí sólo se lee, para el indicador de organizaciones registradas
+   * y para el estado de «esta cuenta no tiene organización asignada».
+   */
+  protected readonly organizations = this.auth.availableOrganizations;
+  /** La organización de trabajo la fija la barra de contexto, y sólo ella. */
+  protected readonly selectedOrganizationId = this.auth.operationalOrganizationId;
   protected readonly selectedClient = signal<Client | null>(null);
   protected readonly sites = signal<readonly ClientSite[]>([]);
   protected readonly contacts = signal<readonly ClientContact[]>([]);
@@ -70,9 +76,7 @@ export class ClientsPage implements OnInit {
   protected readonly endDateFilter = signal('');
   protected readonly activeClientTab = signal<ClientTab>('summary');
   protected readonly clientServiceCounts = signal<Record<string, number>>({});
-  protected readonly selectedOrganization = computed(
-    () => this.organizations().find((organization) => organization.idOrganization === this.selectedOrganizationId()) ?? null,
-  );
+  protected readonly selectedOrganization = this.auth.activeOrganization;
   protected readonly canAdministerPlatform = computed(() => this.auth.session()?.permissions.includes('PLATFORM.ADMIN') ?? false);
   protected readonly pageHeadingTitle = computed(() => this.canAdministerPlatform() ? 'Clientes operativos' : 'Configuración del cliente');
   protected readonly pageHeadingDescription = computed(() => this.canAdministerPlatform() ? 'Cartera de clientes operativos de la organización.' : 'Expediente comercial del cliente.');
@@ -139,10 +143,6 @@ export class ClientsPage implements OnInit {
       return this.canAdministerPlatform()
         ? 'Selecciona o crea una organización para asociar el cliente.'
         : 'Tu usuario no tiene una organización asignada.';
-    }
-
-    if (this.selectedOrganization()?.active === false) {
-      return 'La organización seleccionada está inactiva.';
     }
 
     return '';
@@ -241,41 +241,18 @@ export class ClientsPage implements OnInit {
   });
 
   ngOnInit(): void {
-    this.loadOrganizations();
+    this.loadForActiveOrganization();
   }
 
-  protected loadOrganizations(preferredId?: string): void {
-    this.loading.set(true);
-    this.error.set('');
-    this.api
-      .listOrganizations()
-      .pipe(finalize(() => this.loading.set(false)))
-      .subscribe({
-        next: (organizations) => {
-          this.organizations.set(organizations);
-          const organizationId = this.resolveOrganizationSelection(preferredId, organizations);
-          this.selectedOrganizationId.set(organizationId);
-          if (organizationId) {
-            this.loadClients(1);
-          }
-        },
-        error: (error: HttpErrorResponse) => this.setError(error),
-      });
-  }
-
-  protected selectOrganization(organizationId: string): void {
-    if (this.canAdministerPlatform() && this.auth.activeOrganizationId() !== organizationId) {
-      this.error.set('Finaliza el soporte actual e inicia una nueva sesión para cambiar de organización.');
-      return;
+  /**
+   * Carga los clientes de la organización que dice la barra de contexto. Antes esto pedía la lista
+   * de organizaciones y elegía una; ahora no hay nada que elegir. Cuando la organización cambia,
+   * el shell vuelve a montar la pantalla y esto corre de nuevo.
+   */
+  protected loadForActiveOrganization(): void {
+    if (this.selectedOrganizationId()) {
+      this.loadClients(1);
     }
-    this.selectedOrganizationId.set(organizationId);
-    this.selectedClient.set(null);
-    this.sites.set([]);
-    this.contacts.set([]);
-    this.contracts.set([]);
-    this.services.set([]);
-    this.message.set('');
-    this.loadClients(1);
   }
 
   protected updateSearch(value: string): void {
@@ -450,7 +427,8 @@ export class ClientsPage implements OnInit {
         next: (organization) => {
           this.organizationEditorOpen.set(false);
           this.message.set('Organización creada correctamente.');
-          this.loadOrganizations(organization.idOrganization);
+          // Refresca la lista compartida para que la nueva aparezca en la barra de contexto.
+          this.auth.loadPlatformOrganizations().subscribe({ error: () => undefined });
         },
         error: (error: HttpErrorResponse) => this.setError(error),
       });
@@ -945,30 +923,6 @@ export class ClientsPage implements OnInit {
   private optional(value: string): string | null {
     const normalized = value.trim();
     return normalized ? normalized : null;
-  }
-
-  private resolveOrganizationSelection(preferredId: string | undefined, organizations: readonly Organization[]): string {
-    if (this.canAdministerPlatform()) {
-      const activeId = this.auth.activeOrganizationId();
-      return activeId && organizations.some((organization) => organization.idOrganization === activeId)
-        ? activeId
-        : '';
-    }
-
-    const preferred = preferredId?.trim();
-    const current = this.selectedOrganizationId().trim();
-    const activeOrganization = organizations.find((organization) => organization.active);
-    const fallback = activeOrganization ?? organizations[0] ?? null;
-
-    if (preferred && organizations.some((organization) => organization.idOrganization === preferred)) {
-      return preferred;
-    }
-
-    if (current && organizations.some((organization) => organization.idOrganization === current)) {
-      return current;
-    }
-
-    return fallback?.idOrganization ?? '';
   }
 
   private loadClientServiceCounts(clients: readonly Client[]): void {

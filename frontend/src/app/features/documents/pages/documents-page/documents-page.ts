@@ -40,7 +40,6 @@ export class DocumentsPage implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly formBuilder = inject(FormBuilder);
 
-  protected readonly organizations = signal<readonly Organization[]>([]);
   protected readonly clients = signal<readonly Client[]>([]);
   protected readonly contracts = signal<readonly ServiceContract[]>([]);
   protected readonly services = signal<readonly ManagedService[]>([]);
@@ -49,7 +48,8 @@ export class DocumentsPage implements OnInit {
   protected readonly requests = signal<readonly OperationalRequest[]>([]);
   protected readonly documents = signal<readonly BusinessDocument[]>([]);
   protected readonly workforceDocuments = signal<readonly BusinessDocument[]>([]);
-  protected readonly selectedOrganizationId = signal('');
+  /** La organización de trabajo la fija la barra de contexto, y sólo ella. */
+  protected readonly selectedOrganizationId = this.auth.operationalOrganizationId;
   protected readonly ownerContext = signal<{ ownerType: BusinessDocumentOwnerType; ownerId: string } | null>(null);
   protected readonly selectedDocumentId = signal('');
   protected readonly selectedOwnerType = signal<BusinessDocumentOwnerType>('Client');
@@ -92,9 +92,7 @@ export class DocumentsPage implements OnInit {
         description: 'El archivo se administra donde pertenece: cliente, servicio, contrato, personal o solicitud. Configuración conserva las reglas, tipos y requisitos documentales.',
       },
   );
-  protected readonly selectedOrganization = computed(
-    () => this.organizations().find((organization) => organization.idOrganization === this.selectedOrganizationId()) ?? null,
-  );
+  protected readonly selectedOrganization = this.auth.activeOrganization;
   protected readonly allDocuments = computed(() => [...this.documents(), ...this.workforceDocuments()]);
   protected readonly selectedDocument = computed(
     () => this.allDocuments().find((document) => document.idBusinessDocument === this.selectedDocumentId()) ?? null,
@@ -261,13 +259,6 @@ export class DocumentsPage implements OnInit {
 
   ngOnInit() {
     this.loadInitialData();
-  }
-
-  protected onOrganizationChange(event: Event) {
-    this.selectedOrganizationId.set((event.target as HTMLSelectElement).value);
-    this.selectedDocumentId.set('');
-    this.loadCatalogs();
-    this.loadDocuments();
   }
 
   protected onOwnerTypeChange() {
@@ -879,48 +870,47 @@ export class DocumentsPage implements OnInit {
     return this.matchesExpiryFilter(document) && this.matchesSensitivityFilter(document);
   }
 
+  /**
+   * El arranque de la pantalla. Ya no pide la lista de organizaciones ni lee `organizationId` de
+   * la URL: la organización la fija la barra de contexto. El parámetro de URL de todos modos ya
+   * era inofensivo aquí —sólo se respetaba si coincidía con la organización autorizada— y ahora
+   * se va del todo, para que quede una sola manera de decir en qué organización se está.
+   *
+   * Los demás parámetros —el dueño del documento, el estado, la búsqueda— sí siguen: identifican
+   * qué se abre dentro de la organización, no cuál es.
+   */
   private loadInitialData() {
-    this.loading.set(true);
-    this.clientApi.listOrganizations().subscribe({
-      next: (organizations) => {
-        this.organizations.set(organizations);
-        const params = this.route.snapshot.queryParamMap;
-        const requestedOrganizationId = params.get('organizationId') ?? '';
-        const scopedOrganizationId = this.auth.resolveOperationalOrganizationId(organizations);
-        const organizationId = requestedOrganizationId === scopedOrganizationId
-          ? requestedOrganizationId
-          : scopedOrganizationId;
-        const ownerType = this.normalizeOwnerType(params.get('ownerType'));
-        const ownerId = params.get('ownerId') ?? '';
-        if (ownerType && ownerId) {
-          this.ownerContext.set({ ownerType, ownerId });
-          this.documentForm.patchValue({ ownerType, ownerId });
-          this.selectedOwnerType.set(ownerType);
-          this.documentForm.controls.ownerType.disable();
-          this.documentForm.controls.ownerId.disable();
-          this.filterForm.controls.ownerType.disable();
-          this.filterForm.controls.ownerId.disable();
-        }
-        if (!this.canWriteSensitive()) this.documentForm.controls.isSensitive.disable();
-        const status = this.normalizeStatus(params.get('status'));
+    const params = this.route.snapshot.queryParamMap;
+    const ownerType = this.normalizeOwnerType(params.get('ownerType'));
+    const ownerId = params.get('ownerId') ?? '';
 
-        this.selectedOrganizationId.set(organizationId);
-        this.selectedFilterOwnerType.set(ownerType);
-        this.filterForm.patchValue({
-          ownerType,
-          ownerId,
-          status,
-          category: params.get('category') ?? '',
-          search: params.get('search') ?? '',
-        });
-        if (organizationId) {
-          this.loadCatalogs();
-          this.loadDocuments();
-        }
-      },
-      error: (error: HttpErrorResponse) => this.setError(error, 'No se pudieron cargar las organizaciones.'),
-      complete: () => this.loading.set(false),
+    if (ownerType && ownerId) {
+      this.ownerContext.set({ ownerType, ownerId });
+      this.documentForm.patchValue({ ownerType, ownerId });
+      this.selectedOwnerType.set(ownerType);
+      this.documentForm.controls.ownerType.disable();
+      this.documentForm.controls.ownerId.disable();
+      this.filterForm.controls.ownerType.disable();
+      this.filterForm.controls.ownerId.disable();
+    }
+
+    if (!this.canWriteSensitive()) {
+      this.documentForm.controls.isSensitive.disable();
+    }
+
+    this.selectedFilterOwnerType.set(ownerType);
+    this.filterForm.patchValue({
+      ownerType,
+      ownerId,
+      status: this.normalizeStatus(params.get('status')),
+      category: params.get('category') ?? '',
+      search: params.get('search') ?? '',
     });
+
+    if (this.selectedOrganizationId()) {
+      this.loadCatalogs();
+      this.loadDocuments();
+    }
   }
 
   private normalizeOwnerType(value: string | null): BusinessDocumentOwnerType | '' {

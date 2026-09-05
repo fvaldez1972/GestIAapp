@@ -9,21 +9,6 @@
     </div>
 
     <div class="hero-side">
-      @if (isPlatformAdmin()) {
-        <label class="gi-field compact-field">
-          Organización
-          <select class="gi-input" [value]="selectedOrganizationId()" [disabled]="isPlatformAdmin()" (change)="selectOrganization($any($event.target).value)">
-            @for (organization of organizations(); track organization.idOrganization) {
-              <option [value]="organization.idOrganization">{{ organization.legalName }}</option>
-            }
-          </select>
-        </label>
-      } @else {
-        <div class="compact-field scope-readonly">
-          <span>Organización actual</span>
-          <strong>{{ selectedOrganization()?.legalName || 'Sin organización asignada' }}</strong>
-        </div>
-      }
       <button class="gi-button gi-button--primary" type="button" (click)="openCatalogSelector()">
         <app-icon name="catalog" /> Elegir catálogo
       </button>

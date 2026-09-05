@@ -7,7 +7,7 @@ import { forkJoin, of, finalize, Subscription } from 'rxjs';
 import { AppIcon } from '../../../../shared/ui/app-icon/app-icon';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { ClientApiService } from '../../../clients/data-access/client-api.service';
-import { Client, ManagedService, Organization, PagedResult, ServicePosition } from '../../../clients/data-access/client.models';
+import { Client, ManagedService, PagedResult, ServicePosition } from '../../../clients/data-access/client.models';
 import { OperationalRequest } from '../../../requests/data-access/request.models';
 import { WorkforceApiService } from '../../../workforce/data-access/workforce-api.service';
 import { Employee } from '../../../workforce/data-access/workforce.models';
@@ -54,7 +54,6 @@ export class CatalogsPage implements OnInit {
   private readonly auth = inject(AuthService);
   private readonly formBuilder = inject(FormBuilder);
 
-  protected readonly organizations = signal<readonly Organization[]>([]);
   protected readonly clients = signal<readonly Client[]>([]);
   protected readonly services = signal<readonly ManagedService[]>([]);
   protected readonly positions = signal<readonly ServicePosition[]>([]);
@@ -62,7 +61,8 @@ export class CatalogsPage implements OnInit {
   protected readonly requests = signal<readonly OperationalRequest[]>([]);
   protected readonly items = signal<readonly CatalogItem[]>([]);
   protected readonly requirements = signal<readonly EligibilityRequirement[]>([]);
-  protected readonly selectedOrganizationId = signal('');
+  /** La organización de trabajo la fija la barra de contexto, y sólo ella. */
+  protected readonly selectedOrganizationId = this.auth.operationalOrganizationId;
   protected readonly selectedCatalogItemId = signal('');
   protected readonly selectedRequirementId = signal('');
   protected readonly activeTab = signal<CatalogTab>('general');
@@ -81,9 +81,7 @@ export class CatalogsPage implements OnInit {
 
   protected readonly canWrite = computed(() => this.auth.hasPermission('CATALOGS.WRITE'));
   protected readonly isPlatformAdmin = computed(() => this.auth.hasPermission('PLATFORM.ADMIN'));
-  protected readonly selectedOrganization = computed(
-    () => this.organizations().find((organization) => organization.idOrganization === this.selectedOrganizationId()) ?? null,
-  );
+  protected readonly selectedOrganization = this.auth.activeOrganization;
   protected readonly heroCopy = computed(() =>
     this.isPlatformAdmin()
       ? {
@@ -406,7 +404,7 @@ export class CatalogsPage implements OnInit {
 
   ngOnInit(): void {
     if (this.route.snapshot.data['catalogTab'] === 'eligibility') this.activeTab.set('eligibility');
-    this.loadOrganizations();
+    this.loadForActiveOrganization();
   }
 
   ngAfterViewInit(): void {
@@ -445,36 +443,14 @@ export class CatalogsPage implements OnInit {
     return this.items().find(item => item.idCatalogItem === id)?.name ?? 'Valor anterior';
   }
 
-  protected loadOrganizations(): void {
-    this.loading.set(true);
-    this.clientApi.listOrganizations().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: (organizations) => {
-        this.organizations.set(organizations);
-        const organizationId = this.auth.resolveOperationalOrganizationId(organizations);
-        this.selectedOrganizationId.set(organizationId);
-        if (organizationId) {
-          this.loadData();
-        } else this.loading.set(false);
-      },
-      error: (error: HttpErrorResponse) => this.setError(error),
-    });
-  }
-
-  protected selectOrganization(idOrganization: string): void {
-    this.items.set([]);
-    this.requirements.set([]);
-    this.closeCatalogDrawer();
-    this.selectedOrganizationId.set(idOrganization);
-    this.clients.set([]);
-    this.services.set([]);
-    this.positions.set([]);
-    this.employees.set([]);
-    this.requests.set([]);
-    this.eligibilityResult.set(null);
-    this.requirementClientFilter.set('');
-    this.requirementServiceFilter.set('');
-    this.requirementPositionFilter.set('');
-    this.loadData();
+  /**
+   * Ya no se carga una lista de organizaciones para elegir: la organización la da la barra de
+   * contexto. Si hay una, se cargan sus datos; si no, la pantalla espera a que se elija.
+   */
+  protected loadForActiveOrganization(): void {
+    if (this.selectedOrganizationId()) {
+      this.loadData();
+    }
   }
 
   protected selectTab(tab: CatalogTab): void {

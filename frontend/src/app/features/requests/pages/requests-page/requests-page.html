@@ -31,21 +31,6 @@
 
   <section class="gi-card requests-control" aria-label="Consulta de solicitudes">
     <div class="request-filters request-filters--advanced">
-      @if (isPlatformAdmin()) {
-        <label class="gi-field">
-          <span>Organización</span>
-          <select class="gi-input" [value]="selectedOrganizationId()" [disabled]="isPlatformAdmin()" (change)="onOrganizationChange($event)">
-            @for (organization of organizations(); track organization.idOrganization) {
-              <option [value]="organization.idOrganization">{{ organization.legalName }}</option>
-            }
-          </select>
-        </label>
-      } @else {
-        <div class="gi-field scope-readonly">
-          <span>Organización actual</span>
-          <strong>{{ requestScopeLabel() }}</strong>
-        </div>
-      }
       <label class="gi-field request-search">
         <span>Buscar</span>
         <input class="gi-input" type="search" [value]="search()" (input)="onSearchChange($event)" (keyup.enter)="applySearch()" placeholder="ID, cliente o solicitante" />
@@ -417,10 +402,8 @@
                 <div class="quick-create-note"><span aria-hidden="true">i</span> La ejecución se validará después, cuando la solicitud esté aprobada.</div>
 
                 <div class="form-grid">
-                  @if (!selectedRequest() && isPlatformAdmin()) {
-                    <label class="gi-field form-span-2"><span>Organización</span><select class="gi-input" [value]="selectedOrganizationId()" (change)="onOrganizationChange($event)">@for (organization of organizations(); track organization.idOrganization) { <option [value]="organization.idOrganization">{{ organization.legalName }}</option> }</select></label>
-                  } @else if (!selectedRequest()) {
-                    <div class="gi-field form-span-2 scope-readonly"><span>Organización actual</span><strong>{{ requestScopeLabel() }}</strong></div>
+                  @if (!selectedRequest()) {
+                    <div class="gi-field form-span-2 scope-readonly"><span>Organización</span><strong>{{ requestScopeLabel() }}</strong></div>
                   } @else {
                     <label class="gi-field"><span>Folio</span><input class="gi-input" type="text" formControlName="codeOperationalRequest" /></label>
                     <label class="gi-field"><span>Tipo</span><select class="gi-input" formControlName="requestType" (change)="onRequestTypeChange($event)">@for (type of requestTypes; track type.value) { <option [value]="type.value">{{ type.label }}</option> }</select></label>

@@ -29,13 +29,17 @@ describe('ServicesPage organization-scoped workflows', () => {
     organizationOpen = signal(false);
     activeOrganization = signal('org-a');
     params = new BehaviorSubject(convertToParamMap({}));
+    // La organización sale de la barra de contexto, así que el doble la expone como la expone
+    // AuthService: una señal de sólo lectura, sin lista que pasarle.
+    const abierta = () =>
+      permissions().includes('PLATFORM.ADMIN') && !organizationOpen() ? '' : activeOrganization();
     const auth = {
       session: () => ({ permissions: permissions() }),
       hasPermission: (p: string) => permissions().includes(p) || permissions().includes('PLATFORM.ADMIN'),
       setActiveOrganization: (id: string) => { if (['org-a', 'org-b'].includes(id)) activeOrganization.set(id); },
-      resolveOperationalOrganizationId: (organizations: typeof organization[]) =>
-        permissions().includes('PLATFORM.ADMIN') && !organizationOpen() ? '' :
-          organizations.find(o => o.idOrganization === activeOrganization())?.idOrganization ?? '',
+      operationalOrganizationId: abierta,
+      activeOrganization: () => (abierta() ? { ...organization, idOrganization: abierta() } : null),
+      availableOrganizations: () => [organization, { ...organization, idOrganization: 'org-b' }],
     };
     TestBed.configureTestingModule({
       providers: [
@@ -58,7 +62,6 @@ describe('ServicesPage organization-scoped workflows', () => {
   function start(query: Record<string, string> = {}) {
     params.next(convertToParamMap(query));
     page.ngOnInit();
-    http.expectOne('/api/v1/organizations').flush([organization, { ...organization, idOrganization: 'org-b' }]);
     TestBed.tick();
   }
 
@@ -144,20 +147,6 @@ describe('ServicesPage organization-scoped workflows', () => {
     expect(page.error()).toContain('no está disponible');
   });
 
-  it('cancels old client reads and closes its editors when the organization changes', () => {
-    start();
-    flushClients();
-    page.selectClient('client-a');
-    const requests = http.match(r => r.url.startsWith('/api/v1/clients/client-a/'));
-    page.serviceEditorOpen.set(true);
-    page.selectOrganization('org-b');
-    expect(requests.every(r => r.cancelled)).toBe(true);
-    expect(page.selectedClient()).toBeNull();
-    expect(page.serviceEditorOpen()).toBe(false);
-    expect(page.services()).toEqual([]);
-    flushClients();
-  });
-
   it('cancels old service reads when another service is selected', () => {
     selectClient();
     page.selectService(service);
@@ -169,19 +158,10 @@ describe('ServicesPage organization-scoped workflows', () => {
     flushService();
   });
 
-  it('limpia los datos de la organización en cuanto el super admin sale de ella', () => {
-    permissions.set(['PLATFORM.ADMIN']);
-    organizationOpen.set(true);
-    selectClient();
-    page.selectService(service);
-    const requests = http.match(() => true);
-    organizationOpen.set(false);
-    TestBed.tick();
-    expect(requests.every(r => r.cancelled)).toBe(true);
-    expect(page.selectedClient()).toBeNull();
-    expect(page.selectedService()).toBeNull();
-    expect(page.canWritePlanning()).toBe(false);
-  });
+  // Nota: las dos pruebas que ejercitaban el cambio de organización desde esta pantalla se
+  // retiraron con el mecanismo que probaban. La pantalla ya no cambia de organización: la fija la
+  // barra de contexto y el shell vuelve a montar la pantalla. La garantía que cuidaban —no dejar
+  // en pantalla los datos de la organización anterior— está fijada en `app-shell.spec.ts`.
 
   it('creates a service using the selected organization and client, then reloads its detail', () => {
     selectClient();
@@ -244,7 +224,6 @@ describe('ServicesPage organization-scoped workflows', () => {
 
   it('keeps client detail read-only for services and never fetches planning resources', () => {
     const clientsPage: any = TestBed.runInInjectionContext(() => new ClientsPage());
-    clientsPage.selectedOrganizationId.set('org-a');
     clientsPage.selectedClient.set(client);
     clientsPage.loadClientDetail();
     const requests = http.match(() => true);

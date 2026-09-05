@@ -2,8 +2,6 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../../../core/auth/auth.service';
-import { ClientApiService } from '../../../clients/data-access/client-api.service';
-import { Organization } from '../../../clients/data-access/client.models';
 import { AuditApiService } from '../../data-access/audit-api.service';
 import { AuditEvent, AuditResult } from '../../data-access/audit.models';
 
@@ -17,12 +15,11 @@ import { AuditEvent, AuditResult } from '../../data-access/audit.models';
 export class AuditPage implements OnInit {
   private readonly api = inject(AuditApiService);
   private readonly auth = inject(AuthService);
-  private readonly clientApi = inject(ClientApiService);
 
-  protected readonly organizations = signal<readonly Organization[]>([]);
   protected readonly events = signal<readonly AuditEvent[]>([]);
   protected readonly entities = signal<readonly string[]>([]);
-  protected readonly selectedOrganizationId = signal('');
+  /** La organización de trabajo la fija la barra de contexto, y sólo ella. */
+  protected readonly selectedOrganizationId = this.auth.operationalOrganizationId;
   protected readonly selectedEntity = signal('');
   protected readonly selectedActor = signal('');
   protected readonly selectedAction = signal('');
@@ -112,7 +109,7 @@ export class AuditPage implements OnInit {
       .sort((left, right) => new Date(right.occurredAt).getTime() - new Date(left.occurredAt).getTime());
   });
   protected readonly selectedOrganizationName = computed(
-    () => this.organizations().find((organization) => organization.idOrganization === this.selectedOrganizationId())?.legalName ?? 'Sin organización',
+    () => this.auth.activeOrganization()?.legalName ?? 'Sin organización',
   );
   protected readonly isPlatformAdmin = computed(() => this.auth.session()?.permissions.includes('PLATFORM.ADMIN') ?? false);
   protected readonly heroCopy = computed(() =>
@@ -135,13 +132,7 @@ export class AuditPage implements OnInit {
   protected readonly exportFileName = computed(() => `gestia-bitacora-${this.selectedEntity() || 'todas'}-${this.today()}.csv`);
 
   ngOnInit() {
-    this.loadOrganizations();
-  }
-
-  protected onOrganizationChange(value: string) {
-    this.selectedOrganizationId.set(value);
-    this.page.set(1);
-    this.loadEvents();
+    this.loadEventsForActiveOrganization();
   }
 
   protected onEntityChange(value: string) {
@@ -517,22 +508,14 @@ export class AuditPage implements OnInit {
       });
   }
 
-  private loadOrganizations() {
-    this.loading.set(true);
-    this.error.set('');
-
-    this.clientApi.listOrganizations().subscribe({
-      next: (organizations) => {
-        this.organizations.set(organizations);
-        const organizationId = this.auth.resolveOperationalOrganizationId(organizations);
-        this.selectedOrganizationId.set(organizationId);
-        if (organizationId) {
-          this.loadEvents();
-        }
-      },
-      error: (error: HttpErrorResponse) => this.setError(error, 'No se pudieron cargar las organizaciones.'),
-      complete: () => this.loading.set(false),
-    });
+  /**
+   * Ya no hay lista de organizaciones que cargar: la organización la da la barra de contexto. Si
+   * hay una, se piden sus eventos; si no, la pantalla espera a que se elija.
+   */
+  private loadEventsForActiveOrganization() {
+    if (this.selectedOrganizationId()) {
+      this.loadEvents();
+    }
   }
 
   protected loadEvents() {

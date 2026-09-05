@@ -76,8 +76,8 @@ export class ServicesPage implements OnInit, OnDestroy {
   private readonly scopeChanges = new Subject<number>();
   private readonly destroyed = new Subject<void>();
   private readonly clientSearchChanges = new Subject<void>();
-  protected readonly organizations = signal<readonly Organization[]>([]);
-  protected readonly selectedOrganizationId = signal('');
+  /** La organización de trabajo la fija la barra de contexto, y sólo ella. */
+  protected readonly selectedOrganizationId = this.auth.operationalOrganizationId;
   protected readonly selectedClient = signal<Client | null>(null);
   protected readonly selectedService = signal<ManagedService | null>(null);
   protected readonly selectedPosition = signal<ServicePosition | null>(null);
@@ -138,18 +138,14 @@ export class ServicesPage implements OnInit, OnDestroy {
     () =>
       this.canRead() &&
       this.auth.hasPermission('CLIENTS.WRITE') &&
-      this.organizations().some(
-        (o) => o.idOrganization === this.selectedOrganizationId() && o.active,
-      ) &&
+      !!this.auth.activeOrganization() &&
       !!this.selectedClient()?.active,
   );
   protected readonly canWritePlanning = computed(
     () =>
       this.canReadPlanning() &&
       this.auth.hasPermission('PLANNING.WRITE') &&
-      this.organizations().some(
-        (o) => o.idOrganization === this.selectedOrganizationId() && o.active,
-      ) &&
+      !!this.auth.activeOrganization() &&
       !!this.selectedClient()?.active &&
       !!this.selectedService()?.active,
   );
@@ -189,35 +185,15 @@ export class ServicesPage implements OnInit, OnDestroy {
   protected readonly assignmentEditorOpen = signal(false);
   protected readonly editingAssignment = signal<ServiceAssignment | null>(null);
 
-  constructor() {
-    effect(() => {
-      const id = this.auth.resolveOperationalOrganizationId(this.organizations());
-      const permission = this.auth.hasPermission('CLIENTS.READ');
-      // Reacciona a los cambios de organización hechos desde la barra superior.
-      untracked(() => {
-        const next = permission ? id : '';
-        if (next !== this.selectedOrganizationId()) this.changeOrganization(next);
-      });
-    });
-  }
-
   ngOnInit(): void {
+    // El parámetro `organizationId` ya no se lee: cambiaba la organización activa del usuario
+    // desde un enlace, por encima de lo que dijera la barra de contexto. `clientId` y `serviceId`
+    // sí siguen, porque dicen qué abrir dentro de la organización, no cuál es.
     this.route.queryParamMap.pipe(takeUntil(this.destroyed)).subscribe((params) => {
-      const organization = params.get('organizationId');
-      if (organization && !this.platformAdmin()) this.auth.setActiveOrganization(organization);
       if (this.canRead() && params.get('clientId')) this.loadLinkedClient();
     });
-    this.pending.update((n) => n + 1);
-    this.api
-      .listOrganizations()
-      .pipe(
-        takeUntil(this.destroyed),
-        finalize(() => this.pending.update((n) => n - 1)),
-      )
-      .subscribe({
-        next: (organizations) => this.organizations.set(organizations),
-        error: (error: HttpErrorResponse) => this.setError(error),
-      });
+
+    this.loadForActiveOrganization();
   }
 
   ngOnDestroy(): void {
@@ -227,37 +203,16 @@ export class ServicesPage implements OnInit, OnDestroy {
     this.clientSearchChanges.complete();
   }
 
-  protected selectOrganization(id: string): void {
-    if (
-      this.saving() ||
-      this.platformAdmin() ||
-      !this.organizations().some((o) => o.idOrganization === id)
-    )
-      return;
-    this.auth.setActiveOrganization(id);
-    this.changeOrganization(id);
-  }
-
-  private changeOrganization(id: string): void {
-    this.scopeChanges.next(0);
-    this.closeEditors();
-    this.selectedOrganizationId.set(id);
-    this.selectedClient.set(null);
-    this.selectedService.set(null);
-    this.sites.set([]);
-    this.contracts.set([]);
-    this.services.set([]);
-    this.activeEmployees.set([]);
-    this.result.set({ items: [], totalCount: 0, page: 1, pageSize: 20, totalPages: 0 });
-    this.clearServiceDetail();
-    this.error.set('');
-    this.message.set('');
-    this.clientSearch.set('');
-    this.search.set('');
-    this.status.set('all');
-    if (id) {
+  /**
+   * Carga la pantalla para la organización que dice la barra de contexto. Antes esto también
+   * vaciaba una docena de señales, porque la organización podía cambiar con la pantalla abierta;
+   * ya no hace falta: el shell la vuelve a montar cuando la organización cambia.
+   */
+  private loadForActiveOrganization(): void {
+    if (this.selectedOrganizationId()) {
+      // El cliente enlazado lo trae la suscripción a los parámetros de la URL, que ya corre con
+      // la organización puesta. Pedirlo también aquí lo pediría dos veces.
       this.loadClients();
-      this.loadLinkedClient();
     }
   }
 

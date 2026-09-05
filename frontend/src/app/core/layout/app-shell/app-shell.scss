@@ -292,52 +292,6 @@ a.menu-link:hover {
   min-width: 0;
 }
 
-.scope-badge {
-  border-radius: 0.35rem;
-  padding: 0.35rem 0.55rem;
-  color: var(--gestia-cyan-dark);
-  font-size: 0.58rem;
-  font-weight: 850;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  background: color-mix(in srgb, var(--gestia-cyan) 10%, white);
-}
-
-.org-switcher {
-  align-items: center;
-  color: var(--gestia-muted);
-  display: flex;
-  font-size: 0.72rem;
-  font-weight: 800;
-  gap: 0.5rem;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.org-switcher select {
-  appearance: none;
-  background: #fff;
-  border: 1px solid var(--gestia-border);
-  border-radius: 0.85rem;
-  color: var(--gestia-navy);
-  font: inherit;
-  max-width: 15rem;
-  min-height: 2.35rem;
-  padding: 0.58rem 2rem 0.58rem 0.75rem;
-  text-transform: none;
-  box-shadow: 0 0.35rem 0.9rem rgb(16 16 78 / 4%);
-  background-image:
-    linear-gradient(45deg, transparent 50%, #56617a 50%),
-    linear-gradient(135deg, #56617a 50%, transparent 50%);
-  background-position:
-    calc(100% - 0.9rem) 50%,
-    calc(100% - 0.64rem) 50%;
-  background-repeat: no-repeat;
-  background-size:
-    0.3rem 0.3rem,
-    0.3rem 0.3rem;
-}
-
 .profile {
   gap: 0.55rem;
   max-width: 18rem;
@@ -496,14 +450,8 @@ main {
   }
 
   .profile-copy,
-  .profile-chevron,
-  .scope-badge,
-  .org-switcher > span {
+  .profile-chevron {
     display: none;
-  }
-
-  .org-switcher select {
-    max-width: 9.5rem;
   }
 
   main {
@@ -515,17 +463,6 @@ main {
     padding: 0.9rem 1.25rem;
     flex-direction: column;
   }
-}
-
-/* Selector de organización: mínimo y funcional. El acabado definitivo llega con la barra
-   de contexto que se diseña aparte. */
-.org-switcher__exit {
-  border: 1px solid var(--gestia-border, #dce2e9);
-  background: transparent;
-  border-radius: 6px;
-  padding: 6px 12px;
-  font-size: 13px;
-  cursor: pointer;
 }
 
 .organization-required {

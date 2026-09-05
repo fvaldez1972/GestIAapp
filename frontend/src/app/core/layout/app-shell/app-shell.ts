@@ -5,10 +5,11 @@ import { AuthService } from '../../auth/auth.service';
 import { AppIcon } from '../../../shared/ui/app-icon/app-icon';
 import { LayoutService } from '../layout.service';
 import { GESTIA_NAVIGATION, NavigationGroup } from '../navigation';
+import { ContextBar } from '../context-bar/context-bar';
 
 @Component({
   selector: 'app-shell',
-  imports: [AppIcon, RouterLink, RouterLinkActive, RouterOutlet],
+  imports: [AppIcon, ContextBar, RouterLink, RouterLinkActive, RouterOutlet],
   templateUrl: './app-shell.html',
   styleUrl: './app-shell.scss',
 })
@@ -34,13 +35,6 @@ export class AppShell {
     return this.isPlatformAdmin() && !this.auth.activeOrganization() && scopedRoutes.some(route => path === route || path.startsWith(`${route}/`));
   });
 
-  /**
-   * Selector mínimo y funcional. El diseño definitivo sale de la barra de contexto que se
-   * trabaja aparte, así que aquí sólo se resuelve la función.
-   */
-  protected readonly showOrganizationPicker = computed(
-    () => this.isPlatformAdmin() || this.auth.organizations().length > 1,
-  );
   protected readonly userScope = computed(() =>
     this.isPlatformAdmin() ? 'Super Admin BKT' : 'Admin de organización',
   );

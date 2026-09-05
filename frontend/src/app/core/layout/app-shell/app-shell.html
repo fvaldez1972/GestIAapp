@@ -52,6 +52,8 @@
   }
 
   <div class="page-content">
+    <app-context-bar />
+
     <header class="app-header">
       <div class="topbar-start">
         <button
@@ -75,26 +77,7 @@
       </div>
 
       <div class="topbar-actions">
-        <span class="scope-badge">{{ isPlatformAdmin() ? 'Plataforma' : 'Organización' }}</span>
-        @if (showOrganizationPicker()) {
-          <label class="org-switcher">
-            <span>Organización</span>
-            <select
-              [value]="auth.activeOrganizationId()"
-              (change)="auth.setActiveOrganization($any($event.target).value)"
-            >
-              @if (isPlatformAdmin()) {
-                <option value="">Selecciona una organización</option>
-              }
-              @for (organization of auth.availableOrganizations(); track organization.idOrganization) {
-                <option [value]="organization.idOrganization">{{ organization.legalName }}</option>
-              }
-            </select>
-          </label>
-          @if (isPlatformAdmin() && auth.activeOrganization()) {
-            <button class="org-switcher__exit" type="button" (click)="auth.clearActiveOrganization()">Salir</button>
-          }
-        }
+        <!-- El contexto de organización vive en la barra de contexto, y sólo ahí. -->
         <button class="profile" type="button" aria-label="Cerrar sesión" (click)="logout()">
           <span class="profile-avatar">{{ userInitials() }}</span>
           <span class="profile-copy"><strong>{{ auth.displayName() || 'GestIA' }}</strong><small>{{ userScope() }} · Salir</small></span>
@@ -107,7 +90,7 @@
       @if (requiresOrganization()) {
         <section class="organization-required" aria-labelledby="organization-required-title">
           <h1 id="organization-required-title">{{ pageTitle() }}</h1>
-          <p>Selecciona una organización en la barra superior para ver su operación.</p>
+          <p>Selecciona una organización en la barra de contexto para ver su operación.</p>
         </section>
       } @else {
         <router-outlet />

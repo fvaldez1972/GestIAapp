@@ -29,10 +29,19 @@
   --gestia-page-gap: 1rem;
   --gestia-card-padding: 1rem;
   --gestia-radius: 6px;
+  /* Radio de píldoras y etiquetas pequeñas. El bosquejo lo usa veinte veces. */
+  --gestia-radius-pill: 3px;
   --gestia-control-height: 2.5rem;
   --gestia-shadow-sm: none;
   --gestia-shadow-md: none;
   --gestia-shadow-action: none;
+  /* Ancho del panel de detalle. Escrito una sola vez para que nadie lo teclee otra vez. */
+  --gestia-panel-width: 620px;
+  /* Fondo del esqueleto de carga. Antes era #eef3f9, un color que no salía de ningún token. */
+  --gestia-skeleton: var(--gestia-surface-soft);
+  /* El velo del diálogo: --gestia-navy al 28 %. Es el ÚNICO valor derivado de un token que el
+     sistema autoriza, y queda escrito aquí justo para que nadie invente otro. */
+  --gestia-dialog-veil: rgb(16 16 78 / 28%);
   color: var(--gestia-text);
   font-family: var(--font-sans);
   font-synthesis: none;
@@ -408,7 +417,7 @@ app-login-page [hidden]:not([hidden="until-found"]) {
   overflow: hidden;
   min-height: 8rem;
   border-radius: var(--gestia-radius);
-  background: #eef3f9;
+  background: var(--gestia-skeleton);
 }
 
 .gi-skeleton::after {

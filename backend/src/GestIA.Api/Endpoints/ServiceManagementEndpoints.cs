@@ -1,4 +1,5 @@
 using GestIA.Api.Security;
+using GestIA.Application.Common;
 using GestIA.Application.Security;
 using GestIA.Application.Services;
 
@@ -20,10 +21,12 @@ public static class ServiceManagementEndpoints
             Guid? idClient,
             Guid? idClientSite,
             Guid? idServiceContract,
-            bool? active,
+            ServiceStatusFilter? status,
+            DateOnly? coverageDate,
             int? page,
             int? pageSize,
             IServiceManagementService service,
+            IClock clock,
             CancellationToken cancellationToken) =>
         {
             if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
@@ -34,11 +37,14 @@ public static class ServiceManagementEndpoints
             var result = await service.SearchServicesAsync(
                 new ServiceListQuery(
                     organizationId,
+                    // La cobertura se calcula a un día, y el que vale por omisión es el operativo
+                    // del servidor: el del navegador se adelanta seis horas cada tarde.
+                    coverageDate ?? clock.Today,
                     search,
                     idClient,
                     idClientSite,
                     idServiceContract,
-                    active,
+                    status ?? ServiceStatusFilter.Active,
                     page ?? 1,
                     pageSize ?? 20),
                 cancellationToken);

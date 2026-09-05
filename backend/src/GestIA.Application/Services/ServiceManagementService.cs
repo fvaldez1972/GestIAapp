@@ -99,7 +99,8 @@ public sealed class ServiceManagementService(
                 query.IdClient,
                 query.IdClientSite,
                 query.IdServiceContract,
-                query.Active,
+                query.Status,
+                query.CoverageDate,
                 (query.Page - 1) * query.PageSize,
                 query.PageSize),
             cancellationToken);

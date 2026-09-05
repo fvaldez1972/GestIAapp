@@ -52,9 +52,15 @@ public sealed class ServiceManagementRepository(GestIaDbContext dbContext) : ISe
     /// cliente que sí queda es sólo para traer su nombre.</para>
     ///
     /// <para><b>Sobre el filtro de estado.</b> Omitirlo devuelve sólo los activos, como el resto
-    /// de las listas. Pedir los inactivos exige apagar el borrado lógico —y sólo ése: el
-    /// aislamiento entre organizaciones sigue en pie—. No existe la opción de pedir ambos a la
-    /// vez; si la pantalla la necesita, es una decisión que hay que tomar, no un descuido.</para>
+    /// de las listas. Pedir los inactivos, o los dos juntos, exige apagar el borrado lógico —y
+    /// sólo ése: el aislamiento entre organizaciones sigue en pie—. El listado de Servicios pinta
+    /// activos, inactivos y vencidos en una sola tabla, y por eso existe <c>All</c>.</para>
+    ///
+    /// <para><b>Sobre la cobertura.</b> Los dos números agregados existen para que el hueco se vea
+    /// desde el listado, sin abrir la ficha. Salen de dos subconsultas correlacionadas, no de
+    /// catorce llamadas: la vacancia por posición ya existe aparte, y ésta es la misma definición
+    /// sumada por servicio. Una asignación cuenta si empezó en o antes de la fecha y no había
+    /// terminado; el día en que termina todavía cuenta.</para>
     /// </summary>
     public async Task<(IReadOnlyList<ServiceListItemResponse> Items, int TotalCount)> SearchServicesAsync(
         ServiceSearchCriteria criteria,
@@ -64,10 +70,12 @@ public sealed class ServiceManagementRepository(GestIaDbContext dbContext) : ISe
 
         var query = dbContext.Services.AsNoTracking();
 
-        if (criteria.Active == false)
+        query = criteria.Status switch
         {
-            query = query.IgnoreQueryFilters(["Active"]).Where(service => !service.Active);
-        }
+            ServiceStatusFilter.Inactive => query.IgnoreQueryFilters(["Active"]).Where(service => !service.Active),
+            ServiceStatusFilter.All => query.IgnoreQueryFilters(["Active"]),
+            _ => query,
+        };
 
         if (criteria.IdClient is { } idClient)
         {
@@ -119,6 +127,16 @@ public sealed class ServiceManagementRepository(GestIaDbContext dbContext) : ISe
                 // Subconsulta correlacionada: una sola sentencia, sin materializar posiciones.
                 // Cuenta las activas, porque Positions conserva aquí sus propios filtros.
                 dbContext.Positions.Count(position => position.IdService == service.IdService),
+                dbContext.Positions
+                    .Where(position => position.IdService == service.IdService)
+                    .Sum(position => (int?)position.RequiredWorkerCount) ?? 0,
+                dbContext.Positions
+                    .Where(position => position.IdService == service.IdService)
+                    .Sum(position => (int?)dbContext.ServiceAssignments.Count(assignment =>
+                        assignment.IdPosition == position.IdPosition &&
+                        assignment.StartDate <= criteria.CoverageDate &&
+                        (assignment.EndDate == null || assignment.EndDate >= criteria.CoverageDate))) ?? 0,
+                criteria.CoverageDate,
                 service.Active))
             .ToArrayAsync(cancellationToken);
 

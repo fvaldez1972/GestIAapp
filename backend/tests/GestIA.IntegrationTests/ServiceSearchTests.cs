@@ -3,6 +3,7 @@ using GestIA.Domain.Clients;
 using GestIA.Domain.Organizations;
 using GestIA.Domain.Planning;
 using GestIA.Domain.Services;
+using GestIA.Domain.Workforce;
 using GestIA.Infrastructure.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore;
 
@@ -32,7 +33,7 @@ public sealed class ServiceSearchTests(OperationalSqlDatabase database)
     {
         var seed = await SeedAsync("UNA");
 
-        var (items, total) = await SearchAsync(new(seed.OrganizationId, null, null, null, null, null, 0, 20));
+        var (items, total) = await SearchAsync(Criterios(seed.OrganizationId));
 
         Assert.Equal(2, total);
 
@@ -63,7 +64,7 @@ public sealed class ServiceSearchTests(OperationalSqlDatabase database)
             await context.SaveChangesAsync();
         }
 
-        var (items, _) = await SearchAsync(new(seed.OrganizationId, null, null, null, null, null, 0, 20));
+        var (items, _) = await SearchAsync(Criterios(seed.OrganizationId));
 
         Assert.All(items, item => Assert.Equal("Razon Social CAI", item.ClientName));
     }
@@ -85,7 +86,7 @@ public sealed class ServiceSearchTests(OperationalSqlDatabase database)
             await context.SaveChangesAsync();
         }
 
-        var (items, _) = await SearchAsync(new(seed.OrganizationId, null, null, null, null, null, 0, 20));
+        var (items, _) = await SearchAsync(Criterios(seed.OrganizationId));
 
         Assert.Equal(1, Assert.Single(items, item => item.CodeService == "POS-SER-A").PositionsCount);
     }
@@ -95,16 +96,16 @@ public sealed class ServiceSearchTests(OperationalSqlDatabase database)
     {
         var seed = await SeedAsync("FIL");
 
-        var byClient = await SearchAsync(new(seed.OrganizationId, null, seed.ClientId, null, null, null, 0, 20));
+        var byClient = await SearchAsync(Criterios(seed.OrganizationId, idClient: seed.ClientId));
         Assert.Equal(2, byClient.TotalCount);
 
-        var bySite = await SearchAsync(new(seed.OrganizationId, null, null, seed.ClientSiteId, null, null, 0, 20));
+        var bySite = await SearchAsync(Criterios(seed.OrganizationId, idClientSite: seed.ClientSiteId));
         Assert.Equal(2, bySite.TotalCount);
 
-        var byContract = await SearchAsync(new(seed.OrganizationId, null, null, null, seed.ContractId, null, 0, 20));
+        var byContract = await SearchAsync(Criterios(seed.OrganizationId, idServiceContract: seed.ContractId));
         Assert.Equal(1, byContract.TotalCount);
 
-        var byOtherClient = await SearchAsync(new(seed.OrganizationId, null, Guid.NewGuid(), null, null, null, 0, 20));
+        var byOtherClient = await SearchAsync(Criterios(seed.OrganizationId, idClient: Guid.NewGuid()));
         Assert.Equal(0, byOtherClient.TotalCount);
     }
 
@@ -114,17 +115,20 @@ public sealed class ServiceSearchTests(OperationalSqlDatabase database)
     {
         var seed = await SeedAsync("BUS");
 
-        Assert.Equal(1, (await SearchAsync(new(seed.OrganizationId, "BUS-SER-A", null, null, null, null, 0, 20))).TotalCount);
-        Assert.Equal(2, (await SearchAsync(new(seed.OrganizationId, "Comercial BUS", null, null, null, null, 0, 20))).TotalCount);
-        Assert.Equal(0, (await SearchAsync(new(seed.OrganizationId, "nada que exista", null, null, null, null, 0, 20))).TotalCount);
+        Assert.Equal(1, (await SearchAsync(Criterios(seed.OrganizationId, search: "BUS-SER-A"))).TotalCount);
+        Assert.Equal(2, (await SearchAsync(Criterios(seed.OrganizationId, search: "Comercial BUS"))).TotalCount);
+        Assert.Equal(0, (await SearchAsync(Criterios(seed.OrganizationId, search: "nada que exista"))).TotalCount);
     }
 
     /// <summary>
-    /// Omitir el estado devuelve sólo los activos, como el resto de las listas del sistema.
-    /// Pedir los inactivos apaga el borrado lógico <b>y sólo ése</b>.
+    /// Los tres modos. Omitir el estado devuelve sólo los activos, como el resto de las listas del
+    /// sistema; los otros dos apagan el borrado lógico <b>y sólo ése</b>.
+    ///
+    /// <para>El modo <c>All</c> existe porque el listado de Servicios pinta activos, inactivos y
+    /// vencidos en una sola tabla. Antes no había forma de ver los dos primeros juntos.</para>
     /// </summary>
     [OperationalSqlFact]
-    public async Task TheStatusFilterSeparatesActiveFromInactive()
+    public async Task TheStatusFilterSeparatesActiveFromInactiveAndCanReturnBoth()
     {
         var seed = await SeedAsync("EST");
 
@@ -135,11 +139,79 @@ public sealed class ServiceSearchTests(OperationalSqlDatabase database)
             await context.SaveChangesAsync();
         }
 
-        Assert.Equal(1, (await SearchAsync(new(seed.OrganizationId, null, null, null, null, null, 0, 20))).TotalCount);
-        Assert.Equal(1, (await SearchAsync(new(seed.OrganizationId, null, null, null, null, true, 0, 20))).TotalCount);
+        var active = await SearchAsync(Criterios(seed.OrganizationId));
+        Assert.Equal(1, active.TotalCount);
+        Assert.All(active.Items, item => Assert.True(item.Active));
 
-        var inactive = await SearchAsync(new(seed.OrganizationId, null, null, null, null, false, 0, 20));
+        var inactive = await SearchAsync(Criterios(seed.OrganizationId, status: ServiceStatusFilter.Inactive));
         Assert.False(Assert.Single(inactive.Items).Active);
+
+        var all = await SearchAsync(Criterios(seed.OrganizationId, status: ServiceStatusFilter.All));
+        Assert.Equal(2, all.TotalCount);
+        Assert.Contains(all.Items, item => item.Active);
+        Assert.Contains(all.Items, item => !item.Active);
+    }
+
+    /// <summary>
+    /// La cobertura agregada, que es la razón de que la columna «Posiciones» exista: el hueco se
+    /// ve desde el listado, sin abrir la ficha y sin una llamada por fila.
+    ///
+    /// <para>La definición es la misma de la vacancia por posición, sumada por servicio: una
+    /// asignación cuenta si empezó en o antes de la fecha y no había terminado.</para>
+    /// </summary>
+    [OperationalSqlFact]
+    public async Task TheListAddsUpRequiredAndAssignedAtTheGivenDate()
+    {
+        var seed = await SeedAsync("COB");
+
+        var (items, _) = await SearchAsync(Criterios(seed.OrganizationId));
+        var withPositions = Assert.Single(items, item => item.CodeService == "COB-SER-A");
+
+        // Dos posiciones, de uno y de dos: tres personas pedidas y nadie asignado todavía.
+        Assert.Equal(3, withPositions.RequiredWorkerCount);
+        Assert.Equal(0, withPositions.AssignedWorkerCount);
+        Assert.Equal(3, withPositions.Vacancy);
+        Assert.True(withPositions.HasVacancy);
+        Assert.Equal(Day, withPositions.CoverageDate);
+
+        var withoutPositions = Assert.Single(items, item => item.CodeService == "COB-SER-B");
+        Assert.Equal(0, withoutPositions.RequiredWorkerCount);
+        Assert.Equal(0, withoutPositions.Vacancy);
+        Assert.False(withoutPositions.HasVacancy);
+    }
+
+    /// <summary>
+    /// La cobertura depende de la fecha, y por eso viaja con ella. Una asignación que empieza
+    /// mañana no cubre hoy, y una que terminó ayer tampoco.
+    /// </summary>
+    [OperationalSqlFact]
+    public async Task TheCoverageOnlyCountsAssignmentsInForceThatDay()
+    {
+        var seed = await SeedAsync("FEC");
+        await AssignAsync(seed, first: 1, start: Day, end: Day);
+
+        Assert.Equal(1, (await CoverageAsync(seed, Day)).AssignedWorkerCount);
+        // El día en que termina todavía cuenta; el siguiente ya no.
+        Assert.Equal(0, (await CoverageAsync(seed, Day.AddDays(1))).AssignedWorkerCount);
+        Assert.Equal(0, (await CoverageAsync(seed, Day.AddDays(-1))).AssignedWorkerCount);
+    }
+
+    /// <summary>
+    /// <b>El excedente se muestra, no se recorta.</b> Más gente que cupo en una posición revela
+    /// una violación de control, y esconderla detrás de un cero la vuelve invisible.
+    /// </summary>
+    [OperationalSqlFact]
+    public async Task TheOverstaffedServiceReportsANegativeVacancy()
+    {
+        var seed = await SeedAsync("EXC");
+        await AssignAsync(seed, first: 4, start: Day, end: null);
+
+        var cobertura = await CoverageAsync(seed, Day);
+
+        Assert.Equal(3, cobertura.RequiredWorkerCount);
+        Assert.Equal(4, cobertura.AssignedWorkerCount);
+        Assert.Equal(-1, cobertura.Vacancy);
+        Assert.False(cobertura.HasVacancy);
     }
 
     [OperationalSqlFact]
@@ -147,7 +219,7 @@ public sealed class ServiceSearchTests(OperationalSqlDatabase database)
     {
         var seed = await SeedAsync("PAG");
 
-        var page = await SearchAsync(new(seed.OrganizationId, null, null, null, null, null, 0, 1));
+        var page = await SearchAsync(Criterios(seed.OrganizationId, take: 1));
 
         Assert.Equal(2, page.TotalCount);
         Assert.Single(page.Items);
@@ -164,22 +236,73 @@ public sealed class ServiceSearchTests(OperationalSqlDatabase database)
         var other = await SeedAsync("OTR");
 
         database.Organization.SetAuthorizedOrganization(mine.OrganizationId);
-        var own = await SearchAsync(new(mine.OrganizationId, null, null, null, null, null, 0, 20));
+        var own = await SearchAsync(Criterios(mine.OrganizationId));
         Assert.Equal(2, own.TotalCount);
         Assert.All(own.Items, item => Assert.StartsWith("MIA", item.CodeService, StringComparison.Ordinal));
 
         // Parado en la otra organización, ni siquiera pidiendo la primera por parámetro.
         database.Organization.SetAuthorizedOrganization(other.OrganizationId);
-        var foreign = await SearchAsync(new(mine.OrganizationId, null, null, null, null, null, 0, 20));
+        var foreign = await SearchAsync(Criterios(mine.OrganizationId));
         Assert.Equal(2, foreign.TotalCount);
         Assert.All(foreign.Items, item => Assert.StartsWith("OTR", item.CodeService, StringComparison.Ordinal));
     }
+
+    /// <summary>
+    /// Criterios con nombres. El registro creció y las llamadas posicionales dejaron de leerse:
+    /// seis nulos seguidos no dicen cuál es cuál.
+    /// </summary>
+    private static ServiceSearchCriteria Criterios(
+        Guid organizationId,
+        string? search = null,
+        Guid? idClient = null,
+        Guid? idClientSite = null,
+        Guid? idServiceContract = null,
+        ServiceStatusFilter status = ServiceStatusFilter.Active,
+        DateOnly? coverageDate = null,
+        int skip = 0,
+        int take = 20) =>
+        new(organizationId, search, idClient, idClientSite, idServiceContract, status, coverageDate ?? Day, skip, take);
 
     private async Task<(IReadOnlyList<ServiceListItemResponse> Items, int TotalCount)> SearchAsync(
         ServiceSearchCriteria criteria)
     {
         await using var context = database.Context();
         return await new ServiceManagementRepository(context).SearchServicesAsync(criteria, Token);
+    }
+
+    /// <summary>La cobertura del servicio con posiciones, a la fecha que se pida.</summary>
+    private async Task<ServiceListItemResponse> CoverageAsync(Seed seed, DateOnly date)
+    {
+        var (items, _) = await SearchAsync(Criterios(seed.OrganizationId, coverageDate: date));
+        return Assert.Single(items, item => item.IdService == seed.ServiceWithPositionsId);
+    }
+
+    /// <summary>Asigna gente a la primera posición del servicio con posiciones.</summary>
+    private async Task AssignAsync(Seed seed, int first, DateOnly start, DateOnly? end)
+    {
+        await using var context = database.Context();
+        var position = await context.Positions
+            .Where(item => item.IdService == seed.ServiceWithPositionsId)
+            .OrderBy(item => item.CodePosition)
+            .FirstAsync();
+
+        for (var i = 0; i < first; i++)
+        {
+            var employee = Employee.Create(
+                seed.OrganizationId, $"EMP-{Guid.NewGuid():N}"[..12], $"Empleado {i}", null, Day, ActorId, ActorName, Now);
+            var assignment = ServiceAssignment.Create(
+                seed.OrganizationId,
+                employee.IdEmployee,
+                seed.ServiceWithPositionsId,
+                new(position.IdPosition, ServiceAssignmentType.Primary, start, end, true, null),
+                ActorId,
+                ActorName,
+                Now);
+
+            context.AddRange(employee, assignment);
+        }
+
+        await context.SaveChangesAsync();
     }
 
     private async Task<Seed> SeedAsync(string prefix)

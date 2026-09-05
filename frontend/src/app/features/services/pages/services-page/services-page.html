@@ -52,7 +52,7 @@
 
       <gi-data-table
         label="Servicios de la organización"
-        [columns]="columns"
+        [columns]="columns()"
         [rows]="serviceList().items"
         [rowId]="porId"
         [state]="tableState()"

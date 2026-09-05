@@ -9,6 +9,9 @@
 }
 .services-workspace {
   display: grid;
+  /* Sin esto, el panel de 620 px empuja la rejilla y la página entera se desplaza a lo ancho,
+     que es justo lo que el sistema prohíbe: el ancho lo absorbe la tabla, por dentro. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 20px;
 }
 h1,
@@ -446,7 +449,7 @@ footer {
 
 .services-list {
   display: flex;
-  flex: 1;
+  flex: 1 1 0;
   min-width: 0;
   flex-direction: column;
   gap: var(--gestia-page-gap);

@@ -275,3 +275,28 @@ sólido pesa demasiado.
 **Velo de diálogo:** `--gestia-navy` **al 28 % de opacidad**, es decir `rgba(16, 16, 78, 0.28)`.
 Es el **único valor derivado de un token** en todo el sistema, y queda escrito aquí justo para
 que nadie invente otro. No se usa negro, ni gris, ni otra opacidad.
+
+---
+
+## Lo que la pantalla de Servicios dejó abierto (2026-09-05)
+
+La pestaña **Posiciones** se movió al panel **sin tocar su contenido**, porque depende de tres
+decisiones de negocio que siguen sin tomarse:
+
+1. **Traslape: ¿bloquea o advierte?** Hoy el servidor **bloquea** y no hay forma de saltárselo, así
+   que la pantalla lo muestra como error con salida de lectura —ver el turno en conflicto, elegir
+   a otra persona— y **no** ofrece «Asignar de todos modos». Un botón que promete algo que el
+   servidor rechaza es peor que no tenerlo. Cuando se decida que advierte, entra con su parámetro.
+2. **Cuántos días de descanso tiene una posición típica.** El bosquejo dibuja dos; si es uno, el
+   patrón semanal se lee distinto.
+3. **La fecha ancla sin selector de librería.** Falta decidir si se construye el control o entra
+   Flatpickr con su caso funcional.
+
+Y dos correcciones al bosquejo, hechas el mismo día:
+
+- **«Zona» no existe en el modelo.** Se cambió por **Municipio**, que sí está capturado en la sede
+  del cliente. Agregar un campo al modelo por una etiqueta del bosquejo habría sido inventar
+  entidad.
+- **La nota de elegibilidad estaba vieja.** Decía que el puesto de la persona y el perfil de la
+  posición se comparan como texto libre; desde la tanda F1 se comparan por identificador de
+  catálogo, y una diferencia de redacción ya no bloquea.

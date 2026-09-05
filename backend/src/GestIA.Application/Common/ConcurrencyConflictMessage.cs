@@ -1,4 +1,3 @@
-using System.Globalization;
 
 namespace GestIA.Application.Common;
 
@@ -34,6 +33,9 @@ public sealed record ConcurrencyConflictAuthor(string? ActorName, DateTime? Occu
 /// </summary>
 public static class ConcurrencyConflictMessage
 {
+    private static readonly string[] Meses =
+        ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+
     /// <summary>Lo que se responde cuando no se pudo saber quién fue.</summary>
     public const string Generic =
         "Los datos cambiaron mientras editabas. Vuelve a cargar el registro para no perder el " +
@@ -90,7 +92,9 @@ public static class ConcurrencyConflictMessage
             occurredAt.Kind == DateTimeKind.Utc ? occurredAt : DateTime.SpecifyKind(occurredAt, DateTimeKind.Utc),
             zone);
 
-        var culture = CultureInfo.GetCultureInfo("es-MX");
-        return $"{name}, el {local.ToString("dd MMM yyyy", culture)} a las {local.ToString("HH:mm", culture)},";
+        // **El formato es el único de la aplicación: `04 sep 2026`.** La cultura es-MX abrevia
+        // septiembre como «sept», de cuatro letras, y eso metía un segundo formato de fecha en un
+        // producto que tiene uno solo. Los meses van escritos aquí por esa razón.
+        return $"{name}, el {local.Day:00} {Meses[local.Month - 1]} {local.Year} a las {local.Hour:00}:{local.Minute:00},";
     }
 }

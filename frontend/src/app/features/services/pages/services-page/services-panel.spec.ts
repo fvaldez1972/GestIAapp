@@ -134,6 +134,24 @@ describe('Servicios · ficha', () => {
     expect(raiz().querySelectorAll('gi-data-table tbody tr').length).toBeGreaterThan(0);
   });
 
+  /**
+   * Comprimirse no es cortar columnas dentro de su propio scroll: con la ficha abierta la tabla
+   * muestra las tres que importan, como dibuja el bosquejo.
+   */
+  it('con la ficha abierta la tabla reduce sus columnas', () => {
+    const antes = Array.from(raiz().querySelectorAll('gi-data-table thead th')).map((th) =>
+      th.textContent?.trim(),
+    );
+    expect(antes).toEqual(['Servicio', 'Cliente · Sede', 'Vigencia', 'Posiciones', 'Estado', '']);
+
+    abrir();
+
+    const despues = Array.from(raiz().querySelectorAll('gi-data-table thead th')).map((th) =>
+      th.textContent?.trim(),
+    );
+    expect(despues).toEqual(['Servicio', 'Posiciones', 'Estado', '']);
+  });
+
   it('las cuatro pestañas, y la primera se llama Datos', () => {
     abrir();
     const pestanas = Array.from(raiz().querySelectorAll('[role="tab"] > span:first-child')).map((t) =>
@@ -197,6 +215,8 @@ describe('Servicios · ficha', () => {
       expect(pagina()['conflict']()).toContain('Ana Ruiz');
       expect(pagina()['error']()).toBe('');
       expect(raiz().querySelector('.conflict')?.textContent).toContain('Volver a cargar');
+      // El editor se cierra: lo que hay dentro es la versión vieja, y además taparía el aviso.
+      expect(pagina()['configurationEditorOpen']()).toBe(false);
     });
 
     /**

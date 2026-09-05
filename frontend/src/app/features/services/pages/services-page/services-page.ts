@@ -215,7 +215,7 @@ export class ServicesPage implements OnInit, OnDestroy {
   });
 
   /** Los cuatro anchos de referencia del sistema, más el de la columna de acciones. */
-  protected readonly columns: readonly GiColumn[] = [
+  private readonly todasLasColumnas: readonly GiColumn[] = [
     { key: 'name', label: 'Servicio', width: '220px', kind: 'name' },
     { key: 'clientSite', label: 'Cliente · Sede', width: '190px' },
     { key: 'term', label: 'Vigencia', width: '150px', kind: 'meta' },
@@ -223,6 +223,19 @@ export class ServicesPage implements OnInit, OnDestroy {
     { key: 'state', label: 'Estado', width: '130px' },
     { key: 'actions', label: '', width: '52px', align: 'end' },
   ];
+
+  /**
+   * Con la ficha abierta la tabla se comprime, así que muestra menos columnas: servicio, cobertura
+   * y estado. **Es lo que dibuja el bosquejo**, y la alternativa —seguir con las seis— deja la
+   * mitad cortadas dentro de su propio scroll, que es peor que no mostrarlas.
+   */
+  protected readonly columns = computed<readonly GiColumn[]>(() =>
+    this.selectedService()
+      ? this.todasLasColumnas.filter((column) =>
+          ['name', 'coverage', 'state', 'actions'].includes(column.key),
+        )
+      : this.todasLasColumnas,
+  );
 
   protected readonly statusGroups = computed<readonly GiFilterGroup[]>(() => [
     {
@@ -1733,6 +1746,11 @@ export class ServicesPage implements OnInit, OnDestroy {
     // código. El de concurrencia no se arregla reintentando, y el servidor lo distingue por el
     // título justo para que aquí se pueda ofrecer la salida correcta.
     if (error.status === 409 && title === 'Conflicto de concurrencia') {
+      // **Se cierra el editor.** Lo que hay dentro es la versión vieja, y dejarlo abierto invita a
+      // volver a guardar lo mismo. Además el diálogo taparía el aviso, que es lo único que aquí
+      // sirve: ver qué cambió la otra persona.
+      this.configurationEditorOpen.set(false);
+      this.assignmentEditorOpen.set(false);
       this.conflict.set(mensaje);
       return;
     }

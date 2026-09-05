@@ -82,14 +82,6 @@ public sealed class OperationsService(
         }
         else
         {
-            var authorizationErrors = new Dictionary<string, string[]>();
-            var correctionAuthorizationNotes = InputValidation.Optional(
-                request.CorrectionAuthorizationNotes,
-                nameof(request.CorrectionAuthorizationNotes),
-                1000,
-                authorizationErrors);
-            InputValidation.ThrowIfInvalid(authorizationErrors);
-
             if (AttendanceChanged(existing, profile) && !request.IdApprovalRequest.HasValue)
             {
                 throw new RequestValidationException(new Dictionary<string, string[]>
@@ -114,11 +106,12 @@ public sealed class OperationsService(
             await RequireCorrectionReasonAsync(
                 request.IdService, existing.AttendanceDate, request.CorrectionReason, cancellationToken);
 
+            // Las notas del registro se quedan como las escribió el supervisor. La justificación
+            // de la corrección viaja por CorrectionReason y se guarda en el evento de historial,
+            // que es su lugar; y qué autorización la permitió se sabe por el propio
+            // ApprovalRequest, que apunta a este registro con EntityType y EntityId.
             existing.UpdateProfile(
-                profile with
-                {
-                    Notes = BuildAttendanceCorrectionNotes(profile.Notes, correctionAuthorizationNotes, request.IdApprovalRequest)
-                },
+                profile,
                 actorContext.ActorId,
                 actorContext.ActorName,
                 clock.UtcNow);
@@ -785,32 +778,6 @@ public sealed class OperationsService(
         record.ActualEndTime != profile.ActualEndTime ||
         record.MinutesLate != profile.MinutesLate ||
         !string.Equals(record.Notes, profile.Notes, StringComparison.Ordinal);
-
-    private static string? BuildAttendanceCorrectionNotes(string? notes, string? correctionAuthorizationNotes)
-    {
-        return BuildAttendanceCorrectionNotes(notes, correctionAuthorizationNotes, null);
-    }
-
-    private static string? BuildAttendanceCorrectionNotes(
-        string? notes,
-        string? correctionAuthorizationNotes,
-        Guid? idApprovalRequest)
-    {
-        if (string.IsNullOrWhiteSpace(correctionAuthorizationNotes) && !idApprovalRequest.HasValue)
-        {
-            return notes;
-        }
-
-        var approvalReference = idApprovalRequest.HasValue ? $"Autorización aprobada: {idApprovalRequest.Value}" : null;
-        var correctionNote = string.Join(
-            " · ",
-            new[] { approvalReference, string.IsNullOrWhiteSpace(correctionAuthorizationNotes) ? null : $"Nota: {correctionAuthorizationNotes.Trim()}" }
-                .Where(value => !string.IsNullOrWhiteSpace(value)));
-
-        return string.IsNullOrWhiteSpace(notes)
-            ? correctionNote
-            : $"{notes.Trim()} | {correctionNote}";
-    }
 
     private async Task EnsureApprovedApprovalRequestAsync(
         Guid idOrganization,

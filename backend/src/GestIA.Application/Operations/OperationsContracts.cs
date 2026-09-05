@@ -14,7 +14,6 @@ public sealed record UpsertAttendanceRequest(
     TimeOnly? ActualEndTime,
     int MinutesLate,
     string? Notes,
-    string? CorrectionAuthorizationNotes,
     Guid? IdApprovalRequest,
     string? CorrectionReason = null);
 

@@ -33,7 +33,9 @@ export class ServiceApiService {
       .set('pageSize', String(options.pageSize ?? 20));
 
     if (options.clientId) {
-      params = params.set('clientId', options.clientId);
+      // El endpoint lo llama , con la convención del dominio. El  del
+      // enlace es el parámetro de la ruta, que es otra cosa.
+      params = params.set('idClient', options.clientId);
     }
 
     if (options.search?.trim()) {

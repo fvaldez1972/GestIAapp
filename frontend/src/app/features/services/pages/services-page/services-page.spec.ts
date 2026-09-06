@@ -158,7 +158,8 @@ describe('ServicesPage organization-scoped workflows', () => {
     // enlace, y la acotada que busca el servicio enlazado aunque esté en otra página o inactivo.
     const consultas = http.match(r => r.url === '/api/v1/services');
     expect(consultas).toHaveLength(2);
-    expect(consultas[0].request.params.get('clientId')).toBe('client-a');
+    // El endpoint lo llama `idClient`; `clientId` es el parámetro de la ruta que trajo el enlace.
+    expect(consultas[0].request.params.get('idClient')).toBe('client-a');
     consultas.forEach(c =>
       c.flush({ items: [listItem], totalCount: 1, page: 1, pageSize: 200, totalPages: 1 }));
 

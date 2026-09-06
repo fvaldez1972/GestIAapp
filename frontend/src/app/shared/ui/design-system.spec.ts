@@ -27,6 +27,7 @@ const RAICES = [
   resolve('src/app/shared/ui'),
   resolve('src/app/features/overview'),
   resolve('src/app/features/clients'),
+  resolve('src/app/features/workforce'),
 ];
 
 /** Los siete tamaños de la escala. Ni uno más; el 13.5 px está prohibido por nombre. */

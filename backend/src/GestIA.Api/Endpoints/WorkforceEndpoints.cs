@@ -125,6 +125,79 @@ public static class WorkforceEndpoints
             .RequirePermission(SecurityPermissions.WorkforceWrite)
             .WithName("DeactivateEmployee");
 
+        // El listado que la pantalla usa: trae el puesto de catálogo, el resumen documental y las
+        // asignaciones, y filtra por puesto y por vigencia. El de arriba se conserva porque otras
+        // pantallas lo usan como fuente de opciones.
+        group.MapGet("/search", async (
+            HttpContext context,
+            Guid organizationId,
+            string? search,
+            EmployeeStatus? status,
+            Guid? idJobPositionCatalogItem,
+            EmployeeDocumentFilter? documents,
+            string? municipality,
+            int? page,
+            int? pageSize,
+            IEmployeeSearchService service,
+            CancellationToken cancellationToken) =>
+        {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
+            return Results.Ok(await service.SearchAsync(
+                new EmployeeSearchQuery(
+                    organizationId,
+                    search,
+                    status,
+                    idJobPositionCatalogItem,
+                    documents ?? EmployeeDocumentFilter.Any,
+                    municipality,
+                    page ?? 1,
+                    pageSize ?? 25),
+                cancellationToken));
+        })
+            .RequirePermission(SecurityPermissions.WorkforceRead)
+            .WithName("SearchEmployees");
+
+        // Las opciones reales de los filtros. Sacarlas de la página ya traída daría una lista
+        // distinta en cada página, que es la clase de filtro que miente.
+        group.MapGet("/filters", async (
+            HttpContext context,
+            Guid organizationId,
+            IEmployeeSearchService service,
+            CancellationToken cancellationToken) =>
+        {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
+            return Results.Ok(await service.GetFilterOptionsAsync(organizationId, cancellationToken));
+        })
+            .RequirePermission(SecurityPermissions.WorkforceRead)
+            .WithName("ListEmployeeFilterOptions");
+
+        // Las asignaciones de una persona. Antes sólo se alcanzaban por cliente y servicio, así que
+        // la pestaña habría tenido que recorrer todos los servicios de la organización.
+        group.MapGet("/{idEmployee:guid}/assignments", async (
+            HttpContext context,
+            Guid organizationId,
+            Guid idEmployee,
+            IEmployeeSearchService service,
+            CancellationToken cancellationToken) =>
+        {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
+            return Results.Ok(await service.ListAssignmentsAsync(organizationId, idEmployee, cancellationToken));
+        })
+            .RequirePermission(SecurityPermissions.WorkforceRead)
+            .WithName("ListEmployeeAssignments");
+
         group.MapGet("/{idEmployee:guid}/documents", async (
             HttpContext context,
             Guid idEmployee,

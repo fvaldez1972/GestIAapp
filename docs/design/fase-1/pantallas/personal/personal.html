@@ -25,7 +25,7 @@
   <div style="display:flex;flex-direction:column;gap:10px;max-width:1440px">
     <div style="font:600 11px Archivo,sans-serif;letter-spacing:.16em;color:#5f6b7a">PERSONAL · DISEÑO TERMINADO · 1440 PX · TOKENS DE MARCA</div>
     <div style="font:700 30px/1.15 Archivo,sans-serif;color:#10104e">Paso 7: alta de empleados con expediente mínimo</div>
-    <div style="font:400 14px/1.5 Archivo,sans-serif;color:#5f6b7a;max-width:90ch">Cinco vistas. Sesión de administrador de organización: menú de diez entradas, y la barra de contexto sin Cambiar ni Salir. Los nueve filtros quedan en cuatro; las cinco pestañas de la ficha, en tres. El expediente mínimo es identidad, contacto, zona, puesto, fecha de ingreso y los documentos indispensables: antidoping, uniformes, psicometría, Infonavit y registro estatal quedan fuera de la fase 1.</div>
+    <div style="font:400 14px/1.5 Archivo,sans-serif;color:#5f6b7a;max-width:90ch">Cinco vistas. Sesión de administrador de organización: menú de diez entradas, y la barra de contexto sin Cambiar ni Salir. Los nueve filtros quedan en cuatro; las cinco pestañas de la ficha, en tres. El expediente mínimo es identidad, contacto, estado y municipio, puesto, fecha de ingreso y los documentos indispensables: antidoping, uniformes, psicometría, Infonavit y registro estatal quedan fuera de la fase 1.</div>
   </div>
 
   <section data-screen-label="Vista 1 · Listado" id="v1" style="display:flex;flex-direction:column;gap:14px">
@@ -63,19 +63,19 @@
                 <button type="button" style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;background:#ffffff;padding:0 14px;display:flex;align-items:center;gap:8px;font:600 12.5px Archivo,sans-serif;color:#253040;flex:none;cursor:pointer">Filtros <span style="border:1px solid #22c6ee;background:#e9f7fa;border-radius:3px;padding:1px 6px;font:600 10.5px Archivo,sans-serif;color:#087f9c">2</span></button>
               </div>
               <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-                <span style="border:1px solid #dce2e9;background:#f7f9fb;border-radius:3px;padding:5px 9px;font:500 12px Archivo,sans-serif;color:#253040;display:flex;gap:8px;align-items:center">Zona: Poniente <button type="button" aria-label="Quitar filtro Zona: Poniente" style="border:0;background:transparent;padding:0;font:600 11px Archivo,sans-serif;color:#5f6b7a;cursor:pointer">✕</button></span>
+                <span style="border:1px solid #dce2e9;background:#f7f9fb;border-radius:3px;padding:5px 9px;font:500 12px Archivo,sans-serif;color:#253040;display:flex;gap:8px;align-items:center">Municipio: Zapopan <button type="button" aria-label="Quitar filtro Municipio: Zapopan" style="border:0;background:transparent;padding:0;font:600 11px Archivo,sans-serif;color:#5f6b7a;cursor:pointer">✕</button></span>
                 <span style="border:1px solid #dce2e9;background:#f7f9fb;border-radius:3px;padding:5px 9px;font:500 12px Archivo,sans-serif;color:#253040;display:flex;gap:8px;align-items:center">Vigencia: vencidos y por vencer <button type="button" aria-label="Quitar filtro Vigencia: vencidos y por vencer" style="border:0;background:transparent;padding:0;font:600 11px Archivo,sans-serif;color:#5f6b7a;cursor:pointer">✕</button></span>
                 <button type="button" style="border:0;background:transparent;padding:0;font:600 12px Archivo,sans-serif;color:#087f9c;cursor:pointer">Quitar todos</button>
               </div>
             </div>
             <div style="display:flex;align-items:center;padding:11px 16px;background:#f7f9fb;border-bottom:1px solid #dce2e9;font:600 10.5px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">
-              <span style="width:220px;flex:none">EMPLEADO</span><span style="width:190px;flex:none">PUESTO</span><span style="flex:1;min-width:0">ZONA</span><span style="width:130px;flex:none">INGRESO</span><span style="width:150px;flex:none">DOCUMENTOS</span><span style="width:130px;flex:none">ESTADO</span><span style="width:52px;flex:none"></span>
+              <span style="width:220px;flex:none">EMPLEADO</span><span style="width:190px;flex:none">PUESTO</span><span style="flex:1;min-width:0">ESTADO · MUNICIPIO</span><span style="width:130px;flex:none">INGRESO</span><span style="width:150px;flex:none">DOCUMENTOS</span><span style="width:130px;flex:none">ESTADO</span><span style="width:52px;flex:none"></span>
             </div>
             <sc-for list="{{ rows }}" as="r" hint-placeholder-count="9">
               <div style="display:flex;align-items:center;padding:13px 16px;border-bottom:1px solid #dce2e9;background:#ffffff">
                 <span style="width:220px;flex:none;font:600 13px Archivo,sans-serif;color:#253040;padding-right:16px">{{ r.nombre }}</span>
                 <span style="width:190px;flex:none;font:400 12.5px Archivo,sans-serif;color:#5f6b7a;padding-right:16px">{{ r.puesto }}</span>
-                <span style="flex:1;min-width:0;font:400 12.5px Archivo,sans-serif;color:#5f6b7a;padding-right:16px">{{ r.zona }}</span>
+                <span style="flex:1;min-width:0;font:400 12.5px Archivo,sans-serif;color:#5f6b7a;padding-right:16px">{{ r.ubicacion }}</span>
                 <span style="width:130px;flex:none;font:400 12px Archivo,sans-serif;color:#5f6b7a">{{ r.ingreso }}</span>
                 <span style="width:150px;flex:none;padding-right:12px">
                   <span style="border:1px solid {{ r.docBorder }};background:{{ r.docBg }};border-radius:3px;padding:3px 8px;font:600 10.5px Archivo,sans-serif;color:{{ r.docColor }}">{{ r.docText }}</span>
@@ -98,8 +98,8 @@
               <div style="padding:11px 14px;background:#f7f9fb;border-bottom:1px solid #dce2e9;font:600 10.5px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">PANEL DE FILTROS · ABIERTO</div>
               <div style="padding:14px;display:flex;flex-direction:column;gap:13px">
                 <div style="display:flex;flex-direction:column;gap:5px">
-                  <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">ZONA</span>
-                  <span style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;justify-content:space-between;padding:0 11px;font:600 12.5px Archivo,sans-serif;color:#253040">Poniente <span style="font-size:10px;color:#5f6b7a">▾</span></span>
+                  <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">MUNICIPIO</span>
+                  <span style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;justify-content:space-between;padding:0 11px;font:600 12.5px Archivo,sans-serif;color:#253040">Zapopan <span style="font-size:10px;color:#5f6b7a">▾</span></span>
                 </div>
                 <div style="display:flex;flex-direction:column;gap:5px">
                   <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">PUESTO</span>
@@ -120,19 +120,18 @@
                   <span style="display:flex;align-items:center;gap:9px;font:400 12.5px Archivo,sans-serif;color:#253040"><span style="width:15px;height:15px;border:1px solid #dce2e9;border-radius:3px;flex:none"></span>Sin cargar</span>
                   <span style="display:flex;align-items:center;gap:9px;font:400 12.5px Archivo,sans-serif;color:#253040"><span style="width:15px;height:15px;border:1px solid #dce2e9;border-radius:3px;flex:none"></span>Al día</span>
                 </div>
-                <div style="font:400 11.5px/1.5 Archivo,sans-serif;color:#5f6b7a;border-top:1px solid #dce2e9;padding-top:11px">Los {{ umbral }} días son el valor por defecto de la organización, configurable. Sin botón «Filtrar»: se aplican al cambiar.</div>
+                <div style="font:400 11.5px/1.5 Archivo,sans-serif;color:#5f6b7a;border-top:1px solid #dce2e9;padding-top:11px">Los {{ umbral }} días los decide el servidor y hoy son fijos; el modelo no tiene dónde guardar un umbral por organización. Volverlo configurable es una decisión de negocio con su propia migración, anotada como tal. Sin botón «Filtrar»: se aplican al cambiar.</div>
               </div>
             </div>
             <div style="width:260px;flex:none;background:#ffffff;border:1px solid #dce2e9;border-radius:6px;overflow:hidden">
               <div style="padding:11px 14px;background:#f7f9fb;border-bottom:1px solid #dce2e9;font:600 10.5px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">ACCIONES DE FILA · MENÚ ABIERTO</div>
               <div style="display:flex;flex-direction:column;padding:6px 0">
-                <span style="padding:10px 14px;font:500 13px Archivo,sans-serif;color:#253040;background:#e9f7fa">Editar empleado</span>
-                <span style="padding:10px 14px;font:500 13px Archivo,sans-serif;color:#253040">Asignar a una posición</span>
+                <span style="padding:10px 14px;font:500 13px Archivo,sans-serif;color:#253040;background:#e9f7fa">Asignar a una posición</span>
                 <span style="padding:10px 14px;font:500 13px Archivo,sans-serif;color:#253040">Registrar permiso</span>
                 <span style="height:1px;background:#dce2e9;margin:6px 0"></span>
                 <span style="padding:10px 14px;font:600 13px Archivo,sans-serif;color:#dc2626">Dar de baja</span>
               </div>
-              <div style="padding:12px 14px;border-top:1px solid #dce2e9;font:400 11.5px/1.5 Archivo,sans-serif;color:#5f6b7a">Documentos no está aquí: ya existe como pestaña del panel.</div>
+              <div style="padding:12px 14px;border-top:1px solid #dce2e9;font:400 11.5px/1.5 Archivo,sans-serif;color:#5f6b7a">Ni Documentos ni «Editar empleado» están aquí: la fila entera abre la ficha y los documentos son una de sus pestañas. Dos caminos al mismo sitio obligan a elegir entre opciones que no se distinguen.</div>
             </div>
             <div style="flex:1;background:#ffffff;border:1px solid #dce2e9;border-radius:6px;padding:16px;display:flex;flex-direction:column;gap:16px;min-width:0">
               <div><div style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a;padding-bottom:7px">LO QUE SE FUE DE ESTA PANTALLA</div><div style="font:400 12.5px/1.6 Archivo,sans-serif;color:#253040">De nueve filtros expuestos quedan cuatro. Se van «Sin sede visible» y «Todos los servicios», que tienen una sola opción real; el selector de organización, que se hereda de la barra de contexto; y los que repetían el buscador. De cinco pestañas en la ficha quedan tres.</div></div>
@@ -228,44 +227,43 @@
                 <div style="display:flex;flex-direction:column;gap:11px">
                   <div style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">ADSCRIPCIÓN</div>
                   <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px 16px">
-                    <div style="display:flex;flex-direction:column;gap:3px"><span style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">ZONA</span><span style="font:600 12.5px Archivo,sans-serif;color:#253040">Poniente</span></div>
+                    <div style="display:flex;flex-direction:column;gap:3px"><span style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">ESTADO · MUNICIPIO</span><span style="font:600 12.5px Archivo,sans-serif;color:#253040">Jalisco · Zapopan</span></div>
                     <div style="display:flex;flex-direction:column;gap:3px"><span style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">PUESTO</span><span style="font:600 12.5px Archivo,sans-serif;color:#253040">Guardia acceso</span></div>
                     <div style="display:flex;flex-direction:column;gap:3px"><span style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">FECHA DE INGRESO</span><span style="font:600 12.5px Archivo,sans-serif;color:#253040">28 ago 2026</span></div>
                   </div>
                 </div>
                 <div style="border:1px solid #d97706;border-radius:6px;background:#ffffff;padding:14px;display:flex;flex-direction:column;gap:11px">
                   <div style="display:flex;align-items:center;gap:9px">
-                    <span style="border:1px solid #d97706;border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:#d97706">NO ELEGIBLE</span>
+                    <span style="border:1px solid #d97706;border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:#d97706">ELEGIBLE, CON EL EXPEDIENTE INCOMPLETO</span>
                     <span style="font:600 12.5px Archivo,sans-serif;color:#253040">para la posición P-01 · Acceso principal</span>
                   </div>
                   <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
                     <div style="border:1px solid #dce2e9;background:#f7f9fb;border-radius:6px;padding:11px;display:flex;flex-direction:column;gap:4px">
-                      <span style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">PUESTO DEL EMPLEADO</span>
-                      <span style="font:600 12.5px Archivo,sans-serif;color:#253040">Guardia acceso</span>
+                      <span style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">PUESTO DE LA PERSONA</span>
+                      <span style="font:600 12.5px Archivo,sans-serif;color:#d97706">Sin puesto del catálogo</span>
                     </div>
                     <div style="border:1px solid #dce2e9;background:#f7f9fb;border-radius:6px;padding:11px;display:flex;flex-direction:column;gap:4px">
-                      <span style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">PERFIL REQUERIDO DE LA POSICIÓN</span>
+                      <span style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">PUESTO QUE PIDE LA POSICIÓN</span>
                       <span style="font:600 12.5px Archivo,sans-serif;color:#253040">Guardia de acceso</span>
                     </div>
                   </div>
-                  <div style="font:400 12px/1.55 Archivo,sans-serif;color:#253040">Las dos cadenas se comparan como texto y difieren en una palabra, así que el sistema no lo habilita. No es una diferencia de capacidad: es de redacción. Se corrige unificando el puesto contra el catálogo, aquí y no en el paso de asignación.</div>
+                  <div style="font:400 12px/1.55 Archivo,sans-serif;color:#253040">La persona no tiene puesto del catálogo, así que el sistema no sabe cuál es. <b>Eso no impide asignarla</b>: no saber su puesto no es lo mismo que no cumplir el perfil. Pero su expediente queda incompleto y nadie puede comprobar que corresponde. Cuando los dos lados sí declaran puesto, la comparación es por identificador de catálogo, no por el texto.</div>
                   <div style="display:flex;gap:9px;align-items:center">
-                    <button type="button" style="height:2.5rem;border:1px solid #dce2e9;background:#ffffff;border-radius:6px;padding:0 13px;font:600 12.5px Archivo,sans-serif;color:#253040;cursor:pointer">Corregir el puesto</button>
+                    <button type="button" style="height:2.5rem;border:1px solid #dce2e9;background:#ffffff;border-radius:6px;padding:0 13px;font:600 12.5px Archivo,sans-serif;color:#253040;cursor:pointer">Asignar un puesto del catálogo</button>
                     <button type="button" style="height:2.5rem;border:1px solid #dce2e9;background:#ffffff;border-radius:6px;padding:0 13px;font:600 12.5px Archivo,sans-serif;color:#253040;cursor:pointer">Ver el catálogo de puestos</button>
                   </div>
                 </div>
               </div>
               <div style="margin-top:auto;border-top:1px solid #dce2e9;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px">
-                <span style="font:400 11.5px/1.4 Archivo,sans-serif;color:#5f6b7a;max-width:30ch">Documentos al día. Lo único pendiente es el puesto.</span>
+                <span style="font:400 11.5px/1.4 Archivo,sans-serif;color:#5f6b7a;max-width:30ch">Documentos al día. Falta el puesto del catálogo, que no impide asignarla pero deja el expediente sin comprobar.</span>
                 <span style="display:flex;gap:9px;align-items:center">
-                  <button type="button" style="height:2.5rem;border:1px solid #dce2e9;background:#ffffff;border-radius:6px;padding:0 13px;font:600 12.5px Archivo,sans-serif;color:#253040;cursor:pointer">Editar empleado</button>
                   <button type="button" style="height:2.5rem;background:#10104e;color:#ffffff;border:1px solid #10104e;border-radius:6px;padding:0 15px;font:600 12.5px Archivo,sans-serif;cursor:pointer">Asignar a una posición</button>
                 </span>
               </div>
             </div>
           </div>
           <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;padding:16px;display:flex;gap:28px">
-            <div style="flex:1"><div style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a;padding-bottom:7px">ADVERTENCIA DEL ANEXO, VISIBLE ANTES DE TROPEZAR</div><div style="font:400 12.5px/1.6 Archivo,sans-serif;color:#253040">Puesto y perfil son texto libre en ambos lados. Sin esta franja, el defecto aparece en el paso 8 como «ningún empleado es elegible», sin decir por qué. Aquí se nombra el motivo y se ofrece la corrección.</div></div>
+            <div style="flex:1"><div style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a;padding-bottom:7px">ADVERTENCIA DEL ANEXO, VISIBLE ANTES DE TROPEZAR</div><div style="font:400 12.5px/1.6 Archivo,sans-serif;color:#253040">Desde F1 la comparación es por <b>identificador de catálogo</b>, así que una diferencia de redacción ya no bloquea a nadie. Lo que sí pasa, y no se ve en ninguna pantalla, es lo contrario: <b>un nulo no bloquea</b>. Quien no tiene puesto catalogado se puede asignar igual, con el expediente sin comprobar. La franja existe para nombrar esa condición antes del paso 8.</div></div>
             <div style="flex:1"><div style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a;padding-bottom:7px">TRES PESTAÑAS, NO CINCO</div><div style="font:400 12.5px/1.6 Archivo,sans-serif;color:#253040">Datos · Documentos · Asignaciones, cada una con su conteo. La activa se marca en <span style="color:#087f9c;font-weight:600">cian</span>; la fila seleccionada, en <span style="color:#087f9c;font-weight:600">cyan-soft</span>. Elegibilidad no es pestaña: es una condición del expediente y vive junto al puesto.</div></div>
           </div>
         </div>
@@ -368,7 +366,6 @@
               <div style="margin-top:auto;border-top:1px solid #dce2e9;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px">
                 <span style="font:400 11.5px/1.4 Archivo,sans-serif;color:#5f6b7a;max-width:34ch">Tiene 2 asignaciones vigentes: el vencimiento no las interrumpe, lo hace visible.</span>
                 <span style="display:flex;gap:9px;align-items:center">
-                  <button type="button" style="height:2.5rem;border:1px solid #dce2e9;background:#ffffff;border-radius:6px;padding:0 13px;font:600 12.5px Archivo,sans-serif;color:#253040;cursor:pointer">Editar empleado</button>
                   <button type="button" style="height:2.5rem;background:#10104e;color:#ffffff;border:1px solid #10104e;border-radius:6px;padding:0 15px;font:600 12.5px Archivo,sans-serif;cursor:pointer">Cargar documento vencido</button>
                 </span>
               </div>
@@ -477,8 +474,8 @@
                   <div style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">ADSCRIPCIÓN</div>
                   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
                     <div style="display:flex;flex-direction:column;gap:5px">
-                      <label for="v4-zona" style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">ZONA</label>
-                      <span id="v4-zona" style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;justify-content:space-between;padding:0 11px;font:600 12.5px Archivo,sans-serif;color:#253040">Poniente <span style="font-size:10px;color:#5f6b7a">▾</span></span>
+                      <label for="v4-municipio" style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">MUNICIPIO</label>
+                      <span id="v4-municipio" style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;justify-content:space-between;padding:0 11px;font:600 12.5px Archivo,sans-serif;color:#253040">Zapopan <span style="font-size:10px;color:#5f6b7a">▾</span></span>
                     </div>
                     <div style="display:flex;flex-direction:column;gap:5px">
                       <label for="v4-puesto" style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">PUESTO</label>
@@ -520,7 +517,7 @@
             </div>
           </div>
           <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;padding:16px;display:flex;gap:28px">
-            <div style="flex:1"><div style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a;padding-bottom:7px">EXPEDIENTE MÍNIMO, LITERAL</div><div style="font:400 12.5px/1.6 Archivo,sans-serif;color:#253040">Identidad, contacto, zona, puesto, fecha de ingreso y documentos indispensables. Nada más. Lo que la fase 1 dejó fuera no aparece ni como campo deshabilitado.</div></div>
+            <div style="flex:1"><div style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a;padding-bottom:7px">EXPEDIENTE MÍNIMO, LITERAL</div><div style="font:400 12.5px/1.6 Archivo,sans-serif;color:#253040">Identidad, contacto, estado y municipio, puesto, fecha de ingreso y documentos indispensables. Nada más. Lo que la fase 1 dejó fuera no aparece ni como campo deshabilitado. <b>La zona no existe en el modelo</b>: del domicilio se guardan el estado y el municipio, y se eligen del catálogo de direcciones porque el servidor rechaza un municipio que no pertenezca a su estado.</div></div>
             <div style="flex:1"><div style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a;padding-bottom:7px">LA FECHA, SIN LIBRERÍA</div><div style="font:400 12.5px/1.6 Archivo,sans-serif;color:#253040">Los campos de fecha se dibujan con el formato único <span style="font-weight:600;color:#253040">04 sep 2026</span> y control propio de 42 px. Si se resuelve con el campo nativo, el formato lo pone el sistema operativo y se rompe la regla: es la decisión pendiente del brief.</div></div>
           </div>
         </div>
@@ -589,8 +586,8 @@
                     <input id="v5-tel" value="33 1902 4471" style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;padding:0 11px;font:600 12.5px Archivo,sans-serif;color:#253040;background:#ffffff;box-sizing:border-box">
                   </div>
                   <div style="display:flex;flex-direction:column;gap:5px">
-                    <label for="v5-zona" style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">ZONA</label>
-                    <span id="v5-zona" style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;justify-content:space-between;padding:0 11px;font:600 12.5px Archivo,sans-serif;color:#253040">Centro <span style="font-size:10px;color:#5f6b7a">▾</span></span>
+                    <label for="v5-municipio" style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">MUNICIPIO</label>
+                    <span id="v5-municipio" style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;justify-content:space-between;padding:0 11px;font:600 12.5px Archivo,sans-serif;color:#253040">Guadalajara <span style="font-size:10px;color:#5f6b7a">▾</span></span>
                   </div>
                   <div style="display:flex;flex-direction:column;gap:5px">
                     <label for="v5-ingreso" style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">FECHA DE INGRESO</label>
@@ -612,7 +609,7 @@
                   </div>
                   <div style="border:1px solid #dce2e9;background:#f7f9fb;border-radius:6px;padding:11px;display:flex;flex-direction:column;gap:4px">
                     <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">SI SALE A CATÁLOGOS, ESTO REGRESA ESCRITO</span>
-                    <span style="font:400 12px/1.5 Archivo,sans-serif;color:#253040">Ignacio Peña Zúñiga · PEZI850226HJCÑÑG01 · 33 1902 4471 · Centro · ingreso 04 sep 2026. El formulario se conserva y vuelve a abrirse en este punto, con el puesto ya disponible.</span>
+                    <span style="font:400 12px/1.5 Archivo,sans-serif;color:#253040">Ignacio Peña Zúñiga · PEZI850226HJCÑÑG01 · 33 1902 4471 · Jalisco · Guadalajara · ingreso 04 sep 2026. El formulario se conserva y vuelve a abrirse en este punto, con el puesto ya disponible.</span>
                   </div>
                 </div>
                 <div style="border:1px solid #dce2e9;border-radius:6px;background:#f7f9fb;padding:13px;display:flex;flex-direction:column;gap:4px">
@@ -658,19 +655,19 @@ class Component extends DCLogic {
     };
 
     const base = [
-      { nombre: 'Laura Sánchez Pineda', puesto: 'Guardia de acceso', zona: 'Poniente · Zapopan', ingreso: '01 sep 2026', doc: alDia, est: 'activo' },
-      { nombre: 'José Ramón Villalobos Cázares', puesto: 'Guardia intramuros', zona: 'Poniente · Guadalajara', ingreso: '14 mar 2025', doc: venc(2), est: 'activo' },
-      { nombre: 'Ana Yáñez', puesto: 'Supervisora de zona', zona: 'Poniente · Zapopan', ingreso: '03 ene 2024', doc: porVencer(1), est: 'activo' },
-      { nombre: 'Miguel Ángel Peñaloza Iñiguez', puesto: 'Guardia acceso', zona: 'Poniente · Zapopan', ingreso: '28 ago 2026', doc: alDia, est: 'activo' },
-      { nombre: 'Rocío Alcántara Muñoz', puesto: 'Monitorista', zona: 'Poniente · Tlaquepaque', ingreso: '19 jun 2025', doc: alDia, est: 'permiso' },
-      { nombre: 'Efraín Ceniceros', puesto: 'Guardia de acceso', zona: 'Poniente · Tonalá', ingreso: '05 feb 2023', doc: porVencer(1), est: 'activo' },
-      { nombre: 'Xóchitl Aguayo Rentería', puesto: 'Monitorista', zona: 'Poniente · Zapopan', ingreso: '31 jul 2026', doc: sinCargar(3), est: 'candidato' },
-      { nombre: 'Norma Leticia Bañuelos Treviño', puesto: 'Guardia intramuros', zona: 'Poniente · Tlajomulco de Zúñiga', ingreso: '22 nov 2024', doc: alDia, est: 'inactivo' },
-      { nombre: 'Ismael Quiñones Ordóñez', puesto: 'Supervisor de turno', zona: 'Poniente · Guadalajara', ingreso: '09 abr 2026', doc: venc(1), est: 'baja' }
+      { nombre: 'Laura Sánchez Pineda', puesto: 'Guardia de acceso', ubicacion: 'Jalisco · Zapopan', ingreso: '01 sep 2026', doc: alDia, est: 'activo' },
+      { nombre: 'José Ramón Villalobos Cázares', puesto: 'Guardia intramuros', ubicacion: 'Jalisco · Guadalajara', ingreso: '14 mar 2025', doc: venc(2), est: 'activo' },
+      { nombre: 'Ana Yáñez', puesto: 'Supervisora de zona', ubicacion: 'Jalisco · Zapopan', ingreso: '03 ene 2024', doc: porVencer(1), est: 'activo' },
+      { nombre: 'Miguel Ángel Peñaloza Iñiguez', puesto: 'Guardia acceso', ubicacion: 'Jalisco · Zapopan', ingreso: '28 ago 2026', doc: alDia, est: 'activo' },
+      { nombre: 'Rocío Alcántara Muñoz', puesto: 'Monitorista', ubicacion: 'Jalisco · Tlaquepaque', ingreso: '19 jun 2025', doc: alDia, est: 'permiso' },
+      { nombre: 'Efraín Ceniceros', puesto: 'Guardia de acceso', ubicacion: 'Jalisco · Tonalá', ingreso: '05 feb 2023', doc: porVencer(1), est: 'activo' },
+      { nombre: 'Xóchitl Aguayo Rentería', puesto: 'Monitorista', ubicacion: 'Jalisco · Zapopan', ingreso: '31 jul 2026', doc: sinCargar(3), est: 'candidato' },
+      { nombre: 'Norma Leticia Bañuelos Treviño', puesto: 'Guardia intramuros', ubicacion: 'Jalisco · Tlajomulco de Zúñiga', ingreso: '22 nov 2024', doc: alDia, est: 'inactivo' },
+      { nombre: 'Ismael Quiñones Ordóñez', puesto: 'Supervisor de turno', ubicacion: 'Jalisco · Guadalajara', ingreso: '09 abr 2026', doc: venc(1), est: 'baja' }
     ];
 
     const wide = base.map(e => Object.assign({
-      nombre: e.nombre, puesto: e.puesto, zona: e.zona, ingreso: e.ingreso
+      nombre: e.nombre, puesto: e.puesto, ubicacion: e.ubicacion, ingreso: e.ingreso
     }, e.doc, estados[e.est]));
 
     const narrow = (seleccion) => base.map(e => Object.assign({

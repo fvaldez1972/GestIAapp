@@ -1,1262 +1,667 @@
-import { HttpErrorResponse } from '@angular/common/http';
-import { CatalogSelect } from '../../../../shared/ui/catalog-select/catalog-select';
-import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { finalize, forkJoin } from 'rxjs';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
+import { Router } from '@angular/router';
+import { forkJoin, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { SystemInfoService } from '../../../../core/system/system-info.service';
-import { CatalogApiService } from '../../../catalogs/data-access/catalog-api.service';
-import { CatalogItem, EligibilityRequirement, EmployeeSkill, EmployeeSkillInput } from '../../../catalogs/data-access/catalog.models';
-import { employeeStepFields, validateEmployeeStep } from './employee-wizard';
-import { ClientApiService } from '../../../clients/data-access/client-api.service';
-import { Organization, WorkforceEligibilityReport } from '../../../clients/data-access/client.models';
-import { WorkforceApiService } from '../../data-access/workforce-api.service';
-import { EntityDocuments } from '../../../documents/components/entity-documents/entity-documents';
-import { DocumentApiService } from '../../../documents/data-access/document-api.service';
 import {
-  CreateEmployee,
-  Employee,
-  EmployeeDocument,
-  EmployeeDocumentInput,
-  EmployeeDocumentStatus,
-  EmployeeDocumentType,
-  EmployeeEvaluation,
-  EmployeeEvaluationInput,
-  EmployeeEvaluationResult,
-  EmployeeEvaluationType,
-  EmployeeInput,
-  EmployeeStatus,
-  PagedResult,
-} from '../../data-access/workforce.models';
+  GiConfirmDialog,
+  GiDetailPanel,
+  GiEmptyState,
+  GiFilterBar,
+  GiFilterGroup,
+  GiTab,
+  GiTabContent,
+  GiTableState,
+} from '../../../../shared/ui/gi-ui';
+import { CatalogApiService } from '../../../catalogs/data-access/catalog-api.service';
+import { EntityDocuments } from '../../../documents/components/entity-documents/entity-documents';
+import { EligibilityRequirement } from '../../../catalogs/data-access/catalog.models';
+import { EmployeeListApiService } from '../../data-access/employee-list-api.service';
+import {
+  EmployeeAssignment,
+  EmployeeDocumentFilter,
+  EmployeeJobPositionOption,
+  EmployeeListItem,
+  EMPLOYEE_STATUS_OPTIONS,
+  documentRequirementsNote,
+  employeeDocumentBadge,
+} from '../../data-access/employee-list.models';
+import { WorkforceApiService } from '../../data-access/workforce-api.service';
+import { Employee, EmployeeDocument, EmployeeStatus } from '../../data-access/workforce.models';
+import { EmployeeAssignments } from '../../ui/employee-assignments';
+import { EmployeeData } from '../../ui/employee-data';
+import { EmployeeDocuments } from '../../ui/employee-documents';
+import { EmployeeForm, EmployeeFormValue } from '../../ui/employee-form';
+import { EmployeeTable } from '../../ui/employee-table';
 
+type PendingAction = { readonly employee: EmployeeListItem; readonly kind: 'leave' | 'terminate' };
+
+/**
+ * Personal.
+ *
+ * <p>Esta clase compone y carga. Los cuerpos viven en <c>ui/</c>: la tabla, la ficha por pestañas,
+ * el alta y el editor de puesto. Aquí sólo se pide al servidor, se reparte y se encadena.</p>
+ *
+ * <p>Dos decisiones se ven desde fuera y conviene dejarlas escritas. La primera: <b>los requisitos
+ * documentales son de la organización</b>, salen de su catálogo de elegibilidad y la pantalla lo
+ * dice con todas sus letras, porque «4 requisitos» sin autor se lee como una regla del sistema que
+ * nadie sabe dónde cambiar. La segunda: <b>«Asignar a una posición» lleva a Planeación sin
+ * preseleccionar nada</b>, porque esa pantalla no lee ningún parámetro; mandarle uno que ignora
+ * sería repetir el defecto que ya se corrigió en el enlace de Clientes a Servicios.</p>
+ */
 @Component({
   selector: 'app-workforce-page',
-  imports: [ReactiveFormsModule, EntityDocuments, CatalogSelect],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [
+    EmployeeAssignments,
+    EmployeeData,
+    EmployeeDocuments,
+    EmployeeForm,
+    EmployeeTable,
+    EntityDocuments,
+    GiConfirmDialog,
+    GiDetailPanel,
+    GiEmptyState,
+    GiFilterBar,
+    GiTabContent,
+  ],
   templateUrl: './workforce-page.html',
   styleUrl: './workforce-page.scss',
-  changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class WorkforcePage implements OnInit {
-  private readonly api = inject(WorkforceApiService);
-  private readonly documentApi = inject(DocumentApiService);
+export class WorkforcePage {
   private readonly auth = inject(AuthService);
-  private readonly systemInfo = inject(SystemInfoService);
+  private readonly api = inject(EmployeeListApiService);
+  private readonly workforceApi = inject(WorkforceApiService);
   private readonly catalogApi = inject(CatalogApiService);
-  private readonly clientApi = inject(ClientApiService);
-  private readonly formBuilder = inject(FormBuilder);
+  private readonly systemInfo = inject(SystemInfoService);
+  private readonly router = inject(Router);
 
-  /** La organización de trabajo la fija la barra de contexto, y sólo ella. */
-  protected readonly selectedOrganizationId = this.auth.operationalOrganizationId;
-  protected readonly selectedEmployee = signal<Employee | null>(null);
-  protected readonly documents = signal<readonly EmployeeDocument[]>([]);
-  protected readonly evaluations = signal<readonly EmployeeEvaluation[]>([]);
-  protected readonly skills = signal<readonly EmployeeSkill[]>([]);
-  protected readonly skillCatalog = signal<readonly CatalogItem[]>([]);
-  protected readonly positionCatalog = signal<readonly CatalogItem[]>([]);
-  protected readonly documentRequirements = signal<readonly EligibilityRequirement[]>([]);
-  protected readonly requirementsLoading = signal(false);
-  protected readonly requirementsError = signal('');
-  protected readonly workforceEligibility = signal<readonly WorkforceEligibilityReport[]>([]);
-  protected readonly result = signal<PagedResult<Employee>>({
-    items: [],
-    totalCount: 0,
-    page: 1,
-    pageSize: 20,
-    totalPages: 0,
-  });
+  /** La organización se hereda de la barra de contexto. Esta pantalla no tiene selector propio. */
+  protected readonly organizationId = this.auth.operationalOrganizationId;
+  protected readonly canRead = computed(() => this.auth.hasPermission('WORKFORCE.READ'));
+  protected readonly canWrite = computed(() => this.auth.hasPermission('WORKFORCE.WRITE'));
+  protected readonly canViewSensitive = computed(() => this.auth.hasPermission('PLATFORM.ADMIN'));
+
+  /** El día operativo del servidor. La vigencia no se mide con el reloj del navegador. */
+  protected readonly today = this.systemInfo.operationDate;
+
+  protected readonly employees = signal<readonly EmployeeListItem[]>([]);
+  protected readonly total = signal(0);
   protected readonly loading = signal(false);
-  protected readonly loadingDetail = signal(false);
-  protected readonly saving = signal(false);
-  protected readonly uploadingFile = signal(false);
-  protected readonly canReadFiles = computed(() => this.auth.hasPermission('DOCUMENTS.SENSITIVE.READ'));
-  protected readonly canWriteFiles = computed(() => this.canReadFiles()
-    && this.auth.hasPermission('DOCUMENTS.SENSITIVE.WRITE') && this.auth.hasPermission('WORKFORCE.WRITE'));
-  protected readonly canUploadFiles = computed(() => this.canWriteFiles() && this.auth.hasPermission('DOCUMENTS.WRITE'));
-  protected readonly employeeEditorOpen = signal(false);
-  protected readonly documentEditorOpen = signal(false);
-  protected readonly evaluationEditorOpen = signal(false);
-  protected readonly skillEditorOpen = signal(false);
-  protected readonly editingEmployee = signal<Employee | null>(null);
-  protected readonly editingDocument = signal<EmployeeDocument | null>(null);
-  protected readonly editingEvaluation = signal<EmployeeEvaluation | null>(null);
-  protected readonly editingSkill = signal<EmployeeSkill | null>(null);
-  protected readonly message = signal('');
   protected readonly error = signal('');
+  protected readonly message = signal('');
+  protected readonly expiringWithinDays = signal(30);
+  protected readonly requiredDocuments = signal(0);
+
   protected readonly search = signal('');
-  protected readonly statusFilter = signal<EmployeeStatus | ''>('');
-  protected readonly fileStageFilter = signal<EmployeeFileStageFilter>('all');
-  protected readonly jobTitleFilter = signal('');
-  protected readonly serviceFilter = signal('');
-  protected readonly eligibilityFilter = signal<EmployeeEligibilityFilter>('all');
-  protected readonly siteFilter = signal('');
-  protected readonly ineFilter = signal<EmployeeDocumentFilter>('all');
-  protected readonly skillRequirementFilter = signal<EmployeeSkillFilter>('all');
-  protected readonly employeeWizardStep = signal(1);
-  protected readonly activeTab = signal<EmployeeTab>('summary');
-  protected readonly selectedOrganization = this.auth.activeOrganization;
-  protected readonly selectedEmployeeName = computed(() => this.selectedEmployee()?.fullName ?? 'Sin empleado seleccionado');
-  protected readonly isPlatformAdmin = computed(() => this.auth.hasPermission('PLATFORM.ADMIN'));
-  protected readonly heroCopy = computed(() =>
-    this.isPlatformAdmin()
-      ? {
-        eyebrow: 'Configuración / Personal',
-        title: 'Personal por organización',
-        description: `${this.selectedOrganization()?.legalName || 'Selecciona una organización'} · Consulta expedientes, documentos, evaluaciones, habilidades y elegibilidad por organización administrada.`,
-      }
-      : {
-        eyebrow: 'Configuración / Personal',
-        title: 'Configuración de personal',
-        description: `${this.selectedOrganization()?.legalName || 'Selecciona una organización'} · Administra expedientes, documentos requeridos, evaluaciones, habilidades y asignaciones del cliente operativo.`,
-      },
-  );
-  protected readonly canViewSensitivePersonalData = computed(() => this.auth.hasPermission('PLATFORM.ADMIN'));
-  protected readonly adminConfigurationCards = computed<readonly AdminConfigurationCard[]>(() => [
-    {
-      label: 'Expedientes',
-      value: this.result().totalCount,
-      help: 'personas en la organización',
-    },
-    {
-      label: 'Documentos',
-      value: this.documents().length,
-      help: 'del expediente abierto',
-    },
-    {
-      label: 'Evaluaciones',
-      value: this.evaluations().length,
-      help: 'historial contextual',
-    },
-    {
-      label: 'Habilidades',
-      value: this.skills().length,
-      help: 'validan asignaciones',
-    },
-  ]);
-  protected readonly visibleEmployees = computed(() =>
-    this.result().items
-      .filter((employee) => !this.jobTitleFilter() || employee.jobTitle === this.jobTitleFilter())
-      .filter((employee) => this.fileStageFilter() === 'all' || this.employeeStage(employee) === this.fileStageFilter())
-      .filter((employee) => !this.siteFilter() || this.employeeSiteLabel(employee) === this.siteFilter())
-      .filter((employee) => {
-        if (this.ineFilter() === 'all') {
-          return true;
-        }
+  protected readonly status = signal<EmployeeStatus | ''>('');
+  protected readonly jobPosition = signal('');
+  protected readonly documentFilter = signal<EmployeeDocumentFilter>('Any');
+  protected readonly municipality = signal('');
 
-        const hasIne = this.selectedEmployee()?.idEmployee === employee.idEmployee ? this.hasValidDocument('VoterId') : false;
-        return this.ineFilter() === 'valid' ? hasIne : !hasIne;
-      })
-      .filter((employee) => {
-        if (this.skillRequirementFilter() === 'all') {
-          return true;
-        }
+  protected readonly usedJobPositions = signal<readonly EmployeeJobPositionOption[]>([]);
+  protected readonly municipalities = signal<readonly string[]>([]);
+  /** Todos los puestos activos del catálogo: los del alta y los del editor de la ficha. */
+  protected readonly catalogJobPositions = signal<readonly EmployeeJobPositionOption[]>([]);
+  protected readonly requirements = signal<readonly EligibilityRequirement[]>([]);
 
-        const hasSkills = this.selectedEmployee()?.idEmployee === employee.idEmployee ? this.skills().length > 0 : false;
-        return this.skillRequirementFilter() === 'withSkills' ? hasSkills : !hasSkills;
-      })
-      .filter((employee) => {
-        const filter = this.eligibilityFilter();
-        if (filter === 'all') {
-          return true;
-        }
+  protected readonly selected = signal<EmployeeListItem | null>(null);
+  protected readonly activeTab = signal('data');
+  protected readonly detail = signal<Employee | null>(null);
+  protected readonly documents = signal<readonly EmployeeDocument[]>([]);
+  protected readonly assignments = signal<readonly EmployeeAssignment[]>([]);
+  protected readonly detailLoading = signal(false);
 
-        const isEligible = this.employeeIsAssignable(employee);
-        return filter === 'eligible' ? isEligible : !isEligible;
-      }),
-  );
-  protected readonly jobTitleOptions = computed(() =>
-    [...new Set(this.result().items.map((employee) => employee.jobTitle).filter(Boolean) as string[])].sort(),
-  );
-  protected readonly siteOptions = computed(() =>
-    [...new Set(this.result().items.map((employee) => this.employeeSiteLabel(employee)).filter(Boolean))].sort(),
-  );
-  protected readonly activeEmployeesCount = computed(() => this.result().items.filter((employee) => employee.status === 'Active').length);
-  protected readonly candidateEmployeesCount = computed(() => this.result().items.filter((employee) => employee.status === 'Candidate').length);
-  protected readonly notEligibleEmployeesCount = computed(() =>
-    this.result().items.filter((employee) => !this.employeeIsAssignable(employee)).length,
-  );
-  protected readonly selectedEligibility = computed(() => {
-    const employee = this.selectedEmployee();
-    return employee ? this.eligibilityForEmployee(employee.idEmployee) : null;
-  });
-  protected readonly eligibilityItems = computed<EmployeeEligibilityItem[]>(() => {
-    const employee = this.selectedEmployee();
-    if (!employee) {
-      return [];
+  protected readonly creating = signal(false);
+  protected readonly saving = signal(false);
+  protected readonly formProblem = signal('');
+
+  protected readonly editingJobPosition = signal(false);
+  protected readonly savingJobPosition = signal(false);
+  protected readonly jobPositionProblem = signal('');
+
+  protected readonly confirming = signal<PendingAction | null>(null);
+
+  protected readonly badge = employeeDocumentBadge;
+
+  /**
+   * El subtítulo lleva siempre la regla, no sólo el conteo.
+   *
+   * <p>El umbral se <b>escribe</b> aquí porque en el listado sólo aparecía dentro de una opción de
+   * un selector cerrado, y una regla que hay que abrir un desplegable para leer no está en la
+   * pantalla. Y se dice de quién son los requisitos, porque «4 requisitos» sin autor se lee como
+   * una regla del sistema que nadie sabe dónde cambiar.</p>
+   */
+  protected readonly subtitle = computed(() => {
+    const total = this.total();
+    const requisitos = this.requiredDocuments();
+
+    if (!requisitos) {
+      return total
+        ? `${total} ${total === 1 ? 'persona' : 'personas'}. ` +
+            documentRequirementsNote(requisitos, this.expiringWithinDays())
+        : documentRequirementsNote(requisitos, this.expiringWithinDays());
     }
 
-    const report = this.selectedEligibility();
-    const items: EmployeeEligibilityItem[] = [
+    const base = `${total} ${total === 1 ? 'persona' : 'personas'}.`;
+    const regla =
+      `${requisitos} ${requisitos === 1 ? 'requisito documental definido' : 'requisitos documentales definidos'} ` +
+      `por esta organización; se considera «por vencer» lo que caduca en ${this.expiringWithinDays()} ` +
+      'días o menos.';
+
+    const conVencidos = this.employees().filter((employee) => employee.expiredDocuments > 0).length;
+    const vencidos =
+      conVencidos > 0
+        ? ` ${conVencidos} ${conVencidos === 1 ? 'tiene' : 'tienen'} algún documento vencido.`
+        : '';
+
+    return `${base} ${regla}${vencidos}`;
+  });
+
+  protected readonly tableState = computed<GiTableState>(() => {
+    if (this.error()) return 'error';
+    if (this.loading()) return 'loading';
+    if (this.employees().length) return 'ready';
+    return this.hasFilters() ? 'empty-filtered' : 'empty';
+  });
+
+  protected readonly hasFilters = computed(
+    () =>
+      !!this.search().trim() ||
+      !!this.status() ||
+      !!this.jobPosition() ||
+      this.documentFilter() !== 'Any' ||
+      !!this.municipality(),
+  );
+
+  /**
+   * Los filtros del panel plegable.
+   *
+   * <p>Cada grupo se ofrece <b>sólo cuando hay más de una opción real</b>. Un selector con una sola
+   * posibilidad ocupa el sitio de uno que sí puede cambiar algo, y el sistema lo rechaza en
+   * desarrollo. Por eso puesto y municipio salen de la organización entera y no de la página.</p>
+   */
+  protected readonly filterGroups = computed<readonly GiFilterGroup[]>(() => {
+    const groups: GiFilterGroup[] = [
       {
-        state: employee.status === 'Active' ? 'ok' : 'fail',
-        label: employee.status === 'Active' ? 'Empleado activo' : `Estatus actual: ${this.statusLabel(employee.status)}`,
-        hint: employee.status === 'Active' ? 'Disponible para asignación operativa.' : 'Debe validarse antes de asignarlo a servicio.',
+        id: 'status',
+        label: 'Estado de la persona',
+        value: this.status(),
+        allLabel: 'Todos',
+        options: EMPLOYEE_STATUS_OPTIONS.map((option) => ({ value: option.value, label: option.label })),
       },
       {
-        state: this.hasValidDocument('VoterId') ? 'ok' : 'warn',
-        label: this.hasValidDocument('VoterId') ? 'INE vigente' : 'INE pendiente o no validada',
-        hint: 'Documento base para expediente operativo.',
-      },
-      {
-        state: this.hasApprovedEvaluation() ? 'ok' : 'warn',
-        label: this.hasApprovedEvaluation() ? 'Evaluación aprobada' : 'Evaluación pendiente o por revisar',
-        hint: 'Revisa polígrafo, antidoping o evaluación requerida.',
-      },
-      {
-        state: this.skills().length > 0 ? 'ok' : 'warn',
-        label: this.skills().length > 0 ? 'Habilidades registradas' : 'Falta habilidad requerida',
-        hint: this.skills().length > 0 ? `${this.skills().length} habilidad(es) en expediente.` : 'Captura habilidades para validar asignaciones.',
+        id: 'documents',
+        label: 'Vigencia documental',
+        value: this.documentFilter() === 'Any' ? '' : this.documentFilter(),
+        allLabel: 'Cualquiera',
+        options: [
+          { value: 'Expired', label: 'Con algún vencido' },
+          { value: 'Expiring', label: `Por vencer en ${this.expiringWithinDays()} días` },
+          { value: 'Missing', label: 'Con requisitos sin cargar' },
+          { value: 'UpToDate', label: 'Al día' },
+        ],
       },
     ];
 
-    if (report && !report.isEligible) {
-      items.push(...report.reasons.slice(0, 3).map((reason) => ({
-        state: 'fail' as const,
-        label: reason,
-        hint: 'Regla de elegibilidad detectada por el reporte operativo.',
-      })));
+    if (this.usedJobPositions().length > 1) {
+      groups.push({
+        id: 'job',
+        label: 'Puesto',
+        value: this.jobPosition(),
+        allLabel: 'Todos',
+        options: this.usedJobPositions().map((option) => ({
+          value: option.idCatalogItem,
+          label: option.name,
+        })),
+      });
     }
 
-    return items;
-  });
-  protected readonly employeeTabs: readonly { value: EmployeeTab; label: string }[] = [
-    { value: 'summary', label: 'Resumen' },
-    { value: 'documents', label: 'Documentos' },
-    { value: 'evaluations', label: 'Evaluaciones' },
-    { value: 'skills', label: 'Habilidades' },
-    { value: 'assignments', label: 'Asignaciones' },
-  ];
-
-  protected readonly employeeStatuses: readonly { value: EmployeeStatus; label: string }[] = [
-    { value: 'Candidate', label: 'Candidato' },
-    { value: 'Active', label: 'Activo' },
-    { value: 'OnLeave', label: 'Permiso / Incapacidad' },
-    { value: 'Inactive', label: 'Inactivo' },
-    { value: 'Terminated', label: 'Baja' },
-  ];
-
-  protected readonly documentTypes: readonly { value: EmployeeDocumentType; label: string }[] = [
-    { value: 'EmploymentApplication', label: 'Solicitud de empleo' },
-    { value: 'BirthCertificate', label: 'Acta de nacimiento' },
-    { value: 'MarriageCertificate', label: 'Acta de matrimonio' },
-    { value: 'VoterId', label: 'INE' },
-    { value: 'Curp', label: 'CURP' },
-    { value: 'SocialSecurityNumber', label: 'NSS' },
-    { value: 'Rfc', label: 'RFC' },
-    { value: 'TaxStatusCertificate', label: 'Constancia fiscal' },
-    { value: 'DriverLicense', label: 'Licencia' },
-    { value: 'ProofOfAddress', label: 'Comprobante domicilio' },
-    { value: 'ProofOfStudies', label: 'Comprobante estudios' },
-    { value: 'MilitaryServiceCard', label: 'Cartilla militar' },
-    { value: 'CriminalRecordCertificate', label: 'Antecedentes no penales' },
-    { value: 'Other', label: 'Otro' },
-  ];
-
-  protected readonly documentStatuses: readonly { value: EmployeeDocumentStatus; label: string }[] = [
-    { value: 'Pending', label: 'Pendiente' },
-    { value: 'Received', label: 'Recibido' },
-    { value: 'Validated', label: 'Validado' },
-    { value: 'Rejected', label: 'Rechazado' },
-    { value: 'Expired', label: 'Vencido' },
-    { value: 'NotApplicable', label: 'No aplica' },
-  ];
-
-  protected readonly evaluationTypes: readonly { value: EmployeeEvaluationType; label: string }[] = [
-    { value: 'Polygraph', label: 'Polígrafo' },
-    { value: 'SocioeconomicStudy', label: 'Estudio socioeconómico' },
-    { value: 'CriminalRecordReview', label: 'Revisión antecedentes' },
-    { value: 'DrugTest', label: 'Antidoping' },
-    { value: 'Other', label: 'Otro' },
-  ];
-
-  protected readonly evaluationResults: readonly { value: EmployeeEvaluationResult; label: string }[] = [
-    { value: 'Pending', label: 'Pendiente' },
-    { value: 'Approved', label: 'Aprobado' },
-    { value: 'ApprovedWithObservations', label: 'Aprobado con observaciones' },
-    { value: 'NotApproved', label: 'No aprobado' },
-    { value: 'Inconclusive', label: 'Inconcluso' },
-  ];
-
-  protected readonly employeeForm = this.formBuilder.nonNullable.group({
-    codeEmployee: ['', [Validators.required, Validators.pattern(/\S/), Validators.maxLength(30)]],
-    fullName: ['', [Validators.required, Validators.pattern(/\S/), Validators.maxLength(200)]],
-    jobTitle: ['', [Validators.maxLength(120)]],
-    hireDate: ['', [Validators.required]],
-    birthDate: [''],
-    birthPlace: ['', [Validators.maxLength(150)]],
-    sex: ['', [Validators.maxLength(30)]],
-    maritalStatus: ['', [Validators.maxLength(40)]],
-    rfc: ['', [Validators.maxLength(13)]],
-    curp: ['', [Validators.maxLength(18)]],
-    socialSecurityNumber: ['', [Validators.maxLength(20)]],
-    voterIdNumber: ['', [Validators.maxLength(30)]],
-    driverLicenseNumber: ['', [Validators.maxLength(40)]],
-    militaryServiceCardNumber: ['', [Validators.maxLength(40)]],
-    email: ['', [Validators.email, Validators.maxLength(254)]],
-    mobilePhone: ['', [Validators.maxLength(30)]],
-    homePhone: ['', [Validators.maxLength(30)]],
-    emergencyContactName: ['', [Validators.maxLength(200)]],
-    emergencyContactPhone: ['', [Validators.maxLength(30)]],
-    address: ['', [Validators.maxLength(500)]],
-    municipality: ['', [Validators.maxLength(120)]],
-    state: ['', [Validators.maxLength(120)]],
-    countryCode: ['', [Validators.maxLength(2)]],
-    postalCode: ['', [Validators.maxLength(10)]],
-    housingType: ['', [Validators.maxLength(30)]],
-    residenceSinceDate: [''],
-  });
-
-  protected readonly documentForm = this.formBuilder.nonNullable.group({
-    documentType: ['EmploymentApplication' as EmployeeDocumentType, [Validators.required]],
-    status: ['Pending' as EmployeeDocumentStatus, [Validators.required]],
-    documentNumber: ['', [Validators.maxLength(80)]],
-    receivedDate: [''],
-    issuedDate: [''],
-    expiresDate: [''],
-    storageReference: ['', [Validators.maxLength(500)]],
-    notes: ['', [Validators.maxLength(1000)]],
-  });
-
-  protected readonly evaluationForm = this.formBuilder.nonNullable.group({
-    evaluationType: ['Polygraph' as EmployeeEvaluationType, [Validators.required]],
-    result: ['Pending' as EmployeeEvaluationResult, [Validators.required]],
-    evaluatedDate: ['', [Validators.required]],
-    expiresDate: [''],
-    certificateNumber: ['', [Validators.maxLength(80)]],
-    storageReference: ['', [Validators.maxLength(500)]],
-    notes: ['', [Validators.maxLength(1000)]],
-  });
-
-  protected readonly skillForm = this.formBuilder.nonNullable.group({
-    idSkillCatalogItem: ['', [Validators.required]],
-    acquiredDate: [''],
-    expiresDate: [''],
-    notes: ['', [Validators.maxLength(1000)]],
-  });
-
-  ngOnInit(): void {
-    this.loadForActiveOrganization();
-  }
-
-  /**
-   * Ya no se carga una lista de organizaciones para elegir: la organización la fija la barra de
-   * contexto. Si hay una, se cargan sus datos; si no, la pantalla espera a que se elija. Cuando
-   * cambia, el shell vuelve a montar la pantalla y esto corre de nuevo.
-   */
-  protected loadForActiveOrganization(): void {
-    const organizationId = this.selectedOrganizationId();
-
-    if (organizationId) {
-      this.loadSkillCatalog(organizationId);
-      this.loadEmployees(1);
+    if (this.municipalities().length > 1) {
+      groups.push({
+        id: 'municipality',
+        label: 'Municipio',
+        value: this.municipality(),
+        allLabel: 'Todos',
+        options: this.municipalities().map((name) => ({ value: name, label: name })),
+      });
     }
+
+    return groups;
+  });
+
+  protected readonly panelTabs = computed<readonly GiTab[]>(() => {
+    const employee = this.selected();
+
+    return [
+      { id: 'data', label: 'Datos' },
+      { id: 'documents', label: 'Documentos', count: this.requiredDocuments() },
+      { id: 'assignments', label: 'Asignaciones', count: employee?.assignmentCount ?? 0 },
+    ];
+  });
+
+  /** El aviso del pie: un hecho, no una promesa sobre lo que el servidor va a impedir. */
+  protected readonly expiredNote = computed(() => {
+    const employee = this.selected();
+
+    if (!employee || employee.expiredDocuments === 0) {
+      return '';
+    }
+
+    return employee.expiredDocuments === 1
+      ? 'Tiene un documento vencido de los que exige esta organización.'
+      : `Tiene ${employee.expiredDocuments} documentos vencidos de los que exige esta organización.`;
+  });
+
+  constructor() {
+    effect(() => {
+      const organizationId = this.organizationId();
+
+      if (organizationId && this.canRead()) {
+        this.load();
+        this.loadOptions(organizationId);
+      } else {
+        this.employees.set([]);
+      }
+    });
   }
 
-  protected updateSearch(value: string): void {
+  // ── Listado ──────────────────────────────────────────────────────────────────────────────
+
+  protected onSearch(value: string): void {
     this.search.set(value);
+    this.load();
   }
 
-  protected updateStatusFilter(value: EmployeeStatus | ''): void {
-    this.statusFilter.set(value);
-    this.loadEmployees(1);
-  }
+  protected onFilter(change: { groupId: string; value: string }): void {
+    switch (change.groupId) {
+      case 'status':
+        this.status.set(change.value as EmployeeStatus | '');
+        break;
+      case 'documents':
+        this.documentFilter.set((change.value || 'Any') as EmployeeDocumentFilter);
+        break;
+      case 'job':
+        this.jobPosition.set(change.value);
+        break;
+      default:
+        this.municipality.set(change.value);
+        break;
+    }
 
-  protected updateFileStageFilter(value: EmployeeFileStageFilter): void {
-    this.fileStageFilter.set(value);
-  }
-
-  protected updateJobTitleFilter(value: string): void {
-    this.jobTitleFilter.set(value);
-  }
-
-  protected updateServiceFilter(value: string): void {
-    this.serviceFilter.set(value);
-  }
-
-  protected updateSiteFilter(value: string): void {
-    this.siteFilter.set(value);
-  }
-
-  protected updateIneFilter(value: EmployeeDocumentFilter): void {
-    this.ineFilter.set(value);
-  }
-
-  protected updateSkillRequirementFilter(value: EmployeeSkillFilter): void {
-    this.skillRequirementFilter.set(value);
-  }
-
-  protected updateEligibilityFilter(value: EmployeeEligibilityFilter): void {
-    this.eligibilityFilter.set(value);
+    this.load();
   }
 
   protected clearFilters(): void {
     this.search.set('');
-    this.statusFilter.set('');
-    this.fileStageFilter.set('all');
-    this.jobTitleFilter.set('');
-    this.serviceFilter.set('');
-    this.eligibilityFilter.set('all');
-    this.siteFilter.set('');
-    this.ineFilter.set('all');
-    this.skillRequirementFilter.set('all');
-    this.loadEmployees(1);
+    this.status.set('');
+    this.jobPosition.set('');
+    this.documentFilter.set('Any');
+    this.municipality.set('');
+    this.load();
   }
 
-  protected showTab(tab: EmployeeTab): void {
-    this.activeTab.set(tab);
-  }
+  protected load(): void {
+    const organizationId = this.organizationId();
 
-  protected loadEmployees(page = this.result().page): void {
-    const organizationId = this.selectedOrganizationId();
-    if (!organizationId) {
+    if (!organizationId || !this.canRead()) {
       return;
     }
 
     this.loading.set(true);
     this.error.set('');
+
     this.api
-      .listEmployees(organizationId, this.search(), this.statusFilter(), page, this.result().pageSize)
-      .pipe(finalize(() => this.loading.set(false)))
+      .searchEmployees({
+        organizationId,
+        search: this.search(),
+        status: this.status(),
+        idJobPositionCatalogItem: this.jobPosition(),
+        documents: this.documentFilter(),
+        municipality: this.municipality(),
+        pageSize: 25,
+      })
       .subscribe({
         next: (result) => {
-          this.result.set(result);
-          this.loadWorkforceEligibility();
-          if (!this.selectedEmployee() && result.items.length) {
-            this.selectEmployee(result.items[0]);
-          }
+          this.employees.set(result.page.items);
+          this.total.set(result.page.totalCount);
+          this.expiringWithinDays.set(result.expiringWithinDays);
+          this.requiredDocuments.set(result.requiredDocuments);
+          this.loading.set(false);
+          this.refreshSelection(result.page.items);
         },
-        error: (error: HttpErrorResponse) => this.setError(error),
+        error: () => {
+          this.error.set('No se pudo cargar la lista de personal.');
+          this.loading.set(false);
+        },
       });
   }
 
-  protected selectEmployee(employee: Employee): void {
-    this.selectedEmployee.set(employee);
-    this.activeTab.set('summary');
-    this.loadingDetail.set(true);
-    this.api
-      .getEmployee(this.selectedOrganizationId(), employee.idEmployee)
-      .pipe(finalize(() => this.loadingDetail.set(false)))
-      .subscribe({
-        next: (detail) => {
-          this.selectedEmployee.set(detail.employee);
-          this.documents.set(detail.documents);
-          this.evaluations.set(detail.evaluations);
-          this.loadEmployeeSkills(detail.employee.idEmployee);
-        },
-        error: (error: HttpErrorResponse) => this.setError(error),
-      });
-  }
+  /** Las opciones de los filtros, los puestos del catálogo y los requisitos, de una vez. */
+  private loadOptions(organizationId: string): void {
+    forkJoin({
+      filters: this.api
+        .listFilterOptions(organizationId)
+        .pipe(catchError(() => of({ jobPositions: [], municipalities: [] }))),
+      items: this.catalogApi.listItems(organizationId).pipe(catchError(() => of([]))),
+      requirements: this.catalogApi.listEligibilityRequirements(organizationId).pipe(catchError(() => of([]))),
+    }).subscribe((data) => {
+      this.usedJobPositions.set(data.filters.jobPositions);
+      this.municipalities.set(data.filters.municipalities);
 
-  protected openCreateEmployee(): void {
-    this.editingEmployee.set(null);
-    this.employeeForm.reset(this.emptyEmployeeForm());
-    this.employeeWizardStep.set(1);
-    this.employeeEditorOpen.set(true);
-  }
+      this.catalogJobPositions.set(
+        data.items
+          .filter((item) => item.active && item.type === 'JobPosition')
+          .map((item) => ({ idCatalogItem: item.idCatalogItem, name: item.name })),
+      );
 
-  protected openEditEmployee(employee: Employee): void {
-    this.editingEmployee.set(employee);
-    this.employeeForm.reset({
-      codeEmployee: employee.codeEmployee,
-      fullName: employee.fullName,
-      jobTitle: employee.jobTitle ?? '',
-      hireDate: this.dateOnly(employee.hireDate),
-      birthDate: this.dateOnly(employee.birthDate),
-      birthPlace: employee.birthPlace ?? '',
-      sex: employee.sex ?? '',
-      maritalStatus: employee.maritalStatus ?? '',
-      rfc: employee.rfc ?? '',
-      curp: employee.curp ?? '',
-      socialSecurityNumber: employee.socialSecurityNumber ?? '',
-      voterIdNumber: employee.voterIdNumber ?? '',
-      driverLicenseNumber: employee.driverLicenseNumber ?? '',
-      militaryServiceCardNumber: employee.militaryServiceCardNumber ?? '',
-      email: employee.email ?? '',
-      mobilePhone: employee.mobilePhone ?? '',
-      homePhone: employee.homePhone ?? '',
-      emergencyContactName: employee.emergencyContactName ?? '',
-      emergencyContactPhone: employee.emergencyContactPhone ?? '',
-      address: employee.address ?? '',
-      municipality: employee.municipality ?? '',
-      state: employee.state ?? '',
-      countryCode: employee.countryCode ?? '',
-      postalCode: employee.postalCode ?? '',
-      housingType: employee.housingType ?? '',
-      residenceSinceDate: this.dateOnly(employee.residenceSinceDate),
+      // Sólo los de la organización: los de un cliente, un servicio o una posición se exigen en
+      // ese contexto, no en el expediente de la persona.
+      this.requirements.set(
+        data.requirements.filter(
+          (item) => item.active && item.requirementType === 'Document' && item.targetType === 'Organization',
+        ),
+      );
     });
-    this.employeeWizardStep.set(1);
-    this.employeeEditorOpen.set(true);
   }
 
-  protected saveEmployee(): void {
-    if (this.saving()) {
-      return;
+  /** Tras recargar, la ficha abierta sigue al dato nuevo y no al de antes. */
+  private refreshSelection(items: readonly EmployeeListItem[]): void {
+    const selected = this.selected();
+
+    if (selected) {
+      this.selected.set(items.find((item) => item.idEmployee === selected.idEmployee) ?? selected);
     }
-    if (this.employeeForm.invalid || !this.selectedOrganizationId()) {
-      this.employeeForm.markAllAsTouched();
-      const invalidStep = employeeStepFields.findIndex(fields => fields.some(field => this.employeeForm.get(field)?.invalid));
-      if (invalidStep >= 0) {
-        this.employeeWizardStep.set(invalidStep + 1);
-      }
+  }
+
+  // ── Ficha ────────────────────────────────────────────────────────────────────────────────
+
+  protected open(employee: EmployeeListItem, tab = 'data'): void {
+    this.creating.set(false);
+    this.editingJobPosition.set(false);
+    this.jobPositionProblem.set('');
+    this.selected.set(employee);
+    this.activeTab.set(tab);
+    this.detail.set(null);
+    this.documents.set([]);
+    this.assignments.set([]);
+    this.loadDetail(employee.idEmployee);
+  }
+
+  protected closePanel(): void {
+    this.selected.set(null);
+    this.creating.set(false);
+    this.editingJobPosition.set(false);
+  }
+
+  private loadDetail(idEmployee: string): void {
+    const organizationId = this.organizationId();
+
+    if (!organizationId) {
       return;
     }
 
-    const form = this.employeeForm.getRawValue();
-    const input: EmployeeInput = {
-      idOrganization: this.selectedOrganizationId(),
-      fullName: form.fullName,
-      jobTitle: this.optional(form.jobTitle),
-      hireDate: form.hireDate,
-      birthDate: this.optional(form.birthDate),
-      birthPlace: this.optional(form.birthPlace),
-      sex: this.optional(form.sex),
-      maritalStatus: this.optional(form.maritalStatus),
-      rfc: this.optional(form.rfc),
-      curp: this.optional(form.curp),
-      socialSecurityNumber: this.optional(form.socialSecurityNumber),
-      voterIdNumber: this.optional(form.voterIdNumber),
-      driverLicenseNumber: this.optional(form.driverLicenseNumber),
-      militaryServiceCardNumber: this.optional(form.militaryServiceCardNumber),
-      email: this.optional(form.email),
-      mobilePhone: this.optional(form.mobilePhone),
-      homePhone: this.optional(form.homePhone),
-      emergencyContactName: this.optional(form.emergencyContactName),
-      emergencyContactPhone: this.optional(form.emergencyContactPhone),
-      address: this.optional(form.address),
-      municipality: this.optional(form.municipality),
-      state: this.optional(form.state),
-      countryCode: this.optional(form.countryCode),
-      postalCode: this.optional(form.postalCode),
-      housingType: this.optional(form.housingType),
-      residenceSinceDate: this.optional(form.residenceSinceDate),
-    };
-    const editing = this.editingEmployee();
-    const request = editing
-      ? this.api.updateEmployee(editing.idEmployee, input)
-      : this.api.createEmployee({ ...input, codeEmployee: form.codeEmployee } satisfies CreateEmployee);
+    this.detailLoading.set(true);
 
-    this.saving.set(true);
-    request.pipe(finalize(() => this.saving.set(false))).subscribe({
-      next: (employee) => {
-        this.employeeEditorOpen.set(false);
-        this.message.set(editing ? 'Empleado actualizado correctamente.' : 'Empleado creado correctamente.');
-        this.selectedEmployee.set(employee);
-        this.loadEmployees(editing ? this.result().page : 1);
-        this.selectEmployee(employee);
-      },
-      error: (error: HttpErrorResponse) => this.setError(error),
+    forkJoin({
+      detail: this.workforceApi
+        .getEmployee(organizationId, idEmployee)
+        .pipe(catchError(() => of(null))),
+      assignments: this.api
+        .listAssignments(organizationId, idEmployee)
+        .pipe(catchError(() => of([] as readonly EmployeeAssignment[]))),
+    }).subscribe((data) => {
+      this.detail.set(data.detail?.employee ?? null);
+      this.documents.set(data.detail?.documents ?? []);
+      this.assignments.set(data.assignments);
+      this.detailLoading.set(false);
     });
   }
 
-  protected changeStatus(status: EmployeeStatus): void {
-    const employee = this.selectedEmployee();
-    if (!employee) {
+  // ── El puesto del catálogo, que es la salida de la franja ─────────────────────────────────
+
+  protected startJobPositionEdit(): void {
+    this.jobPositionProblem.set('');
+    this.editingJobPosition.set(true);
+    this.activeTab.set('data');
+  }
+
+  /**
+   * Guarda el puesto.
+   *
+   * <p>Viajan el identificador y el nombre: el servidor guarda el primero, que es con el que se
+   * compara la elegibilidad, y valida el segundo contra el catálogo de puestos.</p>
+   */
+  protected saveJobPosition(idCatalogItem: string): void {
+    const organizationId = this.organizationId();
+    const employee = this.detail();
+    const chosen = this.catalogJobPositions().find((item) => item.idCatalogItem === idCatalogItem);
+
+    if (!organizationId || !employee || !chosen || !this.canWrite()) {
       return;
     }
 
-    if (!window.confirm(`¿Cambiar el estatus de ${employee.fullName} a ${this.statusLabel(status)}?`)) {
-      return;
-    }
+    this.savingJobPosition.set(true);
+    this.jobPositionProblem.set('');
 
-    this.saving.set(true);
-    this.api.changeStatus(employee.idEmployee, this.selectedOrganizationId(), status).pipe(finalize(() => this.saving.set(false))).subscribe({
-      next: (updated) => {
-        this.message.set('Estado actualizado correctamente.');
-        this.selectedEmployee.set(updated);
-        this.loadEmployees();
-      },
-      error: (error: HttpErrorResponse) => this.setError(error),
-    });
-  }
-
-  protected deactivateEmployee(employee: Employee): void {
-    if (!window.confirm(`¿Deseas desactivar a ${employee.fullName}?`)) {
-      return;
-    }
-
-    this.saving.set(true);
-    this.api.deactivateEmployee(this.selectedOrganizationId(), employee.idEmployee).pipe(finalize(() => this.saving.set(false))).subscribe({
-      next: () => {
-        this.message.set('Empleado desactivado correctamente.');
-        this.selectedEmployee.set(null);
-        this.documents.set([]);
-        this.evaluations.set([]);
-        this.loadEmployees(1);
-      },
-      error: (error: HttpErrorResponse) => this.setError(error),
-    });
-  }
-
-  protected uploadEmployeeFile(event: Event, kind: 'documents' | 'evaluations'): void {
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-    const employee = this.selectedEmployee();
-    const organizationId = this.selectedOrganizationId();
-    if (!file || !employee || !this.canUploadFiles() || this.uploadingFile()) return;
-    if (file.size > 20 * 1024 * 1024) {
-      this.error.set('El archivo supera el limite de 20 MB.');
-      input.value = '';
-      return;
-    }
-    this.uploadingFile.set(true);
-    this.documentApi.uploadDocumentFile(file, organizationId).pipe(finalize(() => {
-      this.uploadingFile.set(false);
-      input.value = '';
-    })).subscribe({
-      next: result => {
-        if (this.selectedOrganizationId() !== organizationId || this.selectedEmployee()?.idEmployee !== employee.idEmployee) return;
-        const form = kind === 'documents' ? this.documentForm : this.evaluationForm;
-        form.controls.storageReference.setValue(result.storageReference);
-      },
-      error: (error: HttpErrorResponse) => this.setError(error),
-    });
-  }
-
-  protected downloadEmployeeFile(kind: 'documents' | 'evaluations', recordId: string): void {
-    const employee = this.selectedEmployee();
-    if (!employee || !this.canReadFiles()) return;
-    this.api.downloadFile(this.selectedOrganizationId(), employee.idEmployee, kind, recordId).subscribe({
-      next: blob => {
-        const url = URL.createObjectURL(blob);
-        const anchor = document.createElement('a');
-        anchor.href = url;
-        anchor.download = `${kind}-${recordId}`;
-        anchor.click();
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
-      },
-      error: (error: HttpErrorResponse) => this.setError(error),
-    });
-  }
-
-  protected openCreateDocument(): void {
-    if (!this.selectedEmployee() || !this.canWriteFiles()) {
-      return;
-    }
-
-    this.editingDocument.set(null);
-    this.documentForm.reset({
-      documentType: 'EmploymentApplication',
-      status: 'Pending',
-      documentNumber: '',
-      receivedDate: '',
-      issuedDate: '',
-      expiresDate: '',
-      storageReference: '',
-      notes: '',
-    });
-    this.documentEditorOpen.set(true);
-  }
-
-  protected openEditDocument(document: EmployeeDocument): void {
-    if (!this.canWriteFiles()) return;
-    this.editingDocument.set(document);
-    this.documentForm.reset({
-      documentType: document.documentType,
-      status: document.status,
-      documentNumber: document.documentNumber ?? '',
-      receivedDate: this.dateOnly(document.receivedDate),
-      issuedDate: this.dateOnly(document.issuedDate),
-      expiresDate: this.dateOnly(document.expiresDate),
-      storageReference: document.storageReference ?? '',
-      notes: document.notes ?? '',
-    });
-    this.documentEditorOpen.set(true);
-  }
-
-  protected saveDocument(): void {
-    if (!this.canWriteFiles() || this.uploadingFile()) return;
-    const employee = this.selectedEmployee();
-    if (!employee || this.documentForm.invalid) {
-      this.documentForm.markAllAsTouched();
-      return;
-    }
-
-    const form = this.documentForm.getRawValue();
-    const input: EmployeeDocumentInput = {
-      idOrganization: this.selectedOrganizationId(),
-      idEmployee: employee.idEmployee,
-      documentType: form.documentType,
-      status: form.status,
-      documentNumber: this.optional(form.documentNumber),
-      receivedDate: this.optional(form.receivedDate),
-      issuedDate: this.optional(form.issuedDate),
-      expiresDate: this.optional(form.expiresDate),
-      storageReference: this.optional(form.storageReference),
-      notes: this.optional(form.notes),
-    };
-    const editing = this.editingDocument();
-    const request = editing
-      ? this.api.updateDocument(employee.idEmployee, editing.idEmployeeDocument, input)
-      : this.api.createDocument(employee.idEmployee, input);
-
-    this.saving.set(true);
-    request.pipe(finalize(() => this.saving.set(false))).subscribe({
-      next: () => {
-        this.documentEditorOpen.set(false);
-        this.message.set(editing ? 'Documento actualizado correctamente.' : 'Documento agregado correctamente.');
-        this.selectEmployee(employee);
-      },
-      error: (error: HttpErrorResponse) => this.setError(error),
-    });
-  }
-
-  protected deactivateDocument(document: EmployeeDocument): void {
-    if (!this.canWriteFiles()) return;
-    const employee = this.selectedEmployee();
-    if (!employee || !window.confirm('¿Deseas desactivar este documento?')) {
-      return;
-    }
-
-    this.saving.set(true);
-    this.api.deactivateDocument(this.selectedOrganizationId(), employee.idEmployee, document.idEmployeeDocument).pipe(finalize(() => this.saving.set(false))).subscribe({
-      next: () => {
-        this.message.set('Documento desactivado correctamente.');
-        this.selectEmployee(employee);
-      },
-      error: (error: HttpErrorResponse) => this.setError(error),
-    });
-  }
-
-  protected openCreateEvaluation(): void {
-    if (!this.selectedEmployee() || !this.canWriteFiles()) {
-      return;
-    }
-
-    this.editingEvaluation.set(null);
-    this.evaluationForm.reset({
-      evaluationType: 'Polygraph',
-      result: 'Pending',
-      evaluatedDate: this.today(),
-      expiresDate: '',
-      certificateNumber: '',
-      storageReference: '',
-      notes: '',
-    });
-    this.evaluationEditorOpen.set(true);
-  }
-
-  protected openEditEvaluation(evaluation: EmployeeEvaluation): void {
-    if (!this.canWriteFiles()) return;
-    this.editingEvaluation.set(evaluation);
-    this.evaluationForm.reset({
-      evaluationType: evaluation.evaluationType,
-      result: evaluation.result,
-      evaluatedDate: this.dateOnly(evaluation.evaluatedDate),
-      expiresDate: this.dateOnly(evaluation.expiresDate),
-      certificateNumber: evaluation.certificateNumber ?? '',
-      storageReference: evaluation.storageReference ?? '',
-      notes: evaluation.notes ?? '',
-    });
-    this.evaluationEditorOpen.set(true);
-  }
-
-  protected saveEvaluation(): void {
-    if (!this.canWriteFiles() || this.uploadingFile()) return;
-    const employee = this.selectedEmployee();
-    if (!employee || this.evaluationForm.invalid) {
-      this.evaluationForm.markAllAsTouched();
-      return;
-    }
-
-    const form = this.evaluationForm.getRawValue();
-    const input: EmployeeEvaluationInput = {
-      idOrganization: this.selectedOrganizationId(),
-      idEmployee: employee.idEmployee,
-      evaluationType: form.evaluationType,
-      result: form.result,
-      evaluatedDate: form.evaluatedDate,
-      expiresDate: this.optional(form.expiresDate),
-      certificateNumber: this.optional(form.certificateNumber),
-      storageReference: this.optional(form.storageReference),
-      notes: this.optional(form.notes),
-    };
-    const editing = this.editingEvaluation();
-    const request = editing
-      ? this.api.updateEvaluation(employee.idEmployee, editing.idEmployeeEvaluation, input)
-      : this.api.createEvaluation(employee.idEmployee, input);
-
-    this.saving.set(true);
-    request.pipe(finalize(() => this.saving.set(false))).subscribe({
-      next: () => {
-        this.evaluationEditorOpen.set(false);
-        this.message.set(editing ? 'Evaluación actualizada correctamente.' : 'Evaluación agregada correctamente.');
-        this.selectEmployee(employee);
-      },
-      error: (error: HttpErrorResponse) => this.setError(error),
-    });
-  }
-
-  protected deactivateEvaluation(evaluation: EmployeeEvaluation): void {
-    if (!this.canWriteFiles()) return;
-    const employee = this.selectedEmployee();
-    if (!employee || !window.confirm('¿Deseas desactivar esta evaluación?')) {
-      return;
-    }
-
-    this.saving.set(true);
-    this.api
-      .deactivateEvaluation(this.selectedOrganizationId(), employee.idEmployee, evaluation.idEmployeeEvaluation)
-      .pipe(finalize(() => this.saving.set(false)))
+    this.workforceApi
+      .updateEmployee(employee.idEmployee, {
+        idOrganization: organizationId,
+        fullName: employee.fullName,
+        jobTitle: chosen.name,
+        idJobPositionCatalogItem: chosen.idCatalogItem,
+        hireDate: employee.hireDate,
+        birthDate: employee.birthDate,
+        birthPlace: employee.birthPlace,
+        sex: employee.sex,
+        maritalStatus: employee.maritalStatus,
+        rfc: employee.rfc,
+        curp: employee.curp,
+        socialSecurityNumber: employee.socialSecurityNumber,
+        voterIdNumber: employee.voterIdNumber,
+        driverLicenseNumber: employee.driverLicenseNumber,
+        militaryServiceCardNumber: employee.militaryServiceCardNumber,
+        email: employee.email,
+        mobilePhone: employee.mobilePhone,
+        homePhone: employee.homePhone,
+        emergencyContactName: employee.emergencyContactName,
+        emergencyContactPhone: employee.emergencyContactPhone,
+        address: employee.address,
+        municipality: employee.municipality,
+        state: employee.state,
+        countryCode: employee.countryCode ?? null,
+        postalCode: employee.postalCode,
+        housingType: employee.housingType,
+        residenceSinceDate: employee.residenceSinceDate,
+      })
       .subscribe({
         next: () => {
-          this.message.set('Evaluación desactivada correctamente.');
-          this.selectEmployee(employee);
+          this.savingJobPosition.set(false);
+          this.editingJobPosition.set(false);
+          this.message.set(`${employee.fullName} quedó con el puesto ${chosen.name}.`);
+          this.load();
+          this.loadDetail(employee.idEmployee);
         },
-        error: (error: HttpErrorResponse) => this.setError(error),
+        error: (problem) => {
+          this.savingJobPosition.set(false);
+          this.jobPositionProblem.set(
+            problem?.error?.detail ?? 'No se pudo guardar el puesto. Revisa que siga activo en el catálogo.',
+          );
+        },
       });
   }
 
-  protected openCreateSkill(): void {
-    if (!this.selectedEmployee()) {
+  // ── Acciones de fila ─────────────────────────────────────────────────────────────────────
+
+  protected onRowAction(event: { id: string; employee: EmployeeListItem }): void {
+    switch (event.id) {
+      case 'assign':
+        this.goToPlanning();
+        break;
+      case 'leave':
+        this.confirming.set({ employee: event.employee, kind: 'leave' });
+        break;
+      case 'terminate':
+        this.confirming.set({ employee: event.employee, kind: 'terminate' });
+        break;
+    }
+  }
+
+  protected confirmAction(): void {
+    const pending = this.confirming();
+    const organizationId = this.organizationId();
+
+    if (!pending || !organizationId) {
       return;
     }
 
-    this.editingSkill.set(null);
-    this.skillForm.reset({
-      idSkillCatalogItem: this.skillCatalog()[0]?.idCatalogItem ?? '',
-      acquiredDate: '',
-      expiresDate: '',
-      notes: '',
+    this.confirming.set(null);
+    this.saving.set(true);
+
+    const status: EmployeeStatus = pending.kind === 'leave' ? 'OnLeave' : 'Terminated';
+
+    this.workforceApi.changeStatus(pending.employee.idEmployee, organizationId, status).subscribe({
+      next: () => {
+        this.saving.set(false);
+        this.message.set(
+          pending.kind === 'leave'
+            ? `${pending.employee.fullName} quedó en permiso. Sus asignaciones y su expediente se conservan.`
+            : `${pending.employee.fullName} quedó dada de baja. Su expediente se conserva completo.`,
+        );
+        this.load();
+
+        if (this.selected()?.idEmployee === pending.employee.idEmployee) {
+          this.loadDetail(pending.employee.idEmployee);
+        }
+      },
+      error: () => {
+        this.saving.set(false);
+        this.error.set('No se pudo cambiar el estado de la persona.');
+      },
     });
-    this.skillEditorOpen.set(true);
   }
 
-  protected openEditSkill(skill: EmployeeSkill): void {
-    this.editingSkill.set(skill);
-    this.skillForm.reset({
-      idSkillCatalogItem: skill.idSkillCatalogItem,
-      acquiredDate: this.dateOnly(skill.acquiredDate),
-      expiresDate: this.dateOnly(skill.expiresDate),
-      notes: skill.notes ?? '',
-    });
-    this.skillEditorOpen.set(true);
+  // ── Alta ─────────────────────────────────────────────────────────────────────────────────
+
+  protected startCreate(): void {
+    this.selected.set(null);
+    this.creating.set(true);
+    this.formProblem.set('');
   }
 
-  protected saveSkill(): void {
-    const employee = this.selectedEmployee();
-    if (!employee || this.skillForm.invalid) {
-      this.skillForm.markAllAsTouched();
+  /**
+   * El alta.
+   *
+   * <p>El código lo arma esta pantalla con la marca del momento, y no se le pide al usuario. Vale
+   * la pena decir por qué es único por corrida: <b>un código de alguien dado de baja sigue
+   * ocupado</b>, porque aquí los registros no se borran.</p>
+   */
+  protected saveNew(value: EmployeeFormValue): void {
+    const organizationId = this.organizationId();
+
+    if (!organizationId || !this.canWrite()) {
       return;
     }
-
-    const form = this.skillForm.getRawValue();
-    const input: EmployeeSkillInput = {
-      idOrganization: this.selectedOrganizationId(),
-      idEmployee: employee.idEmployee,
-      idSkillCatalogItem: form.idSkillCatalogItem,
-      acquiredDate: this.optional(form.acquiredDate),
-      expiresDate: this.optional(form.expiresDate),
-      notes: this.optional(form.notes),
-    };
-    const editing = this.editingSkill();
-    const request = editing
-      ? this.catalogApi.updateEmployeeSkill(employee.idEmployee, editing.idEmployeeSkill, input)
-      : this.catalogApi.createEmployeeSkill(employee.idEmployee, input);
 
     this.saving.set(true);
-    request.pipe(finalize(() => this.saving.set(false))).subscribe({
-      next: () => {
-        this.skillEditorOpen.set(false);
-        this.message.set(editing ? 'Habilidad actualizada correctamente.' : 'Habilidad agregada correctamente.');
-        this.loadEmployeeSkills(employee.idEmployee);
-      },
-      error: (error: HttpErrorResponse) => this.setError(error),
-    });
+    this.formProblem.set('');
+
+    this.workforceApi
+      .createEmployee({
+        idOrganization: organizationId,
+        codeEmployee: `EMP-${Date.now().toString(36).toUpperCase().slice(-6)}`,
+        fullName: value.fullName,
+        jobTitle: value.jobPositionName || null,
+        idJobPositionCatalogItem: value.idJobPositionCatalogItem || null,
+        hireDate: value.hireDate,
+        birthDate: null,
+        birthPlace: null,
+        sex: null,
+        maritalStatus: null,
+        rfc: null,
+        curp: value.curp || null,
+        socialSecurityNumber: null,
+        voterIdNumber: null,
+        driverLicenseNumber: null,
+        militaryServiceCardNumber: null,
+        email: value.email || null,
+        mobilePhone: value.mobilePhone || null,
+        homePhone: null,
+        emergencyContactName: null,
+        emergencyContactPhone: null,
+        address: null,
+        municipality: value.municipality || null,
+        state: value.state || null,
+        countryCode: value.state ? 'MX' : null,
+        postalCode: null,
+        housingType: null,
+        residenceSinceDate: null,
+      })
+      .subscribe({
+        next: (created) => {
+          this.finishCreate(
+            created.idEmployee,
+            value.idJobPositionCatalogItem
+              ? `Se dio de alta a ${value.fullName} con el puesto ${value.jobPositionName}.`
+              : `Se dio de alta a ${value.fullName}, sin puesto del catálogo. Se le puede asignar una ` +
+                  'posición, pero nadie podrá comprobar que corresponde al perfil.',
+          );
+        },
+        error: (problem) => {
+          this.saving.set(false);
+          this.formProblem.set(
+            problem?.error?.detail ??
+              'No se pudo dar de alta a la persona. Revisa el nombre, la CURP y el domicilio.',
+          );
+        },
+      });
   }
 
-  protected deactivateSkill(skill: EmployeeSkill): void {
-    const employee = this.selectedEmployee();
-    if (!employee || !window.confirm('¿Deseas desactivar esta habilidad?')) {
+  /** Cierra el alta, recarga y deja abierta la ficha de quien se acaba de crear. */
+  private finishCreate(idEmployee: string, message: string): void {
+    const organizationId = this.organizationId();
+
+    if (!organizationId) {
       return;
     }
 
-    this.saving.set(true);
-    this.catalogApi.deactivateEmployeeSkill(this.selectedOrganizationId(), employee.idEmployee, skill.idEmployeeSkill).pipe(finalize(() => this.saving.set(false))).subscribe({
-      next: () => {
-        this.message.set('Habilidad desactivada correctamente.');
-        this.loadEmployeeSkills(employee.idEmployee);
+    this.api.searchEmployees({ organizationId, pageSize: 100 }).subscribe({
+      next: (result) => {
+        const created = result.page.items.find((item) => item.idEmployee === idEmployee) ?? null;
+
+        this.saving.set(false);
+        this.creating.set(false);
+        this.message.set(message);
+        this.load();
+
+        if (created) {
+          this.open(created, created.idJobPositionCatalogItem ? 'documents' : 'data');
+        }
       },
-      error: (error: HttpErrorResponse) => this.setError(error),
-    });
-  }
-
-  protected closeEditors(): void {
-    if (this.uploadingFile()) return;
-    this.employeeEditorOpen.set(false);
-    this.documentEditorOpen.set(false);
-    this.evaluationEditorOpen.set(false);
-    this.skillEditorOpen.set(false);
-  }
-
-  protected skillName(idCatalogItem: string): string {
-    return this.skillCatalog().find((skill) => skill.idCatalogItem === idCatalogItem)?.name ?? 'Habilidad sin catálogo';
-  }
-
-  protected statusLabel(status: EmployeeStatus): string {
-    return this.employeeStatuses.find((item) => item.value === status)?.label ?? 'Sin estado';
-  }
-
-  protected documentTypeLabel(type: EmployeeDocumentType): string {
-    return this.documentTypes.find((item) => item.value === type)?.label ?? 'Documento';
-  }
-
-  protected documentStatusLabel(status: EmployeeDocumentStatus): string {
-    return this.documentStatuses.find((item) => item.value === status)?.label ?? 'Sin estado';
-  }
-
-  protected evaluationTypeLabel(type: EmployeeEvaluationType): string {
-    return this.evaluationTypes.find((item) => item.value === type)?.label ?? 'Evaluación';
-  }
-
-  protected evaluationResultLabel(result: EmployeeEvaluationResult): string {
-    return this.evaluationResults.find((item) => item.value === result)?.label ?? 'Sin resultado';
-  }
-
-  protected compactReference(value: string | null): string {
-    if (!value) {
-      return '';
-    }
-
-    return value.length > 48 ? `${value.slice(0, 24)}…${value.slice(-14)}` : value;
-  }
-
-  protected maskedPersonalReference(value: string | null): string {
-    if (!value) {
-      return 'Sin dato capturado';
-    }
-
-    if (this.canViewSensitivePersonalData()) {
-      return value;
-    }
-
-    return value.length > 4 ? `•••• ${value.slice(-4)}` : 'Dato reservado';
-  }
-
-  protected employeeServiceLabel(_employee: Employee): string {
-    return 'Sin asignación visible';
-  }
-
-  protected employeeSiteLabel(_employee: Employee): string {
-    return 'Sin sede visible';
-  }
-
-  protected employmentStatusLabel(status: EmployeeStatus): string {
-    if (status === 'Active') {
-      return 'Activo';
-    }
-
-    if (status === 'OnLeave') {
-      return 'Suspendido';
-    }
-
-    if (status === 'Terminated') {
-      return 'Baja';
-    }
-
-    return 'Inactivo';
-  }
-
-  protected employeeStage(employee: Employee): EmployeeFileStageFilter {
-    if (employee.status === 'Candidate') {
-      return 'candidate';
-    }
-
-    if (employee.status === 'Terminated') {
-      return 'rejected';
-    }
-
-    if (employee.status !== 'Active') {
-      return 'review';
-    }
-
-    if (this.selectedEmployee()?.idEmployee === employee.idEmployee) {
-      return this.employeeFileComplete() ? 'complete' : 'review';
-    }
-
-    return 'review';
-  }
-
-  protected employeeStageLabel(employee: Employee): string {
-    const stage = this.employeeStage(employee);
-    const labels: Record<EmployeeFileStageFilter, string> = {
-      all: 'Todas',
-      candidate: 'Candidato',
-      capture: 'Captura',
-      review: 'En revisión',
-      complete: 'Completo',
-      rejected: 'Rechazado',
-    };
-
-    return labels[stage];
-  }
-
-  protected employeeFileStatus(employee: Employee): string {
-    return this.selectedEmployee()?.idEmployee === employee.idEmployee && this.employeeFileComplete()
-      ? 'Completo'
-      : 'Incompleto';
-  }
-
-  protected assignmentBlockedReason(employee = this.selectedEmployee()): string {
-    if (!employee) {
-      return 'Selecciona un empleado para revisar asignación.';
-    }
-
-    if (employee.status !== 'Active') {
-      return `El estado laboral actual es ${this.employmentStatusLabel(employee.status)}.`;
-    }
-
-    if (!this.hasValidDocument('VoterId')) {
-      return 'Falta INE obligatoria validada.';
-    }
-
-    if (!this.skills().length) {
-      return 'Falta una habilidad requerida.';
-    }
-
-    if (!this.hasApprovedEvaluation()) {
-      return 'Falta evaluación aprobada o vigente.';
-    }
-
-    return '';
-  }
-
-  protected employeeFileComplete(): boolean {
-    return this.hasValidDocument('VoterId') && this.hasValidDocument('Curp') && this.hasValidDocument('SocialSecurityNumber');
-  }
-
-  protected employeeIsAssignable(employee: Employee): boolean {
-    const report = this.eligibilityForEmployee(employee.idEmployee);
-    if (report) {
-      return employee.status === 'Active' && report.isEligible;
-    }
-
-    if (this.selectedEmployee()?.idEmployee === employee.idEmployee) {
-      return !this.assignmentBlockedReason(employee);
-    }
-
-    return employee.status === 'Active';
-  }
-
-  protected eligibilityBadge(employee: Employee): string {
-    return this.employeeIsAssignable(employee) ? 'Elegible' : 'No elegible';
-  }
-
-  protected eligibilityState(employee: Employee): 'ok' | 'warn' {
-    return this.employeeIsAssignable(employee) ? 'ok' : 'warn';
-  }
-
-  /** Vencido respecto del día operativo. // Sin día operativo no se afirma nada: no se marca vencido ni se da por vigente. */
-  protected isExpired(value: string | null): boolean {
-    const today = this.today();
-    return Boolean(today && value && value < today);
-  }
-
-  /** Vigente respecto del día operativo. Sin día operativo, nada se da por vigente. */
-  private isCurrent(expiresDate: string | null): boolean {
-    const today = this.today();
-    return !!today && (!expiresDate || expiresDate >= today);
-  }
-
-  protected shortDate(value: string | null): string {
-    return value ? value.slice(0, 10) : 'sin actualización';
-  }
-
-  protected itemStateClass(state: EmployeeEligibilityItem['state']): string {
-    return `is-${state}`;
-  }
-
-  protected documentRequirementStatus(type: EmployeeDocumentType): string {
-    const document = this.documents().find((item) => item.documentType === type && item.active);
-
-    if (!document) {
-      return 'Pendiente';
-    }
-
-    if (document.expiresDate && this.isExpired(document.expiresDate)) {
-      return 'Vencido';
-    }
-
-    return this.documentStatusLabel(document.status);
-  }
-
-  protected skillRequirementStatus(): string {
-    return this.skills().length ? 'Aprobada' : 'Faltante';
-  }
-
-  protected employeeStepIsActive(step: number): boolean {
-    return this.employeeWizardStep() === step;
-  }
-
-  protected goToEmployeeStep(step: number): void {
-    if (step < 1 || step > 6) {
-      return;
-    }
-
-    for (let current = this.employeeWizardStep(); current < step; current++) {
-      if (!validateEmployeeStep(this.employeeForm, current)) {
-        this.employeeWizardStep.set(current);
-        return;
-      }
-    }
-    this.employeeWizardStep.set(step);
-  }
-
-  protected nextEmployeeStep(): void {
-    this.goToEmployeeStep(this.employeeWizardStep() + 1);
-  }
-
-  protected previousEmployeeStep(): void {
-    if (this.employeeWizardStep() > 1) {
-      this.employeeWizardStep.update((step) => step - 1);
-    }
-  }
-
-  protected isInvalid(controlName: string): boolean {
-    const control = this.employeeForm.get(controlName);
-    return Boolean(control?.invalid && (control.touched || control.dirty));
-  }
-
-  protected employeeReadyToSave(): boolean {
-    return this.employeeForm.valid;
-  }
-
-  private emptyEmployeeForm() {
-    return {
-      codeEmployee: '',
-      fullName: '',
-      jobTitle: '',
-      hireDate: this.today(),
-      birthDate: '',
-      birthPlace: '',
-      sex: '',
-      maritalStatus: '',
-      rfc: '',
-      curp: '',
-      socialSecurityNumber: '',
-      voterIdNumber: '',
-      driverLicenseNumber: '',
-      militaryServiceCardNumber: '',
-      email: '',
-      mobilePhone: '',
-      homePhone: '',
-      emergencyContactName: '',
-      emergencyContactPhone: '',
-      address: '',
-      municipality: '',
-      state: '',
-      countryCode: 'MX',
-      postalCode: '',
-      housingType: '',
-      residenceSinceDate: '',
-    };
-  }
-
-  private loadSkillCatalog(organizationId: string): void {
-    this.skillCatalog.set([]);
-    this.positionCatalog.set([]);
-    this.documentRequirements.set([]);
-    this.requirementsLoading.set(true);
-    this.requirementsError.set('');
-    forkJoin({
-      items: this.catalogApi.listItems(organizationId),
-      requirements: this.catalogApi.listEligibilityRequirements(organizationId),
-    }).pipe(finalize(() => this.requirementsLoading.set(false))).subscribe({
-      next: ({ items, requirements }) => {
-        this.skillCatalog.set(items.filter(item => item.active && item.type === 'Skill'));
-        this.positionCatalog.set(items.filter(item => item.active && item.type === 'JobPosition'));
-        this.documentRequirements.set(requirements.filter(item => item.active && item.requirementType === 'Document' && item.targetType === 'Organization'));
+      error: () => {
+        this.saving.set(false);
+        this.creating.set(false);
+        this.message.set(message);
+        this.load();
       },
-      error: () => this.requirementsError.set('No se pudieron consultar los catálogos y requisitos.'),
     });
   }
 
-  private loadEmployeeSkills(idEmployee: string): void {
-    this.catalogApi.listEmployeeSkills(this.selectedOrganizationId(), idEmployee).subscribe({
-      next: (skills) => this.skills.set(skills),
-      error: (error: HttpErrorResponse) => this.setError(error),
-    });
+  // ── Salidas ──────────────────────────────────────────────────────────────────────────────
+
+  /**
+   * La asignación se hace en Planeación, eligiendo la posición.
+   *
+   * <p><b>Sin parámetro a propósito.</b> Planeación no lee ninguno; mandarle uno que ignora dejaría
+   * un enlace que promete filtrar y no filtra, que es el defecto exacto que se corrigió en el paso
+   * de Clientes a Servicios.</p>
+   */
+  protected goToPlanning(): void {
+    void this.router.navigate(['/planeacion']);
   }
 
-  private loadWorkforceEligibility(): void {
-    const organizationId = this.selectedOrganizationId();
-
-    // Sin día operativo no se consulta: la respuesta del servidor depende de la fecha, y mandarla
-    // vacía devolvería algo que no es la elegibilidad de hoy.
-    if (!organizationId || !this.today()) {
-      this.workforceEligibility.set([]);
-      return;
-    }
-
-    this.clientApi.getWorkforceEligibility(organizationId, this.today(), this.search()).subscribe({
-      next: (result) => this.workforceEligibility.set(result),
-      error: () => this.workforceEligibility.set([]),
-    });
-  }
-
-  private eligibilityForEmployee(idEmployee: string): WorkforceEligibilityReport | null {
-    return this.workforceEligibility().find((employee) => employee.idEmployee === idEmployee) ?? null;
-  }
-
-  private basicEmployeeEligibility(employee: Employee): boolean {
-    return employee.status === 'Active';
-  }
-
-  protected hasValidDocument(type: EmployeeDocumentType): boolean {
-    return this.documents().some((document) =>
-      document.documentType === type &&
-      document.active &&
-      document.status === 'Validated' &&
-      this.isCurrent(document.expiresDate),
-    );
-  }
-
-  protected hasApprovedEvaluation(): boolean {
-    return this.evaluations().some((evaluation) =>
-      evaluation.active &&
-      ['Approved', 'ApprovedWithObservations'].includes(evaluation.result) &&
-      this.isCurrent(evaluation.expiresDate),
-    );
-  }
-
-  private optional(value: string): string | null {
-    const normalized = value.trim();
-    return normalized ? normalized : null;
-  }
-
-  private dateOnly(value: string | null): string {
-    return value?.slice(0, 10) ?? '';
-  }
-
-  private today(): string {
-    // El día operativo lo dice el servidor. Calcularlo aquí con `toISOString()` daba el día UTC:
-    // a las 19:00 hora de Ciudad de México del 4 de septiembre devolvía el 5, y la pantalla
-    // proponía el día siguiente todas las tardes. Es el mismo defecto que el reloj operativo
-    // cerró en el servidor. Cadena vacía mientras no se sabe: vacío se nota, un día equivocado no.
-    return this.systemInfo.operationDate();
-  }
-
-  private setError(error: HttpErrorResponse): void {
-    const detail =
-      typeof error.error === 'object' && error.error !== null
-        ? (error.error as Record<string, unknown>)['detail']
-        : null;
-    this.error.set(typeof detail === 'string' ? detail : 'No fue posible completar la operación.');
+  protected goToCatalogs(): void {
+    void this.router.navigate(['/catalogos']);
   }
 }
-
-type EmployeeTab = 'summary' | 'documents' | 'evaluations' | 'skills' | 'assignments';
-type EmployeeEligibilityFilter = 'all' | 'eligible' | 'review';
-type EmployeeFileStageFilter = 'all' | 'candidate' | 'capture' | 'review' | 'complete' | 'rejected';
-type EmployeeDocumentFilter = 'all' | 'valid' | 'pending';
-type EmployeeSkillFilter = 'all' | 'withSkills' | 'missing';
-
-type AdminConfigurationCard = {
-  readonly label: string;
-  readonly value: number;
-  readonly help: string;
-};
-
-type EmployeeEligibilityItem = {
-  readonly state: 'ok' | 'warn' | 'fail';
-  readonly label: string;
-  readonly hint: string;
-};

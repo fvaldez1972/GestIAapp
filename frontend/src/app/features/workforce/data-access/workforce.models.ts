@@ -39,6 +39,8 @@ export type Employee = {
   readonly status: EmployeeStatus;
   readonly fullName: string;
   readonly jobTitle: string | null;
+  /** El puesto por identificador de catalogo. Es el que compara la elegibilidad. */
+  readonly idJobPositionCatalogItem: string | null;
   readonly hireDate: string;
   readonly birthDate: string | null;
   readonly birthPlace: string | null;

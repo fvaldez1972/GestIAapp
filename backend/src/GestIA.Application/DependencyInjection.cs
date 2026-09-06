@@ -40,6 +40,7 @@ public static class DependencyInjection
         services.AddScoped<IOperationsService, OperationsService>();
         services.AddScoped<IReportsService, ReportsService>();
         services.AddScoped<IOverviewService, OverviewService>();
+        services.AddScoped<IEmployeeSearchService, EmployeeSearchService>();
         services.AddScoped<IOperationalRequestService, OperationalRequestService>();
         services.AddScoped<IAuditService, AuditService>();
         services.AddScoped<IAuthenticationService, AuthenticationService>();

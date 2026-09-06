@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GestIA.Infrastructure.Persistence.Repositories;
 
-public sealed class WorkforceRepository(GestIaDbContext dbContext) : IWorkforceRepository
+public sealed partial class WorkforceRepository(GestIaDbContext dbContext) : IWorkforceRepository
 {
     public async Task<EmployeeListResult> ListEmployeesAsync(
         EmployeeQuery query,

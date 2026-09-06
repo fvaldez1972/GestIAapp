@@ -69,6 +69,35 @@ public sealed class LegacyDocumentAuthorizationTests
 
     private sealed class Repository : IWorkforceRepository
     {
+        // El listado de la pantalla no interviene en esta prueba, que es de autorización de
+        // documentos heredados. Los miembros nuevos del contrato se cumplen en vacío.
+        public Task<(IReadOnlyList<EmployeeListItemResponse> Items, int TotalCount)> SearchEmployeesAsync(
+            EmployeeSearchCriteria criteria,
+            IReadOnlyCollection<EmployeeDocumentType> requiredDocuments,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(((IReadOnlyList<EmployeeListItemResponse>)[], 0));
+
+        public Task<IReadOnlyList<string>> ListRequiredDocumentCodesAsync(
+            Guid idOrganization,
+            CancellationToken cancellationToken) =>
+            Task.FromResult((IReadOnlyList<string>)[]);
+
+        public Task<IReadOnlyList<(Guid Id, string Name)>> ListUsedJobPositionsAsync(
+            Guid idOrganization,
+            CancellationToken cancellationToken) =>
+            Task.FromResult((IReadOnlyList<(Guid, string)>)[]);
+
+        public Task<IReadOnlyList<string>> ListEmployeeMunicipalitiesAsync(
+            Guid idOrganization,
+            CancellationToken cancellationToken) =>
+            Task.FromResult((IReadOnlyList<string>)[]);
+
+        public Task<IReadOnlyList<EmployeeAssignmentResponse>> ListAssignmentsAsync(
+            Guid idOrganization,
+            Guid idEmployee,
+            DateOnly today,
+            CancellationToken cancellationToken) =>
+            Task.FromResult((IReadOnlyList<EmployeeAssignmentResponse>)[]);
         public Employee Employee { get; } = Employee.Create(Guid.NewGuid(), "EMP-1", "Test Employee", null,
             new DateOnly(2026, 9, 3), Guid.NewGuid(), "Tester", DateTime.UtcNow);
         public int CollectionReads { get; private set; }

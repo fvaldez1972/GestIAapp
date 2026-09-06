@@ -47,13 +47,15 @@ public sealed partial class DemoDataSeeder
                 .OrderBy(item => item.Code)
                 .ToListAsync(cancellationToken);
 
+            var jobPositions = await JobPositionCatalogAsync(organization, cancellationToken);
+
             var number = 0;
             foreach (var (status, count) in EmployeeDistribution)
             {
                 for (var index = 0; index < count; index++)
                 {
                     number++;
-                    var employee = BuildEmployee(organization, number, status);
+                    var employee = BuildEmployee(organization, number, status, jobPositions);
                     await dbContext.Employees.AddAsync(employee, cancellationToken);
 
                     await AddEmployeeDocumentsAsync(employee, number, cancellationToken);
@@ -75,7 +77,11 @@ public sealed partial class DemoDataSeeder
             .CountAsync(item => item.Employee.IdOrganization == organization.IdOrganization, cancellationToken);
     }
 
-    private Employee BuildEmployee(Organization organization, int number, EmployeeStatus status)
+    private Employee BuildEmployee(
+        Organization organization,
+        int number,
+        EmployeeStatus status,
+        IReadOnlyDictionary<string, Guid> jobPositions)
     {
         var first = DemoCatalog.EmployeeFirstNames[number % DemoCatalog.EmployeeFirstNames.Length];
         var paternal = DemoCatalog.EmployeeLastNames[number % DemoCatalog.EmployeeLastNames.Length];
@@ -116,7 +122,10 @@ public sealed partial class DemoDataSeeder
                 place.PostalCode,
                 number % 2 == 0 ? "Propia" : "Rentada",
                 Days(-Rng.Next(200, 3000)),
-                "MX"),
+                "MX",
+                // El identificador, además del nombre. Sin él la persona queda con el puesto sólo
+                // como texto y nadie puede comprobar que corresponde al perfil de una posición.
+                ResolveJobPosition(jobPositions, job.Name)),
             DemoActorId,
             DemoActorName,
             OccurredAt);

@@ -49,7 +49,8 @@ public sealed class Employee : AuditableEntity, IOrganizationScopedEntity
         DateOnly hireDate,
         Guid actorId,
         string actorName,
-        DateTime occurredAt)
+        DateTime occurredAt,
+        Guid? idJobPositionCatalogItem = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(codeEmployee);
         ArgumentException.ThrowIfNullOrWhiteSpace(fullName);
@@ -59,6 +60,7 @@ public sealed class Employee : AuditableEntity, IOrganizationScopedEntity
         Status = EmployeeStatus.Active;
         FullName = fullName.Trim();
         JobTitle = string.IsNullOrWhiteSpace(jobTitle) ? null : jobTitle.Trim();
+        IdJobPositionCatalogItem = idJobPositionCatalogItem;
         HireDate = hireDate;
         RegisterCreation(actorId, actorName, occurredAt);
     }
@@ -110,6 +112,14 @@ public sealed class Employee : AuditableEntity, IOrganizationScopedEntity
     public IReadOnlyCollection<EmployeeDocument> Documents => documents;
     public IReadOnlyCollection<EmployeeEvaluation> Evaluations => evaluations;
 
+    /// <summary>
+    /// Alta breve.
+    ///
+    /// <para><c>idJobPositionCatalogItem</c> es opcional pero <b>existe a propósito</b>: sin él esta
+    /// sobrecarga no podía expresar un empleado con el puesto ligado al catálogo, y quien la usaba
+    /// creaba gente con el puesto sólo como texto. La elegibilidad se compara por identificador, así
+    /// que ese expediente queda sin poder comprobarse.</para>
+    /// </summary>
     public static Employee Create(
         Guid idOrganization,
         string codeEmployee,
@@ -118,7 +128,8 @@ public sealed class Employee : AuditableEntity, IOrganizationScopedEntity
         DateOnly hireDate,
         Guid actorId,
         string actorName,
-        DateTime occurredAt) =>
+        DateTime occurredAt,
+        Guid? idJobPositionCatalogItem = null) =>
         new(
             Guid.NewGuid(),
             idOrganization,
@@ -128,7 +139,8 @@ public sealed class Employee : AuditableEntity, IOrganizationScopedEntity
             hireDate,
             actorId,
             actorName,
-            occurredAt);
+            occurredAt,
+            idJobPositionCatalogItem);
 
     public static Employee Create(
         Guid idOrganization,

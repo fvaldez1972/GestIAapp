@@ -154,14 +154,21 @@ public sealed partial class DemoDataSeeder
             DemoActorId, DemoActorName, OccurredAt);
         dbContext.Add(position);
 
+        // Los casos difíciles también llevan el identificador del puesto. Se resuelve con el mismo
+        // buscador tolerante que el resto del sembrador: lo que corresponde a una entrada del
+        // catálogo queda ligado, y lo que no —«Vigilante nocturno»— queda nulo a propósito.
+        var jobPositions = await JobPositionCatalogAsync(organization, cancellationToken);
+
         // 9. Empleado sin ningún documento, y 10. empleado con un documento vencido.
         var withoutDocuments = Employee.Create(
             organizationId, $"{HardCasePrefix}-E-SINDOC", "Empleado sin documentos", "Guardia de seguridad",
-            Today.AddYears(-1), DemoActorId, DemoActorName, OccurredAt);
+            Today.AddYears(-1), DemoActorId, DemoActorName, OccurredAt,
+            ResolveJobPosition(jobPositions, "Guardia de seguridad"));
 
         var withExpired = Employee.Create(
             organizationId, $"{HardCasePrefix}-E-VENCIDO", "Ñáñez Ibáñez Muñoz", "Guardia de seguridad",
-            Today.AddYears(-2), DemoActorId, DemoActorName, OccurredAt);
+            Today.AddYears(-2), DemoActorId, DemoActorName, OccurredAt,
+            ResolveJobPosition(jobPositions, "Guardia de seguridad"));
 
         dbContext.AddRange(withoutDocuments, withExpired);
 
@@ -171,18 +178,21 @@ public sealed partial class DemoDataSeeder
         //     sabríamos si sirve.
         //
         //     Las tres primeras DEBEN mapear a "Guardia de seguridad" —difieren sólo en
-        //     mayúsculas, espacios de sobra y un acento sobrante—. La cuarta NO debe mapear:
+        //     mayúsculas, espacios de sobra y un acento sobrante—, y hoy las mapea el propio
+        //     sembrador, no una migración. La cuarta NO debe mapear:
         //     "Vigilante nocturno" no está en el catálogo de puestos, y su columna tiene que
         //     quedar nula sin que eso bloquee asignar a esa persona.
         foreach (var (suffix, profile) in HardCaseJobTitleVariants)
         {
             dbContext.Add(Employee.Create(
                 organizationId, $"{HardCasePrefix}-E-{suffix}", $"Empleado con perfil {suffix}", profile,
-                Today.AddYears(-1), DemoActorId, DemoActorName, OccurredAt));
+                Today.AddYears(-1), DemoActorId, DemoActorName, OccurredAt,
+                ResolveJobPosition(jobPositions, profile)));
 
             dbContext.Add(Position.Create(
                 organizationId, openEnded.IdService, $"{HardCasePrefix}-P-{suffix}",
-                new PositionProfile($"Puesto con perfil {suffix}", 1, profile, null),
+                new PositionProfile(
+                    $"Puesto con perfil {suffix}", 1, profile, null, ResolveJobPosition(jobPositions, profile)),
                 DemoActorId, DemoActorName, OccurredAt));
         }
 
@@ -213,6 +223,10 @@ public sealed partial class DemoDataSeeder
         IReadOnlyList<Service> services,
         CancellationToken cancellationToken)
     {
+        // El puesto también aquí: un empleado dado de baja conserva su expediente completo, y eso
+        // incluye el identificador de su puesto.
+        var inactiveJobPositions = await JobPositionCatalogAsync(organizationId, cancellationToken);
+
         // Una sede inactiva del cliente de nombre largo.
         sites[client.IdClient].Deactivate(DemoActorId, DemoActorName, OccurredAt);
 
@@ -230,7 +244,8 @@ public sealed partial class DemoDataSeeder
 
         var employee = Employee.Create(
             organizationId, $"{HardCasePrefix}-E-INACTIVO", "Empleado dado de baja", "Guardia de seguridad",
-            Today.AddYears(-3), DemoActorId, DemoActorName, OccurredAt);
+            Today.AddYears(-3), DemoActorId, DemoActorName, OccurredAt,
+            ResolveJobPosition(inactiveJobPositions, "Guardia de seguridad"));
         employee.Deactivate(DemoActorId, DemoActorName, OccurredAt);
         dbContext.Add(employee);
 

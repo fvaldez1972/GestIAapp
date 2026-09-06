@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Text;
 using GestIA.Application.Catalogs;
 using GestIA.Domain.Catalogs;
 using GestIA.Domain.Organizations;
@@ -166,6 +168,59 @@ public sealed partial class DemoDataSeeder(
             .IgnoreQueryFilters(["Active", "Organization"])
             .CountAsync(item => item.IdOrganization == organization.IdOrganization, cancellationToken);
     }
+
+    /// <summary>
+    /// Los puestos del catálogo de la organización, por código.
+    ///
+    /// <para><b>Existe porque el sembrador tiene que escribir el identificador, no sólo el nombre.</b>
+    /// La elegibilidad se compara por identificador de catálogo; un empleado con el puesto puesto
+    /// sólo como texto es un expediente que nadie puede comprobar. En <c>db-gestia-demo</c> el enlace
+    /// apareció por accidente de orden —se sembró antes de aplicar la migración que rellena esa
+    /// columna, y fue su relleno quien lo hizo—, no porque el sembrador lo hiciera.</para>
+    /// </summary>
+    private Task<IReadOnlyDictionary<string, Guid>> JobPositionCatalogAsync(
+        Organization organization,
+        CancellationToken cancellationToken) =>
+        JobPositionCatalogAsync(organization.IdOrganization, cancellationToken);
+
+    private async Task<IReadOnlyDictionary<string, Guid>> JobPositionCatalogAsync(
+        Guid idOrganization,
+        CancellationToken cancellationToken)
+    {
+        var items = await dbContext.BusinessCatalogItems
+            .IgnoreQueryFilters(["Active", "Organization"])
+            .Where(item => item.IdOrganization == idOrganization &&
+                item.Type == BusinessCatalogItemType.JobPosition && item.Active)
+            .Select(item => new { item.Name, item.IdBusinessCatalogItem })
+            .ToListAsync(cancellationToken);
+
+        return items
+            .GroupBy(item => NormalizeJobPositionName(item.Name))
+            .ToDictionary(group => group.Key, group => group.First().IdBusinessCatalogItem);
+    }
+
+    /// <summary>
+    /// El puesto del catálogo que corresponde a un texto, o nulo si ninguno.
+    ///
+    /// <para>Tolerante a mayúsculas, acentos y espacios de sobra, <b>igual que el relleno de la
+    /// migración que introdujo la columna</b>. Así es como llegan los datos escritos a mano, y los
+    /// casos difíciles del sembrador existen para ejercitarlo. Lo que no corresponde a ninguna
+    /// entrada queda en nulo: es la condición «expediente incompleto», no un error.</para>
+    /// </summary>
+    private static Guid? ResolveJobPosition(IReadOnlyDictionary<string, Guid> catalog, string? jobTitle) =>
+        !string.IsNullOrWhiteSpace(jobTitle) &&
+        catalog.TryGetValue(NormalizeJobPositionName(jobTitle), out var id)
+            ? id
+            : null;
+
+    private static string NormalizeJobPositionName(string value) =>
+        new string(value
+                .Trim()
+                .Normalize(NormalizationForm.FormD)
+                .Where(character =>
+                    CharUnicodeInfo.GetUnicodeCategory(character) != UnicodeCategory.NonSpacingMark)
+                .ToArray())
+            .ToUpperInvariant();
 
     private async Task AddCatalogItemAsync(
         Organization organization,

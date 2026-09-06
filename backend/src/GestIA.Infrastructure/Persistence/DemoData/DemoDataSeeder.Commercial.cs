@@ -319,6 +319,8 @@ public sealed partial class DemoDataSeeder
                 .OrderBy(item => item.CodeService)
                 .ToListAsync(cancellationToken);
 
+            var jobPositions = await JobPositionCatalogAsync(organization, cancellationToken);
+
             var serviceIndex = 0;
             foreach (var service in services)
             {
@@ -336,7 +338,9 @@ public sealed partial class DemoDataSeeder
                             job.Name,
                             Rng.Next(1, 5),
                             job.Name,
-                            index == 0 ? "Posición principal del sitio." : "Posición de apoyo en horario pico."),
+                            index == 0 ? "Posición principal del sitio." : "Posición de apoyo en horario pico.",
+                            // Mismo motivo que en el empleado: la comparación es por identificador.
+                            ResolveJobPosition(jobPositions, job.Name)),
                         DemoActorId,
                         DemoActorName,
                         OccurredAt);

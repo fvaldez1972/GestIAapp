@@ -183,6 +183,18 @@ Puntos de verificación: web `http://localhost:4200`, API
 `http://localhost:8080/api/v1/system/info`, liveness `/health/live`, readiness (incluye SQL
 Server) `/health/ready`, SQL `localhost,1433`.
 
+Pruebas de integración, contra un SQL Server **efímero** que se levanta y se desecha:
+
+```bash
+cd backend
+./pruebas-integracion.sh
+./pruebas-integracion.sh --filter "FullyQualifiedName~DemoSeeder"
+```
+
+Existe porque las pruebas crean y borran bases, y la regla es que **nunca compartan instancia con
+la base de trabajo**: desde que `db-gestia-dev` sirve un dominio público, un error del molde de
+pruebas ahí sería un problema en producción. El guion no deja contenedor ni volumen.
+
 Migraciones, como paso controlado y nunca al arrancar la API:
 
 ```powershell
@@ -199,23 +211,23 @@ dotnet tool run dotnet-ef database update --project .\src\GestIA.Infrastructure 
 vigente.)
 
 Esto no es teórico aquí. Hay **24 migraciones** en
-`backend/src/GestIA.Infrastructure/Persistence/Migrations/`, y **no todas están aplicadas en
-todas las bases**:
+`backend/src/GestIA.Infrastructure/Persistence/Migrations/`, y desde el 6 de septiembre de 2026
+**la única base viva está al día con todas**:
 
 | Base | Migraciones aplicadas | Hasta |
 |---|---|---|
-| `db-gestia-dev` | 19 | `20260903214645_CoverageCatalogReference` |
-| `db-gestia-demo` | 24 | `20260905125754_AddConcurrencyTokens` |
+| `db-gestia-dev` | **24** | `20260905125754_AddConcurrencyTokens` |
 
-Las 19 de `db-gestia-dev` están documentadas en `docs/V5-AVANCE-2026-09-03.md` y
-`docs/CATALOGOS-CIERRE-2026-09-03.md`. Las cinco siguientes —organización denormalizada, bitácora
-funcional, organización en las entidades de detalle, puesto por catálogo y tokens de
-concurrencia— se aplicaron sólo en `db-gestia-demo`, con respaldo `COPY_ONLY` verificado y ensayo
-sobre copia antes de cada una.
+`db-gestia-dev` es la base que sirve **`dev.gestia-demo.com`**, en el SQL Server del stack `gestia`
+(puerto 1433). Las cinco últimas migraciones —organización denormalizada, bitácora funcional,
+organización en las entidades de detalle, puesto por catálogo y tokens de concurrencia— se le
+aplicaron el 6 de septiembre con respaldo `COPY_ONLY` verificado y **ensayo sobre una copia
+restaurada** antes de tocarla.
 
-**Consecuencia práctica: el código actual no arranca contra `db-gestia-dev`.** El modelo espera
-columnas que esa base todavía no tiene. Ponerla al día es una decisión con respaldo y ensayo, no
-un paso automático.
+**`db-gestia-demo` ya no existe.** Vivía en el stack `gestia-pruebas`, que se retiró ese mismo día
+al quedarse el proyecto con un solo stack. Sus respaldos —los once previos a cada cambio de esquema,
+más uno final— están fuera de Docker, en `C:\Users\danie\Backups\gestia\pruebas\`. La documentación
+que la describe como infraestructura viva es histórica.
 
 Editar el archivo de una migración ya aplicada deja el `__EFMigrationsHistory` de esa base
 inconsistente con el código.

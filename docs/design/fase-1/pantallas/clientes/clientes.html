@@ -573,7 +573,7 @@
                 </div>
                 <div style="display:flex;flex-direction:column;gap:6px;border:1px solid #dce2e9;background:#f7f9fb;border-radius:6px;padding:13px">
                   <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">LO QUE YA QUEDÓ GUARDADO</span>
-                  <span style="font:400 12px/1.5 Archivo,sans-serif;color:#253040">Textiles La Concepción · Zona Poniente · Jalisco, Tlaquepaque · alta 04 sep 2026. Nada se perdió al guardar sin sede.</span>
+                  <span style="font:400 12px/1.5 Archivo,sans-serif;color:#253040">Textiles La Concepción · Jalisco, Tlaquepaque · alta 04 sep 2026. Nada se perdió al guardar sin sede.</span>
                 </div>
               </div>
               <div style="margin-top:auto;border-top:1px solid #dce2e9;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px">
@@ -602,15 +602,15 @@
 class Component extends DCLogic {
   renderVals() {
     const base = [
-      { nombre: 'Corporativo Altavista', ubicacion: 'Poniente · Zapopan', sedes: '3', servicios: '5', estado: 'Activo' },
-      { nombre: 'Grupo Industrial Peñaflor', ubicacion: 'Poniente · Tlaquepaque', sedes: '2', servicios: '3', estado: 'Activo' },
-      { nombre: 'Hospital Ángeles del Valle', ubicacion: 'Poniente · Guadalajara', sedes: '4', servicios: '6', estado: 'Activo' },
-      { nombre: 'Muñoz y Asociados', ubicacion: 'Poniente · Zapopan', sedes: '1', servicios: '1', estado: 'Activo' },
-      { nombre: 'Plaza Comercial Río Verde', ubicacion: 'Poniente · Tonalá', sedes: '2', servicios: '0', estado: 'Activo' },
-      { nombre: 'Constructora Torreblanca del Bajío S.A. de C.V.', ubicacion: 'Poniente · Zapopan', sedes: '1', servicios: '2', estado: 'Activo' },
-      { nombre: 'Textiles La Concepción', ubicacion: 'Poniente · Tlaquepaque', sedes: '—', servicios: '0', estado: 'Activo', sinSede: true },
-      { nombre: 'Almacenes Ñuble', ubicacion: 'Poniente · Guadalajara', sedes: '1', servicios: '1', estado: 'Activo', sinContacto: true },
-      { nombre: 'Centro Educativo Sor Juana Inés', ubicacion: 'Poniente · Tlajomulco de Zúñiga', sedes: '2', servicios: '0', estado: 'Inactivo', inactivo: true }
+      { nombre: 'Corporativo Altavista', ubicacion: 'Jalisco · Zapopan', sedes: '3', servicios: '5', estado: 'Activo' },
+      { nombre: 'Grupo Industrial Peñaflor', ubicacion: 'Jalisco · Tlaquepaque', sedes: '2', servicios: '3', estado: 'Activo' },
+      { nombre: 'Hospital Ángeles del Valle', ubicacion: 'Jalisco · Guadalajara', sedes: '4', servicios: '6', estado: 'Activo' },
+      { nombre: 'Muñoz y Asociados', ubicacion: 'Jalisco · Zapopan', sedes: '1', servicios: '1', estado: 'Activo' },
+      { nombre: 'Plaza Comercial Río Verde', ubicacion: 'Jalisco · Tonalá', sedes: '2', servicios: '0', estado: 'Activo' },
+      { nombre: 'Constructora Torreblanca del Bajío S.A. de C.V.', ubicacion: 'Jalisco · Zapopan', sedes: '1', servicios: '2', estado: 'Activo' },
+      { nombre: 'Textiles La Concepción', ubicacion: 'Jalisco · Tlaquepaque', sedes: '—', servicios: '0', estado: 'Activo', sinSede: true },
+      { nombre: 'Almacenes Ñuble', ubicacion: 'Jalisco · Guadalajara', sedes: '1', servicios: '1', estado: 'Activo', sinContacto: true },
+      { nombre: 'Centro Educativo Sor Juana Inés', ubicacion: 'Jalisco · Tlajomulco de Zúñiga', sedes: '2', servicios: '0', estado: 'Inactivo', inactivo: true }
     ];
 
     const wide = base.map(c => ({

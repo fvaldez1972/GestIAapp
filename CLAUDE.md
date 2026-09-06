@@ -231,6 +231,26 @@ Reglas que acompañan a cada migración nueva:
 6. Una excepción a los estándares requiere un ADR previo; no se resuelve desactivando la
    validación global.
 
+## Los registros no se borran, y eso ocupa las claves únicas
+
+Consecuencia directa del principio 3 y del borrado lógico: **una clave única sigue ocupada aunque
+el registro esté inactivo.** La comprobación de unicidad no distingue activos de inactivos, así
+que desactivar un cliente no libera su RFC ni su `CodeClient`, ni desactivar un valor de catálogo
+libera su `Code`.
+
+La consecuencia práctica, que ya costó dos tandas:
+
+- **Toda verificación que cree entidades con campos únicos debe generar valores nuevos por
+  corrida.** Con un valor fijo, la primera corrida pasa y la segunda choca con un 409 que parece
+  un defecto del código y no lo es.
+- **La limpieza de una verificación sólo puede desactivar, nunca borrar.** Cada corrida deja su
+  fila inactiva, y eso es correcto: es el mismo principio que protege los registros operativos.
+- Vale para `Clients` (RFC y código), `BusinessCatalogItems` (código por tipo), `Employees`,
+  `Services` y cualquier entidad con `AK_` o `UX_`.
+
+Pasó con los catálogos en la tanda 5 y con el RFC de cliente en la tanda 6. Va a volver a pasar en
+Personal y en las que siguen.
+
 ## Estructura
 
 ```text

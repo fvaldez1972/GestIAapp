@@ -67,10 +67,15 @@ import {
       <ng-template giCell="actions" let-client>
         <!-- El clic del menú no debe abrir la ficha: quien sólo quería ver las acciones se
              encontraría el panel encima. -->
+        <!--
+          El código va en el nombre accesible porque dos clientes pueden compartir nombre
+          comercial, y entonces sus menús quedan indistinguibles para quien navega con lector. El
+          código es único por organización, así que el nombre también lo es.
+        -->
         <span class="cell__actions" (click)="$event.stopPropagation()">
           <gi-row-actions
             [actions]="actions()"
-            [label]="'Acciones de ' + name(client)"
+            [label]="'Acciones de ' + name(client) + ', ' + client.codeClient"
             (select)="action.emit({ id: $event.id, client })"
           />
         </span>

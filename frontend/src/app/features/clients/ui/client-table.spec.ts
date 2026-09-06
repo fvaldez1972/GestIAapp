@@ -94,12 +94,19 @@ describe('El listado de clientes', () => {
     expect(opciones.filter((o) => o?.startsWith('Editar'))).toHaveLength(1);
   });
 
-  /** Nueve menús «Acciones» idénticos no le sirven a quien navega con lector. */
-  it('cada menú se nombra con su cliente', () => {
-    const { filas } = montar();
+  /**
+   * Nueve menús «Acciones» idénticos no le sirven a quien navega con lector, y el nombre solo
+   * tampoco basta: **dos clientes pueden compartir nombre comercial**. El código los separa.
+   */
+  it('cada menú se nombra con su cliente, y el nombre es único', () => {
+    const { filas } = montar((host) =>
+      host.clients.set([cliente(), cliente({ idClient: 'cli-9', codeClient: 'CLI-09' })]),
+    );
 
-    expect(filas()[0].querySelector('gi-row-actions button')?.getAttribute('aria-label'))
-      .toBe('Acciones de Corporativo Altavista');
+    const nombres = filas().map((f) => f.querySelector('gi-row-actions button')?.getAttribute('aria-label'));
+
+    expect(nombres[0]).toBe('Acciones de Corporativo Altavista, CLI-01');
+    expect(new Set(nombres).size).toBe(2);
   });
 
   it('abrir el menú no abre la ficha', () => {

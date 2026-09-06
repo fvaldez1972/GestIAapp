@@ -1,4 +1,6 @@
 import { Component, signal } from '@angular/core';
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { ClientContact, ClientSite } from '../data-access/client.models';
@@ -9,6 +11,7 @@ import { contacto, sede } from './client-fixtures';
   imports: [ClientSites],
   template: `
     <app-client-sites
+      organizationId="org-a"
       [sites]="lista()"
       [contacts]="contacts()"
       [canWrite]="canWrite()"
@@ -46,9 +49,46 @@ function montar(configurar: (host: Anfitrion) => void = () => {}) {
   };
 }
 
+/**
+ * El catálogo geográfico que el selector pide.
+ *
+ * <p>Estado y municipio no son texto libre: el servidor los valida contra `State` y `City`, y la
+ * ciudad cuelga del estado, que cuelga del país. La prueba monta esa jerarquía porque es la que
+ * hace que el municipio aparezca sólo cuando su estado está elegido.</p>
+ */
+const GEOGRAFIA = [
+  { idCatalogItem: 'mx', type: 'Country', code: 'MX', name: 'México', active: true, idParentCatalogItem: null },
+  { idCatalogItem: 'jal', type: 'State', code: 'JAL', name: 'Jalisco', active: true, idParentCatalogItem: 'mx' },
+  { idCatalogItem: 'nl', type: 'State', code: 'NL', name: 'Nuevo León', active: true, idParentCatalogItem: 'mx' },
+  { idCatalogItem: 'tlaq', type: 'City', code: 'TLAQ', name: 'Tlaquepaque', active: true, idParentCatalogItem: 'jal' },
+  { idCatalogItem: 'snic', type: 'City', code: 'SNIC', name: 'San Nicolás de los Garza', active: true, idParentCatalogItem: 'nl' },
+];
+
+/** Responde la única petición del catálogo y deja los selectores con sus opciones. */
+function surtirCatalogo(http: HttpTestingController, fixture: { detectChanges(): void }) {
+  for (const peticion of http.match((r) => r.url.endsWith('/catalogs/options'))) {
+    peticion.flush(GEOGRAFIA);
+  }
+  fixture.detectChanges();
+}
+
+/** Elige un valor en un `app-catalog-select`, que por dentro es el `<select>` de la excepción. */
+function elegir(raiz: HTMLElement, id: string, valor: string, fixture: { detectChanges(): void }) {
+  const select = raiz.querySelector<HTMLSelectElement>(`#${id} select`);
+  if (!select) {
+    throw new Error(`no hay selector en #${id}`);
+  }
+  select.value = valor;
+  select.dispatchEvent(new Event('change'));
+  fixture.detectChanges();
+}
+
 describe('La pestaña de Sedes', () => {
   beforeEach(() =>
-    TestBed.configureTestingModule({ imports: [Anfitrion], providers: [provideRouter([])] }));
+    TestBed.configureTestingModule({
+      imports: [Anfitrion],
+      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
+    }));
 
   afterEach(() => TestBed.resetTestingModule());
 
@@ -96,13 +136,16 @@ describe('La pestaña de Sedes', () => {
   });
 
   it('con la dirección completa se habilita y emite lo que se escribió', () => {
-    const { fixture, guardar, escribir, host } = montar((anfitrion) => anfitrion.openAdd.set(true));
+    const { fixture, guardar, escribir, host, raiz } = montar((anfitrion) => anfitrion.openAdd.set(true));
 
     escribir('ns-nombre', 'Planta San Nicolás');
     escribir('ns-calle', 'Av. Universidad 2340');
     escribir('ns-cp', '66450');
-    escribir('ns-municipio', 'San Nicolás de los Garza');
-    escribir('ns-estado', 'Nuevo León');
+
+    // Estado y municipio salen del catálogo geográfico, no de texto libre.
+    surtirCatalogo(TestBed.inject(HttpTestingController), fixture);
+    elegir(raiz, 'ns-estado', 'Nuevo León', fixture);
+    elegir(raiz, 'ns-municipio', 'San Nicolás de los Garza', fixture);
     fixture.detectChanges();
 
     expect(guardar()!.disabled).toBe(false);

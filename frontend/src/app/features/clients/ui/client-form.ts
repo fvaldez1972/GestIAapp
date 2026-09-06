@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { CatalogSelect } from '../../../shared/ui/catalog-select/catalog-select';
 
 /** Lo que el formulario devuelve. La sede y el contacto van aparte porque pueden no ir. */
 export type ClientFormValue = {
@@ -36,7 +37,7 @@ export type ClientFormValue = {
 @Component({
   selector: 'app-client-form',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule],
+  imports: [CatalogSelect, FormsModule],
   template: `
     <form class="form" (ngSubmit)="$event.preventDefault()">
       <section class="form__block">
@@ -44,19 +45,19 @@ export type ClientFormValue = {
 
         <label class="field field--wide" for="cf-razon">
           <span class="field__label">RAZÓN SOCIAL</span>
-          <input id="cf-razon" name="legalName" type="text" [ngModel]="legalName()" (ngModelChange)="legalName.set($event)" [ngModelOptions]="{ standalone: true }" autocomplete="off" />
+          <input id="cf-razon" name="legalName" type="text" [ngModel]="legalName()" (ngModelChange)="legalName.set($event)" [ngModelOptions]="sueltos" autocomplete="off" />
         </label>
 
         <div class="form__row form__row--two">
           <label class="field" for="cf-corto">
             <span class="field__label">NOMBRE CORTO</span>
-            <input id="cf-corto" name="tradeName" type="text" [ngModel]="tradeName()" (ngModelChange)="tradeName.set($event)" [ngModelOptions]="{ standalone: true }" autocomplete="off" />
+            <input id="cf-corto" name="tradeName" type="text" [ngModel]="tradeName()" (ngModelChange)="tradeName.set($event)" [ngModelOptions]="sueltos" autocomplete="off" />
           </label>
           <label class="field" for="cf-rfc">
             <!-- El bosquejo lo marcaba opcional. No lo es: el servidor lo usa para la unicidad
                  del cliente junto con el código. -->
             <span class="field__label">RFC</span>
-            <input id="cf-rfc" name="rfc" type="text" [ngModel]="rfc()" (ngModelChange)="rfc.set($event)" [ngModelOptions]="{ standalone: true }" placeholder="Trece caracteres" autocomplete="off" />
+            <input id="cf-rfc" name="rfc" type="text" [ngModel]="rfc()" (ngModelChange)="rfc.set($event)" [ngModelOptions]="sueltos" placeholder="Trece caracteres" autocomplete="off" />
           </label>
         </div>
       </section>
@@ -69,32 +70,51 @@ export type ClientFormValue = {
 
         <label class="field field--wide" for="cf-sede">
           <span class="field__label">NOMBRE DE LA SEDE</span>
-          <input id="cf-sede" name="siteName" type="text" [ngModel]="siteName()" (ngModelChange)="siteName.set($event)" [ngModelOptions]="{ standalone: true }" autocomplete="off" />
+          <input id="cf-sede" name="siteName" type="text" [ngModel]="siteName()" (ngModelChange)="siteName.set($event)" [ngModelOptions]="sueltos" autocomplete="off" />
         </label>
 
         <div class="form__row form__row--calle">
           <label class="field" for="cf-calle">
             <span class="field__label">CALLE Y NÚMERO</span>
-            <input id="cf-calle" name="street" type="text" [ngModel]="street()" (ngModelChange)="street.set($event)" [ngModelOptions]="{ standalone: true }" autocomplete="off" />
+            <input id="cf-calle" name="street" type="text" [ngModel]="street()" (ngModelChange)="street.set($event)" [ngModelOptions]="sueltos" autocomplete="off" />
           </label>
           <label class="field" for="cf-cp">
             <span class="field__label">CÓDIGO POSTAL</span>
-            <input id="cf-cp" name="postalCode" type="text" [ngModel]="postalCode()" (ngModelChange)="postalCode.set($event)" [ngModelOptions]="{ standalone: true }" autocomplete="off" />
+            <input id="cf-cp" name="postalCode" type="text" [ngModel]="postalCode()" (ngModelChange)="postalCode.set($event)" [ngModelOptions]="sueltos" autocomplete="off" />
           </label>
         </div>
 
         <div class="form__row form__row--three">
           <label class="field" for="cf-colonia">
             <span class="field__label">COLONIA</span>
-            <input id="cf-colonia" name="neighborhood" type="text" [ngModel]="neighborhood()" (ngModelChange)="neighborhood.set($event)" [ngModelOptions]="{ standalone: true }" autocomplete="off" />
+            <input id="cf-colonia" name="neighborhood" type="text" [ngModel]="neighborhood()" (ngModelChange)="neighborhood.set($event)" [ngModelOptions]="sueltos" autocomplete="off" />
           </label>
           <label class="field" for="cf-estado">
             <span class="field__label">ESTADO</span>
-            <input id="cf-estado" name="state" type="text" [ngModel]="state()" (ngModelChange)="state.set($event)" [ngModelOptions]="{ standalone: true }" autocomplete="off" />
+            <app-catalog-select
+              id="cf-estado"
+              type="State"
+              label="Estado"
+              country="MX"
+              [organizationId]="organizationId()"
+              [ngModel]="state()"
+              (ngModelChange)="onState($event)"
+              [ngModelOptions]="sueltos"
+            />
           </label>
           <label class="field" for="cf-municipio">
             <span class="field__label">MUNICIPIO</span>
-            <input id="cf-municipio" name="municipality" type="text" [ngModel]="municipality()" (ngModelChange)="municipality.set($event)" [ngModelOptions]="{ standalone: true }" autocomplete="off" />
+            <app-catalog-select
+              id="cf-municipio"
+              type="City"
+              label="Municipio"
+              country="MX"
+              [state]="state()"
+              [organizationId]="organizationId()"
+              [ngModel]="municipality()"
+              (ngModelChange)="municipality.set($event)"
+              [ngModelOptions]="sueltos"
+            />
           </label>
         </div>
       </section>
@@ -104,19 +124,19 @@ export type ClientFormValue = {
         <div class="form__row form__row--two">
           <label class="field" for="cf-cnombre">
             <span class="field__label">NOMBRE</span>
-            <input id="cf-cnombre" name="contactName" type="text" [ngModel]="contactName()" (ngModelChange)="contactName.set($event)" [ngModelOptions]="{ standalone: true }" autocomplete="off" />
+            <input id="cf-cnombre" name="contactName" type="text" [ngModel]="contactName()" (ngModelChange)="contactName.set($event)" [ngModelOptions]="sueltos" autocomplete="off" />
           </label>
           <label class="field" for="cf-cpuesto">
             <span class="field__label">PUESTO</span>
-            <input id="cf-cpuesto" name="contactRole" type="text" [ngModel]="contactRole()" (ngModelChange)="contactRole.set($event)" [ngModelOptions]="{ standalone: true }" autocomplete="off" />
+            <input id="cf-cpuesto" name="contactRole" type="text" [ngModel]="contactRole()" (ngModelChange)="contactRole.set($event)" [ngModelOptions]="sueltos" autocomplete="off" />
           </label>
           <label class="field" for="cf-ctel">
             <span class="field__label">TELÉFONO</span>
-            <input id="cf-ctel" name="contactPhone" type="text" [ngModel]="contactPhone()" (ngModelChange)="contactPhone.set($event)" [ngModelOptions]="{ standalone: true }" autocomplete="off" />
+            <input id="cf-ctel" name="contactPhone" type="text" [ngModel]="contactPhone()" (ngModelChange)="contactPhone.set($event)" [ngModelOptions]="sueltos" autocomplete="off" />
           </label>
           <label class="field" for="cf-ccorreo">
             <span class="field__label">CORREO · OPCIONAL</span>
-            <input id="cf-ccorreo" name="contactEmail" type="text" [ngModel]="contactEmail()" (ngModelChange)="contactEmail.set($event)" [ngModelOptions]="{ standalone: true }" autocomplete="off" />
+            <input id="cf-ccorreo" name="contactEmail" type="text" [ngModel]="contactEmail()" (ngModelChange)="contactEmail.set($event)" [ngModelOptions]="sueltos" autocomplete="off" />
           </label>
         </div>
       </section>
@@ -258,8 +278,20 @@ export type ClientFormValue = {
   `,
 })
 export class ClientForm {
+  /**
+   * Las opciones de `ngModel`, en una sola instancia.
+   *
+   * <p>Escritas en la plantilla como `{ standalone: true }` se construía un objeto nuevo en
+   * <b>cada ciclo de detección</b>, y `NgModel` se reconfiguraba con cada uno: la vista no
+   * llegaba a estabilizarse y el proceso terminaba sin memoria. Sólo se ve con la pantalla
+   * montada, porque en prueba de componente el ciclo se detiene solo.</p>
+   */
+  protected readonly sueltos = { standalone: true };
+
   readonly saving = input(false);
   readonly problem = input('');
+  /** El catálogo geográfico es por organización. */
+  readonly organizationId = input('');
 
   readonly cancel = output<void>();
   readonly save = output<{ value: ClientFormValue; withSite: boolean }>();
@@ -291,6 +323,19 @@ export class ClientForm {
       !!this.state().trim() &&
       !!this.postalCode().trim(),
   );
+
+
+  /**
+   * El estado y el municipio salen del catálogo geográfico, no de texto libre.
+   *
+   * <p>El servidor los valida contra `State` y `City` y rechaza cualquier otra cosa con
+   * «Selecciona una ciudad o municipio activo del estado». Escribirlos a mano dejaba un formulario
+   * que se llenaba entero y fallaba al guardar, sin decir dónde.</p>
+   */
+  protected onState(valor: string): void {
+    this.state.set(valor);
+    this.municipality.set('');
+  }
 
   protected submit(withSite: boolean): void {
     this.save.emit({

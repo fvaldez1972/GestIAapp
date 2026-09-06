@@ -1,10 +1,12 @@
 import { Component, signal } from '@angular/core';
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { ClientForm, ClientFormValue } from './client-form';
 
 @Component({
   imports: [ClientForm],
-  template: `<app-client-form (save)="guardado.set($event)" />`,
+  template: `<app-client-form organizationId="org-a" (save)="guardado.set($event)" />`,
 })
 class Anfitrion {
   readonly guardado = signal<{ value: ClientFormValue; withSite: boolean } | null>(null);
@@ -34,8 +36,46 @@ function montar() {
   };
 }
 
+/**
+ * El catálogo geográfico que el selector pide.
+ *
+ * <p>Estado y municipio no son texto libre: el servidor los valida contra `State` y `City`, y la
+ * ciudad cuelga del estado, que cuelga del país. La prueba monta esa jerarquía porque es la que
+ * hace que el municipio aparezca sólo cuando su estado está elegido.</p>
+ */
+const GEOGRAFIA = [
+  { idCatalogItem: 'mx', type: 'Country', code: 'MX', name: 'México', active: true, idParentCatalogItem: null },
+  { idCatalogItem: 'jal', type: 'State', code: 'JAL', name: 'Jalisco', active: true, idParentCatalogItem: 'mx' },
+  { idCatalogItem: 'nl', type: 'State', code: 'NL', name: 'Nuevo León', active: true, idParentCatalogItem: 'mx' },
+  { idCatalogItem: 'tlaq', type: 'City', code: 'TLAQ', name: 'Tlaquepaque', active: true, idParentCatalogItem: 'jal' },
+  { idCatalogItem: 'snic', type: 'City', code: 'SNIC', name: 'San Nicolás de los Garza', active: true, idParentCatalogItem: 'nl' },
+];
+
+/** Responde la única petición del catálogo y deja los selectores con sus opciones. */
+function surtirCatalogo(http: HttpTestingController, fixture: { detectChanges(): void }) {
+  for (const peticion of http.match((r) => r.url.endsWith('/catalogs/options'))) {
+    peticion.flush(GEOGRAFIA);
+  }
+  fixture.detectChanges();
+}
+
+/** Elige un valor en un `app-catalog-select`, que por dentro es el `<select>` de la excepción. */
+function elegir(raiz: HTMLElement, id: string, valor: string, fixture: { detectChanges(): void }) {
+  const select = raiz.querySelector<HTMLSelectElement>(`#${id} select`);
+  if (!select) {
+    throw new Error(`no hay selector en #${id}`);
+  }
+  select.value = valor;
+  select.dispatchEvent(new Event('change'));
+  fixture.detectChanges();
+}
+
 describe('El alta de cliente', () => {
-  beforeEach(() => TestBed.configureTestingModule({ imports: [Anfitrion] }));
+  beforeEach(() =>
+    TestBed.configureTestingModule({
+      imports: [Anfitrion],
+      providers: [provideHttpClient(), provideHttpClientTesting()],
+    }));
   afterEach(() => TestBed.resetTestingModule());
 
   /**
@@ -89,7 +129,7 @@ describe('El alta de cliente', () => {
   });
 
   it('con todo completo emite el cliente, la sede y el contacto', () => {
-    const { boton, escribir, fixture, host } = montar();
+    const { boton, escribir, fixture, host, raiz } = montar();
 
     escribir('cf-razon', 'Distribuidora Peñasco del Norte, S.A. de C.V.');
     escribir('cf-corto', 'Peñasco');
@@ -97,8 +137,12 @@ describe('El alta de cliente', () => {
     escribir('cf-sede', 'Planta San Nicolás');
     escribir('cf-calle', 'Av. Universidad 2340');
     escribir('cf-cp', '66450');
-    escribir('cf-municipio', 'San Nicolás de los Garza');
-    escribir('cf-estado', 'Nuevo León');
+
+    // Estado y municipio se eligen del catálogo: escribirlos a mano se lo rechaza el servidor.
+    surtirCatalogo(TestBed.inject(HttpTestingController), fixture);
+    elegir(raiz, 'cf-estado', 'Nuevo León', fixture);
+    elegir(raiz, 'cf-municipio', 'San Nicolás de los Garza', fixture);
+
     escribir('cf-cnombre', 'Aurora Ibáñez Zúñiga');
     escribir('cf-ctel', '81 2264 7710');
     fixture.detectChanges();
@@ -110,6 +154,7 @@ describe('El alta de cliente', () => {
     expect(guardado.withSite).toBe(true);
     // El RFC se normaliza: se compara en mayúsculas para la unicidad del servidor.
     expect(guardado.value.rfc).toBe('DPN180423K72');
+    expect(guardado.value.site.state).toBe('Nuevo León');
     expect(guardado.value.site.municipality).toBe('San Nicolás de los Garza');
     expect(guardado.value.contact.fullName).toBe('Aurora Ibáñez Zúñiga');
   });
@@ -143,5 +188,21 @@ describe('El alta de cliente', () => {
     for (const campo of campos) {
       expect(raiz.querySelector(`label[for="${campo.id}"]`), `${campo.id} sin etiqueta`).not.toBeNull();
     }
+  });
+
+  /**
+   * Cambiar de estado borra el municipio: el que estaba elegido pertenecía al estado anterior, y
+   * dejarlo puesto manda al servidor una pareja que no existe.
+   */
+  it('cambiar de estado limpia el municipio elegido', () => {
+    const { fixture, raiz } = montar();
+
+    surtirCatalogo(TestBed.inject(HttpTestingController), fixture);
+    elegir(raiz, 'cf-estado', 'Nuevo León', fixture);
+    elegir(raiz, 'cf-municipio', 'San Nicolás de los Garza', fixture);
+    elegir(raiz, 'cf-estado', 'Jalisco', fixture);
+
+    const municipio = raiz.querySelector<HTMLSelectElement>('#cf-municipio select')!;
+    expect(municipio.value).toBe('');
   });
 });

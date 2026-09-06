@@ -98,6 +98,7 @@
 
           <ng-template giTab="sites">
             <app-client-sites
+              [organizationId]="organizationId()"
               [sites]="sites()"
               [contacts]="contacts()"
               [canWrite]="canWrite()"

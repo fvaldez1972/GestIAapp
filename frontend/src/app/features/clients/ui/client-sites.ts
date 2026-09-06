@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { CatalogSelect } from '../../../shared/ui/catalog-select/catalog-select';
 import { GiEmptyState, GiRowAction, GiRowActions } from '../../../shared/ui/gi-ui';
 import { ClientContact, ClientSite } from '../data-access/client.models';
 
@@ -26,7 +27,7 @@ export type NewSite = {
 @Component({
   selector: 'app-client-sites',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, GiEmptyState, GiRowActions],
+  imports: [CatalogSelect, FormsModule, GiEmptyState, GiRowActions],
   template: `
     <section class="sites">
       @if (adding()) {
@@ -35,32 +36,51 @@ export type NewSite = {
 
           <label class="field" for="ns-nombre">
             <span class="field__label">NOMBRE DE LA SEDE</span>
-            <input id="ns-nombre" name="name" type="text" [ngModel]="siteName()" (ngModelChange)="siteName.set($event)" [ngModelOptions]="{ standalone: true }" autocomplete="off" />
+            <input id="ns-nombre" name="name" type="text" [ngModel]="siteName()" (ngModelChange)="siteName.set($event)" [ngModelOptions]="sueltos" autocomplete="off" />
           </label>
 
           <div class="new__row new__row--calle">
             <label class="field" for="ns-calle">
               <span class="field__label">CALLE Y NÚMERO</span>
-              <input id="ns-calle" name="street" type="text" [ngModel]="street()" (ngModelChange)="street.set($event)" [ngModelOptions]="{ standalone: true }" autocomplete="off" />
+              <input id="ns-calle" name="street" type="text" [ngModel]="street()" (ngModelChange)="street.set($event)" [ngModelOptions]="sueltos" autocomplete="off" />
             </label>
             <label class="field" for="ns-cp">
               <span class="field__label">CÓDIGO POSTAL</span>
-              <input id="ns-cp" name="postalCode" type="text" [ngModel]="postalCode()" (ngModelChange)="postalCode.set($event)" [ngModelOptions]="{ standalone: true }" autocomplete="off" />
+              <input id="ns-cp" name="postalCode" type="text" [ngModel]="postalCode()" (ngModelChange)="postalCode.set($event)" [ngModelOptions]="sueltos" autocomplete="off" />
             </label>
           </div>
 
           <div class="new__row new__row--three">
             <label class="field" for="ns-colonia">
               <span class="field__label">COLONIA</span>
-              <input id="ns-colonia" name="neighborhood" type="text" [ngModel]="neighborhood()" (ngModelChange)="neighborhood.set($event)" [ngModelOptions]="{ standalone: true }" autocomplete="off" />
+              <input id="ns-colonia" name="neighborhood" type="text" [ngModel]="neighborhood()" (ngModelChange)="neighborhood.set($event)" [ngModelOptions]="sueltos" autocomplete="off" />
             </label>
             <label class="field" for="ns-estado">
               <span class="field__label">ESTADO</span>
-              <input id="ns-estado" name="state" type="text" [ngModel]="state()" (ngModelChange)="state.set($event)" [ngModelOptions]="{ standalone: true }" autocomplete="off" />
+              <app-catalog-select
+                id="ns-estado"
+                type="State"
+                label="Estado"
+                country="MX"
+                [organizationId]="organizationId()"
+                [ngModel]="state()"
+                (ngModelChange)="onState($event)"
+                [ngModelOptions]="sueltos"
+              />
             </label>
             <label class="field" for="ns-municipio">
               <span class="field__label">MUNICIPIO</span>
-              <input id="ns-municipio" name="municipality" type="text" [ngModel]="municipality()" (ngModelChange)="municipality.set($event)" [ngModelOptions]="{ standalone: true }" autocomplete="off" />
+              <app-catalog-select
+                id="ns-municipio"
+                type="City"
+                label="Municipio"
+                country="MX"
+                [state]="state()"
+                [organizationId]="organizationId()"
+                [ngModel]="municipality()"
+                (ngModelChange)="municipality.set($event)"
+                [ngModelOptions]="sueltos"
+              />
             </label>
           </div>
 
@@ -316,10 +336,22 @@ export type NewSite = {
   `,
 })
 export class ClientSites {
+  /**
+   * Las opciones de `ngModel`, en una sola instancia.
+   *
+   * <p>Escritas en la plantilla como `{ standalone: true }` se construía un objeto nuevo en
+   * <b>cada ciclo de detección</b>, y `NgModel` se reconfiguraba con cada uno: la vista no
+   * llegaba a estabilizarse y el proceso terminaba sin memoria. Sólo se ve con la pantalla
+   * montada, porque en prueba de componente el ciclo se detiene solo.</p>
+   */
+  protected readonly sueltos = { standalone: true };
+
   readonly sites = input.required<readonly ClientSite[]>();
   readonly contacts = input<readonly ClientContact[]>([]);
   readonly canWrite = input(false);
   readonly saving = input(false);
+  /** El catálogo geográfico es por organización. */
+  readonly organizationId = input('');
   /** Se abre desde fuera cuando el aviso de «guardado sin sede» manda aquí. */
   readonly openAdd = input(false);
 
@@ -362,6 +394,20 @@ export class ClientSites {
       disabledReason: 'Necesitas permiso de escritura sobre clientes',
     },
   ]);
+
+
+  /**
+   * El estado y el municipio salen del catálogo geográfico, no de texto libre.
+   *
+   * <p>El servidor los valida contra `State` y `City` y rechaza cualquier otra cosa con
+   * «Selecciona una ciudad o municipio activo del estado». Escribirlos a mano dejaba un formulario
+   * que se llenaba entero y fallaba al guardar, sin decir dónde.</p>
+   */
+  protected onState(valor: string): void {
+    this.state.set(valor);
+    // Cambiar de estado invalida el municipio elegido: pertenecía al estado anterior.
+    this.municipality.set('');
+  }
 
   protected startAdd(): void {
     this.addingByHand.set(true);

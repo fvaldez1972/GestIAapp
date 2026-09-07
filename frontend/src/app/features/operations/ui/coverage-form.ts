@@ -3,6 +3,8 @@ import { CoverageStatus } from '../../clients/data-access/client.models';
 import {
   GiCandidate,
   GiCandidatePicker,
+  GiCatalogCreation,
+  GiCatalogPicker,
   GiSelect,
   GiSelectOption,
   GI_REASON_MIN_LENGTH,
@@ -63,7 +65,7 @@ const ESTADOS: readonly GiSelectOption[] = [
 @Component({
   selector: 'app-coverage-form',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [GiCandidatePicker, GiSelect],
+  imports: [GiCandidatePicker, GiCatalogPicker, GiSelect],
   template: `
     <form class="cob" (submit)="$event.preventDefault(); guardar()">
       <p class="cob__turno">
@@ -101,15 +103,17 @@ const ESTADOS: readonly GiSelectOption[] = [
           organización.
         </p>
 
-        <label class="cob__campo">
-          <span>Motivo</span>
-          <gi-select
-            label="Motivo de la cobertura, del catálogo de la organización"
-            [options]="reasons()"
-            [value]="draft().idCoverageReason ?? ''"
-            (valueChange)="cambiar('idCoverageReason', $event || null)"
-          />
-        </label>
+        <!-- Aquí el motivo sí viaja por identificador: CoverageRecord tiene su clave foránea. -->
+        <gi-catalog-picker
+          label="Motivo"
+          catalogLabel="el catálogo de motivos de cobertura"
+          inputId="cob-motivo"
+          [options]="reasonOptions()"
+          [value]="draft().idCoverageReason ?? ''"
+          [canWrite]="canWrite()"
+          (valueChange)="cambiar('idCoverageReason', $event || null)"
+          (create)="createReason.emit($event)"
+        />
 
         <div class="cob__horas">
           <label class="cob__campo">
@@ -294,6 +298,11 @@ export class CoverageForm {
   readonly target = input.required<CoverageTarget>();
   readonly candidates = input<readonly GiCandidate[]>([]);
   readonly reasons = input<readonly GiSelectOption[]>([]);
+  readonly canWrite = input(false);
+
+  protected readonly reasonOptions = computed(() =>
+    this.reasons().map((option) => ({ idCatalogItem: option.value, name: option.label })),
+  );
 
   /** Cuando se corrige, ya hay suplente elegido y no se vuelve a elegir. */
   readonly isCorrection = input(false);
@@ -301,6 +310,9 @@ export class CoverageForm {
   readonly saving = input(false);
 
   readonly save = output<CoverageDraft>();
+
+  /** El motivo que hay que crear en el catálogo antes de poder elegirlo. */
+  readonly createReason = output<GiCatalogCreation>();
   readonly cancel = output<void>();
   readonly resolveEmpty = output<void>();
 

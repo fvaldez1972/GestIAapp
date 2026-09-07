@@ -1,53 +1,72 @@
+import { NgTemplateOutlet } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal, ElementRef, ViewChild, DestroyRef } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import {
+  AfterViewInit,
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  ElementRef,
+  OnInit,
+  Signal,
+  computed,
+  inject,
+  signal,
+  viewChild,
+} from '@angular/core';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
+import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
-import { forkJoin, of, finalize, Subscription } from 'rxjs';
-import { AppIcon } from '../../../../shared/ui/app-icon/app-icon';
+import { Subscription, finalize, forkJoin, of } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { SystemInfoService } from '../../../../core/system/system-info.service';
 import { ClientApiService } from '../../../clients/data-access/client-api.service';
-import { Client, ManagedService, PagedResult, ServicePosition, ClientListItem, } from '../../../clients/data-access/client.models';
-import { OperationalRequest } from '../../../requests/data-access/request.models';
+import {
+  ClientListItem,
+  ManagedService,
+  PagedResult,
+  ServicePosition,
+} from '../../../clients/data-access/client.models';
 import { WorkforceApiService } from '../../../workforce/data-access/workforce-api.service';
 import { Employee } from '../../../workforce/data-access/workforce.models';
+import { GiSelect, GiSelectOption } from '../../../../shared/ui/gi-select/gi-select';
+import { normalizeCatalogName } from '../../../../shared/util/catalog-name';
 import { CatalogApiService } from '../../data-access/catalog-api.service';
 import {
   BusinessCatalogItemType,
-  CatalogItem,
   CatalogDefinition,
+  CatalogItem,
   EligibilityCheck,
   EligibilityRequirement,
   EligibilityRequirementTargetType,
   EligibilityRequirementType,
+  EmployeeDocumentType,
+  EmployeeEvaluationType,
 } from '../../data-access/catalog.models';
 
+/**
+ * Catálogos, rehecha el 7 de septiembre de 2026.
+ *
+ * <p>La pantalla anterior recibía al usuario con un cuadro de diálogo modal —había que elegir un
+ * catálogo antes de ver nada—, y detrás repartía el mismo contenido entre tres pestañas, una lista
+ * lateral de categorías y el propio diálogo: tres navegaciones para llegar al mismo sitio. Antes
+ * del contenido dibujaba trece tarjetas de conteo, y varias afirmaban cosas que no eran ciertas.</p>
+ *
+ * <p>Ahora son dos zonas. Arriba, lo que la organización define, con cada catálogo diciendo
+ * <b>quién lo usa y cómo</b>. Abajo, plegadas, las listas fijas del sistema, que no se editan.</p>
+ */
 @Component({
   selector: 'app-catalogs-page',
-  imports: [ReactiveFormsModule, AppIcon],
+  imports: [ReactiveFormsModule, NgTemplateOutlet, GiSelect],
   templateUrl: './catalogs-page.html',
   styleUrl: './catalogs-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class CatalogsPage implements OnInit {
-  @ViewChild('catalogSelector') private catalogSelector?: ElementRef<HTMLDialogElement>;
-  @ViewChild('catalogEditor') private catalogEditor?: ElementRef<HTMLDialogElement>;
+export class CatalogsPage implements OnInit, AfterViewInit {
+  private readonly catalogEditor = viewChild<ElementRef<HTMLDialogElement>>('catalogEditor');
+  private readonly requirementEditor = viewChild<ElementRef<HTMLDialogElement>>('requirementEditor');
+  private readonly rulesSection = viewChild<ElementRef<HTMLElement>>('rulesSection');
+
   private readonly destroyRef = inject(DestroyRef);
-  private dataSubscription?: Subscription;
-  protected readonly definitions = signal<readonly CatalogDefinition[]>([]);
-  protected readonly definitionSearch = signal('');
-  protected readonly definitionMode = signal<'editable' | 'system'>('editable');
-  protected readonly systemDefinition = signal<CatalogDefinition | null>(null);
-  protected readonly catalogListing = signal(false);
-  protected readonly editableDefinitions = computed(() => this.definitions().filter(item => item.editable));
-  protected readonly catalogGroups = computed(() => Array.from(new Set(['General', 'Operativo', 'Elegibilidad',
-    ...this.items().map(item => item.group ?? this.catalogGroupLabel(item.type))])).sort());
-  protected readonly filteredDefinitions = computed(() => {
-    const search = this.definitionSearch().trim().toLocaleLowerCase('es');
-    return this.definitions().filter(item => item.editable === (this.definitionMode() === 'editable') &&
-      (!search || `${item.name} ${item.module} ${item.group}`.toLocaleLowerCase('es').includes(search)));
-  });
   private readonly route = inject(ActivatedRoute);
   private readonly api = inject(CatalogApiService);
   private readonly clientApi = inject(ClientApiService);
@@ -55,333 +74,192 @@ export class CatalogsPage implements OnInit {
   private readonly auth = inject(AuthService);
   private readonly systemInfo = inject(SystemInfoService);
   private readonly formBuilder = inject(FormBuilder);
+  private dataSubscription?: Subscription;
 
+  protected readonly definitions = signal<readonly CatalogDefinition[]>([]);
+  protected readonly items = signal<readonly CatalogItem[]>([]);
+  protected readonly requirements = signal<readonly EligibilityRequirement[]>([]);
   protected readonly clients = signal<readonly ClientListItem[]>([]);
   protected readonly services = signal<readonly ManagedService[]>([]);
   protected readonly positions = signal<readonly ServicePosition[]>([]);
   protected readonly employees = signal<readonly Employee[]>([]);
-  protected readonly requests = signal<readonly OperationalRequest[]>([]);
-  protected readonly items = signal<readonly CatalogItem[]>([]);
-  protected readonly requirements = signal<readonly EligibilityRequirement[]>([]);
+
   /** La organización de trabajo la fija la barra de contexto, y sólo ella. */
   protected readonly selectedOrganizationId = this.auth.operationalOrganizationId;
-  protected readonly selectedCatalogItemId = signal('');
-  protected readonly selectedRequirementId = signal('');
-  protected readonly activeTab = signal<CatalogTab>('general');
-  protected readonly selectedCatalogType = signal<BusinessCatalogItemType>('Skill');
-  protected readonly catalogDrawerOpen = signal(false);
-  protected readonly requirementDrawerOpen = signal(false);
-  protected readonly requirementClientFilter = signal('');
-  protected readonly requirementServiceFilter = signal('');
-  protected readonly requirementPositionFilter = signal('');
-  protected readonly catalogFilterRevision = signal(0);
+  protected readonly canWrite = computed(() => this.auth.hasPermission('CATALOGS.WRITE'));
+
   protected readonly loading = signal(false);
   protected readonly saving = signal(false);
   protected readonly message = signal('');
   protected readonly error = signal('');
+
+  /** Qué catálogo está desplegado. Uno a la vez: dos listas abiertas se leen peor que una. */
+  protected readonly openCatalogType = signal<BusinessCatalogItemType | null>(null);
+  protected readonly selectedCatalogItemId = signal('');
+  protected readonly selectedRequirementId = signal('');
   protected readonly eligibilityResult = signal<EligibilityCheck | null>(null);
 
-  protected readonly canWrite = computed(() => this.auth.hasPermission('CATALOGS.WRITE'));
-  protected readonly isPlatformAdmin = computed(() => this.auth.hasPermission('PLATFORM.ADMIN'));
-  protected readonly selectedOrganization = this.auth.activeOrganization;
-  protected readonly heroCopy = computed(() =>
-    this.isPlatformAdmin()
-      ? {
-        eyebrow: 'Configuración plataforma',
-        title: 'Catálogos por organización',
-        description: 'Gobierna catálogos, tipos y reglas por organización sin mezclar operación ni archivos cargados.',
-      }
-      : {
-        eyebrow: 'Configuración / Catálogos',
-        title: 'Catálogos de la organización',
-        description: 'Define valores operativos, requisitos documentales, bloqueos y reglas que usará el cliente en operación.',
-      },
-  );
-  protected readonly selectedCatalogItem = computed(
-    () => this.items().find((item) => item.idCatalogItem === this.selectedCatalogItemId()) ?? null,
-  );
-  protected readonly selectedRequirement = computed(
-    () => this.requirements().find((item) => item.idEligibilityRequirement === this.selectedRequirementId()) ?? null,
-  );
-  protected readonly activeSkills = computed(() => this.items().filter((item) => item.type === 'Skill' && item.active));
-  protected readonly activeCatalogCards = computed(() =>
-    this.catalogCategories.filter((category) => category.tab === this.activeTab() && this.definitions().some(item => item.type === category.type)),
-  );
-  protected readonly selectedCategory = computed(
-    () => this.catalogCategories.find((category) => category.type === this.selectedCatalogType()) ?? this.catalogCategories[0],
-  );
-  protected readonly selectedCatalogItems = computed(() => {
-    this.catalogFilterRevision();
-    const filters = this.catalogFilterForm.getRawValue();
-    const search = filters.search.trim().toLowerCase();
+  protected readonly valueSearch = signal('');
+  protected readonly valueState = signal<'' | 'active' | 'inactive'>('');
+  protected readonly requirementClientFilter = signal('');
+  protected readonly requirementServiceFilter = signal('');
+  protected readonly requirementPositionFilter = signal('');
 
-    return this.items().filter((item) => {
-      const modules = this.modulesForCatalogItem(item);
-      const group = item.group ?? this.catalogGroupLabel(item.type);
-      const searchableText = [item.code, item.name, ...(item.synonyms ?? []), item.description ?? '', this.typeLabel(item.type), group, modules.join(' ')]
-        .join(' ')
-        .toLowerCase();
+  // ── Qué catálogo existe, para qué sirve y quién lo usa ──────────────────────────────────────
 
-      return (
-        item.type === this.selectedCatalogType() &&
-        (!search || searchableText.includes(search)) &&
-        (!filters.group || group === filters.group) &&
-        (!filters.state || (filters.state === 'active' ? item.active : !item.active)) &&
-        (!filters.module || modules.includes(filters.module))
-      );
-    }).sort((a, b) => (a.order ?? 1) - (b.order ?? 1) || a.name.localeCompare(b.name, 'es'));
-  });
-  protected readonly activeCatalogItems = computed(() => this.items().filter((item) => item.active).length);
-  protected readonly activeRequirements = computed(() => this.requirements().filter((requirement) => requirement.active).length);
-  protected readonly documentGovernanceCards = computed<readonly DocumentGovernanceCard[]>(() => [
-    {
-      title: 'Tipos documentales',
-      value: this.countCatalogItems('DocumentRequirement'),
-      detail: 'qué documento se pide',
-    },
-    {
-      title: 'Requisitos activos',
-      value: this.activeRequirements(),
-      detail: 'a quién aplican',
-    },
-    {
-      title: 'Bloqueos',
-      value: this.blockingRequirements(),
-      detail: 'impiden asignación',
-      warning: this.blockingRequirements() > 0,
-    },
-    {
-      title: 'Evaluaciones',
-      value: this.countCatalogItems('EvaluationRequirement'),
-      detail: 'validaciones requeridas',
-    },
-  ]);
-  protected readonly valuesPendingReview = computed(() =>
-    this.items().filter((item) => !item.active).length + this.minimumChecklist().filter((item) => item.status !== 'complete').length,
-  );
-  protected readonly linkedModules = computed(() => {
-    const modules = new Set<string>();
-    for (const item of this.items()) {
-      this.modulesForCatalogItem(item).forEach((module) => modules.add(module));
-    }
-
-    return modules.size;
-  });
-  protected readonly configuredRules = computed(() => this.requirements().filter((requirement) => requirement.active).length);
-  protected readonly minimumChecklist = computed<readonly MinimumChecklistItem[]>(() => {
-    const positions = this.countCatalogItems('JobPosition');
-    const skills = this.countCatalogItems('Skill');
-    const reasons = this.countCatalogItems('IncidentReason') + this.countCatalogItems('CoverageReason') + this.countCatalogItems('CancellationReason');
-    const requestTypesUsed = this.definitions().some(item => item.key === 'OperationalRequestType' && item.values.length > 0);
-    const rules = this.activeRequirements();
-
-    return [
-      {
-        key: 'positions',
-        section: 'Puestos',
-        status: positions > 0 ? 'complete' : 'missing',
-        description: positions > 0 ? `${positions} puesto(s) configurado(s).` : 'Define puestos antes de planear o asignar personal.',
-        action: 'Completar puestos',
-      },
-      {
-        key: 'skills',
-        section: 'Habilidades',
-        status: skills > 0 ? 'complete' : 'incomplete',
-        description: skills > 0 ? `${skills} habilidad(es) activas.` : 'Debes definir habilidades requeridas para evaluar elegibilidad.',
-        action: 'Completar habilidades',
-      },
-      {
-        key: 'reasons',
-        section: 'Motivos',
-        status: reasons > 0 ? 'complete' : 'incomplete',
-        description: reasons > 0 ? `${reasons} motivo(s) operativos disponibles.` : 'Faltan motivos para incidencias, coberturas o cancelaciones.',
-        action: 'Completar motivos',
-      },
-      {
-        key: 'requestTypes',
-        section: 'Tipos de solicitud',
-        status: requestTypesUsed ? 'complete' : 'incomplete',
-        description: requestTypesUsed ? 'Tipos definidos por el sistema.' : 'No se pudo consultar la definicion del sistema.',
-        action: 'Completar tipos',
-      },
-      {
-        key: 'rules',
-        section: 'Reglas de elegibilidad',
-        status: rules > 0 ? 'complete' : 'missing',
-        description: rules > 0 ? `${rules} regla(s) activa(s).` : 'Sin reglas, la elegibilidad no puede concluirse como positiva.',
-        action: 'Configurar reglas',
-      },
-    ];
-  });
-  protected readonly completedChecklistCount = computed(
-    () => this.minimumChecklist().filter((item) => item.status === 'complete').length,
-  );
-  protected readonly minimumConfigIncomplete = computed(() => this.completedChecklistCount() < this.minimumChecklist().length);
-  protected readonly blockingRequirements = computed(
-    () => this.requirements().filter((requirement) => requirement.active && requirement.isBlocking).length,
-  );
-  protected readonly catalogModules = computed(() =>
-    Array.from(new Set(this.items().flatMap((item) => this.modulesForCatalogItem(item)))).sort(),
-  );
-  protected readonly filteredRequirements = computed(() =>
-    this.requirements().filter((requirement) => {
-      const clientFilter = this.requirementClientFilter();
-      const serviceFilter = this.requirementServiceFilter();
-      const positionFilter = this.requirementPositionFilter();
-
-      return (
-        (!clientFilter || requirement.idClient === clientFilter) &&
-        (!serviceFilter || requirement.idService === serviceFilter) &&
-        (!positionFilter || requirement.idPosition === positionFilter)
-      );
-    }),
-  );
-
-  protected readonly catalogTypes: readonly { value: BusinessCatalogItemType; label: string }[] = [
-    { value: 'Skill', label: 'Habilidad' },
-    { value: 'JobPosition', label: 'Puesto operativo' },
-    { value: 'DocumentRequirement', label: 'Documento requerido' },
-    { value: 'EvaluationRequirement', label: 'Evaluación requerida' },
-    { value: 'ClientRestriction', label: 'Restricción por cliente' },
-    { value: 'ServiceRestriction', label: 'Restricción por servicio' },
-    { value: 'Zone', label: 'Zona' },
-    { value: 'IncidentReason', label: 'Motivo de incidencia' },
-    { value: 'CoverageReason', label: 'Motivo de cobertura' },
-    { value: 'CancellationReason', label: 'Motivo de baja/cancelación' },
-    { value: 'Country', label: 'País' }, { value: 'State', label: 'Estado' },
-    { value: 'City', label: 'Ciudad / municipio' }, { value: 'Nationality', label: 'Nacionalidad' },
-  ];
-
-  protected readonly tabs: readonly { value: CatalogTab; label: string; help: string }[] = [
-    { value: 'general', label: 'Generales', help: 'Habilidades, puestos y zonas base.' },
-    { value: 'operational', label: 'Operativos', help: 'Motivos usados en operación diaria.' },
-    { value: 'eligibility', label: 'Reglas', help: 'Requisitos, bloqueos y vigencias documentales.' },
-  ];
-
-  protected readonly catalogCategories: readonly CatalogCategory[] = [
-    { type: 'Country', tab: 'general', title: 'Países', description: 'Países activos.', icon: '' },
-    { type: 'State', tab: 'general', title: 'Estados', description: 'Estados por país.', icon: '' },
-    { type: 'City', tab: 'general', title: 'Ciudades y municipios', description: 'Localidades por estado.', icon: '' },
-    { type: 'Nationality', tab: 'general', title: 'Nacionalidades', description: 'Nacionalidades disponibles.', icon: '' },
-    {
-      type: 'Skill',
-      tab: 'general',
-      title: 'Habilidades',
-      description: 'Competencias que puede tener el personal.',
-      icon: '✦',
-    },
+  /**
+   * Los catálogos que la organización define, con su lector real.
+   *
+   * <p>«Quién lo usa» no es una etiqueta decorativa: cada línea se comprobó contra el código del
+   * servidor. La distinción entre <b>identificador</b> y <b>nombre</b> importa y se dice en la
+   * pantalla, porque cambia lo que pasa al renombrar un valor: por identificador el cambio se
+   * propaga, por nombre los registros anteriores conservan el texto viejo.</p>
+   */
+  protected readonly organizationCatalogs: readonly CatalogCard[] = [
     {
       type: 'JobPosition',
-      tab: 'general',
-      title: 'Puestos / posiciones',
-      description: 'Roles operativos disponibles para servicios.',
-      icon: '▦',
+      title: 'Puestos',
+      purpose: 'Los puestos operativos que cubre tu organización.',
+      usedBy: 'Personal · Servicios · Planeación',
+      link: 'identificador',
+      linkDetail: 'El empleado y la posición del servicio guardan el identificador del puesto.',
     },
     {
-      type: 'Zone',
-      tab: 'general',
-      title: 'Zonas',
-      description: 'Áreas geográficas o zonas de operación.',
-      icon: '⌖',
+      type: 'Skill',
+      title: 'Habilidades',
+      purpose: 'Competencias que una regla de elegibilidad puede exigir.',
+      usedBy: 'Reglas de elegibilidad',
+      link: 'identificador',
+      linkDetail: 'La regla apunta a la habilidad por identificador.',
+      warning:
+        'Hoy no existe pantalla para otorgarle una habilidad a una persona. Una regla de habilidad'
+        + ' bloqueante deja la publicación de la planeación detenida sin forma de desbloquearla.',
     },
     {
       type: 'IncidentReason',
-      tab: 'operational',
-      title: 'Tipos de incidencia',
-      description: 'Motivos para clasificar excepciones operativas.',
-      icon: '△',
+      title: 'Motivos de incidencia',
+      purpose: 'Cómo se clasifica una excepción de la operación diaria.',
+      usedBy: 'Operación',
+      link: 'nombre',
+      linkDetail: 'La incidencia guarda el texto del motivo, no su identificador:'
+        + ' renombrar un motivo no cambia las incidencias ya registradas.',
     },
     {
       type: 'CoverageReason',
-      tab: 'operational',
       title: 'Motivos de cobertura',
-      description: 'Razones para cubrir o sustituir turnos.',
-      icon: '◉',
+      purpose: 'Por qué se cubre o se sustituye un turno.',
+      usedBy: 'Operación · Planeación',
+      link: 'identificador',
+      linkDetail: 'La cobertura guarda el identificador del motivo.',
     },
     {
-      type: 'CancellationReason',
-      tab: 'operational',
-      title: 'Motivos de cancelación',
-      description: 'Causas controladas para bajas o cancelaciones.',
-      icon: '×',
-    },
-    {
-      type: 'DocumentRequirement',
-      tab: 'eligibility',
-      title: 'Tipos de documento',
-      description: 'Documentos requeridos para validar expediente.',
-      icon: '□',
-    },
-    {
-      type: 'EvaluationRequirement',
-      tab: 'eligibility',
-      title: 'Evaluaciones',
-      description: 'Evaluaciones, exámenes o revisiones necesarias.',
-      icon: '✓',
-    },
-    {
-      type: 'ClientRestriction',
-      tab: 'eligibility',
-      title: 'Restricciones por cliente',
-      description: 'Reglas particulares para clientes específicos.',
-      icon: '!',
-    },
-    {
-      type: 'ServiceRestriction',
-      tab: 'eligibility',
-      title: 'Restricciones por servicio',
-      description: 'Condiciones aplicables a servicios concretos.',
-      icon: '⛨',
+      type: 'Nationality',
+      title: 'Nacionalidades',
+      purpose: 'Nacionalidad de un cliente persona física.',
+      usedBy: 'Solicitudes',
+      link: 'nombre',
+      linkDetail: 'La solicitud de alta de cliente guarda el texto.',
     },
   ];
 
-  protected readonly targetTypes: readonly { value: EligibilityRequirementTargetType; label: string }[] = [
-    { value: 'Organization', label: 'Organización completa' },
-    { value: 'Client', label: 'Cliente' },
-    { value: 'Service', label: 'Servicio' },
-    { value: 'Position', label: 'Posición' },
+  /**
+   * La geografía, aparte y plegada.
+   *
+   * <p>Son más de doce mil filas por organización que en realidad son las mismas para todas. Se va
+   * a una tabla compartida en su propia tanda; hasta entonces sigue aquí, funcionando, pero fuera
+   * de la vista principal: ocupaba la mitad de la pantalla y no es algo que nadie configure.</p>
+   */
+  protected readonly geographyCatalogs: readonly CatalogCard[] = [
+    {
+      type: 'Country',
+      title: 'Países',
+      purpose: 'Países disponibles para domicilios.',
+      usedBy: 'Clientes',
+      link: 'nombre',
+      linkDetail: 'El domicilio guarda el texto del país.',
+    },
+    {
+      type: 'State',
+      title: 'Estados',
+      purpose: 'Estados por país.',
+      usedBy: 'Clientes',
+      link: 'nombre',
+      linkDetail: 'El domicilio guarda el texto del estado.',
+    },
+    {
+      type: 'City',
+      title: 'Ciudades y municipios',
+      purpose: 'Localidades por estado.',
+      usedBy: 'Clientes',
+      link: 'nombre',
+      linkDetail: 'El domicilio guarda el texto de la ciudad.',
+    },
   ];
 
-  protected readonly requirementTypes: readonly { value: EligibilityRequirementType; label: string }[] = [
+  protected readonly targetTypes: readonly GiSelectOption[] = [
+    { value: 'Organization', label: 'Toda la organización' },
+    { value: 'Client', label: 'Un cliente' },
+    { value: 'Service', label: 'Un servicio' },
+    { value: 'Position', label: 'Una posición' },
+  ];
+
+  protected readonly requirementTypes: readonly GiSelectOption[] = [
     { value: 'Skill', label: 'Habilidad' },
     { value: 'Document', label: 'Documento' },
     { value: 'Evaluation', label: 'Evaluación' },
     { value: 'Restriction', label: 'Restricción bloqueante' },
   ];
 
-  protected readonly documentCodes = [
-    'EmploymentApplication',
-    'BirthCertificate',
-    'VoterId',
-    'Curp',
-    'SocialSecurityNumber',
-    'Rfc',
-    'TaxStatusCertificate',
-    'ProofOfAddress',
-    'ProofOfStudies',
-    'CriminalRecordCertificate',
-    'Other',
+  /**
+   * Los tipos de documento que una regla puede exigir.
+   *
+   * <p>Van con etiqueta en español porque es lo que el usuario elige; el valor es el nombre que el
+   * servidor entiende. Antes se ofrecía el nombre crudo del enum en el desplegable.</p>
+   */
+  protected readonly documentTypes: readonly GiSelectOption[] = [
+    { value: 'EmploymentApplication', label: 'Solicitud de empleo' },
+    { value: 'BirthCertificate', label: 'Acta de nacimiento' },
+    { value: 'MarriageCertificate', label: 'Acta de matrimonio' },
+    { value: 'VoterId', label: 'Credencial de elector' },
+    { value: 'Curp', label: 'CURP' },
+    { value: 'SocialSecurityNumber', label: 'Número de seguridad social' },
+    { value: 'Rfc', label: 'RFC' },
+    { value: 'TaxStatusCertificate', label: 'Constancia de situación fiscal' },
+    { value: 'DriverLicense', label: 'Licencia de conducir' },
+    { value: 'ProofOfAddress', label: 'Comprobante de domicilio' },
+    { value: 'ProofOfStudies', label: 'Comprobante de estudios' },
+    { value: 'MilitaryServiceCard', label: 'Cartilla militar' },
+    { value: 'CriminalRecordCertificate', label: 'Carta de no antecedentes' },
+    { value: 'Other', label: 'Otro' },
   ];
 
-  protected readonly evaluationCodes = ['Polygraph', 'SocioeconomicStudy', 'CriminalRecordReview', 'DrugTest', 'Other'];
+  protected readonly evaluationTypes: readonly GiSelectOption[] = [
+    { value: 'Polygraph', label: 'Examen poligráfico' },
+    { value: 'SocioeconomicStudy', label: 'Estudio socioeconómico' },
+    { value: 'CriminalRecordReview', label: 'Revisión de antecedentes' },
+    { value: 'DrugTest', label: 'Examen antidoping' },
+    { value: 'Other', label: 'Otra' },
+  ];
+
+  protected readonly stateFilterOptions: readonly GiSelectOption[] = [
+    { value: '', label: 'Activos e inactivos' },
+    { value: 'active', label: 'Sólo activos' },
+    { value: 'inactive', label: 'Sólo inactivos' },
+  ];
+
+  protected readonly statusOptions: readonly GiSelectOption[] = [
+    { value: 'active', label: 'Activo' },
+    { value: 'inactive', label: 'Inactivo' },
+  ];
+
+  // ── Formularios ─────────────────────────────────────────────────────────────────────────────
 
   protected readonly catalogForm = this.formBuilder.nonNullable.group({
     idParentCatalogItem: [''],
-    type: ['Skill' as BusinessCatalogItemType, [Validators.required]],
-    code: ['', [Validators.required, Validators.maxLength(80)]],
     name: ['', [Validators.required, Validators.maxLength(160)]],
-    group: ['General', [Validators.required, Validators.maxLength(80)]],
     status: ['active' as 'active' | 'inactive', [Validators.required]],
     order: [1, [Validators.required, Validators.min(1), Validators.max(100000), Validators.pattern(/^\d+$/)]],
-    synonyms: [''],
     description: ['', [Validators.maxLength(1000)]],
-  });
-
-  protected readonly catalogFilterForm = this.formBuilder.nonNullable.group({
-    search: [''],
-    group: [''],
-    state: [''],
-    module: [''],
   });
 
   protected readonly requirementForm = this.formBuilder.nonNullable.group({
@@ -390,7 +268,11 @@ export class CatalogsPage implements OnInit {
     idService: [''],
     idPosition: [''],
     requirementType: ['Skill' as EligibilityRequirementType, [Validators.required]],
-    requiredCode: ['', [Validators.required, Validators.maxLength(80)]],
+    // Uno por tipo de regla. El servidor sólo acepta el que corresponde y rechaza los otros dos,
+    // así que aquí se mandan todos y se limpian los que no aplican al armar la petición.
+    idRequiredCatalogItem: [''],
+    requiredDocumentType: [''],
+    requiredEvaluationType: [''],
     name: ['', [Validators.required, Validators.maxLength(160)]],
     description: ['', [Validators.maxLength(1000)]],
     isBlocking: [true],
@@ -404,46 +286,169 @@ export class CatalogsPage implements OnInit {
     referenceDate: [this.today(), [Validators.required]],
   });
 
+  /**
+   * Puentes de control a señal.
+   *
+   * <p>`gi-select` no es un `ControlValueAccessor`: se ata con `[value]` y `(valueChange)`. Leer
+   * `control.value` directo en la plantilla no vuelve a pintar con `OnPush` cuando el valor cambia
+   * desde el código —un `reset()` al abrir el cajón, por ejemplo—, así que cada control que alimenta
+   * un desplegable se lee por aquí.</p>
+   */
+  protected readonly catalogStatus = this.controlSignal(this.catalogForm.controls.status);
+  protected readonly catalogParent = this.controlSignal(this.catalogForm.controls.idParentCatalogItem);
+  protected readonly requirementTarget = this.controlSignal(this.requirementForm.controls.targetType);
+  protected readonly requirementKind = this.controlSignal(this.requirementForm.controls.requirementType);
+  protected readonly requirementClient = this.controlSignal(this.requirementForm.controls.idClient);
+  protected readonly requirementService = this.controlSignal(this.requirementForm.controls.idService);
+  protected readonly requirementPosition = this.controlSignal(this.requirementForm.controls.idPosition);
+  protected readonly requirementSkill = this.controlSignal(this.requirementForm.controls.idRequiredCatalogItem);
+  protected readonly requirementDocument = this.controlSignal(this.requirementForm.controls.requiredDocumentType);
+  protected readonly requirementEvaluation = this.controlSignal(this.requirementForm.controls.requiredEvaluationType);
+  protected readonly eligibilityEmployee = this.controlSignal(this.eligibilityForm.controls.idEmployee);
+  protected readonly eligibilityClient = this.controlSignal(this.eligibilityForm.controls.idClient);
+  protected readonly eligibilityService = this.controlSignal(this.eligibilityForm.controls.idService);
+  protected readonly eligibilityPosition = this.controlSignal(this.eligibilityForm.controls.idPosition);
+
+  // ── Derivados ───────────────────────────────────────────────────────────────────────────────
+
+  protected readonly selectedCatalogItem = computed(
+    () => this.items().find((item) => item.idCatalogItem === this.selectedCatalogItemId()) ?? null,
+  );
+  protected readonly selectedRequirement = computed(
+    () => this.requirements().find((item) => item.idEligibilityRequirement === this.selectedRequirementId()) ?? null,
+  );
+  protected readonly openCatalog = computed(
+    () => [...this.organizationCatalogs, ...this.geographyCatalogs]
+      .find((card) => card.type === this.openCatalogType()) ?? null,
+  );
+
+  protected readonly activeSkills = computed(() =>
+    this.items()
+      .filter((item) => item.type === 'Skill' && item.active)
+      .map((item) => ({ value: item.idCatalogItem, label: item.name })),
+  );
+
+  protected readonly systemDefinitions = computed(() => this.definitions().filter((item) => !item.editable));
+
+  /** Los valores del catálogo abierto, filtrados y ordenados. */
+  protected readonly openCatalogItems = computed(() => {
+    const type = this.openCatalogType();
+    if (!type) return [];
+
+    const search = normalizeCatalogName(this.valueSearch());
+    const state = this.valueState();
+
+    return this.items()
+      .filter((item) => item.type === type)
+      .filter((item) => !search || normalizeCatalogName(`${item.name} ${item.description ?? ''}`).includes(search))
+      .filter((item) => !state || (state === 'active' ? item.active : !item.active))
+      .sort((a, b) => (a.order ?? 1) - (b.order ?? 1) || a.name.localeCompare(b.name, 'es'));
+  });
+
+  protected readonly blockingRequirements = computed(
+    () => this.requirements().filter((requirement) => requirement.active && requirement.isBlocking).length,
+  );
+  protected readonly activeRequirements = computed(
+    () => this.requirements().filter((requirement) => requirement.active).length,
+  );
+
+  /**
+   * Reglas de habilidad bloqueantes activas.
+   *
+   * <p>Se cuenta aparte porque hoy ninguna se puede cumplir: no hay pantalla que otorgue una
+   * habilidad. La pantalla lo dice donde se crean las reglas, no en un documento.</p>
+   */
+  protected readonly unfulfillableSkillRules = computed(
+    () => this.requirements().filter(
+      (requirement) => requirement.active && requirement.isBlocking && requirement.requirementType === 'Skill',
+    ).length,
+  );
+
+  protected readonly filteredRequirements = computed(() => {
+    const clientFilter = this.requirementClientFilter();
+    const serviceFilter = this.requirementServiceFilter();
+    const positionFilter = this.requirementPositionFilter();
+
+    return this.requirements().filter((requirement) =>
+      (!clientFilter || requirement.idClient === clientFilter) &&
+      (!serviceFilter || requirement.idService === serviceFilter) &&
+      (!positionFilter || requirement.idPosition === positionFilter));
+  });
+
+  protected readonly clientOptions = computed<readonly GiSelectOption[]>(() =>
+    this.clients().map((client) => ({ value: client.idClient, label: client.tradeName || client.legalName })),
+  );
+  protected readonly serviceOptions = computed<readonly GiSelectOption[]>(() =>
+    this.services().map((service) => ({ value: service.idService, label: service.name })),
+  );
+  protected readonly positionOptions = computed<readonly GiSelectOption[]>(() =>
+    this.positions().map((position) => ({ value: position.idPosition, label: position.name })),
+  );
+
+  /**
+   * Las mismas listas, con una opción de vaciado al frente.
+   *
+   * <p>`gi-select` dibuja el marcador de posición como texto, no como opción elegible: sin esto,
+   * quien filtra por un cliente no puede volver a «todos» sin recargar la pantalla. Vale para los
+   * campos opcionales; donde la elección es obligatoria no se ofrece vaciarla.</p>
+   */
+  protected readonly clientFilterOptions = computed(() => this.conVacio(this.clientOptions(), 'Todos los clientes'));
+  protected readonly serviceFilterOptions = computed(() => this.conVacio(this.serviceOptions(), 'Todos los servicios'));
+  protected readonly positionFilterOptions = computed(() => this.conVacio(this.positionOptions(), 'Todas las posiciones'));
+  protected readonly clientContextOptions = computed(() => this.conVacio(this.clientOptions(), 'Sin cliente específico'));
+  protected readonly serviceContextOptions = computed(() => this.conVacio(this.serviceOptions(), 'Sin servicio específico'));
+  protected readonly positionContextOptions = computed(() => this.conVacio(this.positionOptions(), 'Sin posición específica'));
+  protected readonly employeeOptions = computed<readonly GiSelectOption[]>(() =>
+    this.employees().map((employee) => ({ value: employee.idEmployee, label: employee.fullName })),
+  );
+
+  /** Los padres posibles para un estado o una ciudad, y sólo activos. */
+  protected readonly parentOptions = computed<readonly GiSelectOption[]>(() => {
+    const type = this.openCatalogType();
+    const parentType: BusinessCatalogItemType | null = type === 'State' ? 'Country' : type === 'City' ? 'State' : null;
+    if (!parentType) return [];
+
+    return this.items()
+      .filter((item) => item.active && item.type === parentType)
+      .sort((a, b) => a.name.localeCompare(b.name, 'es'))
+      .map((item) => ({ value: item.idCatalogItem, label: item.name }));
+  });
+
+  /**
+   * Si el nombre ya está en este catálogo, activo o no.
+   *
+   * <p>Compara con la misma regla que el servidor: recorta, colapsa espacios, ignora acentos y
+   * mayúsculas. Antes comparaba sólo en minúsculas, así que «Vigilancia» y «vigilância» pasaban
+   * aquí y las rechazaba el servidor con un 409 sin explicación.</p>
+   */
+  protected readonly catalogNameExists = computed(() => {
+    const name = normalizeCatalogName(this.catalogNameValue());
+    const type = this.openCatalogType();
+    if (!name || !type) return false;
+
+    const parent = this.catalogParent() || null;
+    return this.items().some((item) =>
+      item.idCatalogItem !== this.selectedCatalogItemId() &&
+      item.type === type &&
+      (item.idParentCatalogItem ?? null) === parent &&
+      normalizeCatalogName(item.name) === name);
+  });
+
+  private readonly catalogNameValue = this.controlSignal(this.catalogForm.controls.name);
+
   ngOnInit(): void {
-    if (this.route.snapshot.data['catalogTab'] === 'eligibility') this.activeTab.set('eligibility');
     this.loadForActiveOrganization();
   }
 
   ngAfterViewInit(): void {
-    if (this.route.snapshot.data['catalogTab'] !== 'eligibility') this.openCatalogSelector();
-  }
-
-  protected openCatalogSelector(): void {
-    this.definitionSearch.set('');
-    this.catalogSelector?.nativeElement.showModal();
-  }
-
-  protected chooseDefinition(definition: CatalogDefinition): void {
-    this.catalogListing.set(true);
-    this.systemDefinition.set(definition.editable ? null : definition);
-    if (definition.type) {
-      const category = this.catalogCategories.find(item => item.type === definition.type);
-      if (category) this.activeTab.set(category.tab);
-      this.selectCatalogCategory(definition.type);
-      this.clearCatalogFilters();
+    // La ruta «Reglas documentales» apunta a esta misma pantalla. Ya no hay pestaña que activar,
+    // así que lleva al bloque de reglas, que es lo que ese menú promete.
+    if (this.route.snapshot.data['catalogTab'] === 'eligibility') {
+      this.rulesSection()?.nativeElement.scrollIntoView({ block: 'start' });
     }
-    this.catalogSelector?.nativeElement.close();
   }
 
-  protected definitionCount(definition: CatalogDefinition): number {
-    return definition.editable ? this.items().filter(item => item.type === definition.type).length : definition.values.length;
-  }
-
-  protected parentCatalogOptions(): readonly CatalogItem[] {
-    const type = this.catalogForm.controls.type.value;
-    const parentType = type === 'State' ? 'Country' : type === 'City' ? 'State' : null;
-    return this.items().filter(item => item.active && item.type === parentType &&
-      (!item.idParentCatalogItem || this.items().some(parent => parent.idCatalogItem === item.idParentCatalogItem && parent.active)));
-  }
-
-  protected parentCatalogLabel(id: string | null | undefined): string {
-    return this.items().find(item => item.idCatalogItem === id)?.name ?? 'Valor anterior';
-  }
+  // ── Carga ───────────────────────────────────────────────────────────────────────────────────
 
   /**
    * Ya no se carga una lista de organizaciones para elegir: la organización la da la barra de
@@ -453,24 +458,6 @@ export class CatalogsPage implements OnInit {
     if (this.selectedOrganizationId()) {
       this.loadData();
     }
-  }
-
-  protected selectTab(tab: CatalogTab): void {
-    this.catalogListing.set(false);
-    this.activeTab.set(tab);
-    const firstCategory = this.catalogCategories.find((category) => category.tab === tab);
-
-    if (firstCategory) {
-      this.selectedCatalogType.set(firstCategory.type);
-      this.catalogForm.patchValue({ type: firstCategory.type });
-    }
-  }
-
-  protected selectCatalogCategory(type: BusinessCatalogItemType): void {
-    if (!this.definitions().some(item => item.editable && item.type === type)) return;
-    this.selectedCatalogType.set(type);
-    this.selectedCatalogItemId.set('');
-    this.catalogForm.patchValue({ type, idParentCatalogItem: '' });
   }
 
   protected loadData(): void {
@@ -506,112 +493,117 @@ export class CatalogsPage implements OnInit {
     });
   }
 
-  protected selectRequirementClient(idClient: string): void {
-    this.requirementForm.patchValue({ idClient, idService: '', idPosition: '' });
-    this.loadServicesForClient(idClient);
+  // ── Zona 1: los catálogos de la organización ────────────────────────────────────────────────
+
+  protected toggleCatalog(type: BusinessCatalogItemType): void {
+    this.openCatalogType.update((current) => (current === type ? null : type));
+    this.selectedCatalogItemId.set('');
+    this.valueSearch.set('');
+    this.valueState.set('');
   }
 
-  protected selectRequirementService(idService: string): void {
-    const clientId = this.requirementForm.getRawValue().idClient;
-    this.requirementForm.patchValue({ idService, idPosition: '' });
-    this.loadPositionsForService(clientId, idService);
+  protected countCatalogItems(type: BusinessCatalogItemType): number {
+    return this.items().filter((item) => item.type === type && item.active).length;
   }
 
-  protected selectEligibilityClient(idClient: string): void {
-    this.eligibilityForm.patchValue({ idClient, idService: '', idPosition: '' });
-    this.loadServicesForClient(idClient);
+  protected geographyCount(): number {
+    return this.geographyCatalogs.reduce((total, card) => total + this.countCatalogItems(card.type), 0);
   }
 
-  protected selectEligibilityService(idService: string): void {
-    const clientId = this.eligibilityForm.getRawValue().idClient;
-    this.eligibilityForm.patchValue({ idService, idPosition: '' });
-    this.loadPositionsForService(clientId, idService);
+  /**
+   * Cuántos registros usan este valor, contado por identificador.
+   *
+   * <p>Sólo se dice donde se puede comprobar. La pantalla anterior mostraba «Usado en: Operación»
+   * comparando el nombre del valor con el texto de otros módulos, lo que acertaba por casualidad y
+   * fallaba en silencio. Un puesto y una habilidad sí se atan por identificador y aquí se cuentan;
+   * en el resto la relación se afirma a nivel de catálogo, no de valor.</p>
+   */
+  protected itemUsage(item: CatalogItem): string {
+    if (item.type === 'JobPosition') {
+      const total = this.employees().filter((employee) => employee.idJobPositionCatalogItem === item.idCatalogItem).length;
+      return total ? `${total} persona${total === 1 ? '' : 's'} activa${total === 1 ? '' : 's'}` : 'Nadie lo tiene';
+    }
+
+    if (item.type === 'Skill') {
+      const total = this.requirements().filter(
+        (requirement) => requirement.active
+          && requirement.requirementType === 'Skill'
+          && requirement.idRequiredCatalogItem === item.idCatalogItem,
+      ).length;
+      return total ? `${total} regla${total === 1 ? '' : 's'} la exige${total === 1 ? '' : 'n'}` : 'Ninguna regla la exige';
+    }
+
+    return '';
   }
 
-  protected selectRequirementFilterClient(idClient: string): void {
-    this.requirementClientFilter.set(idClient);
-    this.requirementServiceFilter.set('');
-    this.requirementPositionFilter.set('');
-    this.loadServicesForClient(idClient);
+  protected lastEditedLabel(item: CatalogItem): string {
+    if (!item.updatedAt) return 'Sin fecha';
+    const date = new Date(item.updatedAt);
+    return Number.isNaN(date.getTime()) ? 'Sin fecha' : date.toLocaleDateString('es-MX');
   }
 
-  protected selectRequirementFilterService(idService: string): void {
-    this.requirementServiceFilter.set(idService);
-    this.requirementPositionFilter.set('');
-    this.loadPositionsForService(this.requirementClientFilter(), idService);
+  protected parentName(item: CatalogItem): string {
+    if (!item.idParentCatalogItem) return '';
+    return this.items().find((parent) => parent.idCatalogItem === item.idParentCatalogItem)?.name ?? 'Padre no encontrado';
   }
 
-  protected selectRequirementFilterPosition(idPosition: string): void {
-    this.requirementPositionFilter.set(idPosition);
+  protected needsParent(): boolean {
+    const type = this.openCatalogType();
+    return type === 'State' || type === 'City';
   }
 
-  protected selectCatalogItem(item: CatalogItem): void {
+  // ── Zona 1: editor de un valor ──────────────────────────────────────────────────────────────
+
+  protected openNewCatalogItem(): void {
+    const type = this.openCatalogType();
+    if (!this.canWrite() || !type) return;
+
+    this.error.set('');
+    this.selectedCatalogItemId.set('');
+    this.catalogForm.reset({
+      name: '',
+      status: 'active',
+      order: Math.min(100000, Math.max(0, ...this.openCatalogItems().map((item) => item.order ?? 1)) + 1),
+      description: '',
+      idParentCatalogItem: '',
+    });
+    this.catalogEditor()?.nativeElement.showModal();
+  }
+
+  protected editCatalogItem(item: CatalogItem): void {
     this.error.set('');
     this.selectedCatalogItemId.set(item.idCatalogItem);
-    this.selectedCatalogType.set(item.type);
     this.catalogForm.reset({
-      type: item.type,
-      code: item.code,
       name: item.name,
-      group: item.group ?? this.catalogGroupLabel(item.type),
       status: item.active ? 'active' : 'inactive',
-      order: this.catalogOrder(item),
-      synonyms: (item.synonyms ?? []).join(', '),
+      order: item.order ?? 1,
       description: item.description ?? '',
       idParentCatalogItem: item.idParentCatalogItem ?? '',
     });
-    this.catalogForm.controls.type.disable();
-    this.catalogDrawerOpen.set(true);
-    this.catalogEditor?.nativeElement.showModal();
+    this.catalogEditor()?.nativeElement.showModal();
   }
 
-  protected openNewCatalogItem(): void {
-    this.error.set('');
-    if (!this.canWrite() || !this.definitions().some(item => item.editable && item.type === this.selectedCatalogType())) return;
-    this.catalogForm.controls.type.enable();
-    this.selectedCatalogItemId.set('');
-    this.catalogForm.reset({
-      type: this.selectedCatalogType(),
-      code: '',
-      name: '',
-      group: this.catalogGroupLabel(this.selectedCatalogType()),
-      status: 'active',
-      order: Math.min(100000, Math.max(0, ...this.selectedCatalogItems().map(item => item.order ?? 1)) + 1),
-      synonyms: '',
-      description: '',
-    });
-    this.catalogDrawerOpen.set(true);
-    this.catalogEditor?.nativeElement.showModal();
-  }
-
-  protected closeCatalogDrawer(): void {
+  protected closeCatalogEditor(): void {
     if (this.saving()) return;
-    this.catalogDrawerOpen.set(false);
-    this.catalogEditor?.nativeElement.close();
+    this.catalogEditor()?.nativeElement.close();
   }
 
   protected saveCatalogItem(): void {
-    if (this.saving() || !this.selectedOrganizationId() || this.catalogForm.invalid || this.catalogCodeExists() || !this.canWrite()) {
+    const type = this.openCatalogType();
+    if (this.saving() || !type || !this.selectedOrganizationId() || this.catalogForm.invalid
+      || this.catalogNameExists() || !this.canWrite()) {
       this.catalogForm.markAllAsTouched();
       return;
     }
 
     const form = this.catalogForm.getRawValue();
-    const synonyms = form.synonyms.split(',').map(value => value.trim()).filter(Boolean);
-    if (synonyms.length > 20 || synonyms.some(value => value.length > 80)) {
-      this.error.set('Usa hasta 20 sinonimos de 80 caracteres, separados por comas.');
-      return;
-    }
     const request = {
       idOrganization: this.selectedOrganizationId(),
-      type: form.type,
-      code: form.code.trim(),
+      type,
       name: form.name.trim(),
       description: this.optional(form.description),
       idParentCatalogItem: this.optional(form.idParentCatalogItem),
-      group: form.group.trim(),
       order: Number(form.order),
-      synonyms,
       active: form.status === 'active',
     };
     const selected = this.selectedCatalogItem();
@@ -622,57 +614,92 @@ export class CatalogsPage implements OnInit {
 
     call.pipe(finalize(() => this.saving.set(false)), takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => {
-        this.message.set(selected ? 'Catálogo actualizado.' : 'Catálogo creado.');
-        this.resetCatalogForm();
-        this.catalogDrawerOpen.set(false);
-        this.catalogEditor?.nativeElement.close();
+        this.message.set(selected ? 'Valor actualizado.' : 'Valor creado.');
+        this.selectedCatalogItemId.set('');
+        this.catalogEditor()?.nativeElement.close();
         this.loadData();
       },
       error: (error: HttpErrorResponse) => this.setError(error),
-      complete: () => this.saving.set(false),
     });
   }
 
   protected deactivateCatalogItem(item: CatalogItem): void {
-    if (!this.canWrite() || this.saving()) {
-      return;
-    }
+    if (!this.canWrite() || this.saving()) return;
 
-    const modules = this.modulesForCatalogItem(item);
-    const usageWarning = modules.length
-      ? `\n\nModulos relacionados: ${modules.join(', ')}.`
+    const usage = this.itemUsage(item);
+    const aviso = usage && !usage.startsWith('Nadie') && !usage.startsWith('Ninguna')
+      ? `\n\nAhora mismo: ${usage}.`
       : '';
 
-    if (!window.confirm(`¿Desactivar el catálogo "${item.name}"?${usageWarning}`)) {
+    if (!window.confirm(
+      `¿Desactivar "${item.name}"?${aviso}\n\nEl valor no se borra: deja de poder elegirse y su
+nombre sigue ocupado.`)) {
       return;
     }
 
     this.saving.set(true);
     this.api.deactivateItem(this.selectedOrganizationId(), item.idCatalogItem)
       .pipe(finalize(() => this.saving.set(false)), takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: () => {
-        this.message.set('Catálogo desactivado.');
-        this.loadData();
-      },
-      error: (error: HttpErrorResponse) => this.setError(error),
-      complete: () => this.saving.set(false),
+        next: () => {
+          this.message.set('Valor desactivado.');
+          this.loadData();
+        },
+        error: (error: HttpErrorResponse) => this.setError(error),
+      });
+  }
+
+  // ── Reglas de elegibilidad ──────────────────────────────────────────────────────────────────
+
+  protected openNewRequirement(): void {
+    if (!this.canWrite()) return;
+    this.resetRequirementForm();
+    this.requirementEditor()?.nativeElement.showModal();
+  }
+
+  protected editRequirement(requirement: EligibilityRequirement): void {
+    this.selectedRequirementId.set(requirement.idEligibilityRequirement);
+    this.requirementForm.reset({
+      targetType: requirement.targetType,
+      idClient: requirement.idClient ?? '',
+      idService: requirement.idService ?? '',
+      idPosition: requirement.idPosition ?? '',
+      requirementType: requirement.requirementType,
+      idRequiredCatalogItem: requirement.idRequiredCatalogItem ?? '',
+      requiredDocumentType: requirement.requiredDocumentType ?? '',
+      requiredEvaluationType: requirement.requiredEvaluationType ?? '',
+      name: requirement.name,
+      description: requirement.description ?? '',
+      isBlocking: requirement.isBlocking,
     });
+    this.requirementEditor()?.nativeElement.showModal();
+  }
+
+  protected closeRequirementEditor(): void {
+    if (this.saving()) return;
+    this.requirementEditor()?.nativeElement.close();
   }
 
   protected saveRequirement(): void {
-    if (!this.selectedOrganizationId() || this.requirementForm.invalid || !this.canWrite()) {
+    if (this.saving() || !this.selectedOrganizationId() || this.requirementForm.invalid || !this.canWrite()) {
       this.requirementForm.markAllAsTouched();
       return;
     }
 
     const form = this.requirementForm.getRawValue();
-    const targetIds = this.targetIds(form.targetType, form.idClient, form.idService, form.idPosition);
     const request = {
       idOrganization: this.selectedOrganizationId(),
       targetType: form.targetType,
-      ...targetIds,
+      ...this.targetIds(form.targetType, form.idClient, form.idService, form.idPosition),
       requirementType: form.requirementType,
-      requiredCode: form.requiredCode.trim(),
+      // Cada tipo manda lo suyo y nulo en los otros dos: si al cambiar de tipo quedara puesto el
+      // valor del anterior, la regla pediría algo que nadie puede cumplir y bloquearía a todos.
+      idRequiredCatalogItem: form.requirementType === 'Skill' ? this.optional(form.idRequiredCatalogItem) : null,
+      requiredDocumentType: form.requirementType === 'Document'
+        ? (this.optional(form.requiredDocumentType) as EmployeeDocumentType | null)
+        : null,
+      requiredEvaluationType: form.requirementType === 'Evaluation'
+        ? (this.optional(form.requiredEvaluationType) as EmployeeEvaluationType | null)
+        : null,
       name: form.name.trim(),
       description: this.optional(form.description),
       isBlocking: form.isBlocking,
@@ -683,62 +710,70 @@ export class CatalogsPage implements OnInit {
       ? this.api.updateEligibilityRequirement(selected.idEligibilityRequirement, request)
       : this.api.createEligibilityRequirement(request);
 
-    call.subscribe({
+    call.pipe(finalize(() => this.saving.set(false)), takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => {
         this.message.set(selected ? 'Regla actualizada.' : 'Regla creada.');
         this.resetRequirementForm();
-        this.requirementDrawerOpen.set(false);
+        this.requirementEditor()?.nativeElement.close();
         this.loadData();
       },
       error: (error: HttpErrorResponse) => this.setError(error),
-      complete: () => this.saving.set(false),
     });
-  }
-
-  protected selectRequirement(requirement: EligibilityRequirement): void {
-    this.selectedRequirementId.set(requirement.idEligibilityRequirement);
-    this.requirementForm.reset({
-      targetType: requirement.targetType,
-      idClient: requirement.idClient ?? '',
-      idService: requirement.idService ?? '',
-      idPosition: requirement.idPosition ?? '',
-      requirementType: requirement.requirementType,
-      requiredCode: requirement.requiredCode,
-      name: requirement.name,
-      description: requirement.description ?? '',
-      isBlocking: requirement.isBlocking,
-    });
-    this.requirementDrawerOpen.set(true);
-  }
-
-  protected openNewRequirement(): void {
-    this.resetRequirementForm();
-    this.requirementDrawerOpen.set(true);
-  }
-
-  protected closeRequirementDrawer(): void {
-    this.requirementDrawerOpen.set(false);
   }
 
   protected deactivateRequirement(requirement: EligibilityRequirement): void {
-    if (!this.canWrite()) {
-      return;
-    }
-
-    if (!window.confirm(`¿Desactivar la regla "${requirement.name}"?`)) {
-      return;
-    }
+    if (!this.canWrite() || this.saving()) return;
+    if (!window.confirm(`¿Desactivar la regla "${requirement.name}"?`)) return;
 
     this.saving.set(true);
-    this.api.deactivateEligibilityRequirement(this.selectedOrganizationId(), requirement.idEligibilityRequirement).subscribe({
-      next: () => {
-        this.message.set('Regla desactivada.');
-        this.loadData();
-      },
-      error: (error: HttpErrorResponse) => this.setError(error),
-      complete: () => this.saving.set(false),
-    });
+    this.api.deactivateEligibilityRequirement(this.selectedOrganizationId(), requirement.idEligibilityRequirement)
+      .pipe(finalize(() => this.saving.set(false)), takeUntilDestroyed(this.destroyRef)).subscribe({
+        next: () => {
+          this.message.set('Regla desactivada.');
+          this.loadData();
+        },
+        error: (error: HttpErrorResponse) => this.setError(error),
+      });
   }
+
+  /**
+   * Qué exige la regla, dicho en una línea para la lista.
+   *
+   * <p>Sustituye a la columna que enseñaba el código crudo. Cada tipo nombra lo suyo: la habilidad
+   * por su nombre, el documento y la evaluación por su etiqueta, y la restricción dice que no exige
+   * nada porque prohíbe.</p>
+   */
+  protected requirementDemandLabel(requirement: EligibilityRequirement): string {
+    switch (requirement.requirementType) {
+      case 'Skill':
+        return requirement.requiredCatalogItemName ?? 'Habilidad no encontrada';
+      case 'Document':
+        return this.documentTypes.find((item) => item.value === requirement.requiredDocumentType)?.label
+          ?? 'Documento sin especificar';
+      case 'Evaluation':
+        return this.evaluationTypes.find((item) => item.value === requirement.requiredEvaluationType)?.label
+          ?? 'Evaluación sin especificar';
+      default:
+        return 'Prohíbe: no exige nada concreto';
+    }
+  }
+
+  protected requirementScopeLabel(requirement: EligibilityRequirement): string {
+    return requirement.positionName
+      || requirement.serviceName
+      || requirement.clientName
+      || this.label(this.targetTypes, requirement.targetType);
+  }
+
+  protected requirementTypeLabel(type: EligibilityRequirementType): string {
+    return this.label(this.requirementTypes, type);
+  }
+
+  protected activeLabel(active: boolean): string {
+    return active ? 'Activo' : 'Inactivo';
+  }
+
+  // ── Validador de elegibilidad ───────────────────────────────────────────────────────────────
 
   protected checkEligibility(): void {
     if (!this.selectedOrganizationId() || this.eligibilityForm.invalid) {
@@ -757,6 +792,7 @@ export class CatalogsPage implements OnInit {
         this.optional(form.idService) ?? undefined,
         this.optional(form.idPosition) ?? undefined,
       )
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (result) => {
           this.eligibilityResult.set(result);
@@ -766,263 +802,12 @@ export class CatalogsPage implements OnInit {
       });
   }
 
-  protected codeOptions() {
-    const type = this.requirementForm.getRawValue().requirementType;
-
-    if (type === 'Skill') {
-      return this.activeSkills().map((skill) => skill.code);
-    }
-
-    if (type === 'Document') {
-      return this.documentCodes;
-    }
-
-    if (type === 'Evaluation') {
-      return this.evaluationCodes;
-    }
-
-    return this.items().filter((item) => item.active && item.type.includes('Restriction')).map((item) => item.code);
-  }
-
-  protected resetCatalogForm(): void {
-    this.selectedCatalogItemId.set('');
-    this.catalogForm.reset({
-      type: this.selectedCatalogType(),
-      code: '',
-      name: '',
-      group: this.catalogGroupLabel(this.selectedCatalogType()),
-      status: 'active',
-      order: this.selectedCatalogItems().length + 1,
-      synonyms: '',
-      description: '',
-    });
-  }
-
-  protected resetRequirementForm(): void {
-    this.selectedRequirementId.set('');
-    this.requirementForm.reset({
-      targetType: 'Organization',
-      idClient: '',
-      idService: '',
-      idPosition: '',
-      requirementType: 'Skill',
-      requiredCode: '',
-      name: '',
-      description: '',
-      isBlocking: true,
-    });
-  }
-
-  protected typeLabel(type: BusinessCatalogItemType): string {
-    return this.catalogTypes.find((item) => item.value === type)?.label ?? 'Catálogo';
-  }
-
-  protected requirementTypeLabel(type: EligibilityRequirementType): string {
-    return this.requirementTypes.find((item) => item.value === type)?.label ?? 'Regla';
-  }
-
-  protected targetTypeLabel(type: EligibilityRequirementTargetType): string {
-    return this.targetTypes.find((item) => item.value === type)?.label ?? 'Alcance general';
-  }
-
-  protected countCatalogItems(type: BusinessCatalogItemType): number {
-    return this.items().filter((item) => item.type === type && item.active).length;
-  }
-
-  protected tabCount(tab: CatalogTab): number {
-    if (tab === 'eligibility') {
-      return this.requirements().length;
-    }
-
-    return this.catalogCategories
-      .filter((category) => category.tab === tab)
-      .reduce((total, category) => total + this.countCatalogItems(category.type), 0);
-  }
-
-  protected activeLabel(active: boolean): string {
-    return active ? 'Activo' : 'Inactivo';
-  }
-
-  protected blockingLabel(requirement: EligibilityRequirement): string {
-    return requirement.isBlocking ? 'Bloqueante' : 'Informativa';
-  }
-
-  protected requirementScopeLabel(requirement: {
-    readonly clientName: string | null;
-    readonly serviceName: string | null;
-    readonly positionName: string | null;
-    readonly targetType: EligibilityRequirementTargetType;
-  }): string {
-    return (
-      requirement.positionName ||
-      requirement.serviceName ||
-      requirement.clientName ||
-      this.targetTypeLabel(requirement.targetType)
-    );
-  }
-
-  protected catalogGroupLabel(type: BusinessCatalogItemType): string {
-    const category = this.catalogCategories.find((item) => item.type === type);
-
-    if (category?.tab === 'operational') {
-      return 'Operativo';
-    }
-
-    if (category?.tab === 'eligibility') {
-      return 'Elegibilidad';
-    }
-
-    return 'General';
-  }
-
-  protected catalogOrder(item: CatalogItem): number {
-    return item.order ?? 1;
-  }
-
-  protected modulesForCatalogItem(item: CatalogItem): readonly string[] {
-    const modules = new Set<string>();
-    const normalizedCode = item.code.trim().toLowerCase();
-    const normalizedName = item.name.trim().toLowerCase();
-
-    if (item.type === 'JobPosition') {
-      if (this.employees().some((employee) => this.matchesCatalogValue(employee.jobTitle, normalizedCode, normalizedName))) {
-        modules.add('Personal');
-      }
-
-      if (this.positions().some((position) => this.matchesCatalogValue(position.name, normalizedCode, normalizedName) || this.matchesCatalogValue(position.codePosition, normalizedCode, normalizedName))) {
-        modules.add('Planeación');
-        modules.add('Operación');
-      }
-    }
-
-    if (item.type === 'Skill') {
-      if (this.requirements().some((requirement) => requirement.requirementType === 'Skill' && this.matchesCatalogValue(requirement.requiredCode, normalizedCode, normalizedName))) {
-        modules.add('Personal');
-        modules.add('Planeación');
-      }
-    }
-
-    if (item.type === 'DocumentRequirement') {
-      if (this.requirements().some((requirement) => requirement.requirementType === 'Document' && this.matchesCatalogValue(requirement.requiredCode, normalizedCode, normalizedName))) {
-        modules.add('Documentos');
-        modules.add('Personal');
-      }
-    }
-
-    if (item.type === 'EvaluationRequirement') {
-      if (this.requirements().some((requirement) => requirement.requirementType === 'Evaluation' && this.matchesCatalogValue(requirement.requiredCode, normalizedCode, normalizedName))) {
-        modules.add('Personal');
-      }
-    }
-
-    if (item.type === 'ClientRestriction') {
-      if (this.clients().length || this.requirements().some((requirement) => requirement.requirementType === 'Restriction')) {
-        modules.add('Clientes');
-      }
-    }
-
-    if (item.type === 'ServiceRestriction') {
-      if (this.services().length || this.requirements().some((requirement) => requirement.requirementType === 'Restriction')) {
-        modules.add('Solicitudes');
-        modules.add('Operación');
-      }
-    }
-
-    if (item.type === 'IncidentReason') {
-      modules.add('Operación');
-    }
-
-    if (item.type === 'CoverageReason') {
-      modules.add('Operación');
-      modules.add('Planeación');
-    }
-
-    if (item.type === 'CancellationReason') {
-      modules.add('Solicitudes');
-      modules.add('Clientes');
-    }
-
-    if (item.type === 'Zone' && (this.clients().length || this.services().length)) {
-      modules.add('Clientes');
-      modules.add('Operación');
-    }
-
-    return Array.from(modules).sort();
-  }
-
-  protected usedInLabel(item: CatalogItem): string {
-    const modules = this.modulesForCatalogItem(item);
-    return modules.length ? modules.join(', ') : 'Sin uso registrado';
-  }
-
-  protected lastEditedLabel(item: CatalogItem): string {
-    if (!item.updatedAt) return 'Sin fecha disponible';
-    const date = new Date(item.updatedAt);
-    return Number.isNaN(date.getTime()) ? 'Sin fecha disponible' : date.toLocaleDateString('es-MX');
-  }
-
-  protected catalogFieldInvalid(field: 'code' | 'name' | 'group' | 'status'): boolean {
-    const control = this.catalogForm.controls[field];
-    return Boolean(control.invalid && (control.touched || control.dirty));
-  }
-
-  protected catalogCodeExists(): boolean {
-    const form = this.catalogForm.getRawValue();
-    const code = form.code.trim().toLowerCase();
-
-    if (!code) {
-      return false;
-    }
-
-    return this.items().some(
-      (item) =>
-        item.idCatalogItem !== this.selectedCatalogItemId() &&
-        item.type === form.type &&
-        item.code.trim().toLowerCase() === code,
-    );
-  }
-
-  protected catalogNameExists(): boolean {
-    const form = this.catalogForm.getRawValue();
-    const name = form.name.trim().toLowerCase();
-
-    if (!name) {
-      return false;
-    }
-
-    return this.items().some(
-      (item) =>
-        item.idCatalogItem !== this.selectedCatalogItemId() &&
-        item.type === form.type &&
-        item.name.trim().toLowerCase() === name,
-    );
-  }
-
-  protected clearCatalogFilters(): void {
-    this.catalogFilterForm.reset({ search: '', group: '', state: '', module: '' });
-    this.refreshCatalogFilters();
-  }
-
-  protected refreshCatalogFilters(): void {
-    this.catalogFilterRevision.update((value) => value + 1);
-  }
-
-  protected checklistTone(status: MinimumChecklistStatus): 'success' | 'warning' | 'muted' {
-    if (status === 'complete') {
-      return 'success';
-    }
-
-    return status === 'incomplete' ? 'warning' : 'muted';
-  }
-
-  protected checklistStatusLabel(status: MinimumChecklistStatus): string {
-    if (status === 'complete') {
-      return 'Completo';
-    }
-
-    return status === 'incomplete' ? 'Incompleto' : 'Sin configurar';
-  }
-
+  /**
+   * Sin reglas activas no hay conclusión posible, y decirlo importa.
+   *
+   * <p>«Elegible» cuando no hay ninguna regla no significa que la persona cumpla: significa que no
+   * se comprobó nada. La ausencia de reglas no se presenta como cumplimiento.</p>
+   */
   protected eligibilityState(result: EligibilityCheck | null): EligibilityUiState {
     if (!result || this.activeRequirements() === 0 || result.reasons.length === 0) {
       return 'insufficient';
@@ -1033,26 +818,76 @@ export class CatalogsPage implements OnInit {
 
   protected eligibilityLabel(result: EligibilityCheck | null): string {
     const state = this.eligibilityState(result);
-
-    if (state === 'eligible') {
-      return 'Elegible';
-    }
-
-    if (state === 'notEligible') {
-      return 'No elegible';
-    }
-
-    return 'Sin reglas suficientes';
+    if (state === 'eligible') return 'Elegible';
+    return state === 'notEligible' ? 'No elegible' : 'Sin reglas suficientes';
   }
 
-  protected missingEligibilityConfigurations(): readonly string[] {
-    const missing = this.minimumChecklist()
-      .filter((item) => item.status !== 'complete')
-      .map((item) => item.description);
+  // ── Selectores encadenados ──────────────────────────────────────────────────────────────────
 
-    return missing.length
-      ? missing
-      : ['No hay reglas mínimas para concluir elegibilidad.'];
+  protected selectRequirementClient(idClient: string): void {
+    this.requirementForm.patchValue({ idClient, idService: '', idPosition: '' });
+    this.loadServicesForClient(idClient);
+  }
+
+  protected selectRequirementService(idService: string): void {
+    const idClient = this.requirementForm.getRawValue().idClient;
+    this.requirementForm.patchValue({ idService, idPosition: '' });
+    this.loadPositionsForService(idClient, idService);
+  }
+
+  protected selectEligibilityClient(idClient: string): void {
+    this.eligibilityForm.patchValue({ idClient, idService: '', idPosition: '' });
+    this.loadServicesForClient(idClient);
+  }
+
+  protected selectEligibilityService(idService: string): void {
+    const idClient = this.eligibilityForm.getRawValue().idClient;
+    this.eligibilityForm.patchValue({ idService, idPosition: '' });
+    this.loadPositionsForService(idClient, idService);
+  }
+
+  protected selectRequirementFilterClient(idClient: string): void {
+    this.requirementClientFilter.set(idClient);
+    this.requirementServiceFilter.set('');
+    this.requirementPositionFilter.set('');
+    this.loadServicesForClient(idClient);
+  }
+
+  protected selectRequirementFilterService(idService: string): void {
+    this.requirementServiceFilter.set(idService);
+    this.requirementPositionFilter.set('');
+    this.loadPositionsForService(this.requirementClientFilter(), idService);
+  }
+
+  // ── Interno ─────────────────────────────────────────────────────────────────────────────────
+
+  private controlSignal<T>(control: AbstractControl<T>): Signal<T> {
+    return toSignal(control.valueChanges, { initialValue: control.value as T }) as Signal<T>;
+  }
+
+  private conVacio(options: readonly GiSelectOption[], label: string): readonly GiSelectOption[] {
+    return [{ value: '', label }, ...options];
+  }
+
+  private label(options: readonly GiSelectOption[], value: string): string {
+    return options.find((option) => option.value === value)?.label ?? value;
+  }
+
+  private resetRequirementForm(): void {
+    this.selectedRequirementId.set('');
+    this.requirementForm.reset({
+      targetType: 'Organization',
+      idClient: '',
+      idService: '',
+      idPosition: '',
+      requirementType: 'Skill',
+      idRequiredCatalogItem: '',
+      requiredDocumentType: '',
+      requiredEvaluationType: '',
+      name: '',
+      description: '',
+      isBlocking: true,
+    });
   }
 
   private syncDefaults(): void {
@@ -1065,56 +900,47 @@ export class CatalogsPage implements OnInit {
   private loadServicesForClient(idClient: string): void {
     this.services.set([]);
     this.positions.set([]);
+    if (!idClient) return;
 
-    if (!idClient) {
-      return;
-    }
-
-    this.clientApi.listServices(this.selectedOrganizationId(), idClient).subscribe({
-      next: (services) => this.services.set(services),
-      error: (error: HttpErrorResponse) => this.setError(error),
-    });
+    this.clientApi.listServices(this.selectedOrganizationId(), idClient)
+      .pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+        next: (services) => this.services.set(services),
+        error: (error: HttpErrorResponse) => this.setError(error),
+      });
   }
 
   private loadOperationalContext(clients: readonly ClientListItem[]): void {
     this.services.set([]);
     this.positions.set([]);
+    if (!clients.length) return;
 
-    if (!clients.length) {
-      return;
-    }
+    forkJoin(clients.map((client) => this.clientApi.listServices(this.selectedOrganizationId(), client.idClient)))
+      .pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+        next: (serviceGroups) => {
+          const services = serviceGroups.flat();
+          this.services.set(services);
+          if (!services.length) return;
 
-    forkJoin(clients.map((client) => this.clientApi.listServices(this.selectedOrganizationId(), client.idClient))).subscribe({
-      next: (serviceGroups) => {
-        const services = serviceGroups.flat();
-        this.services.set(services);
-
-        if (!services.length) {
-          return;
-        }
-
-        forkJoin(
-          services.map((service) => this.clientApi.listPositions(this.selectedOrganizationId(), service.idClient, service.idService)),
-        ).subscribe({
-          next: (positionGroups) => this.positions.set(positionGroups.flat()),
-          error: () => this.positions.set([]),
-        });
-      },
-      error: () => this.services.set([]),
-    });
+          forkJoin(services.map((service) =>
+            this.clientApi.listPositions(this.selectedOrganizationId(), service.idClient, service.idService)))
+            .pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+              next: (positionGroups) => this.positions.set(positionGroups.flat()),
+              error: () => this.positions.set([]),
+            });
+        },
+        error: () => this.services.set([]),
+      });
   }
 
   private loadPositionsForService(idClient: string, idService: string): void {
     this.positions.set([]);
+    if (!idClient || !idService) return;
 
-    if (!idClient || !idService) {
-      return;
-    }
-
-    this.clientApi.listPositions(this.selectedOrganizationId(), idClient, idService).subscribe({
-      next: (positions) => this.positions.set(positions),
-      error: (error: HttpErrorResponse) => this.setError(error),
-    });
+    this.clientApi.listPositions(this.selectedOrganizationId(), idClient, idService)
+      .pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+        next: (positions) => this.positions.set(positions),
+        error: (error: HttpErrorResponse) => this.setError(error),
+      });
   }
 
   private targetIds(
@@ -1124,15 +950,10 @@ export class CatalogsPage implements OnInit {
     idPosition: string,
   ) {
     return {
-      idClient: targetType === 'Client' || targetType === 'Service' || targetType === 'Position' ? this.optional(idClient) : null,
+      idClient: targetType !== 'Organization' ? this.optional(idClient) : null,
       idService: targetType === 'Service' || targetType === 'Position' ? this.optional(idService) : null,
       idPosition: targetType === 'Position' ? this.optional(idPosition) : null,
     };
-  }
-
-  private matchesCatalogValue(value: string | null, normalizedCode: string, normalizedName: string): boolean {
-    const normalizedValue = value?.trim().toLowerCase();
-    return Boolean(normalizedValue && (normalizedValue === normalizedCode || normalizedValue === normalizedName || normalizedValue.includes(normalizedName)));
   }
 
   private optional(value: string): string | null {
@@ -1159,31 +980,21 @@ export class CatalogsPage implements OnInit {
   }
 }
 
-type CatalogTab = 'general' | 'operational' | 'eligibility';
-
-type CatalogCategory = {
+/**
+ * Un catálogo editable, con quién lo lee.
+ *
+ * <p>`link` dice si el lector guarda el identificador del valor o su texto. No es un detalle
+ * técnico escondido: por identificador, renombrar un valor lo renombra en todas partes; por
+ * nombre, los registros anteriores conservan el texto viejo y nada avisa.</p>
+ */
+type CatalogCard = {
   readonly type: BusinessCatalogItemType;
-  readonly tab: CatalogTab;
   readonly title: string;
-  readonly description: string;
-  readonly icon: string;
-};
-
-type MinimumChecklistStatus = 'complete' | 'incomplete' | 'missing';
-
-type MinimumChecklistItem = {
-  readonly key: string;
-  readonly section: string;
-  readonly status: MinimumChecklistStatus;
-  readonly description: string;
-  readonly action: string;
-};
-
-type DocumentGovernanceCard = {
-  readonly title: string;
-  readonly value: number;
-  readonly detail: string;
-  readonly warning?: boolean;
+  readonly purpose: string;
+  readonly usedBy: string;
+  readonly link: 'identificador' | 'nombre';
+  readonly linkDetail: string;
+  readonly warning?: string;
 };
 
 type EligibilityUiState = 'eligible' | 'notEligible' | 'insufficient';

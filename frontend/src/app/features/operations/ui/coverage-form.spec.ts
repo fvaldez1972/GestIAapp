@@ -42,6 +42,7 @@ const MOTIVOS: readonly GiSelectOption[] = [
       [target]="target()"
       [candidates]="candidates()"
       [reasons]="reasons()"
+      [canWrite]="true"
       [isCorrection]="isCorrection()"
       [dayClosed]="dayClosed()"
       [saving]="saving()"
@@ -81,11 +82,14 @@ function montar(configurar: (host: Anfitrion) => void = () => {}) {
       raiz.querySelectorAll<HTMLButtonElement>('.gi-cand__choose')[indice].click();
       fixture.detectChanges();
     },
+    // El motivo salio del gi-select y pasa por el buscador del catalogo: se escribe y se elige,
+    // que es lo mismo que hace el supervisor.
     elegirMotivo: (texto: string) => {
-      raiz.querySelectorAll<HTMLButtonElement>('gi-select button')[0].click();
+      const campo = raiz.querySelector<HTMLInputElement>('#cob-motivo')!;
+      campo.value = texto;
+      campo.dispatchEvent(new Event('input'));
       fixture.detectChanges();
-      const opciones = Array.from(raiz.querySelectorAll<HTMLElement>('[role="option"]'));
-      opciones.find((o) => o.textContent?.includes(texto))!.click();
+      raiz.querySelector<HTMLButtonElement>('.pick__elegir')!.click();
       fixture.detectChanges();
     },
     escribirHora: (indice: number, valor: string) => {

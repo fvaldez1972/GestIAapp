@@ -25,6 +25,9 @@ export { GiConfirmDialog } from './gi-confirm-dialog/gi-confirm-dialog';
 export { GiMetricCard } from './gi-metric-card/gi-metric-card';
 export type { GiMetricState, GiMetricTone } from './gi-metric-card/gi-metric-card';
 
+export { GiCatalogPicker } from './gi-catalog-picker/gi-catalog-picker';
+export type { GiCatalogCreation, GiCatalogOption } from './gi-catalog-picker/gi-catalog-picker';
+
 export { GiSelect } from './gi-select/gi-select';
 export type { GiSelectOption } from './gi-select/gi-select';
 

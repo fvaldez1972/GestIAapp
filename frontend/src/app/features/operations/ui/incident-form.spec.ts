@@ -31,6 +31,7 @@ const fila = (extra: Partial<IncidentRow> = {}): IncidentRow => ({
     <app-incident-form
       [row]="row()"
       [reasons]="reasons()"
+      [canWrite]="true"
       [dayClosed]="dayClosed()"
       [saving]="saving()"
       (save)="guardados.set([...guardados(), $event])"
@@ -76,6 +77,15 @@ function montar(configurar: (host: Anfitrion) => void = () => {}) {
       opciones.find((o) => o.textContent?.includes(texto))!.click();
       fixture.detectChanges();
     },
+    // El motivo del hecho salio del gi-select y pasa por el buscador del catalogo.
+    elegirMotivo: (texto: string) => {
+      const campo = raiz.querySelector<HTMLInputElement>('#incf-motivo')!;
+      campo.value = texto;
+      campo.dispatchEvent(new Event('input'));
+      fixture.detectChanges();
+      raiz.querySelector<HTMLButtonElement>('.pick__elegir')!.click();
+      fixture.detectChanges();
+    },
     areas,
   };
 }
@@ -88,12 +98,16 @@ describe('IncidentForm', () => {
       expect(bloques()).toEqual(['Qué pasó']);
     });
 
-    /** El motivo del hecho se ELIGE del catálogo: nunca es texto libre. */
+    /**
+     * El motivo del hecho se ELIGE del catálogo: nunca es texto libre. Lo que cambió el 7 de
+     * septiembre de 2026 es que, si no está, se puede agregar ahí mismo en vez de mandar a otra
+     * pantalla; lo que no cambió es que el valor guardado siempre sale del catálogo.
+     */
     it('el motivo del hecho sale del catálogo, no de un campo de texto', () => {
       const f = montar();
 
-      expect(f.raiz.querySelectorAll('gi-select').length).toBeGreaterThan(0);
-      f.elegir(0, 'Robo o faltante');
+      expect(f.raiz.querySelector('gi-catalog-picker')).not.toBeNull();
+      f.elegirMotivo('Robo o faltante');
       f.escribir(0, 'Se detectó faltante en el almacén.');
       f.guardar().click();
 
@@ -101,19 +115,27 @@ describe('IncidentForm', () => {
       expect(f.host.guardados()[0].correctionReason).toBeNull();
     });
 
-    it('sin motivos en el catálogo lo dice y ofrece llenarlo', () => {
+    /**
+     * <b>Esta prueba cambió de sentido el 7 de septiembre de 2026.</b> Antes comprobaba que, con el
+     * catálogo vacío, la pantalla mandara a Catálogos. Aquí eso costaba caro: una incidencia que no
+     * se registra en el momento se registra fuera del sistema, o no se registra. Ahora el motivo se
+     * escribe y se agrega sin salir del formulario.
+     */
+    it('sin motivos en el catálogo ofrece crear el primero sin salir de la incidencia', () => {
       const f = montar((h) => h.reasons.set([]));
 
-      expect(f.raiz.querySelector('.incf__falta')!.textContent).toContain('está vacío');
-      f.raiz.querySelector<HTMLButtonElement>('.incf__link')!.click();
-      expect(f.host.catalogos()).toBe(1);
-      expect(f.problema()).toContain('No hay motivos en el catálogo');
+      const campo = f.raiz.querySelector<HTMLInputElement>('#incf-motivo')!;
+      campo.value = 'Robo o faltante';
+      campo.dispatchEvent(new Event('input'));
+      f.fixture.detectChanges();
+
+      expect(f.raiz.textContent).toContain('No tienes «Robo o faltante» en el catálogo de motivos de incidencia');
     });
 
     it('pide describir qué ocurrió, no sólo el motivo', () => {
       const f = montar();
 
-      f.elegir(0, 'Robo o faltante');
+      f.elegirMotivo('Robo o faltante');
 
       expect(f.guardar().disabled).toBe(true);
       expect(f.problema()).toContain('Describe qué ocurrió');
@@ -182,7 +204,7 @@ describe('IncidentForm', () => {
     it('resolverla pide decir cómo se resolvió', () => {
       const f = montar((h) => h.row.set(fila()));
 
-      f.elegir(2, 'Resuelta');
+      f.elegir(1, 'Resuelta');
 
       expect(f.raiz.textContent).toContain('Cómo se resolvió');
       expect(f.guardar().disabled).toBe(true);
@@ -192,7 +214,7 @@ describe('IncidentForm', () => {
     it('cancelarla también lo pide: cerrar es cerrar', () => {
       const f = montar((h) => h.row.set(fila()));
 
-      f.elegir(2, 'Cancelada');
+      f.elegir(1, 'Cancelada');
 
       expect(f.guardar().disabled).toBe(true);
       expect(f.problema()).toContain('cómo se resolvió');

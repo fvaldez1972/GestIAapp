@@ -35,6 +35,9 @@ const RAICES = [
   resolve('src/app/features/operations/data-access'),
   resolve('src/app/features/operations/pages/attendance-page'),
   resolve('src/app/features/operations/pages/incidents-page'),
+  // Catálogos, rehecha el 7 de septiembre de 2026: dos zonas, sin diálogo de entrada y sin un solo
+  // color escrito a mano. Entra a la lista, que es la señal de que una pantalla ya se rehizo.
+  resolve('src/app/features/catalogs'),
 ];
 
 /** Los siete tamaños de la escala. Ni uno más; el 13.5 px está prohibido por nombre. */

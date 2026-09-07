@@ -60,11 +60,13 @@
             <app-employee-form
               [organizationId]="organizationId()"
               [jobPositions]="catalogJobPositions()"
+              [canWrite]="canWrite()"
               [today]="today()"
               [saving]="saving()"
               [problem]="formProblem()"
               (cancel)="creating.set(false)"
               (save)="saveNew($event)"
+              (createJobPosition)="createJobPosition($event)"
             />
           </ng-template>
         </gi-detail-panel>
@@ -83,6 +85,7 @@
               [employee]="detail()"
               [canViewSensitive]="canViewSensitive()"
               [jobPositions]="catalogJobPositions()"
+              [canWrite]="canWrite()"
               [editingJobPosition]="editingJobPosition() && canWrite()"
               [savingJobPosition]="savingJobPosition()"
               [jobPositionProblem]="jobPositionProblem()"
@@ -90,6 +93,7 @@
               (openCatalog)="goToCatalogs()"
               (cancelJobPosition)="editingJobPosition.set(false)"
               (saveJobPosition)="saveJobPosition($event)"
+              (createJobPosition)="createJobPosition($event)"
             />
           </ng-template>
 

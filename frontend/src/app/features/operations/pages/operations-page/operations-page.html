@@ -445,7 +445,10 @@
 
       <label>
         Tipo
-        <app-catalog-select formControlName="incidentType" [organizationId]="selectedOrganizationId()" type="IncidentReason" label="Tipo de incidencia" [useCode]="true" />
+        <!-- Por nombre: es lo que Incident.IncidentType guarda de verdad. Antes iba por codigo del
+             catalogo y coincidia de casualidad, porque la colacion de SQL Server ignora mayusculas
+             y los dos textos eran iguales salvo la caja. -->
+        <app-catalog-select formControlName="incidentType" [organizationId]="selectedOrganizationId()" type="IncidentReason" label="Tipo de incidencia" />
       </label>
     </div>
 

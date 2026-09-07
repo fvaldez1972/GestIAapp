@@ -1,7 +1,6 @@
-import { ChangeDetectionStrategy, Component, computed, effect, input, output, signal } from '@angular/core';
-import { GiSelect, GiSelectOption } from '../../../shared/ui/gi-ui';
+import { ChangeDetectionStrategy, Component, effect, input, output, signal } from '@angular/core';
+import { GiCatalogCreation, GiCatalogPicker } from '../../../shared/ui/gi-ui';
 import { EmployeeJobPositionOption } from '../data-access/employee-list.models';
-import { JobPositionMissing } from './job-position-missing';
 
 /**
  * El único cambio que se hace desde la ficha: el puesto del catálogo.
@@ -13,44 +12,48 @@ import { JobPositionMissing } from './job-position-missing';
 @Component({
   selector: 'app-employee-job-position',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [GiSelect, JobPositionMissing],
+  imports: [GiCatalogPicker],
   template: `
     <section class="editor">
-      @if (jobPositions().length === 0) {
-        <app-job-position-missing />
-      } @else {
-        <gi-select
-          label="Puesto del catálogo"
-          placeholder="Elige un puesto"
-          [options]="options()"
-          [value]="chosen()"
-          [disabled]="saving()"
-          (valueChange)="chosen.set($event)"
-        />
+      <!--
+        El catálogo vacío deja de mandar a otra pantalla: se escribe el puesto y se ofrece agregarlo.
+        Salir de aquí a Catálogos era abandonar la ficha a medias, y quien la abandona casi siempre
+        la deja incompleta, que es lo que este editor viene a evitar.
+      -->
+      <gi-catalog-picker
+        label="Puesto del catálogo"
+        catalogLabel="el catálogo de puestos"
+        inputId="ejp-puesto"
+        [options]="jobPositions()"
+        [value]="chosen()"
+        [canWrite]="canWrite()"
+        [disabled]="saving()"
+        (valueChange)="chosen.set($event)"
+        (create)="createJobPosition.emit($event)"
+      />
 
-        @if (problem()) {
-          <p class="editor__problem" role="alert">{{ problem() }}</p>
-        }
-
-        <p class="editor__actions">
-          <button class="editor__button" type="button" [disabled]="saving()" (click)="cancel.emit()">
-            Cancelar
-          </button>
-          <button
-            class="editor__button editor__button--primary"
-            type="button"
-            [disabled]="saving() || !chosen() || chosen() === current()"
-            [attr.aria-describedby]="chosen() && chosen() !== current() ? null : 'ejp-motivo'"
-            (click)="save.emit(chosen())"
-          >
-            {{ saving() ? 'Guardando…' : 'Guardar el puesto' }}
-          </button>
-        </p>
-
-        <p class="editor__reason" id="ejp-motivo" [hidden]="!!chosen() && chosen() !== current()">
-          {{ chosen() ? 'Es el puesto que ya tiene.' : 'Todavía no has elegido un puesto.' }}
-        </p>
+      @if (problem()) {
+        <p class="editor__problem" role="alert">{{ problem() }}</p>
       }
+
+      <p class="editor__actions">
+        <button class="editor__button" type="button" [disabled]="saving()" (click)="cancel.emit()">
+          Cancelar
+        </button>
+        <button
+          class="editor__button editor__button--primary"
+          type="button"
+          [disabled]="saving() || !chosen() || chosen() === current()"
+          [attr.aria-describedby]="chosen() && chosen() !== current() ? null : 'ejp-motivo'"
+          (click)="save.emit(chosen())"
+        >
+          {{ saving() ? 'Guardando…' : 'Guardar el puesto' }}
+        </button>
+      </p>
+
+      <p class="editor__reason" id="ejp-motivo" [hidden]="!!chosen() && chosen() !== current()">
+        {{ chosen() ? 'Es el puesto que ya tiene.' : 'Todavía no has elegido un puesto.' }}
+      </p>
     </section>
   `,
   styles: `
@@ -103,15 +106,13 @@ export class EmployeeJobPosition {
   readonly current = input('');
   readonly saving = input(false);
   readonly problem = input('');
+  readonly canWrite = input(false);
 
   readonly cancel = output<void>();
   readonly save = output<string>();
+  readonly createJobPosition = output<GiCatalogCreation>();
 
   protected readonly chosen = signal('');
-
-  protected readonly options = computed<readonly GiSelectOption[]>(() =>
-    this.jobPositions().map((option) => ({ value: option.idCatalogItem, label: option.name })),
-  );
 
   constructor() {
     // Al abrirlo para otra persona, el control parte de lo que esa persona tiene, no de lo que

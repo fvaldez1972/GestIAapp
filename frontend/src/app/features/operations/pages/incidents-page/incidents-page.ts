@@ -7,6 +7,7 @@ import { AuthService } from '../../../../core/auth/auth.service';
 import { SystemInfoService } from '../../../../core/system/system-info.service';
 import {
   GiCandidate,
+  GiCatalogCreation,
   GiDayClosure,
   GiDetailPanel,
   GiEmptyState,
@@ -495,6 +496,44 @@ export class IncidentsPage {
    * cobertura por <b>identificador</b>. Es una inconsistencia del servidor, no de esta pantalla, y
    * mezclarlos haría que un motivo se guardara en el campo del otro.</p>
    */
+  /**
+   * Crear un motivo que no estaba en el catálogo, sin salir de la incidencia.
+   *
+   * <p><b>Aquí importa más que en otras pantallas.</b> Una incidencia que no se registra en el
+   * momento se registra fuera del sistema, o no se registra. Antes, con el catálogo vacío, la
+   * pantalla mandaba a Catálogos y había que abandonar el registro a medias.</p>
+   */
+  protected createIncidentReason(creation: GiCatalogCreation): void {
+    this.createReason('IncidentReason', creation, 'motivos de incidencia');
+  }
+
+  protected createCoverageReason(creation: GiCatalogCreation): void {
+    this.createReason('CoverageReason', creation, 'motivos de cobertura');
+  }
+
+  private createReason(
+    type: 'IncidentReason' | 'CoverageReason',
+    creation: GiCatalogCreation,
+    etiqueta: string,
+  ): void {
+    const organizationId = this.organizationId();
+
+    if (!organizationId || !this.canWrite()) {
+      return;
+    }
+
+    this.catalogApi
+      .createItem({ idOrganization: organizationId, type, name: creation.name, description: null })
+      .subscribe({
+        next: (creado) => {
+          this.message.set(`«${creado.name}» quedó en el catálogo de ${etiqueta} y se puede reutilizar.`);
+          this.loadReasons(organizationId);
+        },
+        error: (error: HttpErrorResponse) =>
+          this.setError(error, `No se pudo agregar el motivo al catálogo de ${etiqueta}.`),
+      });
+  }
+
   private loadReasons(organizationId: string): void {
     this.catalogApi
       .listItems(organizationId)
@@ -502,8 +541,11 @@ export class IncidentsPage {
       .subscribe((items) => {
         this.incidentReasons.set(
           items
+            // Por nombre, que es lo que Incident.IncidentType guarda. La cobertura, en cambio, va
+            // por identificador porque CoverageRecord si tiene su clave foranea. Que las dos no se
+            // parezcan es deuda reconocida: la incidencia deberia guardar el identificador tambien.
             .filter((item) => item.active && item.type === 'IncidentReason')
-            .map((item) => ({ value: item.code, label: item.name })),
+            .map((item) => ({ value: item.name, label: item.name })),
         );
 
         this.coverageReasons.set(

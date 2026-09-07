@@ -1,0 +1,216 @@
+import { ScheduledShift, ServicePosition, ShiftSegment } from '../../clients/data-access/client.models';
+import { operationalDatesBetween } from '../../../shared/util/operational-date';
+
+/**
+ * Qué pasa en una posición un día concreto.
+ *
+ * <p><b>`noShift` y `undeclared` son el mismo dato en la base, y aquí se separan con la única
+ * distinción que el modelo permite hoy.</b> Un descanso es la ausencia de un segmento, así que
+ * «el domingo descansa» y «nadie configuró el domingo» son indistinguibles mirando ese día. Lo que
+ * sí se puede distinguir es el caso completo: si la posición **no tiene ningún segmento en toda la
+ * semana**, nadie configuró nada y eso es `undeclared`. Si el patrón sí declara otros días, el día
+ * vacío es lo más parecido a una decisión que el modelo sabe expresar, y es `noShift`.</p>
+ *
+ * <p>La distinción de verdad —descanso declarado frente a día sin declarar— necesita el patrón con
+ * ancla, que depende de tres preguntas de negocio abiertas. Hasta entonces esto es lo honesto: no
+ * llamar «descanso» a lo que nadie declaró.</p>
+ */
+export type PlanningCellKind = 'covered' | 'short' | 'noShift' | 'undeclared';
+
+export type PlanningCell = {
+  readonly date: string;
+  readonly kind: PlanningCellKind;
+  readonly requiredWorkerCount: number;
+  readonly assignedWorkerCount: number;
+  /** `07–19`, o cadena vacía cuando no hay turno ese día. */
+  readonly timeRange: string;
+  readonly people: readonly string[];
+};
+
+export type PlanningRow = {
+  readonly idPosition: string;
+  readonly codePosition: string;
+  readonly name: string;
+  readonly requiredWorkerCount: number;
+  readonly cells: readonly PlanningCell[];
+};
+
+/**
+ * Lo que impide publicar, o lo que conviene mirar antes de hacerlo.
+ *
+ * <p>`blocking` decide si el botón de publicar se puede usar. Lo que no bloquea igual se enseña:
+ * publicar una semana con huecos es una decisión legítima —alguien tiene que cubrirlos— pero no
+ * debería tomarse sin verlos.</p>
+ */
+export type PlanningConflict = {
+  readonly id: string;
+  readonly title: string;
+  readonly detail: string;
+  readonly blocking: boolean;
+};
+
+/** `Monday` … `Sunday`, como los devuelve el servidor en `ShiftSegment.dayOfWeek`. */
+const DIAS_SERVIDOR = [
+  'Sunday',
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+];
+
+/**
+ * El día de la semana de un día operativo, en el vocabulario del servidor.
+ *
+ * <p>Se calcula en UTC por la misma razón que toda la aritmética de días de negocio: leerlo con la
+ * hora local devuelve el día anterior en husos al oeste de Greenwich, y el jueves se convertiría en
+ * miércoles sin que nadie lo note.</p>
+ */
+export function serverDayOfWeek(isoDate: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) {
+    return '';
+  }
+
+  const [year, month, day] = isoDate.split('-').map(Number);
+
+  return DIAS_SERVIDOR[new Date(Date.UTC(year, month - 1, day)).getUTCDay()];
+}
+
+/** `07:00:00` → `07`. Sin minutos cuando son cero, que es el caso normal de un turno. */
+function hora(time: string): string {
+  const [h, m] = time.split(':');
+
+  return m && m !== '00' ? `${h}:${m}` : h;
+}
+
+/**
+ * Compone el calendario de la semana con lo que ya existe: las posiciones, los segmentos de sus
+ * patrones y los turnos de la versión.
+ *
+ * <p><b>Se arma en el navegador y no lo devuelve el servidor</b>, igual que hoy. No hace falta un
+ * endpoint nuevo: las tres consultas ya existen y componerlas aquí deja la proyección visible y
+ * comprobable sin base de datos, que es lo que permite probar los cuatro estados de celda sin
+ * montar nada.</p>
+ */
+export function buildPlanningWeek(options: {
+  readonly positions: readonly ServicePosition[];
+  readonly segments: ReadonlyMap<string, readonly ShiftSegment[]>;
+  readonly shifts: readonly ScheduledShift[];
+  readonly weekStart: string;
+  readonly weekEnd: string;
+}): readonly PlanningRow[] {
+  const dias = operationalDatesBetween(options.weekStart, options.weekEnd);
+
+  return options.positions
+    .filter((position) => position.active)
+    .map((position) => {
+      const segmentos = (options.segments.get(position.idPosition) ?? []).filter((s) => s.active);
+      const sinDeclarar = segmentos.length === 0;
+
+      const cells = dias.map((date): PlanningCell => {
+        const delDia = segmentos.filter((s) => s.dayOfWeek === serverDayOfWeek(date));
+
+        if (delDia.length === 0) {
+          return {
+            date,
+            kind: sinDeclarar ? 'undeclared' : 'noShift',
+            requiredWorkerCount: 0,
+            assignedWorkerCount: 0,
+            timeRange: '',
+            people: [],
+          };
+        }
+
+        const required = delDia.reduce((total, s) => total + s.requiredWorkerCount, 0);
+        const delDiaTurnos = options.shifts.filter(
+          (shift) => shift.idPosition === position.idPosition && shift.shiftDate === date,
+        );
+        const people = delDiaTurnos.map((shift) => shift.employeeName);
+
+        return {
+          date,
+          kind: people.length >= required ? 'covered' : 'short',
+          requiredWorkerCount: required,
+          assignedWorkerCount: people.length,
+          timeRange: `${hora(delDia[0].startTime)}–${hora(delDia[0].endTime)}`,
+          people,
+        };
+      });
+
+      return {
+        idPosition: position.idPosition,
+        codePosition: position.codePosition,
+        name: position.name,
+        requiredWorkerCount: position.requiredWorkerCount,
+        cells,
+      };
+    });
+}
+
+/**
+ * Lo que hay que mirar antes de publicar.
+ *
+ * <p><b>Sólo bloquea lo que haría inservible la versión publicada</b>: una semana sin ningún turno
+ * proyectado, o una posición de la que nadie declaró nada. Los huecos de cobertura <b>no</b>
+ * bloquean: una semana con huecos es una semana normal a la que le falta gente, y publicarla es lo
+ * que permite que Asistencia y Cobertura empiecen a trabajar sobre ella. Bloquear ahí obligaría a
+ * inventar asignaciones para poder publicar.</p>
+ */
+export function planningConflicts(rows: readonly PlanningRow[]): readonly PlanningConflict[] {
+  const conflicts: PlanningConflict[] = [];
+
+  const sinDeclarar = rows.filter((row) => row.cells.every((cell) => cell.kind === 'undeclared'));
+
+  for (const row of sinDeclarar) {
+    conflicts.push({
+      id: `undeclared:${row.idPosition}`,
+      title: `${row.codePosition} no tiene ningún turno declarado`,
+      detail:
+        'Sin segmentos en su patrón, la posición no proyecta nada y la semana publicada no la va a ' +
+        'incluir. Declara sus turnos o desactívala si ya no opera.',
+      blocking: true,
+    });
+  }
+
+  const conTurnos = rows.some((row) => row.cells.some((cell) => cell.kind !== 'undeclared' && cell.kind !== 'noShift'));
+
+  if (rows.length > 0 && !conTurnos) {
+    conflicts.push({
+      id: 'empty-week',
+      title: 'La semana no proyecta ningún turno',
+      detail:
+        'Ninguna posición declara turnos en estos siete días. Publicar dejaría a Asistencia sin ' +
+        'nada contra qué medir.',
+      blocking: true,
+    });
+  }
+
+  const huecos = rows.flatMap((row) =>
+    row.cells
+      .filter((cell) => cell.kind === 'short')
+      .map((cell) => ({ row, cell })),
+  );
+
+  if (huecos.length > 0) {
+    const faltan = huecos.reduce(
+      (total, { cell }) => total + (cell.requiredWorkerCount - cell.assignedWorkerCount),
+      0,
+    );
+
+    conflicts.push({
+      id: 'coverage-gaps',
+      title:
+        huecos.length === 1
+          ? 'Un turno queda con menos gente de la que pide'
+          : `${huecos.length} turnos quedan con menos gente de la que piden`,
+      detail:
+        `Faltan ${faltan} ${faltan === 1 ? 'elemento' : 'elementos'} en total. No impide publicar: ` +
+        'una semana con huecos es una semana normal a la que le falta gente, y publicarla es lo que ' +
+        'deja a Cobertura resolverlos.',
+      blocking: false,
+    });
+  }
+
+  return conflicts;
+}

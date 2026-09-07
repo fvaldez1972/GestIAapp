@@ -365,19 +365,6 @@ main {
   padding: clamp(1.4rem, 2.3vw, 2.65rem);
 }
 
-.app-footer {
-  display: flex;
-  min-height: 3.25rem;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0 2rem;
-  border-top: 1px solid var(--gestia-border);
-  color: var(--gestia-muted);
-  font-size: 0.65rem;
-  background: rgb(255 255 255 / 70%);
-}
-
 .wrapper.is-condensed .app-menu {
   width: var(--gestia-sidebar-condensed-width);
 }
@@ -464,12 +451,6 @@ main {
 
   main {
     padding: 1rem;
-  }
-
-  .app-footer {
-    align-items: flex-start;
-    padding: 0.9rem 1.25rem;
-    flex-direction: column;
   }
 }
 

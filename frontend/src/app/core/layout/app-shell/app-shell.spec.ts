@@ -91,14 +91,10 @@ describe('AppShell', () => {
       http.expectOne('/api/v1/organizations').flush([ALFA, BETA]);
     }
 
-    http.expectOne('/api/v1/system/info').flush({
-      application: 'GestIA',
-      apiVersion: 'v1',
-      status: 'ready',
-      persistence: 'SQL Server',
-      operationDate: '2026-09-04',
-      timeZoneId: 'America/Mexico_City',
-    });
+    // El shell ya no pide «system/info»: la barra de contexto dejó de llevar la fecha operativa,
+    // y era su único lector dentro del cromo. Las pantallas que la necesitan siguen inyectando
+    // SystemInfoService por su cuenta.
+    http.expectNone('/api/v1/system/info');
 
     fixture.detectChanges();
 

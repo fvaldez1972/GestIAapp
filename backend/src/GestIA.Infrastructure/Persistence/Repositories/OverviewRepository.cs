@@ -29,90 +29,28 @@ public sealed class OverviewRepository(GestIaDbContext dbContext) : IOverviewRep
         DateOnly nextWeekEndDate,
         CancellationToken cancellationToken)
     {
-        var counts = await CountCatalogsAsync(idOrganization, cancellationToken);
-
-        var clients = dbContext.Clients.AsNoTracking().Where(item => item.IdOrganization == idOrganization);
-        var sites = dbContext.ClientSites.AsNoTracking().Where(item => item.IdOrganization == idOrganization);
-        var contacts = dbContext.ClientContacts.AsNoTracking().Where(item => item.IdOrganization == idOrganization);
-        var services = dbContext.Services.AsNoTracking().Where(item => item.IdOrganization == idOrganization);
         var positions = dbContext.Positions.AsNoTracking().Where(item => item.IdOrganization == idOrganization);
         var employees = dbContext.Employees.AsNoTracking().Where(item => item.IdOrganization == idOrganization);
         var assignments = dbContext.ServiceAssignments.AsNoTracking().Where(item => item.IdOrganization == idOrganization);
         var versions = dbContext.ScheduleVersions.AsNoTracking().Where(item => item.IdOrganization == idOrganization);
         var shifts = dbContext.ScheduledShifts.AsNoTracking().Where(item => item.IdOrganization == idOrganization);
 
-        var clientCount = await clients.CountAsync(cancellationToken);
-        var siteCount = await sites.CountAsync(cancellationToken);
-        var contactCount = await contacts.CountAsync(cancellationToken);
-
-        var clientsWithoutContact = clients.Where(client =>
-            !contacts.Any(contact => contact.IdClient == client.IdClient));
-        var clientsWithoutContactCount = await clientsWithoutContact.CountAsync(cancellationToken);
-        var clientWithoutContactName = await clientsWithoutContact
-            .OrderBy(client => client.LegalName)
-            .Select(client => client.TradeName ?? client.LegalName)
-            .FirstOrDefaultAsync(cancellationToken);
-
-        var serviceCount = await services.CountAsync(cancellationToken);
-        var servicesWithConfiguration = await services
-            .CountAsync(
-                service => dbContext.ServiceConfigurations.Any(item => item.IdService == service.IdService),
-                cancellationToken);
-        var servicesWithoutPositions = await services
-            .CountAsync(
-                service => !positions.Any(position => position.IdService == service.IdService),
-                cancellationToken);
-        var firstServiceName = await services
-            .OrderBy(service => service.Name)
-            .Select(service => service.Name)
-            .FirstOrDefaultAsync(cancellationToken);
-
-        // Un patrón sin segmentos no proyecta nada, así que no cuenta como patrón.
-        var positionsWithPattern = positions.Where(position =>
-            dbContext.ShiftPatterns.Any(pattern =>
-                pattern.IdPosition == position.IdPosition
-                && dbContext.ShiftSegments.Any(segment => segment.IdShiftPattern == pattern.IdShiftPattern)));
-
         var positionCount = await positions.CountAsync(cancellationToken);
-        var positionsWithPatternCount = await positionsWithPattern.CountAsync(cancellationToken);
 
         var activeEmployees = employees.Where(employee => employee.Status == EmployeeStatus.Active);
         var activeEmployeeCount = await activeEmployees.CountAsync(cancellationToken);
 
-        // El expediente mínimo del paso 5 es puesto de catálogo más fecha de ingreso. La fecha no
-        // es nula en el modelo, así que lo único que se comprueba es el puesto.
-        var employeesWithFile = await activeEmployees
-            .CountAsync(employee => employee.IdJobPositionCatalogItem != null, cancellationToken);
-
-        var assignmentsInForce = assignments.Where(assignment =>
-            assignment.StartDate <= operationDate
-            && (assignment.EndDate == null || assignment.EndDate >= operationDate));
-
-        var primaryAssignments = await assignmentsInForce
-            .CountAsync(assignment => assignment.IsPrimary, cancellationToken);
-        var reliefAssignments = await assignmentsInForce
-            .CountAsync(assignment => assignment.AssignmentType == ServiceAssignmentType.Relief, cancellationToken);
+        // Sólo los titulares vigentes, y sólo para saber si ya hay operación que planear. El resto
+        // de los conteos de configuración se retiró con el camino: contarlos para que nadie los
+        // leyera era la consulta más cara de la pantalla que abre cada sesión.
+        var primaryAssignments = await assignments
+            .CountAsync(
+                assignment => assignment.IsPrimary
+                    && assignment.StartDate <= operationDate
+                    && (assignment.EndDate == null || assignment.EndDate >= operationDate),
+                cancellationToken);
 
         var publishedVersions = versions.Where(version => version.Status == ScheduleVersionStatus.Published);
-        var publishedVersionCount = await publishedVersions.CountAsync(cancellationToken);
-
-        var setupCounts = counts with
-        {
-            Clients = clientCount,
-            ClientSites = siteCount,
-            ClientContacts = contactCount,
-            ClientsWithoutContact = clientsWithoutContactCount,
-            Services = serviceCount,
-            ServicesWithConfiguration = servicesWithConfiguration,
-            ServicesWithoutPositions = servicesWithoutPositions,
-            Positions = positionCount,
-            PositionsWithPattern = positionsWithPatternCount,
-            Employees = activeEmployeeCount,
-            EmployeesWithFile = employeesWithFile,
-            PrimaryAssignments = primaryAssignments,
-            ReliefAssignments = reliefAssignments,
-            PublishedVersions = publishedVersionCount,
-        };
 
         // ── La semana operativa ──────────────────────────────────────────────────────────────
         var weekShifts = shifts.Where(shift =>
@@ -249,9 +187,8 @@ public sealed class OverviewRepository(GestIaDbContext dbContext) : IOverviewRep
             .MinAsync(document => document.ExpiresDate, cancellationToken);
 
         return new OverviewFacts(
-            setupCounts,
-            clientWithoutContactName,
-            firstServiceName,
+            positionCount,
+            primaryAssignments,
             plannedShiftsInWeek,
             plannedDaysInWeek,
             servicesPlannedInWeek,
@@ -272,39 +209,5 @@ public sealed class OverviewRepository(GestIaDbContext dbContext) : IOverviewRep
             employeesWithExpiredDocuments,
             oldestDocumentExpiry,
             nextWeekIsPublished);
-    }
-
-    /// <summary>
-    /// Los cinco catálogos mínimos, en una sola agrupación.
-    ///
-    /// <para>Se piden los cinco juntos porque el paso 1 se cierra con los cinco: preguntarlos por
-    /// separado serían cinco viajes para una sola respuesta.</para>
-    /// </summary>
-    private async Task<OverviewSetupCounts> CountCatalogsAsync(
-        Guid idOrganization,
-        CancellationToken cancellationToken)
-    {
-        var byType = await dbContext.BusinessCatalogItems
-            .AsNoTracking()
-            .Where(item => item.IdOrganization == idOrganization)
-            .GroupBy(item => item.Type)
-            .Select(group => new { Type = group.Key, Total = group.Count() })
-            .ToListAsync(cancellationToken);
-
-        int Total(BusinessCatalogItemType type) =>
-            byType.FirstOrDefault(entry => entry.Type == type)?.Total ?? 0;
-
-        return new OverviewSetupCounts(
-            Total(BusinessCatalogItemType.JobPosition),
-            Total(BusinessCatalogItemType.Skill),
-            Total(BusinessCatalogItemType.Zone),
-            Total(BusinessCatalogItemType.IncidentReason),
-            Total(BusinessCatalogItemType.CoverageReason),
-            0, 0, 0, 0,
-            0, 0, 0,
-            0, 0,
-            0, 0,
-            0, 0,
-            0);
     }
 }

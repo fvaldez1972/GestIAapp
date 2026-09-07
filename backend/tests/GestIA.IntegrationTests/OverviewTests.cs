@@ -44,78 +44,28 @@ public sealed class OverviewTests(OperationalSqlDatabase database)
         SecurityPermissions.OperationsRead,
     ];
 
-    // ── El camino ────────────────────────────────────────────────────────────────────────────
+    // ── La organización recién creada ────────────────────────────────────────────────────────
 
     /// <summary>
-    /// El caso que da nombre al problema: una organización recién creada. Lo que no puede pasar es
-    /// que aparezcan cuatro indicadores en cero, porque un cero aquí no es un dato sino la
-    /// ausencia de configuración.
+    /// El caso que da nombre al problema. Inicio es el tablero del administrador de la
+    /// organización y se ve igual desde el primer día: <b>los cuatro indicadores existen siempre</b>.
+    /// Lo que no puede pasar es que digan cero, porque un cero aquí no es un dato sino la ausencia
+    /// de configuración.
     /// </summary>
     [OperationalSqlFact]
-    public async Task ANewOrganizationHasNoStepsDoneAndNoMetricWithAValue()
+    public async Task ANewOrganizationGetsTheFourMetricsAndNoneOfThemHasAValue()
     {
         var organizationId = await SeedAsync("NUE", Level.Nothing);
 
         var overview = await OverviewAsync(organizationId);
 
-        Assert.Equal(0, overview.Setup.CompletedSteps);
-        Assert.Equal(7, overview.Setup.TotalSteps);
-        Assert.All(overview.Setup.Steps, step => Assert.False(step.Done));
-
         // Los cuatro existen y los cuatro dicen que falta el prerrequisito. Ninguno dice cero.
         Assert.Equal(4, overview.Metrics.Count);
         Assert.All(overview.Metrics, metric => Assert.Equal(OverviewMetricState.Pending, metric.State));
-    }
 
-    /// <summary>
-    /// Con cuatro de los cinco catálogos el paso sigue abierto. Darlo por bueno esconde el que
-    /// falta hasta que alguien tropieza con él tres pasos más adelante.
-    /// </summary>
-    [OperationalSqlFact]
-    public async Task TheFirstStepNeedsTheFiveCatalogsAndNotFour()
-    {
-        var organizationId = await SeedAsync("CAT", Level.Nothing);
-
-        await AddAsync(
-            organizationId,
-            Catalog(organizationId, BusinessCatalogItemType.JobPosition, "CAT-PUE"),
-            Catalog(organizationId, BusinessCatalogItemType.Skill, "CAT-HAB"),
-            Catalog(organizationId, BusinessCatalogItemType.Zone, "CAT-ZON"),
-            Catalog(organizationId, BusinessCatalogItemType.IncidentReason, "CAT-INC"));
-
-        var withFour = await OverviewAsync(organizationId);
-        Assert.False(Step(withFour, OverviewSetupStepKey.Catalogs).Done);
-
-        await AddAsync(organizationId, Catalog(organizationId, BusinessCatalogItemType.CoverageReason, "CAT-COB"));
-
-        var withFive = await OverviewAsync(organizationId);
-        Assert.True(Step(withFive, OverviewSetupStepKey.Catalogs).Done);
-        Assert.Equal(1, withFive.Setup.CompletedSteps);
-    }
-
-    /// <summary>
-    /// Un paso bloqueado dice de qué depende <b>antes</b> de que el usuario entre al módulo y se
-    /// encuentre la pared. El de asignaciones depende de dos cosas, y se nombran las dos.
-    /// </summary>
-    [OperationalSqlFact]
-    public async Task ABlockedStepNamesWhatItDependsOn()
-    {
-        var organizationId = await SeedAsync("BLO", Level.Catalogs);
-
-        var overview = await OverviewAsync(organizationId);
-
-        Assert.Equal(
-            [OverviewSetupStepKey.Clients],
-            Step(overview, OverviewSetupStepKey.Services).BlockedBy);
-
-        Assert.Equal(
-            [OverviewSetupStepKey.Positions, OverviewSetupStepKey.Employees],
-            Step(overview, OverviewSetupStepKey.Assignments).BlockedBy);
-
-        // El paso 5 ya no depende de nada: sus catálogos están listos, aunque él siga pendiente.
-        var employees = Step(overview, OverviewSetupStepKey.Employees);
-        Assert.False(employees.Done);
-        Assert.Empty(employees.BlockedBy);
+        // Y nada que atender, que es lo que obliga a la pantalla a distinguir «no hay pendientes»
+        // de «todavía no hay con qué saberlo»: aquí lo segundo.
+        Assert.Empty(overview.Attention);
     }
 
     // ── Cero real contra sin datos aún ───────────────────────────────────────────────────────
@@ -281,26 +231,6 @@ public sealed class OverviewTests(OperationalSqlDatabase database)
     // ── Lo que ve cada actor ─────────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Los siete pasos describen a la organización, no a quien mira, así que se ven siempre. Lo
-    /// que no viaja es el destino: ofrecer una puerta que termina en 403 es peor que no ofrecerla.
-    /// </summary>
-    [OperationalSqlFact]
-    public async Task WithoutClientsReadTheSecondStepIsStillVisibleButHasNoDestination()
-    {
-        var organizationId = await SeedAsync("PER", Level.Catalogs);
-
-        var overview = await OverviewAsync(organizationId, SecurityPermissions.CatalogsRead);
-
-        Assert.Equal(7, overview.Setup.Steps.Count);
-
-        var clients = Step(overview, OverviewSetupStepKey.Clients);
-        Assert.False(clients.Done);
-        Assert.Null(clients.Route);
-
-        Assert.Equal("/catalogos", Step(overview, OverviewSetupStepKey.Catalogs).Route);
-    }
-
-    /// <summary>
     /// Los indicadores y los asuntos sí se filtran, porque son trabajo. Sin
     /// <c>WORKFORCE.READ</c> no aparece la fila de documentos ni su indicador.
     /// </summary>
@@ -318,16 +248,15 @@ public sealed class OverviewTests(OperationalSqlDatabase database)
 
     /// <summary>
     /// El super admin no lleva la lista completa de permisos, sólo <c>PLATFORM.ADMIN</c>. Sin la
-    /// rama que lo reconoce, vería sus propios pasos sin ningún destino.
+    /// rama que lo reconoce, no vería ningún indicador.
     /// </summary>
     [OperationalSqlFact]
-    public async Task ThePlatformAdminSeesEveryDestination()
+    public async Task ThePlatformAdminSeesEveryMetric()
     {
         var organizationId = await SeedAsync("SUP", Level.Catalogs);
 
         var overview = await OverviewAsync(organizationId, SecurityPermissions.PlatformAdmin);
 
-        Assert.All(overview.Setup.Steps, step => Assert.NotNull(step.Route));
         Assert.Equal(4, overview.Metrics.Count);
     }
 
@@ -343,12 +272,15 @@ public sealed class OverviewTests(OperationalSqlDatabase database)
 
         var overview = await OverviewAsync(empty);
 
-        Assert.Equal(0, overview.Setup.CompletedSteps);
-        Assert.Equal(0, overview.Setup.Counts.Positions);
-        Assert.Equal(0, overview.Setup.Counts.Employees);
+        // La organización vacía no ve nada de la configurada: los cuatro indicadores sin calcular
+        // y ningún asunto. Si los hechos se colaran, el de posiciones sin titular estaría listo.
+        Assert.All(overview.Metrics, metric => Assert.Equal(OverviewMetricState.Pending, metric.State));
+        Assert.Empty(overview.Attention);
 
         var other = await OverviewAsync(configured);
-        Assert.True(other.Setup.CompletedSteps >= 6);
+        Assert.Equal(
+            OverviewMetricState.Ready,
+            Metric(other, OverviewMetricKey.PositionsWithoutPrimary).State);
     }
 
     // ── Sembrado ─────────────────────────────────────────────────────────────────────────────
@@ -551,9 +483,6 @@ public sealed class OverviewTests(OperationalSqlDatabase database)
 
         return await service.GetOverviewAsync(new OverviewQuery(organizationId), Token);
     }
-
-    private static OverviewSetupStepResponse Step(OverviewResponse overview, OverviewSetupStepKey key) =>
-        overview.Setup.Steps.Single(step => step.Key == key);
 
     private static OverviewMetricResponse Metric(OverviewResponse overview, OverviewMetricKey key) =>
         overview.Metrics.Single(metric => metric.Key == key);

@@ -237,8 +237,18 @@ public sealed class OperationsService(
     private async Task ValidateIncidentCatalogAsync(Guid organization, string code, string? previous, CancellationToken token)
     {
         if (string.Equals(code, previous, StringComparison.OrdinalIgnoreCase)) return;
+        // Se compara contra el nombre porque es lo que la columna guarda: los 178 registros de la
+        // base viva dicen «Ausencia» y «Retardo», no «AUSENCIA» y «RETARDO». Antes se comparaba
+        // contra el codigo del catalogo y funcionaba de casualidad, porque la colacion de SQL
+        // Server ignora mayusculas y los dos textos coincidian.
+        //
+        // Pendiente reconocido, y no es de esta tanda: Incident deberia guardar el identificador
+        // del motivo como ya hace CoverageRecord, en vez de su nombre en texto libre. Son 34 sitios
+        // y 178 registros operativos con bitacora, mas una incidencia de prueba de humo cuyo tipo
+        // no existe en ningun catalogo, asi que lleva migracion y decision propias.
+        var plegado = GestIA.Domain.Catalogs.CatalogName.Normalize(code);
         var values = await catalogService.ListCatalogItemsAsync(organization, GestIA.Domain.Catalogs.BusinessCatalogItemType.IncidentReason, token);
-        if (!values.Any(item => item.Active && string.Equals(item.Code, code, StringComparison.OrdinalIgnoreCase)))
+        if (!values.Any(item => item.Active && GestIA.Domain.Catalogs.CatalogName.Normalize(item.Name) == plegado))
             throw new ResourceConflictException("Selecciona un tipo de incidencia activo del catalogo.");
     }
 

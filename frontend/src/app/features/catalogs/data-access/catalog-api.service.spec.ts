@@ -32,8 +32,8 @@ describe('CatalogApiService', () => {
   });
 
   it('sends metadata and reactivation without dropping fields', () => {
-    const input = { idOrganization: 'org', type: 'Zone' as const, code: 'N', name: 'Norte', description: null,
-      group: 'Operativo', order: 8, synonyms: ['Norte industrial'], active: true };
+    const input = { idOrganization: 'org', type: 'IncidentReason' as const, name: 'Retardo', description: null,
+      order: 8, active: true };
     api.updateItem('value', input).subscribe();
     const update = http.expectOne('/api/v1/catalogs/items/value');
     expect(update.request.method).toBe('PUT');

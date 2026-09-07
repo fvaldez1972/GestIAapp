@@ -1,16 +1,14 @@
 using GestIA.Domain.Catalogs;
+using GestIA.Domain.Workforce;
 
 namespace GestIA.Application.Catalogs;
 
 public sealed record CatalogItemInput(
     Guid IdOrganization,
     BusinessCatalogItemType Type,
-    string Code,
     string Name,
     string? Description,
-    string? Group = null,
     int? Order = null,
-    string[]? Synonyms = null,
     bool? Active = null,
     Guid? IdParentCatalogItem = null);
 
@@ -18,13 +16,10 @@ public sealed record CatalogItemResponse(
     Guid IdCatalogItem,
     Guid IdOrganization,
     BusinessCatalogItemType Type,
-    string Code,
     string Name,
     string? Description,
     bool Active,
-    string Group = "General",
     int Order = 1,
-    string[]? Synonyms = null,
     DateTime? UpdatedAt = null,
     Guid? IdParentCatalogItem = null);
 
@@ -35,7 +30,9 @@ public sealed record EligibilityRequirementInput(
     Guid? IdService,
     Guid? IdPosition,
     EligibilityRequirementType RequirementType,
-    string RequiredCode,
+    Guid? IdRequiredCatalogItem,
+    EmployeeDocumentType? RequiredDocumentType,
+    EmployeeEvaluationType? RequiredEvaluationType,
     string Name,
     string? Description,
     bool IsBlocking);
@@ -51,7 +48,10 @@ public sealed record EligibilityRequirementResponse(
     Guid? IdPosition,
     string? PositionName,
     EligibilityRequirementType RequirementType,
-    string RequiredCode,
+    Guid? IdRequiredCatalogItem,
+    string? RequiredCatalogItemName,
+    EmployeeDocumentType? RequiredDocumentType,
+    EmployeeEvaluationType? RequiredEvaluationType,
     string Name,
     string? Description,
     bool IsBlocking,
@@ -69,7 +69,6 @@ public sealed record EmployeeSkillResponse(
     Guid IdEmployeeSkill,
     Guid IdEmployee,
     Guid IdSkillCatalogItem,
-    string SkillCode,
     string SkillName,
     DateOnly? AcquiredDate,
     DateOnly? ExpiresDate,

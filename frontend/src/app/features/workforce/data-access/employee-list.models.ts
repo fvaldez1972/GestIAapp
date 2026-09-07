@@ -293,7 +293,12 @@ export type EmployeeRequirementRow = {
  * detalle, del mismo modo que la franja de elegibilidad.</p>
  */
 export function employeeRequirementRows(
-  required: readonly { readonly requiredCode: string; readonly name: string; readonly isBlocking: boolean }[],
+  required: readonly {
+    /** El tipo de documento que la regla exige. Nulo en las reglas que no son de documento. */
+    readonly requiredDocumentType: string | null;
+    readonly name: string;
+    readonly isBlocking: boolean;
+  }[],
   documents: readonly {
     readonly documentType: string;
     readonly expiresDate: string | null;
@@ -307,7 +312,7 @@ export function employeeRequirementRows(
 
   return required.map((requisito) => {
     const documento = documents.find(
-      (item) => item.active && item.documentType.toLowerCase() === requisito.requiredCode.toLowerCase(),
+      (item) => item.active && item.documentType.toLowerCase() === (requisito.requiredDocumentType ?? '').toLowerCase(),
     );
 
     const state: EmployeeDocumentHealth = !documento
@@ -319,8 +324,8 @@ export function employeeRequirementRows(
           : 'UpToDate';
 
     return {
-      code: requisito.requiredCode,
-      label: requisito.name || documentTypeLabel(requisito.requiredCode),
+      code: requisito.requiredDocumentType ?? '',
+      label: requisito.name || documentTypeLabel(requisito.requiredDocumentType ?? ''),
       isBlocking: requisito.isBlocking,
       state,
       expiresDate: documento?.expiresDate ?? null,

@@ -180,7 +180,11 @@ export class EmployeeDocuments {
 
   /** Lo cargado que nadie exige. Se muestra aparte para que no se confunda con un requisito. */
   protected readonly extras = computed(() => {
-    const exigidos = new Set(this.requirements().map((item) => item.requiredCode.toLowerCase()));
+    const exigidos = new Set(
+      this.requirements()
+        .map((item) => (item.requiredDocumentType ?? '').toLowerCase())
+        .filter(Boolean),
+    );
 
     return this.documents().filter(
       (document) => document.active && !exigidos.has(document.documentType.toLowerCase()),

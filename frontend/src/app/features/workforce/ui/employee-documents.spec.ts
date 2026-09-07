@@ -24,7 +24,7 @@ class Anfitrion {
     requirementFixture(),
     requirementFixture({
       idEligibilityRequirement: 'r2',
-      requiredCode: 'ProofOfAddress',
+      requiredDocumentType: 'ProofOfAddress',
       name: 'Comprobante de domicilio',
     }),
   ]);

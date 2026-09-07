@@ -5,10 +5,10 @@ import { CatalogApiService } from '../../../features/catalogs/data-access/catalo
 import { CatalogItem } from '../../../features/catalogs/data-access/catalog.models';
 
 const values: CatalogItem[] = [
-  { idCatalogItem: 'country', idOrganization: 'org', type: 'Country', code: 'MX', name: 'Mexico', active: true, description: null },
-  { idCatalogItem: 'state', idOrganization: 'org', type: 'State', code: 'NL', name: 'Nuevo Leon', active: true, description: null, idParentCatalogItem: 'country' },
-  { idCatalogItem: 'city', idOrganization: 'org', type: 'City', code: 'MTY', name: 'Monterrey', active: true, description: null, idParentCatalogItem: 'state' },
-  { idCatalogItem: 'inactive', idOrganization: 'org', type: 'City', code: 'OLD', name: 'Inactivo', active: false, description: null, idParentCatalogItem: 'state' },
+  { idCatalogItem: 'country', idOrganization: 'org', type: 'Country', name: 'Mexico', active: true, description: null },
+  { idCatalogItem: 'state', idOrganization: 'org', type: 'State', name: 'Nuevo Leon', active: true, description: null, idParentCatalogItem: 'country' },
+  { idCatalogItem: 'city', idOrganization: 'org', type: 'City', name: 'Monterrey', active: true, description: null, idParentCatalogItem: 'state' },
+  { idCatalogItem: 'inactive', idOrganization: 'org', type: 'City', name: 'Inactivo', active: false, description: null, idParentCatalogItem: 'state' },
 ];
 describe('CatalogSelect', () => {
   let component: CatalogSelect;
@@ -39,6 +39,18 @@ describe('CatalogSelect', () => {
     expect(component.values()).toEqual(values);
     expect(old.observed).toBe(false);
   });
+  /**
+   * El pais se resuelve por nombre plegado ahora que el catalogo no lleva codigo, y ademas se
+   * acepta el ISO de dos letras que ClientSite y Employee guardan en CountryCode. Sin lo segundo,
+   * las direcciones ya capturadas dejarian de encontrar su pais.
+   */
+  it('resolves the country by folded name and also by its ISO code', () => {
+    component.type = 'State'; component.country = 'MX'; component.ngOnChanges();
+    expect(component.options().map(item => item.name)).toEqual(['Nuevo Leon']);
+    component.country = 'méxico'; component.ngOnChanges();
+    expect(component.options().map(item => item.name)).toEqual(['Nuevo Leon']);
+  });
+
   it('emits the catalog identity when a form stores a reference', () => {
     const change = vi.fn(); component.registerOnChange(change);
     component.type = 'Country'; component.useId = true; component.ngOnChanges();

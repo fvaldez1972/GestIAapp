@@ -1,30 +1,41 @@
+/**
+ * Los ocho catálogos editables que quedan.
+ *
+ * <p>El 7 de septiembre de 2026 se retiraron seis —`Zone`, `CancellationReason`,
+ * `DocumentRequirement`, `EvaluationRequirement`, `ClientRestriction` y `ServiceRestriction`—
+ * porque ninguna pantalla ni regla del servidor leía sus valores: se podían llenar, y llenarlos no
+ * cambiaba nada. Los requisitos de documento y evaluación viven en los enums del expediente, no
+ * aquí.</p>
+ */
 export type BusinessCatalogItemType =
   | 'Skill'
   | 'JobPosition'
-  | 'DocumentRequirement'
-  | 'EvaluationRequirement'
-  | 'ClientRestriction'
-  | 'ServiceRestriction'
-  | 'Zone'
   | 'IncidentReason'
   | 'CoverageReason'
-  | 'CancellationReason'
   | 'Country' | 'State' | 'City' | 'Nationality';
 
 export type EligibilityRequirementTargetType = 'Organization' | 'Client' | 'Service' | 'Position';
 export type EligibilityRequirementType = 'Skill' | 'Document' | 'Evaluation' | 'Restriction';
 
+/** Los catorce tipos de documento del expediente, como los nombra el servidor. */
+export type EmployeeDocumentType =
+  | 'EmploymentApplication' | 'BirthCertificate' | 'MarriageCertificate' | 'VoterId'
+  | 'Curp' | 'SocialSecurityNumber' | 'Rfc' | 'TaxStatusCertificate' | 'DriverLicense'
+  | 'ProofOfAddress' | 'ProofOfStudies' | 'MilitaryServiceCard'
+  | 'CriminalRecordCertificate' | 'Other';
+
+/** Los cinco tipos de evaluación. */
+export type EmployeeEvaluationType =
+  | 'Polygraph' | 'SocioeconomicStudy' | 'CriminalRecordReview' | 'DrugTest' | 'Other';
+
 export type CatalogItem = {
   readonly idCatalogItem: string;
   readonly idOrganization: string;
   readonly type: BusinessCatalogItemType;
-  readonly code: string;
   readonly name: string;
   readonly description: string | null;
   readonly active: boolean;
-  readonly group?: string;
   readonly order?: number;
-  readonly synonyms?: readonly string[];
   readonly updatedAt?: string | null;
   readonly idParentCatalogItem?: string | null;
 };
@@ -34,7 +45,6 @@ export type CatalogItemInput = Omit<CatalogItem, 'idCatalogItem' | 'active' | 'u
 export type CatalogDefinition = {
   readonly key: string;
   readonly name: string;
-  readonly group: string;
   readonly module: string;
   readonly editable: boolean;
   readonly type: BusinessCatalogItemType | null;
@@ -52,7 +62,20 @@ export type EligibilityRequirement = {
   readonly idPosition: string | null;
   readonly positionName: string | null;
   readonly requirementType: EligibilityRequirementType;
-  readonly requiredCode: string;
+
+  /**
+   * Qué exige la regla, en tres campos y no en uno.
+   *
+   * <p>Antes había un solo `requiredCode` de texto cuyo significado cambiaba con el tipo: para una
+   * regla de habilidad era el código de un valor de catálogo, y para las de documento y evaluación
+   * era el nombre de un enum del servidor. Nada impedía guardar el valor de un enum en una regla
+   * del otro. Ahora cada tipo apunta a lo suyo, y el servidor sólo acepta exactamente uno.</p>
+   */
+  readonly idRequiredCatalogItem: string | null;
+  readonly requiredCatalogItemName: string | null;
+  readonly requiredDocumentType: EmployeeDocumentType | null;
+  readonly requiredEvaluationType: EmployeeEvaluationType | null;
+
   readonly name: string;
   readonly description: string | null;
   readonly isBlocking: boolean;
@@ -65,6 +88,7 @@ export type EligibilityRequirementInput = Omit<
   | 'clientName'
   | 'serviceName'
   | 'positionName'
+  | 'requiredCatalogItemName'
   | 'active'
 >;
 
@@ -72,7 +96,6 @@ export type EmployeeSkill = {
   readonly idEmployeeSkill: string;
   readonly idEmployee: string;
   readonly idSkillCatalogItem: string;
-  readonly skillCode: string;
   readonly skillName: string;
   readonly acquiredDate: string | null;
   readonly expiresDate: string | null;
@@ -80,7 +103,7 @@ export type EmployeeSkill = {
   readonly active: boolean;
 };
 
-export type EmployeeSkillInput = Omit<EmployeeSkill, 'idEmployeeSkill' | 'skillCode' | 'skillName' | 'active'> & {
+export type EmployeeSkillInput = Omit<EmployeeSkill, 'idEmployeeSkill' | 'skillName' | 'active'> & {
   readonly idOrganization: string;
 };
 

@@ -403,16 +403,16 @@ public sealed class ReportsRepository(GestIaDbContext dbContext) : IReportsRepos
                 {
                     EligibilityRequirementType.Skill => employeeSkills.Any(skill =>
                         skill.Active &&
-                        skill.SkillCatalogItem.Code == requirement.RequiredCode &&
+                        skill.IdSkillCatalogItem == requirement.IdRequiredCatalogItem &&
                         (!skill.ExpiresDate.HasValue || skill.ExpiresDate.Value >= query.ReferenceDate)),
                     EligibilityRequirementType.Document => employeeDocuments.Any(document =>
                         document.Active &&
-                        document.DocumentType.ToString().Equals(requirement.RequiredCode, StringComparison.OrdinalIgnoreCase) &&
+                        document.DocumentType == requirement.RequiredDocumentType &&
                         (document.Status is EmployeeDocumentStatus.Validated or EmployeeDocumentStatus.Received) &&
                         (!document.ExpiresDate.HasValue || document.ExpiresDate.Value >= query.ReferenceDate)),
                     EligibilityRequirementType.Evaluation => employeeEvaluations.Any(evaluation =>
                         evaluation.Active &&
-                        evaluation.EvaluationType.ToString().Equals(requirement.RequiredCode, StringComparison.OrdinalIgnoreCase) &&
+                        evaluation.EvaluationType == requirement.RequiredEvaluationType &&
                         (evaluation.Result is EmployeeEvaluationResult.Approved or EmployeeEvaluationResult.ApprovedWithObservations) &&
                         (!evaluation.ExpiresDate.HasValue || evaluation.ExpiresDate.Value >= query.ReferenceDate)),
                     EligibilityRequirementType.Restriction => false,
@@ -421,7 +421,7 @@ public sealed class ReportsRepository(GestIaDbContext dbContext) : IReportsRepos
 
                 if (!passed && requirement.IsBlocking)
                 {
-                    reasons.Add($"Regla obligatoria no cumplida: {requirement.Name} ({requirement.RequiredCode}).");
+                    reasons.Add($"Regla obligatoria no cumplida: {requirement.Name}.");
                 }
             }
 

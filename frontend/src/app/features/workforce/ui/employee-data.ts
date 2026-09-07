@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
+import { GiCatalogCreation } from '../../../shared/ui/gi-ui';
 import { formatOperationalDate } from '../../../shared/util/operational-date';
 import { Employee } from '../data-access/workforce.models';
 import {
@@ -39,8 +40,10 @@ import { EmployeeJobPosition } from './employee-job-position';
           [current]="row().idJobPositionCatalogItem ?? ''"
           [saving]="savingJobPosition()"
           [problem]="jobPositionProblem()"
+          [canWrite]="canWrite()"
           (cancel)="cancelJobPosition.emit()"
           (save)="saveJobPosition.emit($event)"
+          (createJobPosition)="createJobPosition.emit($event)"
         />
       }
 
@@ -208,11 +211,13 @@ export class EmployeeData {
   readonly editingJobPosition = input(false);
   readonly savingJobPosition = input(false);
   readonly jobPositionProblem = input('');
+  readonly canWrite = input(false);
 
   readonly editJobPosition = output<void>();
   readonly openCatalog = output<void>();
   readonly cancelJobPosition = output<void>();
   readonly saveJobPosition = output<string>();
+  readonly createJobPosition = output<GiCatalogCreation>();
 
   protected readonly statusLabel = computed(() => employeeStatusLabel(this.row().status));
   protected readonly statusTone = computed(() => employeeStatusTone(this.row().status));

@@ -16,7 +16,7 @@ public interface IWorkforceRepository
         CancellationToken cancellationToken);
 
     /// <summary>Los tipos de documento que esta organización exige, de EligibilityRequirement.</summary>
-    Task<IReadOnlyList<string>> ListRequiredDocumentCodesAsync(
+    Task<IReadOnlyList<EmployeeDocumentType>> ListRequiredDocumentTypesAsync(
         Guid idOrganization,
         CancellationToken cancellationToken);
 

@@ -27,10 +27,11 @@ public sealed class CatalogService(
         await EnsureOrganizationAsync(request.IdOrganization, cancellationToken);
         var profile = ValidateCatalogProfile(request);
         await ValidateParentAsync(request, cancellationToken);
-        await EnsureCatalogCodeAvailableAsync(
+        await EnsureCatalogNameAvailableAsync(
             request.IdOrganization,
             profile.Type,
-            profile.Code,
+            profile.Name,
+            profile.IdParentCatalogItem,
             null,
             cancellationToken);
 
@@ -56,8 +57,8 @@ public sealed class CatalogService(
         await EnsureOrganizationAsync(request.IdOrganization, cancellationToken);
         var item = await repository.GetCatalogItemAsync(request.IdOrganization, idCatalogItem, cancellationToken)
             ?? throw new ResourceNotFoundException("No se encontró el catálogo solicitado.");
-        if (request.Type != item.Type || !string.Equals(request.Code?.Trim(), item.Code, StringComparison.OrdinalIgnoreCase))
-            throw new ResourceConflictException("El tipo y codigo de un valor existente no pueden cambiarse.");
+        if (request.Type != item.Type)
+            throw new ResourceConflictException("El tipo de un valor existente no puede cambiarse.");
         if (item.Type is BusinessCatalogItemType.State or BusinessCatalogItemType.City &&
             !string.Equals(request.Name?.Trim(), item.Name, StringComparison.Ordinal))
             throw new ResourceConflictException("El nombre geografico esta vinculado a domicilios y no puede cambiarse.");
@@ -65,10 +66,11 @@ public sealed class CatalogService(
         if (request.IdParentCatalogItem != item.IdParentCatalogItem)
             throw new ResourceConflictException("La relacion geografica existente no puede cambiarse; crea otro valor.");
         if (request.Active != false) await ValidateParentAsync(request, cancellationToken, item.IdBusinessCatalogItem);
-        await EnsureCatalogCodeAvailableAsync(
+        await EnsureCatalogNameAvailableAsync(
             request.IdOrganization,
             profile.Type,
-            profile.Code,
+            profile.Name,
+            profile.IdParentCatalogItem,
             idCatalogItem,
             cancellationToken);
 
@@ -334,9 +336,11 @@ public sealed class CatalogService(
         IReadOnlyList<EmployeeSkill> skills,
         DateOnly referenceDate)
     {
+        // Por identificador y no por texto: es exactamente la fila del catalogo que la regla
+        // exige, sin que dos valores parecidos puedan confundirse.
         var skill = skills.FirstOrDefault(item =>
             item.Active &&
-            item.SkillCatalogItem.Code.Equals(requirement.RequiredCode, StringComparison.OrdinalIgnoreCase) &&
+            item.IdSkillCatalogItem == requirement.IdRequiredCatalogItem &&
             (!item.ExpiresDate.HasValue || item.ExpiresDate.Value >= referenceDate));
 
         return new EligibilityReasonResponse(
@@ -346,7 +350,7 @@ public sealed class CatalogService(
             skill is not null,
             skill is not null
                 ? $"Cuenta con habilidad {skill.SkillCatalogItem.Name}."
-                : $"Falta habilidad requerida: {requirement.RequiredCode}.");
+                : $"Falta habilidad requerida: {requirement.RequiredCatalogItem?.Name ?? requirement.Name}.");
     }
 
     private static EligibilityReasonResponse EvaluateDocument(
@@ -356,7 +360,7 @@ public sealed class CatalogService(
     {
         var document = documents.FirstOrDefault(item =>
             item.Active &&
-            item.DocumentType.ToString().Equals(requirement.RequiredCode, StringComparison.OrdinalIgnoreCase) &&
+            item.DocumentType == requirement.RequiredDocumentType &&
             (item.Status is EmployeeDocumentStatus.Validated or EmployeeDocumentStatus.Received) &&
             (!item.ExpiresDate.HasValue || item.ExpiresDate.Value >= referenceDate));
 
@@ -367,7 +371,7 @@ public sealed class CatalogService(
             document is not null,
             document is not null
                 ? $"Documento vigente: {document.DocumentType}."
-                : $"Falta documento vigente o validado: {requirement.RequiredCode}.");
+                : $"Falta documento vigente o validado: {requirement.RequiredDocumentType}.");
     }
 
     private static EligibilityReasonResponse EvaluateEvaluation(
@@ -377,7 +381,7 @@ public sealed class CatalogService(
     {
         var evaluation = evaluations.FirstOrDefault(item =>
             item.Active &&
-            item.EvaluationType.ToString().Equals(requirement.RequiredCode, StringComparison.OrdinalIgnoreCase) &&
+            item.EvaluationType == requirement.RequiredEvaluationType &&
             (item.Result is EmployeeEvaluationResult.Approved or EmployeeEvaluationResult.ApprovedWithObservations) &&
             (!item.ExpiresDate.HasValue || item.ExpiresDate.Value >= referenceDate));
 
@@ -388,7 +392,7 @@ public sealed class CatalogService(
             evaluation is not null,
             evaluation is not null
                 ? $"Evaluación aprobada: {evaluation.EvaluationType}."
-                : $"Falta evaluación aprobada/vigente: {requirement.RequiredCode}.");
+                : $"Falta evaluación aprobada/vigente: {requirement.RequiredEvaluationType}.");
     }
 
     private async Task<(Guid? IdClient, Guid? IdService, Guid? IdPosition)> ResolveEligibilityContextAsync(
@@ -523,23 +527,35 @@ public sealed class CatalogService(
         }
     }
 
-    private async Task EnsureCatalogCodeAvailableAsync(
+    /// <summary>
+    /// Que no haya ya un valor con el mismo nombre plegado bajo el mismo padre.
+    ///
+    /// <para><b>Quien de verdad lo impide es el indice unico de la base</b>, no esta comprobacion:
+    /// dos peticiones a la vez la esquivarian. Esto existe para responder con un mensaje que se
+    /// entiende, y el mensaje dice lo del borrado logico porque es la pregunta que sigue: aqui los
+    /// registros no se borran, asi que desactivar un valor no libera su nombre.</para>
+    /// </summary>
+    private async Task EnsureCatalogNameAvailableAsync(
         Guid idOrganization,
         BusinessCatalogItemType type,
-        string code,
+        string name,
+        Guid? idParentCatalogItem,
         Guid? excludedId,
         CancellationToken cancellationToken)
     {
-        if (await repository.CatalogCodeExistsAsync(idOrganization, type, code, excludedId, cancellationToken))
+        var plegado = CatalogName.Normalize(name);
+
+        if (await repository.CatalogNameExistsAsync(idOrganization, type, plegado, idParentCatalogItem, excludedId, cancellationToken))
         {
-            throw new ResourceConflictException("Ya existe un catálogo con esa clave para el mismo tipo.");
+            throw new ResourceConflictException(
+                $"Ya existe «{name.Trim()}» en este catálogo, aunque esté inactivo: aquí los " +
+                "registros no se borran, así que su nombre sigue ocupado.");
         }
     }
 
     private static BusinessCatalogItemProfile ValidateCatalogProfile(CatalogItemInput request, BusinessCatalogItem? existing = null)
     {
         var errors = new Dictionary<string, string[]>();
-        var code = InputValidation.Required(request.Code, nameof(request.Code), 80, errors);
         var name = InputValidation.Required(request.Name, nameof(request.Name), 160, errors);
         var description = InputValidation.Optional(request.Description, nameof(request.Description), 1000, errors);
         if (request.Type is BusinessCatalogItemType.State or BusinessCatalogItemType.City or BusinessCatalogItemType.JobPosition or BusinessCatalogItemType.CoverageReason && name.Length > 120)
@@ -547,16 +563,10 @@ public sealed class CatalogService(
         if (request.Type == BusinessCatalogItemType.Nationality && name.Length > 80)
             errors[nameof(request.Name)] = ["La nacionalidad admite hasta 80 caracteres."];
         if (!Enum.IsDefined(request.Type)) errors[nameof(request.Type)] = ["Selecciona un catalogo del sistema."];
-        var group = InputValidation.Required(request.Group ?? existing?.Group ?? CatalogDefinitions.DefaultGroup(request.Type), nameof(request.Group), 80, errors);
         var order = request.Order ?? existing?.Order ?? 1;
         if (order < 1 || order > 100000) errors[nameof(request.Order)] = ["El orden debe estar entre 1 y 100000."];
-        var synonyms = request.Synonyms ?? existing?.Synonyms ?? [];
-        if (synonyms.Length > 20 || synonyms.Any(value => string.IsNullOrWhiteSpace(value) || value.Trim().Length > 80))
-            errors[nameof(request.Synonyms)] = ["Usa hasta 20 sinonimos de 1 a 80 caracteres."];
         InputValidation.ThrowIfInvalid(errors);
-        if (request.Type == BusinessCatalogItemType.Country && (code.Length != 2 || code.Any(character => !char.IsAsciiLetter(character))))
-            throw new RequestValidationException(new Dictionary<string, string[]> { [nameof(request.Code)] = ["Usa un codigo de pais de dos letras."] });
-        return new BusinessCatalogItemProfile(request.Type, code, name, description, group, order, synonyms, request.IdParentCatalogItem);
+        return new BusinessCatalogItemProfile(request.Type, name, description, order, request.IdParentCatalogItem);
     }
 
     private async Task ValidateParentAsync(CatalogItemInput request, CancellationToken token, Guid? excludedId = null)
@@ -587,8 +597,25 @@ public sealed class CatalogService(
     private static EligibilityRequirementProfile ValidateRequirementProfile(EligibilityRequirementInput request)
     {
         var errors = new Dictionary<string, string[]>();
-        var code = InputValidation.Required(request.RequiredCode, nameof(request.RequiredCode), 80, errors);
         var name = InputValidation.Required(request.Name, nameof(request.Name), 160, errors);
+
+        // Se dice aqui, con el nombre del campo que falta, para que el formulario pueda senalarlo.
+        // La entidad lo vuelve a comprobar y la base lo garantiza con una restriccion.
+        switch (request.RequirementType)
+        {
+            case EligibilityRequirementType.Skill when request.IdRequiredCatalogItem is null:
+                errors[nameof(request.IdRequiredCatalogItem)] = ["Elige la habilidad que la regla exige."];
+                break;
+            case EligibilityRequirementType.Document when request.RequiredDocumentType is null:
+                errors[nameof(request.RequiredDocumentType)] = ["Elige el tipo de documento que la regla exige."];
+                break;
+            case EligibilityRequirementType.Evaluation when request.RequiredEvaluationType is null:
+                errors[nameof(request.RequiredEvaluationType)] = ["Elige el tipo de evaluación que la regla exige."];
+                break;
+            default:
+                break;
+        }
+
         var description = InputValidation.Optional(request.Description, nameof(request.Description), 1000, errors);
         InputValidation.ThrowIfInvalid(errors);
         return new EligibilityRequirementProfile(
@@ -597,7 +624,9 @@ public sealed class CatalogService(
             request.IdService,
             request.IdPosition,
             request.RequirementType,
-            code,
+            request.IdRequiredCatalogItem,
+            request.RequiredDocumentType,
+            request.RequiredEvaluationType,
             name,
             description,
             request.IsBlocking);
@@ -623,8 +652,8 @@ public sealed class CatalogService(
     }
 
     private static CatalogItemResponse MapCatalogItem(BusinessCatalogItem item) =>
-        new(item.IdBusinessCatalogItem, item.IdOrganization, item.Type, item.Code, item.Name, item.Description, item.Active,
-            item.Group, item.Order, item.Synonyms, item.UpdatedAt ?? item.CreatedAt, item.IdParentCatalogItem);
+        new(item.IdBusinessCatalogItem, item.IdOrganization, item.Type, item.Name, item.Description, item.Active,
+            item.Order, item.UpdatedAt ?? item.CreatedAt, item.IdParentCatalogItem);
 
     private static EligibilityRequirementResponse MapRequirement(EligibilityRequirement requirement) =>
         new(
@@ -638,7 +667,10 @@ public sealed class CatalogService(
             requirement.IdPosition,
             requirement.Position?.Name,
             requirement.RequirementType,
-            requirement.RequiredCode,
+            requirement.IdRequiredCatalogItem,
+            requirement.RequiredCatalogItem?.Name,
+            requirement.RequiredDocumentType,
+            requirement.RequiredEvaluationType,
             requirement.Name,
             requirement.Description,
             requirement.IsBlocking,
@@ -649,7 +681,6 @@ public sealed class CatalogService(
             skill.IdEmployeeSkill,
             skill.IdEmployee,
             skill.IdSkillCatalogItem,
-            skill.SkillCatalogItem.Code,
             skill.SkillCatalogItem.Name,
             skill.AcquiredDate,
             skill.ExpiresDate,

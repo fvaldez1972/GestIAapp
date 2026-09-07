@@ -211,18 +211,23 @@ public sealed partial class WorkforceRepository
         : expiring > 0 ? EmployeeDocumentHealth.Expiring
         : EmployeeDocumentHealth.UpToDate;
 
-    public async Task<IReadOnlyList<string>> ListRequiredDocumentCodesAsync(
+    public async Task<IReadOnlyList<EmployeeDocumentType>> ListRequiredDocumentTypesAsync(
         Guid idOrganization,
-        CancellationToken cancellationToken) =>
-        await dbContext.EligibilityRequirements
+        CancellationToken cancellationToken)
+    {
+        var tipos = await dbContext.EligibilityRequirements
             .AsNoTracking()
             .Where(requirement =>
                 requirement.IdOrganization == idOrganization &&
                 requirement.RequirementType == EligibilityRequirementType.Document &&
-                requirement.TargetType == EligibilityRequirementTargetType.Organization)
-            .Select(requirement => requirement.RequiredCode)
+                requirement.TargetType == EligibilityRequirementTargetType.Organization &&
+                requirement.RequiredDocumentType != null)
+            .Select(requirement => requirement.RequiredDocumentType!.Value)
             .Distinct()
             .ToArrayAsync(cancellationToken);
+
+        return tipos;
+    }
 
     public async Task<IReadOnlyList<(Guid Id, string Name)>> ListUsedJobPositionsAsync(
         Guid idOrganization,

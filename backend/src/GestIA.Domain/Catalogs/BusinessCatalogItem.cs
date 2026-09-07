@@ -5,12 +5,9 @@ namespace GestIA.Domain.Catalogs;
 
 public sealed record BusinessCatalogItemProfile(
     BusinessCatalogItemType Type,
-    string Code,
     string Name,
     string? Description,
-    string Group = "General",
     int Order = 1,
-    string[]? Synonyms = null,
     Guid? IdParentCatalogItem = null);
 
 public sealed class BusinessCatalogItem : AuditableEntity, IOrganizationScopedEntity
@@ -36,12 +33,23 @@ public sealed class BusinessCatalogItem : AuditableEntity, IOrganizationScopedEn
     public Guid IdBusinessCatalogItem { get; private set; }
     public Guid IdOrganization { get; private set; }
     public BusinessCatalogItemType Type { get; private set; }
-    public string Code { get; private set; } = string.Empty;
     public string Name { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// El nombre plegado con el que se comprueba la unicidad. No se captura, no se muestra y
+    /// <b>no se escribe desde aquí</b>: es una columna calculada por la base a partir del nombre.
+    ///
+    /// <para>La calcula la base y no el dominio por dos razones. Una: hay una migración ya
+    /// desplegada que inserta valores de catálogo con SQL crudo listando columnas, y una columna
+    /// que hubiera que rellenar la habría roto al reproducirla. Dos: así no existe la posibilidad
+    /// de que una fila entre por un camino que se olvidó de calcularla.</para>
+    ///
+    /// <para><see cref="CatalogName.Normalize"/> reproduce la misma regla en memoria, para que el
+    /// alta al vuelo pueda avisar del duplicado <b>antes</b> de mandar la petición.</para>
+    /// </summary>
+    public string NormalizedName { get; private set; } = string.Empty;
     public string? Description { get; private set; }
-    public string Group { get; private set; } = "General";
     public int Order { get; private set; } = 1;
-    public string[] Synonyms { get; private set; } = [];
     public Guid? IdParentCatalogItem { get; private set; }
     public Organization Organization { get; private set; } = null!;
 
@@ -66,20 +74,14 @@ public sealed class BusinessCatalogItem : AuditableEntity, IOrganizationScopedEn
     private void ApplyProfile(BusinessCatalogItemProfile profile)
     {
         ArgumentNullException.ThrowIfNull(profile);
-        ArgumentException.ThrowIfNullOrWhiteSpace(profile.Code);
         ArgumentException.ThrowIfNullOrWhiteSpace(profile.Name);
         if (!Enum.IsDefined(profile.Type)) throw new ArgumentException("Unknown catalog type.");
-        ArgumentException.ThrowIfNullOrWhiteSpace(profile.Group);
         if (profile.Order < 1) throw new ArgumentOutOfRangeException(nameof(profile), "Order must be positive.");
 
         Type = profile.Type;
-        Code = profile.Code.Trim().ToUpperInvariant();
         Name = profile.Name.Trim();
         Description = string.IsNullOrWhiteSpace(profile.Description) ? null : profile.Description.Trim();
-        Group = profile.Group.Trim();
         IdParentCatalogItem = profile.IdParentCatalogItem;
         Order = profile.Order;
-        Synonyms = (profile.Synonyms ?? []).Where(value => !string.IsNullOrWhiteSpace(value))
-            .Select(value => value.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
     }
 }

@@ -282,7 +282,7 @@ public sealed class AuditRepository(GestIaDbContext dbContext, IActorContext act
                     item.CreatedAt,
                     item.UpdatedByName,
                     item.UpdatedAt,
-                    item.Type.ToString() + " · " + item.Code))
+                    item.Type.ToString() + " · " + item.Name))
                 .ToArrayAsync(cancellationToken));
         }
 
@@ -300,7 +300,7 @@ public sealed class AuditRepository(GestIaDbContext dbContext, IActorContext act
                     item.CreatedAt,
                     item.UpdatedByName,
                     item.UpdatedAt,
-                    item.TargetType.ToString() + " · " + item.RequirementType.ToString() + " · " + item.RequiredCode))
+                    item.TargetType.ToString() + " · " + item.RequirementType.ToString()))
                 .ToArrayAsync(cancellationToken));
         }
 
@@ -318,7 +318,7 @@ public sealed class AuditRepository(GestIaDbContext dbContext, IActorContext act
                     item.CreatedAt,
                     item.UpdatedByName,
                     item.UpdatedAt,
-                    item.SkillCatalogItem.Code + " · " + item.SkillCatalogItem.Name))
+                    item.SkillCatalogItem.Name))
                 .ToArrayAsync(cancellationToken));
         }
 

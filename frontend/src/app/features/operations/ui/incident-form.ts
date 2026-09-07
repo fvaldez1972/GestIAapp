@@ -38,10 +38,14 @@ const TERMINALES = new Set(['Resolved', 'Cancelled']);
  * <p>Fundirlos dejaría la bitácora diciendo «robo» donde debería decir «se corrigió la severidad
  * porque el reporte del cliente la elevó», que son dos frases sobre cosas distintas.</p>
  *
- * <p><b>Corregir una incidencia no pide autorización</b>, a diferencia de corregir una asistencia.
- * Es una asimetría del servidor, no un olvido de esta pantalla: la asistencia es el hecho que se le
- * factura al cliente, y la incidencia es la descripción de algo que ya ocurrió. Queda anotado por si
- * la regla debe cambiar.</p>
+ * <p><b>Corregir una incidencia no pide autorización, y no es un descuido.</b> Corregir una
+ * asistencia sí la pide. La razón: <b>la asistencia es el hecho que se le factura al cliente y la
+ * incidencia es la descripción de algo que ya ocurrió, así que corregir la primera cambia lo que se
+ * cobra y corregir la segunda cambia cómo se cuenta.</b> Pedir el mismo permiso para las dos
+ * pondría una firma de por medio para redactar mejor un párrafo.</p>
+ *
+ * <p>Queda escrito para que quien lo encuentre después no lo lea como una regla que se olvidó. Si el
+ * negocio decide otra cosa, se cambia con su caso.</p>
  */
 @Component({
   selector: 'app-incident-form',

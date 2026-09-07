@@ -652,6 +652,13 @@
   </section>
 
   <section data-screen-label="Vista 5 · Turno declarado sin cubrir" id="v5" style="display:flex;flex-direction:column;gap:14px">
+    <div style="width:1440px;background:#ffffff;border:1px solid #dce2e9;border-left:3px solid #d97706;border-radius:6px;padding:14px 16px;display:flex;flex-direction:column;gap:8px">
+      <span style="font:600 12.5px Archivo,sans-serif;color:#253040">«Declarar sin cubrir» no es un estado guardado, y este bosquejo lo dibujaba como si lo fuera.</span>
+      <span style="font:400 12px/1.6 Archivo,sans-serif;color:#5f6b7a"><b>El modelo no tiene ese estado.</b> <code style="font:600 11px ui-monospace,monospace;color:#253040">CoverageStatus</code> sólo conoce solicitada, confirmada, completada y cancelada, y una cobertura <b>exige nombrar suplente</b>: <code style="font:600 11px ui-monospace,monospace;color:#253040">IdReplacementEmployee</code> es obligatorio. Declarar «sin cubrir» creando una cobertura obligaría a nombrar a alguien que no cubrió, que es lo contrario de lo que se quiere decir.</span>
+      <span style="font:400 12px/1.6 Archivo,sans-serif;color:#5f6b7a"><b>Lo que el modelo sí permite, y ya usa Inicio:</b> un turno queda al descubierto cuando <i>hubo falta y ninguna cobertura la resolvió</i>. Es <b>derivado</b>, como la vacancia de posiciones y como la marca de posterior al cierre. La declaración explícita vive donde tiene sentido: <b>en la resolución de la incidencia</b>, que se cierra diciendo que el turno se declaró sin cubrir y por qué.</span>
+      <span style="font:400 12px/1.6 Archivo,sans-serif;color:#5f6b7a">Lo que la vista dice del <b>peso</b> del acto sigue siendo cierto y se conserva: el turno queda como servicio no prestado, es lo que se concilia con el cliente y puede volverse nota de crédito. Lo que cambia es dónde se guarda, no lo que significa.</span>
+    </div>
+
     <div style="display:flex;align-items:baseline;gap:12px">
       <span style="font:600 11.5px Archivo,sans-serif;letter-spacing:.14em;color:#5f6b7a">VISTA 5</span>
       <span style="font:600 19px Archivo,sans-serif;color:#10104e">Cierre con el turno declarado sin cubrir</span>

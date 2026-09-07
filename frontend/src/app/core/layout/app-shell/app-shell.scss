@@ -64,6 +64,50 @@
   scrollbar-color: rgb(255 255 255 / 18%) transparent;
 }
 
+/* El rótulo del grupo. Es texto, no un control: sin foco, sin puntero, sin estado activo. */
+.menu-group {
+  margin: 1.25rem 0 0.35rem;
+  padding: 0 0.75rem;
+  color: var(--gestia-cyan-soft);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+
+  /* El texto guardado va en capital y baja: quien lo lee con un lector de pantalla oye
+     "Configuración", no "C-O-N-F". La versalita es presentación y vive aquí. */
+  opacity: 0.62;
+}
+
+/* El primero no separa nada de nada: pegado arriba queda el mismo margen que tenía la lista. */
+.menu-group:first-child {
+  margin-top: 0;
+}
+
+.menu-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Condensado sólo caben los iconos, así que el rótulo se vuelve la línea que separa los bloques.
+   El texto no se borra: se saca de la vista y el lector de pantalla lo sigue anunciando. */
+.is-condensed .menu-group {
+  height: 1px;
+  margin: 0.75rem 0.75rem 0.65rem;
+  padding: 0;
+  overflow: hidden;
+  border-radius: 1px;
+  background: var(--gestia-navy-soft);
+  color: transparent;
+}
+
+.is-condensed .menu-group:first-child {
+  margin-top: 0;
+  /* Sin bloque anterior no hay nada que separar, y una raya suelta arriba se lee como un error. */
+  visibility: hidden;
+}
+
 .menu-link {
   position: relative;
   display: flex;

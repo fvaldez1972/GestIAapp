@@ -110,6 +110,9 @@ describe('AppShell', () => {
       n.textContent?.trim(),
     );
 
+  const gruposDelMenu = (raiz: HTMLElement) =>
+    Array.from(raiz.querySelectorAll('.side-nav .menu-group')).map((n) => n.textContent?.trim());
+
   /**
    * El contexto de organización se movió a la barra de contexto y el `<select>` nativo se fue con
    * él. El requisito es explícito: selectores con estilo propio, nunca el nativo del sistema.
@@ -149,11 +152,54 @@ describe('AppShell', () => {
     expect(entradas(organizacion.raiz)).not.toContain('Organizaciones');
   });
 
-  it('el menú es plano: ya no hay títulos de grupo', () => {
+  /**
+   * El menú vuelve a tener grupos.
+   *
+   * <b>Esta prueba estaba escrita al revés y se invirtió a propósito.</b> Se llamaba «el menú es
+   * plano: ya no hay títulos de grupo» y aseguraba que no existiera ningún `.menu-group`, que era
+   * la decisión de la tanda 1 —seguir el bosquejo, que dibuja una lista plana—. Los grupos
+   * volvieron por decisión posterior, ya con las once entradas en pantalla. Se deja constancia
+   * aquí para que nadie lea el historial al revés y crea que esto es una regresión.
+   */
+  it('el menú agrupa las entradas bajo sus encabezados', () => {
     const { raiz } = montar(['PLATFORM.ADMIN'], [ALFA], 'org-a');
 
-    expect(raiz.querySelector('.menu-title')).toBeNull();
-    expect(raiz.querySelector('.menu-group')).toBeNull();
+    expect(gruposDelMenu(raiz)).toEqual(['Principal', 'Operación', 'Configuración']);
+
+    // El encabezado no es un control: no se puede tabular hasta él ni activarlo.
+    for (const grupo of Array.from(raiz.querySelectorAll('.side-nav .menu-group'))) {
+      expect(grupo.tagName.toLowerCase()).toBe('h2');
+      expect(grupo.hasAttribute('href')).toBe(false);
+      expect(grupo.getAttribute('tabindex')).toBeNull();
+    }
+  });
+
+  /** Cada lista dice de qué grupo es, para quien recorre el menú sin verlo. */
+  it('cada lista del menú queda amarrada a su encabezado', () => {
+    const { raiz } = montar(['PLATFORM.ADMIN'], [ALFA], 'org-a');
+
+    const listas = Array.from(raiz.querySelectorAll('.side-nav .menu-list'));
+    expect(listas).toHaveLength(3);
+
+    for (const lista of listas) {
+      const id = lista.getAttribute('aria-labelledby');
+      expect(id).toBeTruthy();
+      expect(raiz.querySelector(`#${id}`)?.classList.contains('menu-group')).toBe(true);
+    }
+  });
+
+  /**
+   * El grupo vacío no se dibuja. «Reportes y dashboards» existe declarado y sus dos entradas
+   * están fuera de fase 1, así que el encabezado no debe aparecer: prometería una sección que la
+   * aplicación no tiene.
+   */
+  it('no dibuja el encabezado de un grupo sin entradas visibles', () => {
+    const { raiz } = montar(['PLATFORM.ADMIN'], [ALFA], 'org-a');
+
+    expect(gruposDelMenu(raiz)).not.toContain('Reportes y dashboards');
+    expect(raiz.querySelectorAll('.side-nav .menu-group').length).toBe(
+      raiz.querySelectorAll('.side-nav .menu-list').length,
+    );
   });
 
   it('la organización no se dice dos veces: sólo la barra de contexto la nombra', () => {

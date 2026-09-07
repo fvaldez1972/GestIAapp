@@ -32,3 +32,6 @@ export { GiDayClosure, GI_REASON_MIN_LENGTH } from './gi-day-closure/gi-day-clos
 export type { GiDayState, GiDaySnapshot } from './gi-day-closure/gi-day-closure';
 
 export { GiOperationDayBar } from './gi-operation-day-bar/gi-operation-day-bar';
+
+export { GiExceptionRow } from './gi-exception-row/gi-exception-row';
+export type { GiExceptionType } from './gi-exception-row/gi-exception-row';

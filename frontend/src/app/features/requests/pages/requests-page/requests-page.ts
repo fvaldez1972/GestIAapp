@@ -1,14 +1,17 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { CatalogSelect } from '../../../../shared/ui/catalog-select/catalog-select';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal, linkedSignal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { forkJoin, of, switchMap } from 'rxjs';
+import { catchError, forkJoin, of, switchMap } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
+import { SystemInfoService } from '../../../../core/system/system-info.service';
 import { ClientApiService } from '../../../clients/data-access/client-api.service';
-import { Client, ManagedService, Organization, ScheduledShift, ServicePosition } from '../../../clients/data-access/client.models';
+import { Client, ManagedService, Organization, PagedResult as ClientPagedResult, ScheduledShift, ServicePosition, ClientListItem, } from '../../../clients/data-access/client.models';
 import { WorkforceApiService } from '../../../workforce/data-access/workforce-api.service';
-import { Employee } from '../../../workforce/data-access/workforce.models';
+import { Employee, PagedResult as WorkforcePagedResult } from '../../../workforce/data-access/workforce.models';
 import { RequestApiService } from '../../data-access/request-api.service';
+import { EntityDocuments } from '../../../documents/components/entity-documents/entity-documents';
 import {
   ExecuteOperationalRequest,
   ExecuteOperationalRequestResult,
@@ -17,11 +20,12 @@ import {
   OperationalRequestPriority,
   OperationalRequestStatus,
   OperationalRequestType,
+  PagedResult as RequestPagedResult,
 } from '../../data-access/request.models';
 
 @Component({
   selector: 'app-requests-page',
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, EntityDocuments, CatalogSelect],
   templateUrl: './requests-page.html',
   styleUrl: './requests-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -29,19 +33,20 @@ import {
 export class RequestsPage implements OnInit {
   private readonly api = inject(RequestApiService);
   private readonly auth = inject(AuthService);
+  private readonly systemInfo = inject(SystemInfoService);
   private readonly clientApi = inject(ClientApiService);
   private readonly workforceApi = inject(WorkforceApiService);
   private readonly formBuilder = inject(FormBuilder);
 
-  protected readonly organizations = signal<readonly Organization[]>([]);
-  protected readonly clients = signal<readonly Client[]>([]);
+  protected readonly clients = signal<readonly ClientListItem[]>([]);
   protected readonly services = signal<readonly ManagedService[]>([]);
   protected readonly filterServices = signal<readonly ManagedService[]>([]);
   protected readonly employees = signal<readonly Employee[]>([]);
   protected readonly positions = signal<readonly ServicePosition[]>([]);
   protected readonly scheduledShifts = signal<readonly ScheduledShift[]>([]);
   protected readonly requests = signal<readonly OperationalRequest[]>([]);
-  protected readonly selectedOrganizationId = signal('');
+  /** La organización de trabajo la fija la barra de contexto, y sólo ella. */
+  protected readonly selectedOrganizationId = this.auth.operationalOrganizationId;
   protected readonly selectedClientId = signal('');
   protected readonly filterStatus = signal<OperationalRequestStatus | ''>('');
   protected readonly stageFilter = signal<RequestStageFilter>('all');
@@ -49,8 +54,13 @@ export class RequestsPage implements OnInit {
   protected readonly filterPriority = signal<OperationalRequestPriority | ''>('');
   protected readonly filterServiceId = signal('');
   protected readonly filterResponsible = signal('');
-  protected readonly filterDateFrom = signal(this.today());
-  protected readonly filterDateTo = signal(this.today());
+  /**
+   * Filtro de fecha con el día operativo por omisión. Es un `linkedSignal` y no un `signal` porque
+   * el día llega del servidor y puede no estar todavía cuando se construye la pantalla: así el
+   * filtro se llena solo en cuanto se sabe, y sigue pudiendo cambiarlo quien la usa.
+   */
+  protected readonly filterDateFrom = linkedSignal(() => this.today());
+  protected readonly filterDateTo = linkedSignal(() => this.today());
   protected readonly search = signal('');
   protected readonly sortMode = signal<RequestSortMode>('recent');
   protected readonly loading = signal(false);
@@ -68,8 +78,24 @@ export class RequestsPage implements OnInit {
   protected readonly attemptedNewRequestNext = signal(false);
   protected readonly executionPreview = signal<OperationalRequestExecutionPreview | null>(null);
   protected readonly executionResult = signal<ExecuteOperationalRequestResult | null>(null);
-  protected readonly selectedOrganization = computed(
-    () => this.organizations().find((organization) => organization.idOrganization === this.selectedOrganizationId()) ?? null,
+  protected readonly selectedOrganization = this.auth.activeOrganization;
+  protected readonly isPlatformAdmin = computed(() => this.auth.session()?.permissions.includes('PLATFORM.ADMIN') ?? false);
+  protected readonly isGlobalPlatformScope = computed(() => this.isPlatformAdmin() && !this.selectedOrganizationId());
+  protected readonly requestScopeLabel = computed(
+    () => this.selectedOrganization()?.legalName ?? (this.isPlatformAdmin() ? 'Todas las organizaciones' : 'Organización actual'),
+  );
+  protected readonly heroCopy = computed(() =>
+    this.isPlatformAdmin()
+      ? {
+        eyebrow: 'Control plataforma',
+        title: 'Solicitudes globales',
+        description: 'Revisa solicitudes sensibles entre organizaciones y entra en modo soporte con trazabilidad.',
+      }
+      : {
+        eyebrow: 'Control del cliente',
+        title: 'Solicitudes',
+        description: 'Centraliza altas, cambios y apoyos antes de llevarlos a la operación diaria.',
+      },
   );
 
   protected readonly selectedRequest = computed(
@@ -146,6 +172,36 @@ export class RequestsPage implements OnInit {
     () =>
       this.filteredRequests().filter((request) => ['Rejected', 'Cancelled'].includes(request.status) || this.isOverdue(request)).length,
   );
+  protected readonly criticalRequests = computed(
+    () => this.filteredRequests().filter((request) => request.priority === 'Critical' || this.isOverdue(request)).length,
+  );
+  protected readonly controlScopeCards = computed<readonly ControlScopeCard[]>(() => {
+    const scopedOrganizationCount = this.selectedOrganizationId() ? 1 : this.auth.availableOrganizations().length;
+
+    return [
+      {
+        label: 'Organizaciones',
+        value: scopedOrganizationCount,
+        help: this.selectedOrganizationId() ? 'contexto seleccionado' : 'en lectura global',
+      },
+      {
+        label: 'Clientes operativos',
+        value: this.clients().length,
+        help: 'con acceso contextual',
+      },
+      {
+        label: 'Solicitudes abiertas',
+        value: this.openRequests(),
+        help: 'requieren atención',
+      },
+      {
+        label: 'Críticas o vencidas',
+        value: this.criticalRequests(),
+        help: 'prioridad de soporte',
+        warning: this.criticalRequests() > 0,
+      },
+    ];
+  });
 
   protected readonly requestTypes: readonly { value: OperationalRequestType; label: string }[] = [
     { value: 'NewClient', label: 'Alta de cliente' },
@@ -218,6 +274,9 @@ export class RequestsPage implements OnInit {
     siteStreet: [''],
     siteMunicipality: [''],
     siteState: [''],
+    siteCountryCode: ['MX'],
+    clientNationality: [''],
+    idCoverageReason: [''],
     sitePostalCode: [''],
     serviceCode: [''],
     serviceName: [''],
@@ -247,23 +306,7 @@ export class RequestsPage implements OnInit {
   });
 
   ngOnInit() {
-    this.loadOrganizations();
-  }
-
-  protected onOrganizationChange(event: Event) {
-    this.selectedOrganizationId.set((event.target as HTMLSelectElement).value);
-    this.selectedClientId.set('');
-    this.clients.set([]);
-    this.services.set([]);
-    this.filterServices.set([]);
-    this.positions.set([]);
-    this.scheduledShifts.set([]);
-    this.employees.set([]);
-    this.executionPreview.set(null);
-    this.requestForm.patchValue({ idClient: '', idService: '' });
-    this.loadClients();
-    this.loadEmployees();
-    this.loadRequests();
+    this.loadForActiveOrganization();
   }
 
   protected onClientChange(event: Event) {
@@ -931,67 +974,79 @@ export class RequestsPage implements OnInit {
     }).format(new Date(`${value.slice(0, 10)}T00:00:00Z`));
   }
 
+  /** Atrasada respecto del día operativo. // Sin día operativo no se afirma nada: no se marca vencido ni se da por vigente. */
   protected isOverdue(request: OperationalRequest) {
-    return Boolean(request.neededByDate && request.neededByDate < this.today() && request.status !== 'Completed');
+    const today = this.today();
+    return Boolean(today && request.neededByDate && request.neededByDate < today && request.status !== 'Completed');
   }
 
-  protected todayLabel() {
-    return new Intl.DateTimeFormat('es-MX', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    }).format(new Date());
-  }
-
-  private loadOrganizations() {
-    this.loading.set(true);
-    this.error.set('');
-
-    this.clientApi.listOrganizations().subscribe({
-      next: (organizations) => {
-        this.organizations.set(organizations);
-        this.selectedOrganizationId.set(organizations[0]?.idOrganization ?? '');
-        this.loadClients();
-        this.loadEmployees();
-        this.loadRequests();
-      },
-      error: (error: HttpErrorResponse) => this.setError(error, 'No se pudieron cargar las organizaciones.'),
-      complete: () => this.loading.set(false),
-    });
+  /**
+   * Ya no se carga una lista de organizaciones para elegir: la organización la fija la barra de
+   * contexto. Cuando cambia, el shell vuelve a montar la pantalla y esto corre de nuevo.
+   */
+  private loadForActiveOrganization() {
+    this.loadClients();
+    this.loadEmployees();
+    this.loadRequests();
   }
 
   private loadClients() {
-    const organizationId = this.selectedOrganizationId();
+    const organizationIds = this.organizationScopeIds();
 
-    if (!organizationId) {
+    if (organizationIds.length === 0) {
+      this.clients.set([]);
+      this.filterServices.set([]);
       return;
     }
 
-    this.clientApi.listClients(organizationId, '', 1, 100).subscribe({
-      next: (result) => {
-        this.clients.set(result.items);
-        this.loadFilterServices(result.items);
+    forkJoin(
+      organizationIds.map((organizationId) =>
+        this.clientApi.listClientOptions(organizationId).pipe(
+          catchError(() =>
+            of({
+              items: [],
+              totalCount: 0,
+              page: 1,
+              pageSize: 100,
+              totalPages: 0,
+            } satisfies ClientPagedResult<ClientListItem>),
+          ),
+        ),
+      ),
+    ).subscribe({
+      next: (results) => {
+        const clients = results.flatMap((result) => result.items);
+        this.clients.set(clients);
+        this.loadFilterServices(clients);
       },
       error: (error: HttpErrorResponse) => this.setError(error, 'No se pudieron cargar los clientes.'),
     });
   }
 
-  private loadFilterServices(clients: readonly Client[]) {
-    const organizationId = this.selectedOrganizationId();
-
-    if (!organizationId || clients.length === 0) {
+  private loadFilterServices(clients: readonly ClientListItem[]) {
+    if (clients.length === 0) {
       this.filterServices.set([]);
       return;
     }
 
-    forkJoin(clients.map((client) => this.clientApi.listServices(organizationId, client.idClient))).subscribe({
+    forkJoin(
+      clients.map((client) => {
+        const organizationId = this.resolveOrganizationIdForClient(client.idClient);
+
+        if (!organizationId) {
+          return of([] as readonly ManagedService[]);
+        }
+
+        return this.clientApi.listServices(organizationId, client.idClient).pipe(catchError(() => of([] as readonly ManagedService[])));
+      }),
+    ).subscribe({
       next: (serviceGroups) => this.filterServices.set(serviceGroups.flat()),
       error: (error: HttpErrorResponse) => this.setError(error, 'No se pudieron cargar los servicios para filtros.'),
     });
   }
 
   private loadServices(clientId: string) {
-    const organizationId = this.selectedOrganizationId();
+    const organizationId = this.resolveOrganizationIdForClient(clientId);
 
     if (!organizationId || !clientId) {
       this.services.set([]);
@@ -1005,19 +1060,34 @@ export class RequestsPage implements OnInit {
   }
 
   private loadEmployees() {
-    const organizationId = this.selectedOrganizationId();
+    const organizationIds = this.organizationScopeIds();
 
-    if (!organizationId) {
+    if (organizationIds.length === 0) {
       this.employees.set([]);
       return;
     }
 
-    this.workforceApi.listEmployees(organizationId, '', 'Active', 1, 100).subscribe({
-      next: (result) => {
-        this.employees.set(result.items);
+    forkJoin(
+      organizationIds.map((organizationId) =>
+        this.workforceApi.listEmployeeOptions(organizationId).pipe(
+          catchError(() =>
+            of({
+              items: [],
+              totalCount: 0,
+              page: 1,
+              pageSize: 100,
+              totalPages: 0,
+            } satisfies WorkforcePagedResult<Employee>),
+          ),
+        ),
+      ),
+    ).subscribe({
+      next: (results) => {
+        const employees = results.flatMap((result) => result.items);
+        this.employees.set(employees);
         this.executionForm.patchValue({
-          idEmployee: this.executionForm.controls.idEmployee.value || result.items[0]?.idEmployee || '',
-          idReplacementEmployee: this.executionForm.controls.idReplacementEmployee.value || result.items[0]?.idEmployee || '',
+          idEmployee: this.executionForm.controls.idEmployee.value || employees[0]?.idEmployee || '',
+          idReplacementEmployee: this.executionForm.controls.idReplacementEmployee.value || employees[0]?.idEmployee || '',
         });
       },
       error: (error: HttpErrorResponse) => this.setError(error, 'No se pudo cargar el personal activo.'),
@@ -1025,7 +1095,7 @@ export class RequestsPage implements OnInit {
   }
 
   private loadExecutionContext(clientId: string, serviceId: string) {
-    const organizationId = this.selectedOrganizationId();
+    const organizationId = this.resolveOrganizationIdForClient(clientId);
 
     if (!organizationId || !clientId || !serviceId) {
       this.positions.set([]);
@@ -1066,40 +1136,71 @@ export class RequestsPage implements OnInit {
   }
 
   private loadRequests() {
-    const organizationId = this.selectedOrganizationId();
+    const organizationIds = this.organizationScopeIds();
 
-    if (!organizationId) {
+    if (organizationIds.length === 0) {
+      this.requests.set([]);
+      this.selectedRequestId.set('');
+      this.workspaceOpen.set(false);
+      this.detailPanelOpen.set(false);
       return;
     }
 
     this.loading.set(true);
     this.error.set('');
 
-    this.api
-      .listRequests(organizationId, '', '', '', 1, 200)
-      .subscribe({
-        next: (result) => {
-          this.requests.set(result.items);
-          const first = result.items[0];
-          const currentSelection = result.items.find((request) => request.idOperationalRequest === this.selectedRequestId());
+    forkJoin(
+      organizationIds.map((organizationId) =>
+        this.api.listBoardRequests(organizationId).pipe(
+          catchError((error: HttpErrorResponse) => {
+            if (organizationIds.length === 1) {
+              this.setError(error, 'No se pudieron cargar las solicitudes.');
+            }
 
-          if (currentSelection) {
-            this.selectRequest(currentSelection, {
-              open: this.detailPanelOpen(),
-              modal: this.workspaceOpen(),
-              tab: this.detailPanelOpen() ? this.detailPanelTab() : this.workspaceTab(),
-            });
-          } else if (first && !(this.workspaceOpen() && !this.selectedRequestId())) {
-            this.selectRequest(first, { open: false });
-          } else {
-            this.resetRequestForm();
-            this.workspaceOpen.set(false);
-            this.detailPanelOpen.set(false);
-          }
-        },
+            return of([] as readonly OperationalRequest[]);
+          }),
+        ),
+      ),
+    )
+      .subscribe({
+        next: (results) => this.setLoadedRequests(results.flat()),
         error: (error: HttpErrorResponse) => this.setError(error, 'No se pudieron cargar las solicitudes.'),
         complete: () => this.loading.set(false),
       });
+  }
+
+  private setLoadedRequests(items: readonly OperationalRequest[]) {
+    this.requests.set(items);
+    const first = items[0];
+    const currentSelection = items.find((request) => request.idOperationalRequest === this.selectedRequestId());
+
+    if (currentSelection) {
+      this.selectRequest(currentSelection, {
+        open: this.detailPanelOpen(),
+        modal: this.workspaceOpen(),
+        tab: this.detailPanelOpen() ? this.detailPanelTab() : this.workspaceTab(),
+      });
+    } else if (first && !(this.workspaceOpen() && !this.selectedRequestId())) {
+      this.selectRequest(first, { open: false });
+    } else {
+      this.resetRequestForm();
+      this.workspaceOpen.set(false);
+      this.detailPanelOpen.set(false);
+    }
+  }
+
+  private organizationScopeIds() {
+    const organizationId = this.selectedOrganizationId();
+
+    if (organizationId) {
+      return [organizationId];
+    }
+
+    return [];
+  }
+
+  private resolveOrganizationIdForClient(clientId: string) {
+    return this.selectedOrganizationId() || this.clients().find((client) => client.idClient === clientId)?.idOrganization || '';
   }
 
   private beginSave() {
@@ -1175,6 +1276,9 @@ export class RequestsPage implements OnInit {
       siteStreet: '',
       siteMunicipality: '',
       siteState: '',
+      siteCountryCode: 'MX',
+      clientNationality: '',
+      idCoverageReason: '',
       sitePostalCode: '',
       serviceCode: '',
       serviceName: '',
@@ -1228,7 +1332,7 @@ export class RequestsPage implements OnInit {
         legalName: form.clientLegalName.trim(),
         tradeName: this.emptyToNull(form.clientTradeName),
         rfc: form.clientRfc.trim(),
-        nationality: 'Mexicana',
+        nationality: form.clientNationality || null,
         taxActivity: null,
         taxAddress: null,
         publicRegistryDate: null,
@@ -1251,7 +1355,7 @@ export class RequestsPage implements OnInit {
         municipality: form.siteMunicipality.trim(),
         state: form.siteState.trim(),
         postalCode: form.sitePostalCode.trim(),
-        countryCode: 'MX',
+        countryCode: form.siteCountryCode,
         accessInstructions: null,
         timeZoneId: 'America/Mexico_City',
       };
@@ -1315,6 +1419,7 @@ export class RequestsPage implements OnInit {
         isOvernight: form.coverageIsOvernight,
         status: form.coverageStatus,
         notes: this.emptyToNull(form.coverageNotes),
+        idCoverageReason: form.idCoverageReason || null,
       };
     }
 
@@ -1391,7 +1496,11 @@ export class RequestsPage implements OnInit {
   }
 
   protected today() {
-    return new Date().toISOString().slice(0, 10);
+    // El día operativo lo dice el servidor. Calcularlo aquí con `toISOString()` daba el día UTC:
+    // a las 19:00 hora de Ciudad de México del 4 de septiembre devolvía el 5, y la pantalla
+    // proponía el día siguiente todas las tardes. Es el mismo defecto que el reloj operativo
+    // cerró en el servidor. Cadena vacía mientras no se sabe: vacío se nota, un día equivocado no.
+    return this.systemInfo.operationDate();
   }
 
   private nextRequestCode() {
@@ -1417,6 +1526,13 @@ type RequestTypeCard = {
   readonly label: string;
   readonly hint: string;
   readonly icon: string;
+};
+
+type ControlScopeCard = {
+  readonly label: string;
+  readonly value: number;
+  readonly help: string;
+  readonly warning?: boolean;
 };
 
 type SavedRequestFilter = {

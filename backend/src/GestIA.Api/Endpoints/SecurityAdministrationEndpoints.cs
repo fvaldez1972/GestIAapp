@@ -19,7 +19,7 @@ public static class SecurityAdministrationEndpoints
             CancellationToken cancellationToken) =>
         {
             var users = await dbContext.Users
-                .IgnoreQueryFilters()
+                .IgnoreQueryFilters(["Active"])
                 .AsNoTracking()
                 .OrderBy(user => user.DisplayName)
                 .Select(user => new SecurityUserResponse(
@@ -84,7 +84,7 @@ public static class SecurityAdministrationEndpoints
 
             var normalizedEmail = User.NormalizeEmail(request.Email);
             var emailInUse = await dbContext.Users
-                .IgnoreQueryFilters()
+                .IgnoreQueryFilters(["Active"])
                 .AnyAsync(user => user.NormalizedEmail == normalizedEmail, cancellationToken);
 
             if (emailInUse)
@@ -154,7 +154,7 @@ public static class SecurityAdministrationEndpoints
             }
 
             var user = await dbContext.Users
-                .IgnoreQueryFilters()
+                .IgnoreQueryFilters(["Active"])
                 .SingleOrDefaultAsync(item => item.IdUser == idUser, cancellationToken);
 
             if (user is null)
@@ -164,7 +164,7 @@ public static class SecurityAdministrationEndpoints
 
             var normalizedEmail = User.NormalizeEmail(request.Email);
             var emailInUse = await dbContext.Users
-                .IgnoreQueryFilters()
+                .IgnoreQueryFilters(["Active"])
                 .AnyAsync(
                     item => item.NormalizedEmail == normalizedEmail && item.IdUser != idUser,
                     cancellationToken);
@@ -357,7 +357,7 @@ public static class SecurityAdministrationEndpoints
             CancellationToken cancellationToken) =>
         {
             var user = await dbContext.Users
-                .IgnoreQueryFilters()
+                .IgnoreQueryFilters(["Active"])
                 .SingleOrDefaultAsync(item => item.IdUser == idUser, cancellationToken);
 
             if (user is null)
@@ -377,7 +377,7 @@ public static class SecurityAdministrationEndpoints
             CancellationToken cancellationToken) =>
         {
             var roles = await dbContext.Roles
-                .IgnoreQueryFilters()
+                .IgnoreQueryFilters(["Active"])
                 .AsNoTracking()
                 .OrderBy(role => role.Name)
                 .Select(role => new SecurityRoleResponse(
@@ -426,7 +426,7 @@ public static class SecurityAdministrationEndpoints
             }
 
             var codeInUse = await dbContext.Roles
-                .IgnoreQueryFilters()
+                .IgnoreQueryFilters(["Active"])
                 .AnyAsync(role => role.CodeRole == codeRole, cancellationToken);
 
             if (codeInUse)
@@ -507,7 +507,7 @@ public static class SecurityAdministrationEndpoints
             }
 
             var role = await dbContext.Roles
-                .IgnoreQueryFilters()
+                .IgnoreQueryFilters(["Active"])
                 .SingleOrDefaultAsync(item => item.IdRole == idRole, cancellationToken);
 
             if (role is null)
@@ -589,7 +589,7 @@ public static class SecurityAdministrationEndpoints
             CancellationToken cancellationToken) =>
         {
             var role = await dbContext.Roles
-                .IgnoreQueryFilters()
+                .IgnoreQueryFilters(["Active"])
                 .SingleOrDefaultAsync(item => item.IdRole == idRole, cancellationToken);
 
             if (role is null)
@@ -705,7 +705,7 @@ public static class SecurityAdministrationEndpoints
         Guid idUser,
         CancellationToken cancellationToken) =>
         await dbContext.Users
-            .IgnoreQueryFilters()
+            .IgnoreQueryFilters(["Active"])
             .AsNoTracking()
             .Where(user => user.IdUser == idUser)
             .Select(user => new SecurityUserResponse(
@@ -744,7 +744,7 @@ public static class SecurityAdministrationEndpoints
         Guid idRole,
         CancellationToken cancellationToken) =>
         await dbContext.Roles
-            .IgnoreQueryFilters()
+            .IgnoreQueryFilters(["Active"])
             .AsNoTracking()
             .Where(role => role.IdRole == idRole)
             .Select(role => new SecurityRoleResponse(

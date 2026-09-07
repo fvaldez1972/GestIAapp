@@ -10,6 +10,8 @@ public sealed class AssignmentService(
     ICatalogService catalogService,
     IUnitOfWork unitOfWork,
     IActorContext actorContext,
+    IConcurrencyGuard concurrency,
+    IOperationReasonContext reasonContext,
     IClock clock) : IAssignmentService
 {
     public async Task<IReadOnlyList<ServiceAssignmentResponse>> ListAssignmentsAsync(
@@ -47,6 +49,7 @@ public sealed class AssignmentService(
         await EnsureNoOverlapAsync(employee.IdEmployee, request.StartDate, request.EndDate, null, cancellationToken);
 
         var assignment = ServiceAssignment.Create(
+            request.IdOrganization,
             employee.IdEmployee,
             request.IdService,
             profile,
@@ -90,6 +93,18 @@ public sealed class AssignmentService(
             idServiceAssignment,
             cancellationToken);
 
+        // Motivo obligatorio sólo si el periodo ya terminó. Una asignación sin fecha de fin sigue
+        // viva y editarla es operación normal, no corrección.
+        var requirement = CorrectionReasonPolicy.AssignmentRequirement(
+            assignment, clock.Today);
+
+        var reasonErrors = new Dictionary<string, string[]>();
+        var reason = CorrectionReasonPolicy.Validate(
+            request.CorrectionReason, requirement, "CorrectionReason", reasonErrors);
+        InputValidation.ThrowIfInvalid(reasonErrors);
+        reasonContext.SetReason(reason, requirement is not null);
+        concurrency.Expect(assignment, request.RowVersion);
+
         assignment.UpdateProfile(profile, actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -101,10 +116,16 @@ public sealed class AssignmentService(
         Guid idClient,
         Guid idService,
         Guid idServiceAssignment,
+        byte[]? rowVersion,
         CancellationToken cancellationToken)
     {
         await EnsureServiceAsync(idOrganization, idClient, idService, cancellationToken);
         var assignment = await EnsureAssignmentAsync(idService, idServiceAssignment, cancellationToken);
+
+        // El token llega por parametro de consulta porque un DELETE no lleva cuerpo. Lo correcto
+        // en HTTP seria el encabezado If-Match; se eligio el parametro por consistencia con el
+        // resto de esta API, que ya pasa organizationId asi. Queda anotado como deuda menor.
+        concurrency.Expect(assignment, rowVersion);
         assignment.Deactivate(actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
         await unitOfWork.SaveChangesAsync(cancellationToken);
     }
@@ -216,12 +237,20 @@ public sealed class AssignmentService(
                 $"El empleado no es elegible para asignación: tiene evaluaciones vencidas o no aprobadas ({string.Join(", ", invalidEvaluations)}).");
         }
 
-        if (!string.IsNullOrWhiteSpace(position.RequiredSkillProfile) &&
-            !string.IsNullOrWhiteSpace(employee.JobTitle) &&
-            !employee.JobTitle.Contains(position.RequiredSkillProfile, StringComparison.OrdinalIgnoreCase))
+        // El puesto se compara por identificador, no por texto.
+        //
+        // Antes esto era un Contains sobre dos campos de texto libre, y fallaba en las dos
+        // direcciones: bloqueaba a alguien capaz por una diferencia de redacción, y habilitaba a
+        // alguien por una coincidencia accidental de subcadena.
+        //
+        // Un nulo en cualquiera de los dos lados NO bloquea, y es deliberado: significa "no
+        // sabemos cuál es su puesto", normalmente porque el texto heredado no correspondía a
+        // ninguna entrada del catálogo. No es lo mismo que "no cumple el perfil", y tratarlos
+        // igual impediría asignar a gente que sí puede mientras se limpian los datos.
+        if (JobPositionEligibility.IsBlocked(position.IdJobPositionCatalogItem, employee.IdJobPositionCatalogItem))
         {
             throw new ResourceConflictException(
-                $"El empleado no coincide con el perfil requerido para la posición: {position.RequiredSkillProfile}.");
+                "El empleado no tiene el puesto que la posición requiere.");
         }
     }
 
@@ -326,5 +355,6 @@ public sealed class AssignmentService(
             assignment.EndDate,
             assignment.IsPrimary,
             assignment.Notes,
-            assignment.Active);
+            assignment.Active,
+            assignment.RowVersion);
 }

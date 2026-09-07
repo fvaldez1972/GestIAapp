@@ -85,7 +85,13 @@ public sealed class OperationalRequestService(
         return Map(saved);
     }
 
-    public async Task<OperationalRequestResponse> UpdateAsync(
+    public Task<OperationalRequestResponse> UpdateAsync(
+        Guid idOperationalRequest,
+        UpdateOperationalRequestRequest request,
+        CancellationToken cancellationToken) =>
+        repository.ExecuteAtomicAsync(token => UpdateCoreAsync(idOperationalRequest, request, token), cancellationToken);
+
+    private async Task<OperationalRequestResponse> UpdateCoreAsync(
         Guid idOperationalRequest,
         UpdateOperationalRequestRequest request,
         CancellationToken cancellationToken)
@@ -111,11 +117,22 @@ public sealed class OperationalRequestService(
         return Map(operationalRequest);
     }
 
-    public async Task<OperationalRequestResponse> ChangeStatusAsync(
+    public Task<OperationalRequestResponse> ChangeStatusAsync(
+        Guid idOperationalRequest,
+        ChangeOperationalRequestStatusRequest request,
+        CancellationToken cancellationToken) =>
+        repository.ExecuteAtomicAsync(token => ChangeStatusCoreAsync(idOperationalRequest, request, token), cancellationToken);
+
+    private async Task<OperationalRequestResponse> ChangeStatusCoreAsync(
         Guid idOperationalRequest,
         ChangeOperationalRequestStatusRequest request,
         CancellationToken cancellationToken)
     {
+        if (request.Status == OperationalRequestStatus.Completed)
+        {
+            throw new ResourceConflictException("La solicitud sólo puede completarse al ejecutar su acción de negocio.");
+        }
+
         var errors = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
         ValidateOrganization(request.IdOrganization, errors);
         var resolutionNotes = InputValidation.Optional(request.ResolutionNotes, nameof(request.ResolutionNotes), 1000, errors);
@@ -151,7 +168,13 @@ public sealed class OperationalRequestService(
         return BuildExecutionPreview(operationalRequest, request);
     }
 
-    public async Task<ExecuteOperationalRequestResponse> ExecuteAsync(
+    public Task<ExecuteOperationalRequestResponse> ExecuteAsync(
+        Guid idOperationalRequest,
+        ExecuteOperationalRequestRequest request,
+        CancellationToken cancellationToken) =>
+        repository.ExecuteAtomicAsync(token => ExecuteCoreAsync(idOperationalRequest, request, token), cancellationToken);
+
+    private async Task<ExecuteOperationalRequestResponse> ExecuteCoreAsync(
         Guid idOperationalRequest,
         ExecuteOperationalRequestRequest request,
         CancellationToken cancellationToken)
@@ -529,7 +552,8 @@ public sealed class OperationalRequestService(
                 coverageInput.CoverageEndTime,
                 coverageInput.IsOvernight,
                 coverageInput.Status,
-                coverageInput.Notes),
+                coverageInput.Notes,
+                coverageInput.IdCoverageReason),
             cancellationToken);
 
         return new ExecutionResult(
@@ -784,6 +808,9 @@ public sealed class OperationalRequestService(
                     {
                         missingFields.Add("Selecciona el turno programado.");
                     }
+
+                    if (execution.Coverage.IdCoverageReason is null || execution.Coverage.IdCoverageReason == Guid.Empty)
+                        missingFields.Add("Selecciona el motivo de cobertura.");
 
                     if (execution.Coverage.IdReplacementEmployee == Guid.Empty)
                     {

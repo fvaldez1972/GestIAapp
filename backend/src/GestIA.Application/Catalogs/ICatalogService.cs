@@ -14,6 +14,13 @@ public interface ICatalogService
     Task<EligibilityRequirementResponse> UpdateEligibilityRequirementAsync(Guid idEligibilityRequirement, EligibilityRequirementInput request, CancellationToken cancellationToken);
     Task DeactivateEligibilityRequirementAsync(Guid idOrganization, Guid idEligibilityRequirement, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Comprueba que el identificador corresponda a un puesto activo del catálogo de esa
+    /// organización. Se valida por identificador y no por texto: comparar nombres es justo lo que
+    /// esta tanda vino a eliminar.
+    /// </summary>
+    Task EnsureJobPositionCatalogItemAsync(Guid idOrganization, Guid idCatalogItem, CancellationToken cancellationToken);
+
     Task<IReadOnlyList<EmployeeSkillResponse>> ListEmployeeSkillsAsync(Guid idOrganization, Guid idEmployee, CancellationToken cancellationToken);
     Task<EmployeeSkillResponse> CreateEmployeeSkillAsync(EmployeeSkillInput request, CancellationToken cancellationToken);
     Task<EmployeeSkillResponse> UpdateEmployeeSkillAsync(Guid idEmployeeSkill, EmployeeSkillInput request, CancellationToken cancellationToken);

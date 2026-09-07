@@ -30,6 +30,8 @@ public sealed class BusinessDocumentConfiguration : IEntityTypeConfiguration<Bus
         builder.Property(entity => entity.Status).HasConversion<string>().HasMaxLength(30).IsUnicode(false).IsRequired();
         builder.Property(entity => entity.StorageReference).HasMaxLength(500).IsRequired();
         builder.Property(entity => entity.Notes).HasMaxLength(1000);
+        builder.Property(entity => entity.ReviewNotes).HasMaxLength(1000);
+        builder.Property(entity => entity.ReviewedByName).HasMaxLength(200);
 
         builder.HasOne(entity => entity.Client)
             .WithMany()

@@ -12,17 +12,29 @@ public static class ClientEndpoints
             .WithTags("Clients");
 
         group.MapGet("", async (
+            HttpContext context,
             Guid organizationId,
             string? search,
+            ClientStatusFilter? status,
+            ClientSitePresenceFilter? sitePresence,
+            string? municipality,
             int? page,
             int? pageSize,
             IClientService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.ListAsync(
                 new ClientListQuery(
                     organizationId,
                     search,
+                    status ?? ClientStatusFilter.Active,
+                    sitePresence ?? ClientSitePresenceFilter.Any,
+                    municipality,
                     page ?? 1,
                     pageSize ?? 20),
                 cancellationToken);
@@ -31,12 +43,36 @@ public static class ClientEndpoints
             .RequirePermission(SecurityPermissions.ClientsRead)
             .WithName("ListClients");
 
+        // Las opciones del filtro de municipio. Sacarlas de la página ya traída daría una lista
+        // distinta en cada página, que es la clase de filtro que miente.
+        group.MapGet("/municipalities", async (
+            HttpContext context,
+            Guid organizationId,
+            IClientService service,
+            CancellationToken cancellationToken) =>
+        {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
+            return Results.Ok(await service.ListMunicipalitiesAsync(organizationId, cancellationToken));
+        })
+            .RequirePermission(SecurityPermissions.ClientsRead)
+            .WithName("ListClientMunicipalities");
+
         group.MapGet("/{idClient:guid}", async (
+            HttpContext context,
             Guid idClient,
             Guid organizationId,
             IClientService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var client = await service.GetAsync(organizationId, idClient, cancellationToken);
             return Results.Ok(client);
         })
@@ -44,10 +80,16 @@ public static class ClientEndpoints
             .WithName("GetClient");
 
         group.MapPost("", async (
+            HttpContext context,
             CreateClientRequest request,
             IClientService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, request.IdOrganization) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var client = await service.CreateAsync(request, cancellationToken);
             return Results.Created(
                 $"/api/v1/clients/{client.IdClient}?organizationId={client.IdOrganization}",
@@ -57,11 +99,17 @@ public static class ClientEndpoints
             .WithName("CreateClient");
 
         group.MapPut("/{idClient:guid}", async (
+            HttpContext context,
             Guid idClient,
             UpdateClientRequest request,
             IClientService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, request.IdOrganization) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var client = await service.UpdateAsync(idClient, request, cancellationToken);
             return Results.Ok(client);
         })
@@ -69,11 +117,17 @@ public static class ClientEndpoints
             .WithName("UpdateClient");
 
         group.MapDelete("/{idClient:guid}", async (
+            HttpContext context,
             Guid idClient,
             Guid organizationId,
             IClientService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             await service.DeactivateAsync(organizationId, idClient, cancellationToken);
             return Results.NoContent();
         })

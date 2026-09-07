@@ -15,7 +15,7 @@ public sealed class ReportsRepository(GestIaDbContext dbContext) : IReportsRepos
     {
         var attendanceQuery = dbContext.AttendanceRecords
             .AsNoTracking()
-            .Where(item => item.ScheduledShift.ScheduleVersion.Service.Client.IdOrganization == query.IdOrganization);
+            .Where(item => item.IdOrganization == query.IdOrganization);
 
         if (query.IdClient is not null)
         {
@@ -41,7 +41,7 @@ public sealed class ReportsRepository(GestIaDbContext dbContext) : IReportsRepos
 
         var incidentQuery = dbContext.Incidents
             .AsNoTracking()
-            .Where(item => item.Service.Client.IdOrganization == query.IdOrganization);
+            .Where(item => item.IdOrganization == query.IdOrganization);
 
         if (query.IdClient is not null)
         {
@@ -65,7 +65,7 @@ public sealed class ReportsRepository(GestIaDbContext dbContext) : IReportsRepos
 
         var coverageQuery = dbContext.CoverageRecords
             .AsNoTracking()
-            .Where(item => item.ScheduledShift.ScheduleVersion.Service.Client.IdOrganization == query.IdOrganization);
+            .Where(item => item.IdOrganization == query.IdOrganization);
 
         if (query.IdClient is not null)
         {
@@ -176,7 +176,7 @@ public sealed class ReportsRepository(GestIaDbContext dbContext) : IReportsRepos
         var services = dbContext.Services
             .AsNoTracking()
             .Include(service => service.Client)
-            .Where(service => service.Client.IdOrganization == query.IdOrganization);
+            .Where(service => service.IdOrganization == query.IdOrganization);
 
         if (query.IdClient is not null)
         {

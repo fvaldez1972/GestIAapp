@@ -26,6 +26,9 @@ public sealed class OperationDayClosureConfiguration : IEntityTypeConfiguration<
             .WithMany()
             .HasForeignKey(entity => entity.IdService)
             .OnDelete(DeleteBehavior.Restrict);
+        // Lo genera SQL Server en cada escritura; el modelo solo lo lee.
+        builder.Property(entity => entity.RowVersion).IsRowVersion();
+
         builder.HasIndex(entity => new { entity.IdOrganization, entity.OperationDate });
         builder.HasIndex(entity => new { entity.IdService, entity.OperationDate }).IsUnique();
     }

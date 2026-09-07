@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  body { margin:0; background:#f4f6fa; font-family:Archivo, system-ui, sans-serif; color:#253040; text-wrap:pretty; font-variant-numeric:tabular-nums; }
+  a { color:#087f9c; text-decoration:none; }
+  a:hover { color:#10104e; text-decoration:underline; }
+</style>
+</helmet>
+
+<div style="display:flex;flex-direction:column;gap:52px;padding:52px 60px 100px">
+
+  <div style="display:flex;flex-direction:column;gap:10px;max-width:1440px">
+    <div style="font:600 11px Archivo,sans-serif;letter-spacing:.16em;color:#5f6b7a">ASISTENCIA · PASO 10 · 1440 PX · TOKENS DE MARCA</div>
+    <div style="font:700 30px/1.15 Archivo,sans-serif;color:#10104e">Registrar la asistencia del día</div>
+    <div style="font:400 14px/1.5 Archivo,sans-serif;color:#5f6b7a;max-width:90ch">Alcance por servicio y día, sobre la versión publicada de la semana. Rol admin de organización. Arriba lo que se salió de lo planeado; la asistencia normal cuenta, está a un clic y no compite por atención. Cada excepción lleva a donde se resuelve.</div>
+  </div>
+
+  <section data-screen-label="Vista 1 · Día con excepciones" id="v1" style="display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;align-items:baseline;gap:12px">
+      <span style="font:600 11.5px Archivo,sans-serif;letter-spacing:.14em;color:#5f6b7a">VISTA 1</span>
+      <span style="font:600 19px Archivo,sans-serif;color:#10104e">El día con excepciones</span>
+    </div>
+    <div style="width:1440px;border:1px solid #dce2e9;border-radius:6px;overflow:hidden;background:#f4f6fa">
+      <div style="height:4.5rem;background:#ffffff;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:12px;padding:0 20px">
+        <div style="display:flex;align-items:center;gap:10px;border:1px solid #dce2e9;border-radius:6px;padding:7px 11px;background:#ffffff">
+          <span style="font:400 11px Archivo,sans-serif;color:#5f6b7a">Organización activa</span>
+          <span style="font:600 13px Archivo,sans-serif;color:#10104e">{{ organizacion }}</span>
+        </div>
+        <span style="font:400 12.5px Archivo,sans-serif;color:#5f6b7a">Fecha operativa <span style="color:#253040;font-weight:600">{{ fecha }}</span></span>
+      </div>
+      <div style="display:flex;min-height:900px">
+        <dc-import name="SideMenu" active="Asistencia" role="admin" usuario="Renata Villaseñor" hint-size="272px,900px"></dc-import>
+        <div style="flex:1;padding:16px 20px 20px;display:flex;flex-direction:column;gap:16px;min-width:0">
+
+          <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px">
+            <div>
+              <div style="font:600 11px Archivo,sans-serif;letter-spacing:.1em;color:#5f6b7a;padding-bottom:5px">ASISTENCIA</div>
+              <div style="font:700 22px/1.2 Archivo,sans-serif;color:#10104e">Asistencia</div>
+              <div style="font:400 13px Archivo,sans-serif;color:#5f6b7a;padding-top:4px">Tres turnos se salieron de lo planeado. Son los que cambian cobertura.</div>
+            </div>
+            <div style="background:#10104e;color:#ffffff;border-radius:6px;padding:0 16px;height:2.5rem;display:flex;align-items:center;font:600 13px Archivo,sans-serif">Registrar asistencia</div>
+          </div>
+
+          <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;padding:12px 14px;display:flex;align-items:center;gap:14px">
+            <span style="display:flex;align-items:center;gap:8px">
+              <span style="width:2rem;height:2rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;justify-content:center;font:600 12px Archivo,sans-serif;color:#5f6b7a">‹</span>
+              <span style="font:600 13px Archivo,sans-serif;color:#253040">Jueves 10 sep 2026</span>
+              <span style="width:2rem;height:2rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;justify-content:center;font:600 12px Archivo,sans-serif;color:#5f6b7a">›</span>
+            </span>
+            <span style="width:1px;height:20px;background:#dce2e9"></span>
+            <span style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;gap:10px;padding:0 12px;font:500 13px Archivo,sans-serif;color:#253040">{{ servicio }} <span style="color:#5f6b7a">▾</span></span>
+            <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Corporativo Altavista · Torre Altavista</span>
+            <span style="margin-left:auto;display:flex;align-items:center;gap:10px">
+              <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Se compara contra <span style="color:#253040;font-weight:600">versión 2, publicada 07 sep 2026</span></span>
+              <span style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;padding:0 12px;display:flex;align-items:center;font:600 12.5px Archivo,sans-serif;color:#253040">Ver la semana</span>
+            </span>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
+            <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;padding:16px;display:flex;flex-direction:column;gap:6px">
+              <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">TURNOS PROYECTADOS</span>
+              <span style="font:600 22px/1.1 Archivo,sans-serif;color:#10104e">18</span>
+              <span style="font:400 12px Archivo,sans-serif;color:#5f6b7a">Siete posiciones del servicio en la versión publicada del jueves.</span>
+            </div>
+            <div style="background:#ffffff;border:1px solid #dc2626;border-radius:6px;padding:16px;display:flex;flex-direction:column;gap:6px">
+              <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">EXCEPCIONES</span>
+              <span style="display:flex;align-items:center;gap:9px">
+                <span style="font:600 22px/1.1 Archivo,sans-serif;color:#dc2626">3</span>
+                <span style="border:1px solid #dc2626;background:#ffffff;border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:#dc2626">Una falta, un retardo, un hueco</span>
+              </span>
+              <span style="font:400 12px Archivo,sans-serif;color:#5f6b7a">Lo que cambia cobertura. Cada una trae su acción.</span>
+            </div>
+            <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;padding:16px;display:flex;flex-direction:column;gap:6px">
+              <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">COBERTURA DEL DÍA</span>
+              <span style="font:600 22px/1.1 Archivo,sans-serif;color:#10104e">17 de 18</span>
+              <span style="font:400 12px Archivo,sans-serif;color:#5f6b7a">El cuarto elemento de P-01 no tiene a nadie asignado.</span>
+            </div>
+          </div>
+
+          <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;overflow:hidden">
+            <div style="padding:12px 14px;background:#f7f9fb;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:12px">
+              <span style="font:700 13px Archivo,sans-serif;color:#253040">Lo que se salió de lo planeado</span>
+              <span style="border:1px solid #dce2e9;background:#ffffff;border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:#5f6b7a">3 de 18 turnos</span>
+              <span style="margin-left:auto;font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Ordenadas por lo que deja turnos al descubierto</span>
+            </div>
+
+            <div style="border-bottom:1px solid #dce2e9">
+              <div style="display:grid;grid-template-columns:104px 1fr 172px 208px 176px;align-items:center;gap:14px;padding:14px">
+                <span style="border:1px solid #dc2626;border-radius:3px;padding:3px 8px;font:600 10.5px Archivo,sans-serif;color:#dc2626;justify-self:start">FALTA</span>
+                <span style="display:flex;flex-direction:column;gap:3px;min-width:0">
+                  <span style="font:600 13px Archivo,sans-serif;color:#253040">Laura Menchaca Robledo</span>
+                  <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">P-01 Acceso principal · titular · 1 de 4 elementos</span>
+                </span>
+                <span style="display:flex;flex-direction:column;gap:3px;border-left:1px solid #dce2e9;padding-left:12px">
+                  <span style="font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">PLANEADO</span>
+                  <span style="font:600 12.5px Archivo,sans-serif;color:#253040">07:00 – 19:00</span>
+                </span>
+                <span style="display:flex;flex-direction:column;gap:3px;border-left:1px solid #dce2e9;padding-left:12px">
+                  <span style="font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">REAL</span>
+                  <span style="font:600 12.5px Archivo,sans-serif;color:#dc2626">Sin registro de entrada</span>
+                  <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Van 4 h 20 min del turno</span>
+                </span>
+                <span style="justify-self:end;background:#10104e;color:#ffffff;border-radius:6px;padding:0 14px;height:2.5rem;display:flex;align-items:center;font:600 12.5px Archivo,sans-serif">Registrar incidencia</span>
+              </div>
+              <div style="background:#f7f9fb;border-top:1px solid #dce2e9;padding:9px 14px;font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Una falta deja el turno al descubierto: la incidencia se registra y desde ahí se cubre o se declara sin cubrir.</div>
+            </div>
+
+            <div style="border-bottom:1px solid #dce2e9">
+              <div style="display:grid;grid-template-columns:104px 1fr 172px 208px 176px;align-items:center;gap:14px;padding:14px">
+                <span style="border:1px solid #d97706;border-radius:3px;padding:3px 8px;font:600 10.5px Archivo,sans-serif;color:#d97706;justify-self:start">RETARDO</span>
+                <span style="display:flex;flex-direction:column;gap:3px;min-width:0">
+                  <span style="font:600 13px Archivo,sans-serif;color:#253040">Jorge Iván Peñaloza</span>
+                  <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">P-02 Rondín nocturno · titular · 1 de 3 elementos</span>
+                </span>
+                <span style="display:flex;flex-direction:column;gap:3px;border-left:1px solid #dce2e9;padding-left:12px">
+                  <span style="font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">PLANEADO</span>
+                  <span style="font:600 12.5px Archivo,sans-serif;color:#253040">19:00 – 07:00</span>
+                </span>
+                <span style="display:flex;flex-direction:column;gap:3px;border-left:1px solid #dce2e9;padding-left:12px">
+                  <span style="font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">REAL</span>
+                  <span style="font:600 12.5px Archivo,sans-serif;color:#253040">Entrada 19:52 · en curso</span>
+                  <span style="font:400 11.5px Archivo,sans-serif;color:#d97706">52 min después del inicio</span>
+                </span>
+                <span style="justify-self:end;background:#10104e;color:#ffffff;border-radius:6px;padding:0 14px;height:2.5rem;display:flex;align-items:center;font:600 12.5px Archivo,sans-serif">Registrar incidencia</span>
+              </div>
+              <div style="background:#f7f9fb;border-top:1px solid #dce2e9;padding:9px 14px;font:400 11.5px Archivo,sans-serif;color:#5f6b7a">El retardo se documenta siempre y el turno queda cubierto. Si además tiene consecuencia depende de la política de la organización, que se configura fuera de esta pantalla.</div>
+            </div>
+
+            <div>
+              <div style="display:grid;grid-template-columns:104px 1fr 172px 208px 176px;align-items:center;gap:14px;padding:14px">
+                <span style="border:1px solid #dc2626;background:#ffffff;border-radius:3px;padding:3px 8px;font:600 10.5px Archivo,sans-serif;color:#dc2626;justify-self:start">HUECO</span>
+                <span style="display:flex;flex-direction:column;gap:3px;min-width:0">
+                  <span style="font:600 13px Archivo,sans-serif;color:#253040">P-01 Acceso principal · cuarto elemento</span>
+                  <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Sin titular ni cubre-descansos desde el 01 sep</span>
+                </span>
+                <span style="display:flex;flex-direction:column;gap:3px;border-left:1px solid #dce2e9;padding-left:12px">
+                  <span style="font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">PLANEADO</span>
+                  <span style="font:600 12.5px Archivo,sans-serif;color:#253040">07:00 – 19:00</span>
+                  <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">4 requeridos · 3 asignados</span>
+                </span>
+                <span style="display:flex;flex-direction:column;gap:3px;border-left:1px solid #dce2e9;padding-left:12px">
+                  <span style="font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">REAL</span>
+                  <span style="font:600 12.5px Archivo,sans-serif;color:#dc2626">Nadie a quién registrar</span>
+                </span>
+                <span style="justify-self:end;height:2.5rem;border:1px solid #dce2e9;border-radius:6px;padding:0 14px;display:flex;align-items:center;font:600 12.5px Archivo,sans-serif;color:#253040">Ver en cobertura</span>
+              </div>
+              <div style="background:#f7f9fb;border-top:1px solid #dce2e9;padding:9px 14px;font:400 11.5px Archivo,sans-serif;color:#5f6b7a">No es una falta: nadie dejó de venir. Es una vacante de la posición y se resuelve en Cobertura, no con una incidencia de persona.</div>
+            </div>
+          </div>
+
+          <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;padding:13px 14px;display:flex;align-items:center;gap:12px">
+            <span style="font:600 13px Archivo,sans-serif;color:#253040">Asistencia normal</span>
+            <span style="border:1px solid #dce2e9;border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:#5f6b7a">15 turnos</span>
+            <span style="font:400 12.5px Archivo,sans-serif;color:#5f6b7a">Entrada y salida como se planearon. No cambian cobertura.</span>
+            <span style="margin-left:auto;height:2.5rem;border:1px solid #dce2e9;border-radius:6px;padding:0 12px;display:flex;align-items:center;gap:8px;font:600 12.5px Archivo,sans-serif;color:#253040">Desplegar <span style="color:#5f6b7a">▾</span></span>
+          </div>
+
+          <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;padding:13px 14px;display:flex;align-items:center;gap:12px">
+            <span style="font:600 13px Archivo,sans-serif;color:#253040">Lo planeado de la semana</span>
+            <span style="border:1px solid #dce2e9;border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:#5f6b7a">07 – 13 sep 2026</span>
+            <span style="font:400 12.5px Archivo,sans-serif;color:#5f6b7a">La cuadrícula de proyección de la versión 2, con el jueves marcado.</span>
+            <span style="margin-left:auto;height:2.5rem;border:1px solid #dce2e9;border-radius:6px;padding:0 12px;display:flex;align-items:center;gap:8px;font:600 12.5px Archivo,sans-serif;color:#253040">Desplegar <span style="color:#5f6b7a">▾</span></span>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section data-screen-label="Vista 2 · Día sin excepciones" id="v2" style="display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;align-items:baseline;gap:12px">
+      <span style="font:600 11.5px Archivo,sans-serif;letter-spacing:.14em;color:#5f6b7a">VISTA 2</span>
+      <span style="font:600 19px Archivo,sans-serif;color:#10104e">Un día sin excepciones: todo salió como se planeó</span>
+    </div>
+    <div style="width:1440px;border:1px solid #dce2e9;border-radius:6px;overflow:hidden;background:#f4f6fa">
+      <div style="height:4.5rem;background:#ffffff;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:12px;padding:0 20px">
+        <div style="display:flex;align-items:center;gap:10px;border:1px solid #dce2e9;border-radius:6px;padding:7px 11px;background:#ffffff">
+          <span style="font:400 11px Archivo,sans-serif;color:#5f6b7a">Organización activa</span>
+          <span style="font:600 13px Archivo,sans-serif;color:#10104e">{{ organizacion }}</span>
+        </div>
+        <span style="font:400 12.5px Archivo,sans-serif;color:#5f6b7a">Fecha operativa <span style="color:#253040;font-weight:600">09 sep 2026</span></span>
+      </div>
+      <div style="display:flex;min-height:1080px">
+        <dc-import name="SideMenu" active="Asistencia" role="admin" usuario="Renata Villaseñor" hint-size="272px,1080px"></dc-import>
+        <div style="flex:1;padding:16px 20px 20px;display:flex;flex-direction:column;gap:16px;min-width:0">
+
+          <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px">
+            <div>
+              <div style="font:600 11px Archivo,sans-serif;letter-spacing:.1em;color:#5f6b7a;padding-bottom:5px">ASISTENCIA</div>
+              <div style="font:700 22px/1.2 Archivo,sans-serif;color:#10104e">Asistencia</div>
+              <div style="font:400 13px Archivo,sans-serif;color:#5f6b7a;padding-top:4px">Los 18 turnos del miércoles se cumplieron como se publicaron.</div>
+            </div>
+            <div style="background:#10104e;color:#ffffff;border-radius:6px;padding:0 16px;height:2.5rem;display:flex;align-items:center;font:600 13px Archivo,sans-serif">Registrar asistencia</div>
+          </div>
+
+          <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;padding:12px 14px;display:flex;align-items:center;gap:14px">
+            <span style="display:flex;align-items:center;gap:8px">
+              <span style="width:2rem;height:2rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;justify-content:center;font:600 12px Archivo,sans-serif;color:#5f6b7a">‹</span>
+              <span style="font:600 13px Archivo,sans-serif;color:#253040">Miércoles 09 sep 2026</span>
+              <span style="width:2rem;height:2rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;justify-content:center;font:600 12px Archivo,sans-serif;color:#5f6b7a">›</span>
+            </span>
+            <span style="width:1px;height:20px;background:#dce2e9"></span>
+            <span style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;gap:10px;padding:0 12px;font:500 13px Archivo,sans-serif;color:#253040">{{ servicio }} <span style="color:#5f6b7a">▾</span></span>
+            <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Corporativo Altavista · Torre Altavista</span>
+            <span style="margin-left:auto;display:flex;align-items:center;gap:10px">
+              <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Se compara contra <span style="color:#253040;font-weight:600">versión 2, publicada 07 sep 2026</span></span>
+              <span style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;padding:0 12px;display:flex;align-items:center;font:600 12.5px Archivo,sans-serif;color:#253040">Ver la semana</span>
+            </span>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
+            <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;padding:16px;display:flex;flex-direction:column;gap:6px">
+              <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">TURNOS PROYECTADOS</span>
+              <span style="font:600 22px/1.1 Archivo,sans-serif;color:#10104e">18</span>
+              <span style="font:400 12px Archivo,sans-serif;color:#5f6b7a">Siete posiciones del servicio en la versión publicada del miércoles.</span>
+            </div>
+            <div style="background:#ffffff;border:1px solid #16a34a;border-radius:6px;padding:16px;display:flex;flex-direction:column;gap:6px">
+              <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">EXCEPCIONES</span>
+              <span style="display:flex;align-items:center;gap:9px">
+                <span style="font:600 22px/1.1 Archivo,sans-serif;color:#10104e">0</span>
+                <span style="border:1px solid #16a34a;border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:#16a34a">Cero real</span>
+              </span>
+              <span style="font:400 12px Archivo,sans-serif;color:#5f6b7a">Los 18 turnos tienen registro y ninguno se salió del plan.</span>
+            </div>
+            <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;padding:16px;display:flex;flex-direction:column;gap:6px">
+              <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">COBERTURA DEL DÍA</span>
+              <span style="font:600 22px/1.1 Archivo,sans-serif;color:#10104e">18 de 18</span>
+              <span style="font:400 12px Archivo,sans-serif;color:#5f6b7a">Cada turno proyectado tuvo a alguien presente.</span>
+            </div>
+          </div>
+
+          <div style="background:#ffffff;border:1px solid #16a34a;border-radius:6px;padding:14px;display:flex;align-items:center;gap:12px">
+            <span style="width:8px;height:8px;border-radius:50%;background:#16a34a;flex:none"></span>
+            <span style="font:700 13px Archivo,sans-serif;color:#253040">Todo salió como se planeó</span>
+            <span style="font:400 12.5px Archivo,sans-serif;color:#5f6b7a">Sin faltas, sin retardos y sin huecos. El día queda registrado y comparable contra la versión 2, y la conciliación con el cliente no tiene nada que explicar.</span>
+            <span style="margin-left:auto;font:600 12.5px Archivo,sans-serif;color:#087f9c;flex:none">Ver el registro del día anterior</span>
+          </div>
+
+          <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;overflow:hidden">
+            <div style="padding:12px 14px;background:#f7f9fb;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:12px">
+              <span style="font:700 13px Archivo,sans-serif;color:#253040">Asistencia del día</span>
+              <span style="border:1px solid #dce2e9;background:#ffffff;border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:#5f6b7a">18 turnos</span>
+              <span style="margin-left:auto;font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Sin excepciones que ordenar arriba, la lista completa toma el lugar</span>
+            </div>
+            <div style="display:grid;grid-template-columns:220px 190px 150px 150px 1fr 44px;background:#f7f9fb;border-bottom:1px solid #dce2e9">
+              <span style="padding:9px 14px;font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">POSICIÓN</span>
+              <span style="padding:9px 14px;font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">PERSONA</span>
+              <span style="padding:9px 14px;font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">PLANEADO</span>
+              <span style="padding:9px 14px;font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">REAL</span>
+              <span style="padding:9px 14px;font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">ESTADO</span>
+              <span></span>
+            </div>
+            <sc-for list="{{ filasNormal }}" as="f" hint-placeholder-count="9">
+              <div style="display:grid;grid-template-columns:220px 190px 150px 150px 1fr 44px;border-bottom:1px solid #dce2e9;align-items:center">
+                <span style="padding:11px 14px;display:flex;flex-direction:column;gap:2px">
+                  <span style="font:600 13px Archivo,sans-serif;color:#253040">{{ f.pos }}</span>
+                  <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">{{ f.meta }}</span>
+                </span>
+                <span style="padding:11px 14px;display:flex;flex-direction:column;gap:2px">
+                  <span style="font:500 12.5px Archivo,sans-serif;color:#253040">{{ f.persona }}</span>
+                  <span style="font:400 11.5px Archivo,sans-serif;color:{{ f.rolColor }}">{{ f.rol }}</span>
+                </span>
+                <span style="padding:11px 14px;font:400 12px Archivo,sans-serif;color:#5f6b7a">{{ f.planeado }}</span>
+                <span style="padding:11px 14px;font:600 12px Archivo,sans-serif;color:#253040">{{ f.real }}</span>
+                <span style="padding:11px 14px;display:flex;align-items:center;gap:9px">
+                  <span style="border:1px solid {{ f.estadoColor }};border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:{{ f.estadoColor }}">{{ f.estado }}</span>
+                  <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">{{ f.nota }}</span>
+                </span>
+                <span style="padding:11px 14px;font:600 13px Archivo,sans-serif;color:#5f6b7a;text-align:center">⋯</span>
+              </div>
+            </sc-for>
+            <div style="padding:11px 14px;display:flex;align-items:center;gap:12px">
+              <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">9 de 18 turnos · las nueve restantes son de los turnos de tarde y noche</span>
+              <span style="margin-left:auto;font:600 12.5px Archivo,sans-serif;color:#087f9c">Ver los 18</span>
+            </div>
+          </div>
+
+          <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;overflow:hidden">
+            <div style="padding:11px 14px;background:#f7f9fb;border-bottom:1px solid #dce2e9;display:flex;justify-content:space-between;align-items:center">
+              <span style="display:flex;align-items:center;gap:12px">
+                <span style="font:600 10.5px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">LO PLANEADO DE LA SEMANA</span>
+                <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Versión 2 publicada · 7 posiciones · 07 – 13 sep 2026</span>
+              </span>
+              <span style="font:600 12.5px Archivo,sans-serif;color:#253040">Plegar ▴</span>
+            </div>
+            <div style="display:grid;grid-template-columns:230px repeat(7,1fr);border-bottom:1px solid #dce2e9;background:#f7f9fb">
+              <span style="padding:9px 14px;border-right:1px solid #dce2e9;font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">POSICIÓN</span>
+              <sc-for list="{{ diasCab }}" as="d" hint-placeholder-count="7">
+                <span style="padding:9px 8px;border-right:1px solid #dce2e9;background:{{ d.bg }};font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:{{ d.color }};text-align:center">{{ d.txt }}</span>
+              </sc-for>
+            </div>
+            <sc-for list="{{ filasSemana }}" as="r" hint-placeholder-count="7">
+              <div style="display:grid;grid-template-columns:230px repeat(7,1fr);border-bottom:1px solid #dce2e9">
+                <span style="padding:12px 14px;border-right:1px solid #dce2e9;display:flex;flex-direction:column;gap:3px">
+                  <span style="font:600 13px Archivo,sans-serif;color:#253040">{{ r.pos }}</span>
+                  <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">{{ r.meta }}</span>
+                </span>
+                <sc-for list="{{ r.cells }}" as="c" hint-placeholder-count="7">
+                  <span style="padding:8px 6px;border-right:1px solid #dce2e9;background:{{ c.bg }};display:flex">
+                    <span style="flex:1;border:1px solid {{ c.bd }};background:{{ c.ibg }};border-radius:6px;padding:7px 6px;display:flex;flex-direction:column;gap:2px;align-items:center;justify-content:center;text-align:center">
+                      <span style="font:600 12px Archivo,sans-serif;color:{{ c.tc }}">{{ c.t }}</span>
+                      <span style="font:{{ c.sf }};color:{{ c.sc }}">{{ c.s }}</span>
+                    </span>
+                  </span>
+                </sc-for>
+              </div>
+            </sc-for>
+            <div style="padding:12px 14px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;background:#ffffff">
+              <span style="font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">LEYENDA</span>
+              <sc-for list="{{ leyenda }}" as="l" hint-placeholder-count="5">
+                <span style="display:flex;align-items:center;gap:8px">
+                  <span style="width:14px;height:14px;border-radius:3px;border:1px solid {{ l.bd }};background:{{ l.bg }};flex:none"></span>
+                  <span style="font:500 11.5px Archivo,sans-serif;color:#253040">{{ l.txt }}</span>
+                  <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">{{ l.nota }}</span>
+                </span>
+              </sc-for>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section data-screen-label="Vista 3 · Registro de una asistencia" id="v3" style="display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;align-items:baseline;gap:12px">
+      <span style="font:600 11.5px Archivo,sans-serif;letter-spacing:.14em;color:#5f6b7a">VISTA 3</span>
+      <span style="font:600 19px Archivo,sans-serif;color:#10104e">Registro de una asistencia, con la secuencia hacia la incidencia</span>
+    </div>
+    <div style="width:1440px;border:1px solid #dce2e9;border-radius:6px;overflow:hidden;background:#f4f6fa">
+      <div style="height:4.5rem;background:#ffffff;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:12px;padding:0 20px">
+        <div style="display:flex;align-items:center;gap:10px;border:1px solid #dce2e9;border-radius:6px;padding:7px 11px;background:#ffffff">
+          <span style="font:400 11px Archivo,sans-serif;color:#5f6b7a">Organización activa</span>
+          <span style="font:600 13px Archivo,sans-serif;color:#10104e">{{ organizacion }}</span>
+        </div>
+        <span style="font:400 12.5px Archivo,sans-serif;color:#5f6b7a">Fecha operativa <span style="color:#253040;font-weight:600">{{ fecha }}</span></span>
+      </div>
+      <div style="display:flex;min-height:940px">
+        <dc-import name="SideMenu" active="Asistencia" role="admin" usuario="Renata Villaseñor" hint-size="272px,940px"></dc-import>
+        <div style="flex:1;padding:16px 20px 20px;display:flex;flex-direction:column;gap:16px;min-width:0">
+
+          <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px">
+            <div>
+              <div style="font:600 11px Archivo,sans-serif;letter-spacing:.1em;color:#5f6b7a;padding-bottom:5px">ASISTENCIA</div>
+              <div style="font:700 22px/1.2 Archivo,sans-serif;color:#10104e">Asistencia</div>
+              <div style="font:400 13px Archivo,sans-serif;color:#5f6b7a;padding-top:4px">Registrando el turno de P-02. La lista se comprime, no se oculta.</div>
+            </div>
+            <div style="background:#10104e;color:#ffffff;border-radius:6px;padding:0 16px;height:2.5rem;display:flex;align-items:center;font:600 13px Archivo,sans-serif">Registrar asistencia</div>
+          </div>
+
+          <div style="display:flex;gap:16px;align-items:flex-start;min-width:0">
+            <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:16px">
+
+              <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;padding:12px 14px;display:flex;flex-direction:column;gap:8px">
+                <span style="display:flex;align-items:center;gap:8px">
+                  <span style="width:2rem;height:2rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;justify-content:center;font:600 12px Archivo,sans-serif;color:#5f6b7a">‹</span>
+                  <span style="font:600 13px Archivo,sans-serif;color:#253040">Jueves 10 sep 2026</span>
+                  <span style="width:2rem;height:2rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;justify-content:center;font:600 12px Archivo,sans-serif;color:#5f6b7a">›</span>
+                </span>
+                <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Se compara contra <span style="color:#253040;font-weight:600">versión 2, publicada 07 sep 2026</span></span>
+              </div>
+
+              <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;overflow:hidden">
+                <div style="padding:12px 14px;background:#f7f9fb;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:10px">
+                  <span style="font:700 13px Archivo,sans-serif;color:#253040">Lo que se salió de lo planeado</span>
+                  <span style="border:1px solid #dce2e9;background:#ffffff;border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:#5f6b7a">3</span>
+                </div>
+                <div style="padding:12px 14px;border-bottom:1px solid #dce2e9;display:flex;flex-direction:column;gap:5px">
+                  <span style="display:flex;align-items:center;gap:9px">
+                    <span style="border:1px solid #dc2626;border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:#dc2626">FALTA</span>
+                    <span style="font:600 13px Archivo,sans-serif;color:#253040">Laura Menchaca Robledo</span>
+                  </span>
+                  <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">P-01 Acceso principal · planeado 07:00 – 19:00 · sin registro de entrada</span>
+                </div>
+                <div style="padding:12px 14px;border-bottom:1px solid #dce2e9;background:#e9f7fa;display:flex;flex-direction:column;gap:5px">
+                  <span style="display:flex;align-items:center;gap:9px">
+                    <span style="border:1px solid #d97706;border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:#d97706">RETARDO</span>
+                    <span style="font:600 13px Archivo,sans-serif;color:#253040">Jorge Iván Peñaloza</span>
+                    <span style="margin-left:auto;font:600 10.5px Archivo,sans-serif;letter-spacing:.07em;color:#087f9c">EN REGISTRO</span>
+                  </span>
+                  <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">P-02 Rondín nocturno · planeado 19:00 – 07:00 · entrada 19:52</span>
+                </div>
+                <div style="padding:12px 14px;display:flex;flex-direction:column;gap:5px">
+                  <span style="display:flex;align-items:center;gap:9px">
+                    <span style="border:1px solid #dc2626;background:#ffffff;border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:#dc2626">HUECO</span>
+                    <span style="font:600 13px Archivo,sans-serif;color:#253040">P-01 · cuarto elemento</span>
+                  </span>
+                  <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">4 requeridos · 3 asignados · nadie a quién registrar</span>
+                </div>
+              </div>
+
+              <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;padding:13px 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                <span style="font:600 13px Archivo,sans-serif;color:#253040">Asistencia normal</span>
+                <span style="border:1px solid #dce2e9;border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:#5f6b7a">15 turnos</span>
+                <span style="margin-left:auto;font:600 12.5px Archivo,sans-serif;color:#253040">Desplegar ▾</span>
+              </div>
+
+            </div>
+
+            <div style="width:620px;flex:none;background:#ffffff;border:1px solid #dce2e9;border-radius:6px;overflow:hidden;display:flex;flex-direction:column">
+              <div style="padding:14px 16px;border-bottom:1px solid #dce2e9;display:flex;align-items:flex-start;gap:12px">
+                <span style="display:flex;flex-direction:column;gap:3px;flex:1">
+                  <span style="font:700 13px Archivo,sans-serif;color:#253040">Registrar asistencia</span>
+                  <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">P-02 Rondín nocturno · Jorge Iván Peñaloza · jueves 10 sep 2026</span>
+                </span>
+                <span style="width:2rem;height:2rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;justify-content:center;font:600 13px Archivo,sans-serif;color:#5f6b7a">✕</span>
+              </div>
+
+              <div style="padding:16px;display:flex;flex-direction:column;gap:16px">
+
+                <div style="background:#f7f9fb;border:1px solid #dce2e9;border-radius:6px;padding:14px;display:flex;flex-direction:column;gap:11px">
+                  <span style="display:flex;align-items:center;gap:10px">
+                    <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">LO PLANEADO</span>
+                    <span style="border:1px solid #dce2e9;background:#ffffff;border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:#5f6b7a">Versión 2 · publicada 07 sep 2026</span>
+                  </span>
+                  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+                    <span style="display:flex;flex-direction:column;gap:3px">
+                      <span style="font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">TURNO</span>
+                      <span style="font:600 12.5px Archivo,sans-serif;color:#253040">19:00 – 07:00</span>
+                    </span>
+                    <span style="display:flex;flex-direction:column;gap:3px">
+                      <span style="font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">PAPEL</span>
+                      <span style="font:600 12.5px Archivo,sans-serif;color:#253040">Titular</span>
+                    </span>
+                    <span style="display:flex;flex-direction:column;gap:3px">
+                      <span style="font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">ELEMENTOS</span>
+                      <span style="font:600 12.5px Archivo,sans-serif;color:#253040">3 requeridos · 3 asignados</span>
+                    </span>
+                  </div>
+                  <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">El patrón cíclico 4×2 de la posición ancló este día como turno. Lo planeado no se edita aquí.</span>
+                </div>
+
+                <div style="display:flex;flex-direction:column;gap:9px">
+                  <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">LO QUE PASÓ</span>
+                  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+                    <span style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;justify-content:center;font:600 12.5px Archivo,sans-serif;color:#253040">Asistió</span>
+                    <span style="height:2.5rem;border:1px solid #22c6ee;background:#e9f7fa;border-radius:6px;display:flex;align-items:center;justify-content:center;gap:8px;font:600 12.5px Archivo,sans-serif;color:#253040">Retardo <span style="color:#087f9c">✓</span></span>
+                    <span style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;justify-content:center;font:600 12.5px Archivo,sans-serif;color:#253040">Falta</span>
+                  </div>
+                </div>
+
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                  <label style="display:flex;flex-direction:column;gap:6px" for="v3-entrada">
+                    <span style="font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">HORA DE ENTRADA</span>
+                    <span style="height:2.5rem;border:1px solid #22c6ee;border-radius:6px;padding:0 12px;display:flex;align-items:center;font:600 12.5px Archivo,sans-serif;color:#253040" id="v3-entrada">19:52</span>
+                    <span style="font:400 11.5px Archivo,sans-serif;color:#d97706">52 min después de las 19:00 planeadas</span>
+                  </label>
+                  <label style="display:flex;flex-direction:column;gap:6px" for="v3-salida">
+                    <span style="font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">HORA DE SALIDA</span>
+                    <span style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;padding:0 12px;display:flex;align-items:center;font:400 12.5px Archivo,sans-serif;color:#5f6b7a" id="v3-salida">— : —</span>
+                    <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Turno en curso. Se registra al cierre, mañana 07:00.</span>
+                  </label>
+                </div>
+
+                <label style="display:flex;flex-direction:column;gap:6px" for="v3-nota">
+                  <span style="font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">NOTA DEL REGISTRO</span>
+                  <span style="min-height:72px;border:1px solid #dce2e9;border-radius:6px;padding:10px 12px;font:400 12.5px/1.5 Archivo,sans-serif;color:#5f6b7a" id="v3-nota">Opcional. Lo que el supervisor necesita dejar dicho del turno.</span>
+                </label>
+
+                <div style="border:1px solid #dce2e9;border-radius:6px;padding:14px;display:flex;flex-direction:column;gap:7px">
+                  <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">SOBRE EL RETARDO</span>
+                  <span style="font:400 12.5px/1.55 Archivo,sans-serif;color:#253040">El retardo queda documentado con su hora y el turno se cuenta como cubierto. Este registro no descuenta nada por sí solo: la política de retardos se define por organización y se aplica fuera de esta pantalla.</span>
+                </div>
+
+                <div style="background:#f7f9fb;border:1px solid #dce2e9;border-radius:6px;padding:13px 14px;display:flex;align-items:center;gap:11px">
+                  <span style="border:1px solid #dce2e9;background:#ffffff;border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:#5f6b7a;flex:none">SIGUE</span>
+                  <span style="font:400 12.5px/1.5 Archivo,sans-serif;color:#253040">Primero se guarda el registro. Como fue retardo, la continuación es la incidencia con su motivo, y desde ahí la cobertura si hiciera falta.</span>
+                </div>
+
+              </div>
+
+              <div style="margin-top:auto;padding:14px 16px;border-top:1px solid #dce2e9;display:flex;align-items:center;gap:12px">
+                <span style="font:600 12.5px Archivo,sans-serif;color:#5f6b7a">Cancelar</span>
+                <span style="margin-left:auto;height:2.5rem;border:1px solid #dce2e9;border-radius:6px;padding:0 14px;display:flex;align-items:center;font:600 12.5px Archivo,sans-serif;color:#253040">Guardar registro</span>
+                <span style="height:2.5rem;background:#10104e;color:#ffffff;border-radius:6px;padding:0 14px;display:flex;align-items:center;font:600 12.5px Archivo,sans-serif">Guardar y registrar incidencia</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section data-screen-label="Vista 4 · Sin planeación publicada" id="v4" style="display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;align-items:baseline;gap:12px">
+      <span style="font:600 11.5px Archivo,sans-serif;letter-spacing:.14em;color:#5f6b7a">VISTA 4</span>
+      <span style="font:600 19px Archivo,sans-serif;color:#10104e">Sin planeación publicada: no hay contra qué comparar</span>
+    </div>
+    <div style="width:1440px;border:1px solid #dce2e9;border-radius:6px;overflow:hidden;background:#f4f6fa">
+      <div style="height:4.5rem;background:#ffffff;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:12px;padding:0 20px">
+        <div style="display:flex;align-items:center;gap:10px;border:1px solid #dce2e9;border-radius:6px;padding:7px 11px;background:#ffffff">
+          <span style="font:400 11px Archivo,sans-serif;color:#5f6b7a">Organización activa</span>
+          <span style="font:600 13px Archivo,sans-serif;color:#10104e">{{ organizacion }}</span>
+        </div>
+        <span style="font:400 12.5px Archivo,sans-serif;color:#5f6b7a">Fecha operativa <span style="color:#253040;font-weight:600">{{ fecha }}</span></span>
+      </div>
+      <div style="display:flex;min-height:820px">
+        <dc-import name="SideMenu" active="Asistencia" role="admin" usuario="Renata Villaseñor" hint-size="272px,820px"></dc-import>
+        <div style="flex:1;padding:16px 20px 20px;display:flex;flex-direction:column;gap:16px;min-width:0">
+
+          <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px">
+            <div>
+              <div style="font:600 11px Archivo,sans-serif;letter-spacing:.1em;color:#5f6b7a;padding-bottom:5px">ASISTENCIA</div>
+              <div style="font:700 22px/1.2 Archivo,sans-serif;color:#10104e">Asistencia</div>
+              <div style="font:400 13px Archivo,sans-serif;color:#5f6b7a;padding-top:4px">La semana del 10 sep sigue en borrador.</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px">
+              <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a;max-width:30ch;text-align:right">No hay versión publicada para el 10 sep 2026: sin ella no existe el turno que se registraría.</span>
+              <span style="border:1px solid #dce2e9;background:#f7f9fb;color:#5f6b7a;border-radius:6px;padding:0 16px;height:2.5rem;display:flex;align-items:center;font:600 13px Archivo,sans-serif">Registrar asistencia</span>
+            </div>
+          </div>
+
+          <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;padding:12px 14px;display:flex;align-items:center;gap:14px">
+            <span style="display:flex;align-items:center;gap:8px">
+              <span style="width:2rem;height:2rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;justify-content:center;font:600 12px Archivo,sans-serif;color:#5f6b7a">‹</span>
+              <span style="font:600 13px Archivo,sans-serif;color:#253040">Jueves 10 sep 2026</span>
+              <span style="width:2rem;height:2rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;justify-content:center;font:600 12px Archivo,sans-serif;color:#5f6b7a">›</span>
+            </span>
+            <span style="width:1px;height:20px;background:#dce2e9"></span>
+            <span style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;gap:10px;padding:0 12px;font:500 13px Archivo,sans-serif;color:#253040">{{ servicio }} <span style="color:#5f6b7a">▾</span></span>
+            <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Corporativo Altavista · Torre Altavista</span>
+            <span style="margin-left:auto;display:flex;align-items:center;gap:10px">
+              <span style="border:1px solid #d97706;border-radius:3px;padding:3px 8px;font:600 10.5px Archivo,sans-serif;color:#d97706">Sin versión publicada</span>
+              <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Borrador versión 1 · generado 04 sep 2026 09:12</span>
+            </span>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
+            <sc-for list="{{ indicadoresVacios }}" as="i" hint-placeholder-count="3">
+              <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;padding:16px;display:flex;flex-direction:column;gap:6px">
+                <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">{{ i.etiqueta }}</span>
+                <span style="display:flex;align-items:center;gap:9px">
+                  <span style="font:600 22px/1.1 Archivo,sans-serif;color:#5f6b7a">—</span>
+                  <span style="border:1px solid #d97706;background:#ffffff;border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:#d97706">Sin planeación publicada · Publicar</span>
+                </span>
+                <span style="font:400 12px Archivo,sans-serif;color:#5f6b7a">{{ i.apoyo }}</span>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;padding:24px;display:flex;flex-direction:column;gap:18px">
+            <div style="display:flex;flex-direction:column;gap:7px;max-width:78ch">
+              <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">FALTA UN PREREQUISITO</span>
+              <span style="font:700 22px/1.25 Archivo,sans-serif;color:#10104e">La asistencia se registra sobre la versión publicada de la semana</span>
+              <span style="font:400 12.5px/1.6 Archivo,sans-serif;color:#253040">Primero hay que publicar. La semana del 07 – 13 sep está en borrador con dos conflictos: sin una versión publicada no existen los turnos del jueves, así que no hay nada que registrar ni contra qué comparar.</span>
+            </div>
+            <div style="border:1px solid #dce2e9;border-radius:6px;overflow:hidden">
+              <div style="padding:10px 14px;background:#f7f9fb;border-bottom:1px solid #dce2e9;font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">QUÉ FALTA, EN ORDEN</div>
+              <div style="padding:12px 14px;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:12px">
+                <span style="border:1px solid #dc2626;border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:#dc2626;flex:none">2 conflictos</span>
+                <span style="font:500 12.5px Archivo,sans-serif;color:#253040;flex:1">Un hueco de cobertura en P-01 y un titular de baja en P-05, ambos en Planeación</span>
+                <span style="font:600 12.5px Archivo,sans-serif;color:#087f9c">Ver los conflictos</span>
+              </div>
+              <div style="padding:12px 14px;display:flex;align-items:center;gap:12px">
+                <span style="border:1px solid #dce2e9;border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:#5f6b7a;flex:none">Después</span>
+                <span style="font:500 12.5px Archivo,sans-serif;color:#253040;flex:1">Publicar la versión de la semana. Al publicar queda inmutable y el día se puede registrar</span>
+                <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Planeación · paso 9</span>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:14px">
+              <span style="height:2.5rem;background:#10104e;color:#ffffff;border-radius:6px;padding:0 16px;display:flex;align-items:center;font:600 13px Archivo,sans-serif">Ir a resolver y publicar la semana</span>
+              <span style="font:400 12px Archivo,sans-serif;color:#5f6b7a">Se abre Planeación en la semana del 07 – 13 sep, con los dos conflictos listados.</span>
+            </div>
+          </div>
+
+          <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;padding:16px;display:flex;gap:28px">
+            <div style="flex:1"><div style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a;padding-bottom:7px">POR QUÉ RAYA Y NO CERO</div><div style="font:400 12.5px/1.6 Archivo,sans-serif;color:#253040">Un cero en excepciones dice «el día salió como se planeó», que es exactamente lo que muestra la vista 2. Aquí no hay plan publicado: el prerrequisito no existe, así que el indicador muestra raya, la píldora dice qué falta y trae la acción.</div></div>
+            <div style="flex:1"><div style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a;padding-bottom:7px">POR QUÉ EL BOTÓN SE VE APAGADO Y CON RAZÓN</div><div style="font:400 12.5px/1.6 Archivo,sans-serif;color:#253040">Registrar asistencia queda inhabilitado, pero la razón está escrita al lado. Un botón apagado sin explicación deja al usuario adivinando qué le falta.</div></div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section data-screen-label="Anexo · Estados" id="v5" style="display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;align-items:baseline;gap:12px">
+      <span style="font:600 11.5px Archivo,sans-serif;letter-spacing:.14em;color:#5f6b7a">ANEXO</span>
+      <span style="font:600 19px Archivo,sans-serif;color:#10104e">Estados de la lista y los tres tipos de excepción</span>
+    </div>
+
+    <div style="width:1440px;display:flex;flex-direction:column;gap:16px">
+
+      <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;overflow:hidden">
+        <div style="padding:11px 14px;background:#f7f9fb;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:12px">
+          <span style="font:600 10.5px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">LA FILA DE EXCEPCIÓN EN SUS TRES TIPOS</span>
+          <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Ningún tipo depende solo del color: la píldora lo nombra y la acción cambia</span>
+        </div>
+        <sc-for list="{{ tipos }}" as="t" hint-placeholder-count="3">
+          <div style="border-bottom:1px solid #dce2e9;padding:14px;display:grid;grid-template-columns:104px 1fr 300px 200px;align-items:center;gap:14px">
+            <span style="border:1px solid {{ t.color }};border-radius:3px;padding:3px 8px;font:600 10.5px Archivo,sans-serif;color:{{ t.color }};justify-self:start">{{ t.pill }}</span>
+            <span style="display:flex;flex-direction:column;gap:3px">
+              <span style="font:600 13px Archivo,sans-serif;color:#253040">{{ t.titulo }}</span>
+              <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">{{ t.detalle }}</span>
+            </span>
+            <span style="font:400 11.5px/1.5 Archivo,sans-serif;color:#5f6b7a;border-left:1px solid #dce2e9;padding-left:12px">{{ t.regla }}</span>
+            <span style="justify-self:end;height:2.5rem;border:1px solid {{ t.btnBd }};background:{{ t.btnBg }};color:{{ t.btnTc }};border-radius:6px;padding:0 14px;display:flex;align-items:center;font:600 12.5px Archivo,sans-serif">{{ t.accion }}</span>
+          </div>
+        </sc-for>
+        <div style="padding:11px 14px;font:400 11.5px Archivo,sans-serif;color:#5f6b7a">La falta y el retardo son de persona y continúan en incidencia. El hueco es de la posición y continúa en cobertura.</div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">
+
+        <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;overflow:hidden">
+          <div style="padding:11px 14px;background:#f7f9fb;border-bottom:1px solid #dce2e9;font:600 10.5px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">CARGANDO · ESQUELETO, NO SPINNER</div>
+          <div style="padding:14px;display:flex;flex-direction:column;gap:14px">
+            <div style="display:flex;gap:12px">
+              <span style="flex:1;height:66px;border:1px solid #dce2e9;border-radius:6px;padding:12px;display:flex;flex-direction:column;gap:8px;box-sizing:border-box"><span style="width:78px;height:8px;border-radius:3px;background:#f7f9fb"></span><span style="width:44px;height:16px;border-radius:3px;background:#f4f6fa"></span></span>
+              <span style="flex:1;height:66px;border:1px solid #dce2e9;border-radius:6px;padding:12px;display:flex;flex-direction:column;gap:8px;box-sizing:border-box"><span style="width:64px;height:8px;border-radius:3px;background:#f7f9fb"></span><span style="width:36px;height:16px;border-radius:3px;background:#f4f6fa"></span></span>
+              <span style="flex:1;height:66px;border:1px solid #dce2e9;border-radius:6px;padding:12px;display:flex;flex-direction:column;gap:8px;box-sizing:border-box"><span style="width:92px;height:8px;border-radius:3px;background:#f7f9fb"></span><span style="width:58px;height:16px;border-radius:3px;background:#f4f6fa"></span></span>
+            </div>
+            <div style="border:1px solid #dce2e9;border-radius:6px;overflow:hidden">
+              <div style="padding:12px 14px;background:#f7f9fb;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:10px"><span style="width:190px;height:9px;border-radius:3px;background:#f4f6fa"></span><span style="width:64px;height:9px;border-radius:3px;background:#f4f6fa"></span></div>
+              <sc-for list="{{ esqueleto }}" as="s" hint-placeholder-count="3">
+                <div style="padding:15px 14px;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:14px">
+                  <span style="width:66px;height:16px;border-radius:3px;background:#f7f9fb;flex:none"></span>
+                  <span style="display:flex;flex-direction:column;gap:6px;flex:1">
+                    <span style="width:{{ s.a }};height:9px;border-radius:3px;background:#f7f9fb"></span>
+                    <span style="width:{{ s.b }};height:8px;border-radius:3px;background:#f4f6fa"></span>
+                  </span>
+                  <span style="width:120px;height:20px;border-radius:3px;background:#f7f9fb;flex:none"></span>
+                </div>
+              </sc-for>
+              <div style="padding:11px 14px;font:400 11.5px Archivo,sans-serif;color:#5f6b7a">La estructura ya está en su lugar: al llegar los datos nada se mueve.</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;overflow:hidden">
+            <div style="padding:11px 14px;background:#f7f9fb;border-bottom:1px solid #dce2e9;font:600 10.5px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">ERROR AL CARGAR EL DÍA</div>
+            <div style="padding:20px;display:flex;flex-direction:column;gap:14px">
+              <div style="border:1px solid #dc2626;border-radius:6px;padding:16px;display:flex;flex-direction:column;gap:7px">
+                <span style="display:flex;align-items:center;gap:9px">
+                  <span style="width:8px;height:8px;border-radius:50%;background:#dc2626;flex:none"></span>
+                  <span style="font:700 13px Archivo,sans-serif;color:#253040">No se pudo cargar la asistencia del 10 sep 2026</span>
+                </span>
+                <span style="font:400 12.5px/1.55 Archivo,sans-serif;color:#253040">La versión publicada existe; la consulta del día no respondió. Nada de lo que ya estaba registrado se perdió.</span>
+                <span style="display:flex;align-items:center;gap:12px;padding-top:5px">
+                  <span style="height:2.5rem;background:#10104e;color:#ffffff;border-radius:6px;padding:0 14px;display:flex;align-items:center;font:600 12.5px Archivo,sans-serif">Reintentar</span>
+                  <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Si vuelve a fallar, el registro del día se puede continuar más tarde: el turno no se cierra solo.</span>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;overflow:hidden">
+            <div style="padding:11px 14px;background:#f7f9fb;border-bottom:1px solid #dce2e9;font:600 10.5px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">CERO REAL FRENTE A SIN DATOS AÚN</div>
+            <div style="padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:14px">
+              <div style="border:1px solid #16a34a;border-radius:6px;padding:14px;display:flex;flex-direction:column;gap:6px">
+                <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">EXCEPCIONES</span>
+                <span style="display:flex;align-items:center;gap:9px">
+                  <span style="font:600 22px/1.1 Archivo,sans-serif;color:#10104e">0</span>
+                  <span style="border:1px solid #16a34a;border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:#16a34a">Cero real</span>
+                </span>
+                <span style="font:400 12px/1.5 Archivo,sans-serif;color:#5f6b7a">Hay plan publicado y hay registro: el cero significa que el día salió como se planeó. Es información, no ausencia.</span>
+              </div>
+              <div style="border:1px solid #dce2e9;border-radius:6px;padding:14px;display:flex;flex-direction:column;gap:6px">
+                <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">EXCEPCIONES</span>
+                <span style="display:flex;align-items:center;gap:9px">
+                  <span style="font:600 22px/1.1 Archivo,sans-serif;color:#5f6b7a">—</span>
+                  <span style="border:1px solid #d97706;border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:#d97706">Sin planeación publicada · Publicar</span>
+                </span>
+                <span style="font:400 12px/1.5 Archivo,sans-serif;color:#5f6b7a">No hay plan contra el que medir. Un cero aquí diría «todo bien» cuando nadie ha publicado nada.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;overflow:hidden">
+        <div style="padding:11px 14px;background:#f7f9fb;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:12px">
+          <span style="font:600 10.5px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">PENDIENTES ANOTADOS, NO DISEÑADOS</span>
+          <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Ninguno se resuelve desde diseño</span>
+        </div>
+        <sc-for list="{{ pendientes }}" as="p" hint-placeholder-count="4">
+          <div style="padding:13px 14px;border-bottom:1px solid #dce2e9;display:grid;grid-template-columns:230px 1fr 190px;gap:14px;align-items:baseline">
+            <span style="font:600 12.5px Archivo,sans-serif;color:#253040">{{ p.tema }}</span>
+            <span style="font:400 12px/1.55 Archivo,sans-serif;color:#5f6b7a">{{ p.nota }}</span>
+            <span style="font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:{{ p.estadoColor }}">{{ p.estado }}</span>
+          </div>
+        </sc-for>
+        <div style="padding:11px 14px;font:400 11.5px Archivo,sans-serif;color:#5f6b7a">La captura manual de la hora y la ausencia de consecuencia automática del retardo ya están reflejadas en el diseño. El rol y el cierre del día no: quedan como hueco de alcance.</div>
+      </div>
+    </div>
+  </section>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;organizacion&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Seguridad Vanguardia S.A.&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;fecha&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;10 sep 2026&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;servicio&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Vigilancia intramuros Torre Altavista&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const sf = '400 11px Archivo,sans-serif';
+    const mark = '#e9f7fa';
+    const T = (t, s, col) => ({ bg: col || '#ffffff', bd:'transparent', ibg:'transparent', t, tc:'#253040', s, sc:'#5f6b7a', sf });
+    const D = (col) => ({ bg: col || '#f7f9fb', bd:'transparent', ibg:'transparent', t:'Descanso', tc:'#5f6b7a', s:'', sc:'#5f6b7a', sf });
+    const C = (t, col) => ({ bg: col || '#ffffff', bd:'#22c6ee', ibg:'#e9f7fa', t, tc:'#253040', s:'Cubre-descansos', sc:'#087f9c', sf:'600 10.5px Archivo,sans-serif' });
+    const H = (t, col) => ({ bg: col || '#ffffff', bd:'#dc2626', ibg:'#ffffff', t, tc:'#253040', s:'Falta 1 de 4', sc:'#dc2626', sf:'600 10.5px Archivo,sans-serif' });
+
+    // El miércoles 09 es la columna marcada: es el día de la vista 2.
+    const semana = (pos, meta, cells) => ({ pos, meta, cells: cells.map((c, i) => (i === 2 ? { ...c, bg: mark } : c)) });
+
+    const filasSemana = [
+      semana('P-01 Acceso principal', '4 elementos · 07–19 · semanal', [H('3 de 4'), H('3 de 4'), T('4 elementos','07–19'), H('3 de 4'), H('3 de 4'), T('4 elementos','07–19'), D()]),
+      semana('P-02 Rondín nocturno', '3 elementos · 19–07 · cíclico 4×2', [T('3 elementos','19–07'), T('3 elementos','19–07'), T('3 elementos','19–07'), T('3 elementos','19–07'), D(), D(), T('3 elementos','19–07')]),
+      semana('P-03 Monitoreo CCTV', '2 elementos · 07–19 · semanal', [T('2 elementos','07–19'), T('2 elementos','07–19'), T('2 elementos','07–19'), T('2 elementos','07–19'), T('2 elementos','07–19'), D(), D()]),
+      semana('P-04 Rondín perimetral', '3 elementos · 07–15 · semanal', [T('3 elementos','07–15'), T('3 elementos','07–15'), C('2 + cubre'), T('3 elementos','07–15'), T('3 elementos','07–15'), T('3 elementos','07–15'), D()]),
+      semana('P-05 Recepción vespertina', '2 elementos · 14–22 · semanal', [D(), T('2 elementos','14–22'), T('2 elementos','14–22'), T('2 elementos','14–22'), T('2 elementos','14–22'), T('2 elementos','14–22'), T('2 elementos','14–22')]),
+      semana('P-06 Andén de carga', '2 elementos · 06–14 · semanal', [T('2 elementos','06–14'), T('2 elementos','06–14'), T('2 elementos','06–14'), T('2 elementos','06–14'), T('2 elementos','06–14'), D(), D()]),
+      semana('P-07 Estacionamiento', '2 elementos · 14–22 · cíclico 5×2', [T('2 elementos','14–22'), T('2 elementos','14–22'), T('2 elementos','14–22'), T('2 elementos','14–22'), T('2 elementos','14–22'), D(), D()])
+    ];
+
+    const diasCab = ['LUN 07','MAR 08','MIÉ 09','JUE 10','VIE 11','SÁB 12','DOM 13'].map((txt, i) => ({
+      txt, bg: i === 2 ? mark : '#f7f9fb', color: i === 2 ? '#087f9c' : '#5f6b7a'
+    }));
+
+    const fila = (pos, meta, persona, rol, planeado, real, estado, nota) => ({
+      pos, meta, persona, rol, rolColor: rol === 'Cubre-descansos' ? '#087f9c' : '#5f6b7a',
+      planeado, real, estado, estadoColor: estado === 'En curso' ? '#0284c7' : '#16a34a', nota
+    });
+
+    const filasNormal = [
+      fila('P-01 Acceso principal', '4 elementos · 07–19', 'Laura Menchaca Robledo', 'Titular', '07:00 – 19:00', '06:54 – 19:03', 'Asistió', ''),
+      fila('P-01 Acceso principal', '4 elementos · 07–19', 'Óscar Zúñiga', 'Titular', '07:00 – 19:00', '06:58 – 19:00', 'Asistió', ''),
+      fila('P-01 Acceso principal', '4 elementos · 07–19', 'Ismael Trujano Bermúdez', 'Titular', '07:00 – 19:00', '07:00 – 19:07', 'Asistió', ''),
+      fila('P-01 Acceso principal', '4 elementos · 07–19', 'Yolanda Castañeda Pineda', 'Titular', '07:00 – 19:00', '06:49 – 19:02', 'Asistió', ''),
+      fila('P-02 Rondín nocturno', '3 elementos · 19–07', 'Jorge Iván Peñaloza', 'Titular', '19:00 – 07:00', '18:56 – 07:04', 'Asistió', ''),
+      fila('P-03 Monitoreo CCTV', '2 elementos · 07–19', 'Ana Sofía Rentería', 'Titular', '07:00 – 19:00', '06:57 – 19:01', 'Asistió', ''),
+      fila('P-04 Rondín perimetral', '3 elementos · 07–15', 'M. Fernanda Cifuentes', 'Titular', '07:00 – 15:00', '06:52 – 15:05', 'Asistió', ''),
+      fila('P-04 Rondín perimetral', '3 elementos · 07–15', 'Rubén Darío Ortiz', 'Cubre-descansos', '07:00 – 15:00', '06:55 – 15:02', 'Asistió', 'cubre el descanso de Efraín Solórzano'),
+      fila('P-05 Recepción vespertina', '2 elementos · 14–22', 'Norma Alicia Berrones', 'Titular', '14:00 – 22:00', '13:58 – pendiente', 'En curso', 'la salida se registra al cierre')
+    ];
+
+    const tipos = [
+      { pill:'FALTA', color:'#dc2626', titulo:'Laura Menchaca Robledo', detalle:'P-01 Acceso principal · planeado 07:00 – 19:00 · sin registro de entrada',
+        regla:'Nadie se presentó al turno. Deja el puesto al descubierto, así que la acción es sólida y continúa en incidencia con su motivo.',
+        accion:'Registrar incidencia', btnBd:'#10104e', btnBg:'#10104e', btnTc:'#ffffff' },
+      { pill:'RETARDO', color:'#d97706', titulo:'Jorge Iván Peñaloza', detalle:'P-02 Rondín nocturno · planeado 19:00 · entrada 19:52 · en curso',
+        regla:'Se documenta siempre y el turno queda cubierto. No trae consecuencia por sí solo: la política de retardos se define por organización.',
+        accion:'Registrar incidencia', btnBd:'#10104e', btnBg:'#10104e', btnTc:'#ffffff' },
+      { pill:'HUECO', color:'#dc2626', titulo:'P-01 Acceso principal · cuarto elemento', detalle:'4 requeridos · 3 asignados · nadie a quién registrar',
+        regla:'No es una falta de persona sino una vacante de la posición. Se resuelve en Cobertura; la acción es secundaria porque no hay asistencia que registrar.',
+        accion:'Ver en cobertura', btnBd:'#dce2e9', btnBg:'#ffffff', btnTc:'#253040' }
+    ];
+
+    return {
+      organizacion: this.props.organizacion ?? 'Seguridad Vanguardia S.A.',
+      fecha: this.props.fecha ?? '10 sep 2026',
+      servicio: this.props.servicio ?? 'Vigilancia intramuros Torre Altavista',
+      diasCab,
+      filasSemana,
+      filasNormal,
+      tipos,
+      pendientes: [
+        { tema:'Quién registra la asistencia', nota:'El paso 10 nombra un rol Operación que el menú lateral no tiene: solo existen super admin fuera, super admin dentro y admin de organización. La pantalla se dibujó como admin.', estado:'HUECO DE ALCANCE', estadoColor:'#d97706' },
+        { tema:'De dónde sale la hora real', nota:'Hoy se teclea. El check-in digital es etapa 13 del proceso de negocio y queda fuera de fase 1 por decisión tomada, así que el panel es de captura y no de confirmación.', estado:'RESUELTO · FUERA DE FASE 1', estadoColor:'#5f6b7a' },
+        { tema:'Cierre del día', nota:'No existe el concepto. Sin corte, un día queda editable siempre y la conciliación con el cliente no tiene contra qué medirse. Es alcance nuevo y no se diseñó.', estado:'ALCANCE NUEVO', estadoColor:'#d97706' },
+        { tema:'Política de retardos', nota:'Vive en configuración de la organización, pantalla que no está en fase 1. El registro documenta el retardo y no descuenta nada por sí solo.', estado:'RESUELTO · FUERA DE FASE 1', estadoColor:'#5f6b7a' }
+      ],
+      esqueleto: [{ a:'62%', b:'40%' }, { a:'48%', b:'54%' }, { a:'70%', b:'33%' }],
+      indicadoresVacios: [
+        { etiqueta:'TURNOS PROYECTADOS', apoyo:'Los turnos del día salen de la versión publicada de la semana.' },
+        { etiqueta:'EXCEPCIONES', apoyo:'Sin plan publicado no hay nada de qué salirse.' },
+        { etiqueta:'COBERTURA DEL DÍA', apoyo:'Se mide contra los elementos requeridos de la versión publicada.' }
+      ],
+      leyenda: [
+        { bd:'#dce2e9', bg:'#ffffff', txt:'Turno con titular', nota:'' },
+        { bd:'#22c6ee', bg:'#e9f7fa', txt:'Cubre-descansos', nota:'fijo o por asignación: pendiente' },
+        { bd:'#dce2e9', bg:'#f7f9fb', txt:'Descanso', nota:'declarado en el patrón' },
+        { bd:'#dc2626', bg:'#ffffff', txt:'Hueco de cobertura', nota:'requeridos > asignados' },
+        { bd:'#d97706', bg:'#ffffff', txt:'Día sin declarar', nota:'patrón incompleto · no aparece en esta semana' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

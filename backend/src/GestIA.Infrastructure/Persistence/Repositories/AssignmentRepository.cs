@@ -17,7 +17,7 @@ public sealed class AssignmentRepository(GestIaDbContext dbContext) : IAssignmen
             service =>
                 service.IdService == idService &&
                 service.IdClient == idClient &&
-                service.Client.IdOrganization == idOrganization,
+                service.IdOrganization == idOrganization,
             cancellationToken);
 
     public Task<Employee?> GetEmployeeAsync(

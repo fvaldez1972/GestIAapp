@@ -3,6 +3,8 @@ import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } 
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { forkJoin } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
+import { operationalDatesBetween, shiftOperationalDate } from '../../../../shared/util/operational-date';
+import { SystemInfoService } from '../../../../core/system/system-info.service';
 import { ClientApiService } from '../../../clients/data-access/client-api.service';
 import {
   Client,
@@ -14,6 +16,7 @@ import {
   ServiceAssignmentType,
   ServicePosition,
   ShiftPattern,
+  ClientListItem,
 } from '../../../clients/data-access/client.models';
 import { WorkforceApiService } from '../../../workforce/data-access/workforce-api.service';
 import { Employee } from '../../../workforce/data-access/workforce.models';
@@ -29,10 +32,10 @@ export class PlanningPage implements OnInit {
   private readonly api = inject(ClientApiService);
   private readonly workforceApi = inject(WorkforceApiService);
   private readonly auth = inject(AuthService);
+  private readonly systemInfo = inject(SystemInfoService);
   private readonly formBuilder = inject(FormBuilder);
 
-  protected readonly organizations = signal<readonly Organization[]>([]);
-  protected readonly clients = signal<readonly Client[]>([]);
+  protected readonly clients = signal<readonly ClientListItem[]>([]);
   protected readonly services = signal<readonly ManagedService[]>([]);
   protected readonly positions = signal<readonly ServicePosition[]>([]);
   protected readonly assignments = signal<readonly ServiceAssignment[]>([]);
@@ -41,7 +44,8 @@ export class PlanningPage implements OnInit {
   protected readonly publishedShifts = signal<readonly ScheduledShift[]>([]);
   protected readonly employees = signal<readonly Employee[]>([]);
   protected readonly shiftPatterns = signal<readonly ShiftPattern[]>([]);
-  protected readonly selectedOrganizationId = signal('');
+  /** La organización de trabajo la fija la barra de contexto, y sólo ella. */
+  protected readonly selectedOrganizationId = this.auth.operationalOrganizationId;
   protected readonly selectedClientId = signal('');
   protected readonly selectedServiceId = signal('');
   protected readonly selectedVersionId = signal('');
@@ -63,6 +67,24 @@ export class PlanningPage implements OnInit {
   protected readonly generationWarnings = signal<readonly string[]>([]);
 
   protected readonly canWrite = computed(() => this.auth.hasPermission('PLANNING.WRITE'));
+  protected readonly isPlatformAdmin = computed(() => this.auth.hasPermission('PLATFORM.ADMIN'));
+  protected readonly selectedClient = computed(
+    () => this.clients().find((client) => client.idClient === this.selectedClientId()) ?? null,
+  );
+  protected readonly selectedOrganization = this.auth.activeOrganization;
+  protected readonly heroCopy = computed(() =>
+    this.isPlatformAdmin()
+      ? {
+        eyebrow: 'Operación / Planeación',
+        title: 'Planeación por organización',
+        description: `Valida turnos, posiciones y versiones publicadas para ${this.selectedOrganization()?.legalName || 'la organización seleccionada'}.`,
+      }
+      : {
+        eyebrow: 'Operación / Planeación',
+        title: 'Planeación del cliente',
+        description: `Visualiza turnos por semana, valida huecos y publica versiones listas para operar en ${this.selectedClient()?.tradeName || this.selectedClient()?.legalName || 'el cliente seleccionado'}.`,
+      },
+  );
   protected readonly selectedService = computed(
     () => this.services().find((service) => service.idService === this.selectedServiceId()) ?? null,
   );
@@ -395,18 +417,7 @@ export class PlanningPage implements OnInit {
   });
 
   ngOnInit() {
-    this.loadOrganizations();
-  }
-
-  protected onOrganizationChange(event: Event) {
-    this.selectedOrganizationId.set((event.target as HTMLSelectElement).value);
-    this.selectedClientId.set('');
-    this.selectedServiceId.set('');
-    this.selectedVersionId.set('');
-    this.clients.set([]);
-    this.services.set([]);
-    this.clearPlanningData();
-    this.loadClients();
+    this.loadForActiveOrganization();
   }
 
   protected onClientChange(event: Event) {
@@ -1116,19 +1127,15 @@ export class PlanningPage implements OnInit {
       });
   }
 
-  private loadOrganizations() {
-    this.loading.set(true);
-    this.error.set('');
-
-    this.api.listOrganizations().subscribe({
-      next: (organizations) => {
-        this.organizations.set(organizations);
-        this.selectedOrganizationId.set(organizations[0]?.idOrganization ?? '');
-        this.loadClients();
-      },
-      error: (error: HttpErrorResponse) => this.setError(error, 'No se pudieron cargar las organizaciones.'),
-      complete: () => this.loading.set(false),
-    });
+  /**
+   * Ya no se carga una lista de organizaciones para elegir: la organización la fija la barra de
+   * contexto. Si hay una, se cargan sus datos; si no, la pantalla espera a que se elija. Cuando
+   * cambia, el shell vuelve a montar la pantalla y esto corre de nuevo.
+   */
+  private loadForActiveOrganization() {
+    if (this.selectedOrganizationId()) {
+      this.loadClients();
+    }
   }
 
   private loadClients() {
@@ -1141,7 +1148,7 @@ export class PlanningPage implements OnInit {
     this.loading.set(true);
     this.error.set('');
 
-    this.api.listClients(organizationId, '', 1, 100).subscribe({
+    this.api.listClientOptions(organizationId).subscribe({
       next: (result) => {
         this.clients.set(result.items);
         this.selectedClientId.set(result.items[0]?.idClient ?? '');
@@ -1189,7 +1196,7 @@ export class PlanningPage implements OnInit {
       positions: this.api.listPositions(context.idOrganization, context.idClient, context.idService),
       assignments: this.api.listAssignments(context.idOrganization, context.idClient, context.idService),
       versions: this.api.listScheduleVersions(context.idOrganization, context.idClient, context.idService),
-      employees: this.workforceApi.listEmployees(context.idOrganization, '', 'Active', 1, 100),
+      employees: this.workforceApi.listEmployeeOptions(context.idOrganization),
     }).subscribe({
       next: ({ positions, assignments, versions, employees }) => {
         this.positions.set(positions);
@@ -1321,25 +1328,20 @@ export class PlanningPage implements OnInit {
   }
 
   private today() {
-    return new Date().toISOString().slice(0, 10);
+    // El día operativo lo dice el servidor. Calcularlo aquí con `toISOString()` daba el día UTC:
+    // a las 19:00 hora de Ciudad de México del 4 de septiembre devolvía el 5, y la pantalla
+    // proponía el día siguiente todas las tardes. Es el mismo defecto que el reloj operativo
+    // cerró en el servidor. Cadena vacía mientras no se sabe: vacío se nota, un día equivocado no.
+    return this.systemInfo.operationDate();
   }
 
+  /** Días contados desde el día operativo, no desde el reloj del navegador. */
   private addDays(days: number) {
-    const date = new Date();
-    date.setDate(date.getDate() + days);
-    return date.toISOString().slice(0, 10);
+    return shiftOperationalDate(this.today(), days);
   }
 
   private dateRange(startDate: string, endDate: string) {
-    const start = new Date(`${startDate}T00:00:00`);
-    const end = new Date(`${endDate}T00:00:00`);
-    const dates: string[] = [];
-
-    for (const date = new Date(start); date <= end; date.setDate(date.getDate() + 1)) {
-      dates.push(date.toISOString().slice(0, 10));
-    }
-
-    return dates;
+    return [...operationalDatesBetween(startDate, endDate)];
   }
 
   private weekdayLabel(date: string) {

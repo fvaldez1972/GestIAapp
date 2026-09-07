@@ -9,7 +9,7 @@ public sealed record ScheduleVersionProfile(
     DateOnly PeriodEndDate,
     string? Notes);
 
-public sealed class ScheduleVersion : AuditableEntity
+public sealed class ScheduleVersion : AuditableEntity, IOrganizationScopedEntity
 {
     private readonly List<ScheduledShift> shifts = [];
 
@@ -19,6 +19,7 @@ public sealed class ScheduleVersion : AuditableEntity
 
     private ScheduleVersion(
         Guid idScheduleVersion,
+        Guid idOrganization,
         Guid idService,
         ScheduleVersionProfile profile,
         Guid actorId,
@@ -26,6 +27,7 @@ public sealed class ScheduleVersion : AuditableEntity
         DateTime occurredAt)
     {
         IdScheduleVersion = idScheduleVersion;
+        IdOrganization = idOrganization;
         IdService = idService;
         Status = ScheduleVersionStatus.Draft;
         ApplyProfile(profile);
@@ -33,6 +35,7 @@ public sealed class ScheduleVersion : AuditableEntity
     }
 
     public Guid IdScheduleVersion { get; private set; }
+    public Guid IdOrganization { get; private set; }
     public Guid IdService { get; private set; }
     public string Name { get; private set; } = string.Empty;
     public DateOnly PeriodStartDate { get; private set; }
@@ -46,12 +49,13 @@ public sealed class ScheduleVersion : AuditableEntity
     public IReadOnlyCollection<ScheduledShift> Shifts => shifts;
 
     public static ScheduleVersion Create(
+        Guid idOrganization,
         Guid idService,
         ScheduleVersionProfile profile,
         Guid actorId,
         string actorName,
         DateTime occurredAt) =>
-        new(Guid.NewGuid(), idService, profile, actorId, actorName, occurredAt);
+        new(Guid.NewGuid(), idOrganization, idService, profile, actorId, actorName, occurredAt);
 
     public void UpdateProfile(
         ScheduleVersionProfile profile,
@@ -88,7 +92,7 @@ public sealed class ScheduleVersion : AuditableEntity
     {
         if (Status != ScheduleVersionStatus.Draft)
         {
-            throw new InvalidOperationException("La planeación publicada no puede modificarse directamente.");
+            throw new DomainRuleException("La planeación publicada no puede modificarse directamente.");
         }
     }
 

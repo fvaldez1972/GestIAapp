@@ -21,6 +21,51 @@ Se adaptaron los siguientes conceptos del StarterKit:
 
 La identidad, colores, textos, navegación e iconografía son propios de GestIA.
 
+## Segundo corte: el cromo del shell (2026-09-05)
+
+Tanda 1 del rediseño de fase 1. Cada pieza con su origen, adaptación, prueba y consumidor, como
+pide la regla de abajo.
+
+### `GiSelect` — `frontend/src/app/shared/ui/gi-select/gi-select.ts`
+
+| | |
+|---|---|
+| **Origen** | Patrón de menú desplegable de la topbar del StarterKit vertical. |
+| **Dependencias nuevas** | **Ninguna.** La plantilla resuelve el desplegable con Preline, que no entra al repositorio; aquí se reimplementa con señales de Angular 22. |
+| **Adaptación** | Se sustituye el marcado de Preline por `role="combobox"` + `role="listbox"` propios, con teclado completo, `aria-activedescendant` y foco visible en `--gestia-cyan`. Colores por token; ningún hex crudo. |
+| **Prueba** | `gi-select.spec.ts`, doce casos, incluido «no usa el select nativo del sistema». |
+| **Consumidor** | La barra de contexto. Queda disponible para cualquier selector de módulo. |
+
+### Barra de contexto — `frontend/src/app/core/layout/context-bar/context-bar.ts`
+
+| | |
+|---|---|
+| **Origen** | Franja de contexto de la topbar del StarterKit. |
+| **Dependencias nuevas** | Ninguna. |
+| **Adaptación** | Pieza propia de GestIA: no existe equivalente comercial que lleve organización y día operativo. Del StarterKit se conserva sólo la proporción de la franja y su relación con la topbar. |
+| **Prueba** | `context-bar.spec.ts`, ocho casos. |
+| **Consumidor** | El shell completo: es el único lugar donde vive el contexto de organización. |
+
+### Menú lateral plano — `frontend/src/app/core/layout/navigation.ts`
+
+| | |
+|---|---|
+| **Origen** | `docs/design/fase-1/pantallas/componentes/side-menu.html`. |
+| **Dependencias nuevas** | Ninguna. |
+| **Adaptación** | El bosquejo marca cada entrada con un punto de 6 px; aquí se conserva el **icono** del primer corte, porque el sidebar condensado —que el bosquejo no contempla— necesita algo legible a 5 rem de ancho. El resto es literal: lista plana sin grupos, activo sobre `--gestia-navy-soft` con marca de 3 px en `--gestia-cyan`, inactivos en `--gestia-cyan-soft`. |
+| **Prueba** | `navigation.spec.ts` (los tres estados con su cuenta exacta) y `app-shell.spec.ts`. |
+| **Consumidor** | El shell. |
+
+**Los cinco hex del bosquejo, traducidos:** `#10104e` → `--gestia-navy`, `#1c1c66` →
+`--gestia-navy-soft`, `#22c6ee` → `--gestia-cyan`, `#e9f7fa` → `--gestia-cyan-soft`, `#ffffff` →
+`--gestia-surface`. Ninguno quedó sin token y no hizo falta inventar variables. `--gestia-cyan-soft`
+está nombrado como superficie y el bosquejo lo usa como texto sobre navy: mismo valor, otro papel,
+anotado en el CSS en vez de duplicar el token.
+
+**Fuente:** el bosquejo usa `Archivo`. La aplicación declara `Inter` en `--font-sans` y **no la
+carga desde ningún lado**, así que hoy se dibuja con la del sistema. No se agregó ninguna fuente:
+sería una dependencia externa, y entraría con su caso, no de paso.
+
 ## Dependencias incorporadas
 
 - `tailwindcss` 4.1.18.

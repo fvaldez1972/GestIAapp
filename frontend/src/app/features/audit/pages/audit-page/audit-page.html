@@ -1,10 +1,10 @@
 <section class="audit-page">
   <article class="gi-card gi-card--hero audit-hero">
     <div>
-      <span class="eyebrow">Control / Auditoría</span>
-      <h1>Auditoría</h1>
-      <p>Investiga cambios del sistema con lenguaje de negocio, filtros claros y trazabilidad por registro.</p>
-      <span class="audit-context">Organización actual · {{ selectedOrganizationName() }}</span>
+      <span class="eyebrow">{{ heroCopy().eyebrow }}</span>
+      <h1>{{ heroCopy().title }}</h1>
+      <p>{{ heroCopy().description }}</p>
+      <span class="audit-context">{{ auditScopeLabel() }}</span>
     </div>
     <div class="hero-actions">
       <button class="gi-button gi-button--secondary" type="button" [disabled]="loading()" (click)="loadEvents()">

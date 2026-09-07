@@ -2,8 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../../../core/auth/auth.service';
-import { ClientApiService } from '../../../clients/data-access/client-api.service';
-import { Organization } from '../../../clients/data-access/client.models';
+import { SystemInfoService } from '../../../../core/system/system-info.service';
 import { AuditApiService } from '../../data-access/audit-api.service';
 import { AuditEvent, AuditResult } from '../../data-access/audit.models';
 
@@ -17,12 +16,12 @@ import { AuditEvent, AuditResult } from '../../data-access/audit.models';
 export class AuditPage implements OnInit {
   private readonly api = inject(AuditApiService);
   private readonly auth = inject(AuthService);
-  private readonly clientApi = inject(ClientApiService);
+  private readonly systemInfo = inject(SystemInfoService);
 
-  protected readonly organizations = signal<readonly Organization[]>([]);
   protected readonly events = signal<readonly AuditEvent[]>([]);
   protected readonly entities = signal<readonly string[]>([]);
-  protected readonly selectedOrganizationId = signal('');
+  /** La organización de trabajo la fija la barra de contexto, y sólo ella. */
+  protected readonly selectedOrganizationId = this.auth.operationalOrganizationId;
   protected readonly selectedEntity = signal('');
   protected readonly selectedActor = signal('');
   protected readonly selectedAction = signal('');
@@ -112,19 +111,30 @@ export class AuditPage implements OnInit {
       .sort((left, right) => new Date(right.occurredAt).getTime() - new Date(left.occurredAt).getTime());
   });
   protected readonly selectedOrganizationName = computed(
-    () => this.organizations().find((organization) => organization.idOrganization === this.selectedOrganizationId())?.legalName ?? 'Sin organización',
+    () => this.auth.activeOrganization()?.legalName ?? 'Sin organización',
+  );
+  protected readonly isPlatformAdmin = computed(() => this.auth.session()?.permissions.includes('PLATFORM.ADMIN') ?? false);
+  protected readonly heroCopy = computed(() =>
+    this.isPlatformAdmin()
+      ? {
+        eyebrow: 'Control plataforma',
+        title: 'Auditoría por organización',
+        description: 'Investiga cambios administrativos y operativos con trazabilidad por organización, entidad y registro.',
+      }
+      : {
+        eyebrow: 'Control / Auditoría',
+        title: 'Auditoría',
+        description: 'Investiga cambios del sistema con lenguaje de negocio, filtros claros y trazabilidad por registro.',
+      },
+  );
+  protected readonly auditScopeLabel = computed(
+    () => `${this.isPlatformAdmin() ? 'Organización administrada' : 'Organización actual'} · ${this.selectedOrganizationName()}`,
   );
   protected readonly exportingUserName = computed(() => this.auth.displayName() || 'Usuario actual');
   protected readonly exportFileName = computed(() => `gestia-bitacora-${this.selectedEntity() || 'todas'}-${this.today()}.csv`);
 
   ngOnInit() {
-    this.loadOrganizations();
-  }
-
-  protected onOrganizationChange(value: string) {
-    this.selectedOrganizationId.set(value);
-    this.page.set(1);
-    this.loadEvents();
+    this.loadEventsForActiveOrganization();
   }
 
   protected onEntityChange(value: string) {
@@ -500,19 +510,14 @@ export class AuditPage implements OnInit {
       });
   }
 
-  private loadOrganizations() {
-    this.loading.set(true);
-    this.error.set('');
-
-    this.clientApi.listOrganizations().subscribe({
-      next: (organizations) => {
-        this.organizations.set(organizations);
-        this.selectedOrganizationId.set(organizations[0]?.idOrganization ?? '');
-        this.loadEvents();
-      },
-      error: (error: HttpErrorResponse) => this.setError(error, 'No se pudieron cargar las organizaciones.'),
-      complete: () => this.loading.set(false),
-    });
+  /**
+   * Ya no hay lista de organizaciones que cargar: la organización la da la barra de contexto. Si
+   * hay una, se piden sus eventos; si no, la pantalla espera a que se elija.
+   */
+  private loadEventsForActiveOrganization() {
+    if (this.selectedOrganizationId()) {
+      this.loadEvents();
+    }
   }
 
   protected loadEvents() {
@@ -577,9 +582,11 @@ export class AuditPage implements OnInit {
   }
 
   private today() {
-    return new Intl.DateTimeFormat('en-CA', {
-      timeZone: 'America/Mexico_City',
-    }).format(new Date());
+    // El día operativo lo dice el servidor. Calcularlo aquí con `toISOString()` daba el día UTC:
+    // a las 19:00 hora de Ciudad de México del 4 de septiembre devolvía el 5, y la pantalla
+    // proponía el día siguiente todas las tardes. Es el mismo defecto que el reloj operativo
+    // cerró en el servidor. Cadena vacía mientras no se sabe: vacío se nota, un día equivocado no.
+    return this.systemInfo.operationDate();
   }
 }
 

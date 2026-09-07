@@ -7,6 +7,8 @@ namespace GestIA.Application.Operations;
 
 public interface IOperationsRepository
 {
+    Task<T> ExecuteAtomicAsync<T>(Func<CancellationToken, Task<T>> action, CancellationToken cancellationToken);
+
     Task<ServiceEntity?> GetServiceAsync(Guid idOrganization, Guid idClient, Guid idService, CancellationToken cancellationToken);
 
     Task<ServiceEntity?> GetServiceAsync(Guid idOrganization, Guid idService, CancellationToken cancellationToken);
@@ -34,6 +36,10 @@ public interface IOperationsRepository
     Task<IReadOnlyList<CoverageRecord>> ListCoveragesAsync(Guid idService, CancellationToken cancellationToken);
 
     Task AddCoverageAsync(CoverageRecord coverage, CancellationToken cancellationToken);
+
+    Task<bool> HasCoverageConflictAsync(
+        Guid idOrganization, Guid idEmployee, Guid idScheduledShift, ShiftInterval interval,
+        Guid? excludedCoverageId, CancellationToken cancellationToken);
 
     Task<bool> AttendanceBelongsToServiceAsync(Guid idService, Guid idAttendanceRecord, CancellationToken cancellationToken);
 

@@ -8,7 +8,8 @@ export type BusinessCatalogItemType =
   | 'Zone'
   | 'IncidentReason'
   | 'CoverageReason'
-  | 'CancellationReason';
+  | 'CancellationReason'
+  | 'Country' | 'State' | 'City' | 'Nationality';
 
 export type EligibilityRequirementTargetType = 'Organization' | 'Client' | 'Service' | 'Position';
 export type EligibilityRequirementType = 'Skill' | 'Document' | 'Evaluation' | 'Restriction';
@@ -21,9 +22,24 @@ export type CatalogItem = {
   readonly name: string;
   readonly description: string | null;
   readonly active: boolean;
+  readonly group?: string;
+  readonly order?: number;
+  readonly synonyms?: readonly string[];
+  readonly updatedAt?: string | null;
+  readonly idParentCatalogItem?: string | null;
 };
 
-export type CatalogItemInput = Omit<CatalogItem, 'idCatalogItem' | 'active'>;
+export type CatalogItemInput = Omit<CatalogItem, 'idCatalogItem' | 'active' | 'updatedAt'> & { readonly active?: boolean };
+
+export type CatalogDefinition = {
+  readonly key: string;
+  readonly name: string;
+  readonly group: string;
+  readonly module: string;
+  readonly editable: boolean;
+  readonly type: BusinessCatalogItemType | null;
+  readonly values: readonly { code: string; label: string }[];
+};
 
 export type EligibilityRequirement = {
   readonly idEligibilityRequirement: string;

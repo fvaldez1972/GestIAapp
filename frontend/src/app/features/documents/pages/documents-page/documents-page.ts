@@ -1,10 +1,12 @@
 import { HttpErrorResponse, HttpResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
+import { SystemInfoService } from '../../../../core/system/system-info.service';
 import { ClientApiService } from '../../../clients/data-access/client-api.service';
-import { Client, ManagedService, Organization, ServiceContract } from '../../../clients/data-access/client.models';
+import { Client, ManagedService, Organization, ServiceContract, ClientListItem, } from '../../../clients/data-access/client.models';
 import { RequestApiService } from '../../../requests/data-access/request-api.service';
 import { OperationalRequest } from '../../../requests/data-access/request.models';
 import { WorkforceApiService } from '../../../workforce/data-access/workforce-api.service';
@@ -18,13 +20,14 @@ import {
 import { DocumentApiService } from '../../data-access/document-api.service';
 import {
   BusinessDocument,
+  BusinessDocumentEvent,
   BusinessDocumentOwnerType,
   BusinessDocumentStatus,
 } from '../../data-access/document.models';
 
 @Component({
   selector: 'app-documents-page',
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, RouterLink],
   templateUrl: './documents-page.html',
   styleUrl: './documents-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -35,10 +38,11 @@ export class DocumentsPage implements OnInit {
   private readonly workforceApi = inject(WorkforceApiService);
   private readonly requestApi = inject(RequestApiService);
   private readonly auth = inject(AuthService);
+  private readonly systemInfo = inject(SystemInfoService);
+  private readonly route = inject(ActivatedRoute);
   private readonly formBuilder = inject(FormBuilder);
 
-  protected readonly organizations = signal<readonly Organization[]>([]);
-  protected readonly clients = signal<readonly Client[]>([]);
+  protected readonly clients = signal<readonly ClientListItem[]>([]);
   protected readonly contracts = signal<readonly ServiceContract[]>([]);
   protected readonly services = signal<readonly ManagedService[]>([]);
   protected readonly employees = signal<readonly Employee[]>([]);
@@ -46,7 +50,9 @@ export class DocumentsPage implements OnInit {
   protected readonly requests = signal<readonly OperationalRequest[]>([]);
   protected readonly documents = signal<readonly BusinessDocument[]>([]);
   protected readonly workforceDocuments = signal<readonly BusinessDocument[]>([]);
-  protected readonly selectedOrganizationId = signal('');
+  /** La organización de trabajo la fija la barra de contexto, y sólo ella. */
+  protected readonly selectedOrganizationId = this.auth.operationalOrganizationId;
+  protected readonly ownerContext = signal<{ ownerType: BusinessDocumentOwnerType; ownerId: string } | null>(null);
   protected readonly selectedDocumentId = signal('');
   protected readonly selectedOwnerType = signal<BusinessDocumentOwnerType>('Client');
   protected readonly selectedFilterOwnerType = signal<BusinessDocumentOwnerType | ''>('');
@@ -57,6 +63,14 @@ export class DocumentsPage implements OnInit {
   protected readonly selectedFileSize = signal('');
   protected readonly editorOpen = signal(false);
   protected readonly detailOpen = signal(false);
+  protected readonly historyOpen = signal(false);
+  protected readonly historyLoading = signal(false);
+  protected readonly historyError = signal('');
+  protected readonly history = signal<readonly BusinessDocumentEvent[]>([]);
+  protected readonly reviewDecision = signal<'Validated' | 'Rejected' | null>(null);
+  protected readonly reviewForm = this.formBuilder.nonNullable.group({
+    notes: ['', [Validators.maxLength(1000)]],
+  });
   protected readonly loading = signal(false);
   protected readonly saving = signal(false);
   protected readonly uploading = signal(false);
@@ -64,10 +78,23 @@ export class DocumentsPage implements OnInit {
   protected readonly error = signal('');
 
   protected readonly canWrite = computed(() => this.auth.hasPermission('DOCUMENTS.WRITE'));
+  protected readonly canWriteSensitive = computed(() => this.auth.hasPermission('DOCUMENTS.SENSITIVE.READ') && this.auth.hasPermission('DOCUMENTS.SENSITIVE.WRITE'));
   protected readonly canReview = computed(() => this.auth.hasPermission('DOCUMENTS.WRITE'));
-  protected readonly selectedOrganization = computed(
-    () => this.organizations().find((organization) => organization.idOrganization === this.selectedOrganizationId()) ?? null,
+  protected readonly isPlatformAdmin = computed(() => this.auth.hasPermission('PLATFORM.ADMIN'));
+  protected readonly heroCopy = computed(() =>
+    this.isPlatformAdmin()
+      ? {
+        eyebrow: 'Configuración documental',
+        title: 'Documentos por entidad',
+        description: 'Consulta archivos por organización, cliente, servicio, contrato, personal o solicitud; las reglas se gobiernan en Catálogos.',
+      }
+      : {
+        eyebrow: 'Gestión contextual',
+        title: 'Documentos por entidad',
+        description: 'El archivo se administra donde pertenece: cliente, servicio, contrato, personal o solicitud. Configuración conserva las reglas, tipos y requisitos documentales.',
+      },
   );
+  protected readonly selectedOrganization = this.auth.activeOrganization;
   protected readonly allDocuments = computed(() => [...this.documents(), ...this.workforceDocuments()]);
   protected readonly selectedDocument = computed(
     () => this.allDocuments().find((document) => document.idBusinessDocument === this.selectedDocumentId()) ?? null,
@@ -99,6 +126,34 @@ export class DocumentsPage implements OnInit {
   protected readonly sensitiveDocuments = computed(
     () => this.visibleDocuments().filter((document) => document.isSensitive).length,
   );
+  protected readonly documentContextCards = computed(() => {
+    const documents = this.visibleDocuments();
+    const countByOwner = (ownerTypes: readonly BusinessDocumentOwnerType[]) =>
+      documents.filter((document) => ownerTypes.includes(document.ownerType)).length;
+
+    return [
+      {
+        label: 'Cliente',
+        count: countByOwner(['Client']),
+        detail: 'Contratos, RFC y alta fiscal.',
+      },
+      {
+        label: 'Servicio',
+        count: countByOwner(['Service', 'ServiceContract']),
+        detail: 'Anexos, órdenes e instrucciones.',
+      },
+      {
+        label: 'Personal',
+        count: countByOwner(['Employee', 'EmployeeEvaluation']),
+        detail: 'INE, NSS, habilidades y evaluaciones.',
+      },
+      {
+        label: 'Control',
+        count: countByOwner(['OperationalRequest']),
+        detail: 'Soportes ligados a solicitudes.',
+      },
+    ];
+  });
   protected readonly ownerOptions = computed(() => {
     switch (this.selectedOwnerType()) {
       case 'Client':
@@ -202,18 +257,10 @@ export class DocumentsPage implements OnInit {
     storageReference: ['', [Validators.required, Validators.maxLength(500)]],
     isSensitive: [false],
     notes: [''],
-    privacyLevel: ['Confidencial'],
   });
 
   ngOnInit() {
     this.loadInitialData();
-  }
-
-  protected onOrganizationChange(event: Event) {
-    this.selectedOrganizationId.set((event.target as HTMLSelectElement).value);
-    this.selectedDocumentId.set('');
-    this.loadCatalogs();
-    this.loadDocuments();
   }
 
   protected onOwnerTypeChange() {
@@ -232,14 +279,18 @@ export class DocumentsPage implements OnInit {
   }
 
   protected clearFilters() {
-    this.filterForm.reset({ ownerType: '', ownerId: '', status: '', category: '', search: '' });
-    this.selectedFilterOwnerType.set('');
+    const context = this.ownerContext();
+    this.filterForm.reset({ ownerType: context?.ownerType ?? '', ownerId: context?.ownerId ?? '', status: '', category: '', search: '' });
+    this.selectedFilterOwnerType.set(context?.ownerType ?? '');
     this.expiryFilter.set('all');
     this.sensitivityFilter.set('all');
     this.loadDocuments();
   }
 
   protected selectDocument(document: BusinessDocument) {
+    this.historyOpen.set(false);
+    this.history.set([]);
+    this.reviewDecision.set(null);
     this.patchDocumentForm(document);
     this.detailOpen.set(true);
     this.editorOpen.set(false);
@@ -250,6 +301,10 @@ export class DocumentsPage implements OnInit {
     this.uploadStep.set(1);
     this.editorOpen.set(true);
     this.detailOpen.set(false);
+  }
+
+  protected canEditDocument(document: BusinessDocument) {
+    return this.canWrite() && (!document.isSensitive || this.canWriteSensitive());
   }
 
   protected openEditDocument(document: BusinessDocument) {
@@ -269,6 +324,7 @@ export class DocumentsPage implements OnInit {
   }
 
   protected closeDetail() {
+    this.reviewDecision.set(null);
     this.detailOpen.set(false);
   }
 
@@ -281,11 +337,27 @@ export class DocumentsPage implements OnInit {
   }
 
   protected validateDocument(document: BusinessDocument) {
-    this.updateDocumentStatus(document, 'Validated');
+    this.selectedDocumentId.set(document.idBusinessDocument);
+    this.reviewForm.reset();
+    this.reviewDecision.set('Validated');
   }
 
   protected rejectDocument(document: BusinessDocument) {
-    this.updateDocumentStatus(document, 'Rejected');
+    this.selectedDocumentId.set(document.idBusinessDocument);
+    this.reviewForm.reset();
+    this.reviewDecision.set('Rejected');
+  }
+
+  protected submitReview() {
+    const document = this.selectedDocument();
+    const decision = this.reviewDecision();
+    const notes = this.reviewForm.controls.notes.value.trim();
+    if (!document || !decision || this.reviewForm.invalid || (decision === 'Rejected' && !notes)) {
+      this.reviewForm.markAllAsTouched();
+      return;
+    }
+
+    this.updateDocumentStatus(document, decision, notes || null);
   }
 
   private patchDocumentForm(document: BusinessDocument) {
@@ -304,19 +376,19 @@ export class DocumentsPage implements OnInit {
       storageReference: document.storageReference,
       isSensitive: document.isSensitive,
       notes: document.notes ?? '',
-      privacyLevel: document.isSensitive ? 'Confidencial' : 'Operativo',
     });
   }
 
   protected resetForm() {
+    const context = this.ownerContext();
     this.selectedDocumentId.set('');
-    this.selectedOwnerType.set('Client');
+    this.selectedOwnerType.set(context?.ownerType ?? 'Client');
     this.selectedFileName.set('');
     this.selectedFileSize.set('');
     this.uploadStep.set(1);
     this.documentForm.reset({
-      ownerType: 'Client',
-      ownerId: this.clients()[0]?.idClient ?? '',
+      ownerType: context?.ownerType ?? 'Client',
+      ownerId: context?.ownerId ?? this.clients()[0]?.idClient ?? '',
       category: 'Contrato',
       title: '',
       status: 'PendingReview',
@@ -325,7 +397,6 @@ export class DocumentsPage implements OnInit {
       storageReference: '',
       isSensitive: false,
       notes: '',
-      privacyLevel: 'Confidencial',
     });
   }
 
@@ -337,6 +408,10 @@ export class DocumentsPage implements OnInit {
     }
 
     const form = this.documentForm.getRawValue();
+    if (form.isSensitive && !this.canWriteSensitive()) {
+      this.error.set('No tienes permiso para administrar documentos sensibles.');
+      return;
+    }
     const selectedDocumentId = this.selectedDocumentId();
     const payload = {
       idOrganization: organizationId,
@@ -399,7 +474,7 @@ export class DocumentsPage implements OnInit {
     this.selectedFileName.set(file.name);
     this.selectedFileSize.set(this.fileSizeLabel(file.size));
 
-    this.documentsApi.uploadDocumentFile(file).subscribe({
+    this.documentsApi.uploadDocumentFile(file, this.selectedOrganizationId()).subscribe({
       next: (result) => {
         this.documentForm.patchValue({
           title: this.documentForm.controls.title.value || result.originalFileName,
@@ -428,6 +503,34 @@ export class DocumentsPage implements OnInit {
       next: (response) => this.openDownloadedBlob(response, document),
       error: (error: HttpErrorResponse) => this.setError(error, 'No se pudo descargar el archivo.'),
     });
+  }
+
+  protected loadDocumentHistory(document: BusinessDocument) {
+    if (!this.isManagedDocument(document)) {
+      return;
+    }
+    this.historyOpen.set(true);
+    this.historyLoading.set(true);
+    this.historyError.set('');
+    this.history.set([]);
+    this.documentsApi.listHistory(document.idOrganization, document.idBusinessDocument).subscribe({
+      next: events => {
+        if (this.selectedDocumentId() === document.idBusinessDocument) {
+          this.history.set(events);
+          this.historyLoading.set(false);
+        }
+      },
+      error: () => {
+        if (this.selectedDocumentId() === document.idBusinessDocument) {
+          this.historyError.set('No se pudo consultar el historial.');
+          this.historyLoading.set(false);
+        }
+      },
+    });
+  }
+
+  protected historyActionLabel(action: string) {
+    return ({ Created: 'Alta', Updated: 'Edición', Reviewed: 'Revisión', Archived: 'Archivo' } as Record<string, string>)[action] ?? action;
   }
 
   protected deactivateDocument(document: BusinessDocument) {
@@ -503,11 +606,13 @@ export class DocumentsPage implements OnInit {
       return 'No capturada';
     }
 
+    const date = new Date(/^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00` : value);
+    if (Number.isNaN(date.getTime())) return 'Fecha no disponible';
     return new Intl.DateTimeFormat('es-MX', {
       day: '2-digit',
       month: 'short',
       year: 'numeric',
-    }).format(new Date(`${value}T00:00:00`));
+    }).format(date);
   }
 
   protected documentSignals(document: BusinessDocument) {
@@ -658,7 +763,7 @@ export class DocumentsPage implements OnInit {
     return this.ownerTypes.find((item) => item.value === this.selectedOwnerType())?.help ?? '';
   }
 
-  private updateDocumentStatus(document: BusinessDocument, status: BusinessDocumentStatus) {
+  private updateDocumentStatus(document: BusinessDocument, status: 'Validated' | 'Rejected', reviewNotes: string | null) {
     const organizationId = this.selectedOrganizationId();
     if (!organizationId || !this.canWrite() || this.saving()) {
       return;
@@ -666,21 +771,17 @@ export class DocumentsPage implements OnInit {
 
     const payload = {
       idOrganization: organizationId,
-      ownerType: document.ownerType,
-      ownerId: document.ownerId,
-      category: document.category,
-      title: document.title,
       status,
-      issuedDate: document.issuedDate,
-      expiresDate: document.expiresDate,
-      storageReference: document.storageReference,
-      isSensitive: document.isSensitive,
-      notes: document.notes,
+      reviewNotes,
     };
 
     this.beginSave();
-    this.documentsApi.updateDocument(document.idBusinessDocument, payload).subscribe({
+    this.documentsApi.reviewDocument(document.idBusinessDocument, payload).subscribe({
       next: (updatedDocument) => {
+        this.reviewDecision.set(null);
+        if (this.historyOpen()) {
+          this.loadDocumentHistory(updatedDocument);
+        }
         this.message.set(
           status === 'Validated' ? 'Documento validado correctamente.' : 'Documento rechazado correctamente.',
         );
@@ -771,18 +872,55 @@ export class DocumentsPage implements OnInit {
     return this.matchesExpiryFilter(document) && this.matchesSensitivityFilter(document);
   }
 
+  /**
+   * El arranque de la pantalla. Ya no pide la lista de organizaciones ni lee `organizationId` de
+   * la URL: la organización la fija la barra de contexto. El parámetro de URL de todos modos ya
+   * era inofensivo aquí —sólo se respetaba si coincidía con la organización autorizada— y ahora
+   * se va del todo, para que quede una sola manera de decir en qué organización se está.
+   *
+   * Los demás parámetros —el dueño del documento, el estado, la búsqueda— sí siguen: identifican
+   * qué se abre dentro de la organización, no cuál es.
+   */
   private loadInitialData() {
-    this.loading.set(true);
-    this.clientApi.listOrganizations().subscribe({
-      next: (organizations) => {
-        this.organizations.set(organizations);
-        this.selectedOrganizationId.set(organizations[0]?.idOrganization ?? '');
-        this.loadCatalogs();
-        this.loadDocuments();
-      },
-      error: (error: HttpErrorResponse) => this.setError(error, 'No se pudieron cargar las organizaciones.'),
-      complete: () => this.loading.set(false),
+    const params = this.route.snapshot.queryParamMap;
+    const ownerType = this.normalizeOwnerType(params.get('ownerType'));
+    const ownerId = params.get('ownerId') ?? '';
+
+    if (ownerType && ownerId) {
+      this.ownerContext.set({ ownerType, ownerId });
+      this.documentForm.patchValue({ ownerType, ownerId });
+      this.selectedOwnerType.set(ownerType);
+      this.documentForm.controls.ownerType.disable();
+      this.documentForm.controls.ownerId.disable();
+      this.filterForm.controls.ownerType.disable();
+      this.filterForm.controls.ownerId.disable();
+    }
+
+    if (!this.canWriteSensitive()) {
+      this.documentForm.controls.isSensitive.disable();
+    }
+
+    this.selectedFilterOwnerType.set(ownerType);
+    this.filterForm.patchValue({
+      ownerType,
+      ownerId,
+      status: this.normalizeStatus(params.get('status')),
+      category: params.get('category') ?? '',
+      search: params.get('search') ?? '',
     });
+
+    if (this.selectedOrganizationId()) {
+      this.loadCatalogs();
+      this.loadDocuments();
+    }
+  }
+
+  private normalizeOwnerType(value: string | null): BusinessDocumentOwnerType | '' {
+    return this.ownerTypes.some((type) => type.value === value) ? value as BusinessDocumentOwnerType : '';
+  }
+
+  private normalizeStatus(value: string | null): BusinessDocumentStatus | '' {
+    return this.statuses.some((status) => status.value === value) ? value as BusinessDocumentStatus : '';
   }
 
   private ownerOptionsForType(ownerType: BusinessDocumentOwnerType | '') {
@@ -828,6 +966,7 @@ export class DocumentsPage implements OnInit {
   }
 
   private patchOwnerIdIfNeeded() {
+    if (this.ownerContext()) return;
     const currentOwnerId = this.documentForm.controls.ownerId.value;
     const options = this.ownerOptions();
 
@@ -843,8 +982,8 @@ export class DocumentsPage implements OnInit {
     }
 
     forkJoin({
-      clients: this.clientApi.listClients(organizationId, '', 1, 100),
-      employees: this.workforceApi.listEmployees(organizationId, '', '', 1, 100),
+      clients: this.clientApi.listClientOptions(organizationId),
+      employees: this.workforceApi.listEmployeeOptions(organizationId),
       requests: this.requestApi.listRequests(organizationId, '', '', '', 1, 100),
     }).subscribe({
       next: ({ clients, employees, requests }) => {
@@ -852,13 +991,13 @@ export class DocumentsPage implements OnInit {
         this.employees.set(employees.items);
         this.requests.set(requests.items);
         this.loadRelatedOwnerOptions(clients.items, employees.items);
-        this.documentForm.patchValue({ ownerId: this.ownerOptions()[0]?.value ?? '' });
+        if (!this.ownerContext()) this.documentForm.patchValue({ ownerId: this.ownerOptions()[0]?.value ?? '' });
       },
       error: (error: HttpErrorResponse) => this.setError(error, 'No se pudieron cargar los catálogos de documentos.'),
     });
   }
 
-  private loadRelatedOwnerOptions(clients: readonly Client[], employees: readonly Employee[]) {
+  private loadRelatedOwnerOptions(clients: readonly ClientListItem[], employees: readonly Employee[]) {
     const organizationId = this.selectedOrganizationId();
     if (!organizationId) {
       this.services.set([]);
@@ -888,7 +1027,7 @@ export class DocumentsPage implements OnInit {
       this.contracts.set([]);
     }
 
-    if (employees.length) {
+    if (employees.length && this.auth.hasPermission('DOCUMENTS.SENSITIVE.READ')) {
       forkJoin(employees.map((employee) => this.workforceApi.getEmployee(organizationId, employee.idEmployee))).subscribe({
         next: (details) => {
           this.workforceDocuments.set(
@@ -960,10 +1099,13 @@ export class DocumentsPage implements OnInit {
       status: this.statusFromEmployeeDocument(document.status, document.expiresDate),
       issuedDate: document.issuedDate,
       expiresDate: document.expiresDate,
-      isExpired: Boolean(document.expiresDate && document.expiresDate < this.today()),
+      isExpired: this.isExpired(document.expiresDate),
       storageReference: document.storageReference ?? '',
       isSensitive: true,
       notes: document.notes,
+      reviewNotes: null,
+      reviewedAt: null,
+      reviewedByName: null,
       active: document.active,
       createdAt: document.receivedDate ?? employee.createdAt,
       updatedAt: null,
@@ -986,8 +1128,16 @@ export class DocumentsPage implements OnInit {
     return this.employeeDocumentTypeLabel(type);
   }
 
+  /**
+   * Vencido respecto del día operativo. // Sin día operativo no se afirma nada: no se marca vencido ni se da por vigente.
+   */
+  private isExpired(expiresDate: string | null): boolean {
+    const today = this.today();
+    return Boolean(today && expiresDate && expiresDate < today);
+  }
+
   private statusFromEmployeeDocument(status: EmployeeDocumentStatus, expiresDate: string | null): BusinessDocumentStatus {
-    if (expiresDate && expiresDate < this.today()) {
+    if (this.isExpired(expiresDate)) {
       return 'Expired';
     }
 
@@ -1008,7 +1158,11 @@ export class DocumentsPage implements OnInit {
   }
 
   private today(): string {
-    return new Date().toISOString().slice(0, 10);
+    // El día operativo lo dice el servidor. Calcularlo aquí con `toISOString()` daba el día UTC:
+    // a las 19:00 hora de Ciudad de México del 4 de septiembre devolvía el 5, y la pantalla
+    // proponía el día siguiente todas las tardes. Es el mismo defecto que el reloj operativo
+    // cerró en el servidor. Cadena vacía mientras no se sabe: vacío se nota, un día equivocado no.
+    return this.systemInfo.operationDate();
   }
 
   private openDownloadedBlob(response: HttpResponse<Blob>, document: BusinessDocument) {

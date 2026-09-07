@@ -1,8 +1,11 @@
 import { HttpErrorResponse, HttpResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { CatalogSelect } from '../../../../shared/ui/catalog-select/catalog-select';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal, linkedSignal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
+import { AuthService } from '../../../../core/auth/auth.service';
+import { SystemInfoService } from '../../../../core/system/system-info.service';
 import { ClientApiService } from '../../../clients/data-access/client-api.service';
 import {
   AttendanceRecord,
@@ -24,13 +27,14 @@ import {
   Organization,
   ScheduledShift,
   ScheduleVersion,
+  ClientListItem,
 } from '../../../clients/data-access/client.models';
 import { WorkforceApiService } from '../../../workforce/data-access/workforce-api.service';
 import { Employee } from '../../../workforce/data-access/workforce.models';
 
 @Component({
   selector: 'app-operations-page',
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, CatalogSelect],
   templateUrl: './operations-page.html',
   styleUrl: './operations-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -38,12 +42,13 @@ import { Employee } from '../../../workforce/data-access/workforce.models';
 export class OperationsPage implements OnInit {
   private readonly api = inject(ClientApiService);
   private readonly workforceApi = inject(WorkforceApiService);
+  private readonly auth = inject(AuthService);
+  private readonly systemInfo = inject(SystemInfoService);
   private readonly formBuilder = inject(FormBuilder);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
-  protected readonly organizations = signal<readonly Organization[]>([]);
-  protected readonly clients = signal<readonly Client[]>([]);
+  protected readonly clients = signal<readonly ClientListItem[]>([]);
   protected readonly services = signal<readonly ManagedService[]>([]);
   protected readonly attendance = signal<readonly AttendanceRecord[]>([]);
   protected readonly incidents = signal<readonly Incident[]>([]);
@@ -55,7 +60,8 @@ export class OperationsPage implements OnInit {
   protected readonly scheduledShifts = signal<readonly ScheduledShift[]>([]);
   protected readonly employees = signal<readonly Employee[]>([]);
   protected readonly summary = signal<OperationsSummary | null>(null);
-  protected readonly selectedOrganizationId = signal('');
+  /** La organización de trabajo la fija la barra de contexto, y sólo ella. */
+  protected readonly selectedOrganizationId = this.auth.operationalOrganizationId;
   protected readonly selectedClientId = signal('');
   protected readonly selectedServiceId = signal('');
   protected readonly selectedIncidentId = signal('');
@@ -63,7 +69,12 @@ export class OperationsPage implements OnInit {
   protected readonly selectedEvidenceId = signal('');
   protected readonly selectedApprovalRequestId = signal('');
   protected readonly selectedAttendanceId = signal('');
-  protected readonly selectedOperationDate = signal(this.today());
+  /**
+   * Filtro de fecha con el día operativo por omisión. Es un `linkedSignal` y no un `signal` porque
+   * el día llega del servidor y puede no estar todavía cuando se construye la pantalla: así el
+   * filtro se llena solo en cuanto se sabe, y sigue pudiendo cambiarlo quien la usa.
+   */
+  protected readonly selectedOperationDate = linkedSignal(() => this.today());
   protected readonly incidentHistoryScope = signal<IncidentHistoryScope>('day');
   protected readonly coverageHistoryScope = signal<CoverageHistoryScope>('day');
   protected readonly activeSection = signal<OperationSection>('asistencia');
@@ -82,8 +93,12 @@ export class OperationsPage implements OnInit {
   protected readonly selectedClient = computed(
     () => this.clients().find((client) => client.idClient === this.selectedClientId()) ?? null,
   );
-  protected readonly selectedOrganization = computed(
-    () => this.organizations().find((organization) => organization.idOrganization === this.selectedOrganizationId()) ?? null,
+  protected readonly selectedOrganization = this.auth.activeOrganization;
+  protected readonly isPlatformAdmin = computed(() => this.auth.hasPermission('PLATFORM.ADMIN'));
+  protected readonly operationScopeLabel = computed(() =>
+    this.isPlatformAdmin()
+      ? `Operación por organización · ${this.selectedOrganization()?.legalName || 'Sin organización'}`
+      : `Operación del cliente · ${this.selectedClient()?.tradeName || this.selectedClient()?.legalName || 'Sin cliente'}`,
   );
   protected readonly dailyShifts = computed(() =>
     this.scheduledShifts().filter((shift) => shift.shiftDate === this.selectedOperationDate()),
@@ -481,14 +496,6 @@ export class OperationsPage implements OnInit {
     { value: 'Completed', label: 'Completada' },
     { value: 'Cancelled', label: 'Cancelada' },
   ];
-  protected readonly coverageReasons: readonly string[] = [
-    'Incidencia del empleado',
-    'Falta del empleado',
-    'Retardo fuera de tolerancia',
-    'Solicitud del cliente',
-    'Refuerzo operativo',
-    'Otro motivo documentado',
-  ];
   protected readonly coverageCandidateFilters: readonly string[] = ['Más cercano', 'Elegible', 'Sin conflicto', 'Menos horas'];
 
   protected readonly evidenceTypes: readonly { value: OperationEvidenceType; label: string }[] = [
@@ -520,7 +527,7 @@ export class OperationsPage implements OnInit {
   protected readonly incidentForm = this.formBuilder.nonNullable.group({
     idScheduledShift: ['', [Validators.required]],
     incidentDate: [this.today(), [Validators.required]],
-    incidentType: ['OPERATIVA', [Validators.required, Validators.maxLength(80)]],
+    incidentType: ['', [Validators.required, Validators.maxLength(80)]],
     severity: ['Medium' as IncidentSeverity, [Validators.required]],
     status: ['Open' as IncidentStatus, [Validators.required]],
     description: ['', [Validators.required, Validators.maxLength(1000)]],
@@ -536,7 +543,7 @@ export class OperationsPage implements OnInit {
   protected readonly coverageForm = this.formBuilder.nonNullable.group({
     idScheduledShift: ['', [Validators.required]],
     idReplacementEmployee: ['', [Validators.required]],
-    coverageReason: ['Incidencia del empleado', [Validators.required, Validators.maxLength(120)]],
+    coverageReason: ['', [Validators.maxLength(120)]],
     coverageStartTime: ['08:00', [Validators.required]],
     coverageEndTime: ['16:00', [Validators.required]],
     isOvernight: [false],
@@ -587,17 +594,7 @@ export class OperationsPage implements OnInit {
       void this.router.navigateByUrl('/operacion/asistencia');
     });
 
-    this.loadOrganizations();
-  }
-
-  protected onOrganizationChange(event: Event) {
-    this.selectedOrganizationId.set((event.target as HTMLSelectElement).value);
-    this.selectedClientId.set('');
-    this.selectedServiceId.set('');
-    this.clients.set([]);
-    this.services.set([]);
-    this.clearOperationLists();
-    this.loadClients();
+    this.loadForActiveOrganization();
   }
 
   protected onClientChange(event: Event) {
@@ -980,6 +977,10 @@ export class OperationsPage implements OnInit {
 
     const selectedCoverageId = this.selectedCoverageId();
     const requestedStatus: CoverageStatus = selectedCoverageId ? form.status : 'Requested';
+    if (!selectedCoverageId && !form.coverageReason) {
+      this.error.set('Selecciona un motivo de cobertura.');
+      return;
+    }
     const isConfirming =
       (requestedStatus === 'Confirmed' || requestedStatus === 'Completed') &&
       !(this.selectedCoverage()?.status === 'Confirmed' || this.selectedCoverage()?.status === 'Completed');
@@ -1004,6 +1005,7 @@ export class OperationsPage implements OnInit {
       coverageEndTime: form.coverageEndTime,
       isOvernight: form.isOvernight,
       status: requestedStatus,
+      idCoverageReason: form.coverageReason || null,
       notes: this.buildCoverageNotes(form, requestedStatus),
     };
     const request = selectedCoverageId
@@ -1058,7 +1060,7 @@ export class OperationsPage implements OnInit {
     this.incidentForm.reset({
       idScheduledShift: this.dailyShifts()[0]?.idScheduledShift ?? '',
       incidentDate: this.selectedOperationDate(),
-      incidentType: 'OPERATIVA',
+      incidentType: '',
       severity: 'Medium',
       status: 'Open',
       description: '',
@@ -1099,7 +1101,7 @@ export class OperationsPage implements OnInit {
     this.coverageForm.patchValue({
       idScheduledShift: coverage.idScheduledShift,
       idReplacementEmployee: coverage.idReplacementEmployee,
-      coverageReason: this.coverageReasonFromNotes(coverage.notes),
+      coverageReason: coverage.idCoverageReason ?? '',
       coverageStartTime: coverage.coverageStartTime.slice(0, 5),
       coverageEndTime: coverage.coverageEndTime.slice(0, 5),
       isOvernight: coverage.isOvernight,
@@ -1121,7 +1123,7 @@ export class OperationsPage implements OnInit {
     this.coverageForm.reset({
       idScheduledShift: firstShift?.idScheduledShift ?? '',
       idReplacementEmployee: firstReplacement?.idEmployee ?? '',
-      coverageReason: 'Incidencia del empleado',
+      coverageReason: '',
       coverageStartTime: firstShift?.startTime?.slice(0, 5) ?? '08:00',
       coverageEndTime: firstShift?.endTime?.slice(0, 5) ?? '16:00',
       isOvernight: firstShift?.isOvernight ?? false,
@@ -1192,8 +1194,9 @@ export class OperationsPage implements OnInit {
   protected onEvidenceFileSelected(event: Event) {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
+    const context = this.operationContext();
 
-    if (!file) {
+    if (!file || !context) {
       return;
     }
 
@@ -1201,7 +1204,7 @@ export class OperationsPage implements OnInit {
     this.message.set('');
     this.error.set('');
 
-    this.api.uploadOperationEvidenceFile(file).subscribe({
+    this.api.uploadOperationEvidenceFile(file, context.idOrganization).subscribe({
       next: (result) => {
         this.evidenceForm.patchValue({
           title: this.evidenceForm.controls.title.value || result.originalFileName,
@@ -1209,7 +1212,11 @@ export class OperationsPage implements OnInit {
         });
         this.message.set('Archivo cargado correctamente. Guarda la evidencia para ligarlo al registro.');
       },
-      error: (error: HttpErrorResponse) => this.setError(error, 'No se pudo cargar el archivo.'),
+      error: (error: HttpErrorResponse) => {
+        this.uploadingEvidenceFile.set(false);
+        input.value = '';
+        this.setError(error, 'No se pudo cargar el archivo.');
+      },
       complete: () => {
         this.uploadingEvidenceFile.set(false);
         input.value = '';
@@ -1269,12 +1276,14 @@ export class OperationsPage implements OnInit {
   }
 
   protected downloadEvidence(evidence: OperationEvidence) {
+    const context = this.operationContext();
+    if (!context) return;
     if (!evidence.storageReference) {
       this.error.set('La evidencia no tiene una referencia de archivo para descargar.');
       return;
     }
 
-    this.api.downloadOperationEvidenceFile(evidence.storageReference).subscribe({
+    this.api.downloadOperationEvidenceFile(context.idOrganization, context.idClient, context.idService, evidence.idOperationEvidence).subscribe({
       next: (response) => this.openDownloadedEvidence(response, evidence),
       error: (error: HttpErrorResponse) => this.setError(error, 'No se pudo descargar la evidencia.'),
     });
@@ -1605,7 +1614,7 @@ export class OperationsPage implements OnInit {
 
     switch (step) {
       case 'detectar':
-        return Boolean(form.idScheduledShift && form.coverageReason);
+        return Boolean(form.idScheduledShift && (this.selectedCoverageId() || form.coverageReason));
       case 'sustituto':
         return Boolean(candidate && candidate.blockingReasons.length === 0);
       case 'validar':
@@ -1719,19 +1728,15 @@ export class OperationsPage implements OnInit {
     return 'Pendiente de confirmar';
   }
 
-  private loadOrganizations() {
-    this.loading.set(true);
-    this.error.set('');
-
-    this.api.listOrganizations().subscribe({
-      next: (organizations) => {
-        this.organizations.set(organizations);
-        this.selectedOrganizationId.set(organizations[0]?.idOrganization ?? '');
-        this.loadClients();
-      },
-      error: (error: HttpErrorResponse) => this.setError(error, 'No se pudieron cargar las organizaciones.'),
-      complete: () => this.loading.set(false),
-    });
+  /**
+   * Ya no se carga una lista de organizaciones para elegir: la organización la fija la barra de
+   * contexto. Si hay una, se cargan sus datos; si no, la pantalla espera a que se elija. Cuando
+   * cambia, el shell vuelve a montar la pantalla y esto corre de nuevo.
+   */
+  private loadForActiveOrganization() {
+    if (this.selectedOrganizationId()) {
+      this.loadClients();
+    }
   }
 
   private loadClients() {
@@ -1744,7 +1749,7 @@ export class OperationsPage implements OnInit {
     this.loading.set(true);
     this.error.set('');
 
-    this.api.listClients(organizationId, '', 1, 100).subscribe({
+    this.api.listClientOptions(organizationId).subscribe({
       next: (result) => {
         this.clients.set(result.items);
         this.selectedClientId.set(result.items[0]?.idClient ?? '');
@@ -1799,7 +1804,7 @@ export class OperationsPage implements OnInit {
       closures: this.api.listOperationDayClosures(organizationId, serviceId),
       summary: this.api.getOperationsSummary(organizationId, clientId, serviceId),
       versions: this.api.listScheduleVersions(organizationId, clientId, serviceId),
-      employees: this.workforceApi.listEmployees(organizationId, '', 'Active', 1, 100),
+      employees: this.workforceApi.listEmployeeOptions(organizationId),
     }).subscribe({
       next: ({ attendance, incidents, coverages, evidences, approvals, closures, summary, versions, employees }) => {
         this.attendance.set(attendance);
@@ -1877,7 +1882,7 @@ export class OperationsPage implements OnInit {
     this.coverageForm.patchValue({
       idScheduledShift: firstShift?.idScheduledShift ?? '',
       idReplacementEmployee: firstReplacement?.idEmployee ?? '',
-      coverageReason: 'Incidencia del empleado',
+      coverageReason: '',
       coverageStartTime: firstShift?.startTime?.slice(0, 5) ?? '08:00',
       coverageEndTime: firstShift?.endTime?.slice(0, 5) ?? '16:00',
       isOvernight: firstShift?.isOvernight ?? false,
@@ -1947,7 +1952,6 @@ export class OperationsPage implements OnInit {
 
   private buildCoverageNotes(form: CoverageFormValue, status: CoverageStatus) {
     const notes = [
-      `Motivo: ${form.coverageReason}`,
       form.notes.trim() ? `Observaciones: ${form.notes.trim()}` : '',
     ];
 
@@ -1966,10 +1970,6 @@ export class OperationsPage implements OnInit {
     return notes.filter(Boolean).join('\n');
   }
 
-  private coverageReasonFromNotes(notes: string | null) {
-    const reason = notes?.match(/Motivo:\s*(.+)/i)?.[1]?.trim();
-    return this.coverageReasons.includes(reason ?? '') ? reason ?? 'Incidencia del empleado' : 'Incidencia del empleado';
-  }
 
   private coverageHasBlockingIssue(coverage: CoverageRecord) {
     const shift = this.scheduledShifts().find((item) => item.idScheduledShift === coverage.idScheduledShift);
@@ -2132,7 +2132,11 @@ export class OperationsPage implements OnInit {
   }
 
   private today() {
-    return new Date().toISOString().slice(0, 10);
+    // El día operativo lo dice el servidor. Calcularlo aquí con `toISOString()` daba el día UTC:
+    // a las 19:00 hora de Ciudad de México del 4 de septiembre devolvía el 5, y la pantalla
+    // proponía el día siguiente todas las tardes. Es el mismo defecto que el reloj operativo
+    // cerró en el servidor. Cadena vacía mientras no se sabe: vacío se nota, un día equivocado no.
+    return this.systemInfo.operationDate();
   }
 
   private formatDate(value: string) {

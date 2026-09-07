@@ -29,6 +29,9 @@ public static partial class GestIaDatabaseStandards
         "Women"
     };
 
+    /// <summary>Nombre del filtro de borrado lógico. Se apaga con <c>IgnoreQueryFilters(["Active"])</c>.</summary>
+    public const string ActiveFilterName = "Active";
+
     public static void ApplyGestIaDatabaseStandards(this ModelBuilder modelBuilder)
     {
         ArgumentNullException.ThrowIfNull(modelBuilder);
@@ -211,7 +214,11 @@ public static partial class GestIaDatabaseStandards
 
         var parameter = Expression.Parameter(entityType.ClrType, "entity");
         var activeProperty = Expression.Property(parameter, nameof(IActivatableEntity.Active));
-        entityType.SetQueryFilter(Expression.Lambda(activeProperty, parameter));
+
+        // Con nombre, para que se pueda apagar solo: IgnoreQueryFilters(["Active"]) deja intacto
+        // el filtro de organización. Sin nombre, apagar el borrado lógico apagaría también el
+        // aislamiento entre organizaciones, que es justo lo que no puede pasar.
+        entityType.SetQueryFilter(ActiveFilterName, Expression.Lambda(activeProperty, parameter));
     }
 
     private static void ValidateTable(IMutableEntityType entityType, string tableName)

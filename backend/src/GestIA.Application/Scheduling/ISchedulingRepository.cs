@@ -6,6 +6,8 @@ namespace GestIA.Application.Scheduling;
 
 public interface ISchedulingRepository
 {
+    Task<T> ExecuteAtomicAsync<T>(Func<CancellationToken, Task<T>> action, CancellationToken cancellationToken);
+
     Task<ServiceEntity?> GetServiceAsync(Guid idOrganization, Guid idClient, Guid idService, CancellationToken cancellationToken);
 
     Task<Position?> GetPositionAsync(Guid idService, Guid idPosition, CancellationToken cancellationToken);
@@ -35,12 +37,16 @@ public interface ISchedulingRepository
     Task<IReadOnlyList<ScheduledShift>> ListScheduledShiftsAsync(Guid idScheduleVersion, CancellationToken cancellationToken);
 
     Task<bool> HasEmployeeShiftOverlapAsync(
+        Guid idOrganization,
+        Guid idScheduleVersion,
         Guid idEmployee,
         DateOnly shiftDate,
         TimeOnly startTime,
         int durationMinutes,
         Guid? excludedScheduledShiftId,
         CancellationToken cancellationToken);
+
+    Task<bool> HasOperationalActivityAsync(Guid idScheduleVersion, CancellationToken cancellationToken);
 
     Task<bool> HasPublishedVersionOverlapAsync(
         Guid idService,

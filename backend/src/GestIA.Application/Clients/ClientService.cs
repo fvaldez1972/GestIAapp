@@ -1,4 +1,6 @@
 using GestIA.Application.Common;
+using GestIA.Application.Catalogs;
+using GestIA.Domain.Catalogs;
 using GestIA.Application.Organizations;
 using GestIA.Domain.Clients;
 
@@ -9,30 +11,47 @@ public sealed class ClientService(
     IOrganizationRepository organizationRepository,
     IUnitOfWork unitOfWork,
     IActorContext actorContext,
-    IClock clock) : IClientService
+    IClock clock, FormCatalogValidator catalogs) : IClientService
 {
-    public async Task<PagedResult<ClientResponse>> ListAsync(
+    public async Task<PagedResult<ClientListItemResponse>> ListAsync(
         ClientListQuery query,
         CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(query);
+
         var errors = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
         ValidateOrganization(query.IdOrganization, errors);
         InputValidation.Page(query.Page, query.PageSize, errors);
         var search = InputValidation.Optional(query.Search, nameof(query.Search), 200, errors);
+        var municipality = InputValidation.Optional(query.Municipality, nameof(query.Municipality), 120, errors);
         InputValidation.ThrowIfInvalid(errors);
 
         var criteria = new ClientSearchCriteria(
             query.IdOrganization,
             search,
+            query.Status,
+            query.SitePresence,
+            municipality,
             (query.Page - 1) * query.PageSize,
             query.PageSize);
         var result = await repository.SearchAsync(criteria, cancellationToken);
 
-        return new PagedResult<ClientResponse>(
-            result.Items.Select(Map).ToArray(),
+        return new PagedResult<ClientListItemResponse>(
+            result.Items,
             result.TotalCount,
             query.Page,
             query.PageSize);
+    }
+
+    public async Task<IReadOnlyList<string>> ListMunicipalitiesAsync(
+        Guid idOrganization,
+        CancellationToken cancellationToken)
+    {
+        var errors = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
+        ValidateOrganization(idOrganization, errors);
+        InputValidation.ThrowIfInvalid(errors);
+
+        return await repository.ListMunicipalitiesAsync(idOrganization, cancellationToken);
     }
 
     public async Task<ClientResponse> GetAsync(
@@ -50,22 +69,25 @@ public sealed class ClientService(
         CancellationToken cancellationToken)
     {
         var input = Validate(request);
+        await catalogs.ValueAsync(request.IdOrganization, BusinessCatalogItemType.Nationality, input.Profile.Nationality, null, cancellationToken);
 
         if (!await organizationRepository.ExistsAsync(request.IdOrganization, cancellationToken))
         {
             throw new ResourceNotFoundException("La organización seleccionada no existe o está inactiva.");
         }
 
+        var codeClient = input.CodeClient ?? await NextClientCodeAsync(request.IdOrganization, cancellationToken);
+
         await EnsureUniqueAsync(
             request.IdOrganization,
-            input.CodeClient,
+            codeClient,
             input.Profile.Rfc,
             null,
             cancellationToken);
 
         var client = Client.Create(
             request.IdOrganization,
-            input.CodeClient,
+            codeClient,
             input.Profile,
             actorContext.ActorId,
             actorContext.ActorName,
@@ -91,6 +113,7 @@ public sealed class ClientService(
             input.Rfc,
             idClient,
             cancellationToken);
+        await catalogs.ValueAsync(request.IdOrganization, BusinessCatalogItemType.Nationality, input.Nationality, client.Nationality, cancellationToken);
 
         client.UpdateProfile(
             input,
@@ -139,15 +162,34 @@ public sealed class ClientService(
         }
     }
 
-    private static (string CodeClient, ClientProfile Profile) Validate(CreateClientRequest request)
+    /// <summary>
+    /// El siguiente código libre con la forma <c>CLI-01</c>.
+    ///
+    /// <para>Se cuenta desde el más alto ya usado, incluidos los inactivos, porque el código sigue
+    /// ocupado aunque el cliente esté dado de baja. No es un consecutivo garantizado: si dos altas
+    /// coinciden, la segunda choca con la unicidad y el usuario reintenta, que es preferible a
+    /// tomar un candado sobre la tabla para un identificador de conveniencia.</para>
+    /// </summary>
+    private async Task<string> NextClientCodeAsync(Guid idOrganization, CancellationToken cancellationToken)
+    {
+        var highest = await repository.HighestClientCodeNumberAsync(idOrganization, cancellationToken);
+        return $"CLI-{highest + 1:00}";
+    }
+
+    private static (string? CodeClient, ClientProfile Profile) Validate(CreateClientRequest request)
     {
         var errors = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
         ValidateOrganization(request.IdOrganization, errors);
-        var code = InputValidation.Required(
-            request.CodeClient,
-            nameof(request.CodeClient),
-            30,
-            errors).ToUpperInvariant();
+
+        // Opcional a propósito: cuando no viene, lo pone el servidor. Cuando viene, se respeta y
+        // se valida como siempre.
+        var code = string.IsNullOrWhiteSpace(request.CodeClient)
+            ? null
+            : InputValidation.Required(
+                request.CodeClient,
+                nameof(request.CodeClient),
+                30,
+                errors).ToUpperInvariant();
         var profile = ValidateProfile(
             request.LegalName,
             request.TradeName,

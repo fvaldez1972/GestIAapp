@@ -4,8 +4,12 @@ namespace GestIA.Application.Clients;
 
 public interface IClientService
 {
-    Task<PagedResult<ClientResponse>> ListAsync(
+    Task<PagedResult<ClientListItemResponse>> ListAsync(
         ClientListQuery query,
+        CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<string>> ListMunicipalitiesAsync(
+        Guid idOrganization,
         CancellationToken cancellationToken);
 
     Task<ClientResponse> GetAsync(

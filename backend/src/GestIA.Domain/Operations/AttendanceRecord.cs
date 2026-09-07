@@ -11,7 +11,7 @@ public sealed record AttendanceRecordProfile(
     int MinutesLate,
     string? Notes);
 
-public sealed class AttendanceRecord : AuditableEntity
+public sealed class AttendanceRecord : AuditableEntity, IOrganizationScopedEntity
 {
     private AttendanceRecord()
     {
@@ -19,6 +19,7 @@ public sealed class AttendanceRecord : AuditableEntity
 
     private AttendanceRecord(
         Guid idAttendanceRecord,
+        Guid idOrganization,
         Guid idScheduledShift,
         Guid idEmployee,
         DateOnly attendanceDate,
@@ -28,6 +29,7 @@ public sealed class AttendanceRecord : AuditableEntity
         DateTime occurredAt)
     {
         IdAttendanceRecord = idAttendanceRecord;
+        IdOrganization = idOrganization;
         IdScheduledShift = idScheduledShift;
         IdEmployee = idEmployee;
         AttendanceDate = attendanceDate;
@@ -36,6 +38,23 @@ public sealed class AttendanceRecord : AuditableEntity
     }
 
     public Guid IdAttendanceRecord { get; private set; }
+    public Guid IdOrganization { get; private set; }
+
+    /// <summary>
+    /// Token de concurrencia. Lo genera y lo mantiene SQL Server; nadie lo asigna.
+    ///
+    /// <para><b>Para qué sirve, si las escrituras operativas ya corren en transacciones
+    /// serializables.</b> La transacción protege contra escrituras que se cruzan <i>dentro</i> de
+    /// la base. La pérdida que este token detecta vive <i>fuera</i>: el supervisor B abrió la
+    /// pantalla a las 10:01, A guardó a las 10:05, y B guarda a las 10:06 con lo que tenía en
+    /// pantalla desde antes. La transacción de B lee el registro ya actualizado por A y lo pisa
+    /// con datos viejos, correctamente y sin error. El desfase está en el navegador, y por eso el
+    /// token tiene que viajar en la respuesta y volver en la petición.</para>
+    ///
+    /// <para>Y aquí importa más que en otras tablas: esta entidad lleva bitácora, así que una
+    /// pérdida silenciosa dejaría un historial que registra un cambio que otro pisó.</para>
+    /// </summary>
+    public byte[] RowVersion { get; private set; } = [];
     public Guid IdScheduledShift { get; private set; }
     public Guid IdEmployee { get; private set; }
     public DateOnly AttendanceDate { get; private set; }
@@ -48,6 +67,7 @@ public sealed class AttendanceRecord : AuditableEntity
     public Employee Employee { get; private set; } = null!;
 
     public static AttendanceRecord Create(
+        Guid idOrganization,
         Guid idScheduledShift,
         Guid idEmployee,
         DateOnly attendanceDate,
@@ -55,7 +75,7 @@ public sealed class AttendanceRecord : AuditableEntity
         Guid actorId,
         string actorName,
         DateTime occurredAt) =>
-        new(Guid.NewGuid(), idScheduledShift, idEmployee, attendanceDate, profile, actorId, actorName, occurredAt);
+        new(Guid.NewGuid(), idOrganization, idScheduledShift, idEmployee, attendanceDate, profile, actorId, actorName, occurredAt);
 
     public void UpdateProfile(
         AttendanceRecordProfile profile,

@@ -15,7 +15,7 @@ public sealed record IncidentProfile(
     string Description,
     string? ResolutionNotes);
 
-public sealed class Incident : AuditableEntity
+public sealed class Incident : AuditableEntity, IOrganizationScopedEntity
 {
     private Incident()
     {
@@ -23,6 +23,7 @@ public sealed class Incident : AuditableEntity
 
     private Incident(
         Guid idIncident,
+        Guid idOrganization,
         Guid idService,
         IncidentProfile profile,
         Guid actorId,
@@ -30,12 +31,32 @@ public sealed class Incident : AuditableEntity
         DateTime occurredAt)
     {
         IdIncident = idIncident;
+        IdOrganization = idOrganization;
         IdService = idService;
         ApplyProfile(profile);
+        Status = IncidentStatus.Open;
+        ResolutionNotes = null;
         RegisterCreation(actorId, actorName, occurredAt);
     }
 
     public Guid IdIncident { get; private set; }
+    public Guid IdOrganization { get; private set; }
+
+    /// <summary>
+    /// Token de concurrencia. Lo genera y lo mantiene SQL Server; nadie lo asigna.
+    ///
+    /// <para><b>Para qué sirve, si las escrituras operativas ya corren en transacciones
+    /// serializables.</b> La transacción protege contra escrituras que se cruzan <i>dentro</i> de
+    /// la base. La pérdida que este token detecta vive <i>fuera</i>: el supervisor B abrió la
+    /// pantalla a las 10:01, A guardó a las 10:05, y B guarda a las 10:06 con lo que tenía en
+    /// pantalla desde antes. La transacción de B lee el registro ya actualizado por A y lo pisa
+    /// con datos viejos, correctamente y sin error. El desfase está en el navegador, y por eso el
+    /// token tiene que viajar en la respuesta y volver en la petición.</para>
+    ///
+    /// <para>Y aquí importa más que en otras tablas: esta entidad lleva bitácora, así que una
+    /// pérdida silenciosa dejaría un historial que registra un cambio que otro pisó.</para>
+    /// </summary>
+    public byte[] RowVersion { get; private set; } = [];
     public Guid IdService { get; private set; }
     public Guid? IdScheduledShift { get; private set; }
     public Guid? IdEmployee { get; private set; }
@@ -50,12 +71,13 @@ public sealed class Incident : AuditableEntity
     public Employee? Employee { get; private set; }
 
     public static Incident Create(
+        Guid idOrganization,
         Guid idService,
         IncidentProfile profile,
         Guid actorId,
         string actorName,
         DateTime occurredAt) =>
-        new(Guid.NewGuid(), idService, profile, actorId, actorName, occurredAt);
+        new(Guid.NewGuid(), idOrganization, idService, profile, actorId, actorName, occurredAt);
 
     public void UpdateProfile(
         IncidentProfile profile,
@@ -63,6 +85,22 @@ public sealed class Incident : AuditableEntity
         string actorName,
         DateTime occurredAt)
     {
+        var allowed = Status == profile.Status || (Status, profile.Status) switch
+        {
+            (IncidentStatus.Open, IncidentStatus.InReview or IncidentStatus.Resolved or IncidentStatus.Cancelled) => true,
+            (IncidentStatus.InReview, IncidentStatus.Resolved or IncidentStatus.Cancelled) => true,
+            _ => false
+        };
+        if (!allowed)
+        {
+            throw new DomainRuleException("La incidencia cerrada no puede cambiar de estado.");
+        }
+
+        if (profile.Status is IncidentStatus.Resolved or IncidentStatus.Cancelled && string.IsNullOrWhiteSpace(profile.ResolutionNotes))
+        {
+            throw new DomainRuleException("Registra la resolución antes de cerrar la incidencia.");
+        }
+
         ApplyProfile(profile);
         RegisterUpdate(actorId, actorName, occurredAt);
     }

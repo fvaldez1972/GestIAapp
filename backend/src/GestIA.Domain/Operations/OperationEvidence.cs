@@ -13,7 +13,7 @@ public sealed record OperationEvidenceProfile(
     string StorageReference,
     string? Notes);
 
-public sealed class OperationEvidence : AuditableEntity
+public sealed class OperationEvidence : AuditableEntity, IOrganizationScopedEntity
 {
     private OperationEvidence()
     {
@@ -21,6 +21,7 @@ public sealed class OperationEvidence : AuditableEntity
 
     private OperationEvidence(
         Guid idOperationEvidence,
+        Guid idOrganization,
         Guid idService,
         OperationEvidenceProfile profile,
         Guid actorId,
@@ -28,12 +29,14 @@ public sealed class OperationEvidence : AuditableEntity
         DateTime occurredAt)
     {
         IdOperationEvidence = idOperationEvidence;
+        IdOrganization = idOrganization;
         IdService = idService;
         ApplyProfile(profile);
         RegisterCreation(actorId, actorName, occurredAt);
     }
 
     public Guid IdOperationEvidence { get; private set; }
+    public Guid IdOrganization { get; private set; }
     public Guid IdService { get; private set; }
     public Guid? IdAttendanceRecord { get; private set; }
     public Guid? IdIncident { get; private set; }
@@ -48,12 +51,13 @@ public sealed class OperationEvidence : AuditableEntity
     public CoverageRecord? CoverageRecord { get; private set; }
 
     public static OperationEvidence Create(
+        Guid idOrganization,
         Guid idService,
         OperationEvidenceProfile profile,
         Guid actorId,
         string actorName,
         DateTime occurredAt) =>
-        new(Guid.NewGuid(), idService, profile, actorId, actorName, occurredAt);
+        new(Guid.NewGuid(), idOrganization, idService, profile, actorId, actorName, occurredAt);
 
     public void UpdateProfile(
         OperationEvidenceProfile profile,

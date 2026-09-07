@@ -1,0 +1,1125 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  body { margin:0; background:#f4f6fa; font-family:Archivo, system-ui, sans-serif; color:#253040; text-wrap:pretty; font-variant-numeric:tabular-nums; }
+  a { color:#087f9c; text-decoration:none; }
+  a:hover { color:#10104e; text-decoration:underline; }
+</style>
+</helmet>
+
+<div style="display:flex;flex-direction:column;gap:52px;padding:52px 60px 100px">
+
+  <div style="display:flex;flex-direction:column;gap:10px;max-width:1440px">
+    <div style="font:600 11px Archivo,sans-serif;letter-spacing:.16em;color:#5f6b7a">INCIDENCIAS Y COBERTURA · PASO 11 · 1440 PX · TOKENS DE MARCA</div>
+    <div style="font:700 30px/1.15 Archivo,sans-serif;color:#10104e">Registrar incidencia y cubrir el hueco</div>
+    <div style="font:400 14px/1.5 Archivo,sans-serif;color:#5f6b7a;max-width:92ch">Cierre del recorrido. Llega desde Asistencia con el turno y la excepción ya en contexto. Rol admin de organización, alcance de un día y un servicio. La incidencia y la cobertura viven en el mismo panel de 620 px, sin pestañas: es un solo propósito con una continuación, y el pie lleva al paso siguiente. El cierre tiene dos estados y solo dos.</div>
+  </div>
+
+  <section data-screen-label="Vista 1 · Registro de incidencia" id="v1" style="display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;align-items:baseline;gap:12px">
+      <span style="font:600 11.5px Archivo,sans-serif;letter-spacing:.14em;color:#5f6b7a">VISTA 1</span>
+      <span style="font:600 19px Archivo,sans-serif;color:#10104e">Registro de incidencia, con el turno y la excepción ya en contexto</span>
+    </div>
+    <div style="width:1440px;border:1px solid #dce2e9;border-radius:6px;overflow:hidden;background:#f4f6fa">
+      <div style="height:4.5rem;background:#ffffff;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:12px;padding:0 20px">
+        <div style="display:flex;align-items:center;gap:10px;border:1px solid #dce2e9;border-radius:6px;padding:7px 11px;background:#ffffff">
+          <span style="font:400 11px Archivo,sans-serif;color:#5f6b7a">Organización activa</span>
+          <span style="font:600 13px Archivo,sans-serif;color:#10104e">{{ organizacion }}</span>
+        </div>
+        <span style="font:400 12.5px Archivo,sans-serif;color:#5f6b7a">Fecha operativa <span style="color:#253040;font-weight:600">{{ fecha }}</span></span>
+        <span style="margin-left:auto;display:flex;align-items:center;gap:10px">
+          <span style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;padding:0 12px;display:flex;align-items:center;font:600 12.5px Archivo,sans-serif;color:#253040">Cambiar</span>
+          <span style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;padding:0 12px;display:flex;align-items:center;font:600 12.5px Archivo,sans-serif;color:#253040">Salir</span>
+        </span>
+      </div>
+      <div style="display:flex;min-height:1000px">
+        <dc-import name="SideMenu" active="Incidencias" role="admin" usuario="Renata Villaseñor" hint-size="272px,1000px"></dc-import>
+        <div style="flex:1;padding:16px 20px 20px;display:flex;flex-direction:column;gap:16px;min-width:0">
+
+          <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px">
+            <div>
+              <div style="font:600 11px Archivo,sans-serif;letter-spacing:.1em;color:#5f6b7a;padding-bottom:5px">INCIDENCIAS</div>
+              <div style="font:700 22px/1.2 Archivo,sans-serif;color:#10104e">Incidencias</div>
+              <div style="font:400 13px Archivo,sans-serif;color:#5f6b7a;padding-top:4px">La falta de Laura Menchaca Robledo llegó desde Asistencia. Falta la causa.</div>
+            </div>
+            <div style="background:#10104e;color:#ffffff;border-radius:6px;padding:0 16px;height:2.5rem;display:flex;align-items:center;font:600 13px Archivo,sans-serif">Registrar incidencia</div>
+          </div>
+
+          <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;padding:12px 14px;display:flex;align-items:center;gap:14px">
+            <span style="display:flex;align-items:center;gap:8px">
+              <span style="width:2rem;height:2rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;justify-content:center;font:600 12px Archivo,sans-serif;color:#5f6b7a">‹</span>
+              <span style="font:600 13px Archivo,sans-serif;color:#253040">Jueves 10 sep 2026</span>
+              <span style="width:2rem;height:2rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;justify-content:center;font:600 12px Archivo,sans-serif;color:#5f6b7a">›</span>
+            </span>
+            <span style="width:1px;height:20px;background:#dce2e9"></span>
+            <span style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;gap:10px;padding:0 12px;font:500 13px Archivo,sans-serif;color:#253040">{{ servicio }} <span style="color:#5f6b7a">▾</span></span>
+            <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Corporativo Altavista · Torre Altavista</span>
+            <span style="margin-left:auto;display:flex;align-items:center;gap:10px">
+              <span style="border:1px solid #dce2e9;border-radius:3px;padding:3px 8px;font:600 10.5px Archivo,sans-serif;color:#5f6b7a">Día abierto · sin corte registrado</span>
+              <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Versión 2 publicada <span style="color:#253040;font-weight:600">07 sep 2026</span></span>
+            </span>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
+            <sc-for list="{{ indic1 }}" as="i" hint-placeholder-count="3">
+              <div style="background:#ffffff;border:1px solid {{ i.bd }};border-radius:6px;padding:16px;display:flex;flex-direction:column;gap:6px">
+                <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">{{ i.etiqueta }}</span>
+                <span style="font:600 22px/1.1 Archivo,sans-serif;color:{{ i.color }}">{{ i.valor }}</span>
+                <span style="font:400 12px Archivo,sans-serif;color:#5f6b7a">{{ i.apoyo }}</span>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="display:flex;gap:16px;align-items:flex-start;min-width:0">
+            <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:16px">
+              <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;overflow:hidden">
+                <div style="padding:12px 14px;background:#f7f9fb;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:12px">
+                  <span style="font:700 13px Archivo,sans-serif;color:#253040">Incidencias del jueves</span>
+                  <span style="border:1px solid #dce2e9;background:#ffffff;border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:#5f6b7a">5 registros</span>
+                </div>
+                <div style="display:grid;grid-template-columns:220px 1fr 130px;background:#f7f9fb;border-bottom:1px solid #dce2e9">
+                  <span style="padding:9px 14px;font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">PERSONA ORIGINAL</span>
+                  <span style="padding:9px 14px;font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">POSICIÓN, TURNO, CAUSA Y QUIÉN CUBRE</span>
+                  <span style="padding:9px 14px;font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">CIERRE</span>
+                </div>
+                <sc-for list="{{ lista1 }}" as="f" hint-placeholder-count="5">
+                  <div style="display:grid;grid-template-columns:220px 1fr 130px;border-bottom:1px solid #dce2e9;align-items:center;background:{{ f.bg }}">
+                    <span style="padding:11px 14px;display:flex;flex-direction:column;gap:2px">
+                      <span style="font:600 13px Archivo,sans-serif;color:#253040">{{ f.persona }}</span>
+                      <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">{{ f.papel }}</span>
+                    </span>
+                    <span style="padding:11px 14px;display:flex;flex-direction:column;gap:2px">
+                      <span style="font:500 12.5px Archivo,sans-serif;color:#253040">{{ f.pos }}</span>
+                      <span style="font:400 11.5px Archivo,sans-serif;color:{{ f.motivoColor }}">{{ f.motivoCubre }}</span>
+                    </span>
+                    <span style="padding:11px 14px">
+                      <span style="border:1px solid {{ f.estadoColor }};border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:{{ f.estadoColor }};white-space:nowrap">{{ f.estado }}</span>
+                    </span>
+                  </div>
+                </sc-for>
+                <div style="padding:11px 14px;font:400 11.5px/1.5 Archivo,sans-serif;color:#5f6b7a">Con el panel abierto la tabla se comprime a tres columnas: las acciones de fila y la columna de quién cubre vuelven al cerrarlo. El hueco de P-01 no aparece en esta lista: es vacante de la posición, no incidencia de persona, y vive en Cobertura.</div>
+              </div>
+            </div>
+
+            <div style="width:620px;flex:none;background:#ffffff;border:1px solid #dce2e9;border-radius:6px;overflow:hidden;display:flex;flex-direction:column">
+              <div style="padding:14px 16px;border-bottom:1px solid #dce2e9;display:flex;align-items:flex-start;gap:12px">
+                <span style="display:flex;flex-direction:column;gap:3px;flex:1">
+                  <span style="font:700 13px Archivo,sans-serif;color:#253040">Registrar incidencia</span>
+                  <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Paso 1 de 2 · la cobertura sigue en este mismo panel</span>
+                </span>
+                <span style="width:2rem;height:2rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;justify-content:center;font:600 13px Archivo,sans-serif;color:#5f6b7a">✕</span>
+              </div>
+
+              <div style="background:#e9f7fa;border-bottom:1px solid #dce2e9;padding:13px 16px;display:flex;flex-direction:column;gap:4px">
+                <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#087f9c">SUSTITUYE A</span>
+                <span style="font:700 13px Archivo,sans-serif;color:#253040">Laura Menchaca Robledo</span>
+                <span style="font:400 11.5px Archivo,sans-serif;color:#253040">P-01 Acceso principal · titular · jueves 10 sep 2026 · 07:00 – 19:00 · Corporativo Altavista, Torre Altavista</span>
+              </div>
+
+              <div style="padding:16px;display:flex;flex-direction:column;gap:16px">
+
+                <div style="background:#f7f9fb;border:1px solid #dce2e9;border-radius:6px;padding:14px;display:flex;flex-direction:column;gap:8px">
+                  <span style="display:flex;align-items:center;gap:10px">
+                    <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">DE DÓNDE VIENE</span>
+                    <span style="border:1px solid #dc2626;background:#ffffff;border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:#dc2626">FALTA</span>
+                  </span>
+                  <span style="font:400 12.5px/1.55 Archivo,sans-serif;color:#253040">Asistencia registró la falta a las 11:20. El turno de las 07:00 no tuvo entrada y el puesto quedó al descubierto.</span>
+                  <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">La versión 2 publicada no se edita: el cambio vive aquí, como incidencia con su cobertura.</span>
+                </div>
+
+                <label style="display:flex;flex-direction:column;gap:6px" for="v1-motivo">
+                  <span style="font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">MOTIVO DE INCIDENCIA</span>
+                  <span style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;padding:0 12px;display:flex;align-items:center;justify-content:space-between;font:400 12.5px Archivo,sans-serif;color:#5f6b7a" id="v1-motivo">Elegir del catálogo de la organización <span>▾</span></span>
+                  <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">7 motivos configurados por {{ organizacion }} en Catálogos. El sistema no trae motivos propios.</span>
+                </label>
+
+                <label style="display:flex;flex-direction:column;gap:6px" for="v1-detalle">
+                  <span style="font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">DETALLE</span>
+                  <span style="min-height:72px;border:1px solid #dce2e9;border-radius:6px;padding:10px 12px;font:400 12.5px/1.5 Archivo,sans-serif;color:#5f6b7a" id="v1-detalle">Opcional. Lo que hay que saber del caso y no cabe en el motivo.</span>
+                </label>
+
+                <div style="border:1px solid #dce2e9;border-radius:6px;overflow:hidden">
+                  <div style="padding:10px 14px;background:#f7f9fb;border-bottom:1px solid #dce2e9;font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">QUÉ QUEDA GUARDADO</div>
+                  <sc-for list="{{ guardar1 }}" as="g" hint-placeholder-count="6">
+                    <div style="padding:9px 14px;border-bottom:1px solid #dce2e9;display:grid;grid-template-columns:160px 1fr;gap:12px;align-items:baseline">
+                      <span style="font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">{{ g.campo }}</span>
+                      <span style="font:{{ g.font }};color:{{ g.color }}">{{ g.valor }}</span>
+                    </div>
+                  </sc-for>
+                  <div style="padding:10px 14px;font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Es lo que después permite conciliar el turno con el cliente.</div>
+                </div>
+
+              </div>
+
+              <div style="margin-top:auto;padding:14px 16px;border-top:1px solid #dce2e9;display:flex;align-items:center;gap:12px">
+                <span style="font:600 12.5px Archivo,sans-serif;color:#5f6b7a">Cancelar</span>
+                <span style="margin-left:auto;font:400 11.5px Archivo,sans-serif;color:#5f6b7a;text-align:right;max-width:30ch">Falta elegir el motivo del catálogo</span>
+                <span style="height:2.5rem;border:1px solid #dce2e9;background:#f7f9fb;color:#5f6b7a;border-radius:6px;padding:0 14px;display:flex;align-items:center;font:600 12.5px Archivo,sans-serif;flex:none">Guardar y continuar a cobertura</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section data-screen-label="Vista 2 · Motivo desde el catálogo" id="v2" style="display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;align-items:baseline;gap:12px">
+      <span style="font:600 11.5px Archivo,sans-serif;letter-spacing:.14em;color:#5f6b7a">VISTA 2</span>
+      <span style="font:600 19px Archivo,sans-serif;color:#10104e">El motivo sale del catálogo que la organización configuró en el paso 3</span>
+    </div>
+    <div style="width:1440px;border:1px solid #dce2e9;border-radius:6px;overflow:hidden;background:#f4f6fa">
+      <div style="height:4.5rem;background:#ffffff;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:12px;padding:0 20px">
+        <div style="display:flex;align-items:center;gap:10px;border:1px solid #dce2e9;border-radius:6px;padding:7px 11px;background:#ffffff">
+          <span style="font:400 11px Archivo,sans-serif;color:#5f6b7a">Organización activa</span>
+          <span style="font:600 13px Archivo,sans-serif;color:#10104e">{{ organizacion }}</span>
+        </div>
+        <span style="font:400 12.5px Archivo,sans-serif;color:#5f6b7a">Fecha operativa <span style="color:#253040;font-weight:600">{{ fecha }}</span></span>
+        <span style="margin-left:auto;display:flex;align-items:center;gap:10px">
+          <span style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;padding:0 12px;display:flex;align-items:center;font:600 12.5px Archivo,sans-serif;color:#253040">Cambiar</span>
+          <span style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;padding:0 12px;display:flex;align-items:center;font:600 12.5px Archivo,sans-serif;color:#253040">Salir</span>
+        </span>
+      </div>
+      <div style="display:flex;min-height:1000px">
+        <dc-import name="SideMenu" active="Incidencias" role="admin" usuario="Renata Villaseñor" hint-size="272px,1000px"></dc-import>
+        <div style="flex:1;padding:16px 20px 20px;display:flex;flex-direction:column;gap:16px;min-width:0">
+
+          <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px">
+            <div>
+              <div style="font:600 11px Archivo,sans-serif;letter-spacing:.1em;color:#5f6b7a;padding-bottom:5px">INCIDENCIAS</div>
+              <div style="font:700 22px/1.2 Archivo,sans-serif;color:#10104e">Incidencias</div>
+              <div style="font:400 13px Archivo,sans-serif;color:#5f6b7a;padding-top:4px">Los motivos son los de esta organización. Otra tendrá otros.</div>
+            </div>
+            <div style="background:#10104e;color:#ffffff;border-radius:6px;padding:0 16px;height:2.5rem;display:flex;align-items:center;font:600 13px Archivo,sans-serif">Registrar incidencia</div>
+          </div>
+
+          <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;padding:12px 14px;display:flex;align-items:center;gap:14px">
+            <span style="display:flex;align-items:center;gap:8px">
+              <span style="width:2rem;height:2rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;justify-content:center;font:600 12px Archivo,sans-serif;color:#5f6b7a">‹</span>
+              <span style="font:600 13px Archivo,sans-serif;color:#253040">Jueves 10 sep 2026</span>
+              <span style="width:2rem;height:2rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;justify-content:center;font:600 12px Archivo,sans-serif;color:#5f6b7a">›</span>
+            </span>
+            <span style="width:1px;height:20px;background:#dce2e9"></span>
+            <span style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;gap:10px;padding:0 12px;font:500 13px Archivo,sans-serif;color:#253040">{{ servicio }} <span style="color:#5f6b7a">▾</span></span>
+            <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Corporativo Altavista · Torre Altavista</span>
+            <span style="margin-left:auto;display:flex;align-items:center;gap:10px">
+              <span style="border:1px solid #dce2e9;border-radius:3px;padding:3px 8px;font:600 10.5px Archivo,sans-serif;color:#5f6b7a">Día abierto · sin corte registrado</span>
+              <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Versión 2 publicada <span style="color:#253040;font-weight:600">07 sep 2026</span></span>
+            </span>
+          </div>
+
+          <div style="display:flex;gap:16px;align-items:flex-start;min-width:0">
+            <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:16px">
+              <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;overflow:hidden">
+                <div style="padding:12px 14px;background:#f7f9fb;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:12px">
+                  <span style="font:700 13px Archivo,sans-serif;color:#253040">Incidencias del jueves</span>
+                  <span style="border:1px solid #dce2e9;background:#ffffff;border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:#5f6b7a">5 registros</span>
+                </div>
+                <sc-for list="{{ lista1 }}" as="f" hint-placeholder-count="5">
+                  <div style="display:grid;grid-template-columns:220px 1fr 130px;border-bottom:1px solid #dce2e9;align-items:center;background:{{ f.bg }}">
+                    <span style="padding:11px 14px;display:flex;flex-direction:column;gap:2px">
+                      <span style="font:600 13px Archivo,sans-serif;color:#253040">{{ f.persona }}</span>
+                      <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">{{ f.papel }}</span>
+                    </span>
+                    <span style="padding:11px 14px;display:flex;flex-direction:column;gap:2px">
+                      <span style="font:500 12.5px Archivo,sans-serif;color:#253040">{{ f.pos }}</span>
+                      <span style="font:400 11.5px Archivo,sans-serif;color:{{ f.motivoColor }}">{{ f.motivo }}</span>
+                    </span>
+                    <span style="padding:11px 14px">
+                      <span style="border:1px solid {{ f.estadoColor }};border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:{{ f.estadoColor }};white-space:nowrap">{{ f.estado }}</span>
+                    </span>
+                  </div>
+                </sc-for>
+                <div style="padding:11px 14px;font:400 11.5px Archivo,sans-serif;color:#5f6b7a">La tabla se comprime, no se oculta: la fila en registro sigue resaltada.</div>
+              </div>
+            </div>
+
+            <div style="width:620px;flex:none;background:#ffffff;border:1px solid #dce2e9;border-radius:6px;overflow:hidden;display:flex;flex-direction:column">
+              <div style="padding:14px 16px;border-bottom:1px solid #dce2e9;display:flex;align-items:flex-start;gap:12px">
+                <span style="display:flex;flex-direction:column;gap:3px;flex:1">
+                  <span style="font:700 13px Archivo,sans-serif;color:#253040">Registrar incidencia</span>
+                  <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Paso 1 de 2 · la cobertura sigue en este mismo panel</span>
+                </span>
+                <span style="width:2rem;height:2rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;justify-content:center;font:600 13px Archivo,sans-serif;color:#5f6b7a">✕</span>
+              </div>
+
+              <div style="background:#e9f7fa;border-bottom:1px solid #dce2e9;padding:13px 16px;display:flex;flex-direction:column;gap:4px">
+                <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#087f9c">SUSTITUYE A</span>
+                <span style="font:700 13px Archivo,sans-serif;color:#253040">Laura Menchaca Robledo</span>
+                <span style="font:400 11.5px Archivo,sans-serif;color:#253040">P-01 Acceso principal · titular · jueves 10 sep 2026 · 07:00 – 19:00 · Corporativo Altavista, Torre Altavista</span>
+              </div>
+
+              <div style="padding:16px;display:flex;flex-direction:column;gap:16px">
+
+                <div style="display:flex;flex-direction:column;gap:6px">
+                  <span style="font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">MOTIVO DE INCIDENCIA</span>
+                  <div style="border:1px solid #22c6ee;border-radius:6px;overflow:hidden">
+                    <div style="height:2.5rem;border-bottom:1px solid #dce2e9;padding:0 12px;display:flex;align-items:center;justify-content:space-between;background:#e9f7fa">
+                      <span style="font:600 12.5px Archivo,sans-serif;color:#253040">INC-01 · Incapacidad médica IMSS</span>
+                      <span style="font:600 12px Archivo,sans-serif;color:#087f9c">▴</span>
+                    </div>
+                    <sc-for list="{{ motivos }}" as="m" hint-placeholder-count="7">
+                      <div style="padding:10px 12px;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:11px;background:{{ m.bg }}">
+                        <span style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a;width:52px;flex:none">{{ m.cod }}</span>
+                        <span style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0">
+                          <span style="font:600 12.5px Archivo,sans-serif;color:{{ m.color }}">{{ m.nombre }}</span>
+                          <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">{{ m.nota }}</span>
+                        </span>
+                        <span style="font:600 10.5px Archivo,sans-serif;color:{{ m.marcaColor }};flex:none">{{ m.marca }}</span>
+                      </div>
+                    </sc-for>
+                    <div style="padding:11px 12px;background:#f7f9fb;display:flex;align-items:center;gap:10px">
+                      <span style="font:400 11.5px/1.5 Archivo,sans-serif;color:#5f6b7a;flex:1">Este catálogo lo define la organización, no el sistema. Solo el admin de {{ organizacion }} agrega, renombra o desactiva motivos.</span>
+                      <a href="#v2" style="font:600 12px Archivo,sans-serif;flex:none">Ver el catálogo</a>
+                    </div>
+                  </div>
+                </div>
+
+                <label style="display:flex;flex-direction:column;gap:6px" for="v2-detalle">
+                  <span style="font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">DETALLE</span>
+                  <span style="min-height:64px;border:1px solid #dce2e9;border-radius:6px;padding:10px 12px;font:400 12.5px/1.5 Archivo,sans-serif;color:#253040" id="v2-detalle">Avisó a las 06:40 por teléfono. Entrega el certificado del IMSS el lunes; el folio queda pendiente.</span>
+                </label>
+
+                <div style="background:#f7f9fb;border:1px solid #dce2e9;border-radius:6px;padding:13px 14px;display:flex;align-items:center;gap:11px">
+                  <span style="border:1px solid #dce2e9;background:#ffffff;border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:#5f6b7a;flex:none">SIGUE</span>
+                  <span style="font:400 12.5px/1.5 Archivo,sans-serif;color:#253040">Con la causa registrada, el turno de las 07:00 sigue sin nadie. La continuación es la cobertura, en este mismo panel.</span>
+                </div>
+
+              </div>
+
+              <div style="margin-top:auto;padding:14px 16px;border-top:1px solid #dce2e9;display:flex;align-items:center;gap:12px">
+                <span style="font:600 12.5px Archivo,sans-serif;color:#5f6b7a">Cancelar</span>
+                <span style="margin-left:auto;height:2.5rem;background:#10104e;color:#ffffff;border-radius:6px;padding:0 14px;display:flex;align-items:center;font:600 12.5px Archivo,sans-serif">Guardar y continuar a cobertura</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section data-screen-label="Vista 3 · Cobertura, quién cubre" id="v3" style="display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;align-items:baseline;gap:12px">
+      <span style="font:600 11.5px Archivo,sans-serif;letter-spacing:.14em;color:#5f6b7a">VISTA 3</span>
+      <span style="font:600 19px Archivo,sans-serif;color:#10104e">Cobertura: elegir quién cubre, con la situación del día de cada candidato</span>
+    </div>
+    <div style="width:1440px;border:1px solid #dce2e9;border-radius:6px;overflow:hidden;background:#f4f6fa">
+      <div style="height:4.5rem;background:#ffffff;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:12px;padding:0 20px">
+        <div style="display:flex;align-items:center;gap:10px;border:1px solid #dce2e9;border-radius:6px;padding:7px 11px;background:#ffffff">
+          <span style="font:400 11px Archivo,sans-serif;color:#5f6b7a">Organización activa</span>
+          <span style="font:600 13px Archivo,sans-serif;color:#10104e">{{ organizacion }}</span>
+        </div>
+        <span style="font:400 12.5px Archivo,sans-serif;color:#5f6b7a">Fecha operativa <span style="color:#253040;font-weight:600">{{ fecha }}</span></span>
+        <span style="margin-left:auto;display:flex;align-items:center;gap:10px">
+          <span style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;padding:0 12px;display:flex;align-items:center;font:600 12.5px Archivo,sans-serif;color:#253040">Cambiar</span>
+          <span style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;padding:0 12px;display:flex;align-items:center;font:600 12.5px Archivo,sans-serif;color:#253040">Salir</span>
+        </span>
+      </div>
+      <div style="display:flex;min-height:1060px">
+        <dc-import name="SideMenu" active="Incidencias" role="admin" usuario="Renata Villaseñor" hint-size="272px,1060px"></dc-import>
+        <div style="flex:1;padding:16px 20px 20px;display:flex;flex-direction:column;gap:16px;min-width:0">
+
+          <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px">
+            <div>
+              <div style="font:600 11px Archivo,sans-serif;letter-spacing:.1em;color:#5f6b7a;padding-bottom:5px">INCIDENCIAS · COBERTURA</div>
+              <div style="font:700 22px/1.2 Archivo,sans-serif;color:#10104e">Incidencias</div>
+              <div style="font:400 13px Archivo,sans-serif;color:#5f6b7a;padding-top:4px">Paso 2 de 2. Quién cubre el turno de las 07:00 que dejó la falta.</div>
+            </div>
+            <div style="background:#10104e;color:#ffffff;border-radius:6px;padding:0 16px;height:2.5rem;display:flex;align-items:center;font:600 13px Archivo,sans-serif">Registrar incidencia</div>
+          </div>
+
+          <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;padding:12px 14px;display:flex;align-items:center;gap:14px">
+            <span style="display:flex;align-items:center;gap:8px">
+              <span style="width:2rem;height:2rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;justify-content:center;font:600 12px Archivo,sans-serif;color:#5f6b7a">‹</span>
+              <span style="font:600 13px Archivo,sans-serif;color:#253040">Jueves 10 sep 2026</span>
+              <span style="width:2rem;height:2rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;justify-content:center;font:600 12px Archivo,sans-serif;color:#5f6b7a">›</span>
+            </span>
+            <span style="width:1px;height:20px;background:#dce2e9"></span>
+            <span style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;gap:10px;padding:0 12px;font:500 13px Archivo,sans-serif;color:#253040">{{ servicio }} <span style="color:#5f6b7a">▾</span></span>
+            <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Corporativo Altavista · Torre Altavista</span>
+            <span style="margin-left:auto;display:flex;align-items:center;gap:10px">
+              <span style="border:1px solid #dce2e9;border-radius:3px;padding:3px 8px;font:600 10.5px Archivo,sans-serif;color:#5f6b7a">Día abierto · sin corte registrado</span>
+              <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Versión 2 publicada <span style="color:#253040;font-weight:600">07 sep 2026</span></span>
+            </span>
+          </div>
+
+          <div style="display:flex;gap:16px;align-items:flex-start;min-width:0">
+            <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:16px">
+              <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;overflow:hidden">
+                <div style="padding:12px 14px;background:#f7f9fb;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:12px">
+                  <span style="font:700 13px Archivo,sans-serif;color:#253040">Incidencias del jueves</span>
+                  <span style="border:1px solid #dce2e9;background:#ffffff;border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:#5f6b7a">5 registros</span>
+                </div>
+                <sc-for list="{{ lista3 }}" as="f" hint-placeholder-count="5">
+                  <div style="display:grid;grid-template-columns:220px 1fr 130px;border-bottom:1px solid #dce2e9;align-items:center;background:{{ f.bg }}">
+                    <span style="padding:11px 14px;display:flex;flex-direction:column;gap:2px">
+                      <span style="font:600 13px Archivo,sans-serif;color:#253040">{{ f.persona }}</span>
+                      <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">{{ f.papel }}</span>
+                    </span>
+                    <span style="padding:11px 14px;display:flex;flex-direction:column;gap:2px">
+                      <span style="font:500 12.5px Archivo,sans-serif;color:#253040">{{ f.pos }}</span>
+                      <span style="font:400 11.5px Archivo,sans-serif;color:{{ f.motivoColor }}">{{ f.motivo }}</span>
+                    </span>
+                    <span style="padding:11px 14px">
+                      <span style="border:1px solid {{ f.estadoColor }};border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:{{ f.estadoColor }};white-space:nowrap">{{ f.estado }}</span>
+                    </span>
+                  </div>
+                </sc-for>
+              </div>
+
+              <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;padding:14px;display:flex;flex-direction:column;gap:7px">
+                <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">POR QUÉ LA COBERTURA NO ES OTRA PANTALLA</span>
+                <span style="font:400 12.5px/1.6 Archivo,sans-serif;color:#253040">Cubrir es la consecuencia de la incidencia, no un destino aparte: dos pestañas pondrían a elegir entre cosas que son una secuencia. La entrada Cobertura del menú existe para lo que no viene de una incidencia — los huecos de posición, donde requeridos superan asignados.</span>
+              </div>
+            </div>
+
+            <div style="width:620px;flex:none;background:#ffffff;border:1px solid #dce2e9;border-radius:6px;overflow:hidden;display:flex;flex-direction:column">
+              <div style="padding:14px 16px;border-bottom:1px solid #dce2e9;display:flex;align-items:flex-start;gap:12px">
+                <span style="display:flex;flex-direction:column;gap:3px;flex:1">
+                  <span style="font:700 13px Archivo,sans-serif;color:#253040">Cubrir el turno</span>
+                  <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Paso 2 de 2 · el cierre del recorrido</span>
+                </span>
+                <span style="width:2rem;height:2rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;justify-content:center;font:600 13px Archivo,sans-serif;color:#5f6b7a">✕</span>
+              </div>
+
+              <div style="background:#e9f7fa;border-bottom:1px solid #dce2e9;padding:13px 16px;display:flex;flex-direction:column;gap:4px">
+                <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#087f9c">SUSTITUYE A</span>
+                <span style="font:700 13px Archivo,sans-serif;color:#253040">Laura Menchaca Robledo</span>
+                <span style="font:400 11.5px Archivo,sans-serif;color:#253040">P-01 Acceso principal · titular · jueves 10 sep 2026 · 07:00 – 19:00 · Corporativo Altavista, Torre Altavista</span>
+              </div>
+
+              <div style="padding:16px;display:flex;flex-direction:column;gap:16px">
+
+                <div style="border:1px solid #dce2e9;border-radius:6px;padding:12px 14px;display:flex;align-items:center;gap:11px">
+                  <span style="border:1px solid #16a34a;border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:#16a34a;flex:none">INCIDENCIA GUARDADA</span>
+                  <span style="display:flex;flex-direction:column;gap:2px;flex:1">
+                    <span style="font:600 12.5px Archivo,sans-serif;color:#253040">INC-01 Incapacidad médica IMSS</span>
+                    <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Registró Renata Villaseñor · 10 sep 2026 11:28</span>
+                  </span>
+                  <a href="#v2" style="font:600 12px Archivo,sans-serif;flex:none">Ver el paso 1</a>
+                </div>
+
+                <div style="display:flex;flex-direction:column;gap:8px">
+                  <span style="display:flex;align-items:baseline;gap:10px">
+                    <span style="font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">PERSONA QUE CUBRE</span>
+                    <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Cubre-descansos de la posición primero, luego elegibles del servicio</span>
+                  </span>
+                  <div style="border:1px solid #dce2e9;border-radius:6px;overflow:hidden">
+                    <sc-for list="{{ candidatos }}" as="c" hint-placeholder-count="5">
+                      <div style="padding:11px 13px;border-bottom:1px solid #dce2e9;display:flex;align-items:flex-start;gap:11px;background:{{ c.bg }}">
+                        <span style="width:15px;height:15px;border-radius:50%;border:1px solid {{ c.radioBd }};background:{{ c.radioBg }};flex:none;margin-top:2px"></span>
+                        <span style="display:flex;flex-direction:column;gap:3px;flex:1;min-width:0">
+                          <span style="font:600 13px Archivo,sans-serif;color:{{ c.nombreColor }}">{{ c.nombre }}</span>
+                          <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">{{ c.papel }}</span>
+                          <span style="font:400 11.5px/1.45 Archivo,sans-serif;color:{{ c.notaColor }}">{{ c.nota }}</span>
+                        </span>
+                        <span style="border:1px solid {{ c.pillColor }};border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:{{ c.pillColor }};flex:none;white-space:nowrap">{{ c.pill }}</span>
+                      </div>
+                    </sc-for>
+                    <div style="padding:10px 13px;background:#f7f9fb;display:flex;align-items:center;gap:10px">
+                      <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a;flex:1">24 empleados en el servicio · 5 se muestran por perfil de la posición y situación del jueves</span>
+                      <span style="height:2.5rem;border:1px solid #dce2e9;background:#ffffff;border-radius:6px;padding:0 12px;display:flex;align-items:center;font:600 12px Archivo,sans-serif;color:#253040;flex:none">Ampliar a otros servicios</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                  <label style="display:flex;flex-direction:column;gap:6px" for="v3-motcob">
+                    <span style="font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">MOTIVO DE COBERTURA</span>
+                    <span style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;padding:0 12px;display:flex;align-items:center;justify-content:space-between;font:600 12.5px Archivo,sans-serif;color:#253040" id="v3-motcob">COB-01 Cubre-descansos <span style="color:#5f6b7a">▾</span></span>
+                    <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">4 motivos de cobertura del catálogo de la organización</span>
+                  </label>
+                  <div style="display:flex;flex-direction:column;gap:6px">
+                    <span style="font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">AUTORIZACIÓN</span>
+                    <span style="min-height:2.5rem;border:1px solid #dce2e9;border-radius:6px;padding:8px 12px;display:flex;flex-direction:column;gap:2px">
+                      <span style="font:600 12.5px Archivo,sans-serif;color:#253040">Renata Villaseñor</span>
+                      <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Administrador de organización · 10 sep 2026 11:32</span>
+                    </span>
+                    <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Quien registra la cobertura la autoriza. Queda sellado con la incidencia.</span>
+                  </div>
+                </div>
+
+                <label style="display:flex;flex-direction:column;gap:6px" for="v3-nota">
+                  <span style="font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">NOTA DE LA COBERTURA</span>
+                  <span style="min-height:56px;border:1px solid #dce2e9;border-radius:6px;padding:10px 12px;font:400 12.5px/1.5 Archivo,sans-serif;color:#5f6b7a" id="v3-nota">Opcional. Lo que el cliente va a preguntar cuando vea el cambio.</span>
+                </label>
+
+              </div>
+
+              <div style="margin-top:auto;padding:14px 16px;border-top:1px solid #dce2e9;display:flex;align-items:center;gap:12px">
+                <span style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;padding:0 14px;display:flex;align-items:center;font:600 12.5px Archivo,sans-serif;color:#253040">Declarar turno sin cubrir</span>
+                <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a;flex:1">La otra salida. Pide razón y se concilia con el cliente.</span>
+                <span style="height:2.5rem;background:#10104e;color:#ffffff;border-radius:6px;padding:0 14px;display:flex;align-items:center;font:600 12.5px Archivo,sans-serif;flex:none">Registrar cobertura</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <div style="width:1440px;background:#ffffff;border:1px solid #d97706;border-radius:6px;overflow:hidden">
+      <div style="padding:12px 14px;background:#f7f9fb;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:12px">
+        <span style="border:1px solid #d97706;background:#ffffff;border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:#d97706">PENDIENTE DE NEGOCIO</span>
+        <span style="font:700 13px Archivo,sans-serif;color:#253040">Si quien va a cubrir ya tiene turno ese día, ¿se bloquea o se advierte?</span>
+        <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Hoy el sistema bloquea con error. Las dos se dibujan; ninguna se decide desde diseño</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr">
+        <div style="border-right:1px solid #dce2e9;padding:16px;display:flex;flex-direction:column;gap:12px">
+          <span style="display:flex;align-items:center;gap:10px">
+            <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">A · BLOQUEA</span>
+            <span style="border:1px solid #dce2e9;border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:#5f6b7a">Lo que el código hace hoy</span>
+          </span>
+          <div style="border:1px solid #dce2e9;border-radius:6px;padding:11px 13px;display:flex;align-items:flex-start;gap:11px;background:#f7f9fb">
+            <span style="width:15px;height:15px;border-radius:50%;border:1px solid #dce2e9;background:#ffffff;flex:none;margin-top:2px"></span>
+            <span style="display:flex;flex-direction:column;gap:3px;flex:1">
+              <span style="font:600 13px Archivo,sans-serif;color:#5f6b7a">Marisol Quintanar Ávila</span>
+              <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Titular de P-03 Monitoreo CCTV</span>
+              <span style="font:400 11.5px/1.45 Archivo,sans-serif;color:#dc2626">No se puede elegir: tiene turno 07:00 – 19:00 el mismo jueves en P-03. Traslape total.</span>
+            </span>
+            <span style="border:1px solid #dc2626;border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:#dc2626;flex:none">NO ELEGIBLE</span>
+          </div>
+          <span style="font:400 12px/1.6 Archivo,sans-serif;color:#253040">La fila se ve pero no se puede elegir, con la razón escrita. El admin no puede dejar a nadie en dos puestos a la vez, y la conciliación con el cliente nunca muestra a la misma persona dos veces en la misma hora.</span>
+          <span style="font:400 11.5px/1.5 Archivo,sans-serif;color:#5f6b7a">Costo: si esa persona era la única disponible, la única salida es declarar el turno sin cubrir.</span>
+        </div>
+        <div style="padding:16px;display:flex;flex-direction:column;gap:12px">
+          <span style="display:flex;align-items:center;gap:10px">
+            <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">B · ADVIERTE Y PERMITE</span>
+            <span style="border:1px solid #dce2e9;border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:#5f6b7a">Requiere decisión de negocio</span>
+          </span>
+          <div style="border:1px solid #d97706;border-radius:6px;padding:11px 13px;display:flex;align-items:flex-start;gap:11px;background:#ffffff">
+            <span style="width:15px;height:15px;border-radius:50%;border:1px solid #22c6ee;background:#e9f7fa;flex:none;margin-top:2px"></span>
+            <span style="display:flex;flex-direction:column;gap:3px;flex:1">
+              <span style="font:600 13px Archivo,sans-serif;color:#253040">Marisol Quintanar Ávila</span>
+              <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Titular de P-03 Monitoreo CCTV</span>
+              <span style="font:400 11.5px/1.45 Archivo,sans-serif;color:#d97706">Se puede elegir con traslape: tiene turno 07:00 – 19:00 en P-03 el mismo jueves. Al registrar, P-03 queda con un elemento menos.</span>
+            </span>
+            <span style="border:1px solid #d97706;border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:#d97706;flex:none">TRASLAPE</span>
+          </div>
+          <span style="font:400 12px/1.6 Archivo,sans-serif;color:#253040">Se elige y el traslape queda registrado en las dos posiciones. El hueco se mueve, no desaparece: P-01 se cubre y P-03 pierde un elemento, así que la advertencia dice a qué otro turno le está quitando gente.</span>
+          <span style="font:400 11.5px/1.5 Archivo,sans-serif;color:#5f6b7a">Costo: la conciliación puede mostrar a la misma persona en dos servicios a la misma hora.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section data-screen-label="Vista 4 · Cierre con hueco cubierto" id="v4" style="display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;align-items:baseline;gap:12px">
+      <span style="font:600 11.5px Archivo,sans-serif;letter-spacing:.14em;color:#5f6b7a">VISTA 4</span>
+      <span style="font:600 19px Archivo,sans-serif;color:#10104e">Cierre con el hueco cubierto</span>
+    </div>
+    <div style="width:1440px;border:1px solid #dce2e9;border-radius:6px;overflow:hidden;background:#f4f6fa">
+      <div style="height:4.5rem;background:#ffffff;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:12px;padding:0 20px">
+        <div style="display:flex;align-items:center;gap:10px;border:1px solid #dce2e9;border-radius:6px;padding:7px 11px;background:#ffffff">
+          <span style="font:400 11px Archivo,sans-serif;color:#5f6b7a">Organización activa</span>
+          <span style="font:600 13px Archivo,sans-serif;color:#10104e">{{ organizacion }}</span>
+        </div>
+        <span style="font:400 12.5px Archivo,sans-serif;color:#5f6b7a">Fecha operativa <span style="color:#253040;font-weight:600">{{ fecha }}</span></span>
+        <span style="margin-left:auto;display:flex;align-items:center;gap:10px">
+          <span style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;padding:0 12px;display:flex;align-items:center;font:600 12.5px Archivo,sans-serif;color:#253040">Cambiar</span>
+          <span style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;padding:0 12px;display:flex;align-items:center;font:600 12.5px Archivo,sans-serif;color:#253040">Salir</span>
+        </span>
+      </div>
+      <div style="display:flex;min-height:980px">
+        <dc-import name="SideMenu" active="Incidencias" role="admin" usuario="Renata Villaseñor" hint-size="272px,980px"></dc-import>
+        <div style="flex:1;padding:16px 20px 20px;display:flex;flex-direction:column;gap:16px;min-width:0">
+
+          <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px">
+            <div>
+              <div style="font:600 11px Archivo,sans-serif;letter-spacing:.1em;color:#5f6b7a;padding-bottom:5px">INCIDENCIAS · COBERTURA</div>
+              <div style="font:700 22px/1.2 Archivo,sans-serif;color:#10104e">Incidencias</div>
+              <div style="font:400 13px Archivo,sans-serif;color:#5f6b7a;padding-top:4px">El turno de las 07:00 quedó cubierto. Aquí termina el recorrido.</div>
+            </div>
+            <div style="background:#10104e;color:#ffffff;border-radius:6px;padding:0 16px;height:2.5rem;display:flex;align-items:center;font:600 13px Archivo,sans-serif">Registrar incidencia</div>
+          </div>
+
+          <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;padding:12px 14px;display:flex;align-items:center;gap:14px">
+            <span style="display:flex;align-items:center;gap:8px">
+              <span style="width:2rem;height:2rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;justify-content:center;font:600 12px Archivo,sans-serif;color:#5f6b7a">‹</span>
+              <span style="font:600 13px Archivo,sans-serif;color:#253040">Jueves 10 sep 2026</span>
+              <span style="width:2rem;height:2rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;justify-content:center;font:600 12px Archivo,sans-serif;color:#5f6b7a">›</span>
+            </span>
+            <span style="width:1px;height:20px;background:#dce2e9"></span>
+            <span style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;gap:10px;padding:0 12px;font:500 13px Archivo,sans-serif;color:#253040">{{ servicio }} <span style="color:#5f6b7a">▾</span></span>
+            <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Corporativo Altavista · Torre Altavista</span>
+            <span style="margin-left:auto;display:flex;align-items:center;gap:10px">
+              <span style="border:1px solid #dce2e9;border-radius:3px;padding:3px 8px;font:600 10.5px Archivo,sans-serif;color:#5f6b7a">Día abierto · sin corte registrado</span>
+              <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Versión 2 publicada <span style="color:#253040;font-weight:600">07 sep 2026</span></span>
+            </span>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
+            <sc-for list="{{ indic4 }}" as="i" hint-placeholder-count="3">
+              <div style="background:#ffffff;border:1px solid {{ i.bd }};border-radius:6px;padding:16px;display:flex;flex-direction:column;gap:6px">
+                <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">{{ i.etiqueta }}</span>
+                <span style="font:600 22px/1.1 Archivo,sans-serif;color:{{ i.color }}">{{ i.valor }}</span>
+                <span style="font:400 12px Archivo,sans-serif;color:#5f6b7a">{{ i.apoyo }}</span>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="display:flex;gap:16px;align-items:flex-start;min-width:0">
+            <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:16px">
+              <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;overflow:hidden">
+                <div style="padding:12px 14px;background:#f7f9fb;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:12px">
+                  <span style="font:700 13px Archivo,sans-serif;color:#253040">Incidencias del jueves</span>
+                  <span style="border:1px solid #dce2e9;background:#ffffff;border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:#5f6b7a">5 registros</span>
+                </div>
+                <sc-for list="{{ lista4 }}" as="f" hint-placeholder-count="5">
+                  <div style="display:grid;grid-template-columns:220px 1fr 130px;border-bottom:1px solid #dce2e9;align-items:center;background:{{ f.bg }}">
+                    <span style="padding:11px 14px;display:flex;flex-direction:column;gap:2px">
+                      <span style="font:600 13px Archivo,sans-serif;color:#253040">{{ f.persona }}</span>
+                      <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">{{ f.papel }}</span>
+                    </span>
+                    <span style="padding:11px 14px;display:flex;flex-direction:column;gap:2px">
+                      <span style="font:500 12.5px Archivo,sans-serif;color:#253040">{{ f.pos }}</span>
+                      <span style="font:400 11.5px Archivo,sans-serif;color:{{ f.motivoColor }}">{{ f.motivoCubre }}</span>
+                    </span>
+                    <span style="padding:11px 14px">
+                      <span style="border:1px solid {{ f.estadoColor }};border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:{{ f.estadoColor }};white-space:nowrap">{{ f.estado }}</span>
+                    </span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+
+            <div style="width:620px;flex:none;background:#ffffff;border:1px solid #16a34a;border-radius:6px;overflow:hidden;display:flex;flex-direction:column">
+              <div style="padding:14px 16px;border-bottom:1px solid #dce2e9;display:flex;align-items:flex-start;gap:12px">
+                <span style="display:flex;flex-direction:column;gap:3px;flex:1">
+                  <span style="font:700 13px Archivo,sans-serif;color:#253040">Incidencia cerrada</span>
+                  <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Hueco cubierto · uno de los dos cierres posibles</span>
+                </span>
+                <span style="border:1px solid #16a34a;border-radius:3px;padding:3px 8px;font:600 10.5px Archivo,sans-serif;color:#16a34a;flex:none">CUBIERTO</span>
+                <span style="width:2rem;height:2rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;justify-content:center;font:600 13px Archivo,sans-serif;color:#5f6b7a">✕</span>
+              </div>
+
+              <div style="background:#e9f7fa;border-bottom:1px solid #dce2e9;padding:13px 16px;display:flex;flex-direction:column;gap:4px">
+                <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#087f9c">SUSTITUYE A</span>
+                <span style="font:700 13px Archivo,sans-serif;color:#253040">Laura Menchaca Robledo</span>
+                <span style="font:400 11.5px Archivo,sans-serif;color:#253040">P-01 Acceso principal · titular · jueves 10 sep 2026 · 07:00 – 19:00 · Corporativo Altavista, Torre Altavista</span>
+              </div>
+
+              <div style="padding:16px;display:flex;flex-direction:column;gap:16px">
+                <div style="border:1px solid #dce2e9;border-radius:6px;overflow:hidden">
+                  <div style="padding:10px 14px;background:#f7f9fb;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:10px">
+                    <span style="font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">LO QUE QUEDÓ GUARDADO</span>
+                    <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Sellado. Ya no se edita</span>
+                  </div>
+                  <sc-for list="{{ guardar4 }}" as="g" hint-placeholder-count="6">
+                    <div style="padding:10px 14px;border-bottom:1px solid #dce2e9;display:grid;grid-template-columns:160px 1fr;gap:12px;align-items:baseline">
+                      <span style="font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">{{ g.campo }}</span>
+                      <span style="font:{{ g.font }};color:{{ g.color }}">{{ g.valor }}</span>
+                    </div>
+                  </sc-for>
+                  <div style="padding:10px 14px;font:400 11.5px/1.5 Archivo,sans-serif;color:#5f6b7a">La versión 2 publicada no se editó. El cambio vive como incidencia con su cobertura, y así llega a la conciliación con el cliente.</div>
+                </div>
+
+                <div style="border:1px solid #dce2e9;border-radius:6px;padding:14px;display:flex;flex-direction:column;gap:7px">
+                  <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">QUÉ CAMBIÓ EN EL DÍA</span>
+                  <span style="font:400 12.5px/1.55 Archivo,sans-serif;color:#253040">La cobertura del jueves pasa de 17 a 18 de 18 turnos con alguien presente. El hueco de la posición P-01 sigue abierto por separado: son 4 requeridos y 3 asignados desde el 01 sep, y eso se resuelve en Cobertura, no aquí.</span>
+                </div>
+              </div>
+
+              <div style="margin-top:auto;padding:14px 16px;border-top:1px solid #dce2e9;display:flex;align-items:center;gap:12px">
+                <span style="font:600 12.5px Archivo,sans-serif;color:#5f6b7a">Cerrar</span>
+                <span style="margin-left:auto;height:2.5rem;border:1px solid #dce2e9;border-radius:6px;padding:0 14px;display:flex;align-items:center;font:600 12.5px Archivo,sans-serif;color:#253040">Ver el día en Asistencia</span>
+                <span style="height:2.5rem;background:#10104e;color:#ffffff;border-radius:6px;padding:0 14px;display:flex;align-items:center;font:600 12.5px Archivo,sans-serif">Registrar otra incidencia</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section data-screen-label="Vista 5 · Turno declarado sin cubrir" id="v5" style="display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;align-items:baseline;gap:12px">
+      <span style="font:600 11.5px Archivo,sans-serif;letter-spacing:.14em;color:#5f6b7a">VISTA 5</span>
+      <span style="font:600 19px Archivo,sans-serif;color:#10104e">Cierre con el turno declarado sin cubrir</span>
+    </div>
+    <div style="width:1440px;border:1px solid #dce2e9;border-radius:6px;overflow:hidden;background:#f4f6fa">
+      <div style="height:4.5rem;background:#ffffff;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:12px;padding:0 20px">
+        <div style="display:flex;align-items:center;gap:10px;border:1px solid #dce2e9;border-radius:6px;padding:7px 11px;background:#ffffff">
+          <span style="font:400 11px Archivo,sans-serif;color:#5f6b7a">Organización activa</span>
+          <span style="font:600 13px Archivo,sans-serif;color:#10104e">{{ organizacion }}</span>
+        </div>
+        <span style="font:400 12.5px Archivo,sans-serif;color:#5f6b7a">Fecha operativa <span style="color:#253040;font-weight:600">{{ fecha }}</span></span>
+      </div>
+      <div style="display:flex;min-height:820px">
+        <dc-import name="SideMenu" active="Incidencias" role="admin" usuario="Renata Villaseñor" hint-size="272px,820px"></dc-import>
+        <div style="flex:1;padding:16px 20px 20px;display:flex;flex-direction:column;gap:16px;min-width:0;position:relative">
+
+          <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px">
+            <div>
+              <div style="font:600 11px Archivo,sans-serif;letter-spacing:.1em;color:#5f6b7a;padding-bottom:5px">INCIDENCIAS · COBERTURA</div>
+              <div style="font:700 22px/1.2 Archivo,sans-serif;color:#10104e">Incidencias</div>
+              <div style="font:400 13px Archivo,sans-serif;color:#5f6b7a;padding-top:4px">Ninguno de los candidatos quedó disponible para el turno de las 07:00.</div>
+            </div>
+          </div>
+
+          <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;padding:12px 14px;display:flex;align-items:center;gap:14px">
+            <span style="font:600 13px Archivo,sans-serif;color:#253040">Jueves 10 sep 2026</span>
+            <span style="width:1px;height:20px;background:#dce2e9"></span>
+            <span style="font:500 13px Archivo,sans-serif;color:#253040">{{ servicio }}</span>
+            <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Corporativo Altavista · Torre Altavista</span>
+            <span style="margin-left:auto;border:1px solid #dce2e9;border-radius:3px;padding:3px 8px;font:600 10.5px Archivo,sans-serif;color:#5f6b7a">Día abierto · sin corte registrado</span>
+          </div>
+
+          <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;overflow:hidden">
+            <div style="padding:12px 14px;background:#f7f9fb;border-bottom:1px solid #dce2e9;font:700 13px Archivo,sans-serif;color:#253040">Incidencias del jueves</div>
+            <sc-for list="{{ lista3 }}" as="f" hint-placeholder-count="5">
+              <div style="display:grid;grid-template-columns:220px 1fr 130px;border-bottom:1px solid #dce2e9;align-items:center;background:{{ f.bg }}">
+                <span style="padding:11px 14px;font:600 13px Archivo,sans-serif;color:#253040">{{ f.persona }}</span>
+                <span style="padding:11px 14px;font:500 12.5px Archivo,sans-serif;color:#253040">{{ f.pos }}</span>
+                <span style="padding:11px 14px">
+                  <span style="border:1px solid {{ f.estadoColor }};border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:{{ f.estadoColor }};white-space:nowrap">{{ f.estado }}</span>
+                </span>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="position:absolute;inset:0;background:rgba(16,16,78,0.28)"></div>
+
+          <div style="position:absolute;top:150px;left:50%;transform:translateX(-50%);width:600px;background:#ffffff;border:1px solid #dce2e9;border-radius:6px;overflow:hidden">
+            <div style="padding:16px;border-bottom:1px solid #dce2e9;display:flex;flex-direction:column;gap:5px">
+              <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">CONFIRMAR</span>
+              <span style="font:700 13px Archivo,sans-serif;color:#253040">Declarar sin cubrir el turno de Laura Menchaca Robledo</span>
+            </div>
+            <div style="padding:16px;display:flex;flex-direction:column;gap:14px">
+              <div style="border:1px solid #dce2e9;border-radius:6px;padding:13px;display:flex;flex-direction:column;gap:4px;background:#f7f9fb">
+                <span style="font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">EL TURNO</span>
+                <span style="font:600 12.5px Archivo,sans-serif;color:#253040">P-01 Acceso principal · jueves 10 sep 2026 · 07:00 – 19:00</span>
+                <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Corporativo Altavista, Torre Altavista · causa INC-01 Incapacidad médica IMSS</span>
+              </div>
+              <div style="border:1px solid #dc2626;border-radius:6px;padding:13px;display:flex;flex-direction:column;gap:6px">
+                <span style="font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#dc2626">LA CONSECUENCIA</span>
+                <span style="font:400 12.5px/1.6 Archivo,sans-serif;color:#253040">El turno queda como servicio no prestado. Es lo que se concilia con el cliente al cierre del mes y puede volverse nota de crédito. No es un estado neutro: doce horas de P-01 se declaran sin cubrir.</span>
+              </div>
+              <label style="display:flex;flex-direction:column;gap:6px" for="v5-razon">
+                <span style="display:flex;align-items:center;gap:9px">
+                  <span style="font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">RAZÓN POR LA QUE NO SE CUBRIÓ</span>
+                  <span style="border:1px solid #dc2626;border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:#dc2626">Obligatoria</span>
+                </span>
+                <span style="min-height:64px;border:1px solid #22c6ee;border-radius:6px;padding:10px 12px;font:400 12.5px/1.5 Archivo,sans-serif;color:#253040" id="v5-razon">El cubre-descansos de la posición ya tomó el turno de P-04 y los dos elegibles restantes están en turno el mismo jueves. Se avisó a Torre Altavista a las 07:35.</span>
+                <span style="font:400 11.5px/1.5 Archivo,sans-serif;color:#5f6b7a">Se guarda con la incidencia. Sin razón registrada, en la conciliación no hay contra qué defenderse.</span>
+              </label>
+            </div>
+            <div style="padding:14px 16px;border-top:1px solid #dce2e9;display:flex;align-items:center;gap:12px">
+              <span style="height:2.5rem;border:1px solid #22c6ee;border-radius:6px;padding:0 14px;display:flex;align-items:center;font:600 12.5px Archivo,sans-serif;color:#253040">Cancelar y seguir buscando</span>
+              <span style="font:400 11px Archivo,sans-serif;color:#5f6b7a;flex:1">Acción por defecto</span>
+              <span style="height:2.5rem;background:#dc2626;color:#ffffff;border-radius:6px;padding:0 14px;display:flex;align-items:center;font:600 12.5px Archivo,sans-serif;flex:none">Declarar sin cubrir</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <div style="width:1440px;display:flex;flex-direction:column;gap:12px">
+      <span style="font:600 11px Archivo,sans-serif;letter-spacing:.1em;color:#5f6b7a">DESPUÉS DE CONFIRMAR</span>
+      <div style="display:flex;gap:16px;align-items:flex-start">
+        <div style="width:620px;flex:none;background:#ffffff;border:1px solid #dc2626;border-radius:6px;overflow:hidden">
+          <div style="padding:14px 16px;border-bottom:1px solid #dce2e9;display:flex;align-items:flex-start;gap:12px">
+            <span style="display:flex;flex-direction:column;gap:3px;flex:1">
+              <span style="font:700 13px Archivo,sans-serif;color:#253040">Incidencia cerrada</span>
+              <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Turno declarado sin cubrir · el otro de los dos cierres</span>
+            </span>
+            <span style="border:1px solid #dc2626;border-radius:3px;padding:3px 8px;font:600 10.5px Archivo,sans-serif;color:#dc2626;flex:none">DECLARADO SIN CUBRIR</span>
+          </div>
+          <div style="background:#e9f7fa;border-bottom:1px solid #dce2e9;padding:13px 16px;display:flex;flex-direction:column;gap:4px">
+            <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#087f9c">SUSTITUYE A</span>
+            <span style="font:700 13px Archivo,sans-serif;color:#253040">Laura Menchaca Robledo</span>
+            <span style="font:400 11.5px Archivo,sans-serif;color:#253040">P-01 Acceso principal · titular · jueves 10 sep 2026 · 07:00 – 19:00 · Corporativo Altavista, Torre Altavista</span>
+          </div>
+          <sc-for list="{{ guardar5 }}" as="g" hint-placeholder-count="7">
+            <div style="padding:10px 16px;border-bottom:1px solid #dce2e9;display:grid;grid-template-columns:160px 1fr;gap:12px;align-items:baseline">
+              <span style="font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">{{ g.campo }}</span>
+              <span style="font:{{ g.font }};color:{{ g.color }}">{{ g.valor }}</span>
+            </div>
+          </sc-for>
+          <div style="padding:14px 16px;display:flex;align-items:center;gap:12px">
+            <span style="font:600 12.5px Archivo,sans-serif;color:#5f6b7a">Cerrar</span>
+            <span style="margin-left:auto;height:2.5rem;border:1px solid #dce2e9;border-radius:6px;padding:0 14px;display:flex;align-items:center;font:600 12.5px Archivo,sans-serif;color:#253040">Ver el día en Asistencia</span>
+          </div>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:16px;min-width:0">
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
+            <sc-for list="{{ indic5 }}" as="i" hint-placeholder-count="3">
+              <div style="background:#ffffff;border:1px solid {{ i.bd }};border-radius:6px;padding:16px;display:flex;flex-direction:column;gap:6px">
+                <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">{{ i.etiqueta }}</span>
+                <span style="font:600 22px/1.1 Archivo,sans-serif;color:{{ i.color }}">{{ i.valor }}</span>
+                <span style="font:400 12px Archivo,sans-serif;color:#5f6b7a">{{ i.apoyo }}</span>
+              </div>
+            </sc-for>
+          </div>
+          <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;overflow:hidden">
+            <div style="padding:11px 14px;background:#f7f9fb;border-bottom:1px solid #dce2e9;font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">LA FILA, YA CERRADA</div>
+            <div style="display:grid;grid-template-columns:220px 1fr 150px 150px;align-items:center">
+              <span style="padding:12px 14px;display:flex;flex-direction:column;gap:2px">
+                <span style="font:600 13px Archivo,sans-serif;color:#253040">Laura Menchaca Robledo</span>
+                <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Titular</span>
+              </span>
+              <span style="padding:12px 14px;display:flex;flex-direction:column;gap:2px">
+                <span style="font:500 12.5px Archivo,sans-serif;color:#253040">P-01 Acceso principal · 07:00 – 19:00</span>
+                <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">INC-01 Incapacidad médica IMSS</span>
+              </span>
+              <span style="padding:12px 14px;font:400 12px Archivo,sans-serif;color:#dc2626">Nadie</span>
+              <span style="padding:12px 14px">
+                <span style="border:1px solid #dc2626;border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:#dc2626">SIN CUBRIR</span>
+              </span>
+            </div>
+          </div>
+          <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;padding:16px;display:flex;flex-direction:column;gap:7px">
+            <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">LOS DOS CIERRES SON LOS DOS ÚNICOS</span>
+            <span style="font:400 12.5px/1.6 Archivo,sans-serif;color:#253040">Cubierto o declarado sin cubrir. No hay un tercer estado y no existe la incidencia que se queda a medias: mientras no tenga uno de los dos cierres, sigue apareciendo en la lista del día como pendiente y cuenta en el indicador de huecos por cubrir.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <sc-if value="{{ verAnexo }}" hint-placeholder-val="{{ true }}">
+  <section data-screen-label="Anexo · Estados" id="v6" style="display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;align-items:baseline;gap:12px">
+      <span style="font:600 11.5px Archivo,sans-serif;letter-spacing:.14em;color:#5f6b7a">ANEXO</span>
+      <span style="font:600 19px Archivo,sans-serif;color:#10104e">Los estados que el paso 11 tiene que aguantar</span>
+    </div>
+
+    <div style="width:1440px;display:flex;flex-direction:column;gap:16px">
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">
+        <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;overflow:hidden">
+          <div style="padding:11px 14px;background:#f7f9fb;border-bottom:1px solid #dce2e9;font:600 10.5px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">CATÁLOGO DE MOTIVOS VACÍO · FALTA UN PREREQUISITO</div>
+          <div style="padding:16px;display:flex;flex-direction:column;gap:14px">
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <span style="font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">MOTIVO DE INCIDENCIA</span>
+              <div style="border:1px solid #d97706;border-radius:6px;padding:14px;display:flex;flex-direction:column;gap:8px">
+                <span style="font:600 12.5px Archivo,sans-serif;color:#253040">La organización no tiene motivos de incidencia configurados</span>
+                <span style="font:400 12px/1.55 Archivo,sans-serif;color:#253040">Los motivos son de cada organización y se configuran en el paso 3. Sin catálogo no hay causa que registrar, y una incidencia sin causa no sirve para conciliar.</span>
+                <span style="display:flex;align-items:center;gap:12px;padding-top:4px">
+                  <span style="height:2.5rem;background:#10104e;color:#ffffff;border-radius:6px;padding:0 14px;display:flex;align-items:center;font:600 12.5px Archivo,sans-serif">Configurar motivos en Catálogos</span>
+                  <span style="font:400 11.5px/1.5 Archivo,sans-serif;color:#5f6b7a">Se abre en Motivos de incidencia y regresa aquí con la falta y el detalle intactos.</span>
+                </span>
+              </div>
+            </div>
+            <span style="font:400 11.5px/1.5 Archivo,sans-serif;color:#5f6b7a">Nunca un selector vacío: el hueco de configuración dice a dónde ir y cómo volver.</span>
+          </div>
+        </div>
+
+        <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;overflow:hidden">
+          <div style="padding:11px 14px;background:#f7f9fb;border-bottom:1px solid #dce2e9;font:600 10.5px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">SIN PERSONAL ELEGIBLE PARA CUBRIR</div>
+          <div style="padding:16px;display:flex;flex-direction:column;gap:14px">
+            <div style="border:1px solid #dce2e9;border-radius:6px;padding:14px;display:flex;flex-direction:column;gap:9px">
+              <span style="font:600 12.5px Archivo,sans-serif;color:#253040">Ninguno de los 24 empleados del servicio puede tomar el turno del jueves</span>
+              <sc-for list="{{ exclusiones }}" as="e" hint-placeholder-count="3">
+                <span style="display:flex;align-items:baseline;gap:10px">
+                  <span style="font:600 12px Archivo,sans-serif;color:#253040;width:26px;flex:none">{{ e.n }}</span>
+                  <span style="font:400 11.5px/1.5 Archivo,sans-serif;color:#5f6b7a">{{ e.razon }}</span>
+                </span>
+              </sc-for>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:9px">
+              <span style="font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">LAS TRES SALIDAS, EN ORDEN</span>
+              <div style="display:flex;align-items:center;gap:11px">
+                <span style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;padding:0 12px;display:flex;align-items:center;font:600 12px Archivo,sans-serif;color:#253040;flex:none">Ampliar a otros servicios</span>
+                <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Elegibles de la misma zona, con su traslado</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:11px">
+                <span style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;padding:0 12px;display:flex;align-items:center;font:600 12px Archivo,sans-serif;color:#253040;flex:none">Dar de alta en Personal</span>
+                <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Sirve para mañana, no para este turno</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:11px">
+                <span style="height:2.5rem;border:1px solid #dc2626;color:#dc2626;border-radius:6px;padding:0 12px;display:flex;align-items:center;font:600 12px Archivo,sans-serif;flex:none">Declarar sin cubrir</span>
+                <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Con razón obligatoria. Es la última, no la primera</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="background:#ffffff;border:1px solid #d97706;border-radius:6px;overflow:hidden">
+        <div style="padding:11px 14px;background:#f7f9fb;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:12px">
+          <span style="font:600 10.5px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">INCIDENCIA POSTERIOR AL CIERRE DEL DÍA</span>
+          <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">El día tiene estado: cerrado o reabierto, con quién y cuándo</span>
+        </div>
+        <div style="padding:16px;display:flex;gap:16px;align-items:flex-start">
+          <div style="flex:1;display:flex;flex-direction:column;gap:12px;min-width:0">
+            <div style="border:1px solid #d97706;border-radius:6px;padding:12px 14px;display:flex;align-items:center;gap:12px">
+              <span style="border:1px solid #d97706;border-radius:3px;padding:3px 8px;font:600 10.5px Archivo,sans-serif;color:#d97706;flex:none">DÍA CERRADO</span>
+              <span style="display:flex;flex-direction:column;gap:2px;flex:1">
+                <span style="font:600 12.5px Archivo,sans-serif;color:#253040">Miércoles 09 sep 2026 · {{ servicio }}</span>
+                <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Cerró Renata Villaseñor · 10 sep 2026 08:40 · 18 turnos, 0 excepciones al cierre</span>
+              </span>
+            </div>
+            <span style="font:400 12.5px/1.6 Archivo,sans-serif;color:#253040">La falta ocurrió y es real: el registro se permite. Queda marcado como posterior al cierre, con el corte que estaba vigente a la vista, para que la conciliación sepa que ese día se movió después de haberse cerrado.</span>
+            <span style="font:400 11.5px/1.5 Archivo,sans-serif;color:#5f6b7a">Bloquear empujaría el registro fuera del sistema. Aquí no se borra historia y toda corrección conserva su rastro. La reapertura del día es alcance aparte y no se diseñó.</span>
+          </div>
+          <div style="width:620px;flex:none;border:1px solid #dce2e9;border-radius:6px;overflow:hidden">
+            <div style="padding:13px 16px;border-bottom:1px solid #dce2e9;display:flex;align-items:flex-start;gap:12px">
+              <span style="display:flex;flex-direction:column;gap:3px;flex:1">
+                <span style="font:700 13px Archivo,sans-serif;color:#253040">Registrar incidencia</span>
+                <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Paso 1 de 2 · sobre un día ya cerrado</span>
+              </span>
+              <span style="border:1px solid #d97706;border-radius:3px;padding:3px 8px;font:600 10.5px Archivo,sans-serif;color:#d97706;flex:none">POSTERIOR AL CIERRE</span>
+            </div>
+            <div style="background:#e9f7fa;border-bottom:1px solid #dce2e9;padding:13px 16px;display:flex;flex-direction:column;gap:4px">
+              <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#087f9c">SUSTITUYE A</span>
+              <span style="font:700 13px Archivo,sans-serif;color:#253040">Óscar Zúñiga</span>
+              <span style="font:400 11.5px Archivo,sans-serif;color:#253040">P-01 Acceso principal · titular · miércoles 09 sep 2026 · 07:00 – 19:00 · Corporativo Altavista, Torre Altavista</span>
+            </div>
+            <div style="padding:14px 16px;display:flex;flex-direction:column;gap:11px">
+              <div style="border:1px solid #d97706;border-radius:6px;padding:12px;display:flex;flex-direction:column;gap:5px">
+                <span style="font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#d97706">EL DÍA YA ESTABA CERRADO</span>
+                <span style="font:400 12px/1.55 Archivo,sans-serif;color:#253040">Esta incidencia entra fechada hoy sobre el turno del 09 sep y queda marcada como posterior al cierre. Los contadores del corte no se reescriben: quedan como estaban y la incidencia se lee aparte.</span>
+              </div>
+              <div style="display:grid;grid-template-columns:160px 1fr;gap:12px;align-items:baseline">
+                <span style="font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">CORTE VIGENTE</span>
+                <span style="font:500 12.5px Archivo,sans-serif;color:#253040">Cerrado por Renata Villaseñor · 10 sep 2026 08:40</span>
+              </div>
+              <div style="display:grid;grid-template-columns:160px 1fr;gap:12px;align-items:baseline">
+                <span style="font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">REGISTRA</span>
+                <span style="font:500 12.5px Archivo,sans-serif;color:#253040">Renata Villaseñor · 11 sep 2026 09:05</span>
+              </div>
+            </div>
+            <div style="padding:13px 16px;border-top:1px solid #dce2e9;display:flex;align-items:center;gap:12px">
+              <span style="font:600 12.5px Archivo,sans-serif;color:#5f6b7a">Cancelar</span>
+              <span style="margin-left:auto;height:2.5rem;background:#10104e;color:#ffffff;border-radius:6px;padding:0 14px;display:flex;align-items:center;font:600 12.5px Archivo,sans-serif">Guardar marcada y continuar</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">
+        <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;overflow:hidden">
+          <div style="padding:11px 14px;background:#f7f9fb;border-bottom:1px solid #dce2e9;font:600 10.5px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">CARGANDO · ESQUELETO, NO SPINNER</div>
+          <div style="padding:14px;display:flex;flex-direction:column;gap:12px">
+            <div style="border:1px solid #dce2e9;border-radius:6px;overflow:hidden">
+              <div style="padding:12px 14px;background:#f7f9fb;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:10px"><span style="width:170px;height:9px;border-radius:3px;background:#f4f6fa"></span><span style="width:58px;height:9px;border-radius:3px;background:#f4f6fa"></span></div>
+              <sc-for list="{{ esqueleto }}" as="s" hint-placeholder-count="4">
+                <div style="padding:14px;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:14px">
+                  <span style="display:flex;flex-direction:column;gap:6px;width:180px;flex:none">
+                    <span style="width:{{ s.a }};height:9px;border-radius:3px;background:#f7f9fb"></span>
+                    <span style="width:52px;height:8px;border-radius:3px;background:#f4f6fa"></span>
+                  </span>
+                  <span style="display:flex;flex-direction:column;gap:6px;flex:1">
+                    <span style="width:{{ s.b }};height:9px;border-radius:3px;background:#f7f9fb"></span>
+                    <span style="width:38%;height:8px;border-radius:3px;background:#f4f6fa"></span>
+                  </span>
+                  <span style="width:96px;height:18px;border-radius:3px;background:#f7f9fb;flex:none"></span>
+                </div>
+              </sc-for>
+              <div style="padding:11px 14px;font:400 11.5px Archivo,sans-serif;color:#5f6b7a">La estructura ya está puesta: al llegar los datos nada se mueve de lugar.</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;overflow:hidden">
+          <div style="padding:11px 14px;background:#f7f9fb;border-bottom:1px solid #dce2e9;font:600 10.5px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">ERROR AL GUARDAR LA COBERTURA</div>
+          <div style="padding:16px;display:flex;flex-direction:column;gap:14px">
+            <div style="border:1px solid #dc2626;border-radius:6px;padding:16px;display:flex;flex-direction:column;gap:7px">
+              <span style="display:flex;align-items:center;gap:9px">
+                <span style="width:8px;height:8px;border-radius:50%;background:#dc2626;flex:none"></span>
+                <span style="font:700 13px Archivo,sans-serif;color:#253040">No se pudo registrar la cobertura</span>
+              </span>
+              <span style="font:400 12.5px/1.55 Archivo,sans-serif;color:#253040">La incidencia sí quedó guardada con su motivo a las 11:28. Lo que no se guardó es quién cubre, y el turno sigue contando como hueco por cubrir.</span>
+              <span style="display:flex;align-items:center;gap:12px;padding-top:5px">
+                <span style="height:2.5rem;background:#10104e;color:#ffffff;border-radius:6px;padding:0 14px;display:flex;align-items:center;font:600 12.5px Archivo,sans-serif">Reintentar</span>
+                <span style="font:400 11.5px/1.5 Archivo,sans-serif;color:#5f6b7a">Nada se registró a medias: o queda la cobertura completa con su autorización, o no queda.</span>
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;overflow:hidden">
+        <div style="padding:11px 14px;background:#f7f9fb;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:12px">
+          <span style="font:600 10.5px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">LOS DOS CIERRES, LADO A LADO</span>
+          <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Mismo turno, mismas seis cosas guardadas, dos desenlaces</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr">
+          <div style="border-right:1px solid #dce2e9;padding:16px;display:flex;flex-direction:column;gap:11px">
+            <span style="display:flex;align-items:center;gap:10px">
+              <span style="border:1px solid #16a34a;border-radius:3px;padding:3px 8px;font:600 10.5px Archivo,sans-serif;color:#16a34a">CUBIERTO</span>
+              <span style="font:600 12.5px Archivo,sans-serif;color:#253040">Rubén Darío Ortiz cubre a Laura Menchaca Robledo</span>
+            </span>
+            <span style="font:400 12px/1.6 Archivo,sans-serif;color:#253040">El servicio se prestó con otra persona. La conciliación muestra el turno cubierto, con quién lo cubrió, por qué y quién lo autorizó.</span>
+            <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Cobertura del jueves: 18 de 18</span>
+          </div>
+          <div style="padding:16px;display:flex;flex-direction:column;gap:11px">
+            <span style="display:flex;align-items:center;gap:10px">
+              <span style="border:1px solid #dc2626;border-radius:3px;padding:3px 8px;font:600 10.5px Archivo,sans-serif;color:#dc2626">DECLARADO SIN CUBRIR</span>
+              <span style="font:600 12.5px Archivo,sans-serif;color:#253040">Nadie tomó el turno de las 07:00 – 19:00</span>
+            </span>
+            <span style="font:400 12px/1.6 Archivo,sans-serif;color:#253040">Doce horas de servicio no prestado, con la razón registrada. Es lo que se concilia con el cliente y lo que puede volverse nota de crédito.</span>
+            <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Cobertura del jueves: 17 de 18</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;overflow:hidden">
+        <div style="padding:11px 14px;background:#f7f9fb;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:12px">
+          <span style="font:600 10.5px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">PENDIENTES ANOTADOS, NO DISEÑADOS</span>
+          <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Ninguno se resuelve desde diseño</span>
+        </div>
+        <sc-for list="{{ pendientes }}" as="p" hint-placeholder-count="4">
+          <div style="padding:13px 14px;border-bottom:1px solid #dce2e9;display:grid;grid-template-columns:230px 1fr 190px;gap:14px;align-items:baseline">
+            <span style="font:600 12.5px Archivo,sans-serif;color:#253040">{{ p.tema }}</span>
+            <span style="font:400 12px/1.55 Archivo,sans-serif;color:#5f6b7a">{{ p.nota }}</span>
+            <span style="font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:{{ p.estadoColor }}">{{ p.estado }}</span>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </section>
+  </sc-if>
+
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;organizacion&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Seguridad Vanguardia S.A.&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;fecha&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;10 sep 2026&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;servicio&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Vigilancia intramuros Torre Altavista&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;verAnexo&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Vistas&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const B = '#dce2e9', M = '#5f6b7a', T = '#253040', N = '#10104e';
+    const OK = '#16a34a', W = '#d97706', D = '#dc2626', CY = '#087f9c';
+
+    const fila = (persona, papel, pos, motivo, motivoColor, cubre, cubreColor, estado, estadoColor, sel) => ({
+      persona, papel, pos, motivo, motivoColor, cubre, cubreColor, estado, estadoColor,
+      motivoCubre: (cubre === '—' || cubre === 'Falta elegir') ? motivo : motivo + ' · cubre ' + cubre,
+      bg: sel ? '#e9f7fa' : '#ffffff'
+    });
+
+    const base = [
+      fila('Ana Sofía Rentería', 'Titular', 'P-03 Monitoreo CCTV · 07:00 – 19:00', 'INC-01 Incapacidad médica IMSS', M, 'Alma Rocío Villalpando', T, 'CUBIERTO', OK),
+      fila('Jorge Iván Peñaloza', 'Titular', 'P-02 Rondín nocturno · 19:00 – 07:00', 'INC-05 Retardo mayor a tolerancia', M, 'El mismo elemento', M, 'SIN HUECO', M),
+      fila('Norma Alicia Berrones', 'Titular', 'P-05 Recepción vespertina · 14:00 – 22:00', 'INC-02 Falta injustificada', M, 'Nadie', D, 'SIN CUBRIR', D),
+      fila('Marcos Iturbe', 'Cubre-descansos', 'P-06 Andén de carga · 06:00 – 14:00', 'INC-03 Permiso sin goce de sueldo', M, 'Yanet Bañuelos', T, 'CUBIERTO', OK)
+    ];
+
+    const laura = (motivo, motivoColor, cubre, cubreColor, estado, estadoColor) =>
+      fila('Laura Menchaca Robledo', 'Titular', 'P-01 Acceso principal · 07:00 – 19:00', motivo, motivoColor, cubre, cubreColor, estado, estadoColor, true);
+
+    const lista1 = [laura('Sin motivo · falta elegirlo del catálogo', D, '—', M, 'EN REGISTRO', CY), ...base];
+    const lista3 = [laura('INC-01 Incapacidad médica IMSS', M, 'Falta elegir', W, 'HUECO ABIERTO', D), ...base];
+    const lista4 = [laura('INC-01 Incapacidad médica IMSS', M, 'Rubén Darío Ortiz', T, 'CUBIERTO', OK), ...base];
+
+    const ind = (etiqueta, valor, apoyo, color, bd) => ({ etiqueta, valor, apoyo, color: color || N, bd: bd || B });
+
+    const g = (campo, valor, pendiente, alerta) => ({
+      campo, valor,
+      font: pendiente ? '400 12.5px Archivo,sans-serif' : '600 12.5px Archivo,sans-serif',
+      color: alerta ? D : pendiente ? M : T
+    });
+
+    const cand = (nombre, papel, nota, pill, pillColor, notaColor, estado) => ({
+      nombre, papel, nota, pill, pillColor, notaColor,
+      nombreColor: estado === 'no' ? M : T,
+      bg: estado === 'sel' ? '#e9f7fa' : '#ffffff',
+      radioBd: estado === 'sel' ? '#22c6ee' : B,
+      radioBg: estado === 'sel' ? '#22c6ee' : '#ffffff'
+    });
+
+    return {
+      organizacion: this.props.organizacion ?? 'Seguridad Vanguardia S.A.',
+      fecha: this.props.fecha ?? '10 sep 2026',
+      servicio: this.props.servicio ?? 'Vigilancia intramuros Torre Altavista',
+      verAnexo: this.props.verAnexo ?? true,
+
+      lista1, lista3, lista4,
+
+      indic1: [
+        ind('INCIDENCIAS DEL DÍA', '5', 'Del servicio, sobre la versión 2 publicada de la semana.'),
+        ind('HUECOS POR CUBRIR', '2', 'Turnos con incidencia y nadie que los tome todavía.', D, D),
+        ind('DECLARADOS SIN CUBRIR', '1', 'Servicio no prestado. Se concilia con el cliente al cierre del mes.')
+      ],
+      indic4: [
+        ind('INCIDENCIAS DEL DÍA', '5', 'Del servicio, sobre la versión 2 publicada de la semana.'),
+        ind('HUECOS POR CUBRIR', '1', 'Queda el de P-05, de la falta injustificada de la tarde.', D, D),
+        ind('DECLARADOS SIN CUBRIR', '1', 'Servicio no prestado. Se concilia con el cliente al cierre del mes.')
+      ],
+      indic5: [
+        ind('INCIDENCIAS DEL DÍA', '5', 'Del servicio, sobre la versión 2 publicada de la semana.'),
+        ind('HUECOS POR CUBRIR', '1', 'Queda el de P-05, de la falta injustificada de la tarde.', D, D),
+        ind('DECLARADOS SIN CUBRIR', '2', 'Doce horas de P-01 se suman a las ocho de P-05.', D, D)
+      ],
+
+      motivos: [
+        { cod:'INC-01', nombre:'Incapacidad médica IMSS', nota:'Requiere folio del certificado', bg:'#e9f7fa', color:T, marca:'ELEGIDO', marcaColor:CY },
+        { cod:'INC-02', nombre:'Falta injustificada', nota:'Sin aviso previo', bg:'#ffffff', color:T, marca:'', marcaColor:M },
+        { cod:'INC-03', nombre:'Permiso sin goce de sueldo', nota:'Autorizado con anticipación', bg:'#ffffff', color:T, marca:'', marcaColor:M },
+        { cod:'INC-04', nombre:'Permiso con goce', nota:'', bg:'#ffffff', color:T, marca:'', marcaColor:M },
+        { cod:'INC-05', nombre:'Retardo mayor a tolerancia', nota:'No deja hueco: el turno queda cubierto', bg:'#ffffff', color:T, marca:'', marcaColor:M },
+        { cod:'INC-06', nombre:'Abandono de turno', nota:'Deja el puesto solo antes de la hora', bg:'#ffffff', color:T, marca:'', marcaColor:M },
+        { cod:'INC-07', nombre:'Suspensión', nota:'Lo desactivó la organización el 22 ago 2026', bg:'#f7f9fb', color:M, marca:'DESACTIVADO', marcaColor:W }
+      ],
+
+      candidatos: [
+        cand('Rubén Darío Ortiz', 'Cubre-descansos de P-01 Acceso principal', 'Descansa hoy y el perfil de la posición coincide. Entra sin mover otro turno.', 'DISPONIBLE', OK, M, 'sel'),
+        cand('Efraín Solórzano', 'Titular de P-04 Rondín perimetral', 'Descanso declarado en su patrón. Cubrir le rompe el descanso del jueves.', 'DISPONIBLE', OK, M, ''),
+        cand('Marisol Quintanar Ávila', 'Titular de P-03 Monitoreo CCTV', 'Tiene turno 07:00 – 19:00 el mismo jueves en P-03. Traslape total.', 'TRASLAPE', W, W, ''),
+        cand('Jorge Iván Peñaloza', 'Titular de P-02 Rondín nocturno', 'Sale a las 07:00 de hoy y entra a las 19:00. Cubrir este turno lo deja 24 horas seguidas.', 'TRASLAPE', W, W, ''),
+        cand('Yanet Bañuelos', 'Vigilante · sin asignación vigente', 'No elegible: la constancia de capacitación venció el 31 ago 2026. Se renueva en Personal.', 'NO ELEGIBLE', D, D, 'no')
+      ],
+
+      guardar1: [
+        g('PERSONA ORIGINAL', 'Laura Menchaca Robledo'),
+        g('CAUSA', 'Falta elegir el motivo del catálogo', true, true),
+        g('PERSONA QUE CUBRE', 'Se define en el paso 2', true),
+        g('TURNO', 'Jueves 10 sep 2026 · 07:00 – 19:00'),
+        g('CLIENTE Y SEDE', 'Corporativo Altavista · Torre Altavista'),
+        g('AUTORIZACIÓN', 'Se sella al registrar la cobertura', true)
+      ],
+      guardar4: [
+        g('PERSONA ORIGINAL', 'Laura Menchaca Robledo'),
+        g('CAUSA', 'INC-01 Incapacidad médica IMSS'),
+        g('PERSONA QUE CUBRE', 'Rubén Darío Ortiz · cubre-descansos · COB-01'),
+        g('TURNO', 'Jueves 10 sep 2026 · 07:00 – 19:00'),
+        g('CLIENTE Y SEDE', 'Corporativo Altavista · Torre Altavista'),
+        g('AUTORIZACIÓN', 'Renata Villaseñor · 10 sep 2026 11:32')
+      ],
+      guardar5: [
+        g('PERSONA ORIGINAL', 'Laura Menchaca Robledo'),
+        g('CAUSA', 'INC-01 Incapacidad médica IMSS'),
+        g('PERSONA QUE CUBRE', 'Nadie · turno declarado sin cubrir', false, true),
+        g('RAZÓN', 'El cubre-descansos tomó P-04 y los dos elegibles restantes están en turno. Se avisó a Torre Altavista a las 07:35.'),
+        g('TURNO', 'Jueves 10 sep 2026 · 07:00 – 19:00'),
+        g('CLIENTE Y SEDE', 'Corporativo Altavista · Torre Altavista'),
+        g('AUTORIZACIÓN', 'Renata Villaseñor · 10 sep 2026 11:34')
+      ],
+
+      exclusiones: [
+        { n:'18', razon:'Con turno el mismo jueves en este u otro servicio.' },
+        { n:'4', razon:'Sin el perfil que la posición P-01 requiere.' },
+        { n:'2', razon:'Con documento vencido en el expediente.' }
+      ],
+
+      esqueleto: [{ a:'82%', b:'64%' }, { a:'62%', b:'48%' }, { a:'74%', b:'71%' }, { a:'55%', b:'40%' }],
+
+      pendientes: [
+        { tema:'Traslape al cubrir', nota:'Hoy el sistema bloquea con error. Las dos versiones están dibujadas en la vista 3, rotuladas como pendientes. Es decisión de negocio, igual que el cubre-descansos en Planeación.', estado:'PENDIENTE DE NEGOCIO', estadoColor:W },
+        { tema:'Reapertura del día cerrado', nota:'La entidad de cierre guarda estado cerrado o reabierto, pero quién puede reabrir y con qué rastro no está definido. Aquí solo se dibuja la marca de incidencia posterior al cierre.', estado:'ALCANCE APARTE', estadoColor:W },
+        { tema:'Elegibilidad por texto libre', nota:'El perfil de la posición y el puesto del empleado se comparan como texto. La lista de candidatos hereda ese problema del paso 8: una redacción distinta deja fuera a alguien elegible.', estado:'PENDIENTE DE NEGOCIO', estadoColor:W },
+        { tema:'Rol que registra', nota:'El paso 11 lo opera quien vigila el día. El menú lateral solo tiene super admin fuera, super admin dentro y admin de organización, así que estas cinco vistas se dibujaron como admin.', estado:'HUECO DE ALCANCE', estadoColor:W },
+        { tema:'Aviso al cliente', nota:'La razón de un turno sin cubrir menciona que se avisó a la sede. Notificar al cliente desde el sistema no está en fase 1: el aviso ocurre por fuera y aquí solo se registra.', estado:'FUERA DE FASE 1', estadoColor:M }
+      ]
+    };
+  }
+}
+
+</script>
+</body>
+</html>

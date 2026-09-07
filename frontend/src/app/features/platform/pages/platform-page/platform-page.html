@@ -1,0 +1,410 @@
+<section class="platform-page">
+  <article class="platform-hero gi-card">
+    <div>
+      <span class="context-chip">Configuración plataforma</span>
+      <h1>Organizaciones</h1>
+      <p>
+        Alta y gobierno de las organizaciones que usarán GestIA. Desde aquí el Super Admin crea el contexto de trabajo y asigna el admin responsable de cada organización.
+      </p>
+    </div>
+
+    <div class="hero-actions">
+      <a class="gi-button gi-button--secondary" routerLink="/seguridad">Ver seguridad</a>
+      <a class="gi-button gi-button--primary" routerLink="/clientes">Entrar a vista admin</a>
+    </div>
+  </article>
+
+  @if (error()) {
+    <p class="gi-alert gi-alert--error" role="alert">{{ error() }}</p>
+  }
+
+  @if (success()) {
+    <p class="gi-alert gi-alert--success" role="status">{{ success() }}</p>
+  }
+
+  <section class="platform-kpis" aria-label="Resumen de organizaciones">
+    <article>
+      <span>Organizaciones</span>
+      <strong>{{ organizations().length }}</strong>
+      <small>{{ activeOrganizationsCount() }} activas · {{ inactiveOrganizationsCount() }} inactivas</small>
+    </article>
+    <article>
+      <span>Admins org.</span>
+      <strong>{{ organizationAdminsCount() }}</strong>
+      <small>usuarios responsables por organización</small>
+    </article>
+    <article>
+      <span>Clientes operativos</span>
+      <strong>{{ totalClientsCount() }}</strong>
+      <small>{{ activeClientsCount() }} activos · {{ inactiveClientsCount() }} inactivos</small>
+    </article>
+    <article>
+      <span>Rol para alta</span>
+      <strong>{{ adminRole()?.name || 'Pendiente' }}</strong>
+      <small>{{ adminRole()?.codeRole || 'configura un rol admin' }}</small>
+    </article>
+  </section>
+
+  <section class="platform-layout">
+    <article class="platform-registry gi-card">
+      <header class="section-heading">
+        <div>
+          <span class="eyebrow">Nueva organización</span>
+          <h2>Alta de organización</h2>
+          <p>Crea la empresa que usará GestIA junto con su administrador inicial. Ambos registros se guardan en una sola operación.</p>
+        </div>
+      </header>
+
+      <form class="creation-form" #organizationForm="ngForm" (ngSubmit)="submitOrganizationStep(organizationForm)">
+        <ol class="organization-steps" aria-label="Alta de organización">
+          <li [attr.aria-current]="organizationStep() === 1 ? 'step' : null">1. Organización</li>
+          <li [attr.aria-current]="organizationStep() === 2 ? 'step' : null">2. Administrador</li>
+          <li [attr.aria-current]="organizationStep() === 3 ? 'step' : null">3. Revisión</li>
+        </ol>
+        @if (organizationStep() === 1) {
+        <div class="form-grid form-grid--two">
+          <label>
+            <span>Código</span>
+            <input
+              type="text"
+              name="newOrganizationCode"
+              required maxlength="30"
+              autocomplete="off"
+              placeholder="BKT"
+              [ngModel]="newOrganizationCode()"
+              (ngModelChange)="newOrganizationCode.set($event)"
+            />
+          </label>
+          <label>
+            <span>RFC</span>
+            <input
+              type="text"
+              name="newOrganizationRfc"
+              maxlength="13"
+              autocomplete="off"
+              placeholder="Opcional"
+              [ngModel]="newOrganizationRfc()"
+              (ngModelChange)="newOrganizationRfc.set($event)"
+            />
+          </label>
+        </div>
+
+        <label>
+          <span>Nombre legal</span>
+          <input
+            type="text"
+            name="newOrganizationLegalName"
+            required maxlength="200"
+            autocomplete="organization"
+            placeholder="Nombre de la organización"
+            [ngModel]="newOrganizationLegalName()"
+            (ngModelChange)="newOrganizationLegalName.set($event)"
+          />
+        </label>
+
+        }
+        @if (organizationStep() === 2) {
+        <fieldset>
+          <legend>Admin inicial</legend>
+          <div class="form-grid form-grid--two">
+            <label>
+              <span>Nombre</span>
+              <input
+                type="text"
+                name="initialAdminName"
+                required maxlength="150"
+                autocomplete="name"
+                placeholder="Admin organización"
+                [ngModel]="initialAdminName()"
+                (ngModelChange)="initialAdminName.set($event)"
+              />
+            </label>
+            <label>
+              <span>Correo</span>
+              <input
+                type="email"
+                name="initialAdminEmail"
+                required email maxlength="254"
+                autocomplete="email"
+                placeholder="admin@empresa.com"
+                [ngModel]="initialAdminEmail()"
+                (ngModelChange)="initialAdminEmail.set($event)"
+              />
+            </label>
+          </div>
+          <label>
+            <span>Contraseña temporal</span>
+            <input
+              type="password"
+              name="initialAdminPassword"
+              required minlength="12" maxlength="200"
+              autocomplete="new-password"
+              placeholder="Mínimo 12 caracteres"
+              [ngModel]="initialAdminPassword()"
+              (ngModelChange)="initialAdminPassword.set($event)"
+            />
+          </label>
+        </fieldset>
+        }
+        @if (organizationStep() === 3) {
+          <dl class="organization-review">
+            <dt>Organización</dt><dd>{{ newOrganizationLegalName() }}</dd>
+            <dt>Código</dt><dd>{{ newOrganizationCode() }}</dd>
+            <dt>RFC</dt><dd>{{ newOrganizationRfc() || 'No capturado' }}</dd>
+            <dt>Administrador</dt><dd>{{ initialAdminName() }}</dd>
+            <dt>Correo</dt><dd>{{ initialAdminEmail() }}</dd>
+            <dt>Rol</dt><dd>Admin de organización</dd>
+          </dl>
+        }
+        @if (organizationStepError()) { <p class="gi-alert gi-alert--error" role="alert">{{ organizationStepError() }}</p> }
+        <div class="hero-actions">
+          <button class="gi-button gi-button--secondary" type="button" [disabled]="savingOrganization()" (click)="cancelOrganizationCreation()">Cancelar</button>
+          @if (organizationStep() > 1) {
+            <button class="gi-button gi-button--secondary" type="button" [disabled]="savingOrganization()" (click)="organizationStep.set(organizationStep() - 1)">Atrás</button>
+          }
+          <button class="gi-button gi-button--primary" type="submit" [disabled]="savingOrganization() || (organizationStep() === 3 && !canCreateOrganization())">
+            {{ savingOrganization() ? 'Guardando...' : organizationStep() === 3 ? 'Crear organización' : 'Continuar' }}
+          </button>
+        </div>
+      </form>
+
+      <section class="organization-directory">
+        <header class="section-heading">
+          <div>
+            <span class="eyebrow">Directorio</span>
+            <h2>Organizaciones registradas</h2>
+            <p>Selecciona una organización para revisar admins, usuarios y clientes operativos asociados.</p>
+          </div>
+        </header>
+
+        @if (loading()) {
+          <div class="platform-skeleton" aria-label="Cargando organizaciones">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+        } @else {
+          <div class="organization-list">
+            @for (summary of summaries(); track summary.organization.idOrganization) {
+              <button
+                class="organization-row"
+                type="button"
+                [class.is-active]="selectedSummary()?.organization.idOrganization === summary.organization.idOrganization"
+                (click)="selectOrganization(summary.organization.idOrganization)"
+              >
+                <span>
+                  <strong>{{ summary.organization.legalName }}</strong>
+                  <small>{{ summary.organization.codeOrganization }} · {{ summary.organization.rfc || 'RFC no capturado' }}</small>
+                </span>
+                <em [class.is-muted]="!summary.organization.active">{{ activeLabel(summary.organization.active) }}</em>
+              </button>
+            } @empty {
+              <div class="empty-state">
+                <strong>Sin organizaciones registradas</strong>
+                <span>Crea la primera organización con el formulario superior.</span>
+              </div>
+            }
+          </div>
+        }
+      </section>
+    </article>
+
+    <article class="platform-detail gi-card">
+      @if (selectedSummary(); as summary) {
+        <header class="section-heading">
+          <div>
+            <span class="eyebrow">Vista Super Admin</span>
+            <h2>{{ summary.organization.legalName }}</h2>
+            <p>{{ summary.organization.codeOrganization }} · {{ summary.organization.rfc || 'RFC pendiente' }}</p>
+          </div>
+          <a class="gi-button gi-button--secondary" routerLink="/seguridad">Gestionar accesos</a>
+        </header>
+
+        <section class="detail-metrics">
+          <article>
+            <span>Clientes operativos</span>
+            <strong>{{ summary.clients.length }}</strong>
+          </article>
+          <article>
+            <span>Usuarios</span>
+            <strong>{{ summary.usersCount }}</strong>
+          </article>
+          <article>
+            <span>Admins org.</span>
+            <strong>{{ summary.adminsCount }}</strong>
+          </article>
+        </section>
+
+        <section class="detail-section">
+          <header>
+            <div>
+              <span class="eyebrow">Soporte BKT</span>
+              <h3>Datos de la organización</h3>
+            </div>
+          </header>
+
+          <form class="creation-form creation-form--compact" (ngSubmit)="updateSelectedOrganization()">
+            <div class="form-grid form-grid--two">
+              <label>
+                <span>Código</span>
+                <input
+                  type="text"
+                  name="editOrganizationCode"
+                  autocomplete="off"
+                  [ngModel]="editOrganizationCode()"
+                  (ngModelChange)="editOrganizationCode.set($event)"
+                />
+              </label>
+              <label>
+                <span>RFC</span>
+                <input
+                  type="text"
+                  name="editOrganizationRfc"
+                  autocomplete="off"
+                  placeholder="Opcional"
+                  [ngModel]="editOrganizationRfc()"
+                  (ngModelChange)="editOrganizationRfc.set($event)"
+                />
+              </label>
+            </div>
+            <label>
+              <span>Nombre legal</span>
+              <input
+                type="text"
+                name="editOrganizationLegalName"
+                autocomplete="organization"
+                [ngModel]="editOrganizationLegalName()"
+                (ngModelChange)="editOrganizationLegalName.set($event)"
+              />
+            </label>
+            <div class="form-actions">
+              <button class="gi-button gi-button--secondary" type="button" [disabled]="savingOrganization()" (click)="toggleSelectedOrganizationStatus()">
+                {{ summary.organization.active ? 'Desactivar' : 'Reactivar' }}
+              </button>
+              <button class="gi-button gi-button--primary" type="submit" [disabled]="!canUpdateSelectedOrganization()">
+                {{ savingOrganization() ? 'Guardando...' : 'Guardar cambios' }}
+              </button>
+            </div>
+          </form>
+        </section>
+
+        <section class="detail-section">
+          <header>
+            <div>
+              <span class="eyebrow">Admin de organización</span>
+              <h3>Crear admin para esta organización</h3>
+            </div>
+          </header>
+
+          <form class="creation-form creation-form--compact" (ngSubmit)="createAdminForSelected()">
+            <div class="form-grid form-grid--two">
+              <label>
+                <span>Nombre</span>
+                <input
+                  type="text"
+                  name="selectedAdminName"
+                  autocomplete="name"
+                  placeholder="Admin organización"
+                  [ngModel]="selectedAdminName()"
+                  (ngModelChange)="selectedAdminName.set($event)"
+                />
+              </label>
+              <label>
+                <span>Correo</span>
+                <input
+                  type="email"
+                  name="selectedAdminEmail"
+                  autocomplete="email"
+                  placeholder="admin@empresa.com"
+                  [ngModel]="selectedAdminEmail()"
+                  (ngModelChange)="selectedAdminEmail.set($event)"
+                />
+              </label>
+            </div>
+            <label>
+              <span>Contraseña temporal</span>
+              <input
+                type="password"
+                name="selectedAdminPassword"
+                autocomplete="new-password"
+                placeholder="Mínimo 12 caracteres"
+                [ngModel]="selectedAdminPassword()"
+                (ngModelChange)="selectedAdminPassword.set($event)"
+              />
+            </label>
+            <button class="gi-button gi-button--primary" type="submit" [disabled]="!canCreateAdminForSelected()">
+              {{ savingAdmin() ? 'Creando admin...' : 'Crear admin' }}
+            </button>
+          </form>
+        </section>
+
+        <section class="detail-section">
+          <header>
+            <div>
+              <span class="eyebrow">Admins actuales</span>
+              <h3>Responsables de la organización</h3>
+            </div>
+          </header>
+          <div class="mini-list">
+            @for (admin of organizationAdmins(summary); track admin.idUser) {
+              <article>
+                <span>
+                  <strong>{{ admin.displayName }}</strong>
+                  <small>{{ admin.email }}</small>
+                </span>
+                <em [class.is-muted]="!admin.active">{{ admin.active ? 'Activo' : 'Inactivo' }}</em>
+              </article>
+            } @empty {
+              <article>
+                <span>
+                  <strong>Sin admin detectado</strong>
+                  <small>Crea el admin de la organización desde el formulario superior.</small>
+                </span>
+                <em class="is-warning">Pendiente</em>
+              </article>
+            }
+          </div>
+        </section>
+
+        <section class="detail-section">
+          <header>
+            <div>
+              <span class="eyebrow">Clientes operativos</span>
+              <h3>Clientes dentro de la organización</h3>
+            </div>
+            <a routerLink="/clientes">Abrir cartera</a>
+          </header>
+          <div class="mini-list">
+            @for (client of topClients(summary); track client.idClient) {
+              <article>
+                <span>
+                  <strong>{{ client.tradeName || client.legalName }}</strong>
+                  <small>{{ client.codeClient }} · {{ client.rfc }}</small>
+                </span>
+                <em [class.is-muted]="!client.active">{{ activeLabel(client.active) }}</em>
+              </article>
+            } @empty {
+              <article>
+                <span>
+                  <strong>Sin clientes operativos</strong>
+                  <small>El admin de organización los creará desde Configuración / Clientes.</small>
+                </span>
+                <em class="is-muted">Vacío</em>
+              </article>
+            }
+          </div>
+        </section>
+
+        <section class="platform-note">
+          <strong>Separación de niveles</strong>
+          <span>Super Admin solo da de alta organizaciones y admins. La configuración operativa vive dentro de la organización, en la vista admin.</span>
+        </section>
+      } @else {
+        <div class="empty-state empty-state--large">
+          <strong>Selecciona una organización</strong>
+          <span>El detalle de gobierno aparecerá aquí.</span>
+        </div>
+      }
+    </article>
+  </section>
+</section>

@@ -2,7 +2,7 @@ using GestIA.Domain.Common;
 
 namespace GestIA.Domain.Services;
 
-public sealed class ServiceConfiguration : AuditableEntity
+public sealed class ServiceConfiguration : AuditableEntity, IOrganizationScopedEntity
 {
     private ServiceConfiguration()
     {
@@ -10,6 +10,7 @@ public sealed class ServiceConfiguration : AuditableEntity
 
     private ServiceConfiguration(
         Guid idServiceConfiguration,
+        Guid idOrganization,
         Guid idService,
         ServiceConfigurationProfile profile,
         Guid actorId,
@@ -17,12 +18,30 @@ public sealed class ServiceConfiguration : AuditableEntity
         DateTime occurredAt)
     {
         IdServiceConfiguration = idServiceConfiguration;
+        IdOrganization = idOrganization;
         IdService = idService;
         ApplyProfile(profile);
         RegisterCreation(actorId, actorName, occurredAt);
     }
 
     public Guid IdServiceConfiguration { get; private set; }
+    public Guid IdOrganization { get; private set; }
+
+    /// <summary>
+    /// Token de concurrencia. Lo genera y lo mantiene SQL Server; nadie lo asigna.
+    ///
+    /// <para><b>Para qué sirve, si las escrituras operativas ya corren en transacciones
+    /// serializables.</b> La transacción protege contra escrituras que se cruzan <i>dentro</i> de
+    /// la base. La pérdida que este token detecta vive <i>fuera</i>: el supervisor B abrió la
+    /// pantalla a las 10:01, A guardó a las 10:05, y B guarda a las 10:06 con lo que tenía en
+    /// pantalla desde antes. La transacción de B lee el registro ya actualizado por A y lo pisa
+    /// con datos viejos, correctamente y sin error. El desfase está en el navegador, y por eso el
+    /// token tiene que viajar en la respuesta y volver en la petición.</para>
+    ///
+    /// <para>Y aquí importa más que en otras tablas: esta entidad lleva bitácora, así que una
+    /// pérdida silenciosa dejaría un historial que registra un cambio que otro pisó.</para>
+    /// </summary>
+    public byte[] RowVersion { get; private set; } = [];
     public Guid IdService { get; private set; }
     public DateOnly EffectiveFromDate { get; private set; }
     public DateOnly? EffectiveToDate { get; private set; }
@@ -40,6 +59,7 @@ public sealed class ServiceConfiguration : AuditableEntity
     public Service Service { get; private set; } = null!;
 
     public static ServiceConfiguration Create(
+        Guid idOrganization,
         Guid idService,
         DateOnly effectiveFromDate,
         short requiredWorkerCount,
@@ -54,6 +74,7 @@ public sealed class ServiceConfiguration : AuditableEntity
         string actorName,
         DateTime occurredAt) =>
         Create(
+            idOrganization,
             idService,
             new ServiceConfigurationProfile(
                 effectiveFromDate,
@@ -73,12 +94,13 @@ public sealed class ServiceConfiguration : AuditableEntity
             occurredAt);
 
     public static ServiceConfiguration Create(
+        Guid idOrganization,
         Guid idService,
         ServiceConfigurationProfile profile,
         Guid actorId,
         string actorName,
         DateTime occurredAt) =>
-        new(Guid.NewGuid(), idService, profile, actorId, actorName, occurredAt);
+        new(Guid.NewGuid(), idOrganization, idService, profile, actorId, actorName, occurredAt);
 
     public void UpdateProfile(
         ServiceConfigurationProfile profile,

@@ -6,6 +6,42 @@ public interface IWorkforceRepository
 {
     Task<EmployeeListResult> ListEmployeesAsync(EmployeeQuery query, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// El listado con lo que la tabla necesita resuelto: puesto de catálogo, resumen documental y
+    /// asignaciones. Los requisitos documentales salen de la organización, así que viajan aparte.
+    /// </summary>
+    Task<(IReadOnlyList<EmployeeListItemResponse> Items, int TotalCount)> SearchEmployeesAsync(
+        EmployeeSearchCriteria criteria,
+        IReadOnlyCollection<EmployeeDocumentType> requiredDocuments,
+        CancellationToken cancellationToken);
+
+    /// <summary>Los tipos de documento que esta organización exige, de EligibilityRequirement.</summary>
+    Task<IReadOnlyList<string>> ListRequiredDocumentCodesAsync(
+        Guid idOrganization,
+        CancellationToken cancellationToken);
+
+    /// <summary>Los puestos de catálogo que alguien tiene, para el filtro. Sólo los usados.</summary>
+    Task<IReadOnlyList<(Guid Id, string Name)>> ListUsedJobPositionsAsync(
+        Guid idOrganization,
+        CancellationToken cancellationToken);
+
+    /// <summary>Los municipios donde hay personal, para el filtro.</summary>
+    Task<IReadOnlyList<string>> ListEmployeeMunicipalitiesAsync(
+        Guid idOrganization,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Las asignaciones de una persona.
+    ///
+    /// <para>Hoy sólo se alcanzan por cliente y servicio, así que la pestaña tendría que recorrer
+    /// todos los servicios de la organización para encontrar las de alguien.</para>
+    /// </summary>
+    Task<IReadOnlyList<EmployeeAssignmentResponse>> ListAssignmentsAsync(
+        Guid idOrganization,
+        Guid idEmployee,
+        DateOnly today,
+        CancellationToken cancellationToken);
+
     Task<Employee?> GetEmployeeAsync(
         Guid idOrganization,
         Guid idEmployee,

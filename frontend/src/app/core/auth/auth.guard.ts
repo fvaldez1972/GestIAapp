@@ -14,6 +14,13 @@ function authorizeRoute(route: ActivatedRouteSnapshot) {
   }
 
   const permission = route.data['permission'] as string | undefined;
+  const platformOnly = route.data['platformOnly'] === true;
+  const isPlatformAdmin = auth.session()?.permissions.includes('PLATFORM.ADMIN') ?? false;
+
+  if (platformOnly && !isPlatformAdmin) {
+    return router.createUrlTree(['/']);
+  }
+
   if (!permission || auth.hasPermission(permission)) {
     return true;
   }

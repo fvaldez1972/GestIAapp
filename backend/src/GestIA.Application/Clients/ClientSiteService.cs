@@ -1,4 +1,5 @@
 using GestIA.Application.Common;
+using GestIA.Application.Catalogs;
 using GestIA.Domain.Clients;
 
 namespace GestIA.Application.Clients;
@@ -8,7 +9,7 @@ public sealed class ClientSiteService(
     IClientSiteRepository siteRepository,
     IUnitOfWork unitOfWork,
     IActorContext actorContext,
-    IClock clock) : IClientSiteService
+    IClock clock, FormCatalogValidator catalogs) : IClientSiteService
 {
     public async Task<IReadOnlyList<ClientSiteResponse>> ListAsync(
         Guid idOrganization,
@@ -32,7 +33,9 @@ public sealed class ClientSiteService(
             throw new ResourceConflictException($"Ya existe una sede con el código '{code}'.");
         }
 
+        await catalogs.AddressAsync(request.IdOrganization, address.CountryCode, address.State, address.Municipality, null, null, null, cancellationToken);
         var site = ClientSite.Create(
+            request.IdOrganization,
             request.IdClient,
             code,
             address,
@@ -55,6 +58,8 @@ public sealed class ClientSiteService(
         var site = await siteRepository.GetAsync(request.IdClient, idClientSite, cancellationToken)
             ?? throw new ResourceNotFoundException("No se encontró la sede solicitada.");
 
+        await catalogs.AddressAsync(request.IdOrganization, address.CountryCode, address.State, address.Municipality,
+            site.CountryCode, site.State, site.Municipality, cancellationToken);
         site.UpdateAddress(address, actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return Map(site);

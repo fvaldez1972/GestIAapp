@@ -11,6 +11,15 @@ public interface IServiceManagementRepository
     Task<bool> IsContractCodeInUseAsync(Guid idClient, string codeServiceContract, Guid? excludedServiceContractId, CancellationToken cancellationToken);
     Task AddContractAsync(ServiceContract contract, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Servicios de una organización, con el nombre del cliente y el conteo de posiciones ya
+    /// resueltos en la misma consulta. Devuelve la proyección y no la entidad porque materializar
+    /// servicios para después contar posiciones una por una es lo que esta consulta evita.
+    /// </summary>
+    Task<(IReadOnlyList<ServiceListItemResponse> Items, int TotalCount)> SearchServicesAsync(
+        ServiceSearchCriteria criteria,
+        CancellationToken cancellationToken);
+
     Task<IReadOnlyList<ServiceEntity>> ListServicesAsync(Guid idClient, CancellationToken cancellationToken);
     Task<ServiceEntity?> GetServiceAsync(Guid idClient, Guid idService, CancellationToken cancellationToken);
     Task<bool> IsServiceCodeInUseAsync(Guid idClient, string codeService, Guid? excludedServiceId, CancellationToken cancellationToken);

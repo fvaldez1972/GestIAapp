@@ -1,4 +1,7 @@
 using GestIA.Application.Common;
+using GestIA.Application.Catalogs;
+using GestIA.Domain.Catalogs;
+using GestIA.Application.Documents;
 using GestIA.Domain.Workforce;
 
 namespace GestIA.Application.Workforce;
@@ -7,7 +10,7 @@ public sealed class WorkforceService(
     IWorkforceRepository repository,
     IUnitOfWork unitOfWork,
     IActorContext actorContext,
-    IClock clock) : IWorkforceService
+    IClock clock, FormCatalogValidator catalogs, ICatalogService catalogService) : IWorkforceService
 {
     public async Task<PagedResult<EmployeeResponse>> ListEmployeesAsync(
         EmployeeQuery query,
@@ -36,6 +39,11 @@ public sealed class WorkforceService(
         CancellationToken cancellationToken)
     {
         var employee = await EnsureEmployeeAsync(idOrganization, idEmployee, cancellationToken);
+        if (!CanReadSensitiveDocuments)
+        {
+            return new EmployeeDetailResponse(Map(employee), [], []);
+        }
+
         var documents = await repository.ListDocumentsAsync(idEmployee, cancellationToken);
         var evaluations = await repository.ListEvaluationsAsync(idEmployee, cancellationToken);
         return new EmployeeDetailResponse(
@@ -51,6 +59,8 @@ public sealed class WorkforceService(
         await EnsureOrganizationAsync(request.IdOrganization, cancellationToken);
         var code = NormalizeCode(request.CodeEmployee, nameof(request.CodeEmployee));
         var profile = Validate(request);
+        await catalogs.ValueAsync(request.IdOrganization, BusinessCatalogItemType.JobPosition, profile.JobTitle, null, cancellationToken);
+        await catalogs.AddressAsync(request.IdOrganization, profile.CountryCode, profile.State, profile.Municipality, null, null, null, cancellationToken);
         await EnsureUniqueIdentifiersAsync(
             request.IdOrganization,
             code,
@@ -80,6 +90,9 @@ public sealed class WorkforceService(
     {
         var employee = await EnsureEmployeeAsync(request.IdOrganization, idEmployee, cancellationToken);
         var profile = Validate(request);
+        await catalogs.ValueAsync(request.IdOrganization, BusinessCatalogItemType.JobPosition, profile.JobTitle, employee.JobTitle, cancellationToken);
+        await catalogs.AddressAsync(request.IdOrganization, profile.CountryCode, profile.State, profile.Municipality,
+            employee.CountryCode, employee.State, employee.Municipality, cancellationToken);
         await EnsureUniqueIdentifiersAsync(
             request.IdOrganization,
             employee.CodeEmployee,
@@ -122,6 +135,11 @@ public sealed class WorkforceService(
         CancellationToken cancellationToken)
     {
         await EnsureEmployeeAsync(idOrganization, idEmployee, cancellationToken);
+        if (!CanReadSensitiveDocuments)
+        {
+            return [];
+        }
+
         var documents = await repository.ListDocumentsAsync(idEmployee, cancellationToken);
         return documents.Select(Map).ToArray();
     }
@@ -130,9 +148,12 @@ public sealed class WorkforceService(
         CreateEmployeeDocumentRequest request,
         CancellationToken cancellationToken)
     {
+        RequireSensitiveDocumentWrite();
         await EnsureEmployeeAsync(request.IdOrganization, request.IdEmployee, cancellationToken);
         var profile = Validate(request);
+        ValidateDocumentStorage(request.IdOrganization, profile.StorageReference);
         var document = EmployeeDocument.Create(
+            request.IdOrganization,
             request.IdEmployee,
             profile,
             actorContext.ActorId,
@@ -149,11 +170,13 @@ public sealed class WorkforceService(
         UpdateEmployeeDocumentRequest request,
         CancellationToken cancellationToken)
     {
+        RequireSensitiveDocumentWrite();
         await EnsureEmployeeAsync(request.IdOrganization, request.IdEmployee, cancellationToken);
         var profile = Validate(request);
         var document = await repository.GetDocumentAsync(request.IdEmployee, idEmployeeDocument, cancellationToken)
             ?? throw new ResourceNotFoundException("No se encontró el documento solicitado.");
 
+        ValidateDocumentStorage(request.IdOrganization, profile.StorageReference, document.StorageReference);
         document.UpdateProfile(profile, actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return Map(document);
@@ -165,6 +188,7 @@ public sealed class WorkforceService(
         Guid idEmployeeDocument,
         CancellationToken cancellationToken)
     {
+        RequireSensitiveDocumentWrite();
         await EnsureEmployeeAsync(idOrganization, idEmployee, cancellationToken);
         var document = await repository.GetDocumentAsync(idEmployee, idEmployeeDocument, cancellationToken)
             ?? throw new ResourceNotFoundException("No se encontró el documento solicitado.");
@@ -179,6 +203,11 @@ public sealed class WorkforceService(
         CancellationToken cancellationToken)
     {
         await EnsureEmployeeAsync(idOrganization, idEmployee, cancellationToken);
+        if (!CanReadSensitiveDocuments)
+        {
+            return [];
+        }
+
         var evaluations = await repository.ListEvaluationsAsync(idEmployee, cancellationToken);
         return evaluations.Select(Map).ToArray();
     }
@@ -187,8 +216,10 @@ public sealed class WorkforceService(
         CreateEmployeeEvaluationRequest request,
         CancellationToken cancellationToken)
     {
+        RequireSensitiveDocumentWrite();
         await EnsureEmployeeAsync(request.IdOrganization, request.IdEmployee, cancellationToken);
         var profile = Validate(request);
+        ValidateDocumentStorage(request.IdOrganization, profile.StorageReference);
 
         if (await repository.IsEvaluationInUseAsync(
                 request.IdEmployee,
@@ -201,6 +232,7 @@ public sealed class WorkforceService(
         }
 
         var evaluation = EmployeeEvaluation.Create(
+            request.IdOrganization,
             request.IdEmployee,
             profile,
             actorContext.ActorId,
@@ -217,6 +249,7 @@ public sealed class WorkforceService(
         UpdateEmployeeEvaluationRequest request,
         CancellationToken cancellationToken)
     {
+        RequireSensitiveDocumentWrite();
         await EnsureEmployeeAsync(request.IdOrganization, request.IdEmployee, cancellationToken);
         var profile = Validate(request);
         var evaluation = await repository.GetEvaluationAsync(
@@ -235,6 +268,7 @@ public sealed class WorkforceService(
             throw new ResourceConflictException("Ya existe una evaluación del mismo tipo en la misma fecha.");
         }
 
+        ValidateDocumentStorage(request.IdOrganization, profile.StorageReference, evaluation.StorageReference);
         evaluation.UpdateProfile(profile, actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return Map(evaluation);
@@ -246,12 +280,35 @@ public sealed class WorkforceService(
         Guid idEmployeeEvaluation,
         CancellationToken cancellationToken)
     {
+        RequireSensitiveDocumentWrite();
         await EnsureEmployeeAsync(idOrganization, idEmployee, cancellationToken);
         var evaluation = await repository.GetEvaluationAsync(idEmployee, idEmployeeEvaluation, cancellationToken)
             ?? throw new ResourceNotFoundException("No se encontró la evaluación solicitada.");
 
         evaluation.Deactivate(actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
         await unitOfWork.SaveChangesAsync(cancellationToken);
+    }
+
+    private bool CanReadSensitiveDocuments => actorContext.HasPermission(BusinessDocumentPermissions.SensitiveRead);
+
+    private void RequireSensitiveDocumentWrite()
+    {
+        if (!CanReadSensitiveDocuments || !actorContext.HasPermission(BusinessDocumentPermissions.SensitiveWrite))
+        {
+            throw new ResourceForbiddenException("No tienes permiso para modificar documentos sensibles.");
+        }
+    }
+
+    private static void ValidateDocumentStorage(Guid organizationId, string? reference, string? existingReference = null)
+    {
+        if (!string.IsNullOrEmpty(reference) && reference != existingReference &&
+            !DocumentStorageReference.BelongsToOrganization(reference, organizationId))
+        {
+            throw new RequestValidationException(new Dictionary<string, string[]>
+            {
+                ["StorageReference"] = ["Carga el archivo dentro de la organización del documento."]
+            });
+        }
     }
 
     private async Task EnsureOrganizationAsync(Guid idOrganization, CancellationToken cancellationToken)
@@ -350,7 +407,8 @@ public sealed class WorkforceService(
             request.State,
             request.PostalCode,
             request.HousingType,
-            request.ResidenceSinceDate);
+            request.ResidenceSinceDate, request.CountryCode,
+            request.IdJobPositionCatalogItem);
 
     private static EmployeeProfile Validate(UpdateEmployeeRequest request) =>
         ValidateProfile(
@@ -377,7 +435,8 @@ public sealed class WorkforceService(
             request.State,
             request.PostalCode,
             request.HousingType,
-            request.ResidenceSinceDate);
+            request.ResidenceSinceDate, request.CountryCode,
+            request.IdJobPositionCatalogItem);
 
     private static EmployeeProfile ValidateProfile(
         string fullName,
@@ -403,7 +462,8 @@ public sealed class WorkforceService(
         string? state,
         string? postalCode,
         string? housingType,
-        DateOnly? residenceSinceDate)
+        DateOnly? residenceSinceDate, string? countryCode,
+        Guid? idJobPositionCatalogItem)
     {
         var errors = new Dictionary<string, string[]>();
         Required(fullName, nameof(fullName), 200, errors);
@@ -425,6 +485,7 @@ public sealed class WorkforceService(
         MaxLength(address, nameof(address), 500, errors);
         MaxLength(municipality, nameof(municipality), 120, errors);
         MaxLength(state, nameof(state), 120, errors);
+        MaxLength(countryCode, nameof(countryCode), 2, errors);
         MaxLength(postalCode, nameof(postalCode), 10, errors);
         MaxLength(housingType, nameof(housingType), 30, errors);
         ThrowIfInvalid(errors);
@@ -453,7 +514,21 @@ public sealed class WorkforceService(
             state,
             postalCode,
             housingType,
-            residenceSinceDate);
+            residenceSinceDate, countryCode, idJobPositionCatalogItem);
+    }
+
+    /// <summary>
+    /// El puesto es opcional. Un nulo significa que no se declaró, no que la persona no tenga.
+    /// </summary>
+    private async Task EnsureJobPositionAsync(
+        Guid idOrganization,
+        Guid? idJobPositionCatalogItem,
+        CancellationToken cancellationToken)
+    {
+        if (idJobPositionCatalogItem is { } id)
+        {
+            await catalogService.EnsureJobPositionCatalogItemAsync(idOrganization, id, cancellationToken);
+        }
     }
 
     private static EmployeeDocumentProfile Validate(CreateEmployeeDocumentRequest request) =>
@@ -642,7 +717,7 @@ public sealed class WorkforceService(
             employee.ResidenceSinceDate,
             employee.Active,
             employee.CreatedAt,
-            employee.UpdatedAt);
+            employee.UpdatedAt, employee.CountryCode);
 
     private static EmployeeDocumentResponse Map(EmployeeDocument document) =>
         new(

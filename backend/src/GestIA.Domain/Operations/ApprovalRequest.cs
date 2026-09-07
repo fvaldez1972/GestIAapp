@@ -14,7 +14,7 @@ public sealed record ApprovalRequestProfile(
     string? AssignedApproverName,
     Guid? IdOperationEvidence);
 
-public sealed class ApprovalRequest : AuditableEntity
+public sealed class ApprovalRequest : AuditableEntity, IOrganizationScopedEntity
 {
     private ApprovalRequest()
     {

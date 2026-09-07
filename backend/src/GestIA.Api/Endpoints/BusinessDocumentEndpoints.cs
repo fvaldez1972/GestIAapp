@@ -16,6 +16,7 @@ public static class BusinessDocumentEndpoints
             .WithTags("Documents");
 
         group.MapGet("", async (
+            HttpContext context,
             Guid organizationId,
             BusinessDocumentOwnerType? ownerType,
             Guid? ownerId,
@@ -26,6 +27,11 @@ public static class BusinessDocumentEndpoints
             IBusinessDocumentService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.ListAsync(
                 new BusinessDocumentQuery(
                     organizationId,
@@ -42,22 +48,50 @@ public static class BusinessDocumentEndpoints
             .WithName("ListBusinessDocuments");
 
         group.MapGet("/{idBusinessDocument:guid}", async (
+            HttpContext context,
             Guid idBusinessDocument,
             Guid organizationId,
             IBusinessDocumentService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.GetAsync(organizationId, idBusinessDocument, cancellationToken);
             return Results.Ok(result);
         })
             .RequirePermission(SecurityPermissions.DocumentsRead)
             .WithName("GetBusinessDocument");
 
+        group.MapGet("/{idBusinessDocument:guid}/history", async (
+            HttpContext context,
+            Guid idBusinessDocument,
+            Guid organizationId,
+            IBusinessDocumentService service,
+            CancellationToken cancellationToken) =>
+        {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+            return Results.Ok(await service.ListEventsAsync(organizationId, idBusinessDocument, cancellationToken));
+        })
+            .RequirePermission(SecurityPermissions.DocumentsRead)
+            .WithName("ListBusinessDocumentHistory");
+
         group.MapPost("", async (
+            HttpContext context,
             CreateBusinessDocumentRequest request,
             IBusinessDocumentService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, request.IdOrganization) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.CreateAsync(request, cancellationToken);
             return Results.Created($"/api/v1/documents/{result.IdBusinessDocument}", result);
         })
@@ -65,23 +99,53 @@ public static class BusinessDocumentEndpoints
             .WithName("CreateBusinessDocument");
 
         group.MapPut("/{idBusinessDocument:guid}", async (
+            HttpContext context,
             Guid idBusinessDocument,
             UpdateBusinessDocumentRequest request,
             IBusinessDocumentService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, request.IdOrganization) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.UpdateAsync(idBusinessDocument, request, cancellationToken);
             return Results.Ok(result);
         })
             .RequirePermission(SecurityPermissions.DocumentsWrite)
             .WithName("UpdateBusinessDocument");
 
+        group.MapPost("/{idBusinessDocument:guid}/review", async (
+            HttpContext context,
+            Guid idBusinessDocument,
+            ReviewBusinessDocumentRequest request,
+            IBusinessDocumentService service,
+            CancellationToken cancellationToken) =>
+        {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, request.IdOrganization) is { } forbidden)
+            {
+                return forbidden;
+            }
+
+            var result = await service.ReviewAsync(idBusinessDocument, request, cancellationToken);
+            return Results.Ok(result);
+        })
+            .RequirePermission(SecurityPermissions.DocumentsWrite)
+            .WithName("ReviewBusinessDocument");
+
         group.MapDelete("/{idBusinessDocument:guid}", async (
+            HttpContext context,
             Guid idBusinessDocument,
             Guid organizationId,
             IBusinessDocumentService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             await service.DeactivateAsync(organizationId, idBusinessDocument, cancellationToken);
             return Results.NoContent();
         })
@@ -89,12 +153,19 @@ public static class BusinessDocumentEndpoints
             .WithName("DeactivateBusinessDocument");
 
         group.MapPost("/upload", async (
+            HttpContext context,
+            Guid organizationId,
             HttpRequest request,
             IConfiguration configuration,
             IWebHostEnvironment environment,
             CancellationToken cancellationToken) =>
         {
-            var upload = await StoreFileAsync(request, configuration, environment, "business-documents", cancellationToken);
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
+            var upload = await StoreFileAsync(request, configuration, environment, $"business-documents/{organizationId:N}", cancellationToken);
             return upload is null
                 ? Results.BadRequest(new { message = "Selecciona un archivo válido." })
                 : Results.Ok(upload);
@@ -104,6 +175,7 @@ public static class BusinessDocumentEndpoints
             .WithName("UploadBusinessDocumentFile");
 
         group.MapGet("/{idBusinessDocument:guid}/download", async (
+            HttpContext context,
             Guid idBusinessDocument,
             Guid organizationId,
             IBusinessDocumentService service,
@@ -111,7 +183,17 @@ public static class BusinessDocumentEndpoints
             IWebHostEnvironment environment,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var document = await service.GetAsync(organizationId, idBusinessDocument, cancellationToken);
+            if (!DocumentStorageReference.IsSafeRelativePath(document.StorageReference))
+            {
+                return Results.NotFound();
+            }
+
             var root = ResolveStorageRoot(configuration, environment);
             var fullPath = ResolveStoragePath(root, document.StorageReference);
 
@@ -158,6 +240,11 @@ public static class BusinessDocumentEndpoints
         Directory.CreateDirectory(targetFolder);
 
         var extension = Path.GetExtension(file.FileName);
+        if (extension.Length > 16 || extension.Skip(1).Any(character => !char.IsAsciiLetterOrDigit(character)))
+        {
+            return null;
+        }
+
         var storedFileName = $"{Guid.NewGuid():N}{extension}";
         var targetPath = Path.Combine(targetFolder, storedFileName);
 
@@ -181,10 +268,16 @@ public static class BusinessDocumentEndpoints
 
     internal static string ResolveStoragePath(string storageRoot, string storageReference)
     {
-        var root = Path.GetFullPath(storageRoot);
-        var fullPath = Path.GetFullPath(Path.Combine(root, storageReference.Replace('/', Path.DirectorySeparatorChar)));
+        if (!DocumentStorageReference.IsSafeRelativePath(storageReference))
+        {
+            throw new ArgumentException("La referencia de archivo no es válida.", nameof(storageReference));
+        }
 
-        if (!fullPath.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+        var root = Path.GetFullPath(storageRoot);
+        var fullPath = Path.GetFullPath(Path.Combine(root, storageReference.Replace('\\', '/').Replace('/', Path.DirectorySeparatorChar)));
+
+        var rootPrefix = Path.TrimEndingDirectorySeparator(root) + Path.DirectorySeparatorChar;
+        if (!fullPath.StartsWith(rootPrefix, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
         {
             throw new InvalidOperationException("La referencia de archivo no es válida.");
         }

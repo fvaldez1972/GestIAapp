@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GestIA.Infrastructure.Persistence.Repositories;
 
-public sealed class WorkforceRepository(GestIaDbContext dbContext) : IWorkforceRepository
+public sealed partial class WorkforceRepository(GestIaDbContext dbContext) : IWorkforceRepository
 {
     public async Task<EmployeeListResult> ListEmployeesAsync(
         EmployeeQuery query,
@@ -60,7 +60,7 @@ public sealed class WorkforceRepository(GestIaDbContext dbContext) : IWorkforceR
         Guid? excludedEmployeeId,
         CancellationToken cancellationToken) =>
         dbContext.Employees
-            .IgnoreQueryFilters()
+            .IgnoreQueryFilters(["Active"])
             .AnyAsync(
                 employee =>
                     employee.IdOrganization == idOrganization &&
@@ -74,7 +74,7 @@ public sealed class WorkforceRepository(GestIaDbContext dbContext) : IWorkforceR
         Guid? excludedEmployeeId,
         CancellationToken cancellationToken) =>
         dbContext.Employees
-            .IgnoreQueryFilters()
+            .IgnoreQueryFilters(["Active"])
             .AnyAsync(
                 employee =>
                     employee.IdOrganization == idOrganization &&
@@ -88,7 +88,7 @@ public sealed class WorkforceRepository(GestIaDbContext dbContext) : IWorkforceR
         Guid? excludedEmployeeId,
         CancellationToken cancellationToken) =>
         dbContext.Employees
-            .IgnoreQueryFilters()
+            .IgnoreQueryFilters(["Active"])
             .AnyAsync(
                 employee =>
                     employee.IdOrganization == idOrganization &&
@@ -102,7 +102,7 @@ public sealed class WorkforceRepository(GestIaDbContext dbContext) : IWorkforceR
         Guid? excludedEmployeeId,
         CancellationToken cancellationToken) =>
         dbContext.Employees
-            .IgnoreQueryFilters()
+            .IgnoreQueryFilters(["Active"])
             .AnyAsync(
                 employee =>
                     employee.IdOrganization == idOrganization &&
@@ -161,7 +161,7 @@ public sealed class WorkforceRepository(GestIaDbContext dbContext) : IWorkforceR
         Guid? excludedEmployeeEvaluationId,
         CancellationToken cancellationToken) =>
         dbContext.EmployeeEvaluations
-            .IgnoreQueryFilters()
+            .IgnoreQueryFilters(["Active"])
             .AnyAsync(
                 evaluation =>
                     evaluation.IdEmployee == idEmployee &&
@@ -206,5 +206,5 @@ public sealed class WorkforceRepository(GestIaDbContext dbContext) : IWorkforceR
             employee.ResidenceSinceDate,
             employee.Active,
             employee.CreatedAt,
-            employee.UpdatedAt);
+            employee.UpdatedAt, employee.CountryCode);
 }

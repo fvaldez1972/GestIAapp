@@ -11,13 +11,43 @@ public static class PlanningEndpoints
         var positionGroup = endpoints.MapGroup("/api/v1/clients/{idClient:guid}/services/{idService:guid}/positions")
             .WithTags("Planning");
 
+        // La vacancia va aparte de la lista de posiciones porque depende de una fecha y la
+        // posición no: el mismo puesto tiene hueco un día y no lo tiene al siguiente.
+        positionGroup.MapGet("/vacancy", async (
+            HttpContext context,
+            Guid idClient,
+            Guid idService,
+            Guid organizationId,
+            DateOnly? date,
+            IPlanningService service,
+            CancellationToken cancellationToken) =>
+        {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
+            var result = await service.ListPositionVacancyAsync(
+                organizationId, idClient, idService, date, cancellationToken);
+
+            return Results.Ok(result);
+        })
+            .RequirePermission(SecurityPermissions.PlanningRead)
+            .WithName("ListPositionVacancy");
+
         positionGroup.MapGet("", async (
+            HttpContext context,
             Guid idClient,
             Guid idService,
             Guid organizationId,
             IPlanningService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.ListPositionsAsync(organizationId, idClient, idService, cancellationToken);
             return Results.Ok(result);
         })
@@ -25,12 +55,18 @@ public static class PlanningEndpoints
             .WithName("ListPositions");
 
         positionGroup.MapPost("", async (
+            HttpContext context,
             Guid idClient,
             Guid idService,
             CreatePositionRequest request,
             IPlanningService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, request.IdOrganization) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.CreatePositionAsync(
                 request with { IdClient = idClient, IdService = idService },
                 cancellationToken);
@@ -40,6 +76,7 @@ public static class PlanningEndpoints
             .WithName("CreatePosition");
 
         positionGroup.MapPut("/{idPosition:guid}", async (
+            HttpContext context,
             Guid idClient,
             Guid idService,
             Guid idPosition,
@@ -47,6 +84,11 @@ public static class PlanningEndpoints
             IPlanningService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, request.IdOrganization) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.UpdatePositionAsync(
                 idPosition,
                 request with { IdClient = idClient, IdService = idService },
@@ -57,6 +99,7 @@ public static class PlanningEndpoints
             .WithName("UpdatePosition");
 
         positionGroup.MapDelete("/{idPosition:guid}", async (
+            HttpContext context,
             Guid idClient,
             Guid idService,
             Guid idPosition,
@@ -64,6 +107,11 @@ public static class PlanningEndpoints
             IPlanningService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             await service.DeactivatePositionAsync(organizationId, idClient, idService, idPosition, cancellationToken);
             return Results.NoContent();
         })
@@ -73,6 +121,7 @@ public static class PlanningEndpoints
         var patternGroup = positionGroup.MapGroup("/{idPosition:guid}/shift-patterns");
 
         patternGroup.MapGet("", async (
+            HttpContext context,
             Guid idClient,
             Guid idService,
             Guid idPosition,
@@ -80,6 +129,11 @@ public static class PlanningEndpoints
             IPlanningService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.ListShiftPatternsAsync(
                 organizationId,
                 idClient,
@@ -92,6 +146,7 @@ public static class PlanningEndpoints
             .WithName("ListShiftPatterns");
 
         patternGroup.MapPost("", async (
+            HttpContext context,
             Guid idClient,
             Guid idService,
             Guid idPosition,
@@ -99,6 +154,11 @@ public static class PlanningEndpoints
             IPlanningService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, request.IdOrganization) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.CreateShiftPatternAsync(
                 request with { IdClient = idClient, IdService = idService, IdPosition = idPosition },
                 cancellationToken);
@@ -110,6 +170,7 @@ public static class PlanningEndpoints
             .WithName("CreateShiftPattern");
 
         patternGroup.MapPut("/{idShiftPattern:guid}", async (
+            HttpContext context,
             Guid idClient,
             Guid idService,
             Guid idPosition,
@@ -118,6 +179,11 @@ public static class PlanningEndpoints
             IPlanningService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, request.IdOrganization) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.UpdateShiftPatternAsync(
                 idShiftPattern,
                 request with { IdClient = idClient, IdService = idService, IdPosition = idPosition },
@@ -128,6 +194,7 @@ public static class PlanningEndpoints
             .WithName("UpdateShiftPattern");
 
         patternGroup.MapDelete("/{idShiftPattern:guid}", async (
+            HttpContext context,
             Guid idClient,
             Guid idService,
             Guid idPosition,
@@ -136,6 +203,11 @@ public static class PlanningEndpoints
             IPlanningService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             await service.DeactivateShiftPatternAsync(
                 organizationId,
                 idClient,
@@ -151,6 +223,7 @@ public static class PlanningEndpoints
         var segmentGroup = patternGroup.MapGroup("/{idShiftPattern:guid}/segments");
 
         segmentGroup.MapGet("", async (
+            HttpContext context,
             Guid idClient,
             Guid idService,
             Guid idPosition,
@@ -159,6 +232,11 @@ public static class PlanningEndpoints
             IPlanningService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.ListShiftSegmentsAsync(
                 organizationId,
                 idClient,
@@ -172,6 +250,7 @@ public static class PlanningEndpoints
             .WithName("ListShiftSegments");
 
         segmentGroup.MapPost("", async (
+            HttpContext context,
             Guid idClient,
             Guid idService,
             Guid idPosition,
@@ -180,6 +259,11 @@ public static class PlanningEndpoints
             IPlanningService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, request.IdOrganization) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.CreateShiftSegmentAsync(
                 request with { IdClient = idClient, IdService = idService, IdPosition = idPosition, IdShiftPattern = idShiftPattern },
                 cancellationToken);
@@ -191,6 +275,7 @@ public static class PlanningEndpoints
             .WithName("CreateShiftSegment");
 
         segmentGroup.MapPut("/{idShiftSegment:guid}", async (
+            HttpContext context,
             Guid idClient,
             Guid idService,
             Guid idPosition,
@@ -200,6 +285,11 @@ public static class PlanningEndpoints
             IPlanningService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, request.IdOrganization) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.UpdateShiftSegmentAsync(
                 idShiftSegment,
                 request with { IdClient = idClient, IdService = idService, IdPosition = idPosition, IdShiftPattern = idShiftPattern },
@@ -210,6 +300,7 @@ public static class PlanningEndpoints
             .WithName("UpdateShiftSegment");
 
         segmentGroup.MapDelete("/{idShiftSegment:guid}", async (
+            HttpContext context,
             Guid idClient,
             Guid idService,
             Guid idPosition,
@@ -219,6 +310,11 @@ public static class PlanningEndpoints
             IPlanningService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             await service.DeactivateShiftSegmentAsync(
                 organizationId,
                 idClient,

@@ -1,5 +1,6 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
+import { activeOptions } from '../../../shared/data-access/active-options';
 import {
   CreateEmployee,
   Employee,
@@ -38,6 +39,15 @@ export class WorkforceApiService {
   getEmployee(organizationId: string, idEmployee: string) {
     const params = new HttpParams().set('organizationId', organizationId);
     return this.http.get<EmployeeDetail>(`${this.baseUrl}/${idEmployee}`, { params });
+  }
+
+  listEmployeeOptions(organizationId: string) {
+    return activeOptions(page => this.listEmployees(organizationId, '', 'Active', page, 100));
+  }
+
+  downloadFile(organizationId: string, employeeId: string, kind: 'documents' | 'evaluations', recordId: string) {
+    const params = new HttpParams().set('organizationId', organizationId);
+    return this.http.get(`${this.baseUrl}/${employeeId}/${kind}/${recordId}/download`, { params, responseType: 'blob' });
   }
 
   createEmployee(request: CreateEmployee) {

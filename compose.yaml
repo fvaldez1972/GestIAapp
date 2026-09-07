@@ -58,6 +58,10 @@ services:
       BootstrapAdmin__Email: "${GESTIA_BOOTSTRAP_ADMIN_EMAIL:-admin@gestia.local}"
       BootstrapAdmin__Password: "${GESTIA_BOOTSTRAP_ADMIN_PASSWORD:-GestIA.Local.2026!}"
       Storage__RootPath: /app/storage
+      # La base ya tiene sus 23 permisos, sus roles y su administrador. Sembrarlos en cada
+      # arranque no agrega nada y deja encendida una ruta de creacion de usuarios en un
+      # ambiente alcanzable desde internet.
+      SecuritySeed__Enabled: "false"
     ports:
       - "${GESTIA_API_PORT:-8080}:8080"
     volumes:

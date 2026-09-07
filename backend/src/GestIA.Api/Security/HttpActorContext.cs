@@ -8,6 +8,9 @@ public sealed class HttpActorContext(IHttpContextAccessor httpContextAccessor) :
     private static readonly Guid LocalActorId =
         Guid.Parse("00000000-0000-0000-0000-000000000001");
 
+    public bool HasPermission(string permission) =>
+        httpContextAccessor.HttpContext?.User.HasClaim("permission", permission) == true;
+
     public Guid ActorId
     {
         get

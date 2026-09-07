@@ -6,9 +6,11 @@ using GestIA.Application.Common;
 using GestIA.Application.Security;
 using GestIA.Infrastructure;
 using GestIA.Infrastructure.Persistence;
+using GestIA.Infrastructure.Persistence.DemoData;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Http.Json;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using System.Globalization;
 using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -21,7 +23,10 @@ builder.Services.AddExceptionHandler<ProblemDetailsExceptionHandler>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
 builder.Services.AddScoped<IActorContext, HttpActorContext>();
-builder.Services.AddSingleton<IClock, SystemClock>();
+builder.Services.AddGestIaRequestContext();
+// El huso se resuelve aqui, al arrancar, para que un identificador invalido detenga el
+// arranque con un mensaje claro en vez de fallar en la primera consulta que use "hoy".
+builder.Services.AddSingleton<IClock>(new SystemClock(SystemClock.ResolveTimeZone(builder.Configuration)));
 builder.Services.AddSingleton<IAccessTokenService, JwtAccessTokenService>();
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
@@ -47,6 +52,12 @@ if (app.Configuration.GetValue("SecuritySeed:Enabled", true))
     await SeedSecurityDataAsync(app);
 }
 
+// Datos demo: pieza separada del bootstrap, apagada salvo que se pida explícitamente.
+if (app.Configuration.GetValue($"{DemoDataOptions.SectionName}:Enabled", false))
+{
+    await SeedDemoDataAsync(app);
+}
+
 var livenessOptions = new HealthCheckOptions
 {
     Predicate = _ => false
@@ -60,12 +71,18 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
     ResponseWriter = WriteReadinessResponseAsync
 });
 
-app.MapGet("/api/v1/system/info", () => Results.Ok(new
+// El día operativo y el huso salen de aquí porque el navegador no puede calcularlos: en UTC el
+// día empieza entre seis y siete horas antes que en México, y una barra de contexto que hiciera
+// `new Date()` mostraría un día distinto del que el servidor usa para decidir vigencias y
+// elegibilidad. Sería el mismo defecto que el reloj operativo cerró, movido de capa.
+app.MapGet("/api/v1/system/info", (IClock clock) => Results.Ok(new
 {
     application = "GestIA",
     apiVersion = "v1",
     status = "ready",
-    persistence = "SQL Server"
+    persistence = "SQL Server",
+    operationDate = clock.Today.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+    timeZoneId = clock.OperationalTimeZone.Id
 }))
     .WithName("GetSystemInfo")
     .WithTags("System");
@@ -85,9 +102,12 @@ app.MapFileUploadEndpoints();
 app.MapBusinessDocumentEndpoints();
 app.MapCatalogEndpoints();
 app.MapReportsEndpoints();
+app.MapOverviewEndpoints();
 app.MapSecurityAdministrationEndpoints();
+app.MapOrganizationSecurityEndpoints();
 app.MapOperationalRequestEndpoints();
 app.MapAuditEndpoints();
+app.MapOperationalHistoryEndpoints();
 
 app.Run();
 
@@ -95,6 +115,13 @@ static async Task SeedSecurityDataAsync(WebApplication app)
 {
     using var scope = app.Services.CreateScope();
     var seeder = scope.ServiceProvider.GetRequiredService<SecurityDataSeeder>();
+    await seeder.SeedAsync(app.Lifetime.ApplicationStopping);
+}
+
+static async Task SeedDemoDataAsync(WebApplication app)
+{
+    using var scope = app.Services.CreateScope();
+    var seeder = scope.ServiceProvider.GetRequiredService<DemoDataSeeder>();
     await seeder.SeedAsync(app.Lifetime.ApplicationStopping);
 }
 

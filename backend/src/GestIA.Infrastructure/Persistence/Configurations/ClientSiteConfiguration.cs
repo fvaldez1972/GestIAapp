@@ -1,4 +1,5 @@
 using GestIA.Domain.Clients;
+using GestIA.Domain.Organizations;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -26,6 +27,15 @@ public sealed class ClientSiteConfiguration : IEntityTypeConfiguration<ClientSit
             .WithMany(client => client.Sites)
             .HasForeignKey(entity => entity.IdClient)
             .OnDelete(DeleteBehavior.Restrict);
+        // La organizacion vive en la propia fila desde la tanda E. El indice la lleva
+        // primero porque el filtro global la aplica a TODA consulta de esta tabla.
+        builder.HasOne<Organization>()
+            .WithMany()
+            .HasForeignKey(entity => entity.IdOrganization)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasIndex(entity => new { entity.IdOrganization, entity.CodeClientSite });
+
         builder.HasIndex(entity => new { entity.IdClient, entity.CodeClientSite }).IsUnique();
     }
 }

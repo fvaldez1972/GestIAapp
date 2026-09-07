@@ -2,6 +2,8 @@
 
 API de GestIA construida con .NET 10 como monolito modular y persistencia SQL Server mediante EF Core 10.
 
+La solución oficial del backend es `GestIA.sln` y debe abrirse desde este directorio. Como el proyecto apunta a `net10.0`, Visual Studio necesita MSBuild 18+; con Visual Studio 2022 los proyectos pueden aparecer como no cargados por incompatibilidad del IDE, no por rutas rotas.
+
 ## Dependencias permitidas
 
 ```text

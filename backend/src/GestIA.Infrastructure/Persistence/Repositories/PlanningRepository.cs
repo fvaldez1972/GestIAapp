@@ -16,8 +16,24 @@ public sealed class PlanningRepository(GestIaDbContext dbContext) : IPlanningRep
             service =>
                 service.IdService == idService &&
                 service.IdClient == idClient &&
-                service.Client.IdOrganization == idOrganization,
+                service.IdOrganization == idOrganization,
             cancellationToken);
+
+    public async Task<IReadOnlyList<PositionVacancyResponse>> ListPositionVacancyAsync(
+        Guid idService,
+        DateOnly operationDate,
+        CancellationToken cancellationToken) =>
+        // El orden va sobre las posiciones y no sobre la proyección: ordenar por una propiedad
+        // del registro proyectado no se traduce a SQL, y el Select conserva el orden de entrada.
+        await PositionVacancy
+            .Project(
+                dbContext.Positions
+                    .AsNoTracking()
+                    .Where(position => position.IdService == idService)
+                    .OrderBy(position => position.CodePosition),
+                dbContext.ServiceAssignments.AsNoTracking(),
+                operationDate)
+            .ToArrayAsync(cancellationToken);
 
     public async Task<IReadOnlyList<Position>> ListPositionsAsync(
         Guid idService,
@@ -42,7 +58,7 @@ public sealed class PlanningRepository(GestIaDbContext dbContext) : IPlanningRep
         Guid? excludedPositionId,
         CancellationToken cancellationToken) =>
         dbContext.Positions
-            .IgnoreQueryFilters()
+            .IgnoreQueryFilters(["Active"])
             .AnyAsync(
                 position =>
                     position.IdService == idService &&
@@ -77,7 +93,7 @@ public sealed class PlanningRepository(GestIaDbContext dbContext) : IPlanningRep
         Guid? excludedShiftPatternId,
         CancellationToken cancellationToken) =>
         dbContext.ShiftPatterns
-            .IgnoreQueryFilters()
+            .IgnoreQueryFilters(["Active"])
             .AnyAsync(
                 pattern =>
                     pattern.IdPosition == idPosition &&

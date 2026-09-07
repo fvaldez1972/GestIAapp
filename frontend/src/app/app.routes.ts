@@ -35,6 +35,29 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'servicios',
+        title: 'GestIA | Servicios',
+        data: { permission: 'CLIENTS.READ' },
+        loadComponent: () =>
+          import('./features/services/pages/services-page/services-page').then(
+            (component) => component.ServicesPage,
+          ),
+      },
+      {
+        path: 'plataforma/organizaciones',
+        title: 'GestIA | Organizaciones',
+        data: { permission: 'PLATFORM.ADMIN' },
+        loadComponent: () =>
+          import('./features/platform/pages/platform-page/platform-page').then(
+            (component) => component.PlatformPage,
+          ),
+      },
+      {
+        path: 'plataforma/clientes-gestia',
+        redirectTo: 'plataforma/organizaciones',
+        pathMatch: 'full',
+      },
+      {
         path: 'solicitudes',
         title: 'GestIA | Solicitudes',
         data: { permission: 'REQUESTS.READ' },
@@ -71,6 +94,12 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'configuracion/documentos',
+        title: 'GestIA | Reglas documentales',
+        data: { permission: 'CATALOGS.READ', catalogTab: 'eligibility' },
+        loadComponent: () => import('./features/catalogs/pages/catalogs-page/catalogs-page').then(component => component.CatalogsPage),
+      },
+      {
         path: 'planeacion',
         title: 'GestIA | Planeación',
         data: { permission: 'PLANNING.READ' },
@@ -103,9 +132,27 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'usuarios',
+        title: 'GestIA | Usuarios',
+        data: { permission: 'USERS.READ' },
+        loadComponent: () =>
+          import('./features/security/pages/security-page/security-page').then(
+            (component) => component.SecurityPage,
+          ),
+      },
+      {
+        path: 'monitor',
+        title: 'GestIA | Monitor global',
+        data: { permission: 'PLATFORM.ADMIN', platformOnly: true },
+        loadComponent: () =>
+          import('./features/monitor/pages/monitor-page').then(
+            (component) => component.MonitorPage,
+          ),
+      },
+      {
         path: 'reportes',
         title: 'GestIA | Reportes',
-        data: { permission: 'REPORTS.READ' },
+        data: { permission: 'REPORTS.READ', reportMode: 'reports' },
         loadComponent: () =>
           import('./features/reports/pages/reports-page/reports-page').then(
             (component) => component.ReportsPage,

@@ -13,12 +13,18 @@ public static class OperationsEndpoints
             .WithTags("Operations");
 
         controlGroup.MapGet("/approval-requests", async (
+            HttpContext context,
             Guid organizationId,
             Guid? serviceId,
             ApprovalRequestStatus? status,
             IOperationsService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.ListApprovalRequestsAsync(
                 new ApprovalRequestQuery(organizationId, serviceId, status),
                 cancellationToken);
@@ -28,10 +34,16 @@ public static class OperationsEndpoints
             .WithName("ListApprovalRequests");
 
         controlGroup.MapPost("/approval-requests", async (
+            HttpContext context,
             CreateApprovalRequestRequest request,
             IOperationsService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, request.IdOrganization) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.CreateApprovalRequestAsync(request, cancellationToken);
             return Results.Created($"/api/v1/operations/approval-requests/{result.IdApprovalRequest}", result);
         })
@@ -39,11 +51,17 @@ public static class OperationsEndpoints
             .WithName("CreateApprovalRequest");
 
         controlGroup.MapPatch("/approval-requests/{idApprovalRequest:guid}/decision", async (
+            HttpContext context,
             Guid idApprovalRequest,
             DecideApprovalRequestRequest request,
             IOperationsService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, request.IdOrganization) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.DecideApprovalRequestAsync(idApprovalRequest, request, cancellationToken);
             return Results.Ok(result);
         })
@@ -51,6 +69,7 @@ public static class OperationsEndpoints
             .WithName("DecideApprovalRequest");
 
         controlGroup.MapGet("/day-closures", async (
+            HttpContext context,
             Guid organizationId,
             Guid? serviceId,
             DateOnly? fromDate,
@@ -58,6 +77,11 @@ public static class OperationsEndpoints
             IOperationsService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.ListDayClosuresAsync(
                 new OperationDayClosureQuery(organizationId, serviceId, fromDate, toDate),
                 cancellationToken);
@@ -70,6 +94,7 @@ public static class OperationsEndpoints
             .WithTags("Operations");
 
         group.MapGet("/attendance", async (
+            HttpContext context,
             Guid idClient,
             Guid idService,
             Guid organizationId,
@@ -77,6 +102,11 @@ public static class OperationsEndpoints
             IOperationsService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.ListAttendanceAsync(
                 new AttendanceQuery(organizationId, idClient, idService, date),
                 cancellationToken);
@@ -86,12 +116,18 @@ public static class OperationsEndpoints
             .WithName("ListAttendanceRecords");
 
         group.MapPost("/attendance", async (
+            HttpContext context,
             Guid idClient,
             Guid idService,
             UpsertAttendanceRequest request,
             IOperationsService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, request.IdOrganization) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.UpsertAttendanceAsync(
                 request with { IdClient = idClient, IdService = idService },
                 cancellationToken);
@@ -101,12 +137,18 @@ public static class OperationsEndpoints
             .WithName("UpsertAttendanceRecord");
 
         group.MapGet("/incidents", async (
+            HttpContext context,
             Guid idClient,
             Guid idService,
             Guid organizationId,
             IOperationsService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.ListIncidentsAsync(organizationId, idClient, idService, cancellationToken);
             return Results.Ok(result);
         })
@@ -114,12 +156,18 @@ public static class OperationsEndpoints
             .WithName("ListIncidents");
 
         group.MapPost("/incidents", async (
+            HttpContext context,
             Guid idClient,
             Guid idService,
             CreateIncidentRequest request,
             IOperationsService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, request.IdOrganization) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.CreateIncidentAsync(
                 request with { IdClient = idClient, IdService = idService },
                 cancellationToken);
@@ -131,6 +179,7 @@ public static class OperationsEndpoints
             .WithName("CreateIncident");
 
         group.MapPut("/incidents/{idIncident:guid}", async (
+            HttpContext context,
             Guid idClient,
             Guid idService,
             Guid idIncident,
@@ -138,6 +187,11 @@ public static class OperationsEndpoints
             IOperationsService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, request.IdOrganization) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.UpdateIncidentAsync(
                 idIncident,
                 request with { IdClient = idClient, IdService = idService },
@@ -148,12 +202,18 @@ public static class OperationsEndpoints
             .WithName("UpdateIncident");
 
         group.MapGet("/coverages", async (
+            HttpContext context,
             Guid idClient,
             Guid idService,
             Guid organizationId,
             IOperationsService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.ListCoveragesAsync(organizationId, idClient, idService, cancellationToken);
             return Results.Ok(result);
         })
@@ -161,12 +221,18 @@ public static class OperationsEndpoints
             .WithName("ListCoverages");
 
         group.MapPost("/coverages", async (
+            HttpContext context,
             Guid idClient,
             Guid idService,
             CreateCoverageRequest request,
             IOperationsService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, request.IdOrganization) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.CreateCoverageAsync(
                 request with { IdClient = idClient, IdService = idService },
                 cancellationToken);
@@ -178,6 +244,7 @@ public static class OperationsEndpoints
             .WithName("CreateCoverage");
 
         group.MapPut("/coverages/{idCoverageRecord:guid}", async (
+            HttpContext context,
             Guid idClient,
             Guid idService,
             Guid idCoverageRecord,
@@ -185,6 +252,11 @@ public static class OperationsEndpoints
             IOperationsService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, request.IdOrganization) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.UpdateCoverageAsync(
                 idCoverageRecord,
                 request with { IdClient = idClient, IdService = idService },
@@ -195,6 +267,7 @@ public static class OperationsEndpoints
             .WithName("UpdateCoverage");
 
         group.MapGet("/evidences", async (
+            HttpContext context,
             Guid idClient,
             Guid idService,
             Guid organizationId,
@@ -202,6 +275,11 @@ public static class OperationsEndpoints
             IOperationsService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.ListEvidencesAsync(
                 organizationId,
                 idClient,
@@ -214,12 +292,18 @@ public static class OperationsEndpoints
             .WithName("ListOperationEvidences");
 
         group.MapPost("/evidences", async (
+            HttpContext context,
             Guid idClient,
             Guid idService,
             OperationEvidenceInput request,
             IOperationsService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, request.IdOrganization) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.CreateEvidenceAsync(
                 request with { IdClient = idClient, IdService = idService },
                 cancellationToken);
@@ -231,6 +315,7 @@ public static class OperationsEndpoints
             .WithName("CreateOperationEvidence");
 
         group.MapPut("/evidences/{idOperationEvidence:guid}", async (
+            HttpContext context,
             Guid idClient,
             Guid idService,
             Guid idOperationEvidence,
@@ -238,6 +323,11 @@ public static class OperationsEndpoints
             IOperationsService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, request.IdOrganization) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.UpdateEvidenceAsync(
                 idOperationEvidence,
                 request with { IdClient = idClient, IdService = idService },
@@ -248,6 +338,7 @@ public static class OperationsEndpoints
             .WithName("UpdateOperationEvidence");
 
         group.MapDelete("/evidences/{idOperationEvidence:guid}", async (
+            HttpContext context,
             Guid idClient,
             Guid idService,
             Guid idOperationEvidence,
@@ -255,6 +346,11 @@ public static class OperationsEndpoints
             IOperationsService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             await service.DeactivateEvidenceAsync(
                 organizationId,
                 idClient,
@@ -267,12 +363,18 @@ public static class OperationsEndpoints
             .WithName("DeactivateOperationEvidence");
 
         group.MapPost("/day-closures", async (
+            HttpContext context,
             Guid idClient,
             Guid idService,
             CloseOperationDayRequest request,
             IOperationsService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, request.IdOrganization) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.CloseOperationDayAsync(idClient, idService, request, cancellationToken);
             return Results.Created(
                 $"/api/v1/clients/{idClient}/services/{idService}/operations/day-closures/{result.IdOperationDayClosure}",
@@ -282,6 +384,7 @@ public static class OperationsEndpoints
             .WithName("CloseOperationDay");
 
         group.MapPatch("/day-closures/{idOperationDayClosure:guid}/reopen", async (
+            HttpContext context,
             Guid idClient,
             Guid idService,
             Guid idOperationDayClosure,
@@ -289,6 +392,11 @@ public static class OperationsEndpoints
             IOperationsService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, request.IdOrganization) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.ReopenOperationDayAsync(
                 idClient,
                 idService,

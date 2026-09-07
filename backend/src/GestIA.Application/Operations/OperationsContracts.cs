@@ -14,8 +14,9 @@ public sealed record UpsertAttendanceRequest(
     TimeOnly? ActualEndTime,
     int MinutesLate,
     string? Notes,
-    string? CorrectionAuthorizationNotes,
-    Guid? IdApprovalRequest);
+    Guid? IdApprovalRequest,
+    string? CorrectionReason = null,
+    byte[]? RowVersion = null);
 
 public sealed record AttendanceRecordResponse(
     Guid IdAttendanceRecord,
@@ -29,7 +30,8 @@ public sealed record AttendanceRecordResponse(
     TimeOnly? ActualEndTime,
     int MinutesLate,
     string? Notes,
-    bool Active);
+    bool Active,
+    byte[] RowVersion);
 
 public sealed record CreateIncidentRequest(
     Guid IdOrganization,
@@ -55,7 +57,9 @@ public sealed record UpdateIncidentRequest(
     IncidentSeverity Severity,
     IncidentStatus Status,
     string Description,
-    string? ResolutionNotes);
+    string? ResolutionNotes,
+    string? CorrectionReason = null,
+    byte[]? RowVersion = null);
 
 public sealed record IncidentResponse(
     Guid IdIncident,
@@ -70,7 +74,8 @@ public sealed record IncidentResponse(
     IncidentStatus Status,
     string Description,
     string? ResolutionNotes,
-    bool Active);
+    bool Active,
+    byte[] RowVersion);
 
 public sealed record CreateCoverageRequest(
     Guid IdOrganization,
@@ -82,7 +87,8 @@ public sealed record CreateCoverageRequest(
     TimeOnly CoverageEndTime,
     bool IsOvernight,
     CoverageStatus Status,
-    string? Notes);
+    string? Notes,
+    Guid? IdCoverageReason = null);
 
 public sealed record UpdateCoverageRequest(
     Guid IdOrganization,
@@ -93,7 +99,10 @@ public sealed record UpdateCoverageRequest(
     TimeOnly CoverageEndTime,
     bool IsOvernight,
     CoverageStatus Status,
-    string? Notes);
+    string? Notes,
+    Guid? IdCoverageReason = null,
+    string? CorrectionReason = null,
+    byte[]? RowVersion = null);
 
 public sealed record CoverageRecordResponse(
     Guid IdCoverageRecord,
@@ -110,7 +119,9 @@ public sealed record CoverageRecordResponse(
     int DurationMinutes,
     CoverageStatus Status,
     string? Notes,
-    bool Active);
+    bool Active,
+    Guid? IdCoverageReason = null,
+    byte[]? RowVersion = null);
 
 public sealed record OperationEvidenceInput(
     Guid IdOrganization,
@@ -189,7 +200,8 @@ public sealed record CloseOperationDayRequest(
 
 public sealed record ReopenOperationDayRequest(
     Guid IdOrganization,
-    string Reason);
+    string Reason,
+    byte[]? RowVersion = null);
 
 public sealed record OperationDayClosureResponse(
     Guid IdOperationDayClosure,
@@ -208,4 +220,5 @@ public sealed record OperationDayClosureResponse(
     DateTime? ReopenedAt,
     string? ReopenedByName,
     string? ReopenReason,
-    bool Active);
+    bool Active,
+    byte[] RowVersion);

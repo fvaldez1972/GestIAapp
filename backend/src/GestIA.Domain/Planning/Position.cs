@@ -7,9 +7,10 @@ public sealed record PositionProfile(
     string Name,
     int RequiredWorkerCount,
     string? RequiredSkillProfile,
-    string? Notes);
+    string? Notes,
+    Guid? IdJobPositionCatalogItem = null);
 
-public sealed class Position : AuditableEntity
+public sealed class Position : AuditableEntity, IOrganizationScopedEntity
 {
     private readonly List<ShiftPattern> shiftPatterns = [];
 
@@ -19,6 +20,7 @@ public sealed class Position : AuditableEntity
 
     private Position(
         Guid idPosition,
+        Guid idOrganization,
         Guid idService,
         string codePosition,
         PositionProfile profile,
@@ -27,6 +29,7 @@ public sealed class Position : AuditableEntity
         DateTime occurredAt)
     {
         IdPosition = idPosition;
+        IdOrganization = idOrganization;
         IdService = idService;
         CodePosition = Required(codePosition, nameof(codePosition)).ToUpperInvariant();
         ApplyProfile(profile);
@@ -34,23 +37,39 @@ public sealed class Position : AuditableEntity
     }
 
     public Guid IdPosition { get; private set; }
+    public Guid IdOrganization { get; private set; }
     public Guid IdService { get; private set; }
     public string CodePosition { get; private set; } = string.Empty;
     public string Name { get; private set; } = string.Empty;
     public int RequiredWorkerCount { get; private set; }
+    /// <summary>
+    /// El puesto, por identificador contra el catálogo <c>JobPosition</c>.
+    ///
+    /// <para><b>Es nulable, y eso significa algo distinto de "no cumple".</b> Un valor nulo dice
+    /// "no sabemos cuál es su puesto", normalmente porque el texto libre heredado no correspondía
+    /// a ninguna entrada del catálogo. La elegibilidad <b>no bloquea</b> por un nulo: no es lo
+    /// mismo no cumplir el perfil que no saber cuál es, y tratarlos igual impediría asignar a
+    /// gente que sí puede.</para>
+    ///
+    /// <para>Convive con el texto libre, que se conserva sin tocar hasta que no queden nulos. La
+    /// comparación de elegibilidad usa este identificador; el texto ya no decide nada.</para>
+    /// </summary>
+    public Guid? IdJobPositionCatalogItem { get; private set; }
+
     public string? RequiredSkillProfile { get; private set; }
     public string? Notes { get; private set; }
     public Service Service { get; private set; } = null!;
     public IReadOnlyCollection<ShiftPattern> ShiftPatterns => shiftPatterns;
 
     public static Position Create(
+        Guid idOrganization,
         Guid idService,
         string codePosition,
         PositionProfile profile,
         Guid actorId,
         string actorName,
         DateTime occurredAt) =>
-        new(Guid.NewGuid(), idService, codePosition, profile, actorId, actorName, occurredAt);
+        new(Guid.NewGuid(), idOrganization, idService, codePosition, profile, actorId, actorName, occurredAt);
 
     public void UpdateProfile(
         PositionProfile profile,
@@ -72,6 +91,7 @@ public sealed class Position : AuditableEntity
 
         Name = Required(profile.Name, nameof(profile.Name));
         RequiredWorkerCount = profile.RequiredWorkerCount;
+        IdJobPositionCatalogItem = profile.IdJobPositionCatalogItem;
         RequiredSkillProfile = Optional(profile.RequiredSkillProfile);
         Notes = Optional(profile.Notes);
     }

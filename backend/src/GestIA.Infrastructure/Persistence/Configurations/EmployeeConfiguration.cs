@@ -1,3 +1,4 @@
+using GestIA.Domain.Catalogs;
 using GestIA.Domain.Workforce;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -31,12 +32,22 @@ public sealed class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
         builder.Property(entity => entity.Address).HasMaxLength(500);
         builder.Property(entity => entity.Municipality).HasMaxLength(120);
         builder.Property(entity => entity.State).HasMaxLength(120);
+        builder.Property(entity => entity.CountryCode).HasMaxLength(2).IsUnicode(false);
         builder.Property(entity => entity.PostalCode).HasMaxLength(10).IsUnicode(false);
         builder.Property(entity => entity.HousingType).HasMaxLength(30);
         builder.HasOne(entity => entity.Organization)
             .WithMany()
             .HasForeignKey(entity => entity.IdOrganization)
             .OnDelete(DeleteBehavior.Restrict);
+        // El puesto por identificador. Es opcional: un nulo dice "no sabemos cuál es",
+        // no "no cumple", y la elegibilidad no bloquea por eso.
+        builder.HasOne<BusinessCatalogItem>()
+            .WithMany()
+            .HasForeignKey(entity => entity.IdJobPositionCatalogItem)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasIndex(entity => new { entity.IdOrganization, entity.IdJobPositionCatalogItem });
+
         builder.HasIndex(entity => new { entity.IdOrganization, entity.CodeEmployee }).IsUnique();
         builder.HasIndex(entity => new { entity.IdOrganization, entity.Rfc })
             .IsUnique()

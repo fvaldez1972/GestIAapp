@@ -1,6 +1,7 @@
+using GestIA.Domain.Organizations;
 using GestIA.Domain.Planning;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Microsoft.EntityFrameworkCore;
 
 namespace GestIA.Infrastructure.Persistence.Configurations;
 
@@ -25,5 +26,10 @@ public sealed class ShiftSegmentConfiguration : IEntityTypeConfiguration<ShiftSe
             .HasForeignKey(entity => entity.IdShiftPattern)
             .OnDelete(DeleteBehavior.Restrict);
         builder.HasIndex(entity => new { entity.IdShiftPattern, entity.DayOfWeek, entity.StartTime });
+        builder.HasOne<Organization>()
+            .WithMany()
+            .HasForeignKey(entity => entity.IdOrganization)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasIndex(entity => new { entity.IdOrganization, entity.DayOfWeek });
     }
 }

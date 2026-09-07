@@ -63,7 +63,8 @@ public sealed class ClientSiteServiceTests
             new StubClientContactRepository(),
             new StubUnitOfWork(),
             new StubActorContext(),
-            new StubClock());
+            new StubClock(),
+            new GestIA.Application.Catalogs.FormCatalogValidator(null!));
 
         var request = new CreateClientContactRequest(
             OrganizationId,
@@ -89,12 +90,18 @@ public sealed class ClientSiteServiceTests
             siteRepository,
             new StubUnitOfWork(),
             new StubActorContext(),
-            new StubClock());
+            new StubClock(), null!);
 
     private sealed class StubClientRepository(Client? client) : IClientRepository
     {
-        public Task<(IReadOnlyList<Client> Items, int TotalCount)> SearchAsync(ClientSearchCriteria criteria, CancellationToken cancellationToken) =>
-            Task.FromResult(((IReadOnlyList<Client>)[], 0));
+        public Task<(IReadOnlyList<ClientListItemResponse> Items, int TotalCount)> SearchAsync(ClientSearchCriteria criteria, CancellationToken cancellationToken) =>
+            Task.FromResult(((IReadOnlyList<ClientListItemResponse>)[], 0));
+
+        public Task<IReadOnlyList<string>> ListMunicipalitiesAsync(Guid idOrganization, CancellationToken cancellationToken) =>
+            Task.FromResult((IReadOnlyList<string>)[]);
+
+        public Task<int> HighestClientCodeNumberAsync(Guid idOrganization, CancellationToken cancellationToken) =>
+            Task.FromResult(0);
 
         public Task<Client?> GetAsync(Guid idOrganization, Guid idClient, CancellationToken cancellationToken) =>
             Task.FromResult(client?.IdOrganization == idOrganization && client.IdClient == idClient ? client : null);
@@ -153,5 +160,11 @@ public sealed class ClientSiteServiceTests
     private sealed class StubClock : IClock
     {
         public DateTime UtcNow => DateTime.UtcNow;
+
+        // Doble de prueba: la fecha sale del instante simulado, sin huso.
+        public DateOnly Today => DateOnly.FromDateTime(UtcNow);
+
+        // Doble de prueba: sin huso, la hora local es la UTC.
+        public TimeZoneInfo OperationalTimeZone => TimeZoneInfo.Utc;
     }
 }

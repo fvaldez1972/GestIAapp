@@ -5,7 +5,7 @@ using GestIA.Domain.Services;
 
 namespace GestIA.Domain.Requests;
 
-public sealed class OperationalRequest : AuditableEntity
+public sealed class OperationalRequest : AuditableEntity, IOrganizationScopedEntity
 {
     private OperationalRequest()
     {
@@ -56,7 +56,7 @@ public sealed class OperationalRequest : AuditableEntity
             IdService = idService,
             CodeOperationalRequest = codeOperationalRequest.Trim().ToUpperInvariant(),
             RequestType = requestType,
-            Status = OperationalRequestStatus.Submitted,
+            Status = OperationalRequestStatus.Draft,
             Priority = priority,
             Title = title.Trim(),
             Description = description.Trim(),
@@ -80,6 +80,11 @@ public sealed class OperationalRequest : AuditableEntity
         string actorName,
         DateTime occurredAt)
     {
+        if (Status == OperationalRequestStatus.Completed)
+        {
+            throw new DomainRuleException("Una solicitud ejecutada no puede modificarse.");
+        }
+
         ArgumentException.ThrowIfNullOrWhiteSpace(title);
         ArgumentException.ThrowIfNullOrWhiteSpace(description);
         ArgumentException.ThrowIfNullOrWhiteSpace(requestedByName);
@@ -102,6 +107,25 @@ public sealed class OperationalRequest : AuditableEntity
         string actorName,
         DateTime occurredAt)
     {
+        var allowed = Status == status || (Status, status) switch
+        {
+            (OperationalRequestStatus.Draft, OperationalRequestStatus.Submitted or OperationalRequestStatus.Cancelled) => true,
+            (OperationalRequestStatus.Submitted, OperationalRequestStatus.InReview or OperationalRequestStatus.Cancelled) => true,
+            (OperationalRequestStatus.InReview, OperationalRequestStatus.Approved or OperationalRequestStatus.Rejected or OperationalRequestStatus.Cancelled) => true,
+            (OperationalRequestStatus.Approved, OperationalRequestStatus.Completed or OperationalRequestStatus.Cancelled) => true,
+            (OperationalRequestStatus.Rejected or OperationalRequestStatus.Cancelled, OperationalRequestStatus.Draft) => true,
+            _ => false
+        };
+        if (!allowed)
+        {
+            throw new DomainRuleException("La transición de estado de la solicitud no está permitida.");
+        }
+
+        if (status is OperationalRequestStatus.Rejected or OperationalRequestStatus.Cancelled && string.IsNullOrWhiteSpace(resolutionNotes))
+        {
+            throw new DomainRuleException("Indica el motivo del rechazo o cancelación.");
+        }
+
         Status = status;
         ResolutionNotes = string.IsNullOrWhiteSpace(resolutionNotes) ? null : resolutionNotes.Trim();
         RegisterUpdate(actorId, actorName, occurredAt);

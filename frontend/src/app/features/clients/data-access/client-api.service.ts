@@ -1,6 +1,10 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
+import { activeOptions } from '../../../shared/data-access/active-options';
 import {
+  ClientListItem,
+  ClientSitePresenceFilter,
+  ClientStatusFilter,
   AttendanceRecord,
   ApprovalRequest,
   ApprovalRequestStatus,
@@ -18,6 +22,8 @@ import {
   CreateManagedService,
   CreateServiceContract,
   CreateOrganization,
+  CreateOrganizationWithAdmin,
+  UpdateOrganization,
   CreateServicePosition,
   CreateServiceAssignment,
   CreateShiftPattern,
@@ -36,6 +42,8 @@ import {
   OperationEvidenceInput,
   OperationDayClosure,
   Organization,
+  OrganizationGovernanceSummary,
+  OrganizationProvisioningResult,
   PagedResult,
   ServiceAssignment,
   ServiceAssignmentInput,
@@ -67,8 +75,74 @@ export class ClientApiService {
     return this.http.get<readonly Organization[]>(`${this.baseUrl}/organizations`);
   }
 
+  listOrganizationGovernance() {
+    return this.http.get<readonly OrganizationGovernanceSummary[]>(`${this.baseUrl}/organizations/governance`);
+  }
+
   createOrganization(request: CreateOrganization) {
     return this.http.post<Organization>(`${this.baseUrl}/organizations`, request);
+  }
+
+  createOrganizationWithAdmin(request: CreateOrganizationWithAdmin) {
+    return this.http.post<OrganizationProvisioningResult>(`${this.baseUrl}/organizations/with-admin`, request);
+  }
+
+  updateOrganization(idOrganization: string, request: UpdateOrganization) {
+    return this.http.put<Organization>(`${this.baseUrl}/organizations/${idOrganization}`, request);
+  }
+
+  deactivateOrganization(idOrganization: string) {
+    return this.http.delete<void>(`${this.baseUrl}/organizations/${idOrganization}`);
+  }
+
+  activateOrganization(idOrganization: string) {
+    return this.http.patch<Organization>(`${this.baseUrl}/organizations/${idOrganization}/activate`, {});
+  }
+
+  /**
+   * El listado de clientes con sus conteos resueltos.
+   *
+   * <p>Los filtros viajan al servidor y no se aplican sobre la página ya traída: un filtro que
+   * sólo mira la página en pantalla miente en cuanto hay una segunda.</p>
+   */
+  searchClients(options: {
+    organizationId: string;
+    search?: string;
+    status?: ClientStatusFilter;
+    sitePresence?: ClientSitePresenceFilter;
+    municipality?: string;
+    page?: number;
+    pageSize?: number;
+  }) {
+    let params = new HttpParams()
+      .set('organizationId', options.organizationId)
+      .set('page', String(options.page ?? 1))
+      .set('pageSize', String(options.pageSize ?? 25));
+
+    if (options.search?.trim()) {
+      params = params.set('search', options.search.trim());
+    }
+
+    if (options.status) {
+      params = params.set('status', options.status);
+    }
+
+    if (options.sitePresence && options.sitePresence !== 'Any') {
+      params = params.set('sitePresence', options.sitePresence);
+    }
+
+    if (options.municipality) {
+      params = params.set('municipality', options.municipality);
+    }
+
+    return this.http.get<PagedResult<ClientListItem>>(`${this.baseUrl}/clients`, { params });
+  }
+
+  /** Las opciones reales del filtro de municipio, de todas las sedes y no sólo de la página. */
+  listClientMunicipalities(organizationId: string) {
+    return this.http.get<readonly string[]>(`${this.baseUrl}/clients/municipalities`, {
+      params: new HttpParams().set('organizationId', organizationId),
+    });
   }
 
   listClients(organizationId: string, search = '', page = 1, pageSize = 20) {
@@ -81,7 +155,11 @@ export class ClientApiService {
       params = params.set('search', search.trim());
     }
 
-    return this.http.get<PagedResult<Client>>(`${this.baseUrl}/clients`, { params });
+    return this.http.get<PagedResult<ClientListItem>>(`${this.baseUrl}/clients`, { params });
+  }
+
+  listClientOptions(organizationId: string) {
+    return activeOptions(page => this.listClients(organizationId, '', page, 100));
   }
 
   createClient(request: CreateClient) {
@@ -566,14 +644,16 @@ export class ClientApiService {
     );
   }
 
-  uploadOperationEvidenceFile(file: File) {
+  uploadOperationEvidenceFile(file: File, organizationId: string) {
     const formData = new FormData();
     formData.append('file', file, file.name);
-    return this.http.post<FileUploadResponse>(`${this.baseUrl}/files/operation-evidence`, formData);
+    const params = new HttpParams().set('organizationId', organizationId);
+    return this.http.post<FileUploadResponse>(`${this.baseUrl}/files/operation-evidence`, formData, { params });
   }
 
-  downloadOperationEvidenceFile(storageReference: string) {
-    const params = new HttpParams().set('storageReference', storageReference);
+  downloadOperationEvidenceFile(organizationId: string, clientId: string, serviceId: string, evidenceId: string) {
+    const params = new HttpParams().set('organizationId', organizationId)
+      .set('clientId', clientId).set('serviceId', serviceId).set('evidenceId', evidenceId);
     return this.http.get(`${this.baseUrl}/files/operation-evidence/download`, {
       params,
       observe: 'response',

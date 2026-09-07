@@ -13,13 +13,9 @@ export const authInterceptor: HttpInterceptorFn = (request, next) => {
     return next(request);
   }
 
-  return next(
-    request.clone({
-      setHeaders: {
-        Authorization: `Bearer ${token}`,
-      },
-    }),
-  ).pipe(
+  const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
+
+  return next(request.clone({ setHeaders: headers })).pipe(
     catchError((error: unknown) => {
       if (error instanceof HttpErrorResponse && error.status === 401) {
         auth.logout();

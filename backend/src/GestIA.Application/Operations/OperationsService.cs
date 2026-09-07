@@ -1,4 +1,6 @@
 using GestIA.Application.Common;
+using GestIA.Application.Catalogs;
+using GestIA.Application.Documents;
 using GestIA.Domain.Operations;
 using GestIA.Domain.Planning;
 using GestIA.Domain.Workforce;
@@ -7,10 +9,36 @@ namespace GestIA.Application.Operations;
 
 public sealed class OperationsService(
     IOperationsRepository repository,
+    ICatalogService catalogService,
     IUnitOfWork unitOfWork,
     IActorContext actorContext,
+    IConcurrencyGuard concurrency,
+    IOperationReasonContext reasonContext,
     IClock clock) : IOperationsService
 {
+    /// <summary>
+    /// Decide si la corrección exige motivo, lo valida y lo deja en el contexto ambiental para
+    /// que <c>SaveChanges</c> lo estampe en el evento de historial que va a emitir.
+    ///
+    /// Se llama <b>antes</b> de tocar el registro: si el motivo falta o es demasiado corto, la
+    /// petición se rechaza sin haber cambiado nada.
+    /// </summary>
+    private async Task RequireCorrectionReasonAsync(
+        Guid idService,
+        DateOnly operationDate,
+        string? reason,
+        CancellationToken cancellationToken)
+    {
+        var closure = await repository.GetDayClosureAsync(idService, operationDate, cancellationToken);
+        var requirement = CorrectionReasonPolicy.DayClosureRequirement(closure);
+
+        var errors = new Dictionary<string, string[]>();
+        var validated = CorrectionReasonPolicy.Validate(reason, requirement, "CorrectionReason", errors);
+        InputValidation.ThrowIfInvalid(errors);
+
+        reasonContext.SetReason(validated, requirement is not null);
+    }
+
     public async Task<IReadOnlyList<AttendanceRecordResponse>> ListAttendanceAsync(
         AttendanceQuery query,
         CancellationToken cancellationToken)
@@ -20,7 +48,12 @@ public sealed class OperationsService(
         return records.Select(Map).ToArray();
     }
 
-    public async Task<AttendanceRecordResponse> UpsertAttendanceAsync(
+    public Task<AttendanceRecordResponse> UpsertAttendanceAsync(
+        UpsertAttendanceRequest request,
+        CancellationToken cancellationToken) =>
+        repository.ExecuteAtomicAsync(token => UpsertAttendanceCoreAsync(request, token), cancellationToken);
+
+    private async Task<AttendanceRecordResponse> UpsertAttendanceCoreAsync(
         UpsertAttendanceRequest request,
         CancellationToken cancellationToken)
     {
@@ -38,6 +71,7 @@ public sealed class OperationsService(
         if (existing is null)
         {
             existing = AttendanceRecord.Create(
+                request.IdOrganization,
                 shift.IdScheduledShift,
                 shift.IdEmployee,
                 shift.ShiftDate,
@@ -49,14 +83,6 @@ public sealed class OperationsService(
         }
         else
         {
-            var authorizationErrors = new Dictionary<string, string[]>();
-            var correctionAuthorizationNotes = InputValidation.Optional(
-                request.CorrectionAuthorizationNotes,
-                nameof(request.CorrectionAuthorizationNotes),
-                1000,
-                authorizationErrors);
-            InputValidation.ThrowIfInvalid(authorizationErrors);
-
             if (AttendanceChanged(existing, profile) && !request.IdApprovalRequest.HasValue)
             {
                 throw new RequestValidationException(new Dictionary<string, string[]>
@@ -78,11 +104,19 @@ public sealed class OperationsService(
                     cancellationToken);
             }
 
+            await RequireCorrectionReasonAsync(
+                request.IdService, existing.AttendanceDate, request.CorrectionReason, cancellationToken);
+
+            // Sólo al corregir. Un alta no lleva token porque no hay nada que pisar, y este mismo
+            // endpoint crea o corrige.
+            concurrency.Expect(existing, request.RowVersion);
+
+            // Las notas del registro se quedan como las escribió el supervisor. La justificación
+            // de la corrección viaja por CorrectionReason y se guarda en el evento de historial,
+            // que es su lugar; y qué autorización la permitió se sabe por el propio
+            // ApprovalRequest, que apunta a este registro con EntityType y EntityId.
             existing.UpdateProfile(
-                profile with
-                {
-                    Notes = BuildAttendanceCorrectionNotes(profile.Notes, correctionAuthorizationNotes, request.IdApprovalRequest)
-                },
+                profile,
                 actorContext.ActorId,
                 actorContext.ActorName,
                 clock.UtcNow);
@@ -103,7 +137,12 @@ public sealed class OperationsService(
         return incidents.Select(Map).ToArray();
     }
 
-    public async Task<IncidentResponse> CreateIncidentAsync(
+    public Task<IncidentResponse> CreateIncidentAsync(
+        CreateIncidentRequest request,
+        CancellationToken cancellationToken) =>
+        repository.ExecuteAtomicAsync(token => CreateIncidentCoreAsync(request, token), cancellationToken);
+
+    private async Task<IncidentResponse> CreateIncidentCoreAsync(
         CreateIncidentRequest request,
         CancellationToken cancellationToken)
     {
@@ -123,7 +162,9 @@ public sealed class OperationsService(
             request.Status,
             request.Description,
             request.ResolutionNotes);
+        await ValidateIncidentCatalogAsync(request.IdOrganization, profile.IncidentType, null, cancellationToken);
         var incident = Incident.Create(
+            request.IdOrganization,
             request.IdService,
             profile,
             actorContext.ActorId,
@@ -134,7 +175,13 @@ public sealed class OperationsService(
         return Map(await repository.GetIncidentAsync(request.IdService, incident.IdIncident, cancellationToken) ?? incident);
     }
 
-    public async Task<IncidentResponse> UpdateIncidentAsync(
+    public Task<IncidentResponse> UpdateIncidentAsync(
+        Guid idIncident,
+        UpdateIncidentRequest request,
+        CancellationToken cancellationToken) =>
+        repository.ExecuteAtomicAsync(token => UpdateIncidentCoreAsync(idIncident, request, token), cancellationToken);
+
+    private async Task<IncidentResponse> UpdateIncidentCoreAsync(
         Guid idIncident,
         UpdateIncidentRequest request,
         CancellationToken cancellationToken)
@@ -157,6 +204,10 @@ public sealed class OperationsService(
             request.Status,
             request.Description,
             request.ResolutionNotes);
+        await ValidateIncidentCatalogAsync(request.IdOrganization, profile.IncidentType, incident.IncidentType, cancellationToken);
+        await RequireCorrectionReasonAsync(
+            request.IdService, incident.IncidentDate, request.CorrectionReason, cancellationToken);
+        concurrency.Expect(incident, request.RowVersion);
         incident.UpdateProfile(profile, actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return Map(await repository.GetIncidentAsync(request.IdService, idIncident, cancellationToken) ?? incident);
@@ -173,7 +224,30 @@ public sealed class OperationsService(
         return coverages.Select(Map).ToArray();
     }
 
-    public async Task<CoverageRecordResponse> CreateCoverageAsync(
+    private async Task ValidateIncidentCatalogAsync(Guid organization, string code, string? previous, CancellationToken token)
+    {
+        if (string.Equals(code, previous, StringComparison.OrdinalIgnoreCase)) return;
+        var values = await catalogService.ListCatalogItemsAsync(organization, GestIA.Domain.Catalogs.BusinessCatalogItemType.IncidentReason, token);
+        if (!values.Any(item => item.Active && string.Equals(item.Code, code, StringComparison.OrdinalIgnoreCase)))
+            throw new ResourceConflictException("Selecciona un tipo de incidencia activo del catalogo.");
+    }
+
+    public Task<CoverageRecordResponse> CreateCoverageAsync(
+        CreateCoverageRequest request,
+        CancellationToken cancellationToken) =>
+        repository.ExecuteAtomicAsync(token => CreateCoverageCoreAsync(request, token), cancellationToken);
+
+    private async Task<Guid?> ValidateCoverageReasonAsync(Guid organization, Guid? reason, CoverageRecord? previous, CancellationToken token)
+    {
+        // An unchanged historical reference must not block closing or cancelling a coverage.
+        if (previous is not null && (reason is null || reason == previous.IdCoverageReason)) return previous.IdCoverageReason;
+        var values = await catalogService.ListCatalogItemsAsync(organization, GestIA.Domain.Catalogs.BusinessCatalogItemType.CoverageReason, token);
+        if (!values.Any(item => item.Active && item.IdCatalogItem == reason))
+            throw new ResourceConflictException("Selecciona un motivo de cobertura activo de la organizacion.");
+        return reason;
+    }
+
+    private async Task<CoverageRecordResponse> CreateCoverageCoreAsync(
         CreateCoverageRequest request,
         CancellationToken cancellationToken)
     {
@@ -193,7 +267,15 @@ public sealed class OperationsService(
             request.IsOvernight,
             request.Status,
             request.Notes);
+        profile = profile with { IdCoverageReason = await ValidateCoverageReasonAsync(request.IdOrganization, request.IdCoverageReason, null, cancellationToken) };
+        if (profile.Status != CoverageStatus.Requested)
+        {
+            throw new ResourceConflictException("La cobertura debe crearse en estado solicitado.");
+        }
+        await EnsureCoverageAllocationAsync(request.IdOrganization, request.IdClient, request.IdService,
+            shift, profile, null, cancellationToken);
         var coverage = CoverageRecord.Create(
+            request.IdOrganization,
             shift.IdScheduledShift,
             shift.IdEmployee,
             profile,
@@ -205,7 +287,13 @@ public sealed class OperationsService(
         return Map(await repository.GetCoverageAsync(request.IdService, coverage.IdCoverageRecord, cancellationToken) ?? coverage);
     }
 
-    public async Task<CoverageRecordResponse> UpdateCoverageAsync(
+    public Task<CoverageRecordResponse> UpdateCoverageAsync(
+        Guid idCoverageRecord,
+        UpdateCoverageRequest request,
+        CancellationToken cancellationToken) =>
+        repository.ExecuteAtomicAsync(token => UpdateCoverageCoreAsync(idCoverageRecord, request, token), cancellationToken);
+
+    private async Task<CoverageRecordResponse> UpdateCoverageCoreAsync(
         Guid idCoverageRecord,
         UpdateCoverageRequest request,
         CancellationToken cancellationToken)
@@ -213,19 +301,27 @@ public sealed class OperationsService(
         await EnsureServiceAsync(request.IdOrganization, request.IdClient, request.IdService, cancellationToken);
         var coverage = await repository.GetCoverageAsync(request.IdService, idCoverageRecord, cancellationToken)
             ?? throw new ResourceNotFoundException("No se encontró la cobertura solicitada.");
-        var replacement = await EnsureActiveEmployeeAsync(request.IdOrganization, request.IdReplacementEmployee, cancellationToken);
-        if (replacement.IdEmployee == coverage.IdOriginalEmployee)
-        {
-            throw new ResourceConflictException("El sustituto no puede ser el mismo empleado original.");
-        }
-
         var profile = ValidateCoverageProfile(
-            replacement.IdEmployee,
+            request.IdReplacementEmployee,
             request.CoverageStartTime,
             request.CoverageEndTime,
             request.IsOvernight,
             request.Status,
             request.Notes);
+        profile = profile with { IdCoverageReason = await ValidateCoverageReasonAsync(request.IdOrganization, request.IdCoverageReason, coverage, cancellationToken) };
+        // Cancellation must remain possible if eligibility was lost after confirmation.
+        if (coverage.Status is not (CoverageStatus.Completed or CoverageStatus.Cancelled) &&
+            profile.Status != CoverageStatus.Cancelled)
+        {
+            EnsurePublished(coverage.ScheduledShift);
+            await EnsureActiveEmployeeAsync(request.IdOrganization, profile.IdReplacementEmployee, cancellationToken);
+            await EnsureCoverageAllocationAsync(request.IdOrganization, request.IdClient, request.IdService,
+                coverage.ScheduledShift, profile, idCoverageRecord, cancellationToken);
+        }
+        // La cobertura no guarda su fecha: la toma del turno que cubre.
+        await RequireCorrectionReasonAsync(
+            request.IdService, coverage.ScheduledShift.ShiftDate, request.CorrectionReason, cancellationToken);
+        concurrency.Expect(coverage, request.RowVersion);
         coverage.UpdateProfile(profile, actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return Map(await repository.GetCoverageAsync(request.IdService, idCoverageRecord, cancellationToken) ?? coverage);
@@ -249,6 +345,7 @@ public sealed class OperationsService(
     {
         await EnsureServiceAsync(request.IdOrganization, request.IdClient, request.IdService, cancellationToken);
         await EnsureEvidenceRelationAsync(request.IdService, request.IdAttendanceRecord, request.IdIncident, request.IdCoverageRecord, cancellationToken);
+        ValidateEvidenceStorage(request.IdOrganization, request.StorageReference);
         var profile = ValidateEvidenceProfile(
             request.IdAttendanceRecord,
             request.IdIncident,
@@ -258,6 +355,7 @@ public sealed class OperationsService(
             request.StorageReference,
             request.Notes);
         var evidence = OperationEvidence.Create(
+            request.IdOrganization,
             request.IdService,
             profile,
             actorContext.ActorId,
@@ -278,6 +376,7 @@ public sealed class OperationsService(
         await EnsureEvidenceRelationAsync(request.IdService, request.IdAttendanceRecord, request.IdIncident, request.IdCoverageRecord, cancellationToken);
         var evidence = await repository.GetEvidenceAsync(request.IdService, idOperationEvidence, cancellationToken)
             ?? throw new ResourceNotFoundException("No se encontró la evidencia solicitada.");
+        ValidateEvidenceStorage(request.IdOrganization, request.StorageReference, evidence.StorageReference);
         var profile = ValidateEvidenceProfile(
             request.IdAttendanceRecord,
             request.IdIncident,
@@ -489,6 +588,10 @@ public sealed class OperationsService(
         var reason = InputValidation.Required(request.Reason, nameof(request.Reason), 1200, errors);
         InputValidation.ThrowIfInvalid(errors);
 
+        // El cierre de dia es el conflicto mas probable de todos: dos personas cerrando el turno
+        // a la vez. Y no lleva bitacora, asi que si hay conflicto el mensaje sale de los campos de
+        // auditoria de la propia fila.
+        concurrency.Expect(closure, request.RowVersion);
         closure.Reopen(reason, actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return Map(closure);
@@ -606,12 +709,51 @@ public sealed class OperationsService(
     {
         if (idScheduledShift.HasValue)
         {
-            await EnsureScheduledShiftAsync(idService, idScheduledShift.Value, cancellationToken);
+            var shift = await EnsureScheduledShiftAsync(idService, idScheduledShift.Value, cancellationToken);
+            EnsurePublished(shift);
         }
 
         if (idEmployee.HasValue)
         {
             await EnsureActiveEmployeeAsync(idOrganization, idEmployee.Value, cancellationToken);
+        }
+    }
+
+    private async Task EnsureCoverageAllocationAsync(
+        Guid idOrganization, Guid idClient, Guid idService,
+        ScheduledShift shift, CoverageRecordProfile profile,
+        Guid? excludedCoverageId, CancellationToken cancellationToken)
+    {
+        if (profile.IdReplacementEmployee == shift.IdEmployee)
+        {
+            throw new ResourceConflictException("El sustituto no puede ser el empleado original.");
+        }
+
+        var duration = profile.IsOvernight
+            ? 24 * 60 - profile.CoverageStartTime.Hour * 60 - profile.CoverageStartTime.Minute +
+                profile.CoverageEndTime.Hour * 60 + profile.CoverageEndTime.Minute
+            : (int)(profile.CoverageEndTime - profile.CoverageStartTime).TotalMinutes;
+        var interval = CoverageInterval.WithinShift(shift.ShiftDate, shift.StartTime, shift.DurationMinutes,
+            profile.CoverageStartTime, duration);
+        var lastDate = DateOnly.FromDateTime(interval.Date.ToDateTime(interval.StartTime)
+            .AddMinutes(interval.DurationMinutes).AddTicks(-1));
+        for (var date = interval.Date; date <= lastDate; date = date.AddDays(1))
+        {
+            var eligibility = await catalogService.CheckEligibilityAsync(
+                new EligibilityCheckQuery(idOrganization, profile.IdReplacementEmployee, idClient,
+                    idService, shift.IdPosition, date), cancellationToken);
+            if (!eligibility.IsEligible)
+            {
+                var reasons = eligibility.Reasons.Where(reason => reason.IsBlocking && !reason.Passed)
+                    .Select(reason => reason.Message);
+                throw new ResourceConflictException($"El sustituto no es elegible. {string.Join(" ", reasons)}");
+            }
+        }
+
+        if (await repository.HasCoverageConflictAsync(idOrganization, profile.IdReplacementEmployee,
+            shift.IdScheduledShift, interval, excludedCoverageId, cancellationToken))
+        {
+            throw new ResourceConflictException("La cobertura se traslapa con un turno o una cobertura existente.");
         }
     }
 
@@ -647,32 +789,6 @@ public sealed class OperationsService(
         record.ActualEndTime != profile.ActualEndTime ||
         record.MinutesLate != profile.MinutesLate ||
         !string.Equals(record.Notes, profile.Notes, StringComparison.Ordinal);
-
-    private static string? BuildAttendanceCorrectionNotes(string? notes, string? correctionAuthorizationNotes)
-    {
-        return BuildAttendanceCorrectionNotes(notes, correctionAuthorizationNotes, null);
-    }
-
-    private static string? BuildAttendanceCorrectionNotes(
-        string? notes,
-        string? correctionAuthorizationNotes,
-        Guid? idApprovalRequest)
-    {
-        if (string.IsNullOrWhiteSpace(correctionAuthorizationNotes) && !idApprovalRequest.HasValue)
-        {
-            return notes;
-        }
-
-        var approvalReference = idApprovalRequest.HasValue ? $"Autorización aprobada: {idApprovalRequest.Value}" : null;
-        var correctionNote = string.Join(
-            " · ",
-            new[] { approvalReference, string.IsNullOrWhiteSpace(correctionAuthorizationNotes) ? null : $"Nota: {correctionAuthorizationNotes.Trim()}" }
-                .Where(value => !string.IsNullOrWhiteSpace(value)));
-
-        return string.IsNullOrWhiteSpace(notes)
-            ? correctionNote
-            : $"{notes.Trim()} | {correctionNote}";
-    }
 
     private async Task EnsureApprovedApprovalRequestAsync(
         Guid idOrganization,
@@ -741,6 +857,22 @@ public sealed class OperationsService(
         var normalizedNotes = InputValidation.Optional(notes, nameof(notes), 1000, errors);
         InputValidation.ThrowIfInvalid(errors);
         return new CoverageRecordProfile(idReplacementEmployee, coverageStartTime, coverageEndTime, isOvernight, status, normalizedNotes);
+    }
+
+    private static void ValidateEvidenceStorage(Guid organizationId, string reference, string? previousReference = null)
+    {
+        var normalized = reference?.Replace('\\', '/') ?? string.Empty;
+        var scoped = normalized.StartsWith($"operation-evidences/{organizationId:N}/", StringComparison.OrdinalIgnoreCase);
+        // Existing records may retain their legacy path, but cannot attach another legacy file.
+        var unchangedLegacy = normalized.StartsWith("operation-evidences/", StringComparison.OrdinalIgnoreCase)
+            && reference == previousReference;
+        if (!DocumentStorageReference.IsSafeRelativePath(normalized) || (!scoped && !unchangedLegacy))
+        {
+            InputValidation.ThrowIfInvalid(new Dictionary<string, string[]>
+            {
+                ["storageReference"] = ["Carga la evidencia dentro de la organizacion seleccionada."]
+            });
+        }
     }
 
     private static OperationEvidenceProfile ValidateEvidenceProfile(
@@ -825,7 +957,8 @@ public sealed class OperationsService(
             record.ActualEndTime,
             record.MinutesLate,
             record.Notes,
-            record.Active);
+            record.Active,
+            record.RowVersion);
 
     private static IncidentResponse Map(Incident incident) =>
         new(
@@ -841,7 +974,8 @@ public sealed class OperationsService(
             incident.Status,
             incident.Description,
             incident.ResolutionNotes,
-            incident.Active);
+            incident.Active,
+            incident.RowVersion);
 
     private static CoverageRecordResponse Map(CoverageRecord coverage) =>
         new(
@@ -859,7 +993,8 @@ public sealed class OperationsService(
             coverage.DurationMinutes,
             coverage.Status,
             coverage.Notes,
-            coverage.Active);
+            coverage.Active,
+            coverage.IdCoverageReason);
 
     private static OperationEvidenceResponse Map(OperationEvidence evidence) =>
         new(
@@ -912,7 +1047,8 @@ public sealed class OperationsService(
             closure.ReopenedAt,
             closure.ReopenedByName,
             closure.ReopenReason,
-            closure.Active);
+            closure.Active,
+            closure.RowVersion);
 
     private static int DurationMinutes(TimeOnly startTime, TimeOnly endTime, bool isOvernight)
     {

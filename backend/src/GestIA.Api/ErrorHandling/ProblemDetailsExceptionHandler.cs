@@ -42,6 +42,10 @@ public sealed class ProblemDetailsExceptionHandler(
                 StatusCodes.Status409Conflict,
                 "Conflicto de concurrencia",
                 exception.Message),
+            ConcurrencyTokenMissingException => (
+                StatusCodes.Status428PreconditionRequired,
+                "Falta el token de concurrencia",
+                exception.Message),
             ResourceConflictException or DomainRuleException => (
                 StatusCodes.Status409Conflict,
                 "Conflicto de datos",

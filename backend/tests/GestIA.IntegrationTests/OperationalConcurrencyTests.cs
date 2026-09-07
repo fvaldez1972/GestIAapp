@@ -112,10 +112,15 @@ public sealed class OperationalConcurrencyTests : IClassFixture<OperationalSqlDa
         var seed = await SeedAsync();
         using var provider = Provider();
         Guid coverageId;
+        byte[] coverageToken;
         await using (var scope = provider.CreateAsyncScope())
         {
-            coverageId = (await scope.ServiceProvider.GetRequiredService<IOperationsService>()
-                .CreateCoverageAsync(CoverageInput(seed), Token)).IdCoverageRecord;
+            var created = await scope.ServiceProvider.GetRequiredService<IOperationsService>()
+                .CreateCoverageAsync(CoverageInput(seed), Token);
+            coverageId = created.IdCoverageRecord;
+            // El alta no cambia nada mas, asi que este token sigue vigente para las dos
+            // correcciones de abajo: la que la elegibilidad rechaza no llega a escribir.
+            coverageToken = created.RowVersion;
         }
 
         await using (var context = database.Context())
@@ -130,7 +135,8 @@ public sealed class OperationalConcurrencyTests : IClassFixture<OperationalSqlDa
         await using var updateScope = provider.CreateAsyncScope();
         var service = updateScope.ServiceProvider.GetRequiredService<IOperationsService>();
         var update = new UpdateCoverageRequest(seed.OrganizationId, seed.ClientId, seed.ServiceId,
-            seed.ReplacementId, new TimeOnly(8, 0), new TimeOnly(16, 0), false, CoverageStatus.Confirmed, null);
+            seed.ReplacementId, new TimeOnly(8, 0), new TimeOnly(16, 0), false, CoverageStatus.Confirmed,
+            null, coverageToken);
         await Assert.ThrowsAsync<ResourceConflictException>(() => service.UpdateCoverageAsync(coverageId, update, Token));
         var cancelled = await service.UpdateCoverageAsync(coverageId, update with { Status = CoverageStatus.Cancelled }, Token);
         Assert.Equal(CoverageStatus.Cancelled, cancelled.Status);
@@ -330,20 +336,27 @@ public sealed class OperationalConcurrencyTests : IClassFixture<OperationalSqlDa
         var seed = await SeedAsync();
         using var setup = Provider();
         Guid id;
-        var update = new UpdateCoverageRequest(seed.OrganizationId, seed.ClientId, seed.ServiceId,
-            seed.ReplacementId, new TimeOnly(8, 0), new TimeOnly(16, 0), false, CoverageStatus.Confirmed, null);
+        UpdateCoverageRequest update;
+        byte[] decisionToken;
         await using (var scope = setup.CreateAsyncScope())
         {
             var operations = scope.ServiceProvider.GetRequiredService<IOperationsService>();
-            id = (await operations.CreateCoverageAsync(CoverageInput(seed), Token)).IdCoverageRecord;
-            await operations.UpdateCoverageAsync(id, update, Token);
+            var created = await operations.CreateCoverageAsync(CoverageInput(seed), Token);
+            id = created.IdCoverageRecord;
+            update = new UpdateCoverageRequest(seed.OrganizationId, seed.ClientId, seed.ServiceId,
+                seed.ReplacementId, new TimeOnly(8, 0), new TimeOnly(16, 0), false, CoverageStatus.Confirmed,
+                null, created.RowVersion);
+            // Las dos decisiones de abajo parten de la version que dejo esta confirmacion, que es
+            // exactamente la que las dos leen tras la barrera. La carrera que se prueba sigue
+            // siendo la del estado terminal, no la del token.
+            decisionToken = (await operations.UpdateCoverageAsync(id, update, Token)).RowVersion;
         }
         using var provider = Provider(new ReadBarrier("FROM [dbo].[CoverageRecords]"));
         async Task<Exception?> Decide(CoverageStatus status)
         {
             await using var scope = provider.CreateAsyncScope();
             return await Record.ExceptionAsync(() => scope.ServiceProvider.GetRequiredService<IOperationsService>()
-                .UpdateCoverageAsync(id, update with { Status = status }, Token));
+                .UpdateCoverageAsync(id, update with { Status = status, RowVersion = decisionToken }, Token));
         }
         var outcomes = await Task.WhenAll(Decide(CoverageStatus.Completed), Decide(CoverageStatus.Cancelled));
         Assert.Single(outcomes, error => error is null);
@@ -429,7 +442,7 @@ public sealed class OperationalConcurrencyTests : IClassFixture<OperationalSqlDa
         await Assert.ThrowsAsync<ResourceConflictException>(() => service.CreateCoverageAsync(CoverageInput(seed), Token));
         var cancelled = await service.UpdateCoverageAsync(coverage.IdCoverageRecord,
             new(seed.OrganizationId, seed.ClientId, seed.ServiceId, seed.ReplacementId,
-                new(8,0), new(16,0), false, CoverageStatus.Cancelled, null), Token);
+                new(8,0), new(16,0), false, CoverageStatus.Cancelled, null, coverage.RowVersion), Token);
         Assert.Equal(seed.ReasonId, cancelled.IdCoverageReason);
     }
 

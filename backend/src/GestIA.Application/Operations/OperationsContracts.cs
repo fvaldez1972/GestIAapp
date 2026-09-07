@@ -1,9 +1,20 @@
+using System.Text.Json.Serialization;
 using GestIA.Domain.Operations;
 
 namespace GestIA.Application.Operations;
 
 public sealed record AttendanceQuery(Guid IdOrganization, Guid IdClient, Guid IdService, DateOnly? Date);
 
+/// <summary>
+/// <b>El unico contrato de escritura donde el token de concurrencia es opcional</b>, y la razon es
+/// que este endpoint crea o corrige con la misma peticion: en un alta no hay version previa que
+/// pisar, asi que exigir el token haria imposible capturar la primera asistencia del turno.
+///
+/// <para>La licencia llega hasta ahi. Cuando el registro ya existe, la rama de correccion de
+/// <c>UpsertAttendanceAsync</c> exige el token y responde 428 si falta. Que aqui sea anulable no
+/// significa que corregir sin token este permitido; significa que la obligacion no la puede
+/// expresar el tipo, porque depende de si la fila existe.</para>
+/// </summary>
 public sealed record UpsertAttendanceRequest(
     Guid IdOrganization,
     Guid IdClient,
@@ -58,8 +69,8 @@ public sealed record UpdateIncidentRequest(
     IncidentStatus Status,
     string Description,
     string? ResolutionNotes,
-    string? CorrectionReason = null,
-    byte[]? RowVersion = null);
+    [property: JsonRequired] byte[] RowVersion,
+    string? CorrectionReason = null);
 
 public sealed record IncidentResponse(
     Guid IdIncident,
@@ -100,9 +111,9 @@ public sealed record UpdateCoverageRequest(
     bool IsOvernight,
     CoverageStatus Status,
     string? Notes,
+    [property: JsonRequired] byte[] RowVersion,
     Guid? IdCoverageReason = null,
-    string? CorrectionReason = null,
-    byte[]? RowVersion = null);
+    string? CorrectionReason = null);
 
 public sealed record CoverageRecordResponse(
     Guid IdCoverageRecord,
@@ -120,8 +131,8 @@ public sealed record CoverageRecordResponse(
     CoverageStatus Status,
     string? Notes,
     bool Active,
-    Guid? IdCoverageReason = null,
-    byte[]? RowVersion = null);
+    byte[] RowVersion,
+    Guid? IdCoverageReason = null);
 
 public sealed record OperationEvidenceInput(
     Guid IdOrganization,
@@ -201,7 +212,7 @@ public sealed record CloseOperationDayRequest(
 public sealed record ReopenOperationDayRequest(
     Guid IdOrganization,
     string Reason,
-    byte[]? RowVersion = null);
+    [property: JsonRequired] byte[] RowVersion);
 
 public sealed record OperationDayClosureResponse(
     Guid IdOperationDayClosure,

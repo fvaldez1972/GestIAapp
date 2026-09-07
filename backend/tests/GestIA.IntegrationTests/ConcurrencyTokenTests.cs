@@ -188,20 +188,33 @@ public sealed class ConcurrencyTokenTests(OperationalSqlDatabase database)
             (await check.AttendanceRecords.SingleAsync(item => item.IdAttendanceRecord == seed.AttendanceId)).Status);
     }
 
-    /// <summary>Un token ausente no comprueba nada: es lo que permite que un alta no lo lleve.</summary>
+    /// <summary>
+    /// Un token ausente ya no pasa: el guard lo rechaza en vez de escribir sin comprobar.
+    ///
+    /// <para><b>Esta prueba estaba escrita al reves y a proposito se invirtio</b>, igual que
+    /// <c>SingleHopEntitiesDoNotDuplicateTheOrganization</c> en la tanda E. Antes se llamaba
+    /// <c>WithoutADeclaredTokenNothingIsChecked</c> y aseguraba que un nulo o un arreglo vacio
+    /// dejaran guardar sin comprobar nada. Esa garantia era justo el permiso para olvidar el
+    /// token, y el olvido ocurrio: durante meses el frontend lo mando desde un solo lugar de seis
+    /// y ninguna peticion fallo, porque no fallar era el comportamiento pactado aqui.</para>
+    ///
+    /// <para>Lo que si sigue siendo cierto —que un alta no lleva token— ya no depende de que el
+    /// guard perdone la ausencia: depende de que la rama de alta no lo llame. Quien decide es
+    /// <c>UpsertAttendanceAsync</c>, que exige el token en cuanto la fila existe.</para>
+    /// </summary>
     [OperationalSqlFact]
-    public async Task WithoutADeclaredTokenNothingIsChecked()
+    public async Task AMissingTokenIsRejectedInsteadOfSkippingTheCheck()
     {
         var seed = await SeedAsync("AUS");
 
         await using var context = database.Context();
         var record = await context.AttendanceRecords.SingleAsync(item => item.IdAttendanceRecord == seed.AttendanceId);
+        var guard = new EfConcurrencyGuard(context);
 
-        new EfConcurrencyGuard(context).Expect(record, null);
-        new EfConcurrencyGuard(context).Expect(record, []);
-        record.UpdateProfile(new(AttendanceStatus.Late, new TimeOnly(8, 30), new TimeOnly(16, 0), 30, null), ActorId, ActorName, Now);
-
-        await context.SaveChangesAsync();
+        // El arreglo vacio se comprueba aparte del nulo porque es la forma que puede colarse por
+        // el deserializador, donde el sistema de tipos ya no protege nada.
+        Assert.Throws<ConcurrencyTokenMissingException>(() => guard.Expect(record, []));
+        Assert.Throws<ConcurrencyTokenMissingException>(() => guard.Expect(record, null!));
     }
 
     /// <summary>El token de otro registro no sirve para pasar la comprobación de éste.</summary>

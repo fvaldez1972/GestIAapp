@@ -108,7 +108,17 @@ public sealed class OperationsService(
                 request.IdService, existing.AttendanceDate, request.CorrectionReason, cancellationToken);
 
             // Sólo al corregir. Un alta no lleva token porque no hay nada que pisar, y este mismo
-            // endpoint crea o corrige.
+            // endpoint crea o corrige. Pero llegados aquí la fila ya existe, así que el token deja
+            // de ser opcional: sin él no se puede saber si alguien más corrigió la asistencia
+            // mientras esta pantalla la tenía abierta, y guardar de todos modos es exactamente la
+            // pérdida silenciosa que el token viene a impedir.
+            if (request.RowVersion is null || request.RowVersion.Length == 0)
+            {
+                throw new ConcurrencyTokenMissingException(
+                    "Para corregir una asistencia ya capturada hay que enviar el token de " +
+                    "concurrencia que se leyó al abrirla. Vuelve a cargar el registro y reintenta.");
+            }
+
             concurrency.Expect(existing, request.RowVersion);
 
             // Las notas del registro se quedan como las escribió el supervisor. La justificación
@@ -994,6 +1004,7 @@ public sealed class OperationsService(
             coverage.Status,
             coverage.Notes,
             coverage.Active,
+            coverage.RowVersion,
             coverage.IdCoverageReason);
 
     private static OperationEvidenceResponse Map(OperationEvidence evidence) =>

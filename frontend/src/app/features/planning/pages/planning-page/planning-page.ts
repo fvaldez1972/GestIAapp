@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
-import { forkJoin, of } from 'rxjs';
-import { catchError } from 'rxjs/operators';
+import { Observable, forkJoin, of } from 'rxjs';
+import { catchError, map } from 'rxjs/operators';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { SystemInfoService } from '../../../../core/system/system-info.service';
 import {
@@ -17,6 +17,7 @@ import {
 import { operationalDatesBetween, shiftOperationalDate } from '../../../../shared/util/operational-date';
 import { ClientApiService } from '../../../clients/data-access/client-api.service';
 import {
+  GenerateScheduledShiftsResponse,
   ScheduledShift,
   ScheduleVersion,
   ServiceAssignment,
@@ -85,6 +86,8 @@ export class PlanningPage {
   protected readonly canWrite = computed(() => this.auth.hasPermission('PLANNING.WRITE'));
 
   protected readonly loading = signal(false);
+  /** Lo que el servidor observó al proyectar. Se enseña; no se resume ni se esconde. */
+  protected readonly warnings = signal<readonly string[]>([]);
   protected readonly saving = signal(false);
   protected readonly error = signal('');
   protected readonly message = signal('');
@@ -319,15 +322,233 @@ export class PlanningPage {
       });
   }
 
-  protected editSegment(draft: SegmentDraft): void {
-    // El formulario del segmento vive en la ficha de la posición, pestaña Patrón. Aquí sólo se
-    // recuerda cuál se está editando: guardar es del editor, no del orquestador.
-    this.message.set('');
+  /**
+   * Guarda el día del patrón: lo crea si es nuevo, lo corrige si ya existía.
+   *
+   * <p>El patrón se crea solo la primera vez, con la vigencia arrancando en el lunes de la semana
+   * que se está viendo. <b>No se pide al usuario que lo cree aparte</b>: declarar el primer turno
+   * de una posición ya dice todo lo que el patrón necesita, y pedir dos pasos donde el segundo no
+   * agrega información es lo que hace que nadie llegue al final.</p>
+   */
+  protected saveSegment(draft: SegmentDraft): void {
+    const context = this.context();
+    const idPosition = this.selectedPositionId();
+
+    if (!context || !idPosition || !this.canWrite()) {
+      return;
+    }
+
+    this.saving.set(true);
     this.error.set('');
-    this.pendingSegment.set(draft);
+
+    this.ensurePattern(context, idPosition).subscribe({
+      next: (idShiftPattern) => {
+        const payload = {
+          idOrganization: context.idOrganization,
+          idClient: context.idClient,
+          idService: context.idService,
+          idPosition,
+          idShiftPattern,
+          dayOfWeek: draft.dayOfWeek,
+          startTime: `${draft.startTime}:00`,
+          endTime: `${draft.endTime}:00`,
+          isOvernight: draft.isOvernight,
+          requiredWorkerCount: draft.requiredWorkerCount,
+          notes: null,
+        };
+
+        const peticion = draft.idShiftSegment
+          ? this.api.updateShiftSegment(
+              context.idClient,
+              context.idService,
+              idPosition,
+              idShiftPattern,
+              draft.idShiftSegment,
+              payload,
+            )
+          : this.api.createShiftSegment(
+              context.idClient,
+              context.idService,
+              idPosition,
+              idShiftPattern,
+              payload,
+            );
+
+        peticion.subscribe({
+          next: () => {
+            this.message.set('El patrón quedó guardado.');
+            this.reload();
+          },
+          error: (error: HttpErrorResponse) => this.setError(error, 'No se pudo guardar el turno.'),
+          complete: () => this.saving.set(false),
+        });
+      },
+      error: (error: HttpErrorResponse) => {
+        this.setError(error, 'No se pudo crear el patrón de la posición.');
+        this.saving.set(false);
+      },
+    });
   }
 
-  protected readonly pendingSegment = signal<SegmentDraft | null>(null);
+  protected removeSegment(segment: ShiftSegment): void {
+    const context = this.context();
+    const idPosition = this.selectedPositionId();
+
+    if (!context || !idPosition || !this.canWrite()) {
+      return;
+    }
+
+    this.saving.set(true);
+    this.api
+      .deactivateShiftSegment(
+        context.idOrganization,
+        context.idClient,
+        context.idService,
+        idPosition,
+        segment.idShiftPattern,
+        segment.idShiftSegment,
+      )
+      .subscribe({
+        next: () => {
+          this.message.set('El día quedó sin turno declarado.');
+          this.reload();
+        },
+        error: (error: HttpErrorResponse) => this.setError(error, 'No se pudo quitar el turno.'),
+        complete: () => this.saving.set(false),
+      });
+  }
+
+  /**
+   * Prepara la semana: crea la versión si no existe y proyecta los turnos desde los patrones.
+   *
+   * <p><b>Es un solo botón y no dos.</b> Crear una versión vacía no sirve de nada —nadie quiere una
+   * semana sin turnos— y generarlos exige una versión. Separarlos dejaría un estado intermedio que
+   * sólo se puede describir como «a medias».</p>
+   *
+   * <p><c>skipExisting</c> va en verdadero: regenerar no pisa lo que ya se asignó a mano. Volver a
+   * proyectar es una operación que se repite, y perder las asignaciones cada vez la haría
+   * inservible.</p>
+   */
+  protected prepareWeek(): void {
+    const context = this.context();
+
+    if (!context || !this.canWrite()) {
+      return;
+    }
+
+    this.saving.set(true);
+    this.error.set('');
+
+    this.ensureVersion(context).subscribe({
+      next: (idScheduleVersion) => {
+        this.api
+          .generateScheduledShifts(context.idClient, context.idService, idScheduleVersion, {
+            idOrganization: context.idOrganization,
+            idClient: context.idClient,
+            idService: context.idService,
+            idScheduleVersion,
+            skipExisting: true,
+          })
+          .subscribe({
+            next: (resultado) => {
+              this.describirProyeccion(resultado);
+              this.reload();
+            },
+            error: (error: HttpErrorResponse) =>
+              this.setError(error, 'No se pudieron proyectar los turnos.'),
+            complete: () => this.saving.set(false),
+          });
+      },
+      error: (error: HttpErrorResponse) => {
+        this.setError(error, 'No se pudo preparar la semana.');
+        this.saving.set(false);
+      },
+    });
+  }
+
+  /**
+   * Qué pasó al proyectar, dicho completo.
+   *
+   * <p><b>«Se proyectaron 0 turnos» sin decir por qué es un resultado mudo.</b> El servidor sabe
+   * cuántos se saltó porque ya existían y a cuántos les falta gente asignada, y esas dos cosas son
+   * exactamente lo que explica un cero. Callarlas deja al usuario mirando una semana vacía sin
+   * saber si el sistema falló o si le falta asignar personal.</p>
+   */
+  private describirProyeccion(resultado: GenerateScheduledShiftsResponse): void {
+    const partes: string[] = [];
+
+    partes.push(
+      resultado.createdShifts === 1
+        ? 'Se proyectó 1 turno desde los patrones'
+        : `Se proyectaron ${resultado.createdShifts} turnos desde los patrones`,
+    );
+
+    if (resultado.skippedShifts > 0) {
+      partes.push(`${resultado.skippedShifts} ya existían y no se tocaron`);
+    }
+
+    if (resultado.missingAssignments > 0) {
+      partes.push(
+        `${resultado.missingAssignments} ${resultado.missingAssignments === 1 ? 'turno se quedó' : 'turnos se quedaron'} ` +
+          'sin gente porque no hay suficiente personal asignado al servicio',
+      );
+    }
+
+    this.message.set(`${partes.join('. ')}.`);
+    this.warnings.set(resultado.warnings);
+  }
+
+  /** El patrón activo de la posición, creándolo la primera vez. */
+  private ensurePattern(
+    context: { idOrganization: string; idClient: string; idService: string },
+    idPosition: string,
+  ): Observable<string> {
+    const existente = this.selectedSegments()[0]?.idShiftPattern;
+
+    if (existente) {
+      return of(existente);
+    }
+
+    return this.api
+      .createShiftPattern(context.idClient, context.idService, idPosition, {
+        idOrganization: context.idOrganization,
+        idClient: context.idClient,
+        idService: context.idService,
+        idPosition,
+        codeShiftPattern: `PAT-${this.selectedPosition()?.codePosition ?? idPosition.slice(0, 8)}`,
+        name: `Patrón de ${this.selectedPosition()?.codePosition ?? 'la posición'}`,
+        description: null,
+        effectiveFromDate: this.weekStart(),
+        effectiveToDate: null,
+      })
+      .pipe(map((pattern) => pattern.idShiftPattern));
+  }
+
+  /** La versión de esta semana, creándola la primera vez. */
+  private ensureVersion(context: {
+    idOrganization: string;
+    idClient: string;
+    idService: string;
+  }): Observable<string> {
+    const existente = this.workingVersion();
+
+    if (existente) {
+      return of(existente.idScheduleVersion);
+    }
+
+    return this.api
+      .createScheduleVersion(context.idClient, context.idService, {
+        idOrganization: context.idOrganization,
+        idClient: context.idClient,
+        idService: context.idService,
+        name: `Semana del ${this.weekStart()}`,
+        periodStartDate: this.weekStart(),
+        periodEndDate: this.weekEnd(),
+        notes: null,
+      })
+      .pipe(map((version) => version.idScheduleVersion));
+  }
+
 
   private diaDe(isoDate: string): string {
     return this.days().includes(isoDate) ? serverDayOfWeek(isoDate) : '';

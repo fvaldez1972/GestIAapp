@@ -47,6 +47,14 @@
       <p class="planeacion__aviso planeacion__aviso--mal" role="alert">{{ error() }}</p>
     }
 
+    @if (warnings().length > 0) {
+      <ul class="planeacion__aviso planeacion__aviso--ojo" aria-label="Observaciones al proyectar">
+        @for (warning of warnings(); track warning) {
+          <li>{{ warning }}</li>
+        }
+      </ul>
+    }
+
     <app-week-grid
       [rows]="rows()"
       [days]="days()"
@@ -54,6 +62,15 @@
       (createPosition)="closePosition()"
       (cellSelect)="onCellSelect($event)"
     />
+
+    @if (canWrite() && shiftCount() === 0 && rows().length > 0) {
+      <p class="planeacion__aviso planeacion__aviso--ok">
+        Esta semana todavía no tiene turnos proyectados.
+        <button class="planeacion__accion" type="button" [disabled]="saving()" (click)="prepareWeek()">
+          Proyectar desde los patrones
+        </button>
+      </p>
+    }
 
     <div class="planeacion__cierre">
       <app-conflict-list [conflicts]="conflicts()" />
@@ -100,7 +117,9 @@
           [segments]="selectedSegments()"
           [hasPattern]="selectedSegments().length > 0"
           [canWrite]="canWrite()"
-          (edit)="editSegment($event)"
+          (save)="saveSegment($event)"
+          (removeSegment)="removeSegment($event)"
+          (createPattern)="activePositionTab.set('patron')"
         />
       </ng-template>
     </gi-detail-panel>

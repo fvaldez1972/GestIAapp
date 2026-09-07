@@ -126,3 +126,30 @@
   outline: 2px solid var(--gestia-cyan);
   outline-offset: 1px;
 }
+
+.planeacion__accion {
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--gestia-cyan-dark);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.planeacion__accion[disabled] { opacity: 0.5; cursor: not-allowed; }
+
+.planeacion__accion:focus-visible {
+  outline: 2px solid var(--gestia-cyan);
+  outline-offset: 1px;
+}
+
+.planeacion__aviso--ojo {
+  border-left: 3px solid var(--gestia-warning);
+  margin: 0;
+  padding-left: 1.75rem;
+  color: var(--gestia-muted);
+  line-height: 1.5;
+}

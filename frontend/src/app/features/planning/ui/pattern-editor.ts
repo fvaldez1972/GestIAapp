@@ -74,7 +74,7 @@ export type SegmentDraft = {
                 }
                 @if (canWrite()) {
                   <span class="patron__acciones">
-                    <button type="button" class="patron__link" (click)="edit.emit(borrador(segmento))">
+                    <button type="button" class="patron__link" (click)="abrir(borrador(segmento))">
                       Corregir
                     </button>
                     <button type="button" class="patron__link" (click)="removeSegment.emit(segmento)">
@@ -86,13 +86,68 @@ export type SegmentDraft = {
                 <span class="patron__vacio">Sin turno</span>
                 @if (canWrite()) {
                   <span class="patron__acciones">
-                    <button type="button" class="patron__link" (click)="edit.emit(nuevo(dia.value))">
+                    <button type="button" class="patron__link" (click)="abrir(nuevo(dia.value))">
                       Declarar turno
                     </button>
                   </span>
                 }
               }
             </li>
+
+            @if (editando()?.dayOfWeek === dia.value) {
+              <li class="patron__form">
+                <label>
+                  <span>Entrada</span>
+                  <input
+                    type="time"
+                    [value]="borradorActual().startTime"
+                    (input)="cambiar('startTime', $any($event.target).value)"
+                  />
+                </label>
+                <label>
+                  <span>Salida</span>
+                  <input
+                    type="time"
+                    [value]="borradorActual().endTime"
+                    (input)="cambiar('endTime', $any($event.target).value)"
+                  />
+                </label>
+                <label>
+                  <span>Elementos</span>
+                  <input
+                    type="number"
+                    min="1"
+                    [value]="borradorActual().requiredWorkerCount"
+                    (input)="cambiar('requiredWorkerCount', +$any($event.target).value)"
+                  />
+                </label>
+                <label class="patron__check">
+                  <input
+                    type="checkbox"
+                    [checked]="borradorActual().isOvernight"
+                    (change)="cambiar('isOvernight', $any($event.target).checked)"
+                  />
+                  <span>Cruza la medianoche</span>
+                </label>
+
+                @if (problema()) {
+                  <p class="patron__problema" id="patron-problema">{{ problema() }}</p>
+                }
+
+                <span class="patron__form-acciones">
+                  <button type="button" class="patron__link" (click)="cancelar()">Cancelar</button>
+                  <button
+                    type="button"
+                    class="patron__guardar"
+                    [disabled]="!!problema()"
+                    [attr.aria-describedby]="problema() ? 'patron-problema' : null"
+                    (click)="guardar()"
+                  >
+                    Guardar
+                  </button>
+                </span>
+              </li>
+            }
           }
         </ul>
 
@@ -177,6 +232,63 @@ export type SegmentDraft = {
 
     .patron__link:focus-visible { outline: 2px solid var(--gestia-cyan); outline-offset: 1px; }
 
+    .patron__form {
+      display: flex;
+      align-items: flex-end;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      padding: 0.75rem 0.85rem;
+      border-bottom: 1px solid var(--gestia-border);
+      background: var(--gestia-canvas);
+    }
+
+    .patron__form label { display: flex; flex-direction: column; gap: 0.2rem; font-size: 11.5px; }
+    .patron__form label span { color: var(--gestia-muted); font-weight: 600; }
+
+    .patron__form input {
+      height: var(--gestia-control-height);
+      padding: 0 0.5rem;
+      border: 1px solid var(--gestia-border);
+      border-radius: var(--gestia-radius);
+      background: var(--gestia-surface);
+      color: var(--gestia-text);
+      font: inherit;
+      font-size: 12.5px;
+    }
+
+    .patron__check {
+      flex-direction: row;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .patron__check input { height: auto; }
+
+    .patron__problema {
+      flex-basis: 100%;
+      margin: 0;
+      color: var(--gestia-warning);
+      font-size: 11.5px;
+    }
+
+    .patron__form-acciones { margin-left: auto; display: flex; align-items: center; gap: 0.75rem; }
+
+    .patron__guardar {
+      height: var(--gestia-control-height);
+      padding: 0 0.9rem;
+      border: 1px solid var(--gestia-navy);
+      border-radius: var(--gestia-radius);
+      background: var(--gestia-navy);
+      color: var(--gestia-surface);
+      font: inherit;
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .patron__guardar[disabled] { opacity: 0.5; cursor: not-allowed; }
+    .patron__guardar:focus-visible { outline: 2px solid var(--gestia-cyan); outline-offset: 1px; }
+
     .patron__nota {
       margin: 0;
       padding: 0.7rem 0.85rem;
@@ -196,8 +308,79 @@ export class PatternEditor {
   readonly canWrite = input(false);
 
   readonly createPattern = output<void>();
-  readonly edit = output<SegmentDraft>();
+  readonly save = output<SegmentDraft>();
   readonly removeSegment = output<ShiftSegment>();
+
+  /**
+   * El día que se está editando.
+   *
+   * <p>La edición vive dentro del componente y no en la pantalla, a propósito: el formulario tiene
+   * que salir <b>debajo del día que se toca</b> para que se vea de cuál se habla. Sacarlo a un
+   * diálogo o al orquestador rompe esa relación y obliga a repetir el nombre del día en un título.
+   * </p>
+   */
+  protected readonly editando = signal<SegmentDraft | null>(null);
+
+  protected borradorActual(): SegmentDraft {
+    return this.editando()!;
+  }
+
+  /**
+   * Qué le falta al borrador para poder guardarse. Cadena vacía significa que ya se puede.
+   *
+   * <p>Se dice qué falta y no un «revisa los campos»: quien lo lee necesita saber cuál.</p>
+   */
+  protected readonly problema = computed(() => {
+    const borrador = this.editando();
+
+    if (!borrador) {
+      return '';
+    }
+
+    if (!borrador.startTime || !borrador.endTime) {
+      return 'Falta la hora de entrada o la de salida.';
+    }
+
+    if (borrador.requiredWorkerCount < 1) {
+      return 'Un turno necesita al menos un elemento; si no, no es un turno.';
+    }
+
+    // Un turno que termina antes de empezar sólo tiene sentido si cruza la medianoche, y eso se
+    // declara. Sin la marca, la duración saldría negativa y el servidor lo rechazaría con un
+    // mensaje que no explica esto.
+    if (borrador.endTime <= borrador.startTime && !borrador.isOvernight) {
+      return 'La salida es anterior a la entrada. Si el turno cruza la medianoche, márcalo.';
+    }
+
+    return '';
+  });
+
+  protected abrir(draft: SegmentDraft): void {
+    this.editando.set(draft);
+  }
+
+  protected cancelar(): void {
+    this.editando.set(null);
+  }
+
+  protected cambiar<K extends keyof SegmentDraft>(campo: K, valor: SegmentDraft[K]): void {
+    const borrador = this.editando();
+
+    if (borrador) {
+      this.editando.set({ ...borrador, [campo]: valor });
+    }
+  }
+
+  protected guardar(): void {
+    const borrador = this.editando();
+
+    if (!borrador || this.problema()) {
+      return;
+    }
+
+    this.save.emit(borrador);
+    this.editando.set(null);
+  }
 
   protected readonly dias = DIAS_PATRON;
 

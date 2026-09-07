@@ -59,7 +59,7 @@
       [rows]="rows()"
       [days]="days()"
       [highlightDate]="date()"
-      (createPosition)="closePosition()"
+      (createPosition)="openNewPosition()"
       (cellSelect)="onCellSelect($event)"
     />
 
@@ -88,7 +88,22 @@
     </div>
   }
 
-  @if (selectedPosition(); as position) {
+  @if (creatingPosition()) {
+    <gi-detail-panel
+      title="Nueva posición"
+      subtitle="El puesto que hay que cubrir, con independencia de quién lo ocupe"
+      (close)="closePosition()"
+    >
+      <ng-template giTab="datos">
+        <app-position-form
+          [saving]="saving()"
+          [usedCodes]="usedPositionCodes()"
+          (save)="savePosition($event)"
+          (cancel)="closePosition()"
+        />
+      </ng-template>
+    </gi-detail-panel>
+  } @else if (selectedPosition(); as position) {
     <gi-detail-panel
       [title]="position.codePosition"
       [subtitle]="position.name"
@@ -112,6 +127,15 @@
       </ng-template>
 
       <ng-template giTab="patron">
+        @if (canWrite()) {
+          <p class="planeacion__baja">
+            <button class="planeacion__accion" type="button" [disabled]="saving()" (click)="deactivatePosition()">
+              Dar de baja esta posición
+            </button>
+            <span>Deja de proyectar turnos. Lo ya registrado contra ella se conserva.</span>
+          </p>
+        }
+
         <app-pattern-editor
           [positionCode]="position.codePosition"
           [segments]="selectedSegments()"

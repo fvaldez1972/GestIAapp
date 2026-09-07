@@ -37,6 +37,7 @@ import {
 import { loadActiveSegments } from '../../data-access/active-segments';
 import { ConflictList } from '../../ui/conflict-list';
 import { PatternEditor, SegmentDraft } from '../../ui/pattern-editor';
+import { PositionDraft, PositionForm } from '../../ui/position-form';
 import { PublishPanel } from '../../ui/publish-panel';
 import { PlanningCellPick, WeekGrid } from '../../ui/week-grid';
 
@@ -67,6 +68,7 @@ import { PlanningCellPick, WeekGrid } from '../../ui/week-grid';
     GiOperationDayBar,
     GiTabContent,
     PatternEditor,
+    PositionForm,
     PublishPanel,
     WeekGrid,
   ],
@@ -105,6 +107,7 @@ export class PlanningPage {
   protected readonly assignments = signal<readonly ServiceAssignment[]>([]);
 
   protected readonly selectedPositionId = signal('');
+  protected readonly creatingPosition = signal(false);
   protected readonly pendingCell = signal<PlanningCell | null>(null);
 
   protected readonly serviceOptions = computed<readonly GiSelectOption[]>(() =>
@@ -153,6 +156,17 @@ export class PlanningPage {
   );
 
   protected readonly conflicts = computed(() => planningConflicts(this.rows()));
+
+  /**
+   * Los códigos de posición ya usados en el servicio, <b>activas e inactivas</b>.
+   *
+   * <p>Una clave única sigue ocupada aunque el registro esté inactivo, porque aquí no se borra.
+   * Filtrar por activas dejaría que el alta dijera que un código está libre y el servidor
+   * respondiera 409 con el formulario ya escrito.</p>
+   */
+  protected readonly usedPositionCodes = computed(() =>
+    this.positions().map((position) => position.codePosition),
+  );
 
   protected readonly shiftCount = computed(() =>
     this.rows().reduce(
@@ -228,12 +242,87 @@ export class PlanningPage {
     this.pendingCell.set(null);
   }
 
+  protected openNewPosition(): void {
+    this.selectedPositionId.set('');
+    this.pendingCell.set(null);
+    this.creatingPosition.set(true);
+  }
+
+  protected savePosition(draft: PositionDraft): void {
+    const context = this.context();
+
+    if (!context || !this.canWrite()) {
+      return;
+    }
+
+    this.saving.set(true);
+    this.error.set('');
+
+    this.api
+      .createPosition(context.idClient, context.idService, {
+        idOrganization: context.idOrganization,
+        idClient: context.idClient,
+        idService: context.idService,
+        codePosition: draft.codePosition,
+        name: draft.name,
+        requiredWorkerCount: draft.requiredWorkerCount,
+        requiredSkillProfile: null,
+        notes: draft.notes,
+      })
+      .subscribe({
+        next: (position) => {
+          this.message.set(
+            `${position.codePosition} quedó creada. Ahora declara qué turnos tiene cada día.`,
+          );
+          this.creatingPosition.set(false);
+          this.selectedPositionId.set(position.idPosition);
+          this.activePositionTab.set('patron');
+          this.reload();
+        },
+        error: (error: HttpErrorResponse) => this.setError(error, 'No se pudo crear la posición.'),
+        complete: () => this.saving.set(false),
+      });
+  }
+
+  /**
+   * Da de baja la posición.
+   *
+   * <p><b>Se desactiva, no se borra</b>, y por eso el mensaje no dice «eliminada»: los turnos ya
+   * proyectados y la asistencia que se registró contra ella siguen existiendo y siguen siendo
+   * ciertos. Lo que cambia es que deja de proyectar semanas nuevas.</p>
+   */
+  protected deactivatePosition(): void {
+    const context = this.context();
+    const position = this.selectedPosition();
+
+    if (!context || !position || !this.canWrite()) {
+      return;
+    }
+
+    this.saving.set(true);
+    this.api
+      .deactivatePosition(context.idOrganization, context.idClient, context.idService, position.idPosition)
+      .subscribe({
+        next: () => {
+          this.message.set(
+            `${position.codePosition} deja de proyectar turnos. Lo ya registrado contra ella se conserva.`,
+          );
+          this.selectedPositionId.set('');
+          this.reload();
+        },
+        error: (error: HttpErrorResponse) =>
+          this.setError(error, 'No se pudo dar de baja la posición.'),
+        complete: () => this.saving.set(false),
+      });
+  }
+
   protected openPosition(idPosition: string): void {
     this.selectedPositionId.set(idPosition);
   }
 
   protected closePosition(): void {
     this.selectedPositionId.set('');
+    this.creatingPosition.set(false);
   }
 
   /**

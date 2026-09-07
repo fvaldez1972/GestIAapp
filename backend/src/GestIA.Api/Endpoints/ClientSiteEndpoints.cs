@@ -12,11 +12,17 @@ public static class ClientSiteEndpoints
             .WithTags("Client Sites");
 
         group.MapGet("", async (
+            HttpContext context,
             Guid idClient,
             Guid organizationId,
             IClientSiteService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var sites = await service.ListAsync(organizationId, idClient, cancellationToken);
             return Results.Ok(sites);
         })
@@ -24,11 +30,17 @@ public static class ClientSiteEndpoints
             .WithName("ListClientSites");
 
         group.MapPost("", async (
+            HttpContext context,
             Guid idClient,
             CreateClientSiteRequest request,
             IClientSiteService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, request.IdOrganization) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var site = await service.CreateAsync(request with { IdClient = idClient }, cancellationToken);
             return Results.Created($"/api/v1/clients/{idClient}/sites/{site.IdClientSite}", site);
         })
@@ -36,12 +48,18 @@ public static class ClientSiteEndpoints
             .WithName("CreateClientSite");
 
         group.MapPut("/{idClientSite:guid}", async (
+            HttpContext context,
             Guid idClient,
             Guid idClientSite,
             UpdateClientSiteRequest request,
             IClientSiteService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, request.IdOrganization) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var site = await service.UpdateAsync(
                 idClientSite,
                 request with { IdClient = idClient },
@@ -52,12 +70,18 @@ public static class ClientSiteEndpoints
             .WithName("UpdateClientSite");
 
         group.MapDelete("/{idClientSite:guid}", async (
+            HttpContext context,
             Guid idClient,
             Guid idClientSite,
             Guid organizationId,
             IClientSiteService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             await service.DeactivateAsync(organizationId, idClient, idClientSite, cancellationToken);
             return Results.NoContent();
         })

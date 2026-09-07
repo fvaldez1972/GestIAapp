@@ -1,33 +1,36 @@
 <section class="documents-page">
   <article class="documents-hero gi-card">
     <div>
-      <span class="context-chip">Organización actual</span>
-      <h1>Documentos</h1>
+      <span class="context-chip">{{ heroCopy().eyebrow }}</span>
+      <h1>{{ heroCopy().title }}</h1>
       <p>
-        Documentos vinculados a clientes, servicios, contratos, empleados, evaluaciones y solicitudes.
+        {{ heroCopy().description }}
       </p>
     </div>
 
     <div class="hero-actions">
+      <a class="gi-button gi-button--secondary" routerLink="/configuracion/documentos">Configurar reglas</a>
       <button class="gi-button gi-button--primary" type="button" [disabled]="!canWrite()" (click)="openCreateDocument()">
         + Subir documento
       </button>
     </div>
   </article>
 
+  <section class="document-context-grid" aria-label="Documentos dentro de cada módulo">
+    @for (context of documentContextCards(); track context.label) {
+      <article class="context-card">
+        <span>{{ context.label }}</span>
+        <strong>{{ context.count }}</strong>
+        <small>{{ context.detail }}</small>
+      </article>
+    }
+  </section>
+
   <section class="document-control gi-card" [formGroup]="filterForm" aria-label="Filtros de documentos">
     <div class="document-filters">
-      <label class="gi-field">
-        Organización
-        <select class="gi-input" [value]="selectedOrganizationId()" (change)="onOrganizationChange($event)">
-          @for (organization of organizations(); track organization.idOrganization) {
-            <option [value]="organization.idOrganization">{{ organization.legalName }}</option>
-          }
-        </select>
-      </label>
 
       <label class="gi-field">
-        Propietario
+        Entidad documental
         <select class="gi-input" formControlName="ownerType" (change)="onFilterOwnerTypeChange($event)">
           <option value="">Todos</option>
           @for (type of ownerTypes; track type.value) {
@@ -37,7 +40,7 @@
       </label>
 
       <label class="gi-field">
-        Registro
+        Registro relacionado
         <select class="gi-input" formControlName="ownerId" [disabled]="!selectedFilterOwnerType()">
           <option value="">{{ filterOwnerPlaceholder() }}</option>
           @for (option of filterOwnerOptions(); track option.value) {
@@ -139,9 +142,9 @@
   <article class="documents-registry gi-card">
     <header class="registry-header">
       <div>
-        <span class="eyebrow">Expediente</span>
-        <h2>Documentos registrados</h2>
-        <p>{{ visibleDocuments().length }} documento(s) visibles. Selecciona uno para consultar detalle y acciones.</p>
+        <span class="eyebrow">Expediente contextual</span>
+        <h2>Relación documental única</h2>
+        <p>{{ visibleDocuments().length }} documento(s) visibles. Selecciona uno para consultar la entidad, vigencia, archivo y acciones.</p>
       </div>
     </header>
 
@@ -211,7 +214,7 @@
               <button type="button" class="icon-action" title="Descargar archivo" [disabled]="!isManagedDocument(document)" (click)="downloadDocument(document)">
                 Descargar
               </button>
-              @if (canWrite() && isManagedDocument(document)) {
+            @if (canEditDocument(document) && isManagedDocument(document)) {
                 <button type="button" class="icon-action" title="Editar metadatos" (click)="openEditDocument(document)">
                   Editar
                 </button>
@@ -290,8 +293,8 @@
 
         <footer class="drawer-actions">
           <button class="gi-button gi-button--secondary" type="button" [disabled]="!isManagedDocument(document)" (click)="downloadDocument(document)">Descargar</button>
-          <button class="gi-button gi-button--secondary" type="button">Ver historial</button>
-          @if (canWrite() && isManagedDocument(document)) {
+          <button class="gi-button gi-button--secondary" type="button" [disabled]="!isManagedDocument(document) || historyLoading()" (click)="loadDocumentHistory(document)">Ver historial</button>
+          @if (canEditDocument(document) && isManagedDocument(document)) {
             <button class="gi-button gi-button--secondary" type="button" (click)="openEditDocument(document)">
               Editar metadatos
             </button>
@@ -310,6 +313,51 @@
             </button>
           }
         </footer>
+        @if (historyOpen()) {
+          <section class="notes-box" aria-label="Historial documental">
+            <h3>Historial documental</h3>
+            @if (historyLoading()) {
+              <p role="status">Cargando historial...</p>
+            } @else if (historyError()) {
+              <p role="alert">{{ historyError() }}</p>
+              <button class="gi-button gi-button--secondary" type="button" (click)="loadDocumentHistory(document)">Reintentar</button>
+            } @else {
+              <ol>
+                @for (event of history(); track event.idBusinessDocumentEvent) {
+                  <li>
+                    <strong>{{ historyActionLabel(event.action) }} · {{ labelForStatus(event.status) }}</strong>
+                    <p>{{ event.actorName }} · {{ formattedDate(event.occurredAt) }}</p>
+                    @if (event.notes) { <p>{{ event.notes }}</p> }
+                  </li>
+                } @empty {
+                  <li>Sin eventos registrados. El historial conserva los cambios realizados desde su activación.</li>
+                }
+              </ol>
+            }
+          </section>
+        }
+        @if (document.reviewedAt) {
+          <section class="notes-box">
+            <span>Última revisión · {{ formattedDate(document.reviewedAt) }} · {{ document.reviewedByName || 'Usuario autorizado' }}</span>
+            <p>{{ document.reviewNotes || 'Sin observaciones.' }}</p>
+          </section>
+        }
+        @if (reviewDecision(); as decision) {
+          <form class="notes-box" [formGroup]="reviewForm" (ngSubmit)="submitReview()">
+            <h3>{{ decision === 'Validated' ? 'Validar documento' : 'Rechazar documento' }}</h3>
+            <label class="gi-field">
+              {{ decision === 'Rejected' ? 'Motivo del rechazo *' : 'Observaciones' }}
+              <textarea class="gi-input" rows="3" formControlName="notes" maxlength="1000"></textarea>
+              @if (decision === 'Rejected' && reviewForm.controls.notes.touched && !reviewForm.controls.notes.value.trim()) {
+                <small class="field-error">Indica el motivo del rechazo.</small>
+              }
+            </label>
+            <div class="drawer-actions">
+              <button class="gi-button gi-button--secondary" type="button" (click)="reviewDecision.set(null)">Cancelar</button>
+              <button class="gi-button gi-button--primary" type="submit" [disabled]="saving()">Confirmar revisión</button>
+            </div>
+          </form>
+        }
       </aside>
     </div>
   }
@@ -444,14 +492,6 @@
                   Documento sensible
                 </label>
 
-                <label class="gi-field">
-                  Nivel de privacidad
-                  <select class="gi-input" formControlName="privacyLevel">
-                    <option value="Operativo">Operativo</option>
-                    <option value="Confidencial">Confidencial</option>
-                    <option value="Sólo usuarios autorizados">Sólo usuarios autorizados</option>
-                  </select>
-                </label>
               </div>
 
               <label class="gi-field">
@@ -518,7 +558,7 @@
                 </article>
                 <article>
                   <span>Privacidad</span>
-                  <strong>{{ documentForm.controls.isSensitive.value ? documentForm.controls.privacyLevel.value : 'Uso operativo' }}</strong>
+                  <strong>{{ documentForm.controls.isSensitive.value ? 'Documento sensible' : 'Uso operativo' }}</strong>
                 </article>
               </section>
 

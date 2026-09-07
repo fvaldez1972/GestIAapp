@@ -11,5 +11,9 @@ public enum BusinessCatalogItemType
     Zone,
     IncidentReason,
     CoverageReason,
-    CancellationReason
+    CancellationReason,
+    Country,
+    State,
+    City,
+    Nationality
 }

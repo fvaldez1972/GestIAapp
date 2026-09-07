@@ -38,7 +38,7 @@ public sealed class ClientSiteRepository(GestIaDbContext dbContext) : IClientSit
         Guid? excludedClientSiteId,
         CancellationToken cancellationToken) =>
         dbContext.ClientSites
-            .IgnoreQueryFilters()
+            .IgnoreQueryFilters(["Active"])
             .AnyAsync(
                 site =>
                     site.IdClient == idClient &&

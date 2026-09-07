@@ -172,6 +172,7 @@ export type OperationalRequestStaffAssignmentInput = {
 };
 
 export type OperationalRequestCoverageInput = {
+  readonly idCoverageReason?: string | null;
   readonly idScheduledShift: string;
   readonly idReplacementEmployee: string;
   readonly coverageStartTime: string;

@@ -1,0 +1,169 @@
+<section class="entity-documents" aria-label="Documentos de la entidad">
+  <header class="entity-heading">
+    <div><h3><app-icon name="document" /> Documentos</h3><p>{{ ownerLabel() }}</p></div>
+    @if (canWrite() && validContext()) {
+      <button class="gi-button gi-button--primary" type="button" [disabled]="busy()" (click)="openEditor('create')">
+        <app-icon name="document" /> Agregar documento
+      </button>
+    }
+  </header>
+
+  @if (!canRead()) {
+    <p class="gi-empty-state" role="status">No tienes permiso para consultar documentos.</p>
+  } @else if (!validContext()) {
+    <p class="gi-empty-state" role="status">Guarda la entidad para consultar sus documentos.</p>
+  } @else {
+    <form class="entity-filters" [formGroup]="filters" (ngSubmit)="applyFilters()">
+      <label class="gi-field"><span>Buscar</span><input class="gi-input" type="search" formControlName="search" maxlength="180" /></label>
+      <label class="gi-field"><span>Estado</span>
+        <select class="gi-input" formControlName="status">
+          <option value="">Todos</option>
+          <option value="PendingReview">Pendiente de revision</option><option value="Validated">Validado</option>
+          <option value="Rejected">Rechazado</option><option value="Expired">Vencido</option><option value="Archived">Archivado</option>
+        </select>
+      </label>
+      <button class="gi-button gi-button--secondary" type="submit" [disabled]="loading() || busy()">Filtrar</button>
+    </form>
+
+    @if (message()) { <p class="gi-alert gi-alert--success" role="status">{{ message() }}</p> }
+    @if (actionError()) { <p class="gi-alert gi-alert--error" role="alert">{{ actionError() }}</p> }
+
+    @if (mode() === 'create' || mode() === 'edit') {
+      <form class="entity-editor" [formGroup]="form" (ngSubmit)="save()" aria-label="Editar documento" [attr.aria-busy]="busy()">
+        <h4>{{ mode() === 'create' ? 'Nuevo documento' : 'Editar documento' }}</h4>
+        <p class="entity-context">{{ ownerLabel() }}</p>
+        <fieldset [disabled]="busy()" class="entity-fields">
+          <label class="gi-field"><span>Titulo *</span><input class="gi-input" formControlName="title" maxlength="180" required />
+            @if (form.controls.title.touched && form.controls.title.invalid) { <small class="field-error">Titulo obligatorio, hasta 180 caracteres.</small> }
+          </label>
+          <label class="gi-field"><span>Categoria *</span><input class="gi-input" formControlName="category" maxlength="80" required />
+            @if (form.controls.category.touched && form.controls.category.invalid) { <small class="field-error">Categoria obligatoria, hasta 80 caracteres.</small> }
+          </label>
+          <label class="gi-field"><span>Emision</span><input class="gi-input" type="date" formControlName="issuedDate" /></label>
+          <label class="gi-field"><span>Vencimiento</span><input class="gi-input" type="date" formControlName="expiresDate" [min]="form.controls.issuedDate.value" /></label>
+          <label class="gi-field entity-wide"><span>{{ mode() === 'create' ? 'Archivo *' : 'Reemplazar archivo (opcional)' }}</span>
+            <input class="gi-input" type="file" (change)="selectFile($event)" />
+            @if (fileName()) { <small>{{ fileName() }}</small> }
+          </label>
+          @if (selected()?.isSensitive) {
+            <p class="entity-wide"><app-icon name="security" /> Documento sensible</p>
+          } @else if (canWriteSensitive()) {
+            <label class="entity-check entity-wide"><input type="checkbox" formControlName="isSensitive" /><span>Documento sensible</span></label>
+          }
+          <label class="gi-field entity-wide"><span>Notas</span><textarea class="gi-input" formControlName="notes" rows="2" maxlength="1000"></textarea></label>
+        </fieldset>
+        <footer class="entity-actions">
+          <button class="gi-button gi-button--secondary" type="button" [disabled]="busy()" (click)="closeEditor()">Cancelar</button>
+          <button class="gi-button gi-button--primary" type="submit" [disabled]="busy()">{{ busy() ? 'Guardando...' : 'Guardar' }}</button>
+        </footer>
+      </form>
+    }
+
+    @if (mode() === 'review') {
+      <form class="entity-editor" [formGroup]="reviewForm" (ngSubmit)="review()" aria-label="Revisar documento">
+        <h4>Revisar: {{ selected()?.title }}</h4>
+        <fieldset [disabled]="busy()" class="entity-fields">
+          <label class="gi-field"><span>Decision</span><select class="gi-input" formControlName="status"><option value="Validated">Validar</option><option value="Rejected">Rechazar</option></select></label>
+          <label class="gi-field entity-wide"><span>{{ reviewForm.controls.status.value === 'Rejected' ? 'Motivo de rechazo *' : 'Notas de validacion' }}</span>
+            <textarea class="gi-input" rows="3" formControlName="notes" maxlength="1000" [required]="reviewForm.controls.status.value === 'Rejected'"></textarea>
+          </label>
+        </fieldset>
+        <footer class="entity-actions">
+          <button class="gi-button gi-button--secondary" type="button" [disabled]="busy()" (click)="closeEditor()">Cancelar</button>
+          <button class="gi-button gi-button--primary" type="submit" [disabled]="busy()">{{ busy() ? 'Guardando...' : 'Confirmar revision' }}</button>
+        </footer>
+      </form>
+    }
+
+    @if (mode() === 'archive') {
+      <section class="entity-editor" aria-label="Confirmar archivo">
+        <h4>Archivar documento</h4><p>{{ selected()?.title }}</p>
+        <footer class="entity-actions">
+          <button class="gi-button gi-button--secondary" type="button" [disabled]="busy()" (click)="closeEditor()">Cancelar</button>
+          <button class="gi-button gi-button--danger" type="button" [disabled]="busy()" (click)="archive()">{{ busy() ? 'Archivando...' : 'Confirmar archivo' }}</button>
+        </footer>
+      </section>
+    }
+
+    <div [attr.aria-busy]="loading()">
+      @if (loading()) {
+        <p class="gi-empty-state" role="status">Cargando documentos...</p>
+      } @else if (listError()) {
+        <div class="gi-alert gi-alert--error" role="alert"><p>{{ listError() }}</p><button class="gi-button gi-button--secondary" type="button" (click)="load()">Reintentar</button></div>
+      } @else {
+        <ul class="entity-list">
+          @for (document of documents(); track document.idBusinessDocument) {
+            <li class="entity-row">
+              @if (canAccess(document)) {
+                <div class="entity-document">
+                  <strong>{{ document.title }}</strong>
+                  <div class="entity-meta"><span>{{ document.category }}</span>
+                    <span class="gi-badge" [class.gi-badge--success]="document.status === 'Validated'" [class.gi-badge--danger]="document.status === 'Rejected' || document.isExpired" [class.gi-badge--muted]="document.status === 'Archived'">{{ statusLabels[document.status] }}</span>
+                    @if (document.isSensitive) { <span class="gi-badge gi-badge--warning"><app-icon name="security" /> Sensible</span> }
+                    @if (document.expiresDate) { <span>Vence: {{ formatDate(document.expiresDate) }}</span> }
+                  </div>
+                  @if (document.notes) { <p class="entity-notes">{{ document.notes }}</p> }
+                  @if (document.reviewNotes || document.reviewedByName) {
+                    <p class="entity-notes"><strong>Revision</strong>@if (document.reviewedByName) { : {{ document.reviewedByName }} }
+                      @if (document.reviewedAt) { <span> ({{ formatInstant(document.reviewedAt) }})</span> }
+                      @if (document.reviewNotes) { <span> - {{ document.reviewNotes }}</span> }
+                    </p>
+                  }
+                </div>
+                <div class="entity-actions" [attr.aria-label]="'Acciones de ' + document.title">
+                  <button class="gi-button gi-button--secondary" type="button" [disabled]="busy()" (click)="download(document)"><app-icon name="document" /> Descargar</button>
+                  <button class="gi-button gi-button--secondary" type="button" [disabled]="busy()" (click)="openHistory(document)"><app-icon name="audit" /> Historial</button>
+                  @if (canEdit(document)) {
+                    <button class="gi-button gi-button--secondary" type="button" [disabled]="busy()" (click)="openEditor('edit', document)">Editar</button>
+                    <button class="gi-button gi-button--secondary" type="button" [disabled]="busy()" (click)="openEditor('review', document)"><app-icon name="coverage" /> Revisar</button>
+                    <button class="gi-button gi-button--danger" type="button" [disabled]="busy()" (click)="openEditor('archive', document)">Archivar</button>
+                  }
+                </div>
+              } @else {
+                <p class="entity-restricted"><app-icon name="security" /> Documento restringido</p>
+              }
+            </li>
+          } @empty {
+            <li class="gi-empty-state" role="status">No hay documentos para esta consulta.</li>
+          }
+        </ul>
+        <nav class="entity-pagination" aria-label="Paginas de documentos">
+          <span>{{ totalCount() }} documentos</span>
+          <div class="entity-actions">
+            <button class="gi-button gi-button--secondary" type="button" title="Pagina anterior" aria-label="Pagina anterior" [disabled]="page() <= 1 || busy()" (click)="load(page() - 1)">&larr;</button>
+            <span aria-live="polite">{{ page() }} / {{ totalPages() }}</span>
+            <button class="gi-button gi-button--secondary" type="button" title="Pagina siguiente" aria-label="Pagina siguiente" [disabled]="page() >= totalPages() || busy()" (click)="load(page() + 1)">&rarr;</button>
+          </div>
+        </nav>
+      }
+    </div>
+  }
+</section>
+
+<dialog #historyDialog class="entity-history" aria-label="Historial del documento" (cancel)="closeHistory()">
+  <header class="entity-heading"><div><h3>Historial</h3><p>{{ historyDocument()?.title }}</p></div>
+    <button class="gi-button gi-button--secondary" type="button" autofocus aria-label="Cerrar historial" title="Cerrar historial" (click)="closeHistory()">&times;</button>
+  </header>
+  @if (historyLoading()) { <p role="status">Cargando historial...</p> }
+  @else if (historyError()) {
+    <p class="gi-alert gi-alert--error" role="alert">{{ historyError() }}</p>
+    <button class="gi-button gi-button--secondary" type="button" (click)="loadHistory()">Reintentar</button>
+  } @else {
+    <ol class="entity-history-list">
+      @for (event of history(); track event.idBusinessDocumentEvent) {
+        <li><strong>{{ eventLabel(event.action) }}</strong> <span class="gi-badge">{{ statusLabels[event.status] }}</span>
+          <p>{{ event.actorName }} <time>{{ formatInstant(event.occurredAt) }}</time></p>
+          @if (event.notes) { <p class="entity-notes">{{ event.notes }}</p> }
+          @if (event.changes.length) {
+            <table class="gi-table entity-changes" aria-label="Cambios del documento">
+              <thead><tr><th scope="col">Campo</th><th scope="col">Antes</th><th scope="col">Despues</th></tr></thead>
+              <tbody>@for (change of event.changes; track change.label) {
+                <tr><th scope="row">{{ change.label }}</th><td>{{ change.before }}</td><td>{{ change.after }}</td></tr>
+              }</tbody>
+            </table>
+          }
+        </li>
+      } @empty { <li class="gi-empty-state">No hay eventos registrados.</li> }
+    </ol>
+  }
+</dialog>

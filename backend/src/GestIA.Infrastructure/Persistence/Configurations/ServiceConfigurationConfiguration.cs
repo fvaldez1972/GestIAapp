@@ -1,5 +1,6 @@
-using Microsoft.EntityFrameworkCore;
+using GestIA.Domain.Organizations;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Microsoft.EntityFrameworkCore;
 using ServiceConfigurationEntity = GestIA.Domain.Services.ServiceConfiguration;
 
 namespace GestIA.Infrastructure.Persistence.Configurations;
@@ -38,6 +39,14 @@ public sealed class ServiceConfigurationConfiguration : IEntityTypeConfiguration
             .WithMany(service => service.Configurations)
             .HasForeignKey(entity => entity.IdService)
             .OnDelete(DeleteBehavior.Restrict);
+        // Lo genera SQL Server en cada escritura; el modelo solo lo lee.
+        builder.Property(entity => entity.RowVersion).IsRowVersion();
+
         builder.HasIndex(entity => new { entity.IdService, entity.EffectiveFromDate }).IsUnique();
+        builder.HasOne<Organization>()
+            .WithMany()
+            .HasForeignKey(entity => entity.IdOrganization)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasIndex(entity => new { entity.IdOrganization, entity.EffectiveFromDate });
     }
 }

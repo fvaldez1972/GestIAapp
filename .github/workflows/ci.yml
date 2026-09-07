@@ -16,6 +16,10 @@ jobs:
     name: Backend (.NET 10)
     runs-on: ubuntu-latest
 
+    defaults:
+      run:
+        working-directory: backend
+
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -26,10 +30,10 @@ jobs:
           dotnet-version: 10.0.x
 
       - name: Restore
-        run: dotnet restore GestIA.slnx
+        run: dotnet restore GestIA.sln
 
       - name: Test
-        run: dotnet test GestIA.slnx --configuration Release --no-restore
+        run: dotnet test GestIA.sln --configuration Release --no-restore
 
   frontend:
     name: Frontend (Angular 22)

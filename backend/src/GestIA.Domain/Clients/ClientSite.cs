@@ -2,7 +2,19 @@ using GestIA.Domain.Common;
 
 namespace GestIA.Domain.Clients;
 
-public sealed class ClientSite : AuditableEntity
+/// <summary>
+/// Lleva su propia <c>IdOrganization</c> aunque la alcanzaría por su padre.
+///
+/// <para>Está denormalizada a propósito, y la decisión se tomó al revés de lo que dijo la tanda A.
+/// Entonces la alternativa era "una columna redundante contra ningún costo". Con el filtro global
+/// de la tanda B la alternativa pasó a ser un filtro por navegación, y eso hace que <b>el filtro
+/// del hijo dependa del filtro del padre</b>: apagar uno sin el otro da resultados que hay que
+/// razonar caso por caso, que es justo lo que el filtro global vino a evitar.</para>
+///
+/// <para>Es seguro porque la organización del padre es <b>inmutable</b>, y eso no es una
+/// suposición: <c>OrganizationScopeTests</c> falla si alguien expone una vía de cambiarla.</para>
+/// </summary>
+public sealed class ClientSite : AuditableEntity, IOrganizationScopedEntity
 {
     private ClientSite()
     {
@@ -10,6 +22,7 @@ public sealed class ClientSite : AuditableEntity
 
     private ClientSite(
         Guid idClientSite,
+        Guid idOrganization,
         Guid idClient,
         string codeClientSite,
         ClientSiteAddress address,
@@ -18,6 +31,7 @@ public sealed class ClientSite : AuditableEntity
         DateTime occurredAt)
     {
         IdClientSite = idClientSite;
+        IdOrganization = idOrganization;
         IdClient = idClient;
         CodeClientSite = Required(codeClientSite, nameof(codeClientSite)).ToUpperInvariant();
         ApplyAddress(address);
@@ -25,6 +39,7 @@ public sealed class ClientSite : AuditableEntity
     }
 
     public Guid IdClientSite { get; private set; }
+    public Guid IdOrganization { get; private set; }
     public Guid IdClient { get; private set; }
     public string CodeClientSite { get; private set; } = string.Empty;
     public string Name { get; private set; } = string.Empty;
@@ -41,6 +56,7 @@ public sealed class ClientSite : AuditableEntity
     public Client Client { get; private set; } = null!;
 
     public static ClientSite Create(
+        Guid idOrganization,
         Guid idClient,
         string codeClientSite,
         string name,
@@ -52,6 +68,7 @@ public sealed class ClientSite : AuditableEntity
         string actorName,
         DateTime occurredAt) =>
         Create(
+            idOrganization,
             idClient,
             codeClientSite,
             new ClientSiteAddress(
@@ -71,13 +88,14 @@ public sealed class ClientSite : AuditableEntity
             occurredAt);
 
     public static ClientSite Create(
+        Guid idOrganization,
         Guid idClient,
         string codeClientSite,
         ClientSiteAddress address,
         Guid actorId,
         string actorName,
         DateTime occurredAt) =>
-        new(Guid.NewGuid(), idClient, codeClientSite, address, actorId, actorName, occurredAt);
+        new(Guid.NewGuid(), idOrganization, idClient, codeClientSite, address, actorId, actorName, occurredAt);
 
     public void UpdateAddress(
         ClientSiteAddress address,

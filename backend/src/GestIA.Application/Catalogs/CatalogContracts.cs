@@ -7,7 +7,12 @@ public sealed record CatalogItemInput(
     BusinessCatalogItemType Type,
     string Code,
     string Name,
-    string? Description);
+    string? Description,
+    string? Group = null,
+    int? Order = null,
+    string[]? Synonyms = null,
+    bool? Active = null,
+    Guid? IdParentCatalogItem = null);
 
 public sealed record CatalogItemResponse(
     Guid IdCatalogItem,
@@ -16,7 +21,12 @@ public sealed record CatalogItemResponse(
     string Code,
     string Name,
     string? Description,
-    bool Active);
+    bool Active,
+    string Group = "General",
+    int Order = 1,
+    string[]? Synonyms = null,
+    DateTime? UpdatedAt = null,
+    Guid? IdParentCatalogItem = null);
 
 public sealed record EligibilityRequirementInput(
     Guid IdOrganization,

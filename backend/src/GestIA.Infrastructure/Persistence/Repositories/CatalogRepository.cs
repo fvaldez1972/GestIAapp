@@ -21,6 +21,7 @@ public sealed class CatalogRepository(GestIaDbContext dbContext) : ICatalogRepos
         CancellationToken cancellationToken)
     {
         var query = dbContext.BusinessCatalogItems
+            .IgnoreQueryFilters(["Active"])
             .AsNoTracking()
             .Where(item => item.IdOrganization == idOrganization);
 
@@ -31,6 +32,7 @@ public sealed class CatalogRepository(GestIaDbContext dbContext) : ICatalogRepos
 
         return await query
             .OrderBy(item => item.Type)
+            .ThenBy(item => item.Order)
             .ThenBy(item => item.Name)
             .ToArrayAsync(cancellationToken);
     }
@@ -39,7 +41,7 @@ public sealed class CatalogRepository(GestIaDbContext dbContext) : ICatalogRepos
         Guid idOrganization,
         Guid idCatalogItem,
         CancellationToken cancellationToken) =>
-        dbContext.BusinessCatalogItems.SingleOrDefaultAsync(
+        dbContext.BusinessCatalogItems.IgnoreQueryFilters(["Active"]).SingleOrDefaultAsync(
             item => item.IdOrganization == idOrganization && item.IdBusinessCatalogItem == idCatalogItem,
             cancellationToken);
 
@@ -53,7 +55,7 @@ public sealed class CatalogRepository(GestIaDbContext dbContext) : ICatalogRepos
         var normalizedCode = code.Trim().ToUpperInvariant();
 
         return dbContext.BusinessCatalogItems
-            .IgnoreQueryFilters()
+            .IgnoreQueryFilters(["Active"])
             .AnyAsync(
                 item =>
                     item.IdOrganization == idOrganization &&
@@ -122,7 +124,7 @@ public sealed class CatalogRepository(GestIaDbContext dbContext) : ICatalogRepos
         dbContext.Services
             .Include(service => service.Client)
             .SingleOrDefaultAsync(
-                service => service.Client.IdOrganization == idOrganization && service.IdService == idService,
+                service => service.IdOrganization == idOrganization && service.IdService == idService,
                 cancellationToken);
 
     public Task<Position?> GetPositionAsync(
@@ -135,7 +137,7 @@ public sealed class CatalogRepository(GestIaDbContext dbContext) : ICatalogRepos
             .SingleOrDefaultAsync(
                 position =>
                     position.IdPosition == idPosition &&
-                    position.Service.Client.IdOrganization == idOrganization,
+                    position.IdOrganization == idOrganization,
                 cancellationToken);
 
     public async Task<IReadOnlyList<EmployeeSkill>> ListEmployeeSkillsAsync(

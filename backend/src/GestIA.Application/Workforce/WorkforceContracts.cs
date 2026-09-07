@@ -36,7 +36,9 @@ public sealed record CreateEmployeeRequest(
     string? State,
     string? PostalCode,
     string? HousingType,
-    DateOnly? ResidenceSinceDate);
+    DateOnly? ResidenceSinceDate,
+    string? CountryCode = null,
+    Guid? IdJobPositionCatalogItem = null);
 
 public sealed record UpdateEmployeeRequest(
     Guid IdOrganization,
@@ -63,7 +65,9 @@ public sealed record UpdateEmployeeRequest(
     string? State,
     string? PostalCode,
     string? HousingType,
-    DateOnly? ResidenceSinceDate);
+    DateOnly? ResidenceSinceDate,
+    string? CountryCode = null,
+    Guid? IdJobPositionCatalogItem = null);
 
 public sealed record ChangeEmployeeStatusRequest(Guid IdOrganization, EmployeeStatus Status);
 
@@ -98,7 +102,9 @@ public sealed record EmployeeResponse(
     DateOnly? ResidenceSinceDate,
     bool Active,
     DateTime CreatedAt,
-    DateTime? UpdatedAt);
+    DateTime? UpdatedAt,
+    string? CountryCode = null,
+    Guid? IdJobPositionCatalogItem = null);
 
 public sealed record CreateEmployeeDocumentRequest(
     Guid IdOrganization,

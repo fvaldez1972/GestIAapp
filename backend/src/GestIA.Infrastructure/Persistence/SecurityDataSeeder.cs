@@ -11,7 +11,8 @@ public sealed class SecurityDataSeeder(
     GestIaDbContext dbContext,
     IPasswordHashService passwordHashService,
     IConfiguration configuration,
-    ILogger<SecurityDataSeeder> logger)
+    ILogger<SecurityDataSeeder> logger,
+    GestIA.Application.Catalogs.OrganizationCatalogDefaults catalogDefaults)
 {
     private static readonly Guid SeedActorId =
         Guid.Parse("00000000-0000-0000-0000-000000000001");
@@ -23,7 +24,15 @@ public sealed class SecurityDataSeeder(
         var organization = await EnsureOrganizationAsync(occurredAt, cancellationToken);
         var permissions = await EnsurePermissionsAsync(cancellationToken);
         var role = await EnsureAdministratorRoleAsync(occurredAt, cancellationToken);
+        var organizationAdminRole = await EnsureOrganizationAdminRoleAsync(occurredAt, cancellationToken);
+        var supervisorRole = await EnsureOperationalRoleAsync("ORG_SUPERVISOR", "Supervisor operativo", occurredAt, cancellationToken);
+        var operatorRole = await EnsureOperationalRoleAsync("ORG_OPERATOR", "Operador", occurredAt, cancellationToken);
+        var viewerRole = await EnsureOperationalRoleAsync("ORG_VIEWER", "Consulta operativa", occurredAt, cancellationToken);
         await EnsureRolePermissionsAsync(role, permissions, cancellationToken);
+        await EnsureRolePermissionsAsync(organizationAdminRole, permissions.Where(IsOrganizationAdminPermission).ToArray(), cancellationToken);
+        await EnsureRolePermissionsAsync(supervisorRole, permissions.Where(IsSupervisorPermission).ToArray(), cancellationToken);
+        await EnsureRolePermissionsAsync(operatorRole, permissions.Where(IsOperatorPermission).ToArray(), cancellationToken);
+        await EnsureRolePermissionsAsync(viewerRole, permissions.Where(IsViewerPermission).ToArray(), cancellationToken);
         var user = await EnsureAdministratorUserAsync(occurredAt, cancellationToken);
         var membership = await EnsureMembershipAsync(user, organization, occurredAt, cancellationToken);
         await EnsureUserRoleAsync(user, role, membership, occurredAt, cancellationToken);
@@ -37,7 +46,7 @@ public sealed class SecurityDataSeeder(
         CancellationToken cancellationToken)
     {
         var organization = await dbContext.Organizations
-            .IgnoreQueryFilters()
+            .IgnoreQueryFilters(["Active"])
             .SingleOrDefaultAsync(item => item.CodeOrganization == "GESTIA", cancellationToken);
 
         if (organization is not null)
@@ -53,6 +62,7 @@ public sealed class SecurityDataSeeder(
             SeedActorName,
             occurredAt);
         await dbContext.Organizations.AddAsync(organization, cancellationToken);
+        await catalogDefaults.StageAsync(organization.IdOrganization, cancellationToken);
         return organization;
     }
 
@@ -63,10 +73,14 @@ public sealed class SecurityDataSeeder(
             (SecurityPermissions.PlatformAdmin, "Plataforma", "Administrar plataforma local"),
             (SecurityPermissions.OrganizationsRead, "Organizaciones", "Consultar organizaciones"),
             (SecurityPermissions.OrganizationsWrite, "Organizaciones", "Administrar organizaciones"),
+            (SecurityPermissions.UsersRead, "Usuarios", "Consultar usuarios de la organización"),
+            (SecurityPermissions.UsersWrite, "Usuarios", "Administrar usuarios de la organización"),
             (SecurityPermissions.ClientsRead, "Clientes", "Consultar clientes"),
             (SecurityPermissions.ClientsWrite, "Clientes", "Administrar clientes"),
             (SecurityPermissions.DocumentsRead, "Documentos", "Consultar documentos de clientes, servicios y personal"),
             (SecurityPermissions.DocumentsWrite, "Documentos", "Administrar documentos de clientes, servicios y personal"),
+            (SecurityPermissions.DocumentsSensitiveRead, "Documentos", "Consultar documentos sensibles dentro de la organizacion autorizada"),
+            (SecurityPermissions.DocumentsSensitiveWrite, "Documentos", "Administrar documentos sensibles dentro de la organizacion autorizada"),
             (SecurityPermissions.CatalogsRead, "Catálogos", "Consultar catálogos y reglas de elegibilidad"),
             (SecurityPermissions.CatalogsWrite, "Catálogos", "Administrar catálogos y reglas de elegibilidad"),
             (SecurityPermissions.WorkforceRead, "Personal", "Consultar personal operativo"),
@@ -105,7 +119,7 @@ public sealed class SecurityDataSeeder(
         CancellationToken cancellationToken)
     {
         var role = await dbContext.Roles
-            .IgnoreQueryFilters()
+            .IgnoreQueryFilters(["Active"])
             .SingleOrDefaultAsync(item => item.CodeRole == "ADMINISTRATOR", cancellationToken);
 
         if (role is not null)
@@ -114,6 +128,44 @@ public sealed class SecurityDataSeeder(
         }
 
         role = Role.CreateSystem("ADMINISTRATOR", "Administrador", SeedActorId, SeedActorName, occurredAt);
+        await dbContext.Roles.AddAsync(role, cancellationToken);
+        return role;
+    }
+
+    private async Task<Role> EnsureOrganizationAdminRoleAsync(
+        DateTime occurredAt,
+        CancellationToken cancellationToken)
+    {
+        var role = await dbContext.Roles
+            .IgnoreQueryFilters(["Active"])
+            .SingleOrDefaultAsync(item => item.CodeRole == "ORGANIZATION_ADMIN", cancellationToken);
+
+        if (role is not null)
+        {
+            return role;
+        }
+
+        role = Role.CreateSystem("ORGANIZATION_ADMIN", "Admin de organización", SeedActorId, SeedActorName, occurredAt);
+        await dbContext.Roles.AddAsync(role, cancellationToken);
+        return role;
+    }
+
+    private async Task<Role> EnsureOperationalRoleAsync(
+        string codeRole,
+        string name,
+        DateTime occurredAt,
+        CancellationToken cancellationToken)
+    {
+        var role = await dbContext.Roles
+            .IgnoreQueryFilters(["Active"])
+            .SingleOrDefaultAsync(item => item.CodeRole == codeRole, cancellationToken);
+
+        if (role is not null)
+        {
+            return role;
+        }
+
+        role = Role.CreateSystem(codeRole, name, SeedActorId, SeedActorName, occurredAt);
         await dbContext.Roles.AddAsync(role, cancellationToken);
         return role;
     }
@@ -138,6 +190,48 @@ public sealed class SecurityDataSeeder(
         }
     }
 
+    private static bool IsOrganizationAdminPermission(Permission permission) =>
+        permission.CodePermission != SecurityPermissions.PlatformAdmin &&
+        permission.CodePermission != SecurityPermissions.OrganizationsWrite;
+
+    private static bool IsSupervisorPermission(Permission permission) =>
+        permission.CodePermission is SecurityPermissions.ClientsRead
+            or SecurityPermissions.DocumentsRead
+            or SecurityPermissions.DocumentsWrite
+            or SecurityPermissions.CatalogsRead
+            or SecurityPermissions.WorkforceRead
+            or SecurityPermissions.WorkforceWrite
+            or SecurityPermissions.PlanningRead
+            or SecurityPermissions.PlanningWrite
+            or SecurityPermissions.OperationsRead
+            or SecurityPermissions.OperationsWrite
+            or SecurityPermissions.RequestsRead
+            or SecurityPermissions.RequestsWrite
+            or SecurityPermissions.ReportsRead
+            or SecurityPermissions.AuditRead;
+
+    private static bool IsOperatorPermission(Permission permission) =>
+        permission.CodePermission is SecurityPermissions.ClientsRead
+            or SecurityPermissions.DocumentsRead
+            or SecurityPermissions.CatalogsRead
+            or SecurityPermissions.WorkforceRead
+            or SecurityPermissions.PlanningRead
+            or SecurityPermissions.OperationsRead
+            or SecurityPermissions.OperationsWrite
+            or SecurityPermissions.RequestsRead
+            or SecurityPermissions.RequestsWrite
+            or SecurityPermissions.ReportsRead;
+
+    private static bool IsViewerPermission(Permission permission) =>
+        permission.CodePermission is SecurityPermissions.ClientsRead
+            or SecurityPermissions.DocumentsRead
+            or SecurityPermissions.CatalogsRead
+            or SecurityPermissions.WorkforceRead
+            or SecurityPermissions.PlanningRead
+            or SecurityPermissions.OperationsRead
+            or SecurityPermissions.RequestsRead
+            or SecurityPermissions.ReportsRead;
+
     private async Task<User> EnsureAdministratorUserAsync(
         DateTime occurredAt,
         CancellationToken cancellationToken)
@@ -146,7 +240,7 @@ public sealed class SecurityDataSeeder(
         var password = configuration["BootstrapAdmin:Password"] ?? "GestIA.Local.2026!";
         var normalizedEmail = User.NormalizeEmail(email);
         var user = await dbContext.Users
-            .IgnoreQueryFilters()
+            .IgnoreQueryFilters(["Active"])
             .SingleOrDefaultAsync(item => item.NormalizedEmail == normalizedEmail, cancellationToken);
 
         if (user is not null)
@@ -176,7 +270,7 @@ public sealed class SecurityDataSeeder(
         CancellationToken cancellationToken)
     {
         var membership = await dbContext.OrganizationMemberships
-            .IgnoreQueryFilters()
+            .IgnoreQueryFilters(["Active"])
             .SingleOrDefaultAsync(
                 item => item.IdUser == user.IdUser && item.IdOrganization == organization.IdOrganization,
                 cancellationToken);
@@ -205,7 +299,7 @@ public sealed class SecurityDataSeeder(
         CancellationToken cancellationToken)
     {
         var exists = await dbContext.UserRoles
-            .IgnoreQueryFilters()
+            .IgnoreQueryFilters(["Active"])
             .AnyAsync(
                 item =>
                     item.IdUser == user.IdUser &&

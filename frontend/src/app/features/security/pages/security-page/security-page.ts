@@ -1,9 +1,9 @@
-import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { forkJoin } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
+import { formatOperationalInstant } from '../../../../shared/util/operational-date';
 import { ClientApiService } from '../../../clients/data-access/client-api.service';
 import { Organization } from '../../../clients/data-access/client.models';
 import { SecurityApiService } from '../../data-access/security-api.service';
@@ -25,11 +25,14 @@ type MembershipRow = {
 
 @Component({
   selector: 'app-security-page',
-  imports: [DatePipe, ReactiveFormsModule],
+  imports: [ReactiveFormsModule],
   templateUrl: './security-page.html',
   styleUrl: './security-page.scss',
 })
 export class SecurityPage implements OnInit {
+  /** El formato único de la aplicación. El último acceso es un instante, no un día de negocio. */
+  protected readonly formatInstant = formatOperationalInstant;
+
   private readonly api = inject(SecurityApiService);
   private readonly clientApi = inject(ClientApiService);
   private readonly formBuilder = inject(FormBuilder);
@@ -59,7 +62,16 @@ export class SecurityPage implements OnInit {
   protected readonly sensitiveConfirmationText = signal('');
   protected readonly sensitiveReason = signal('');
 
-  protected readonly canAdministerSecurity = computed(() => this.auth.hasPermission('PLATFORM.ADMIN'));
+  protected readonly isPlatformAdmin = computed(() => this.auth.hasPermission('PLATFORM.ADMIN'));
+  protected readonly canAdministerSecurity = computed(() => this.auth.hasPermission('USERS.READ') || this.isPlatformAdmin());
+  protected readonly securityTitle = computed(() =>
+    this.isPlatformAdmin() ? 'Seguridad y administración' : 'Usuarios de la organización',
+  );
+  protected readonly securitySubtitle = computed(() =>
+    this.isPlatformAdmin()
+      ? 'Administra usuarios, roles, permisos, organizaciones y membresías con mínimo privilegio y trazabilidad.'
+      : 'Administra usuarios internos y accesos operativos sólo dentro de tu organización.',
+  );
   protected readonly selectedUser = computed(
     () => this.users().find((user) => user.idUser === this.selectedUserId()) ?? null,
   );
@@ -269,6 +281,11 @@ export class SecurityPage implements OnInit {
   }
 
   protected selectTab(tab: SecurityTab) {
+    if (!this.isPlatformAdmin() && !['users', 'memberships'].includes(tab)) {
+      this.activeTab.set('users');
+      return;
+    }
+
     this.activeTab.set(tab);
   }
 

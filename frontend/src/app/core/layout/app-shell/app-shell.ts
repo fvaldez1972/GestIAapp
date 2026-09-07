@@ -4,11 +4,12 @@ import { filter } from 'rxjs';
 import { AuthService } from '../../auth/auth.service';
 import { AppIcon } from '../../../shared/ui/app-icon/app-icon';
 import { LayoutService } from '../layout.service';
-import { GESTIA_NAVIGATION, NavigationGroup } from '../navigation';
+import { visibleNavigation } from '../navigation';
+import { ContextBar } from '../context-bar/context-bar';
 
 @Component({
   selector: 'app-shell',
-  imports: [AppIcon, RouterLink, RouterLinkActive, RouterOutlet],
+  imports: [AppIcon, ContextBar, RouterLink, RouterLinkActive, RouterOutlet],
   templateUrl: './app-shell.html',
   styleUrl: './app-shell.scss',
 })
@@ -17,14 +18,49 @@ export class AppShell {
   protected readonly auth = inject(AuthService);
   protected readonly layout = inject(LayoutService);
   private readonly currentUrl = signal(this.router.url);
-  protected readonly navigation = computed(() => this.filterNavigation(GESTIA_NAVIGATION));
+  protected readonly navigation = computed(() =>
+    visibleNavigation({
+      isPlatformAdmin: this.isPlatformAdmin(),
+      hasActiveOrganization: !!this.auth.activeOrganization(),
+      hasPermission: (permission) => this.auth.hasPermission(permission),
+    }),
+  );
   protected readonly breadcrumbs = computed(() => this.resolveBreadcrumbs(this.currentUrl()));
   protected readonly pageTitle = computed(() => this.breadcrumbs().at(-1) ?? 'GestIA');
+  protected readonly isPlatformAdmin = computed(() =>
+    this.auth.session()?.permissions.includes('PLATFORM.ADMIN') ?? false,
+  );
+  /**
+   * Rutas que operan dentro de una organización. El super admin llega a ellas sin haber
+   * elegido ninguna, y en ese caso se le pide que la seleccione en lugar de mostrar la
+   * pantalla vacía.
+   */
+  protected readonly requiresOrganization = computed(() => {
+    const path = this.currentUrl().split('?')[0];
+    const scopedRoutes = ['/clientes', '/servicios', '/personal', '/catalogos', '/configuracion', '/documentos', '/planeacion', '/operacion', '/solicitudes', '/reportes', '/auditoria'];
+    return this.isPlatformAdmin() && !this.auth.activeOrganization() && scopedRoutes.some(route => path === route || path.startsWith(`${route}/`));
+  });
+
+  protected readonly userScope = computed(() =>
+    this.isPlatformAdmin() ? 'Super Admin BKT' : 'Admin de organización',
+  );
+  protected readonly userInitials = computed(() =>
+    (this.auth.displayName() || 'GestIA')
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase())
+      .join(''),
+  );
 
   constructor() {
     this.router.events
       .pipe(filter((event): event is NavigationEnd => event instanceof NavigationEnd))
       .subscribe((event) => this.currentUrl.set(event.urlAfterRedirects));
+
+    if (this.isPlatformAdmin()) {
+      this.auth.loadPlatformOrganizations().subscribe({ error: () => undefined });
+    }
   }
 
   protected logout() {
@@ -32,42 +68,51 @@ export class AppShell {
     void this.router.navigateByUrl('/login');
   }
 
-  private filterNavigation(groups: readonly NavigationGroup[]) {
-    return groups
-      .map((group) => ({
-        ...group,
-        items: group.items.filter((item) => !item.permission || this.auth.hasPermission(item.permission)),
-      }))
-      .filter((group) => group.items.length > 0);
-  }
-
   private resolveBreadcrumbs(url: string) {
+    if (url.startsWith('/configuracion/documentos')) {
+      return ['Configuración', 'Reglas documentales'];
+    }
     if (url === '/' || url.startsWith('/?')) {
       return ['Inicio'];
     }
 
     if (url.startsWith('/clientes')) {
-      return ['Gestión', 'Clientes'];
+      return ['Configuración', 'Clientes'];
+    }
+
+    if (url.startsWith('/plataforma/organizaciones')) {
+      return ['Configuración', 'Organizaciones'];
+    }
+    if (url.startsWith('/usuarios')) {
+      return ['Configuración', 'Usuarios'];
+    }
+
+    if (url.startsWith('/servicios')) {
+      return ['Configuración', 'Servicios'];
     }
 
     if (url.startsWith('/solicitudes')) {
-      return ['Gestión', 'Solicitudes'];
+      return ['Control', 'Solicitudes'];
     }
 
     if (url.startsWith('/personal')) {
-      return ['Gestión', 'Personal'];
+      return ['Configuración', 'Personal'];
     }
 
     if (url.startsWith('/documentos')) {
-      return ['Gestión', 'Documentos'];
+      return ['Configuración', 'Documentos'];
     }
 
     if (url.startsWith('/catalogos')) {
-      return ['Gestión', 'Catálogos'];
+      return ['Configuración', 'Catálogos'];
     }
 
     if (url.startsWith('/planeacion')) {
-      return ['Gestión', 'Planeación'];
+      return ['Operación', 'Planeación'];
+    }
+
+    if (url.startsWith('/monitor')) {
+      return ['Operación', 'Monitor global'];
     }
 
     if (url.startsWith('/operacion/asistencia')) {

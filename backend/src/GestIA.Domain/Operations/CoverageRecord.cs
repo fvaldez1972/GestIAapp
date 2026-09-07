@@ -10,9 +10,10 @@ public sealed record CoverageRecordProfile(
     TimeOnly CoverageEndTime,
     bool IsOvernight,
     CoverageStatus Status,
-    string? Notes);
+    string? Notes,
+    Guid? IdCoverageReason = null);
 
-public sealed class CoverageRecord : AuditableEntity
+public sealed class CoverageRecord : AuditableEntity, IOrganizationScopedEntity
 {
     private CoverageRecord()
     {
@@ -20,6 +21,7 @@ public sealed class CoverageRecord : AuditableEntity
 
     private CoverageRecord(
         Guid idCoverageRecord,
+        Guid idOrganization,
         Guid idScheduledShift,
         Guid idOriginalEmployee,
         CoverageRecordProfile profile,
@@ -28,13 +30,32 @@ public sealed class CoverageRecord : AuditableEntity
         DateTime occurredAt)
     {
         IdCoverageRecord = idCoverageRecord;
+        IdOrganization = idOrganization;
         IdScheduledShift = idScheduledShift;
         IdOriginalEmployee = idOriginalEmployee;
         ApplyProfile(profile);
+        Status = CoverageStatus.Requested;
         RegisterCreation(actorId, actorName, occurredAt);
     }
 
     public Guid IdCoverageRecord { get; private set; }
+    public Guid IdOrganization { get; private set; }
+
+    /// <summary>
+    /// Token de concurrencia. Lo genera y lo mantiene SQL Server; nadie lo asigna.
+    ///
+    /// <para><b>Para qué sirve, si las escrituras operativas ya corren en transacciones
+    /// serializables.</b> La transacción protege contra escrituras que se cruzan <i>dentro</i> de
+    /// la base. La pérdida que este token detecta vive <i>fuera</i>: el supervisor B abrió la
+    /// pantalla a las 10:01, A guardó a las 10:05, y B guarda a las 10:06 con lo que tenía en
+    /// pantalla desde antes. La transacción de B lee el registro ya actualizado por A y lo pisa
+    /// con datos viejos, correctamente y sin error. El desfase está en el navegador, y por eso el
+    /// token tiene que viajar en la respuesta y volver en la petición.</para>
+    ///
+    /// <para>Y aquí importa más que en otras tablas: esta entidad lleva bitácora, así que una
+    /// pérdida silenciosa dejaría un historial que registra un cambio que otro pisó.</para>
+    /// </summary>
+    public byte[] RowVersion { get; private set; } = [];
     public Guid IdScheduledShift { get; private set; }
     public Guid IdOriginalEmployee { get; private set; }
     public Guid IdReplacementEmployee { get; private set; }
@@ -44,18 +65,20 @@ public sealed class CoverageRecord : AuditableEntity
     public int DurationMinutes { get; private set; }
     public CoverageStatus Status { get; private set; }
     public string? Notes { get; private set; }
+    public Guid? IdCoverageReason { get; private set; }
     public ScheduledShift ScheduledShift { get; private set; } = null!;
     public Employee OriginalEmployee { get; private set; } = null!;
     public Employee ReplacementEmployee { get; private set; } = null!;
 
     public static CoverageRecord Create(
+        Guid idOrganization,
         Guid idScheduledShift,
         Guid idOriginalEmployee,
         CoverageRecordProfile profile,
         Guid actorId,
         string actorName,
         DateTime occurredAt) =>
-        new(Guid.NewGuid(), idScheduledShift, idOriginalEmployee, profile, actorId, actorName, occurredAt);
+        new(Guid.NewGuid(), idOrganization, idScheduledShift, idOriginalEmployee, profile, actorId, actorName, occurredAt);
 
     public void UpdateProfile(
         CoverageRecordProfile profile,
@@ -63,12 +86,52 @@ public sealed class CoverageRecord : AuditableEntity
         string actorName,
         DateTime occurredAt)
     {
+        var sameAllocation = IdReplacementEmployee == profile.IdReplacementEmployee &&
+            CoverageStartTime == profile.CoverageStartTime && CoverageEndTime == profile.CoverageEndTime &&
+            IsOvernight == profile.IsOvernight;
+        if (Status is CoverageStatus.Completed or CoverageStatus.Cancelled)
+        {
+            if (sameAllocation && Status == profile.Status && IdCoverageReason == profile.IdCoverageReason &&
+                Notes == (string.IsNullOrWhiteSpace(profile.Notes) ? null : profile.Notes.Trim()))
+            {
+                return;
+            }
+
+            throw new DomainRuleException("Una cobertura cerrada no puede modificarse.");
+        }
+
+        if ((Status == CoverageStatus.Confirmed || profile.Status == CoverageStatus.Cancelled) && !sameAllocation)
+        {
+            throw new DomainRuleException("Cancela la cobertura confirmada antes de cambiar empleado u horario.");
+        }
+
+        var allowed = Status == profile.Status || (Status, profile.Status) switch
+        {
+            (CoverageStatus.Requested, CoverageStatus.Confirmed or CoverageStatus.Cancelled) => true,
+            (CoverageStatus.Confirmed, CoverageStatus.Completed or CoverageStatus.Cancelled) => true,
+            _ => false
+        };
+        if (!allowed)
+        {
+            throw new DomainRuleException("La cobertura debe confirmarse antes de completarse y no puede reabrirse después del cierre.");
+        }
+
         ApplyProfile(profile);
         RegisterUpdate(actorId, actorName, occurredAt);
     }
 
     private void ApplyProfile(CoverageRecordProfile profile)
     {
+        if (!Enum.IsDefined(profile.Status))
+        {
+            throw new DomainRuleException("El estado de cobertura no es valido.");
+        }
+
+        if (profile.IdReplacementEmployee == IdOriginalEmployee)
+        {
+            throw new DomainRuleException("El sustituto no puede ser el empleado original.");
+        }
+
         if (profile.IdReplacementEmployee == Guid.Empty)
         {
             throw new ArgumentException("El empleado sustituto es obligatorio.", nameof(profile));
@@ -87,6 +150,7 @@ public sealed class CoverageRecord : AuditableEntity
         DurationMinutes = duration;
         Status = profile.Status;
         Notes = string.IsNullOrWhiteSpace(profile.Notes) ? null : profile.Notes.Trim();
+        IdCoverageReason = profile.IdCoverageReason;
     }
 
     private static int CalculateDurationMinutes(TimeOnly startTime, TimeOnly endTime, bool isOvernight)

@@ -1,3 +1,4 @@
+using GestIA.Domain.Organizations;
 using GestIA.Domain.Workforce;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -22,6 +23,15 @@ public sealed class EmployeeDocumentConfiguration : IEntityTypeConfiguration<Emp
             .WithMany(employee => employee.Documents)
             .HasForeignKey(entity => entity.IdEmployee)
             .OnDelete(DeleteBehavior.Restrict);
+        // La organizacion vive en la propia fila desde la tanda E. El indice la lleva
+        // primero porque el filtro global la aplica a TODA consulta de esta tabla.
+        builder.HasOne<Organization>()
+            .WithMany()
+            .HasForeignKey(entity => entity.IdOrganization)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasIndex(entity => new { entity.IdOrganization, entity.DocumentType });
+
         builder.HasIndex(entity => new { entity.IdEmployee, entity.DocumentType });
         builder.HasIndex(entity => new { entity.Status, entity.ExpiresDate });
     }

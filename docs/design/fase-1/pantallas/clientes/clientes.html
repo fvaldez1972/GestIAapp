@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  body { margin:0; background:#f4f6fa; font-family:Archivo, system-ui, sans-serif; color:#253040; text-wrap:pretty; font-variant-numeric:tabular-nums; }
+  a { color:#087f9c; text-decoration:none; }
+  a:hover { color:#10104e; text-decoration:underline; }
+  button { font-family:Archivo, system-ui, sans-serif; }
+</style>
+</helmet>
+
+<div style="display:flex;flex-direction:column;gap:52px;padding:52px 60px 100px">
+
+  <div style="display:flex;flex-direction:column;gap:10px;max-width:1440px">
+    <div style="font:600 11px Archivo,sans-serif;letter-spacing:.16em;color:#5f6b7a">CLIENTES · DISEÑO TERMINADO · 1440 PX · TOKENS DE MARCA</div>
+    <div style="font:700 30px/1.15 Archivo,sans-serif;color:#10104e">Paso 4: alta de cliente, sede y contacto</div>
+    <div style="font:400 14px/1.5 Archivo,sans-serif;color:#5f6b7a;max-width:90ch">Cinco vistas. Sesión de administrador de organización: menú de diez entradas, y la barra de contexto sin Cambiar ni Salir. Los nueve filtros pasan a buscador más panel plegable. La sede se exige aquí, en el momento, porque el servicio se liga a una sede.</div>
+  </div>
+
+  <section data-screen-label="Vista 1 · Listado" id="v1" style="display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;align-items:baseline;gap:12px">
+      <span style="font:600 11.5px Archivo,sans-serif;letter-spacing:.14em;color:#5f6b7a">VISTA 1</span>
+      <span style="font:600 19px Archivo,sans-serif;color:#10104e">Listado con la barra de filtros del sistema</span>
+    </div>
+    <div style="width:1440px;border:1px solid #dce2e9;border-radius:6px;overflow:hidden;background:#f4f6fa">
+      <div style="height:4.5rem;background:#ffffff;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:14px;padding:0 20px">
+        <div style="display:flex;align-items:center;gap:10px;border:1px solid #dce2e9;border-radius:6px;padding:7px 11px;background:#ffffff">
+          <span style="font:400 11px Archivo,sans-serif;color:#5f6b7a">Organización activa</span>
+          <span style="font:600 13px Archivo,sans-serif;color:#10104e">{{ organizacion }}</span>
+        </div>
+        <span style="font:400 12.5px Archivo,sans-serif;color:#5f6b7a">Fecha operativa <span style="color:#253040;font-weight:600">{{ fecha }}</span></span>
+      </div>
+      <div style="display:flex;min-height:880px">
+        <dc-import name="SideMenu" active="Clientes" role="admin" usuario="Renata Villaseñor" hint-size="272px,880px"></dc-import>
+        <div style="flex:1;padding:16px 20px 20px;display:flex;flex-direction:column;gap:16px;min-width:0">
+          <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px">
+            <div>
+              <div style="font:600 11px Archivo,sans-serif;letter-spacing:.1em;color:#5f6b7a;padding-bottom:5px">CLIENTES</div>
+              <div style="font:700 22px/1.2 Archivo,sans-serif;color:#10104e">Clientes</div>
+              <div style="font:400 13px Archivo,sans-serif;color:#5f6b7a;padding-top:4px">Doce clientes. Cada uno necesita al menos una sede para poder tener servicios.</div>
+            </div>
+            <button type="button" style="background:#10104e;color:#ffffff;border:1px solid #10104e;border-radius:6px;padding:0 16px;height:2.5rem;display:flex;align-items:center;font:600 13px Archivo,sans-serif;cursor:pointer">Nuevo cliente</button>
+          </div>
+          <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;display:flex;flex-direction:column">
+            <div style="padding:16px;display:flex;flex-direction:column;gap:12px;border-bottom:1px solid #dce2e9">
+              <div style="display:flex;gap:12px;align-items:center">
+                <div style="flex:1;height:2.5rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;gap:9px;padding:0 12px;min-width:0">
+                  <span style="width:14px;height:14px;border:1.5px solid #5f6b7a;border-radius:50%;flex:none"></span>
+                  <span style="font:400 13px Archivo,sans-serif;color:#5f6b7a">Buscar cliente, RFC o sede</span>
+                </div>
+                <span style="font:400 12.5px Archivo,sans-serif;color:#5f6b7a;flex:none">9 resultados</span>
+                <button type="button" style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;background:#ffffff;padding:0 14px;display:flex;align-items:center;gap:8px;font:600 12.5px Archivo,sans-serif;color:#253040;flex:none;cursor:pointer">Filtros <span style="border:1px solid #22c6ee;background:#e9f7fa;border-radius:3px;padding:1px 6px;font:600 10.5px Archivo,sans-serif;color:#087f9c">1</span></button>
+              </div>
+              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                <span style="border:1px solid #dce2e9;background:#f7f9fb;border-radius:3px;padding:5px 9px;font:500 12px Archivo,sans-serif;color:#253040;display:flex;gap:8px;align-items:center">Municipio: Zapopan <button type="button" aria-label="Quitar filtro Municipio: Zapopan" style="border:0;background:transparent;padding:0;font:600 11px Archivo,sans-serif;color:#5f6b7a;cursor:pointer">✕</button></span>
+                <button type="button" style="border:0;background:transparent;padding:0;font:600 12px Archivo,sans-serif;color:#087f9c;cursor:pointer">Quitar todos</button>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;padding:11px 16px;background:#f7f9fb;border-bottom:1px solid #dce2e9;font:600 10.5px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">
+              <span style="width:220px;flex:none">CLIENTE</span><span style="flex:1;min-width:0">ESTADO · MUNICIPIO</span><span style="width:190px;flex:none">SEDES</span><span style="width:130px;flex:none">SERVICIOS</span><span style="width:130px;flex:none">ESTADO</span><span style="width:52px;flex:none"></span>
+            </div>
+            <sc-for list="{{ rows }}" as="r" hint-placeholder-count="9">
+              <div style="display:flex;align-items:center;padding:13px 16px;border-bottom:1px solid #dce2e9;background:#ffffff">
+                <span style="width:220px;flex:none;font:600 13px Archivo,sans-serif;color:#253040;padding-right:16px">{{ r.nombre }}</span>
+                <span style="flex:1;min-width:0;font:400 12.5px Archivo,sans-serif;color:#5f6b7a;padding-right:16px">{{ r.ubicacion }}</span>
+                <span style="width:190px;flex:none;display:flex;align-items:center;gap:9px">
+                  <span style="font:600 13px Archivo,sans-serif;color:{{ r.sedesColor }}">{{ r.sedes }}</span>
+                  <span style="border:1px solid {{ r.pillBorder }};background:{{ r.pillBg }};border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:{{ r.pillColor }}">{{ r.pillText }}</span>
+                </span>
+                <span style="width:130px;flex:none;font:400 12.5px Archivo,sans-serif;color:{{ r.servColor }}">{{ r.servicios }}</span>
+                <span style="width:130px;flex:none;display:flex;align-items:center;gap:7px;font:500 12px Archivo,sans-serif;color:#253040">
+                  <span style="width:7px;height:7px;border-radius:50%;background:{{ r.estadoDot }};flex:none"></span>{{ r.estado }}
+                </span>
+                <span style="width:52px;flex:none;display:flex;justify-content:flex-end">
+                  <button type="button" aria-label="Acciones de {{ r.nombre }}" style="width:28px;height:28px;border:1px solid #dce2e9;background:#ffffff;border-radius:6px;display:flex;align-items:center;justify-content:center;font:600 13px Archivo,sans-serif;color:#5f6b7a;cursor:pointer">⋯</button>
+                </span>
+              </div>
+            </sc-for>
+            <div style="padding:14px 16px;display:flex;justify-content:space-between;align-items:center;font:400 12.5px Archivo,sans-serif;color:#5f6b7a">
+              <span>9 de 12 clientes</span>
+              <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Página de 25. Con 9 resultados no hay segunda página, así que no hay paginador.</span>
+            </div>
+          </div>
+          <div style="display:flex;gap:16px;align-items:flex-start">
+            <div style="width:300px;flex:none;background:#ffffff;border:1px solid #dce2e9;border-radius:6px;overflow:hidden">
+              <div style="padding:11px 14px;background:#f7f9fb;border-bottom:1px solid #dce2e9;font:600 10.5px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">PANEL DE FILTROS · ABIERTO</div>
+              <div style="padding:14px;display:flex;flex-direction:column;gap:13px">
+                <div style="display:flex;flex-direction:column;gap:5px">
+                  <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">MUNICIPIO</span>
+                  <span style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;justify-content:space-between;padding:0 11px;font:600 12.5px Archivo,sans-serif;color:#253040">Zapopan <span style="font-size:10px;color:#5f6b7a">▾</span></span>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:5px">
+                  <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">MUNICIPIO</span>
+                  <span style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;justify-content:space-between;padding:0 11px;font:400 12.5px Archivo,sans-serif;color:#5f6b7a">Todos <span style="font-size:10px">▾</span></span>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:7px">
+                  <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">SEDE</span>
+                  <span style="display:flex;align-items:center;gap:9px;font:400 12.5px Archivo,sans-serif;color:#253040"><span style="width:15px;height:15px;border:1px solid #dce2e9;border-radius:3px;flex:none"></span>Con al menos una sede</span>
+                  <span style="display:flex;align-items:center;gap:9px;font:400 12.5px Archivo,sans-serif;color:#253040"><span style="width:15px;height:15px;border:1px solid #dce2e9;border-radius:3px;flex:none"></span>Sin sede</span>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:7px">
+                  <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">ESTADO DEL CLIENTE</span>
+                  <span style="display:flex;align-items:center;gap:9px;font:400 12.5px Archivo,sans-serif;color:#253040"><span style="width:15px;height:15px;border:1px solid #dce2e9;border-radius:3px;flex:none"></span>Activo</span>
+                  <span style="display:flex;align-items:center;gap:9px;font:400 12.5px Archivo,sans-serif;color:#253040"><span style="width:15px;height:15px;border:1px solid #dce2e9;border-radius:3px;flex:none"></span>Inactivo</span>
+                </div>
+                <div style="font:400 11.5px/1.5 Archivo,sans-serif;color:#5f6b7a;border-top:1px solid #dce2e9;padding-top:11px">Sin botón «Filtrar»: se aplican al cambiar. Sin «Limpiar»: eso lo hace «Quitar todos» junto a los chips.</div>
+              </div>
+            </div>
+            <div style="width:260px;flex:none;background:#ffffff;border:1px solid #dce2e9;border-radius:6px;overflow:hidden">
+              <div style="padding:11px 14px;background:#f7f9fb;border-bottom:1px solid #dce2e9;font:600 10.5px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">ACCIONES DE FILA · MENÚ ABIERTO</div>
+              <div style="display:flex;flex-direction:column;padding:6px 0">
+                <span style="padding:10px 14px;font:500 13px Archivo,sans-serif;color:#253040;background:#e9f7fa">Editar cliente</span>
+                <span style="padding:10px 14px;font:500 13px Archivo,sans-serif;color:#253040">Ver sedes</span>
+                <span style="height:1px;background:#dce2e9;margin:6px 0"></span>
+                <span style="padding:10px 14px;font:600 13px Archivo,sans-serif;color:#dc2626">Desactivar cliente</span>
+              </div>
+            </div>
+            <div style="flex:1;background:#ffffff;border:1px solid #dce2e9;border-radius:6px;padding:16px;display:flex;flex-direction:column;gap:16px;min-width:0">
+              <div><div style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a;padding-bottom:7px">LO QUE SE FUE DE ESTA PANTALLA</div><div style="font:400 12.5px/1.6 Archivo,sans-serif;color:#253040">Los nueve filtros expuestos, ahora buscador más panel plegado. Las dos apariciones del selector de organización: se hereda de la barra de contexto. El botón «Nueva organización», que no pertenece aquí. El par duplicado «Editar cliente» y «Editar ficha»: queda uno, dentro del menú de fila.</div></div>
+              <div><div style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a;padding-bottom:7px">CORREGIDO EL 05 SEP 2026</div><div style="font:400 12.5px/1.6 Archivo,sans-serif;color:#253040"><b>La zona no existe en el modelo:</b> no la tienen ni el cliente ni la sede, y el catálogo <span style="font-weight:600">Zone</span> —uno de los cinco que el paso 1 de Inicio obliga a llenar— no lo referencia ninguna entidad. Se cambió por <span style="font-weight:600">Estado · Municipio</span> de la sede principal, que sí existen. Y el <b>RFC no es opcional</b>: el servicio lo usa para la unicidad del cliente junto con el código, así que sin él no se puede guardar ni el expediente.</div></div>
+              <div><div style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a;padding-bottom:7px">CÓMO SE LEE LA SEDE</div><div style="font:400 12.5px/1.6 Archivo,sans-serif;color:#253040">La columna Sedes es el prerrequisito del paso siguiente. Cero sedes se muestra como raya más píldora <span style="color:#d97706;font-weight:600">Sin sede</span>, no como cero: un cero diría que está en orden. Los seis botones sin nombre accesible —menú de fila, cierre del panel, equis de los chips— ya lo llevan.</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section data-screen-label="Vista 2 · Panel Datos" id="v2" style="display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;align-items:baseline;gap:12px">
+      <span style="font:600 11.5px Archivo,sans-serif;letter-spacing:.14em;color:#5f6b7a">VISTA 2</span>
+      <span style="font:600 19px Archivo,sans-serif;color:#10104e">Panel de detalle abierto, pestaña Datos</span>
+    </div>
+    <div style="width:1440px;border:1px solid #dce2e9;border-radius:6px;overflow:hidden;background:#f4f6fa">
+      <div style="height:4.5rem;background:#ffffff;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:14px;padding:0 20px">
+        <div style="display:flex;align-items:center;gap:10px;border:1px solid #dce2e9;border-radius:6px;padding:7px 11px;background:#ffffff">
+          <span style="font:400 11px Archivo,sans-serif;color:#5f6b7a">Organización activa</span>
+          <span style="font:600 13px Archivo,sans-serif;color:#10104e">{{ organizacion }}</span>
+        </div>
+        <span style="font:400 12.5px Archivo,sans-serif;color:#5f6b7a">Fecha operativa <span style="color:#253040;font-weight:600">{{ fecha }}</span></span>
+      </div>
+      <div style="display:flex;min-height:880px">
+        <dc-import name="SideMenu" active="Clientes" role="admin" usuario="Renata Villaseñor" hint-size="272px,880px"></dc-import>
+        <div style="flex:1;padding:16px 20px 20px;display:flex;flex-direction:column;gap:16px;min-width:0">
+          <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px">
+            <div>
+              <div style="font:600 11px Archivo,sans-serif;letter-spacing:.1em;color:#5f6b7a;padding-bottom:5px">CLIENTES</div>
+              <div style="font:700 22px/1.2 Archivo,sans-serif;color:#10104e">Clientes</div>
+            </div>
+            <button type="button" style="background:#10104e;color:#ffffff;border:1px solid #10104e;border-radius:6px;padding:0 16px;height:2.5rem;display:flex;align-items:center;font:600 13px Archivo,sans-serif;cursor:pointer">Nuevo cliente</button>
+          </div>
+          <div style="display:flex;gap:16px;align-items:stretch;min-width:0">
+            <div style="flex:1;min-width:0;background:#ffffff;border:1px solid #dce2e9;border-radius:6px;display:flex;flex-direction:column">
+              <div style="padding:12px;border-bottom:1px solid #dce2e9;display:flex;gap:10px;align-items:center">
+                <div style="flex:1;height:2.5rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;gap:9px;padding:0 11px;min-width:0">
+                  <span style="width:14px;height:14px;border:1.5px solid #5f6b7a;border-radius:50%;flex:none"></span>
+                  <span style="font:400 12.5px Archivo,sans-serif;color:#5f6b7a">Buscar cliente</span>
+                </div>
+                <button type="button" style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;background:#ffffff;padding:0 12px;font:600 12px Archivo,sans-serif;color:#253040;flex:none;cursor:pointer">Filtros</button>
+              </div>
+              <div style="display:flex;align-items:center;padding:10px 12px;background:#f7f9fb;border-bottom:1px solid #dce2e9;font:600 10.5px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">
+                <span style="flex:1;min-width:0">CLIENTE</span><span style="width:86px;flex:none">SEDES</span><span style="width:40px;flex:none"></span>
+              </div>
+              <sc-for list="{{ rowsA }}" as="r" hint-placeholder-count="9">
+                <div style="display:flex;align-items:center;padding:12px;border-bottom:1px solid #dce2e9;background:{{ r.bg }}">
+                  <span style="flex:1;min-width:0;font:600 12.5px Archivo,sans-serif;color:#253040;padding-right:10px">{{ r.nombre }}</span>
+                  <span style="width:86px;flex:none;display:flex;align-items:center;gap:7px;font:600 12.5px Archivo,sans-serif;color:{{ r.sedesColor }}">{{ r.sedes }}<span style="font:600 10.5px Archivo,sans-serif;color:#d97706">{{ r.aviso }}</span></span>
+                  <span style="width:40px;flex:none;display:flex;justify-content:flex-end">
+                    <button type="button" aria-label="Acciones de {{ r.nombre }}" style="width:26px;height:26px;border:1px solid #dce2e9;background:#ffffff;border-radius:6px;display:flex;align-items:center;justify-content:center;font:600 12px Archivo,sans-serif;color:#5f6b7a;cursor:pointer">⋯</button>
+                  </span>
+                </div>
+              </sc-for>
+              <div style="padding:12px;font:400 11.5px Archivo,sans-serif;color:#5f6b7a">9 de 12 clientes · la tabla se comprime, no se oculta</div>
+            </div>
+            <div style="width:620px;flex:none;background:#ffffff;border:1px solid #dce2e9;border-radius:6px;display:flex;flex-direction:column">
+              <div style="padding:14px 16px;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:12px">
+                <span style="font:700 13px Archivo,sans-serif;color:#10104e">Corporativo Altavista</span>
+                <span style="display:flex;align-items:center;gap:6px;border:1px solid #dce2e9;background:#f7f9fb;border-radius:3px;padding:3px 8px;font:600 10.5px Archivo,sans-serif;color:#253040"><span style="width:6px;height:6px;border-radius:50%;background:#16a34a"></span>ACTIVO</span>
+                <button type="button" aria-label="Cerrar el panel de Corporativo Altavista" style="margin-left:auto;width:28px;height:28px;border:1px solid #dce2e9;background:#ffffff;border-radius:6px;display:flex;align-items:center;justify-content:center;font:600 12px Archivo,sans-serif;color:#5f6b7a;cursor:pointer">✕</button>
+              </div>
+              <div style="display:flex;gap:20px;padding:0 16px;border-bottom:1px solid #dce2e9">
+                <span style="padding:12px 0;border-bottom:2px solid #22c6ee;font:600 12.5px Archivo,sans-serif;color:#10104e">Datos</span>
+                <span style="padding:12px 0;border-bottom:2px solid transparent;font:500 12.5px Archivo,sans-serif;color:#5f6b7a">Sedes <span style="color:#253040;font-weight:600">3</span></span>
+                <span style="padding:12px 0;border-bottom:2px solid transparent;font:500 12.5px Archivo,sans-serif;color:#5f6b7a">Contactos <span style="color:#253040;font-weight:600">4</span></span>
+                <span style="padding:12px 0;border-bottom:2px solid transparent;font:500 12.5px Archivo,sans-serif;color:#5f6b7a">Documentos <span style="color:#253040;font-weight:600">2</span></span>
+              </div>
+              <div style="padding:16px;display:flex;flex-direction:column;gap:18px">
+                <div style="display:flex;flex-direction:column;gap:11px">
+                  <div style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">IDENTIFICACIÓN</div>
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px 16px">
+                    <div style="display:flex;flex-direction:column;gap:3px;grid-column:span 2"><span style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">RAZÓN SOCIAL</span><span style="font:600 12.5px Archivo,sans-serif;color:#253040">Corporativo Altavista S.A. de C.V.</span></div>
+                    <div style="display:flex;flex-direction:column;gap:3px"><span style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">NOMBRE CORTO</span><span style="font:600 12.5px Archivo,sans-serif;color:#253040">Corporativo Altavista</span></div>
+                    <div style="display:flex;flex-direction:column;gap:3px"><span style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">RFC</span><span style="font:600 12.5px Archivo,sans-serif;color:#253040">CAL180423K72</span></div>
+                  </div>
+                </div>
+                <div style="height:1px;background:#dce2e9"></div>
+                <div style="display:flex;flex-direction:column;gap:11px">
+                  <div style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">UBICACIÓN</div>
+                  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px 16px">
+                    <div style="display:flex;flex-direction:column;gap:3px"><span style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">SEDE PRINCIPAL</span><span style="font:600 12.5px Archivo,sans-serif;color:#253040">Torre Altavista</span></div>
+                    <div style="display:flex;flex-direction:column;gap:3px"><span style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">ESTADO</span><span style="font:600 12.5px Archivo,sans-serif;color:#253040">Jalisco</span></div>
+                    <div style="display:flex;flex-direction:column;gap:3px"><span style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">MUNICIPIO</span><span style="font:600 12.5px Archivo,sans-serif;color:#253040">Zapopan</span></div>
+                  </div>
+                  <div style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Estado y municipio salen de la geografía ya cargada. No se administra aquí.</div>
+                </div>
+                <div style="height:1px;background:#dce2e9"></div>
+                <div style="display:flex;flex-direction:column;gap:11px">
+                  <div style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">REGISTRO</div>
+                  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px 16px">
+                    <div style="display:flex;flex-direction:column;gap:3px"><span style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">ALTA</span><span style="font:600 12.5px Archivo,sans-serif;color:#253040">12 feb 2026</span></div>
+                    <div style="display:flex;flex-direction:column;gap:3px"><span style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">SEDES</span><span style="font:600 12.5px Archivo,sans-serif;color:#253040">3</span></div>
+                    <div style="display:flex;flex-direction:column;gap:3px"><span style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">SERVICIOS VIGENTES</span><span style="font:600 12.5px Archivo,sans-serif;color:#253040">5</span></div>
+                  </div>
+                </div>
+                <div style="border:1px solid #dce2e9;background:#f7f9fb;border-radius:6px;padding:13px;display:flex;flex-direction:column;gap:4px">
+                  <span style="font:600 12.5px Archivo,sans-serif;color:#253040">Sede principal · Torre Altavista</span>
+                  <span style="font:400 12px/1.5 Archivo,sans-serif;color:#5f6b7a">Av. Patria 1250, piso 8, Col. Jardines Universidad, Zapopan, Jalisco. Contacto: Mariana Escalante Ruvalcaba.</span>
+                </div>
+              </div>
+              <div style="margin-top:auto;border-top:1px solid #dce2e9;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px">
+                <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">3 sedes · 4 contactos</span>
+                <span style="display:flex;gap:9px;align-items:center">
+                  <button type="button" style="height:2.5rem;border:1px solid #dce2e9;background:#ffffff;border-radius:6px;padding:0 13px;font:600 12.5px Archivo,sans-serif;color:#253040;cursor:pointer">Editar cliente</button>
+                  <button type="button" style="height:2.5rem;background:#10104e;color:#ffffff;border:1px solid #10104e;border-radius:6px;padding:0 15px;font:600 12.5px Archivo,sans-serif;cursor:pointer">Crear servicio de este cliente</button>
+                </span>
+              </div>
+            </div>
+          </div>
+          <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;padding:16px;display:flex;gap:28px">
+            <div style="flex:1"><div style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a;padding-bottom:7px">TRANSICIÓN T3</div><div style="font:400 12.5px/1.6 Archivo,sans-serif;color:#253040">El pie del panel sale a Servicios con cliente y sede ya elegidos, sin volver al menú. Aparece sólido solo cuando hay al menos una sede.</div></div>
+            <div style="flex:1"><div style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a;padding-bottom:7px">PESTAÑAS</div><div style="font:400 12.5px/1.6 Archivo,sans-serif;color:#253040">Datos · Sedes · Contactos · Documentos, con su conteo. La activa se marca en <span style="color:#087f9c;font-weight:600">cian</span>. La fila seleccionada queda en <span style="color:#087f9c;font-weight:600">cyan-soft</span>.</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section data-screen-label="Vista 3 · Panel Sedes" id="v3" style="display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;align-items:baseline;gap:12px">
+      <span style="font:600 11.5px Archivo,sans-serif;letter-spacing:.14em;color:#5f6b7a">VISTA 3</span>
+      <span style="font:600 19px Archivo,sans-serif;color:#10104e">Panel abierto, pestaña Sedes</span>
+    </div>
+    <div style="width:1440px;border:1px solid #dce2e9;border-radius:6px;overflow:hidden;background:#f4f6fa">
+      <div style="height:4.5rem;background:#ffffff;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:14px;padding:0 20px">
+        <div style="display:flex;align-items:center;gap:10px;border:1px solid #dce2e9;border-radius:6px;padding:7px 11px;background:#ffffff">
+          <span style="font:400 11px Archivo,sans-serif;color:#5f6b7a">Organización activa</span>
+          <span style="font:600 13px Archivo,sans-serif;color:#10104e">{{ organizacion }}</span>
+        </div>
+        <span style="font:400 12.5px Archivo,sans-serif;color:#5f6b7a">Fecha operativa <span style="color:#253040;font-weight:600">{{ fecha }}</span></span>
+      </div>
+      <div style="display:flex;min-height:880px">
+        <dc-import name="SideMenu" active="Clientes" role="admin" usuario="Renata Villaseñor" hint-size="272px,880px"></dc-import>
+        <div style="flex:1;padding:16px 20px 20px;display:flex;flex-direction:column;gap:16px;min-width:0">
+          <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px">
+            <div>
+              <div style="font:600 11px Archivo,sans-serif;letter-spacing:.1em;color:#5f6b7a;padding-bottom:5px">CLIENTES</div>
+              <div style="font:700 22px/1.2 Archivo,sans-serif;color:#10104e">Clientes</div>
+            </div>
+            <button type="button" style="background:#10104e;color:#ffffff;border:1px solid #10104e;border-radius:6px;padding:0 16px;height:2.5rem;display:flex;align-items:center;font:600 13px Archivo,sans-serif;cursor:pointer">Nuevo cliente</button>
+          </div>
+          <div style="display:flex;gap:16px;align-items:stretch;min-width:0">
+            <div style="flex:1;min-width:0;background:#ffffff;border:1px solid #dce2e9;border-radius:6px;display:flex;flex-direction:column">
+              <div style="padding:12px;border-bottom:1px solid #dce2e9;display:flex;gap:10px;align-items:center">
+                <div style="flex:1;height:2.5rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;gap:9px;padding:0 11px;min-width:0">
+                  <span style="width:14px;height:14px;border:1.5px solid #5f6b7a;border-radius:50%;flex:none"></span>
+                  <span style="font:400 12.5px Archivo,sans-serif;color:#5f6b7a">Buscar cliente</span>
+                </div>
+                <button type="button" style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;background:#ffffff;padding:0 12px;font:600 12px Archivo,sans-serif;color:#253040;flex:none;cursor:pointer">Filtros</button>
+              </div>
+              <div style="display:flex;align-items:center;padding:10px 12px;background:#f7f9fb;border-bottom:1px solid #dce2e9;font:600 10.5px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">
+                <span style="flex:1;min-width:0">CLIENTE</span><span style="width:86px;flex:none">SEDES</span><span style="width:40px;flex:none"></span>
+              </div>
+              <sc-for list="{{ rowsA }}" as="r" hint-placeholder-count="9">
+                <div style="display:flex;align-items:center;padding:12px;border-bottom:1px solid #dce2e9;background:{{ r.bg }}">
+                  <span style="flex:1;min-width:0;font:600 12.5px Archivo,sans-serif;color:#253040;padding-right:10px">{{ r.nombre }}</span>
+                  <span style="width:86px;flex:none;display:flex;align-items:center;gap:7px;font:600 12.5px Archivo,sans-serif;color:{{ r.sedesColor }}">{{ r.sedes }}<span style="font:600 10.5px Archivo,sans-serif;color:#d97706">{{ r.aviso }}</span></span>
+                  <span style="width:40px;flex:none;display:flex;justify-content:flex-end">
+                    <button type="button" aria-label="Acciones de {{ r.nombre }}" style="width:26px;height:26px;border:1px solid #dce2e9;background:#ffffff;border-radius:6px;display:flex;align-items:center;justify-content:center;font:600 12px Archivo,sans-serif;color:#5f6b7a;cursor:pointer">⋯</button>
+                  </span>
+                </div>
+              </sc-for>
+              <div style="padding:12px;font:400 11.5px Archivo,sans-serif;color:#5f6b7a">9 de 12 clientes</div>
+            </div>
+            <div style="width:620px;flex:none;background:#ffffff;border:1px solid #dce2e9;border-radius:6px;display:flex;flex-direction:column">
+              <div style="padding:14px 16px;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:12px">
+                <span style="font:700 13px Archivo,sans-serif;color:#10104e">Corporativo Altavista</span>
+                <span style="display:flex;align-items:center;gap:6px;border:1px solid #dce2e9;background:#f7f9fb;border-radius:3px;padding:3px 8px;font:600 10.5px Archivo,sans-serif;color:#253040"><span style="width:6px;height:6px;border-radius:50%;background:#16a34a"></span>ACTIVO</span>
+                <button type="button" aria-label="Cerrar el panel de Corporativo Altavista" style="margin-left:auto;width:28px;height:28px;border:1px solid #dce2e9;background:#ffffff;border-radius:6px;display:flex;align-items:center;justify-content:center;font:600 12px Archivo,sans-serif;color:#5f6b7a;cursor:pointer">✕</button>
+              </div>
+              <div style="display:flex;gap:20px;padding:0 16px;border-bottom:1px solid #dce2e9">
+                <span style="padding:12px 0;border-bottom:2px solid transparent;font:500 12.5px Archivo,sans-serif;color:#5f6b7a">Datos</span>
+                <span style="padding:12px 0;border-bottom:2px solid #22c6ee;font:600 12.5px Archivo,sans-serif;color:#10104e">Sedes <span style="font-weight:600">3</span></span>
+                <span style="padding:12px 0;border-bottom:2px solid transparent;font:500 12.5px Archivo,sans-serif;color:#5f6b7a">Contactos <span style="color:#253040;font-weight:600">4</span></span>
+                <span style="padding:12px 0;border-bottom:2px solid transparent;font:500 12.5px Archivo,sans-serif;color:#5f6b7a">Documentos <span style="color:#253040;font-weight:600">2</span></span>
+              </div>
+              <div style="padding:16px;display:flex;flex-direction:column;gap:12px">
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+                  <span style="font:400 12px Archivo,sans-serif;color:#5f6b7a">Cada servicio se liga a una sede. Al crear el servicio se elige de esta lista.</span>
+                  <button type="button" style="height:2.5rem;border:1px solid #dce2e9;background:#ffffff;border-radius:6px;padding:0 13px;font:600 12.5px Archivo,sans-serif;color:#253040;flex:none;cursor:pointer">Agregar sede</button>
+                </div>
+                <sc-for list="{{ sedes }}" as="s" hint-placeholder-count="3">
+                  <div style="border:1px solid #dce2e9;border-radius:6px;display:flex;flex-direction:column">
+                    <div style="padding:12px 13px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #dce2e9;background:#f7f9fb">
+                      <span style="font:600 12.5px Archivo,sans-serif;color:#253040">{{ s.nombre }}</span>
+                      <span style="border:1px solid {{ s.pillBorder }};background:{{ s.pillBg }};border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:{{ s.pillColor }}">{{ s.pill }}</span>
+                      <button type="button" aria-label="Acciones de la sede {{ s.nombre }}" style="margin-left:auto;width:26px;height:26px;border:1px solid #dce2e9;background:#ffffff;border-radius:6px;display:flex;align-items:center;justify-content:center;font:600 12px Archivo,sans-serif;color:#5f6b7a;cursor:pointer">⋯</button>
+                    </div>
+                    <div style="padding:12px 13px;display:flex;gap:20px">
+                      <div style="flex:1.4;display:flex;flex-direction:column;gap:3px">
+                        <span style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">DIRECCIÓN</span>
+                        <span style="font:400 12px/1.5 Archivo,sans-serif;color:#253040">{{ s.direccion }}</span>
+                      </div>
+                      <div style="flex:1;display:flex;flex-direction:column;gap:3px">
+                        <span style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">CONTACTO</span>
+                        <span style="font:600 12px Archivo,sans-serif;color:{{ s.contactoColor }}">{{ s.contacto }}</span>
+                        <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">{{ s.contactoNota }}</span>
+                      </div>
+                      <div style="width:96px;flex:none;display:flex;flex-direction:column;gap:3px">
+                        <span style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">SERVICIOS</span>
+                        <span style="font:600 12.5px Archivo,sans-serif;color:#253040">{{ s.servicios }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="margin-top:auto;border-top:1px solid #dce2e9;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px">
+                <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">3 sedes · 1 sin contacto</span>
+                <button type="button" style="height:2.5rem;background:#10104e;color:#ffffff;border:1px solid #10104e;border-radius:6px;padding:0 15px;font:600 12.5px Archivo,sans-serif;cursor:pointer">Crear servicio de este cliente</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section data-screen-label="Vista 4 · Alta" id="v4" style="display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;align-items:baseline;gap:12px">
+      <span style="font:600 11.5px Archivo,sans-serif;letter-spacing:.14em;color:#5f6b7a">VISTA 4</span>
+      <span style="font:600 19px Archivo,sans-serif;color:#10104e">Formulario de alta de cliente</span>
+    </div>
+    <div style="width:1440px;border:1px solid #dce2e9;border-radius:6px;overflow:hidden;background:#f4f6fa">
+      <div style="height:4.5rem;background:#ffffff;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:14px;padding:0 20px">
+        <div style="display:flex;align-items:center;gap:10px;border:1px solid #dce2e9;border-radius:6px;padding:7px 11px;background:#ffffff">
+          <span style="font:400 11px Archivo,sans-serif;color:#5f6b7a">Organización activa</span>
+          <span style="font:600 13px Archivo,sans-serif;color:#10104e">{{ organizacion }}</span>
+        </div>
+        <span style="font:400 12.5px Archivo,sans-serif;color:#5f6b7a">Fecha operativa <span style="color:#253040;font-weight:600">{{ fecha }}</span></span>
+      </div>
+      <div style="display:flex;min-height:920px">
+        <dc-import name="SideMenu" active="Clientes" role="admin" usuario="Renata Villaseñor" hint-size="272px,920px"></dc-import>
+        <div style="flex:1;padding:16px 20px 20px;display:flex;flex-direction:column;gap:16px;min-width:0">
+          <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px">
+            <div>
+              <div style="font:600 11px Archivo,sans-serif;letter-spacing:.1em;color:#5f6b7a;padding-bottom:5px">CLIENTES</div>
+              <div style="font:700 22px/1.2 Archivo,sans-serif;color:#10104e">Clientes</div>
+            </div>
+            <button type="button" style="background:#10104e;color:#ffffff;border:1px solid #10104e;border-radius:6px;padding:0 16px;height:2.5rem;display:flex;align-items:center;font:600 13px Archivo,sans-serif;cursor:pointer">Nuevo cliente</button>
+          </div>
+          <div style="display:flex;gap:16px;align-items:stretch;min-width:0">
+            <div style="flex:1;min-width:0;background:#ffffff;border:1px solid #dce2e9;border-radius:6px;display:flex;flex-direction:column">
+              <div style="padding:12px;border-bottom:1px solid #dce2e9;display:flex;gap:10px;align-items:center">
+                <div style="flex:1;height:2.5rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;gap:9px;padding:0 11px;min-width:0">
+                  <span style="width:14px;height:14px;border:1.5px solid #5f6b7a;border-radius:50%;flex:none"></span>
+                  <span style="font:400 12.5px Archivo,sans-serif;color:#5f6b7a">Buscar cliente</span>
+                </div>
+                <button type="button" style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;background:#ffffff;padding:0 12px;font:600 12px Archivo,sans-serif;color:#253040;flex:none;cursor:pointer">Filtros</button>
+              </div>
+              <div style="display:flex;align-items:center;padding:10px 12px;background:#f7f9fb;border-bottom:1px solid #dce2e9;font:600 10.5px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">
+                <span style="flex:1;min-width:0">CLIENTE</span><span style="width:86px;flex:none">SEDES</span><span style="width:40px;flex:none"></span>
+              </div>
+              <sc-for list="{{ rowsPlain }}" as="r" hint-placeholder-count="9">
+                <div style="display:flex;align-items:center;padding:12px;border-bottom:1px solid #dce2e9;background:#ffffff">
+                  <span style="flex:1;min-width:0;font:600 12.5px Archivo,sans-serif;color:#253040;padding-right:10px">{{ r.nombre }}</span>
+                  <span style="width:86px;flex:none;display:flex;align-items:center;gap:7px;font:600 12.5px Archivo,sans-serif;color:{{ r.sedesColor }}">{{ r.sedes }}<span style="font:600 10.5px Archivo,sans-serif;color:#d97706">{{ r.aviso }}</span></span>
+                  <span style="width:40px;flex:none;display:flex;justify-content:flex-end">
+                    <button type="button" aria-label="Acciones de {{ r.nombre }}" style="width:26px;height:26px;border:1px solid #dce2e9;background:#ffffff;border-radius:6px;display:flex;align-items:center;justify-content:center;font:600 12px Archivo,sans-serif;color:#5f6b7a;cursor:pointer">⋯</button>
+                  </span>
+                </div>
+              </sc-for>
+              <div style="padding:12px;font:400 11.5px Archivo,sans-serif;color:#5f6b7a">9 de 12 clientes</div>
+            </div>
+            <div style="width:620px;flex:none;background:#ffffff;border:1px solid #dce2e9;border-radius:6px;display:flex;flex-direction:column">
+              <div style="padding:14px 16px;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:12px">
+                <span style="font:700 13px Archivo,sans-serif;color:#10104e">Nuevo cliente</span>
+                <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Alta {{ fecha }}</span>
+                <button type="button" aria-label="Cancelar el alta y cerrar el panel" style="margin-left:auto;width:28px;height:28px;border:1px solid #dce2e9;background:#ffffff;border-radius:6px;display:flex;align-items:center;justify-content:center;font:600 12px Archivo,sans-serif;color:#5f6b7a;cursor:pointer">✕</button>
+              </div>
+              <div style="padding:16px;display:flex;flex-direction:column;gap:18px">
+                <div style="display:flex;flex-direction:column;gap:12px">
+                  <div style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">DATOS DEL CLIENTE</div>
+                  <div style="display:flex;flex-direction:column;gap:5px">
+                    <label for="ac-razon" style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">RAZÓN SOCIAL</label>
+                    <input id="ac-razon" type="text" value="Distribuidora Peñasco del Norte S.A. de C.V." style="height:2.5rem;box-sizing:border-box;border:1px solid #dce2e9;border-radius:6px;padding:0 11px;font:600 12.5px Archivo,sans-serif;color:#253040;background:#ffffff;width:100%">
+                  </div>
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                    <div style="display:flex;flex-direction:column;gap:5px">
+                      <label for="ac-corto" style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">NOMBRE CORTO</label>
+                      <input id="ac-corto" type="text" value="Peñasco" style="height:2.5rem;box-sizing:border-box;border:1px solid #dce2e9;border-radius:6px;padding:0 11px;font:600 12.5px Archivo,sans-serif;color:#253040;background:#ffffff;width:100%">
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:5px">
+                      <label for="ac-rfc" style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">RFC</label>
+                      <input id="ac-rfc" type="text" placeholder="Doce o trece caracteres" style="height:2.5rem;box-sizing:border-box;border:1px solid #dce2e9;border-radius:6px;padding:0 11px;font:400 12.5px Archivo,sans-serif;color:#253040;background:#ffffff;width:100%">
+                    </div>
+                  </div>
+                  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+                    <div style="display:flex;flex-direction:column;gap:5px">
+                      <span style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">COLONIA</span>
+                      <span style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;justify-content:space-between;padding:0 11px;font:400 12.5px Archivo,sans-serif;color:#5f6b7a">Se captura con la sede</span>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:5px">
+                      <span style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">ESTADO</span>
+                      <span style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;justify-content:space-between;padding:0 11px;font:600 12.5px Archivo,sans-serif;color:#253040">Nuevo León <span style="font-size:10px;color:#5f6b7a">▾</span></span>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:5px">
+                      <span style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">MUNICIPIO</span>
+                      <span style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;justify-content:space-between;padding:0 11px;font:600 12.5px Archivo,sans-serif;color:#253040">San Nicolás de los Garza <span style="font-size:10px;color:#5f6b7a">▾</span></span>
+                    </div>
+                  </div>
+                </div>
+                <div style="height:1px;background:#dce2e9"></div>
+                <div style="display:flex;flex-direction:column;gap:12px">
+                  <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">
+                    <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">SEDE · OBLIGATORIA PARA CREAR SERVICIOS</span>
+                    <span style="font:400 11.5px Archivo,sans-serif;color:#d97706;font-weight:600">Sin sede el cliente queda como expediente</span>
+                  </div>
+                  <div style="display:flex;flex-direction:column;gap:5px">
+                    <label for="ac-sede" style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">NOMBRE DE LA SEDE</label>
+                    <input id="ac-sede" type="text" value="Planta San Nicolás" style="height:2.5rem;box-sizing:border-box;border:1px solid #dce2e9;border-radius:6px;padding:0 11px;font:600 12.5px Archivo,sans-serif;color:#253040;background:#ffffff;width:100%">
+                  </div>
+                  <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px">
+                    <div style="display:flex;flex-direction:column;gap:5px">
+                      <label for="ac-calle" style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">CALLE Y NÚMERO</label>
+                      <input id="ac-calle" type="text" value="Av. Universidad 2340" style="height:2.5rem;box-sizing:border-box;border:1px solid #dce2e9;border-radius:6px;padding:0 11px;font:600 12.5px Archivo,sans-serif;color:#253040;background:#ffffff;width:100%">
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:5px">
+                      <label for="ac-cp" style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">CÓDIGO POSTAL</label>
+                      <input id="ac-cp" type="text" value="66450" style="height:2.5rem;box-sizing:border-box;border:1px solid #dce2e9;border-radius:6px;padding:0 11px;font:600 12.5px Archivo,sans-serif;color:#253040;background:#ffffff;width:100%">
+                    </div>
+                  </div>
+                  <div style="display:flex;flex-direction:column;gap:5px">
+                    <label for="ac-colonia" style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">COLONIA</label>
+                    <input id="ac-colonia" type="text" placeholder="Colonia o fraccionamiento" style="height:2.5rem;box-sizing:border-box;border:1px solid #22c6ee;outline:2px solid #e9f7fa;border-radius:6px;padding:0 11px;font:400 12.5px Archivo,sans-serif;color:#253040;background:#ffffff;width:100%">
+                    <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Campo con el foco. El anillo de foco es cian; la etiqueta enfoca el campo al hacer clic.</span>
+                  </div>
+                </div>
+                <div style="height:1px;background:#dce2e9"></div>
+                <div style="display:flex;flex-direction:column;gap:12px">
+                  <div style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">CONTACTO DE LA SEDE</div>
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                    <div style="display:flex;flex-direction:column;gap:5px">
+                      <label for="ac-cnombre" style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">NOMBRE</label>
+                      <input id="ac-cnombre" type="text" value="Aurora Ibáñez Zúñiga" style="height:2.5rem;box-sizing:border-box;border:1px solid #dce2e9;border-radius:6px;padding:0 11px;font:600 12.5px Archivo,sans-serif;color:#253040;background:#ffffff;width:100%">
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:5px">
+                      <label for="ac-cpuesto" style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">PUESTO</label>
+                      <input id="ac-cpuesto" type="text" value="Jefa de vigilancia" style="height:2.5rem;box-sizing:border-box;border:1px solid #dce2e9;border-radius:6px;padding:0 11px;font:600 12.5px Archivo,sans-serif;color:#253040;background:#ffffff;width:100%">
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:5px">
+                      <label for="ac-ctel" style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">TELÉFONO</label>
+                      <input id="ac-ctel" type="text" value="81 2264 7710" style="height:2.5rem;box-sizing:border-box;border:1px solid #dce2e9;border-radius:6px;padding:0 11px;font:600 12.5px Archivo,sans-serif;color:#253040;background:#ffffff;width:100%">
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:5px">
+                      <label for="ac-ccorreo" style="font:600 11px Archivo,sans-serif;letter-spacing:.06em;color:#5f6b7a">CORREO · OPCIONAL</label>
+                      <input id="ac-ccorreo" type="text" placeholder="nombre@dominio.mx" style="height:2.5rem;box-sizing:border-box;border:1px solid #dce2e9;border-radius:6px;padding:0 11px;font:400 12.5px Archivo,sans-serif;color:#253040;background:#ffffff;width:100%">
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div style="margin-top:auto;border-top:1px solid #dce2e9;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px">
+                <button type="button" style="height:2.5rem;border:1px solid #dce2e9;background:#ffffff;border-radius:6px;padding:0 13px;font:600 12.5px Archivo,sans-serif;color:#253040;cursor:pointer">Cancelar</button>
+                <span style="display:flex;gap:9px;align-items:center">
+                  <button type="button" style="height:2.5rem;border:1px solid #dce2e9;background:#ffffff;border-radius:6px;padding:0 13px;font:600 12.5px Archivo,sans-serif;color:#253040;cursor:pointer">Guardar sin sede</button>
+                  <button type="button" style="height:2.5rem;background:#10104e;color:#ffffff;border:1px solid #10104e;border-radius:6px;padding:0 15px;font:600 12.5px Archivo,sans-serif;cursor:pointer">Guardar cliente y sede</button>
+                </span>
+              </div>
+            </div>
+          </div>
+          <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;padding:16px;display:flex;gap:28px">
+            <div style="flex:1"><div style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a;padding-bottom:7px">POR QUÉ NO HAY CAMPO DE FECHA</div><div style="font:400 12.5px/1.6 Archivo,sans-serif;color:#253040">El alta la pone el sistema con la fecha operativa, en el único formato: <span style="font-weight:600">04 sep 2026</span>. Nada que teclear, así que no hace falta selector de fecha ni la discusión de librería.</div></div>
+            <div style="flex:1"><div style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a;padding-bottom:7px">DOS SALIDAS, NO UNA</div><div style="font:400 12.5px/1.6 Archivo,sans-serif;color:#253040">«Guardar cliente y sede» deja el paso 4 completo. «Guardar sin sede» existe porque el expediente es válido, y lleva al estado de la vista 5, que lo dice en el momento.</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section data-screen-label="Vista 5 · Sin sede" id="v5" style="display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;align-items:baseline;gap:12px">
+      <span style="font:600 11.5px Archivo,sans-serif;letter-spacing:.14em;color:#5f6b7a">VISTA 5</span>
+      <span style="font:600 19px Archivo,sans-serif;color:#10104e">Cliente guardado sin sede: el aviso llega aquí, con la salida a un clic</span>
+    </div>
+    <div style="width:1440px;border:1px solid #dce2e9;border-radius:6px;overflow:hidden;background:#f4f6fa">
+      <div style="height:4.5rem;background:#ffffff;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:14px;padding:0 20px">
+        <div style="display:flex;align-items:center;gap:10px;border:1px solid #dce2e9;border-radius:6px;padding:7px 11px;background:#ffffff">
+          <span style="font:400 11px Archivo,sans-serif;color:#5f6b7a">Organización activa</span>
+          <span style="font:600 13px Archivo,sans-serif;color:#10104e">{{ organizacion }}</span>
+        </div>
+        <span style="font:400 12.5px Archivo,sans-serif;color:#5f6b7a">Fecha operativa <span style="color:#253040;font-weight:600">{{ fecha }}</span></span>
+      </div>
+      <div style="display:flex;min-height:880px">
+        <dc-import name="SideMenu" active="Clientes" role="admin" usuario="Renata Villaseñor" hint-size="272px,880px"></dc-import>
+        <div style="flex:1;padding:16px 20px 20px;display:flex;flex-direction:column;gap:16px;min-width:0">
+          <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px">
+            <div>
+              <div style="font:600 11px Archivo,sans-serif;letter-spacing:.1em;color:#5f6b7a;padding-bottom:5px">CLIENTES</div>
+              <div style="font:700 22px/1.2 Archivo,sans-serif;color:#10104e">Clientes</div>
+            </div>
+            <button type="button" style="background:#10104e;color:#ffffff;border:1px solid #10104e;border-radius:6px;padding:0 16px;height:2.5rem;display:flex;align-items:center;font:600 13px Archivo,sans-serif;cursor:pointer">Nuevo cliente</button>
+          </div>
+          <div style="background:#ffffff;border:1px solid #d97706;border-radius:6px;padding:14px 16px;display:flex;align-items:center;gap:16px">
+            <span style="width:3px;align-self:stretch;background:#d97706;border-radius:3px;flex:none"></span>
+            <div style="flex:1;display:flex;flex-direction:column;gap:3px;min-width:0">
+              <span style="font:600 12.5px Archivo,sans-serif;color:#253040">Textiles La Concepción se guardó sin sede</span>
+              <span style="font:400 12px/1.5 Archivo,sans-serif;color:#5f6b7a">El expediente es válido, pero no permite crear servicios: el servicio se liga a una sede. Se resuelve agregando la primera sede.</span>
+            </div>
+            <button type="button" style="height:2.5rem;background:#10104e;color:#ffffff;border:1px solid #10104e;border-radius:6px;padding:0 15px;font:600 12.5px Archivo,sans-serif;flex:none;cursor:pointer">Agregar sede</button>
+          </div>
+          <div style="display:flex;gap:16px;align-items:stretch;min-width:0">
+            <div style="flex:1;min-width:0;background:#ffffff;border:1px solid #dce2e9;border-radius:6px;display:flex;flex-direction:column">
+              <div style="padding:12px;border-bottom:1px solid #dce2e9;display:flex;gap:10px;align-items:center">
+                <div style="flex:1;height:2.5rem;border:1px solid #dce2e9;border-radius:6px;display:flex;align-items:center;gap:9px;padding:0 11px;min-width:0">
+                  <span style="width:14px;height:14px;border:1.5px solid #5f6b7a;border-radius:50%;flex:none"></span>
+                  <span style="font:400 12.5px Archivo,sans-serif;color:#5f6b7a">Buscar cliente</span>
+                </div>
+                <button type="button" style="height:2.5rem;border:1px solid #dce2e9;border-radius:6px;background:#ffffff;padding:0 12px;font:600 12px Archivo,sans-serif;color:#253040;flex:none;cursor:pointer">Filtros</button>
+              </div>
+              <div style="display:flex;align-items:center;padding:10px 12px;background:#f7f9fb;border-bottom:1px solid #dce2e9;font:600 10.5px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a">
+                <span style="flex:1;min-width:0">CLIENTE</span><span style="width:86px;flex:none">SEDES</span><span style="width:40px;flex:none"></span>
+              </div>
+              <sc-for list="{{ rowsE }}" as="r" hint-placeholder-count="9">
+                <div style="display:flex;align-items:center;padding:12px;border-bottom:1px solid #dce2e9;background:{{ r.bg }}">
+                  <span style="flex:1;min-width:0;font:600 12.5px Archivo,sans-serif;color:#253040;padding-right:10px">{{ r.nombre }}</span>
+                  <span style="width:86px;flex:none;display:flex;align-items:center;gap:7px;font:600 12.5px Archivo,sans-serif;color:{{ r.sedesColor }}">{{ r.sedes }}<span style="font:600 10.5px Archivo,sans-serif;color:#d97706">{{ r.aviso }}</span></span>
+                  <span style="width:40px;flex:none;display:flex;justify-content:flex-end">
+                    <button type="button" aria-label="Acciones de {{ r.nombre }}" style="width:26px;height:26px;border:1px solid #dce2e9;background:#ffffff;border-radius:6px;display:flex;align-items:center;justify-content:center;font:600 12px Archivo,sans-serif;color:#5f6b7a;cursor:pointer">⋯</button>
+                  </span>
+                </div>
+              </sc-for>
+              <div style="padding:12px;font:400 11.5px Archivo,sans-serif;color:#5f6b7a">9 de 12 clientes</div>
+            </div>
+            <div style="width:620px;flex:none;background:#ffffff;border:1px solid #dce2e9;border-radius:6px;display:flex;flex-direction:column">
+              <div style="padding:14px 16px;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:12px">
+                <span style="font:700 13px Archivo,sans-serif;color:#10104e">Textiles La Concepción</span>
+                <span style="display:flex;align-items:center;gap:6px;border:1px solid #d97706;background:#ffffff;border-radius:3px;padding:3px 8px;font:600 10.5px Archivo,sans-serif;color:#d97706">SIN SEDE</span>
+                <button type="button" aria-label="Cerrar el panel de Textiles La Concepción" style="margin-left:auto;width:28px;height:28px;border:1px solid #dce2e9;background:#ffffff;border-radius:6px;display:flex;align-items:center;justify-content:center;font:600 12px Archivo,sans-serif;color:#5f6b7a;cursor:pointer">✕</button>
+              </div>
+              <div style="display:flex;gap:20px;padding:0 16px;border-bottom:1px solid #dce2e9">
+                <span style="padding:12px 0;border-bottom:2px solid transparent;font:500 12.5px Archivo,sans-serif;color:#5f6b7a">Datos</span>
+                <span style="padding:12px 0;border-bottom:2px solid #22c6ee;font:600 12.5px Archivo,sans-serif;color:#10104e">Sedes <span style="color:#d97706">0</span></span>
+                <span style="padding:12px 0;border-bottom:2px solid transparent;font:500 12.5px Archivo,sans-serif;color:#5f6b7a">Contactos <span style="color:#253040;font-weight:600">0</span></span>
+                <span style="padding:12px 0;border-bottom:2px solid transparent;font:500 12.5px Archivo,sans-serif;color:#5f6b7a">Documentos <span style="color:#253040;font-weight:600">0</span></span>
+              </div>
+              <div style="padding:16px;display:flex;flex-direction:column;gap:14px">
+                <div style="border:1px solid #dce2e9;border-radius:6px;background:#ffffff;padding:24px 20px;display:flex;flex-direction:column;gap:10px;align-items:flex-start">
+                  <span style="font:600 13px Archivo,sans-serif;color:#10104e">Este cliente todavía no tiene sede</span>
+                  <span style="font:400 12.5px/1.6 Archivo,sans-serif;color:#253040;max-width:56ch">Falta el prerrequisito del paso siguiente. El servicio se liga a una sede, así que sin sede no se puede crear el servicio de este cliente. Con la dirección y un contacto queda resuelto.</span>
+                  <span style="display:flex;gap:9px;align-items:center;padding-top:4px">
+                    <button type="button" style="height:2.5rem;background:#10104e;color:#ffffff;border:1px solid #10104e;border-radius:6px;padding:0 15px;font:600 12.5px Archivo,sans-serif;cursor:pointer">Agregar sede</button>
+                    <button type="button" style="height:2.5rem;border:1px solid #dce2e9;background:#ffffff;border-radius:6px;padding:0 13px;font:600 12.5px Archivo,sans-serif;color:#253040;cursor:pointer">Editar cliente</button>
+                  </span>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:6px;border:1px solid #dce2e9;background:#f7f9fb;border-radius:6px;padding:13px">
+                  <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">LO QUE YA QUEDÓ GUARDADO</span>
+                  <span style="font:400 12px/1.5 Archivo,sans-serif;color:#253040">Textiles La Concepción · Jalisco, Tlaquepaque · alta 04 sep 2026. Nada se perdió al guardar sin sede.</span>
+                </div>
+              </div>
+              <div style="margin-top:auto;border-top:1px solid #dce2e9;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px">
+                <span style="font:400 11.5px/1.4 Archivo,sans-serif;color:#5f6b7a;max-width:30ch">No se puede crear el servicio: falta la sede a la que se ligaría.</span>
+                <span style="display:flex;gap:9px;align-items:center">
+                  <button type="button" style="height:2.5rem;background:#10104e;color:#ffffff;border:1px solid #10104e;border-radius:6px;padding:0 15px;font:600 12.5px Archivo,sans-serif;cursor:pointer">Agregar sede</button>
+                  <button type="button" disabled aria-describedby="v5-razon" style="height:2.5rem;border:1px solid #dce2e9;background:#f7f9fb;border-radius:6px;padding:0 15px;font:600 12.5px Archivo,sans-serif;color:#5f6b7a">Crear servicio de este cliente</button>
+                </span>
+              </div>
+              <span id="v5-razon" style="display:none">Necesita al menos una sede</span>
+            </div>
+          </div>
+          <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;padding:16px;display:flex;gap:28px">
+            <div style="flex:1"><div style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a;padding-bottom:7px">POR QUÉ NO ES UN CALLEJÓN</div><div style="font:400 12.5px/1.6 Archivo,sans-serif;color:#253040">El sistema dice qué falta y ofrece cómo obtenerlo en el mismo lugar: aviso arriba, estado vacío en la pestaña, y pie. «Agregar sede» está a un clic desde los tres.</div></div>
+            <div style="flex:1"><div style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a;padding-bottom:7px">SIN DEPENDER DEL COLOR</div><div style="font:400 12.5px/1.6 Archivo,sans-serif;color:#253040">La píldora dice «Sin sede», la pestaña Sedes marca 0, y el pie escribe la razón del bloqueo. El <span style="color:#d97706;font-weight:600">warning</span> acompaña al texto; nunca lo sustituye.</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;organizacion&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Seguridad Vanguardia S.A.&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Contexto&quot;},&quot;fecha&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;04 sep 2026&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Contexto&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const base = [
+      { nombre: 'Corporativo Altavista', ubicacion: 'Jalisco · Zapopan', sedes: '3', servicios: '5', estado: 'Activo' },
+      { nombre: 'Grupo Industrial Peñaflor', ubicacion: 'Jalisco · Tlaquepaque', sedes: '2', servicios: '3', estado: 'Activo' },
+      { nombre: 'Hospital Ángeles del Valle', ubicacion: 'Jalisco · Guadalajara', sedes: '4', servicios: '6', estado: 'Activo' },
+      { nombre: 'Muñoz y Asociados', ubicacion: 'Jalisco · Zapopan', sedes: '1', servicios: '1', estado: 'Activo' },
+      { nombre: 'Plaza Comercial Río Verde', ubicacion: 'Jalisco · Tonalá', sedes: '2', servicios: '0', estado: 'Activo' },
+      { nombre: 'Constructora Torreblanca del Bajío S.A. de C.V.', ubicacion: 'Jalisco · Zapopan', sedes: '1', servicios: '2', estado: 'Activo' },
+      { nombre: 'Textiles La Concepción', ubicacion: 'Jalisco · Tlaquepaque', sedes: '—', servicios: '0', estado: 'Activo', sinSede: true },
+      { nombre: 'Almacenes Ñuble', ubicacion: 'Jalisco · Guadalajara', sedes: '1', servicios: '1', estado: 'Activo', sinContacto: true },
+      { nombre: 'Centro Educativo Sor Juana Inés', ubicacion: 'Jalisco · Tlajomulco de Zúñiga', sedes: '2', servicios: '0', estado: 'Inactivo', inactivo: true }
+    ];
+
+    const wide = base.map(c => ({
+      nombre: c.nombre,
+      ubicacion: c.ubicacion,
+      sedes: c.sedes,
+      sedesColor: c.sinSede ? '#d97706' : '#253040',
+      pillText: c.sinSede ? 'Sin sede' : c.sinContacto ? '1 sin contacto' : '',
+      pillBorder: c.sinSede ? '#d97706' : c.sinContacto ? '#dce2e9' : 'transparent',
+      pillBg: c.sinSede ? '#ffffff' : c.sinContacto ? '#f7f9fb' : 'transparent',
+      pillColor: c.sinSede ? '#d97706' : c.sinContacto ? '#5f6b7a' : 'transparent',
+      servicios: c.servicios,
+      servColor: c.servicios === '0' ? '#5f6b7a' : '#253040',
+      estado: c.estado,
+      estadoDot: c.inactivo ? '#5f6b7a' : '#16a34a'
+    }));
+
+    const narrow = (seleccion) => base.map(c => ({
+      nombre: c.nombre,
+      sedes: c.sedes,
+      sedesColor: c.sinSede ? '#d97706' : '#253040',
+      aviso: c.sinSede ? 'Sin sede' : '',
+      bg: c.nombre === seleccion ? '#e9f7fa' : '#ffffff'
+    }));
+
+    const sedes = [
+      {
+        nombre: 'Torre Altavista',
+        pill: '', pillBorder: 'transparent', pillBg: 'transparent', pillColor: 'transparent',
+        direccion: 'Av. Patria 1250, piso 8, Col. Jardines Universidad, Zapopan, Jalisco, 45110',
+        contacto: 'Mariana Escalante Ruvalcaba', contactoColor: '#253040',
+        contactoNota: 'Coordinadora de operaciones · 33 1845 2290',
+        servicios: '3'
+      },
+      {
+        nombre: 'Bodega Altavista Norte',
+        pill: 'Sin contacto', pillBorder: '#d97706', pillBg: '#ffffff', pillColor: '#d97706',
+        direccion: 'Camino a la Tijera 44, Col. Santa Anita, Tlajomulco de Zúñiga, Jalisco, 45645',
+        contacto: 'Sin contacto registrado', contactoColor: '#d97706',
+        contactoNota: 'La sede se puede usar; el contacto se agrega después',
+        servicios: '2'
+      },
+      {
+        nombre: 'Oficina Centro',
+        pill: '', pillBorder: 'transparent', pillBg: 'transparent', pillColor: 'transparent',
+        direccion: 'Pedro Moreno 850, Col. Centro, Guadalajara, Jalisco, 44100',
+        contacto: 'Julián Ordóñez Peña', contactoColor: '#253040',
+        contactoNota: 'Administrador · 33 2077 1164',
+        servicios: '0'
+      }
+    ];
+
+    return {
+      organizacion: this.props.organizacion ?? 'Seguridad Vanguardia S.A.',
+      fecha: this.props.fecha ?? '04 sep 2026',
+      rows: wide,
+      rowsA: narrow('Corporativo Altavista'),
+      rowsE: narrow('Textiles La Concepción'),
+      rowsPlain: narrow(null),
+      sedes
+    };
+  }
+}
+
+</script>
+</body>
+</html>

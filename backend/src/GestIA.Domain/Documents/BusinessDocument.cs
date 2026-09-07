@@ -18,7 +18,7 @@ public sealed record BusinessDocumentProfile(
     bool IsSensitive,
     string? Notes);
 
-public sealed class BusinessDocument : AuditableEntity
+public sealed class BusinessDocument : AuditableEntity, IOrganizationScopedEntity
 {
     private BusinessDocument()
     {
@@ -42,6 +42,10 @@ public sealed class BusinessDocument : AuditableEntity
     public string StorageReference { get; private set; } = string.Empty;
     public bool IsSensitive { get; private set; }
     public string? Notes { get; private set; }
+    public string? ReviewNotes { get; private set; }
+    public DateTime? ReviewedAt { get; private set; }
+    public Guid? ReviewedBy { get; private set; }
+    public string? ReviewedByName { get; private set; }
     public Client? Client { get; private set; }
     public ServiceContract? ServiceContract { get; private set; }
     public Service? Service { get; private set; }
@@ -62,6 +66,7 @@ public sealed class BusinessDocument : AuditableEntity
             IdOrganization = idOrganization
         };
         document.ApplyProfile(profile);
+        document.Status = BusinessDocumentStatus.PendingReview;
         document.RegisterCreation(actorId, actorName, occurredAt);
         return document;
     }
@@ -72,8 +77,50 @@ public sealed class BusinessDocument : AuditableEntity
         string actorName,
         DateTime occurredAt)
     {
+        if (profile.OwnerType != OwnerType || profile.OwnerId != OwnerId)
+        {
+            throw new DomainRuleException("The document owner cannot be changed.");
+        }
+
+        if (IsSensitive && !profile.IsSensitive)
+        {
+            throw new DomainRuleException("A sensitive document cannot be declassified through a profile edit.");
+        }
+
         ApplyProfile(profile);
+        Status = BusinessDocumentStatus.PendingReview;
+        ReviewNotes = null;
+        ReviewedAt = null;
+        ReviewedBy = null;
+        ReviewedByName = null;
         RegisterUpdate(actorId, actorName, occurredAt);
+    }
+
+    public void Review(BusinessDocumentStatus status, string? reviewNotes, Guid actorId, string actorName, DateTime occurredAt)
+    {
+        if (status is not BusinessDocumentStatus.Validated and not BusinessDocumentStatus.Rejected)
+        {
+            throw new ArgumentOutOfRangeException(nameof(status));
+        }
+
+        if (status == BusinessDocumentStatus.Rejected && string.IsNullOrWhiteSpace(reviewNotes))
+        {
+            throw new ArgumentException("Review notes are required when rejecting a document.", nameof(reviewNotes));
+        }
+
+        ArgumentException.ThrowIfNullOrWhiteSpace(actorName);
+        Status = status;
+        ReviewNotes = string.IsNullOrWhiteSpace(reviewNotes) ? null : reviewNotes.Trim();
+        ReviewedAt = occurredAt.Kind == DateTimeKind.Local ? occurredAt.ToUniversalTime() : DateTime.SpecifyKind(occurredAt, DateTimeKind.Utc);
+        ReviewedBy = actorId;
+        ReviewedByName = actorName.Trim();
+        RegisterUpdate(actorId, actorName, occurredAt);
+    }
+
+    public void Archive(Guid actorId, string actorName, DateTime occurredAt)
+    {
+        Status = BusinessDocumentStatus.Archived;
+        Deactivate(actorId, actorName, occurredAt);
     }
 
     private void ApplyProfile(BusinessDocumentProfile profile)

@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\GestIA.Domain\GestIA.Domain.csproj" />
+    <EmbeddedResource Include="Catalogs\mexico-geography.json" LogicalName="GestIA.MexicoGeography.20260903" />
   </ItemGroup>
 
   <ItemGroup>

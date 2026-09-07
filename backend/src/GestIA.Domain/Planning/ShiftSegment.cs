@@ -10,7 +10,7 @@ public sealed record ShiftSegmentProfile(
     int RequiredWorkerCount,
     string? Notes);
 
-public sealed class ShiftSegment : AuditableEntity
+public sealed class ShiftSegment : AuditableEntity, IOrganizationScopedEntity
 {
     private ShiftSegment()
     {
@@ -18,6 +18,7 @@ public sealed class ShiftSegment : AuditableEntity
 
     private ShiftSegment(
         Guid idShiftSegment,
+        Guid idOrganization,
         Guid idShiftPattern,
         ShiftSegmentProfile profile,
         Guid actorId,
@@ -25,12 +26,14 @@ public sealed class ShiftSegment : AuditableEntity
         DateTime occurredAt)
     {
         IdShiftSegment = idShiftSegment;
+        IdOrganization = idOrganization;
         IdShiftPattern = idShiftPattern;
         ApplyProfile(profile);
         RegisterCreation(actorId, actorName, occurredAt);
     }
 
     public Guid IdShiftSegment { get; private set; }
+    public Guid IdOrganization { get; private set; }
     public Guid IdShiftPattern { get; private set; }
     public DayOfWeek DayOfWeek { get; private set; }
     public TimeOnly StartTime { get; private set; }
@@ -42,12 +45,13 @@ public sealed class ShiftSegment : AuditableEntity
     public ShiftPattern ShiftPattern { get; private set; } = null!;
 
     public static ShiftSegment Create(
+        Guid idOrganization,
         Guid idShiftPattern,
         ShiftSegmentProfile profile,
         Guid actorId,
         string actorName,
         DateTime occurredAt) =>
-        new(Guid.NewGuid(), idShiftPattern, profile, actorId, actorName, occurredAt);
+        new(Guid.NewGuid(), idOrganization, idShiftPattern, profile, actorId, actorName, occurredAt);
 
     public void UpdateProfile(
         ShiftSegmentProfile profile,

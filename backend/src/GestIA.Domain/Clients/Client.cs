@@ -3,7 +3,7 @@ using GestIA.Domain.Organizations;
 
 namespace GestIA.Domain.Clients;
 
-public sealed class Client : AuditableEntity
+public sealed class Client : AuditableEntity, IOrganizationScopedEntity
 {
     private readonly List<ClientContact> contacts = [];
     private readonly List<ClientSite> sites = [];

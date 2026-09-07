@@ -1,6 +1,6 @@
 <article class="page-hero operation-hero">
   <div>
-    <span class="kicker">Operación / {{ tabTitle() }}</span>
+    <span class="kicker">{{ operationScopeLabel() }} / {{ tabTitle() }}</span>
     <h1>{{ tabTitle() }}</h1>
     <p>{{ tabDescription() }}</p>
   </div>
@@ -12,14 +12,6 @@
 </article>
 
 <section class="filters context-bar" aria-label="Contexto operativo fijo">
-  <label>
-    Organización
-    <select [value]="selectedOrganizationId()" (change)="onOrganizationChange($event)">
-      @for (organization of organizations(); track organization.idOrganization) {
-        <option [value]="organization.idOrganization">{{ organization.legalName }}</option>
-      }
-    </select>
-  </label>
 
   <label>
     Cliente
@@ -453,11 +445,7 @@
 
       <label>
         Tipo
-        <select formControlName="incidentType">
-          @for (type of incidentTypes; track type.value) {
-            <option [value]="type.value">{{ type.label }}</option>
-          }
-        </select>
+        <app-catalog-select formControlName="incidentType" [organizationId]="selectedOrganizationId()" type="IncidentReason" label="Tipo de incidencia" [useCode]="true" />
       </label>
     </div>
 
@@ -634,11 +622,7 @@
 
         <label>
           Motivo de cobertura
-          <select formControlName="coverageReason" [disabled]="!hasPublishedShifts()">
-            @for (reason of coverageReasons; track reason) {
-              <option [value]="reason">{{ reason }}</option>
-            }
-          </select>
+          <app-catalog-select formControlName="coverageReason" [organizationId]="selectedOrganizationId()" type="CoverageReason" label="Motivo de cobertura" [useId]="true" />
         </label>
       </div>
 

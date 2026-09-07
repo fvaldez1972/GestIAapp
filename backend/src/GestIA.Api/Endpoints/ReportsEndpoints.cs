@@ -1,3 +1,4 @@
+using GestIA.Application.Common;
 using GestIA.Api.Security;
 using GestIA.Application.Reports;
 using GestIA.Application.Security;
@@ -16,14 +17,21 @@ public static class ReportsEndpoints
             .WithTags("Reports");
 
         group.MapGet("/operations-summary", async (
+            HttpContext context,
             Guid organizationId,
             Guid? clientId,
             Guid? serviceId,
             DateOnly? fromDate,
             DateOnly? toDate,
             IReportsService service,
+            IClock clock,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.GetOperationsSummaryAsync(
                 new OperationsSummaryQuery(organizationId, clientId, serviceId, fromDate, toDate),
                 cancellationToken);
@@ -33,14 +41,21 @@ public static class ReportsEndpoints
             .WithName("GetOperationsSummary");
 
         group.MapGet("/operations-by-service", async (
+            HttpContext context,
             Guid organizationId,
             Guid? clientId,
             Guid? serviceId,
             DateOnly? fromDate,
             DateOnly? toDate,
             IReportsService service,
+            IClock clock,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.GetOperationsByServiceAsync(
                 new OperationsSummaryQuery(organizationId, clientId, serviceId, fromDate, toDate),
                 cancellationToken);
@@ -50,16 +65,23 @@ public static class ReportsEndpoints
             .WithName("GetOperationsByService");
 
         group.MapGet("/workforce-eligibility", async (
+            HttpContext context,
             Guid organizationId,
             DateOnly? referenceDate,
             string? search,
             IReportsService service,
+            IClock clock,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.GetWorkforceEligibilityAsync(
                 new WorkforceEligibilityQuery(
                     organizationId,
-                    referenceDate ?? DateOnly.FromDateTime(DateTime.UtcNow),
+                    referenceDate ?? clock.Today,
                     search),
                 cancellationToken);
             return Results.Ok(result);
@@ -68,21 +90,28 @@ public static class ReportsEndpoints
             .WithName("GetWorkforceEligibility");
 
         group.MapGet("/operations-export", async (
+            HttpContext context,
             Guid organizationId,
             Guid? clientId,
             Guid? serviceId,
             DateOnly? fromDate,
             DateOnly? toDate,
             IReportsService service,
+            IClock clock,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var query = new OperationsSummaryQuery(organizationId, clientId, serviceId, fromDate, toDate);
             var summary = await service.GetOperationsSummaryAsync(query, cancellationToken);
             var services = await service.GetOperationsByServiceAsync(query, cancellationToken);
             var workforce = await service.GetWorkforceEligibilityAsync(
                 new WorkforceEligibilityQuery(
                     organizationId,
-                    toDate ?? DateOnly.FromDateTime(DateTime.UtcNow),
+                    toDate ?? clock.Today,
                     null),
                 cancellationToken);
 
@@ -95,16 +124,24 @@ public static class ReportsEndpoints
             .WithName("ExportOperationsReport");
 
         group.MapGet("/operations-export.xlsx", async (
+            HttpContext context,
             Guid organizationId,
             Guid? clientId,
             Guid? serviceId,
             DateOnly? fromDate,
             DateOnly? toDate,
             IReportsService service,
+            IClock clock,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var rows = await BuildOperationsRowsAsync(
                 service,
+                clock,
                 new OperationsSummaryQuery(organizationId, clientId, serviceId, fromDate, toDate),
                 toDate,
                 cancellationToken);
@@ -119,16 +156,24 @@ public static class ReportsEndpoints
             .WithName("ExportOperationsReportExcel");
 
         group.MapGet("/operations-export.pdf", async (
+            HttpContext context,
             Guid organizationId,
             Guid? clientId,
             Guid? serviceId,
             DateOnly? fromDate,
             DateOnly? toDate,
             IReportsService service,
+            IClock clock,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var rows = await BuildOperationsRowsAsync(
                 service,
+                clock,
                 new OperationsSummaryQuery(organizationId, clientId, serviceId, fromDate, toDate),
                 toDate,
                 cancellationToken);
@@ -147,6 +192,7 @@ public static class ReportsEndpoints
 
     private static async Task<IReadOnlyList<IReadOnlyList<object?>>> BuildOperationsRowsAsync(
         IReportsService service,
+        IClock clock,
         OperationsSummaryQuery query,
         DateOnly? toDate,
         CancellationToken cancellationToken)
@@ -156,7 +202,7 @@ public static class ReportsEndpoints
         var workforce = await service.GetWorkforceEligibilityAsync(
             new WorkforceEligibilityQuery(
                 query.IdOrganization,
-                toDate ?? DateOnly.FromDateTime(DateTime.UtcNow),
+                toDate ?? clock.Today,
                 null),
             cancellationToken);
 

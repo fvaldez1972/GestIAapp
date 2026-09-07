@@ -2,7 +2,19 @@ using GestIA.Domain.Common;
 
 namespace GestIA.Domain.Clients;
 
-public sealed class ClientContact : AuditableEntity
+/// <summary>
+/// Lleva su propia <c>IdOrganization</c> aunque la alcanzaría por su padre.
+///
+/// <para>Está denormalizada a propósito, y la decisión se tomó al revés de lo que dijo la tanda A.
+/// Entonces la alternativa era "una columna redundante contra ningún costo". Con el filtro global
+/// de la tanda B la alternativa pasó a ser un filtro por navegación, y eso hace que <b>el filtro
+/// del hijo dependa del filtro del padre</b>: apagar uno sin el otro da resultados que hay que
+/// razonar caso por caso, que es justo lo que el filtro global vino a evitar.</para>
+///
+/// <para>Es seguro porque la organización del padre es <b>inmutable</b>, y eso no es una
+/// suposición: <c>OrganizationScopeTests</c> falla si alguien expone una vía de cambiarla.</para>
+/// </summary>
+public sealed class ClientContact : AuditableEntity, IOrganizationScopedEntity
 {
     private ClientContact()
     {
@@ -10,6 +22,7 @@ public sealed class ClientContact : AuditableEntity
 
     private ClientContact(
         Guid idClientContact,
+        Guid idOrganization,
         Guid idClient,
         Guid? idClientSite,
         ClientContactDetails details,
@@ -18,12 +31,14 @@ public sealed class ClientContact : AuditableEntity
         DateTime occurredAt)
     {
         IdClientContact = idClientContact;
+        IdOrganization = idOrganization;
         IdClient = idClient;
         ApplyDetails(idClientSite, details);
         RegisterCreation(actorId, actorName, occurredAt);
     }
 
     public Guid IdClientContact { get; private set; }
+    public Guid IdOrganization { get; private set; }
     public Guid IdClient { get; private set; }
     public Guid? IdClientSite { get; private set; }
     public ClientContactPurpose Purpose { get; private set; }
@@ -37,6 +52,7 @@ public sealed class ClientContact : AuditableEntity
     public ClientSite? ClientSite { get; private set; }
 
     public static ClientContact Create(
+        Guid idOrganization,
         Guid idClient,
         Guid? idClientSite,
         ClientContactPurpose purpose,
@@ -49,6 +65,7 @@ public sealed class ClientContact : AuditableEntity
         string actorName,
         DateTime occurredAt) =>
         Create(
+            idOrganization,
             idClient,
             idClientSite,
             new ClientContactDetails(purpose, fullName, null, email, phone, mobilePhone, isPrimary),
@@ -57,13 +74,14 @@ public sealed class ClientContact : AuditableEntity
             occurredAt);
 
     public static ClientContact Create(
+        Guid idOrganization,
         Guid idClient,
         Guid? idClientSite,
         ClientContactDetails details,
         Guid actorId,
         string actorName,
         DateTime occurredAt) =>
-        new(Guid.NewGuid(), idClient, idClientSite, details, actorId, actorName, occurredAt);
+        new(Guid.NewGuid(), idOrganization, idClient, idClientSite, details, actorId, actorName, occurredAt);
 
     public void UpdateDetails(
         Guid? idClientSite,

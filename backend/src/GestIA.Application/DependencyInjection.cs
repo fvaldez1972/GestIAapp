@@ -1,4 +1,5 @@
 using GestIA.Application.Audit;
+using GestIA.Application.History;
 using GestIA.Application.Clients;
 using GestIA.Application.Assignments;
 using GestIA.Application.Catalogs;
@@ -6,6 +7,7 @@ using GestIA.Application.Documents;
 using GestIA.Application.Operations;
 using GestIA.Application.Organizations;
 using GestIA.Application.Planning;
+using GestIA.Application.Overview;
 using GestIA.Application.Reports;
 using GestIA.Application.Requests;
 using GestIA.Application.Scheduling;
@@ -21,6 +23,8 @@ public static class DependencyInjection
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
         services.AddScoped<IOrganizationService, OrganizationService>();
+        services.AddScoped<IOperationalHistoryService, OperationalHistoryService>();
+        services.AddScoped<IOrganizationProvisioningService, OrganizationProvisioningService>();
         services.AddScoped<IClientService, ClientService>();
         services.AddScoped<IClientSiteService, ClientSiteService>();
         services.AddScoped<IClientContactService, ClientContactService>();
@@ -30,9 +34,13 @@ public static class DependencyInjection
         services.AddScoped<IPlanningService, PlanningService>();
         services.AddScoped<IAssignmentService, AssignmentService>();
         services.AddScoped<ICatalogService, CatalogService>();
+        services.AddScoped<FormCatalogValidator>();
+        services.AddScoped<OrganizationCatalogDefaults>();
         services.AddScoped<ISchedulingService, SchedulingService>();
         services.AddScoped<IOperationsService, OperationsService>();
         services.AddScoped<IReportsService, ReportsService>();
+        services.AddScoped<IOverviewService, OverviewService>();
+        services.AddScoped<IEmployeeSearchService, EmployeeSearchService>();
         services.AddScoped<IOperationalRequestService, OperationalRequestService>();
         services.AddScoped<IAuditService, AuditService>();
         services.AddScoped<IAuthenticationService, AuthenticationService>();

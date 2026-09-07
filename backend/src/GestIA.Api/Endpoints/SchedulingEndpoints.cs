@@ -12,12 +12,18 @@ public static class SchedulingEndpoints
             .WithTags("Scheduling");
 
         versionGroup.MapGet("", async (
+            HttpContext context,
             Guid idClient,
             Guid idService,
             Guid organizationId,
             ISchedulingService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.ListScheduleVersionsAsync(organizationId, idClient, idService, cancellationToken);
             return Results.Ok(result);
         })
@@ -25,12 +31,18 @@ public static class SchedulingEndpoints
             .WithName("ListScheduleVersions");
 
         versionGroup.MapPost("", async (
+            HttpContext context,
             Guid idClient,
             Guid idService,
             CreateScheduleVersionRequest request,
             ISchedulingService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, request.IdOrganization) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.CreateScheduleVersionAsync(
                 request with { IdClient = idClient, IdService = idService },
                 cancellationToken);
@@ -42,6 +54,7 @@ public static class SchedulingEndpoints
             .WithName("CreateScheduleVersion");
 
         versionGroup.MapPut("/{idScheduleVersion:guid}", async (
+            HttpContext context,
             Guid idClient,
             Guid idService,
             Guid idScheduleVersion,
@@ -49,6 +62,11 @@ public static class SchedulingEndpoints
             ISchedulingService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, request.IdOrganization) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.UpdateScheduleVersionAsync(
                 idScheduleVersion,
                 request with { IdClient = idClient, IdService = idService },
@@ -59,6 +77,7 @@ public static class SchedulingEndpoints
             .WithName("UpdateScheduleVersion");
 
         versionGroup.MapPost("/{idScheduleVersion:guid}/publish", async (
+            HttpContext context,
             Guid idClient,
             Guid idService,
             Guid idScheduleVersion,
@@ -66,6 +85,11 @@ public static class SchedulingEndpoints
             ISchedulingService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.PublishScheduleVersionAsync(
                 organizationId,
                 idClient,
@@ -78,6 +102,7 @@ public static class SchedulingEndpoints
             .WithName("PublishScheduleVersion");
 
         versionGroup.MapPost("/{idScheduleVersion:guid}/generate-from-patterns", async (
+            HttpContext context,
             Guid idClient,
             Guid idService,
             Guid idScheduleVersion,
@@ -85,6 +110,11 @@ public static class SchedulingEndpoints
             ISchedulingService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, request.IdOrganization) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.GenerateScheduledShiftsAsync(
                 request with { IdClient = idClient, IdService = idService, IdScheduleVersion = idScheduleVersion },
                 cancellationToken);
@@ -96,6 +126,7 @@ public static class SchedulingEndpoints
         var shiftGroup = versionGroup.MapGroup("/{idScheduleVersion:guid}/shifts");
 
         shiftGroup.MapGet("", async (
+            HttpContext context,
             Guid idClient,
             Guid idService,
             Guid idScheduleVersion,
@@ -103,6 +134,11 @@ public static class SchedulingEndpoints
             ISchedulingService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.ListScheduledShiftsAsync(
                 organizationId,
                 idClient,
@@ -115,6 +151,7 @@ public static class SchedulingEndpoints
             .WithName("ListScheduledShifts");
 
         shiftGroup.MapPost("", async (
+            HttpContext context,
             Guid idClient,
             Guid idService,
             Guid idScheduleVersion,
@@ -122,6 +159,11 @@ public static class SchedulingEndpoints
             ISchedulingService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, request.IdOrganization) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.CreateScheduledShiftAsync(
                 request with { IdClient = idClient, IdService = idService, IdScheduleVersion = idScheduleVersion },
                 cancellationToken);
@@ -133,6 +175,7 @@ public static class SchedulingEndpoints
             .WithName("CreateScheduledShift");
 
         shiftGroup.MapPut("/{idScheduledShift:guid}", async (
+            HttpContext context,
             Guid idClient,
             Guid idService,
             Guid idScheduleVersion,
@@ -141,6 +184,11 @@ public static class SchedulingEndpoints
             ISchedulingService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, request.IdOrganization) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.UpdateScheduledShiftAsync(
                 idScheduledShift,
                 request with { IdClient = idClient, IdService = idService, IdScheduleVersion = idScheduleVersion },
@@ -151,6 +199,7 @@ public static class SchedulingEndpoints
             .WithName("UpdateScheduledShift");
 
         shiftGroup.MapDelete("/{idScheduledShift:guid}", async (
+            HttpContext context,
             Guid idClient,
             Guid idService,
             Guid idScheduleVersion,
@@ -159,6 +208,11 @@ public static class SchedulingEndpoints
             ISchedulingService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             await service.DeactivateScheduledShiftAsync(
                 organizationId,
                 idClient,

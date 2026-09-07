@@ -71,6 +71,7 @@ public sealed class BusinessEntityTests
     {
         var configuration = ServiceConfiguration.Create(
             Guid.NewGuid(),
+            Guid.NewGuid(),
             new DateOnly(2026, 9, 1),
             1,
             24,
@@ -93,6 +94,7 @@ public sealed class BusinessEntityTests
     public void ServiceConfigurationRejectsMoreThanSevenDaysPerWeek()
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => ServiceConfiguration.Create(
+            Guid.NewGuid(),
             Guid.NewGuid(),
             new DateOnly(2026, 9, 1),
             1,

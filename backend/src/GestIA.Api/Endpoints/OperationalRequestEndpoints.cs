@@ -13,6 +13,7 @@ public static class OperationalRequestEndpoints
             .WithTags("Requests");
 
         group.MapGet("", async (
+            HttpContext context,
             Guid organizationId,
             OperationalRequestStatus? status,
             OperationalRequestType? requestType,
@@ -22,6 +23,11 @@ public static class OperationalRequestEndpoints
             IOperationalRequestService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.ListAsync(
                 new OperationalRequestQuery(
                     organizationId,
@@ -37,10 +43,16 @@ public static class OperationalRequestEndpoints
             .WithName("ListOperationalRequests");
 
         group.MapPost("", async (
+            HttpContext context,
             CreateOperationalRequestRequest request,
             IOperationalRequestService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, request.IdOrganization) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.CreateAsync(request, cancellationToken);
             return Results.Created($"/api/v1/requests/{result.IdOperationalRequest}", result);
         })
@@ -48,11 +60,17 @@ public static class OperationalRequestEndpoints
             .WithName("CreateOperationalRequest");
 
         group.MapPut("/{idOperationalRequest:guid}", async (
+            HttpContext context,
             Guid idOperationalRequest,
             UpdateOperationalRequestRequest request,
             IOperationalRequestService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, request.IdOrganization) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.UpdateAsync(idOperationalRequest, request, cancellationToken);
             return Results.Ok(result);
         })
@@ -60,11 +78,17 @@ public static class OperationalRequestEndpoints
             .WithName("UpdateOperationalRequest");
 
         group.MapPatch("/{idOperationalRequest:guid}/status", async (
+            HttpContext context,
             Guid idOperationalRequest,
             ChangeOperationalRequestStatusRequest request,
             IOperationalRequestService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, request.IdOrganization) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.ChangeStatusAsync(idOperationalRequest, request, cancellationToken);
             return Results.Ok(result);
         })
@@ -72,11 +96,17 @@ public static class OperationalRequestEndpoints
             .WithName("ChangeOperationalRequestStatus");
 
         group.MapPost("/{idOperationalRequest:guid}/execution-preview", async (
+            HttpContext context,
             Guid idOperationalRequest,
             ExecuteOperationalRequestRequest request,
             IOperationalRequestService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, request.IdOrganization) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.PreviewExecutionAsync(idOperationalRequest, request, cancellationToken);
             return Results.Ok(result);
         })
@@ -84,11 +114,17 @@ public static class OperationalRequestEndpoints
             .WithName("PreviewOperationalRequestExecution");
 
         group.MapPost("/{idOperationalRequest:guid}/execute", async (
+            HttpContext context,
             Guid idOperationalRequest,
             ExecuteOperationalRequestRequest request,
             IOperationalRequestService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, request.IdOrganization) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var result = await service.ExecuteAsync(idOperationalRequest, request, cancellationToken);
             return Results.Ok(result);
         })

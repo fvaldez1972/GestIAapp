@@ -3,7 +3,7 @@ using GestIA.Domain.Common;
 
 namespace GestIA.Domain.Services;
 
-public sealed class Service : AuditableEntity
+public sealed class Service : AuditableEntity, IOrganizationScopedEntity
 {
     private readonly List<ServiceConfiguration> configurations = [];
 
@@ -13,6 +13,7 @@ public sealed class Service : AuditableEntity
 
     private Service(
         Guid idService,
+        Guid idOrganization,
         Guid idClient,
         Guid idClientSite,
         Guid? idServiceContract,
@@ -23,6 +24,7 @@ public sealed class Service : AuditableEntity
         DateTime occurredAt)
     {
         IdService = idService;
+        IdOrganization = idOrganization;
         IdClient = idClient;
         IdClientSite = idClientSite;
         IdServiceContract = idServiceContract;
@@ -32,6 +34,7 @@ public sealed class Service : AuditableEntity
     }
 
     public Guid IdService { get; private set; }
+    public Guid IdOrganization { get; private set; }
     public Guid IdClient { get; private set; }
     public Guid IdClientSite { get; private set; }
     public Guid? IdServiceContract { get; private set; }
@@ -47,6 +50,7 @@ public sealed class Service : AuditableEntity
     public IReadOnlyCollection<ServiceConfiguration> Configurations => configurations;
 
     public static Service Create(
+        Guid idOrganization,
         Guid idClient,
         Guid idClientSite,
         Guid? idServiceContract,
@@ -58,6 +62,7 @@ public sealed class Service : AuditableEntity
         string actorName,
         DateTime occurredAt) =>
         Create(
+            idOrganization,
             idClient,
             idClientSite,
             idServiceContract,
@@ -68,6 +73,7 @@ public sealed class Service : AuditableEntity
             occurredAt);
 
     public static Service Create(
+        Guid idOrganization,
         Guid idClient,
         Guid idClientSite,
         Guid? idServiceContract,
@@ -76,7 +82,7 @@ public sealed class Service : AuditableEntity
         Guid actorId,
         string actorName,
         DateTime occurredAt) =>
-        new(Guid.NewGuid(), idClient, idClientSite, idServiceContract, codeService, profile, actorId, actorName, occurredAt);
+        new(Guid.NewGuid(), idOrganization, idClient, idClientSite, idServiceContract, codeService, profile, actorId, actorName, occurredAt);
 
     public void UpdateProfile(
         Guid idClientSite,

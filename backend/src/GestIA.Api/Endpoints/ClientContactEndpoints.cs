@@ -12,11 +12,17 @@ public static class ClientContactEndpoints
             .WithTags("Client Contacts");
 
         group.MapGet("", async (
+            HttpContext context,
             Guid idClient,
             Guid organizationId,
             IClientContactService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var contacts = await service.ListAsync(organizationId, idClient, cancellationToken);
             return Results.Ok(contacts);
         })
@@ -24,11 +30,17 @@ public static class ClientContactEndpoints
             .WithName("ListClientContacts");
 
         group.MapPost("", async (
+            HttpContext context,
             Guid idClient,
             CreateClientContactRequest request,
             IClientContactService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, request.IdOrganization) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var contact = await service.CreateAsync(request with { IdClient = idClient }, cancellationToken);
             return Results.Created($"/api/v1/clients/{idClient}/contacts/{contact.IdClientContact}", contact);
         })
@@ -36,12 +48,18 @@ public static class ClientContactEndpoints
             .WithName("CreateClientContact");
 
         group.MapPut("/{idClientContact:guid}", async (
+            HttpContext context,
             Guid idClient,
             Guid idClientContact,
             UpdateClientContactRequest request,
             IClientContactService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, request.IdOrganization) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             var contact = await service.UpdateAsync(
                 idClientContact,
                 request with { IdClient = idClient },
@@ -52,12 +70,18 @@ public static class ClientContactEndpoints
             .WithName("UpdateClientContact");
 
         group.MapDelete("/{idClientContact:guid}", async (
+            HttpContext context,
             Guid idClient,
             Guid idClientContact,
             Guid organizationId,
             IClientContactService service,
             CancellationToken cancellationToken) =>
         {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
             await service.DeactivateAsync(organizationId, idClient, idClientContact, cancellationToken);
             return Results.NoContent();
         })

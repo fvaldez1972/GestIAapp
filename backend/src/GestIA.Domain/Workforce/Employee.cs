@@ -27,9 +27,11 @@ public sealed record EmployeeProfile(
     string? State,
     string? PostalCode,
     string? HousingType,
-    DateOnly? ResidenceSinceDate);
+    DateOnly? ResidenceSinceDate,
+    string? CountryCode = null,
+    Guid? IdJobPositionCatalogItem = null);
 
-public sealed class Employee : AuditableEntity
+public sealed class Employee : AuditableEntity, IOrganizationScopedEntity
 {
     private readonly List<EmployeeDocument> documents = [];
     private readonly List<EmployeeEvaluation> evaluations = [];
@@ -47,7 +49,8 @@ public sealed class Employee : AuditableEntity
         DateOnly hireDate,
         Guid actorId,
         string actorName,
-        DateTime occurredAt)
+        DateTime occurredAt,
+        Guid? idJobPositionCatalogItem = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(codeEmployee);
         ArgumentException.ThrowIfNullOrWhiteSpace(fullName);
@@ -57,6 +60,7 @@ public sealed class Employee : AuditableEntity
         Status = EmployeeStatus.Active;
         FullName = fullName.Trim();
         JobTitle = string.IsNullOrWhiteSpace(jobTitle) ? null : jobTitle.Trim();
+        IdJobPositionCatalogItem = idJobPositionCatalogItem;
         HireDate = hireDate;
         RegisterCreation(actorId, actorName, occurredAt);
     }
@@ -66,6 +70,20 @@ public sealed class Employee : AuditableEntity
     public string CodeEmployee { get; private set; } = string.Empty;
     public EmployeeStatus Status { get; private set; }
     public string FullName { get; private set; } = string.Empty;
+    /// <summary>
+    /// El puesto de la persona, por identificador contra el catálogo <c>JobPosition</c>.
+    ///
+    /// <para><b>Es nulable, y eso significa algo distinto de "no cumple".</b> Un valor nulo dice
+    /// "no sabemos cuál es su puesto", normalmente porque el texto libre heredado no correspondía
+    /// a ninguna entrada del catálogo. La elegibilidad <b>no bloquea</b> por un nulo: no es lo
+    /// mismo no cumplir el perfil que no saber cuál es, y tratarlos igual impediría asignar a
+    /// gente que sí puede.</para>
+    ///
+    /// <para>Convive con el texto libre, que se conserva sin tocar hasta que no queden nulos. La
+    /// comparación de elegibilidad usa este identificador; el texto ya no decide nada.</para>
+    /// </summary>
+    public Guid? IdJobPositionCatalogItem { get; private set; }
+
     public string? JobTitle { get; private set; }
     public DateOnly HireDate { get; private set; }
     public DateOnly? BirthDate { get; private set; }
@@ -86,6 +104,7 @@ public sealed class Employee : AuditableEntity
     public string? Address { get; private set; }
     public string? Municipality { get; private set; }
     public string? State { get; private set; }
+    public string? CountryCode { get; private set; }
     public string? PostalCode { get; private set; }
     public string? HousingType { get; private set; }
     public DateOnly? ResidenceSinceDate { get; private set; }
@@ -93,6 +112,14 @@ public sealed class Employee : AuditableEntity
     public IReadOnlyCollection<EmployeeDocument> Documents => documents;
     public IReadOnlyCollection<EmployeeEvaluation> Evaluations => evaluations;
 
+    /// <summary>
+    /// Alta breve.
+    ///
+    /// <para><c>idJobPositionCatalogItem</c> es opcional pero <b>existe a propósito</b>: sin él esta
+    /// sobrecarga no podía expresar un empleado con el puesto ligado al catálogo, y quien la usaba
+    /// creaba gente con el puesto sólo como texto. La elegibilidad se compara por identificador, así
+    /// que ese expediente queda sin poder comprobarse.</para>
+    /// </summary>
     public static Employee Create(
         Guid idOrganization,
         string codeEmployee,
@@ -101,7 +128,8 @@ public sealed class Employee : AuditableEntity
         DateOnly hireDate,
         Guid actorId,
         string actorName,
-        DateTime occurredAt) =>
+        DateTime occurredAt,
+        Guid? idJobPositionCatalogItem = null) =>
         new(
             Guid.NewGuid(),
             idOrganization,
@@ -111,7 +139,8 @@ public sealed class Employee : AuditableEntity
             hireDate,
             actorId,
             actorName,
-            occurredAt);
+            occurredAt,
+            idJobPositionCatalogItem);
 
     public static Employee Create(
         Guid idOrganization,
@@ -159,6 +188,7 @@ public sealed class Employee : AuditableEntity
         ArgumentException.ThrowIfNullOrWhiteSpace(profile.FullName);
 
         FullName = profile.FullName.Trim();
+        IdJobPositionCatalogItem = profile.IdJobPositionCatalogItem;
         JobTitle = Normalize(profile.JobTitle);
         HireDate = profile.HireDate;
         BirthDate = profile.BirthDate;
@@ -179,6 +209,7 @@ public sealed class Employee : AuditableEntity
         Address = Normalize(profile.Address);
         Municipality = Normalize(profile.Municipality);
         State = Normalize(profile.State);
+        CountryCode = Normalize(profile.CountryCode)?.ToUpperInvariant();
         PostalCode = Normalize(profile.PostalCode);
         HousingType = Normalize(profile.HousingType);
         ResidenceSinceDate = profile.ResidenceSinceDate;

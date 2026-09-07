@@ -1,0 +1,45 @@
+<header class="monitor-heading">
+  <div><span class="eyebrow">Operacion / Plataforma</span><h1>Monitor de organizaciones</h1></div>
+  <button class="gi-button gi-button--secondary" type="button" [disabled]="loading()" (click)="reload()">Actualizar</button>
+</header>
+<section class="monitor-metrics" aria-label="Estado de plataforma">
+  <div><span>Organizaciones</span><strong>{{ organizations().length }}</strong></div>
+  <div><span>Activas</span><strong>{{ activeCount() }}</strong></div>
+  <div><span>Sin administrador</span><strong>{{ withoutAdminCount() }}</strong></div>
+  <div><span>Organizacion abierta</span><strong class="context-name">{{ auth.activeOrganization()?.legalName || 'Ninguna' }}</strong></div>
+</section>
+<section aria-label="Directorio de organizaciones">
+  <div class="monitor-toolbar">
+    <label>Buscar<input type="search" class="gi-input" [ngModel]="search()" (ngModelChange)="search.set($event)" placeholder="Nombre o codigo" /></label>
+    <label>Estado<select class="gi-input" [ngModel]="state()" (ngModelChange)="state.set($event)"><option value="all">Todos</option><option value="active">Activas</option><option value="inactive">Inactivas</option></select></label>
+    <a class="gi-button gi-button--secondary" routerLink="/plataforma/organizaciones">Gestionar organizaciones</a>
+  </div>
+  @if (error()) { <p role="alert" class="gi-alert gi-alert--error">{{ error() }}</p> }
+  @if (loading()) { <p role="status">Cargando organizaciones...</p> } @else {
+    <div class="monitor-table" tabindex="0" aria-label="Organizaciones">
+      <table class="gi-table"><thead><tr><th>Organizacion</th><th>Estado</th><th>Clientes</th><th>Usuarios</th><th>Administradores</th><th>Acciones</th></tr></thead>
+        <tbody>@for (item of visibleOrganizations(); track item.organization.idOrganization) {
+          <tr><td><strong>{{ item.organization.legalName }}</strong><small>{{ item.organization.codeOrganization }}</small></td><td>{{ item.organization.active ? 'Activa' : 'Inactiva' }}</td><td>{{ item.clients.length }}</td><td>{{ item.usersCount }}</td><td>{{ item.adminsCount }}</td><td>
+            @if (auth.activeOrganizationId() === item.organization.idOrganization) { <a class="gi-button gi-button--secondary" routerLink="/">Abrir contexto</a> }
+            @else { <button class="gi-button gi-button--secondary" type="button" [disabled]="!item.organization.active" (click)="auth.setActiveOrganization(item.organization.idOrganization)"><app-icon name="security" /> Entrar</button> }
+          </td></tr>
+        } @empty { <tr><td colspan="6">No hay organizaciones que coincidan.</td></tr> }</tbody>
+      </table>
+    </div>
+  }
+</section>
+<section class="monitor-operations" aria-labelledby="monitor-operations-title">
+  <header class="monitor-heading"><div><h2 id="monitor-operations-title">Operacion de la organizacion abierta</h2><p>{{ auth.activeOrganization()?.legalName || 'Ninguna organizacion abierta' }}</p></div>
+    @if (auth.activeOrganization()) { <label>Fecha operativa<input type="date" class="gi-input" [ngModel]="operationDate()" (ngModelChange)="operationDate.set($event)" /></label> }
+  </header>
+  @if (!auth.activeOrganization()) { <p>Entra a una organizacion para consultar sus datos operativos.</p> }
+  @else if (operationsLoading()) { <p role="status">Cargando operacion...</p> }
+  @else if (operationsError()) { <p role="alert">{{ operationsError() }}</p><button class="gi-button" (click)="refreshVersion.update(increment)">Reintentar</button> }
+  @else if (summary(); as current) {
+    <div class="monitor-metrics"><div><span>Asistencias registradas</span><strong>{{ current.attendanceRecords }}</strong></div><div><span>Incidencias abiertas</span><strong>{{ current.openIncidents }}</strong></div><div><span>Incidencias criticas</span><strong>{{ current.criticalIncidents }}</strong></div><div><span>Autorizaciones pendientes</span><strong>{{ current.pendingApprovals }}</strong></div></div>
+    <div class="monitor-table" tabindex="0" aria-label="Operacion por servicio"><table class="gi-table"><thead><tr><th>Cliente / Servicio</th><th>Asistencias</th><th>Incidencias abiertas</th><th>Coberturas completadas</th><th>Accion</th></tr></thead><tbody>
+      @for (service of services(); track service.idService) { <tr><td><strong>{{ service.serviceName }}</strong><small>{{ service.clientName }}</small></td><td>{{ service.attendanceRecords }}</td><td>{{ service.openIncidents }}</td><td>{{ service.completedCoverages }}</td><td><a class="gi-button gi-button--secondary" routerLink="/operacion/asistencia" [queryParams]="{clientId:service.idClient, serviceId:service.idService}">Ver operacion</a></td></tr> }
+      @empty { <tr><td colspan="5">Sin actividad registrada en la fecha seleccionada.</td></tr> }
+    </tbody></table></div>
+  }
+</section>

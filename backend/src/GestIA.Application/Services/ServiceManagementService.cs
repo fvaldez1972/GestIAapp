@@ -12,6 +12,8 @@ public sealed class ServiceManagementService(
     IServiceManagementRepository repository,
     IUnitOfWork unitOfWork,
     IActorContext actorContext,
+    IConcurrencyGuard concurrency,
+    IOperationReasonContext reasonContext,
     IClock clock) : IServiceManagementService
 {
     public async Task<IReadOnlyList<ServiceContractResponse>> ListContractsAsync(
@@ -37,6 +39,7 @@ public sealed class ServiceManagementService(
         }
 
         var contract = ServiceContract.Create(
+            request.IdOrganization,
             request.IdClient,
             code,
             terms,
@@ -78,6 +81,33 @@ public sealed class ServiceManagementService(
         await unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task<PagedResult<ServiceListItemResponse>> SearchServicesAsync(
+        ServiceListQuery query,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        var errors = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
+        InputValidation.Page(query.Page, query.PageSize, errors);
+        var search = InputValidation.Optional(query.Search, nameof(query.Search), 200, errors);
+        InputValidation.ThrowIfInvalid(errors);
+
+        var (items, totalCount) = await repository.SearchServicesAsync(
+            new ServiceSearchCriteria(
+                query.IdOrganization,
+                search,
+                query.IdClient,
+                query.IdClientSite,
+                query.IdServiceContract,
+                query.Status,
+                query.CoverageDate,
+                (query.Page - 1) * query.PageSize,
+                query.PageSize),
+            cancellationToken);
+
+        return new PagedResult<ServiceListItemResponse>(items, totalCount, query.Page, query.PageSize);
+    }
+
     public async Task<IReadOnlyList<ServiceResponse>> ListServicesAsync(
         Guid idOrganization,
         Guid idClient,
@@ -103,6 +133,7 @@ public sealed class ServiceManagementService(
         }
 
         var service = ServiceEntity.Create(
+            request.IdOrganization,
             request.IdClient,
             request.IdClientSite,
             request.IdServiceContract,
@@ -182,6 +213,7 @@ public sealed class ServiceManagementService(
         }
 
         var configuration = ServiceConfigurationEntity.Create(
+            request.IdOrganization,
             request.IdService,
             profile,
             actorContext.ActorId,
@@ -215,6 +247,20 @@ public sealed class ServiceManagementService(
             throw new ResourceConflictException("Ya existe una configuración con la misma fecha de inicio.");
         }
 
+        // Motivo obligatorio si la vigencia ya terminó, o si el cambio toca el precio, la moneda
+        // o el impuesto: ése es el dato que se le factura al cliente, y cambiarlo mientras está
+        // vigente es más delicado que corregir una vigencia pasada, no menos.
+        var requirement = CorrectionReasonPolicy.ConfigurationRequirement(
+            configuration, profile.MonthlyPrice, profile.CurrencyCode, profile.IsTaxIncluded,
+            clock.Today);
+
+        var reasonErrors = new Dictionary<string, string[]>();
+        var reason = CorrectionReasonPolicy.Validate(
+            request.CorrectionReason, requirement, "CorrectionReason", reasonErrors);
+        InputValidation.ThrowIfInvalid(reasonErrors);
+        reasonContext.SetReason(reason, requirement is not null);
+        concurrency.Expect(configuration, request.RowVersion);
+
         configuration.UpdateProfile(profile, actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return Map(configuration);
@@ -225,12 +271,17 @@ public sealed class ServiceManagementService(
         Guid idClient,
         Guid idService,
         Guid idServiceConfiguration,
+        byte[]? rowVersion,
         CancellationToken cancellationToken)
     {
         await EnsureServiceAsync(idOrganization, idClient, idService, cancellationToken);
         var configuration = await repository.GetConfigurationAsync(idService, idServiceConfiguration, cancellationToken)
             ?? throw new ResourceNotFoundException("No se encontró la configuración solicitada.");
 
+        // El token llega por parametro de consulta porque un DELETE no lleva cuerpo. Lo correcto
+        // en HTTP seria el encabezado If-Match; se eligio el parametro por consistencia con el
+        // resto de esta API, que ya pasa organizationId asi. Queda anotado como deuda menor.
+        concurrency.Expect(configuration, rowVersion);
         configuration.Deactivate(actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
         await unitOfWork.SaveChangesAsync(cancellationToken);
     }
@@ -562,5 +613,6 @@ public sealed class ServiceManagementService(
         configuration.MonthlyPrice,
         configuration.CurrencyCode,
         configuration.IsTaxIncluded,
-        configuration.Active);
+        configuration.Active,
+        configuration.RowVersion);
 }

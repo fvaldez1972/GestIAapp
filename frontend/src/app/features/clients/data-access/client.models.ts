@@ -12,6 +12,39 @@ export type CreateOrganization = {
   readonly rfc: string | null;
 };
 
+export type UpdateOrganization = CreateOrganization;
+
+export type CreateOrganizationWithAdmin = CreateOrganization & {
+  readonly admin: {
+    readonly displayName: string;
+    readonly email: string;
+    readonly password: string;
+  };
+};
+
+export type OrganizationProvisioningResult = {
+  readonly organization: Organization;
+  readonly idAdminUser: string;
+  readonly adminEmail: string;
+  readonly adminDisplayName: string;
+};
+
+export type OrganizationClientSummary = {
+  readonly idClient: string;
+  readonly codeClient: string;
+  readonly legalName: string;
+  readonly tradeName: string | null;
+  readonly rfc: string;
+  readonly active: boolean;
+};
+
+export type OrganizationGovernanceSummary = {
+  readonly organization: Organization;
+  readonly clients: readonly OrganizationClientSummary[];
+  readonly usersCount: number;
+  readonly adminsCount: number;
+};
+
 export type Client = {
   readonly idClient: string;
   readonly idOrganization: string;
@@ -50,8 +83,15 @@ export type ClientInput = {
   readonly legalRepresentativeInstrumentNumber: string | null;
 };
 
+/**
+ * El alta de un cliente.
+ *
+ * <p><c>codeClient</c> es opcional: cuando no va, <b>lo genera el servidor</b> con la forma
+ * <c>CLI-01</c>. Es un identificador que después sirve para buscar, pero que nadie sabe inventar
+ * al dar de alta.</p>
+ */
 export type CreateClient = ClientInput & {
-  readonly codeClient: string;
+  readonly codeClient?: string;
 };
 
 export type ClientSite = {
@@ -221,6 +261,12 @@ export type ServiceConfiguration = {
   readonly currencyCode: string;
   readonly isTaxIncluded: boolean;
   readonly active: boolean;
+  /**
+   * Token de concurrencia. Es `rowversion` en la base y viaja como **base64**: no se interpreta,
+   * no se compara y no se construye. Se lee al abrir y se devuelve igual al guardar; si alguien
+   * corrigió el registro entre una cosa y la otra, el servidor responde 409 y dice quién fue.
+   */
+  readonly rowVersion: string;
 };
 
 export type ServiceConfigurationInput = {
@@ -239,6 +285,10 @@ export type ServiceConfigurationInput = {
   readonly monthlyPrice: number;
   readonly currencyCode: string | null;
   readonly isTaxIncluded: boolean;
+  /** El token que se leyó al abrir. Sin él no hay comprobación de concurrencia. */
+  readonly rowVersion?: string;
+  /** Por qué se corrige. Obligatorio cuando la regla del servidor lo exige. */
+  readonly correctionReason?: string;
 };
 
 export type ServicePosition = {
@@ -336,6 +386,8 @@ export type ServiceAssignment = {
   readonly isPrimary: boolean;
   readonly notes: string | null;
   readonly active: boolean;
+  /** Token de concurrencia. Ver la nota de `ServiceConfiguration`. */
+  readonly rowVersion: string;
 };
 
 export type ServiceAssignmentInput = {
@@ -348,6 +400,10 @@ export type ServiceAssignmentInput = {
   readonly endDate: string | null;
   readonly isPrimary: boolean;
   readonly notes: string | null;
+  /** El token que se leyó al abrir. Sin él no hay comprobación de concurrencia. */
+  readonly rowVersion?: string;
+  /** Por qué se corrige. Obligatorio cuando la regla del servidor lo exige. */
+  readonly correctionReason?: string;
 };
 
 export type CreateServiceAssignment = ServiceAssignmentInput & {
@@ -494,6 +550,7 @@ export type IncidentInput = {
 export type CoverageStatus = 'Requested' | 'Confirmed' | 'Completed' | 'Cancelled';
 
 export type CoverageRecord = {
+  readonly idCoverageReason?: string | null;
   readonly idCoverageRecord: string;
   readonly idScheduledShift: string;
   readonly idOriginalEmployee: string;
@@ -512,6 +569,7 @@ export type CoverageRecord = {
 };
 
 export type CoverageInput = {
+  readonly idCoverageReason?: string | null;
   readonly idOrganization: string;
   readonly idClient: string;
   readonly idService: string;
@@ -684,3 +742,95 @@ export type PagedResult<T> = {
   readonly pageSize: number;
   readonly totalPages: number;
 };
+
+/**
+ * Un cliente en el listado.
+ *
+ * <p>Trae los conteos resueltos por el servidor. El que importa es <c>siteCount</c>: <b>la sede es
+ * el prerrequisito para crear servicios</b>, porque el servicio se liga a una sede. Saberlo aquí
+ * es lo que permite decirlo en esta pantalla en vez de dejar que el usuario se estrelle en la
+ * siguiente.</p>
+ */
+export type ClientListItem = {
+  readonly idClient: string;
+  readonly idOrganization: string;
+  readonly codeClient: string;
+  readonly legalName: string;
+  readonly tradeName: string | null;
+  readonly rfc: string;
+  readonly active: boolean;
+  readonly createdAt: string;
+  readonly siteCount: number;
+  readonly sitesWithoutContact: number;
+  readonly contactCount: number;
+  readonly serviceCount: number;
+  readonly mainSiteName: string | null;
+  readonly mainSiteMunicipality: string | null;
+  readonly mainSiteState: string | null;
+};
+
+/** Los tres modos del listado. Coincide con el enum del servidor. */
+export type ClientStatusFilter = 'Active' | 'Inactive' | 'All';
+
+/** Si el cliente tiene sede: el filtro que separa a los que pueden tener servicios. */
+export type ClientSitePresenceFilter = 'Any' | 'WithSite' | 'WithoutSite';
+
+/** El nombre que se muestra. El comercial manda; muchos clientes no lo tienen. */
+export const clientDisplayName = (client: {
+  readonly tradeName: string | null;
+  readonly legalName: string;
+}) => client.tradeName ?? client.legalName;
+
+/**
+ * Dónde está el cliente, según su sede principal.
+ *
+ * <p>El bosquejo pedía «Zona · Municipio», y <b>la zona no existe en el modelo</b>: ni el cliente
+ * ni la sede la tienen, y el catálogo <c>Zone</c> no lo referencia ninguna entidad. Lo que sí
+ * existe, y es lo que se muestra, es el estado y el municipio de la sede.</p>
+ */
+export function clientLocation(client: ClientListItem): string {
+  if (!client.mainSiteMunicipality) {
+    return 'Sin ubicación: no tiene sede';
+  }
+
+  return client.mainSiteState
+    ? `${client.mainSiteState} · ${client.mainSiteMunicipality}`
+    : client.mainSiteMunicipality;
+}
+
+/**
+ * Lo que dice la columna de sedes.
+ *
+ * <p><b>Cero sedes no se muestra como cero.</b> Un cero diría que está en orden, y lo que dice de
+ * verdad es que a este cliente no se le puede crear un servicio. Va como raya más la palabra.</p>
+ */
+export type ClientSiteBadge = {
+  readonly value: string;
+  readonly pill: string;
+  readonly tone: 'danger' | 'warning' | 'muted' | 'none';
+};
+
+export function clientSiteBadge(client: ClientListItem): ClientSiteBadge {
+  if (client.siteCount === 0) {
+    return { value: '—', pill: 'Sin sede', tone: 'warning' };
+  }
+
+  if (client.sitesWithoutContact > 0) {
+    return {
+      value: String(client.siteCount),
+      pill: client.sitesWithoutContact === 1 ? '1 sin contacto' : `${client.sitesWithoutContact} sin contacto`,
+      tone: 'muted',
+    };
+  }
+
+  return { value: String(client.siteCount), pill: '', tone: 'none' };
+}
+
+/**
+ * Por qué no se puede crear un servicio de este cliente, o cadena vacía si sí se puede.
+ *
+ * <p>La razón se escribe al lado del botón bloqueado. Un botón gris sin explicación obliga a
+ * adivinar, y quien adivina mal se va a Servicios a intentarlo de todos modos.</p>
+ */
+export const clientServiceBlockReason = (client: { readonly siteCount: number }) =>
+  client.siteCount === 0 ? 'No se puede crear el servicio: falta la sede a la que se ligaría.' : '';

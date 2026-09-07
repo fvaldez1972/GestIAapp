@@ -1,9 +1,9 @@
 <section class="reports-page">
   <article class="gi-card gi-card--hero reports-hero">
     <div>
-      <span class="eyebrow">Control / Reportes</span>
-      <h1>Reportes</h1>
-      <p>Consulta resultados operativos con métricas trazables, alcance claro y definiciones visibles.</p>
+      <span class="eyebrow">{{ heroCopy().eyebrow }}</span>
+      <h1>{{ heroCopy().title }}</h1>
+      <p>{{ heroCopy().description }}</p>
     </div>
     <div class="hero-actions">
       <button class="gi-button gi-button--secondary" type="button" (click)="toggleDefinitions()">Definiciones</button>
@@ -14,14 +14,6 @@
   </article>
 
   <section class="gi-card report-filters" aria-label="Filtros del reporte">
-    <label class="gi-field">
-      Organización
-      <select class="gi-input" [ngModel]="selectedOrganizationId()" (ngModelChange)="onOrganizationChange($event)">
-        @for (organization of organizations(); track organization.idOrganization) {
-          <option [value]="organization.idOrganization">{{ organization.legalName }}</option>
-        }
-      </select>
-    </label>
 
     <label class="gi-field">
       Cliente
@@ -53,7 +45,7 @@
       <input class="gi-input" type="date" [ngModel]="toDate()" (ngModelChange)="onToDateChange($event)" />
     </label>
 
-    <button class="gi-button gi-button--secondary" type="button" (click)="clearScope()">Ver todo</button>
+    <button class="gi-button gi-button--secondary" type="button" (click)="clearScope()">{{ isPlatformAdmin() ? 'Ver todo' : 'Todos los clientes' }}</button>
   </section>
 
   <article class="gi-card report-metadata">

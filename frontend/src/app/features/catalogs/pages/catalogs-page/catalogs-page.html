@@ -1,27 +1,31 @@
 <section class="catalogs-page">
   <article class="catalogs-hero gi-card">
     <div>
-      <span class="context-chip">Organización actual</span>
-      <h1>Catálogos</h1>
+      <span class="context-chip">{{ heroCopy().eyebrow }}</span>
+      <h1>{{ heroCopy().title }}</h1>
       <p>
-        Configura y gobierna catálogos maestros utilizados en toda la plataforma.
+        {{ heroCopy().description }}
       </p>
     </div>
 
     <div class="hero-side">
-      <label class="gi-field compact-field">
-        Organización
-        <select class="gi-input" [value]="selectedOrganizationId()" (change)="selectOrganization($any($event.target).value)">
-          @for (organization of organizations(); track organization.idOrganization) {
-            <option [value]="organization.idOrganization">{{ organization.legalName }}</option>
-          }
-        </select>
-      </label>
-      <button class="gi-button gi-button--primary" type="button" [disabled]="!canWrite()" (click)="openNewCatalogItem()">
-        + Nuevo registro
+      <button class="gi-button gi-button--primary" type="button" (click)="openCatalogSelector()">
+        <app-icon name="catalog" /> Elegir catálogo
       </button>
     </div>
   </article>
+
+  @if (systemDefinition(); as definition) {
+    <section class="system-catalog" aria-label="Valores del sistema">
+      <header class="panel-heading"><div><h2>{{ definition.name }}</h2><span>{{ definition.module }}</span></div><span class="state-pill">Solo lectura</span></header>
+      <div class="system-values">
+        <table class="gi-table"><thead><tr><th>Código</th><th>Valor</th></tr></thead><tbody>
+          @for (value of definition.values; track value.code) { <tr><td>{{ value.code }}</td><td>{{ value.label }}</td></tr> }
+        </tbody></table>
+      </div>
+    </section>
+  }
+  <div class="catalog-content" [hidden]="systemDefinition() !== null">
 
   @if (minimumConfigIncomplete()) {
     <article class="config-warning gi-card">
@@ -64,6 +68,16 @@
     </article>
   </section>
 
+  <section class="document-governance-grid" aria-label="Gobierno documental">
+    @for (card of documentGovernanceCards(); track card.title) {
+      <article class="document-governance-card gi-card" [class.needs-attention]="card.warning">
+        <span>{{ card.title }}</span>
+        <strong>{{ card.value }}</strong>
+        <small>{{ card.detail }}</small>
+      </article>
+    }
+  </section>
+
   <nav class="catalog-tabs gi-card" aria-label="Secciones de catálogos">
     @for (tab of tabs; track tab.value) {
       <button type="button" [class.is-active]="activeTab() === tab.value" (click)="selectTab(tab.value)">
@@ -98,7 +112,7 @@
     </div>
   </article>
 
-  @if (activeTab() !== 'eligibility') {
+  @if (activeTab() !== 'eligibility' || catalogListing()) {
     <section class="catalog-workspace">
       <aside class="category-panel gi-card">
         <header>
@@ -146,9 +160,7 @@
             Grupo
             <select class="gi-input" formControlName="group" (change)="refreshCatalogFilters()">
               <option value="">Todos</option>
-              <option value="General">General</option>
-              <option value="Operativo">Operativo</option>
-              <option value="Elegibilidad">Elegibilidad</option>
+              @for (group of catalogGroups(); track group) { <option [value]="group">{{ group }}</option> }
             </select>
           </label>
           <label class="gi-field">
@@ -208,14 +220,14 @@
                   <strong>{{ item.name }}</strong>
                   <small>{{ item.description || typeLabel(item.type) }}</small>
                 </button>
-                <span class="catalog-description" role="cell">{{ catalogGroupLabel(item.type) }}</span>
+                <span class="catalog-description" role="cell">{{ item.group || catalogGroupLabel(item.type) }} · {{ catalogOrder(item) }}</span>
                 <span class="state-pill" role="cell" [class.is-inactive]="!item.active">{{ activeLabel(item.active) }}</span>
                 <span class="usage-cell" role="cell">
                   @if (modulesForCatalogItem(item).length) {
-                    <b>En uso</b>
+                    <b>Relacionado</b>
                     <small>{{ usedInLabel(item) }}</small>
                   } @else {
-                    <small>Sin dependencias</small>
+                    <small>Sin relación identificada</small>
                   }
                 </span>
                 <span class="catalog-description" role="cell">{{ lastEditedLabel(item) }}</span>
@@ -453,32 +465,38 @@
     </section>
   }
 
-  @if (catalogDrawerOpen()) {
-    <div class="drawer-layer" role="presentation" (click)="closeCatalogDrawer()">
-      <aside class="catalog-drawer" role="dialog" aria-label="Registro de catálogo" (click)="$event.stopPropagation()">
+      <dialog #catalogEditor class="catalog-drawer catalog-editor" aria-label="Registro de catálogo" (cancel)="saving() ? $event.preventDefault() : closeCatalogDrawer()">
         <form [formGroup]="catalogForm" (ngSubmit)="saveCatalogItem()">
           <header class="drawer-header">
             <div>
               <span class="eyebrow">{{ selectedCatalogItem() ? 'Editar catálogo' : 'Nuevo catálogo' }}</span>
-              <h2>Nuevo registro de catálogo</h2>
-              <p>Controla duplicados por código y nombre. Los sinónimos sólo ayudan a buscar; no crean valores distintos.</p>
+              <h2>{{ selectedCatalogItem() ? 'Editar registro' : 'Nuevo registro' }}</h2>
             </div>
             <button class="drawer-close" type="button" aria-label="Cerrar catálogo" (click)="closeCatalogDrawer()">×</button>
           </header>
 
           <label class="gi-field">
-            Categoría
+            Catálogo
             <select class="gi-input" formControlName="type" (change)="selectCatalogCategory($any($event.target).value)">
-              @for (type of catalogTypes; track type.value) {
-                <option [value]="type.value">{{ type.label }}</option>
+              @for (definition of editableDefinitions(); track definition.key) {
+                <option [value]="definition.type">{{ definition.name }}</option>
               }
             </select>
           </label>
 
+          @if (catalogForm.controls.type.value === 'State' || catalogForm.controls.type.value === 'City') {
+            <label class="gi-field">{{ catalogForm.controls.type.value === 'State' ? 'País' : 'Estado' }} *
+              <select class="gi-input" formControlName="idParentCatalogItem" [attr.disabled]="selectedCatalogItem() ? '' : null">
+                <option value="">Selecciona</option>
+                @if (selectedCatalogItem(); as current) { <option [value]="current.idParentCatalogItem">{{ parentCatalogLabel(current.idParentCatalogItem) }}</option> }
+                @for (parent of parentCatalogOptions(); track parent.idCatalogItem) { <option [value]="parent.idCatalogItem">{{ parent.name }} · {{ parent.code }}</option> }
+              </select>
+            </label>
+          }
           <div class="form-row">
             <label class="gi-field">
               Código *
-              <input class="gi-input" type="text" formControlName="code" [class.is-invalid]="catalogFieldInvalid('code') || catalogCodeExists()" placeholder="Ej. P-001" />
+              <input class="gi-input" type="text" formControlName="code" [readOnly]="selectedCatalogItem() !== null" [class.is-invalid]="catalogFieldInvalid('code') || catalogCodeExists()" placeholder="Ej. P-001" />
               @if (catalogCodeExists()) {
                 <small class="field-error">El código ya existe</small>
               } @else if (catalogFieldInvalid('code')) {
@@ -487,10 +505,8 @@
             </label>
             <label class="gi-field">
               Nombre *
-              <input class="gi-input" type="text" formControlName="name" [class.is-invalid]="catalogFieldInvalid('name') || catalogNameExists()" placeholder="Ej. Guardia" />
-              @if (catalogNameExists()) {
-                <small class="field-error">El nombre ya existe</small>
-              } @else if (catalogFieldInvalid('name')) {
+              <input class="gi-input" type="text" formControlName="name" [readOnly]="!!selectedCatalogItem() && (catalogForm.controls.type.value === 'State' || catalogForm.controls.type.value === 'City')" [class.is-invalid]="catalogFieldInvalid('name')" placeholder="Ej. Guardia" />
+              @if (catalogFieldInvalid('name')) {
                 <small class="field-error">El nombre es obligatorio</small>
               }
             </label>
@@ -499,11 +515,8 @@
           <div class="form-row">
             <label class="gi-field">
               Grupo *
-              <select class="gi-input" formControlName="group" [class.is-invalid]="catalogFieldInvalid('group')">
-                <option value="General">General</option>
-                <option value="Operativo">Operativo</option>
-                <option value="Elegibilidad">Elegibilidad</option>
-              </select>
+              <input class="gi-input" formControlName="group" list="catalog-group-options" maxlength="80" [class.is-invalid]="catalogFieldInvalid('group')" />
+              <datalist id="catalog-group-options">@for (group of catalogGroups(); track group) { <option [value]="group"></option> }</datalist>
             </label>
             <label class="gi-field">
               Estado *
@@ -511,20 +524,17 @@
                 <option value="active">Activo</option>
                 <option value="inactive">Inactivo</option>
               </select>
-              <small>El estado visible conserva la gobernanza; el backend mantiene la validación final.</small>
             </label>
           </div>
 
           <div class="form-row">
             <label class="gi-field">
               Orden
-              <input class="gi-input" type="number" min="1" formControlName="order" />
-              <small>Se usa para ordenar listas operativas.</small>
+              <input class="gi-input" type="number" min="1" max="100000" step="1" formControlName="order" />
             </label>
             <label class="gi-field">
-              Sinónimos
-              <input class="gi-input" type="text" formControlName="synonyms" placeholder="Agregar sinónimo y presionar Enter" />
-              <small>Ayudan en búsquedas, no sustituyen al nombre oficial.</small>
+              Sinónimos (separados por comas)
+              <input class="gi-input" type="text" formControlName="synonyms" maxlength="1640" />
             </label>
           </div>
 
@@ -533,16 +543,15 @@
             <textarea class="gi-input" formControlName="description" rows="4" placeholder="Describe cómo se usa este valor en la operación."></textarea>
           </label>
 
+          @if (error()) { <p class="gi-alert gi-alert--error" role="alert">{{ error() }}</p> }
           <footer class="drawer-actions">
             <button class="gi-button gi-button--secondary" type="button" (click)="closeCatalogDrawer()">Cancelar</button>
-            <button class="gi-button gi-button--primary" type="submit" [disabled]="saving() || !canWrite() || catalogCodeExists() || catalogNameExists()">
+            <button class="gi-button gi-button--primary" type="submit" [disabled]="saving() || !canWrite() || catalogCodeExists() || catalogForm.invalid">
               {{ saving() ? 'Guardando…' : 'Guardar registro' }}
             </button>
           </footer>
         </form>
-      </aside>
-    </div>
-  }
+      </dialog>
 
   @if (requirementDrawerOpen()) {
     <div class="drawer-layer" role="presentation" (click)="closeRequirementDrawer()">
@@ -618,12 +627,13 @@
           <div class="form-row">
             <label class="gi-field">
               Código requerido
-              <input class="gi-input" list="requirement-code-options" type="text" formControlName="requiredCode" placeholder="Ej. INE / POLIGRAFO / HABILIDAD" />
-              <datalist id="requirement-code-options">
+              <select class="gi-input" formControlName="requiredCode">
+                <option value="">Selecciona un valor</option>
+                @if (requirementForm.controls.requiredCode.value && !codeOptions().includes(requirementForm.controls.requiredCode.value)) { <option [value]="requirementForm.controls.requiredCode.value" disabled>{{ requirementForm.controls.requiredCode.value }} (valor anterior)</option> }
                 @for (code of codeOptions(); track code) {
-                  <option [value]="code"></option>
+                  <option [value]="code">{{ code }}</option>
                 }
-              </datalist>
+              </select>
             </label>
             <label class="gi-field">
               Nombre de la regla
@@ -651,4 +661,29 @@
       </aside>
     </div>
   }
+  </div>
+  <dialog #catalogSelector class="catalog-selector" aria-labelledby="catalog-selector-title">
+    <header class="drawer-header"><div><h2 id="catalog-selector-title">Catálogos del sistema</h2><span>{{ selectedOrganization()?.legalName }}</span></div>
+      <button type="button" class="drawer-close" aria-label="Cerrar selector" (click)="catalogSelector.close()">×</button></header>
+    <div class="catalog-selector-controls">
+      <label class="gi-field">Buscar catálogo<input class="gi-input" type="search" autofocus [value]="definitionSearch()" (input)="definitionSearch.set($any($event.target).value)" /></label>
+      <div class="definition-tabs" role="tablist" aria-label="Origen del catálogo">
+        <button type="button" role="tab" [attr.aria-selected]="definitionMode() === 'editable'" (click)="definitionMode.set('editable')">Administrables</button>
+        <button type="button" role="tab" [attr.aria-selected]="definitionMode() === 'system'" (click)="definitionMode.set('system')">Del sistema</button>
+      </div>
+    </div>
+    @if (loading()) { <p role="status">Cargando catálogos...</p> }
+    @else if (error()) { <p role="alert">{{ error() }}</p><button class="gi-button" type="button" (click)="loadData()">Reintentar</button> }
+    @else {
+      <div class="definition-list">
+        @for (definition of filteredDefinitions(); track definition.key) {
+          <button class="definition-option" type="button" (click)="chooseDefinition(definition)">
+            <app-icon [name]="definition.editable ? 'catalog' : 'security'" />
+            <span><strong>{{ definition.name }}</strong><small>{{ definition.module }} · {{ definition.editable ? definition.group : 'Solo lectura' }}</small></span>
+            <span class="definition-count">{{ definitionCount(definition) }} {{ definitionCount(definition) === 1 ? 'valor' : 'valores' }}</span>
+          </button>
+        } @empty { <p role="status">No hay catálogos para esta búsqueda.</p> }
+      </div>
+    }
+  </dialog>
 </section>

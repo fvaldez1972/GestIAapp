@@ -8,7 +8,7 @@ public sealed record ShiftPatternProfile(
     DateOnly EffectiveFromDate,
     DateOnly? EffectiveToDate);
 
-public sealed class ShiftPattern : AuditableEntity
+public sealed class ShiftPattern : AuditableEntity, IOrganizationScopedEntity
 {
     private readonly List<ShiftSegment> segments = [];
 
@@ -18,6 +18,7 @@ public sealed class ShiftPattern : AuditableEntity
 
     private ShiftPattern(
         Guid idShiftPattern,
+        Guid idOrganization,
         Guid idPosition,
         string codeShiftPattern,
         ShiftPatternProfile profile,
@@ -26,6 +27,7 @@ public sealed class ShiftPattern : AuditableEntity
         DateTime occurredAt)
     {
         IdShiftPattern = idShiftPattern;
+        IdOrganization = idOrganization;
         IdPosition = idPosition;
         CodeShiftPattern = Required(codeShiftPattern, nameof(codeShiftPattern)).ToUpperInvariant();
         ApplyProfile(profile);
@@ -33,6 +35,7 @@ public sealed class ShiftPattern : AuditableEntity
     }
 
     public Guid IdShiftPattern { get; private set; }
+    public Guid IdOrganization { get; private set; }
     public Guid IdPosition { get; private set; }
     public string CodeShiftPattern { get; private set; } = string.Empty;
     public string Name { get; private set; } = string.Empty;
@@ -43,13 +46,14 @@ public sealed class ShiftPattern : AuditableEntity
     public IReadOnlyCollection<ShiftSegment> Segments => segments;
 
     public static ShiftPattern Create(
+        Guid idOrganization,
         Guid idPosition,
         string codeShiftPattern,
         ShiftPatternProfile profile,
         Guid actorId,
         string actorName,
         DateTime occurredAt) =>
-        new(Guid.NewGuid(), idPosition, codeShiftPattern, profile, actorId, actorName, occurredAt);
+        new(Guid.NewGuid(), idOrganization, idPosition, codeShiftPattern, profile, actorId, actorName, occurredAt);
 
     public void UpdateProfile(
         ShiftPatternProfile profile,

@@ -6,6 +6,7 @@ public interface IOrganizationRepository
 {
     Task<IReadOnlyList<Organization>> ListAsync(CancellationToken cancellationToken);
     Task<Organization?> GetAsync(Guid idOrganization, CancellationToken cancellationToken);
+    Task<Organization?> GetTrackedAsync(Guid idOrganization, CancellationToken cancellationToken);
     Task<bool> ExistsAsync(Guid idOrganization, CancellationToken cancellationToken);
     Task<bool> IsCodeInUseAsync(string codeOrganization, CancellationToken cancellationToken);
     Task<bool> IsRfcInUseAsync(string rfc, CancellationToken cancellationToken);

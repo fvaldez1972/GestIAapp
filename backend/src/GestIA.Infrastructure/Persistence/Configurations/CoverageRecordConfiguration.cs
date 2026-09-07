@@ -1,6 +1,7 @@
 using GestIA.Domain.Operations;
-using Microsoft.EntityFrameworkCore;
+using GestIA.Domain.Organizations;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Microsoft.EntityFrameworkCore;
 
 namespace GestIA.Infrastructure.Persistence.Configurations;
 
@@ -13,6 +14,8 @@ public sealed class CoverageRecordConfiguration : IEntityTypeConfiguration<Cover
         builder.HasKey(entity => entity.IdCoverageRecord);
         builder.Property(entity => entity.Status).HasConversion<string>().HasMaxLength(30).IsUnicode(false).IsRequired();
         builder.Property(entity => entity.Notes).HasMaxLength(1000);
+        builder.HasOne<GestIA.Domain.Catalogs.BusinessCatalogItem>()
+            .WithMany().HasForeignKey(entity => entity.IdCoverageReason).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne(entity => entity.ScheduledShift)
             .WithMany()
             .HasForeignKey(entity => entity.IdScheduledShift)
@@ -25,7 +28,15 @@ public sealed class CoverageRecordConfiguration : IEntityTypeConfiguration<Cover
             .WithMany()
             .HasForeignKey(entity => entity.IdReplacementEmployee)
             .OnDelete(DeleteBehavior.Restrict);
+        // Lo genera SQL Server en cada escritura; el modelo solo lo lee.
+        builder.Property(entity => entity.RowVersion).IsRowVersion();
+
         builder.HasIndex(entity => entity.IdScheduledShift);
         builder.HasIndex(entity => entity.IdReplacementEmployee);
+        builder.HasOne<Organization>()
+            .WithMany()
+            .HasForeignKey(entity => entity.IdOrganization)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasIndex(entity => new { entity.IdOrganization, entity.Status });
     }
 }

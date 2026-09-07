@@ -1,10 +1,10 @@
 <section class="planning-page">
   <article class="planning-hero gi-card">
     <div>
-      <span class="eyebrow">Planeación operativa</span>
-      <h1>Planeación</h1>
+      <span class="eyebrow">{{ heroCopy().eyebrow }}</span>
+      <h1>{{ heroCopy().title }}</h1>
       <p>
-        Visualiza turnos por semana, valida huecos y publica versiones listas para operar en campo.
+        {{ heroCopy().description }}
       </p>
     </div>
 
@@ -19,14 +19,6 @@
   </article>
 
   <section class="planning-context gi-card" aria-label="Contexto de planeación">
-    <label class="gi-field">
-      Organización
-      <select class="gi-input" [value]="selectedOrganizationId()" (change)="onOrganizationChange($event)">
-        @for (organization of organizations(); track organization.idOrganization) {
-          <option [value]="organization.idOrganization">{{ organization.legalName }}</option>
-        }
-      </select>
-    </label>
 
     <label class="gi-field">
       Cliente

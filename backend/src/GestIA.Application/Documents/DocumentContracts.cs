@@ -29,6 +29,15 @@ public sealed record UpdateBusinessDocumentRequest(
     bool IsSensitive,
     string? Notes);
 
+public sealed record ReviewBusinessDocumentRequest(
+    Guid IdOrganization,
+    BusinessDocumentStatus Status,
+    string? ReviewNotes);
+
+public sealed record BusinessDocumentEventResponse(Guid IdBusinessDocumentEvent, string Action,
+    BusinessDocumentStatus Status, string? Notes, string ActorName, DateTime OccurredAt,
+    string? BeforeSnapshot = null, string? AfterSnapshot = null);
+
 public sealed record BusinessDocumentResponse(
     Guid IdBusinessDocument,
     Guid IdOrganization,
@@ -44,6 +53,9 @@ public sealed record BusinessDocumentResponse(
     string StorageReference,
     bool IsSensitive,
     string? Notes,
+    string? ReviewNotes,
+    DateTime? ReviewedAt,
+    string? ReviewedByName,
     bool Active,
     DateTime CreatedAt,
     DateTime? UpdatedAt);
@@ -64,7 +76,8 @@ public sealed record BusinessDocumentSearchCriteria(
     BusinessDocumentStatus? Status,
     string? Search,
     int Skip,
-    int Take);
+    int Take,
+    bool IncludeSensitive = false);
 
 public sealed record BusinessDocumentSearchResult(
     IReadOnlyList<BusinessDocumentResponse> Items,

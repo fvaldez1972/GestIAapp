@@ -1,19 +1,19 @@
 # syntax=docker/dockerfile:1.7
 
 FROM mcr.microsoft.com/dotnet/sdk:10.0-alpine AS build
-WORKDIR /src
+WORKDIR /src/backend
 
-COPY Directory.Build.props global.json ./
-COPY backend/src/GestIA.Domain/GestIA.Domain.csproj backend/src/GestIA.Domain/
-COPY backend/src/GestIA.Application/GestIA.Application.csproj backend/src/GestIA.Application/
-COPY backend/src/GestIA.Infrastructure/GestIA.Infrastructure.csproj backend/src/GestIA.Infrastructure/
-COPY backend/src/GestIA.Api/GestIA.Api.csproj backend/src/GestIA.Api/
+COPY backend/Directory.Build.props backend/global.json ./
+COPY backend/src/GestIA.Domain/GestIA.Domain.csproj src/GestIA.Domain/
+COPY backend/src/GestIA.Application/GestIA.Application.csproj src/GestIA.Application/
+COPY backend/src/GestIA.Infrastructure/GestIA.Infrastructure.csproj src/GestIA.Infrastructure/
+COPY backend/src/GestIA.Api/GestIA.Api.csproj src/GestIA.Api/
 
-RUN dotnet restore backend/src/GestIA.Api/GestIA.Api.csproj
+RUN dotnet restore src/GestIA.Api/GestIA.Api.csproj
 
-COPY backend/ backend/
+COPY backend/ ./
 
-RUN dotnet publish backend/src/GestIA.Api/GestIA.Api.csproj \
+RUN dotnet publish src/GestIA.Api/GestIA.Api.csproj \
     --configuration Release \
     --no-restore \
     --output /app/publish \

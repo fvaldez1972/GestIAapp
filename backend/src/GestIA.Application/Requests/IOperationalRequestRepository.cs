@@ -4,6 +4,8 @@ namespace GestIA.Application.Requests;
 
 public interface IOperationalRequestRepository
 {
+    Task<T> ExecuteAtomicAsync<T>(Func<CancellationToken, Task<T>> action, CancellationToken cancellationToken);
+
     Task<(IReadOnlyList<OperationalRequest> Items, int TotalCount)> SearchAsync(
         OperationalRequestSearchCriteria criteria,
         CancellationToken cancellationToken);

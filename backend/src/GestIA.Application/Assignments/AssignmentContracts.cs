@@ -23,7 +23,9 @@ public sealed record UpdateServiceAssignmentRequest(
     DateOnly StartDate,
     DateOnly? EndDate,
     bool IsPrimary,
-    string? Notes);
+    string? Notes,
+    string? CorrectionReason = null,
+    byte[]? RowVersion = null);
 
 public sealed record ServiceAssignmentResponse(
     Guid IdServiceAssignment,
@@ -39,4 +41,5 @@ public sealed record ServiceAssignmentResponse(
     DateOnly? EndDate,
     bool IsPrimary,
     string? Notes,
-    bool Active);
+    bool Active,
+    byte[] RowVersion);

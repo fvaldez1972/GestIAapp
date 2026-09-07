@@ -1,6 +1,7 @@
 using GestIA.Domain.Operations;
-using Microsoft.EntityFrameworkCore;
+using GestIA.Domain.Organizations;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Microsoft.EntityFrameworkCore;
 
 namespace GestIA.Infrastructure.Persistence.Configurations;
 
@@ -46,5 +47,10 @@ public sealed class OperationEvidenceConfiguration : IEntityTypeConfiguration<Op
         builder.HasIndex(entity => entity.IdIncident);
         builder.HasIndex(entity => entity.IdCoverageRecord);
         builder.HasIndex(entity => entity.EvidenceType);
+        builder.HasOne<Organization>()
+            .WithMany()
+            .HasForeignKey(entity => entity.IdOrganization)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasIndex(entity => new { entity.IdOrganization, entity.EvidenceType });
     }
 }

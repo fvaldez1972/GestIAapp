@@ -26,6 +26,7 @@ public sealed class CatalogService(
     {
         await EnsureOrganizationAsync(request.IdOrganization, cancellationToken);
         var profile = ValidateCatalogProfile(request);
+        await ValidateParentAsync(request, cancellationToken);
         await EnsureCatalogCodeAvailableAsync(
             request.IdOrganization,
             profile.Type,
@@ -40,6 +41,8 @@ public sealed class CatalogService(
             actorContext.ActorName,
             clock.UtcNow);
 
+        if (request.Active == false) item.Deactivate(actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
+
         await repository.AddCatalogItemAsync(item, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return MapCatalogItem(item);
@@ -53,7 +56,15 @@ public sealed class CatalogService(
         await EnsureOrganizationAsync(request.IdOrganization, cancellationToken);
         var item = await repository.GetCatalogItemAsync(request.IdOrganization, idCatalogItem, cancellationToken)
             ?? throw new ResourceNotFoundException("No se encontró el catálogo solicitado.");
-        var profile = ValidateCatalogProfile(request);
+        if (request.Type != item.Type || !string.Equals(request.Code?.Trim(), item.Code, StringComparison.OrdinalIgnoreCase))
+            throw new ResourceConflictException("El tipo y codigo de un valor existente no pueden cambiarse.");
+        if (item.Type is BusinessCatalogItemType.State or BusinessCatalogItemType.City &&
+            !string.Equals(request.Name?.Trim(), item.Name, StringComparison.Ordinal))
+            throw new ResourceConflictException("El nombre geografico esta vinculado a domicilios y no puede cambiarse.");
+        var profile = ValidateCatalogProfile(request, item);
+        if (request.IdParentCatalogItem != item.IdParentCatalogItem)
+            throw new ResourceConflictException("La relacion geografica existente no puede cambiarse; crea otro valor.");
+        if (request.Active != false) await ValidateParentAsync(request, cancellationToken, item.IdBusinessCatalogItem);
         await EnsureCatalogCodeAvailableAsync(
             request.IdOrganization,
             profile.Type,
@@ -62,6 +73,11 @@ public sealed class CatalogService(
             cancellationToken);
 
         item.UpdateProfile(profile, actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
+        if (request.Active.HasValue && request.Active.Value != item.Active)
+        {
+            if (request.Active.Value) item.Activate(actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
+            else item.Deactivate(actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
+        }
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return MapCatalogItem(item);
     }
@@ -161,6 +177,7 @@ public sealed class CatalogService(
         await EnsureSkillCatalogItemAsync(request.IdOrganization, request.IdSkillCatalogItem, cancellationToken);
         var profile = ValidateEmployeeSkillProfile(request);
         var skill = EmployeeSkill.Create(
+            request.IdOrganization,
             request.IdEmployee,
             profile,
             actorContext.ActorId,
@@ -478,6 +495,20 @@ public sealed class CatalogService(
         }
     }
 
+    public async Task EnsureJobPositionCatalogItemAsync(
+        Guid idOrganization,
+        Guid idCatalogItem,
+        CancellationToken cancellationToken)
+    {
+        var item = await repository.GetCatalogItemAsync(idOrganization, idCatalogItem, cancellationToken)
+            ?? throw new ResourceNotFoundException("No se encontró el puesto seleccionado.");
+
+        if (item.Type != BusinessCatalogItemType.JobPosition || !item.Active)
+        {
+            throw new ResourceConflictException("El catálogo seleccionado no es un puesto activo.");
+        }
+    }
+
     private async Task EnsureSkillCatalogItemAsync(
         Guid idOrganization,
         Guid idSkillCatalogItem,
@@ -486,7 +517,7 @@ public sealed class CatalogService(
         var item = await repository.GetCatalogItemAsync(idOrganization, idSkillCatalogItem, cancellationToken)
             ?? throw new ResourceNotFoundException("No se encontró la habilidad seleccionada.");
 
-        if (item.Type != BusinessCatalogItemType.Skill)
+        if (item.Type != BusinessCatalogItemType.Skill || !item.Active)
         {
             throw new ResourceConflictException("El catálogo seleccionado no es una habilidad.");
         }
@@ -505,14 +536,52 @@ public sealed class CatalogService(
         }
     }
 
-    private static BusinessCatalogItemProfile ValidateCatalogProfile(CatalogItemInput request)
+    private static BusinessCatalogItemProfile ValidateCatalogProfile(CatalogItemInput request, BusinessCatalogItem? existing = null)
     {
         var errors = new Dictionary<string, string[]>();
         var code = InputValidation.Required(request.Code, nameof(request.Code), 80, errors);
         var name = InputValidation.Required(request.Name, nameof(request.Name), 160, errors);
         var description = InputValidation.Optional(request.Description, nameof(request.Description), 1000, errors);
+        if (request.Type is BusinessCatalogItemType.State or BusinessCatalogItemType.City or BusinessCatalogItemType.JobPosition or BusinessCatalogItemType.CoverageReason && name.Length > 120)
+            errors[nameof(request.Name)] = ["El nombre admite hasta 120 caracteres."];
+        if (request.Type == BusinessCatalogItemType.Nationality && name.Length > 80)
+            errors[nameof(request.Name)] = ["La nacionalidad admite hasta 80 caracteres."];
+        if (!Enum.IsDefined(request.Type)) errors[nameof(request.Type)] = ["Selecciona un catalogo del sistema."];
+        var group = InputValidation.Required(request.Group ?? existing?.Group ?? CatalogDefinitions.DefaultGroup(request.Type), nameof(request.Group), 80, errors);
+        var order = request.Order ?? existing?.Order ?? 1;
+        if (order < 1 || order > 100000) errors[nameof(request.Order)] = ["El orden debe estar entre 1 y 100000."];
+        var synonyms = request.Synonyms ?? existing?.Synonyms ?? [];
+        if (synonyms.Length > 20 || synonyms.Any(value => string.IsNullOrWhiteSpace(value) || value.Trim().Length > 80))
+            errors[nameof(request.Synonyms)] = ["Usa hasta 20 sinonimos de 1 a 80 caracteres."];
         InputValidation.ThrowIfInvalid(errors);
-        return new BusinessCatalogItemProfile(request.Type, code, name, description);
+        if (request.Type == BusinessCatalogItemType.Country && (code.Length != 2 || code.Any(character => !char.IsAsciiLetter(character))))
+            throw new RequestValidationException(new Dictionary<string, string[]> { [nameof(request.Code)] = ["Usa un codigo de pais de dos letras."] });
+        return new BusinessCatalogItemProfile(request.Type, code, name, description, group, order, synonyms, request.IdParentCatalogItem);
+    }
+
+    private async Task ValidateParentAsync(CatalogItemInput request, CancellationToken token, Guid? excludedId = null)
+    {
+        BusinessCatalogItemType? expected = request.Type switch
+        {
+            BusinessCatalogItemType.State => BusinessCatalogItemType.Country,
+            BusinessCatalogItemType.City => BusinessCatalogItemType.State,
+            _ => null
+        };
+        if (expected is null && request.IdParentCatalogItem is null) return;
+        if (expected is null || request.IdParentCatalogItem is null)
+            throw new ResourceConflictException("Selecciona la relacion geografica correspondiente.");
+        var parent = await repository.GetCatalogItemAsync(request.IdOrganization, request.IdParentCatalogItem.Value, token);
+        if (parent is null || !parent.Active || parent.Type != expected)
+            throw new ResourceConflictException("El pais o estado debe estar activo y pertenecer a la misma organizacion.");
+        var siblings = await repository.ListCatalogItemsAsync(request.IdOrganization, request.Type, token);
+        if (siblings.Any(item => item.IdBusinessCatalogItem != excludedId && item.IdParentCatalogItem == request.IdParentCatalogItem &&
+            string.Equals(item.Name, request.Name?.Trim(), StringComparison.OrdinalIgnoreCase)))
+            throw new ResourceConflictException("Ya existe ese nombre en el pais o estado seleccionado.");
+        if (parent.IdParentCatalogItem is { } grandparentId)
+        {
+            var grandparent = await repository.GetCatalogItemAsync(request.IdOrganization, grandparentId, token);
+            if (grandparent is null || !grandparent.Active) throw new ResourceConflictException("El pais no esta activo.");
+        }
     }
 
     private static EligibilityRequirementProfile ValidateRequirementProfile(EligibilityRequirementInput request)
@@ -554,7 +623,8 @@ public sealed class CatalogService(
     }
 
     private static CatalogItemResponse MapCatalogItem(BusinessCatalogItem item) =>
-        new(item.IdBusinessCatalogItem, item.IdOrganization, item.Type, item.Code, item.Name, item.Description, item.Active);
+        new(item.IdBusinessCatalogItem, item.IdOrganization, item.Type, item.Code, item.Name, item.Description, item.Active,
+            item.Group, item.Order, item.Synonyms, item.UpdatedAt ?? item.CreatedAt, item.IdParentCatalogItem);
 
     private static EligibilityRequirementResponse MapRequirement(EligibilityRequirement requirement) =>
         new(

@@ -1,4 +1,5 @@
 using GestIA.Application.Common;
+using GestIA.Application.Catalogs;
 using GestIA.Domain.Planning;
 using GestIA.Domain.Workforce;
 
@@ -6,6 +7,7 @@ namespace GestIA.Application.Scheduling;
 
 public sealed class SchedulingService(
     ISchedulingRepository repository,
+    ICatalogService catalogService,
     IUnitOfWork unitOfWork,
     IActorContext actorContext,
     IClock clock) : ISchedulingService
@@ -28,6 +30,7 @@ public sealed class SchedulingService(
         await EnsureServiceAsync(request.IdOrganization, request.IdClient, request.IdService, cancellationToken);
         var profile = ValidateVersionProfile(request.Name, request.PeriodStartDate, request.PeriodEndDate, request.Notes);
         var version = ScheduleVersion.Create(
+            request.IdOrganization,
             request.IdService,
             profile,
             actorContext.ActorId,
@@ -39,7 +42,13 @@ public sealed class SchedulingService(
         return Map(version);
     }
 
-    public async Task<ScheduleVersionResponse> UpdateScheduleVersionAsync(
+    public Task<ScheduleVersionResponse> UpdateScheduleVersionAsync(
+        Guid idScheduleVersion,
+        UpdateScheduleVersionRequest request,
+        CancellationToken cancellationToken) =>
+        repository.ExecuteAtomicAsync(token => UpdateScheduleVersionCoreAsync(idScheduleVersion, request, token), cancellationToken);
+
+    private async Task<ScheduleVersionResponse> UpdateScheduleVersionCoreAsync(
         Guid idScheduleVersion,
         UpdateScheduleVersionRequest request,
         CancellationToken cancellationToken)
@@ -48,12 +57,26 @@ public sealed class SchedulingService(
         var version = await EnsureVersionAsync(request.IdService, idScheduleVersion, cancellationToken);
         var profile = ValidateVersionProfile(request.Name, request.PeriodStartDate, request.PeriodEndDate, request.Notes);
 
+        var shifts = await repository.ListScheduledShiftsAsync(idScheduleVersion, cancellationToken);
+        if (shifts.Any(shift => shift.ShiftDate < profile.PeriodStartDate || shift.ShiftDate > profile.PeriodEndDate))
+        {
+            throw new ResourceConflictException("El periodo debe incluir todos los turnos existentes.");
+        }
+
         version.UpdateProfile(profile, actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return Map(version);
     }
 
-    public async Task<ScheduleVersionResponse> PublishScheduleVersionAsync(
+    public Task<ScheduleVersionResponse> PublishScheduleVersionAsync(
+        Guid idOrganization,
+        Guid idClient,
+        Guid idService,
+        Guid idScheduleVersion,
+        CancellationToken cancellationToken) =>
+        repository.ExecuteAtomicAsync(token => PublishScheduleVersionCoreAsync(idOrganization, idClient, idService, idScheduleVersion, token), cancellationToken);
+
+    private async Task<ScheduleVersionResponse> PublishScheduleVersionCoreAsync(
         Guid idOrganization,
         Guid idClient,
         Guid idService,
@@ -62,6 +85,7 @@ public sealed class SchedulingService(
     {
         await EnsureServiceAsync(idOrganization, idClient, idService, cancellationToken);
         var version = await EnsureVersionAsync(idService, idScheduleVersion, cancellationToken);
+        version.EnsureDraft();
         var shifts = await repository.ListScheduledShiftsAsync(idScheduleVersion, cancellationToken);
         if (!shifts.Any())
         {
@@ -75,6 +99,30 @@ public sealed class SchedulingService(
                 $"No se puede publicar la planeación porque hay posiciones sin cubrir. {string.Join(" ", coverageGaps.Take(5))}");
         }
 
+        foreach (var shift in shifts)
+        {
+            await EnsureActiveEmployeeAsync(idOrganization, shift.IdEmployee, cancellationToken);
+            await EnsurePositionAsync(idService, shift.IdPosition, cancellationToken);
+            await EnsureNoShiftOverlapAsync(
+                idOrganization, idScheduleVersion,
+                new ScheduledShiftProfile(shift.IdPosition, shift.IdEmployee, shift.ShiftDate,
+                    shift.StartTime, shift.EndTime, shift.IsOvernight, shift.Notes),
+                shift.IdScheduledShift, cancellationToken);
+            if (shift.ShiftDate < version.PeriodStartDate || shift.ShiftDate > version.PeriodEndDate)
+            {
+                throw new ResourceConflictException("Hay turnos fuera del periodo de la planeación.");
+            }
+
+            var eligibility = await catalogService.CheckEligibilityAsync(
+                new EligibilityCheckQuery(idOrganization, shift.IdEmployee, idClient, idService, shift.IdPosition, shift.ShiftDate),
+                cancellationToken);
+            if (!eligibility.IsEligible)
+            {
+                var reasons = eligibility.Reasons.Where(reason => reason.IsBlocking && !reason.Passed).Select(reason => reason.Message);
+                throw new ResourceConflictException($"No se puede publicar: {eligibility.EmployeeName}. {string.Join(" ", reasons)}");
+            }
+        }
+
         var overlappingPublishedVersions = await repository.ListOverlappingPublishedVersionsAsync(
             idService,
             version.PeriodStartDate,
@@ -84,6 +132,17 @@ public sealed class SchedulingService(
 
         foreach (var publishedVersion in overlappingPublishedVersions)
         {
+            if (publishedVersion.PeriodStartDate < version.PeriodStartDate ||
+                publishedVersion.PeriodEndDate > version.PeriodEndDate)
+            {
+                throw new ResourceConflictException("La nueva version debe cubrir todo el periodo publicado que reemplaza.");
+            }
+
+            if (await repository.HasOperationalActivityAsync(publishedVersion.IdScheduleVersion, cancellationToken))
+            {
+                throw new ResourceConflictException("No se puede reemplazar una planeacion con actividad operativa registrada.");
+            }
+
             publishedVersion.MarkSuperseded(actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
         }
 
@@ -92,7 +151,12 @@ public sealed class SchedulingService(
         return Map(version);
     }
 
-    public async Task<GenerateScheduledShiftsResponse> GenerateScheduledShiftsAsync(
+    public Task<GenerateScheduledShiftsResponse> GenerateScheduledShiftsAsync(
+        GenerateScheduledShiftsRequest request,
+        CancellationToken cancellationToken) =>
+        repository.ExecuteAtomicAsync(token => GenerateScheduledShiftsCoreAsync(request, token), cancellationToken);
+
+    private async Task<GenerateScheduledShiftsResponse> GenerateScheduledShiftsCoreAsync(
         GenerateScheduledShiftsRequest request,
         CancellationToken cancellationToken)
     {
@@ -128,6 +192,7 @@ public sealed class SchedulingService(
             cancellationToken);
 
         var warnings = new List<string>();
+        var existingShifts = (await repository.ListScheduledShiftsAsync(request.IdScheduleVersion, cancellationToken)).ToList();
         var createdShifts = 0;
         var skippedShifts = 0;
         var missingAssignments = 0;
@@ -165,7 +230,15 @@ public sealed class SchedulingService(
                         .ThenBy(assignment => assignment.Employee.FullName)
                         .ToArray();
 
-                    var assignedForSegment = 0;
+                    var assignedForSegment = existingShifts.Count(shift =>
+                        shift.IdPosition == pattern.IdPosition && shift.ShiftDate == shiftDate &&
+                        shift.StartTime == segment.StartTime && shift.EndTime == segment.EndTime &&
+                        shift.IsOvernight == segment.IsOvernight);
+                    if (assignedForSegment > 0 && !request.SkipExisting)
+                    {
+                        throw new ResourceConflictException("Ya existen turnos para el segmento. Activa la opcion de omitir existentes.");
+                    }
+                    skippedShifts += assignedForSegment;
                     foreach (var assignment in candidates)
                     {
                         if (assignedForSegment >= segment.RequiredWorkerCount)
@@ -184,6 +257,8 @@ public sealed class SchedulingService(
 
                         var duration = DurationMinutes(profile.StartTime, profile.EndTime, profile.IsOvernight);
                         var hasOverlap = await repository.HasEmployeeShiftOverlapAsync(
+                            request.IdOrganization,
+                            request.IdScheduleVersion,
                             profile.IdEmployee,
                             profile.ShiftDate,
                             profile.StartTime,
@@ -204,6 +279,7 @@ public sealed class SchedulingService(
                         }
 
                         var shift = ScheduledShift.Create(
+                            request.IdOrganization,
                             request.IdScheduleVersion,
                             profile,
                             actorContext.ActorId,
@@ -211,6 +287,7 @@ public sealed class SchedulingService(
                             clock.UtcNow);
 
                         await repository.AddScheduledShiftAsync(shift, cancellationToken);
+                        existingShifts.Add(shift);
                         assignedForSegment++;
                         createdShifts++;
                     }
@@ -246,7 +323,12 @@ public sealed class SchedulingService(
         return shifts.Select(Map).ToArray();
     }
 
-    public async Task<ScheduledShiftResponse> CreateScheduledShiftAsync(
+    public Task<ScheduledShiftResponse> CreateScheduledShiftAsync(
+        CreateScheduledShiftRequest request,
+        CancellationToken cancellationToken) =>
+        repository.ExecuteAtomicAsync(token => CreateScheduledShiftCoreAsync(request, token), cancellationToken);
+
+    private async Task<ScheduledShiftResponse> CreateScheduledShiftCoreAsync(
         CreateScheduledShiftRequest request,
         CancellationToken cancellationToken)
     {
@@ -264,9 +346,10 @@ public sealed class SchedulingService(
             request.IsOvernight,
             request.Notes);
         EnsureShiftInsidePeriod(version, profile.ShiftDate);
-        await EnsureNoShiftOverlapAsync(profile, null, cancellationToken);
+        await EnsureNoShiftOverlapAsync(request.IdOrganization, request.IdScheduleVersion, profile, null, cancellationToken);
 
         var shift = ScheduledShift.Create(
+            request.IdOrganization,
             request.IdScheduleVersion,
             profile,
             actorContext.ActorId,
@@ -278,7 +361,13 @@ public sealed class SchedulingService(
         return Map(await repository.GetScheduledShiftAsync(request.IdScheduleVersion, shift.IdScheduledShift, cancellationToken) ?? shift);
     }
 
-    public async Task<ScheduledShiftResponse> UpdateScheduledShiftAsync(
+    public Task<ScheduledShiftResponse> UpdateScheduledShiftAsync(
+        Guid idScheduledShift,
+        UpdateScheduledShiftRequest request,
+        CancellationToken cancellationToken) =>
+        repository.ExecuteAtomicAsync(token => UpdateScheduledShiftCoreAsync(idScheduledShift, request, token), cancellationToken);
+
+    private async Task<ScheduledShiftResponse> UpdateScheduledShiftCoreAsync(
         Guid idScheduledShift,
         UpdateScheduledShiftRequest request,
         CancellationToken cancellationToken)
@@ -298,14 +387,27 @@ public sealed class SchedulingService(
             request.IsOvernight,
             request.Notes);
         EnsureShiftInsidePeriod(version, profile.ShiftDate);
-        await EnsureNoShiftOverlapAsync(profile, idScheduledShift, cancellationToken);
+        await EnsureNoShiftOverlapAsync(request.IdOrganization, request.IdScheduleVersion, profile, idScheduledShift, cancellationToken);
 
         shift.UpdateProfile(profile, actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return Map(await repository.GetScheduledShiftAsync(request.IdScheduleVersion, idScheduledShift, cancellationToken) ?? shift);
     }
 
-    public async Task DeactivateScheduledShiftAsync(
+    public Task DeactivateScheduledShiftAsync(
+        Guid idOrganization,
+        Guid idClient,
+        Guid idService,
+        Guid idScheduleVersion,
+        Guid idScheduledShift,
+        CancellationToken cancellationToken) =>
+        repository.ExecuteAtomicAsync(async token =>
+        {
+            await DeactivateScheduledShiftCoreAsync(idOrganization, idClient, idService, idScheduleVersion, idScheduledShift, token);
+            return true;
+        }, cancellationToken);
+
+    private async Task DeactivateScheduledShiftCoreAsync(
         Guid idOrganization,
         Guid idClient,
         Guid idService,
@@ -391,12 +493,16 @@ public sealed class SchedulingService(
     }
 
     private async Task EnsureNoShiftOverlapAsync(
+        Guid idOrganization,
+        Guid idScheduleVersion,
         ScheduledShiftProfile profile,
         Guid? excludedScheduledShiftId,
         CancellationToken cancellationToken)
     {
         var duration = DurationMinutes(profile.StartTime, profile.EndTime, profile.IsOvernight);
         if (await repository.HasEmployeeShiftOverlapAsync(
+            idOrganization,
+            idScheduleVersion,
             profile.IdEmployee,
             profile.ShiftDate,
             profile.StartTime,

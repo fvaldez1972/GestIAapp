@@ -1,8 +1,11 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal, linkedSignal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { forkJoin, of, switchMap } from 'rxjs';
+import { AuthService } from '../../../../core/auth/auth.service';
+import { firstDayOfOperationalMonth } from '../../../../shared/util/operational-date';
+import { SystemInfoService } from '../../../../core/system/system-info.service';
 import { ClientApiService } from '../../../clients/data-access/client-api.service';
 import {
   Client,
@@ -11,6 +14,7 @@ import {
   OperationsSummary,
   Organization,
   WorkforceEligibilityReport,
+  ClientListItem,
 } from '../../../clients/data-access/client.models';
 
 @Component({
@@ -22,25 +26,55 @@ import {
 })
 export class ReportsPage implements OnInit {
   private readonly api = inject(ClientApiService);
+  private readonly auth = inject(AuthService);
+  private readonly systemInfo = inject(SystemInfoService);
+  private readonly route = inject(ActivatedRoute);
 
-  protected readonly organizations = signal<readonly Organization[]>([]);
-  protected readonly clients = signal<readonly Client[]>([]);
+  protected readonly clients = signal<readonly ClientListItem[]>([]);
   protected readonly services = signal<readonly ManagedService[]>([]);
   protected readonly summary = signal<OperationsSummary | null>(null);
   protected readonly serviceSummaries = signal<readonly OperationsServiceSummary[]>([]);
   protected readonly workforceEligibility = signal<readonly WorkforceEligibilityReport[]>([]);
-  protected readonly selectedOrganizationId = signal('');
+  /** La organización de trabajo la fija la barra de contexto, y sólo ella. */
+  protected readonly selectedOrganizationId = this.auth.operationalOrganizationId;
   protected readonly selectedClientId = signal('');
   protected readonly selectedServiceId = signal('');
   protected readonly selectedReportType = signal<ReportType>('resumen');
   protected readonly selectedExportFormat = signal<ReportExportFormat>('xlsx');
   protected readonly showDefinitions = signal(false);
-  protected readonly fromDate = signal(this.firstDayOfMonth());
-  protected readonly toDate = signal(this.today());
+  /**
+   * Filtro de fecha con el día operativo por omisión. Es un `linkedSignal` y no un `signal` porque
+   * el día llega del servidor y puede no estar todavía cuando se construye la pantalla: así el
+   * filtro se llena solo en cuanto se sabe, y sigue pudiendo cambiarlo quien la usa.
+   */
+  protected readonly fromDate = linkedSignal(() => this.firstDayOfMonth());
+  protected readonly toDate = linkedSignal(() => this.today());
   protected readonly lastUpdatedAt = signal('');
   protected readonly loading = signal(false);
   protected readonly exporting = signal(false);
   protected readonly error = signal('');
+  protected readonly isPlatformAdmin = computed(() => this.auth.session()?.permissions.includes('PLATFORM.ADMIN') ?? false);
+  protected readonly isMonitorMode = this.route.snapshot.data['reportMode'] === 'monitor';
+  protected readonly selectedOrganization = this.auth.activeOrganization;
+  protected readonly heroCopy = computed(() =>
+    this.isMonitorMode
+      ? {
+        eyebrow: 'Operación / Plataforma',
+        title: 'Monitor global',
+        description: 'Supervisa el estado operativo por organización y abre el contexto que requiere soporte.',
+      }
+      : this.isPlatformAdmin()
+      ? {
+        eyebrow: 'Control plataforma',
+        title: 'Reportes por organización',
+        description: 'Consulta indicadores operativos por cliente y organización sin convertir Documentos en un repositorio global.',
+      }
+      : {
+        eyebrow: 'Control / Reportes',
+        title: 'Reportes',
+        description: 'Consulta resultados operativos con métricas trazables, alcance claro y definiciones visibles.',
+      },
+  );
 
   protected readonly attendanceRate = computed(() => {
     const summary = this.summary();
@@ -235,17 +269,23 @@ export class ReportsPage implements OnInit {
     () => `reporte-operativo-${this.toDate()}.${this.selectedExportFormat() === 'xlsx' ? 'xlsx' : this.selectedExportFormat()}`,
   );
   protected readonly filterScopeLabel = computed(() => {
-    const organization = this.organizations().find((item) => item.idOrganization === this.selectedOrganizationId())?.legalName ?? 'Sin organización';
+    const organization = this.selectedOrganization()?.legalName ?? 'Sin organización';
     const client = this.clients().find((item) => item.idClient === this.selectedClientId());
     const service = this.services().find((item) => item.idService === this.selectedServiceId());
     return [
-      `Organización: ${organization}`,
+      `${this.isPlatformAdmin() ? 'Organización administrada' : 'Organización'}: ${organization}`,
       `Cliente: ${client ? client.tradeName || client.legalName : 'Todos los clientes'}`,
       `Servicio: ${service ? service.name : 'Todos los servicios'}`,
     ].join(' · ');
   });
   protected readonly periodLabel = computed(() => `${this.fromDate()} - ${this.toDate()}`);
-  protected readonly timezoneLabel = computed(() => Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Mexico_City');
+  /**
+   * El huso del reporte es el **operativo**, no el del navegador de quien lo abre. Antes decía
+   * el huso que el navegador declara tener: un supervisor en Tijuana veía el mismo
+   * reporte rotulado con otro huso que uno en Mérida, y ninguno de los dos era el que el servidor
+   * usó para calcular los números.
+   */
+  protected readonly timezoneLabel = computed(() => this.systemInfo.timeZoneId() || 'Sin huso');
   protected readonly lastUpdatedLabel = computed(() =>
     this.lastUpdatedAt() ? new Intl.DateTimeFormat('es-MX', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(this.lastUpdatedAt())) : 'Sin actualizar',
   );
@@ -272,16 +312,7 @@ export class ReportsPage implements OnInit {
   });
 
   ngOnInit() {
-    this.loadOrganizations();
-  }
-
-  protected onOrganizationChange(value: string) {
-    this.selectedOrganizationId.set(value);
-    this.selectedClientId.set('');
-    this.selectedServiceId.set('');
-    this.clients.set([]);
-    this.services.set([]);
-    this.loadClients();
+    this.loadForActiveOrganization();
   }
 
   protected onClientChange(value: string) {
@@ -358,19 +389,15 @@ export class ReportsPage implements OnInit {
     this.exportReport('csv');
   }
 
-  private loadOrganizations() {
-    this.loading.set(true);
-    this.error.set('');
-
-    this.api.listOrganizations().subscribe({
-      next: (organizations) => {
-        this.organizations.set(organizations);
-        this.selectedOrganizationId.set(organizations[0]?.idOrganization ?? '');
-        this.loadClients();
-      },
-      error: (error: HttpErrorResponse) => this.setError(error, 'No se pudieron cargar las organizaciones.'),
-      complete: () => this.loading.set(false),
-    });
+  /**
+   * Ya no se carga una lista de organizaciones para elegir: la organización la fija la barra de
+   * contexto. Si hay una, se cargan sus datos; si no, la pantalla espera a que se elija. Cuando
+   * cambia, el shell vuelve a montar la pantalla y esto corre de nuevo.
+   */
+  private loadForActiveOrganization() {
+    if (this.selectedOrganizationId()) {
+      this.loadClients();
+    }
   }
 
   private loadClients() {
@@ -384,7 +411,7 @@ export class ReportsPage implements OnInit {
     this.error.set('');
 
     this.api
-      .listClients(organizationId, '', 1, 100)
+      .listClientOptions(organizationId)
       .pipe(
         switchMap((clients) => {
           this.clients.set(clients.items);
@@ -585,13 +612,16 @@ export class ReportsPage implements OnInit {
   }
 
   private today() {
-    return new Date().toISOString().slice(0, 10);
+    // El día operativo lo dice el servidor. Calcularlo aquí con `toISOString()` daba el día UTC:
+    // a las 19:00 hora de Ciudad de México del 4 de septiembre devolvía el 5, y la pantalla
+    // proponía el día siguiente todas las tardes. Es el mismo defecto que el reloj operativo
+    // cerró en el servidor. Cadena vacía mientras no se sabe: vacío se nota, un día equivocado no.
+    return this.systemInfo.operationDate();
   }
 
+  /** El primer día del mes operativo, no del mes del navegador. */
   private firstDayOfMonth() {
-    const date = new Date();
-    date.setDate(1);
-    return date.toISOString().slice(0, 10);
+    return firstDayOfOperationalMonth(this.today());
   }
 }
 

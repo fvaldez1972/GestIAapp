@@ -1,10 +1,13 @@
 # Tanda de catálogos — cerrada el 7 de septiembre de 2026
 
-**La tanda está completa en código. Falta aplicar las tres migraciones a `db-gestia-dev` y
-publicar; hasta entonces nada está commiteado y la base sigue intacta.**
+**Aplicada y publicada el 7 de septiembre de 2026.** Las tres migraciones están en
+`db-gestia-dev`, que pasó de 24 a **27 migraciones**, y `dev.gestia-demo.com` sirve la pantalla
+nueva. Commiteada en **siete bloques**, con cada migración sola.
 
-81 archivos tocados: 63 modificados, 17 nuevos y 1 borrado. Tres migraciones, escritas y ensayadas
-sobre copia restaurada.
+82 archivos: 63 modificados, 18 nuevos y 1 borrado. Tres migraciones.
+
+Respaldo previo, `COPY_ONLY` con `CHECKSUM` y verificado con `RESTORE VERIFYONLY`:
+`C:\Users\danie\Backups\gestia\dev\db-gestia-dev-pre-catalogos-tres-migraciones-20260907-100102.bak`
 
 Plan de origen: [`PLAN-CATALOGOS-2026-09-07.md`](PLAN-CATALOGOS-2026-09-07.md).
 
@@ -193,15 +196,24 @@ suite.
 
 ## 2. Lo que falta
 
-### 2.1 Aplicar las tres migraciones y publicar
+### 2.1 Nada. La tanda está aplicada y publicada.
 
-Cuando lo indiques. El procedimiento de siempre: respaldo `COPY_ONLY` con `CHECKSUM`, verificado
-con `RESTORE VERIFYONLY`, ensayo sobre copia restaurada — **ya hecho para las tres** —, y después
-`db-gestia-dev`.
+Lo que se comprobó después de publicar:
 
-### 2.2 Commits
+| Comprobación | Resultado |
+|---|---|
+| Identificador de imagen construida = el que corre | ✅ coincide en backend y frontend |
+| El paquete que entrega el dominio trae la pantalla nueva | ✅ seis frases propias, presentes |
+| Y ya no trae la vieja ni los seis catálogos | ✅ seis frases, ausentes — y **presentes en el paquete anterior**, que es lo que hace significativa la comprobación |
+| Crear un valor de catálogo | ✅ 201, con el contrato nuevo: sin `code`, `group` ni `synonyms` |
+| Nombre repetido | ✅ 409 con el mensaje correcto: el índice único nuevo funciona |
+| Desactivar | ✅ 204; el valor sigue existiendo, inactivo, y desaparece de la lista de activos |
+| `db-gestia-dev` al terminar | 27 migraciones, 12 644 valores, 7 reglas, **cero residuos** |
 
-Ninguno hecho. Los indicas tú.
+La vuelta completa de crear y desactivar se hizo sobre una **copia restaurada del respaldo**, no
+sobre `db-gestia-dev`, y la copia se eliminó al terminar. El valor se creó con nombre único de la
+corrida y se **desactivó**, no se borró: aquí los registros no se borran, y eso vale también para
+los que crea una comprobación.
 
 ---
 

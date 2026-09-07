@@ -103,6 +103,15 @@ describe('WeekGrid', () => {
     expect(leyenda()).toEqual(['Turno cubierto', 'Falta gente', 'Sin turno', 'Sin declarar']);
   });
 
+  /**
+   * <b>Esta prueba está pensada para fallar algún día, y ese día no es un defecto.</b>
+   *
+   * <p>Hoy el modelo no distingue un descanso de un día sin configurar, así que escribir
+   * «Descanso» afirmaría algo que el sistema no sabe. Cuando exista el patrón con ancla y un día
+   * del ciclo pueda declararse descanso, esta prueba va a romper: es lo que obliga a decidir la
+   * palabra a propósito en vez de que se cuele. Si estás leyendo esto porque falló, la pregunta no
+   * es cómo hacerla pasar sino si el modelo ya puede afirmar lo que la palabra dice.</p>
+   */
   it('ninguna parte de la rejilla dice «Descanso», que es lo que el modelo no puede afirmar', () => {
     const { raiz } = montar((h) => h.rows.set([fila(['undeclared', 'noShift', 'covered', 'covered', 'covered', 'noShift', 'noShift'])]));
 

@@ -126,6 +126,26 @@ export const routes: Routes = [
           ),
       },
       {
+        // Incidencias y Cobertura son una pantalla: el flujo las encadena y las dos entradas del
+        // menú caen aquí a propósito.
+        path: 'operacion/incidencias',
+        title: 'GestIA | Incidencias',
+        data: { permission: 'OPERATIONS.READ' },
+        loadComponent: () =>
+          import('./features/operations/pages/incidents-page/incidents-page').then(
+            (component) => component.IncidentsPage,
+          ),
+      },
+      {
+        path: 'operacion/cobertura',
+        title: 'GestIA | Cobertura',
+        data: { permission: 'OPERATIONS.READ' },
+        loadComponent: () =>
+          import('./features/operations/pages/incidents-page/incidents-page').then(
+            (component) => component.IncidentsPage,
+          ),
+      },
+      {
         path: 'operacion/:section',
         title: 'GestIA | Operación',
         data: { permission: 'OPERATIONS.READ' },

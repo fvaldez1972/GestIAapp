@@ -34,6 +34,7 @@ const RAICES = [
   resolve('src/app/features/operations/ui'),
   resolve('src/app/features/operations/data-access'),
   resolve('src/app/features/operations/pages/attendance-page'),
+  resolve('src/app/features/operations/pages/incidents-page'),
 ];
 
 /** Los siete tamaños de la escala. Ni uno más; el 13.5 px está prohibido por nombre. */

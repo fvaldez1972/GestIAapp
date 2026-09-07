@@ -1,0 +1,148 @@
+<section class="inci">
+  <header class="inci__hero">
+    <p class="inci__eyebrow">OPERACIÓN</p>
+    <h1 class="inci__titulo">Incidencias y cobertura</h1>
+    <p class="inci__ayuda">
+      Una falta abre una incidencia, y la incidencia se cierra cubriendo el turno o declarándolo sin
+      cubrir. Por eso van juntas.
+    </p>
+  </header>
+
+  @if (!canRead()) {
+    <gi-empty-state variant="no-permission" />
+  } @else if (!organizationId()) {
+    <gi-empty-state
+      variant="missing-prerequisite"
+      title="Elige una organización"
+      description="Esta pantalla trabaja dentro de una organización. Selecciónala en la barra de contexto."
+      link="/plataforma/organizaciones"
+      actionLabel="Ver organizaciones"
+    />
+  } @else if (services().length === 0) {
+    <gi-empty-state
+      variant="missing-prerequisite"
+      title="Esta organización no tiene servicios activos"
+      description="Las incidencias se registran por servicio."
+      link="/servicios"
+      actionLabel="Ir a Servicios"
+    />
+  } @else {
+    <gi-operation-day-bar
+      [date]="date()"
+      [operationalToday]="today()"
+      [maxDate]="today()"
+      [services]="serviceOptions()"
+      [idService]="idService()"
+      [siteLabel]="selectedService()?.clientName ?? ''"
+      [publishedVersionLabel]="publishedLabel()"
+      prerequisiteActionLabel="Ir a Planeación"
+      (dateChange)="onDateChange($event)"
+      (serviceChange)="onServiceChange($event)"
+      (resolvePrerequisite)="goToPlanning()"
+    >
+      <gi-day-closure
+        [state]="dayState()"
+        [closedByName]="closure()?.closedByName ?? ''"
+        [closedAt]="closure()?.closedAt ?? ''"
+        [reopenedByName]="closure()?.reopenedByName ?? ''"
+        [reopenedAt]="closure()?.reopenedAt ?? ''"
+        [snapshot]="snapshot()"
+        [canWrite]="canWrite()"
+        (closeDay)="closeDay($event)"
+        (reopenDay)="reopenDay($event)"
+      />
+    </gi-operation-day-bar>
+
+    @if (message()) {
+      <p class="inci__aviso inci__aviso--ok" role="status">{{ message() }}</p>
+    }
+
+    @if (error()) {
+      <p class="inci__aviso inci__aviso--mal" role="alert">{{ error() }}</p>
+    }
+
+    @if (uncovered().length > 0) {
+      <section class="inci__descubiertos">
+        <header class="inci__descubiertos-head">
+          <span class="inci__title">TURNOS AL DESCUBIERTO</span>
+          <span class="inci__cuenta">{{ uncovered().length }}</span>
+          <span class="inci__nota">Hubo falta y ninguna cobertura la resolvió</span>
+        </header>
+
+        <ul class="inci__lista">
+          @for (row of uncovered(); track row.idScheduledShift) {
+            <li class="inci__fila">
+              <span class="inci__quien">
+                <strong>{{ row.positionCode }} · {{ row.positionName }}</strong>
+                <span>{{ row.planned }} · faltó {{ row.employeeName }}</span>
+              </span>
+              @if (canWrite()) {
+                <button class="inci__accion" type="button" (click)="coverShift(row.idScheduledShift)">
+                  Cubrir el turno
+                </button>
+              }
+            </li>
+          }
+        </ul>
+
+        <p class="inci__pie">
+          Si nadie puede cubrirlo, la salida es <strong>cerrar la incidencia diciendo que el turno se
+          declaró sin cubrir</strong>. No hay un botón aparte: el turno queda al descubierto porque
+          hubo falta y ninguna cobertura la resolvió, y eso se lee de los registros, no de una marca.
+        </p>
+      </section>
+    }
+
+    <div class="inci__acciones-cabeza">
+      @if (canWrite()) {
+        <button class="inci__accion" type="button" (click)="newIncident()">Registrar incidencia</button>
+      }
+    </div>
+
+    <app-incident-list [rows]="incidentRows()" [canWrite]="canWrite()" (edit)="editIncident($event)" />
+
+    <app-coverage-list [rows]="dayCoverages()" [canWrite]="canWrite()" (edit)="editCoverage($event)" />
+  }
+
+  @if (creatingIncident() || editingIncident()) {
+    <gi-detail-panel
+      [title]="editingIncident() ? 'Corregir la incidencia' : 'Registrar una incidencia'"
+      [subtitle]="editingIncident()?.factReasonLabel ?? 'El hecho que hay que documentar'"
+      (close)="cerrarTodo()"
+    >
+      <ng-template giTab="datos">
+        <app-incident-form
+          [row]="editingIncident()"
+          [reasons]="incidentReasons()"
+          [dayClosed]="dayClosed()"
+          [saving]="saving()"
+          (save)="saveIncident($event)"
+          (cancel)="cerrarTodo()"
+          (openCatalog)="goToCatalog()"
+        />
+      </ng-template>
+    </gi-detail-panel>
+  }
+
+  @if (coverageTarget(); as target) {
+    <gi-detail-panel
+      [title]="editingCoverage() ? 'Corregir la cobertura' : 'Cubrir el turno'"
+      [subtitle]="target.positionCode + ' · ' + target.positionName"
+      (close)="cerrarTodo()"
+    >
+      <ng-template giTab="datos">
+        <app-coverage-form
+          [target]="target"
+          [candidates]="candidates()"
+          [reasons]="coverageReasons()"
+          [isCorrection]="!!editingCoverage()"
+          [dayClosed]="dayClosed()"
+          [saving]="saving()"
+          (save)="saveCoverage($event)"
+          (cancel)="cerrarTodo()"
+          (resolveEmpty)="goToPlanning()"
+        />
+      </ng-template>
+    </gi-detail-panel>
+  }
+</section>

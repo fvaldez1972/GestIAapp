@@ -1,873 +1,170 @@
-<section class="planning-page">
-  <article class="planning-hero gi-card">
-    <div>
-      <span class="eyebrow">{{ heroCopy().eyebrow }}</span>
-      <h1>{{ heroCopy().title }}</h1>
-      <p>
-        {{ heroCopy().description }}
-      </p>
-    </div>
+<section class="planeacion">
+  <header class="planeacion__hero">
+    <p class="planeacion__eyebrow">PLANEACIÓN</p>
+    <h1 class="planeacion__titulo">Planeación</h1>
+    <p class="planeacion__ayuda">
+      La semana que se publica es contra la que Asistencia mide y sobre la que Cobertura resuelve.
+    </p>
+  </header>
 
-    <div class="hero-actions">
-      <button class="gi-button gi-button--secondary" type="button" [disabled]="loading() || !selectedServiceId()" (click)="refresh()">
-        {{ loading() ? 'Actualizando…' : 'Actualizar' }}
-      </button>
-      <button class="gi-button gi-button--primary" type="button" [disabled]="!canWrite() || !selectedServiceId()" (click)="openNewVersion()">
-        + Nueva versión
-      </button>
-    </div>
-  </article>
+  @if (!canRead()) {
+    <gi-empty-state variant="no-permission" />
+  } @else if (!organizationId()) {
+    <gi-empty-state
+      variant="missing-prerequisite"
+      title="Elige una organización"
+      description="Planeación trabaja dentro de una organización. Selecciónala en la barra de contexto."
+      link="/plataforma/organizaciones"
+      actionLabel="Ver organizaciones"
+    />
+  } @else if (services().length === 0) {
+    <gi-empty-state
+      variant="missing-prerequisite"
+      title="Esta organización no tiene servicios activos"
+      description="Un servicio es lo que se planea. Sin servicios no hay semana que proyectar."
+      link="/servicios"
+      actionLabel="Ir a Servicios"
+    />
+  } @else {
+    <gi-operation-day-bar
+      [date]="date()"
+      [operationalToday]="today()"
+      [services]="serviceOptions()"
+      [idService]="idService()"
+      [siteLabel]="selectedService()?.clientName ?? ''"
+      [publishedVersionLabel]="publishedLabel()"
+      prerequisiteActionLabel="Publicar la semana"
+      (dateChange)="onDateChange($event)"
+      (serviceChange)="onServiceChange($event)"
+      (resolvePrerequisite)="publish()"
+    />
 
-  <section class="planning-context gi-card" aria-label="Contexto de planeación">
+    @if (message()) {
+      <p class="planeacion__aviso planeacion__aviso--ok" role="status">{{ message() }}</p>
+    }
 
-    <label class="gi-field">
-      Cliente
-      <select class="gi-input" [value]="selectedClientId()" (change)="onClientChange($event)">
-        @for (client of clients(); track client.idClient) {
-          <option [value]="client.idClient">{{ client.tradeName || client.legalName }}</option>
-        }
-      </select>
-    </label>
+    @if (error()) {
+      <p class="planeacion__aviso planeacion__aviso--mal" role="alert">{{ error() }}</p>
+    }
 
-    <label class="gi-field">
-      Servicio
-      <select class="gi-input" [value]="selectedServiceId()" (change)="onServiceChange($event)">
-        @for (service of services(); track service.idService) {
-          <option [value]="service.idService">{{ service.name }}</option>
-        }
-      </select>
-    </label>
-
-    <label class="gi-field">
-      Versión / semana
-      <select class="gi-input" [value]="selectedVersionId()" (change)="onVersionChange($event)">
-        @for (version of versions(); track version.idScheduleVersion) {
-          <option [value]="version.idScheduleVersion">
-            {{ version.name }} · {{ version.idScheduleVersion === selectedVersionId() ? visualScheduleStatusLabel(version) : scheduleStatusLabel(version.status) }}
-          </option>
-        }
-      </select>
-    </label>
-  </section>
-
-  @if (error()) {
-    <p class="gi-alert gi-alert--error">{{ error() }}</p>
-  }
-
-  @if (message()) {
-    <p class="gi-alert gi-alert--success">{{ message() }}</p>
-  }
-
-  @if (generationWarnings().length) {
-    <section class="gi-card generation-warnings" aria-label="Advertencias de generación automática">
-      <span class="eyebrow">Cobertura pendiente</span>
-      <h2>Turnos generados con observaciones</h2>
-      <ul>
-        @for (warning of generationWarnings(); track warning) {
+    @if (warnings().length > 0) {
+      <ul class="planeacion__aviso planeacion__aviso--ojo" aria-label="Observaciones al proyectar">
+        @for (warning of warnings(); track warning) {
           <li>{{ warning }}</li>
         }
       </ul>
-    </section>
-  }
-
-  <section class="planning-summary" aria-label="Resumen de planeación">
-    <article class="metric-card gi-card">
-      <span>Cobertura</span>
-      <strong>{{ coveragePercentage() }}%</strong>
-      <small>del requerimiento</small>
-    </article>
-    <article class="metric-card gi-card" [class.needs-attention]="coverageGapCount() > 0">
-      <span>Huecos</span>
-      <strong>{{ coverageGapCount() }}</strong>
-      <small>posiciones sin cubrir</small>
-    </article>
-    <article class="metric-card gi-card" [class.needs-attention]="blockingPlanningIssues().length > 0">
-      <span>Conflictos</span>
-      <strong>{{ blockingPlanningIssues().length }}</strong>
-      <small>bloquean publicación</small>
-    </article>
-    <article class="metric-card gi-card" [class.needs-attention]="eligibilityBlockCount() > 0">
-      <span>Elegibilidad</span>
-      <strong>{{ eligibilityBlockCount() }}</strong>
-      <small>bloqueos</small>
-    </article>
-  </section>
-
-  @if (selectedService(); as service) {
-    <article class="service-context gi-card">
-      <div>
-        <span class="eyebrow">{{ service.codeService }}</span>
-        <h2>{{ service.name }}</h2>
-        <p>{{ service.clientSiteName || 'Sin sede asignada' }}</p>
-      </div>
-      <div class="service-status">
-        @if (selectedVersion(); as version) {
-          <span [class]="visualScheduleStatusClass(version)">{{ visualScheduleStatusLabel(version) }}</span>
-          <strong>{{ version.periodStartDate }} — {{ version.periodEndDate }}</strong>
-        } @else {
-          <span class="mini-pill is-muted">Sin versión</span>
-          <strong>Crea una versión para comenzar</strong>
-        }
-      </div>
-    </article>
-  }
-
-  <article class="publish-preparation gi-card">
-    <header class="panel-heading">
-      <div>
-        <span class="eyebrow">Preparación para publicar</span>
-        <h2>{{ canPublishSelectedVersion() ? 'Versión apta para publicar' : 'Publicación bloqueada' }}</h2>
-        <p>Cumple los requisitos antes de habilitar la publicación de la versión.</p>
-      </div>
-      <div class="publish-actions">
-        @if (!canPublishSelectedVersion()) {
-          <button class="gi-button gi-button--primary" type="button" (click)="setActiveTab('conflicts')">
-            Resolver {{ planningValidation().length }} conflictos
-          </button>
-        }
-        <button
-          class="gi-button gi-button--primary"
-          type="button"
-          [disabled]="saving() || !canWrite() || !canPublishSelectedVersion()"
-          (click)="publishVersion()"
-        >
-          Publicar versión
-        </button>
-        @if (!canPublishSelectedVersion()) {
-          <small>No disponible hasta resolver bloqueos.</small>
-        }
-      </div>
-    </header>
-
-    <div class="preparation-grid">
-      @for (item of publishPreparation(); track item.label) {
-        <article class="preparation-item" [attr.data-state]="item.state">
-          <i>{{ preparationIcon(item.state) }}</i>
-          <div>
-            <strong>{{ item.label }}</strong>
-            <span>{{ item.detail }}</span>
-          </div>
-        </article>
-      }
-    </div>
-  </article>
-
-  <nav class="planning-tabs gi-card" aria-label="Secciones de planeación">
-    @for (tab of tabs; track tab.value) {
-      <button type="button" [class.is-active]="activeTab() === tab.value" (click)="setActiveTab(tab.value)">
-        <span>{{ tab.label }}</span>
-        <small>{{ tab.help }}</small>
-      </button>
     }
-  </nav>
 
-  @if (activeTab() === 'calendar') {
-    <section class="weekly-board gi-card" aria-label="Calendario semanal de planeación">
-      <header class="board-heading">
-        <div>
-          <span class="eyebrow">Calendario</span>
-          <h2>Matriz semanal de turnos</h2>
-          <p>Filas por posición, columnas por día. Cada celda indica si está cubierta, parcial, vacía o con conflicto.</p>
-        </div>
-        <button class="gi-button gi-button--primary" type="button" [disabled]="!canWrite() || !selectedVersionId()" (click)="openNewShift()">
-          + Agregar turno
+    <app-week-grid
+      [rows]="rows()"
+      [days]="days()"
+      [highlightDate]="date()"
+      (createPosition)="openNewPosition()"
+      (cellSelect)="onCellSelect($event)"
+    />
+
+    @if (canWrite() && shiftCount() === 0 && rows().length > 0) {
+      <p class="planeacion__aviso planeacion__aviso--ok">
+        Esta semana todavía no tiene turnos proyectados.
+        <button class="planeacion__accion" type="button" [disabled]="saving()" (click)="prepareWeek()">
+          Proyectar desde los patrones
         </button>
-      </header>
+      </p>
+    }
 
-      @if (selectedVersion()) {
-        <div class="matrix-wrap">
-          <table class="planning-matrix">
-            <thead>
-              <tr>
-                <th>Posición</th>
-                @for (day of weeklyPlanning(); track day.date) {
-                  <th>
-                    <span>{{ formatDate(day.date) }}</span>
-                    <small>{{ day.totalHours }} h</small>
-                  </th>
-                }
-              </tr>
-            </thead>
-            <tbody>
-              @for (row of planningMatrix(); track row.position.idPosition) {
-                <tr>
-                  <th>
-                    <strong>{{ row.position.codePosition }}</strong>
-                    <small>{{ row.position.name }}</small>
-                    <em>{{ row.position.requiredWorkerCount }} req.</em>
-                  </th>
-                  @for (cell of row.days; track cell.date) {
-                    <td
-                      [attr.data-tone]="matrixCellState(cell).tone"
-                      (dragover)="onMatrixDragOver($event)"
-                      (drop)="onMatrixDrop($event, row.position, cell.date)"
-                    >
-                      <div class="cell-status">
-                        <span>{{ matrixCellState(cell).icon }} {{ matrixCellState(cell).label }}</span>
-                        <small>{{ cell.shifts.length }}/{{ cell.requiredWorkerCount }}</small>
-                      </div>
+    <div class="planeacion__cierre">
+      <app-conflict-list [conflicts]="conflicts()" />
 
-                      @for (shift of cell.shifts; track shift.idScheduledShift) {
-                        <button
-                          type="button"
-                          class="matrix-shift"
-                          draggable="true"
-                          [class.has-conflict]="shiftIssues(shift).length > 0"
-                          (dragstart)="onShiftDragStart(shift)"
-                          (click)="selectShift(shift)"
-                        >
-                          <strong>{{ shift.employeeName }}</strong>
-                          <small>{{ shift.startTime.slice(0, 5) }}–{{ shift.endTime.slice(0, 5) }}</small>
-                        </button>
-                      } @empty {
-                        <button class="empty-cell-action" type="button" [disabled]="!canWrite()" (click)="openNewShift(row.position.idPosition, cell.date)">
-                          Agregar
-                        </button>
-                      }
-                    </td>
-                  }
-                </tr>
-              } @empty {
-                <tr>
-                  <td colspan="8" class="empty">Crea posiciones para visualizar la matriz semanal.</td>
-                </tr>
-              }
-            </tbody>
-          </table>
-        </div>
-
-        <div class="legend">
-          <span><i class="ok">✓</i> Asignado</span>
-          <span><i class="warn">⚠</i> Cobertura parcial</span>
-          <span><i class="empty">○</i> Sin asignar</span>
-          <span><i class="danger">✕</i> Conflicto</span>
-        </div>
-      } @else {
-        <div class="gi-empty-state">
-          <h3>Sin versión seleccionada</h3>
-          <p>Crea o selecciona una versión para visualizar el calendario de turnos.</p>
-          <button class="gi-button gi-button--primary" type="button" [disabled]="!canWrite()" (click)="openNewVersion()">
-            Crear versión
-          </button>
-        </div>
-      }
-    </section>
+      <app-publish-panel
+        [weekStart]="weekStart()"
+        [weekEnd]="weekEnd()"
+        [shiftCount]="shiftCount()"
+        [positionCount]="rows().length"
+        [conflicts]="conflicts()"
+        [canWrite]="canWrite()"
+        [publishedLabel]="publishedLabel()"
+        (publish)="publish()"
+      />
+    </div>
   }
 
-  @if (activeTab() === 'positions') {
-    <section class="split-workspace">
-      <article class="gi-card list-panel">
-        <header class="panel-heading">
+  @if (creatingPosition()) {
+    <gi-detail-panel
+      title="Nueva posición"
+      subtitle="El puesto que hay que cubrir, con independencia de quién lo ocupe"
+      (close)="closePosition()"
+    >
+      <ng-template giTab="datos">
+        <app-position-form
+          [saving]="saving()"
+          [usedCodes]="usedPositionCodes()"
+          (save)="savePosition($event)"
+          (cancel)="closePosition()"
+        />
+      </ng-template>
+    </gi-detail-panel>
+  } @else if (selectedPosition(); as position) {
+    <gi-detail-panel
+      [title]="position.codePosition"
+      [subtitle]="position.name"
+      [tabs]="positionTabs"
+      [activeTab]="activePositionTab()"
+      (tabChange)="activePositionTab.set($event)"
+      (close)="closePosition()"
+    >
+      <ng-template giTab="datos">
+        <dl class="planeacion__datos">
+          <div><dt>Código</dt><dd>{{ position.codePosition }}</dd></div>
+          <div><dt>Nombre</dt><dd>{{ position.name }}</dd></div>
           <div>
-            <span class="eyebrow">Posiciones</span>
-            <h2>Puestos del servicio</h2>
+            <dt>Elementos que pide</dt>
+            <dd>{{ position.requiredWorkerCount }}</dd>
           </div>
-          <button class="gi-button gi-button--primary" type="button" [disabled]="!canWrite() || !selectedServiceId()" (click)="openNewPosition()">
-            + Posición
-          </button>
-        </header>
-
-        <div class="list-stack">
-          @for (position of positions(); track position.idPosition) {
-            <article class="mini-card" [class.is-selected]="position.idPosition === selectedPositionId()" (click)="selectPosition(position)">
-              <strong>{{ position.codePosition }} · {{ position.name }}</strong>
-              <span>{{ position.requiredWorkerCount }} persona(s) requeridas</span>
-              <small>{{ position.requiredSkillProfile || 'Sin perfil específico' }}</small>
-            </article>
-          } @empty {
-            <div class="gi-empty-state">
-              <h3>Sin posiciones</h3>
-              <p>Define posiciones para poder asignar personal y construir turnos.</p>
-            </div>
+          @if (position.notes) {
+            <div><dt>Notas</dt><dd>{{ position.notes }}</dd></div>
           }
-        </div>
-      </article>
+        </dl>
+      </ng-template>
 
-      <article class="gi-card list-panel">
-        <header class="panel-heading">
-          <div>
-            <span class="eyebrow">Asignaciones</span>
-            <h2>Personal del servicio</h2>
-          </div>
-          <button class="gi-button gi-button--primary" type="button" [disabled]="!canWrite() || positions().length === 0" (click)="openNewAssignment()">
-            + Asignar
-          </button>
-        </header>
-
-        <div class="list-stack">
-          @for (assignment of assignments(); track assignment.idServiceAssignment) {
-            <article class="mini-card" [class.is-selected]="assignment.idServiceAssignment === selectedAssignmentId()" (click)="selectAssignment(assignment)">
-              <strong>{{ assignment.employeeCode }} · {{ assignment.employeeName }}</strong>
-              <span>{{ assignment.positionName || 'Sin posición' }} · {{ assignmentTypeLabel(assignment.assignmentType) }}</span>
-              <small>{{ assignment.startDate }} — {{ assignment.endDate || 'vigente' }}</small>
-            </article>
-          } @empty {
-            <div class="gi-empty-state">
-              <h3>Sin personal asignado</h3>
-              <p>Asigna personal antes de generar turnos o publicar una planeación.</p>
-            </div>
-          }
-        </div>
-      </article>
-    </section>
-  }
-
-  @if (activeTab() === 'patterns') {
-    <section class="patterns-panel gi-card">
-      <header class="panel-heading">
-        <div>
-          <span class="eyebrow">Patrones</span>
-          <h2>Patrones activos por posición</h2>
-          <p>Estos patrones alimentan la generación automática de turnos de una versión en borrador.</p>
-        </div>
-        <button
-          class="gi-button gi-button--primary"
-          type="button"
-          [disabled]="saving() || !canWrite() || !selectedVersionId() || selectedVersion()?.status !== 'Draft'"
-          (click)="generateFromPatterns()"
-        >
-          Generar desde patrones
-        </button>
-      </header>
-
-      <div class="pattern-grid">
-        @for (pattern of activePatterns(); track pattern.idShiftPattern) {
-          <article class="pattern-card">
-            <span>{{ pattern.codeShiftPattern }}</span>
-            <strong>{{ pattern.name }}</strong>
-            <small>{{ pattern.description || 'Sin descripción' }}</small>
-            <em>{{ pattern.effectiveFromDate }} — {{ pattern.effectiveToDate || 'vigente' }}</em>
-          </article>
-        } @empty {
-          <div class="gi-empty-state">
-            <h3>Sin patrones activos</h3>
-            <p>Cuando existan patrones en las posiciones del servicio, aquí se mostrarán para generar turnos automáticamente.</p>
-          </div>
+      <ng-template giTab="patron">
+        @if (canWrite()) {
+          <p class="planeacion__baja">
+            <button class="planeacion__accion" type="button" [disabled]="saving()" (click)="deactivatePosition()">
+              Dar de baja esta posición
+            </button>
+            <span>Deja de proyectar turnos. Lo ya registrado contra ella se conserva.</span>
+          </p>
         }
-      </div>
-    </section>
+
+        <app-pattern-editor
+          [positionCode]="position.codePosition"
+          [segments]="selectedSegments()"
+          [hasPattern]="selectedSegments().length > 0"
+          [canWrite]="canWrite()"
+          (save)="saveSegment($event)"
+          (removeSegment)="removeSegment($event)"
+          (createPattern)="activePositionTab.set('patron')"
+        />
+      </ng-template>
+    </gi-detail-panel>
   }
 
-  @if (activeTab() === 'versions') {
-    <section class="versions-workspace">
-      <article class="versions-panel gi-card">
-        <header class="panel-heading">
-          <div>
-            <span class="eyebrow">Versiones</span>
-            <h2>Planeaciones del servicio</h2>
-          </div>
-          <div class="panel-actions">
-            <button class="gi-button gi-button--secondary" type="button" [disabled]="!selectedVersion()" (click)="editSelectedVersion()">Editar versión</button>
-            <button class="gi-button gi-button--primary" type="button" [disabled]="!canWrite()" (click)="openNewVersion()">Nueva versión</button>
-          </div>
-        </header>
+  @if (pendingCell(); as cell) {
+    <aside class="planeacion__cajon" aria-label="Quién cubre el turno">
+      <header class="planeacion__cajon-head">
+        <span class="planeacion__cajon-titulo">
+          Falta gente el {{ cell.date }} · {{ cell.assignedWorkerCount }} de
+          {{ cell.requiredWorkerCount }}
+        </span>
+        <button class="planeacion__cerrar" type="button" (click)="closeCandidates()">Cerrar</button>
+      </header>
 
-        <div class="versions-table" role="table" aria-label="Versiones de planeación">
-          <div class="versions-table__head" role="row">
-            <span role="columnheader">Versión</span>
-            <span role="columnheader">Estado</span>
-            <span role="columnheader">Periodo</span>
-            <span role="columnheader">Bloqueos</span>
-            <span role="columnheader">Autor</span>
-            <span role="columnheader">Última edición</span>
-            <span role="columnheader">Acciones</span>
-          </div>
-          @for (version of versions(); track version.idScheduleVersion) {
-            <article class="version-row" role="row" [class.is-selected]="version.idScheduleVersion === selectedVersionId()">
-              <button class="row-main" type="button" role="cell" (click)="selectVersion(version)">
-                <strong>{{ version.name }}</strong>
-                <small>{{ version.idScheduleVersion === selectedVersionId() ? 'Versión actual' : 'Ver versión' }}</small>
-              </button>
-              <span role="cell" [class]="version.idScheduleVersion === selectedVersionId() ? visualScheduleStatusClass(version) : scheduleStatusClass(version.status)">
-                {{ version.idScheduleVersion === selectedVersionId() ? visualScheduleStatusLabel(version) : scheduleStatusLabel(version.status) }}
-              </span>
-              <span class="version-cell" role="cell">{{ version.periodStartDate }} — {{ version.periodEndDate }}</span>
-              <span class="version-cell" role="cell">
-                {{ version.idScheduleVersion === selectedVersionId() ? blockingPlanningIssues().length : '—' }}
-              </span>
-              <span class="version-cell" role="cell">{{ version.publishedByName || 'Sistema' }}</span>
-              <span class="version-cell" role="cell">{{ version.publishedAt || 'Sin publicación' }}</span>
-              <span class="row-actions" role="cell">
-                @if (version.idScheduleVersion !== selectedVersionId()) {
-                  <button class="mini-action" type="button" (click)="selectVersion(version)">Ver</button>
-                }
-                @if (version.idScheduleVersion === selectedVersionId() && blockingPlanningIssues().length > 0) {
-                  <button class="mini-action danger" type="button" (click)="setActiveTab('conflicts')">Resolver conflictos</button>
-                }
-                @if (version.idScheduleVersion === selectedVersionId() && canPublishSelectedVersion()) {
-                  <button class="mini-action" type="button" [disabled]="saving()" (click)="publishVersion()">Publicar</button>
-                }
-              </span>
-            </article>
-          } @empty {
-            <div class="gi-empty-state">
-              <h3>Sin versiones</h3>
-              <p>Crea una versión de planeación para construir el calendario del servicio.</p>
-            </div>
-          }
-        </div>
-      </article>
-
-      <article class="publish-panel gi-card">
-        <span class="eyebrow">Antes de publicar</span>
-        <h2>Resumen de validación</h2>
-        <div class="publish-summary">
-          <span class="ok">✓ {{ publishSummary().validShifts }} turnos válidos</span>
-          <span [class.warn]="publishSummary().gaps > 0">⚠ {{ publishSummary().gaps }} huecos</span>
-          <span [class.danger]="publishSummary().conflicts > 0">✕ {{ publishSummary().conflicts }} conflictos</span>
-          <span>✕ {{ publishSummary().notEligible }} empleados no elegibles detectados aquí</span>
-        </div>
-        <small>La API conserva la validación final; si rechaza publicación, el frontend no la fuerza.</small>
-        <button
-          class="gi-button gi-button--primary"
-          type="button"
-          [disabled]="saving() || !canWrite() || !canPublishSelectedVersion()"
-          (click)="publishVersion()"
-        >
-          Publicar / reemplazar
-        </button>
-      </article>
-    </section>
-  }
-
-  @if (activeTab() === 'conflicts') {
-    <section class="conflicts-workspace">
-      <article class="gi-card validation-panel">
-        <header class="panel-heading">
-          <div>
-            <span class="eyebrow">Conflictos</span>
-            <h2>Validación visual</h2>
-            <p>Revisa y resuelve conflictos que bloquean la publicación.</p>
-          </div>
-          <span class="gi-badge">{{ filteredPlanningConflicts().length }} hallazgo(s)</span>
-        </header>
-
-        <section class="conflict-filters" [formGroup]="conflictFilterForm">
-          <label class="gi-field">
-            Tipo de conflicto
-            <select class="gi-input" formControlName="type" (change)="refreshConflictFilters()">
-              <option value="">Todos</option>
-              <option value="uncovered">Posiciones sin cubrir</option>
-              <option value="duplicate">Duplicados</option>
-              <option value="outOfPeriod">Fuera de periodo</option>
-              <option value="eligibility">Elegibilidad</option>
-            </select>
-          </label>
-          <label class="gi-field">
-            Severidad
-            <select class="gi-input" formControlName="severity" (change)="refreshConflictFilters()">
-              <option value="">Todas</option>
-              <option value="Alta">Alta</option>
-              <option value="Media">Media</option>
-            </select>
-          </label>
-          <label class="gi-field">
-            Día
-            <select class="gi-input" formControlName="day" (change)="refreshConflictFilters()">
-              <option value="">Todos</option>
-              @for (day of conflictDays(); track day) {
-                <option [value]="day">{{ formatDate(day) }}</option>
-              }
-            </select>
-          </label>
-          <label class="gi-field">
-            Posición
-            <select class="gi-input" formControlName="position" (change)="refreshConflictFilters()">
-              <option value="">Todas</option>
-              @for (position of positions(); track position.idPosition) {
-                <option [value]="position.idPosition">{{ position.codePosition }} · {{ position.name }}</option>
-              }
-            </select>
-          </label>
-          <button class="gi-button gi-button--secondary" type="button" (click)="clearConflictFilters()">Limpiar</button>
-        </section>
-
-        <nav class="conflict-chips" aria-label="Resumen por tipo de conflicto">
-          <button type="button" (click)="conflictFilterForm.patchValue({ type: 'uncovered' }); refreshConflictFilters()">
-            Posiciones sin cubrir <strong>{{ conflictCount('uncovered') }}</strong>
-          </button>
-          <button type="button" (click)="conflictFilterForm.patchValue({ type: 'duplicate' }); refreshConflictFilters()">
-            Duplicados <strong>{{ conflictCount('duplicate') }}</strong>
-          </button>
-          <button type="button" (click)="conflictFilterForm.patchValue({ type: 'outOfPeriod' }); refreshConflictFilters()">
-            Fuera de periodo <strong>{{ conflictCount('outOfPeriod') }}</strong>
-          </button>
-          <button type="button" (click)="conflictFilterForm.patchValue({ type: 'eligibility' }); refreshConflictFilters()">
-            Elegibilidad <strong>{{ conflictCount('eligibility') }}</strong>
-          </button>
-        </nav>
-
-        <div class="validation-list">
-          @for (issue of filteredPlanningConflicts(); track issue.description) {
-            <article class="validation-item" [class.is-danger]="issue.severity === 'danger'">
-              <div>
-                <span>{{ issue.severity === 'danger' ? '✕' : '⚠' }} {{ conflictTypeLabel(issue.type) }} · {{ issue.severityLabel }}</span>
-                <strong>{{ issue.description }}</strong>
-                <p>{{ issue.recommendedAction }}</p>
-              </div>
-              <button class="mini-action" type="button" (click)="resolveConflict(issue)">
-                {{ issue.actionLabel }}
-              </button>
-            </article>
-          } @empty {
-            <div class="gi-empty-state">
-              <h3>No hay conflictos con estos filtros</h3>
-              <p>Ajusta los filtros o revisa otra versión de planeación.</p>
-              <button class="gi-button gi-button--secondary" type="button" (click)="clearConflictFilters()">Limpiar filtros</button>
-            </div>
-          }
-        </div>
-      </article>
-
-      @if (planningComparison(); as comparison) {
-        <article class="gi-card comparison-panel">
-          <header class="panel-heading">
-            <div>
-              <span class="eyebrow">Publicado vs borrador</span>
-              <h2>{{ comparison.publishedName }} → {{ comparison.draftName }}</h2>
-              <p>{{ comparison.shiftDelta }} turno(s) / {{ comparison.hourDelta }} h de diferencia.</p>
-            </div>
-          </header>
-
-          <div class="comparison-list">
-            @for (detail of comparison.details; track detail.description) {
-              <article class="comparison-item" [class.is-warning]="detail.severity === 'warning'" [class.is-danger]="detail.severity === 'danger'">
-                <span>{{ detail.label }}</span>
-                <strong>{{ detail.description }}</strong>
-              </article>
-            } @empty {
-              <div class="gi-empty-state">
-                <h3>Sin diferencias turno por turno</h3>
-                <p>La versión seleccionada coincide con la planeación publicada en horarios, posiciones y empleados.</p>
-              </div>
-            }
-          </div>
-        </article>
-      } @else {
-        <article class="gi-card comparison-panel">
-          <div class="gi-empty-state">
-            <h3>Sin comparación disponible</h3>
-            <p>Selecciona una versión distinta a la publicada para comparar cambios.</p>
-          </div>
-        </article>
-      }
-    </section>
-  }
-
-  @if (shiftDetailOpen() && selectedShift(); as shift) {
-    <div class="drawer-layer" role="presentation" (click)="closeShiftDetail()">
-      <aside class="planning-drawer" role="dialog" aria-label="Detalle del turno" (click)="$event.stopPropagation()">
-        <header class="drawer-header">
-          <div>
-            <span class="eyebrow">Detalle del turno</span>
-            <h2>{{ shift.employeeName }}</h2>
-            <p>{{ shift.positionCode }} · {{ shift.positionName }}</p>
-          </div>
-          <button class="drawer-close" type="button" aria-label="Cerrar detalle" (click)="closeShiftDetail()">×</button>
-        </header>
-
-        <section class="detail-grid">
-          <article>
-            <span>Fecha</span>
-            <strong>{{ formatDate(shift.shiftDate) }}</strong>
-          </article>
-          <article>
-            <span>Horario</span>
-            <strong>{{ shift.startTime }} — {{ shift.endTime }}</strong>
-          </article>
-          <article>
-            <span>Duración</span>
-            <strong>{{ formatHours(shift.durationMinutes) }}</strong>
-          </article>
-          <article>
-            <span>Elegibilidad</span>
-            <strong>{{ selectedShiftEligibilityLabel() }}</strong>
-          </article>
-        </section>
-
-        <section class="drawer-note">
-          <span>Conflictos</span>
-          @for (issue of shiftIssues(shift); track issue) {
-            <p class="danger">✕ {{ issue }}</p>
-          } @empty {
-            <p>Sin conflictos visibles para este turno.</p>
-          }
-        </section>
-
-        <section class="drawer-note">
-          <span>Notas</span>
-          <p>{{ shift.notes || 'Sin notas registradas.' }}</p>
-        </section>
-
-        <footer class="drawer-actions">
-          <button class="gi-button gi-button--secondary" type="button" (click)="openEditShift(shift)">Editar turno</button>
-          <button class="gi-button gi-button--danger" type="button" [disabled]="saving() || !canWrite()" (click)="deactivateShift(shift)">Desactivar</button>
-        </footer>
-      </aside>
-    </div>
-  }
-
-  @if (positionDrawerOpen()) {
-    <div class="drawer-layer" role="presentation" (click)="closePositionDrawer()">
-      <aside class="planning-drawer" role="dialog" aria-label="Posición del servicio" (click)="$event.stopPropagation()">
-        <form [formGroup]="positionForm" (ngSubmit)="savePosition()">
-          <header class="drawer-header">
-            <div>
-              <span class="eyebrow">{{ selectedPosition() ? 'Editar posición' : 'Nueva posición' }}</span>
-              <h2>Posición del servicio</h2>
-              <p>Define puesto, cobertura requerida y perfil operativo.</p>
-            </div>
-            <button class="drawer-close" type="button" aria-label="Cerrar posición" (click)="closePositionDrawer()">×</button>
-          </header>
-
-          <label class="gi-field">
-            Clave
-            <input class="gi-input" type="text" formControlName="codePosition" />
-          </label>
-          <label class="gi-field">
-            Nombre de la posición
-            <input class="gi-input" type="text" formControlName="name" />
-          </label>
-          <label class="gi-field">
-            Personal requerido
-            <input class="gi-input" type="number" min="1" formControlName="requiredWorkerCount" />
-          </label>
-          <label class="gi-field">
-            Perfil o habilidad requerida
-            <textarea class="gi-input" rows="3" formControlName="requiredSkillProfile"></textarea>
-          </label>
-          <label class="gi-field">
-            Notas
-            <textarea class="gi-input" rows="3" formControlName="notes"></textarea>
-          </label>
-
-          <footer class="drawer-actions">
-            @if (selectedPosition()) {
-              <button class="gi-button gi-button--danger" type="button" [disabled]="saving() || !canWrite()" (click)="deactivatePosition(selectedPosition()!)">
-                Desactivar
-              </button>
-            }
-            <button class="gi-button gi-button--secondary" type="button" (click)="closePositionDrawer()">Cancelar</button>
-            <button class="gi-button gi-button--primary" type="submit" [disabled]="saving() || !canWrite() || !selectedServiceId()">
-              {{ saving() ? 'Guardando…' : 'Guardar posición' }}
-            </button>
-          </footer>
-        </form>
-      </aside>
-    </div>
-  }
-
-  @if (assignmentDrawerOpen()) {
-    <div class="drawer-layer" role="presentation" (click)="closeAssignmentDrawer()">
-      <aside class="planning-drawer" role="dialog" aria-label="Asignación de personal" (click)="$event.stopPropagation()">
-        <form [formGroup]="assignmentForm" (ngSubmit)="saveAssignment()">
-          <header class="drawer-header">
-            <div>
-              <span class="eyebrow">{{ selectedAssignment() ? 'Editar asignación' : 'Asignar personal' }}</span>
-              <h2>Personal del servicio</h2>
-              <p>Relaciona empleados activos con posiciones antes de generar turnos.</p>
-            </div>
-            <button class="drawer-close" type="button" aria-label="Cerrar asignación" (click)="closeAssignmentDrawer()">×</button>
-          </header>
-
-          <label class="gi-field">
-            Empleado
-            <select class="gi-input" formControlName="idEmployee">
-              @for (employee of employees(); track employee.idEmployee) {
-                <option [value]="employee.idEmployee">{{ employee.codeEmployee }} · {{ employee.fullName }}</option>
-              }
-            </select>
-          </label>
-          <label class="gi-field">
-            Posición
-            <select class="gi-input" formControlName="idPosition">
-              @for (position of positions(); track position.idPosition) {
-                <option [value]="position.idPosition">{{ position.codePosition }} · {{ position.name }}</option>
-              }
-            </select>
-          </label>
-          <div class="form-row">
-            <label class="gi-field">
-              Tipo
-              <select class="gi-input" formControlName="assignmentType">
-                @for (type of assignmentTypes; track type.value) {
-                  <option [value]="type.value">{{ type.label }}</option>
-                }
-              </select>
-            </label>
-            <label class="gi-field">
-              Inicio
-              <input class="gi-input" type="date" formControlName="startDate" />
-            </label>
-          </div>
-          <label class="gi-field">
-            Fin
-            <input class="gi-input" type="date" formControlName="endDate" />
-          </label>
-          <label class="check-row">
-            <input type="checkbox" formControlName="isPrimary" />
-            Asignación principal
-          </label>
-          <label class="gi-field">
-            Notas
-            <textarea class="gi-input" rows="3" formControlName="notes"></textarea>
-          </label>
-
-          <footer class="drawer-actions">
-            @if (selectedAssignment()) {
-              <button class="gi-button gi-button--danger" type="button" [disabled]="saving() || !canWrite()" (click)="deactivateAssignment(selectedAssignment()!)">
-                Desactivar
-              </button>
-            }
-            <button class="gi-button gi-button--secondary" type="button" (click)="closeAssignmentDrawer()">Cancelar</button>
-            <button class="gi-button gi-button--primary" type="submit" [disabled]="saving() || !canWrite() || positions().length === 0 || employees().length === 0">
-              {{ saving() ? 'Guardando…' : 'Guardar asignación' }}
-            </button>
-          </footer>
-        </form>
-      </aside>
-    </div>
-  }
-
-  @if (versionDrawerOpen()) {
-    <div class="drawer-layer" role="presentation" (click)="closeVersionDrawer()">
-      <aside class="planning-drawer" role="dialog" aria-label="Versión de planeación" (click)="$event.stopPropagation()">
-        <form [formGroup]="versionForm" (ngSubmit)="saveVersion()">
-          <header class="drawer-header">
-            <div>
-              <span class="eyebrow">{{ editingVersionId() ? 'Editar versión' : 'Nueva versión' }}</span>
-              <h2>Nueva versión</h2>
-              <p>Valida el contexto antes de crear el borrador. Cancelar no cambia la versión actual.</p>
-            </div>
-            <button class="drawer-close" type="button" aria-label="Cerrar versión" (click)="closeVersionDrawer()">×</button>
-          </header>
-
-          <div class="form-row">
-            <label class="gi-field">
-              Servicio *
-              <select class="gi-input" formControlName="idService" [disabled]="true">
-                @if (selectedService(); as service) {
-                  <option [value]="service.idService">{{ service.name }}</option>
-                }
-              </select>
-            </label>
-            <label class="gi-field">
-              Sede *
-              <input class="gi-input" type="text" [value]="selectedService()?.clientSiteName || 'Sin sede asignada'" [disabled]="true" />
-            </label>
-          </div>
-
-          <div class="form-row">
-            <label class="gi-field">
-              Periodo desde *
-              <input class="gi-input" type="date" formControlName="periodStartDate" />
-            </label>
-            <label class="gi-field">
-              Periodo hasta *
-              <input class="gi-input" type="date" formControlName="periodEndDate" />
-            </label>
-          </div>
-
-          <div class="form-row">
-            <label class="gi-field">
-              Basar en versión *
-              <select class="gi-input" formControlName="baseVersionId">
-                <option value="">Sin duplicar turnos</option>
-                @for (version of versions(); track version.idScheduleVersion) {
-                  <option [value]="version.idScheduleVersion">{{ version.name }} · {{ scheduleStatusLabel(version.status) }}</option>
-                }
-              </select>
-            </label>
-            <label class="gi-field">
-              Nombre *
-              <input class="gi-input" type="text" formControlName="name" />
-            </label>
-          </div>
-
-          <label class="gi-field">
-            Motivo *
-            <textarea class="gi-input" rows="4" formControlName="notes" placeholder="Ej. Planeación semanal regular, reemplazo por cambios operativos..."></textarea>
-          </label>
-
-          <section class="version-validation">
-            <strong>Validación previa a la creación</strong>
-            <span [class.ok]="periodIsValid()">✓ Periodo válido</span>
-            <span>✓ Servicio y sede coherentes</span>
-            <span>✓ Versión base seleccionada cuando se duplicará contenido</span>
-            <span>✓ Tienes permisos para crear borradores</span>
-          </section>
-
-          <footer class="drawer-actions">
-            <button class="gi-button gi-button--secondary" type="button" (click)="closeVersionDrawer()">Cancelar</button>
-            <button class="gi-button gi-button--primary" type="submit" [disabled]="saving() || !canWrite() || !selectedServiceId()">
-              {{ saving() ? 'Guardando…' : editingVersionId() ? 'Guardar cambios' : 'Crear borrador' }}
-            </button>
-          </footer>
-        </form>
-      </aside>
-    </div>
-  }
-
-  @if (shiftDrawerOpen()) {
-    <div class="drawer-layer" role="presentation" (click)="closeShiftDrawer()">
-      <aside class="planning-drawer" role="dialog" aria-label="Turno planeado" (click)="$event.stopPropagation()">
-        <form [formGroup]="shiftForm" (ngSubmit)="saveShift()">
-          <header class="drawer-header">
-            <div>
-              <span class="eyebrow">{{ selectedShift() ? 'Editar turno' : 'Nuevo turno' }}</span>
-              <h2>Turno planeado</h2>
-              <p>Captura empleado, posición, día y horario dentro de la versión seleccionada.</p>
-            </div>
-            <button class="drawer-close" type="button" aria-label="Cerrar turno" (click)="closeShiftDrawer()">×</button>
-          </header>
-
-          <label class="gi-field">
-            Posición
-            <select class="gi-input" formControlName="idPosition">
-              @for (position of positions(); track position.idPosition) {
-                <option [value]="position.idPosition">{{ position.codePosition }} · {{ position.name }}</option>
-              }
-            </select>
-          </label>
-          <label class="gi-field">
-            Empleado
-            <select class="gi-input" formControlName="idEmployee">
-              @for (employee of employees(); track employee.idEmployee) {
-                <option [value]="employee.idEmployee">{{ employee.codeEmployee }} · {{ employee.fullName }}</option>
-              }
-            </select>
-          </label>
-          <div class="form-row">
-            <label class="gi-field">
-              Fecha
-              <input class="gi-input" type="date" formControlName="shiftDate" />
-            </label>
-            <label class="gi-field">
-              Inicio
-              <input class="gi-input" type="time" formControlName="startTime" />
-            </label>
-            <label class="gi-field">
-              Fin
-              <input class="gi-input" type="time" formControlName="endTime" />
-            </label>
-          </div>
-          <label class="check-row">
-            <input type="checkbox" formControlName="isOvernight" />
-            El turno cruza día
-          </label>
-          <label class="gi-field">
-            Notas
-            <textarea class="gi-input" rows="3" formControlName="notes"></textarea>
-          </label>
-
-          <footer class="drawer-actions">
-            <button class="gi-button gi-button--secondary" type="button" (click)="closeShiftDrawer()">Cancelar</button>
-            <button class="gi-button gi-button--primary" type="submit" [disabled]="saving() || !canWrite() || !selectedVersionId() || positions().length === 0 || employees().length === 0">
-              {{ saving() ? 'Guardando…' : 'Guardar turno' }}
-            </button>
-          </footer>
-        </form>
-      </aside>
-    </div>
+      <gi-candidate-picker
+        [candidates]="candidates()"
+        emptyActionLabel="Asignar personal al servicio"
+        (choose)="chooseCandidate($event)"
+        (resolveEmpty)="closeCandidates()"
+      />
+    </aside>
   }
 </section>

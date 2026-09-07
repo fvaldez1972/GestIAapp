@@ -34,14 +34,11 @@ describe('ContextBar', () => {
     localStorage.clear();
   });
 
-  /**
-   * Monta la barra con una sesión ya iniciada. La consulta de `system/info` se responde aquí
-   * porque el servicio la lanza al construirse, y una petición sin atender hace fallar `verify()`.
-   */
+  /** Monta la barra con una sesión ya iniciada. */
   function montar(
     permissions: readonly string[],
     organizations: readonly (typeof ALFA)[],
-    options: { readonly platformOrganizations?: readonly (typeof ALFA)[]; readonly operationDate?: string | null } = {},
+    options: { readonly platformOrganizations?: readonly (typeof ALFA)[] } = {},
   ) {
     const auth = TestBed.inject(AuthService);
 
@@ -54,42 +51,27 @@ describe('ContextBar', () => {
     }
 
     const fixture = TestBed.createComponent(ContextBar);
-    const info = http.expectOne('/api/v1/system/info');
-
-    if (options.operationDate === null) {
-      info.error(new ProgressEvent('error'));
-    } else {
-      info.flush({
-        application: 'GestIA',
-        apiVersion: 'v1',
-        status: 'ready',
-        persistence: 'SQL Server',
-        operationDate: options.operationDate ?? '2026-09-04',
-        timeZoneId: 'America/Mexico_City',
-      });
-    }
-
     fixture.detectChanges();
 
     return { fixture, auth, raiz: fixture.nativeElement as HTMLElement };
   }
 
-  it('muestra la fecha operativa del servidor en el único formato de la aplicación', () => {
+  /**
+   * La fecha operativa se retiró de la barra el 6 de septiembre de 2026: era un rótulo del cromo,
+   * repetido igual en las quince pantallas y sin decir nada de lo que se estaba mirando. La barra
+   * queda con la organización activa y el botón de salir.
+   *
+   * Que ya no pida `system/info` es parte de la misma comprobación: la barra nunca fue la fuente
+   * del día operativo, sólo uno de sus lectores, y al dejar de leerlo deja también de pedirlo.
+   * `verify()` fallaría si lo siguiera pidiendo.
+   */
+  it('no lleva fecha operativa, ni la pide', () => {
     const { raiz } = montar(['CLIENTS.READ'], [ALFA]);
 
-    expect(raiz.textContent).toContain('Fecha operativa');
-    expect(raiz.textContent).toContain('04 sep 2026');
-  });
-
-  /**
-   * Si el servidor no contesta, la barra dice que no sabe la fecha. Una fecha inventada por el
-   * navegador sería peor: quien la lee decide con ella, y en UTC el día cambia seis horas antes.
-   */
-  it('no inventa una fecha cuando el servidor no responde', () => {
-    const { raiz } = montar(['CLIENTS.READ'], [ALFA], { operationDate: null });
-
-    expect(raiz.textContent).toContain('Sin fecha');
+    expect(raiz.textContent).not.toContain('Fecha operativa');
     expect(raiz.textContent).not.toMatch(/\d{2} \w{3} \d{4}/);
+    http.expectNone('/api/v1/system/info');
+    http.verify();
   });
 
   it('con una sola organización muestra el nombre y no ofrece cambiarla', () => {

@@ -4,7 +4,7 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { AuthService } from '../../../../core/auth/auth.service';
-import { asunto, indicador, overview } from '../../ui/overview-fixtures';
+import { asunto, indicador, organizacionVacia, overview } from '../../ui/overview-fixtures';
 import { OverviewPage } from './overview-page';
 
 const ORGANIZACION = { idOrganization: 'org-a', codeOrganization: 'A', legalName: 'Seguridad Vanguardia' };
@@ -55,7 +55,7 @@ describe('Inicio', () => {
     const request = http.expectOne((r) => r.url === '/api/v1/overview');
     expect(request.request.params.get('organizationId')).toBe('org-a');
 
-    request.flush(overview(3, { metrics: [indicador()], attention: [asunto()] }));
+    request.flush(overview({ metrics: [indicador()], attention: [asunto()] }));
     fixture.detectChanges();
 
     http.expectNone(() => true);
@@ -76,42 +76,62 @@ describe('Inicio', () => {
   });
 
   /**
-   * Con el camino ocupando el cuerpo no se dibuja tablero: un cero ahí no sería un dato, sería la
-   * ausencia de configuración.
+   * El criterio de la pantalla: Inicio es el tablero del administrador de la organización. Si
+   * todavía no hay información, se ve sin información; no se convierte en otra pantalla mientras
+   * tanto. Una pantalla que cambia de propósito según cuántos datos haya son dos pantallas con un
+   * nombre.
    */
-  it('recién creada, el camino ocupa el cuerpo y no hay tablero', () => {
+  it('recién creada se ve el mismo tablero, sin información', () => {
     const { http, fixture, raiz } = montar();
 
-    http.expectOne((r) => r.url === '/api/v1/overview').flush(overview(0));
+    http.expectOne((r) => r.url === '/api/v1/overview').flush(organizacionVacia());
     fixture.detectChanges();
 
-    expect(raiz.querySelector('app-setup-path')).not.toBeNull();
-    expect(raiz.querySelector('app-overview-metrics')).toBeNull();
-    expect(raiz.querySelector('app-attention-list')).toBeNull();
-    expect(raiz.textContent).toContain('Configuración inicial de Seguridad Vanguardia');
+    expect(raiz.querySelector('app-overview-metrics')).not.toBeNull();
+    expect(raiz.querySelector('app-attention-list')).not.toBeNull();
+    expect(raiz.textContent).toContain('Ninguno tiene información todavía');
+
+    // El título nombra la organización desde el primer día: ya no habla de configuración.
+    expect(raiz.querySelector('.overview__title')?.textContent?.trim()).toBe('Seguridad Vanguardia');
+    expect(raiz.textContent).not.toContain('Configuración inicial');
     http.verify();
   });
 
-  it('a medias aparece el tablero, y el camino sigue arriba', () => {
+  /**
+   * La consecuencia que hay que cuidar: con los cuatro indicadores sin calcular, la lista de
+   * atención vacía no puede decir «nada pendiente hoy». Está todo pendiente; lo que pasa es que el
+   * sistema todavía no tiene con qué saberlo.
+   */
+  it('recién creada, la lista de atención no se felicita', () => {
+    const { http, fixture, raiz } = montar();
+
+    http.expectOne((r) => r.url === '/api/v1/overview').flush(organizacionVacia());
+    fixture.detectChanges();
+
+    expect(raiz.textContent).toContain('Todavía no hay con qué saberlo');
+    expect(raiz.textContent).not.toContain('Nada pendiente hoy');
+    http.verify();
+  });
+
+  /** Con al menos un indicador calculado, la lista sí puede afirmar que no hay nada pendiente. */
+  it('con datos y sin asuntos, la lista sí dice que no hay nada pendiente', () => {
     const { http, fixture, raiz } = montar();
 
     http.expectOne((r) => r.url === '/api/v1/overview')
-      .flush(overview(3, { metrics: [indicador()], attention: [asunto()] }));
+      .flush(overview({ metrics: [indicador()], attention: [] }));
     fixture.detectChanges();
 
-    expect(raiz.querySelector('app-setup-path')).not.toBeNull();
-    expect(raiz.querySelector('app-overview-metrics')).not.toBeNull();
-    expect(raiz.textContent).toContain('Faltan 4 pasos');
+    expect(raiz.textContent).toContain('Nada pendiente hoy');
+    expect(raiz.textContent).not.toContain('Todavía no hay con qué saberlo');
     http.verify();
   });
 
-  it('completa, el título deja de hablar de configuración y nombra la semana', () => {
+  it('el subtítulo nombra la semana operativa, con datos o sin ellos', () => {
     const { http, fixture, raiz } = montar();
 
-    http.expectOne((r) => r.url === '/api/v1/overview').flush(overview(7));
+    http.expectOne((r) => r.url === '/api/v1/overview').flush(organizacionVacia());
     fixture.detectChanges();
 
-    expect(raiz.querySelector('.overview__title')?.textContent?.trim()).toBe('Seguridad Vanguardia');
     expect(raiz.textContent).toContain('Semana del 07 sep 2026 al 13 sep 2026');
     http.verify();
   });
@@ -128,7 +148,7 @@ describe('Inicio', () => {
       .toContain('No se pudo leer el estado de la organización');
 
     raiz.querySelector<HTMLButtonElement>('.overview__retry')!.click();
-    http.expectOne((r) => r.url === '/api/v1/overview').flush(overview(7));
+    http.expectOne((r) => r.url === '/api/v1/overview').flush(overview());
     fixture.detectChanges();
 
     expect(raiz.querySelector('[role="alert"]')).toBeNull();

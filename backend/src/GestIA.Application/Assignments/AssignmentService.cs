@@ -116,7 +116,7 @@ public sealed class AssignmentService(
         Guid idClient,
         Guid idService,
         Guid idServiceAssignment,
-        byte[]? rowVersion,
+        byte[] rowVersion,
         CancellationToken cancellationToken)
     {
         await EnsureServiceAsync(idOrganization, idClient, idService, cancellationToken);

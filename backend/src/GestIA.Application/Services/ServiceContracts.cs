@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using GestIA.Domain.Services;
 
 namespace GestIA.Application.Services;
@@ -213,8 +214,8 @@ public sealed record UpdateServiceConfigurationRequest(
     decimal MonthlyPrice,
     string? CurrencyCode,
     bool IsTaxIncluded,
-    string? CorrectionReason = null,
-    byte[]? RowVersion = null);
+    [property: JsonRequired] byte[] RowVersion,
+    string? CorrectionReason = null);
 
 public sealed record ServiceConfigurationResponse(
     Guid IdServiceConfiguration,

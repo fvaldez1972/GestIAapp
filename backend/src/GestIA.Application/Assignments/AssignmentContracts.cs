@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using GestIA.Domain.Workforce;
 
 namespace GestIA.Application.Assignments;
@@ -24,8 +25,8 @@ public sealed record UpdateServiceAssignmentRequest(
     DateOnly? EndDate,
     bool IsPrimary,
     string? Notes,
-    string? CorrectionReason = null,
-    byte[]? RowVersion = null);
+    [property: JsonRequired] byte[] RowVersion,
+    string? CorrectionReason = null);
 
 public sealed record ServiceAssignmentResponse(
     Guid IdServiceAssignment,

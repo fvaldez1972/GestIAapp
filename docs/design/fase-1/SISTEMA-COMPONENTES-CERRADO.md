@@ -59,11 +59,26 @@ difumina la escala sin aportar jerarquía.
 
 ### Barra de contexto
 
-Ocupa el ancho del área de contenido, arriba de todo. Lleva **organización activa**,
-**fecha operativa**, y las acciones de **Cambiar** y **Salir**.
+Ocupa el ancho del área de contenido, arriba de todo. Lleva **organización activa** y las
+acciones de **Cambiar** y **Salir**. Nada más.
 
 Es el único lugar de la aplicación donde vive el contexto de organización. Ninguna
 pantalla de módulo vuelve a preguntarlo.
+
+**Desde el 06 sep 2026 la barra ya no lleva fecha operativa**, y el shell ya no lleva pie de
+página. Los dos eran cromo: se repetían igual en las quince pantallas sin decir nada sobre lo
+que se estaba mirando.
+
+La regla que queda, y que decide los casos futuros: **una fecha en pantalla es cromo o es
+contenido.** Es cromo cuando se repite igual en todas partes y no dice nada de lo que se mira;
+esa se retira. Es contenido cuando nombra el período al que pertenecen los datos de esa pantalla
+—contra qué día o qué semana se está trabajando—; esa se queda, y si falta, es un defecto.
+Siguen siendo contenido y no se tocan: la barra de día de `GiOperationDayBar` (Asistencia,
+Incidencias y Cobertura), la barra de semana de Planeación y el subtítulo de Inicio.
+
+El día operativo lo sigue diciendo el servidor y se sigue usando para todos los cálculos: doce
+pantallas inyectan `SystemInfoService` por su cuenta. La barra nunca fue su fuente, sólo uno de
+sus lectores, y al dejar de leerlo dejó también de pedir `/api/v1/system/info` al arrancar.
 
 Tres estados de menú lateral, resueltos en `frontend/src/app/core/layout/navigation.ts`:
 

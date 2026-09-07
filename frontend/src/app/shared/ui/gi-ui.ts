@@ -27,3 +27,14 @@ export type { GiMetricState, GiMetricTone } from './gi-metric-card/gi-metric-car
 
 export { GiSelect } from './gi-select/gi-select';
 export type { GiSelectOption } from './gi-select/gi-select';
+
+export { GiDayClosure, GI_REASON_MIN_LENGTH } from './gi-day-closure/gi-day-closure';
+export type { GiDayState, GiDaySnapshot } from './gi-day-closure/gi-day-closure';
+
+export { GiOperationDayBar } from './gi-operation-day-bar/gi-operation-day-bar';
+
+export { GiExceptionRow } from './gi-exception-row/gi-exception-row';
+export type { GiExceptionType } from './gi-exception-row/gi-exception-row';
+
+export { GiCandidatePicker } from './gi-candidate-picker/gi-candidate-picker';
+export type { GiCandidate, GiCandidateStanding } from './gi-candidate-picker/gi-candidate-picker';

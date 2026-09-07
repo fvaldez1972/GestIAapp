@@ -56,6 +56,14 @@ import { PlanningCellPick, WeekGrid } from '../../ui/week-grid';
  * <p><b>La semana se deriva del día, y el día viene del servidor.</b> Nunca se calcula «hoy» aquí:
  * `systemInfo.operationDate()` lo dice en el huso operativo. Calcularlo en el navegador es el
  * defecto que estuvo vivo en diez pantallas y proponía el día siguiente cada tarde.</p>
+ *
+ * <p><b>Pendiente anotado, no olvidado.</b> Esta clase quedó en unas setecientas líneas, más de las
+ * que se estimaron, y la razón es que sostiene <b>cinco flujos de escritura</b>: guardar un
+ * segmento, quitarlo, preparar la semana, asignar a alguien y publicar. Lo que era lógica de
+ * negocio ya salió a <c>buildCandidates</c> y lo que era fontanería a <c>loadActiveSegments</c>;
+ * lo que queda es composición y llamadas. <b>La siguiente extracción natural es sacar esas cinco
+ * escrituras a un servicio de casos de uso</b>, y se decidió no hacerla ahora para no abrir una
+ * tanda extra a media pantalla.</p>
  */
 @Component({
   selector: 'app-planning-page',

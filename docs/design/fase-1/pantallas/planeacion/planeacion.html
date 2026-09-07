@@ -132,6 +132,13 @@
             </div>
           </div>
 
+          <div style="background:#ffffff;border:1px solid #dce2e9;border-left:3px solid #d97706;border-radius:6px;padding:14px 16px;display:flex;flex-direction:column;gap:8px">
+            <span style="font:600 12.5px Archivo,sans-serif;color:#253040">Fase 1 proyecta patrones semanales. Los cíclicos quedan fuera, y no por omisión.</span>
+            <span style="font:400 12px/1.6 Archivo,sans-serif;color:#5f6b7a">Un patrón guarda sus segmentos por <b>día de la semana</b>, así que un 24×48 o un 4×2 —ciclos de tres y de seis días— no tienen dónde guardarse: no es que la pantalla no los ofrezca, es que el modelo no los puede expresar. Aquí se dice en vez de dejar un control apagado sin explicación, que no informa de nada.</span>
+            <span style="font:400 12px/1.6 Archivo,sans-serif;color:#5f6b7a">Lo mismo con el <b>descanso</b>: hoy es la ausencia de un segmento, así que «el domingo descansa» y «nadie configuró el domingo» son la misma fila vacía. Por eso la celda dice <b>Sin turno</b> y no <b>Descanso</b>: afirmar un descanso sería afirmar una decisión que nadie tomó.</span>
+            <span style="font:400 12px/1.6 Archivo,sans-serif;color:#5f6b7a">Las dos cosas dependen de tres preguntas de negocio abiertas —cuántos días descansa una posición, qué pasa cuando un ciclo cae en festivo o en el corte de semana, y si el cubre-descansos es fijo o se asigna cada vez—. Cuando se resuelvan, <b>el patrón semanal es el caso de siete días del cíclico con ancla</b>, así que se agrega sin rehacer esto.</span>
+          </div>
+
           <div style="background:#ffffff;border:1px solid #dce2e9;border-radius:6px;padding:14px 16px;display:flex;align-items:center;gap:16px">
             <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a;flex:none">AL PUBLICAR</span>
             <span style="font:400 12.5px/1.5 Archivo,sans-serif;color:#253040;flex:1">La versión queda publicada e inmutable. Toda modificación posterior entra como incidencia trazable: el rol publicado no se edita.</span>
@@ -437,8 +444,8 @@
                   <div style="display:flex;flex-direction:column;gap:5px"><span style="font:500 11.5px Archivo,sans-serif;color:#5f6b7a">Patrón de la posición</span><span style="font:600 12.5px Archivo,sans-serif;color:#253040">Semanal · descanso domingo</span></div>
                 </div>
                 <div style="border:1px solid #d97706;border-radius:6px;padding:12px 14px;font:400 12px/1.5 Archivo,sans-serif;color:#253040">
-                  <span style="display:block;font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#d97706;padding-bottom:5px">ELEGIBILIDAD POR TEXTO LIBRE</span>
-                  La elegibilidad compara el puesto del empleado contra el perfil requerido de la posición, y ambos son texto libre. Una diferencia de redacción bloquea a alguien capaz. Revisa el candidato antes de descartarlo.
+                  <span style="display:block;font:600 11px Archivo,sans-serif;letter-spacing:.07em;color:#5f6b7a;padding-bottom:5px">ELEGIBILIDAD POR IDENTIFICADOR</span>
+                  El puesto del empleado y el que pide la posición se comparan por identificador de catálogo, no por cómo estén escritos. Un empleado <b>sin puesto registrado</b> no queda bloqueado: «no sabemos su puesto» no es «no cumple el perfil», así que aparece con aviso y la decisión es de quien asigna.
                 </div>
                 <div style="border:1px solid #dce2e9;border-radius:6px;overflow:hidden">
                   <div style="padding:10px 14px;background:#f7f9fb;border-bottom:1px solid #dce2e9;display:flex;justify-content:space-between;align-items:center">
@@ -452,7 +459,7 @@
                         <span style="border:1px solid {{ k.pillColor }};border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:{{ k.pillColor }};flex:none">{{ k.pill }}</span>
                         <span style="border:1px solid #dce2e9;border-radius:6px;padding:0 11px;height:2.25rem;display:flex;align-items:center;font:600 12px Archivo,sans-serif;color:#253040;flex:none">Elegir</span>
                       </div>
-                      <span style="font:400 12px Archivo,sans-serif;color:#5f6b7a">{{ k.puesto }} · {{ k.zona }}</span>
+                      <span style="font:400 12px Archivo,sans-serif;color:#5f6b7a">{{ k.puesto }} · {{ k.disponibilidad }}</span>
                       <span style="font:400 11.5px/1.45 Archivo,sans-serif;color:{{ k.pillColor }}">{{ k.aviso }}</span>
                     </div>
                   </sc-for>
@@ -710,14 +717,20 @@ class Component extends DCLogic {
     const sf = '400 11px Archivo,sans-serif';
     const T = (t, s) => ({ bg:'#ffffff', bd:'transparent', ibg:'transparent', t, tc:'#253040', s, sc:'#5f6b7a', sf });
     const T2 = (a, b) => ({ bg:'#ffffff', bd:'transparent', ibg:'transparent', t:a, tc:'#253040', s:b, sc:'#253040', sf:'500 11px Archivo,sans-serif' });
-    const D = () => ({ bg:'#f7f9fb', bd:'transparent', ibg:'transparent', t:'Descanso', tc:'#5f6b7a', s:'', sc:'#5f6b7a', sf });
+    // 'Sin turno' y no 'Descanso': en el modelo el descanso es la AUSENCIA de un segmento, así que
+    // "el domingo descansa" y "nadie configuró el domingo" son la misma fila vacía. Llamarlo
+    // descanso afirmaba una decisión que nadie tomó.
+    const D = () => ({ bg:'#f7f9fb', bd:'transparent', ibg:'transparent', t:'Sin turno', tc:'#5f6b7a', s:'', sc:'#5f6b7a', sf });
     const C = (t) => ({ bg:'#ffffff', bd:'#22c6ee', ibg:'#e9f7fa', t, tc:'#253040', s:'Cubre-descansos', sc:'#087f9c', sf:'600 10.5px Archivo,sans-serif' });
     const H2 = (a) => ({ bg:'#ffffff', bd:'#dc2626', ibg:'#ffffff', t:a, tc:'#253040', s:'Falta 1 de 2', sc:'#dc2626', sf:'600 10.5px Archivo,sans-serif' });
     const H = (s) => ({ bg:'#ffffff', bd:'#dc2626', ibg:'#ffffff', t:'Sin cubrir', tc:'#dc2626', s, sc:'#dc2626', sf:'600 10.5px Archivo,sans-serif' });
     const W = () => ({ bg:'#ffffff', bd:'#d97706', ibg:'#ffffff', t:'Sin declarar', tc:'#d97706', s:'Turno o descanso', sc:'#d97706', sf:'600 10.5px Archivo,sans-serif' });
 
     const p1 = { pos:'P-01 Acceso principal', meta:'2 elementos · 07–19 · semanal' };
-    const p2 = { pos:'P-02 Rondín nocturno', meta:'1 elemento · 19–07 · cíclico 4×2' };
+    // Era 'cíclico 4×2'. Un 4×2 es un ciclo de seis días y ShiftSegment guarda día de la semana,
+    // así que hoy sólo caben patrones semanales. Se dibuja semanal, y el porqué se explica en la
+    // banda de arriba en vez de dejar un control muerto.
+    const p2 = { pos:'P-02 Rondín nocturno', meta:'1 elemento · 19–07 · semanal' };
     const p3 = { pos:'P-03 Monitoreo CCTV', meta:'1 elemento · 07–19 · semanal' };
     const p4 = { pos:'P-04 Rondín perimetral', meta:'1 elemento · 07–15 · semanal' };
     const p5 = { pos:'P-05 Recepción vespertina', meta:'1 elemento · 14–22 · semanal' };
@@ -759,11 +772,14 @@ class Component extends DCLogic {
       { pos:'P-05 Recepción vespertina', meta:'1 elemento · 14–22', cells:[cD(), cT('Norma'), cT('Norma'), cT('Norma'), cT('Norma'), cC('Rubén'), cT('Norma')] }
     ];
 
+    // La Zona salió de aquí: el catálogo existe pero ninguna entidad lo referencia, así que un
+    // empleado no tiene zona que mostrar. En su lugar va la disponibilidad del día, que sí sale de
+    // los turnos publicados.
     const candidatos = [
-      { nombre:'Ismael Trujano Bermúdez', puesto:'Guardia de acceso', zona:'Zona Poniente · sin turno el jueves 10', bd:'#dce2e9', bg:'#ffffff', pill:'Elegible', pillColor:'#16a34a', aviso:'' },
-      { nombre:'Yolanda Castañeda Pineda', puesto:'Guardia de acceso', zona:'Zona Poniente · sin turno el jueves 10', bd:'#dce2e9', bg:'#ffffff', pill:'Elegible', pillColor:'#16a34a', aviso:'' },
-      { nombre:'Efraín Solórzano', puesto:'Guardia intramuros', zona:'Zona Centro · sin turno el jueves 10', bd:'#d97706', bg:'#ffffff', pill:'Revisar puesto', pillColor:'#d97706', aviso:'El perfil requerido de P-01 dice «Guardia de acceso». Los dos son texto libre: la diferencia es de redacción, no de capacidad.' },
-      { nombre:'Rubén Darío Ortiz', puesto:'Guardia de acceso', zona:'Zona Poniente · cubre P-04 el jueves 10, 07–15', bd:'#dc2626', bg:'#ffffff', pill:'Traslape', pillColor:'#dc2626', aviso:'Se traslapa con su turno de cubre-descansos en P-04. Si bloquea o solo advierte está pendiente de definir.' }
+      { nombre:'Ismael Trujano Bermúdez', puesto:'Guardia de acceso', disponibilidad:'Sin turno el jueves 10', bd:'#dce2e9', bg:'#ffffff', pill:'Elegible', pillColor:'#16a34a', aviso:'' },
+      { nombre:'Yolanda Castañeda Pineda', puesto:'Guardia de acceso', disponibilidad:'Sin turno el jueves 10', bd:'#dce2e9', bg:'#ffffff', pill:'Elegible', pillColor:'#16a34a', aviso:'' },
+      { nombre:'Efraín Solórzano', puesto:'Sin puesto registrado', disponibilidad:'Sin turno el jueves 10', bd:'#d97706', bg:'#ffffff', pill:'Revisar puesto', pillColor:'#d97706', aviso:'P-01 pide «Guardia de acceso» y de él no sabemos el puesto. No queda bloqueado: se puede elegir, y conviene completar su ficha en Personal.' },
+      { nombre:'Rubén Darío Ortiz', puesto:'Guardia de acceso', disponibilidad:'Cubre P-04 el jueves 10, 07–15', bd:'#d97706', bg:'#ffffff', pill:'Traslape', pillColor:'#d97706', aviso:'Se puede elegir. Al hacerlo, P-04 queda con un elemento menos ese jueves: el hueco se mueve, no desaparece.' }
     ];
 
     return {
@@ -775,8 +791,8 @@ class Component extends DCLogic {
       dias: ['LUN 07','MAR 08','MIÉ 09','JUE 10','VIE 11','SÁB 12','DOM 13'],
       leyenda: [
         { bd:'#dce2e9', bg:'#ffffff', txt:'Turno con titular', nota:'' },
-        { bd:'#22c6ee', bg:'#e9f7fa', txt:'Cubre-descansos', nota:'fijo o por asignación: pendiente' },
-        { bd:'#dce2e9', bg:'#f7f9fb', txt:'Descanso', nota:'declarado en el patrón' },
+        { bd:'#22c6ee', bg:'#e9f7fa', txt:'Cubre-descansos', nota:'tipo de asignación Relief · fijo o por vez: pendiente' },
+        { bd:'#dce2e9', bg:'#f7f9fb', txt:'Sin turno', nota:'el patrón no declara segmento ese día' },
         { bd:'#dc2626', bg:'#ffffff', txt:'Hueco de cobertura', nota:'requeridos > asignados' },
         { bd:'#d97706', bg:'#ffffff', txt:'Día sin declarar', nota:'patrón incompleto' }
       ],

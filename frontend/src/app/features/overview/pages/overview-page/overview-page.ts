@@ -3,26 +3,29 @@ import { AuthService } from '../../../../core/auth/auth.service';
 import { GiEmptyState } from '../../../../shared/ui/gi-ui';
 import { formatOperationalDate } from '../../../../shared/util/operational-date';
 import { OverviewApiService } from '../../data-access/overview-api.service';
-import { Overview, setupDensity } from '../../data-access/overview.models';
+import { Overview } from '../../data-access/overview.models';
 import { AttentionList } from '../../ui/attention-list';
 import { OverviewMetrics } from '../../ui/overview-metrics';
-import { SetupPath } from '../../ui/setup-path';
 
 /**
  * Inicio.
  *
- * <p>Es el momento más frágil del recorrido: quien entra por primera vez a una organización recién
- * creada no tiene nada que medir. Antes caía en cuatro indicadores en cero, y <b>un tablero vacío
- * enseña a ignorar el tablero</b>. Ahora el cuerpo lo ocupa el camino de configuración, que se
- * encoge conforme la organización se configura y termina cerrado en una línea.</p>
+ * <p><b>Inicio es el tablero del administrador de la organización, y sólo eso.</b> Cuando todavía
+ * no hay información se ve sin información; no se convierte en otra pantalla mientras tanto. Una
+ * pantalla que cambia de propósito según cuántos datos haya son dos pantallas con un nombre.</p>
  *
- * <p>Esta clase sólo compone y carga: pide una vez, reparte a las tres piezas y decide qué mostrar
+ * <p>Por eso el tablero y la lista de atención se dibujan <b>siempre</b>. Lo que cambia con los
+ * datos no es qué pantalla es, sino qué puede afirmar: cada indicador distingue el cero real del
+ * «sin datos aún», y la lista de atención distingue «no hay nada pendiente» de «todavía no hay con
+ * qué saberlo».</p>
+ *
+ * <p>Esta clase sólo compone y carga: pide una vez, reparte a las dos piezas y decide qué mostrar
  * cuando no hay organización o cuando la petición falla. Ningún cuerpo vive aquí.</p>
  */
 @Component({
   selector: 'app-overview-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [AttentionList, GiEmptyState, OverviewMetrics, SetupPath],
+  imports: [AttentionList, GiEmptyState, OverviewMetrics],
   template: `
     <div class="overview">
       <header class="overview__heading">
@@ -49,16 +52,13 @@ import { SetupPath } from '../../ui/setup-path';
       } @else if (loading()) {
         <p class="overview__loading" role="status">Cargando el estado de la organización…</p>
       } @else if (overview(); as data) {
-        <app-setup-path [overview]="data" [organizationId]="organizationId()" />
-
         <!--
-          El tablero sólo existe cuando hay algo que medir. Con el camino ocupando el cuerpo no se
-          dibuja: un cero aquí no sería un dato, sería la ausencia de configuración.
+          Los dos se dibujan siempre, con datos y sin ellos. Esconderlos al principio convertiría
+          Inicio en una pantalla distinta durante la configuración, que es justo lo que no debe
+          pasar; cada pieza dice por sí misma qué puede y qué no puede afirmar.
         -->
-        @if (showsDashboard()) {
-          <app-overview-metrics [metrics]="data.metrics" />
-          <app-attention-list [items]="data.attention" />
-        }
+        <app-overview-metrics [metrics]="data.metrics" />
+        <app-attention-list [items]="data.attention" [hasData]="hasData()" />
       }
     </div>
   `,
@@ -137,18 +137,13 @@ export class OverviewPage {
   );
 
   /**
-   * Con la configuración a medias el título nombra lo que toca hacer; con la operación en marcha,
-   * nombra la organización. Es la misma pantalla diciendo en qué momento está.
+   * El título nombra la organización, y nada más.
+   *
+   * <p>Antes decía «Configuración inicial de X» mientras el camino ocupaba el cuerpo. Sin el
+   * camino ese encabezado nombraría algo que ya no está debajo, y con él se iba la última pieza
+   * que hacía que la pantalla cambiara de propósito con el avance.</p>
    */
-  protected readonly title = computed(() => {
-    const data = this.overview();
-
-    if (!data || data.setup.completedSteps >= data.setup.totalSteps) {
-      return this.organizationName() || 'Inicio';
-    }
-
-    return `Configuración inicial de ${this.organizationName()}`;
-  });
+  protected readonly title = computed(() => this.organizationName() || 'Inicio');
 
   protected readonly subtitle = computed(() => {
     const data = this.overview();
@@ -161,24 +156,22 @@ export class OverviewPage {
       return 'La organización se hereda de la barra de contexto.';
     }
 
-    const faltan = data.setup.totalSteps - data.setup.completedSteps;
-
-    if (faltan === 0) {
-      return `Semana del ${formatOperationalDate(data.weekStartDate)} al ` +
-        `${formatOperationalDate(data.weekEndDate)}. Fecha operativa: ` +
-        `${formatOperationalDate(data.operationDate)}.`;
-    }
-
-    return faltan === data.setup.totalSteps
-      ? 'Siete pasos, en este orden. Puedes salir y volver: el avance se conserva.'
-      : `${faltan === 1 ? 'Falta un paso' : `Faltan ${faltan} pasos`}. El avance se conserva.`;
+    return `Semana del ${formatOperationalDate(data.weekStartDate)} al ` +
+      `${formatOperationalDate(data.weekEndDate)}. Fecha operativa: ` +
+      `${formatOperationalDate(data.operationDate)}.`;
   });
 
-  /** El tablero aparece en cuanto el camino deja de ocupar el cuerpo entero. */
-  protected readonly showsDashboard = computed(() => {
-    const data = this.overview();
-    return !!data && setupDensity(data.setup.completedSteps, data.setup.totalSteps) !== 'full';
-  });
+  /**
+   * Si el sistema tiene con qué afirmar algo.
+   *
+   * <p>Sale de los indicadores y no de un conteo de configuración: un indicador en <c>Ready</c> es
+   * exactamente el servidor diciendo «esto sí lo pude calcular». Con los cuatro pendientes, la
+   * lista de atención vacía no significa que no haya nada pendiente, sino que no hay de dónde
+   * saberlo.</p>
+   */
+  protected readonly hasData = computed(
+    () => this.overview()?.metrics.some((metric) => metric.state === 'Ready') ?? false,
+  );
 
   constructor() {
     // Cambiar de organización recarga el estado, sin que la pantalla tenga que enterarse por otro

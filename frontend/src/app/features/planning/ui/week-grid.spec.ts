@@ -49,7 +49,7 @@ const SEMANA_NORMAL = fila([
       [days]="days()"
       [highlightDate]="highlightDate()"
       (createPosition)="creaciones.set(creaciones() + 1)"
-      (cellSelect)="elegidas.set([...elegidas(), $event.date])"
+      (cellSelect)="elegidas.set([...elegidas(), $event.idPosition + '@' + $event.cell.date])"
     />
   `,
 })
@@ -136,7 +136,9 @@ describe('WeekGrid', () => {
 
     celdas()[3].click();
 
-    expect(host.elegidas()).toEqual(['2026-09-10']);
+    // La posición viaja con la celda: sin ella, quien escucha tendría que recordar en qué fila
+    // estaba, y ese recuerdo se desincroniza en cuanto la pantalla marca otra por su cuenta.
+    expect(host.elegidas()).toEqual(['p-1@2026-09-10']);
   });
 
   /**
@@ -151,6 +153,33 @@ describe('WeekGrid', () => {
 
     raiz.querySelector<HTMLButtonElement>('button')!.click();
     expect(host.creaciones()).toBe(1);
+  });
+
+  /**
+   * <b>Con tres posiciones se ve bien siempre.</b> Un servicio real tiene diez o doce, y es ahí
+   * donde una rejilla se rompe: la fila se desalinea, la cabecera se desacopla, o una columna se
+   * come a las demás. Se comprueba con doce porque tres no prueban nada.
+   */
+  it('aguanta con doce posiciones sin desalinearse', () => {
+    const doce = Array.from({ length: 12 }, (_, i) => ({
+      ...SEMANA_NORMAL,
+      idPosition: `p-${i + 1}`,
+      codePosition: `P-${String(i + 1).padStart(2, '0')}`,
+    }));
+
+    const { raiz, dias, celdas } = montar((h) => h.rows.set(doce));
+
+    // La cabecera sigue siendo de siete, pase lo que pase con el número de filas.
+    expect(dias()).toHaveLength(7);
+    expect(raiz.querySelectorAll('app-position-week-row')).toHaveLength(12);
+    expect(celdas()).toHaveLength(12 * 7);
+
+    // Y cada fila conserva sus siete: si una perdiera una, la rejilla se leería corrida.
+    for (const fila of Array.from(raiz.querySelectorAll('app-position-week-row'))) {
+      expect(fila.querySelectorAll('.celda')).toHaveLength(7);
+    }
+
+    expect(raiz.querySelector('.rejilla__range')!.textContent).toContain('12 posiciones');
   });
 
   /**

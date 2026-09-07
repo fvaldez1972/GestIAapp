@@ -1,5 +1,11 @@
-import { ScheduledShift, ServicePosition, ShiftSegment } from '../../clients/data-access/client.models';
-import { operationalDatesBetween } from '../../../shared/util/operational-date';
+import {
+  ScheduledShift,
+  ServiceAssignment,
+  ServicePosition,
+  ShiftSegment,
+} from '../../clients/data-access/client.models';
+import { GiCandidate } from '../../../shared/ui/gi-ui';
+import { operationalDatesBetween, shiftOperationalDate } from '../../../shared/util/operational-date';
 
 /**
  * Qué pasa en una posición un día concreto.
@@ -75,6 +81,32 @@ export function serverDayOfWeek(isoDate: string): string {
   const [year, month, day] = isoDate.split('-').map(Number);
 
   return DIAS_SERVIDOR[new Date(Date.UTC(year, month - 1, day)).getUTCDay()];
+}
+
+/**
+ * El lunes de la semana que contiene ese día.
+ *
+ * <p>La semana empieza en lunes porque así la dibuja el bosquejo y así la lee la operación, no
+ * porque `getUTCDay()` lo diga: ahí el domingo es 0, y usarlo tal cual pondría el domingo al
+ * principio. La resta de abajo corrige eso a propósito.</p>
+ *
+ * <p>La resta la hace <c>shiftOperationalDate</c> en vez de repetirse aquí. No es sólo evitar
+ * duplicado: esa función ya resuelve la aritmética en UTC con su razón escrita, y reimplementarla
+ * con <c>toISOString()</c> es exactamente lo que la prueba de <c>context-inheritance</c> prohíbe,
+ * porque es la forma en que el día se corría en diez pantallas a la vez.</p>
+ */
+export function mondayOfWeek(isoDate: string): string {
+  const dia = DIAS_SERVIDOR.indexOf(serverDayOfWeek(isoDate));
+
+  if (dia < 0) {
+    return '';
+  }
+
+  // El domingo es 0 en el vocabulario del servidor, así que restarlo tal cual pondría el domingo
+  // al principio de la semana. Esto lo corre para que el lunes sea 0 y el domingo 6.
+  const desdeElLunes = (dia + 6) % 7;
+
+  return shiftOperationalDate(isoDate, -desdeElLunes);
 }
 
 /** `07:00:00` → `07`. Sin minutos cuando son cero, que es el caso normal de un turno. */
@@ -213,4 +245,72 @@ export function planningConflicts(rows: readonly PlanningRow[]): readonly Planni
   }
 
   return conflicts;
+}
+
+/**
+ * Quién puede tomar un turno que falta.
+ *
+ * <p><b>Nadie queda fuera de la lista</b>, y las dos exclusiones que había se quitaron por razones
+ * distintas. El <b>traslape</b> se permite por decisión de negocio: el supervisor con un turno
+ * descubierto va a mover a alguien de todos modos, y si el sistema no lo deja, lo mueve por
+ * teléfono y el sistema queda mintiendo sobre dónde está la gente. El <b>puesto desconocido</b>
+ * dejó de bloquear cuando la comparación pasó de texto libre a identificador: «no sabemos su
+ * puesto» no es «no cumple el perfil».</p>
+ *
+ * <p>Con la condición que acompaña a la decisión: <b>el aviso nombra la consecuencia</b>. Decir
+ * «hay traslape» sin decir qué posición queda corta es un botón de continuar con otra redacción.</p>
+ *
+ * <p>Quien ya está en <i>este</i> turno no aparece: no es un candidato, ya está puesto.</p>
+ */
+export function buildCandidates(options: {
+  readonly assignments: readonly ServiceAssignment[];
+  readonly shifts: readonly ScheduledShift[];
+  readonly idPosition: string;
+  readonly date: string;
+}): readonly GiCandidate[] {
+  const delDia = options.shifts.filter((shift) => shift.shiftDate === options.date);
+  const otroTurnoDe = new Map(
+    delDia.filter((shift) => shift.idPosition !== options.idPosition).map((s) => [s.idEmployee, s]),
+  );
+  const yaPuestos = new Set(
+    delDia.filter((shift) => shift.idPosition === options.idPosition).map((s) => s.idEmployee),
+  );
+
+  return options.assignments
+    .filter((assignment) => assignment.active && !yaPuestos.has(assignment.idEmployee))
+    .map((assignment): GiCandidate => {
+      const otro = otroTurnoDe.get(assignment.idEmployee);
+
+      if (otro) {
+        return {
+          id: assignment.idEmployee,
+          name: assignment.employeeName,
+          role: assignment.positionName ?? 'Sin puesto registrado',
+          availability: `Cubre ${otro.positionCode} ese día, ${otro.startTime.slice(0, 5)}–${otro.endTime.slice(0, 5)}`,
+          standing: 'overlap',
+          consequence: `Al elegirlo, ${otro.positionCode} queda con un elemento menos ese día: el hueco se mueve, no desaparece.`,
+        };
+      }
+
+      if (!assignment.idPosition) {
+        return {
+          id: assignment.idEmployee,
+          name: assignment.employeeName,
+          role: 'Sin puesto registrado',
+          availability: 'Sin turno ese día',
+          standing: 'review',
+          consequence:
+            'No sabemos su puesto, así que no se puede comprobar contra el perfil de la posición. ' +
+            'No queda bloqueado: conviene completar su ficha en Personal.',
+        };
+      }
+
+      return {
+        id: assignment.idEmployee,
+        name: assignment.employeeName,
+        role: assignment.positionName ?? '',
+        availability: 'Sin turno ese día',
+        standing: 'eligible',
+      };
+    });
 }

@@ -1,5 +1,16 @@
-import { ScheduledShift, ServicePosition, ShiftSegment } from '../../clients/data-access/client.models';
-import { buildPlanningWeek, planningConflicts, serverDayOfWeek } from './planning.models';
+import {
+  ScheduledShift,
+  ServiceAssignment,
+  ServicePosition,
+  ShiftSegment,
+} from '../../clients/data-access/client.models';
+import {
+  buildCandidates,
+  buildPlanningWeek,
+  mondayOfWeek,
+  planningConflicts,
+  serverDayOfWeek,
+} from './planning.models';
 
 const LUNES = '2026-09-07';
 const DOMINGO = '2026-09-13';
@@ -232,5 +243,129 @@ describe('planningConflicts', () => {
     });
 
     expect(planningConflicts(filas)).toEqual([]);
+  });
+});
+
+describe('mondayOfWeek', () => {
+  /**
+   * La semana empieza en lunes porque así la lee la operación. `getUTCDay()` pone el domingo en
+   * cero, así que usarlo tal cual pondría el domingo al principio de la semana.
+   */
+  it('devuelve el lunes de la semana que contiene el día', () => {
+    expect(mondayOfWeek('2026-09-07')).toBe('2026-09-07');
+    expect(mondayOfWeek('2026-09-10')).toBe('2026-09-07');
+    expect(mondayOfWeek('2026-09-13')).toBe('2026-09-07');
+    expect(mondayOfWeek('2026-09-14')).toBe('2026-09-14');
+  });
+
+  it('el domingo pertenece a la semana que termina, no a la que empieza', () => {
+    expect(mondayOfWeek('2026-09-13')).toBe('2026-09-07');
+  });
+
+  it('cruza el cambio de mes y de año sin perderse', () => {
+    expect(mondayOfWeek('2026-10-01')).toBe('2026-09-28');
+    expect(mondayOfWeek('2027-01-01')).toBe('2026-12-28');
+  });
+
+  it('devuelve vacío si no le dan un día de negocio', () => {
+    expect(mondayOfWeek('2026-09-10T00:00:00Z')).toBe('');
+  });
+});
+
+describe('buildCandidates', () => {
+  const asignacion = (
+    idEmployee: string,
+    employeeName: string,
+    extra: Partial<ServiceAssignment> = {},
+  ): ServiceAssignment => ({
+    idServiceAssignment: `asg-${idEmployee}`,
+    idEmployee,
+    employeeCode: 'EMP-1',
+    employeeName,
+    idService: 'srv-1',
+    idPosition: 'p-1',
+    positionCode: 'P-01',
+    positionName: 'Guardia de acceso',
+    assignmentType: 'Primary',
+    startDate: '2026-09-01',
+    endDate: null,
+    isPrimary: true,
+    notes: null,
+    active: true,
+    rowVersion: 'AAAAAAAAB9E=',
+    ...extra,
+  });
+
+  const turnoEn = (idPosition: string, idEmployee: string, positionCode: string): ScheduledShift => ({
+    ...turno(idPosition, LUNES, 'quien sea'),
+    idEmployee,
+    idPosition,
+    positionCode,
+  });
+
+  /**
+   * La decisión de negocio, en la capa donde se puede probar sin montar nada: ni el traslape ni el
+   * puesto desconocido sacan a nadie de la lista.
+   */
+  it('nadie queda fuera por traslape ni por puesto desconocido', () => {
+    const candidatos = buildCandidates({
+      assignments: [
+        asignacion('e-1', 'Ismael'),
+        asignacion('e-2', 'Efraín', { idPosition: null, positionName: null }),
+        asignacion('e-3', 'Rubén'),
+      ],
+      shifts: [turnoEn('p-4', 'e-3', 'P-04')],
+      idPosition: 'p-1',
+      date: LUNES,
+    });
+
+    expect(candidatos.map((c) => c.name)).toEqual(['Ismael', 'Efraín', 'Rubén']);
+    expect(candidatos.map((c) => c.standing)).toEqual(['eligible', 'review', 'overlap']);
+  });
+
+  /** «Hay traslape» sin decir qué queda corto es un botón de continuar con otra redacción. */
+  it('el traslape nombra qué posición queda corta', () => {
+    const [candidato] = buildCandidates({
+      assignments: [asignacion('e-3', 'Rubén')],
+      shifts: [turnoEn('p-4', 'e-3', 'P-04')],
+      idPosition: 'p-1',
+      date: LUNES,
+    });
+
+    expect(candidato.consequence).toContain('P-04 queda con un elemento menos');
+    expect(candidato.availability).toContain('Cubre P-04 ese día');
+  });
+
+  it('quien ya está en este turno no aparece: ya está puesto', () => {
+    const candidatos = buildCandidates({
+      assignments: [asignacion('e-1', 'Ismael'), asignacion('e-2', 'Laura')],
+      shifts: [turnoEn('p-1', 'e-1', 'P-01')],
+      idPosition: 'p-1',
+      date: LUNES,
+    });
+
+    expect(candidatos.map((c) => c.name)).toEqual(['Laura']);
+  });
+
+  it('una asignación desactivada no propone a nadie', () => {
+    const candidatos = buildCandidates({
+      assignments: [asignacion('e-1', 'Ismael', { active: false })],
+      shifts: [],
+      idPosition: 'p-1',
+      date: LUNES,
+    });
+
+    expect(candidatos).toEqual([]);
+  });
+
+  it('un turno de otro día no cuenta como traslape', () => {
+    const [candidato] = buildCandidates({
+      assignments: [asignacion('e-1', 'Ismael')],
+      shifts: [{ ...turnoEn('p-4', 'e-1', 'P-04'), shiftDate: '2026-09-08' }],
+      idPosition: 'p-1',
+      date: LUNES,
+    });
+
+    expect(candidato.standing).toBe('eligible');
   });
 });

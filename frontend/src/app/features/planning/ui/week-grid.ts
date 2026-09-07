@@ -5,6 +5,19 @@ import { devAssert } from '../../../shared/ui/dev-assert';
 import { formatOperationalDate } from '../../../shared/util/operational-date';
 import { PlanningCell, PlanningRow, serverDayOfWeek } from '../data-access/planning.models';
 
+/**
+ * Qué celda se eligió, y de qué posición.
+ *
+ * <p>Las dos cosas viajan juntas a propósito. Emitir sólo la celda obliga a quien escucha a
+ * recordar en qué fila estaba, y ese recuerdo se desincroniza en cuanto la pantalla marca otra
+ * posición por su cuenta: se abriría el cajón de candidatos de una posición y se asignaría gente a
+ * otra, sin que nada falle.</p>
+ */
+export type PlanningCellPick = {
+  readonly idPosition: string;
+  readonly cell: PlanningCell;
+};
+
 const ABREVIATURA: Record<string, string> = {
   Monday: 'LUN',
   Tuesday: 'MAR',
@@ -67,7 +80,7 @@ const LEYENDA = [
           <app-position-week-row
             [row]="row"
             [highlightDate]="highlightDate()"
-            (cellSelect)="cellSelect.emit($event)"
+            (cellSelect)="cellSelect.emit({ idPosition: row.idPosition, cell: $event })"
           />
         }
 
@@ -162,7 +175,7 @@ export class WeekGrid implements OnInit {
   readonly emptyActionLabel = input('Crear la primera posición');
 
   readonly createPosition = output<void>();
-  readonly cellSelect = output<PlanningCell>();
+  readonly cellSelect = output<PlanningCellPick>();
 
   protected readonly leyenda = LEYENDA;
 

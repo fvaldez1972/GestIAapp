@@ -27,3 +27,6 @@ export type { GiMetricState, GiMetricTone } from './gi-metric-card/gi-metric-car
 
 export { GiSelect } from './gi-select/gi-select';
 export type { GiSelectOption } from './gi-select/gi-select';
+
+export { GiDayClosure, GI_REASON_MIN_LENGTH } from './gi-day-closure/gi-day-closure';
+export type { GiDayState, GiDaySnapshot } from './gi-day-closure/gi-day-closure';

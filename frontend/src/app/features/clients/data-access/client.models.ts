@@ -528,8 +528,31 @@ export type UpsertAttendanceRecord = {
   readonly actualEndTime: string | null;
   readonly minutesLate: number;
   readonly notes: string | null;
+  /**
+   * **Este campo no existe en el servidor y nunca existió.** `UpsertAttendanceRequest` no lo
+   * declara, así que todo lo que se escribía en él se descartaba en silencio al llegar. Es el mismo
+   * defecto de la transición T3 —el frontend mandaba `clientId` donde el endpoint esperaba
+   * `idClient`— con otra cara: un campo que parece guardarse y no se guarda.
+   *
+   * Se conserva un momento porque la pantalla vieja todavía lo declara en su formulario, y esa
+   * pantalla se retira cuando Incidencias y Cobertura se rehagan. **No lo uses en pantalla nueva.**
+   * Lo que sí lee el servidor es `correctionReason`, aquí abajo.
+   *
+   * @deprecated El servidor lo ignora. Usa `correctionReason`.
+   */
   readonly correctionAuthorizationNotes?: string | null;
+  /**
+   * El **permiso previo** para corregir: una autorización ya aprobada que apunta a este registro.
+   * No es la explicación del cambio.
+   */
   readonly idApprovalRequest?: string | null;
+  /**
+   * El **motivo de la corrección**: qué se hizo y por qué. Viaja a la bitácora del registro.
+   *
+   * <p>Es otra cosa que la autorización, y se pide por otra condición: el motivo lo exige el
+   * servidor cuando el día está cerrado; la autorización, cuando los datos cambiaron.</p>
+   */
+  readonly correctionReason?: string;
   /**
    * **La única entrada donde el token es opcional**, porque este endpoint crea o corrige con la
    * misma petición y un alta no tiene versión previa. En cuanto la asistencia ya existe el

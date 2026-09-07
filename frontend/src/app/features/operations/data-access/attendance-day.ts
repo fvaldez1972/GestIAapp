@@ -182,6 +182,17 @@ export function dayState(closure: OperationDayClosure | null): GiDayState {
  * cerrado lo exige, uno reabierto no, porque reabrirlo ya fue una decisión justificada por sí
  * misma. Se repite aquí para poder decirlo <b>antes</b> de que el usuario escriba, no después de
  * que el servidor lo rechace.</p>
+ *
+ * <p><b>Hueco conocido y decidido, pendiente de arreglar en el servidor.</b> Hoy el motivo sólo se
+ * exige al <i>corregir</i>: `RequireCorrectionReasonAsync` vive en la rama de corrección de
+ * `UpsertAttendanceAsync`, así que <b>capturar por primera vez una asistencia sobre un día ya
+ * cerrado no pide motivo</b>. Debería pedirlo. El cierre congeló «N pendientes» en su foto, y esa
+ * foto es lo que se concilia con el cliente: capturar una de esas después cambia lo que el cierre
+ * afirmó. Que técnicamente no sea una corrección no quita que altere un dato ya reportado, y deja
+ * una asimetría rara —corregir un dato en un día cerrado pide motivo, agregar uno que no existía
+ * no, y es el segundo el que cambia el conteo—. El arreglo es de servidor y va con las tres cosas
+ * chicas del final de la tanda; esta función se queda como está mientras tanto, para no mentir
+ * sobre lo que el servidor hace.</p>
  */
 export function correctionNeedsReason(closure: OperationDayClosure | null): boolean {
   return dayState(closure) === 'closed';

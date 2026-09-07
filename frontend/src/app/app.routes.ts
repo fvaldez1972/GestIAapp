@@ -114,6 +114,18 @@ export const routes: Routes = [
         pathMatch: 'full',
       },
       {
+        // Asistencia ya está rehecha y tiene pantalla propia. Incidencias y Cobertura siguen en la
+        // pantalla vieja hasta que les toque, y por eso la ruta con parámetro se queda debajo: el
+        // enrutador toma la primera que coincide, así que el orden es lo que reparte.
+        path: 'operacion/asistencia',
+        title: 'GestIA | Asistencia',
+        data: { permission: 'OPERATIONS.READ' },
+        loadComponent: () =>
+          import('./features/operations/pages/attendance-page/attendance-page').then(
+            (component) => component.AttendancePage,
+          ),
+      },
+      {
         path: 'operacion/:section',
         title: 'GestIA | Operación',
         data: { permission: 'OPERATIONS.READ' },

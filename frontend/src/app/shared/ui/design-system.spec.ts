@@ -29,6 +29,11 @@ const RAICES = [
   resolve('src/app/features/clients'),
   resolve('src/app/features/workforce'),
   resolve('src/app/features/planning'),
+  // Sólo lo rehecho de Operación: la pantalla vieja sigue ahí hasta que Incidencias y Cobertura se
+  // rehagan, y hoy fallaría con sus hex a mano.
+  resolve('src/app/features/operations/ui'),
+  resolve('src/app/features/operations/data-access'),
+  resolve('src/app/features/operations/pages/attendance-page'),
 ];
 
 /** Los siete tamaños de la escala. Ni uno más; el 13.5 px está prohibido por nombre. */

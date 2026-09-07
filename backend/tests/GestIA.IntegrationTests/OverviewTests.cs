@@ -317,7 +317,6 @@ public sealed class OverviewTests(OperationalSqlDatabase database)
             context.AddRange(
                 jobPosition,
                 Catalog(organizationId, BusinessCatalogItemType.Skill, $"{prefix}-HAB"),
-                Catalog(organizationId, BusinessCatalogItemType.Zone, $"{prefix}-ZON"),
                 Catalog(organizationId, BusinessCatalogItemType.IncidentReason, $"{prefix}-INC"),
                 Catalog(organizationId, BusinessCatalogItemType.CoverageReason, $"{prefix}-COB"));
         }
@@ -413,7 +412,7 @@ public sealed class OverviewTests(OperationalSqlDatabase database)
     private static BusinessCatalogItem Catalog(Guid organizationId, BusinessCatalogItemType type, string code) =>
         BusinessCatalogItem.Create(
             organizationId,
-            new BusinessCatalogItemProfile(type, code, $"Valor {code}", null),
+            new BusinessCatalogItemProfile(type, $"Valor {code}", null),
             ActorId, ActorName, Now);
 
     private async Task AddAsync(Guid organizationId, params object[] entities)

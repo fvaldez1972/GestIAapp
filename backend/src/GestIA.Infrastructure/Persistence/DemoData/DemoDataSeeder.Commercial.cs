@@ -115,7 +115,7 @@ public sealed partial class DemoDataSeeder
                 new ClientContactDetails(
                     DemoCatalog.ContactPurposes[index % DemoCatalog.ContactPurposes.Length],
                     fullName,
-                    Pick(DemoCatalog.JobPositions).Name,
+                    Pick(DemoCatalog.JobPositions),
                     $"contacto{index + 1}.{definition.Code.ToLowerInvariant()}@ejemplo.mx",
                     $"55{Rng.Next(10000000, 99999999)}",
                     index % 2 == 0 ? $"55{Rng.Next(10000000, 99999999)}" : null,
@@ -335,12 +335,12 @@ public sealed partial class DemoDataSeeder
                         service.IdService,
                         $"{service.CodeService}-P{index + 1:00}",
                         new PositionProfile(
-                            job.Name,
+                            job,
                             Rng.Next(1, 5),
-                            job.Name,
+                            job,
                             index == 0 ? "Posición principal del sitio." : "Posición de apoyo en horario pico.",
                             // Mismo motivo que en el empleado: la comparación es por identificador.
-                            ResolveJobPosition(jobPositions, job.Name)),
+                            ResolveJobPosition(jobPositions, job)),
                         DemoActorId,
                         DemoActorName,
                         OccurredAt);

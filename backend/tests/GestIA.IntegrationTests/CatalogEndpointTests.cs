@@ -102,8 +102,8 @@ public sealed class CatalogEndpointTests
         {
             if (targetMethod?.Name != nameof(ICatalogService.ListCatalogItemsAsync)) throw new NotSupportedException();
             IReadOnlyList<CatalogItemResponse> values = [
-                new(Guid.NewGuid(), OrganizationId, BusinessCatalogItemType.Skill, "A", "Active", null, true),
-                new(Guid.NewGuid(), OrganizationId, BusinessCatalogItemType.Skill, "I", "Inactive", null, false)];
+                new(Guid.NewGuid(), OrganizationId, BusinessCatalogItemType.Skill, "Active", null, true),
+                new(Guid.NewGuid(), OrganizationId, BusinessCatalogItemType.Skill, "Inactive", null, false)];
             return Task.FromResult(values);
         }
     }

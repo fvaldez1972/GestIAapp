@@ -47,7 +47,7 @@ public sealed class EmployeeSearchTests(OperationalSqlDatabase database)
         Assert.Equal(4, total);
 
         var alDia = Assert.Single(items, item => item.CodeEmployee == "RES-EMP-OK");
-        Assert.Equal("Guardia de acceso", alDia.JobPositionName);
+        Assert.StartsWith("Guardia de acceso", alDia.JobPositionName, StringComparison.Ordinal);
         Assert.Equal(2, alDia.RequiredDocuments);
         Assert.Equal(0, alDia.MissingDocuments);
         Assert.Equal(0, alDia.ExpiredDocuments);
@@ -183,38 +183,43 @@ public sealed class EmployeeSearchTests(OperationalSqlDatabase database)
 
         // El segundo puesto del catálogo no lo tiene nadie, así que no se ofrece: un filtro con una
         // opción que no puede traer nada es un control que estorba.
-        Assert.Equal("Guardia de acceso", Assert.Single(puestos).Name);
+        Assert.StartsWith("Guardia de acceso", Assert.Single(puestos).Name, StringComparison.Ordinal);
     }
 
     // ── Los requisitos de la organización ────────────────────────────────────────────────────
 
     /// <summary>
     /// La organización elige qué exigir, <b>pero sobre el vocabulario que el sistema reconoce</b>.
-    /// Un código escrito a mano que no corresponde a ningún tipo no puede convertirse en un
-    /// requisito que nadie podrá cumplir nunca.
+    ///
+    /// <para><b>Esta prueba cambió de sentido el 7 de septiembre de 2026, y el cambio es la mejora.</b>
+    /// Antes comprobaba que un código escrito a mano que no correspondía a ningún tipo —«CARTA_ASTRAL»—
+    /// <i>se descartara</i> al leerlo, porque el requisito guardaba texto libre y nada impedía
+    /// escribir cualquier cosa. Ahora el tipo de documento es una columna tipada: ese estado ya no
+    /// se puede crear, así que no hay nada que descartar después. La prueba afirma lo que de verdad
+    /// protege hoy, que es que la regla ni siquiera llegue a existir.</para>
     /// </summary>
     [OperationalSqlFact]
-    public async Task ARequirementNamingAnUnknownTypeIsDiscardedInsteadOfBlockingEveryone()
+    public async Task ARequirementCannotBeCreatedWithoutSayingWhichDocumentItDemands()
     {
         var seed = await SeedAsync("VOC");
 
-        await using (var context = database.Context())
-        {
-            context.Add(EligibilityRequirement.Create(
-                seed.OrganizationId,
-                new EligibilityRequirementProfile(
-                    EligibilityRequirementTargetType.Organization, null, null, null,
-                    EligibilityRequirementType.Document, "CARTA_ASTRAL", "Carta astral", null, true),
-                ActorId, ActorName, Now));
-            await context.SaveChangesAsync(Token);
-        }
+        Assert.Throws<ArgumentOutOfRangeException>(() => EligibilityRequirement.Create(
+            seed.OrganizationId,
+            new EligibilityRequirementProfile(
+                EligibilityRequirementTargetType.Organization, null, null, null,
+                EligibilityRequirementType.Document, null, null, null, "Carta astral", null, true),
+            ActorId, ActorName, Now));
 
-        await using var lectura = database.Context();
-        var repository = new WorkforceRepository(lectura);
-        var codigos = await repository.ListRequiredDocumentCodesAsync(seed.OrganizationId, Token);
-        Assert.Contains("CARTA_ASTRAL", codigos);
+        // Y una regla de documento no puede exigir una evaluación: cada tipo pide lo suyo.
+        Assert.Throws<ArgumentOutOfRangeException>(() => EligibilityRequirement.Create(
+            seed.OrganizationId,
+            new EligibilityRequirementProfile(
+                EligibilityRequirementTargetType.Organization, null, null, null,
+                EligibilityRequirementType.Document, null, null, EmployeeEvaluationType.Polygraph,
+                "Carta astral", null, true),
+            ActorId, ActorName, Now));
 
-        // El servicio lo descarta, así que el empleado completo sigue al día.
+        // Sin reglas imposibles de por medio, el empleado completo sigue al día.
         var (items, _) = await SearchAsync(Criterios(seed.OrganizationId));
         var alDia = Assert.Single(items, item => item.CodeEmployee == "VOC-EMP-OK");
         Assert.Equal(2, alDia.RequiredDocuments);
@@ -345,14 +350,14 @@ public sealed class EmployeeSearchTests(OperationalSqlDatabase database)
         var puesto = BusinessCatalogItem.Create(
             organizationId,
             new BusinessCatalogItemProfile(
-                BusinessCatalogItemType.JobPosition, $"{prefix}-PUE", "Guardia de acceso", null),
+                BusinessCatalogItemType.JobPosition, $"Guardia de acceso {prefix}", null),
             ActorId, ActorName, Now);
 
         // Un segundo puesto que nadie tiene: el filtro no debe ofrecerlo.
         var puestoSinUso = BusinessCatalogItem.Create(
             organizationId,
             new BusinessCatalogItemProfile(
-                BusinessCatalogItemType.JobPosition, $"{prefix}-PU2", "Supervisor", null),
+                BusinessCatalogItemType.JobPosition, $"Supervisor {prefix}", null),
             ActorId, ActorName, Now);
 
         context.AddRange(organization, puesto, puestoSinUso);
@@ -363,7 +368,7 @@ public sealed class EmployeeSearchTests(OperationalSqlDatabase database)
                 organizationId,
                 new EligibilityRequirementProfile(
                     EligibilityRequirementTargetType.Organization, null, null, null,
-                    EligibilityRequirementType.Document, tipo.ToString().ToUpperInvariant(),
+                    EligibilityRequirementType.Document, null, tipo, null,
                     $"Requisito {tipo}", null, true),
                 ActorId, ActorName, Now));
         }

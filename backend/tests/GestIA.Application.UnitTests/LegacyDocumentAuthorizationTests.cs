@@ -77,10 +77,10 @@ public sealed class LegacyDocumentAuthorizationTests
             CancellationToken cancellationToken) =>
             Task.FromResult(((IReadOnlyList<EmployeeListItemResponse>)[], 0));
 
-        public Task<IReadOnlyList<string>> ListRequiredDocumentCodesAsync(
+        public Task<IReadOnlyList<EmployeeDocumentType>> ListRequiredDocumentTypesAsync(
             Guid idOrganization,
             CancellationToken cancellationToken) =>
-            Task.FromResult((IReadOnlyList<string>)[]);
+            Task.FromResult((IReadOnlyList<EmployeeDocumentType>)[]);
 
         public Task<IReadOnlyList<(Guid Id, string Name)>> ListUsedJobPositionsAsync(
             Guid idOrganization,

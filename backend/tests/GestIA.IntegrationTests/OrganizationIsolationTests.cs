@@ -265,12 +265,12 @@ public sealed class OrganizationIsolationTests(OperationalSqlDatabase database)
                 "Evidencia", $"operation-evidences/{prefix}.jpg", null),
             ActorId, ActorName, Now);
         var catalogItem = BusinessCatalogItem.Create(
-            organizationId, new(BusinessCatalogItemType.CoverageReason, $"{prefix}-FAL", "Falta", null),
+            organizationId, new(BusinessCatalogItemType.CoverageReason, $"Falta {prefix}", null),
             ActorId, ActorName, Now);
         var requirement = EligibilityRequirement.Create(
             organizationId,
             new(EligibilityRequirementTargetType.Organization, null, null, null,
-                EligibilityRequirementType.Document, $"{prefix}-DOC", "Documento", null, true),
+                EligibilityRequirementType.Document, null, EmployeeDocumentType.Curp, null, "Documento", null, true),
             ActorId, ActorName, Now);
         var request = OperationalRequest.Create(
             organizationId, null, null, $"{prefix}-SOL", OperationalRequestType.NewClient,
@@ -300,7 +300,7 @@ public sealed class OrganizationIsolationTests(OperationalSqlDatabase database)
             new(EmployeeEvaluationType.Polygraph, EmployeeEvaluationResult.Approved, Day, null, null, null, null),
             ActorId, ActorName, Now);
         var skillCatalogItem = BusinessCatalogItem.Create(
-            organizationId, new(BusinessCatalogItemType.Skill, $"{prefix}-HAB", "Habilidad", null),
+            organizationId, new(BusinessCatalogItemType.Skill, $"Habilidad {prefix}", null),
             ActorId, ActorName, Now);
         var employeeSkill = EmployeeSkill.Create(
             organizationId, employee.IdEmployee,

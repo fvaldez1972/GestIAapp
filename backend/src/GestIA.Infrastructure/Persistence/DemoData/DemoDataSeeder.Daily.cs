@@ -43,7 +43,7 @@ public sealed partial class DemoDataSeeder
                 .IgnoreQueryFilters(["Active", "Organization"])
                 .Where(item => item.IdOrganization == organization.IdOrganization &&
                     item.Type == BusinessCatalogItemType.CoverageReason)
-                .OrderBy(item => item.Code)
+                .OrderBy(item => item.Name)
                 .ToListAsync(cancellationToken);
 
             var replacements = await dbContext.Employees

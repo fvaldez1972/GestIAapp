@@ -13,9 +13,9 @@ public sealed class FormCatalogValidatorTests
     [Fact]
     public async Task AddressRejectsWrongParentAndInactiveAncestorsButPreservesHistoricalData()
     {
-        var country = Value(BusinessCatalogItemType.Country, "MX", "Mexico");
-        var state = Value(BusinessCatalogItemType.State, "NL", "Nuevo Leon", country.IdBusinessCatalogItem);
-        var city = Value(BusinessCatalogItemType.City, "MTY", "Monterrey", state.IdBusinessCatalogItem);
+        var country = Value(BusinessCatalogItemType.Country, "Mexico");
+        var state = Value(BusinessCatalogItemType.State, "Nuevo Leon", country.IdBusinessCatalogItem);
+        var city = Value(BusinessCatalogItemType.City, "Monterrey", state.IdBusinessCatalogItem);
         var repo = DispatchProxy.Create<ICatalogRepository, Repository>();
         ((Repository)(object)repo).Items = [country, state, city];
         var validator = new FormCatalogValidator(repo);
@@ -31,14 +31,14 @@ public sealed class FormCatalogValidatorTests
     {
         var parent = Guid.NewGuid();
         var child = Guid.NewGuid();
-        CatalogItemResponse[] values = [new(parent, Org, BusinessCatalogItemType.Country, "MX", "Mexico", null, false),
-            new(child, Org, BusinessCatalogItemType.State, "NL", "Nuevo Leon", null, true, IdParentCatalogItem: parent),
-            new(Guid.NewGuid(), Org, BusinessCatalogItemType.City, "MTY", "Monterrey", null, true, IdParentCatalogItem: child)];
+        CatalogItemResponse[] values = [new(parent, Org, BusinessCatalogItemType.Country, "Mexico", null, false),
+            new(child, Org, BusinessCatalogItemType.State, "Nuevo Leon", null, true, IdParentCatalogItem: parent),
+            new(Guid.NewGuid(), Org, BusinessCatalogItemType.City, "Monterrey", null, true, IdParentCatalogItem: child)];
         Assert.Empty(CatalogOptions.Active(values));
     }
 
-    private static BusinessCatalogItem Value(BusinessCatalogItemType type, string code, string name, Guid? parent = null) =>
-        BusinessCatalogItem.Create(Org, new(type, code, name, null, IdParentCatalogItem: parent), Org, "Test", DateTime.UtcNow);
+    private static BusinessCatalogItem Value(BusinessCatalogItemType type, string name, Guid? parent = null) =>
+        BusinessCatalogItem.Create(Org, new(type, name, null, IdParentCatalogItem: parent), Org, "Test", DateTime.UtcNow);
 
     public class Repository : DispatchProxy
     {

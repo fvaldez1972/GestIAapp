@@ -146,19 +146,14 @@ public sealed partial class DemoDataSeeder(
 
         if (!hasJobPositions)
         {
-            foreach (var (code, name) in DemoCatalog.JobPositions)
+            foreach (var name in DemoCatalog.JobPositions)
             {
-                await AddCatalogItemAsync(organization, BusinessCatalogItemType.JobPosition, code, name, cancellationToken);
+                await AddCatalogItemAsync(organization, BusinessCatalogItemType.JobPosition, name, cancellationToken);
             }
 
-            foreach (var (code, name) in DemoCatalog.Skills)
+            foreach (var name in DemoCatalog.Skills)
             {
-                await AddCatalogItemAsync(organization, BusinessCatalogItemType.Skill, code, name, cancellationToken);
-            }
-
-            foreach (var (code, name) in DemoCatalog.Zones)
-            {
-                await AddCatalogItemAsync(organization, BusinessCatalogItemType.Zone, code, name, cancellationToken);
+                await AddCatalogItemAsync(organization, BusinessCatalogItemType.Skill, name, cancellationToken);
             }
 
             await dbContext.SaveChangesAsync(cancellationToken);
@@ -222,16 +217,35 @@ public sealed partial class DemoDataSeeder(
                 .ToArray())
             .ToUpperInvariant();
 
+    /// <summary>
+    /// El identificador de la habilidad del catalogo que una regla demo exige, buscada por su
+    /// nombre plegado. El catalogo ya no lleva codigo, asi que el nombre es lo que la identifica.
+    /// </summary>
+    private async Task<Guid?> SkillIdAsync(
+        Organization organization,
+        string skillName,
+        CancellationToken cancellationToken)
+    {
+        var plegado = CatalogName.Normalize(skillName);
+
+        return await dbContext.BusinessCatalogItems
+            .IgnoreQueryFilters(["Active", "Organization"])
+            .Where(item => item.IdOrganization == organization.IdOrganization &&
+                item.Type == BusinessCatalogItemType.Skill &&
+                item.NormalizedName == plegado)
+            .Select(item => (Guid?)item.IdBusinessCatalogItem)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
     private async Task AddCatalogItemAsync(
         Organization organization,
         BusinessCatalogItemType type,
-        string code,
         string name,
         CancellationToken cancellationToken)
     {
         var item = BusinessCatalogItem.Create(
             organization.IdOrganization,
-            new BusinessCatalogItemProfile(type, code, name, null),
+            new BusinessCatalogItemProfile(type, name, null),
             DemoActorId,
             DemoActorName,
             OccurredAt);
@@ -263,7 +277,11 @@ public sealed partial class DemoDataSeeder(
                         null,
                         null,
                         rule.RequirementType,
-                        rule.RequiredCode,
+                        rule.RequiredSkillName is null
+                            ? null
+                            : await SkillIdAsync(organization, rule.RequiredSkillName, cancellationToken),
+                        rule.RequiredDocumentType,
+                        rule.RequiredEvaluationType,
                         rule.Name,
                         rule.Description,
                         rule.IsBlocking),

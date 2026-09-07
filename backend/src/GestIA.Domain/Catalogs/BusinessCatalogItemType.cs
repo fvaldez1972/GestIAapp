@@ -4,14 +4,10 @@ public enum BusinessCatalogItemType
 {
     Skill,
     JobPosition,
-    DocumentRequirement,
-    EvaluationRequirement,
-    ClientRestriction,
-    ServiceRestriction,
-    Zone,
+
     IncidentReason,
     CoverageReason,
-    CancellationReason,
+
     Country,
     State,
     City,

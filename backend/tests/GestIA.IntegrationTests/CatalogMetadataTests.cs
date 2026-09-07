@@ -14,7 +14,6 @@ public sealed class CatalogMetadataTests(OperationalSqlDatabase database) : ICla
 {
     private static readonly CancellationToken Token = CancellationToken.None;
     private static readonly Actor TestActor = new();
-    private static readonly string[] ExpectedSynonyms = ["Vigilante", "Custodio"];
 
     [OperationalSqlFact]
     public async Task MetadataPersistsInactiveValuesRemainManageableAndCanBeReactivated()
@@ -25,29 +24,26 @@ public sealed class CatalogMetadataTests(OperationalSqlDatabase database) : ICla
         await using (var scope = provider.CreateAsyncScope())
         {
             var result = await scope.ServiceProvider.GetRequiredService<ICatalogService>().CreateCatalogItemAsync(
-                new(organization, BusinessCatalogItemType.Skill, " guard ", "Guardia", null, "Seguridad", 7,
-                    [" Vigilante ", "vigilante", "Custodio"], false), Token);
+                new(organization, BusinessCatalogItemType.Skill, "  Guardia  ", null, 7, false), Token);
             id = result.IdCatalogItem;
             Assert.False(result.Active);
-            Assert.Equal("GUARD", result.Code);
+            // El nombre se recorta al guardar: es lo que sostiene la unicidad.
+            Assert.Equal("Guardia", result.Name);
         }
         await using (var scope = provider.CreateAsyncScope())
         {
             var service = scope.ServiceProvider.GetRequiredService<ICatalogService>();
             var stored = Assert.Single(await service.ListCatalogItemsAsync(organization, null, Token));
-            Assert.Equal("Seguridad", stored.Group);
             Assert.Equal(7, stored.Order);
-            Assert.Equal(ExpectedSynonyms, stored.Synonyms);
             var updated = await service.UpdateCatalogItemAsync(id,
-                new(organization, stored.Type, stored.Code, "Guardia actualizado", null, Active: true), Token);
+                new(organization, stored.Type, "Guardia actualizado", null, Active: true), Token);
             Assert.True(updated.Active);
             Assert.Equal(7, updated.Order);
-            Assert.Equal(stored.Synonyms, updated.Synonyms);
         }
         await using var context = database.Context();
         var persisted = await context.BusinessCatalogItems.SingleAsync(item => item.IdBusinessCatalogItem == id);
         Assert.True(persisted.Active);
-        Assert.Equal("Seguridad", persisted.Group);
+        Assert.Equal("Guardia actualizado", persisted.Name);
     }
 
     [OperationalSqlFact]
@@ -60,13 +56,12 @@ public sealed class CatalogMetadataTests(OperationalSqlDatabase database) : ICla
         using var provider = Provider();
         await using var scope = provider.CreateAsyncScope();
         var service = scope.ServiceProvider.GetRequiredService<ICatalogService>();
-        var input = new CatalogItemInput(organization, BusinessCatalogItemType.Zone, "NORTH", "Norte", null);
+        var input = new CatalogItemInput(organization, BusinessCatalogItemType.Skill, "Norte", null);
         var value = await service.CreateCatalogItemAsync(input, Token);
         await service.DeactivateCatalogItemAsync(organization, value.IdCatalogItem, Token);
         await Assert.ThrowsAsync<ResourceConflictException>(() => service.CreateCatalogItemAsync(input, Token));
         await Assert.ThrowsAsync<ResourceNotFoundException>(() => service.UpdateCatalogItemAsync(value.IdCatalogItem, input with { IdOrganization = other }, Token));
-        await Assert.ThrowsAsync<ResourceConflictException>(() => service.UpdateCatalogItemAsync(value.IdCatalogItem, input with { Code = "SOUTH" }, Token));
-        await Assert.ThrowsAsync<ResourceConflictException>(() => service.UpdateCatalogItemAsync(value.IdCatalogItem, input with { Type = BusinessCatalogItemType.Skill }, Token));
+        await Assert.ThrowsAsync<ResourceConflictException>(() => service.UpdateCatalogItemAsync(value.IdCatalogItem, input with { Type = BusinessCatalogItemType.IncidentReason }, Token));
         Assert.Empty(await service.ListCatalogItemsAsync(other, null, Token));
     }
 
@@ -77,10 +72,9 @@ public sealed class CatalogMetadataTests(OperationalSqlDatabase database) : ICla
         using var provider = Provider();
         await using var scope = provider.CreateAsyncScope();
         var service = scope.ServiceProvider.GetRequiredService<ICatalogService>();
-        var input = new CatalogItemInput(organization, BusinessCatalogItemType.Zone, "Z", "Zona", null);
+        var input = new CatalogItemInput(organization, BusinessCatalogItemType.Skill, "Zona", null);
         foreach (var invalid in new[] { input with { Type = (BusinessCatalogItemType)999 }, input with { Order = 0 },
-                     input with { Order = 100001 }, input with { Group = " " }, input with { Synonyms = [new string('x', 81)] },
-                     input with { Synonyms = Enumerable.Repeat("alias", 21).ToArray() } })
+                     input with { Order = 100001 }, input with { Name = " " } })
         {
             await Assert.ThrowsAsync<RequestValidationException>(() => service.CreateCatalogItemAsync(invalid, Token));
         }
@@ -109,39 +103,33 @@ public sealed class CatalogMetadataTests(OperationalSqlDatabase database) : ICla
         using var provider = Provider();
         await using var scope = provider.CreateAsyncScope();
         var service = scope.ServiceProvider.GetRequiredService<ICatalogService>();
-        var country = await service.CreateCatalogItemAsync(new(org, BusinessCatalogItemType.Country, "MX", "Mexico", null), Token);
-        var stateInput = new CatalogItemInput(org, BusinessCatalogItemType.State, "NL", "Nuevo Leon", null, IdParentCatalogItem: country.IdCatalogItem);
+        var country = await service.CreateCatalogItemAsync(new(org, BusinessCatalogItemType.Country, "Mexico", null), Token);
+        var stateInput = new CatalogItemInput(org, BusinessCatalogItemType.State, "Nuevo Leon", null, IdParentCatalogItem: country.IdCatalogItem);
         var state = await service.CreateCatalogItemAsync(stateInput, Token);
-        var city = await service.CreateCatalogItemAsync(new(org, BusinessCatalogItemType.City, "MTY", "Monterrey", null, IdParentCatalogItem: state.IdCatalogItem), Token);
+        var city = await service.CreateCatalogItemAsync(new(org, BusinessCatalogItemType.City, "Monterrey", null, IdParentCatalogItem: state.IdCatalogItem), Token);
         await Assert.ThrowsAsync<ResourceConflictException>(() => service.CreateCatalogItemAsync(stateInput with { IdOrganization = other }, Token));
-        await Assert.ThrowsAsync<ResourceConflictException>(() => service.CreateCatalogItemAsync(stateInput with { Code = "DUP" }, Token));
+        // El nombre repetido bajo el mismo padre es lo que ahora choca, y choca aunque cambie la
+        // caja o los acentos: la unicidad la sostiene el nombre plegado.
+        await Assert.ThrowsAsync<ResourceConflictException>(() => service.CreateCatalogItemAsync(stateInput with { Name = "nuevo leon" }, Token));
         await service.DeactivateCatalogItemAsync(org, country.IdCatalogItem, Token);
         Assert.Empty(CatalogOptions.Active(await service.ListCatalogItemsAsync(org, null, Token)));
         await using var context = database.Context();
         Assert.Equal(state.IdCatalogItem, (await context.BusinessCatalogItems.SingleAsync(item => item.IdBusinessCatalogItem == city.IdCatalogItem)).IdParentCatalogItem);
     }
 
-    [OperationalSqlFact]
-    public async Task MigrationBackfillPreservesSiteAndBuildsGeographicHierarchy()
-    {
-        var org = await SeedAsync();
-        await using var context = database.Context();
-        var client = GestIA.Domain.Clients.Client.Create(org, "BACKFILL", "Client", "EXA010101AA1", TestActor.ActorId, TestActor.ActorName, DateTime.UtcNow);
-        var site = GestIA.Domain.Clients.ClientSite.Create(client.IdOrganization, client.IdClient, "SITE", "Site", "Street", "Monterrey", "Nuevo Leon", "64000", TestActor.ActorId, TestActor.ActorName, DateTime.UtcNow);
-        context.AddRange(client, site);
-        await context.SaveChangesAsync();
-        var migration = new GestIA.Infrastructure.Persistence.Migrations.GeographicCatalogRelations();
-        foreach (var operation in migration.UpOperations.OfType<Microsoft.EntityFrameworkCore.Migrations.Operations.SqlOperation>())
-            await context.Database.ExecuteSqlRawAsync(operation.Sql, Token);
-        var values = await context.BusinessCatalogItems.Where(item => item.IdOrganization == org).ToArrayAsync();
-        var country = Assert.Single(values, item => item.Type == BusinessCatalogItemType.Country);
-        var state = Assert.Single(values, item => item.Type == BusinessCatalogItemType.State);
-        var city = Assert.Single(values, item => item.Type == BusinessCatalogItemType.City);
-        Assert.Equal(country.IdBusinessCatalogItem, state.IdParentCatalogItem);
-        Assert.Equal(state.IdBusinessCatalogItem, city.IdParentCatalogItem);
-        Assert.Equal("Monterrey", city.Name);
-        Assert.Equal("Monterrey", (await context.ClientSites.SingleAsync(item => item.IdClientSite == site.IdClientSite)).Municipality);
-    }
+    // ── Dos pruebas retiradas el 7 de septiembre de 2026 ─────────────────────────────────────
+    //
+    // Se llamaban MigrationBackfillPreservesSiteAndBuildsGeographicHierarchy y
+    // GeographyImportIsRepeatableAndDoesNotReactivateOrRenameExistingStates, y las dos hacian lo
+    // mismo: tomar el SQL de una migracion YA DESPLEGADA y volver a ejecutarlo contra el esquema de
+    // hoy. Eso solo funciona mientras el esquema no se mueva, y al retirarse la columna Code del
+    // catalogo dejaron de poder correr: las dos migraciones insertan escribiendo Code.
+    //
+    // No se reescriben porque no se puede: una migracion desplegada no se toca, y su premisa ya no
+    // existe. Lo que verificaban era un relleno de una sola vez que ya corrio en todas las bases
+    // vivas, asi que su valor era historico. La siembra de geografia que si sigue viva la cubre
+    // NewOrganizationsReceiveCompleteScopedDefaultsWithAndWithoutAdmin, que cuenta estados y
+    // municipios.
 
     [OperationalSqlFact]
     public async Task NewOrganizationsReceiveCompleteScopedDefaultsWithAndWithoutAdmin()
@@ -168,9 +156,16 @@ public sealed class CatalogMetadataTests(OperationalSqlDatabase database) : ICla
             // demuestra que cambiar de organización sobre el MISMO contexto cambia lo que ve.
             database.Organization.SetAuthorizedOrganization(id);
             var items = await check.BusinessCatalogItems.Where(item => item.IdOrganization == id).ToArrayAsync();
+            // La geografia sigue viniendo cargada porque no se captura: se elige.
             Assert.Equal(32, items.Count(item => item.Type == BusinessCatalogItemType.State));
             Assert.Equal(2478, items.Count(item => item.Type == BusinessCatalogItemType.City));
-            Assert.Equal(6, items.Count(item => item.Type == BusinessCatalogItemType.CoverageReason));
+
+            // Los motivos ya NO se siembran, y eso es el punto de la tanda: el administrador no
+            // tiene que revisar once valores que no eligio antes de poder confiar en su catalogo.
+            // Se crean al vuelo desde Incidencias y desde Cobertura, que es donde se necesitan.
+            Assert.DoesNotContain(items, item => item.Type == BusinessCatalogItemType.CoverageReason);
+            Assert.DoesNotContain(items, item => item.Type == BusinessCatalogItemType.IncidentReason);
+            Assert.DoesNotContain(items, item => item.Type == BusinessCatalogItemType.JobPosition);
             Assert.All(items.Where(item => item.IdParentCatalogItem.HasValue), item => Assert.Contains(items, parent => parent.IdBusinessCatalogItem == item.IdParentCatalogItem));
         }
         Assert.True(await check.OrganizationMemberships.AnyAsync(m => m.IdUser == provisioned.IdAdminUser && m.IdOrganization == provisioned.Organization.IdOrganization));
@@ -186,8 +181,8 @@ public sealed class CatalogMetadataTests(OperationalSqlDatabase database) : ICla
         using var provider = Provider();
         await using var scope = provider.CreateAsyncScope();
         var catalogs = scope.ServiceProvider.GetRequiredService<ICatalogService>();
-        var position = await catalogs.CreateCatalogItemAsync(new(org, BusinessCatalogItemType.JobPosition, "JOB", "Supervisor", null), Token);
-        await catalogs.CreateCatalogItemAsync(new(other, BusinessCatalogItemType.JobPosition, "JOB", "Director", null), Token);
+        var position = await catalogs.CreateCatalogItemAsync(new(org, BusinessCatalogItemType.JobPosition, "Supervisor", null), Token);
+        await catalogs.CreateCatalogItemAsync(new(other, BusinessCatalogItemType.JobPosition, "Director", null), Token);
         Guid clientId;
         await using (var context = database.Context())
         {
@@ -206,31 +201,6 @@ public sealed class CatalogMetadataTests(OperationalSqlDatabase database) : ICla
         var updated = await service.UpdateAsync(contact.IdClientContact, new(org, clientId, null, input.Purpose,
             "Contact edited", "Supervisor", input.Email, null, null, false), Token);
         Assert.Equal("Supervisor", updated.JobTitle);
-    }
-
-    [OperationalSqlFact]
-    public async Task GeographyImportIsRepeatableAndDoesNotReactivateOrRenameExistingStates()
-    {
-        var org = await SeedAsync();
-        using var provider = Provider();
-        await using var scope = provider.CreateAsyncScope();
-        var service = scope.ServiceProvider.GetRequiredService<ICatalogService>();
-        var country = await service.CreateCatalogItemAsync(new(org, BusinessCatalogItemType.Country, "MX", "Mexico", null), Token);
-        var state = await service.CreateCatalogItemAsync(new(org, BusinessCatalogItemType.State, "LEGACY", "Nuevo Leon", null, Active: false, IdParentCatalogItem: country.IdCatalogItem), Token);
-        await using var context = database.Context();
-        var migration = new GestIA.Infrastructure.Persistence.Migrations.CoverageCatalogReference();
-        var sql = migration.UpOperations.OfType<Microsoft.EntityFrameworkCore.Migrations.Operations.SqlOperation>().Last().Sql;
-        await context.Database.OpenConnectionAsync(Token);
-        await using var command = context.Database.GetDbConnection().CreateCommand();
-        command.CommandText = sql;
-        await command.ExecuteNonQueryAsync(Token);
-        var firstCount = await context.BusinessCatalogItems.CountAsync(item => item.IdOrganization == org);
-        await command.ExecuteNonQueryAsync(Token);
-        Assert.Equal(firstCount, await context.BusinessCatalogItems.CountAsync(item => item.IdOrganization == org));
-        var preserved = await context.BusinessCatalogItems.IgnoreQueryFilters().SingleAsync(item => item.IdBusinessCatalogItem == state.IdCatalogItem);
-        Assert.False(preserved.Active);
-        Assert.Equal("Nuevo Leon", preserved.Name);
-        Assert.Equal(2478, await context.BusinessCatalogItems.CountAsync(item => item.IdOrganization == org && item.Type == BusinessCatalogItemType.City));
     }
 
     private ServiceProvider Provider()

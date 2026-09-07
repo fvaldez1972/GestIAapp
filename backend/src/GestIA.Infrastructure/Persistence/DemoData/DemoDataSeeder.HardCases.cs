@@ -249,9 +249,11 @@ public sealed partial class DemoDataSeeder
         employee.Deactivate(DemoActorId, DemoActorName, OccurredAt);
         dbContext.Add(employee);
 
+        // Era una zona; el catalogo de zonas se retiro. Un motivo de incidencia sirve igual para lo
+        // que este caso duro prueba: que un valor desactivado siga ahi y no se pueda elegir.
         var catalogItem = BusinessCatalogItem.Create(
             organizationId,
-            new BusinessCatalogItemProfile(BusinessCatalogItemType.Zone, $"{HardCasePrefix}-ZONA", "Zona dada de baja", null),
+            new BusinessCatalogItemProfile(BusinessCatalogItemType.IncidentReason, $"Motivo dado de baja {HardCasePrefix}", null),
             DemoActorId, DemoActorName, OccurredAt);
         catalogItem.Deactivate(DemoActorId, DemoActorName, OccurredAt);
         dbContext.Add(catalogItem);

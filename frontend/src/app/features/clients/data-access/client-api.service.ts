@@ -8,6 +8,7 @@ import {
   AttendanceRecord,
   ApprovalRequest,
   ApprovalRequestStatus,
+  CoverageCorrectionInput,
   CoverageInput,
   CoverageRecord,
   Client,
@@ -33,6 +34,7 @@ import {
   GenerateScheduledShiftsRequest,
   GenerateScheduledShiftsResponse,
   Incident,
+  IncidentCorrectionInput,
   IncidentInput,
   ManagedService,
   ManagedServiceInput,
@@ -46,12 +48,13 @@ import {
   OrganizationProvisioningResult,
   PagedResult,
   ServiceAssignment,
-  ServiceAssignmentInput,
+  ServiceAssignmentCorrectionInput,
   ScheduledShift,
   ScheduledShiftInput,
   ScheduleVersion,
   ScheduleVersionInput,
   ServiceConfiguration,
+  ServiceConfigurationCorrectionInput,
   ServiceConfigurationInput,
   ServiceContract,
   ServiceContractInput,
@@ -266,7 +269,7 @@ export class ClientApiService {
     idClient: string,
     idService: string,
     idServiceConfiguration: string,
-    request: ServiceConfigurationInput,
+    request: ServiceConfigurationCorrectionInput,
   ) {
     return this.http.put<ServiceConfiguration>(
       `${this.baseUrl}/clients/${idClient}/services/${idService}/configurations/${idServiceConfiguration}`,
@@ -279,8 +282,9 @@ export class ClientApiService {
     idClient: string,
     idService: string,
     idServiceConfiguration: string,
+    rowVersion: string,
   ) {
-    const params = new HttpParams().set('organizationId', organizationId);
+    const params = new HttpParams().set('organizationId', organizationId).set('rowVersion', rowVersion);
     return this.http.delete<void>(
       `${this.baseUrl}/clients/${idClient}/services/${idService}/configurations/${idServiceConfiguration}`,
       { params },
@@ -434,7 +438,7 @@ export class ClientApiService {
     idClient: string,
     idService: string,
     idServiceAssignment: string,
-    request: ServiceAssignmentInput,
+    request: ServiceAssignmentCorrectionInput,
   ) {
     return this.http.put<ServiceAssignment>(
       `${this.baseUrl}/clients/${idClient}/services/${idService}/assignments/${idServiceAssignment}`,
@@ -442,8 +446,14 @@ export class ClientApiService {
     );
   }
 
-  deactivateAssignment(organizationId: string, idClient: string, idService: string, idServiceAssignment: string) {
-    const params = new HttpParams().set('organizationId', organizationId);
+  deactivateAssignment(
+    organizationId: string,
+    idClient: string,
+    idService: string,
+    idServiceAssignment: string,
+    rowVersion: string,
+  ) {
+    const params = new HttpParams().set('organizationId', organizationId).set('rowVersion', rowVersion);
     return this.http.delete<void>(
       `${this.baseUrl}/clients/${idClient}/services/${idService}/assignments/${idServiceAssignment}`,
       { params },
@@ -575,7 +585,12 @@ export class ClientApiService {
     );
   }
 
-  updateIncident(idClient: string, idService: string, idIncident: string, request: IncidentInput) {
+  updateIncident(
+    idClient: string,
+    idService: string,
+    idIncident: string,
+    request: IncidentCorrectionInput,
+  ) {
     return this.http.put<Incident>(
       `${this.baseUrl}/clients/${idClient}/services/${idService}/operations/incidents/${idIncident}`,
       request,
@@ -597,7 +612,12 @@ export class ClientApiService {
     );
   }
 
-  updateCoverageRecord(idClient: string, idService: string, idCoverageRecord: string, request: CoverageInput) {
+  updateCoverageRecord(
+    idClient: string,
+    idService: string,
+    idCoverageRecord: string,
+    request: CoverageCorrectionInput,
+  ) {
     return this.http.put<CoverageRecord>(
       `${this.baseUrl}/clients/${idClient}/services/${idService}/operations/coverages/${idCoverageRecord}`,
       request,

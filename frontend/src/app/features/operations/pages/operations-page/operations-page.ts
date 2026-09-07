@@ -742,6 +742,8 @@ export class OperationsPage implements OnInit {
     this.api.reopenOperationDay(context.idClient, context.idService, closure.idOperationDayClosure, {
       idOrganization: context.idOrganization,
       reason,
+      // Reabrir es corregir: el token del cierre que se está reabriendo.
+      rowVersion: closure.rowVersion,
     }).subscribe({
       next: () => {
         this.message.set('Día operativo reabierto correctamente.');
@@ -833,6 +835,10 @@ export class OperationsPage implements OnInit {
         idApprovalRequest: this.selectedAttendance()
           ? this.emptyToNull(form.idApprovalRequest)
           : null,
+        // El unico token opcional del sistema, y solo porque este endpoint crea o corrige: en un
+        // alta no hay version previa que pisar. Al corregir el servidor lo exige y responde 428
+        // si falta, asi que va siempre que haya un registro abierto.
+        rowVersion: this.selectedAttendance()?.rowVersion,
       })
       .subscribe({
         next: () => {
@@ -931,8 +937,14 @@ export class OperationsPage implements OnInit {
       description: form.description.trim(),
       resolutionNotes,
     };
-    const request = selectedIncidentId
-      ? this.api.updateIncident(context.idClient, context.idService, selectedIncidentId, payload)
+    const editingIncident = this.selectedIncident();
+    const request = editingIncident
+      ? this.api.updateIncident(context.idClient, context.idService, editingIncident.idIncident, {
+          ...payload,
+          // El token que se leyó al abrir la incidencia. Se devuelve tal cual: si alguien la
+          // corrigió mientras tanto, el servidor responde 409 y dice quién fue.
+          rowVersion: editingIncident.rowVersion,
+        })
       : this.api.createIncident(context.idClient, context.idService, payload);
 
     request.subscribe({
@@ -1008,8 +1020,18 @@ export class OperationsPage implements OnInit {
       idCoverageReason: form.coverageReason || null,
       notes: this.buildCoverageNotes(form, requestedStatus),
     };
-    const request = selectedCoverageId
-      ? this.api.updateCoverageRecord(context.idClient, context.idService, selectedCoverageId, payload)
+    const editingCoverage = this.selectedCoverage();
+    const request = editingCoverage
+      ? this.api.updateCoverageRecord(
+          context.idClient,
+          context.idService,
+          editingCoverage.idCoverageRecord,
+          {
+            ...payload,
+            // El token que se leyó al abrir la cobertura. Mismo criterio que en incidencias.
+            rowVersion: editingCoverage.rowVersion,
+          },
+        )
       : this.api.createCoverageRecord(context.idClient, context.idService, payload);
 
     request.subscribe({

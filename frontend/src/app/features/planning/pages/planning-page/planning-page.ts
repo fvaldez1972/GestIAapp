@@ -585,9 +585,15 @@ export class PlanningPage implements OnInit {
     };
     this.beginSave();
 
+    const editing = this.selectedAssignment();
     const selectedAssignmentId = this.selectedAssignmentId();
-    const operation = selectedAssignmentId
-      ? this.api.updateAssignment(context.idClient, context.idService, selectedAssignmentId, payload)
+    const operation = editing
+      ? this.api.updateAssignment(context.idClient, context.idService, editing.idServiceAssignment, {
+        ...payload,
+        // El token que se leyó al abrir la asignación. Se devuelve tal cual: si alguien la
+        // corrigió mientras tanto, el servidor responde 409 y dice quién fue.
+        rowVersion: editing.rowVersion,
+      })
       : this.api.createAssignment(context.idClient, context.idService, {
         ...payload,
         idEmployee: form.idEmployee,
@@ -767,7 +773,13 @@ export class PlanningPage implements OnInit {
     }
 
     this.beginSave();
-    this.api.deactivateAssignment(context.idOrganization, context.idClient, context.idService, assignment.idServiceAssignment).subscribe({
+    this.api.deactivateAssignment(
+      context.idOrganization,
+      context.idClient,
+      context.idService,
+      assignment.idServiceAssignment,
+      assignment.rowVersion,
+    ).subscribe({
       next: () => {
         this.message.set('Asignación desactivada correctamente.');
         if (this.selectedAssignmentId() === assignment.idServiceAssignment) {

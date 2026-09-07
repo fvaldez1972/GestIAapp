@@ -1079,12 +1079,12 @@ export class ServicesPage implements OnInit, OnDestroy {
     };
     const editing = this.editingAssignment();
     const request = editing
-      ? this.api.updateAssignment(
-          client.idClient,
-          service.idService,
-          editing.idServiceAssignment,
-          input,
-        )
+      ? this.api.updateAssignment(client.idClient, service.idService, editing.idServiceAssignment, {
+          ...input,
+          // El token que se leyó al abrir la asignación. Se devuelve tal cual: si alguien la
+          // corrigió mientras tanto, el servidor responde 409 y dice quién fue.
+          rowVersion: editing.rowVersion,
+        })
       : this.api.createAssignment(client.idClient, service.idService, {
           ...input,
           idEmployee: form.idEmployee,
@@ -1129,6 +1129,7 @@ export class ServicesPage implements OnInit, OnDestroy {
         client.idClient,
         service.idService,
         assignment.idServiceAssignment,
+        assignment.rowVersion,
       )
       .pipe(
         this.withScope(2),
@@ -1224,10 +1225,6 @@ export class ServicesPage implements OnInit, OnDestroy {
       monthlyPrice: Number(form.monthlyPrice),
       currencyCode: this.optional(form.currencyCode),
       isTaxIncluded: form.isTaxIncluded,
-      // El token que se leyó al abrir. Se devuelve tal cual: si alguien corrigió el registro
-      // mientras tanto, el servidor responde 409 y dice quién fue.
-      rowVersion: this.editingConfiguration()?.rowVersion,
-      correctionReason: this.correctionReason().trim() || undefined,
     };
     const editing = this.editingConfiguration();
     const request = editing
@@ -1235,7 +1232,13 @@ export class ServicesPage implements OnInit, OnDestroy {
           client.idClient,
           service.idService,
           editing.idServiceConfiguration,
-          input,
+          {
+            ...input,
+            // El token que se leyó al abrir. Se devuelve tal cual: si alguien corrigió el registro
+            // mientras tanto, el servidor responde 409 y dice quién fue.
+            rowVersion: editing.rowVersion,
+            correctionReason: this.correctionReason().trim() || undefined,
+          },
         )
       : this.api.createServiceConfiguration(client.idClient, service.idService, input);
 
@@ -1281,6 +1284,7 @@ export class ServicesPage implements OnInit, OnDestroy {
         client.idClient,
         service.idService,
         configuration.idServiceConfiguration,
+        configuration.rowVersion,
       )
       .pipe(
         this.withScope(2),

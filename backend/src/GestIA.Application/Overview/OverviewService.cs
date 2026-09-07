@@ -13,10 +13,8 @@ namespace GestIA.Application.Overview;
 /// organización recién creada enseña a ignorar el tablero. La regla es del dato, no del
 /// calendario: si ayer no hubo planeación publicada, el indicador del día anterior dice que falta
 /// el prerrequisito, aunque la organización ya opere.</item>
-/// <item><b>Qué ve cada actor.</b> Los siete pasos se ven siempre —describen a la organización,
-/// no a quien mira—, pero el destino de un paso sólo viaja si el actor puede entrar ahí, y los
-/// indicadores y los asuntos de atención se filtran por permiso: ofrecer trabajo que no se puede
-/// hacer es peor que no ofrecerlo.</item>
+/// <item><b>Qué ve cada actor.</b> Los indicadores y los asuntos de atención se filtran por
+/// permiso: ofrecer trabajo que no se puede hacer es peor que no ofrecerlo.</item>
 /// </list>
 /// </summary>
 public sealed class OverviewService(
@@ -24,8 +22,6 @@ public sealed class OverviewService(
     IActorContext actor,
     IClock clock) : IOverviewService
 {
-    private const int TotalSteps = 7;
-
     public async Task<OverviewResponse> GetOverviewAsync(
         OverviewQuery query,
         CancellationToken cancellationToken)
@@ -53,7 +49,6 @@ public sealed class OverviewService(
             previousDay,
             weekStart,
             weekEnd,
-            BuildSetup(facts),
             BuildMetrics(facts, previousDay),
             BuildAttention(facts));
     }
@@ -67,66 +62,10 @@ public sealed class OverviewService(
     private static DateOnly StartOfWeek(DateOnly date) =>
         date.AddDays(-(((int)date.DayOfWeek + 6) % 7));
 
-    // ── El camino ────────────────────────────────────────────────────────────────────────────
-
-    private OverviewSetupResponse BuildSetup(OverviewFacts facts)
-    {
-        var counts = facts.Counts;
-
-        // Los cinco catálogos mínimos. Con cuatro el paso sigue abierto: el que falta bloquea algo
-        // concreto más adelante, y darlo por bueno lo esconde hasta que alguien tropieza.
-        var catalogsDone = counts.JobPositions > 0
-            && counts.Skills > 0
-            && counts.Zones > 0
-            && counts.IncidentReasons > 0
-            && counts.CoverageReasons > 0;
-
-        var clientsDone = counts.ClientSites > 0;
-        var servicesDone = counts.ServicesWithConfiguration > 0;
-        var positionsDone = counts.PositionsWithPattern > 0;
-        var employeesDone = counts.EmployeesWithFile > 0;
-        var assignmentsDone = counts.PrimaryAssignments > 0;
-        var planningDone = facts.WeekHasPublishedPlan;
-
-        var steps = new List<OverviewSetupStepResponse>
-        {
-            Step(OverviewSetupStepKey.Catalogs, catalogsDone, [], "/catalogos", SecurityPermissions.CatalogsRead),
-            Step(OverviewSetupStepKey.Clients, clientsDone, [], "/clientes", SecurityPermissions.ClientsRead,
-                facts.ClientWithoutContactName),
-            Step(OverviewSetupStepKey.Services, servicesDone, Blocking(clientsDone, OverviewSetupStepKey.Clients),
-                "/servicios", SecurityPermissions.ClientsRead, facts.FirstServiceName),
-            Step(OverviewSetupStepKey.Positions, positionsDone, Blocking(servicesDone, OverviewSetupStepKey.Services),
-                "/servicios", SecurityPermissions.PlanningRead),
-            Step(OverviewSetupStepKey.Employees, employeesDone, Blocking(catalogsDone, OverviewSetupStepKey.Catalogs),
-                "/personal", SecurityPermissions.WorkforceRead),
-            Step(OverviewSetupStepKey.Assignments, assignmentsDone,
-                [.. Blocking(positionsDone, OverviewSetupStepKey.Positions),
-                 .. Blocking(employeesDone, OverviewSetupStepKey.Employees)],
-                "/servicios", SecurityPermissions.PlanningRead),
-            Step(OverviewSetupStepKey.Planning, planningDone, Blocking(assignmentsDone, OverviewSetupStepKey.Assignments),
-                "/planeacion", SecurityPermissions.PlanningRead),
-        };
-
-        return new OverviewSetupResponse(steps.Count(step => step.Done), TotalSteps, counts, steps);
-    }
-
-    private static OverviewSetupStepKey[] Blocking(bool prerequisiteDone, OverviewSetupStepKey key) =>
-        prerequisiteDone ? [] : [key];
-
-    private OverviewSetupStepResponse Step(
-        OverviewSetupStepKey key,
-        bool done,
-        IReadOnlyList<OverviewSetupStepKey> blockedBy,
-        string route,
-        string permission,
-        string? highlightName = null) =>
-        new(key, (int)key, done, blockedBy, Allowed(permission) ? route : null, highlightName);
-
     // ── Los indicadores ──────────────────────────────────────────────────────────────────────
 
     private List<OverviewMetricResponse> BuildMetrics(OverviewFacts facts, DateOnly previousDay)
     {
-        var counts = facts.Counts;
         var metrics = new List<OverviewMetricResponse>();
 
         if (Allowed(SecurityPermissions.PlanningRead))
@@ -148,10 +87,10 @@ public sealed class OverviewService(
             // cero, es incalculable.
             metrics.Add(new OverviewMetricResponse(
                 OverviewMetricKey.PositionsWithoutPrimary,
-                counts.Positions > 0 ? OverviewMetricState.Ready : OverviewMetricState.Pending,
+                facts.Positions > 0 ? OverviewMetricState.Ready : OverviewMetricState.Pending,
                 facts.PositionsWithoutPrimary,
                 facts.PositionsWithoutPrimary > 0 ? OverviewTone.Danger : OverviewTone.Success,
-                counts.Positions,
+                facts.Positions,
                 facts.PositionsWithoutPrimaryServices,
                 null,
                 "/servicios"));
@@ -217,7 +156,7 @@ public sealed class OverviewService(
         }
 
         // Sólo tiene sentido pedir la semana siguiente cuando ya hay algo que planear.
-        if (!facts.NextWeekIsPublished && facts.Counts.PrimaryAssignments > 0 && Allowed(SecurityPermissions.PlanningRead))
+        if (!facts.NextWeekIsPublished && facts.PrimaryAssignmentsInForce > 0 && Allowed(SecurityPermissions.PlanningRead))
         {
             items.Add(new OverviewAttentionResponse(
                 OverviewAttentionKey.NextWeekUnpublished,

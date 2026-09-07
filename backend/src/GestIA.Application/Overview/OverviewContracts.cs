@@ -1,23 +1,5 @@
 namespace GestIA.Application.Overview;
 
-/// <summary>
-/// Los siete pasos del camino de configuración, en su orden.
-///
-/// <para>Son claves, no textos. <b>El servidor devuelve hechos y el frontend compone las
-/// frases</b>: así Application no se llena de texto de interfaz y las redacciones se prueban
-/// donde se ven.</para>
-/// </summary>
-public enum OverviewSetupStepKey
-{
-    Catalogs = 1,
-    Clients = 2,
-    Services = 3,
-    Positions = 4,
-    Employees = 5,
-    Assignments = 6,
-    Planning = 7
-}
-
 /// <summary>Los cuatro indicadores del tablero.</summary>
 public enum OverviewMetricKey
 {
@@ -93,58 +75,6 @@ public enum OverviewAttentionKey
 }
 
 /// <summary>
-/// Los conteos que respaldan el camino, con nombre.
-///
-/// <para>Van todos juntos y no repartidos por paso porque varias frases cruzan pasos —el paso 4
-/// habla de servicios sin posiciones, que es un dato del paso 3— y porque un solo registro con
-/// campos nombrados se lee mejor que siete diccionarios sueltos.</para>
-/// </summary>
-public sealed record OverviewSetupCounts(
-    int JobPositions,
-    int Skills,
-    int Zones,
-    int IncidentReasons,
-    int CoverageReasons,
-    int Clients,
-    int ClientSites,
-    int ClientContacts,
-    int ClientsWithoutContact,
-    int Services,
-    int ServicesWithConfiguration,
-    int ServicesWithoutPositions,
-    int Positions,
-    int PositionsWithPattern,
-    int Employees,
-    int EmployeesWithFile,
-    int PrimaryAssignments,
-    int ReliefAssignments,
-    int PublishedVersions);
-
-/// <summary>
-/// Un paso del camino.
-///
-/// <para><c>BlockedBy</c> viaja siempre, también cuando el paso ya está hecho, para que la
-/// pantalla pueda decir de qué depende <b>antes</b> de que el usuario llegue a la pared.</para>
-///
-/// <para><c>Route</c> es nulo cuando el actor no tiene permiso de entrar a ese módulo: el paso se
-/// sigue viendo —describe a la organización, no a quien mira— pero no se le ofrece una puerta que
-/// terminaría en 403.</para>
-/// </summary>
-public sealed record OverviewSetupStepResponse(
-    OverviewSetupStepKey Key,
-    int Order,
-    bool Done,
-    IReadOnlyList<OverviewSetupStepKey> BlockedBy,
-    string? Route,
-    string? HighlightName);
-
-public sealed record OverviewSetupResponse(
-    int CompletedSteps,
-    int TotalSteps,
-    OverviewSetupCounts Counts,
-    IReadOnlyList<OverviewSetupStepResponse> Steps);
-
-/// <summary>
 /// Un indicador.
 ///
 /// <para><c>Total</c> es el universo contra el que se compara —posiciones, empleados, turnos del
@@ -181,15 +111,20 @@ public sealed record OverviewResponse(
     DateOnly PreviousOperationDate,
     DateOnly WeekStartDate,
     DateOnly WeekEndDate,
-    OverviewSetupResponse Setup,
     IReadOnlyList<OverviewMetricResponse> Metrics,
     IReadOnlyList<OverviewAttentionResponse> Attention);
 
-/// <summary>Los hechos crudos que el repositorio calcula. El servicio los interpreta.</summary>
+/// <summary>
+/// Los hechos crudos que el repositorio calcula. El servicio los interpreta.
+///
+/// <para><c>Positions</c> y <c>PrimaryAssignmentsInForce</c> son los dos únicos conteos de
+/// configuración que sobreviven al retiro del camino, y cada uno está por una razón concreta: sin
+/// posiciones no hay universo contra el que medir la vacante, y sin ningún titular vigente no
+/// tiene sentido reclamar que la semana siguiente siga en borrador.</para>
+/// </summary>
 public sealed record OverviewFacts(
-    OverviewSetupCounts Counts,
-    string? ClientWithoutContactName,
-    string? FirstServiceName,
+    int Positions,
+    int PrimaryAssignmentsInForce,
     int PlannedShiftsInWeek,
     int PlannedDaysInWeek,
     int ServicesPlannedInWeek,

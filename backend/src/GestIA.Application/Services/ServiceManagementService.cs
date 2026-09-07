@@ -271,7 +271,7 @@ public sealed class ServiceManagementService(
         Guid idClient,
         Guid idService,
         Guid idServiceConfiguration,
-        byte[]? rowVersion,
+        byte[] rowVersion,
         CancellationToken cancellationToken)
     {
         await EnsureServiceAsync(idOrganization, idClient, idService, cancellationToken);

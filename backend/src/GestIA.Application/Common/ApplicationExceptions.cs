@@ -27,3 +27,18 @@ public sealed class RequestValidationException : Exception
 /// </summary>
 public sealed class ConcurrencyConflictException(string message) : ResourceConflictException(message);
 
+
+/// <summary>
+/// La petición pretendía corregir un registro existente y no trajo el token de concurrencia.
+///
+/// <para><b>No es lo mismo que un conflicto.</b> Un <see cref="ConcurrencyConflictException"/>
+/// dice «alguien te ganó»; éste dice «no me dijiste con qué versión venías», que es un defecto de
+/// quien llama y no una carrera entre dos personas. Se separan porque la pantalla no puede
+/// resolverlos igual: el conflicto se resuelve recargando y comparando, y éste sólo se resuelve
+/// arreglando la petición.</para>
+///
+/// <para>Sale como <b>428 Precondition Required</b>, que es el estado que HTTP reserva justo para
+/// esto: el servidor exige que la petición sea condicional. Un 400 lo escondería entre los errores
+/// de captura del usuario, que es lo último que conviene: esto nunca lo causa el usuario.</para>
+/// </summary>
+public sealed class ConcurrencyTokenMissingException(string message) : Exception(message);

@@ -285,8 +285,11 @@ export type ServiceConfigurationInput = {
   readonly monthlyPrice: number;
   readonly currencyCode: string | null;
   readonly isTaxIncluded: boolean;
-  /** El token que se leyó al abrir. Sin él no hay comprobación de concurrencia. */
-  readonly rowVersion?: string;
+};
+
+/** La corrección de una configuración. Mismo criterio que `ServiceAssignmentCorrectionInput`. */
+export type ServiceConfigurationCorrectionInput = ServiceConfigurationInput & {
+  readonly rowVersion: string;
   /** Por qué se corrige. Obligatorio cuando la regla del servidor lo exige. */
   readonly correctionReason?: string;
 };
@@ -390,6 +393,7 @@ export type ServiceAssignment = {
   readonly rowVersion: string;
 };
 
+/** Los campos que comparten el alta y la corrección de una asignación. Sin token: el alta no lo tiene. */
 export type ServiceAssignmentInput = {
   readonly idOrganization: string;
   readonly idClient: string;
@@ -400,14 +404,23 @@ export type ServiceAssignmentInput = {
   readonly endDate: string | null;
   readonly isPrimary: boolean;
   readonly notes: string | null;
-  /** El token que se leyó al abrir. Sin él no hay comprobación de concurrencia. */
-  readonly rowVersion?: string;
-  /** Por qué se corrige. Obligatorio cuando la regla del servidor lo exige. */
-  readonly correctionReason?: string;
 };
 
 export type CreateServiceAssignment = ServiceAssignmentInput & {
   readonly idEmployee: string;
+};
+
+/**
+ * La corrección de una asignación.
+ *
+ * El token es obligatorio y el tipo es distinto del alta a propósito. Antes los dos usaban
+ * `ServiceAssignmentInput` con `rowVersion?`, y como el alta no podía traerlo, la corrección
+ * tampoco lo exigía: la pantalla nunca lo mandó y el servidor guardaba sin comprobar nada.
+ */
+export type ServiceAssignmentCorrectionInput = ServiceAssignmentInput & {
+  readonly rowVersion: string;
+  /** Por qué se corrige. Obligatorio cuando la regla del servidor lo exige. */
+  readonly correctionReason?: string;
 };
 
 export type ScheduleVersionStatus = 'Draft' | 'Published' | 'Superseded';
@@ -497,6 +510,12 @@ export type AttendanceRecord = {
   readonly minutesLate: number;
   readonly notes: string | null;
   readonly active: boolean;
+  /**
+   * Token de concurrencia. Es `rowversion` en la base y viaja como **base64**: no se interpreta,
+   * no se compara y no se construye. Se lee al abrir y se devuelve igual al corregir; si alguien
+   * cambió el registro entre una cosa y la otra, el servidor responde 409 y dice quién fue.
+   */
+  readonly rowVersion: string;
 };
 
 export type UpsertAttendanceRecord = {
@@ -509,8 +528,38 @@ export type UpsertAttendanceRecord = {
   readonly actualEndTime: string | null;
   readonly minutesLate: number;
   readonly notes: string | null;
+  /**
+   * **Este campo no existe en el servidor y nunca existió.** `UpsertAttendanceRequest` no lo
+   * declara, así que todo lo que se escribía en él se descartaba en silencio al llegar. Es el mismo
+   * defecto de la transición T3 —el frontend mandaba `clientId` donde el endpoint esperaba
+   * `idClient`— con otra cara: un campo que parece guardarse y no se guarda.
+   *
+   * Se conserva un momento porque la pantalla vieja todavía lo declara en su formulario, y esa
+   * pantalla se retira cuando Incidencias y Cobertura se rehagan. **No lo uses en pantalla nueva.**
+   * Lo que sí lee el servidor es `correctionReason`, aquí abajo.
+   *
+   * @deprecated El servidor lo ignora. Usa `correctionReason`.
+   */
   readonly correctionAuthorizationNotes?: string | null;
+  /**
+   * El **permiso previo** para corregir: una autorización ya aprobada que apunta a este registro.
+   * No es la explicación del cambio.
+   */
   readonly idApprovalRequest?: string | null;
+  /**
+   * El **motivo de la corrección**: qué se hizo y por qué. Viaja a la bitácora del registro.
+   *
+   * <p>Es otra cosa que la autorización, y se pide por otra condición: el motivo lo exige el
+   * servidor cuando el día está cerrado; la autorización, cuando los datos cambiaron.</p>
+   */
+  readonly correctionReason?: string;
+  /**
+   * **La única entrada donde el token es opcional**, porque este endpoint crea o corrige con la
+   * misma petición y un alta no tiene versión previa. En cuanto la asistencia ya existe el
+   * servidor lo exige y responde 428 si falta, así que opcional aquí significa «opcional al dar
+   * de alta», no «se puede omitir al corregir».
+   */
+  readonly rowVersion?: string;
 };
 
 export type IncidentSeverity = 'Low' | 'Medium' | 'High' | 'Critical';
@@ -531,8 +580,29 @@ export type Incident = {
   readonly description: string;
   readonly resolutionNotes: string | null;
   readonly active: boolean;
+  /**
+   * Cuándo se registró, en UTC.
+   *
+   * <p>Está para una marca que no se guarda: una incidencia es «posterior al cierre» si se creó
+   * después del `closedAt` del cierre vigente. Es reconstruible, como la vacancia de posiciones,
+   * pero sin este instante no se puede reconstruir nada.</p>
+   */
+  readonly createdAt: string;
+  /**
+   * Token de concurrencia. Es `rowversion` en la base y viaja como **base64**: no se interpreta,
+   * no se compara y no se construye. Se lee al abrir y se devuelve igual al corregir; si alguien
+   * cambió el registro entre una cosa y la otra, el servidor responde 409 y dice quién fue.
+   */
+  readonly rowVersion: string;
 };
 
+/**
+ * El **alta** de una incidencia. No lleva token porque no hay versión previa que pisar.
+ *
+ * La corrección es otro tipo, `IncidentCorrectionInput`, y no por gusto: mientras alta y corrección
+ * compartieron un solo tipo, el token no podía ser obligatorio en ninguna de las dos —el alta no
+ * lo tiene— y esa imposibilidad se leyó como permiso para no mandarlo nunca.
+ */
 export type IncidentInput = {
   readonly idOrganization: string;
   readonly idClient: string;
@@ -545,6 +615,13 @@ export type IncidentInput = {
   readonly status: IncidentStatus;
   readonly description: string;
   readonly resolutionNotes: string | null;
+};
+
+/** La corrección de una incidencia. El token es obligatorio: aquí sí hay algo que pisar. */
+export type IncidentCorrectionInput = IncidentInput & {
+  readonly rowVersion: string;
+  /** Por qué se corrige. Obligatorio cuando la regla del servidor lo exige. */
+  readonly correctionReason?: string;
 };
 
 export type CoverageStatus = 'Requested' | 'Confirmed' | 'Completed' | 'Cancelled';
@@ -566,6 +643,12 @@ export type CoverageRecord = {
   readonly status: CoverageStatus;
   readonly notes: string | null;
   readonly active: boolean;
+  /**
+   * Token de concurrencia. Es `rowversion` en la base y viaja como **base64**: no se interpreta,
+   * no se compara y no se construye. Se lee al abrir y se devuelve igual al corregir; si alguien
+   * cambió el registro entre una cosa y la otra, el servidor responde 409 y dice quién fue.
+   */
+  readonly rowVersion: string;
 };
 
 export type CoverageInput = {
@@ -580,6 +663,13 @@ export type CoverageInput = {
   readonly isOvernight: boolean;
   readonly status: CoverageStatus;
   readonly notes: string | null;
+};
+
+/** La corrección de una cobertura. Mismo criterio que `IncidentCorrectionInput`. */
+export type CoverageCorrectionInput = CoverageInput & {
+  readonly rowVersion: string;
+  /** Por qué se corrige. Obligatorio cuando la regla del servidor lo exige. */
+  readonly correctionReason?: string;
 };
 
 export type OperationEvidenceType = 'Photo' | 'Document' | 'Report' | 'Signature' | 'Other';
@@ -685,6 +775,12 @@ export type OperationDayClosure = {
   readonly reopenedByName: string | null;
   readonly reopenReason: string | null;
   readonly active: boolean;
+  /**
+   * Token de concurrencia. Es `rowversion` en la base y viaja como **base64**: no se interpreta,
+   * no se compara y no se construye. Se lee al abrir y se devuelve igual al corregir; si alguien
+   * cambió el registro entre una cosa y la otra, el servidor responde 409 y dice quién fue.
+   */
+  readonly rowVersion: string;
 };
 
 export type CloseOperationDay = {
@@ -696,6 +792,8 @@ export type CloseOperationDay = {
 export type ReopenOperationDay = {
   readonly idOrganization: string;
   readonly reason: string;
+  /** El token del cierre que se está reabriendo. Reabrir es corregir. */
+  readonly rowVersion: string;
 };
 
 export type OperationsSummary = {

@@ -1,8 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { AuthService } from '../../auth/auth.service';
-import { SystemInfoService } from '../../system/system-info.service';
 import { GiSelect, GiSelectOption } from '../../../shared/ui/gi-select/gi-select';
-import { formatOperationalDate } from '../../../shared/util/operational-date';
 
 /**
  * La barra de contexto.
@@ -12,14 +10,16 @@ import { formatOperationalDate } from '../../../shared/util/operational-date';
  * perfil, y cada pantalla de módulo volvía a preguntar por la organización con su propio selector.
  * De ahí venía que la franja dijera una organización y la pantalla mostrara otra.
  *
- * Lleva las tres cosas que el sistema cerrado le asigna: organización activa, fecha operativa, y
- * las acciones de cambiar y salir.
+ * Lleva la organización activa y las acciones de cambiar y salir, y nada más.
  *
- * <b>La fecha viene del servidor, no del navegador.</b> Calcularla aquí repondría el defecto que
- * el reloj operativo cerró en el backend: en UTC el día empieza entre seis y siete horas antes que
- * en México, así que a las 19:00 hora de Ciudad de México el navegador ya diría "mañana" y el
- * servidor seguiría diciendo "hoy". Si el servidor no responde, la barra dice que no sabe la
- * fecha; no inventa una.
+ * <b>La fecha operativa se retiró de aquí el 6 de septiembre de 2026.</b> Era un rótulo del cromo:
+ * se repetía igual en las quince pantallas y no decía nada sobre lo que se estaba mirando. La
+ * fecha se queda donde es contenido —la barra de día de Asistencia, la de semana de Planeación, el
+ * subtítulo de Inicio—, porque ahí sí dice contra qué día o qué semana se está trabajando.
+ *
+ * El día operativo lo sigue diciendo el servidor y se sigue usando para todos los cálculos: doce
+ * pantallas inyectan <c>SystemInfoService</c> por su cuenta. Esta barra nunca fue su fuente, sólo
+ * uno más de sus lectores.
  */
 @Component({
   selector: 'app-context-bar',
@@ -55,13 +55,6 @@ import { formatOperationalDate } from '../../../shared/util/operational-date';
           Salir
         </button>
       }
-
-      <div class="context-bar__field context-bar__field--date">
-        <span class="context-bar__label" id="context-bar-date">Fecha operativa</span>
-        <strong class="context-bar__value" aria-labelledby="context-bar-date">
-          {{ operationDate() }}
-        </strong>
-      </div>
     </div>
   `,
   styles: `
@@ -91,11 +84,6 @@ import { formatOperationalDate } from '../../../shared/util/operational-date';
       min-width: 0;
     }
 
-    .context-bar__field--date {
-      margin-left: auto;
-      text-align: right;
-    }
-
     .context-bar__label {
       color: var(--gestia-muted);
       font-size: 0.7rem;
@@ -114,7 +102,10 @@ import { formatOperationalDate } from '../../../shared/util/operational-date';
 
     .context-bar__select { min-width: 16rem; max-width: 24rem; }
 
+    /* El margen automático lo llevaba la fecha, que era el último elemento. Sin ella, es el botón
+       el que tiene que empujarse al otro extremo en lugar de quedarse pegado al selector. */
     .context-bar__exit {
+      margin-left: auto;
       align-self: flex-end;
       min-height: var(--gestia-control-height);
       padding: 0 0.9rem;
@@ -132,13 +123,11 @@ import { formatOperationalDate } from '../../../shared/util/operational-date';
     @media (max-width: 40rem) {
       .context-bar { flex-wrap: wrap; gap: 0.6rem 1rem; }
       .context-bar__select { min-width: 0; width: 100%; }
-      .context-bar__field--date { margin-left: auto; }
     }
   `,
 })
 export class ContextBar {
   protected readonly auth = inject(AuthService);
-  private readonly systemInfo = inject(SystemInfoService);
 
   protected readonly options = computed<readonly GiSelectOption[]>(() =>
     this.auth.availableOrganizations().map((organization) => ({
@@ -172,9 +161,5 @@ export class ContextBar {
 
   protected readonly organizationName = computed(
     () => this.auth.activeOrganization()?.legalName ?? 'Sin organización',
-  );
-
-  protected readonly operationDate = computed(() =>
-    formatOperationalDate(this.systemInfo.info()?.operationDate),
   );
 }

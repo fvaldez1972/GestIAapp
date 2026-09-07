@@ -472,17 +472,21 @@
       </div>
     </div>
 
-    <div style="width:1440px;background:#ffffff;border:1px solid #d97706;border-radius:6px;overflow:hidden">
+    <div style="width:1440px;background:#ffffff;border:1px solid #16a34a;border-radius:6px;overflow:hidden">
       <div style="padding:12px 14px;background:#f7f9fb;border-bottom:1px solid #dce2e9;display:flex;align-items:center;gap:12px">
-        <span style="border:1px solid #d97706;background:#ffffff;border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:#d97706">PENDIENTE DE NEGOCIO</span>
-        <span style="font:700 13px Archivo,sans-serif;color:#253040">Si quien va a cubrir ya tiene turno ese día, ¿se bloquea o se advierte?</span>
-        <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Hoy el sistema bloquea con error. Las dos se dibujan; ninguna se decide desde diseño</span>
+        <span style="border:1px solid #16a34a;background:#ffffff;border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:#16a34a">DECIDIDO · ADVIERTE Y PERMITE</span>
+        <span style="font:700 13px Archivo,sans-serif;color:#253040">Si quien va a cubrir ya tiene turno ese día, se advierte y se permite</span>
+        <span style="font:400 11.5px Archivo,sans-serif;color:#5f6b7a">Las dos siguen dibujadas: la descartada se conserva con su costo, para no volver a discutirla desde cero</span>
+      </div>
+      <div style="padding:13px 14px;border-bottom:1px solid #dce2e9;display:flex;flex-direction:column;gap:5px;background:#ffffff">
+        <span style="font:400 12px/1.6 Archivo,sans-serif;color:#253040">El argumento es el mismo del cierre del día: <b>el supervisor a las 07:20 con un turno descubierto va a mover a alguien de todos modos.</b> Si el sistema no lo deja, lo mueve por teléfono y el sistema queda mintiendo sobre dónde está la gente. Permitirlo y marcarlo conserva el dato; bloquearlo lo expulsa.</span>
+        <span style="font:400 12px/1.6 Archivo,sans-serif;color:#5f6b7a">Con una condición: <b>la advertencia nombra la consecuencia.</b> «Hay traslape» no sirve —una advertencia que no dice qué se pierde es un botón de continuar—. Tiene que decir qué posición queda corta y en qué turno.</span>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr">
         <div style="border-right:1px solid #dce2e9;padding:16px;display:flex;flex-direction:column;gap:12px">
           <span style="display:flex;align-items:center;gap:10px">
             <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">A · BLOQUEA</span>
-            <span style="border:1px solid #dce2e9;border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:#5f6b7a">Lo que el código hace hoy</span>
+            <span style="border:1px solid #dce2e9;border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:#5f6b7a">Lo que el código hace hoy · DESCARTADA</span>
           </span>
           <div style="border:1px solid #dce2e9;border-radius:6px;padding:11px 13px;display:flex;align-items:flex-start;gap:11px;background:#f7f9fb">
             <span style="width:15px;height:15px;border-radius:50%;border:1px solid #dce2e9;background:#ffffff;flex:none;margin-top:2px"></span>
@@ -498,8 +502,8 @@
         </div>
         <div style="padding:16px;display:flex;flex-direction:column;gap:12px">
           <span style="display:flex;align-items:center;gap:10px">
-            <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#5f6b7a">B · ADVIERTE Y PERMITE</span>
-            <span style="border:1px solid #dce2e9;border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:#5f6b7a">Requiere decisión de negocio</span>
+            <span style="font:600 11px Archivo,sans-serif;letter-spacing:.08em;color:#16a34a">B · ADVIERTE Y PERMITE</span>
+            <span style="border:1px solid #16a34a;border-radius:3px;padding:2px 7px;font:600 10.5px Archivo,sans-serif;color:#16a34a">ELEGIDA · se implementa así</span>
           </span>
           <div style="border:1px solid #d97706;border-radius:6px;padding:11px 13px;display:flex;align-items:flex-start;gap:11px;background:#ffffff">
             <span style="width:15px;height:15px;border-radius:50%;border:1px solid #22c6ee;background:#e9f7fa;flex:none;margin-top:2px"></span>
@@ -648,6 +652,13 @@
   </section>
 
   <section data-screen-label="Vista 5 · Turno declarado sin cubrir" id="v5" style="display:flex;flex-direction:column;gap:14px">
+    <div style="width:1440px;background:#ffffff;border:1px solid #dce2e9;border-left:3px solid #d97706;border-radius:6px;padding:14px 16px;display:flex;flex-direction:column;gap:8px">
+      <span style="font:600 12.5px Archivo,sans-serif;color:#253040">«Declarar sin cubrir» no es un estado guardado, y este bosquejo lo dibujaba como si lo fuera.</span>
+      <span style="font:400 12px/1.6 Archivo,sans-serif;color:#5f6b7a"><b>El modelo no tiene ese estado.</b> <code style="font:600 11px ui-monospace,monospace;color:#253040">CoverageStatus</code> sólo conoce solicitada, confirmada, completada y cancelada, y una cobertura <b>exige nombrar suplente</b>: <code style="font:600 11px ui-monospace,monospace;color:#253040">IdReplacementEmployee</code> es obligatorio. Declarar «sin cubrir» creando una cobertura obligaría a nombrar a alguien que no cubrió, que es lo contrario de lo que se quiere decir.</span>
+      <span style="font:400 12px/1.6 Archivo,sans-serif;color:#5f6b7a"><b>Lo que el modelo sí permite, y ya usa Inicio:</b> un turno queda al descubierto cuando <i>hubo falta y ninguna cobertura la resolvió</i>. Es <b>derivado</b>, como la vacancia de posiciones y como la marca de posterior al cierre. La declaración explícita vive donde tiene sentido: <b>en la resolución de la incidencia</b>, que se cierra diciendo que el turno se declaró sin cubrir y por qué.</span>
+      <span style="font:400 12px/1.6 Archivo,sans-serif;color:#5f6b7a">Lo que la vista dice del <b>peso</b> del acto sigue siendo cierto y se conserva: el turno queda como servicio no prestado, es lo que se concilia con el cliente y puede volverse nota de crédito. Lo que cambia es dónde se guarda, no lo que significa.</span>
+    </div>
+
     <div style="display:flex;align-items:baseline;gap:12px">
       <span style="font:600 11.5px Archivo,sans-serif;letter-spacing:.14em;color:#5f6b7a">VISTA 5</span>
       <span style="font:600 19px Archivo,sans-serif;color:#10104e">Cierre con el turno declarado sin cubrir</span>
@@ -1070,8 +1081,8 @@ class Component extends DCLogic {
       candidatos: [
         cand('Rubén Darío Ortiz', 'Cubre-descansos de P-01 Acceso principal', 'Descansa hoy y el perfil de la posición coincide. Entra sin mover otro turno.', 'DISPONIBLE', OK, M, 'sel'),
         cand('Efraín Solórzano', 'Titular de P-04 Rondín perimetral', 'Descanso declarado en su patrón. Cubrir le rompe el descanso del jueves.', 'DISPONIBLE', OK, M, ''),
-        cand('Marisol Quintanar Ávila', 'Titular de P-03 Monitoreo CCTV', 'Tiene turno 07:00 – 19:00 el mismo jueves en P-03. Traslape total.', 'TRASLAPE', W, W, ''),
-        cand('Jorge Iván Peñaloza', 'Titular de P-02 Rondín nocturno', 'Sale a las 07:00 de hoy y entra a las 19:00. Cubrir este turno lo deja 24 horas seguidas.', 'TRASLAPE', W, W, ''),
+        cand('Marisol Quintanar Ávila', 'Titular de P-03 Monitoreo CCTV', 'Se puede elegir. Tiene turno 07:00 – 19:00 el mismo jueves en P-03, así que al elegirla P-03 queda con un elemento menos ese día.', 'TRASLAPE', W, W, ''),
+        cand('Jorge Iván Peñaloza', 'Titular de P-02 Rondín nocturno', 'Se puede elegir. Sale a las 07:00 de hoy y entra a las 19:00: cubrir este turno lo deja 24 horas seguidas.', 'TRASLAPE', W, W, ''),
         cand('Yanet Bañuelos', 'Vigilante · sin asignación vigente', 'No elegible: la constancia de capacitación venció el 31 ago 2026. Se renueva en Personal.', 'NO ELEGIBLE', D, D, 'no')
       ],
 
@@ -1110,9 +1121,9 @@ class Component extends DCLogic {
       esqueleto: [{ a:'82%', b:'64%' }, { a:'62%', b:'48%' }, { a:'74%', b:'71%' }, { a:'55%', b:'40%' }],
 
       pendientes: [
-        { tema:'Traslape al cubrir', nota:'Hoy el sistema bloquea con error. Las dos versiones están dibujadas en la vista 3, rotuladas como pendientes. Es decisión de negocio, igual que el cubre-descansos en Planeación.', estado:'PENDIENTE DE NEGOCIO', estadoColor:W },
-        { tema:'Reapertura del día cerrado', nota:'La entidad de cierre guarda estado cerrado o reabierto, pero quién puede reabrir y con qué rastro no está definido. Aquí solo se dibuja la marca de incidencia posterior al cierre.', estado:'ALCANCE APARTE', estadoColor:W },
-        { tema:'Elegibilidad por texto libre', nota:'El perfil de la posición y el puesto del empleado se comparan como texto. La lista de candidatos hereda ese problema del paso 8: una redacción distinta deja fuera a alguien elegible.', estado:'PENDIENTE DE NEGOCIO', estadoColor:W },
+        { tema:'Traslape al cubrir', nota:'Decidido: advierte y permite. El bloqueo vive en OperationsService.EnsureCoverageAllocationAsync, no en AssignmentService, y la consulta que hoy devuelve un booleano ya trae los turnos que se traslapan, así que el dato de la advertencia está y sólo se estaba tirando. Que P-03 quede corto es derivable del turno publicado: sin columna ni migración.', estado:'DECIDIDO · ADVIERTE', estadoColor:'#16a34a' },
+        { tema:'Quién puede reabrir un día cerrado', nota:'El rastro sí está definido y este bosquejo decía que no: el cierre guarda quién reabrió, cuándo y por qué, con motivo obligatorio. Lo que nadie ha decidido es el permiso: reabrir pide OPERATIONS.WRITE, el mismo que capturar una asistencia, así que quien captura puede reabrir. Puede estar bien o no, pero es una decisión que no se ha tomado.', estado:'DECISIÓN DE NEGOCIO ABIERTA', estadoColor:W },
+        { tema:'Elegibilidad por identificador', nota:'Ya no se compara texto: el puesto del empleado y el que pide la posición viajan por identificador de catálogo, y el Contains sobre texto libre se borró. Además, un puesto nulo no bloquea: «no sabemos su puesto» no es «no cumple el perfil», así que el candidato aparece con aviso y decide quien asigna.', estado:'RESUELTO · YA EN EL MODELO', estadoColor:'#16a34a' },
         { tema:'Rol que registra', nota:'El paso 11 lo opera quien vigila el día. El menú lateral solo tiene super admin fuera, super admin dentro y admin de organización, así que estas cinco vistas se dibujaron como admin.', estado:'HUECO DE ALCANCE', estadoColor:W },
         { tema:'Aviso al cliente', nota:'La razón de un turno sin cubrir menciona que se avisó a la sede. Notificar al cliente desde el sistema no está en fase 1: el aviso ocurre por fuera y aquí solo se registra.', estado:'FUERA DE FASE 1', estadoColor:M }
       ]

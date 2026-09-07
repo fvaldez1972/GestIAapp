@@ -48,44 +48,84 @@ export type NavigationItem = {
 };
 
 /**
- * El menú lateral.
+ * Un encabezado del menú con sus entradas.
  *
- * <b>Lista plana, sin grupos</b>, como el bosquejo cerrado del componente `SideMenu`. Los títulos
- * de grupo que había antes —Principal, Operación, Control, Configuración— repartían doce entradas
- * en cuatro encabezados y hacían el menú más alto sin decir nada que la entrada no dijera ya. Las
- * migas de la barra superior siguen dando esa jerarquía donde sí sirve: al ubicar la pantalla
- * abierta.
- *
- * El orden es el del bosquejo. Auditoría se agrega al final del bloque de control, por decisión
- * posterior al diseño: el bosquejo cierra en 3/11/10 entradas y con Auditoría visible son 3/12/11.
+ * El grupo **no** es una ruta ni un permiso: no se puede hacer clic en él y no decide nada sobre
+ * lo que el usuario puede ver. Es sólo el rótulo que separa bloques de entradas.
  */
-export const GESTIA_NAVIGATION: readonly NavigationItem[] = [
-  { label: 'Inicio', icon: 'home', route: '/' },
+export type NavigationGroup = {
+  readonly label: string;
+  readonly items: readonly NavigationItem[];
+};
 
-  { label: 'Organizaciones', icon: 'security', route: '/plataforma/organizaciones', permission: 'PLATFORM.ADMIN', onlyFor: 'platform' },
+/**
+ * El menú lateral, en cuatro grupos.
+ *
+ * <b>Nota para quien compare con el bosquejo.</b> `docs/design/fase-1/pantallas/componentes/
+ * side-menu.html` dibuja una lista plana, y en la tanda 1 el menú se aplanó para seguirlo. Los
+ * grupos volvieron después por decisión explícita, ya con las once entradas en pantalla: una lista
+ * plana de diez o doce renglones obliga a leerlos todos para encontrar uno, y los cuatro rótulos
+ * cuestan menos altura que esa lectura. El bosquejo quedó atrás en este punto y no hay que
+ * "corregir" el código para volver a él.
+ *
+ * El orden dentro de cada grupo es el pedido, no el alfabético: Configuración empieza por
+ * Organizaciones y Clientes porque es el orden en que se configura una organización nueva.
+ */
+export const GESTIA_NAVIGATION: readonly NavigationGroup[] = [
+  {
+    label: 'Principal',
+    items: [{ label: 'Inicio', icon: 'home', route: '/' }],
+  },
 
-  { label: 'Catálogos', icon: 'catalog', route: '/catalogos', permission: 'CATALOGS.READ', needsOrganization: true },
-  { label: 'Clientes', icon: 'customer', route: '/clientes', permission: 'CLIENTS.READ', needsOrganization: true },
-  { label: 'Servicios', icon: 'coverage', route: '/servicios', permission: 'CLIENTS.READ', needsOrganization: true },
-  { label: 'Personal', icon: 'people', route: '/personal', permission: 'WORKFORCE.READ', needsOrganization: true },
+  {
+    label: 'Operación',
+    items: [
+      { label: 'Planeación', icon: 'calendar', route: '/planeacion', permission: 'PLANNING.READ', needsOrganization: true },
+      { label: 'Asistencia', icon: 'attendance', route: '/operacion/asistencia', permission: 'OPERATIONS.READ', needsOrganization: true },
+      { label: 'Incidencias', icon: 'incident', route: '/operacion/incidencias', permission: 'OPERATIONS.READ', needsOrganization: true },
+      { label: 'Cobertura', icon: 'coverage', route: '/operacion/cobertura', permission: 'OPERATIONS.READ', needsOrganization: true },
 
-  { label: 'Planeación', icon: 'calendar', route: '/planeacion', permission: 'PLANNING.READ', needsOrganization: true },
-  { label: 'Asistencia', icon: 'attendance', route: '/operacion/asistencia', permission: 'OPERATIONS.READ', needsOrganization: true },
-  { label: 'Incidencias', icon: 'incident', route: '/operacion/incidencias', permission: 'OPERATIONS.READ', needsOrganization: true },
-  { label: 'Cobertura', icon: 'coverage', route: '/operacion/cobertura', permission: 'OPERATIONS.READ', needsOrganization: true },
+      // Fuera de fase 1. Oculta, no borrada.
+      { label: 'Solicitudes', icon: 'request', route: '/solicitudes', permission: 'REQUESTS.READ', needsOrganization: true, phase: 2 },
+    ],
+  },
 
-  { label: 'Auditoría', icon: 'audit', route: '/auditoria', permission: 'AUDIT.READ', needsOrganization: true },
+  {
+    /**
+     * Hoy este grupo no tiene ninguna entrada visible: sus dos entradas están fuera de fase 1.
+     * El grupo entero desaparece del menú mientras eso siga así —ver `visibleNavigation`— y
+     * reaparece solo el día que a alguna se le quite la marca de fase 2.
+     */
+    label: 'Reportes y dashboards',
+    items: [
+      { label: 'Monitor global', icon: 'report', route: '/monitor', permission: 'REPORTS.READ', onlyFor: 'platform', phase: 2 },
+      { label: 'Reportes', icon: 'report', route: '/reportes', permission: 'REPORTS.READ', needsOrganization: true, phase: 2 },
+    ],
+  },
 
-  // Las dos caras de la misma entrada. Nunca se muestran juntas: `onlyFor` las hace excluyentes.
-  { label: 'Seguridad', icon: 'security', route: '/seguridad', permission: 'PLATFORM.ADMIN', onlyFor: 'platform' },
-  { label: 'Seguridad', icon: 'security', route: '/usuarios', permission: 'USERS.READ', onlyFor: 'organization' },
+  {
+    label: 'Configuración',
+    items: [
+      { label: 'Organizaciones', icon: 'security', route: '/plataforma/organizaciones', permission: 'PLATFORM.ADMIN', onlyFor: 'platform' },
+      { label: 'Clientes', icon: 'customer', route: '/clientes', permission: 'CLIENTS.READ', needsOrganization: true },
+      { label: 'Servicios', icon: 'coverage', route: '/servicios', permission: 'CLIENTS.READ', needsOrganization: true },
+      { label: 'Personal', icon: 'people', route: '/personal', permission: 'WORKFORCE.READ', needsOrganization: true },
+      { label: 'Catálogos', icon: 'catalog', route: '/catalogos', permission: 'CATALOGS.READ', needsOrganization: true },
+      { label: 'Auditoría', icon: 'audit', route: '/auditoria', permission: 'AUDIT.READ', needsOrganization: true },
 
-  // ── Fuera de fase 1. Ocultas, no borradas: las rutas y las pantallas siguen en su sitio. ──
-  { label: 'Monitor global', icon: 'report', route: '/monitor', permission: 'REPORTS.READ', onlyFor: 'platform', phase: 2 },
-  { label: 'Solicitudes', icon: 'request', route: '/solicitudes', permission: 'REQUESTS.READ', needsOrganization: true, phase: 2 },
-  { label: 'Reportes', icon: 'report', route: '/reportes', permission: 'REPORTS.READ', needsOrganization: true, phase: 2 },
-  { label: 'Reglas documentales', icon: 'document', route: '/configuracion/documentos', permission: 'CATALOGS.READ', needsOrganization: true, phase: 2 },
+      // Las dos caras de la misma entrada. Nunca se muestran juntas: `onlyFor` las hace excluyentes.
+      { label: 'Seguridad', icon: 'security', route: '/seguridad', permission: 'PLATFORM.ADMIN', onlyFor: 'platform' },
+      { label: 'Seguridad', icon: 'security', route: '/usuarios', permission: 'USERS.READ', onlyFor: 'organization' },
+
+      // Fuera de fase 1. Oculta, no borrada.
+      { label: 'Reglas documentales', icon: 'document', route: '/configuracion/documentos', permission: 'CATALOGS.READ', needsOrganization: true, phase: 2 },
+    ],
+  },
 ];
+
+/** Todas las entradas sin sus grupos, para lo que necesita recorrerlas y no dibujarlas. */
+export const GESTIA_NAVIGATION_ITEMS: readonly NavigationItem[] =
+  GESTIA_NAVIGATION.flatMap((group) => group.items);
 
 /** Con qué se decide si una entrada se muestra. Lo que el menú sabe del usuario, y nada más. */
 export type NavigationAudience = {
@@ -95,33 +135,51 @@ export type NavigationAudience = {
 };
 
 /**
- * Las entradas visibles para un usuario.
+ * Los grupos visibles para un usuario, cada uno ya con sus entradas visibles.
  *
  * <b>El menú dice a dónde puedes ir, no qué puedes hacer ahí.</b> Ocultar una entrada no es
  * autorización: la autorización está en el servidor, en el guard y en el filtro de organización.
  * Esta función sólo evita ofrecer puertas que no llevan a nada.
+ *
+ * <b>Un grupo sin entradas visibles no se dibuja.</b> Es la misma regla que ya gobierna las
+ * entradas, aplicada un nivel más arriba: un encabezado con nada debajo promete una sección que la
+ * aplicación no tiene, y el usuario no puede distinguir «todavía no existe» de «se rompió». Importa
+ * en los tres estados y no sólo con Reportes: el super admin fuera de una organización deja vacíos
+ * Operación y casi todo Configuración.
  */
 export function visibleNavigation(
   audience: NavigationAudience,
-  items: readonly NavigationItem[] = GESTIA_NAVIGATION,
+  groups: readonly NavigationGroup[] = GESTIA_NAVIGATION,
+): readonly NavigationGroup[] {
+  return groups
+    .map((group) => ({ ...group, items: group.items.filter((item) => isVisible(item, audience)) }))
+    .filter((group) => group.items.length > 0);
+}
+
+/** Las entradas visibles sin sus grupos, en el orden en que aparecen. */
+export function visibleNavigationItems(
+  audience: NavigationAudience,
+  groups: readonly NavigationGroup[] = GESTIA_NAVIGATION,
 ): readonly NavigationItem[] {
-  return items.filter((item) => {
-    if (item.phase === 2) {
-      return false;
-    }
+  return visibleNavigation(audience, groups).flatMap((group) => group.items);
+}
 
-    if (item.onlyFor === 'platform' && !audience.isPlatformAdmin) {
-      return false;
-    }
+function isVisible(item: NavigationItem, audience: NavigationAudience): boolean {
+  if (item.phase === 2) {
+    return false;
+  }
 
-    if (item.onlyFor === 'organization' && audience.isPlatformAdmin) {
-      return false;
-    }
+  if (item.onlyFor === 'platform' && !audience.isPlatformAdmin) {
+    return false;
+  }
 
-    if (item.needsOrganization && !audience.hasActiveOrganization) {
-      return false;
-    }
+  if (item.onlyFor === 'organization' && audience.isPlatformAdmin) {
+    return false;
+  }
 
-    return !item.permission || audience.hasPermission(item.permission);
-  });
+  if (item.needsOrganization && !audience.hasActiveOrganization) {
+    return false;
+  }
+
+  return !item.permission || audience.hasPermission(item.permission);
 }

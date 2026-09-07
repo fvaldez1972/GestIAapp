@@ -1,0 +1,130 @@
+<section class="asistencia">
+  <header class="asistencia__hero">
+    <p class="asistencia__eyebrow">ASISTENCIA</p>
+    <h1 class="asistencia__titulo">Asistencia</h1>
+    <p class="asistencia__ayuda">
+      Lo que se salió de lo planeado es lo que cambia cobertura. Lo demás se registra y ya.
+    </p>
+  </header>
+
+  @if (!canRead()) {
+    <gi-empty-state variant="no-permission" />
+  } @else if (!organizationId()) {
+    <gi-empty-state
+      variant="missing-prerequisite"
+      title="Elige una organización"
+      description="Asistencia trabaja dentro de una organización. Selecciónala en la barra de contexto."
+      link="/plataforma/organizaciones"
+      actionLabel="Ver organizaciones"
+    />
+  } @else if (services().length === 0) {
+    <gi-empty-state
+      variant="missing-prerequisite"
+      title="Esta organización no tiene servicios activos"
+      description="La asistencia se registra por servicio. Sin servicios no hay turnos que capturar."
+      link="/servicios"
+      actionLabel="Ir a Servicios"
+    />
+  } @else {
+    <gi-operation-day-bar
+      [date]="date()"
+      [operationalToday]="today()"
+      [maxDate]="today()"
+      [services]="serviceOptions()"
+      [idService]="idService()"
+      [siteLabel]="selectedService()?.clientName ?? ''"
+      [publishedVersionLabel]="publishedLabel()"
+      prerequisiteActionLabel="Ir a Planeación"
+      (dateChange)="onDateChange($event)"
+      (serviceChange)="onServiceChange($event)"
+      (resolvePrerequisite)="goToPlanning()"
+    >
+      <gi-day-closure
+        [state]="dayState()"
+        [closedByName]="closure()?.closedByName ?? ''"
+        [closedAt]="closure()?.closedAt ?? ''"
+        [reopenedByName]="closure()?.reopenedByName ?? ''"
+        [reopenedAt]="closure()?.reopenedAt ?? ''"
+        [snapshot]="snapshot()"
+        [canWrite]="canWrite()"
+        (closeDay)="closeDay($event)"
+        (reopenDay)="reopenDay($event)"
+      />
+    </gi-operation-day-bar>
+
+    @if (message()) {
+      <p class="asistencia__aviso asistencia__aviso--ok" role="status">{{ message() }}</p>
+    }
+
+    @if (error()) {
+      <p class="asistencia__aviso asistencia__aviso--mal" role="alert">{{ error() }}</p>
+    }
+
+    <app-attendance-summary
+      [shiftCount]="day().rows.length"
+      [exceptionCount]="exceptions().length"
+      [pendingCount]="pending().length"
+      [gapCount]="day().gaps.length"
+      [missingWorkers]="missingWorkers()"
+      [hasPlan]="!!publishedVersion()"
+      [canPublish]="canPlan()"
+      (publish)="goToPlanning()"
+    />
+
+    <app-attendance-exceptions
+      [rows]="day().rows"
+      [gaps]="day().gaps"
+      [shiftCount]="day().rows.length"
+      [dayClosed]="dayClosed()"
+      (pick)="onException($event)"
+      (gapPick)="onGap($event)"
+    />
+
+    @if (pending().length > 0) {
+      <section class="asistencia__pendientes">
+        <header class="asistencia__pendientes-head">
+          <span class="asistencia__title">PENDIENTES DE CAPTURAR</span>
+          <span class="asistencia__cuenta">{{ pending().length }} de {{ day().rows.length }}</span>
+          <span class="asistencia__nota">No son excepciones: son turnos que nadie ha registrado</span>
+        </header>
+
+        <ul class="asistencia__lista">
+          @for (row of pending(); track row.idScheduledShift) {
+            <li class="asistencia__fila">
+              <span class="asistencia__quien">
+                <strong>{{ row.employeeName }}</strong>
+                <span>{{ row.positionCode }} · {{ row.positionName }}</span>
+              </span>
+              <span class="asistencia__planeado">{{ row.planned }}</span>
+              @if (canWrite()) {
+                <button class="asistencia__accion" type="button" (click)="capture(row)">
+                  Registrar asistencia
+                </button>
+              }
+            </li>
+          }
+        </ul>
+      </section>
+    }
+  }
+
+  @if (editing(); as row) {
+    <gi-detail-panel
+      [title]="row.employeeName"
+      [subtitle]="row.record ? 'Corregir la asistencia' : 'Registrar la asistencia'"
+      (close)="closeEditor()"
+    >
+      <ng-template giTab="datos">
+        <app-attendance-form
+          [row]="row"
+          [dayClosed]="dayClosed()"
+          [approvals]="approvalOptions()"
+          [saving]="saving()"
+          (save)="save($event)"
+          (cancel)="closeEditor()"
+          (requestApproval)="requestApproval()"
+        />
+      </ng-template>
+    </gi-detail-panel>
+  }
+</section>

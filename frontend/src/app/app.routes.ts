@@ -114,6 +114,38 @@ export const routes: Routes = [
         pathMatch: 'full',
       },
       {
+        // Asistencia ya está rehecha y tiene pantalla propia. Incidencias y Cobertura siguen en la
+        // pantalla vieja hasta que les toque, y por eso la ruta con parámetro se queda debajo: el
+        // enrutador toma la primera que coincide, así que el orden es lo que reparte.
+        path: 'operacion/asistencia',
+        title: 'GestIA | Asistencia',
+        data: { permission: 'OPERATIONS.READ' },
+        loadComponent: () =>
+          import('./features/operations/pages/attendance-page/attendance-page').then(
+            (component) => component.AttendancePage,
+          ),
+      },
+      {
+        // Incidencias y Cobertura son una pantalla: el flujo las encadena y las dos entradas del
+        // menú caen aquí a propósito.
+        path: 'operacion/incidencias',
+        title: 'GestIA | Incidencias',
+        data: { permission: 'OPERATIONS.READ' },
+        loadComponent: () =>
+          import('./features/operations/pages/incidents-page/incidents-page').then(
+            (component) => component.IncidentsPage,
+          ),
+      },
+      {
+        path: 'operacion/cobertura',
+        title: 'GestIA | Cobertura',
+        data: { permission: 'OPERATIONS.READ' },
+        loadComponent: () =>
+          import('./features/operations/pages/incidents-page/incidents-page').then(
+            (component) => component.IncidentsPage,
+          ),
+      },
+      {
         path: 'operacion/:section',
         title: 'GestIA | Operación',
         data: { permission: 'OPERATIONS.READ' },

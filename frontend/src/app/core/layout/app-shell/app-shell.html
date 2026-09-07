@@ -6,18 +6,31 @@
     </a>
 
     <nav class="side-nav">
-      @for (item of navigation(); track item.route) {
-        <a
-          class="menu-link"
-          [routerLink]="item.route"
-          routerLinkActive="active"
-          [routerLinkActiveOptions]="{ exact: item.route === '/' }"
-          [title]="layout.isCondensed() ? item.label : ''"
-          (click)="layout.closeMobileNavigation()"
-        >
-          <span class="menu-icon"><app-icon [name]="item.icon" /></span>
-          <span class="menu-text">{{ item.label }}</span>
-        </a>
+      @for (group of navigation(); track group.label) {
+        <!--
+          El grupo es un rótulo, no un control: no se puede enfocar ni activar. Va como <h2> para
+          que el lector de pantalla pueda saltar de bloque en bloque, y `aria-labelledby` amarra
+          cada lista con el suyo. Condensado, el rótulo se oculta visualmente y queda la línea de
+          separación; el texto sigue ahí para quien no ve el menú.
+        -->
+        <h2 class="menu-group" [id]="'menu-group-' + $index">{{ group.label }}</h2>
+        <ul class="menu-list" [attr.aria-labelledby]="'menu-group-' + $index">
+          @for (item of group.items; track item.route) {
+            <li>
+              <a
+                class="menu-link"
+                [routerLink]="item.route"
+                routerLinkActive="active"
+                [routerLinkActiveOptions]="{ exact: item.route === '/' }"
+                [title]="layout.isCondensed() ? item.label : ''"
+                (click)="layout.closeMobileNavigation()"
+              >
+                <span class="menu-icon"><app-icon [name]="item.icon" /></span>
+                <span class="menu-text">{{ item.label }}</span>
+              </a>
+            </li>
+          }
+        </ul>
       }
     </nav>
 
@@ -95,9 +108,5 @@
       }
     </main>
 
-    <footer class="app-footer">
-      <span>GestIA · Gestión inteligente</span>
-      <span>Operación, trazabilidad y control</span>
-    </footer>
   </div>
 </div>

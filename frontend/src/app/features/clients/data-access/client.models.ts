@@ -581,6 +581,14 @@ export type Incident = {
   readonly resolutionNotes: string | null;
   readonly active: boolean;
   /**
+   * Cuándo se registró, en UTC.
+   *
+   * <p>Está para una marca que no se guarda: una incidencia es «posterior al cierre» si se creó
+   * después del `closedAt` del cierre vigente. Es reconstruible, como la vacancia de posiciones,
+   * pero sin este instante no se puede reconstruir nada.</p>
+   */
+  readonly createdAt: string;
+  /**
    * Token de concurrencia. Es `rowversion` en la base y viaja como **base64**: no se interpreta,
    * no se compara y no se construye. Se lee al abrir y se devuelve igual al corregir; si alguien
    * cambió el registro entre una cosa y la otra, el servidor responde 409 y dice quién fue.

@@ -86,6 +86,16 @@ public sealed record IncidentResponse(
     string Description,
     string? ResolutionNotes,
     bool Active,
+    /// <summary>
+    /// Cuándo se registró la incidencia, en UTC.
+    ///
+    /// <para><b>Viaja porque la pantalla lo necesita para una marca que no se guarda.</b> Una
+    /// incidencia es «posterior al cierre» si se creó después del <c>ClosedAt</c> del cierre
+    /// vigente de su servicio y su fecha. Es reconstruible, como la vacancia de posiciones, así que
+    /// no hay columna que lo diga: pero sin este instante en la respuesta no se puede reconstruir
+    /// nada, y la marca quedaría en un dibujo que la aplicación no sabe pintar.</para>
+    /// </summary>
+    DateTime CreatedAt,
     byte[] RowVersion);
 
 public sealed record CreateCoverageRequest(

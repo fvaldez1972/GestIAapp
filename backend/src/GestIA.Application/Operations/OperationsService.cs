@@ -985,6 +985,7 @@ public sealed class OperationsService(
             incident.Description,
             incident.ResolutionNotes,
             incident.Active,
+            incident.CreatedAt,
             incident.RowVersion);
 
     private static CoverageRecordResponse Map(CoverageRecord coverage) =>

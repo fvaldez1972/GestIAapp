@@ -1,0 +1,115 @@
+# Stack local, paralelo y aislado del que sirve dev.gestia-demo.com.
+#
+# POR QUÉ EXISTE
+# El stack `gestia` sirve un dominio público. Probar contra él significa que cualquier error se ve
+# fuera, y que reconstruir para probar interrumpe a quien esté mirando. Este levanta lo mismo —base,
+# API y portal— en otros puertos y con su propia base, para poder romper cosas sin consecuencias.
+#
+# QUÉ NO COMPARTE CON EL OTRO
+#   - El nombre del proyecto, así que Docker los trata como dos mundos.
+#   - Los puertos: 4400 el portal, 8081 la API, 1434 SQL Server. El 4300 lo suele ocupar
+#     `ng serve`, asi que se dejo libre a proposito.
+#   - El volumen de datos: `gestia-local_mssql-data`, distinto de `gestia_mssql-data`.
+#   - La base: `db-gestia-local`.
+#   - Las etiquetas de imagen: `:localhost` en lugar de `:local`, para poder publicar en uno sin
+#     tocar el otro. Es lo que permite decir "publica sólo en local" o "publica en los dos".
+#   - La carpeta de archivos subidos.
+#
+# QUÉ SÍ COMPARTE
+#   - El código: se construye del mismo árbol. Si quieres probar algo, constrúyelo aquí primero.
+#   - La contraseña de SQL y el secreto JWT, que salen del mismo `.env`.
+#
+# CÓMO SE USA
+#   docker compose -f compose.local.yaml up -d --build
+#   docker compose -f compose.local.yaml logs -f backend
+#   docker compose -f compose.local.yaml down
+#
+# El portal queda en http://localhost:4400 y la API en http://localhost:8081.
+
+name: gestia-local
+
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2025-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Developer
+      MSSQL_SA_PASSWORD: "${GESTIA_SQL_PASSWORD:?Copy .env.example to .env and set GESTIA_SQL_PASSWORD}"
+    ports:
+      - "1434:1433"
+    volumes:
+      - mssql-data:/var/opt/mssql
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$${MSSQL_SA_PASSWORD}" -C -Q "SELECT 1" -b -o /dev/null
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 12
+    security_opt:
+      - no-new-privileges:true
+
+  database-init:
+    image: mcr.microsoft.com/mssql/server:2025-latest
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    environment:
+      MSSQL_SA_PASSWORD: "${GESTIA_SQL_PASSWORD:?Copy .env.example to .env and set GESTIA_SQL_PASSWORD}"
+    entrypoint:
+      - /bin/bash
+      - -c
+    command:
+      - >-
+        /opt/mssql-tools18/bin/sqlcmd -S sqlserver -U sa -P "$${MSSQL_SA_PASSWORD}" -C -b
+        -Q "IF DB_ID(N'db-gestia-local') IS NULL EXEC(N'CREATE DATABASE [db-gestia-local]');"
+    restart: "no"
+    security_opt:
+      - no-new-privileges:true
+
+  backend:
+    image: gestia/backend:localhost
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    depends_on:
+      database-init:
+        condition: service_completed_successfully
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
+      ConnectionStrings__GestIa: "Server=sqlserver,1433;Database=db-gestia-local;User Id=sa;Password=${GESTIA_SQL_PASSWORD:?Copy .env.example to .env and set GESTIA_SQL_PASSWORD};Encrypt=True;TrustServerCertificate=True;MultipleActiveResultSets=True;ConnectRetryCount=5"
+      Jwt__Issuer: GestIA
+      Jwt__Audience: GestIA.Web
+      Jwt__Secret: "${GESTIA_JWT_SECRET:?Copy .env.example to .env and set GESTIA_JWT_SECRET}"
+      BootstrapAdmin__Email: "${GESTIA_BOOTSTRAP_ADMIN_EMAIL:-admin@gestia.local}"
+      BootstrapAdmin__Password: "${GESTIA_BOOTSTRAP_ADMIN_PASSWORD:-GestIA.Local.2026!}"
+      Storage__RootPath: /app/storage
+      # Aquí sí se siembra, y ésa es la diferencia deliberada con el otro stack: una base local
+      # recién creada no tiene permisos, roles ni administrador, y sin ellos no se puede entrar.
+      # En el que sirve el dominio está apagado a propósito, porque deja encendida una ruta de
+      # creación de usuarios en un ambiente alcanzable desde internet.
+      SecuritySeed__Enabled: "true"
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./storage-local:/app/storage
+    security_opt:
+      - no-new-privileges:true
+
+  frontend:
+    image: gestia/frontend:localhost
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "4400:8080"
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  mssql-data:

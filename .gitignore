@@ -35,3 +35,7 @@ references/inspinia/
 # Local infrastructure
 .containers/
 mssql-data/
+
+# Los archivos que se suben probando en el stack local. Son de usar y tirar; el stack que sirve
+# el dominio guarda los suyos en storage/, que si esta versionado.
+storage-local/

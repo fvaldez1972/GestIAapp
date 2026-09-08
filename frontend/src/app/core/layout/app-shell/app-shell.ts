@@ -6,10 +6,11 @@ import { AppIcon } from '../../../shared/ui/app-icon/app-icon';
 import { LayoutService } from '../layout.service';
 import { visibleNavigation } from '../navigation';
 import { ContextBar } from '../context-bar/context-bar';
+import { GiConfirmDialog } from '../../../shared/ui/gi-confirm-dialog/gi-confirm-dialog';
 
 @Component({
   selector: 'app-shell',
-  imports: [AppIcon, ContextBar, RouterLink, RouterLinkActive, RouterOutlet],
+  imports: [AppIcon, ContextBar, GiConfirmDialog, RouterLink, RouterLinkActive, RouterOutlet],
   templateUrl: './app-shell.html',
   styleUrl: './app-shell.scss',
 })
@@ -18,6 +19,7 @@ export class AppShell {
   protected readonly auth = inject(AuthService);
   protected readonly layout = inject(LayoutService);
   private readonly currentUrl = signal(this.router.url);
+  protected readonly confirmingLogout = signal(false);
   protected readonly navigation = computed(() =>
     visibleNavigation({
       isPlatformAdmin: this.isPlatformAdmin(),
@@ -63,7 +65,17 @@ export class AppShell {
     }
   }
 
+  /** Pregunta antes. Un clic en el nombre no puede tirar la sesión sin decir nada. */
+  protected askLogout() {
+    this.confirmingLogout.set(true);
+  }
+
+  protected cancelLogout() {
+    this.confirmingLogout.set(false);
+  }
+
   protected logout() {
+    this.confirmingLogout.set(false);
     this.auth.logout();
     void this.router.navigateByUrl('/login');
   }

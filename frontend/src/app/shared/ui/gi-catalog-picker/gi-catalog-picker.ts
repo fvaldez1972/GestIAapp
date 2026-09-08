@@ -61,6 +61,13 @@ export type GiCatalogCreation = {
 @Component({
   selector: 'gi-catalog-picker',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: {
+    // Cerrar al salir del componente cubre el clic fuera y el salto con Tab con un solo camino.
+    // Es lo mismo que hace `gi-select`; esta pieza no lo copió al nacer y quedaba abierta para
+    // siempre, obligando a elegir algo aunque uno se hubiera arrepentido.
+    '(focusout)': 'alSalirElFoco($event)',
+    '(keydown.escape)': 'abierto.set(false)',
+  },
   template: `
     <div class="pick">
       <label class="pick__label" [attr.for]="inputId()">{{ label() }}</label>
@@ -251,6 +258,21 @@ export class GiCatalogPicker {
 
   protected readonly escrito = signal('');
   protected readonly abierto = signal(false);
+
+  /**
+   * Se cierra al salir del componente.
+   *
+   * <p>`relatedTarget` dice a dónde va el foco. Si sigue dentro —de la caja de texto a una opción,
+   * por ejemplo— no hay que cerrar; si sale, o si no va a ninguna parte, sí.</p>
+   */
+  protected alSalirElFoco(event: FocusEvent): void {
+    const destino = event.relatedTarget as Node | null;
+    const anfitrion = (event.currentTarget as HTMLElement | null) ?? null;
+
+    if (!destino || !anfitrion?.contains(destino)) {
+      this.abierto.set(false);
+    }
+  }
 
   /** Lo que se ve en el campo: lo escrito manda; si no hay nada escrito, el nombre del elegido. */
   protected readonly texto = computed(() => {

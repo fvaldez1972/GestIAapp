@@ -1,4 +1,4 @@
-﻿import { HttpErrorResponse } from '@angular/common/http';
+import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { forkJoin, of } from 'rxjs';
@@ -646,7 +646,7 @@ export class WorkforcePage {
           this.finishCreate(
             created.idEmployee,
             value.idJobPositionCatalogItem
-              ? `Se dio de alta a ${value.fullName} con el puesto ${value.jobPositionName}.`
+              ? `Se dio de alta a ${value.fullName} con el puesto ${value.jobPositionName ?? 'sin catalogar'}.`
               : `Se dio de alta a ${value.fullName}, sin puesto del catálogo. Se le puede asignar una ` +
                   'posición, pero nadie podrá comprobar que corresponde al perfil.',
           );

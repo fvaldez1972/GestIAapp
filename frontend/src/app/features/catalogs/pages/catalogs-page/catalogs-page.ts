@@ -119,6 +119,7 @@ export class CatalogsPage implements OnInit, AfterViewInit {
     {
       type: 'JobPosition',
       title: 'Puestos',
+      example: 'Ej. Guardia de acceso',
       purpose: 'Los puestos operativos que cubre tu organización.',
       usedBy: 'Personal · Servicios · Planeación',
       link: 'identificador',
@@ -127,6 +128,7 @@ export class CatalogsPage implements OnInit, AfterViewInit {
     {
       type: 'Skill',
       title: 'Habilidades',
+      example: 'Ej. Manejo de arma corta',
       purpose: 'Competencias que una regla de elegibilidad puede exigir.',
       usedBy: 'Reglas de elegibilidad',
       link: 'identificador',
@@ -138,6 +140,7 @@ export class CatalogsPage implements OnInit, AfterViewInit {
     {
       type: 'IncidentReason',
       title: 'Motivos de incidencia',
+      example: 'Ej. Retardo mayor a 30 minutos',
       purpose: 'Cómo se clasifica una excepción de la operación diaria.',
       usedBy: 'Operación',
       link: 'nombre',
@@ -147,6 +150,7 @@ export class CatalogsPage implements OnInit, AfterViewInit {
     {
       type: 'CoverageReason',
       title: 'Motivos de cobertura',
+      example: 'Ej. Incapacidad médica',
       purpose: 'Por qué se cubre o se sustituye un turno.',
       usedBy: 'Operación · Planeación',
       link: 'identificador',
@@ -155,6 +159,7 @@ export class CatalogsPage implements OnInit, AfterViewInit {
     {
       type: 'Nationality',
       title: 'Nacionalidades',
+      example: 'Ej. Mexicana',
       purpose: 'Nacionalidad de un cliente persona física.',
       usedBy: 'Solicitudes',
       link: 'nombre',
@@ -173,6 +178,7 @@ export class CatalogsPage implements OnInit, AfterViewInit {
     {
       type: 'Country',
       title: 'Países',
+      example: 'Ej. México',
       purpose: 'Países disponibles para domicilios.',
       usedBy: 'Clientes',
       link: 'nombre',
@@ -181,6 +187,7 @@ export class CatalogsPage implements OnInit, AfterViewInit {
     {
       type: 'State',
       title: 'Estados',
+      example: 'Ej. Jalisco',
       purpose: 'Estados por país.',
       usedBy: 'Clientes',
       link: 'nombre',
@@ -189,6 +196,7 @@ export class CatalogsPage implements OnInit, AfterViewInit {
     {
       type: 'City',
       title: 'Ciudades y municipios',
+      example: 'Ej. Zapopan',
       purpose: 'Localidades por estado.',
       usedBy: 'Clientes',
       link: 'nombre',
@@ -990,6 +998,14 @@ nombre sigue ocupado.`)) {
 type CatalogCard = {
   readonly type: BusinessCatalogItemType;
   readonly title: string;
+  /**
+   * El ejemplo del campo de nombre.
+   *
+   * <p>Vive con la ficha, junto al título y al propósito, porque el editor es uno solo para los
+   * ocho catálogos: con el ejemplo escrito en la plantilla, «Ej. Guardia de acceso» aparecía
+   * también en Habilidades, en los motivos y en las nacionalidades.</p>
+   */
+  readonly example: string;
   readonly purpose: string;
   readonly usedBy: string;
   readonly link: 'identificador' | 'nombre';

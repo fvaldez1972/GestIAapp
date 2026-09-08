@@ -409,7 +409,7 @@
 
       <label class="gi-field">
         Nombre
-        <input class="gi-input" type="text" formControlName="name" placeholder="Ej. Guardia de acceso" />
+        <input class="gi-input" type="text" formControlName="name" [placeholder]="openCatalog()?.example ?? ''" />
         @if (catalogNameExists()) {
           <small class="cat__error">
             Ese nombre ya está en este catálogo, aunque el valor esté inactivo: aquí los registros no

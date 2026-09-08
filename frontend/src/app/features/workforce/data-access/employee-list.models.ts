@@ -198,6 +198,15 @@ export function eligibilityTitle(eligibility: EmployeeEligibility): string {
   }
 }
 
+/**
+ * Un nombre que puede faltar, dicho de forma que se pueda leer.
+ *
+ * <p>Interpolar un nulo en una plantilla de cadena escribe la palabra «null» en la pantalla. En
+ * una plantilla de Angular no pasa —pinta vacío—, y por eso es fácil no verlo venir: el mismo dato
+ * es inofensivo en un sitio y aparece en crudo en el otro.</p>
+ */
+const nombreOFalta = (valor: string | null, falta: string) => valor?.trim() || falta;
+
 export function eligibilityDetail(
   eligibility: EmployeeEligibility,
   employeeJobPosition: string | null,
@@ -206,9 +215,9 @@ export function eligibilityDetail(
   switch (eligibility) {
     case 'blocked':
       return (
-        `El puesto de la persona es «${employeeJobPosition}» y la posición pide ` +
-        `«${positionJobPosition}». Se comparan por identificador de catálogo, así que son puestos ` +
-        'distintos, no una diferencia de redacción.'
+        `El puesto de la persona es «${nombreOFalta(employeeJobPosition, 'sin puesto')}» y la `
+        + `posición pide «${nombreOFalta(positionJobPosition, 'sin puesto')}». Se comparan por `
+        + 'identificador de catálogo, así que son puestos distintos, no una diferencia de redacción.'
       );
     case 'incomplete':
       return (
@@ -219,7 +228,8 @@ export function eligibilityDetail(
         'expediente queda incompleto y nadie puede comprobar que corresponde.'
       );
     case 'eligible':
-      return `El puesto de la persona corresponde con el que la posición pide: «${employeeJobPosition}».`;
+      return 'El puesto de la persona corresponde con el que la posición pide: '
+        + `«${nombreOFalta(employeeJobPosition, 'sin puesto')}».`;
   }
 }
 

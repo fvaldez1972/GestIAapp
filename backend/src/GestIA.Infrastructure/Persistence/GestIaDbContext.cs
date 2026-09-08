@@ -127,6 +127,21 @@ public sealed class GestIaDbContext(
         }
     }
 
+    /// <summary>
+    /// Todo instante vuelve de la base marcado como UTC.
+    ///
+    /// <para>Va por convenio y no configuración por configuración a propósito: una columna nueva
+    /// <c>At</c> queda cubierta el día que se agrega, sin que nadie tenga que acordarse. Ver
+    /// <see cref="UtcInstantConverter"/> para el defecto que cierra.</para>
+    /// </summary>
+    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+    {
+        base.ConfigureConventions(configurationBuilder);
+
+        configurationBuilder.Properties<DateTime>().HaveConversion<UtcInstantConverter>();
+        configurationBuilder.Properties<DateTime?>().HaveConversion<UtcInstantConverter>();
+    }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

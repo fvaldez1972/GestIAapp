@@ -24,9 +24,10 @@ import {
   clientDisplayName,
   clientServiceBlockReason,
 } from '../../data-access/client.models';
-import { ClientContacts } from '../../ui/client-contacts';
 import { ClientData } from '../../ui/client-data';
 import { ClientForm, ClientFormValue } from '../../ui/client-form';
+import { ServerProblem, readServerProblem } from '../../../../shared/util/server-problem';
+import { ClientContacts, NewContact } from '../../ui/client-contacts';
 import { ClientSites, NewSite } from '../../ui/client-sites';
 import { ClientTable } from '../../ui/client-table';
 
@@ -89,7 +90,7 @@ export class ClientsPage {
 
   protected readonly creating = signal(false);
   protected readonly saving = signal(false);
-  protected readonly formProblem = signal('');
+  protected readonly formProblem = signal<ServerProblem | null>(null);
   /** El cliente recién guardado sin sede. Es el aviso de arriba, y desaparece al resolverlo. */
   protected readonly savedWithoutSite = signal<ClientListItem | null>(null);
   protected readonly confirming = signal<ClientListItem | null>(null);
@@ -368,7 +369,7 @@ export class ClientsPage {
   protected startCreate(): void {
     this.selected.set(null);
     this.creating.set(true);
-    this.formProblem.set('');
+    this.formProblem.set(null);
   }
 
   /**
@@ -387,7 +388,7 @@ export class ClientsPage {
     }
 
     this.saving.set(true);
-    this.formProblem.set('');
+    this.formProblem.set(null);
 
     const { value, withSite } = event;
 
@@ -418,9 +419,7 @@ export class ClientsPage {
         },
         error: (problem) => {
           this.saving.set(false);
-          this.formProblem.set(
-            problem?.error?.detail ?? 'No se pudo guardar el cliente. Revisa la razón social y el RFC.',
-          );
+          this.formProblem.set(readServerProblem(problem, 'No se pudo guardar el cliente.'));
         },
       });
   }
@@ -557,6 +556,49 @@ export class ClientsPage {
    * <p>Al guardarla, el listado se recarga y el aviso de arriba desaparece solo, porque el cliente
    * deja de estar sin sede. Nadie tiene que cerrar nada.</p>
    */
+  /**
+   * Alta de contacto.
+   *
+   * <p>La pestaña tenía el botón desde el principio y detrás no había nada: emitía una señal que
+   * la página no escuchaba. Los endpoints ya existían, en el servidor y en el cliente.</p>
+   */
+  protected createContact(contact: NewContact): void {
+    const organizationId = this.organizationId();
+    const client = this.selected();
+
+    if (!organizationId || !client || !this.canWrite()) {
+      return;
+    }
+
+    this.saving.set(true);
+    this.error.set('');
+
+    this.api
+      .createContact(client.idClient, {
+        idOrganization: organizationId,
+        idClient: client.idClient,
+        idClientSite: contact.idClientSite,
+        purpose: contact.purpose,
+        fullName: contact.fullName,
+        jobTitle: contact.jobTitle || null,
+        email: contact.email || null,
+        phone: contact.phone || null,
+        mobilePhone: null,
+        isPrimary: contact.isPrimary,
+      })
+      .subscribe({
+        next: () => {
+          this.saving.set(false);
+          this.message.set(`${contact.fullName} quedó registrado como contacto.`);
+          this.loadDetail(client);
+        },
+        error: () => {
+          this.saving.set(false);
+          this.error.set('No se pudo guardar el contacto. Revisa los datos.');
+        },
+      });
+  }
+
   protected createSite(site: NewSite): void {
     const organizationId = this.organizationId();
     const client = this.selected();

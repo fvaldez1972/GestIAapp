@@ -37,5 +37,17 @@ public sealed class ClientSiteConfiguration : IEntityTypeConfiguration<ClientSit
         builder.HasIndex(entity => new { entity.IdOrganization, entity.CodeClientSite });
 
         builder.HasIndex(entity => new { entity.IdClient, entity.CodeClientSite }).IsUnique();
+
+        builder.Property(entity => entity.NormalizedName)
+            .HasComputedColumnSql(BusinessCatalogItemConfiguration.NormalizedNameSql, stored: true)
+            .HasColumnType("varchar(200)")
+            .UseCollation("Latin1_General_CI_AI")
+            .ValueGeneratedOnAddOrUpdate();
+
+        // Dos sedes del mismo cliente no pueden llamarse igual. Entre clientes distintos sí: dos
+        // empresas pueden tener cada una su «Planta Norte».
+        builder.HasIndex(entity => new { entity.IdClient, entity.NormalizedName })
+            .IsUnique()
+            .HasDatabaseName("UX_ClientSites_IdClient_NormalizedName");
     }
 }

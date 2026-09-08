@@ -198,4 +198,41 @@ describe('La pestaña de Sedes', () => {
     expect(raiz.querySelector('.site__value')?.textContent?.trim())
       .toBe('Av. Patria 1250, Zapopan, Jalisco, 45110');
   });
+  /**
+   * El defecto: al guardar, la sede se creaba y el formulario se quedaba abierto con los mismos
+   * datos dentro. Pulsar otra vez creaba una sede idéntica y nada lo impedía.
+   */
+  it('se vacía y se cierra al guardar', () => {
+    const { fixture, raiz, escribir, guardar, host } = montar((anfitrion) => anfitrion.openAdd.set(false));
+
+    const abrir = Array.from(raiz.querySelectorAll<HTMLButtonElement>('button'))
+      .find((b) => b.textContent?.includes('Agregar sede'));
+    abrir?.click();
+    fixture.detectChanges();
+
+    escribir('ns-nombre', 'Planta Norte');
+    escribir('ns-calle', 'Av. Central 100');
+    escribir('ns-cp', '45010');
+    surtirCatalogo(TestBed.inject(HttpTestingController), fixture);
+    elegir(raiz, 'ns-estado', 'Nuevo León', fixture);
+    elegir(raiz, 'ns-municipio', 'San Nicolás de los Garza', fixture);
+    fixture.detectChanges();
+
+    guardar()?.click();
+    fixture.detectChanges();
+
+    expect(host.creada()?.name).toBe('Planta Norte');
+    // Cerrado: el formulario ya no está en pantalla.
+    expect(raiz.querySelector('#ns-nombre')).toBeNull();
+
+    // Se vuelve a buscar el botón: el anterior quedó fuera del DOM al cerrarse el formulario.
+    Array.from(raiz.querySelectorAll<HTMLButtonElement>('button'))
+      .find((b) => b.textContent?.includes('Agregar sede'))
+      ?.click();
+    fixture.detectChanges();
+
+    const campo = raiz.querySelector<HTMLInputElement>('#ns-nombre');
+    expect(campo).not.toBeNull();
+    expect(campo!.value).toBe('');
+  });
 });

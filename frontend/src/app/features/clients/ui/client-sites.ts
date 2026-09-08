@@ -410,20 +410,30 @@ export class ClientSites {
   }
 
   protected startAdd(): void {
+    this.limpiar();
     this.addingByHand.set(true);
   }
 
   protected cancelAdd(): void {
     this.addingByHand.set(false);
-    this.siteName.set('');
-    this.street.set('');
-    this.neighborhood.set('');
-    this.municipality.set('');
-    this.state.set('');
-    this.postalCode.set('');
+    this.limpiar();
   }
 
+  /**
+   * Guarda y deja el formulario como lo encontró.
+   *
+   * <p><b>Antes no limpiaba ni cerraba.</b> Al guardar, la sede se creaba y el formulario se
+   * quedaba abierto con los mismos datos dentro: pulsar otra vez creaba una sede idéntica, y nada
+   * lo impedía. Se podían acumular duplicados sin darse cuenta.</p>
+   *
+   * <p>La guarda de `saving` cubre el otro camino del mismo problema: el doble clic mientras la
+   * primera petición sigue en vuelo.</p>
+   */
   protected submit(): void {
+    if (this.saving() || !this.ready()) {
+      return;
+    }
+
     this.create.emit({
       name: this.siteName().trim(),
       street: this.street().trim(),
@@ -432,6 +442,18 @@ export class ClientSites {
       state: this.state().trim(),
       postalCode: this.postalCode().trim(),
     });
+
+    this.addingByHand.set(false);
+    this.limpiar();
+  }
+
+  private limpiar(): void {
+    this.siteName.set('');
+    this.street.set('');
+    this.neighborhood.set('');
+    this.municipality.set('');
+    this.state.set('');
+    this.postalCode.set('');
   }
 
   /** El primer contacto de la sede. La marca de principal no siempre está puesta. */

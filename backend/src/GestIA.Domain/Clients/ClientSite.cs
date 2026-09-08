@@ -43,6 +43,18 @@ public sealed class ClientSite : AuditableEntity, IOrganizationScopedEntity
     public Guid IdClient { get; private set; }
     public string CodeClientSite { get; private set; } = string.Empty;
     public string Name { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// El nombre plegado, que lo calcula SQL Server y sostiene la unicidad por cliente.
+    ///
+    /// <para>Existe por un defecto que se vio en vivo: el formulario de alta no se limpiaba al
+    /// guardar, y pulsar otra vez creaba una sede idéntica. En la base viva quedaron cuatro
+    /// «Vicente Eguia» del mismo cliente, creadas en dieciséis segundos.</para>
+    ///
+    /// <para>Es el mismo mecanismo que usa el catálogo, y por las mismas razones: columna calculada
+    /// para no rellenar nada, e intercalación que ignora acentos y mayúsculas.</para>
+    /// </summary>
+    public string NormalizedName { get; private set; } = string.Empty;
     public string Street { get; private set; } = string.Empty;
     public string? ExteriorNumber { get; private set; }
     public string? InteriorNumber { get; private set; }

@@ -241,7 +241,46 @@ describe('Servicios · listado', () => {
     fixture.componentInstance['search'].set('nada');
     cargar([]);
 
-    expect(raiz().textContent).toMatch(/Ningún resultado con estos filtros/i);
+    expect(raiz().textContent).toMatch(/Sin servicios con este filtro/i);
+    expect(raiz().textContent).not.toMatch(/Todavía no hay servicios/i);
+  });
+
+  /**
+   * Quitar el filtro y crear no se estorban.
+   *
+   * <p>Antes el vacío por filtro cambiaba «Nuevo servicio» por «Quitar filtros», y desde fuera se
+   * veía como si el botón de crear hubiera desaparecido al filtrar. Obligar a limpiar el filtro
+   * para poder crear es fricción sin razón.</p>
+   */
+  it('el vacío por filtro ofrece las dos salidas: crear y quitar el filtro', () => {
+    fixture.componentInstance['search'].set('nada');
+    cargar([]);
+
+    const acciones = Array.from(raiz().querySelectorAll('.gi-empty__action'))
+      .map((b) => b.textContent?.trim());
+
+    expect(acciones).toContain('Nuevo servicio');
+    expect(acciones).toContain('Quitar filtros');
+  });
+
+  /**
+   * El botón que no respondía.
+   *
+   * <p>Se deshabilitaba con `hasActiveSite()`, que sin cliente elegido es siempre falso: nacía
+   * apagado y pulsarlo no hacía nada. Ahora se puede pulsar, y la pantalla dice qué falta.</p>
+   */
+  it('sin cliente elegido, «Nuevo servicio» se puede pulsar y explica qué falta', () => {
+    cargar([]);
+
+    const nuevo = Array.from(raiz().querySelectorAll<HTMLButtonElement>('.button--primary'))
+      .find((b) => b.textContent?.includes('Nuevo servicio'))!;
+
+    expect(nuevo.disabled).toBe(false);
+
+    nuevo.click();
+    fixture.detectChanges();
+
+    expect(raiz().textContent).toMatch(/Un servicio se contrata para un cliente/i);
   });
 
   it('sin filtros y sin datos, ofrece crear el primero', () => {

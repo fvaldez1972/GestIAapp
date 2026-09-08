@@ -57,11 +57,24 @@ const POR_OMISION: Record<GiEmptyVariant, TextoPorOmision> = {
       <p class="gi-empty__title">{{ title() || textos().title }}</p>
       <p class="gi-empty__description">{{ description() || textos().description }}</p>
 
-      @if (link(); as destino) {
-        <a class="gi-empty__action" [routerLink]="destino">{{ actionLabel() || 'Ir al módulo' }}</a>
-      } @else if (actionLabel(); as etiqueta) {
-        <button class="gi-empty__action" type="button" (click)="action.emit()">{{ etiqueta }}</button>
-      }
+      <!--
+        Dos acciones pueden convivir, y a veces deben. Un vacío que viene de un filtro ofrece
+        quitarlo, pero eso no es razón para esconder la de crear: quitar el filtro y crear no se
+        estorban, y obligar a limpiar para poder crear es fricción sin motivo.
+      -->
+      <p class="gi-empty__actions">
+        @if (link(); as destino) {
+          <a class="gi-empty__action" [routerLink]="destino">{{ actionLabel() || 'Ir al módulo' }}</a>
+        } @else if (actionLabel(); as etiqueta) {
+          <button class="gi-empty__action" type="button" (click)="action.emit()">{{ etiqueta }}</button>
+        }
+
+        @if (secondaryActionLabel(); as segunda) {
+          <button class="gi-empty__action gi-empty__action--soft" type="button" (click)="secondaryAction.emit()">
+            {{ segunda }}
+          </button>
+        }
+      </p>
     </div>
   `,
   styles: `
@@ -93,6 +106,14 @@ const POR_OMISION: Record<GiEmptyVariant, TextoPorOmision> = {
       font-weight: 400;
     }
 
+    .gi-empty__actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      justify-content: center;
+      margin: 0;
+    }
+
     .gi-empty__action {
       margin-top: 0.5rem;
       display: inline-flex;
@@ -110,6 +131,8 @@ const POR_OMISION: Record<GiEmptyVariant, TextoPorOmision> = {
       cursor: pointer;
     }
 
+    .gi-empty__action--soft { color: var(--gestia-muted); }
+
     .gi-empty__action:hover { border-color: var(--gestia-cyan-dark); }
     .gi-empty__action:focus-visible { outline: 2px solid var(--gestia-cyan); outline-offset: 2px; }
 
@@ -123,6 +146,9 @@ export class GiEmptyState implements OnInit {
   readonly title = input('');
   readonly description = input('');
   readonly actionLabel = input('');
+
+  /** La segunda salida, cuando hay dos que no se estorban. Vacía, no se dibuja. */
+  readonly secondaryActionLabel = input('');
   /**
    * Ruta del módulo donde se obtiene lo que falta.
    *
@@ -131,6 +157,7 @@ export class GiEmptyState implements OnInit {
    */
   readonly link = input<string | readonly unknown[] | null>(null);
   readonly action = output<void>();
+  readonly secondaryAction = output<void>();
 
   protected readonly textos = computed(() => POR_OMISION[this.variant()]);
 

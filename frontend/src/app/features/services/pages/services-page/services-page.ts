@@ -189,12 +189,29 @@ export class ServicesPage implements OnInit, OnDestroy {
   protected readonly canReadDocuments = computed(
     () => this.canRead() && this.auth.hasPermission('DOCUMENTS.READ'),
   );
+  /**
+   * Permiso para escribir clientes <b>y</b> que el cliente elegido esté activo.
+   *
+   * <p>Mezcla dos preguntas y para las acciones de una fila está bien: editar un servicio de un
+   * cliente dado de baja no tiene sentido. Para <b>crear</b>, no: ver `puedeCrearServicios`.</p>
+   */
   protected readonly canWriteClients = computed(
     () =>
       this.canRead() &&
       this.auth.hasPermission('CLIENTS.WRITE') &&
       !!this.auth.activeOrganization() &&
       !!this.selectedClient()?.active,
+  );
+
+  /**
+   * Sólo el permiso, sin el contexto.
+   *
+   * <p>El botón de «Nuevo servicio» se apagaba porque `canWriteClients` exige un cliente elegido y
+   * activo, y sin cliente eso es siempre falso. Preguntar por el permiso al dibujar el botón, y
+   * por el contexto al pulsarlo, es lo que permite explicar qué falta en lugar de apagarlo.</p>
+   */
+  protected readonly puedeCrearServicios = computed(
+    () => this.canRead() && this.auth.hasPermission('CLIENTS.WRITE') && !!this.auth.activeOrganization(),
   );
   protected readonly canWritePlanning = computed(
     () =>
@@ -846,11 +863,31 @@ export class ServicesPage implements OnInit, OnDestroy {
     { validators: dateRangeValidator('startDate', 'endDate') },
   );
 
+  /**
+   * Abre el alta de servicio, o dice qué falta para poder abrirla.
+   *
+   * <p>Antes salía en silencio por esta misma condición, con el botón además deshabilitado: desde
+   * fuera parecía que el botón no respondía. Un servicio necesita un cliente con sede activa, y
+   * eso es cierto; lo que no puede es no decirse.</p>
+   */
   protected openCreateService(): void {
-    if (!this.allowWrite(false)) return;
+    if (this.saving() || !this.puedeCrearServicios()) return;
     this.closeEditors();
     this.error.set('');
-    if (!this.selectedClient() || !this.sites().some((s) => s.active)) {
+
+    if (!this.selectedClient()) {
+      this.error.set(
+        'Un servicio se contrata para un cliente. Abre el cliente en Clientes y entra a sus '
+        + 'servicios desde ahí.',
+      );
+      return;
+    }
+
+    if (!this.sites().some((site) => site.active)) {
+      this.error.set(
+        `${this.selectedClient()?.legalName ?? 'El cliente'} no tiene ninguna sede activa, y un `
+        + 'servicio se presta en una sede. Registra la sede antes de contratar el servicio.',
+      );
       return;
     }
 

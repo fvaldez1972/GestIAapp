@@ -5,10 +5,16 @@
       <h1>Servicios</h1>
       <p>La organización se hereda de la barra de contexto.</p>
     </div>
+    <!--
+      El botón ya no se apaga por no haber sede. Antes se deshabilitaba con `hasActiveSite()`, que
+      mira las sedes del cliente seleccionado, y sin cliente elegido eso es siempre falso: el botón
+      nacía apagado, sin decir por qué, y pulsarlo no hacía nada. Ahora se puede pulsar y es la
+      pantalla la que explica qué falta.
+    -->
     <button
       class="button button--primary"
       type="button"
-      [disabled]="!canWriteClients() || loading() || saving() || !hasActiveSite()"
+      [disabled]="!puedeCrearServicios() || loading() || saving()"
       (click)="openCreateService()"
     >
       Nuevo servicio
@@ -76,14 +82,18 @@
         [state]="tableState()"
         [selectedId]="selectedService()?.idService ?? null"
         [errorMessage]="error()"
-        [emptyTitle]="tableState() === 'empty' ? 'Todavía no hay servicios' : ''"
+        [emptyTitle]="tableState() === 'empty' ? 'Todavía no hay servicios' : 'Sin servicios con este filtro'"
         [emptyDescription]="
-          tableState() === 'empty' ? 'Registra el primero para empezar a planear su operación.' : ''
+          tableState() === 'empty'
+            ? 'Registra el primero para empezar a planear su operación.'
+            : 'Ningún servicio coincide con el filtro. Puedes quitarlo o crear uno nuevo.'
         "
-        [emptyActionLabel]="tableState() === 'empty' ? 'Nuevo servicio' : 'Quitar filtros'"
+        emptyActionLabel="Nuevo servicio"
+        [emptySecondaryActionLabel]="tableState() === 'empty-filtered' ? 'Quitar filtros' : ''"
         (rowSelect)="openService($event)"
         (retry)="loadServices(serviceList().page)"
-        (emptyAction)="tableState() === 'empty' ? openCreateService() : clearFilters()"
+        (emptyAction)="openCreateService()"
+        (emptySecondaryAction)="clearFilters()"
       >
         <ng-template giCell="clientSite" let-row>
           {{ row.clientName }}@if (row.clientSiteName) { · {{ row.clientSiteName }} }

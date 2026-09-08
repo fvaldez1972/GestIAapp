@@ -64,7 +64,8 @@ describe('EntityDocuments', () => {
     fixture.detectChanges();
   };
   const chooseFile = (file = new File(['pdf'], 'contract.pdf', { type: 'application/pdf' })) => {
-    component['selectFile']({ target: { files: [file], value: '' } } as unknown as Event);
+    // Ahora el control entrega el archivo, no el evento: el nativo queda dentro de gi-file-input.
+    component['selectFile'](file);
   };
   const createForm = () => {
     component['openEditor']('create');

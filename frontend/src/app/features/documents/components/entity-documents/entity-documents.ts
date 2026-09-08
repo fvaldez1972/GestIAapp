@@ -7,6 +7,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Observable, Subscription, finalize, map, of, switchMap, tap } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { AppIcon } from '../../../../shared/ui/app-icon/app-icon';
+import { GiFileInput } from '../../../../shared/ui/gi-file-input/gi-file-input';
 import { formatOperationalDate, formatOperationalInstant } from '../../../../shared/util/operational-date';
 import { DocumentApiService } from '../../data-access/document-api.service';
 import { documentStatusLabels, historyChanges } from './entity-document-history';
@@ -20,7 +21,7 @@ type EditorMode = 'create' | 'edit' | 'review' | 'archive';
 
 @Component({
   selector: 'app-entity-documents',
-  imports: [ReactiveFormsModule, AppIcon],
+  imports: [ReactiveFormsModule, AppIcon, GiFileInput],
   templateUrl: './entity-documents.html',
   styleUrl: './entity-documents.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -46,6 +47,7 @@ export class EntityDocuments implements OnDestroy {
   private readonly auth = inject(AuthService);
   private readonly fb = inject(FormBuilder);
   private readonly historyDialog = viewChild<ElementRef<HTMLDialogElement>>('historyDialog');
+  private readonly selectorDeArchivo = viewChild(GiFileInput);
   private requests = new Subscription();
   private listRequest?: Subscription;
   private historyRequest?: Subscription;
@@ -192,22 +194,20 @@ export class EntityDocuments implements OnDestroy {
     this.reviewForm.reset({ status: 'Validated', notes: '' });
   }
 
-  protected selectFile(event: Event) {
+  protected selectFile(archivo: File | null) {
     if (this.busy() || !this.canWrite()) return;
-    const input = event.target as HTMLInputElement;
     this.file = null;
     this.uploadedReference = '';
     this.fileName.set('');
     this.actionError.set('');
-    const file = input.files?.[0];
-    if (!file) return;
-    if (file.size === 0 || file.size > 30 * 1024 * 1024) {
+    if (!archivo) return;
+    if (archivo.size === 0 || archivo.size > 30 * 1024 * 1024) {
       this.actionError.set('El archivo debe contener datos y no superar 30 MB.');
-      input.value = '';
+      this.selectorDeArchivo()?.reset();
       return;
     }
-    this.file = file;
-    this.fileName.set(file.name);
+    this.file = archivo;
+    this.fileName.set(archivo.name);
   }
 
   protected save() {

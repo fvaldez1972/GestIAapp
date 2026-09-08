@@ -41,10 +41,13 @@
           </label>
           <label class="gi-field"><span>Emision</span><input class="gi-input" type="date" formControlName="issuedDate" /></label>
           <label class="gi-field"><span>Vencimiento</span><input class="gi-input" type="date" formControlName="expiresDate" [min]="form.controls.issuedDate.value" /></label>
-          <label class="gi-field entity-wide"><span>{{ mode() === 'create' ? 'Archivo *' : 'Reemplazar archivo (opcional)' }}</span>
-            <input class="gi-input" type="file" (change)="selectFile($event)" />
-            @if (fileName()) { <small>{{ fileName() }}</small> }
-          </label>
+          <gi-file-input
+            class="entity-wide"
+            [label]="mode() === 'create' ? 'Archivo *' : 'Reemplazar archivo (opcional)'"
+            [disabled]="busy() || !canWrite()"
+            emptyLabel="Ningún archivo elegido"
+            (fileSelected)="selectFile($event)"
+          />
           @if (selected()?.isSensitive) {
             <p class="entity-wide"><app-icon name="security" /> Documento sensible</p>
           } @else if (canWriteSensitive()) {

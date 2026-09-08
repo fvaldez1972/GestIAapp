@@ -1,6 +1,7 @@
 import { HttpErrorResponse, HttpResponse } from '@angular/common/http';
 import { CatalogSelect } from '../../../../shared/ui/catalog-select/catalog-select';
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal, linkedSignal } from '@angular/core';
+import { GiFileInput } from '../../../../shared/ui/gi-file-input/gi-file-input';
+import { ChangeDetectionStrategy, Component, viewChild, OnInit, computed, inject, signal, linkedSignal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
@@ -34,7 +35,7 @@ import { Employee } from '../../../workforce/data-access/workforce.models';
 
 @Component({
   selector: 'app-operations-page',
-  imports: [ReactiveFormsModule, RouterLink, CatalogSelect],
+  imports: [ReactiveFormsModule, RouterLink, CatalogSelect, GiFileInput],
   templateUrl: './operations-page.html',
   styleUrl: './operations-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -1213,9 +1214,9 @@ export class OperationsPage implements OnInit {
     });
   }
 
-  protected onEvidenceFileSelected(event: Event) {
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
+  private readonly selectorDeEvidencia = viewChild(GiFileInput);
+
+  protected onEvidenceFileSelected(file: File | null) {
     const context = this.operationContext();
 
     if (!file || !context) {
@@ -1236,12 +1237,12 @@ export class OperationsPage implements OnInit {
       },
       error: (error: HttpErrorResponse) => {
         this.uploadingEvidenceFile.set(false);
-        input.value = '';
+        this.selectorDeEvidencia()?.reset();
         this.setError(error, 'No se pudo cargar el archivo.');
       },
       complete: () => {
         this.uploadingEvidenceFile.set(false);
-        input.value = '';
+        this.selectorDeEvidencia()?.reset();
       },
     });
   }

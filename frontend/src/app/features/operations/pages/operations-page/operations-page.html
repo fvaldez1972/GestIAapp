@@ -1074,13 +1074,13 @@
       </label>
     </div>
 
-    <label>
-      Archivo
-      <input type="file" (change)="onEvidenceFileSelected($event)" [disabled]="uploadingEvidenceFile() || !selectedDailyShift()" />
-      <small class="form-help">
-        {{ uploadingEvidenceFile() ? 'Cargando archivo…' : 'Opcional: al cargarlo se guardará la referencia del respaldo.' }}
-      </small>
-    </label>
+    <gi-file-input
+      label="Archivo"
+      [disabled]="uploadingEvidenceFile() || !selectedDailyShift()"
+      emptyLabel="Ningún archivo elegido"
+      [hint]="uploadingEvidenceFile() ? 'Cargando archivo…' : 'Opcional: al cargarlo se guardará la referencia del respaldo.'"
+      (fileSelected)="onEvidenceFileSelected($event)"
+    />
 
     <label>
       Referencia del respaldo

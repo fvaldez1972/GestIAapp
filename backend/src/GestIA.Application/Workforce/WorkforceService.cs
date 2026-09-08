@@ -717,7 +717,9 @@ public sealed class WorkforceService(
             employee.ResidenceSinceDate,
             employee.Active,
             employee.CreatedAt,
-            employee.UpdatedAt, employee.CountryCode);
+            employee.UpdatedAt,
+            employee.CountryCode,
+            employee.IdJobPositionCatalogItem);
 
     private static EmployeeDocumentResponse Map(EmployeeDocument document) =>
         new(

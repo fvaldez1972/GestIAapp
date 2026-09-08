@@ -424,6 +424,72 @@ public sealed class EmployeeSearchTests(OperationalSqlDatabase database)
         return new(organizationId, puesto.IdBusinessCatalogItem, servicio.IdService, alDia.IdEmployee);
     }
 
+    /// <summary>
+    /// El puesto viaja en el listado, no solo en la busqueda.
+    ///
+    /// <para>Son dos caminos distintos y solo uno estaba bien. La busqueda proyecta el puesto a
+    /// mano y siempre lo trajo; el listado usa un mapeo que <b>no lo pasaba</b>, y como el contrato
+    /// lo declaraba con valor por defecto, compilaba y respondia 200 con el campo nulo. La columna
+    /// de uso de Catalogos decia "Nadie lo tiene" aunque hubiera empleados con ese puesto.</para>
+    ///
+    /// <para>La prueba lee por el camino que estaba roto.</para>
+    /// </summary>
+    [OperationalSqlFact]
+    public async Task ListedEmployeeCarriesItsCatalogJobPosition()
+    {
+        var datos = await SeedAsync("lst");
+
+        await using var context = database.Context();
+        var pagina = await new WorkforceRepository(context).ListEmployeesAsync(
+            new EmployeeQuery(datos.OrganizationId, null, null, 1, 50), Token);
+
+        var conPuesto = pagina.Items.Where(item => item.IdJobPositionCatalogItem == datos.JobPositionId).ToArray();
+        Assert.NotEmpty(conPuesto);
+    }
+
+    /// <summary>
+    /// El puesto desactivado sigue teniendo nombre, y desactivarlo no afloja nada mas.
+    ///
+    /// <para>Son dos cosas y la segunda es la que importa. La primera: el nombre es historia, la
+    /// persona tuvo ese puesto, y que el catalogo cambie despues no borra el hecho; antes llegaba
+    /// nulo y la pantalla escribia el texto "NULL".</para>
+    ///
+    /// <para>La segunda: resolverlo <b>no puede</b> apagar el filtro de activos del resto de la
+    /// consulta. El primer intento lo hizo sin querer —<c>IgnoreQueryFilters</c> es un operador de
+    /// toda la consulta, no de la subconsulta donde se escribe— y los documentos dados de baja
+    /// volvieron a contarse como vigentes. Por eso aqui se comprueban las dos.</para>
+    /// </summary>
+    [OperationalSqlFact]
+    public async Task DeactivatedJobPositionKeepsItsNameWithoutLooseningTheActiveFilter()
+    {
+        var datos = await SeedAsync("DES");
+
+        await using (var context = database.Context())
+        {
+            var puesto = await context.BusinessCatalogItems
+                .SingleAsync(item => item.IdBusinessCatalogItem == datos.JobPositionId, Token);
+            puesto.Deactivate(ActorId, ActorName, Now);
+
+            // Y un documento de baja, para comprobar que el filtro de activos sigue puesto.
+            var empleado = await context.Employees.SingleAsync(item => item.CodeEmployee == "DES-EMP-VEN", Token);
+            var comprobante = await context.EmployeeDocuments.SingleAsync(document =>
+                document.IdEmployee == empleado.IdEmployee &&
+                document.DocumentType == EmployeeDocumentType.ProofOfAddress, Token);
+            comprobante.Deactivate(ActorId, ActorName, Now);
+
+            await context.SaveChangesAsync(Token);
+        }
+
+        var (items, _) = await SearchAsync(Criterios(datos.OrganizationId));
+        var conPuesto = items.Where(item => item.IdJobPositionCatalogItem == datos.JobPositionId).ToArray();
+
+        Assert.NotEmpty(conPuesto);
+        Assert.All(conPuesto, item => Assert.False(string.IsNullOrWhiteSpace(item.JobPositionName)));
+
+        var vencido = Assert.Single(items, item => item.CodeEmployee == "DES-EMP-VEN");
+        Assert.True(vencido.MissingDocuments > 0);
+    }
+
     private static Employee Empleado(Guid organizationId, string code, string nombre, Guid idPuesto)
     {
         var empleado = Employee.Create(

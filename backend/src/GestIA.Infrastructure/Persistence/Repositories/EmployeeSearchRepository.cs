@@ -142,10 +142,8 @@ public sealed partial class WorkforceRepository
                 employee.State,
                 employee.Municipality,
 
-                JobPositionName = dbContext.BusinessCatalogItems
-                    .Where(item => item.IdBusinessCatalogItem == employee.IdJobPositionCatalogItem)
-                    .Select(item => item.Name)
-                    .FirstOrDefault(),
+                // El nombre del puesto ya no sale de aqui: se resuelve despues, en una consulta
+                // aparte. Ver `NombresDePuestoAsync`.
 
                 Expired = dbContext.EmployeeDocuments.Count(document =>
                     document.IdEmployee == employee.IdEmployee &&
@@ -176,6 +174,10 @@ public sealed partial class WorkforceRepository
             })
             .ToArrayAsync(cancellationToken);
 
+        var nombresDePuesto = await NombresDePuestoAsync(
+            filas.Select(fila => fila.IdJobPositionCatalogItem).ToArray(),
+            cancellationToken);
+
         var items = filas
             .Select(fila => new EmployeeListItemResponse(
                 fila.IdEmployee,
@@ -186,7 +188,9 @@ public sealed partial class WorkforceRepository
                 fila.HireDate,
                 fila.Curp,
                 fila.IdJobPositionCatalogItem,
-                fila.JobPositionName,
+                fila.IdJobPositionCatalogItem is { } idPuesto && nombresDePuesto.TryGetValue(idPuesto, out var nombre)
+                    ? nombre
+                    : null,
                 fila.JobTitle,
                 fila.State,
                 fila.Municipality,
@@ -205,6 +209,39 @@ public sealed partial class WorkforceRepository
     /// El peor manda. Un vencido pesa más que un hueco, y un hueco más que algo por caducar: los
     /// tres son problemas, pero el primero ya está bloqueando.
     /// </summary>
+    /// <summary>
+    /// Los nombres de los puestos, incluidos los desactivados.
+    ///
+    /// <para><b>Va en su propia consulta y no como subconsulta, y esa es toda la razón de que
+    /// exista.</b> <c>IgnoreQueryFilters</c> no se aplica a la subconsulta donde se escribe: es un
+    /// operador de <b>toda</b> la consulta. Puesto dentro de la proyección apagaba el filtro
+    /// <c>Active</c> del listado entero, y los documentos dados de baja volvían a contarse como
+    /// vigentes. Aquí el apagado queda confinado a leer nombres de catálogo.</para>
+    ///
+    /// <para>Se resuelven aunque el valor esté desactivado porque es historia: la persona tuvo ese
+    /// puesto, y que el catálogo cambie después no borra el hecho. Antes el nombre llegaba nulo y
+    /// la pantalla lo escribía como el texto «NULL».</para>
+    ///
+    /// <para>Sólo se apaga <c>Active</c>. El aislamiento por organización sigue puesto.</para>
+    /// </summary>
+    private async Task<Dictionary<Guid, string>> NombresDePuestoAsync(
+        IReadOnlyCollection<Guid?> identificadores,
+        CancellationToken cancellationToken)
+    {
+        var buscados = identificadores.Where(id => id.HasValue).Select(id => id!.Value).Distinct().ToArray();
+
+        if (buscados.Length == 0)
+        {
+            return [];
+        }
+
+        return await dbContext.BusinessCatalogItems
+            .IgnoreQueryFilters(QueryFilterNames.ActiveOnly)
+            .Where(item => buscados.Contains(item.IdBusinessCatalogItem))
+            .Select(item => new { item.IdBusinessCatalogItem, item.Name })
+            .ToDictionaryAsync(item => item.IdBusinessCatalogItem, item => item.Name, cancellationToken);
+    }
+
     private static EmployeeDocumentHealth Health(int expired, int expiring, int missing) =>
         expired > 0 ? EmployeeDocumentHealth.Expired
         : missing > 0 ? EmployeeDocumentHealth.Missing

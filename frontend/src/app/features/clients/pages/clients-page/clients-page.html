@@ -75,7 +75,14 @@
           (close)="creating.set(false)"
         >
           <ng-template giTab="">
+            <!--
+              La organización va atada, y sin ella el alta no servía: los desplegables de Estado y
+              Municipio se quedaban vacíos porque `catalog-select` no pide las opciones sin saber
+              de qué organización son. Se notaba sólo al crear un cliente, porque en Agregar sede
+              sí se pasaba.
+            -->
             <app-client-form
+              [organizationId]="organizationId()"
               [saving]="saving()"
               [problem]="formProblem()"
               (cancel)="creating.set(false)"
@@ -110,7 +117,13 @@
           </ng-template>
 
           <ng-template giTab="contacts">
-            <app-client-contacts [contacts]="contacts()" [canWrite]="canWrite()" />
+            <app-client-contacts
+              [contacts]="contacts()"
+              [sites]="sites()"
+              [canWrite]="canWrite()"
+              [saving]="saving()"
+              (create)="createContact($event)"
+            />
           </ng-template>
 
           <ng-template giTab="documents">

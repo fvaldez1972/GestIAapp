@@ -83,6 +83,7 @@
             <app-employee-data
               [row]="employee"
               [employee]="detail()"
+              [loading]="detailLoading()"
               [canViewSensitive]="canViewSensitive()"
               [jobPositions]="catalogJobPositions()"
               [canWrite]="canWrite()"

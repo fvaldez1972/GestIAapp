@@ -71,7 +71,7 @@ import { EmployeeJobPosition } from './employee-job-position';
           </div>
           <div class="data__field">
             <dt>RFC</dt>
-            <dd>{{ masked(employee()?.rfc ?? null) }}</dd>
+            <dd>{{ delDetalle(masked(employee()?.rfc ?? null)) }}</dd>
           </div>
         </dl>
         @if (!canViewSensitive()) {
@@ -117,11 +117,11 @@ import { EmployeeJobPosition } from './employee-job-position';
           </div>
           <div class="data__field">
             <dt>TELÉFONO</dt>
-            <dd>{{ employee()?.mobilePhone || employee()?.homePhone || 'Sin teléfono' }}</dd>
+            <dd>{{ delDetalle(employee()?.mobilePhone || employee()?.homePhone || 'Sin teléfono') }}</dd>
           </div>
           <div class="data__field">
             <dt>CORREO</dt>
-            <dd>{{ employee()?.email || 'Sin correo' }}</dd>
+            <dd>{{ delDetalle(employee()?.email || 'Sin correo') }}</dd>
           </div>
           <div class="data__field data__field--wide">
             <dt>CONTACTO DE EMERGENCIA</dt>
@@ -212,6 +212,21 @@ export class EmployeeData {
   readonly savingJobPosition = input(false);
   readonly jobPositionProblem = input('');
   readonly canWrite = input(false);
+
+  /** Si el expediente completo todavía viene en camino. */
+  readonly loading = input(false);
+
+  /**
+   * Un campo que sólo existe en el expediente completo.
+   *
+   * <p>La ficha se dibuja con la fila del listado, que llega de inmediato, mientras el expediente
+   * viaja aparte. Sin esto, teléfono y correo se pintaban como «Sin teléfono» y «Sin correo»
+   * durante ese hueco y luego cambiaban solos: parecía que el dato no estaba y aparecía después.
+   * Decir que se está cargando es distinto de decir que no hay.</p>
+   */
+  protected delDetalle(valor: string): string {
+    return this.loading() && !this.employee() ? '…' : valor;
+  }
 
   readonly editJobPosition = output<void>();
   readonly openCatalog = output<void>();

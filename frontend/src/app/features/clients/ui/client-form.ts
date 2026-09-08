@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CatalogSelect } from '../../../shared/ui/catalog-select/catalog-select';
+import { ServerProblem, fieldError } from '../../../shared/util/server-problem';
 
 /** Lo que el formulario devuelve. La sede y el contacto van aparte porque pueden no ir. */
 export type ClientFormValue = {
@@ -45,7 +46,11 @@ export type ClientFormValue = {
 
         <label class="field field--wide" for="cf-razon">
           <span class="field__label">RAZÓN SOCIAL</span>
-          <input id="cf-razon" name="legalName" type="text" [ngModel]="legalName()" (ngModelChange)="legalName.set($event)" [ngModelOptions]="sueltos" autocomplete="off" />
+          <input id="cf-razon" name="legalName" type="text" [ngModel]="legalName()" (ngModelChange)="legalName.set($event)" [ngModelOptions]="sueltos" autocomplete="off"
+            [class.is-invalid]="errorDe('legalName')" [attr.aria-invalid]="errorDe('legalName') ? 'true' : null" />
+          @if (errorDe('legalName'); as falla) {
+            <small class="field__error" role="alert">{{ falla }}</small>
+          }
         </label>
 
         <div class="form__row form__row--two">
@@ -57,7 +62,11 @@ export type ClientFormValue = {
             <!-- El bosquejo lo marcaba opcional. No lo es: el servidor lo usa para la unicidad
                  del cliente junto con el código. -->
             <span class="field__label">RFC</span>
-            <input id="cf-rfc" name="rfc" type="text" [ngModel]="rfc()" (ngModelChange)="rfc.set($event)" [ngModelOptions]="sueltos" placeholder="Trece caracteres" autocomplete="off" />
+            <input id="cf-rfc" name="rfc" type="text" [ngModel]="rfc()" (ngModelChange)="rfc.set($event)" [ngModelOptions]="sueltos" placeholder="Trece caracteres" autocomplete="off"
+              [class.is-invalid]="errorDe('rfc')" [attr.aria-invalid]="errorDe('rfc') ? 'true' : null" />
+            @if (errorDe('rfc'); as falla) {
+              <small class="field__error" role="alert">{{ falla }}</small>
+            }
           </label>
         </div>
       </section>
@@ -141,8 +150,8 @@ export type ClientFormValue = {
         </div>
       </section>
 
-      @if (problem()) {
-        <p class="form__problem" role="alert">{{ problem() }}</p>
+      @if (problem(); as problema) {
+        <p class="form__problem" role="alert">{{ problema.message }}</p>
       }
     </form>
 
@@ -233,6 +242,10 @@ export type ClientFormValue = {
       font-weight: 600;
     }
 
+    .field input.is-invalid { border-color: var(--gestia-danger); }
+
+    .field__error { color: var(--gestia-danger); font-size: 11px; }
+
     .form__footer {
       display: flex;
       align-items: center;
@@ -289,7 +302,19 @@ export class ClientForm {
   protected readonly sueltos = { standalone: true };
 
   readonly saving = input(false);
-  readonly problem = input('');
+  /**
+   * Lo que el servidor dijo del último intento.
+   *
+   * <p>Ya no es una cadena. Antes llegaba sólo el texto de arriba, que en una validación era
+   * siempre el mismo genérico y no decía qué corregir; el detalle por campo salía del servidor y
+   * se tiraba en el camino. Ahora llega entero y cada campo dice lo suyo.</p>
+   */
+  readonly problem = input<ServerProblem | null>(null);
+
+  protected errorDe(campo: string): string {
+    const problema = this.problem();
+    return problema ? fieldError(problema, campo) : '';
+  }
   /** El catálogo geográfico es por organización. */
   readonly organizationId = input('');
 

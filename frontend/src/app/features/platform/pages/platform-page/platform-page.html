@@ -73,7 +73,12 @@
               placeholder="BKT"
               [ngModel]="newOrganizationCode()"
               (ngModelChange)="newOrganizationCode.set($event)"
+              [class.is-invalid]="errorDe('codeOrganization')"
+              [attr.aria-invalid]="errorDe('codeOrganization') ? 'true' : null"
             />
+            @if (errorDe('codeOrganization'); as falla) {
+              <small class="campo-error" role="alert">{{ falla }}</small>
+            }
           </label>
           <label>
             <span>RFC</span>
@@ -85,7 +90,12 @@
               placeholder="Opcional"
               [ngModel]="newOrganizationRfc()"
               (ngModelChange)="newOrganizationRfc.set($event)"
+              [class.is-invalid]="errorDe('rfc')"
+              [attr.aria-invalid]="errorDe('rfc') ? 'true' : null"
             />
+            @if (errorDe('rfc'); as falla) {
+              <small class="campo-error" role="alert">{{ falla }}</small>
+            }
           </label>
         </div>
 
@@ -99,7 +109,12 @@
             placeholder="Nombre de la organización"
             [ngModel]="newOrganizationLegalName()"
             (ngModelChange)="newOrganizationLegalName.set($event)"
+            [class.is-invalid]="errorDe('legalName')"
+            [attr.aria-invalid]="errorDe('legalName') ? 'true' : null"
           />
+          @if (errorDe('legalName'); as falla) {
+            <small class="campo-error" role="alert">{{ falla }}</small>
+          }
         </label>
 
         }

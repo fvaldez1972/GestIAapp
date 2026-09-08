@@ -439,3 +439,16 @@ p {
 .organization-row > span { min-width: 0; }
 .organization-row strong,
 .platform-note strong { overflow-wrap: anywhere; }
+
+/* El detalle por campo del rechazo del servidor, junto al campo que falló.
+   Antes sólo se veía arriba, y en una validación decía siempre lo mismo. */
+.campo-error {
+  display: block;
+  margin-top: 0.2rem;
+  color: var(--gestia-danger);
+  font-size: 11px;
+}
+
+input.is-invalid {
+  border-color: var(--gestia-danger);
+}

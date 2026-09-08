@@ -6,6 +6,7 @@ import { forkJoin } from 'rxjs';
 import { ClientApiService } from '../../../clients/data-access/client-api.service';
 import { Organization, OrganizationClientSummary } from '../../../clients/data-access/client.models';
 import { SecurityApiService } from '../../../security/data-access/security-api.service';
+import { ServerProblem, fieldError, readServerProblem } from '../../../../shared/util/server-problem';
 import { SecurityRole, SecurityUser } from '../../../security/data-access/security.models';
 
 type OrganizationPlatformSummary = {
@@ -30,6 +31,14 @@ export class PlatformPage implements OnInit {
   protected readonly savingOrganization = signal(false);
   protected readonly savingAdmin = signal(false);
   protected readonly error = signal('');
+
+  /** El detalle por campo del último rechazo, para pintarlo junto al campo que falló. */
+  protected readonly problem = signal<ServerProblem | null>(null);
+
+  protected errorDe(campo: string): string {
+    const problema = this.problem();
+    return problema ? fieldError(problema, campo) : '';
+  }
   protected readonly success = signal('');
   protected readonly organizations = signal<readonly Organization[]>([]);
   protected readonly users = signal<readonly SecurityUser[]>([]);
@@ -369,23 +378,18 @@ export class PlatformPage implements OnInit {
     return normalized ? normalized : null;
   }
 
+  /**
+   * Lo que el servidor dijo, leído en el orden correcto.
+   *
+   * <p>Esta pantalla ya tenía el código para leer el detalle por campo, pero <b>detrás</b> de
+   * `detail`. Como en una validación `detail` siempre trae «La solicitud contiene datos
+   * inválidos.», la rama buena no se alcanzaba nunca: no faltaba código, sobraba una comprobación
+   * por delante. El extractor compartido pone lo específico primero.</p>
+   */
   private extractError(error: HttpErrorResponse) {
-    if (error.error?.message) {
-      return error.error.message;
-    }
-
-    if (error.error?.detail) {
-      return error.error.detail;
-    }
-
-    if (error.error?.errors) {
-      const first = Object.values(error.error.errors).flat().find(Boolean);
-      if (typeof first === 'string') {
-        return first;
-      }
-    }
-
-    return 'No se pudo completar la acción.';
+    const problema = readServerProblem(error, 'No se pudo completar la acción.');
+    this.problem.set(problema);
+    return problema.message;
   }
 
   private isAdminRole(codeRole: string, name: string) {

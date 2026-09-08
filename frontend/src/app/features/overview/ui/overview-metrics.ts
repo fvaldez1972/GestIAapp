@@ -110,7 +110,7 @@ export class OverviewMetrics {
       tone: TONOS[metric.tone] ?? 'neutral',
       pill: metricPill(metric),
       pendingLabel: metricPendingLabel(metric.key),
-      pendingAction: metricPendingAction(metric.key),
+      pendingAction: metricPendingAction(metric.route),
       route: metric.route,
     })),
   );

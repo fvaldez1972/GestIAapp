@@ -82,16 +82,36 @@ export function metricPendingLabel(key: OverviewMetricKey): string {
   }
 }
 
-export function metricPendingAction(key: OverviewMetricKey): string {
-  switch (key) {
-    case 'PlannedShifts':
-    case 'UncoveredShiftsYesterday':
-      return 'Ir a Planeación';
-    case 'PositionsWithoutPrimary':
-      return 'Definir posiciones';
-    case 'ExpiredDocuments':
-      return 'Ir a Personal';
+/**
+ * El nombre del módulo al que lleva cada ruta.
+ *
+ * <p>Se deriva de la ruta y no de la métrica, y ésa es toda la razón de que exista. Antes la
+ * etiqueta se calculaba aquí por clave y la ruta la mandaba el servidor: dos fuentes que nadie
+ * mantenía sincronizadas, y dos de las cuatro se separaron. «Turnos sin cubrir» decía «Ir a
+ * Planeación» y llevaba a Cobertura, y «Posiciones sin titular» decía «Definir posiciones» sin
+ * nombrar Servicios, que era su destino.</p>
+ *
+ * <p>Con una sola fuente no se pueden volver a separar: si el servidor cambia el destino, la
+ * etiqueta cambia con él.</p>
+ */
+const MODULO_POR_RUTA: Readonly<Record<string, string>> = {
+  '/planeacion': 'Planeación',
+  '/servicios': 'Servicios',
+  '/personal': 'Personal',
+  '/clientes': 'Clientes',
+  '/solicitudes': 'Solicitudes',
+  '/operacion/cobertura': 'Cobertura',
+  '/operacion/incidencias': 'Incidencias',
+  '/operacion/asistencia': 'Asistencia',
+};
+
+export function metricPendingAction(route: string | null): string {
+  if (!route) {
+    return '';
   }
+
+  const modulo = MODULO_POR_RUTA[route];
+  return modulo ? `Ir a ${modulo}` : '';
 }
 
 /** La palabra que acompaña al número. Sólo cuando dice algo que el número solo no dice. */

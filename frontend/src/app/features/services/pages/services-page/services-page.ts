@@ -210,6 +210,19 @@ export class ServicesPage implements OnInit, OnDestroy {
    * activo, y sin cliente eso es siempre falso. Preguntar por el permiso al dibujar el botón, y
    * por el contexto al pulsarlo, es lo que permite explicar qué falta en lugar de apagarlo.</p>
    */
+  /**
+   * Lo que falta para poder crear, que no es un error de carga.
+   *
+   * <p>Va aparte de `error()` porque ese alimenta el `errorMessage` de la tabla: escrito ahi, el
+   * aviso hacia desaparecer la lista y ofrecia un "Reintentar" que no reintentaba nada.</p>
+   */
+  protected readonly aviso = signal('');
+
+  /** El nombre con el que el resto de la pantalla llama al cliente. */
+  protected nombreDe(cliente: { readonly tradeName?: string | null; readonly legalName: string }): string {
+    return cliente.tradeName || cliente.legalName;
+  }
+
   protected readonly puedeCrearServicios = computed(
     () => this.canRead() && this.auth.hasPermission('CLIENTS.WRITE') && !!this.auth.activeOrganization(),
   );
@@ -873,20 +886,30 @@ export class ServicesPage implements OnInit, OnDestroy {
   protected openCreateService(): void {
     if (this.saving() || !this.puedeCrearServicios()) return;
     this.closeEditors();
-    this.error.set('');
+    this.aviso.set('');
 
-    if (!this.selectedClient()) {
-      this.error.set(
+    const cliente = this.selectedClient();
+
+    if (!cliente) {
+      this.aviso.set(
         'Un servicio se contrata para un cliente. Abre el cliente en Clientes y entra a sus '
         + 'servicios desde ahí.',
       );
       return;
     }
 
+    // "Todavia no se han cargado" no es "no tiene". Decir que un cliente no tiene sedes cuando la
+    // peticion sigue en vuelo es afirmar algo que la pantalla no sabe, y el cliente de la captura
+    // tenia tres.
+    if (this.loading()) {
+      this.aviso.set('Todavía se están cargando las sedes de este cliente. Espera un momento.');
+      return;
+    }
+
     if (!this.sites().some((site) => site.active)) {
-      this.error.set(
-        `${this.selectedClient()?.legalName ?? 'El cliente'} no tiene ninguna sede activa, y un `
-        + 'servicio se presta en una sede. Registra la sede antes de contratar el servicio.',
+      this.aviso.set(
+        `${this.nombreDe(cliente)} no tiene ninguna sede activa, y un servicio se presta en una `
+        + 'sede. Registra la sede antes de contratar el servicio.',
       );
       return;
     }

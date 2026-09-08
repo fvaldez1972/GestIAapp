@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { GiEmptyState } from '../../../shared/ui/gi-ui';
+import { GiCatalogPicker, GiCatalogOption, GiCatalogCreation } from '../../../shared/ui/gi-catalog-picker/gi-catalog-picker';
 import { GiSelect, GiSelectOption } from '../../../shared/ui/gi-select/gi-select';
 import { ClientContact, ClientContactPurpose, ClientSite } from '../data-access/client.models';
 
@@ -30,7 +31,7 @@ export type NewContact = {
 @Component({
   selector: 'app-client-contacts',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, GiEmptyState, GiSelect],
+  imports: [FormsModule, GiCatalogPicker, GiEmptyState, GiSelect],
   template: `
     <section class="contacts">
       @if (contacts().length === 0 && !adding()) {
@@ -77,11 +78,21 @@ export type NewContact = {
               <input id="nc-nombre" name="fullName" type="text" autocomplete="off"
                 [ngModel]="fullName()" (ngModelChange)="fullName.set($event)" [ngModelOptions]="sueltos" />
             </label>
-            <label class="field" for="nc-puesto">
-              <span class="field__label">PUESTO</span>
-              <input id="nc-puesto" name="jobTitle" type="text" autocomplete="off"
-                [ngModel]="jobTitle()" (ngModelChange)="jobTitle.set($event)" [ngModelOptions]="sueltos" />
-            </label>
+            <!--
+              El puesto NO es texto libre, aunque la caja lo pareciera: el servidor lo valida contra
+              el catalogo de puestos y devuelve 409 con cualquier cosa escrita a mano. Es el mismo
+              selector que usa Personal, con alta al vuelo para no obligar a salir a Catalogos.
+            -->
+            <gi-catalog-picker
+              label="Puesto"
+              catalogLabel="el catálogo de puestos"
+              inputId="nc-puesto"
+              [options]="jobPositions()"
+              [value]="idJobPosition()"
+              [canWrite]="canWrite()"
+              (valueChange)="idJobPosition.set($event)"
+              (create)="createJobPosition.emit($event)"
+            />
           </div>
 
           <div class="new__row new__row--two">
@@ -239,7 +250,10 @@ export class ClientContacts {
   /** Abre el alta desde fuera, como hace la pestaña de Sedes. */
   readonly openAdd = input(false);
 
+  readonly jobPositions = input<readonly GiCatalogOption[]>([]);
+
   readonly create = output<NewContact>();
+  readonly createJobPosition = output<GiCatalogCreation>();
 
   protected readonly sueltos = { standalone: true };
 
@@ -258,7 +272,8 @@ export class ClientContacts {
   protected readonly adding = computed(() => this.canWrite() && (this.addingByHand() || this.openAdd()));
 
   protected readonly fullName = signal('');
-  protected readonly jobTitle = signal('');
+  /** El identificador del puesto, no su texto: es lo que el servidor acepta. */
+  protected readonly idJobPosition = signal('');
   protected readonly email = signal('');
   protected readonly phone = signal('');
   protected readonly purpose = signal<ClientContactPurpose>('Operational');
@@ -300,7 +315,7 @@ export class ClientContacts {
       fullName: this.fullName().trim(),
       purpose: this.purpose(),
       idClientSite: this.idClientSite() || null,
-      jobTitle: this.jobTitle().trim(),
+      jobTitle: this.jobPositions().find((p) => p.idCatalogItem === this.idJobPosition())?.name ?? '',
       email: this.email().trim(),
       phone: this.phone().trim(),
       isPrimary: this.isPrimary(),
@@ -324,7 +339,7 @@ export class ClientContacts {
    */
   private reset(): void {
     this.fullName.set('');
-    this.jobTitle.set('');
+    this.idJobPosition.set('');
     this.email.set('');
     this.phone.set('');
     this.purpose.set('Operational');

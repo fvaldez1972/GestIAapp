@@ -19,6 +19,10 @@
   } @else if (!canRead()) {
     <gi-empty-state variant="no-permission" />
   } @else {
+    @if (actionError()) {
+      <p class="gi-alert gi-alert--error" role="alert">{{ actionError() }}</p>
+    }
+
     @if (message()) {
       <p class="clients__note" role="status">{{ message() }}</p>
     }
@@ -120,9 +124,11 @@
             <app-client-contacts
               [contacts]="contacts()"
               [sites]="sites()"
+              [jobPositions]="jobPositions()"
               [canWrite]="canWrite()"
               [saving]="saving()"
               (create)="createContact($event)"
+              (createJobPosition)="createJobPosition($event)"
             />
           </ng-template>
 

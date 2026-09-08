@@ -89,6 +89,14 @@ import { EmployeeJobPosition } from './employee-job-position';
             <dt>PUESTO DEL CATÁLOGO</dt>
             <dd [class.data__warning]="!row().jobPositionName">
               {{ row().jobPositionName || 'Sin puesto del catálogo' }}
+              <!--
+                El puesto se conserva aunque el valor se desactive, porque es historia: la persona
+                lo tuvo. Pero verlo igual que uno vigente engaña, y sobre todo esconde que ya no se
+                puede elegir para nadie más.
+              -->
+              @if (puestoInactivo()) {
+                <small class="data__inactivo">Este puesto está desactivado en el catálogo</small>
+              }
             </dd>
           </div>
           <div class="data__field">
@@ -193,6 +201,8 @@ import { EmployeeJobPosition } from './employee-job-position';
 
     .data__warning { color: var(--gestia-warning); }
 
+    .data__inactivo { display: block; color: var(--gestia-warning); font-size: 11px; }
+
     .data__note { margin: 0; color: var(--gestia-muted); font-size: 11.5px; }
 
     @media (width < 45rem) {
@@ -223,9 +233,27 @@ export class EmployeeData {
    * viaja aparte. Sin esto, teléfono y correo se pintaban como «Sin teléfono» y «Sin correo»
    * durante ese hueco y luego cambiaban solos: parecía que el dato no estaba y aparecía después.
    * Decir que se está cargando es distinto de decir que no hay.</p>
+   *
+   * <p>Basta con que esté cargando: el primer intento sólo cubría el caso sin detalle todavía, y
+   * al volver a pulsar una persona ya abierta el detalle anterior seguía en memoria, así que el
+   * parpadeo volvía. Mientras se recarga no se afirma nada, ni siquiera lo que ya se sabía.</p>
    */
+  /**
+   * Si el puesto que la persona tiene ya no está activo en el catálogo.
+   *
+   * <p>Se deduce de la lista de puestos activos, que la pantalla ya carga: si la persona apunta a
+   * uno que no está ahí, es que se desactivó. No hace falta pedirle nada más al servidor.</p>
+   */
+  protected readonly puestoInactivo = computed(() => {
+    const id = this.row().idJobPositionCatalogItem;
+    const opciones = this.jobPositions();
+
+    return !!id && !!this.row().jobPositionName && opciones.length > 0
+      && !opciones.some((opcion) => opcion.idCatalogItem === id);
+  });
+
   protected delDetalle(valor: string): string {
-    return this.loading() && !this.employee() ? '…' : valor;
+    return this.loading() ? '…' : valor;
   }
 
   readonly editJobPosition = output<void>();

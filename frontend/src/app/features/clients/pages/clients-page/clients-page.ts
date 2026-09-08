@@ -26,6 +26,8 @@ import {
 } from '../../data-access/client.models';
 import { ClientData } from '../../ui/client-data';
 import { ClientForm, ClientFormValue } from '../../ui/client-form';
+import { CatalogApiService } from '../../../catalogs/data-access/catalog-api.service';
+import { GiCatalogOption, GiCatalogCreation } from '../../../../shared/ui/gi-catalog-picker/gi-catalog-picker';
 import { ServerProblem, readServerProblem } from '../../../../shared/util/server-problem';
 import { ClientContacts, NewContact } from '../../ui/client-contacts';
 import { ClientSites, NewSite } from '../../ui/client-sites';
@@ -63,6 +65,7 @@ import { ClientTable } from '../../ui/client-table';
 export class ClientsPage {
   private readonly auth = inject(AuthService);
   private readonly api = inject(ClientApiService);
+  private readonly catalogApi = inject(CatalogApiService);
   private readonly router = inject(Router);
 
   /** La organización se hereda de la barra de contexto. Esta pantalla no tiene selector propio. */
@@ -115,6 +118,56 @@ export class ClientsPage {
           `${sinSede === 1 ? 'no puede' : 'no pueden'} tener servicios.`
       : `${base} Todos tienen al menos una sede.`;
   });
+
+  /**
+   * Lo que fallo al guardar, que no es lo mismo que lo que fallo al cargar.
+   *
+   * <p>Van separados porque la tabla usa `error()` para decir que la lista no se pudo traer, y
+   * pinta un «Reintentar» en lugar de las filas. Un guardado fallido escrito ahi hacia desaparecer
+   * la lista entera y ofrecia reintentar algo que no era lo que habia fallado.</p>
+   */
+  protected readonly actionError = signal('');
+
+  /**
+   * Los puestos del catalogo, para el contacto.
+   *
+   * <p>El puesto de un contacto NO es texto libre: el servidor lo valida contra el catalogo de
+   * puestos y devuelve 409 con cualquier cosa escrita a mano. Es el mismo catalogo que usa
+   * Personal.</p>
+   */
+  protected readonly jobPositions = signal<readonly GiCatalogOption[]>([]);
+
+  protected createJobPosition(creation: GiCatalogCreation): void {
+    const organizationId = this.organizationId();
+
+    if (!organizationId || !this.canWrite()) {
+      return;
+    }
+
+    this.catalogApi
+      .createItem({ idOrganization: organizationId, type: 'JobPosition', name: creation.name, description: null })
+      .subscribe({
+        next: (creado) => {
+          this.jobPositions.update((valores) => [...valores, { idCatalogItem: creado.idCatalogItem, name: creado.name }]);
+          this.message.set(`«${creado.name}» quedó en el catálogo de puestos y se puede reutilizar.`);
+        },
+        error: (problem) =>
+          this.actionError.set(readServerProblem(problem, 'No se pudo agregar el puesto al catálogo.').message),
+      });
+  }
+
+  private loadJobPositions(): void {
+    const organizationId = this.organizationId();
+    if (!organizationId) return;
+
+    this.catalogApi.listItems(organizationId, 'JobPosition').subscribe({
+      next: (items) =>
+        this.jobPositions.set(
+          items.filter((item) => item.active).map((item) => ({ idCatalogItem: item.idCatalogItem, name: item.name })),
+        ),
+      error: () => this.jobPositions.set([]),
+    });
+  }
 
   protected readonly tableState = computed<GiTableState>(() => {
     if (this.error()) return 'error';
@@ -232,6 +285,13 @@ export class ClientsPage {
 
     this.loading.set(true);
     this.error.set('');
+
+    // Los puestos hacen falta para el alta de contacto. Van con la lista y no con cada ficha: son
+    // los mismos para toda la organizacion, y pedirlos al abrir cada cliente seria repetir la
+    // misma respuesta.
+    if (!this.jobPositions().length) {
+      this.loadJobPositions();
+    }
 
     this.api
       .searchClients({
@@ -357,9 +417,9 @@ export class ClientsPage {
         }
         this.load();
       },
-      error: () => {
+      error: (problem) => {
         this.saving.set(false);
-        this.error.set('No se pudo desactivar el cliente.');
+        this.actionError.set(readServerProblem(problem, 'No se pudo desactivar el cliente.').message);
       },
     });
   }
@@ -592,9 +652,9 @@ export class ClientsPage {
           this.message.set(`${contact.fullName} quedó registrado como contacto.`);
           this.loadDetail(client);
         },
-        error: () => {
+        error: (problem) => {
           this.saving.set(false);
-          this.error.set('No se pudo guardar el contacto. Revisa los datos.');
+          this.actionError.set(readServerProblem(problem, 'No se pudo guardar el contacto.').message);
         },
       });
   }
@@ -635,9 +695,9 @@ export class ClientsPage {
           this.loadDetail(client);
           this.load();
         },
-        error: () => {
+        error: (problem) => {
           this.saving.set(false);
-          this.error.set('No se pudo guardar la sede. Revisa la dirección.');
+          this.actionError.set(readServerProblem(problem, 'No se pudo guardar la sede.').message);
         },
       });
   }

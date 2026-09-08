@@ -10,6 +10,7 @@ import { contacto, sede } from './client-fixtures';
     <app-client-contacts
       [contacts]="lista()"
       [sites]="sites()"
+      [jobPositions]="puestos()"
       [canWrite]="canWrite()"
       (create)="creado.set($event)"
     />
@@ -19,6 +20,7 @@ class Anfitrion {
   readonly lista = signal<readonly ClientContact[]>([]);
   readonly sites = signal<readonly ClientSite[]>([]);
   readonly canWrite = signal(true);
+  readonly puestos = signal<readonly { idCatalogItem: string; name: string }[]>([]);
   readonly creado = signal<NewContact | null>(null);
 }
 
@@ -89,7 +91,6 @@ describe('Contactos del cliente', () => {
     const { abrir, escribir, guardar, host, fixture } = montar();
     abrir();
     escribir('nc-nombre', '  Laura Méndez  ');
-    escribir('nc-puesto', 'Jefa de seguridad');
     escribir('nc-telefono', '3312345678');
     guardar()!.click();
     fixture.detectChanges();
@@ -98,7 +99,9 @@ describe('Contactos del cliente', () => {
       fullName: 'Laura Méndez',
       purpose: 'Operational',
       idClientSite: null,
-      jobTitle: 'Jefa de seguridad',
+      // Sin puesto elegido va vacío. El puesto sale del catálogo, no de texto libre: el servidor
+      // lo valida contra el catálogo de puestos y rechaza con 409 cualquier cosa escrita a mano.
+      jobTitle: '',
       email: '',
       phone: '3312345678',
       isPrimary: false,
@@ -150,5 +153,45 @@ describe('Contactos del cliente', () => {
     expect(opciones).toContain('Del cliente, no de una sede');
     expect(opciones).toContain('Planta Norte');
     expect(opciones).not.toContain('Bodega vieja');
+  });
+
+  /**
+   * El puesto NO es texto libre, y costó un viaje entero descubrirlo.
+   *
+   * <p>El servidor valida el puesto del contacto contra el catálogo de puestos y devuelve 409
+   * «Selecciona un valor activo del catálogo correspondiente» con cualquier cosa escrita a mano.
+   * La primera versión de este formulario puso una caja de texto y el guardado fallaba siempre.</p>
+   */
+  it('el puesto sale del catálogo, no de una caja de texto', () => {
+    const { raiz, abrir } = montar((host) => {
+      host.puestos.set([{ idCatalogItem: 'p1', name: 'Jefa de seguridad' }]);
+    });
+    abrir();
+
+    // El campo existe, pero es el combobox del selector de catálogo, no una caja libre: por eso
+    // se comprueba el rol y no la mera presencia de un input.
+    expect(raiz.querySelector('gi-catalog-picker')).not.toBeNull();
+    expect(raiz.querySelector('#nc-puesto')?.getAttribute('role')).toBe('combobox');
+  });
+
+  it('manda el nombre del puesto que corresponde al identificador elegido', () => {
+    const { raiz, abrir, escribir, guardar, host, fixture } = montar((anfitrion) => {
+      anfitrion.puestos.set([{ idCatalogItem: 'p1', name: 'Jefa de seguridad' }]);
+    });
+    abrir();
+    escribir('nc-nombre', 'Laura Méndez');
+    escribir('nc-telefono', '3312345678');
+
+    // Se elige por identificador, que es lo que el selector entrega.
+    const contactos = fixture.debugElement.children[0].componentInstance as { idJobPosition: { set(v: string): void } };
+    contactos.idJobPosition.set('p1');
+    fixture.detectChanges();
+
+    guardar()!.click();
+    fixture.detectChanges();
+
+    // Y lo que viaja al servidor es el nombre del catálogo, no lo que alguien escribiera.
+    expect(host.creado()?.jobTitle).toBe('Jefa de seguridad');
+    expect(raiz).toBeTruthy();
   });
 });

@@ -27,6 +27,7 @@
     </p>
   }
 
+  @if (aviso()) { <p class="gi-alert gi-alert--error" role="alert">{{ aviso() }}</p> }
   @if (message()) { <p class="gi-alert gi-alert--success" role="status">{{ message() }}</p> }
   @if (error()) { <p class="gi-alert gi-alert--error" role="alert">{{ error() }}</p> }
 

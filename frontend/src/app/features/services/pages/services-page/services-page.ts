@@ -411,6 +411,20 @@ export class ServicesPage implements OnInit, OnDestroy {
         return;
       }
       this.selectedClient.set(client);
+      // Las sedes, los contratos y los contactos del cliente enlazado, salvo que venga tambien un
+      // servicio: al abrirlo se piden estas mismas listas, y pedirlas aqui las duplicaria.
+      //
+      //
+      // Faltaban, y ese era el defecto. Este camino —el de «Crear servicio de este cliente», que
+      // llega con `?clientId=`— dejaba `sites` en la lista vacia con la que se entra, y la unica
+      // rutina que la llenaba era `loadClientContext`, a la que solo se llama al abrir un servicio
+      // que ya existe. Con un cliente sin servicios eso no pasa nunca, asi que «Nuevo servicio»
+      // respondia que el cliente no tenia ninguna sede activa mientras Clientes le mostraba dos.
+      //
+      // La lista vacia no significaba «no tiene»: significaba «nadie las pidio».
+      if (!this.pendingServiceLink) {
+        this.loadClientLists(client.idClient);
+      }
       // La lista se vuelve a pedir ya filtrada por el cliente del enlace.
       this.loadServices(1);
       this.openLinkedService(client.idClient);
@@ -455,11 +469,38 @@ export class ServicesPage implements OnInit, OnDestroy {
       1,
       (data) => {
         this.selectedClient.set(data.client);
-        this.sites.set(data.sites);
-        this.contracts.set(data.contracts);
-        this.contacts.set(data.contacts);
+        this.applyClientLists(data);
       },
     );
+  }
+
+  /**
+   * Las listas del cliente, sin volver a pedir el cliente.
+   *
+   * <p>Existe para el camino que llega desde Clientes: ahi el cliente ya se pidio para comprobar
+   * que pertenece a la organizacion, y repetir esa consulta seria una peticion de mas.</p>
+   */
+  private loadClientLists(idClient: string): void {
+    const org = this.selectedOrganizationId();
+    this.read(
+      forkJoin({
+        sites: this.api.listSites(org, idClient),
+        contracts: this.api.listContracts(org, idClient),
+        contacts: this.api.listContacts(org, idClient),
+      }),
+      1,
+      (data) => this.applyClientLists(data),
+    );
+  }
+
+  private applyClientLists(data: {
+    readonly sites: readonly ClientSite[];
+    readonly contracts: readonly ServiceContract[];
+    readonly contacts: readonly ClientContact[];
+  }): void {
+    this.sites.set(data.sites);
+    this.contracts.set(data.contracts);
+    this.contacts.set(data.contacts);
   }
 
   /**
@@ -493,6 +534,9 @@ export class ServicesPage implements OnInit, OnDestroy {
           this.openService(servicio);
         } else {
           this.error.set('El servicio solicitado no está disponible en esta organización.');
+          // No se abrio ningun servicio, asi que nadie cargo las listas del cliente. Sin esto, la
+          // pantalla quedaria otra vez creyendo que el cliente no tiene sedes.
+          this.loadClientLists(idClient);
         }
       },
     );

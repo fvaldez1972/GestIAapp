@@ -112,7 +112,9 @@ describe('EntityDocuments', () => {
     expect(request.request.params.get('organizationId')).toBe('org-1');
     expect(request.request.params.get('ownerType')).toBe('Client');
     expect(request.request.params.get('ownerId')).toBe('client-1');
-    expect(request.request.params.get('pageSize')).toBe('10');
+    // Cinco, no diez: esto vive en un panel de detalle y con diez la lista crecia hasta empujar
+    // el navegador de paginas fuera de la vista.
+    expect(request.request.params.get('pageSize')).toBe('5');
     request.flush(page([document, { ...document, ownerId: 'other', title: 'Other owner' }], 11));
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).not.toContain('Other owner');

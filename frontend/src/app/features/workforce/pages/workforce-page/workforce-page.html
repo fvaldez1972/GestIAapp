@@ -116,6 +116,7 @@
               ownerType="Employee"
               [ownerId]="employee.idEmployee"
               [ownerLabel]="employee.fullName"
+              (totalChange)="documentCount.set($event)"
             />
           </ng-template>
 

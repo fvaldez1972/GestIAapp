@@ -1,7 +1,7 @@
 import { HttpErrorResponse, HttpResponse } from '@angular/common/http';
 import {
   ChangeDetectionStrategy, Component, ElementRef, OnDestroy, computed, effect, inject,
-  input, signal, untracked, viewChild,
+  input, output, signal, untracked, viewChild,
 } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Observable, Subscription, finalize, map, of, switchMap, tap } from 'rxjs';
@@ -73,7 +73,17 @@ export class EntityDocuments implements OnDestroy {
   protected readonly page = signal(1);
   protected readonly totalPages = signal(1);
   protected readonly totalCount = signal(0);
-  protected readonly pageSize = 10;
+  /**
+   * Cinco por página, no diez.
+   *
+   * <p>Esto vive dentro de un panel de detalle, no en una pantalla completa. Con diez, cada
+   * documento ocupa cuatro renglones y cinco botones, así que la lista crecía hasta empujar el
+   * navegador de páginas fuera de la vista y parecía que los documentos se acumulaban sin fin.</p>
+   */
+  protected readonly pageSize = 5;
+
+  /** Cuántos documentos hay, para quien dibuje un contador fuera de este componente. */
+  readonly totalChange = output<number>();
   protected readonly mode = signal<EditorMode | null>(null);
   protected readonly selected = signal<BusinessDocument | null>(null);
   protected readonly fileName = signal('');
@@ -142,6 +152,7 @@ export class EntityDocuments implements OnDestroy {
         this.documents.set(result.items.filter(document => this.belongsToContext(document)));
         this.totalCount.set(result.totalCount);
         this.totalPages.set(lastPage);
+        this.totalChange.emit(result.totalCount);
       },
       error: error => this.listError.set(this.errorMessage(error, 'No se pudieron cargar los documentos.')),
     });

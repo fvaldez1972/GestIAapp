@@ -132,11 +132,18 @@
         </ul>
         <nav class="entity-pagination" aria-label="Paginas de documentos">
           <span>{{ totalCount() }} documentos</span>
-          <div class="entity-actions">
-            <button class="gi-button gi-button--secondary" type="button" title="Pagina anterior" aria-label="Pagina anterior" [disabled]="page() <= 1 || busy()" (click)="load(page() - 1)">&larr;</button>
-            <span aria-live="polite">{{ page() }} / {{ totalPages() }}</span>
-            <button class="gi-button gi-button--secondary" type="button" title="Pagina siguiente" aria-label="Pagina siguiente" [disabled]="page() >= totalPages() || busy()" (click)="load(page() + 1)">&rarr;</button>
-          </div>
+          <!--
+            El navegador sólo aparece cuando hay más de una página. Antes se dibujaba siempre, con
+            las dos flechas apagadas y un «1 / 1» al lado: desde fuera se veía como un control roto
+            en lugar de como una lista que cabe entera.
+          -->
+          @if (totalPages() > 1) {
+            <div class="entity-actions">
+              <button class="gi-button gi-button--secondary" type="button" title="Pagina anterior" aria-label="Pagina anterior" [disabled]="page() <= 1 || busy()" (click)="load(page() - 1)">&larr;</button>
+              <span aria-live="polite">{{ page() }} / {{ totalPages() }}</span>
+              <button class="gi-button gi-button--secondary" type="button" title="Pagina siguiente" aria-label="Pagina siguiente" [disabled]="page() >= totalPages() || busy()" (click)="load(page() + 1)">&rarr;</button>
+            </div>
+          }
         </nav>
       }
     </div>

@@ -94,7 +94,10 @@ export class WorkforcePage {
   protected readonly error = signal('');
   protected readonly message = signal('');
   protected readonly expiringWithinDays = signal(30);
-  protected readonly requiredDocuments = signal(0);
+  protected readonly requiredDocuments = signal(0);
+
+  /** Cuántos documentos tiene la persona abierta. Lo dice el propio listado al cargarse. */
+  protected readonly documentCount = signal(0);
 
   protected readonly search = signal('');
   protected readonly status = signal<EmployeeStatus | ''>('');
@@ -238,7 +241,11 @@ export class WorkforcePage {
 
     return [
       { id: 'data', label: 'Datos' },
-      { id: 'documents', label: 'Documentos', count: this.requiredDocuments() },
+      // El número dice cuántos documentos tiene la persona. Antes decía `requiredDocuments`, que
+      // son los tipos que la organización exige: la pestaña marcaba «Documentos 0» con cinco
+      // documentos listados debajo, porque esa organización no exige ninguno. Dos cosas distintas
+      // compartiendo un rótulo.
+      { id: 'documents', label: 'Documentos', count: this.documentCount() },
       { id: 'assignments', label: 'Asignaciones', count: employee?.assignmentCount ?? 0 },
     ];
   });

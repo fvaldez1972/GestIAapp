@@ -68,6 +68,39 @@ public sealed class OrganizationSecurityResponseTests(OperationalSqlDatabase dat
     }
 
     /// <summary>
+    /// Un acceso retirado deja de aparecer, aunque el usuario dado de baja siga en la lista.
+    ///
+    /// <para>Salió al validar en dev: quitar un acceso devolvía 200, dejaba la fila en
+    /// <c>Active = 0</c>, y la pantalla seguía mostrando el rol. La consulta lleva
+    /// <c>IgnoreQueryFilters(["Active"])</c> a propósito —Seguridad muestra a los usuarios dados de
+    /// baja con su etiqueta—, pero ese operador vale para la <b>consulta entera</b> y apagaba el
+    /// filtro también en las subconsultas de roles y membresías.</para>
+    ///
+    /// <para>Es la segunda vez que esta trampa cuesta una tanda; la primera fue en la búsqueda de
+    /// personal. Por eso queda fijada aquí y no sólo explicada en un comentario.</para>
+    /// </summary>
+    [OperationalSqlFact]
+    public async Task ARemovedAccessStopsShowingButTheMembershipSurvives()
+    {
+        var seed = await SeedAsync();
+
+        await using (var write = database.Context())
+        {
+            var userRole = write.UserRoles.Single(item => item.IdUser == seed.UserId);
+            userRole.Deactivate(ActorId, ActorName, Now);
+            await write.SaveChangesAsync(Token);
+        }
+
+        await using var context = database.Context();
+        var found = await FindAsync(context, seed.OrganizationId, seed.UserId);
+
+        Assert.NotNull(found);
+        Assert.Empty(found!.Roles);
+        // La membresía sigue viva, así que el usuario sigue perteneciendo a la organización.
+        Assert.Single(found.Organizations);
+    }
+
+    /// <summary>
     /// El alta de un usuario y la de su acceso aparecen en Auditoría.
     /// </summary>
     [OperationalSqlFact]

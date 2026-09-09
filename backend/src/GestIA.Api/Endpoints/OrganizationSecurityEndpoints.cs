@@ -496,8 +496,19 @@ public static class OrganizationSecurityEndpoints
                 user.DisplayName,
                 user.LastLoginAt,
                 user.Active,
+                // El `Active` va escrito aqui, y no se hereda del filtro global.
+                //
+                // La consulta lleva `IgnoreQueryFilters(["Active"])` porque la pantalla de
+                // Seguridad muestra a proposito los usuarios dados de baja, con su etiqueta de
+                // «Inactivo». Pero ese operador es de la CONSULTA ENTERA, no de la parte donde se
+                // escribe: apaga el filtro tambien en estas subconsultas. El efecto era que quitar
+                // un acceso devolvia 200, dejaba la fila en `Active = 0`, y la pantalla seguia
+                // mostrando el rol como si nada.
                 dbContext.OrganizationMemberships
-                    .Where(membership => membership.IdUser == user.IdUser && membership.IdOrganization == organizationId)
+                    .Where(membership =>
+                        membership.Active &&
+                        membership.IdUser == user.IdUser &&
+                        membership.IdOrganization == organizationId)
                     .OrderBy(membership => membership.Organization.LegalName)
                     .Select(membership => new SecurityUserOrganizationResponse(
                         membership.IdOrganization,
@@ -507,8 +518,10 @@ public static class OrganizationSecurityEndpoints
                     .ToList(),
                 dbContext.UserRoles
                     .Where(userRole =>
+                        userRole.Active &&
                         userRole.IdUser == user.IdUser &&
                         userRole.OrganizationMembership != null &&
+                        userRole.OrganizationMembership.Active &&
                         userRole.OrganizationMembership.IdOrganization == organizationId &&
                         !dbContext.RolePermissions.Any(rolePermission =>
                             rolePermission.IdRole == userRole.IdRole &&

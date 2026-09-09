@@ -213,6 +213,20 @@
   padding: .28rem .55rem;
 }
 
+/*
+  Las etiquetas de permiso del asistente. Se reporto que «los botones de Leer no funcionan»: no son
+  botones, son la lista de lo que concede el rol. Se dibujaban con `is-strong` —relleno solido y
+  negrita, el aspecto de un control— y por eso se pulsaban. Esta variante es plana y no se
+  selecciona con el cursor, para que se lea como lo que es.
+*/
+.mini-pill.is-readonly {
+  background: var(--gestia-surface-soft);
+  border-color: var(--gestia-border);
+  color: var(--gestia-muted);
+  cursor: default;
+  user-select: none;
+}
+
 .mini-pill.is-strong {
   background: #eaf9ff;
   border-color: #bdeefd;
@@ -619,6 +633,31 @@
 .compact-matrix .matrix-row {
   grid-template-columns: minmax(7rem, 1fr) repeat(6, minmax(2.8rem, .35fr));
   padding-inline: .65rem;
+}
+
+/*
+  El velo que hay detras del cajon y del asistente.
+
+  Los dos son capas fijas: se quedan pegadas mientras la pagina rueda por debajo, y eso fue lo que
+  se reporto como «el scroll de la pantalla no te permite ver bien». Un velo da la salida evidente
+  —clic en cualquier lado— y ademas separa visualmente lo que esta encima de lo que esta debajo.
+  Es un boton porque se pulsa; se le quita el aspecto de boton, no el comportamiento.
+*/
+.drawer-scrim {
+  position: fixed;
+  inset: var(--gestia-topbar-height) 0 0 0;
+  z-index: 29;
+  display: block;
+  width: 100%;
+  border: 0;
+  padding: 0;
+  background: color-mix(in srgb, var(--gestia-navy) 22%, transparent);
+  cursor: pointer;
+}
+
+/* El asistente se abre por encima del cajon (34), asi que su velo va justo debajo de el. */
+.drawer-scrim--wizard {
+  z-index: 33;
 }
 
 .security-drawer {

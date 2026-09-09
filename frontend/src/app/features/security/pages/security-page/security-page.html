@@ -120,7 +120,7 @@
           </label>
           <div class="filter-actions">
             <button class="gi-button gi-button--secondary" type="button" (click)="clearUserFilters()">Limpiar</button>
-            <button class="gi-button gi-button--primary" type="button" (click)="loadSecurity()">Filtrar</button>
+            <button class="gi-button gi-button--primary" type="button" (click)="applyUserFilters()">Filtrar</button>
           </div>
         </section>
 
@@ -436,6 +436,11 @@
     }
 
     @if (selectedUser(); as user) {
+      <!--
+        El velo. El cajón es una capa fija sobre la mitad derecha de la pantalla: sin algo que lo
+        cierre al primer clic fuera, rodar la página no lo mueve y tapa la tabla que se quería leer.
+      -->
+      <button class="drawer-scrim" type="button" aria-label="Cerrar el detalle" (click)="closeUserDetail()"></button>
       <aside class="security-drawer" aria-label="Detalle de usuario">
         <button class="drawer-close" type="button" (click)="closeUserDetail()">×</button>
         <header>
@@ -489,6 +494,19 @@
             Motivo del cambio
             <textarea class="gi-input" rows="3" [value]="sensitiveReason()" (input)="onSensitiveReason($event)" placeholder="Explica por qué se requiere esta acción"></textarea>
           </label>
+          <!--
+            La contraseña temporal. Faltaba: el botón de abajo leía este control, el control no
+            estaba dibujado, y por eso «Cambiar contraseña» no hacía nada.
+          -->
+          <form class="admin-form" [formGroup]="passwordForm">
+            <label class="gi-field">
+              Contraseña temporal
+              <input class="gi-input" type="password" formControlName="password" autocomplete="new-password" placeholder="Al menos 12 caracteres" />
+              @if (passwordForm.controls.password.touched && passwordForm.controls.password.invalid) {
+                <small class="field-help is-error">Usa al menos 12 caracteres combinando mayúsculas, minúsculas, números y símbolo.</small>
+              }
+            </label>
+          </form>
           <div class="sensitive-actions">
             <button class="gi-button gi-button--secondary" type="button" [disabled]="saving()" (click)="openAccessWizard('membership')">Asignar acceso</button>
             <button class="gi-button gi-button--secondary" type="button" [disabled]="saving()" (click)="resetPassword()">Cambiar contraseña</button>
@@ -527,6 +545,7 @@
     }
 
     @if (showAccessWizard()) {
+      <button class="drawer-scrim drawer-scrim--wizard" type="button" aria-label="Cerrar el asistente" (click)="closeAccessWizard()"></button>
       <aside class="security-wizard" aria-label="Nuevo acceso">
         <button class="drawer-close" type="button" (click)="closeAccessWizard()">×</button>
         <header>
@@ -643,13 +662,17 @@
               </article>
             </div>
 
+            <p class="muted">
+              Los permisos de abajo son los que concede el rol elegido. Son una lista, no botones:
+              para cambiarlos hay que elegir otro rol en el paso anterior.
+            </p>
             <div class="permission-groups">
               @for (group of wizardEffectiveGroups(); track group.module) {
                 <article class="permission-group compact">
                   <strong>{{ group.module }}</strong>
                   <div class="permission-chips">
                     @for (permission of group.permissions; track permission.idPermission) {
-                      <span class="mini-pill is-strong">{{ permissionActionLabel(permission) }}</span>
+                      <span class="mini-pill is-readonly">{{ permissionActionLabel(permission) }}</span>
                     }
                   </div>
                 </article>

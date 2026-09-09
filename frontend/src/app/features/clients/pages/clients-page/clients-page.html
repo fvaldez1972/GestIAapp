@@ -121,6 +121,7 @@
               [editing]="editingSite()"
               (create)="createSite($event)"
               (edit)="updateSite($event)"
+              (closeEdit)="editingSite.set(null)"
               (act)="onSiteAction($event)"
             />
           </ng-template>

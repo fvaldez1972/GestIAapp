@@ -16,7 +16,10 @@ import { contacto, sede } from './client-fixtures';
       [contacts]="contacts()"
       [canWrite]="canWrite()"
       [openAdd]="openAdd()"
+      [editing]="editing()"
       (create)="creada.set($event)"
+      (edit)="editada.set($event)"
+      (closeEdit)="editing.set(null)"
     />
   `,
 })
@@ -25,7 +28,9 @@ class Anfitrion {
   readonly contacts = signal<readonly ClientContact[]>([]);
   readonly canWrite = signal(true);
   readonly openAdd = signal(false);
+  readonly editing = signal<ClientSite | null>(null);
   readonly creada = signal<NewSite | null>(null);
+  readonly editada = signal<{ site: ClientSite; datos: NewSite } | null>(null);
 }
 
 function montar(configurar: (host: Anfitrion) => void = () => {}) {
@@ -274,5 +279,78 @@ describe('La pestaña de Sedes', () => {
     });
 
     expect(raiz.textContent).toContain('nadie responde por ella');
+  });
+});
+
+/**
+ * Editar una sede, que es donde el formulario y la página tienen que ponerse de acuerdo.
+ *
+ * <p>Salió al validar contra el sistema publicado: «Guardar sede» guardaba de verdad —la sede
+ * cambiaba en la base y salía el aviso de que había quedado actualizada— y el formulario se
+ * quedaba abierto, como si no hubiera pasado nada. El motivo era una carrera: el formulario se
+ * cerraba solo, el efecto veía que la página seguía apuntando a esa sede, y lo reabría en el acto.
+ * «Cancelar» hacía exactamente lo mismo.</p>
+ *
+ * <p>Ahora manda la página: ella sabe si el servidor confirmó, y el formulario la sigue.</p>
+ */
+describe('La pestaña de Sedes · editar', () => {
+  beforeEach(() =>
+    TestBed.configureTestingModule({
+      imports: [Anfitrion],
+      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
+    }));
+
+  afterEach(() => TestBed.resetTestingModule());
+
+  const abierta = (raiz: HTMLElement) => raiz.textContent?.includes('EDITAR SEDE') ?? false;
+
+  it('abre con los datos de la sede que pide la página', async () => {
+    const original = sede({ idClientSite: 's-1', name: 'Torre Altavista' });
+    const { raiz, fixture, host } = montar((anfitrion) => anfitrion.lista.set([original]));
+    host.editing.set(original);
+    fixture.detectChanges();
+    // `ngModel` escribe en el campo en el ciclo siguiente, no en el mismo.
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(abierta(raiz)).toBe(true);
+    expect(raiz.querySelector<HTMLInputElement>('#ns-nombre')?.value).toBe('Torre Altavista');
+  });
+
+  it('al guardar emite el cambio y NO se cierra solo: espera a la página', () => {
+    const original = sede({ idClientSite: 's-1', name: 'Torre Altavista' });
+    const { raiz, fixture, host, guardar } = montar((anfitrion) => anfitrion.lista.set([original]));
+    host.editing.set(original);
+    fixture.detectChanges();
+
+    guardar()!.click();
+    fixture.detectChanges();
+
+    expect(host.editada()?.site.idClientSite).toBe('s-1');
+    // Sigue abierto: si el guardado falla, lo escrito no se pierde.
+    expect(abierta(raiz)).toBe(true);
+
+    // Y cuando la página confirma soltando la sede, el formulario se cierra de una vez.
+    host.editing.set(null);
+    fixture.detectChanges();
+
+    expect(abierta(raiz)).toBe(false);
+  });
+
+  it('«Cancelar» avisa a la página, y el formulario no se reabre', () => {
+    const original = sede({ idClientSite: 's-1', name: 'Torre Altavista' });
+    const { raiz, fixture, host } = montar((anfitrion) => anfitrion.lista.set([original]));
+    host.editing.set(original);
+    fixture.detectChanges();
+
+    const cancelar = Array.from(raiz.querySelectorAll('button')).find(
+      (boton) => boton.textContent?.trim() === 'Cancelar',
+    );
+    expect(cancelar).toBeDefined();
+    cancelar!.click();
+    fixture.detectChanges();
+
+    expect(host.editing()).toBeNull();
+    expect(abierta(raiz)).toBe(false);
   });
 });

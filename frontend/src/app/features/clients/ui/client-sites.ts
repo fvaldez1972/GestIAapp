@@ -361,6 +361,8 @@ export class ClientSites {
   readonly editing = input<ClientSite | null>(null);
 
   readonly act = output<{ id: string; site: ClientSite }>();
+  /** «Ya no estoy editando esta sede». La pagina es la que suelta la sede, no este componente. */
+  readonly closeEdit = output<void>();
   readonly edit = output<{ site: ClientSite; datos: NewSite }>();
   readonly create = output<NewSite>();
 
@@ -377,9 +379,26 @@ export class ClientSites {
 
   constructor() {
     // La orden viene del menú, que vive en la fila; el formulario vive aquí.
+    //
+    // El efecto manda en los DOS sentidos, y esa es la correccion. Antes solo sabia abrir: cuando
+    // `editing` volvia a nulo no hacia nada, y cuando el formulario se cerraba por su cuenta el
+    // efecto veia `editing` todavia puesto y lo volvia a abrir en el acto. El resultado era que
+    // «Guardar sede» guardaba de verdad —la sede cambiaba en la base y salia el aviso de que habia
+    // quedado actualizada— y el formulario seguia ahi, como si no hubiera pasado nada. «Cancelar»
+    // hacia lo mismo.
     effect(() => {
       const pedida = this.editing();
-      if (pedida && pedida.idClientSite !== this.editando()?.idClientSite) {
+
+      if (!pedida) {
+        if (this.editando()) {
+          this.editando.set(null);
+          this.limpiar();
+        }
+
+        return;
+      }
+
+      if (pedida.idClientSite !== this.editando()?.idClientSite) {
         this.startEdit(pedida);
       }
     });
@@ -453,7 +472,14 @@ export class ClientSites {
 
   protected cancelAdd(): void {
     this.addingByHand.set(false);
-    this.editando.set(null);
+
+    // Editando, el que suelta la sede es la pagina; cerrar aqui y no avisarle dejaba `editing`
+    // apuntando a la sede, y el efecto reabria el formulario en cuanto se cerraba.
+    if (this.editando()) {
+      this.closeEdit.emit();
+      return;
+    }
+
     this.limpiar();
   }
 
@@ -482,14 +508,16 @@ export class ClientSites {
     };
 
     const enEdicion = this.editando();
+
     if (enEdicion) {
+      // Se cierra cuando el servidor confirma, no ahora. Cerrarlo aqui lo reabria, y ademas
+      // habria borrado lo escrito si el guardado fallaba.
       this.edit.emit({ site: enEdicion, datos });
-    } else {
-      this.create.emit(datos);
+      return;
     }
 
+    this.create.emit(datos);
     this.addingByHand.set(false);
-    this.editando.set(null);
     this.limpiar();
   }
 

@@ -189,6 +189,8 @@
   </article>
 
   @if (selectedEvent(); as event) {
+    <!-- El velo: sin el, la capa fija tapa la tabla y rodar la pagina no la mueve. -->
+    <button class="drawer-scrim" type="button" aria-label="Cerrar el detalle" (click)="closeEventDetail()"></button>
     <aside class="audit-drawer" aria-label="Detalle de auditoría">
       <button class="drawer-close" type="button" (click)="closeEventDetail()">×</button>
 
@@ -329,6 +331,7 @@
   }
 
   @if (showExportConfig()) {
+    <button class="drawer-scrim drawer-scrim--export" type="button" aria-label="Cerrar la exportación" (click)="closeExportConfig()"></button>
     <aside class="export-drawer" aria-label="Confirmar exportación">
       <button class="drawer-close" type="button" (click)="closeExportConfig()">×</button>
       <span class="eyebrow">Exportación</span>

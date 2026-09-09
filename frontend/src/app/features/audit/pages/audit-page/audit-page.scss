@@ -224,6 +224,27 @@
   cursor: pointer;
 }
 
+/*
+  El velo que hay detras de las dos capas de esta pantalla. Mismo motivo que en Seguridad: son
+  `position: fixed`, no se mueven al rodar la pagina, y sin una salida evidente tapan la tabla.
+*/
+.drawer-scrim {
+  position: fixed;
+  inset: var(--gestia-topbar-height) 0 0 0;
+  z-index: 29;
+  display: block;
+  width: 100%;
+  border: 0;
+  padding: 0;
+  background: color-mix(in srgb, var(--gestia-navy) 22%, transparent);
+  cursor: pointer;
+}
+
+/* La confirmacion de exportacion se abre por encima del detalle (32); su velo va debajo de ella. */
+.drawer-scrim--export {
+  z-index: 31;
+}
+
 .audit-drawer {
   position: fixed;
   top: var(--gestia-topbar-height);

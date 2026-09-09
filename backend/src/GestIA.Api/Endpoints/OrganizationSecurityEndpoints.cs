@@ -465,13 +465,30 @@ public static class OrganizationSecurityEndpoints
         return endpoints;
     }
 
-    private static IQueryable<SecurityUserResponse> QueryOrganizationUsers(GestIaDbContext dbContext, Guid organizationId) =>
+    /// <summary>
+    /// Los usuarios de una organizacion, opcionalmente uno solo.
+    ///
+    /// <para><b>El filtro por usuario va aqui, sobre la entidad, y no despues.</b> Antes quien
+    /// queria uno solo aplicaba <c>SingleOrDefaultAsync(u =&gt; u.IdUser == id)</c> sobre el
+    /// resultado ya proyectado, y ese predicado habla de una propiedad de
+    /// <c>SecurityUserResponse</c>, no de una columna: EF no puede traducirlo y lanza.</para>
+    ///
+    /// <para>La consecuencia era grave y silenciosa. Los cinco endpoints de escritura
+    /// —crear acceso, editar usuario, asignar acceso, quitarlo y activar— guardaban bien y
+    /// reventaban despues, al construir la respuesta. El usuario veia "ocurrio un error inesperado"
+    /// y el cambio si se habia hecho.</para>
+    /// </summary>
+    private static IQueryable<SecurityUserResponse> QueryOrganizationUsers(
+        GestIaDbContext dbContext,
+        Guid organizationId,
+        Guid? idUser = null) =>
         dbContext.Users
             .IgnoreQueryFilters(["Active"])
             .AsNoTracking()
             .Where(user => dbContext.OrganizationMemberships.Any(membership =>
                 membership.IdUser == user.IdUser &&
                 membership.IdOrganization == organizationId))
+            .Where(user => idUser == null || user.IdUser == idUser)
             .OrderBy(user => user.DisplayName)
             .Select(user => new SecurityUserResponse(
                 user.IdUser,
@@ -547,8 +564,8 @@ public static class OrganizationSecurityEndpoints
         Guid organizationId,
         Guid idUser,
         CancellationToken cancellationToken) =>
-        await QueryOrganizationUsers(dbContext, organizationId)
-            .SingleOrDefaultAsync(user => user.IdUser == idUser, cancellationToken);
+        await QueryOrganizationUsers(dbContext, organizationId, idUser)
+            .SingleOrDefaultAsync(cancellationToken);
 
     private static async Task<bool> UserBelongsToOrganizationAsync(
         GestIaDbContext dbContext,

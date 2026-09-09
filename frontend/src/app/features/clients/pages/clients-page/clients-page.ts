@@ -767,6 +767,10 @@ No se borra: deja de poder elegirse para servicios `
           this.saving.set(false);
           this.message.set(`${contact.fullName} quedó registrado como contacto.`);
           this.loadDetail(client);
+          // Y la lista, que es de donde salen los contadores del pie de la ficha y la columna de
+          // «sin contacto». Era el unico de los siete guardados que no la recargaba: la pestaña
+          // decia 3 y el pie seguia diciendo 2, sobre el mismo cliente y a la vez.
+          this.load();
         },
         error: (problem) => {
           this.saving.set(false);

@@ -78,26 +78,41 @@ public sealed class ClientRepository(GestIaDbContext dbContext) : IClientReposit
                 client.Rfc,
                 client.Active,
                 client.CreatedAt,
-                dbContext.ClientSites.Count(site => site.IdClient == client.IdClient),
+                // El "Active" va escrito, no heredado del filtro global. Estas subconsultas no lo
+                // recibian, asi que la pestana decia "Sedes 6" mientras la lista mostraba 3: las
+                // tres desactivadas se contaban y no se veian. Un contador que no cuadra con la
+                // lista que tiene al lado hace dudar de los dos.
+                dbContext.ClientSites.Count(site => site.IdClient == client.IdClient && site.Active),
                 dbContext.ClientSites.Count(site =>
                     site.IdClient == client.IdClient
-                    && !dbContext.ClientContacts.Any(contact => contact.IdClientSite == site.IdClientSite)),
-                dbContext.ClientContacts.Count(contact => contact.IdClient == client.IdClient),
-                dbContext.Services.Count(service => service.IdClient == client.IdClient),
+                    && site.Active
+                    // Un contacto del cliente cubre a todas sus sedes: no hace falta uno por sede
+                    // para que alguien responda. Antes solo contaba los atados a la sede, y como 23
+                    // de los 26 contactos son del cliente, casi toda sede salia "sin contacto".
+                    //
+                    // "Del cliente" es el que NO tiene sede. Uno atado a otra sede no cubre a esta:
+                    // el primer intento lo daba por bueno y dejaba en cero el conteo de sedes sin
+                    // contacto en cuanto el cliente tuviera un contacto en cualquier parte.
+                    && !dbContext.ClientContacts.Any(contact =>
+                        contact.Active
+                        && contact.IdClient == client.IdClient
+                        && (contact.IdClientSite == site.IdClientSite || contact.IdClientSite == null))),
+                dbContext.ClientContacts.Count(contact => contact.IdClient == client.IdClient && contact.Active),
+                dbContext.Services.Count(service => service.IdClient == client.IdClient && service.Active),
                 // La sede principal es la primera por nombre. No hay marca de «principal» en el
                 // modelo, y elegir una al azar haría que la misma fila cambiara entre cargas.
                 dbContext.ClientSites
-                    .Where(site => site.IdClient == client.IdClient)
+                    .Where(site => site.IdClient == client.IdClient && site.Active)
                     .OrderBy(site => site.Name)
                     .Select(site => site.Name)
                     .FirstOrDefault(),
                 dbContext.ClientSites
-                    .Where(site => site.IdClient == client.IdClient)
+                    .Where(site => site.IdClient == client.IdClient && site.Active)
                     .OrderBy(site => site.Name)
                     .Select(site => site.Municipality)
                     .FirstOrDefault(),
                 dbContext.ClientSites
-                    .Where(site => site.IdClient == client.IdClient)
+                    .Where(site => site.IdClient == client.IdClient && site.Active)
                     .OrderBy(site => site.Name)
                     .Select(site => site.State)
                     .FirstOrDefault()))

@@ -235,4 +235,44 @@ describe('La pestaña de Sedes', () => {
     expect(campo).not.toBeNull();
     expect(campo!.value).toBe('');
   });
+
+  /**
+   * El «sin contacto» que mentía.
+   *
+   * <p>La tarjeta sólo miraba contactos atados a la sede, y en la base viva 23 de 26 contactos son
+   * del cliente. Así, casi toda sede decía «nadie responde por ella» mientras la pestaña de
+   * Contactos mostraba un número mayor que cero al lado.</p>
+   */
+  it('un contacto del cliente cubre a la sede que no tiene el suyo', () => {
+    const { raiz } = montar((host) => {
+      host.lista.set([sede({ idClientSite: 's1', name: 'Planta Norte' })]);
+      host.contacts.set([contacto({ idClientSite: null, fullName: 'Laura del cliente' })]);
+    });
+
+    expect(raiz.textContent).toContain('Laura del cliente');
+    expect(raiz.textContent).toContain('contacto del cliente');
+    expect(raiz.textContent).not.toContain('nadie responde por ella');
+  });
+
+  it('el contacto propio de la sede gana al del cliente', () => {
+    const { raiz } = montar((host) => {
+      host.lista.set([sede({ idClientSite: 's1', name: 'Planta Norte' })]);
+      host.contacts.set([
+        contacto({ idClientSite: null, fullName: 'Laura del cliente' }),
+        contacto({ idClientSite: 's1', fullName: 'Mario de la sede' }),
+      ]);
+    });
+
+    expect(raiz.textContent).toContain('Mario de la sede');
+    expect(raiz.textContent).not.toContain('Laura del cliente');
+  });
+
+  it('sin ningún contacto sí lo dice', () => {
+    const { raiz } = montar((host) => {
+      host.lista.set([sede({ idClientSite: 's1', name: 'Planta Norte' })]);
+      host.contacts.set([]);
+    });
+
+    expect(raiz.textContent).toContain('nadie responde por ella');
+  });
 });

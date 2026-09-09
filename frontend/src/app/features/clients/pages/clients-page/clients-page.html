@@ -87,10 +87,13 @@
             -->
             <app-client-form
               [organizationId]="organizationId()"
+              [jobPositions]="jobPositions()"
+              [canWrite]="canWrite()"
               [saving]="saving()"
               [problem]="formProblem()"
               (cancel)="creating.set(false)"
               (save)="saveNew($event)"
+              (createJobPosition)="createJobPosition($event)"
             />
           </ng-template>
         </gi-detail-panel>
@@ -115,7 +118,9 @@
               [canWrite]="canWrite()"
               [saving]="saving()"
               [openAdd]="addingSite()"
+              [editing]="editingSite()"
               (create)="createSite($event)"
+              (edit)="updateSite($event)"
               (act)="onSiteAction($event)"
             />
           </ng-template>

@@ -219,13 +219,25 @@ export class ClientsPage {
     return groups;
   });
 
+  /**
+   * Las pestañas del panel, con lo que hay dentro de cada una.
+   *
+   * <p><b>Los contadores salen de lo cargado, no del listado.</b> Antes venían de `siteCount` y
+   * `contactCount` del elemento de la lista, que sólo se refresca al recargar la lista entera: al
+   * crear un contacto el número se quedaba atrás, y la pestaña decía uno mientras el contenido
+   * mostraba otro.</p>
+   *
+   * <p>Mientras el detalle viaja se usa el del listado, que es lo último que se sabe: es mejor un
+   * número de hace un momento que un cero que parece una afirmación.</p>
+   */
   protected readonly panelTabs = computed<readonly GiTab[]>(() => {
     const client = this.selected();
+    const cargando = this.detailLoading();
 
     return [
       { id: 'data', label: 'Datos' },
-      { id: 'sites', label: 'Sedes', count: client?.siteCount ?? 0 },
-      { id: 'contacts', label: 'Contactos', count: client?.contactCount ?? 0 },
+      { id: 'sites', label: 'Sedes', count: cargando ? (client?.siteCount ?? 0) : this.sites().length },
+      { id: 'contacts', label: 'Contactos', count: cargando ? (client?.contactCount ?? 0) : this.contacts().length },
       { id: 'documents', label: 'Documentos' },
     ];
   });
@@ -604,10 +616,114 @@ export class ClientsPage {
     }
   }
 
+  /**
+   * Las tres acciones de una sede.
+   *
+   * <p><b>Antes sólo atendía «Ver contactos».</b> El menú ofrecía editar y desactivar, el
+   * componente emitía las tres, y esta función descartaba dos en silencio: desde fuera, dos
+   * opciones del menú simplemente no hacían nada. Los endpoints estaban desde el principio.</p>
+   *
+   * <p>El `default` no está de adorno: si mañana el menú suma una acción, se nota aquí en lugar de
+   * caer al vacío como cayeron éstas.</p>
+   */
   protected onSiteAction(event: { id: string; site: ClientSite }): void {
-    if (event.id === 'contacts') {
-      this.activeTab.set('contacts');
+    switch (event.id) {
+      case 'contacts':
+        this.activeTab.set('contacts');
+        return;
+      case 'edit':
+        this.editingSite.set(event.site);
+        return;
+      case 'deactivate':
+        this.deactivateSite(event.site);
+        return;
+      default:
+        this.actionError.set(`La acción «${event.id}» todavía no está conectada.`);
     }
+  }
+
+  /** La sede que la pestaña debe abrir en edición. */
+  protected readonly editingSite = signal<ClientSite | null>(null);
+
+  protected updateSite(event: { site: ClientSite; datos: NewSite }): void {
+    const organizationId = this.organizationId();
+    const client = this.selected();
+
+    if (!organizationId || !client || !this.canWrite()) {
+      return;
+    }
+
+    this.saving.set(true);
+    this.actionError.set('');
+
+    this.api
+      .updateSite(client.idClient, event.site.idClientSite, {
+        idOrganization: organizationId,
+        idClient: client.idClient,
+        name: event.datos.name,
+        street: event.datos.street,
+        exteriorNumber: null,
+        interiorNumber: null,
+        neighborhood: event.datos.neighborhood || null,
+        municipality: event.datos.municipality,
+        state: event.datos.state,
+        postalCode: event.datos.postalCode,
+        countryCode: 'MX',
+        accessInstructions: null,
+        timeZoneId: null,
+      })
+      .subscribe({
+        next: () => {
+          this.saving.set(false);
+          this.editingSite.set(null);
+          this.message.set(`${event.datos.name} quedó actualizada.`);
+          this.loadDetail(client);
+          this.load();
+        },
+        error: (problem) => {
+          this.saving.set(false);
+          this.actionError.set(readServerProblem(problem, 'No se pudo actualizar la sede.').message);
+        },
+      });
+  }
+
+  /**
+   * Desactiva una sede. No la borra: aquí los registros no se borran.
+   *
+   * <p>Se pregunta antes, y se dice qué deja de poder hacerse, porque un servicio se presta en una
+   * sede: sin sedes activas el cliente no puede contratar nuevos servicios.</p>
+   */
+  protected deactivateSite(site: ClientSite): void {
+    const organizationId = this.organizationId();
+    const client = this.selected();
+
+    if (!organizationId || !client || !this.canWrite() || this.saving()) {
+      return;
+    }
+
+    if (!window.confirm(
+      `¿Desactivar la sede "${site.name}"?
+
+No se borra: deja de poder elegirse para servicios `
+      + 'nuevos y su nombre sigue ocupado para este cliente.')) {
+      return;
+    }
+
+    this.saving.set(true);
+    this.actionError.set('');
+
+    this.api.deactivateSite(organizationId, client.idClient, site.idClientSite).subscribe({
+      next: () => {
+        this.saving.set(false);
+        this.message.set(`${site.name} quedó desactivada. Sus registros se conservan.`);
+        this.loadDetail(client);
+        this.load();
+      },
+      error: (problem) => {
+        this.saving.set(false);
+        this.actionError.set(readServerProblem(problem, 'No se pudo desactivar la sede.').message);
+      },
+    });
   }
 
   /**

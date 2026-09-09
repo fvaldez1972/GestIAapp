@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CatalogSelect } from '../../../shared/ui/catalog-select/catalog-select';
 import { GiEmptyState, GiRowAction, GiRowActions } from '../../../shared/ui/gi-ui';
@@ -32,7 +32,7 @@ export type NewSite = {
     <section class="sites">
       @if (adding()) {
         <form class="new" (ngSubmit)="$event.preventDefault()">
-          <p class="new__kicker">NUEVA SEDE</p>
+          <p class="new__kicker">{{ editando() ? 'EDITAR SEDE' : 'NUEVA SEDE' }}</p>
 
           <label class="field" for="ns-nombre">
             <span class="field__label">NOMBRE DE LA SEDE</span>
@@ -158,7 +158,9 @@ export type NewSite = {
                   <span class="site__label">CONTACTO</span>
                   @if (contact) {
                     <span class="site__value site__value--strong">{{ contact.fullName }}</span>
-                    <span class="site__note">{{ contact.jobTitle || 'Sin puesto registrado' }}</span>
+                    <span class="site__note">
+                      {{ contact.jobTitle || 'Sin puesto registrado' }}@if (contactIsFromClient(site.idClientSite)) { · contacto del cliente }
+                    </span>
                   } @else {
                     <span class="site__value site__value--missing">Sin contacto</span>
                     <span class="site__note">La sede funciona, pero nadie responde por ella.</span>
@@ -355,11 +357,33 @@ export class ClientSites {
   /** Se abre desde fuera cuando el aviso de «guardado sin sede» manda aquí. */
   readonly openAdd = input(false);
 
+  /** La sede a editar, cuando la pide el menú de la fila. */
+  readonly editing = input<ClientSite | null>(null);
+
   readonly act = output<{ id: string; site: ClientSite }>();
+  readonly edit = output<{ site: ClientSite; datos: NewSite }>();
   readonly create = output<NewSite>();
 
   private readonly addingByHand = signal(false);
-  protected readonly adding = computed(() => this.addingByHand() || this.openAdd());
+  protected readonly adding = computed(() => this.addingByHand() || this.openAdd() || !!this.editando());
+
+  /**
+   * La sede que se esta editando, o nula si se esta creando una.
+   *
+   * <p>El formulario es el mismo. Antes «Editar sede» no hacia nada: el menu emitia la accion y la
+   * pagina solo atendia «Ver contactos», asi que editar y desactivar caian al vacio.</p>
+   */
+  protected readonly editando = signal<ClientSite | null>(null);
+
+  constructor() {
+    // La orden viene del menú, que vive en la fila; el formulario vive aquí.
+    effect(() => {
+      const pedida = this.editing();
+      if (pedida && pedida.idClientSite !== this.editando()?.idClientSite) {
+        this.startEdit(pedida);
+      }
+    });
+  }
 
   protected readonly siteName = signal('');
   protected readonly street = signal('');
@@ -410,12 +434,26 @@ export class ClientSites {
   }
 
   protected startAdd(): void {
+    this.editando.set(null);
     this.limpiar();
     this.addingByHand.set(true);
   }
 
+  /** Abre el mismo formulario, con la sede cargada. */
+  protected startEdit(site: ClientSite): void {
+    this.addingByHand.set(false);
+    this.editando.set(site);
+    this.siteName.set(site.name);
+    this.street.set(site.street ?? '');
+    this.neighborhood.set(site.neighborhood ?? '');
+    this.municipality.set(site.municipality ?? '');
+    this.state.set(site.state ?? '');
+    this.postalCode.set(site.postalCode ?? '');
+  }
+
   protected cancelAdd(): void {
     this.addingByHand.set(false);
+    this.editando.set(null);
     this.limpiar();
   }
 
@@ -434,16 +472,24 @@ export class ClientSites {
       return;
     }
 
-    this.create.emit({
+    const datos: NewSite = {
       name: this.siteName().trim(),
       street: this.street().trim(),
       neighborhood: this.neighborhood().trim(),
       municipality: this.municipality().trim(),
       state: this.state().trim(),
       postalCode: this.postalCode().trim(),
-    });
+    };
+
+    const enEdicion = this.editando();
+    if (enEdicion) {
+      this.edit.emit({ site: enEdicion, datos });
+    } else {
+      this.create.emit(datos);
+    }
 
     this.addingByHand.set(false);
+    this.editando.set(null);
     this.limpiar();
   }
 
@@ -457,8 +503,27 @@ export class ClientSites {
   }
 
   /** El primer contacto de la sede. La marca de principal no siempre está puesta. */
+  /**
+   * Quién responde por esta sede.
+   *
+   * <p><b>Primero el contacto de la sede; si no lo hay, el del cliente.</b> Antes sólo miraba los
+   * atados a la sede, y como la mayoría de los contactos se registran a nivel de cliente —23 de 26
+   * en la base viva—, casi toda sede decía «Sin contacto· la sede funciona, pero nadie responde por
+   * ella», con la pestaña de Contactos mostrando un número mayor que cero al lado.</p>
+   *
+   * <p>Un contacto del cliente cubre a todas sus sedes: para eso existe.</p>
+   */
   protected contactOf(idClientSite: string): ClientContact | undefined {
-    return this.contacts().find((contact) => contact.idClientSite === idClientSite);
+    const activos = this.contacts().filter((contact) => contact.active !== false);
+
+    return activos.find((contact) => contact.idClientSite === idClientSite)
+      ?? activos.find((contact) => !contact.idClientSite);
+  }
+
+  /** Si quien responde es del cliente y no de esta sede, conviene decirlo. */
+  protected contactIsFromClient(idClientSite: string): boolean {
+    const contacto = this.contactOf(idClientSite);
+    return !!contacto && !contacto.idClientSite;
   }
 
   protected address(site: ClientSite): string {

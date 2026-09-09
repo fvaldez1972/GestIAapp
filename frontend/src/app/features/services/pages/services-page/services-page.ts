@@ -401,6 +401,10 @@ export class ServicesPage implements OnInit, OnDestroy {
     this.services.set([]);
     this.sites.set([]);
     this.contracts.set([]);
+    // Los contactos tambien, que se quedaban fuera. Las tres listas se piden juntas y son del
+    // mismo cliente: dejar una sin vaciar deja los contactos del cliente anterior en pantalla
+    // mientras llegan los del nuevo.
+    this.contacts.set([]);
     this.clearServiceDetail();
     this.pendingServiceLink = params.get('serviceId') ?? '';
     this.linkedClientId.set(clientId);

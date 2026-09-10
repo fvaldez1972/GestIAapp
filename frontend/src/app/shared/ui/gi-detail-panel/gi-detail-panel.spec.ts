@@ -207,3 +207,37 @@ describe('GiDetailPanel', () => {
     });
   });
 });
+
+/**
+ * El panel vacío.
+ *
+ * <p>Salió recorriendo el portal: en Asistencia e Incidencias el panel abría con su cabecera, su
+ * «×» y <b>nada dentro</b>. La causa era que esas pantallas usaban `<ng-template giTab="…">` sin
+ * importar `GiTabContent`, así que el atributo quedaba inerte y `contentChildren` no encontraba
+ * ninguna plantilla. Angular no protesta —un `ng-template` con un atributo desconocido es legal—,
+ * de modo que tres paneles quedaron inservibles sin un solo error en consola: registrar la
+ * asistencia, registrar una incidencia y cubrir un turno.</p>
+ */
+describe('GiDetailPanel · un panel sin contenido', () => {
+  afterEach(() => TestBed.resetTestingModule());
+
+  it('rompe en desarrollo en vez de dibujarse vacío', () => {
+    @Component({
+      // A propósito SIN `GiTabContent`: es exactamente el olvido que hay que detectar.
+      imports: [GiDetailPanel],
+      template: `
+        <gi-detail-panel title="Registrar una incidencia">
+          <ng-template giTab="datos"><p>El formulario</p></ng-template>
+        </gi-detail-panel>
+      `,
+    })
+    class SinLaDirectiva {}
+
+    TestBed.configureTestingModule({ imports: [SinLaDirectiva] });
+
+    expect(() => {
+      const fixture = TestBed.createComponent(SinLaDirectiva);
+      fixture.detectChanges();
+    }).toThrowError(/no tiene contenido/);
+  });
+});

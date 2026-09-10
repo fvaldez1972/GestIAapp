@@ -13,6 +13,7 @@ import {
   GiEmptyState,
   GiOperationDayBar,
   GiSelectOption,
+  GiTabContent,
 } from '../../../../shared/ui/gi-ui';
 import { CatalogApiService } from '../../../catalogs/data-access/catalog-api.service';
 import { ClientApiService } from '../../../clients/data-access/client-api.service';
@@ -54,6 +55,7 @@ import { IncidentList } from '../../ui/incident-list';
     CoverageList,
     GiDayClosure,
     GiDetailPanel,
+    GiTabContent,
     GiEmptyState,
     GiOperationDayBar,
     IncidentForm,

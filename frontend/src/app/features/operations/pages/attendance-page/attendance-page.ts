@@ -11,6 +11,7 @@ import {
   GiEmptyState,
   GiOperationDayBar,
   GiSelectOption,
+  GiTabContent,
 } from '../../../../shared/ui/gi-ui';
 import { ClientApiService } from '../../../clients/data-access/client-api.service';
 import {
@@ -58,6 +59,7 @@ import { AttendanceSummary } from '../../ui/attendance-summary';
     AttendanceSummary,
     GiDayClosure,
     GiDetailPanel,
+    GiTabContent,
     GiEmptyState,
     GiOperationDayBar,
   ],

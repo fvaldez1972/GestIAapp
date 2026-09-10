@@ -134,6 +134,50 @@ public sealed class ClientSearchTests(OperationalSqlDatabase database)
         Assert.Equal("SED-CLI-C", Assert.Single(sinSede).CodeClient);
     }
 
+    /// <summary>
+    /// Una sede dada de baja no es una sede, tampoco con el filtro de estado en «Todos».
+    ///
+    /// <para>El método lleva <c>IgnoreQueryFilters(["Active"])</c> cuando el estado pedido no es
+    /// «Activos», y ese operador vale para la <b>consulta entera</b>: las subconsultas que miran
+    /// las sedes se quedaban sin filtro. Un cliente cuya única sede estaba dada de baja salía como
+    /// «con sede» y no aparecía nunca en «sin sede», que es justo el filtro que tiene que
+    /// encontrarlo, porque sin sede activa no se le pueden crear servicios.</para>
+    ///
+    /// <para>El comentario del repositorio ya decía «sin ninguna <b>activa</b>»; lo que faltaba era
+    /// que el código lo hiciera.</para>
+    /// </summary>
+    [OperationalSqlFact]
+    public async Task ADeactivatedSiteDoesNotCountAsSiteEvenWhenTheListShowsEveryStatus()
+    {
+        var seed = await SeedAsync("BAJ");
+
+        await using (var context = database.Context())
+        {
+            foreach (var site in context.ClientSites.Where(item => item.IdClient == seed.CompleteClientId))
+            {
+                site.Deactivate(ActorId, ActorName, Now);
+            }
+
+            await context.SaveChangesAsync(Token);
+        }
+
+        var (sinSede, _) = await SearchAsync(Criterios(seed.OrganizationId) with
+        {
+            Status = ClientStatusFilter.All,
+            SitePresence = ClientSitePresenceFilter.WithoutSite,
+        });
+
+        Assert.Contains(sinSede, item => item.IdClient == seed.CompleteClientId);
+
+        var (conSede, _) = await SearchAsync(Criterios(seed.OrganizationId) with
+        {
+            Status = ClientStatusFilter.All,
+            SitePresence = ClientSitePresenceFilter.WithSite,
+        });
+
+        Assert.DoesNotContain(conSede, item => item.IdClient == seed.CompleteClientId);
+    }
+
     [OperationalSqlFact]
     public async Task TheMunicipalityFilterUsesTheSitesAndOffersRealOptions()
     {

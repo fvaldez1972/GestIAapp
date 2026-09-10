@@ -39,7 +39,15 @@ public sealed class ClientRepository(GestIaDbContext dbContext) : IClientReposit
                 (client.TradeName != null && client.TradeName.Contains(search)) ||
                 client.Rfc.Contains(search) ||
                 // También por sede: quien busca «Torre Altavista» busca a su cliente.
-                dbContext.ClientSites.Any(site => site.IdClient == client.IdClient && site.Name.Contains(search)));
+                //
+                // El `Active` va escrito en las cuatro subconsultas de este método, y no se hereda.
+                // Con el filtro de estado en «Todos» o «Inactivos» la consulta lleva
+                // `IgnoreQueryFilters(["Active"])`, que vale para la CONSULTA ENTERA: sin esto, una
+                // sede dada de baja seguía contando como sede.
+                dbContext.ClientSites.Any(site =>
+                    site.Active &&
+                    site.IdClient == client.IdClient &&
+                    site.Name.Contains(search)));
         }
 
         // «Sin sede» quiere decir sin ninguna **activa**: una sede dada de baja no permite crear
@@ -48,9 +56,11 @@ public sealed class ClientRepository(GestIaDbContext dbContext) : IClientReposit
         query = criteria.SitePresence switch
         {
             ClientSitePresenceFilter.WithSite =>
-                query.Where(client => dbContext.ClientSites.Any(site => site.IdClient == client.IdClient)),
+                query.Where(client => dbContext.ClientSites.Any(site =>
+                    site.Active && site.IdClient == client.IdClient)),
             ClientSitePresenceFilter.WithoutSite =>
-                query.Where(client => !dbContext.ClientSites.Any(site => site.IdClient == client.IdClient)),
+                query.Where(client => !dbContext.ClientSites.Any(site =>
+                    site.Active && site.IdClient == client.IdClient)),
             _ => query,
         };
 
@@ -59,7 +69,9 @@ public sealed class ClientRepository(GestIaDbContext dbContext) : IClientReposit
             var municipality = criteria.Municipality.Trim();
             query = query.Where(client =>
                 dbContext.ClientSites.Any(site =>
-                    site.IdClient == client.IdClient && site.Municipality == municipality));
+                    site.Active &&
+                    site.IdClient == client.IdClient &&
+                    site.Municipality == municipality));
         }
 
         var totalCount = await query.CountAsync(cancellationToken);

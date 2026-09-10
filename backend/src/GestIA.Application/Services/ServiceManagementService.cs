@@ -203,15 +203,12 @@ public sealed class ServiceManagementService(
         await EnsureServiceAsync(request.IdOrganization, request.IdClient, request.IdService, cancellationToken);
         var profile = Validate(request);
 
-        if (await repository.IsConfigurationDateInUseAsync(
-                request.IdService,
-                profile.EffectiveFromDate,
-                null,
-                cancellationToken))
-        {
-            throw new ResourceConflictException("Ya existe una configuración con la misma fecha de inicio.");
-        }
-
+        // Dos configuraciones pueden empezar el mismo día. Antes no: había una comprobación aquí y
+        // un índice único detrás, y la fecha quedaba tomada incluso por una configuración dada de
+        // baja. El usuario pidió liberarla el 10 de septiembre de 2026, sabiendo la consecuencia:
+        // hoy nada resuelve «cuál rige», porque nada las consulta por fecha —sólo se listan, se
+        // abren por identificador y se auditan—, así que la ambigüedad no rompe nada todavía. El
+        // día que algo tenga que elegir una, ese código tendrá que decidir con qué criterio.
         var configuration = ServiceConfigurationEntity.Create(
             request.IdOrganization,
             request.IdService,
@@ -237,15 +234,6 @@ public sealed class ServiceManagementService(
                 idServiceConfiguration,
                 cancellationToken)
             ?? throw new ResourceNotFoundException("No se encontró la configuración solicitada.");
-
-        if (await repository.IsConfigurationDateInUseAsync(
-                request.IdService,
-                profile.EffectiveFromDate,
-                idServiceConfiguration,
-                cancellationToken))
-        {
-            throw new ResourceConflictException("Ya existe una configuración con la misma fecha de inicio.");
-        }
 
         // Motivo obligatorio si la vigencia ya terminó, o si el cambio toca el precio, la moneda
         // o el impuesto: ése es el dato que se le factura al cliente, y cambiarlo mientras está

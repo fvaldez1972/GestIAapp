@@ -42,7 +42,10 @@ public sealed class ServiceConfigurationConfiguration : IEntityTypeConfiguration
         // Lo genera SQL Server en cada escritura; el modelo solo lo lee.
         builder.Property(entity => entity.RowVersion).IsRowVersion();
 
-        builder.HasIndex(entity => new { entity.IdService, entity.EffectiveFromDate }).IsUnique();
+        // Ya no es único. Dos configuraciones del mismo servicio pueden empezar el mismo día, por
+        // decisión del 10 de septiembre de 2026. El índice se queda porque el listado busca por
+        // servicio y ordena por esta fecha; lo que se retira es la unicidad, no la búsqueda.
+        builder.HasIndex(entity => new { entity.IdService, entity.EffectiveFromDate });
         builder.HasOne<Organization>()
             .WithMany()
             .HasForeignKey(entity => entity.IdOrganization)

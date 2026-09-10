@@ -27,6 +27,5 @@ public interface IServiceManagementRepository
 
     Task<IReadOnlyList<ServiceConfigurationEntity>> ListConfigurationsAsync(Guid idService, CancellationToken cancellationToken);
     Task<ServiceConfigurationEntity?> GetConfigurationAsync(Guid idService, Guid idServiceConfiguration, CancellationToken cancellationToken);
-    Task<bool> IsConfigurationDateInUseAsync(Guid idService, DateOnly effectiveFromDate, Guid? excludedServiceConfigurationId, CancellationToken cancellationToken);
     Task AddConfigurationAsync(ServiceConfigurationEntity configuration, CancellationToken cancellationToken);
 }

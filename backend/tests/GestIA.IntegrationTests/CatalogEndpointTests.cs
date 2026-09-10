@@ -77,6 +77,54 @@ public sealed class CatalogEndpointTests
         }
     }
 
+    /// <summary>
+    /// La comprobación por lotes existe para que Planeación y Cobertura dejen de <b>afirmar</b> la
+    /// elegibilidad por su cuenta.
+    ///
+    /// <para>Antes la ponía el navegador: bastaba con que la asignación trajera puesto para marcar
+    /// a alguien «Elegible», sin consultar un solo requisito. Las reglas viven en el servidor y es
+    /// él quien las hace cumplir; que la pantalla las repita de memoria es lo que el principio 5
+    /// prohíbe.</para>
+    ///
+    /// <para>Lo que se fija aquí es lo que se pudo haber cableado mal: <b>que la ruta exista</b>,
+    /// que exija permiso de lectura sobre personal y no el de catálogos, y que el guardia de
+    /// organización siga puesto pese a que el identificador viaja en el cuerpo y no en la
+    /// dirección, que es donde el guardia lo suele buscar.</para>
+    /// </summary>
+    [Theory]
+    [InlineData(null, HttpStatusCode.Forbidden)]
+    [InlineData(SecurityPermissions.CatalogsRead, HttpStatusCode.Forbidden)]
+    [InlineData(SecurityPermissions.WorkforceRead, HttpStatusCode.OK)]
+    public async Task TheBatchEligibilityCheckNeedsWorkforceRead(string? permission, HttpStatusCode expected)
+    {
+        await using var app = App(false, permission);
+        await app.StartAsync(CancellationToken.None);
+        using var client = app.GetTestClient();
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/v1/catalogs/eligibility/check-batch",
+            new EligibilityBatchRequest(OrganizationId, [Guid.NewGuid()], null, null, null, null),
+            CancellationToken.None);
+
+        Assert.Equal(expected, response.StatusCode);
+    }
+
+    /// <summary>El aislamiento entre organizaciones vale igual cuando el identificador va en el cuerpo.</summary>
+    [Fact]
+    public async Task TheBatchEligibilityCheckStillGuardsTheOrganization()
+    {
+        await using var app = App(false, SecurityPermissions.WorkforceRead);
+        await app.StartAsync(CancellationToken.None);
+        using var client = app.GetTestClient();
+
+        using var response = await client.PostAsJsonAsync(
+            "/api/v1/catalogs/eligibility/check-batch",
+            new EligibilityBatchRequest(Guid.NewGuid(), [Guid.NewGuid()], null, null, null, null),
+            CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
     private static WebApplication App(bool read, string? modulePermission = null)
     {
         var builder = WebApplication.CreateBuilder();
@@ -100,6 +148,12 @@ public sealed class CatalogEndpointTests
     {
         protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
         {
+            if (targetMethod?.Name == nameof(ICatalogService.CheckEligibilityBatchAsync))
+            {
+                IReadOnlyList<EligibilityCheckResponse> vacio = [];
+                return Task.FromResult(vacio);
+            }
+
             if (targetMethod?.Name != nameof(ICatalogService.ListCatalogItemsAsync)) throw new NotSupportedException();
             IReadOnlyList<CatalogItemResponse> values = [
                 new(Guid.NewGuid(), OrganizationId, BusinessCatalogItemType.Skill, "Active", null, true),

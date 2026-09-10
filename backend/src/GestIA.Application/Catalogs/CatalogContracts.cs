@@ -83,6 +83,22 @@ public sealed record EligibilityCheckQuery(
     Guid? IdPosition,
     DateOnly ReferenceDate);
 
+/// <summary>
+/// La misma comprobación, para varias personas y un solo contexto.
+///
+/// <para>Existe porque el selector de candidatos de Planeación enseña una lista, y una lista de
+/// diez personas no puede costar diez viajes al servidor. El contexto —cliente, servicio, posición
+/// y fecha— es el mismo para todas: es la posición la que pide los requisitos.</para>
+/// </summary>
+public sealed record EligibilityBatchQuery(
+    Guid IdOrganization,
+    IReadOnlyList<Guid> IdEmployees,
+    Guid? IdClient,
+    Guid? IdService,
+    Guid? IdPosition,
+    /// <summary>Sin fecha se usa el día operativo. La decide el servicio, que es quien tiene reloj.</summary>
+    DateOnly? ReferenceDate);
+
 public sealed record EligibilityCheckResponse(
     Guid IdEmployee,
     string EmployeeCode,

@@ -261,6 +261,74 @@ public sealed class CatalogService(
             reasons);
     }
 
+    /// <summary>
+    /// Elegibilidad de varias personas contra el mismo contexto.
+    ///
+    /// <para>El contexto —cliente, servicio y posición— se resuelve <b>una vez</b>: es la posición
+    /// la que pide los requisitos, y es la misma para toda la lista. Lo que sí se evalúa persona a
+    /// persona son sus documentos, sus habilidades y sus evaluaciones, que es de lo que trata la
+    /// pregunta.</para>
+    ///
+    /// <para>Los identificadores repetidos se colapsan y el orden de la respuesta es el de la
+    /// petición, para que quien la pidió pueda emparejar sin buscar. Una persona que no exista en
+    /// la organización <b>se omite</b> en vez de tumbar la consulta entera: el selector prefiere
+    /// enseñar nueve candidatos comprobados a no enseñar ninguno porque el décimo se dio de baja
+    /// entre la carga de la pantalla y el clic.</para>
+    /// </summary>
+    public async Task<IReadOnlyList<EligibilityCheckResponse>> CheckEligibilityBatchAsync(
+        EligibilityBatchQuery query,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        // Sin fecha, el día operativo. La decide aquí y no el endpoint: qué día es «hoy» para la
+        // operación es una regla del sistema, no de la capa que recibe la petición.
+        var referenceDate = query.ReferenceDate ?? clock.Today;
+
+        var context = await ResolveEligibilityContextAsync(
+            new EligibilityCheckQuery(
+                query.IdOrganization,
+                Guid.Empty,
+                query.IdClient,
+                query.IdService,
+                query.IdPosition,
+                referenceDate),
+            cancellationToken);
+
+        var results = new List<EligibilityCheckResponse>();
+
+        foreach (var idEmployee in query.IdEmployees.Distinct())
+        {
+            Employee employee;
+
+            try
+            {
+                employee = await EnsureEmployeeAsync(query.IdOrganization, idEmployee, cancellationToken);
+            }
+            catch (ResourceNotFoundException)
+            {
+                continue;
+            }
+
+            var reasons = await EvaluateEligibilityAsync(
+                employee,
+                context.IdClient,
+                context.IdService,
+                context.IdPosition,
+                referenceDate,
+                cancellationToken);
+
+            results.Add(new EligibilityCheckResponse(
+                employee.IdEmployee,
+                employee.CodeEmployee,
+                employee.FullName,
+                reasons.All(reason => reason.Passed || !reason.IsBlocking),
+                reasons));
+        }
+
+        return results;
+    }
+
     public async Task<IReadOnlyList<EligibilityReasonResponse>> EvaluateEligibilityAsync(
         Employee employee,
         Guid? idClient,

@@ -1,7 +1,10 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
 import { Observable, forkJoin, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
+import { CatalogApiService } from '../../../catalogs/data-access/catalog-api.service';
+import { EligibilityCheck } from '../../../catalogs/data-access/catalog.models';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { SystemInfoService } from '../../../../core/system/system-info.service';
 import {
@@ -27,6 +30,7 @@ import {
 import { ServiceApiService } from '../../../services/data-access/service-api.service';
 import { ServiceListItem, serviceOptionLabel } from '../../../services/data-access/service.models';
 import {
+  CandidateEligibility,
   PlanningCell,
   buildCandidates,
   buildPlanningWeek,
@@ -88,6 +92,8 @@ export class PlanningPage {
   private readonly serviceApi = inject(ServiceApiService);
   private readonly auth = inject(AuthService);
   private readonly systemInfo = inject(SystemInfoService);
+  private readonly route = inject(ActivatedRoute);
+  private readonly catalogApi = inject(CatalogApiService);
 
   protected readonly organizationId = this.auth.operationalOrganizationId;
   protected readonly today = this.systemInfo.operationDate;
@@ -199,6 +205,15 @@ export class PlanningPage {
 
   protected readonly activePositionTab = signal('datos');
 
+  /**
+   * Lo que el servidor contestó sobre los candidatos del hueco abierto, por identificador.
+   *
+   * <p>Vacío mientras no haya contestado, y vacío también si la consulta falla. En los dos casos
+   * los candidatos salen como «Sin comprobar», que es la verdad: no es lo mismo no saber que saber
+   * que sí.</p>
+   */
+  protected readonly eligibility = signal<ReadonlyMap<string, CandidateEligibility>>(new Map());
+
   protected readonly candidates = computed<readonly GiCandidate[]>(() => {
     const cell = this.pendingCell();
 
@@ -208,16 +223,31 @@ export class PlanningPage {
           shifts: this.shifts(),
           idPosition: this.selectedPositionId(),
           date: cell.date,
+          eligibility: this.eligibility(),
         })
       : [];
   });
 
   constructor() {
+    // El dia de arranque. Si quien llega trae uno en la direccion, gana sobre el dia operativo:
+    // viene de una pantalla que ya estaba parada en esa semana y que mando aqui a resolver algo
+    // de ella. Sin esto, «Ir a Planeacion» desde Asistencia dejaba al usuario en la semana de hoy
+    // aunque estuviera revisando otra.
     effect(() => {
       const today = this.today();
+      // Se comprueba la forma antes de aceptarlo: viene de la barra de direcciones, donde
+      // cualquiera puede escribir cualquier cosa, y `mondayOfWeek` devuelve cadena vacia ante una
+      // fecha que no entiende. Con eso la semana se queda sin arrancar y la pantalla espera para
+      // siempre sin decir nada.
+      const pedido = this.route.snapshot.queryParamMap.get('date');
+      const valido = pedido && /^\d{4}-\d{2}-\d{2}$/.test(pedido) && mondayOfWeek(pedido) !== '';
 
-      if (today && !this.date()) {
-        this.date.set(today);
+      if (!this.date()) {
+        if (valido) {
+          this.date.set(pedido);
+        } else if (today) {
+          this.date.set(today);
+        }
       }
     });
 
@@ -342,11 +372,79 @@ export class PlanningPage {
   protected onCellSelect({ idPosition, cell }: PlanningCellPick): void {
     this.selectedPositionId.set(idPosition);
     this.activePositionTab.set('patron');
-    this.pendingCell.set(cell.kind === 'short' ? cell : null);
+
+    const hueco = cell.kind === 'short' ? cell : null;
+    this.pendingCell.set(hueco);
+    // La respuesta anterior era de otro hueco: otra posición, otro día, otros requisitos. Dejarla
+    // puesta mientras llega la nueva enseñaría veredictos de una pregunta que ya no es la que se
+    // está haciendo.
+    this.eligibility.set(new Map());
+
+    if (hueco) {
+      this.cargarElegibilidad(idPosition, hueco.date);
+    }
   }
 
   protected closeCandidates(): void {
     this.pendingCell.set(null);
+    this.eligibility.set(new Map());
+  }
+
+  /**
+   * Preguntarle al servidor quién cumple, en vez de suponerlo.
+   *
+   * <p>Las reglas de elegibilidad —documentos vigentes, habilidades, evaluaciones— viven en el
+   * servidor y es él quien las hace cumplir. La pantalla las estaba afirmando por su cuenta:
+   * bastaba con que la asignación trajera puesto para marcar a alguien «Elegible», sin consultar
+   * un solo requisito.</p>
+   *
+   * <p>Si la consulta falla no se enseña un error: los candidatos se quedan en «Sin comprobar» y
+   * quien asigna sigue pudiendo hacerlo. La comprobación es una ayuda para decidir, y el servidor
+   * vuelve a aplicar sus reglas al guardar el turno; tumbar la lista entera porque la ayuda no
+   * llegó dejaría el hueco sin resolver por un motivo que no es del hueco.</p>
+   */
+  private cargarElegibilidad(idPosition: string, date: string): void {
+    const context = this.context();
+    const candidatos = this.assignments()
+      .filter((assignment) => assignment.active)
+      .map((assignment) => assignment.idEmployee);
+
+    if (!context || candidatos.length === 0) {
+      return;
+    }
+
+    this.catalogApi
+      .checkEligibilityBatch({
+        organizationId: context.idOrganization,
+        employeeIds: candidatos,
+        clientId: context.idClient,
+        serviceId: context.idService,
+        positionId: idPosition,
+        referenceDate: date,
+      })
+      .pipe(catchError(() => of([] as readonly EligibilityCheck[])))
+      .subscribe((respuestas) => {
+        // Se comprueba que la respuesta sea de la pregunta que sigue abierta. Entre la petición y
+        // su vuelta el usuario pudo cerrar el panel o pulsar otro hueco, y pintar el veredicto
+        // viejo sobre el hueco nuevo es peor que no pintar nada.
+        if (this.pendingCell()?.date !== date || this.selectedPositionId() !== idPosition) {
+          return;
+        }
+
+        this.eligibility.set(
+          new Map(
+            respuestas.map((respuesta) => [
+              respuesta.idEmployee,
+              {
+                isEligible: respuesta.isEligible,
+                blockingReasons: respuesta.reasons
+                  .filter((reason) => reason.isBlocking && !reason.passed)
+                  .map((reason) => reason.message),
+              },
+            ]),
+          ),
+        );
+      });
   }
 
   protected chooseCandidate(candidate: GiCandidate): void {
@@ -393,11 +491,34 @@ export class PlanningPage {
       });
   }
 
+  /**
+   * Publicar la semana.
+   *
+   * <p>Se llega por dos caminos, y sólo uno pasa por el panel que sabe razonar: el propio panel
+   * apaga su botón y dice por qué, pero la barra del día ofrece «Publicar la semana» siempre que
+   * nadie haya publicado todavía, sin consultar ningún conflicto. Por ese segundo camino el guardia
+   * de abajo se cumplía en silencio y pulsar el botón no hacía absolutamente nada: ni aviso, ni
+   * error, ni indicador de guardado. Un botón que no contesta se lee como una aplicación rota.</p>
+   */
   protected publish(): void {
     const context = this.context();
     const version = this.workingVersion();
 
-    if (!context || !version || !this.canWrite()) {
+    // Sin servicio elegido no hay botón que pulsar; ese caso sí se puede ignorar callando.
+    if (!context) {
+      return;
+    }
+
+    if (!this.canWrite()) {
+      this.error.set('No tienes permiso para publicar. Pídeselo a quien administra tu organización.');
+      return;
+    }
+
+    if (!version) {
+      this.error.set(
+        'Todavía no hay nada que publicar: esta semana no tiene ni un turno proyectado. Declara ' +
+          'las posiciones del servicio y sus turnos, y proyecta la semana desde los patrones.',
+      );
       return;
     }
 
@@ -668,7 +789,16 @@ export class PlanningPage {
         this.services.set(result.items);
 
         if (!this.idService() && result.items.length > 0) {
-          this.idService.set(result.items[0].idService);
+          // El servicio que pide la direccion, si de verdad esta en la lista. Asistencia e
+          // Incidencias ofrecen «Ir a Planeacion» cuando la semana del servicio que se esta
+          // mirando no esta publicada; sin esto, ese boton aterrizaba en el primer servicio de la
+          // lista, que casi nunca era el que hizo falta arreglar.
+          const pedido = this.route.snapshot.queryParamMap.get('serviceId');
+          const encontrado = pedido
+            ? result.items.find((item) => item.idService === pedido)
+            : undefined;
+
+          this.idService.set((encontrado ?? result.items[0]).idService);
         }
       });
   }

@@ -10,6 +10,7 @@ const fila = (
   extra: Partial<AttendanceRow> = {},
 ): AttendanceRow => ({
   idScheduledShift: id,
+  idPosition: 'pos-1',
   idEmployee: `emp-${id}`,
   employeeName,
   employeeCode: 'EMP-1',

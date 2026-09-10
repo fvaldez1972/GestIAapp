@@ -229,6 +229,22 @@ describe('planningConflicts', () => {
     expect(conflicto.detail).toContain('desactívala si ya no opera');
   });
 
+  /**
+   * El caso más vacío de todos se colaba entre las dos comprobaciones que si existian: cero
+   * posiciones no dispara «ninguna posición declara turnos» —no hay ninguna que no los declare— y
+   * la comprobación de la semana vacía exigía `rows.length > 0`. El resultado era una lista de
+   * conflictos vacía, que el panel de publicar lee como «se puede publicar», y el botón quedaba
+   * encendido sobre el resumen «0 turnos en 0 posiciones».
+   */
+  it('un servicio sin ninguna posición bloquea, en vez de parecer publicable', () => {
+    const conflictos = planningConflicts(semana({ positions: [] }));
+    const conflicto = conflictos.find((c) => c.id === 'no-positions')!;
+
+    expect(conflicto).toBeDefined();
+    expect(conflicto.blocking).toBe(true);
+    expect(conflicto.detail).toContain('declara la primera posición del servicio');
+  });
+
   it('una semana que no proyecta ningún turno bloquea', () => {
     const filas = semana({ positions: [posicion('p-1', 'P-01')] });
 
@@ -317,11 +333,19 @@ describe('buildCandidates', () => {
       shifts: [turnoEn('p-4', 'e-3', 'P-04')],
       idPosition: 'p-1',
       date: LUNES,
+      eligibility: cumplen('e-1', 'e-2', 'e-3'),
     });
 
     expect(candidatos.map((c) => c.name)).toEqual(['Ismael', 'Efraín', 'Rubén']);
     expect(candidatos.map((c) => c.standing)).toEqual(['eligible', 'review', 'overlap']);
   });
+
+  /**
+   * El veredicto del servidor, tal como llega de la comprobación de elegibilidad. Se escribe a
+   * mano en las pruebas justo porque no lo inventa la pantalla.
+   */
+  const cumplen = (...ids: readonly string[]) =>
+    new Map(ids.map((id) => [id, { isEligible: true, blockingReasons: [] as readonly string[] }]));
 
   /** «Hay traslape» sin decir qué queda corto es un botón de continuar con otra redacción. */
   it('el traslape nombra qué posición queda corta', () => {
@@ -364,8 +388,72 @@ describe('buildCandidates', () => {
       shifts: [{ ...turnoEn('p-4', 'e-1', 'P-04'), shiftDate: '2026-09-08' }],
       idPosition: 'p-1',
       date: LUNES,
+      eligibility: cumplen('e-1'),
     });
 
     expect(candidato.standing).toBe('eligible');
+  });
+
+  /**
+   * <b>«Elegible» es una afirmación, y sólo la puede hacer el servidor.</b>
+   *
+   * <p>Esta función la hacía sola: bastaba con que la asignación trajera puesto para marcar a
+   * alguien como elegible, sin haber consultado un solo requisito. Las reglas —documentos
+   * vigentes, habilidades, evaluaciones— viven en el servidor y es él quien las hace cumplir;
+   * repetirlas aquí de memoria es lo que el principio 5 prohíbe, y encima puede dar una respuesta
+   * distinta de la que el servidor va a dar al guardar el turno.</p>
+   */
+  it('sin el veredicto del servidor nadie sale como elegible', () => {
+    const [candidato] = buildCandidates({
+      assignments: [asignacion('e-1', 'Ismael')],
+      shifts: [],
+      idPosition: 'p-1',
+      date: LUNES,
+    });
+
+    expect(candidato.standing).toBe('unchecked');
+  });
+
+  /** No saber no es saber que sí: quien falta del mapa queda sin comprobar, no aprobado. */
+  it('quien no viene en la respuesta queda sin comprobar', () => {
+    const [candidato] = buildCandidates({
+      assignments: [asignacion('e-1', 'Ismael')],
+      shifts: [],
+      idPosition: 'p-1',
+      date: LUNES,
+      eligibility: cumplen('otro-empleado'),
+    });
+
+    expect(candidato.standing).toBe('unchecked');
+  });
+
+  /** Y cuando el servidor dice que no, la pantalla dice por qué. */
+  it('a quien el servidor rechaza lo marca y nombra el requisito que falta', () => {
+    const [candidato] = buildCandidates({
+      assignments: [asignacion('e-1', 'Ismael')],
+      shifts: [],
+      idPosition: 'p-1',
+      date: LUNES,
+      eligibility: new Map([
+        ['e-1', { isEligible: false, blockingReasons: ['Su licencia de portación está vencida'] }],
+      ]),
+    });
+
+    expect(candidato.standing).toBe('blocked');
+    expect(candidato.consequence).toContain('licencia de portación está vencida');
+  });
+
+  /** Un rechazo sin motivo sigue diciendo algo, porque «no cumple» a secas no deja nada que hacer. */
+  it('un rechazo sin motivos declarados no deja el aviso vacío', () => {
+    const [candidato] = buildCandidates({
+      assignments: [asignacion('e-1', 'Ismael')],
+      shifts: [],
+      idPosition: 'p-1',
+      date: LUNES,
+      eligibility: new Map([['e-1', { isEligible: false, blockingReasons: [] }]]),
+    });
+
+    expect(candidato.standing).toBe('blocked');
+    expect((candidato.consequence ?? '').trim().length).toBeGreaterThan(0);
   });
 });

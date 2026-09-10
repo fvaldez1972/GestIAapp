@@ -183,13 +183,32 @@ export function buildPlanningWeek(options: {
 /**
  * Lo que hay que mirar antes de publicar.
  *
- * <p><b>Sólo bloquea lo que haría inservible la versión publicada</b>: una semana sin ningún turno
- * proyectado, o una posición de la que nadie declaró nada. Los huecos de cobertura <b>no</b>
+ * <p><b>Sólo bloquea lo que haría inservible la versión publicada</b>: un servicio sin ninguna
+ * posición, una semana sin ningún turno proyectado, o una posición de la que nadie declaró nada. Los huecos de cobertura <b>no</b>
  * bloquean: una semana con huecos es una semana normal a la que le falta gente, y publicarla es lo
  * que permite que Asistencia y Cobertura empiecen a trabajar sobre ella. Bloquear ahí obligaría a
  * inventar asignaciones para poder publicar.</p>
  */
 export function planningConflicts(rows: readonly PlanningRow[]): readonly PlanningConflict[] {
+  // El caso más vacío de todos, y va primero porque ninguna de las dos comprobaciones de abajo lo
+  // ve: cero posiciones no dispara «no proyecta ningún turno» —no hay ninguna que deje de
+  // proyectar— y la comprobación de la semana vacía exigía además `rows.length > 0`. Se colaba
+  // entre las dos y devolvía cero conflictos, que el panel de publicar lee como «se puede
+  // publicar»: el botón quedaba encendido sobre el resumen «0 turnos en 0 posiciones».
+  if (rows.length === 0) {
+    return [
+      {
+        id: 'no-positions',
+        title: 'El servicio todavía no tiene ninguna posición',
+        detail:
+          'La posición es lo que se planea, y existe con independencia de quien la ocupe. Sin ' +
+          'ninguna declarada no hay semana que publicar: declara la primera posición del servicio ' +
+          'y sus turnos.',
+        blocking: true,
+      },
+    ];
+  }
+
   const conflicts: PlanningConflict[] = [];
 
   const sinDeclarar = rows.filter((row) => row.cells.every((cell) => cell.kind === 'undeclared'));
@@ -207,7 +226,7 @@ export function planningConflicts(rows: readonly PlanningRow[]): readonly Planni
 
   const conTurnos = rows.some((row) => row.cells.some((cell) => cell.kind !== 'undeclared' && cell.kind !== 'noShift'));
 
-  if (rows.length > 0 && !conTurnos) {
+  if (!conTurnos) {
     conflicts.push({
       id: 'empty-week',
       title: 'La semana no proyecta ningún turno',
@@ -262,11 +281,33 @@ export function planningConflicts(rows: readonly PlanningRow[]): readonly Planni
  *
  * <p>Quien ya está en <i>este</i> turno no aparece: no es un candidato, ya está puesto.</p>
  */
+/**
+ * El veredicto del servidor sobre una persona, tal como lo devuelve la comprobación de
+ * elegibilidad. Lo que la pantalla necesita de él es si cumple y, cuando no, por qué.
+ */
+export type CandidateEligibility = {
+  readonly isEligible: boolean;
+  readonly blockingReasons: readonly string[];
+};
+
 export function buildCandidates(options: {
   readonly assignments: readonly ServiceAssignment[];
   readonly shifts: readonly ScheduledShift[];
   readonly idPosition: string;
   readonly date: string;
+  /**
+   * Lo que el servidor contestó, por identificador de empleado.
+   *
+   * <p><b>Sin este mapa nadie sale como «Elegible».</b> Antes esta función lo afirmaba sola: si la
+   * asignación traía puesto, la persona quedaba marcada como elegible sin haber consultado un solo
+   * requisito. Las reglas —documentos vigentes, habilidades, evaluaciones— viven en el servidor y
+   * es él quien las hace cumplir; repetirlas aquí de memoria es lo que el principio 5 prohíbe, y
+   * encima da una respuesta que puede no coincidir con la suya.</p>
+   *
+   * <p>Cuando falta el dato, o falta la persona dentro de él, el resultado es «Sin comprobar», no
+   * «Elegible». No es lo mismo no saber que saber que sí.</p>
+   */
+  readonly eligibility?: ReadonlyMap<string, CandidateEligibility>;
 }): readonly GiCandidate[] {
   const delDia = options.shifts.filter((shift) => shift.shiftDate === options.date);
   const otroTurnoDe = new Map(
@@ -302,6 +343,34 @@ export function buildCandidates(options: {
           consequence:
             'No sabemos su puesto, así que no se puede comprobar contra el perfil de la posición. ' +
             'No queda bloqueado: conviene completar su ficha en Personal.',
+        };
+      }
+
+      const veredicto = options.eligibility?.get(assignment.idEmployee);
+
+      if (!veredicto) {
+        return {
+          id: assignment.idEmployee,
+          name: assignment.employeeName,
+          role: assignment.positionName ?? '',
+          availability: 'Sin turno ese día',
+          standing: 'unchecked',
+        };
+      }
+
+      if (!veredicto.isEligible) {
+        return {
+          id: assignment.idEmployee,
+          name: assignment.employeeName,
+          role: assignment.positionName ?? '',
+          availability: 'Sin turno ese día',
+          standing: 'blocked',
+          // El motivo va entero. «No cumple» a secas deja a quien asigna sin nada que hacer al
+          // respecto, y no queda claro si el problema se arregla en Personal o en Catálogos.
+          consequence:
+            veredicto.blockingReasons.length > 0
+              ? veredicto.blockingReasons.join(' · ')
+              : 'El servidor no lo considera elegible para esta posición.',
         };
       }
 

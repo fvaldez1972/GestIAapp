@@ -244,8 +244,18 @@ export class AttendancePage {
     this.message.set(`${gap.positionCode} se resuelve en Cobertura: falta gente asignada, no es una falta.`);
   }
 
+  /**
+   * Ir a Planeación a resolver lo que falta.
+   *
+   * <p>Se llega aquí desde el aviso de que <b>esta</b> semana de <b>este</b> servicio no está
+   * publicada, así que hay que llevarse las dos cosas. Sin ellas, Planeación arrancaba en el primer
+   * servicio de la lista y en el día de hoy, y el botón que prometía resolver el problema dejaba al
+   * usuario mirando otro servicio y otra semana.</p>
+   */
   protected goToPlanning(): void {
-    this.router.navigate(['/planeacion']);
+    this.router.navigate(['/planeacion'], {
+      queryParams: { serviceId: this.idService() || null, date: this.date() || null },
+    });
   }
 
   protected closeEditor(): void {

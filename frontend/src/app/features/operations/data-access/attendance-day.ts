@@ -17,6 +17,8 @@ import { GiDayState } from '../../../shared/ui/gi-ui';
  */
 export type AttendanceRow = {
   readonly idScheduledShift: string;
+  /** La posición del turno. Cobertura la necesita para preguntar quién cumple sus requisitos. */
+  readonly idPosition: string;
   readonly idEmployee: string;
   readonly employeeName: string;
   readonly employeeCode: string;
@@ -105,6 +107,7 @@ export function buildAttendanceDay(options: {
 
     return {
       idScheduledShift: shift.idScheduledShift,
+      idPosition: shift.idPosition,
       idEmployee: shift.idEmployee,
       employeeName: shift.employeeName,
       employeeCode: shift.employeeCode,

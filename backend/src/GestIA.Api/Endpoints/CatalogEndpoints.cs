@@ -285,6 +285,44 @@ public static class CatalogEndpoints
             .RequirePermission(SecurityPermissions.WorkforceRead)
             .WithName("CheckEmployeeEligibility");
 
+        // POST y no GET, aunque no escriba nada: la lista de personas va en el cuerpo. En la
+        // dirección serían tantos identificadores como candidatos, y ahí se acaban chocando con el
+        // límite de longitud de la URL justo cuando la lista es larga, que es cuando este endpoint
+        // sirve para algo.
+        group.MapPost("/eligibility/check-batch", async (
+            HttpContext context,
+            EligibilityBatchRequest request,
+            ICatalogService service,
+            CancellationToken cancellationToken) =>
+        {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, request.OrganizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
+            var result = await service.CheckEligibilityBatchAsync(
+                new EligibilityBatchQuery(
+                    request.OrganizationId,
+                    request.EmployeeIds ?? [],
+                    request.ClientId,
+                    request.ServiceId,
+                    request.PositionId,
+                    request.ReferenceDate),
+                cancellationToken);
+            return Results.Ok(result);
+        })
+            .RequirePermission(SecurityPermissions.WorkforceRead)
+            .WithName("CheckEmployeeEligibilityBatch");
+
         return endpoints;
     }
 }
+
+/// <summary>El cuerpo de la comprobación por lotes de elegibilidad.</summary>
+public sealed record EligibilityBatchRequest(
+    Guid OrganizationId,
+    IReadOnlyList<Guid>? EmployeeIds,
+    Guid? ClientId,
+    Guid? ServiceId,
+    Guid? PositionId,
+    DateOnly? ReferenceDate);

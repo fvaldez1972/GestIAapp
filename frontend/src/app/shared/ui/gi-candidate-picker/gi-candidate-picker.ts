@@ -15,7 +15,7 @@ import { devAssert } from '../dev-assert';
  * posición a otra, y el aviso dice a cuál.</li>
  * </ul>
  */
-export type GiCandidateStanding = 'eligible' | 'review' | 'overlap';
+export type GiCandidateStanding = 'eligible' | 'review' | 'overlap' | 'blocked' | 'unchecked';
 
 export type GiCandidate = {
   readonly id: string;
@@ -34,10 +34,25 @@ export type GiCandidate = {
   readonly consequence?: string;
 };
 
+/**
+ * <p><b>«Elegible» es una afirmación, y sólo la puede hacer el servidor.</b> Durante un tiempo la
+ * ponía el navegador: bastaba con que la asignación trajera puesto para marcar a alguien como
+ * elegible, sin haber consultado ni un requisito. Las reglas de elegibilidad —documentos vigentes,
+ * habilidades, evaluaciones— viven en el servidor y es él quien las hace cumplir; repetirlas de
+ * memoria en la pantalla es exactamente lo que el principio 5 prohíbe, y además da una respuesta
+ * distinta de la que va a dar el servidor cuando toque.</p>
+ *
+ * <p>Por eso hay dos etiquetas más. <b>«No cumple»</b> es el servidor diciendo que no, con el
+ * motivo. <b>«Sin comprobar»</b> es la pantalla diciendo que todavía no ha preguntado o que la
+ * consulta falló: no es lo mismo que «cumple», y fingir que sí lo es sería volver al mismo
+ * defecto por otra puerta.</p>
+ */
 const PILDORA: Record<GiCandidateStanding, string> = {
   eligible: 'Elegible',
   review: 'Revisar puesto',
   overlap: 'Traslape',
+  blocked: 'No cumple',
+  unchecked: 'Sin comprobar',
 };
 
 /**
@@ -151,6 +166,8 @@ const PILDORA: Record<GiCandidateStanding, string> = {
     .gi-cand__pill--eligible { color: var(--gestia-success); }
     .gi-cand__pill--review { color: var(--gestia-warning); }
     .gi-cand__pill--overlap { color: var(--gestia-warning); }
+    .gi-cand__pill--blocked { color: var(--gestia-danger); }
+    .gi-cand__pill--unchecked { color: var(--gestia-muted); }
 
     .gi-cand__choose {
       height: 2.25rem;
@@ -173,7 +190,9 @@ const PILDORA: Record<GiCandidateStanding, string> = {
     .gi-cand__consequence { margin: 0; font-size: 11.5px; line-height: 1.45; }
     .gi-cand__consequence--review,
     .gi-cand__consequence--overlap { color: var(--gestia-warning); }
-    .gi-cand__consequence--eligible { color: var(--gestia-muted); }
+    .gi-cand__consequence--blocked { color: var(--gestia-danger); }
+    .gi-cand__consequence--eligible,
+    .gi-cand__consequence--unchecked { color: var(--gestia-muted); }
 
     .gi-cand__empty { padding: 1.1rem 0.85rem; display: flex; flex-direction: column; gap: 0.35rem; }
     .gi-cand__empty-title { margin: 0; color: var(--gestia-text); font-size: 13px; font-weight: 600; }
@@ -218,6 +237,8 @@ export class GiCandidatePicker implements OnInit {
       return 'ninguno';
     }
 
+    // Sólo cuenta quien el servidor dijo que cumple. «Sin comprobar» no es «sin aviso»: es
+    // precisamente un aviso, y meterlo en esta cuenta devolvería la afirmación que se quitó.
     const limpios = this.candidates().filter((candidate) => candidate.standing === 'eligible').length;
 
     return `${total} · ${limpios} sin aviso`;
@@ -238,6 +259,13 @@ export class GiCandidatePicker implements OnInit {
         `gi-candidate-picker: el candidato «${candidate.name}» está marcado para revisar y no dice ` +
           'qué revisar. Un puesto desconocido no bloquea, pero quien asigna necesita saber qué le ' +
           'falta al expediente para decidir.',
+      );
+
+      devAssert(
+        candidate.standing !== 'blocked' || (candidate.consequence ?? '').trim().length > 0,
+        `gi-candidate-picker: el candidato «${candidate.name}» aparece como que no cumple y no dice ` +
+          'qué requisito le falta. Decir «no cumple» sin el motivo deja a quien asigna sin nada que ' +
+          'hacer al respecto, que es lo mismo que un botón apagado sin explicación.',
       );
     }
 

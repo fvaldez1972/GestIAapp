@@ -24,6 +24,7 @@ const registro = (extra: Partial<AttendanceRecord> = {}): AttendanceRecord => ({
 
 const fila = (record: AttendanceRecord | null): AttendanceRow => ({
   idScheduledShift: 't-1',
+  idPosition: 'pos-1',
   idEmployee: 'emp-1',
   employeeName: 'Laura Menchaca',
   employeeCode: 'EMP-1',

@@ -125,14 +125,25 @@ public sealed class ServiceManagementRepository(GestIaDbContext dbContext) : ISe
                 service.StartDate,
                 service.EndDate,
                 // Subconsulta correlacionada: una sola sentencia, sin materializar posiciones.
-                // Cuenta las activas, porque Positions conserva aquí sus propios filtros.
-                dbContext.Positions.Count(position => position.IdService == service.IdService),
+                //
+                // El `Active` va escrito, y aqui hay una historia. El comentario que habia decia
+                // que Positions «conserva aqui sus propios filtros», y era falso: cuando el filtro
+                // de estado es «Todos» o «Inactivos», la consulta lleva
+                // `IgnoreQueryFilters(["Active"])` —ver `Filtrar`— y ese operador vale para la
+                // CONSULTA ENTERA, subconsultas incluidas. El resultado era que al poner el filtro
+                // en «Todos» el listado seguia contando posiciones dadas de baja: una fila decia
+                // «6 / 6» mientras su propia ficha decia «Posiciones 0 · Sin posiciones
+                // registradas», los dos numeros a la vez y sobre el mismo servicio.
+                dbContext.Positions.Count(position =>
+                    position.Active &&
+                    position.IdService == service.IdService),
                 dbContext.Positions
-                    .Where(position => position.IdService == service.IdService)
+                    .Where(position => position.Active && position.IdService == service.IdService)
                     .Sum(position => (int?)position.RequiredWorkerCount) ?? 0,
                 dbContext.Positions
-                    .Where(position => position.IdService == service.IdService)
+                    .Where(position => position.Active && position.IdService == service.IdService)
                     .Sum(position => (int?)dbContext.ServiceAssignments.Count(assignment =>
+                        assignment.Active &&
                         assignment.IdPosition == position.IdPosition &&
                         assignment.StartDate <= criteria.CoverageDate &&
                         (assignment.EndDate == null || assignment.EndDate >= criteria.CoverageDate))) ?? 0,
@@ -155,11 +166,23 @@ public sealed class ServiceManagementRepository(GestIaDbContext dbContext) : ISe
             .ThenBy(service => service.CodeService)
             .ToArrayAsync(cancellationToken);
 
+    /// <summary>
+    /// Un servicio por identificador, esté activo o no.
+    ///
+    /// <para><b>Ignora el filtro de activo a propósito.</b> El listado sabe enseñar los dados de
+    /// baja —el filtro de estado tiene «Inactivos» y «Todos»—, así que se puede pulsar una fila que
+    /// está a la vista. Sin esto, esa fila respondía «No se encontró el servicio solicitado»: la
+    /// pantalla ofrecía abrir algo que la búsqueda declaraba inexistente.</para>
+    ///
+    /// <para>No abre ninguna puerta: quien escribe sobre un servicio dado de baja se topa después
+    /// con las reglas del dominio, que son las que deciden qué se puede corregir y qué no.</para>
+    /// </summary>
     public Task<ServiceEntity?> GetServiceAsync(
         Guid idClient,
         Guid idService,
         CancellationToken cancellationToken) =>
         dbContext.Services
+            .IgnoreQueryFilters(["Active"])
             .Include(service => service.ClientSite)
             .Include(service => service.ServiceContract)
             .SingleOrDefaultAsync(
@@ -190,6 +213,9 @@ public sealed class ServiceManagementRepository(GestIaDbContext dbContext) : ISe
             .AsNoTracking()
             .Where(configuration => configuration.IdService == idService)
             .OrderByDescending(configuration => configuration.EffectiveFromDate)
+            // El desempate importa desde que dos pueden empezar el mismo día: sin él, SQL Server no
+            // promete un orden entre las empatadas y la lista se barajaría entre recargas.
+            .ThenByDescending(configuration => configuration.CreatedAt)
             .ToArrayAsync(cancellationToken);
 
     public Task<ServiceConfigurationEntity?> GetConfigurationAsync(
@@ -201,21 +227,6 @@ public sealed class ServiceManagementRepository(GestIaDbContext dbContext) : ISe
                 configuration.IdService == idService &&
                 configuration.IdServiceConfiguration == idServiceConfiguration,
             cancellationToken);
-
-    public Task<bool> IsConfigurationDateInUseAsync(
-        Guid idService,
-        DateOnly effectiveFromDate,
-        Guid? excludedServiceConfigurationId,
-        CancellationToken cancellationToken) =>
-        dbContext.ServiceConfigurations
-            .IgnoreQueryFilters(["Active"])
-            .AnyAsync(
-                configuration =>
-                    configuration.IdService == idService &&
-                    configuration.EffectiveFromDate == effectiveFromDate &&
-                    (!excludedServiceConfigurationId.HasValue ||
-                        configuration.IdServiceConfiguration != excludedServiceConfigurationId.Value),
-                cancellationToken);
 
     public Task AddConfigurationAsync(ServiceConfigurationEntity configuration, CancellationToken cancellationToken) =>
         dbContext.ServiceConfigurations.AddAsync(configuration, cancellationToken).AsTask();

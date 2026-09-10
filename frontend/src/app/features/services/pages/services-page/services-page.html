@@ -905,9 +905,12 @@
             </label>
 
             <!--
-              El motivo aparece cuando el servidor dice que hace falta, y **llega vacío**: un
-              motivo prellenado deja de ser un motivo. La regla de cuándo se exige vive en el
-              servidor, no aquí.
+              El motivo **llega vacío**: uno prellenado deja de ser un motivo.
+
+              Aparece en cuanto lo que se escribe lo hace necesario, sin esperar a intentar guardar.
+              Antes salía sólo cuando el servidor lo rechazaba, y ese rechazo llega como validación
+              —«La solicitud contiene datos inválidos»—, así que no salía nunca y el precio mensual
+              no se podía cambiar. La regla del servidor sigue mandando; aquí sólo se adelanta.
             -->
             @if (correctionReasonRequired()) {
               <label class="wide">
@@ -919,7 +922,8 @@
                   [value]="correctionReason()"
                   (input)="correctionReason.set($any($event.target).value)"
                 ></textarea>
-                <small>Explica por qué se corrige una configuración cuya vigencia ya pasó.</small>
+                <!-- Se dice qué lo disparó. «Hace falta un motivo» sin más obliga a adivinar. -->
+                <small>{{ correctionReasonBecause() || 'Explica por qué se hace esta corrección.' }}</small>
               </label>
             }
           </div>

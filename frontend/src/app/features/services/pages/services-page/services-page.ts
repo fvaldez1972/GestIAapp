@@ -1,4 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
+import { toSignal } from '@angular/core/rxjs-interop';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -151,7 +152,11 @@ export class ServicesPage implements OnInit, OnDestroy {
    * motivo. El servidor decide si hace falta, y lo dice en el error.
    */
   protected readonly correctionReason = signal('');
-  protected readonly correctionReasonRequired = signal(false);
+
+  /**
+   * El servidor pidió motivo por un caso que aquí no se previó. Red de seguridad, no la vía normal.
+   */
+  private readonly motivoExigidoPorElServidor = signal(false);
   protected readonly activeEmployees = signal<readonly Employee[]>([]);
   /**
    * El listado de la organización. **Antes esto era la lista de clientes**, y no se veía un solo
@@ -663,6 +668,17 @@ export class ServicesPage implements OnInit, OnDestroy {
     if (action.id === 'deactivate') this.confirmDeactivateService(item);
   }
 
+  /**
+   * Deja al día lo que se ve del servicio: su ficha y su fila en el listado.
+   *
+   * <p>Se usa después de escribir posiciones o asignaciones. `refresh()` hace lo mismo pero es la
+   * acción manual del usuario, con sus guardas; ésta es la que se llama sola tras guardar.</p>
+   */
+  private refrescarFichaYListado(service: ManagedService): void {
+    this.loadServiceDetail(service);
+    this.loadServices(this.serviceList().page);
+  }
+
   protected refresh(): void {
     if (this.saving()) return;
     this.error.set('');
@@ -878,6 +894,54 @@ export class ServicesPage implements OnInit, OnDestroy {
       isTaxIncluded: [false],
     },
     { validators: dateRangeValidator('effectiveFromDate', 'effectiveToDate') },
+  );
+
+  /** Lo que hay escrito en el formulario de configuración, como señal. */
+  private readonly configurationValue = toSignal(this.configurationForm.valueChanges, {
+    initialValue: this.configurationForm.getRawValue(),
+  });
+
+  /**
+   * Por qué se va a exigir motivo, dicho <b>antes</b> de intentar guardar. Vacío si no hace falta.
+   *
+   * <p><b>Antes había que fallar para enterarse.</b> El campo del motivo sólo aparecía cuando el
+   * servidor rechazaba con un mensaje que contuviera «motivo», y ese rechazo llega como validación:
+   * el detalle es «La solicitud contiene datos inválidos» y la explicación viaja dentro de
+   * `errors`, no en `detail`. La comprobación de la cadena nunca se cumplía, el campo no aparecía
+   * nunca, y cambiar el precio mensual resultaba imposible. Se reportó tal cual: «no te deja
+   * modificarlo, tienes que poner el mismo valor que pusiste al crearlo».</p>
+   *
+   * <p>La regla se puede saber aquí, y es la misma que aplica el servidor: el precio, la moneda y el
+   * impuesto son lo que se le factura al cliente, y una vigencia terminada se corrige, no se edita.
+   * La del servidor sigue mandando; ésta sólo llega a tiempo.</p>
+   */
+  protected readonly correctionReasonBecause = computed(() => {
+    const original = this.editingConfiguration();
+
+    if (!original) {
+      return '';
+    }
+
+    const form = this.configurationValue();
+
+    if (
+      Number(form.monthlyPrice) !== Number(original.monthlyPrice) ||
+      form.currencyCode !== original.currencyCode ||
+      form.isTaxIncluded !== original.isTaxIncluded
+    ) {
+      return 'Estás cambiando el precio, la moneda o el impuesto que se le factura al cliente.';
+    }
+
+    const hoy = this.operationDate();
+    const fin = this.dateOnly(original.effectiveToDate);
+
+    return hoy && fin && fin < hoy
+      ? 'Estás corrigiendo una configuración cuya vigencia ya terminó.'
+      : '';
+  });
+
+  protected readonly correctionReasonRequired = computed(
+    () => this.motivoExigidoPorElServidor() || this.correctionReasonBecause() !== '',
   );
 
   protected readonly positionForm = this.formBuilder.nonNullable.group({
@@ -1211,7 +1275,13 @@ export class ServicesPage implements OnInit, OnDestroy {
           this.message.set(
             editing ? 'Asignación actualizada correctamente.' : 'Asignación creada correctamente.',
           );
-          this.loadAssignments(service);
+          // Ficha y listado, los dos.
+          //
+          // El panel se refrescaba solo, y de la lista salen los contadores de la fila —Posiciones,
+          // Req./Asig.— y tambien la cuenta de vacantes de la pestaña, que se calcula sobre datos
+          // del detalle. Refrescar la mitad dejaba dos numeros distintos sobre el mismo servicio,
+          // uno al lado del otro. Son cuatro defectos reportados y una sola causa.
+          this.refrescarFichaYListado(service);
         },
         error: (error: HttpErrorResponse) => this.setError(error),
       });
@@ -1247,7 +1317,13 @@ export class ServicesPage implements OnInit, OnDestroy {
         next: () => {
           this.saving.set(false);
           this.message.set('Asignación desactivada correctamente.');
-          this.loadAssignments(service);
+          // Ficha y listado, los dos.
+          //
+          // El panel se refrescaba solo, y de la lista salen los contadores de la fila —Posiciones,
+          // Req./Asig.— y tambien la cuenta de vacantes de la pestaña, que se calcula sobre datos
+          // del detalle. Refrescar la mitad dejaba dos numeros distintos sobre el mismo servicio,
+          // uno al lado del otro. Son cuatro defectos reportados y una sola causa.
+          this.refrescarFichaYListado(service);
         },
         error: (error: HttpErrorResponse) => this.setError(error),
       });
@@ -1300,6 +1376,8 @@ export class ServicesPage implements OnInit, OnDestroy {
       currencyCode: configuration.currencyCode,
       isTaxIncluded: configuration.isTaxIncluded,
     });
+    this.correctionReason.set('');
+    this.motivoExigidoPorElServidor.set(false);
     this.configurationEditorOpen.set(true);
   }
 
@@ -1485,7 +1563,13 @@ export class ServicesPage implements OnInit, OnDestroy {
             editing ? 'Posición actualizada correctamente.' : 'Posición creada correctamente.',
           );
           this.selectedPosition.set(position);
-          this.loadPositions(service);
+          // Ficha y listado, los dos.
+          //
+          // El panel se refrescaba solo, y de la lista salen los contadores de la fila —Posiciones,
+          // Req./Asig.— y tambien la cuenta de vacantes de la pestaña, que se calcula sobre datos
+          // del detalle. Refrescar la mitad dejaba dos numeros distintos sobre el mismo servicio,
+          // uno al lado del otro. Son cuatro defectos reportados y una sola causa.
+          this.refrescarFichaYListado(service);
         },
         error: (error: HttpErrorResponse) => this.setError(error),
       });
@@ -1526,7 +1610,13 @@ export class ServicesPage implements OnInit, OnDestroy {
             this.shiftPatterns.set([]);
             this.shiftSegments.set([]);
           }
-          this.loadPositions(service);
+          // Ficha y listado, los dos.
+          //
+          // El panel se refrescaba solo, y de la lista salen los contadores de la fila —Posiciones,
+          // Req./Asig.— y tambien la cuenta de vacantes de la pestaña, que se calcula sobre datos
+          // del detalle. Refrescar la mitad dejaba dos numeros distintos sobre el mismo servicio,
+          // uno al lado del otro. Son cuatro defectos reportados y una sola causa.
+          this.refrescarFichaYListado(service);
         },
         error: (error: HttpErrorResponse) => this.setError(error),
       });
@@ -1892,8 +1982,11 @@ export class ServicesPage implements OnInit, OnDestroy {
       return;
     }
 
-    if (/motivo/i.test(mensaje)) {
-      this.correctionReasonRequired.set(true);
+    // Red de seguridad: si el servidor pide motivo por un caso que aquí no se previó, el campo
+    // aparece igual. Se mira también el detalle de los campos, porque en una validación el
+    // «motivo» viaja ahí y no en el mensaje de cabecera.
+    if (/motivo/i.test(mensaje) || /motivo/i.test(JSON.stringify(error.error ?? ''))) {
+      this.motivoExigidoPorElServidor.set(true);
     }
 
     this.error.set(mensaje);
@@ -1905,7 +1998,7 @@ export class ServicesPage implements OnInit, OnDestroy {
     this.configurationEditorOpen.set(false);
     this.editingConfiguration.set(null);
     this.correctionReason.set('');
-    this.correctionReasonRequired.set(false);
+    this.motivoExigidoPorElServidor.set(false);
     this.loadConfigurations();
   }
 }

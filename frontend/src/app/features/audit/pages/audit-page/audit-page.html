@@ -16,31 +16,42 @@
     </div>
   </article>
 
+  <!--
+    Cada tarjeta dice a qué se refiere, y no es un detalle de redacción.
+
+    Las cuatro de la derecha se cuentan sobre lo que se ve —la página del servidor, ya pasada por los
+    filtros de actor, acción y resultado, que se aplican aquí—. Antes no lo decían, y con 2 641
+    registros en la consulta la tarjeta de «Errores» mostraba un 0 mirando 30: afirmaba que no hubo
+    ninguno cuando podía haberlos en cualquiera de las otras 88 páginas.
+
+    «Eventos» pasa a enseñar el total de la consulta, que es lo que se le pide a un resumen, y deja
+    para la línea de apoyo cuántos se están viendo.
+  -->
   <section class="audit-summary" aria-label="Resumen de auditoría">
     <article class="gi-card metric-card">
       <span>Eventos</span>
-      <strong>{{ visibleEvents().length }}</strong>
-      <small>{{ totalCount() }} total(es) en la consulta</small>
+      <strong>{{ totalCount() }}</strong>
+      <small>{{ visibleEvents().length }} en esta página</small>
     </article>
     <article class="gi-card metric-card">
       <span>Altas</span>
       <strong>{{ createCount() }}</strong>
-      <small>Registros creados</small>
+      <small>Registros creados · en esta página</small>
     </article>
     <article class="gi-card metric-card">
       <span>Actualizaciones</span>
       <strong>{{ updateCount() }}</strong>
-      <small>Registros modificados</small>
+      <small>Registros modificados · en esta página</small>
     </article>
     <article class="gi-card metric-card">
       <span>Bajas</span>
       <strong>{{ deactivationCount() }}</strong>
-      <small>Registros eliminados</small>
+      <small>Registros dados de baja · en esta página</small>
     </article>
     <article class="gi-card metric-card danger-card">
       <span>Errores</span>
       <strong>{{ failedCount() }}</strong>
-      <small>Eventos fallidos</small>
+      <small>Eventos fallidos · en esta página, no en toda la consulta</small>
     </article>
   </section>
 
@@ -120,7 +131,8 @@
     <header>
       <div>
         <span class="eyebrow">Bitácora</span>
-        <h2>{{ visibleEvents().length }} eventos encontrados</h2>
+        <!-- «Encontrados» eran los de la consulta, no los de la página. Ahora se dice cuál es cuál. -->
+        <h2>{{ visibleEvents().length }} de {{ totalCount() }} eventos</h2>
       </div>
       <span class="gi-badge">Página {{ page() }} de {{ totalPages() || 1 }}</span>
     </header>

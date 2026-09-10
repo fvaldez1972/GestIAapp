@@ -296,7 +296,8 @@ describe('AttendanceForm', () => {
    * nadie hizo.
    */
   it('al corregir, el formulario arranca con lo que ya estaba capturado', () => {
-    const { raiz } = montar((h) => h.row.set(fila(registro({ minutesLate: 12 }))));
+    // El registro es de un retardo: los minutos sólo existen con ese estado.
+    const { raiz } = montar((h) => h.row.set(fila(registro({ status: 'Late', minutesLate: 12 }))));
 
     const inputs = Array.from(raiz.querySelectorAll<HTMLInputElement>('.asis__campo input'));
     expect(inputs[0].value).toBe('06:54');
@@ -319,5 +320,41 @@ describe('AttendanceForm', () => {
 
     expect(f.host.cancelaciones()).toBe(1);
     expect(f.host.guardados()).toEqual([]);
+  });
+});
+
+/**
+ * Los minutos de retardo pertenecen a un retardo.
+ *
+ * <p>Salió recorriendo el portal: se podía guardar «Asistió» con cinco minutos de retardo. El
+ * registro quedaba escrito con esos minutos, no contaba como excepción, y no aparecía en ningún
+ * contador. Un dato que se contradice a sí mismo y que además nadie ve.</p>
+ */
+describe('AttendanceForm · los minutos son del retardo', () => {
+  afterEach(() => TestBed.resetTestingModule());
+
+  const minutos = (raiz: HTMLElement) =>
+    Array.from(raiz.querySelectorAll<HTMLElement>('.asis__campo span'))
+      .some((etiqueta) => etiqueta.textContent?.includes('Minutos de retardo'));
+
+  it('con «Asistió» no se piden', () => {
+    const { raiz } = montar((h) => h.row.set(fila(registro({ status: 'Present' }))));
+
+    expect(minutos(raiz)).toBe(false);
+  });
+
+  it('con «Llegó tarde» sí', () => {
+    const { raiz } = montar((h) => h.row.set(fila(registro({ status: 'Late', minutesLate: 7 }))));
+
+    expect(minutos(raiz)).toBe(true);
+  });
+
+  it('un registro guardado como «Asistió» no arrastra minutos de un estado que ya no tiene', () => {
+    const { raiz } = montar((h) =>
+      h.row.set(fila(registro({ status: 'Present', minutesLate: 12 }))),
+    );
+
+    expect(minutos(raiz)).toBe(false);
+    expect(raiz.textContent).not.toContain('12');
   });
 });

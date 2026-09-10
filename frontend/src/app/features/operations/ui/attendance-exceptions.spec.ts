@@ -103,14 +103,22 @@ describe('AttendanceExceptions', () => {
   });
 
   /**
-   * El hueco no continúa en incidencia: no hay persona a la que registrarle nada. El componente
-   * compartido rompe en desarrollo si se confunden, así que esto además comprueba que no se
-   * confundieron.
+   * El hueco no continúa en la misma pantalla: no hay persona a la que corregirle nada. El
+   * componente compartido rompe en desarrollo si se confunden, así que esto además comprueba que no
+   * se confundieron.
+   *
+   * <p>La falta y el retardo llevan a <b>corregir la asistencia</b>, que es lo que abre el panel.
+   * Antes el rótulo decía «Registrar incidencia» y abría otra cosa; la incidencia se registra en su
+   * propia pantalla, donde además se cierra cubriendo el turno o declarándolo sin cubrir.</p>
    */
-  it('la falta y el retardo llevan a incidencia; el hueco, a cobertura', () => {
+  it('la falta y el retardo llevan a corregir la asistencia; el hueco, a cobertura', () => {
     const { acciones } = montar(conTodo);
 
-    expect(acciones()).toEqual(['Registrar incidencia', 'Ver en cobertura', 'Registrar incidencia']);
+    expect(acciones()).toEqual([
+      'Corregir la asistencia',
+      'Ver en cobertura',
+      'Corregir la asistencia',
+    ]);
   });
 
   it('avisa qué excepción de persona se eligió, con su tipo', () => {
@@ -160,7 +168,7 @@ describe('AttendanceExceptions', () => {
     });
 
     expect(badges()).toEqual(['Posterior al cierre', 'Posterior al cierre']);
-    expect(acciones()).toContain('Registrar incidencia');
+    expect(acciones()).toContain('Corregir la asistencia');
 
     for (const boton of Array.from(raiz.querySelectorAll<HTMLButtonElement>('.gi-exc__button'))) {
       expect(boton.disabled).toBe(false);

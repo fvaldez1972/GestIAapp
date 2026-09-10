@@ -86,15 +86,23 @@ const ESTADOS: readonly GiSelectOption[] = [
                 (input)="cambiar('actualEndTime', $any($event.target).value || null)"
               />
             </label>
-            <label class="asis__campo asis__campo--corto">
-              <span>Minutos de retardo</span>
-              <input
-                type="number"
-                min="0"
-                [value]="draft().minutesLate"
-                (input)="cambiar('minutesLate', +$any($event.target).value)"
-              />
-            </label>
+            <!--
+               Los minutos sólo se piden con «Llegó tarde». Antes se pedían también con «Asistió», y
+               así se podía guardar «asistió, con cinco minutos de retardo»: un registro que se
+               contradice a sí mismo y que además no cuenta como excepción en ninguna parte. El
+               retardo quedaba escrito y no se veía en ningún contador.
+             -->
+            @if (draft().status === 'Late') {
+              <label class="asis__campo asis__campo--corto">
+                <span>Minutos de retardo</span>
+                <input
+                  type="number"
+                  min="0"
+                  [value]="draft().minutesLate"
+                  (input)="cambiar('minutesLate', +$any($event.target).value)"
+                />
+              </label>
+            }
           </div>
           <p class="asis__pie">La hora se teclea: el registro digital de entrada no está en fase 1.</p>
         } @else {
@@ -322,7 +330,10 @@ export class AttendanceForm {
       status: row.record?.status ?? 'Present',
       actualStartTime: row.record?.actualStartTime?.slice(0, 5) ?? null,
       actualEndTime: row.record?.actualEndTime?.slice(0, 5) ?? null,
-      minutesLate: row.record?.minutesLate ?? 0,
+      // Los minutos sólo pertenecen a un retardo. Si el registro guardado dice otra cosa —los hubo
+      // mientras el formulario los pedía con cualquier estado— no se arrastran en silencio: se
+      // muestran en cero, que es lo que el estado del registro afirma.
+      minutesLate: row.record?.status === 'Late' ? row.record.minutesLate : 0,
       notes: row.record?.notes ?? null,
       idApprovalRequest: null,
       correctionReason: null,
@@ -398,10 +409,16 @@ export class AttendanceForm {
     // Una falta no lleva horas ni minutos de retardo: no hubo entrada que registrar. Dejarlos
     // puestos guardaría una falta con hora de entrada, que es una contradicción que el reporte
     // heredaría sin poder explicarla.
+    if (siguiente.status === 'Absent') {
+      this.draft.set({ ...siguiente, actualStartTime: null, actualEndTime: null, minutesLate: 0 });
+      return;
+    }
+
+    // Y quien asistió no llegó tarde: si llegó tarde, el estado lo dice. Sin esto quedaban minutos
+    // de retardo colgados de un «Asistió» —un retardo que no cuenta como excepción ni aparece en
+    // ningún contador— sólo porque el estado se cambió después de teclear los minutos.
     this.draft.set(
-      siguiente.status === 'Absent'
-        ? { ...siguiente, actualStartTime: null, actualEndTime: null, minutesLate: 0 }
-        : siguiente,
+      siguiente.status === 'Late' ? siguiente : { ...siguiente, minutesLate: 0 },
     );
   }
 

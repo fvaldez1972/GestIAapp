@@ -34,12 +34,34 @@ export type ExceptionPick = {
       </header>
 
       @if (total() === 0) {
-        <p class="exc__limpio">
-          <span class="exc__pill">Cero real</span>
-          Los {{ shiftCount() }} turnos del día se cumplieron como se publicaron. No es que falten
-          datos: es que no hubo excepciones.
-        </p>
+        <!--
+          El cero sólo es real cuando el día está capturado entero. Con turnos pendientes, afirmar
+          que «no es que falten datos» es exactamente lo contrario de lo que pasa: faltan.
+        -->
+        @if (pendingCount() === 0) {
+          <p class="exc__limpio">
+            <span class="exc__pill">Cero real</span>
+            Los {{ shiftCount() }} turnos del día se cumplieron como se publicaron. No es que falten
+            datos: es que no hubo excepciones.
+          </p>
+        } @else {
+          <p class="exc__limpio">
+            <span class="exc__pill">Todavía no se sabe</span>
+            De los {{ shiftCount() }} turnos del día, {{ pendingCount() }} siguen sin capturar. Hasta
+            que se capturen, que no haya excepciones no dice que no las hubiera.
+          </p>
+        }
       } @else {
+        <!--
+          El rótulo dice lo que hace, y esto costó una revisión entera. Decía «Registrar
+          incidencia» y abría «Corregir la asistencia»: son dos cosas distintas del dominio —la
+          incidencia documenta un hecho y abre cobertura; esto arregla lo que se capturó— bajo un
+          solo nombre.
+
+          Se conserva la conducta y se corrige el nombre, no al revés: desde Asistencia se corrige
+          la asistencia, y la incidencia se registra en su propia pantalla, que es donde se cierra
+          cubriendo el turno o declarándolo sin cubrir.
+        -->
         @for (falta of faltas(); track falta.idScheduledShift) {
           <gi-exception-row
             type="absence"
@@ -47,7 +69,7 @@ export type ExceptionPick = {
             [meta]="falta.positionCode + ' · ' + falta.positionName"
             [planned]="falta.planned"
             [actual]="falta.actual"
-            actionLabel="Registrar incidencia"
+            actionLabel="Corregir la asistencia"
             [badge]="afterClosureBadge()"
             [consequence]="consecuenciaFalta"
             (act)="pick.emit({ row: falta, kind: 'absence' })"
@@ -75,7 +97,7 @@ export type ExceptionPick = {
             [planned]="retardo.planned"
             [actual]="retardo.actual"
             [actualNote]="minutos(retardo)"
-            actionLabel="Registrar incidencia"
+            actionLabel="Corregir la asistencia"
             [badge]="afterClosureBadge()"
             [consequence]="consecuenciaRetardo"
             (act)="pick.emit({ row: retardo, kind: 'late' })"
@@ -143,6 +165,8 @@ export class AttendanceExceptions {
   readonly rows = input.required<readonly AttendanceRow[]>();
   readonly gaps = input.required<readonly AttendanceGap[]>();
   readonly shiftCount = input(0);
+  /** Cuántos turnos siguen sin capturar. Sin esto, el vacío afirmaba lo que no podía saber. */
+  readonly pendingCount = input(0);
 
   /**
    * Si el día ya está cerrado.

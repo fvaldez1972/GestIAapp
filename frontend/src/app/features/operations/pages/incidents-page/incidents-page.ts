@@ -26,7 +26,7 @@ import {
   ScheduleVersion,
 } from '../../../clients/data-access/client.models';
 import { ServiceApiService } from '../../../services/data-access/service-api.service';
-import { ServiceListItem } from '../../../services/data-access/service.models';
+import { ServiceListItem, serviceOptionLabel } from '../../../services/data-access/service.models';
 import { buildAttendanceDay, correctionNeedsReason, dayState } from '../../data-access/attendance-day';
 import { IncidentDraft, IncidentRow, buildIncidentDay, openIncidents } from '../../data-access/incident-day';
 import { CoverageDraft, CoverageForm, CoverageTarget } from '../../ui/coverage-form';
@@ -102,7 +102,7 @@ export class IncidentsPage {
   protected readonly editingCoverage = signal<CoverageRecord | null>(null);
 
   protected readonly serviceOptions = computed<readonly GiSelectOption[]>(() =>
-    this.services().map((service) => ({ value: service.idService, label: service.name })),
+    this.services().map((service) => ({ value: service.idService, label: serviceOptionLabel(service) })),
   );
 
   protected readonly selectedService = computed(

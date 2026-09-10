@@ -29,6 +29,7 @@ import {
 import { WorkforceApiService } from '../../../workforce/data-access/workforce-api.service';
 import { Employee } from '../../../workforce/data-access/workforce.models';
 import { GiSelect, GiSelectOption } from '../../../../shared/ui/gi-select/gi-select';
+import { serviceOptionLabel } from '../../../services/data-access/service.models';
 import { normalizeCatalogName } from '../../../../shared/util/catalog-name';
 import { CatalogApiService } from '../../data-access/catalog-api.service';
 import {
@@ -387,7 +388,7 @@ export class CatalogsPage implements OnInit, AfterViewInit {
     this.clients().map((client) => ({ value: client.idClient, label: client.tradeName || client.legalName })),
   );
   protected readonly serviceOptions = computed<readonly GiSelectOption[]>(() =>
-    this.services().map((service) => ({ value: service.idService, label: service.name })),
+    this.services().map((service) => ({ value: service.idService, label: serviceOptionLabel(service) })),
   );
   protected readonly positionOptions = computed<readonly GiSelectOption[]>(() =>
     this.positions().map((position) => ({ value: position.idPosition, label: position.name })),

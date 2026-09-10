@@ -25,7 +25,7 @@ import {
   ShiftSegment,
 } from '../../../clients/data-access/client.models';
 import { ServiceApiService } from '../../../services/data-access/service-api.service';
-import { ServiceListItem } from '../../../services/data-access/service.models';
+import { ServiceListItem, serviceOptionLabel } from '../../../services/data-access/service.models';
 import {
   PlanningCell,
   buildCandidates,
@@ -119,7 +119,7 @@ export class PlanningPage {
   protected readonly pendingCell = signal<PlanningCell | null>(null);
 
   protected readonly serviceOptions = computed<readonly GiSelectOption[]>(() =>
-    this.services().map((service) => ({ value: service.idService, label: service.name })),
+    this.services().map((service) => ({ value: service.idService, label: serviceOptionLabel(service) })),
   );
 
   protected readonly selectedService = computed(

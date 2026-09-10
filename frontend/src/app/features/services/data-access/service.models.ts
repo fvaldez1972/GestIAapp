@@ -58,6 +58,26 @@ export function serviceState(
   return 'active';
 }
 
+/**
+ * Cómo se nombra un servicio en un selector.
+ *
+ * <p><b>El nombre solo no basta.</b> Una organización real repite nombres entre clientes: en la
+ * base de demostración hay <b>cinco</b> servicios llamados «Control de acceso vehicular» y cuatro
+ * «Vigilancia perimetral 24x7». En la barra del día operativo eso se veía como cinco opciones
+ * idénticas, y elegir la equivocada significa capturar la asistencia contra el cliente que no es.</p>
+ *
+ * <p>Se acompaña del cliente y de la sede, que es lo mismo que hace la columna «Cliente · Sede» del
+ * listado de Servicios y por la misma razón.</p>
+ */
+export const serviceOptionLabel = (service: {
+  readonly name: string;
+  // Opcional: cuando la lista ya viene acotada a un cliente, ese dato no viaja y tampoco hace
+  // falta; ahí basta la sede para distinguir.
+  readonly clientName?: string | null;
+  readonly clientSiteName: string | null;
+}) =>
+  [service.name, service.clientName, service.clientSiteName].filter(Boolean).join(' · ');
+
 /** Lo que falta en el servicio. **Negativo si sobra gente**, y se muestra así. */
 export const serviceVacancy = (service: ServiceListItem) =>
   service.requiredWorkerCount - service.assignedWorkerCount;

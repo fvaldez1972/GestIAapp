@@ -1,4 +1,13 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import {
+  Component,
+  DestroyRef,
+  ElementRef,
+  afterNextRender,
+  computed,
+  inject,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs';
 import { AuthService } from '../../auth/auth.service';
@@ -16,6 +25,17 @@ import { GiConfirmDialog } from '../../../shared/ui/gi-confirm-dialog/gi-confirm
 })
 export class AppShell {
   private readonly router = inject(Router);
+  private readonly destroyRef = inject(DestroyRef);
+
+  /**
+   * Las dos piezas del cromo: la barra de organización y la superior.
+   *
+   * <p>La de organización se pide con `read: ElementRef` a propósito. Una referencia de plantilla
+   * sobre un componente devuelve <b>la instancia</b>, no el elemento, y entonces `nativeElement`
+   * sería `undefined`: la medida caería al valor de reserva sin que nada fallara.</p>
+   */
+  private readonly contextBar = viewChild('contextBar', { read: ElementRef<HTMLElement> });
+  private readonly appHeader = viewChild<ElementRef<HTMLElement>>('appHeader');
   protected readonly auth = inject(AuthService);
   protected readonly layout = inject(LayoutService);
   private readonly currentUrl = signal(this.router.url);
@@ -28,6 +48,47 @@ export class AppShell {
     }),
   );
   protected readonly breadcrumbs = computed(() => this.resolveBreadcrumbs(this.currentUrl()));
+
+  /**
+   * Publica en `--gestia-chrome-bottom` cuánto ocupa el cromo con la página en reposo.
+   *
+   * <p><b>Por qué hace falta.</b> Los paneles laterales de Planeación, Seguridad y Auditoría son
+   * `position: fixed` y se anclaban a `--gestia-topbar-height`, que son 72 px. Pero encima de la
+   * barra superior va la de organización, así que con la página sin rodar el cromo termina en
+   * 151 px, y esos 79 px de diferencia se comían la cabecera del panel. El botón de cerrar quedaba
+   * <b>debajo</b> de la barra: no sólo invisible —<code>elementFromPoint</code> devolvía el botón
+   * de perfil—, de modo que pulsar donde se veía «Cerrar» abría el diálogo de salir.</p>
+   *
+   * <p><b>Se mide en reposo a propósito.</b> La barra de organización rueda con la página, así que
+   * el borde real se mueve entre 151 y 72. Seguirlo obligaría a re-medir en cada desplazamiento, y
+   * bastaría con que una pantalla ruede en un contenedor propio para que el oyente se lo pierda y
+   * el panel volviera a esconder su botón. Anclarlo al máximo —la suma de las dos barras— es
+   * correcto siempre: nunca tapa. Lo que se paga es una franja vacía sobre el panel mientras la
+   * página está rodada, que es cosmética y no atrapa a nadie.</p>
+   */
+  private publicarElBordeDelCromo(): void {
+    afterNextRender(() => {
+      const medir = () => {
+        const header = this.appHeader()?.nativeElement;
+
+        if (!header) {
+          return;
+        }
+
+        const alto = (this.contextBar()?.nativeElement.offsetHeight ?? 0) + header.offsetHeight;
+        document.documentElement.style.setProperty('--gestia-chrome-bottom', `${Math.round(alto)}px`);
+      };
+
+      medir();
+      // Al cambiar el ancho, la barra de organización envuelve y crece. Ahí sí hay que re-medir.
+      window.addEventListener('resize', medir, { passive: true });
+
+      this.destroyRef.onDestroy(() => {
+        window.removeEventListener('resize', medir);
+        document.documentElement.style.removeProperty('--gestia-chrome-bottom');
+      });
+    });
+  }
   protected readonly pageTitle = computed(() => this.breadcrumbs().at(-1) ?? 'GestIA');
   protected readonly isPlatformAdmin = computed(() =>
     this.auth.session()?.permissions.includes('PLATFORM.ADMIN') ?? false,
@@ -56,6 +117,8 @@ export class AppShell {
   );
 
   constructor() {
+    this.publicarElBordeDelCromo();
+
     this.router.events
       .pipe(filter((event): event is NavigationEnd => event instanceof NavigationEnd))
       .subscribe((event) => this.currentUrl.set(event.urlAfterRedirects));

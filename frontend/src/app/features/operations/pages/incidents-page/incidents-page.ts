@@ -615,12 +615,25 @@ export class IncidentsPage {
     }
   }
 
+  /**
+   * Deja dicho qué falló, y <b>suelta el guardado</b>.
+   *
+   * <p>Lo segundo importa tanto como lo primero. Cada guardado de esta pantalla pone `saving` en
+   * verdadero y lo suelta en el `complete` de la suscripción, y <b>RxJS no llama a `complete`
+   * cuando el observable falla</b>. Sin soltarlo aquí, un guardado que falla deja el botón apagado
+   * para siempre: el aviso explica el error y no hay forma de reintentar salvo recargar.</p>
+   *
+   * <p>Salió cubriendo un turno en el recorrido del portal: el panel se quedó con «Registrar la
+   * cobertura» deshabilitado, sin pedir nada más y sin mandar ninguna petición. Las otras cuatro
+   * pantallas con guardados ya lo hacían aquí; éstas tres no.</p>
+   */
   private setError(error: HttpErrorResponse, porOmision: string): void {
     const detail =
       typeof error.error === 'object' && error.error !== null
         ? (error.error as Record<string, unknown>)['detail']
         : null;
 
+    this.saving.set(false);
     this.error.set(typeof detail === 'string' ? detail : porOmision);
   }
 }

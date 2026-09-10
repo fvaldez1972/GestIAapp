@@ -132,15 +132,28 @@ const ESTADOS: readonly GiSelectOption[] = [
               (input)="cambiar('coverageEndTime', $any($event.target).value)"
             />
           </label>
-          <label class="cob__campo">
-            <span>Estado</span>
-            <gi-select
-              label="Estado de la cobertura"
-              [options]="estados"
-              [value]="draft().status"
-              (valueChange)="cambiar('status', $any($event))"
-            />
-          </label>
+          <!--
+            Una cobertura nace solicitada. El servidor lo exige —«La cobertura debe crearse en
+            estado solicitado»— y el formulario ofrecía «Confirmada», que además venía puesta por
+            omisión: cada alta chocaba con un 409 antes de escribir nada. Aquí se dice, y se elige
+            sólo al corregir una que ya existe.
+          -->
+          @if (isCorrection()) {
+            <label class="cob__campo">
+              <span>Estado</span>
+              <gi-select
+                label="Estado de la cobertura"
+                [options]="estados"
+                [value]="draft().status"
+                (valueChange)="cambiar('status', $any($event))"
+              />
+            </label>
+          } @else {
+            <p class="cob__campo cob__nace">
+              <span>Estado</span>
+              <strong>Solicitada</strong>
+            </p>
+          }
         </div>
 
         <p class="cob__ayuda">
@@ -332,7 +345,8 @@ export class CoverageForm {
       coverageStartTime: target.startTime,
       coverageEndTime: target.endTime,
       isOvernight: target.isOvernight,
-      status: 'Confirmed',
+      // Solicitada, que es como el servidor admite que nazca. Confirmarla es un paso posterior.
+      status: 'Requested',
       notes: null,
       idCoverageReason: null,
       correctionReason: null,

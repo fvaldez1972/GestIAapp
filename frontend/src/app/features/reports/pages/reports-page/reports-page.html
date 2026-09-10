@@ -57,7 +57,7 @@
 
   @if (!hasTurnDenominator()) {
     <article class="gi-card no-data-note">
-      <strong>No hay turnos esperados en el periodo seleccionado.</strong>
+      <strong>No hay asistencia capturada en el periodo seleccionado.</strong>
       <span>Las métricas de asistencia, ausentismo y retardos se muestran como N/D para evitar interpretaciones erróneas.</span>
       <div>
         <button class="gi-button gi-button--secondary" type="button" (click)="refresh()">Ajustar filtros</button>
@@ -131,7 +131,7 @@
     <article class="gi-card report-panel">
       <span class="eyebrow">Operación por servicio</span>
       <h2>Comparativo por servicio</h2>
-      <p class="panel-copy">Cada fila compara operación real del periodo. Las tasas usan N/D si no hay turnos esperados.</p>
+      <p class="panel-copy">Cada fila compara operación real del periodo. Las tasas usan N/D si no hay asistencia capturada.</p>
 
       <div class="table-wrap">
         <table class="gi-table">
@@ -290,7 +290,7 @@
         } @else {
           <div class="gi-empty-state">
             <h3>Datos insuficientes para graficar</h3>
-            <p>No hay turnos esperados para calcular distribución de asistencia, ausentismo o retardos.</p>
+            <p>No hay asistencia capturada para calcular distribución de asistencia, ausentismo o retardos.</p>
           </div>
         }
       </article>
@@ -378,7 +378,7 @@
           <div><dt>Periodo</dt><dd>{{ periodLabel() }}</dd></div>
           <div><dt>Generado por</dt><dd>Administrador GestIA</dd></div>
           <div><dt>Zona horaria</dt><dd>{{ timezoneLabel() }}</dd></div>
-          <div><dt>Datos N/D</dt><dd>{{ hasTurnDenominator() ? 'No aplica' : 'Incluye explicación por falta de turnos esperados' }}</dd></div>
+          <div><dt>Datos N/D</dt><dd>{{ hasTurnDenominator() ? 'No aplica' : 'Incluye explicación por falta de asistencia capturada' }}</dd></div>
         </dl>
       </article>
     </section>
@@ -397,7 +397,7 @@
           </article>
         }
       </div>
-      <p class="soft-alert">N/D no es cero: significa que falta un denominador suficiente, por ejemplo turnos esperados.</p>
+      <p class="soft-alert">N/D no es cero: significa que falta un denominador suficiente, por ejemplo asistencia capturada.</p>
     </aside>
   }
 </section>

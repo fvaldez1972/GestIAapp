@@ -140,6 +140,21 @@ export class ServicesPage implements OnInit, OnDestroy {
   protected readonly shiftSegments = signal<readonly ShiftSegment[]>([]);
   protected readonly assignments = signal<readonly ServiceAssignment[]>([]);
   protected readonly positionVacancy = signal<readonly PositionVacancy[]>([]);
+
+  /**
+   * Si la lista de patrones ya llegó del servidor.
+   *
+   * <p><b>Una lista vacía no significa «no hay».</b> Puede significar «todavía no se han pedido» o
+   * «se pidieron y la petición se canceló»: estas lecturas se cancelan cuando cambia el ámbito
+   * —al abrir otro servicio, otra posición— y no se reintentan. Sin esta señal, la pantalla decía
+   * «Sin patrones registrados para esta posición» sobre una posición que sí tenía patrones, y sólo
+   * al crear otro aparecían todos. Se reportó así: «una vez que agregas un nuevo patrón, aparecen
+   * los que están ocultos».</p>
+   *
+   * <p>Es la tercera vez que esta confusión cuesta un defecto en esta pantalla, después de las
+   * sedes del cliente y del aviso de «todavía se están cargando».</p>
+   */
+  protected readonly shiftPatternsLoaded = signal(false);
   /** El servicio que se va a desactivar, mientras el diálogo pregunta. */
   protected readonly serviceToDeactivate = signal<ManagedService | null>(null);
   /**
@@ -587,6 +602,7 @@ export class ServicesPage implements OnInit, OnDestroy {
     this.selectedPosition.set(null);
     this.selectedShiftPattern.set(null);
     this.shiftPatterns.set([]);
+    this.shiftPatternsLoaded.set(false);
     this.shiftSegments.set([]);
   }
 
@@ -717,6 +733,7 @@ export class ServicesPage implements OnInit, OnDestroy {
           this.selectedPosition.set(null);
           this.selectedShiftPattern.set(null);
           this.shiftPatterns.set([]);
+          this.shiftPatternsLoaded.set(false);
           this.shiftSegments.set([]);
         }
       },
@@ -729,6 +746,7 @@ export class ServicesPage implements OnInit, OnDestroy {
     this.selectedPosition.set(position);
     this.selectedShiftPattern.set(null);
     this.shiftPatterns.set([]);
+    this.shiftPatternsLoaded.set(false);
     this.shiftSegments.set([]);
     this.loadShiftPatterns(position);
   }
@@ -737,6 +755,7 @@ export class ServicesPage implements OnInit, OnDestroy {
     const client = this.selectedClient(),
       service = this.selectedService();
     if (!client || !service || !position || !this.canReadPlanning()) return;
+    this.shiftPatternsLoaded.set(false);
     this.read(
       this.api.listShiftPatterns(
         this.selectedOrganizationId(),
@@ -746,6 +765,7 @@ export class ServicesPage implements OnInit, OnDestroy {
       ),
       3,
       (rows) => {
+        this.shiftPatternsLoaded.set(true);
         this.shiftPatterns.set(rows);
         const pattern =
           rows.find((p) => p.idShiftPattern === this.selectedShiftPattern()?.idShiftPattern) ??
@@ -1172,6 +1192,7 @@ export class ServicesPage implements OnInit, OnDestroy {
             this.configurations.set([]);
             this.positions.set([]);
             this.shiftPatterns.set([]);
+            this.shiftPatternsLoaded.set(false);
             this.shiftSegments.set([]);
             this.selectedPosition.set(null);
             this.selectedShiftPattern.set(null);
@@ -1608,6 +1629,7 @@ export class ServicesPage implements OnInit, OnDestroy {
             this.selectedPosition.set(null);
             this.selectedShiftPattern.set(null);
             this.shiftPatterns.set([]);
+            this.shiftPatternsLoaded.set(false);
             this.shiftSegments.set([]);
           }
           // Ficha y listado, los dos.

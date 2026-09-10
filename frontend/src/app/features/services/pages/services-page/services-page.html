@@ -396,6 +396,14 @@
 
             @if (!selectedPosition()) {
               <div class="compact-state">Selecciona una posición para configurar sus patrones.</div>
+            } @else if (!shiftPatternsLoaded()) {
+              <!--
+                «Todavía no han llegado» no es «no hay». Estas lecturas se cancelan al cambiar de
+                servicio o de posición y no se reintentan; sin distinguirlo, la pantalla afirmaba
+                «Sin patrones registrados» sobre una posición que sí los tenía, y sólo al crear otro
+                aparecían todos.
+              -->
+              <div class="compact-state">Cargando los patrones de esta posición…</div>
             } @else if (!shiftPatterns().length) {
               <div class="compact-state">Sin patrones registrados para esta posición.</div>
             } @else {

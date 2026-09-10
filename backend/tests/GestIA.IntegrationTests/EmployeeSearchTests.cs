@@ -1,6 +1,7 @@
 using GestIA.Application.Assignments;
 using GestIA.Application.Workforce;
 using GestIA.Domain.Catalogs;
+using GestIA.Domain.Documents;
 using GestIA.Domain.Clients;
 using GestIA.Domain.Operations;
 using GestIA.Domain.Organizations;
@@ -321,6 +322,69 @@ public sealed class EmployeeSearchTests(OperationalSqlDatabase database)
     }
 
     // ── Ayudas ───────────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// El expediente se cuenta en el listado, y no es lo mismo que los requisitos.
+    ///
+    /// <para>Se reportó que la pestaña decía «Documentos 0» mientras la lista de abajo enseñaba
+    /// documentos de esa misma persona. El número salía del propio expediente, que vive en una
+    /// pestaña perezosa: hasta que alguien la abría no había nada que emitir. Había que abrir la
+    /// pestaña para saber lo que la pestaña servía para no tener que abrir.</para>
+    ///
+    /// <para>Son dos tablas distintas y ahí está la trampa: los requisitos se cuentan sobre
+    /// <c>EmployeeDocuments</c> y el expediente sobre <c>BusinessDocuments</c>. Una organización
+    /// puede exigir dos documentos y tener cinco archivos guardados, o exigir cero y tener tres.</para>
+    /// </summary>
+    [OperationalSqlFact]
+    public async Task TheListCountsTheFilesInTheRecordApartFromTheRequirements()
+    {
+        var seed = await SeedAsync("EXP");
+
+        Guid idEmpleado;
+        await using (var context = database.Context())
+        {
+            idEmpleado = context.Employees
+                .Single(item => item.CodeEmployee == "EXP-EMP-OK")
+                .IdEmployee;
+
+            context.Add(Archivo(seed.OrganizationId, idEmpleado, "Acta de nacimiento"));
+            context.Add(Archivo(seed.OrganizationId, idEmpleado, "Comprobante de estudios"));
+
+            // Uno archivado: está en la tabla y no se cuenta, porque tampoco se lista.
+            var archivado = Archivo(seed.OrganizationId, idEmpleado, "Constancia retirada");
+            archivado.Deactivate(ActorId, ActorName, Now);
+            context.Add(archivado);
+
+            await context.SaveChangesAsync(Token);
+        }
+
+        var (items, _) = await SearchAsync(Criterios(seed.OrganizationId));
+
+        var conExpediente = Assert.Single(items, item => item.CodeEmployee == "EXP-EMP-OK");
+        Assert.Equal(2, conExpediente.DocumentCount);
+        // Y sigue siendo un número distinto del de los requisitos, que son dos por otra razón.
+        Assert.Equal(2, conExpediente.RequiredDocuments);
+
+        // Quien no tiene ningún archivo dice cero, y eso sí es un cero de verdad.
+        var sinExpediente = Assert.Single(items, item => item.CodeEmployee == "EXP-EMP-SIN");
+        Assert.Equal(0, sinExpediente.DocumentCount);
+    }
+
+    private static BusinessDocument Archivo(Guid organizationId, Guid idEmployee, string titulo) =>
+        BusinessDocument.Create(
+            organizationId,
+            new BusinessDocumentProfile(
+                BusinessDocumentOwnerType.Employee,
+                idEmployee,
+                "Identificacion",
+                titulo,
+                BusinessDocumentStatus.PendingReview,
+                null,
+                null,
+                $"{Guid.NewGuid():N}.pdf",
+                false,
+                null),
+            ActorId, ActorName, Now);
 
     private static EmployeeSearchCriteria Criterios(Guid organizationId) =>
         new(organizationId, null, null, null, EmployeeDocumentFilter.Any, null, Day, Umbral, 0, 50);

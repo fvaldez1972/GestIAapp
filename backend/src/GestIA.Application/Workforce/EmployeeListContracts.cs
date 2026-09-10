@@ -64,6 +64,20 @@ public sealed record EmployeeListItemResponse(
     int ExpiringDocuments,
     int MissingDocuments,
     int AssignmentCount,
+    /// <summary>
+    /// Cuántos documentos tiene el expediente de la persona.
+    ///
+    /// <para><b>No es lo mismo que <c>RequiredDocuments</c>, y por eso existe.</b> Aquéllos son los
+    /// tipos que la organización exige, y salen de <c>EmployeeDocuments</c>; éste cuenta los
+    /// archivos que de verdad hay, que viven en <c>BusinessDocuments</c>. Una organización que no
+    /// exige ningún documento tiene <c>RequiredDocuments = 0</c> y puede tener cinco archivos
+    /// guardados.</para>
+    ///
+    /// <para>Viaja en el listado porque la pestaña de Documentos enseña este número antes de
+    /// abrirse: sacarlo de la propia pestaña obligaba a abrirla para saber lo que la pestaña
+    /// servía para no tener que abrir.</para>
+    /// </summary>
+    int DocumentCount,
     EmployeeDocumentHealth DocumentHealth);
 
 /// <summary>

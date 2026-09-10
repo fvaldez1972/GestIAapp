@@ -96,7 +96,20 @@ export class WorkforcePage {
   protected readonly expiringWithinDays = signal(30);
   protected readonly requiredDocuments = signal(0);
 
-  /** Cuántos documentos tiene la persona abierta. Lo dice el propio listado al cargarse. */
+  /**
+   * Cuántos documentos tiene la persona abierta.
+   *
+   * <p><b>Nace del listado y lo corrige la pestaña.</b> Antes sólo lo ponía la pestaña, al
+   * cargarse; como el expediente vive dentro de un `ng-template` que el panel no instancia hasta
+   * que alguien pulsa «Documentos», el número decía <b>0</b> mientras la lista de abajo enseñaba
+   * documentos. Había que abrir la pestaña para saber lo que la pestaña servía para no abrir.</p>
+   *
+   * <p>Peor todavía: al pasar de una persona a otra no se reiniciaba, así que la segunda heredaba
+   * el número de la primera. Un número equivocado es peor que un cero, porque no se nota.</p>
+   *
+   * <p>La pestaña sigue emitiendo el suyo, y por eso el contador se mueve en el acto al agregar o
+   * archivar un documento, sin esperar a que la lista se recargue.</p>
+   */
   protected readonly documentCount = signal(0);
 
   protected readonly search = signal('');
@@ -394,6 +407,7 @@ export class WorkforcePage {
     this.activeTab.set(tab);
     this.detail.set(null);
     this.documents.set([]);
+    this.documentCount.set(employee.documentCount);
     this.assignments.set([]);
     this.loadDetail(employee.idEmployee);
   }

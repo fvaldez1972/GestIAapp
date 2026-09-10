@@ -1,5 +1,6 @@
 using GestIA.Application.Workforce;
 using GestIA.Domain.Catalogs;
+using GestIA.Domain.Documents;
 using GestIA.Domain.Operations;
 using GestIA.Domain.Workforce;
 using Microsoft.EntityFrameworkCore;
@@ -167,6 +168,16 @@ public sealed partial class WorkforceRepository
                     .Distinct()
                     .Count(),
 
+                // El expediente: los archivos que la persona tiene, no los tipos que se le exigen.
+                //
+                // El `Active` va escrito, y no se hereda: si esta consulta llegara a apagar el
+                // filtro global, un documento archivado seguiria contando y la pestaña diria un
+                // numero que la lista de abajo no respalda.
+                Documents = dbContext.BusinessDocuments.Count(document =>
+                    document.Active &&
+                    document.OwnerType == BusinessDocumentOwnerType.Employee &&
+                    document.OwnerId == employee.IdEmployee),
+
                 Assignments = dbContext.ServiceAssignments.Count(assignment =>
                     assignment.IdEmployee == employee.IdEmployee &&
                     assignment.StartDate <= criteria.Today &&
@@ -199,6 +210,7 @@ public sealed partial class WorkforceRepository
                 fila.Expiring,
                 required.Length - fila.Covered,
                 fila.Assignments,
+                fila.Documents,
                 Health(fila.Expired, fila.Expiring, required.Length - fila.Covered)))
             .ToArray();
 

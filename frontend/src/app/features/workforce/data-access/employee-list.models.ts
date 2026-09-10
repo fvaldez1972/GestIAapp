@@ -38,6 +38,13 @@ export type EmployeeListItem = {
   readonly expiringDocuments: number;
   readonly missingDocuments: number;
   readonly assignmentCount: number;
+  /**
+   * Cuántos documentos tiene el expediente. Lo dice el servidor, con la lista.
+   *
+   * <p>No es `requiredDocuments`: aquéllos son los tipos que la organización exige, éste son los
+   * archivos que de verdad hay. Una organización sin requisitos puede tener cinco archivos.</p>
+   */
+  readonly documentCount: number;
   readonly documentHealth: EmployeeDocumentHealth;
 };
 

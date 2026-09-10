@@ -27,6 +27,7 @@ export function employeeFixture(overrides: Partial<EmployeeListItem> = {}): Empl
     expiringDocuments: 0,
     missingDocuments: 0,
     assignmentCount: 1,
+    documentCount: 0,
     documentHealth: 'UpToDate',
     ...overrides,
   };

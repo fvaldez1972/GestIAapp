@@ -569,7 +569,49 @@ export class WorkforcePage {
       case 'terminate':
         this.confirming.set({ employee: event.employee, kind: 'terminate' });
         break;
+      case 'reinstate':
+        this.reinstate(event.employee);
+        break;
     }
+  }
+
+  /**
+   * Devolver al trabajo a quien estaba en permiso.
+   *
+   * <p>No pregunta antes. La confirmación existe para lo que cuesta deshacer, y esto es el
+   * deshacer: ponerle un diálogo lo haría parecer tan grave como el permiso que se está
+   * levantando.</p>
+   *
+   * <p>El endpoint es el mismo <c>PATCH …/status</c> que registra el permiso, con
+   * <c>Active</c> de vuelta. Nunca faltó servidor: faltaba que el menú de la fila lo ofreciera.</p>
+   */
+  protected reinstate(employee: EmployeeListItem): void {
+    const organizationId = this.organizationId();
+
+    if (!organizationId) {
+      return;
+    }
+
+    this.saving.set(true);
+    this.error.set('');
+
+    this.workforceApi.changeStatus(employee.idEmployee, organizationId, 'Active').subscribe({
+      next: () => {
+        this.saving.set(false);
+        this.message.set(`${employee.fullName} vuelve a estar activa y a proponerse para cubrir turnos.`);
+        this.load();
+
+        if (this.selected()?.idEmployee === employee.idEmployee) {
+          this.loadDetail(employee.idEmployee);
+        }
+      },
+      // `complete` no vale para apagar el indicador: RxJS no lo llama cuando el observable falla,
+      // y la pantalla se quedaria guardando para siempre.
+      error: () => {
+        this.saving.set(false);
+        this.error.set('No se pudo reincorporar a la persona.');
+      },
+    });
   }
 
   protected confirmAction(): void {

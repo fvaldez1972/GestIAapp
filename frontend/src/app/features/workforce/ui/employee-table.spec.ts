@@ -132,6 +132,63 @@ describe('El listado de personal', () => {
     expect(opciones.some((texto) => texto.includes('Asignar a una posición'))).toBe(true);
   });
 
+  /**
+   * El menú depende de la fila, y esto es lo que antes no pasaba.
+   *
+   * <p>La segunda persona del listado está en permiso. El menú era idéntico para todas, así que le
+   * seguía ofreciendo «Registrar permiso» —que no hace nada— y no le ofrecía volver, aunque el
+   * diálogo de permiso promete que «se puede reactivar» y el servidor sabe hacerlo desde siempre.
+   * </p>
+   */
+  it('a quien está en permiso le ofrece reincorporarse, no volver a registrarlo', () => {
+    const { filas, fixture } = montar();
+    const enPermiso = filas()[1];
+    enPermiso.querySelector<HTMLElement>('gi-row-actions button')!.click();
+    fixture.detectChanges();
+
+    const opciones = Array.from(enPermiso.querySelectorAll('[role="menuitem"]')).map((n) =>
+      n.textContent!.trim(),
+    );
+
+    expect(opciones.some((texto) => texto.includes('Reincorporar'))).toBe(true);
+    expect(opciones.some((texto) => texto.includes('Registrar permiso'))).toBe(false);
+  });
+
+  it('a quien está activa le ofrece el permiso, no la reincorporación', () => {
+    const { filas, fixture } = montar();
+    const activa = filas()[0];
+    activa.querySelector<HTMLElement>('gi-row-actions button')!.click();
+    fixture.detectChanges();
+
+    const opciones = Array.from(activa.querySelectorAll('[role="menuitem"]')).map((n) =>
+      n.textContent!.trim(),
+    );
+
+    expect(opciones.some((texto) => texto.includes('Registrar permiso'))).toBe(true);
+    expect(opciones.some((texto) => texto.includes('Reincorporar'))).toBe(false);
+  });
+
+  /**
+   * Sobre alguien dada de baja no cabe ninguna de las tres, y se enseñan apagadas con el motivo en
+   * vez de desaparecer: un menú que cambia de tamaño según la fila deja a quien busca una acción
+   * sin saber si no la tiene o si se equivocó de renglón.
+   */
+  it('a quien está dada de baja le apaga las tres acciones y dice por qué', () => {
+    const { filas, fixture, host } = montar();
+    host.employees.set([employeeFixture({ status: 'Terminated' })]);
+    fixture.detectChanges();
+
+    const fila = filas()[0];
+    fila.querySelector<HTMLElement>('gi-row-actions button')!.click();
+    fixture.detectChanges();
+
+    const opciones = Array.from(fila.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'));
+
+    expect(opciones).toHaveLength(3);
+    expect(opciones.every((boton) => boton.disabled)).toBe(true);
+    expect(fila.textContent).toContain('Ya está dada de baja');
+  });
+
   /** Con la ficha abierta la tabla se comprime; lo que queda es lo que identifica y lo urgente. */
   it('comprimida conserva el nombre y la vigencia documental', () => {
     const { encabezados } = montar((host) => host.compact.set(true));

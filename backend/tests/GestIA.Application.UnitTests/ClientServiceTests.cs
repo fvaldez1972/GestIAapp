@@ -59,6 +59,68 @@ public sealed class ClientServiceTests
         Assert.Empty(clients.Items);
     }
 
+    /// <summary>
+    /// Reactivar encuentra al cliente desactivado.
+    ///
+    /// <para>El diálogo de desactivar promete que «se puede reactivar», y durante un tiempo esa
+    /// promesa no tenía nada detrás. Al construirla, la trampa está en el buscador: <c>GetAsync</c>
+    /// respeta el filtro global de actividad, así que para él un cliente desactivado no existe.
+    /// Escrito con él, reactivar respondería siempre «no se encontró el cliente» —el mismo error
+    /// que se está intentando reparar, con otra cara.</para>
+    /// </summary>
+    [Fact]
+    public async Task ActivateBringsBackADeactivatedClient()
+    {
+        var clients = new FakeClientRepository();
+        var unitOfWork = new FakeUnitOfWork();
+        var service = CreateService(clients, unitOfWork);
+
+        var creado = await service.CreateAsync(
+            Request("CLI-001", "Cliente que vuelve", "EXA010101AA1"),
+            CancellationToken.None);
+        await service.DeactivateAsync(OrganizationId, creado.IdClient, CancellationToken.None);
+        Assert.False(clients.Items.Single().Active);
+
+        var resultado = await service.ActivateAsync(OrganizationId, creado.IdClient, CancellationToken.None);
+
+        Assert.True(clients.Items.Single().Active);
+        Assert.Equal(creado.IdClient, resultado.IdClient);
+    }
+
+    /// <summary>
+    /// Reactivar lo que ya está activo no escribe nada.
+    ///
+    /// <para>Dos personas pulsando el mismo botón no deben ver una la mitad de un fallo, y una
+    /// reactivación repetida no tiene por qué dejar en la auditoría un cambio que no cambió nada.
+    /// </para>
+    /// </summary>
+    [Fact]
+    public async Task ActivateAnAlreadyActiveClientWritesNothing()
+    {
+        var clients = new FakeClientRepository();
+        var unitOfWork = new FakeUnitOfWork();
+        var service = CreateService(clients, unitOfWork);
+
+        var creado = await service.CreateAsync(
+            Request("CLI-001", "Cliente activo", "EXA010101AA1"),
+            CancellationToken.None);
+        var guardadosAntes = unitOfWork.SaveCount;
+
+        await service.ActivateAsync(OrganizationId, creado.IdClient, CancellationToken.None);
+
+        Assert.Equal(guardadosAntes, unitOfWork.SaveCount);
+    }
+
+    /// <summary>Un identificador que no es de ningún cliente sigue siendo un 404, no un silencio.</summary>
+    [Fact]
+    public async Task ActivateAnUnknownClientFails()
+    {
+        var service = CreateService(new FakeClientRepository(), new FakeUnitOfWork());
+
+        await Assert.ThrowsAsync<ResourceNotFoundException>(() =>
+            service.ActivateAsync(OrganizationId, Guid.NewGuid(), CancellationToken.None));
+    }
+
     private static ClientService CreateService(
         FakeClientRepository clients,
         FakeUnitOfWork unitOfWork) => new(
@@ -172,6 +234,15 @@ public sealed class ClientServiceTests
             Task.FromResult(HighestCodeNumber);
 
         public Task<Client?> GetAsync(
+            Guid idOrganization,
+            Guid idClient,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(Items.SingleOrDefault(client => client.IdClient == idClient && client.Active));
+
+        // El doble tiene que distinguir los dos: si ambos devuelven lo mismo, una prueba de
+        // reactivación pasaría aunque el servicio usara el buscador que no ve a los desactivados,
+        // que es justo el error que hay que impedir.
+        public Task<Client?> GetIncludingInactiveAsync(
             Guid idOrganization,
             Guid idClient,
             CancellationToken cancellationToken) =>

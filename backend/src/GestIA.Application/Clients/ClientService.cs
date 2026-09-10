@@ -136,6 +136,40 @@ public sealed class ClientService(
         await unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// Reactiva un cliente desactivado.
+    ///
+    /// <para>Se busca con <c>GetIncludingInactiveAsync</c> a propósito: el <c>GetAsync</c> normal
+    /// respeta el filtro global de actividad, y con él un cliente desactivado no existe. Usarlo
+    /// aquí haría que reactivar devolviera siempre «no se encontró el cliente».</para>
+    ///
+    /// <para>Reactivar un cliente que ya está activo no es un error ni escribe nada: devuelve el
+    /// cliente tal cual. Dos personas pulsando el mismo botón no deben ver una la mitad de un
+    /// fallo, y una reactivación repetida no tiene por qué ensuciar la auditoría con un cambio que
+    /// no cambia nada.</para>
+    ///
+    /// <para>No se reviven las sedes, los contactos ni los servicios que se hubieran desactivado
+    /// por su cuenta: cada uno se desactivó por su motivo, y devolverlos en bloque decidiría por el
+    /// usuario cosas que él no pidió.</para>
+    /// </summary>
+    public async Task<ClientResponse> ActivateAsync(
+        Guid idOrganization,
+        Guid idClient,
+        CancellationToken cancellationToken)
+    {
+        var client = await repository.GetIncludingInactiveAsync(idOrganization, idClient, cancellationToken)
+            ?? throw new ResourceNotFoundException("No se encontró el cliente solicitado.");
+
+        if (client.Active)
+        {
+            return Map(client);
+        }
+
+        client.Activate(actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+        return Map(client);
+    }
+
     private async Task EnsureUniqueAsync(
         Guid idOrganization,
         string codeClient,

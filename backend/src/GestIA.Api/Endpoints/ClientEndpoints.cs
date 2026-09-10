@@ -134,6 +134,27 @@ public static class ClientEndpoints
             .RequirePermission(SecurityPermissions.ClientsWrite)
             .WithName("DeactivateClient");
 
+        // PATCH y no POST: reactivar cambia un campo del cliente, no crea nada. Es el mismo verbo
+        // que ya usan la reactivación de organizaciones, de usuarios y de roles, y conviene que
+        // las cuatro se parezcan.
+        group.MapPatch("/{idClient:guid}/activate", async (
+            HttpContext context,
+            Guid idClient,
+            Guid organizationId,
+            IClientService service,
+            CancellationToken cancellationToken) =>
+        {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
+            var client = await service.ActivateAsync(organizationId, idClient, cancellationToken);
+            return Results.Ok(client);
+        })
+            .RequirePermission(SecurityPermissions.ClientsWrite)
+            .WithName("ActivateClient");
+
         return endpoints;
     }
 }

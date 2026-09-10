@@ -406,6 +406,9 @@ export class ClientsPage {
       case 'deactivate':
         this.confirming.set(event.client);
         break;
+      case 'activate':
+        this.activateClient(event.client);
+        break;
     }
   }
 
@@ -432,6 +435,43 @@ export class ClientsPage {
       error: (problem) => {
         this.saving.set(false);
         this.actionError.set(readServerProblem(problem, 'No se pudo desactivar el cliente.').message);
+      },
+    });
+  }
+
+  /**
+   * Reactivar un cliente desactivado.
+   *
+   * <p>No pregunta antes. La confirmación existe para lo que cuesta deshacer, y esto es
+   * exactamente lo contrario: es el deshacer. Ponerle un diálogo lo haría parecer igual de grave
+   * que desactivar, que es lo que la persona vino a corregir.</p>
+   *
+   * <p>El aviso dice lo que <b>no</b> vuelve. Reactivar al cliente no revive sus sedes ni sus
+   * servicios: cada uno se desactivó por su motivo, y devolverlos en bloque decidiría por el
+   * usuario cosas que no pidió. Callarlo dejaría creer que la ficha volvió entera.</p>
+   */
+  protected activateClient(client: ClientListItem): void {
+    const organizationId = this.organizationId();
+
+    if (!organizationId) {
+      return;
+    }
+
+    this.saving.set(true);
+    this.actionError.set('');
+
+    this.api.activateClient(organizationId, client.idClient).subscribe({
+      next: () => {
+        this.saving.set(false);
+        this.message.set(
+          `${this.name(client)} vuelve a estar activo. Sus sedes y servicios desactivados siguen ` +
+            'desactivados: cada uno se reactiva por su lado.',
+        );
+        this.load();
+      },
+      error: (problem) => {
+        this.saving.set(false);
+        this.actionError.set(readServerProblem(problem, 'No se pudo reactivar el cliente.').message);
       },
     });
   }

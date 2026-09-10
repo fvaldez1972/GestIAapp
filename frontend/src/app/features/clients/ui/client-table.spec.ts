@@ -49,6 +49,45 @@ describe('El listado de clientes', () => {
   afterEach(() => TestBed.resetTestingModule());
 
   /**
+   * El menú depende de la fila, y esto es lo que antes no pasaba.
+   *
+   * <p>El menú era idéntico para todos, así que a un cliente ya desactivado se le seguía ofreciendo
+   * «Desactivar cliente» —una acción sin efecto— y <b>a ninguno se le ofrecía volver</b>. El diálogo
+   * de desactivar promete que «se puede reactivar»: si el menú no lo ofrece nunca, la promesa es
+   * falsa aunque el servidor sepa hacerlo.</p>
+   */
+  it('a un cliente desactivado le ofrece reactivarlo, no desactivarlo otra vez', () => {
+    const { filas, fixture, host } = montar();
+    host.clients.set([cliente({ active: false })]);
+    fixture.detectChanges();
+
+    const fila = filas()[0];
+    fila.querySelector<HTMLElement>('gi-row-actions button')!.click();
+    fixture.detectChanges();
+
+    const opciones = Array.from(fila.querySelectorAll('[role="menuitem"]')).map((n) =>
+      n.textContent!.trim(),
+    );
+
+    expect(opciones.some((texto) => texto.includes('Reactivar cliente'))).toBe(true);
+    expect(opciones.some((texto) => texto.includes('Desactivar cliente'))).toBe(false);
+  });
+
+  it('a un cliente activo le ofrece desactivarlo, no reactivarlo', () => {
+    const { filas, fixture } = montar();
+    const fila = filas()[0];
+    fila.querySelector<HTMLElement>('gi-row-actions button')!.click();
+    fixture.detectChanges();
+
+    const opciones = Array.from(fila.querySelectorAll('[role="menuitem"]')).map((n) =>
+      n.textContent!.trim(),
+    );
+
+    expect(opciones.some((texto) => texto.includes('Desactivar cliente'))).toBe(true);
+    expect(opciones.some((texto) => texto.includes('Reactivar cliente'))).toBe(false);
+  });
+
+  /**
    * <b>Cero sedes no se muestra como cero.</b> Un cero diría que el cliente está en orden; lo que
    * dice de verdad es que no se le puede crear un servicio.
    */

@@ -177,6 +177,20 @@ public sealed class ClientRepository(GestIaDbContext dbContext) : IClientReposit
                 client => client.IdOrganization == idOrganization && client.IdClient == idClient,
                 cancellationToken);
 
+    public Task<Client?> GetIncludingInactiveAsync(
+        Guid idOrganization,
+        Guid idClient,
+        CancellationToken cancellationToken) =>
+        dbContext.Clients
+            // Sólo se apaga el filtro de actividad. El de organización se queda puesto: reactivar
+            // no es motivo para dejar de aislar organizaciones, y apagarlo aquí abriría el cliente
+            // de otra empresa a quien acierte el identificador.
+            .IgnoreQueryFilters(["Active"])
+            .Include(client => client.Organization)
+            .SingleOrDefaultAsync(
+                client => client.IdOrganization == idOrganization && client.IdClient == idClient,
+                cancellationToken);
+
     public Task<bool> IsCodeInUseAsync(
         Guid idOrganization,
         string codeClient,

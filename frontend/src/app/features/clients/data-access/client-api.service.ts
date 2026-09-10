@@ -178,6 +178,12 @@ export class ClientApiService {
     return this.http.delete<void>(`${this.baseUrl}/clients/${idClient}`, { params });
   }
 
+  /** Deshace la desactivación. PATCH, como la de organizaciones, usuarios y roles. */
+  activateClient(organizationId: string, idClient: string) {
+    const params = new HttpParams().set('organizationId', organizationId);
+    return this.http.patch<Client>(`${this.baseUrl}/clients/${idClient}/activate`, {}, { params });
+  }
+
   listSites(organizationId: string, idClient: string) {
     const params = new HttpParams().set('organizationId', organizationId);
     return this.http.get<readonly ClientSite[]>(`${this.baseUrl}/clients/${idClient}/sites`, { params });

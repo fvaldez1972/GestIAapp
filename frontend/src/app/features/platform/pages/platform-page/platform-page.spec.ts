@@ -60,7 +60,9 @@ describe('Plataforma · alta de organización', () => {
     // Las cuatro peticiones que la pantalla lanza al entrar. Se responden por funcion y no por
     // cadena literal: algunas llevan parametros y la comparacion exacta no las encontraria.
     http.match((r) => r.url.endsWith('/organizations')).forEach((r) => r.flush([ORGANIZACION]));
-    http.match((r) => r.url.endsWith('/organizations/governance')).forEach((r) => r.flush([]));
+    http.match((r) => r.url.endsWith('/organizations/governance')).forEach((r) =>
+      r.flush([{ organization: ORGANIZACION, clients: [], usersCount: 0, adminsCount: 0 }]),
+    );
     http.match((r) => r.url.endsWith('/users')).forEach((r) => r.flush([]));
     http.match((r) => r.url.endsWith('/roles')).forEach((r) => r.flush([ROL_ADMIN]));
     fixture.detectChanges();
@@ -110,6 +112,77 @@ describe('Plataforma · alta de organización', () => {
     expect(abrir!.disabled).toBe(true);
   });
 
+  /**
+   * El alta se abre <b>encima</b>, no dentro de la columna.
+   *
+   * <p>Desplegarla donde vivia dejaba el formulario empujando el directorio y la ficha de la
+   * organizacion elegida: se quitaba el desorden de tenerla siempre abierta, pero seguia
+   * disputandole el sitio a lo que se estaba consultando.</p>
+   */
+  it('el alta se abre en una ventana emergente, no dentro de la columna', () => {
+    const { raiz, boton, fixture } = montar();
+
+    expect(raiz.querySelector('.modal-backdrop')).toBeNull();
+
+    boton('Nueva organización')!.click();
+    fixture.detectChanges();
+
+    const ventana = raiz.querySelector('.modal-backdrop .modal[role="dialog"]');
+    expect(ventana).not.toBeNull();
+    expect(ventana!.getAttribute('aria-modal')).toBe('true');
+    // El formulario vive dentro de la ventana, no en la tarjeta del directorio.
+    expect(ventana!.querySelector('form.creation-form')).not.toBeNull();
+    expect(raiz.querySelector('.platform-registry form.creation-form')).toBeNull();
+  });
+
+  /**
+   * La ficha apilaba cinco bloques: datos editables, alta de admin, lista de admins, lista de
+   * clientes y una nota. Para leer quien es el responsable habia que pasar por encima de un
+   * formulario vacio.
+   */
+  it('la ficha separa por pestañas lo que se edita de lo que se consulta', () => {
+    const { raiz, fixture } = montar();
+
+    const pestanas = Array.from(raiz.querySelectorAll('.detail-tabs [role="tab"]')).map((n) =>
+      n.textContent!.trim(),
+    );
+    expect(pestanas).toEqual(['Datos', 'Responsables', 'Clientes']);
+
+    // Al entrar se ve Datos, que es la regla del sistema para toda ficha.
+    expect(raiz.textContent).toContain('Datos de la organización');
+    expect(raiz.textContent).not.toContain('Responsables de la organización');
+
+    const responsables = Array.from(
+      raiz.querySelectorAll<HTMLButtonElement>('.detail-tabs [role="tab"]'),
+    ).find((b) => b.textContent?.trim() === 'Responsables')!;
+    responsables.click();
+    fixture.detectChanges();
+
+    expect(raiz.textContent).toContain('Responsables de la organización');
+    expect(raiz.textContent).not.toContain('Datos de la organización');
+  });
+
+  /** Y el alta de admin sigue la misma regla que la de organización: ventana, no incrustada. */
+  it('crear admin también abre en ventana, y no estorba a la lista de responsables', () => {
+    const { raiz, boton, fixture } = montar();
+
+    const responsables = Array.from(
+      raiz.querySelectorAll<HTMLButtonElement>('.detail-tabs [role="tab"]'),
+    ).find((b) => b.textContent?.trim() === 'Responsables')!;
+    responsables.click();
+    fixture.detectChanges();
+
+    // La lista se lee sin un formulario encima.
+    expect(raiz.querySelector('.modal-backdrop')).toBeNull();
+
+    boton('Crear admin')!.click();
+    fixture.detectChanges();
+
+    const ventana = raiz.querySelector('.modal-backdrop .modal[role="dialog"]');
+    expect(ventana).not.toBeNull();
+    expect(ventana!.textContent).toContain('Crear admin para esta organización');
+  });
+
   /** El encabezado del alta entra y sale con el formulario: solo, anunciaba algo que no estaba. */
   it('el título del alta no se queda solo cuando el formulario está cerrado', () => {
     const { raiz, boton, fixture } = montar();
@@ -131,9 +204,11 @@ describe('Plataforma · alta de organización', () => {
     boton('Nueva organización')!.click();
     fixture.detectChanges();
 
-    const etiquetas = Array.from(raiz.querySelectorAll('form.creation-form label span')).map((n) =>
-      n.textContent!.trim(),
-    );
+    // Acotado a la ventana: la ficha de la derecha tiene su propio formulario de edicion, con
+    // Codigo y Nombre legal, y un selector por clase los mezclaria con los del alta.
+    const etiquetas = Array.from(
+      raiz.querySelectorAll('.modal form.creation-form label span'),
+    ).map((n) => n.textContent!.trim());
 
     expect(etiquetas).toEqual(['Nombre de la organización', 'RFC']);
     expect(raiz.querySelector('input[name="newOrganizationCode"]')).toBeNull();

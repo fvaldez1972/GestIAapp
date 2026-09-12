@@ -69,6 +69,21 @@ export class PlatformPage implements OnInit {
   protected readonly organizationStep = signal(1);
   protected readonly organizationStepError = signal('');
 
+  /**
+   * Que se esta mirando de la organizacion elegida.
+   *
+   * <p>La ficha apilaba cinco bloques en una columna: los datos editables, el alta de un admin, la
+   * lista de admins, la lista de clientes y una nota. Lo que se <b>crea</b> y lo que se
+   * <b>consulta</b> quedaban mezclados en el mismo desplazamiento, y para leer quien es el
+   * responsable habia que pasar por encima de un formulario vacio.</p>
+   *
+   * <p>La primera se llama Datos, que es la regla del sistema para toda ficha.</p>
+   */
+  protected readonly detailTab = signal<'datos' | 'responsables' | 'clientes'>('datos');
+
+  /** Si el alta de admin esta abierta. Cerrada por omision, como la de organizacion. */
+  protected readonly creatingAdmin = signal(false);
+
   protected readonly selectedAdminName = signal('');
   protected readonly selectedAdminEmail = signal('');
   protected readonly selectedAdminPassword = signal('');
@@ -224,6 +239,18 @@ export class PlatformPage implements OnInit {
     this.createOrganizationWithAdmin();
   }
 
+  /** Abre el alta de admin de la organizacion elegida, sin arrastrar un intento anterior. */
+  protected startAdminCreation() {
+    this.clearSelectedAdminForm();
+    this.creatingAdmin.set(true);
+  }
+
+  protected cancelAdminCreation() {
+    if (this.savingAdmin()) { return; }
+    this.clearSelectedAdminForm();
+    this.creatingAdmin.set(false);
+  }
+
   /** Abre el alta en el primer paso y sin arrastrar lo que quedo de un intento anterior. */
   protected startOrganizationCreation() {
     this.clearOrganizationForm();
@@ -264,6 +291,7 @@ export class PlatformPage implements OnInit {
       .subscribe({
         next: () => {
           this.clearSelectedAdminForm();
+          this.creatingAdmin.set(false);
           this.success.set(`Admin creado para ${summary.organization.legalName}.`);
           this.loadPlatform();
         },

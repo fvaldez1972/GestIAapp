@@ -452,3 +452,76 @@ p {
 input.is-invalid {
   border-color: var(--gestia-danger);
 }
+
+/* ── Ventana emergente ─────────────────────────────────────────────────────────────────────
+   Los formularios de alta de esta pantalla van encima, no incrustados en la columna.
+   Desplegarlos donde vivian dejaba el alta empujando el directorio y la ficha de la
+   organizacion elegida: se quitaba el desorden de tenerla siempre abierta, pero el formulario
+   seguia disputandole el sitio a lo que se estaba consultando. Mismas medidas que en Servicios,
+   que ya usa este patron seis veces. */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgb(16 24 40 / 45%);
+}
+
+.modal {
+  width: min(720px, 100%);
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
+  border-radius: 8px;
+  padding: 24px;
+  background: #fff;
+  box-shadow: 0 20px 70px rgb(0 0 0 / 18%);
+}
+
+.modal .section-heading { margin-bottom: 16px; }
+
+.modal-close {
+  border: 0;
+  background: transparent;
+  color: var(--gestia-muted);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.modal-close:hover:not([disabled]) { color: var(--gestia-text); }
+.modal-close[disabled] { opacity: 0.5; cursor: not-allowed; }
+
+/* ── Pestañas de la ficha ──────────────────────────────────────────────────────────────────
+   Separan lo que se consulta de lo que se edita. Sin contadores: las tres cifras estan justo
+   arriba, en las metricas, y repetirlas aqui seria el mismo numero dicho dos veces. */
+.detail-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid #e4e9f0;
+}
+
+.detail-tabs button {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  padding: 8px 12px;
+  color: var(--gestia-muted);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.detail-tabs button:hover { color: var(--gestia-text); }
+
+.detail-tabs button.is-active {
+  border-bottom-color: #007e9b;
+  color: #007e9b;
+}
+
+.detail-tabs button:focus-visible { outline: 2px solid var(--gestia-cyan); outline-offset: -2px; }

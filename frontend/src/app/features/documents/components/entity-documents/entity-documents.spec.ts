@@ -24,6 +24,10 @@ describe('EntityDocuments', () => {
       for (const name of ['organizationId', 'ownerType', 'ownerId', 'ownerLabel']) {
         Input(signalInput)(EntityDocuments.prototype, name);
       }
+      // Opcionales: el mismo descriptor, sin `required`.
+      for (const name of ['simple', 'categories']) {
+        Input({ isSignal: true, required: false } as never)(EntityDocuments.prototype, name);
+      }
       Input(signalInput)(AppIcon.prototype, 'name');
       const signalQuery = { isSignal: true, read: ElementRef };
       ViewChild('historyDialog', signalQuery)(EntityDocuments.prototype, 'historyDialog');
@@ -58,6 +62,11 @@ describe('EntityDocuments', () => {
   const page = (items: readonly BusinessDocument[] = [document], totalCount = items.length) => ({
     items, totalCount, page: 1, pageSize: 10, totalPages: Math.ceil(totalCount / 10),
   });
+  const botones = () =>
+    Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('button')).map(
+      (b) => b.textContent!.replace(/\s+/g, ' ').trim(),
+    );
+
   const listRequest = () => http.expectOne(request => request.url === '/api/v1/documents' && request.method === 'GET');
   const flushList = (items: readonly BusinessDocument[] = [document], totalCount = items.length) => {
     listRequest().flush(page(items, totalCount));
@@ -388,5 +397,45 @@ describe('EntityDocuments', () => {
     expect(component['mode']()).toBeNull();
     expect(component['busy']()).toBe(false);
     http.expectNone(request => request.method === 'POST');
+  });
+
+  /**
+   * El expediente del <b>cliente</b> pide menos que el del personal.
+   *
+   * <p>Historial, Revisar y Archivar existen para el expediente del personal, donde un documento se
+   * valida o se rechaza y esa decisión manda sobre la elegibilidad para cubrir un turno. En el del
+   * cliente no hay a quién le sirvan.</p>
+   */
+  it('en la variante simple solo deja descargar y editar', () => {
+    fixture.componentRef.setInput('simple', true);
+    fixture.detectChanges();
+    flushList();
+
+    const texto = botones().join(' | ');
+    expect(texto).toContain('Descargar');
+    expect(texto).toContain('Editar');
+    expect(texto).not.toContain('Historial');
+    expect(texto).not.toContain('Revisar');
+    expect(texto).not.toContain('Archivar');
+  });
+
+  /** Y no repite «Agregar documento»: la ficha del cliente ya lo tiene en su cabecera. */
+  it('en la variante simple no pone su propio «Agregar documento»', () => {
+    fixture.componentRef.setInput('simple', true);
+    fixture.detectChanges();
+    flushList();
+
+    expect(botones().some((b) => b.includes('Agregar documento'))).toBe(false);
+  });
+
+  /** En Personal siguen las cinco: ahi el componente vive solo y la revision sostiene la vigencia. */
+  it('sin la variante simple conserva historial, revisar y archivar', () => {
+    flushList();
+
+    const texto = botones().join(' | ');
+    expect(texto).toContain('Historial');
+    expect(texto).toContain('Revisar');
+    expect(texto).toContain('Archivar');
+    expect(texto).toContain('Agregar documento');
   });
 });

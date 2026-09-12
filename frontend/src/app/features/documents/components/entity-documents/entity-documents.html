@@ -1,7 +1,12 @@
 <section class="entity-documents" aria-label="Documentos de la entidad">
   <header class="entity-heading">
     <div><h3><app-icon name="document" /> Documentos</h3><p>{{ ownerLabel() }}</p></div>
-    @if (canWrite() && validContext()) {
+    <!--
+      En la variante simple no va: la ficha del cliente ya tiene «Agregar documento» en su propia
+      cabecera, con las acciones de los demas apartados, y estaban los dos a la vez, uno encima del
+      otro. En Personal se queda, porque alli el componente vive solo y esta es su unica salida.
+    -->
+    @if (canWrite() && validContext() && !simple()) {
       <button class="gi-button gi-button--primary" type="button" [disabled]="busy()" (click)="openEditor('create')">
         <app-icon name="document" /> Agregar documento
       </button>
@@ -138,12 +143,22 @@
                   }
                 </div>
                 <div class="entity-actions" [attr.aria-label]="'Acciones de ' + document.title">
+                  <!--
+                    En el expediente del cliente solo Descargar y Editar. Historial, Revisar y
+                    Archivar existen para el expediente del PERSONAL, donde un documento se valida
+                    o se rechaza y esa decision manda sobre la elegibilidad para cubrir un turno;
+                    aqui no hay a quien le sirvan.
+                  -->
                   <button class="gi-button gi-button--secondary" type="button" [disabled]="busy()" (click)="download(document)"><app-icon name="document" /> Descargar</button>
-                  <button class="gi-button gi-button--secondary" type="button" [disabled]="busy()" (click)="openHistory(document)"><app-icon name="audit" /> Historial</button>
+                  @if (!simple()) {
+                    <button class="gi-button gi-button--secondary" type="button" [disabled]="busy()" (click)="openHistory(document)"><app-icon name="audit" /> Historial</button>
+                  }
                   @if (canEdit(document)) {
                     <button class="gi-button gi-button--secondary" type="button" [disabled]="busy()" (click)="openEditor('edit', document)">Editar</button>
-                    <button class="gi-button gi-button--secondary" type="button" [disabled]="busy()" (click)="openEditor('review', document)"><app-icon name="coverage" /> Revisar</button>
-                    <button class="gi-button gi-button--danger" type="button" [disabled]="busy()" (click)="openEditor('archive', document)">Archivar</button>
+                    @if (!simple()) {
+                      <button class="gi-button gi-button--secondary" type="button" [disabled]="busy()" (click)="openEditor('review', document)"><app-icon name="coverage" /> Revisar</button>
+                      <button class="gi-button gi-button--danger" type="button" [disabled]="busy()" (click)="openEditor('archive', document)">Archivar</button>
+                    }
                   }
                 </div>
               } @else {

@@ -33,6 +33,7 @@ public static class CatalogDefinitions
         Editable(BusinessCatalogItemType.Nationality, "Nacionalidades", "Clientes"),
         Editable(BusinessCatalogItemType.IncidentReason, "Motivos de incidencia", "Operacion"),
         Editable(BusinessCatalogItemType.CoverageReason, "Motivos de cobertura", "Operacion"),
+        Editable(BusinessCatalogItemType.ClientDocumentCategory, "Categorias de documento del cliente", "Clientes"),
         Fixed<OperationalRequestType>("Tipos de solicitud", "Solicitudes"),
         Fixed<OperationalRequestStatus>("Estados de solicitud", "Solicitudes"),
         Fixed<OperationalRequestPriority>("Prioridades de solicitud", "Solicitudes"),

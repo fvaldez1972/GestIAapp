@@ -12,6 +12,7 @@ export type BusinessCatalogItemType =
   | 'JobPosition'
   | 'IncidentReason'
   | 'CoverageReason'
+  | 'ClientDocumentCategory'
   | 'Country' | 'State' | 'City' | 'Nationality';
 
 export type EligibilityRequirementTargetType = 'Organization' | 'Client' | 'Service' | 'Position';

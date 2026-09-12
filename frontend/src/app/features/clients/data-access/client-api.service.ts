@@ -169,6 +169,18 @@ export class ClientApiService {
     return this.http.post<Client>(`${this.baseUrl}/clients`, request);
   }
 
+  /**
+   * La ficha completa de un cliente.
+   *
+   * <p>La del listado no trae los campos fiscales, y el <c>PUT</c> reemplaza el perfil entero: un
+   * formulario que se prellenara con la fila del listado los mandaria vacios y los borraria en
+   * silencio. Editar empieza por traer lo que hay.</p>
+   */
+  getClient(organizationId: string, idClient: string) {
+    const params = new HttpParams().set('organizationId', organizationId);
+    return this.http.get<Client>(`${this.baseUrl}/clients/${idClient}`, { params });
+  }
+
   updateClient(idClient: string, request: ClientInput) {
     return this.http.put<Client>(`${this.baseUrl}/clients/${idClient}`, request);
   }

@@ -23,9 +23,11 @@
       <p class="gi-alert gi-alert--error" role="alert">{{ actionError() }}</p>
     }
 
-    @if (message()) {
-      <p class="clients__note" role="status">{{ message() }}</p>
-    }
+    <!--
+      Sin aviso de exito. Se retiro a peticion del usuario: aparecia tras cada guardado, empujaba la
+      pantalla hacia abajo y repetia lo que el propio resultado ya ensena —la ficha recargada, el
+      contador nuevo, la fila en la lista—. Los errores si se siguen diciendo: eso no se ve solo.
+    -->
 
     <!--
       El aviso de la vista 5. Llega al volver al listado y **se va solo** en cuanto el cliente
@@ -45,7 +47,8 @@
       </aside>
     }
 
-    <div class="clients__workspace" [class.clients__workspace--split]="selected() || creating()">
+    <!-- El alta ya no parte el espacio: va en ventana, encima. Solo la ficha comprime la lista. -->
+    <div class="clients__workspace" [class.clients__workspace--split]="selected()">
       <div class="clients__list">
         <gi-filter-bar
           [search]="search()"
@@ -63,7 +66,7 @@
           [state]="tableState()"
           [selectedId]="selected()?.idClient ?? null"
           [errorMessage]="error()"
-          [compact]="!!selected() || creating()"
+          [compact]="!!selected()"
           [canWrite]="canWrite()"
           (open)="open($event)"
           (create)="startCreate()"
@@ -72,32 +75,7 @@
         />
       </div>
 
-      @if (creating()) {
-        <gi-detail-panel
-          title="Nuevo cliente"
-          subtitle="El código y la fecha de alta los pone el sistema"
-          (close)="creating.set(false)"
-        >
-          <ng-template giTab="">
-            <!--
-              La organización va atada, y sin ella el alta no servía: los desplegables de Estado y
-              Municipio se quedaban vacíos porque `catalog-select` no pide las opciones sin saber
-              de qué organización son. Se notaba sólo al crear un cliente, porque en Agregar sede
-              sí se pasaba.
-            -->
-            <app-client-form
-              [organizationId]="organizationId()"
-              [jobPositions]="jobPositions()"
-              [canWrite]="canWrite()"
-              [saving]="saving()"
-              [problem]="formProblem()"
-              (cancel)="creating.set(false)"
-              (save)="saveNew($event)"
-              (createJobPosition)="createJobPosition($event)"
-            />
-          </ng-template>
-        </gi-detail-panel>
-      } @else if (selected(); as client) {
+      @if (selected(); as client) {
         <gi-detail-panel
           [title]="name(client)"
           [subtitle]="client.active ? 'Activo' : 'Inactivo'"
@@ -106,6 +84,16 @@
           (tabChange)="activeTab.set($event)"
           (close)="closePanel()"
         >
+          <!--
+            La accion de cada apartado, en la cabecera. Editar el cliente estaba solo en el menu de
+            la fila del listado, y para llegar habia que cerrar la ficha que se estaba mirando.
+          -->
+          @if (canWrite()) {
+            <button class="panel-accion" type="button" panelActions (click)="runPanelAction(client)">
+              {{ panelActionLabel() }}
+            </button>
+          }
+
           <ng-template giTab="data">
             <app-client-data [client]="client" [sites]="sites()" />
           </ng-template>
@@ -118,6 +106,7 @@
               [canWrite]="canWrite()"
               [saving]="saving()"
               [openAdd]="addingSite()"
+              (closeAdd)="addingSite.set(false)"
               [editing]="editingSite()"
               (create)="createSite($event)"
               (edit)="updateSite($event)"
@@ -133,17 +122,28 @@
               [jobPositions]="jobPositions()"
               [canWrite]="canWrite()"
               [saving]="saving()"
+              [openAdd]="addingContact()"
+              (closeAdd)="addingContact.set(false)"
               (create)="createContact($event)"
+              (edit)="updateContact($event)"
               (createJobPosition)="createJobPosition($event)"
             />
           </ng-template>
 
           <ng-template giTab="documents">
+            <!--
+              Variante simple: categoria y archivo. El titulo era un segundo nombre para lo mismo,
+              y emision, vencimiento y la marca de sensible no tienen aqui a quien le sirvan. En
+              Personal siguen, porque alli el vencimiento alimenta la vigencia documental.
+            -->
             <app-entity-documents
               [organizationId]="organizationId()"
               ownerType="Client"
               [ownerId]="client.idClient"
               [ownerLabel]="name(client)"
+              [simple]="true"
+              [categories]="documentCategories()"
+              (createCategory)="createDocumentCategory($event)"
             />
           </ng-template>
 
@@ -187,4 +187,81 @@
     (confirm)="confirmDeactivate()"
     (cancel)="confirming.set(null)"
   />
+}
+
+<!--
+  El alta va en ventana emergente, no en el panel lateral. El panel comprime la tabla para que no se
+  pierda de vista donde estabas, y eso tiene sentido al abrir un registro que ya existe: se compara
+  con la lista. Un alta no se compara con nada, y ahi la lista comprimida solo quitaba sitio a un
+  formulario que lo necesita.
+-->
+@if (creating()) {
+  <div class="modal-backdrop" (click)="creating.set(false)">
+    <section
+      class="modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="alta-cliente-title"
+      (click)="$event.stopPropagation()"
+    >
+      <header class="modal__head">
+        <div>
+          <span class="eyebrow">Nuevo cliente</span>
+          <h2 id="alta-cliente-title">Alta de cliente</h2>
+          <p>El código y la fecha de alta los pone el sistema.</p>
+        </div>
+        <button type="button" class="modal-close" [disabled]="saving()" aria-label="Cerrar" (click)="creating.set(false)">
+          ×
+        </button>
+      </header>
+
+      <!--
+        La organización va atada, y sin ella el alta no servía: los desplegables de Estado y
+        Municipio se quedaban vacíos porque `catalog-select` no pide las opciones sin saber de qué
+        organización son. Se notaba sólo al crear un cliente, porque en Agregar sede sí se pasaba.
+      -->
+      <app-client-form
+        [organizationId]="organizationId()"
+        [jobPositions]="jobPositions()"
+        [canWrite]="canWrite()"
+        [saving]="saving()"
+        [problem]="formProblem()"
+        (cancel)="creating.set(false)"
+        (save)="saveNew($event)"
+        (createJobPosition)="createJobPosition($event)"
+      />
+    </section>
+  </div>
+}
+
+<!-- Editar la ficha del cliente: ventana, como el alta. -->
+@if (editingClient(); as cliente) {
+  <div class="modal-backdrop" (click)="cancelEdit()">
+    <section
+      class="modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="editar-cliente-title"
+      (click)="$event.stopPropagation()"
+    >
+      <header class="modal__head">
+        <div>
+          <span class="eyebrow">Cliente</span>
+          <h2 id="editar-cliente-title">Editar datos del cliente</h2>
+          <p>{{ cliente.legalName }}</p>
+        </div>
+        <button type="button" class="modal-close" [disabled]="saving()" aria-label="Cerrar" (click)="cancelEdit()">
+          ×
+        </button>
+      </header>
+
+      <app-client-edit-form
+        [client]="cliente"
+        [saving]="saving()"
+        [problem]="formProblem()"
+        (cancel)="cancelEdit()"
+        (save)="saveEdit($event)"
+      />
+    </section>
+  </div>
 }

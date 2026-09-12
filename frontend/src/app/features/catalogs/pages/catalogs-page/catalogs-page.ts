@@ -158,6 +158,15 @@ export class CatalogsPage implements OnInit, AfterViewInit {
       linkDetail: 'La cobertura guarda el identificador del motivo.',
     },
     {
+      type: 'ClientDocumentCategory',
+      title: 'Categorías de documento del cliente',
+      example: 'Ej. Acta constitutiva',
+      purpose: 'De qué es cada documento del expediente de un cliente.',
+      usedBy: 'Clientes',
+      link: 'nombre',
+      linkDetail: 'El documento guarda la categoría por nombre; renombrarla no reclasifica lo ya cargado.',
+    },
+    {
       type: 'Nationality',
       title: 'Nacionalidades',
       example: 'Ej. Mexicana',

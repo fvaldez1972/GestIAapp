@@ -26,6 +26,7 @@ const PESTANAS: readonly GiTab[] = [
       <ng-template giTab="sedes">Peñón de los Baños</ng-template>
       <ng-template giTab="contactos">Sin contactos registrados</ng-template>
       <ng-template giTab="documentos">Acta constitutiva</ng-template>
+      <button panelActions type="button">Editar</button>
       <button panelFooter type="button">Guardar cambios</button>
     </gi-detail-panel>
   `,
@@ -97,6 +98,27 @@ describe('GiDetailPanel', () => {
     fixture.detectChanges();
 
     expect(host.cierres()).toBe(1);
+  });
+
+  /**
+   * La cabecera admite acciones sobre el registro abierto.
+   *
+   * <p>Antes sólo estaba la cruz y ese espacio quedaba vacío, así que la acción principal de una
+   * ficha —editarla— tenía que vivir en el menú de la fila del listado: otro sitio, y hay que
+   * cerrar la ficha para llegar.</p>
+   */
+  it('deja poner acciones en la cabecera, junto a la cruz', () => {
+    const { raiz } = montar();
+
+    const acciones = raiz.querySelector('.gi-panel__acciones');
+    expect(acciones).not.toBeNull();
+
+    const editar = Array.from(acciones!.querySelectorAll('button')).find(
+      (b) => b.textContent?.trim() === 'Editar',
+    );
+    expect(editar).toBeDefined();
+    // Y la cruz sigue ahí, en el mismo grupo.
+    expect(acciones!.querySelector('.gi-panel__close')).not.toBeNull();
   });
 
   describe('con pestañas', () => {

@@ -20,6 +20,7 @@ import { contacto, sede } from './client-fixtures';
       (create)="creada.set($event)"
       (edit)="editada.set($event)"
       (closeEdit)="editing.set(null)"
+      (closeAdd)="cerrados.set(cerrados() + 1); openAdd.set(false)"
     />
   `,
 })
@@ -29,6 +30,7 @@ class Anfitrion {
   readonly canWrite = signal(true);
   readonly openAdd = signal(false);
   readonly editing = signal<ClientSite | null>(null);
+  readonly cerrados = signal(0);
   readonly creada = signal<NewSite | null>(null);
   readonly editada = signal<{ site: ClientSite; datos: NewSite } | null>(null);
 }
@@ -187,12 +189,70 @@ describe('La pestaña de Sedes', () => {
     expect(raiz.querySelector('.site__pill')).toBeNull();
   });
 
-  /** Seis menús idénticos no sirven a quien navega con lector: cada uno nombra su sede. */
-  it('el menú de cada sede se nombra con su sede', () => {
+  /**
+   * «Agregar sede» está una sola vez.
+   *
+   * <p>Estaba dos: en la cabecera de la ficha y otra vez sobre la lista, uno encima del otro y
+   * siendo el mismo. La de la cabecera es la que se queda, con las acciones de los demás apartados.
+   * </p>
+   */
+  it('no repite «Agregar sede» sobre la lista: vive en la cabecera de la ficha', () => {
     const { raiz } = montar((host) => host.lista.set([sede()]));
 
-    expect(raiz.querySelector('gi-row-actions button')?.getAttribute('aria-label'))
-      .toBe('Acciones de la sede Torre Altavista');
+    const botones = Array.from(raiz.querySelectorAll('button')).filter(
+      (b) => b.textContent?.trim() === 'Agregar sede',
+    );
+    expect(botones).toHaveLength(0);
+  });
+
+  /**
+   * Y cancelar cierra de verdad.
+   *
+   * <p>Desde que el alta se abre desde la cabecera, la bandera la tiene la página. Cancelar apagaba
+   * la de aquí dentro y no la de allá, así que el formulario se quedaba abierto y no había forma de
+   * cerrarlo.</p>
+   */
+  it('al cancelar avisa que el alta se cerró', () => {
+    const { raiz, fixture, host } = montar((host) => {
+      host.lista.set([sede()]);
+      host.openAdd.set(true);
+    });
+
+    const cancelar = Array.from(raiz.querySelectorAll('button')).find(
+      (b) => b.textContent?.trim() === 'Cancelar',
+    );
+    expect(cancelar).toBeDefined();
+
+    cancelar!.click();
+    fixture.detectChanges();
+
+    expect(host.cerrados()).toBe(1);
+  });
+
+  /**
+   * Las acciones se ven, no se esconden tras tres puntos.
+   *
+   * <p>El menú guardaba «Editar sede» detrás de un clic y de un icono que no dice nada: había que
+   * abrirlo para descubrir qué se podía hacer con la sede.</p>
+   */
+  it('cada sede enseña sus acciones, sin menú de tres puntos', () => {
+    const { raiz } = montar((host) => host.lista.set([sede()]));
+
+    expect(raiz.querySelector('gi-row-actions')).toBeNull();
+
+    const acciones = Array.from(raiz.querySelectorAll('.site__accion')).map((n) =>
+      n.textContent!.trim(),
+    );
+    expect(acciones).toEqual(['Editar', 'Desactivar']);
+  });
+
+  it('sin permiso de escritura no ofrece ninguna acción sobre la sede', () => {
+    const { raiz } = montar((host) => {
+      host.lista.set([sede()]);
+      host.canWrite.set(false);
+    });
+
+    expect(raiz.querySelector('.site__accion')).toBeNull();
   });
 
   it('la dirección se arma legible, sin comas sueltas de los campos vacíos', () => {

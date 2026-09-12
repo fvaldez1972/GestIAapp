@@ -2,9 +2,11 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   input,
   output,
   signal,
+  untracked,
 } from '@angular/core';
 import { catalogNameDistance, normalizeCatalogName } from '../../util/catalog-name';
 
@@ -346,6 +348,45 @@ export class GiCatalogPicker {
     this.valueChange.emit(option.idCatalogItem);
   }
 
+  /**
+   * El nombre que se acaba de mandar a crear, mientras el catalogo lo devuelve.
+   *
+   * <p>Existe porque crear y seleccionar eran dos cosas y solo pasaba la primera. Quien escribia un
+   * puesto nuevo veia el mensaje de que habia quedado en el catalogo, el valor seguia vacio, y al
+   * guardar el puesto se descartaba en silencio: el contacto quedaba «sin puesto registrado» sin
+   * que nadie dijera nada. Pasaba en las seis pantallas que usan esta pieza.</p>
+   */
+  private readonly pendienteDeCrear = signal('');
+
+  constructor() {
+    /**
+     * Selecciona el valor recien creado en cuanto aparece en el catalogo.
+     *
+     * <p>Se compara por nombre normalizado y no por posicion: quien lo crea lo agrega a su lista
+     * como quiere, y dar por hecho que es el ultimo seria atarse a ese detalle.</p>
+     */
+    effect(() => {
+      const buscado = normalizeCatalogName(this.pendienteDeCrear());
+      const opciones = this.options();
+
+      if (!buscado) {
+        return;
+      }
+
+      const creado = opciones.find((item) => normalizeCatalogName(item.name) === buscado);
+
+      if (!creado) {
+        return;
+      }
+
+      untracked(() => {
+        this.pendienteDeCrear.set('');
+        this.escrito.set('');
+        this.valueChange.emit(creado.idCatalogItem);
+      });
+    });
+  }
+
   protected crear(): void {
     const nombre = this.escrito().trim();
 
@@ -354,12 +395,16 @@ export class GiCatalogPicker {
     }
 
     this.abierto.set(false);
+    this.pendienteDeCrear.set(nombre);
     this.create.emit({ name: nombre });
   }
 
   protected escribir(valor: string): void {
     this.escrito.set(valor);
     this.abierto.set(true);
+    // Seguir escribiendo cancela la creacion en curso: si el catalogo contestara despues, elegiria
+    // por su cuenta algo que ya no es lo que hay en el campo.
+    this.pendienteDeCrear.set('');
 
     // Escribir deshace la selección: lo que se ve y lo que vale no pueden decir cosas distintas.
     if (this.value()) {

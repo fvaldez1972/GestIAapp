@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, effect, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CatalogSelect } from '../../../shared/ui/catalog-select/catalog-select';
-import { GiEmptyState, GiRowAction, GiRowActions } from '../../../shared/ui/gi-ui';
+import { GiEmptyState } from '../../../shared/ui/gi-ui';
 import { ClientContact, ClientSite } from '../data-access/client.models';
 
 /** Lo que hace falta para dar de alta una sede. Nada más: el código lo pone el sistema. */
@@ -27,7 +27,7 @@ export type NewSite = {
 @Component({
   selector: 'app-client-sites',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CatalogSelect, FormsModule, GiEmptyState, GiRowActions],
+  imports: [CatalogSelect, FormsModule, GiEmptyState],
   template: `
     <section class="sites">
       @if (adding()) {
@@ -124,11 +124,14 @@ export type NewSite = {
           </p>
         }
       } @else {
+        <!--
+          Sin boton aqui: «Agregar sede» vive en la cabecera de la ficha, con las acciones de los
+          demas apartados. Estaba en los dos sitios a la vez, uno encima del otro, y eran el mismo.
+          El de la lista vacia si se queda: ahi no hay cabecera que mirar todavia, y esa pantalla
+          existe para decir que falta la sede y como ponerla.
+        -->
         <p class="sites__intro">
           <span>Cada servicio se liga a una sede. Al crear el servicio se elige de esta lista.</span>
-          @if (canWrite()) {
-            <button class="sites__add" type="button" (click)="startAdd()">Agregar sede</button>
-          }
         </p>
 
         <ul class="sites__list">
@@ -140,13 +143,21 @@ export type NewSite = {
                 @if (!contact) {
                   <span class="site__pill">Sin contacto</span>
                 }
-                <span class="site__actions">
-                  <gi-row-actions
-                    [actions]="actions()"
-                    [label]="'Acciones de la sede ' + site.name"
-                    (select)="act.emit({ id: $event.id, site })"
-                  />
-                </span>
+                <!--
+                  Sin menu de tres puntos: las acciones se ven. El menu escondia «Editar sede»
+                  detras de un clic y de un icono que no dice nada, y habia que abrirlo para
+                  descubrir que se podia hacer con la sede.
+                -->
+                @if (canWrite()) {
+                  <span class="site__actions">
+                    <button class="site__accion" type="button" (click)="act.emit({ id: 'edit', site })">
+                      Editar
+                    </button>
+                    <button class="site__accion site__accion--baja" type="button" (click)="act.emit({ id: 'deactivate', site })">
+                      Desactivar
+                    </button>
+                  </span>
+                }
               </p>
 
               <div class="site__body">
@@ -243,7 +254,25 @@ export type NewSite = {
       font-weight: 600;
     }
 
-    .site__actions { margin-left: auto; display: flex; }
+    .site__actions { display: flex; gap: 0.35rem; }
+
+    .site__accion {
+      border: 1px solid var(--gestia-border);
+      border-radius: var(--gestia-radius);
+      padding: 0.15rem 0.5rem;
+      background: var(--gestia-surface);
+      color: var(--gestia-navy);
+      font: inherit;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .site__accion:hover { border-color: var(--gestia-cyan-dark); }
+    .site__accion:focus-visible { outline: 2px solid var(--gestia-cyan); outline-offset: 1px; }
+    .site__accion--baja { color: var(--gestia-danger); }
+
+    .site__actions-vieja { margin-left: auto; display: flex; }
 
     .site__body { display: flex; gap: 1.25rem; padding: 0.7rem 0.8rem; }
 
@@ -363,6 +392,15 @@ export class ClientSites {
   readonly act = output<{ id: string; site: ClientSite }>();
   /** «Ya no estoy editando esta sede». La pagina es la que suelta la sede, no este componente. */
   readonly closeEdit = output<void>();
+
+  /**
+   * El alta se cerro.
+   *
+   * <p>Hace falta desde que «Agregar sede» vive en la cabecera de la ficha: quien decide abrirla es
+   * la pagina, y sin este aviso cancelar apagaba la bandera de aqui dentro pero no la de alla. El
+   * formulario se quedaba abierto y no habia forma de cerrarlo.</p>
+   */
+  readonly closeAdd = output<void>();
   readonly edit = output<{ site: ClientSite; datos: NewSite }>();
   readonly create = output<NewSite>();
 
@@ -421,22 +459,6 @@ export class ClientSites {
       !!this.postalCode().trim(),
   );
 
-  protected readonly actions = computed<readonly GiRowAction[]>(() => [
-    {
-      id: 'edit',
-      label: 'Editar sede',
-      disabled: !this.canWrite(),
-      disabledReason: 'Necesitas permiso de escritura sobre clientes',
-    },
-    { id: 'contacts', label: 'Ver contactos' },
-    {
-      id: 'deactivate',
-      label: 'Desactivar sede',
-      destructive: true,
-      disabled: !this.canWrite(),
-      disabledReason: 'Necesitas permiso de escritura sobre clientes',
-    },
-  ]);
 
 
   /**
@@ -481,6 +503,7 @@ export class ClientSites {
     }
 
     this.limpiar();
+    this.closeAdd.emit();
   }
 
   /**
@@ -519,6 +542,7 @@ export class ClientSites {
     this.create.emit(datos);
     this.addingByHand.set(false);
     this.limpiar();
+    this.closeAdd.emit();
   }
 
   private limpiar(): void {

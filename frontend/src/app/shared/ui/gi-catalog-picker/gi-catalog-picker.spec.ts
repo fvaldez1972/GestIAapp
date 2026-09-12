@@ -80,6 +80,60 @@ describe('GiCatalogPicker', () => {
     expect(f.host.creados()).toEqual([{ name: 'Jefe de turno' }]);
   });
 
+  /**
+   * Crear y <b>quedar seleccionado</b> son la misma acción para quien la hace.
+   *
+   * <p>Eran dos cosas y sólo pasaba la primera: quien escribía un puesto nuevo veía el aviso de que
+   * había quedado en el catálogo, el valor seguía vacío, y al guardar el puesto se descartaba en
+   * silencio. En el alta de cliente el contacto quedaba «sin puesto registrado» sin que nadie
+   * dijera nada, y pasaba igual en las seis pantallas que usan esta pieza.</p>
+   */
+  it('lo recién creado queda seleccionado en cuanto aparece en el catálogo', () => {
+    const f = montar();
+
+    f.escribir('Jefe de turno');
+    f.crear()!.click();
+    f.fixture.detectChanges();
+
+    expect(f.host.creados()).toHaveLength(1);
+    // Todavía no está en el catálogo: quien lo crea aún no ha contestado.
+    expect(f.host.elegidos()).toEqual([]);
+
+    f.host.options.set([...PUESTOS, valor('Jefe de turno', 'p3')]);
+    f.fixture.detectChanges();
+
+    expect(f.host.elegidos()).toEqual(['p3']);
+  });
+
+  /** Se empareja por nombre, no por posición: quien lo agrega lo pone donde quiere. */
+  it('lo encuentra aunque no lo agreguen al final', () => {
+    const f = montar();
+
+    f.escribir('Jefe de turno');
+    f.crear()!.click();
+    f.host.options.set([valor('Jefe de turno', 'p9'), ...PUESTOS]);
+    f.fixture.detectChanges();
+
+    expect(f.host.elegidos()).toEqual(['p9']);
+  });
+
+  /**
+   * Seguir escribiendo cancela la creación en curso. Si no, una respuesta que llega tarde elegiría
+   * por su cuenta algo que ya no es lo que hay en el campo.
+   */
+  it('si se sigue escribiendo, una respuesta tardía ya no selecciona nada', () => {
+    const f = montar();
+
+    f.escribir('Jefe de turno');
+    f.crear()!.click();
+    f.escribir('Otra cosa');
+
+    f.host.options.set([...PUESTOS, valor('Jefe de turno', 'p3')]);
+    f.fixture.detectChanges();
+
+    expect(f.host.elegidos()).toEqual([]);
+  });
+
   describe('lo casi igual', () => {
     /**
      * Crear «Guardia» y «guardia» como dos entradas sería peor que no tener la función, así que lo

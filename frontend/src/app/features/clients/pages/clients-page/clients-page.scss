@@ -170,3 +170,70 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* ── Ventana emergente ─────────────────────────────────────────────────────────────────────
+   El alta va encima y no en el panel lateral. El panel comprime la tabla para no perder de vista
+   donde estabas, y eso sirve al abrir un registro que ya existe: se compara con la lista. Un alta
+   no se compara con nada, y ahi la lista comprimida solo le quitaba sitio a un formulario que lo
+   necesita. Todo sale de tokens: la pantalla esta en la lista que el sistema de diseño vigila. */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  background: var(--gestia-dialog-veil);
+}
+
+.modal {
+  width: min(760px, 100%);
+  max-height: calc(100dvh - 2.5rem);
+  overflow-y: auto;
+  border-radius: var(--gestia-radius);
+  padding: var(--gestia-card-padding);
+  background: var(--gestia-surface);
+  box-shadow: var(--gestia-shadow-md);
+}
+
+.modal__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.modal__head h2 { margin: 0.1rem 0 0.2rem; font-size: 13px; }
+.modal__head p { margin: 0; color: var(--gestia-muted); font-size: 11.5px; }
+
+.modal-close {
+  border: 0;
+  background: transparent;
+  color: var(--gestia-muted);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.modal-close:hover:not([disabled]) { color: var(--gestia-text); }
+.modal-close[disabled] { opacity: 0.5; cursor: not-allowed; }
+
+/* La acción de la ficha, en su cabecera. Editar estaba sólo en el menú de la fila del listado, y
+   para llegar había que cerrar la ficha que se estaba mirando. */
+.panel-accion {
+  border: 1px solid var(--gestia-border);
+  border-radius: var(--gestia-radius);
+  padding: 0.2rem 0.6rem;
+  background: var(--gestia-surface);
+  color: var(--gestia-navy);
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.panel-accion:hover { border-color: var(--gestia-cyan-dark); }
+.panel-accion:focus-visible { outline: 2px solid var(--gestia-cyan); outline-offset: 1px; }

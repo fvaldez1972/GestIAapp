@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { Router } from '@angular/router';
 import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
@@ -16,7 +16,9 @@ import {
 } from '../../../../shared/ui/gi-ui';
 import { ClientApiService } from '../../data-access/client-api.service';
 import {
+  Client,
   ClientContact,
+  ClientInput,
   ClientListItem,
   ClientSite,
   ClientSitePresenceFilter,
@@ -25,6 +27,7 @@ import {
   clientServiceBlockReason,
 } from '../../data-access/client.models';
 import { ClientData } from '../../ui/client-data';
+import { ClientEditForm } from '../../ui/client-edit-form';
 import { ClientForm, ClientFormValue } from '../../ui/client-form';
 import { CatalogApiService } from '../../../catalogs/data-access/catalog-api.service';
 import { GiCatalogOption, GiCatalogCreation } from '../../../../shared/ui/gi-catalog-picker/gi-catalog-picker';
@@ -49,6 +52,7 @@ import { ClientTable } from '../../ui/client-table';
   imports: [
     ClientContacts,
     ClientData,
+    ClientEditForm,
     ClientForm,
     ClientSites,
     ClientTable,
@@ -77,7 +81,6 @@ export class ClientsPage {
   protected readonly total = signal(0);
   protected readonly loading = signal(false);
   protected readonly error = signal('');
-  protected readonly message = signal('');
 
   protected readonly search = signal('');
   protected readonly status = signal<ClientStatusFilter>('Active');
@@ -137,6 +140,154 @@ export class ClientsPage {
    */
   protected readonly jobPositions = signal<readonly GiCatalogOption[]>([]);
 
+  /**
+   * El cliente que se esta editando, con su ficha completa.
+   *
+   * <p>Se trae del servidor y no se toma de la fila del listado: la fila no lleva los campos
+   * fiscales, y el <c>PUT</c> reemplaza el perfil entero. Un formulario prellenado con la fila los
+   * mandaria vacios y los borraria en silencio.</p>
+   */
+  protected readonly editingClient = signal<Client | null>(null);
+  protected readonly loadingClient = signal(false);
+
+  protected startEdit(client: ClientListItem): void {
+    const organizationId = this.organizationId();
+
+    if (!organizationId || !this.canWrite()) {
+      return;
+    }
+
+    this.loadingClient.set(true);
+    this.formProblem.set(null);
+
+    this.api.getClient(organizationId, client.idClient).subscribe({
+      next: (completo) => {
+        this.loadingClient.set(false);
+        this.editingClient.set(completo);
+      },
+      error: (problem) => {
+        this.loadingClient.set(false);
+        this.actionError.set(readServerProblem(problem, 'No se pudo abrir la ficha del cliente.').message);
+      },
+    });
+  }
+
+  /**
+   * La accion que corresponde a la pestaña abierta.
+   *
+   * <p>Cada apartado tiene la suya y todas viven en el mismo sitio, la cabecera de la ficha. Antes
+   * estaban repartidas: editar el cliente en el menu de la fila del listado, agregar sede dentro de
+   * su pestaña, agregar contacto en otro boton al pie. Quien queria hacer algo tenia que aprender
+   * donde estaba cada cosa.</p>
+   */
+  protected readonly panelActionLabel = computed(() => {
+    switch (this.activeTab()) {
+      case 'sites':
+        return 'Agregar sede';
+      case 'contacts':
+        return 'Agregar contacto';
+      case 'documents':
+        return 'Agregar documento';
+      default:
+        return 'Editar cliente';
+    }
+  });
+
+  protected runPanelAction(client: ClientListItem): void {
+    switch (this.activeTab()) {
+      case 'sites':
+        this.addSite();
+        return;
+      case 'contacts':
+        this.addingContact.set(true);
+        return;
+      case 'documents':
+        this.addingDocument.set(true);
+        return;
+      default:
+        this.startEdit(client);
+    }
+  }
+
+  /** Abre el alta de contacto desde la cabecera. La pestaña la lee y despliega su formulario. */
+  protected readonly addingContact = signal(false);
+  protected readonly addingDocument = signal(false);
+
+  protected cancelEdit(): void {
+    if (this.saving()) { return; }
+    this.editingClient.set(null);
+    this.formProblem.set(null);
+  }
+
+  protected saveEdit(datos: ClientInput): void {
+    const client = this.editingClient();
+
+    if (!client || !this.canWrite()) {
+      return;
+    }
+
+    this.saving.set(true);
+    this.formProblem.set(null);
+
+    this.api.updateClient(client.idClient, datos).subscribe({
+      next: () => {
+        this.saving.set(false);
+        this.editingClient.set(null);
+        this.load();
+      },
+      error: (problem) => {
+        this.saving.set(false);
+        this.formProblem.set(readServerProblem(problem, 'No se pudo guardar el cliente.'));
+      },
+    });
+  }
+
+  /** Las categorias de documento del cliente, del catalogo de la organizacion. */
+  protected readonly documentCategories = signal<readonly { idCatalogItem: string; name: string }[]>([]);
+
+  protected createDocumentCategory(creation: GiCatalogCreation): void {
+    const organizationId = this.organizationId();
+
+    if (!organizationId || !this.canWrite()) {
+      return;
+    }
+
+    this.catalogApi
+      .createItem({
+        idOrganization: organizationId,
+        type: 'ClientDocumentCategory',
+        name: creation.name,
+        description: null,
+      })
+      .subscribe({
+        next: (creado) => {
+          this.documentCategories.update((valores) => [
+            ...valores,
+            { idCatalogItem: creado.idCatalogItem, name: creado.name },
+          ]);
+        },
+        error: (problem) =>
+          this.actionError.set(
+            readServerProblem(problem, 'No se pudo agregar la categoría al catálogo.').message,
+          ),
+      });
+  }
+
+  private loadDocumentCategories(): void {
+    const organizationId = this.organizationId();
+    if (!organizationId) return;
+
+    this.catalogApi.listItems(organizationId, 'ClientDocumentCategory').subscribe({
+      next: (items) =>
+        this.documentCategories.set(
+          items
+            .filter((item) => item.active)
+            .map((item) => ({ idCatalogItem: item.idCatalogItem, name: item.name })),
+        ),
+      error: () => this.documentCategories.set([]),
+    });
+  }
+
   protected createJobPosition(creation: GiCatalogCreation): void {
     const organizationId = this.organizationId();
 
@@ -149,13 +300,16 @@ export class ClientsPage {
       .subscribe({
         next: (creado) => {
           this.jobPositions.update((valores) => [...valores, { idCatalogItem: creado.idCatalogItem, name: creado.name }]);
-          this.message.set(`«${creado.name}» quedó en el catálogo de puestos y se puede reutilizar.`);
         },
         error: (problem) =>
           this.actionError.set(readServerProblem(problem, 'No se pudo agregar el puesto al catálogo.').message),
       });
   }
 
+  /**
+   * Los puestos hacen falta para el alta de contacto. Se piden una vez por organizacion: son los
+   * mismos para toda ella, y pedirlos al abrir cada cliente repetiria la misma respuesta.
+   */
   private loadJobPositions(): void {
     const organizationId = this.organizationId();
     if (!organizationId) return;
@@ -249,15 +403,38 @@ export class ClientsPage {
   });
 
   constructor() {
+    /**
+     * Recargar cuando cambia la organizacion, y <b>solo</b> por eso.
+     *
+     * <p>El <c>untracked</c> no es adorno. Un efecto se suscribe a todas las señales que se leen
+     * mientras corre, incluidas las que lee el metodo al que llama: <c>load()</c> consulta la
+     * busqueda, los tres filtros y la lista de puestos, asi que el efecto acababa dependiendo de
+     * las seis.</p>
+     *
+     * <p>Con los puestos eso cerraba un <b>ciclo infinito</b>. <c>load()</c> pedia el catalogo de
+     * puestos cuando estaba vacio, la respuesta hacia <c>jobPositions.set([...])</c> —un arreglo
+     * nuevo cada vez, aunque viniera vacio—, el efecto se despertaba y volvia a llamar a
+     * <c>load()</c>. En una organizacion con puestos se notaba como una carga de mas; en una recien
+     * creada, que no tiene ninguno, la pantalla se quedaba recargando para siempre y parpadeaba
+     * sin parar.</p>
+     */
     effect(() => {
       const organizationId = this.organizationId();
+      const puedeLeer = this.canRead();
 
-      if (organizationId && this.canRead()) {
-        this.load();
-        this.loadMunicipalities(organizationId);
-      } else {
-        this.clients.set([]);
-      }
+      untracked(() => {
+        if (organizationId && puedeLeer) {
+          this.load();
+          this.loadMunicipalities(organizationId);
+          // Los puestos van aqui, una vez por organizacion, y no dentro de `load()`: no forman
+          // parte de traer la lista, y pedirlos desde ahi los ataba a cada busqueda y a cada
+          // filtro.
+          this.loadJobPositions();
+          this.loadDocumentCategories();
+        } else {
+          this.clients.set([]);
+        }
+      });
     });
   }
 
@@ -297,13 +474,6 @@ export class ClientsPage {
 
     this.loading.set(true);
     this.error.set('');
-
-    // Los puestos hacen falta para el alta de contacto. Van con la lista y no con cada ficha: son
-    // los mismos para toda la organizacion, y pedirlos al abrir cada cliente seria repetir la
-    // misma respuesta.
-    if (!this.jobPositions().length) {
-      this.loadJobPositions();
-    }
 
     this.api
       .searchClients({
@@ -395,7 +565,7 @@ export class ClientsPage {
   protected onRowAction(event: { id: string; client: ClientListItem }): void {
     switch (event.id) {
       case 'edit':
-        this.open(event.client, 'data');
+        this.startEdit(event.client);
         break;
       case 'sites':
         this.open(event.client, 'sites');
@@ -426,7 +596,6 @@ export class ClientsPage {
     this.api.deactivateClient(organizationId, client.idClient).subscribe({
       next: () => {
         this.saving.set(false);
-        this.message.set(`${this.name(client)} quedó desactivado. Sus registros se conservan.`);
         if (this.selected()?.idClient === client.idClient) {
           this.closePanel();
         }
@@ -463,10 +632,6 @@ export class ClientsPage {
     this.api.activateClient(organizationId, client.idClient).subscribe({
       next: () => {
         this.saving.set(false);
-        this.message.set(
-          `${this.name(client)} vuelve a estar activo. Sus sedes y servicios desactivados siguen ` +
-            'desactivados: cada uno se reactiva por su lado.',
-        );
         this.load();
       },
       error: (problem) => {
@@ -523,7 +688,7 @@ export class ClientsPage {
       .subscribe({
         next: (client) => {
           if (!withSite) {
-            this.finishCreate(client.idClient, 'Se guardó el cliente. Todavía no tiene sede.');
+            this.finishCreate(client.idClient);
             return;
           }
 
@@ -557,7 +722,7 @@ export class ClientsPage {
       .subscribe({
         next: (site) => {
           if (!value.contact.fullName) {
-            this.finishCreate(idClient, 'Se guardaron el cliente y su sede.');
+            this.finishCreate(idClient);
             return;
           }
 
@@ -566,10 +731,7 @@ export class ClientsPage {
         error: () => {
           // El cliente sí quedó. Se dice exactamente eso, y la pantalla lo lleva al estado que lo
           // explica en lugar de dejar un mensaje de error suelto.
-          this.finishCreate(
-            idClient,
-            'Se guardó el cliente, pero no su sede. Revisa la dirección y agrégala desde la ficha.',
-          );
+          this.finishCreate(idClient);
         },
       });
   }
@@ -594,17 +756,21 @@ export class ClientsPage {
         isPrimary: true,
       })
       .subscribe({
-        next: () => this.finishCreate(idClient, 'Se guardaron el cliente, su sede y su contacto.'),
+        next: () => this.finishCreate(idClient),
         error: () =>
-          this.finishCreate(
-            idClient,
-            'Se guardaron el cliente y su sede, pero no el contacto. Se puede agregar desde la sede.',
-          ),
+          this.finishCreate(idClient),
       });
   }
 
   /** Cierra el alta, recarga y deja seleccionado lo que se acaba de crear. */
-  private finishCreate(idClient: string, message: string): void {
+  /**
+   * Cierra el alta y deja seleccionado lo que se acaba de crear.
+   *
+   * <p>Ya no lleva mensaje: el aviso de exito se retiro a peticion del usuario. Lo que paso se ve
+   * solo —la ficha abierta, el contador nuevo, la fila en la lista—, y cuando el cliente quedo sin
+   * sede la pantalla lo dice abriendo esa pestana, que es mas util que una linea de texto.</p>
+   */
+  private finishCreate(idClient: string): void {
     const organizationId = this.organizationId();
 
     if (!organizationId) {
@@ -622,7 +788,6 @@ export class ClientsPage {
 
           this.saving.set(false);
           this.creating.set(false);
-          this.message.set(message);
           this.savedWithoutSite.set(created && created.siteCount === 0 ? created : null);
           this.load();
 
@@ -633,7 +798,6 @@ export class ClientsPage {
         error: () => {
           this.saving.set(false);
           this.creating.set(false);
-          this.message.set(message);
           this.load();
         },
       });
@@ -716,7 +880,6 @@ export class ClientsPage {
         next: () => {
           this.saving.set(false);
           this.editingSite.set(null);
-          this.message.set(`${event.datos.name} quedó actualizada.`);
           this.loadDetail(client);
           this.load();
         },
@@ -755,7 +918,6 @@ No se borra: deja de poder elegirse para servicios `
     this.api.deactivateSite(organizationId, client.idClient, site.idClientSite).subscribe({
       next: () => {
         this.saving.set(false);
-        this.message.set(`${site.name} quedó desactivada. Sus registros se conservan.`);
         this.loadDetail(client);
         this.load();
       },
@@ -778,6 +940,51 @@ No se borra: deja de poder elegirse para servicios `
    * <p>La pestaña tenía el botón desde el principio y detrás no había nada: emitía una señal que
    * la página no escuchaba. Los endpoints ya existían, en el servidor y en el cliente.</p>
    */
+  /**
+   * Guardar los cambios de un contacto.
+   *
+   * <p>Editar no existia: un contacto capturado con el telefono mal se quedaba mal para siempre, o
+   * habia que agregar otro y dejar el viejo colgando. El endpoint ya estaba; faltaba la pantalla.</p>
+   */
+  protected updateContact(event: { contact: ClientContact; datos: NewContact }): void {
+    const organizationId = this.organizationId();
+    const client = this.selected();
+
+    if (!organizationId || !client || !this.canWrite()) {
+      return;
+    }
+
+    this.saving.set(true);
+    this.error.set('');
+
+    this.api
+      .updateContact(client.idClient, event.contact.idClientContact, {
+        idOrganization: organizationId,
+        idClient: client.idClient,
+        idClientSite: event.datos.idClientSite,
+        purpose: event.datos.purpose,
+        fullName: event.datos.fullName,
+        jobTitle: event.datos.jobTitle || null,
+        email: event.datos.email || null,
+        phone: event.datos.phone || null,
+        // El movil no esta en el formulario, asi que se conserva el que hubiera. Mandarlo nulo lo
+        // borraria, y quien vino a corregir un puesto no pidio perder un telefono.
+        mobilePhone: event.contact.mobilePhone,
+        isPrimary: event.datos.isPrimary,
+      })
+      .subscribe({
+        next: () => {
+          this.saving.set(false);
+          this.loadDetail(client);
+          this.load();
+        },
+        error: (problem) => {
+          this.saving.set(false);
+          this.actionError.set(readServerProblem(problem, 'No se pudo guardar el contacto.').message);
+        },
+      });
+  }
+
   protected createContact(contact: NewContact): void {
     const organizationId = this.organizationId();
     const client = this.selected();
@@ -805,7 +1012,6 @@ No se borra: deja de poder elegirse para servicios `
       .subscribe({
         next: () => {
           this.saving.set(false);
-          this.message.set(`${contact.fullName} quedó registrado como contacto.`);
           this.loadDetail(client);
           // Y la lista, que es de donde salen los contadores del pie de la ficha y la columna de
           // «sin contacto». Era el unico de los siete guardados que no la recargaba: la pestaña
@@ -851,7 +1057,6 @@ No se borra: deja de poder elegirse para servicios `
         next: () => {
           this.saving.set(false);
           this.addingSite.set(false);
-          this.message.set(`${site.name} quedó registrada. Ya se pueden crear servicios de este cliente.`);
           this.loadDetail(client);
           this.load();
         },

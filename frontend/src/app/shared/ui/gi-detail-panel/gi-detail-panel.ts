@@ -55,9 +55,17 @@ export class GiTabContent {
             <p class="gi-panel__subtitle">{{ subtitle() }}</p>
           }
         </div>
-        <button class="gi-panel__close" type="button" aria-label="Cerrar el detalle" (click)="close.emit()">
-          <span aria-hidden="true">×</span>
-        </button>
+        <!--
+          Acciones sobre el registro abierto, junto al titulo. Antes solo estaba la cruz y ese
+          espacio quedaba vacio: la accion principal de la ficha —editarla— vivia escondida en el
+          menu de la fila del listado, que es otro sitio y hay que cerrarla para llegar.
+        -->
+        <div class="gi-panel__acciones">
+          <ng-content select="[panelActions]" />
+          <button class="gi-panel__close" type="button" aria-label="Cerrar el detalle" (click)="close.emit()">
+            <span aria-hidden="true">×</span>
+          </button>
+        </div>
       </header>
 
       @if (tabs().length) {
@@ -142,6 +150,8 @@ export class GiTabContent {
       font-size: 11.5px;
       font-weight: 400;
     }
+
+    .gi-panel__acciones { display: flex; align-items: center; gap: 0.5rem; }
 
     .gi-panel__close {
       flex: none;

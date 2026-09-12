@@ -57,20 +57,24 @@ export type NewContact = {
                 {{ contact.clientSiteName || 'Contacto del cliente, no de una sede' }}
               </span>
               <span class="contact__reach">{{ reach(contact) }}</span>
+              @if (canWrite()) {
+                <!-- Editar estaba en ninguna parte: un contacto capturado con el telefono mal se
+                     quedaba mal para siempre, o habia que agregar otro y dejar el viejo. -->
+                <button class="contact__editar" type="button" (click)="startEdit(contact)">Editar</button>
+              }
             </li>
           }
         </ul>
 
-        @if (canWrite() && !adding()) {
-          <p class="contacts__footer">
-            <button class="button" type="button" (click)="startAdd()">Agregar contacto</button>
-          </p>
-        }
+        <!--
+          Sin boton aqui: «Agregar contacto» vive en la cabecera de la ficha, con las acciones de
+          los demas apartados. Tenerlo en los dos sitios daba dos caminos al mismo formulario.
+        -->
       }
 
       @if (adding()) {
         <form class="new" (ngSubmit)="$event.preventDefault()">
-          <p class="new__kicker">NUEVO CONTACTO</p>
+          <p class="new__kicker">{{ editando() ? 'EDITAR CONTACTO' : 'NUEVO CONTACTO' }}</p>
 
           <div class="new__row new__row--two">
             <label class="field" for="nc-nombre">
@@ -143,7 +147,7 @@ export type NewContact = {
             <button class="button" type="button" (click)="cancelAdd()">Cancelar</button>
             <button class="button button--primary" type="button"
               [disabled]="saving() || !ready()" (click)="submit()">
-              {{ saving() ? 'Guardando…' : 'Guardar contacto' }}
+              {{ saving() ? 'Guardando…' : editando() ? 'Guardar cambios' : 'Guardar contacto' }}
             </button>
           </p>
         </form>
@@ -154,6 +158,22 @@ export type NewContact = {
     :host { display: block; }
 
     .contacts__list { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
+
+    .contact__editar {
+      justify-self: start;
+      border: 1px solid var(--gestia-border);
+      border-radius: var(--gestia-radius);
+      padding: 0.15rem 0.5rem;
+      background: var(--gestia-surface);
+      color: var(--gestia-navy);
+      font: inherit;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .contact__editar:hover { border-color: var(--gestia-cyan-dark); }
+    .contact__editar:focus-visible { outline: 2px solid var(--gestia-cyan); outline-offset: 1px; }
 
     .contact {
       display: flex;
@@ -253,6 +273,11 @@ export class ClientContacts {
   readonly jobPositions = input<readonly GiCatalogOption[]>([]);
 
   readonly create = output<NewContact>();
+  readonly edit = output<{ contact: ClientContact; datos: NewContact }>();
+  readonly closeAdd = output<void>();
+
+  /** El contacto que se esta editando, o nulo si el formulario es un alta. */
+  protected readonly editando = signal<ClientContact | null>(null);
   readonly createJobPosition = output<GiCatalogCreation>();
 
   protected readonly sueltos = { standalone: true };
@@ -300,18 +325,47 @@ export class ClientContacts {
   protected startAdd(): void {
     if (!this.canWrite()) return;
     this.reset();
+    this.editando.set(null);
+    this.addingByHand.set(true);
+  }
+
+  /**
+   * Abre el mismo formulario, prellenado.
+   *
+   * <p>Editar no estaba en ninguna parte: un contacto capturado con el telefono mal se quedaba mal
+   * para siempre, o habia que agregar otro y dejar el viejo colgando. El formulario es el mismo
+   * porque los campos son los mismos; lo unico que cambia es de donde salen los valores y a donde
+   * va el resultado.</p>
+   */
+  protected startEdit(contact: ClientContact): void {
+    if (!this.canWrite()) return;
+
+    this.reset();
+    this.fullName.set(contact.fullName);
+    this.email.set(contact.email ?? '');
+    this.phone.set(contact.phone ?? '');
+    this.purpose.set(contact.purpose);
+    this.idClientSite.set(contact.idClientSite ?? '');
+    this.isPrimary.set(contact.isPrimary);
+    this.idJobPosition.set(
+      this.jobPositions().find((p) => p.name === contact.jobTitle)?.idCatalogItem ?? '',
+    );
+
+    this.editando.set(contact);
     this.addingByHand.set(true);
   }
 
   protected cancelAdd(): void {
     this.addingByHand.set(false);
+    this.editando.set(null);
     this.reset();
+    this.closeAdd.emit();
   }
 
   protected submit(): void {
     if (!this.ready() || this.saving()) return;
 
-    this.create.emit({
+    const datos: NewContact = {
       fullName: this.fullName().trim(),
       purpose: this.purpose(),
       idClientSite: this.idClientSite() || null,
@@ -319,10 +373,20 @@ export class ClientContacts {
       email: this.email().trim(),
       phone: this.phone().trim(),
       isPrimary: this.isPrimary(),
-    });
+    };
+
+    const enEdicion = this.editando();
+
+    if (enEdicion) {
+      this.edit.emit({ contact: enEdicion, datos });
+    } else {
+      this.create.emit(datos);
+    }
 
     this.addingByHand.set(false);
+    this.editando.set(null);
     this.reset();
+    this.closeAdd.emit();
   }
 
   /** Cómo se le llega. Sin ninguno, se dice: un contacto sin forma de contacto no sirve. */

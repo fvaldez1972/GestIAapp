@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { Router } from '@angular/router';
 import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
@@ -277,15 +277,30 @@ export class WorkforcePage {
   });
 
   constructor() {
+    /**
+     * Recargar cuando cambia la organizacion, y <b>solo</b> por eso.
+     *
+     * <p>Un efecto se suscribe a todas las señales que se leen mientras corre, incluidas las que
+     * lee el metodo al que llama. <c>load()</c> consulta la busqueda y los cuatro filtros, asi que
+     * el efecto acababa dependiendo de los cinco: escribir una letra en el buscador llamaba a
+     * <c>load()</c> desde <c>onSearch</c> y otra vez desde aqui, dos peticiones por tecla.</p>
+     *
+     * <p>Es el mismo defecto que dejaba la pantalla de Clientes parpadeando. Aqui no llegaba a
+     * ciclo infinito —ninguna de esas cinco señales se escribe al cargar—, pero es la misma
+     * causa.</p>
+     */
     effect(() => {
       const organizationId = this.organizationId();
+      const puedeLeer = this.canRead();
 
-      if (organizationId && this.canRead()) {
-        this.load();
-        this.loadOptions(organizationId);
-      } else {
-        this.employees.set([]);
-      }
+      untracked(() => {
+        if (organizationId && puedeLeer) {
+          this.load();
+          this.loadOptions(organizationId);
+        } else {
+          this.employees.set([]);
+        }
+      });
     });
   }
 

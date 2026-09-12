@@ -32,7 +32,9 @@ public sealed partial class DemoDataSeeder
     {
         var existing = await dbContext.Employees
             .IgnoreQueryFilters(["Active", "Organization"])
-            .AnyAsync(item => item.IdOrganization == organization.IdOrganization, cancellationToken);
+            .AnyAsync(
+                item => item.IdOrganization == organization.IdOrganization && item.CreatedBy == DemoActorId,
+                cancellationToken);
 
         if (existing)
         {
@@ -324,7 +326,9 @@ public sealed partial class DemoDataSeeder
     {
         var existing = await dbContext.ServiceAssignments
             .IgnoreQueryFilters(["Active", "Organization"])
-            .AnyAsync(item => item.Employee.IdOrganization == organization.IdOrganization, cancellationToken);
+            .AnyAsync(
+                item => item.Employee.IdOrganization == organization.IdOrganization && item.CreatedBy == DemoActorId,
+                cancellationToken);
 
         if (existing)
         {
@@ -416,7 +420,7 @@ public sealed partial class DemoDataSeeder
         var existing = await dbContext.ScheduleVersions
             .IgnoreQueryFilters(["Active", "Organization"])
             .AnyAsync(
-                item => item.IdOrganization == organization.IdOrganization,
+                item => item.IdOrganization == organization.IdOrganization && item.CreatedBy == DemoActorId,
                 cancellationToken);
 
         if (existing)

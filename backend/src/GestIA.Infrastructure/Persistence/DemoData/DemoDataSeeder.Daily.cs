@@ -22,7 +22,7 @@ public sealed partial class DemoDataSeeder
         var existing = await dbContext.AttendanceRecords
             .IgnoreQueryFilters(["Active", "Organization"])
             .AnyAsync(
-                item => item.IdOrganization == organization.IdOrganization,
+                item => item.IdOrganization == organization.IdOrganization && item.CreatedBy == DemoActorId,
                 cancellationToken);
 
         if (existing)
@@ -279,7 +279,9 @@ public sealed partial class DemoDataSeeder
     {
         var existing = await dbContext.OperationalRequests
             .IgnoreQueryFilters(["Active", "Organization"])
-            .AnyAsync(item => item.IdOrganization == organization.IdOrganization, cancellationToken);
+            .AnyAsync(
+                item => item.IdOrganization == organization.IdOrganization && item.CreatedBy == DemoActorId,
+                cancellationToken);
 
         if (existing)
         {
@@ -422,7 +424,9 @@ public sealed partial class DemoDataSeeder
     {
         var existing = await dbContext.BusinessDocuments
             .IgnoreQueryFilters(["Active", "Organization"])
-            .AnyAsync(item => item.IdOrganization == organization.IdOrganization, cancellationToken);
+            .AnyAsync(
+                item => item.IdOrganization == organization.IdOrganization && item.CreatedBy == DemoActorId,
+                cancellationToken);
 
         if (existing)
         {

@@ -17,7 +17,10 @@ namespace GestIA.Infrastructure.Persistence.DemoData;
 /// <list type="bullet">
 /// <item>Sólo corre si <c>DemoData__Enabled=true</c>. Nunca automáticamente.</item>
 /// <item>Es idempotente: cada fase comprueba si ya existe antes de escribir, así que una
-/// corrida interrumpida se puede reanudar sin duplicar.</item>
+/// corrida interrumpida se puede reanudar sin duplicar. La llave de esa comprobación es
+/// <see cref="DemoActorId"/>, no «la organización tiene alguna fila»: así el sembrador puede
+/// <b>complementar</b> una organización que ya tenga registros propios —un par de clientes
+/// capturados a mano, por ejemplo— en lugar de saltarse la fase entera y dejarla a medias.</item>
 /// <item>No toca la ruta de alta de organizaciones reales. Reutiliza
 /// <see cref="OrganizationCatalogDefaults"/> tal cual está para la geografía, y agrega
 /// puestos y reglas de elegibilidad SÓLO a la organización demo.</item>
@@ -42,7 +45,11 @@ public sealed partial class DemoDataSeeder(
     IOptions<DemoDataOptions> options,
     ILogger<DemoDataSeeder> logger)
 {
-    /// <summary>Actor sintético. Distinto del bootstrap para poder filtrar auditoría demo.</summary>
+    /// <summary>
+    /// Actor sintético. Distinto del bootstrap para poder filtrar auditoría demo, y además
+    /// <b>la llave de idempotencia de todas las fases</b>: una fila con este <c>CreatedBy</c> la
+    /// escribió este sembrador, y sólo esas cuentan para decidir si una fase ya corrió.
+    /// </summary>
     private static readonly Guid DemoActorId = Guid.Parse("00000000-0000-0000-0000-0000000000de");
 
     private const string DemoActorName = "GestIA Demo Seed";
@@ -137,27 +144,14 @@ public sealed partial class DemoDataSeeder(
             await dbContext.SaveChangesAsync(cancellationToken);
         }
 
-        var hasJobPositions = await dbContext.BusinessCatalogItems
-            .IgnoreQueryFilters(["Active", "Organization"])
-            .AnyAsync(
-                item => item.IdOrganization == organization.IdOrganization &&
-                    item.Type == BusinessCatalogItemType.JobPosition,
-                cancellationToken);
-
-        if (!hasJobPositions)
-        {
-            foreach (var name in DemoCatalog.JobPositions)
-            {
-                await AddCatalogItemAsync(organization, BusinessCatalogItemType.JobPosition, name, cancellationToken);
-            }
-
-            foreach (var name in DemoCatalog.Skills)
-            {
-                await AddCatalogItemAsync(organization, BusinessCatalogItemType.Skill, name, cancellationToken);
-            }
-
-            await dbContext.SaveChangesAsync(cancellationToken);
-        }
+        // Puestos y habilidades son dos catálogos distintos y se comprueban por separado. Colgar
+        // las habilidades de «¿ya hay puestos?» dejaba sin habilidades a cualquier organización
+        // que ya tuviera puestos capturados a mano, y entonces las reglas de elegibilidad que
+        // exigen una habilidad no encontraban cuál y el dominio las rechazaba.
+        await EnsureCatalogItemsAsync(
+            organization, BusinessCatalogItemType.JobPosition, DemoCatalog.JobPositions, cancellationToken);
+        await EnsureCatalogItemsAsync(
+            organization, BusinessCatalogItemType.Skill, DemoCatalog.Skills, cancellationToken);
 
         report.CatalogItems = await dbContext.BusinessCatalogItems
             .IgnoreQueryFilters(["Active", "Organization"])
@@ -235,6 +229,54 @@ public sealed partial class DemoDataSeeder(
                 item.NormalizedName == plegado)
             .Select(item => (Guid?)item.IdBusinessCatalogItem)
             .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Agrega de una lista de catálogo sólo los nombres que faltan.
+    ///
+    /// <para>Se compara por nombre plegado porque es la misma llave que hace único al valor
+    /// dentro de su tipo: volver a insertar uno que ya está —capturado a mano o por una corrida
+    /// anterior— chocaría contra esa unicidad. Y como los registros no se borran, un valor
+    /// desactivado sigue ocupando su nombre, así que también cuenta como presente.</para>
+    ///
+    /// <para><b>Los dos lados se pliegan con la misma función.</b> <c>NormalizedName</c> es una
+    /// columna calculada en T-SQL que sube a mayúsculas pero <b>conserva los acentos</b>; quien
+    /// ignora el acento es la colación <c>Latin1_General_CI_AI</c> de la columna, y por lo tanto
+    /// también el índice único. Comparar en memoria el valor guardado —«OPERACIÓN DE CCTV»—
+    /// contra el que produce <see cref="CatalogName.Normalize"/> —«OPERACION DE CCTV»— daba
+    /// distinto, se intentaba insertar de nuevo y el índice lo rechazaba por duplicado. Pasar el
+    /// valor guardado por la misma función deja a los dos lados en la misma forma.</para>
+    /// </summary>
+    private async Task EnsureCatalogItemsAsync(
+        Organization organization,
+        BusinessCatalogItemType type,
+        IReadOnlyList<string> names,
+        CancellationToken cancellationToken)
+    {
+        var presentes = await dbContext.BusinessCatalogItems
+            .IgnoreQueryFilters(["Active", "Organization"])
+            .Where(item => item.IdOrganization == organization.IdOrganization && item.Type == type)
+            .Select(item => item.NormalizedName)
+            .ToListAsync(cancellationToken);
+
+        var yaEstan = new HashSet<string>(presentes.Select(CatalogName.Normalize), StringComparer.Ordinal);
+        var agregados = 0;
+
+        foreach (var name in names)
+        {
+            if (!yaEstan.Add(CatalogName.Normalize(name)))
+            {
+                continue;
+            }
+
+            await AddCatalogItemAsync(organization, type, name, cancellationToken);
+            agregados++;
+        }
+
+        if (agregados > 0)
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
     }
 
     private async Task AddCatalogItemAsync(
@@ -378,6 +420,12 @@ internal static partial class DemoSeedLog
         Level = LogLevel.Information,
         Message = "Demo phase {Phase} already present, skipped.")]
     public static partial void PhaseSkipped(ILogger logger, string phase);
+
+    [LoggerMessage(
+        EventId = 5010,
+        Level = LogLevel.Information,
+        Message = "Demo seed: se omite {Kind} {Code} porque su codigo ya esta ocupado en la organizacion.")]
+    public static partial void CodeTaken(ILogger logger, string kind, string code);
 
     [LoggerMessage(
         EventId = 4005,

@@ -65,13 +65,6 @@ p {
   text-decoration: none;
 }
 
-.platform-kpis {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: .85rem;
-}
-
-.platform-kpis article,
 .detail-metrics article {
   display: grid;
   gap: .28rem;
@@ -81,22 +74,16 @@ p {
   border-radius: 6px;  padding: 1rem;
   background: #fff;  box-shadow: none;}
 
-.platform-kpis span,
 .detail-metrics span {
   color: var(--gestia-muted);
   font-size: 0.75rem;  font-weight: 600;  letter-spacing: 0;  text-transform: uppercase;
 }
 
-.platform-kpis strong,
 .detail-metrics strong {
   color: var(--gestia-navy);
   font-size: 1.75rem;
   line-height: 1;
 }
-
-.platform-kpis small {
-  color: var(--gestia-muted);
-  font-size: 0.75rem;}
 
 .platform-layout {
   display: grid;
@@ -269,7 +256,6 @@ p {
 
 .organization-row small,
 .mini-list small,
-.platform-note span,
 .empty-state span {
   margin-top: .2rem;
   color: var(--gestia-muted);
@@ -319,15 +305,15 @@ p {
   background: #fbfcff;
 }
 
-.platform-note,
+
 .empty-state {
   display: grid;
   gap: .3rem;
   border: 1px solid color-mix(in srgb, var(--gestia-cyan) 28%, var(--gestia-border));
   border-radius: 6px;  padding: .9rem;
-  background: #fff;}
+  background: #fff;
+}
 
-.platform-note strong,
 .empty-state strong {
   color: var(--gestia-navy);
 }
@@ -361,9 +347,6 @@ p {
     grid-template-columns: 1fr;
   }
 
-  .platform-kpis {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 
 @media (max-width: 720px) {
@@ -383,7 +366,6 @@ p {
     flex: 1;
   }
 
-  .platform-kpis,
   .form-grid--two,
   .detail-metrics {
     grid-template-columns: 1fr;
@@ -437,8 +419,7 @@ p {
   background: transparent;
 }
 .organization-row > span { min-width: 0; }
-.organization-row strong,
-.platform-note strong { overflow-wrap: anywhere; }
+.organization-row strong { overflow-wrap: anywhere; }
 
 /* El detalle por campo del rechazo del servidor, junto al campo que falló.
    Antes sólo se veía arriba, y en una validación decía siempre lo mismo. */
@@ -525,3 +506,31 @@ input.is-invalid {
 }
 
 .detail-tabs button:focus-visible { outline: 2px solid var(--gestia-cyan); outline-offset: -2px; }
+
+/* Los datos de la organizacion se enseñan; editar se pide aparte. */
+.detail-facts {
+  display: grid;
+  grid-template-columns: minmax(110px, auto) minmax(0, 1fr);
+  gap: 8px 16px;
+  margin: 0;
+  font-size: 14px;
+}
+
+.detail-facts dt { color: var(--gestia-muted); font-size: 12px; }
+.detail-facts dd { margin: 0; color: var(--gestia-text); overflow-wrap: anywhere; }
+
+.detail-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* La casilla de baja dentro del formulario: la etiqueta explica que pasa al marcarla, porque
+   «Desactivar» a secas no dice si se pierde algo. */
+.check-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: .6rem;
+  align-items: start;
+}
+
+.check-row input { margin-top: .2rem; }
+.check-row span { display: grid; gap: .15rem; }
+.check-row strong { color: var(--gestia-navy); font-size: .86rem; }
+.check-row small { color: var(--gestia-muted); font-size: 0.75rem; line-height: 1.4; }

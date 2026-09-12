@@ -7,7 +7,11 @@ export type Organization = {
 };
 
 export type CreateOrganization = {
-  readonly codeOrganization: string;
+  /**
+   * Opcional: sin el, lo pone el servidor con la forma `ORG-01`. No se captura desde ninguna
+   * pantalla, y al editar una organizacion omitirlo conserva el que ya tiene.
+   */
+  readonly codeOrganization?: string | null;
   readonly legalName: string;
   readonly rfc: string | null;
 };

@@ -39,28 +39,6 @@
     <p class="gi-alert gi-alert--success" role="status">{{ success() }}</p>
   }
 
-  <section class="platform-kpis" aria-label="Resumen de organizaciones">
-    <article>
-      <span>Organizaciones</span>
-      <strong>{{ organizations().length }}</strong>
-      <small>{{ activeOrganizationsCount() }} activas · {{ inactiveOrganizationsCount() }} inactivas</small>
-    </article>
-    <article>
-      <span>Admins org.</span>
-      <strong>{{ organizationAdminsCount() }}</strong>
-      <small>usuarios responsables por organización</small>
-    </article>
-    <article>
-      <span>Clientes operativos</span>
-      <strong>{{ totalClientsCount() }}</strong>
-      <small>{{ activeClientsCount() }} activos · {{ inactiveClientsCount() }} inactivos</small>
-    </article>
-    <article>
-      <span>Rol para alta</span>
-      <strong>{{ adminRole()?.name || 'Pendiente' }}</strong>
-      <small>{{ adminRole()?.codeRole || 'configura un rol admin' }}</small>
-    </article>
-  </section>
 
   <section class="platform-layout">
     <article class="platform-registry gi-card">
@@ -90,7 +68,7 @@
               >
                 <span>
                   <strong>{{ summary.organization.legalName }}</strong>
-                  <small>{{ summary.organization.codeOrganization }} · {{ summary.organization.rfc || 'RFC no capturado' }}</small>
+                  <small>{{ summary.organization.rfc || 'RFC no capturado' }}</small>
                 </span>
                 <em [class.is-muted]="!summary.organization.active">{{ activeLabel(summary.organization.active) }}</em>
               </button>
@@ -111,9 +89,14 @@
           <div>
             <span class="eyebrow">Vista Super Admin</span>
             <h2>{{ summary.organization.legalName }}</h2>
-            <p>{{ summary.organization.codeOrganization }} · {{ summary.organization.rfc || 'RFC pendiente' }}</p>
+            <p>{{ summary.organization.rfc || 'RFC pendiente' }}</p>
           </div>
-          <a class="gi-button gi-button--secondary" routerLink="/seguridad">Gestionar accesos</a>
+          <div class="detail-actions">
+            <button class="gi-button gi-button--secondary" type="button" (click)="startOrganizationEdit()">
+              Editar
+            </button>
+            <a class="gi-button gi-button--secondary" routerLink="/seguridad">Gestionar accesos</a>
+          </div>
         </header>
 
         <section class="detail-metrics">
@@ -132,19 +115,15 @@
         </section>
 
         <!--
-          Pestañas, porque la ficha apilaba cinco bloques en una columna: los datos editables, el
-          alta de un admin, la lista de admins, la de clientes y una nota. Lo que se crea y lo que
-          se consulta quedaban mezclados en el mismo desplazamiento, y para leer quien es el
-          responsable habia que pasar por encima de un formulario vacio.
+          Dos pestañas, y ninguna repite la cabecera. Hubo una tercera, «Datos», que enseñaba el
+          nombre y el RFC de la organizacion: los mismos dos datos que el titulo y el subtitulo de
+          arriba ya dicen, a dos centimetros. Editarlos se pide desde la cabecera, junto a las
+          demas acciones de la ficha.
 
           Sin contadores en las pestañas a proposito: las tres cifras estan justo arriba, y
-          repetirlas aqui seria el mismo numero dicho dos veces a un centimetro de distancia.
+          repetirlas aqui seria el mismo numero dicho dos veces.
         -->
         <div class="detail-tabs" role="tablist" aria-label="Detalle de la organización">
-          <button type="button" role="tab"
-            [attr.aria-selected]="detailTab() === 'datos'"
-            [class.is-active]="detailTab() === 'datos'"
-            (click)="detailTab.set('datos')">Datos</button>
           <button type="button" role="tab"
             [attr.aria-selected]="detailTab() === 'responsables'"
             [class.is-active]="detailTab() === 'responsables'"
@@ -154,61 +133,6 @@
             [class.is-active]="detailTab() === 'clientes'"
             (click)="detailTab.set('clientes')">Clientes</button>
         </div>
-
-        @if (detailTab() === 'datos') {
-        <section class="detail-section">
-          <header>
-            <div>
-              <span class="eyebrow">Soporte BKT</span>
-              <h3>Datos de la organización</h3>
-            </div>
-          </header>
-
-          <form class="creation-form creation-form--compact" (ngSubmit)="updateSelectedOrganization()">
-            <div class="form-grid form-grid--two">
-              <label>
-                <span>Código</span>
-                <input
-                  type="text"
-                  name="editOrganizationCode"
-                  autocomplete="off"
-                  [ngModel]="editOrganizationCode()"
-                  (ngModelChange)="editOrganizationCode.set($event)"
-                />
-              </label>
-              <label>
-                <span>RFC</span>
-                <input
-                  type="text"
-                  name="editOrganizationRfc"
-                  autocomplete="off"
-                  placeholder="Opcional"
-                  [ngModel]="editOrganizationRfc()"
-                  (ngModelChange)="editOrganizationRfc.set($event)"
-                />
-              </label>
-            </div>
-            <label>
-              <span>Nombre legal</span>
-              <input
-                type="text"
-                name="editOrganizationLegalName"
-                autocomplete="organization"
-                [ngModel]="editOrganizationLegalName()"
-                (ngModelChange)="editOrganizationLegalName.set($event)"
-              />
-            </label>
-            <div class="form-actions">
-              <button class="gi-button gi-button--secondary" type="button" [disabled]="savingOrganization()" (click)="toggleSelectedOrganizationStatus()">
-                {{ summary.organization.active ? 'Desactivar' : 'Reactivar' }}
-              </button>
-              <button class="gi-button gi-button--primary" type="submit" [disabled]="!canUpdateSelectedOrganization()">
-                {{ savingOrganization() ? 'Guardando...' : 'Guardar cambios' }}
-              </button>
-            </div>
-          </form>
-        </section>
-        }
 
         @if (detailTab() === 'responsables') {
         <section class="detail-section">
@@ -274,10 +198,6 @@
         </section>
         }
 
-        <section class="platform-note">
-          <strong>Separación de niveles</strong>
-          <span>Super Admin solo da de alta organizaciones y admins. La configuración operativa vive dentro de la organización, en la vista admin.</span>
-        </section>
       } @else {
         <div class="empty-state empty-state--large">
           <strong>Selecciona una organización</strong>
@@ -501,6 +421,84 @@
             </button>
           </form>
         
+    </section>
+  </div>
+}
+
+<!-- Editar los datos: ventana, como las dos altas. En esta pantalla los formularios no se incrustan. -->
+@if (editingOrganization() && selectedSummary(); as summary) {
+  <div class="modal-backdrop" (click)="cancelOrganizationEdit()">
+    <section
+      class="modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="editar-organizacion-title"
+      (click)="$event.stopPropagation()"
+    >
+      <header class="section-heading">
+        <div>
+          <span class="eyebrow">Soporte BKT</span>
+          <h2 id="editar-organizacion-title">Editar datos de la organización</h2>
+          <p>{{ summary.organization.legalName }}</p>
+        </div>
+        <button type="button" class="modal-close" [disabled]="savingOrganization()" aria-label="Cerrar" (click)="cancelOrganizationEdit()">
+          ×
+        </button>
+      </header>
+
+          <!-- Los mismos campos y el mismo orden que el alta: nombre y luego RFC. -->
+          <form class="creation-form creation-form--compact" (ngSubmit)="updateSelectedOrganization()">
+            <label>
+              <span>Nombre de la organización</span>
+              <input
+                type="text"
+                name="editOrganizationLegalName"
+                autocomplete="organization"
+                [ngModel]="editOrganizationLegalName()"
+                (ngModelChange)="editOrganizationLegalName.set($event)"
+              />
+            </label>
+            <label>
+              <span>RFC</span>
+              <input
+                type="text"
+                name="editOrganizationRfc"
+                autocomplete="off"
+                placeholder="Opcional"
+                [ngModel]="editOrganizationRfc()"
+                (ngModelChange)="editOrganizationRfc.set($event)"
+              />
+            </label>
+            <!--
+              La baja vive aqui, con los demas cambios de la organizacion, en vez de en un boton
+              suelto. Asi se ve en que estado queda antes de guardar, y no hay una accion que se
+              aplica sola mientras el resto del formulario espera.
+            -->
+            <label class="check-row">
+              <input
+                type="checkbox"
+                name="editOrganizationInactive"
+                [ngModel]="editOrganizationInactive()"
+                (ngModelChange)="editOrganizationInactive.set($event)"
+              />
+              <span>
+                <strong>Desactivar la organización</strong>
+                <small>
+                  Dejará de aparecer en las listas y nadie podrá trabajar dentro de ella. Sus
+                  registros se conservan y se puede volver a activar desde aquí.
+                </small>
+              </span>
+            </label>
+
+            <div class="form-actions">
+              <button class="gi-button gi-button--secondary" type="button" [disabled]="savingOrganization()" (click)="cancelOrganizationEdit()">
+                Cancelar
+              </button>
+              <button class="gi-button gi-button--primary" type="submit" [disabled]="!canUpdateSelectedOrganization()">
+                {{ savingOrganization() ? 'Guardando...' : 'Guardar cambios' }}
+              </button>
+            </div>
+          </form>
     </section>
   </div>
 }

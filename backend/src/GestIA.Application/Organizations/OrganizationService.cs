@@ -37,11 +37,15 @@ public sealed class OrganizationService(
         CancellationToken cancellationToken)
     {
         var errors = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
-        var code = InputValidation.Required(
-            request.CodeOrganization,
-            nameof(request.CodeOrganization),
-            30,
-            errors).ToUpperInvariant();
+        // Opcional, como en el alta con administrador: sin codigo lo pone el servidor con la forma
+        // ORG-01. Cuando viene, se respeta y se valida como siempre.
+        var code = string.IsNullOrWhiteSpace(request.CodeOrganization)
+            ? null
+            : InputValidation.Required(
+                request.CodeOrganization,
+                nameof(request.CodeOrganization),
+                30,
+                errors).ToUpperInvariant();
         var legalName = InputValidation.Required(
             request.LegalName,
             nameof(request.LegalName),
@@ -51,6 +55,8 @@ public sealed class OrganizationService(
             ? null
             : InputValidation.Rfc(request.Rfc, nameof(request.Rfc), false, errors);
         InputValidation.ThrowIfInvalid(errors);
+
+        code ??= $"ORG-{await repository.HighestOrganizationCodeNumberAsync(cancellationToken) + 1:00}";
 
         if (await repository.IsCodeInUseAsync(code, cancellationToken))
         {
@@ -84,11 +90,15 @@ public sealed class OrganizationService(
         var organization = await repository.GetTrackedAsync(idOrganization, cancellationToken)
             ?? throw new ResourceNotFoundException("No se encontró la organización solicitada.");
         var errors = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
-        var code = InputValidation.Required(
-            request.CodeOrganization,
-            nameof(request.CodeOrganization),
-            30,
-            errors).ToUpperInvariant();
+        // Sin codigo se conserva el que ya tiene. No es lo mismo que aceptar vacio: una cadena en
+        // blanco seguiria siendo un intento de capturarlo, y se valida como siempre.
+        var code = string.IsNullOrWhiteSpace(request.CodeOrganization)
+            ? organization.CodeOrganization
+            : InputValidation.Required(
+                request.CodeOrganization,
+                nameof(request.CodeOrganization),
+                30,
+                errors).ToUpperInvariant();
         var legalName = InputValidation.Required(
             request.LegalName,
             nameof(request.LegalName),

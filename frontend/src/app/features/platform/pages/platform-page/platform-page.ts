@@ -2,7 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule, NgForm } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { forkJoin } from 'rxjs';
+import { forkJoin, of, switchMap } from 'rxjs';
 import { ClientApiService } from '../../../clients/data-access/client-api.service';
 import { Organization, OrganizationClientSummary } from '../../../clients/data-access/client.models';
 import { SecurityApiService } from '../../../security/data-access/security-api.service';
@@ -77,40 +77,44 @@ export class PlatformPage implements OnInit {
    * <b>consulta</b> quedaban mezclados en el mismo desplazamiento, y para leer quien es el
    * responsable habia que pasar por encima de un formulario vacio.</p>
    *
-   * <p>La primera se llama Datos, que es la regla del sistema para toda ficha.</p>
+   * <p>Hubo una tercera, «Datos», que enseñaba el nombre y el RFC: los mismos dos datos que el
+   * titulo y el subtitulo de la ficha ya dicen, a dos centimetros. Editarlos se pide desde la
+   * cabecera, junto a las demas acciones.</p>
    */
-  protected readonly detailTab = signal<'datos' | 'responsables' | 'clientes'>('datos');
+  protected readonly detailTab = signal<'responsables' | 'clientes'>('responsables');
 
   /** Si el alta de admin esta abierta. Cerrada por omision, como la de organizacion. */
   protected readonly creatingAdmin = signal(false);
 
+  /**
+   * Si la edicion de la organizacion esta abierta.
+   *
+   * <p>La pestaña Datos <b>enseña</b>; editar es otra cosa y se pide aparte. Antes los tres campos
+   * eran cajas de texto siempre listas para escribir, asi que consultar el RFC de una organizacion
+   * y cambiarlo se veian igual, y no habia forma de leer sin tener el cursor a un clic de
+   * modificar.</p>
+   *
+   * <p>Se abre en ventana, como las dos altas: en esta pantalla los formularios no se incrustan.</p>
+   */
+  protected readonly editingOrganization = signal(false);
+
+  /**
+   * Si al guardar la organizacion debe quedar desactivada.
+   *
+   * <p>La baja era un boton suelto que se aplicaba solo, al margen del formulario. Dentro del
+   * formulario se ve en que estado va a quedar antes de confirmar, y se deshace cerrando sin
+   * guardar, que es lo que un boton suelto no permitia.</p>
+   */
+  protected readonly editOrganizationInactive = signal(false);
+
   protected readonly selectedAdminName = signal('');
   protected readonly selectedAdminEmail = signal('');
   protected readonly selectedAdminPassword = signal('');
-  protected readonly editOrganizationCode = signal('');
   protected readonly editOrganizationLegalName = signal('');
   protected readonly editOrganizationRfc = signal('');
 
   protected readonly selectedSummary = computed(
     () => this.summaries().find((summary) => summary.organization.idOrganization === this.selectedOrganizationRowId()) ?? this.summaries()[0] ?? null,
-  );
-  protected readonly activeOrganizationsCount = computed(() =>
-    this.summaries().filter((summary) => summary.organization.active).length,
-  );
-  protected readonly inactiveOrganizationsCount = computed(() =>
-    this.summaries().filter((summary) => !summary.organization.active).length,
-  );
-  protected readonly activeClientsCount = computed(() =>
-    this.summaries().reduce((total, summary) => total + summary.clients.filter((client) => client.active).length, 0),
-  );
-  protected readonly inactiveClientsCount = computed(() =>
-    this.summaries().reduce((total, summary) => total + summary.clients.filter((client) => !client.active).length, 0),
-  );
-  protected readonly organizationAdminsCount = computed(() =>
-    this.summaries().reduce((total, summary) => total + summary.adminsCount, 0),
-  );
-  protected readonly totalClientsCount = computed(() =>
-    this.summaries().reduce((total, summary) => total + summary.clients.length, 0),
   );
   protected readonly adminRole = computed(
     () =>
@@ -146,7 +150,6 @@ export class PlatformPage implements OnInit {
     Boolean(
       !this.savingOrganization() &&
         this.selectedSummary() &&
-        this.editOrganizationCode().trim() &&
         this.editOrganizationLegalName().trim(),
     ),
   );
@@ -239,6 +242,24 @@ export class PlatformPage implements OnInit {
     this.createOrganizationWithAdmin();
   }
 
+  /** Abre la edicion con los valores que hay hoy, no con lo que quedo de un intento anterior. */
+  protected startOrganizationEdit() {
+    const summary = this.selectedSummary();
+
+    if (!summary) {
+      return;
+    }
+
+    this.syncOrganizationEditor(summary.organization);
+    this.editOrganizationInactive.set(!summary.organization.active);
+    this.editingOrganization.set(true);
+  }
+
+  protected cancelOrganizationEdit() {
+    if (this.savingOrganization()) { return; }
+    this.editingOrganization.set(false);
+  }
+
   /** Abre el alta de admin de la organizacion elegida, sin arrastrar un intento anterior. */
   protected startAdminCreation() {
     this.clearSelectedAdminForm();
@@ -312,16 +333,40 @@ export class PlatformPage implements OnInit {
     this.error.set('');
     this.success.set('');
 
+    const idOrganization = summary.organization.idOrganization;
+    const debeQuedarActiva = !this.editOrganizationInactive();
+    const cambiaElEstado = debeQuedarActiva !== summary.organization.active;
+
     this.clientApi
-      .updateOrganization(summary.organization.idOrganization, {
-        codeOrganization: this.editOrganizationCode().trim(),
+      .updateOrganization(idOrganization, {
+        // Sin codigo: el servidor conserva el que ya tiene. No se captura ni se corrige desde
+        // aqui, asi que mandarlo solo abriria la puerta a cambiarlo sin querer al guardar.
         legalName: this.editOrganizationLegalName().trim(),
         rfc: this.normalizeOptional(this.editOrganizationRfc()),
       })
+      .pipe(
+        // El estado va en la misma peticion de guardar sólo si cambio. El alta y la baja son
+        // endpoints aparte, asi que se encadenan; mandarlos siempre dejaria en la auditoria un
+        // cambio de estado cada vez que alguien corrige una letra del nombre.
+        switchMap(() =>
+          cambiaElEstado
+            ? debeQuedarActiva
+              ? this.clientApi.activateOrganization(idOrganization)
+              : this.clientApi.deactivateOrganization(idOrganization)
+            : of(null),
+        ),
+      )
       .subscribe({
-        next: (organization) => {
-          this.selectedOrganizationRowId.set(organization.idOrganization);
-          this.success.set('Organización actualizada correctamente.');
+        next: () => {
+          this.selectedOrganizationRowId.set(idOrganization);
+          this.editingOrganization.set(false);
+          this.success.set(
+            cambiaElEstado
+              ? debeQuedarActiva
+                ? 'Organización actualizada y reactivada.'
+                : 'Organización actualizada y desactivada.'
+              : 'Organización actualizada correctamente.',
+          );
           this.loadPlatform();
         },
         error: (error: HttpErrorResponse) => {
@@ -329,41 +374,6 @@ export class PlatformPage implements OnInit {
           this.savingOrganization.set(false);
         },
       });
-  }
-
-  protected toggleSelectedOrganizationStatus() {
-    const summary = this.selectedSummary();
-    if (!summary) {
-      return;
-    }
-
-    this.savingOrganization.set(true);
-    this.error.set('');
-    this.success.set('');
-
-    const onSuccess = () => {
-      this.success.set(summary.organization.active ? 'Organización desactivada.' : 'Organización reactivada.');
-      this.loadPlatform();
-    };
-    const onError = (error: HttpErrorResponse) => {
-      this.error.set(this.extractError(error));
-      this.savingOrganization.set(false);
-    };
-
-    if (summary.organization.active) {
-      this.clientApi.deactivateOrganization(summary.organization.idOrganization).subscribe({
-        next: onSuccess,
-        error: onError,
-      });
-      return;
-    }
-
-    this.clientApi.activateOrganization(summary.organization.idOrganization).subscribe({
-      next: () => {
-        onSuccess();
-      },
-      error: onError,
-    });
   }
 
   private loadPlatform() {
@@ -414,7 +424,6 @@ export class PlatformPage implements OnInit {
   }
 
   private syncOrganizationEditor(organization: Organization) {
-    this.editOrganizationCode.set(organization.codeOrganization);
     this.editOrganizationLegalName.set(organization.legalName);
     this.editOrganizationRfc.set(organization.rfc ?? '');
   }

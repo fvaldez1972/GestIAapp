@@ -10,7 +10,7 @@ const ORGANIZACION = {
   idOrganization: 'org-a',
   codeOrganization: 'ORG-01',
   legalName: 'Seguridad Vanguardia',
-  rfc: null,
+  rfc: 'BCS140726356',
   active: true,
 };
 
@@ -85,7 +85,9 @@ describe('Plataforma · alta de organización', () => {
   it('el alta no está abierta de entrada, y el botón que la abre está en la cabecera', () => {
     const { raiz, boton, fixture } = montar();
 
-    expect(raiz.textContent).not.toContain('Nombre de la organización');
+    // El marcador es la ventana, no la etiqueta del campo: «Nombre de la organización» tambien
+    // aparece en la vista de lectura de la ficha, asi que buscarla no distingue nada.
+    expect(raiz.querySelector('.modal-backdrop')).toBeNull();
 
     const abrir = boton('Nueva organización');
     expect(abrir).toBeDefined();
@@ -94,7 +96,8 @@ describe('Plataforma · alta de organización', () => {
     abrir!.click();
     fixture.detectChanges();
 
-    expect(raiz.textContent).toContain('Nombre de la organización');
+    expect(raiz.querySelector('.modal-backdrop')).not.toBeNull();
+    expect(raiz.textContent).toContain('Alta de organización');
   });
 
   /**
@@ -146,20 +149,20 @@ describe('Plataforma · alta de organización', () => {
     const pestanas = Array.from(raiz.querySelectorAll('.detail-tabs [role="tab"]')).map((n) =>
       n.textContent!.trim(),
     );
-    expect(pestanas).toEqual(['Datos', 'Responsables', 'Clientes']);
+    expect(pestanas).toEqual(['Responsables', 'Clientes']);
 
-    // Al entrar se ve Datos, que es la regla del sistema para toda ficha.
-    expect(raiz.textContent).toContain('Datos de la organización');
-    expect(raiz.textContent).not.toContain('Responsables de la organización');
+    // No hay pestaña de datos: el nombre y el RFC ya los dice la cabecera, a dos centimetros.
+    expect(raiz.textContent).not.toContain('Datos de la organización');
+    expect(raiz.textContent).toContain('Responsables de la organización');
 
-    const responsables = Array.from(
+    const clientes = Array.from(
       raiz.querySelectorAll<HTMLButtonElement>('.detail-tabs [role="tab"]'),
-    ).find((b) => b.textContent?.trim() === 'Responsables')!;
-    responsables.click();
+    ).find((b) => b.textContent?.trim() === 'Clientes')!;
+    clientes.click();
     fixture.detectChanges();
 
-    expect(raiz.textContent).toContain('Responsables de la organización');
-    expect(raiz.textContent).not.toContain('Datos de la organización');
+    expect(raiz.textContent).toContain('Clientes dentro de la organización');
+    expect(raiz.textContent).not.toContain('Responsables de la organización');
   });
 
   /** Y el alta de admin sigue la misma regla que la de organización: ventana, no incrustada. */
@@ -181,6 +184,160 @@ describe('Plataforma · alta de organización', () => {
     const ventana = raiz.querySelector('.modal-backdrop .modal[role="dialog"]');
     expect(ventana).not.toBeNull();
     expect(ventana!.textContent).toContain('Crear admin para esta organización');
+  });
+
+  /**
+   * La pestaña Datos <b>enseña</b>; editar es otra cosa y se pide aparte.
+   *
+   * <p>Antes los tres campos eran cajas de texto siempre listas para escribir: consultar el RFC de
+   * una organizacion y cambiarlo se veian igual, y no habia forma de leer sin tener el cursor a un
+   * clic de modificar.</p>
+   */
+  /**
+   * La ficha enseña el nombre y el RFC <b>una sola vez</b>, en su cabecera.
+   *
+   * <p>Hubo una pestaña «Datos» que los repetia dos centimetros mas abajo, y encima con un boton de
+   * desactivar suelto al lado. Editarlos se pide desde la cabecera, junto a las demas acciones de
+   * la ficha.</p>
+   */
+  it('la ficha no repite el nombre ni el RFC en una pestaña aparte', () => {
+    const { raiz, boton } = montar();
+
+    expect(raiz.querySelector('.detail-facts')).toBeNull();
+    expect(raiz.textContent).not.toContain('Datos de la organización');
+    // El RFC aparece en la cabecera de la ficha y en la fila del directorio, no una tercera vez.
+    expect((raiz.textContent!.match(/BCS140726356/g) ?? []).length).toBe(2);
+
+    const editar = boton('Editar');
+    expect(editar).toBeDefined();
+    expect(editar!.closest('.platform-detail .section-heading')).not.toBeNull();
+  });
+
+  /**
+   * El codigo no se enseña en ningun sitio de esta pantalla.
+   *
+   * <p>Lo pone el servidor al dar de alta y no se captura ni se corrige desde aqui. Enseñarlo como
+   * un dato mas —en la ficha, en el subtitulo y en cada fila del directorio— invitaba a tratarlo
+   * como algo que se decide. Sigue existiendo y sigue siendo unico; lo que se quito es su
+   * presencia en la pantalla.</p>
+   */
+  it('el código de la organización no aparece en la pantalla', () => {
+    const { raiz } = montar();
+
+    expect(raiz.textContent).not.toContain('ORG-01');
+    expect(raiz.textContent).not.toContain('Código');
+  });
+
+  /** Y editar abre en ventana, como las dos altas: en esta pantalla los formularios no se incrustan. */
+  it('«Editar» abre los campos en una ventana, con los valores de hoy', async () => {
+    const { raiz, boton, fixture } = montar();
+
+    boton('Editar')!.click();
+    fixture.detectChanges();
+    // `ngModel` escribe el valor en el input en un microtask, no en el mismo ciclo de deteccion.
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const ventana = raiz.querySelector('.modal-backdrop .modal[role="dialog"]');
+    expect(ventana).not.toBeNull();
+
+    // Los mismos campos y el mismo orden que el alta: nombre y luego RFC, sin codigo.
+    const etiquetas = Array.from(ventana!.querySelectorAll('label > span')).map((n) =>
+      n.textContent!.trim(),
+    );
+    expect(etiquetas.slice(0, 2)).toEqual(['Nombre de la organización', 'RFC']);
+
+    // Y la baja va dentro del formulario, no en un boton suelto que se aplicaba solo.
+    const baja = ventana!.querySelector('input[name="editOrganizationInactive"]') as HTMLInputElement;
+    expect(baja).not.toBeNull();
+    expect(baja.checked).toBe(false);
+
+    const nombre = ventana!.querySelector('input[name="editOrganizationLegalName"]') as HTMLInputElement;
+    expect(nombre.value).toBe('Seguridad Vanguardia');
+  });
+
+  /**
+   * Marcar la casilla desactiva al guardar; el estado solo viaja si cambio.
+   *
+   * <p>La baja era un boton suelto que se aplicaba solo, al margen del formulario. Ahora va con los
+   * demas cambios: se ve en que estado va a quedar antes de confirmar, y se deshace cerrando sin
+   * guardar.</p>
+   *
+   * <p>Que el estado <b>solo</b> viaje cuando cambia importa tanto como lo primero: mandarlo
+   * siempre dejaria en la auditoria un cambio de estado cada vez que alguien corrige una letra del
+   * nombre.</p>
+   */
+  it('la casilla de baja se aplica al guardar, encadenada tras el cambio de datos', async () => {
+    const { raiz, boton, fixture, http } = montar();
+
+    boton('Editar')!.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const baja = raiz.querySelector('input[name="editOrganizationInactive"]') as HTMLInputElement;
+    baja.checked = true;
+    baja.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    boton('Guardar cambios')!.click();
+    fixture.detectChanges();
+
+    // Primero se guardan el nombre y el RFC…
+    const guardado = http.expectOne(
+      (r) => r.method === 'PUT' && r.url.endsWith(`/organizations/${ORGANIZACION.idOrganization}`),
+    );
+    // …y el codigo no viaja: el servidor conserva el que ya tiene.
+    expect(guardado.request.body.codeOrganization).toBeUndefined();
+    guardado.flush(ORGANIZACION);
+    fixture.detectChanges();
+
+    // …y despues la baja, encadenada.
+    http
+      .expectOne(
+        (r) => r.method === 'DELETE' && r.url.endsWith(`/organizations/${ORGANIZACION.idOrganization}`),
+      )
+      .flush(null);
+  });
+
+  /**
+   * La tira de indicadores se retiro de la cabecera.
+   *
+   * <p>Repetia en cuatro recuadros lo que el directorio y la ficha ya dicen, y empujaba hacia abajo
+   * las dos cosas a las que se entra: la lista de organizaciones y el detalle de la elegida.</p>
+   */
+  it('ya no lleva la tira de indicadores', () => {
+    const { raiz } = montar();
+
+    expect(raiz.querySelector('.platform-kpis')).toBeNull();
+    expect(raiz.textContent).not.toContain('Rol para alta');
+  });
+
+  /**
+   * El nombre de cada organizacion se lee en el color del texto, no en el del error.
+   *
+   * <p>Al retirar unos estilos que ya no tenian dueño se borro el cierre de una lista de
+   * selectores, y <c>.organization-row strong</c> quedo colgando: se fusiono con la regla del
+   * mensaje de error que venia debajo y los nombres del directorio se pintaron en rojo. Compilaba
+   * igual, que es lo peor del caso, y solo se veia mirando la pantalla.</p>
+   */
+  it('los nombres del directorio no se pintan con el color de error', () => {
+    const { raiz } = montar();
+
+    const nombre = raiz.querySelector('.organization-row strong');
+    expect(nombre).not.toBeNull();
+    // La regla rota fusionaba el nombre con `.campo-error`, que ademas lo hacia `display: block`
+    // con un margen superior. Si vuelve a pasar, esta clase reaparece en el mismo bloque.
+    expect(nombre!.classList.contains('campo-error')).toBe(false);
+    expect(getComputedStyle(nombre!).color).not.toBe('rgb(220, 38, 38)');
+  });
+
+  /** La leyenda de «Separación de niveles» se retiro: ocupaba sitio sin decir nada accionable. */
+  it('ya no lleva la leyenda de separación de niveles', () => {
+    const { raiz } = montar();
+
+    expect(raiz.textContent).not.toContain('Separación de niveles');
   });
 
   /** El encabezado del alta entra y sale con el formulario: solo, anunciaba algo que no estaba. */

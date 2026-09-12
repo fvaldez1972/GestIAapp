@@ -179,6 +179,9 @@ public sealed class ClientServiceTests
         public Task<IReadOnlyList<Organization>> ListAsync(CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<Organization>>([]);
 
+        public Task<int> HighestOrganizationCodeNumberAsync(CancellationToken cancellationToken) =>
+            Task.FromResult(0);
+
         public Task<Organization?> GetAsync(
             Guid idOrganization,
             CancellationToken cancellationToken) => Task.FromResult<Organization?>(null);

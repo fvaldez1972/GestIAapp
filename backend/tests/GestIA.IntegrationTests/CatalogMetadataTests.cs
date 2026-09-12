@@ -171,6 +171,82 @@ public sealed class CatalogMetadataTests(OperationalSqlDatabase database) : ICla
         Assert.True(await check.OrganizationMemberships.AnyAsync(m => m.IdUser == provisioned.IdAdminUser && m.IdOrganization == provisioned.Organization.IdOrganization));
     }
 
+    /// <summary>
+    /// El alta de organizacion sin codigo: lo pone el servidor.
+    ///
+    /// <para>El formulario del Super Admin dejo de pedir el codigo. Pedirselo a quien da de alta
+    /// una empresa le hacia inventar una convencion que el sistema ya tiene, y el codigo no es la
+    /// clave del registro sino un identificador de conveniencia. Es el mismo trato que el codigo
+    /// de cliente, que se genera como <c>CLI-01</c>.</para>
+    ///
+    /// <para>Lo que se fija aqui es que el generado <b>cuenta desde el mas alto ya usado</b> y no
+    /// desde cuantas organizaciones hay: contar filas devolveria un codigo ya ocupado en cuanto
+    /// una organizacion se de de baja, porque aqui los registros no se eliminan y su codigo sigue
+    /// ocupado.</para>
+    /// </summary>
+    [OperationalSqlFact]
+    public async Task AnOrganizationWithoutACodeGetsOneFromTheServer()
+    {
+        await using (var seed = database.Context())
+        {
+            if (!await seed.Roles.AnyAsync(role => role.CodeRole == "ORGANIZATION_ADMIN"))
+            {
+                seed.Roles.Add(GestIA.Domain.Security.Role.CreateSystem(
+                    "ORGANIZATION_ADMIN", "Admin", TestActor.ActorId, TestActor.ActorName, DateTime.UtcNow));
+                await seed.SaveChangesAsync();
+            }
+        }
+
+        using var provider = Provider();
+        await using var scope = provider.CreateAsyncScope();
+        var service = scope.ServiceProvider
+            .GetRequiredService<GestIA.Application.Organizations.IOrganizationProvisioningService>();
+
+        var primera = await service.CreateWithAdminAsync(
+            new(null, "Sin codigo capturado", null,
+                new("Admin uno", $"{Guid.NewGuid():N}@example.test", Guid.NewGuid().ToString("N"))),
+            Token);
+
+        Assert.StartsWith("ORG-", primera.Organization.CodeOrganization, StringComparison.Ordinal);
+        var numero = int.Parse(primera.Organization.CodeOrganization.AsSpan(4), provider: null);
+
+        // La segunda no repite la primera, que es lo unico que hace util a un consecutivo.
+        var segunda = await service.CreateWithAdminAsync(
+            new(null, "Tampoco captura codigo", null,
+                new("Admin dos", $"{Guid.NewGuid():N}@example.test", Guid.NewGuid().ToString("N"))),
+            Token);
+
+        Assert.Equal($"ORG-{numero + 1:00}", segunda.Organization.CodeOrganization);
+    }
+
+    /// <summary>Cuando si viene el codigo se respeta: opcional no es ignorado.</summary>
+    [OperationalSqlFact]
+    public async Task AnExplicitOrganizationCodeIsStillHonoured()
+    {
+        await using (var seed = database.Context())
+        {
+            if (!await seed.Roles.AnyAsync(role => role.CodeRole == "ORGANIZATION_ADMIN"))
+            {
+                seed.Roles.Add(GestIA.Domain.Security.Role.CreateSystem(
+                    "ORGANIZATION_ADMIN", "Admin", TestActor.ActorId, TestActor.ActorName, DateTime.UtcNow));
+                await seed.SaveChangesAsync();
+            }
+        }
+
+        using var provider = Provider();
+        await using var scope = provider.CreateAsyncScope();
+        var codigo = Guid.NewGuid().ToString("N")[..20];
+
+        var resultado = await scope.ServiceProvider
+            .GetRequiredService<GestIA.Application.Organizations.IOrganizationProvisioningService>()
+            .CreateWithAdminAsync(
+                new(codigo, "Con codigo capturado", null,
+                    new("Admin tres", $"{Guid.NewGuid():N}@example.test", Guid.NewGuid().ToString("N"))),
+                Token);
+
+        Assert.Equal(codigo.ToUpperInvariant(), resultado.Organization.CodeOrganization);
+    }
+
     [OperationalSqlFact]
     public async Task ContactJobTitleRejectsInactiveAndForeignCatalogsButRetainsHistory()
     {

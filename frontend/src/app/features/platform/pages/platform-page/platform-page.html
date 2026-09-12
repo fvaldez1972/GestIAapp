@@ -53,8 +53,14 @@
           <h2>Alta de organización</h2>
           <p>Crea la empresa que usará GestIA junto con su administrador inicial. Ambos registros se guardan en una sola operación.</p>
         </div>
+        @if (!creatingOrganization()) {
+          <button class="gi-button gi-button--primary" type="button" (click)="startOrganizationCreation()">
+            Nueva organización
+          </button>
+        }
       </header>
 
+      @if (creatingOrganization()) {
       <form class="creation-form" #organizationForm="ngForm" (ngSubmit)="submitOrganizationStep(organizationForm)">
         <ol class="organization-steps" aria-label="Alta de organización">
           <li [attr.aria-current]="organizationStep() === 1 ? 'step' : null">1. Organización</li>
@@ -62,45 +68,14 @@
           <li [attr.aria-current]="organizationStep() === 3 ? 'step' : null">3. Revisión</li>
         </ol>
         @if (organizationStep() === 1) {
-        <div class="form-grid form-grid--two">
-          <label>
-            <span>Código</span>
-            <input
-              type="text"
-              name="newOrganizationCode"
-              required maxlength="30"
-              autocomplete="off"
-              placeholder="BKT"
-              [ngModel]="newOrganizationCode()"
-              (ngModelChange)="newOrganizationCode.set($event)"
-              [class.is-invalid]="errorDe('codeOrganization')"
-              [attr.aria-invalid]="errorDe('codeOrganization') ? 'true' : null"
-            />
-            @if (errorDe('codeOrganization'); as falla) {
-              <small class="campo-error" role="alert">{{ falla }}</small>
-            }
-          </label>
-          <label>
-            <span>RFC</span>
-            <input
-              type="text"
-              name="newOrganizationRfc"
-              maxlength="13"
-              autocomplete="off"
-              placeholder="Opcional"
-              [ngModel]="newOrganizationRfc()"
-              (ngModelChange)="newOrganizationRfc.set($event)"
-              [class.is-invalid]="errorDe('rfc')"
-              [attr.aria-invalid]="errorDe('rfc') ? 'true' : null"
-            />
-            @if (errorDe('rfc'); as falla) {
-              <small class="campo-error" role="alert">{{ falla }}</small>
-            }
-          </label>
-        </div>
-
+        <!--
+          El nombre va primero porque es lo que identifica a la empresa y lo unico obligatorio.
+          El codigo ya no se pide: lo genera el servidor con la forma ORG-01, igual que el de
+          cliente. Pedirselo a quien da de alta una empresa le hacia inventar una convencion que
+          el sistema ya tiene, y no es la clave del registro sino un identificador de conveniencia.
+        -->
         <label>
-          <span>Nombre legal</span>
+          <span>Nombre de la organización</span>
           <input
             type="text"
             name="newOrganizationLegalName"
@@ -117,10 +92,31 @@
           }
         </label>
 
+        <label>
+          <span>RFC</span>
+          <input
+            type="text"
+            name="newOrganizationRfc"
+            maxlength="13"
+            autocomplete="off"
+            placeholder="Opcional"
+            [ngModel]="newOrganizationRfc()"
+            (ngModelChange)="newOrganizationRfc.set($event)"
+            [class.is-invalid]="errorDe('rfc')"
+            [attr.aria-invalid]="errorDe('rfc') ? 'true' : null"
+          />
+          @if (errorDe('rfc'); as falla) {
+            <small class="campo-error" role="alert">{{ falla }}</small>
+          }
+        </label>
+
         }
         @if (organizationStep() === 2) {
+        <!--
+          Sin titulo dentro del paso: el propio paso ya se llama «2. Administrador» en la lista de
+          arriba, y repetirlo justo debajo solo gastaba una linea diciendo lo mismo.
+        -->
         <fieldset>
-          <legend>Admin inicial</legend>
           <div class="form-grid form-grid--two">
             <label>
               <span>Nombre</span>
@@ -148,7 +144,7 @@
             </label>
           </div>
           <label>
-            <span>Contraseña temporal</span>
+            <span>Contraseña</span>
             <input
               type="password"
               name="initialAdminPassword"
@@ -162,9 +158,13 @@
         </fieldset>
         }
         @if (organizationStep() === 3) {
+          <!--
+            La revision enseña lo que se capturo, y nada mas. El codigo no aparece porque todavia
+            no existe: lo asigna el servidor al guardar, y enseñarlo aqui obligaria a inventar un
+            valor que podria no ser el que quede.
+          -->
           <dl class="organization-review">
             <dt>Organización</dt><dd>{{ newOrganizationLegalName() }}</dd>
-            <dt>Código</dt><dd>{{ newOrganizationCode() }}</dd>
             <dt>RFC</dt><dd>{{ newOrganizationRfc() || 'No capturado' }}</dd>
             <dt>Administrador</dt><dd>{{ initialAdminName() }}</dd>
             <dt>Correo</dt><dd>{{ initialAdminEmail() }}</dd>
@@ -182,6 +182,7 @@
           </button>
         </div>
       </form>
+      }
 
       <section class="organization-directory">
         <header class="section-heading">

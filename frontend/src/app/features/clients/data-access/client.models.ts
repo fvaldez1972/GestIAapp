@@ -14,7 +14,16 @@ export type CreateOrganization = {
 
 export type UpdateOrganization = CreateOrganization;
 
-export type CreateOrganizationWithAdmin = CreateOrganization & {
+/**
+ * El alta de una organizacion junto con su administrador inicial.
+ *
+ * <p>El codigo va aparte de <c>CreateOrganization</c> porque aqui es <b>opcional</b>: cuando no se
+ * manda, lo pone el servidor con la forma <c>ORG-01</c>. Pedirselo a quien da de alta una empresa
+ * le hace inventar una convencion que el sistema ya tiene, y el codigo no es la clave del
+ * registro sino un identificador de conveniencia.</p>
+ */
+export type CreateOrganizationWithAdmin = Omit<CreateOrganization, 'codeOrganization'> & {
+  readonly codeOrganization?: string | null;
   readonly admin: {
     readonly displayName: string;
     readonly email: string;

@@ -20,7 +20,16 @@ public sealed class OrganizationProvisioningService(
         CancellationToken cancellationToken)
     {
         var errors = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
-        var code = InputValidation.Required(request.CodeOrganization, nameof(request.CodeOrganization), 30, errors).ToUpperInvariant();
+
+        // Opcional a proposito: cuando no viene, lo pone el servidor mas abajo. Cuando viene, se
+        // respeta y se valida como siempre. Es el mismo trato que el codigo de cliente.
+        var code = string.IsNullOrWhiteSpace(request.CodeOrganization)
+            ? null
+            : InputValidation.Required(
+                request.CodeOrganization,
+                nameof(request.CodeOrganization),
+                30,
+                errors).ToUpperInvariant();
         var legalName = InputValidation.Required(request.LegalName, nameof(request.LegalName), 200, errors);
         var rfc = string.IsNullOrWhiteSpace(request.Rfc)
             ? null
@@ -36,10 +45,12 @@ public sealed class OrganizationProvisioningService(
 
         if (password.Length < 12)
         {
-            errors["Admin.Password"] = ["La contraseña temporal debe tener al menos 12 caracteres."];
+            errors["Admin.Password"] = ["La contraseña debe tener al menos 12 caracteres."];
         }
 
         InputValidation.ThrowIfInvalid(errors);
+
+        code ??= await NextOrganizationCodeAsync(cancellationToken);
 
         if (await organizationRepository.IsCodeInUseAsync(code, cancellationToken))
         {
@@ -101,5 +112,20 @@ public sealed class OrganizationProvisioningService(
             user.IdUser,
             user.Email,
             user.DisplayName);
+    }
+
+    /// <summary>
+    /// El siguiente codigo libre con la forma <c>ORG-01</c>.
+    ///
+    /// <para>Se cuenta desde el mas alto ya usado, incluidas las inactivas, porque el codigo sigue
+    /// ocupado aunque la organizacion este dada de baja. No es un consecutivo garantizado: si dos
+    /// altas coinciden, la segunda choca con la unicidad y quien da de alta reintenta, que es
+    /// preferible a tomar un candado sobre la tabla por un identificador de conveniencia. Es el
+    /// mismo trato, y la misma razon, que el codigo de cliente.</para>
+    /// </summary>
+    private async Task<string> NextOrganizationCodeAsync(CancellationToken cancellationToken)
+    {
+        var highest = await organizationRepository.HighestOrganizationCodeNumberAsync(cancellationToken);
+        return $"ORG-{highest + 1:00}";
     }
 }

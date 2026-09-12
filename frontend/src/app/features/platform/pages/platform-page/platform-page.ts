@@ -52,7 +52,15 @@ export class PlatformPage implements OnInit {
    */
   protected readonly selectedOrganizationRowId = signal('');
 
-  protected readonly newOrganizationCode = signal('');
+  /**
+   * Si el alta esta abierta.
+   *
+   * <p>El formulario ocupaba media pantalla siempre, abierto sobre el directorio, y competia por
+   * la atencion con la organizacion que se estaba revisando. Dar de alta una empresa es algo que
+   * pasa de vez en cuando; leer el directorio es a lo que se entra.</p>
+   */
+  protected readonly creatingOrganization = signal(false);
+
   protected readonly newOrganizationLegalName = signal('');
   protected readonly newOrganizationRfc = signal('');
   protected readonly initialAdminName = signal('');
@@ -105,7 +113,6 @@ export class PlatformPage implements OnInit {
   protected readonly canCreateOrganization = computed(() =>
     Boolean(
       !this.savingOrganization() &&
-        this.newOrganizationCode().trim() &&
         this.newOrganizationLegalName().trim() &&
         this.initialAdminReady(),
     ),
@@ -175,7 +182,9 @@ export class PlatformPage implements OnInit {
 
     this.clientApi
       .createOrganizationWithAdmin({
-        codeOrganization: this.newOrganizationCode().trim(),
+        // Sin codigo a proposito: lo genera el servidor con la forma ORG-01. Mandar cadena vacia
+        // no seria lo mismo —el servidor la validaria como capturada y la rechazaria—, asi que se
+        // omite el campo entero.
         legalName: this.newOrganizationLegalName().trim(),
         rfc: this.normalizeOptional(this.newOrganizationRfc()),
         admin: {
@@ -189,6 +198,7 @@ export class PlatformPage implements OnInit {
           this.selectedOrganizationRowId.set(result.organization.idOrganization);
           this.clearOrganizationForm();
           this.organizationStep.set(1);
+          this.creatingOrganization.set(false);
           this.success.set('Organización creada con su admin inicial.');
           this.loadPlatform();
         },
@@ -203,7 +213,7 @@ export class PlatformPage implements OnInit {
     this.organizationStepError.set('');
     if (this.organizationStep() < 3) {
       form.control.markAllAsTouched();
-      if (form.invalid || (this.organizationStep() === 1 && (!this.newOrganizationCode().trim() || !this.newOrganizationLegalName().trim())) ||
+      if (form.invalid || (this.organizationStep() === 1 && !this.newOrganizationLegalName().trim()) ||
         (this.organizationStep() === 2 && !this.initialAdminReady())) {
         this.organizationStepError.set('Revisa los campos obligatorios y su formato antes de continuar.');
         return;
@@ -214,11 +224,20 @@ export class PlatformPage implements OnInit {
     this.createOrganizationWithAdmin();
   }
 
+  /** Abre el alta en el primer paso y sin arrastrar lo que quedo de un intento anterior. */
+  protected startOrganizationCreation() {
+    this.clearOrganizationForm();
+    this.organizationStep.set(1);
+    this.organizationStepError.set('');
+    this.creatingOrganization.set(true);
+  }
+
   protected cancelOrganizationCreation() {
     if (this.savingOrganization()) { return; }
     this.clearOrganizationForm();
     this.organizationStep.set(1);
     this.organizationStepError.set('');
+    this.creatingOrganization.set(false);
   }
 
   protected createAdminForSelected() {
@@ -353,7 +372,6 @@ export class PlatformPage implements OnInit {
   }
 
   private clearOrganizationForm() {
-    this.newOrganizationCode.set('');
     this.newOrganizationLegalName.set('');
     this.newOrganizationRfc.set('');
     this.initialAdminName.set('');

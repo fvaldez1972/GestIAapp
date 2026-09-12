@@ -66,6 +66,21 @@ input,
 textarea,
 select { font: inherit; }
 
+/*
+  Un <dialog> abierto con showModal() lo centra el navegador con el `margin: auto` de su hoja de
+  estilo por omision. El preflight de Tailwind 4 pone `margin: 0` en TODOS los elementos y se lo
+  borra, asi que el cuadro se va a la esquina superior izquierda, encima del menu, en vez de quedar
+  centrado. Le devolvemos el margen aqui, una sola vez, porque el defecto no era de una pantalla:
+  lo tenian los cinco dialogos de la aplicacion —Catalogos, sus requisitos, Documentos, la
+  confirmacion compartida y el cierre del dia operativo—.
+
+  `:modal` alcanza solo a los abiertos con showModal(), que son los que deben centrarse; un
+  <dialog> abierto con show() se queda donde lo pongan sus estilos, que es lo que se espera de el.
+*/
+dialog:modal {
+  margin: auto;
+}
+
 button,
 a { -webkit-tap-highlight-color: transparent; }
 

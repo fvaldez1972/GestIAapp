@@ -50,7 +50,13 @@ type Datos = {
 };
 
 describe('Catálogos', () => {
-  afterEach(() => TestBed.resetTestingModule());
+  afterEach(() => {
+    TestBed.resetTestingModule();
+    // Sin esto, un espía sobre `window` sobrevive a la prueba que lo puso: `vi.spyOn` devuelve el
+    // mismo espía si ya estaba, con su cuenta de llamadas incluida, y la prueba siguiente hereda
+    // llamadas que no hizo.
+    vi.restoreAllMocks();
+  });
 
   function montar(datos: Datos = {}) {
     TestBed.configureTestingModule({
@@ -260,5 +266,52 @@ describe('Catálogos', () => {
     pagina.valueState.set('');
     pagina.valueSearch.set('vigiláncia');
     expect(pagina.openCatalogItems().map((item) => item.name)).toEqual(['Vigilancia']);
+  });
+
+  /**
+   * Abrir un catálogo no puede mover la pantalla.
+   *
+   * <p>Sólo uno queda abierto a la vez, así que al pulsar otro el anterior se cierra y la lista
+   * cambia de alto por encima del que se pulsó. El navegador conserva el desplazamiento en
+   * píxeles, no el contenido, y la tarjeta se iba del punto donde estaba el cursor: se abría un
+   * catálogo y había que ir a buscarlo.</p>
+   *
+   * <p>La prueba simula el encogimiento moviendo la cabecera entre la pulsación y el pintado, y
+   * exige que la corrección sea exactamente la diferencia.</p>
+   */
+  it('abrir un catálogo deja la cabecera pulsada en el mismo punto de la pantalla', async () => {
+    const { fixture, componente } = montar();
+    const pagina = componente as unknown as { toggleCatalog(type: string, event?: Event): void };
+    const scrollBy = vi.spyOn(window, 'scrollBy').mockImplementation(() => undefined);
+
+    // La cabecera estaba a 420 px del borde superior y, al cerrarse el catálogo de arriba, el
+    // acordeón la sube a 160 px.
+    let top = 420;
+    const cabecera = document.createElement('button');
+    cabecera.getBoundingClientRect = () => ({ top }) as DOMRect;
+
+    pagina.toggleCatalog('JobPosition', { currentTarget: cabecera } as unknown as Event);
+    top = 160;
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(scrollBy, 'se corrige el desplazamiento por lo que se movió la cabecera')
+      .toHaveBeenCalledWith({ top: -260, behavior: 'instant' });
+  });
+
+  /** Y si nada se movió, no se toca el desplazamiento: corregir cero es un salto gratis. */
+  it('no toca el desplazamiento cuando la cabecera no se movió', async () => {
+    const { fixture, componente } = montar();
+    const pagina = componente as unknown as { toggleCatalog(type: string, event?: Event): void };
+    const scrollBy = vi.spyOn(window, 'scrollBy').mockImplementation(() => undefined);
+
+    const cabecera = document.createElement('button');
+    cabecera.getBoundingClientRect = () => ({ top: 300 }) as DOMRect;
+
+    pagina.toggleCatalog('JobPosition', { currentTarget: cabecera } as unknown as Event);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(scrollBy).not.toHaveBeenCalled();
   });
 });

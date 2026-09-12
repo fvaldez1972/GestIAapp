@@ -274,7 +274,7 @@
         class="cat__catalogo-cabecera"
         type="button"
         [attr.aria-expanded]="openCatalogType() === catalogo.type"
-        (click)="toggleCatalog(catalogo.type)"
+        (click)="toggleCatalog(catalogo.type, $event)"
       >
         <span class="cat__catalogo-nombre">
           <strong>{{ catalogo.title }}</strong>
@@ -292,9 +292,6 @@
 
       @if (openCatalogType() === catalogo.type) {
         <div class="cat__catalogo-cuerpo">
-          @if (catalogo.warning) {
-            <div class="gi-alert gi-alert--error" role="alert">{{ catalogo.warning }}</div>
-          }
 
           <div class="cat__filtros">
             <label class="gi-field">

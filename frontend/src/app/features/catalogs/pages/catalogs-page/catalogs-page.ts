@@ -6,8 +6,10 @@ import {
   Component,
   DestroyRef,
   ElementRef,
+  Injector,
   OnInit,
   Signal,
+  afterNextRender,
   computed,
   inject,
   signal,
@@ -75,6 +77,7 @@ export class CatalogsPage implements OnInit, AfterViewInit {
   private readonly auth = inject(AuthService);
   private readonly systemInfo = inject(SystemInfoService);
   private readonly formBuilder = inject(FormBuilder);
+  private readonly injector = inject(Injector);
   private dataSubscription?: Subscription;
 
   protected readonly definitions = signal<readonly CatalogDefinition[]>([]);
@@ -134,9 +137,6 @@ export class CatalogsPage implements OnInit, AfterViewInit {
       usedBy: 'Reglas de elegibilidad',
       link: 'identificador',
       linkDetail: 'La regla apunta a la habilidad por identificador.',
-      warning:
-        'Hoy no existe pantalla para otorgarle una habilidad a una persona. Una regla de habilidad'
-        + ' bloqueante deja la publicación de la planeación detenida sin forma de desbloquearla.',
     },
     {
       type: 'IncidentReason',
@@ -513,11 +513,40 @@ export class CatalogsPage implements OnInit, AfterViewInit {
 
   // ── Zona 1: los catálogos de la organización ────────────────────────────────────────────────
 
-  protected toggleCatalog(type: BusinessCatalogItemType): void {
+  /**
+   * Abre o cierra un catálogo <b>sin mover de la pantalla el renglón que se pulsó</b>.
+   *
+   * <p>Sólo hay un catálogo abierto a la vez, así que abrir uno cierra el anterior y la lista
+   * cambia de alto por arriba y por abajo del que se acaba de pulsar. El navegador conserva el
+   * desplazamiento medido en píxeles, no el contenido que se estaba viendo, y por eso la tarjeta
+   * se iba de donde estaba el cursor: se abría un catálogo y había que buscarlo.</p>
+   *
+   * <p>Se mide dónde estaba su cabecera antes del cambio y se corrige el desplazamiento por la
+   * diferencia una vez pintado el alto nuevo. El renglón se queda exactamente donde estaba.</p>
+   */
+  protected toggleCatalog(type: BusinessCatalogItemType, event?: Event): void {
+    const cabecera = event?.currentTarget instanceof HTMLElement ? event.currentTarget : null;
+    const antes = cabecera?.getBoundingClientRect().top ?? null;
+
     this.openCatalogType.update((current) => (current === type ? null : type));
     this.selectedCatalogItemId.set('');
     this.valueSearch.set('');
     this.valueState.set('');
+
+    if (cabecera === null || antes === null) {
+      return;
+    }
+
+    afterNextRender(
+      () => {
+        const corrimiento = cabecera.getBoundingClientRect().top - antes;
+
+        if (corrimiento !== 0) {
+          window.scrollBy({ top: corrimiento, behavior: 'instant' });
+        }
+      },
+      { injector: this.injector },
+    );
   }
 
   protected countCatalogItems(type: BusinessCatalogItemType): number {
@@ -1020,7 +1049,6 @@ type CatalogCard = {
   readonly usedBy: string;
   readonly link: 'identificador' | 'nombre';
   readonly linkDetail: string;
-  readonly warning?: string;
 };
 
 type EligibilityUiState = 'eligible' | 'notEligible' | 'insufficient';

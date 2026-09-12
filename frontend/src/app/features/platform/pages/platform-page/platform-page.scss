@@ -534,3 +534,28 @@ input.is-invalid {
 .check-row span { display: grid; gap: .15rem; }
 .check-row strong { color: var(--gestia-navy); font-size: .86rem; }
 .check-row small { color: var(--gestia-muted); font-size: 0.75rem; line-height: 1.4; }
+
+/* El buscador del directorio. */
+.search-field { display: block; }
+
+.search-field input {
+  width: 100%;
+  height: var(--gestia-control-height);
+  border: 1px solid var(--gestia-border);
+  border-radius: 6px;
+  padding: 0 .7rem;
+  font: inherit;
+  font-size: .86rem;
+}
+
+.search-field input:focus-visible { outline: 2px solid var(--gestia-cyan); outline-offset: -1px; }
+
+/* Para el lector de pantalla: la etiqueta existe aunque el campo se explique con su marcador. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

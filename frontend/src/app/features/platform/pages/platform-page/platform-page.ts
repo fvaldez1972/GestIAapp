@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } 
 import { FormsModule, NgForm } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { forkJoin, of, switchMap } from 'rxjs';
+import { AuthService } from '../../../../core/auth/auth.service';
 import { ClientApiService } from '../../../clients/data-access/client-api.service';
 import { Organization, OrganizationClientSummary } from '../../../clients/data-access/client.models';
 import { SecurityApiService } from '../../../security/data-access/security-api.service';
@@ -26,6 +27,7 @@ type OrganizationPlatformSummary = {
 export class PlatformPage implements OnInit {
   private readonly clientApi = inject(ClientApiService);
   private readonly securityApi = inject(SecurityApiService);
+  private readonly auth = inject(AuthService);
 
   protected readonly loading = signal(false);
   protected readonly savingOrganization = signal(false);
@@ -82,6 +84,43 @@ export class PlatformPage implements OnInit {
    * cabecera, junto a las demas acciones.</p>
    */
   protected readonly detailTab = signal<'responsables' | 'clientes'>('responsables');
+
+  /** Lo que se escribe en el buscador del directorio. */
+  protected readonly organizationSearch = signal('');
+
+  /**
+   * Las organizaciones que coinciden con la busqueda, por nombre o por RFC.
+   *
+   * <p>Se comparan sin acentos y sin distinguir mayusculas: quien busca «TRANSNACIONAL» escribe
+   * «transnacional», y quien busca una empresa con acento no deberia tener que acertarlo. Es la
+   * misma normalizacion que usa el resto de las busquedas de la aplicacion.</p>
+   *
+   * <p>El RFC entra en la comparacion porque es lo unico que distingue a dos organizaciones con
+   * nombres parecidos, y es el dato con el que llega una factura o un contrato.</p>
+   */
+  protected readonly filteredSummaries = computed(() => {
+    const termino = this.normalizar(this.organizationSearch());
+
+    if (!termino) {
+      return this.summaries();
+    }
+
+    return this.summaries().filter((summary) => {
+      const nombre = this.normalizar(summary.organization.legalName);
+      const rfc = this.normalizar(summary.organization.rfc ?? '');
+
+      return nombre.includes(termino) || rfc.includes(termino);
+    });
+  });
+
+  /** Sin acentos, sin mayusculas y sin espacios de sobra. */
+  private normalizar(valor: string) {
+    return valor
+      .normalize('NFD')
+      .replace(/\p{Diacritic}/gu, '')
+      .toLowerCase()
+      .trim();
+  }
 
   /** Si el alta de admin esta abierta. Cerrada por omision, como la de organizacion. */
   protected readonly creatingAdmin = signal(false);
@@ -219,6 +258,9 @@ export class PlatformPage implements OnInit {
           this.creatingOrganization.set(false);
           this.success.set('Organización creada con su admin inicial.');
           this.loadPlatform();
+          // El selector de la barra superior carga su lista al arrancar el shell, asi que sin esto
+          // la organizacion recien creada no aparecia ahi hasta recargar la pagina entera.
+          this.auth.loadPlatformOrganizations().subscribe({ error: () => undefined });
         },
         error: (error: HttpErrorResponse) => {
           this.error.set(this.extractError(error));

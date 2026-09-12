@@ -51,6 +51,23 @@
           </div>
         </header>
 
+        <!--
+          Busca por nombre o por RFC. El RFC entra porque es lo unico que distingue a dos
+          organizaciones con nombres parecidos, y es el dato con el que llega una factura o un
+          contrato. La comparacion ignora acentos y mayusculas.
+        -->
+        <label class="search-field">
+          <span class="visually-hidden">Buscar organización por nombre o RFC</span>
+          <input
+            type="search"
+            name="organizationSearch"
+            autocomplete="off"
+            placeholder="Buscar por nombre o RFC"
+            [ngModel]="organizationSearch()"
+            (ngModelChange)="organizationSearch.set($event)"
+          />
+        </label>
+
         @if (loading()) {
           <div class="platform-skeleton" aria-label="Cargando organizaciones">
             <span></span>
@@ -59,7 +76,7 @@
           </div>
         } @else {
           <div class="organization-list">
-            @for (summary of summaries(); track summary.organization.idOrganization) {
+            @for (summary of filteredSummaries(); track summary.organization.idOrganization) {
               <button
                 class="organization-row"
                 type="button"
@@ -73,10 +90,22 @@
                 <em [class.is-muted]="!summary.organization.active">{{ activeLabel(summary.organization.active) }}</em>
               </button>
             } @empty {
-              <div class="empty-state">
-                <strong>Sin organizaciones registradas</strong>
-                <span>Crea la primera organización con el formulario superior.</span>
-              </div>
+              <!--
+                Una lista vacia por la busqueda no es una lista vacia: decir «sin organizaciones
+                registradas» a quien acaba de escribir tres letras le diria que no hay ninguna
+                cuando lo que pasa es que ninguna coincide.
+              -->
+              @if (organizationSearch().trim()) {
+                <div class="empty-state">
+                  <strong>Ninguna organización coincide</strong>
+                  <span>No hay coincidencias por nombre ni por RFC con «{{ organizationSearch().trim() }}».</span>
+                </div>
+              } @else {
+                <div class="empty-state">
+                  <strong>Sin organizaciones registradas</strong>
+                  <span>Crea la primera con «Nueva organización», arriba.</span>
+                </div>
+              }
             }
           </div>
         }

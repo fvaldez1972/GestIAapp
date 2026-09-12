@@ -186,6 +186,16 @@ export class GiSelect {
   readonly disabled = input(false);
   readonly valueChange = output<string>();
 
+  /**
+   * Se emite al desplegar la lista, no al elegir.
+   *
+   * <p>Existe para que quien pinta las opciones pueda refrescarlas en ese momento. Una lista que se
+   * carga una sola vez, al arrancar, queda vieja en cuanto alguien da de alta algo nuevo —desde
+   * otra pantalla, desde otra sesion— y el usuario no tiene forma de saber que lo que ve ya no es
+   * lo que hay. Abrir el desplegable es justo el instante en que se va a leer.</p>
+   */
+  readonly opened = output<void>();
+
   protected readonly open = signal(false);
   protected readonly activeIndex = signal(0);
   protected readonly listId = `gi-select-list-${++instances}`;
@@ -208,6 +218,7 @@ export class GiSelect {
     const current = this.options().findIndex((option) => option.value === this.value());
     this.activeIndex.set(current >= 0 ? current : 0);
     this.open.set(true);
+    this.opened.emit();
   }
 
   protected choose(option: GiSelectOption) {

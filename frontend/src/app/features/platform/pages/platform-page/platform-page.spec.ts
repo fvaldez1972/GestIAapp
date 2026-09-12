@@ -14,6 +14,14 @@ const ORGANIZACION = {
   active: true,
 };
 
+const OTRA = {
+  idOrganization: 'org-b',
+  codeOrganization: 'ORG-02',
+  legalName: 'Transnacional del Bajío',
+  rfc: 'TDB010203XYZ',
+  active: true,
+};
+
 const ROL_ADMIN = {
   idRole: 'rol-1',
   codeRole: 'ORGANIZATION_ADMIN',
@@ -59,9 +67,12 @@ describe('Plataforma · alta de organización', () => {
 
     // Las cuatro peticiones que la pantalla lanza al entrar. Se responden por funcion y no por
     // cadena literal: algunas llevan parametros y la comparacion exacta no las encontraria.
-    http.match((r) => r.url.endsWith('/organizations')).forEach((r) => r.flush([ORGANIZACION]));
+    http.match((r) => r.url.endsWith('/organizations')).forEach((r) => r.flush([ORGANIZACION, OTRA]));
     http.match((r) => r.url.endsWith('/organizations/governance')).forEach((r) =>
-      r.flush([{ organization: ORGANIZACION, clients: [], usersCount: 0, adminsCount: 0 }]),
+      r.flush([
+        { organization: ORGANIZACION, clients: [], usersCount: 0, adminsCount: 0 },
+        { organization: OTRA, clients: [], usersCount: 0, adminsCount: 0 },
+      ]),
     );
     http.match((r) => r.url.endsWith('/users')).forEach((r) => r.flush([]));
     http.match((r) => r.url.endsWith('/roles')).forEach((r) => r.flush([ROL_ADMIN]));
@@ -299,6 +310,55 @@ describe('Plataforma · alta de organización', () => {
         (r) => r.method === 'DELETE' && r.url.endsWith(`/organizations/${ORGANIZACION.idOrganization}`),
       )
       .flush(null);
+  });
+
+  /**
+   * El buscador del directorio filtra por nombre y por RFC.
+   *
+   * <p>El RFC entra porque es lo unico que distingue a dos organizaciones con nombres parecidos, y
+   * es el dato con el que llega una factura o un contrato. La comparacion ignora acentos y
+   * mayusculas: quien busca «Bajío» no deberia tener que acertar el acento.</p>
+   */
+  it('el directorio se puede buscar por nombre y por RFC', async () => {
+    const { raiz, fixture } = montar();
+
+    const buscar = raiz.querySelector('input[name="organizationSearch"]') as HTMLInputElement;
+    expect(buscar).not.toBeNull();
+
+    const escribir = async (texto: string) => {
+      buscar.value = texto;
+      buscar.dispatchEvent(new Event('input'));
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+    };
+    const filas = () =>
+      Array.from(raiz.querySelectorAll('.organization-row strong')).map((n) => n.textContent!.trim());
+
+    expect(filas()).toHaveLength(2);
+
+    // Por nombre, sin acento y en minusculas.
+    await escribir('bajio');
+    expect(filas()).toEqual(['Transnacional del Bajío']);
+
+    // Por RFC.
+    await escribir('BCS1407');
+    expect(filas()).toEqual(['Seguridad Vanguardia']);
+  });
+
+  /** Una lista vacia por la busqueda no es una lista vacia: no es lo mismo que no haya ninguna. */
+  it('sin coincidencias lo dice, en vez de decir que no hay organizaciones', async () => {
+    const { raiz, fixture } = montar();
+
+    const buscar = raiz.querySelector('input[name="organizationSearch"]') as HTMLInputElement;
+    buscar.value = 'zzzzz';
+    buscar.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(raiz.textContent).toContain('Ninguna organización coincide');
+    expect(raiz.textContent).not.toContain('Sin organizaciones registradas');
   });
 
   /**

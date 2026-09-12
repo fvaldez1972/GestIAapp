@@ -75,18 +75,51 @@ describe('Plataforma · alta de organización', () => {
   /**
    * El formulario ocupaba media pantalla siempre, abierto sobre el directorio. Dar de alta una
    * empresa pasa de vez en cuando; leer el directorio es a lo que se entra.
+   *
+   * <p>Y el boton vive <b>en la cabecera de la pantalla</b>, con las demas acciones. Dentro de la
+   * tarjeta del alta quedaba a media pagina: para dar de alta una organizacion habia que bajar
+   * hasta encontrarlo, y quien entraba no veia que se pudiera.</p>
    */
-  it('el alta no está abierta de entrada: hay un botón que la abre', () => {
+  it('el alta no está abierta de entrada, y el botón que la abre está en la cabecera', () => {
     const { raiz, boton, fixture } = montar();
 
     expect(raiz.textContent).not.toContain('Nombre de la organización');
+
     const abrir = boton('Nueva organización');
     expect(abrir).toBeDefined();
+    expect(abrir!.closest('.hero-actions')).not.toBeNull();
 
     abrir!.click();
     fixture.detectChanges();
 
     expect(raiz.textContent).toContain('Nombre de la organización');
+  });
+
+  /**
+   * Se apaga en vez de desaparecer. Que se esfume el boton que acabas de pulsar deja dudando si se
+   * pulso o si algo fallo; apagado se ve que es el que esta en curso.
+   */
+  it('con el alta abierta el botón sigue ahí, apagado', () => {
+    const { boton, fixture } = montar();
+
+    boton('Nueva organización')!.click();
+    fixture.detectChanges();
+
+    const abrir = boton('Nueva organización');
+    expect(abrir).toBeDefined();
+    expect(abrir!.disabled).toBe(true);
+  });
+
+  /** El encabezado del alta entra y sale con el formulario: solo, anunciaba algo que no estaba. */
+  it('el título del alta no se queda solo cuando el formulario está cerrado', () => {
+    const { raiz, boton, fixture } = montar();
+
+    expect(raiz.textContent).not.toContain('Alta de organización');
+
+    boton('Nueva organización')!.click();
+    fixture.detectChanges();
+
+    expect(raiz.textContent).toContain('Alta de organización');
   });
 
   /**

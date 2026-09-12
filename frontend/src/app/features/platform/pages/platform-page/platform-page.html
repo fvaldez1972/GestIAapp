@@ -8,7 +8,24 @@
       </p>
     </div>
 
+    <!--
+      El alta vive aqui arriba, con las demas acciones de la pantalla. Estaba dentro de la tarjeta
+      del alta, y ahi el boton quedaba a media pagina: para darla de alta habia que bajar hasta la
+      tarjeta, y quien entraba a la pantalla no veia que se pudiera.
+
+      Se apaga mientras el alta esta abierta en vez de esconderse. Que desaparezca el boton que
+      acabas de pulsar deja dudando si se pulso o si algo fallo; apagado se ve que es el que esta
+      en curso.
+    -->
     <div class="hero-actions">
+      <button
+        class="gi-button gi-button--secondary"
+        type="button"
+        [disabled]="creatingOrganization()"
+        (click)="startOrganizationCreation()"
+      >
+        Nueva organización
+      </button>
       <a class="gi-button gi-button--secondary" routerLink="/seguridad">Ver seguridad</a>
       <a class="gi-button gi-button--primary" routerLink="/clientes">Entrar a vista admin</a>
     </div>
@@ -47,20 +64,19 @@
 
   <section class="platform-layout">
     <article class="platform-registry gi-card">
+      <!--
+        El encabezado entra y sale con el formulario. Solo, anunciaba un alta que no estaba ahi:
+        un titulo y un parrafo explicando algo que no se podia hacer desde donde se leia.
+      -->
+      @if (creatingOrganization()) {
       <header class="section-heading">
         <div>
           <span class="eyebrow">Nueva organización</span>
           <h2>Alta de organización</h2>
           <p>Crea la empresa que usará GestIA junto con su administrador inicial. Ambos registros se guardan en una sola operación.</p>
         </div>
-        @if (!creatingOrganization()) {
-          <button class="gi-button gi-button--primary" type="button" (click)="startOrganizationCreation()">
-            Nueva organización
-          </button>
-        }
       </header>
 
-      @if (creatingOrganization()) {
       <form class="creation-form" #organizationForm="ngForm" (ngSubmit)="submitOrganizationStep(organizationForm)">
         <ol class="organization-steps" aria-label="Alta de organización">
           <li [attr.aria-current]="organizationStep() === 1 ? 'step' : null">1. Organización</li>

@@ -340,12 +340,7 @@ public sealed class OverviewTests(OperationalSqlDatabase database)
                     $"{prefix}-SER", $"Servicio {prefix}", "Servicio", Day.AddDays(-60), ActorId, ActorName, Now);
                 serviceId = service.IdService;
 
-                var configuration = ServiceConfiguration.Create(
-                    organizationId, service.IdService,
-                    new ServiceConfigurationProfile(
-                        Day.AddDays(-60), null, 1, 8m, 5, 176m, 0, "Turno diurno", null, 10000m, "MXN", true),
-                    ActorId, ActorName, Now);
-                context.AddRange(service, configuration);
+                context.Add(service);
             }
 
             if (level >= Level.Positions)

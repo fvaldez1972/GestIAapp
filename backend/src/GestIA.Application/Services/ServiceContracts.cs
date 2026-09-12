@@ -45,12 +45,20 @@ public sealed record ServiceContractResponse(
     string? Notes,
     bool Active);
 
+/// <summary>
+/// El alta de un servicio contratado.
+///
+/// <para><c>CodeService</c> es opcional: sin el, lo pone el servidor con la forma <c>SRV-01</c>,
+/// consecutivo por cliente. Es el mismo trato que el codigo de cliente y el de organizacion, y por
+/// la misma razon: es un identificador de conveniencia, no la clave del registro, y pedirselo a
+/// quien da de alta un servicio le hace inventar una convencion que el sistema ya tiene.</para>
+/// </summary>
 public sealed record CreateServiceRequest(
     Guid IdOrganization,
     Guid IdClient,
     Guid IdClientSite,
     Guid? IdServiceContract,
-    string CodeService,
+    string? CodeService,
     string Name,
     string Description,
     string? InvoiceDescription,
@@ -181,57 +189,3 @@ public sealed record ServiceListItemResponse(
     public bool HasVacancy => Vacancy > 0;
 }
 
-public sealed record CreateServiceConfigurationRequest(
-    Guid IdOrganization,
-    Guid IdClient,
-    Guid IdService,
-    DateOnly EffectiveFromDate,
-    DateOnly? EffectiveToDate,
-    short RequiredWorkerCount,
-    decimal HoursPerDay,
-    byte DaysPerWeek,
-    decimal AverageMonthlyHours,
-    short PreparationLeadDays,
-    string WorkScheduleDescription,
-    string? SpecificInstructions,
-    decimal MonthlyPrice,
-    string? CurrencyCode,
-    bool IsTaxIncluded);
-
-public sealed record UpdateServiceConfigurationRequest(
-    Guid IdOrganization,
-    Guid IdClient,
-    Guid IdService,
-    DateOnly EffectiveFromDate,
-    DateOnly? EffectiveToDate,
-    short RequiredWorkerCount,
-    decimal HoursPerDay,
-    byte DaysPerWeek,
-    decimal AverageMonthlyHours,
-    short PreparationLeadDays,
-    string WorkScheduleDescription,
-    string? SpecificInstructions,
-    decimal MonthlyPrice,
-    string? CurrencyCode,
-    bool IsTaxIncluded,
-    [property: JsonRequired] byte[] RowVersion,
-    string? CorrectionReason = null);
-
-public sealed record ServiceConfigurationResponse(
-    Guid IdServiceConfiguration,
-    Guid IdService,
-    DateOnly EffectiveFromDate,
-    DateOnly? EffectiveToDate,
-    short RequiredWorkerCount,
-    decimal HoursPerDay,
-    byte DaysPerWeek,
-    decimal AverageWeeklyHours,
-    decimal AverageMonthlyHours,
-    short PreparationLeadDays,
-    string WorkScheduleDescription,
-    string? SpecificInstructions,
-    decimal MonthlyPrice,
-    string CurrencyCode,
-    bool IsTaxIncluded,
-    bool Active,
-    byte[] RowVersion);

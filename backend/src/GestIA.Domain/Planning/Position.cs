@@ -3,12 +3,23 @@ using GestIA.Domain.Services;
 
 namespace GestIA.Domain.Planning;
 
+/// <summary>
+/// Lo que define un puesto del servicio, incluido lo que se cobra por el.
+///
+/// <para>El precio vive aqui y no en el servicio porque en seguridad privada se cotiza <b>por
+/// puesto</b>: un servicio con caseta, rondin y monitorista tiene tres precios, no uno. Antes
+/// estaba en una configuracion del servicio, que obligaba a un solo numero para todos los puestos
+/// y ademas repetia en texto libre el horario que el patron de turnos ya declara.</para>
+/// </summary>
 public sealed record PositionProfile(
     string Name,
     int RequiredWorkerCount,
     string? RequiredSkillProfile,
     string? Notes,
-    Guid? IdJobPositionCatalogItem = null);
+    Guid? IdJobPositionCatalogItem = null,
+    decimal MonthlyPrice = 0m,
+    string CurrencyCode = "MXN",
+    bool IsTaxIncluded = false);
 
 public sealed class Position : AuditableEntity, IOrganizationScopedEntity
 {
@@ -56,6 +67,12 @@ public sealed class Position : AuditableEntity, IOrganizationScopedEntity
     /// </summary>
     public Guid? IdJobPositionCatalogItem { get; private set; }
 
+    /// <summary>Lo que se cobra al mes por este puesto. Cero mientras no se pacte.</summary>
+    public decimal MonthlyPrice { get; private set; }
+
+    public string CurrencyCode { get; private set; } = "MXN";
+    public bool IsTaxIncluded { get; private set; }
+
     public string? RequiredSkillProfile { get; private set; }
     public string? Notes { get; private set; }
     public Service Service { get; private set; } = null!;
@@ -89,8 +106,16 @@ public sealed class Position : AuditableEntity, IOrganizationScopedEntity
             throw new ArgumentOutOfRangeException(nameof(profile));
         }
 
+        if (profile.MonthlyPrice < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(profile));
+        }
+
         Name = Required(profile.Name, nameof(profile.Name));
         RequiredWorkerCount = profile.RequiredWorkerCount;
+        MonthlyPrice = profile.MonthlyPrice;
+        CurrencyCode = Required(profile.CurrencyCode, nameof(profile.CurrencyCode)).ToUpperInvariant();
+        IsTaxIncluded = profile.IsTaxIncluded;
         IdJobPositionCatalogItem = profile.IdJobPositionCatalogItem;
         RequiredSkillProfile = Optional(profile.RequiredSkillProfile);
         Notes = Optional(profile.Notes);

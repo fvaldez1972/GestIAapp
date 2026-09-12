@@ -6,6 +6,8 @@ using GestIA.Application.Organizations;
 using GestIA.Application.Services;
 using GestIA.Domain.Requests;
 
+using GestIA.Application.Planning;
+
 namespace GestIA.Application.Requests;
 
 public sealed class OperationalRequestService(
@@ -14,6 +16,7 @@ public sealed class OperationalRequestService(
     IClientService clientService,
     IClientSiteService clientSiteService,
     IServiceManagementService serviceManagementService,
+    IPlanningService planningService,
     IAssignmentService assignmentService,
     IOperationsService operationsService,
     IUnitOfWork unitOfWork,
@@ -377,19 +380,19 @@ public sealed class OperationalRequestService(
                 cancellationToken)
             : null;
 
-        if (request.ServiceConfiguration is not null)
+        if (request.Positions is { Count: > 0 })
         {
             if (service is null)
             {
-                warnings.Add("La configuración de servicio no se creó porque no se creó ni ligó un servicio durante esta ejecución.");
+                warnings.Add("Los puestos no se crearon porque no se creó ni ligó un servicio durante esta ejecución.");
             }
             else
             {
-                await CreateConfigurationAsync(
+                await CreatePositionsAsync(
                     request.IdOrganization,
                     RequireClient(idClient),
                     service.IdService,
-                    request.ServiceConfiguration,
+                    request.Positions,
                     cancellationToken);
             }
         }
@@ -455,13 +458,13 @@ public sealed class OperationalRequestService(
             : null;
 
         var idService = service?.IdService ?? operationalRequest.IdService;
-        if (request.ServiceConfiguration is not null)
+        if (request.Positions is { Count: > 0 })
         {
-            await CreateConfigurationAsync(
+            await CreatePositionsAsync(
                 request.IdOrganization,
                 clientId,
                 RequireService(idService),
-                request.ServiceConfiguration,
+                request.Positions,
                 cancellationToken);
         }
 
@@ -484,17 +487,18 @@ public sealed class OperationalRequestService(
     {
         var idClient = RequireClient(operationalRequest.IdClient);
         var idService = RequireService(operationalRequest.IdService);
-        var configuration = await CreateConfigurationAsync(
-            request.IdOrganization,
-            idClient,
-            idService,
-            request.ServiceConfiguration!,
-            cancellationToken);
+        // Antes creaba una configuracion nueva del servicio. Ahora el cambio se expresa en los
+        // puestos, que es donde vive lo que se cobra y cuanta gente hace falta.
+        var creadas = request.Positions is { Count: > 0 }
+            ? await CreatePositionsAsync(request.IdOrganization, idClient, idService, request.Positions, cancellationToken)
+            : Array.Empty<PositionResponse>();
 
         return new ExecutionResult(
-            "Solicitud ejecutada: se creó una nueva configuración vigente para el servicio.",
-            "Configuración de servicio",
-            configuration.IdServiceConfiguration,
+            creadas.Count > 0
+                ? "Solicitud ejecutada: se agregaron " + creadas.Count + " puesto(s) al servicio."
+                : "Solicitud ejecutada: no se agrego ningun puesto al servicio.",
+            "Servicio",
+            idService,
             idClient,
             idService,
             warnings);
@@ -628,30 +632,42 @@ public sealed class OperationalRequestService(
                 input.EndDate),
             cancellationToken);
 
-    private Task<ServiceConfigurationResponse> CreateConfigurationAsync(
+    /// <summary>
+    /// Da de alta los puestos del servicio, con su precio.
+    ///
+    /// <para>Sin codigo: lo pone el servidor como P-01, consecutivo por servicio, igual que cuando
+    /// se crean desde la pantalla.</para>
+    /// </summary>
+    private async Task<IReadOnlyList<PositionResponse>> CreatePositionsAsync(
         Guid idOrganization,
         Guid idClient,
         Guid idService,
-        OperationalRequestServiceConfigurationInput input,
-        CancellationToken cancellationToken) =>
-        serviceManagementService.CreateConfigurationAsync(
-            new CreateServiceConfigurationRequest(
-                idOrganization,
-                idClient,
-                idService,
-                input.EffectiveFromDate,
-                input.EffectiveToDate,
-                input.RequiredWorkerCount,
-                input.HoursPerDay,
-                input.DaysPerWeek,
-                input.AverageMonthlyHours,
-                input.PreparationLeadDays,
-                input.WorkScheduleDescription,
-                input.SpecificInstructions,
-                input.MonthlyPrice,
-                input.CurrencyCode,
-                input.IsTaxIncluded),
-            cancellationToken);
+        IReadOnlyList<OperationalRequestPositionInput> inputs,
+        CancellationToken cancellationToken)
+    {
+        var creadas = new List<PositionResponse>();
+
+        foreach (var input in inputs)
+        {
+            creadas.Add(await planningService.CreatePositionAsync(
+                new CreatePositionRequest(
+                    idOrganization,
+                    idClient,
+                    idService,
+                    null,
+                    input.Name,
+                    input.RequiredWorkerCount,
+                    null,
+                    input.Notes,
+                    input.IdJobPositionCatalogItem,
+                    input.MonthlyPrice,
+                    string.IsNullOrWhiteSpace(input.CurrencyCode) ? "MXN" : input.CurrencyCode,
+                    input.IsTaxIncluded),
+                cancellationToken));
+        }
+
+        return creadas;
+    }
 
     private static OperationalRequestExecutionPreviewResponse BuildExecutionPreview(
         OperationalRequest request,
@@ -700,14 +716,14 @@ public sealed class OperationalRequestService(
                     RequireServiceFields(execution.Service, execution.ClientSite, requiredFields, missingFields);
                 }
 
-                if (execution.ServiceConfiguration is not null)
+                if (execution.Positions is { Count: > 0 })
                 {
                     if (execution.Service is null && !request.IdService.HasValue)
                     {
-                        missingFields.Add("Para crear configuración se necesita crear o ligar un servicio.");
+                        missingFields.Add("Para crear puestos se necesita crear o ligar un servicio.");
                     }
 
-                    RequireConfigurationFields(execution.ServiceConfiguration, requiredFields, missingFields);
+                    RequirePositionFields(execution.Positions, requiredFields, missingFields);
                 }
 
                 break;
@@ -718,9 +734,9 @@ public sealed class OperationalRequestService(
                 impact.Add(request.IdService.HasValue
                     ? "Ligará la solicitud al servicio existente."
                     : "Creará un nuevo servicio real.");
-                if (execution.ServiceConfiguration is not null)
+                if (execution.Positions is { Count: > 0 })
                 {
-                    impact.Add("Creará la configuración operativa inicial del servicio.");
+                    impact.Add("Creará " + execution.Positions.Count + " puesto(s) del servicio, con su precio.");
                 }
 
                 RequireClientInputOrLinkedClient(request, execution, requiredFields, missingFields);
@@ -745,24 +761,24 @@ public sealed class OperationalRequestService(
                     RequireServiceFields(execution.Service, execution.ClientSite, requiredFields, missingFields);
                 }
 
-                if (execution.ServiceConfiguration is not null)
+                if (execution.Positions is { Count: > 0 })
                 {
-                    RequireConfigurationFields(execution.ServiceConfiguration, requiredFields, missingFields);
+                    RequirePositionFields(execution.Positions, requiredFields, missingFields);
                 }
 
                 break;
             case OperationalRequestType.ServiceChange:
-                impact.Add("Creará una nueva configuración para el servicio ligado.");
+                impact.Add("Agregará puestos al servicio ligado.");
                 RequireLinkedClientAndService(request, requiredFields, missingFields);
-                requiredFields.Add("Nueva configuración de servicio");
+                requiredFields.Add("Puestos del servicio");
 
-                if (execution.ServiceConfiguration is null)
+                if (execution.Positions is not { Count: > 0 })
                 {
-                    missingFields.Add("Captura la nueva configuración del servicio.");
+                    missingFields.Add("Captura al menos un puesto para el servicio.");
                 }
                 else
                 {
-                    RequireConfigurationFields(execution.ServiceConfiguration, requiredFields, missingFields);
+                    RequirePositionFields(execution.Positions, requiredFields, missingFields);
                 }
 
                 break;
@@ -926,22 +942,22 @@ public sealed class OperationalRequestService(
         }
     }
 
-    private static void RequireConfigurationFields(
-        OperationalRequestServiceConfigurationInput configuration,
+    private static void RequirePositionFields(
+        IReadOnlyList<OperationalRequestPositionInput> positions,
         List<string> requiredFields,
         List<string> missingFields)
     {
+        requiredFields.Add("Nombre del puesto");
         requiredFields.Add("Personal requerido");
-        requiredFields.Add("Horas por día");
-        requiredFields.Add("Días por semana");
-        requiredFields.Add("Horas mensuales promedio");
-        requiredFields.Add("Descripción de horario");
 
-        AddMissingIf(configuration.RequiredWorkerCount <= 0, "El personal requerido debe ser mayor a cero.", missingFields);
-        AddMissingIf(configuration.HoursPerDay <= 0, "Las horas por día deben ser mayores a cero.", missingFields);
-        AddMissingIf(configuration.DaysPerWeek <= 0, "Los días por semana deben ser mayores a cero.", missingFields);
-        AddMissingIf(configuration.AverageMonthlyHours <= 0, "Las horas mensuales promedio deben ser mayores a cero.", missingFields);
-        AddMissingIf(string.IsNullOrWhiteSpace(configuration.WorkScheduleDescription), "Captura la descripción del horario.", missingFields);
+        // Las horas y los dias ya no se piden aqui: los declara el patron de turnos de cada puesto,
+        // y pedirlos otra vez era duplicar lo que otro sitio modela mejor.
+        foreach (var position in positions)
+        {
+            AddMissingIf(string.IsNullOrWhiteSpace(position.Name), "Captura el nombre del puesto.", missingFields);
+            AddMissingIf(position.RequiredWorkerCount <= 0, "El personal requerido debe ser mayor a cero.", missingFields);
+            AddMissingIf(position.MonthlyPrice < 0, "El precio del puesto no puede ser negativo.", missingFields);
+        }
     }
 
     private static void AddMissingIf(bool condition, string message, List<string> missingFields)

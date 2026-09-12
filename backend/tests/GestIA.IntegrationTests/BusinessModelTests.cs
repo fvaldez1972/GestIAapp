@@ -22,7 +22,6 @@ public sealed class BusinessModelTests
             [typeof(ClientContact)] = "ClientContacts",
             [typeof(ServiceContract)] = "ServiceContracts",
             [typeof(Service)] = "Services",
-            [typeof(ServiceConfiguration)] = "ServiceConfigurations",
             [typeof(Employee)] = "Employees",
             [typeof(EmployeeDocument)] = "EmployeeDocuments",
             [typeof(EmployeeEvaluation)] = "EmployeeEvaluations",

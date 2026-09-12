@@ -112,7 +112,6 @@ describe('ServicesPage organization-scoped workflows', () => {
   }
 
   function flushService() {
-    http.expectOne(r => r.url.endsWith('/configurations')).flush([]);
     http.expectOne(r => r.url.endsWith('/positions')).flush([]);
     http.expectOne(r => r.url.endsWith('/assignments')).flush([]);
     http.expectOne(r => r.url.endsWith('/positions/vacancy')).flush([]);
@@ -136,7 +135,6 @@ describe('ServicesPage organization-scoped workflows', () => {
     page.openService(listItem);
     flushClientContext();
     // Sin permiso de planeación no se piden ni posiciones, ni asignaciones, ni la cobertura.
-    http.expectOne(r => r.url.endsWith('/configurations')).flush([]);
     page.openCreatePosition();
     page.saveService();
     page.savePosition();
@@ -184,7 +182,6 @@ describe('ServicesPage organization-scoped workflows', () => {
     const requests = http.match(() => true);
     page.openService({ ...listItem, idService: 'service-b' });
     expect(requests.every(r => r.cancelled)).toBe(true);
-    expect(page.configurations()).toEqual([]);
     expect(page.positions()).toEqual([]);
     flushService();
   });
@@ -197,11 +194,14 @@ describe('ServicesPage organization-scoped workflows', () => {
   it('creates a service using the selected organization and client, then reloads its detail', () => {
     selectClient();
     page.openCreateService();
-    page.serviceForm.patchValue({ codeService: 'NEW', name: 'New service', description: 'Contracted scope' });
+    page.serviceForm.patchValue({ name: 'New service', description: 'Contracted scope' });
     page.saveService();
     const request = http.expectOne('/api/v1/clients/client-a/services');
     expect(request.request.method).toBe('POST');
-    expect(request.request.body).toMatchObject({ idOrganization: 'org-a', idClient: 'client-a', idClientSite: 'site-a', codeService: 'NEW' });
+    expect(request.request.body).toMatchObject({ idOrganization: 'org-a', idClient: 'client-a', idClientSite: 'site-a' });
+    // El código no viaja: lo pone el servidor con la forma SRV-01, consecutivo por cliente. Mandar
+    // cadena vacía no sería lo mismo —la validaría como capturada y la rechazaría—.
+    expect(request.request.body.codeService).toBeUndefined();
     request.flush(service);
     flushList();
     expect(page.serviceEditorOpen()).toBe(false);
@@ -212,7 +212,6 @@ describe('ServicesPage organization-scoped workflows', () => {
     selectClient();
     page.openService(listItem);
     flushClientContext();
-    http.expectOne(r => r.url.endsWith('/configurations')).flush([]);
     http.expectOne(r => r.url.endsWith('/positions')).flush([]);
     http.expectOne(r => r.url.endsWith('/assignments')).flush([]);
     http.expectOne(r => r.url === '/api/v1/employees' && r.params.get('page') === '1')
@@ -282,9 +281,8 @@ describe('ServicesPage organization-scoped workflows', () => {
   });
 
   it.each([
-    ['Configuration', 'configurationForm', 'configurations', 'idServiceConfiguration', { workScheduleDescription: 'Weekdays', effectiveFromDate: '2026-09-03' }],
-    ['Position', 'positionForm', 'positions', 'idPosition', { codePosition: 'PA', name: 'Main gate' }],
-    ['ShiftPattern', 'shiftPatternForm', 'positions/position-a/shift-patterns', 'idShiftPattern', { codeShiftPattern: 'WEEK', name: 'Weekdays', effectiveFromDate: '2026-09-03' }],
+    ['Position', 'positionForm', 'positions', 'idPosition', { name: 'Main gate' }],
+    ['ShiftPattern', 'shiftPatternForm', 'positions/position-a/shift-patterns', 'idShiftPattern', { name: 'Weekdays', effectiveFromDate: '2026-09-03' }],
   ])('creates and updates %s with organization-scoped bodies', (kind, form, suffix, idField, fields) => {
     selectClient();
     page.selectedService.set(service);
@@ -359,4 +357,5 @@ describe('ServicesPage organization-scoped workflows', () => {
     expect(page.serviceToDeactivate()).toBeNull();
     http.expectNone(r => r.method === 'DELETE');
   });
+
 });

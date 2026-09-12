@@ -22,7 +22,6 @@ public sealed class OrganizationColumnTests
     {
         { typeof(Service), "Services" },
         { typeof(ServiceContract), "ServiceContracts" },
-        { typeof(ServiceConfiguration), "ServiceConfigurations" },
         { typeof(Position), "Positions" },
         { typeof(ShiftPattern), "ShiftPatterns" },
         { typeof(ShiftSegment), "ShiftSegments" },

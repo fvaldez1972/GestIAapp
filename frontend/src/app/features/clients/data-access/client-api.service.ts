@@ -53,9 +53,6 @@ import {
   ScheduledShiftInput,
   ScheduleVersion,
   ScheduleVersionInput,
-  ServiceConfiguration,
-  ServiceConfigurationCorrectionInput,
-  ServiceConfigurationInput,
   ServiceContract,
   ServiceContractInput,
   ServicePosition,
@@ -266,47 +263,6 @@ export class ClientApiService {
   deactivateService(organizationId: string, idClient: string, idService: string) {
     const params = new HttpParams().set('organizationId', organizationId);
     return this.http.delete<void>(`${this.baseUrl}/clients/${idClient}/services/${idService}`, { params });
-  }
-
-  listServiceConfigurations(organizationId: string, idClient: string, idService: string) {
-    const params = new HttpParams().set('organizationId', organizationId);
-    return this.http.get<readonly ServiceConfiguration[]>(
-      `${this.baseUrl}/clients/${idClient}/services/${idService}/configurations`,
-      { params },
-    );
-  }
-
-  createServiceConfiguration(idClient: string, idService: string, request: ServiceConfigurationInput) {
-    return this.http.post<ServiceConfiguration>(
-      `${this.baseUrl}/clients/${idClient}/services/${idService}/configurations`,
-      request,
-    );
-  }
-
-  updateServiceConfiguration(
-    idClient: string,
-    idService: string,
-    idServiceConfiguration: string,
-    request: ServiceConfigurationCorrectionInput,
-  ) {
-    return this.http.put<ServiceConfiguration>(
-      `${this.baseUrl}/clients/${idClient}/services/${idService}/configurations/${idServiceConfiguration}`,
-      request,
-    );
-  }
-
-  deactivateServiceConfiguration(
-    organizationId: string,
-    idClient: string,
-    idService: string,
-    idServiceConfiguration: string,
-    rowVersion: string,
-  ) {
-    const params = new HttpParams().set('organizationId', organizationId).set('rowVersion', rowVersion);
-    return this.http.delete<void>(
-      `${this.baseUrl}/clients/${idClient}/services/${idService}/configurations/${idServiceConfiguration}`,
-      { params },
-    );
   }
 
   listPositions(organizationId: string, idClient: string, idService: string) {

@@ -1316,6 +1316,23 @@
   width: 1rem;
 }
 
+.puestos {
+  display: grid;
+  gap: .7rem;
+  margin-bottom: .7rem;
+}
+
+/* Cada puesto se ve como una ficha para que no se lean como un solo formulario largo. */
+.puesto {
+  background: #fbfcfe;
+  border: 1px solid #e3e8f1;
+  border-radius: 6px;
+  display: grid;
+  gap: .6rem;
+  justify-items: start;
+  padding: .85rem;
+}
+
 .execution-preview {
   background: #fff9e9;
   border: 1px solid #f1dda4;

@@ -122,17 +122,8 @@ public sealed partial class DemoDataSeeder
 
         dbContext.AddRange(openEnded, finished);
 
-        // La configuración del servicio terminado también está vencida, y ése es el caso que de
-        // verdad ejercita la regla de la tanda C: corregirla exige motivo. El servicio en sí no
-        // lleva bitácora —sólo lo hacen las cinco entidades con historial—, así que sin esta
-        // configuración el caso "vigencia terminada" se vería en la pantalla pero no probaría la
-        // regla.
-        dbContext.Add(ServiceConfiguration.Create(
-            organizationId, finished.IdService,
-            new ServiceConfigurationProfile(
-                Today.AddYears(-1), Today.AddDays(-30), 1, 8m, 6, 208m, 10,
-                "Turno diurno de vigencia terminada", null, 18500m, "MXN", true),
-            DemoActorId, DemoActorName, OccurredAt));
+        // La configuracion del servicio terminado se retiro con la entidad: el precio vive ahora
+        // en el puesto, y con el se fue la regla de correccion que este caso ejercitaba.
 
         // 8. Doce servicios en un solo cliente, para que la paginación tenga qué paginar.
         var many = new List<Service>();

@@ -173,6 +173,17 @@
         (tabChange)="activeTab.set($event)"
         (close)="closePanel()"
       >
+        <!--
+          Editar vivia solo en el menu de tres puntos de la fila del listado: otro sitio, y habia
+          que cerrar la ficha que se estaba mirando para llegar. Aqui esta con las acciones de la
+          ficha, como en Clientes.
+        -->
+        @if (canWriteClients()) {
+          <button class="panel-accion" type="button" panelActions (click)="openEditService(service)">
+            Editar servicio
+          </button>
+        }
+
         <ng-template giTab="data">
           <dl class="ficha">
             <div><dt>Cliente</dt><dd>{{ selectedClient()?.legalName || '—' }}</dd></div>
@@ -180,9 +191,6 @@
             <div><dt>Vigencia</dt><dd>{{ vigencia(service) }}</dd></div>
             <div><dt>Estado</dt><dd>{{ estadoTexto(service) }}</dd></div>
             <div class="ficha__wide"><dt>Alcance</dt><dd>{{ service.description }}</dd></div>
-            @if (service.invoiceDescription) {
-              <div class="ficha__wide"><dt>Descripción para factura</dt><dd>{{ service.invoiceDescription }}</dd></div>
-            }
             <div>
               <dt>Contrato</dt>
               <dd>{{ service.serviceContractCode || 'Sin contrato' }}</dd>
@@ -205,100 +213,10 @@
           }
         </ng-template>
 
-        <ng-template giTab="configuration">
-        
-        <section class="detail-section" [hidden]="activeTab() !== 'configuration'">
-          <header>
-            <div>
-              <h3>Configuración del servicio</h3>
-              <span>{{ selectedServiceName() }}</span>
-            </div>
-            <button
-              class="button button--secondary"
-              type="button"
-              [disabled]="
-                !(canWriteClients() && selectedService()?.active) ||
-                saving() ||
-                loading() ||
-                !selectedService()
-              "
-              (click)="openCreateConfiguration()"
-            >
-              Nueva configuración
-            </button>
-          </header>
-
-          @if (!selectedService()) {
-            <div class="compact-state">
-              Selecciona un servicio para ver su configuración operativa y comercial.
-            </div>
-          } @else if (!configurations().length) {
-            <div class="compact-state">Sin configuraciones registradas para este servicio.</div>
-          } @else {
-            <div class="cards-list">
-              @for (configuration of configurations(); track configuration.idServiceConfiguration) {
-                <article class="mini-card">
-                  <div>
-                    <span class="pill"
-                      >{{ configuration.requiredWorkerCount }} elemento(s) ·
-                      {{ configuration.hoursPerDay }} h/día</span
-                    >
-                    <strong
-                      >{{
-                        money(configuration.monthlyPrice, configuration.currencyCode)
-                      }}
-                      mensual</strong
-                    >
-                    <small
-                      >{{ configuration.daysPerWeek }} días/semana ·
-                      {{ configuration.averageMonthlyHours }} h/mes ·
-                      {{ configuration.isTaxIncluded ? 'IVA incluido' : 'IVA no incluido' }}</small
-                    >
-                    <small>{{ configuration.workScheduleDescription }}</small>
-                    <small
-                      >Vigencia: {{ configuration.effectiveFromDate }} -
-                      {{ configuration.effectiveToDate || 'sin fecha de término' }}</small
-                    >
-                    <small
-                      >{{ configuration.active ? 'Activa' : 'Inactiva' }} · Preparación:
-                      {{ configuration.preparationLeadDays }} días</small
-                    >
-                    @if (configuration.specificInstructions) {
-                      <small>{{ configuration.specificInstructions }}</small>
-                    }
-                  </div>
-                  <small>{{ configuration.active ? 'Activo' : 'Inactivo' }}</small>
-                  <div class="mini-actions">
-                    <button
-                      [disabled]="
-                        !(canWriteClients() && selectedService()?.active) || saving() || loading()
-                      "
-                      type="button"
-                      (click)="openEditConfiguration(configuration)"
-                    >
-                      Editar
-                    </button>
-                    <button
-                      [disabled]="
-                        !(canWriteClients() && selectedService()?.active) ||
-                        saving() ||
-                        loading() ||
-                        !configuration.active
-                      "
-                      class="danger"
-                      type="button"
-                      (click)="deactivateConfiguration(configuration)"
-                    >
-                      Desactivar
-                    </button>
-                  </div>
-                </article>
-              }
-            </div>
-          }
-        </section>
-        </ng-template>
-
+        <!--
+          La pestaña de configuracion se retiro: el precio, el personal requerido y el impuesto
+          viven ahora en el puesto, y el horario lo declara el patron de turnos.
+        -->
         <ng-template giTab="positions">
         <!--
           Sin cambios de contenido. Esta pestaña depende de tres decisiones de negocio que siguen
@@ -719,11 +637,13 @@
                 <span>Paso 1 de 3</span>
                 <h3 id="service-step-base">Base del servicio</h3>
               </div>
+              <!--
+                Sin campo de codigo: lo pone el servidor con la forma SRV-01, consecutivo por
+                cliente, igual que el de cliente y el de organizacion. Es un identificador de
+                conveniencia, no la clave del registro, y pedirselo a quien da de alta un servicio
+                le hacia inventar una convencion que el sistema ya tiene.
+              -->
               <div class="form-grid">
-                <label
-                  ><span>Código *</span
-                  ><input formControlName="codeService" [readOnly]="!!editingService()"
-                /></label>
                 <label
                   ><span>Sede *</span
                   ><select formControlName="idClientSite">
@@ -770,9 +690,6 @@
                   ><span>Descripción *</span
                   ><textarea rows="4" formControlName="description"></textarea>
                 </label>
-                <label class="wide"
-                  ><span>Descripción para factura</span><input formControlName="invoiceDescription"
-                /></label>
               </div>
             </section>
           } @else {
@@ -834,128 +751,6 @@
   </div>
 }
 
-@if (configurationEditorOpen() && canRead()) {
-  <div class="modal-backdrop" (click)="closeEditors()">
-    <section
-      serviceDialog
-      (dismiss)="closeEditors()"
-      class="modal"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="configuration-editor-title"
-      (click)="$event.stopPropagation()"
-    >
-      <header>
-        <div>
-          <span class="eyebrow">Configuración operativa</span>
-          <h2 id="configuration-editor-title">
-            {{ editingConfiguration() ? 'Editar configuración' : 'Nueva configuración' }}
-          </h2>
-        </div>
-        <button type="button" [disabled]="saving()" aria-label="Cerrar" (click)="closeEditors()">
-          ×
-        </button>
-      </header>
-      <form [formGroup]="configurationForm" (ngSubmit)="saveConfiguration()">
-        @if (configurationForm.hasError('dateRange')) {
-          <p class="notice notice--error" role="alert">La fecha de fin debe ser igual o posterior al inicio.</p>
-        }
-        @if (error()) {
-          <p class="notice notice--error" role="alert">{{ error() }}</p>
-        }
-        <fieldset [disabled]="saving()">
-          <div class="form-grid">
-            <label
-              ><span>Inicio vigencia *</span><input type="date" formControlName="effectiveFromDate"
-            /></label>
-            <label
-              ><span>Fin vigencia</span><input type="date" formControlName="effectiveToDate"
-            /></label>
-            <label
-              ><span>Personas requeridas *</span
-              ><input type="number" formControlName="requiredWorkerCount" min="1"
-            /></label>
-            <label
-              ><span>Horas/día *</span
-              ><input type="number" formControlName="hoursPerDay" min="0.5" step="0.5"
-            /></label>
-            <label
-              ><span>Días/semana *</span
-              ><input type="number" formControlName="daysPerWeek" min="1" max="7"
-            /></label>
-            <label
-              ><span>Horas/mes *</span
-              ><input type="number" formControlName="averageMonthlyHours" min="1" step="0.5"
-            /></label>
-            <label
-              ><span>Días preparación *</span
-              ><input type="number" formControlName="preparationLeadDays" min="0"
-            /></label>
-            <label
-              ><span>Precio mensual *</span
-              ><input type="number" formControlName="monthlyPrice" min="0" step="0.01"
-            /></label>
-            <label
-              ><span>Moneda *</span><input formControlName="currencyCode" maxlength="3"
-            /></label>
-            <label class="check"
-              ><input type="checkbox" formControlName="isTaxIncluded" /><span
-                >IVA incluido</span
-              ></label
-            >
-            <label class="wide"
-              ><span>Horario / jornada *</span
-              ><textarea rows="3" formControlName="workScheduleDescription"></textarea>
-            </label>
-            <label class="wide"
-              ><span>Instrucciones específicas</span
-              ><textarea rows="3" formControlName="specificInstructions"></textarea>
-            </label>
-
-            <!--
-              El motivo **llega vacío**: uno prellenado deja de ser un motivo.
-
-              Aparece en cuanto lo que se escribe lo hace necesario, sin esperar a intentar guardar.
-              Antes salía sólo cuando el servidor lo rechazaba, y ese rechazo llega como validación
-              —«La solicitud contiene datos inválidos»—, así que no salía nunca y el precio mensual
-              no se podía cambiar. La regla del servidor sigue mandando; aquí sólo se adelanta.
-            -->
-            @if (correctionReasonRequired()) {
-              <label class="wide">
-                <span>Motivo de la corrección *</span>
-                <textarea
-                  rows="2"
-                  minlength="10"
-                  placeholder=""
-                  [value]="correctionReason()"
-                  (input)="correctionReason.set($any($event.target).value)"
-                ></textarea>
-                <!-- Se dice qué lo disparó. «Hace falta un motivo» sin más obliga a adivinar. -->
-                <small>{{ correctionReasonBecause() || 'Explica por qué se hace esta corrección.' }}</small>
-              </label>
-            }
-          </div>
-          <footer>
-            <button class="button button--secondary" type="button" (click)="closeEditors()">
-              Cancelar
-            </button>
-            <button
-              class="button button--primary"
-              type="submit"
-              [disabled]="saving() || (correctionReasonRequired() && correctionReason().trim().length < 10)"
-            >
-              {{ saving() ? 'Guardando…' : 'Guardar configuración' }}
-            </button>
-            @if (correctionReasonRequired() && correctionReason().trim().length < 10) {
-              <!-- Un botón apagado sin explicación deja al usuario adivinando qué le falta. -->
-              <small class="razon">Escribe al menos diez caracteres de motivo.</small>
-            }
-          </footer>
-        </fieldset>
-      </form>
-    </section>
-  </div>
-}
 
 @if (positionEditorOpen() && canRead()) {
   <div class="modal-backdrop" (click)="closeEditors()">
@@ -984,16 +779,25 @@
           <p class="notice notice--error" role="alert">{{ error() }}</p>
         }
         <fieldset [disabled]="saving()">
+          <!-- Sin codigo: lo pone el servidor como P-01, consecutivo por servicio. -->
           <div class="form-grid">
-            <label
-              ><span>Código *</span
-              ><input formControlName="codePosition" [readOnly]="!!editingPosition()"
-            /></label>
             <label
               ><span>Personas requeridas *</span
               ><input type="number" formControlName="requiredWorkerCount" min="1"
             /></label>
             <label class="wide"><span>Nombre *</span><input formControlName="name" /></label>
+            <!--
+              El precio del puesto. Vive aqui desde que se retiro la configuracion del servicio:
+              en seguridad privada se cotiza por puesto, no por servicio, y un servicio con caseta,
+              rondin y monitorista tiene tres precios, no uno.
+            -->
+            <label
+              ><span>Precio mensual *</span
+              ><input type="number" formControlName="monthlyPrice" min="0" step="0.01"
+            /></label>
+            <label class="check"
+              ><input type="checkbox" formControlName="isTaxIncluded" /><span>IVA incluido</span></label
+            >
             <label class="wide"
               ><span>Perfil requerido</span
               ><textarea rows="3" formControlName="requiredSkillProfile"></textarea>
@@ -1138,11 +942,8 @@
           <p class="notice notice--error" role="alert">{{ error() }}</p>
         }
         <fieldset [disabled]="saving()">
+          <!-- Sin codigo: lo pone el servidor como PAT-01, consecutivo por posicion. -->
           <div class="form-grid">
-            <label
-              ><span>Código *</span
-              ><input formControlName="codeShiftPattern" [readOnly]="!!editingShiftPattern()"
-            /></label>
             <label
               ><span>Inicio vigencia *</span><input type="date" formControlName="effectiveFromDate"
             /></label>

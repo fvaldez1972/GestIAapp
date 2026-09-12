@@ -41,37 +41,6 @@ public static class CorrectionReasonPolicy
             : null;
 
     /// <summary>
-    /// La configuración de un servicio pide motivo en dos casos.
-    ///
-    /// <list type="number">
-    /// <item>Su vigencia ya terminó: se está corrigiendo el pasado.</item>
-    /// <item>El cambio toca <b>el precio, la moneda o el impuesto</b>, esté vigente o no. Ése es
-    /// el dato que se le factura al cliente, y cambiarlo mientras está vigente es más delicado
-    /// que corregir una vigencia pasada, no menos.</item>
-    /// </list>
-    /// </summary>
-    public static string? ConfigurationRequirement(
-        ServiceConfiguration current,
-        decimal monthlyPrice,
-        string currencyCode,
-        bool isTaxIncluded,
-        DateOnly today)
-    {
-        ArgumentNullException.ThrowIfNull(current);
-
-        if (current.MonthlyPrice != monthlyPrice ||
-            !string.Equals(current.CurrencyCode, currencyCode, StringComparison.Ordinal) ||
-            current.IsTaxIncluded != isTaxIncluded)
-        {
-            return "toca el precio, la moneda o el impuesto que se le factura al cliente";
-        }
-
-        return HasExpired(current.EffectiveToDate, today)
-            ? "corrige una configuración cuya vigencia ya terminó"
-            : null;
-    }
-
-    /// <summary>
     /// La asignación pide motivo si su periodo ya terminó. Una asignación sin fecha de fin sigue
     /// viva y editarla es operación normal, no corrección.
     /// </summary>

@@ -2,7 +2,6 @@ using GestIA.Application.Services;
 using GestIA.Domain.Services;
 using Microsoft.EntityFrameworkCore;
 using ServiceEntity = GestIA.Domain.Services.Service;
-using ServiceConfigurationEntity = GestIA.Domain.Services.ServiceConfiguration;
 
 namespace GestIA.Infrastructure.Persistence.Repositories;
 
@@ -203,31 +202,24 @@ public sealed class ServiceManagementRepository(GestIaDbContext dbContext) : ISe
                     (!excludedServiceId.HasValue || service.IdService != excludedServiceId.Value),
                 cancellationToken);
 
+    public async Task<int> HighestServiceCodeNumberAsync(Guid idClient, CancellationToken cancellationToken)
+    {
+        // Se traen los codigos y se parsean en memoria, como el de clientes y el de organizaciones:
+        // SQL Server no tiene un TryParse que EF pueda traducir, y son pocos por cliente.
+        var codes = await dbContext.Services
+            .AsNoTracking()
+            .IgnoreQueryFilters(["Active"])
+            .Where(service => service.IdClient == idClient && service.CodeService.StartsWith("SRV-"))
+            .Select(service => service.CodeService)
+            .ToArrayAsync(cancellationToken);
+
+        return codes
+            .Select(code => int.TryParse(code.AsSpan(4), out var number) ? number : 0)
+            .DefaultIfEmpty(0)
+            .Max();
+    }
+
     public Task AddServiceAsync(ServiceEntity service, CancellationToken cancellationToken) =>
         dbContext.Services.AddAsync(service, cancellationToken).AsTask();
 
-    public async Task<IReadOnlyList<ServiceConfigurationEntity>> ListConfigurationsAsync(
-        Guid idService,
-        CancellationToken cancellationToken) =>
-        await dbContext.ServiceConfigurations
-            .AsNoTracking()
-            .Where(configuration => configuration.IdService == idService)
-            .OrderByDescending(configuration => configuration.EffectiveFromDate)
-            // El desempate importa desde que dos pueden empezar el mismo día: sin él, SQL Server no
-            // promete un orden entre las empatadas y la lista se barajaría entre recargas.
-            .ThenByDescending(configuration => configuration.CreatedAt)
-            .ToArrayAsync(cancellationToken);
-
-    public Task<ServiceConfigurationEntity?> GetConfigurationAsync(
-        Guid idService,
-        Guid idServiceConfiguration,
-        CancellationToken cancellationToken) =>
-        dbContext.ServiceConfigurations.SingleOrDefaultAsync(
-            configuration =>
-                configuration.IdService == idService &&
-                configuration.IdServiceConfiguration == idServiceConfiguration,
-            cancellationToken);
-
-    public Task AddConfigurationAsync(ServiceConfigurationEntity configuration, CancellationToken cancellationToken) =>
-        dbContext.ServiceConfigurations.AddAsync(configuration, cancellationToken).AsTask();
 }

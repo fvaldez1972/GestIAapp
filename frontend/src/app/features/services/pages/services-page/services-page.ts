@@ -69,8 +69,6 @@ import {
   ServiceAssignment,
   ServiceAssignmentInput,
   ServiceAssignmentType,
-  ServiceConfiguration,
-  ServiceConfigurationInput,
   ServiceContract,
   ServicePosition,
   ServicePositionInput,
@@ -134,7 +132,6 @@ export class ServicesPage implements OnInit, OnDestroy {
   protected readonly contracts = signal<readonly ServiceContract[]>([]);
   protected readonly contacts = signal<readonly ClientContact[]>([]);
   protected readonly services = signal<readonly ManagedService[]>([]);
-  protected readonly configurations = signal<readonly ServiceConfiguration[]>([]);
   protected readonly positions = signal<readonly ServicePosition[]>([]);
   protected readonly shiftPatterns = signal<readonly ShiftPattern[]>([]);
   protected readonly shiftSegments = signal<readonly ShiftSegment[]>([]);
@@ -308,8 +305,6 @@ export class ServicesPage implements OnInit, OnDestroy {
   protected readonly serviceWizardStep = signal(1);
   protected readonly serviceEditorOpen = signal(false);
   protected readonly editingService = signal<ManagedService | null>(null);
-  protected readonly configurationEditorOpen = signal(false);
-  protected readonly editingConfiguration = signal<ServiceConfiguration | null>(null);
   protected readonly positionEditorOpen = signal(false);
   protected readonly editingPosition = signal<ServicePosition | null>(null);
   protected readonly shiftPatternEditorOpen = signal(false);
@@ -567,7 +562,6 @@ export class ServicesPage implements OnInit, OnDestroy {
   }
 
   private loadServiceDetail(service: ManagedService): void {
-    this.loadConfigurations(service);
     if (this.canReadPlanning()) {
       this.loadPositions(service);
       this.loadAssignments(service);
@@ -596,7 +590,6 @@ export class ServicesPage implements OnInit, OnDestroy {
   private clearServiceDetail(): void {
     this.positionVacancy.set([]);
     this.activeEmployees.set([]);
-    this.configurations.set([]);
     this.positions.set([]);
     this.assignments.set([]);
     this.selectedPosition.set(null);
@@ -653,7 +646,6 @@ export class ServicesPage implements OnInit, OnDestroy {
 
   protected readonly panelTabs = computed<readonly GiTab[]>(() => [
     { id: 'data', label: 'Datos' },
-    { id: 'configuration', label: 'Configuración', count: this.configurations().length },
     { id: 'positions', label: 'Posiciones', count: this.positions().length },
     { id: 'assignments', label: 'Asignaciones', count: this.vacantesAbiertas() },
   ]);
@@ -701,22 +693,6 @@ export class ServicesPage implements OnInit, OnDestroy {
     const service = this.selectedService();
     if (service) this.loadServiceDetail(service);
     this.loadServices(this.serviceList().page);
-  }
-
-  protected loadConfigurations(service = this.selectedService()): void {
-    if (!service || !this.canRead()) return;
-    this.read(
-      this.api.listServiceConfigurations(
-        this.selectedOrganizationId(),
-        service.idClient,
-        service.idService,
-      ),
-      2,
-      (rows) =>
-        this.configurations.set(
-          [...rows].sort((a, b) => b.effectiveFromDate.localeCompare(a.effectiveFromDate)),
-        ),
-    );
   }
 
   protected loadPositions(service = this.selectedService()): void {
@@ -855,7 +831,6 @@ export class ServicesPage implements OnInit, OnDestroy {
   protected closeEditors(): void {
     if (this.saving()) return;
     this.serviceEditorOpen.set(false);
-    this.configurationEditorOpen.set(false);
     this.positionEditorOpen.set(false);
     this.shiftPatternEditorOpen.set(false);
     this.shiftSegmentEditorOpen.set(false);
@@ -886,41 +861,17 @@ export class ServicesPage implements OnInit, OnDestroy {
 
   protected readonly serviceForm = this.formBuilder.nonNullable.group(
     {
-      codeService: ['', [Validators.required, Validators.maxLength(30)]],
       idClientSite: ['', [Validators.required]],
       idServiceContract: [''],
       name: ['', [Validators.required, Validators.maxLength(160)]],
       description: ['', [Validators.required, Validators.maxLength(1000)]],
-      invoiceDescription: ['', [Validators.maxLength(300)]],
       startDate: ['', [Validators.required]],
       endDate: [''],
     },
     { validators: dateRangeValidator('startDate', 'endDate') },
   );
 
-  protected readonly configurationForm = this.formBuilder.nonNullable.group(
-    {
-      effectiveFromDate: ['', [Validators.required]],
-      effectiveToDate: [''],
-      requiredWorkerCount: [1, [Validators.required, Validators.min(1), Validators.max(10000)]],
-      hoursPerDay: [8, [Validators.required, Validators.min(0.5), Validators.max(24)]],
-      daysPerWeek: [6, [Validators.required, Validators.min(1), Validators.max(7)]],
-      averageMonthlyHours: [208, [Validators.required, Validators.min(1), Validators.max(744)]],
-      preparationLeadDays: [7, [Validators.required, Validators.min(0), Validators.max(365)]],
-      workScheduleDescription: ['', [Validators.required, Validators.maxLength(500)]],
-      specificInstructions: ['', [Validators.maxLength(2000)]],
-      monthlyPrice: [0, [Validators.required, Validators.min(0)]],
-      currencyCode: ['MXN', [Validators.required, Validators.maxLength(3)]],
-      isTaxIncluded: [false],
-    },
-    { validators: dateRangeValidator('effectiveFromDate', 'effectiveToDate') },
-  );
-
   /** Lo que hay escrito en el formulario de configuración, como señal. */
-  private readonly configurationValue = toSignal(this.configurationForm.valueChanges, {
-    initialValue: this.configurationForm.getRawValue(),
-  });
-
   /**
    * Por qué se va a exigir motivo, dicho <b>antes</b> de intentar guardar. Vacío si no hace falta.
    *
@@ -935,46 +886,23 @@ export class ServicesPage implements OnInit, OnDestroy {
    * impuesto son lo que se le factura al cliente, y una vigencia terminada se corrige, no se edita.
    * La del servidor sigue mandando; ésta sólo llega a tiempo.</p>
    */
-  protected readonly correctionReasonBecause = computed(() => {
-    const original = this.editingConfiguration();
-
-    if (!original) {
-      return '';
-    }
-
-    const form = this.configurationValue();
-
-    if (
-      Number(form.monthlyPrice) !== Number(original.monthlyPrice) ||
-      form.currencyCode !== original.currencyCode ||
-      form.isTaxIncluded !== original.isTaxIncluded
-    ) {
-      return 'Estás cambiando el precio, la moneda o el impuesto que se le factura al cliente.';
-    }
-
-    const hoy = this.operationDate();
-    const fin = this.dateOnly(original.effectiveToDate);
-
-    return hoy && fin && fin < hoy
-      ? 'Estás corrigiendo una configuración cuya vigencia ya terminó.'
-      : '';
-  });
-
-  protected readonly correctionReasonRequired = computed(
-    () => this.motivoExigidoPorElServidor() || this.correctionReasonBecause() !== '',
-  );
+  // El motivo lo sigue exigiendo el servidor cuando toca; la regla local que lo anticipaba era de
+  // la configuracion y se fue con ella.
+  protected readonly correctionReasonRequired = computed(() => this.motivoExigidoPorElServidor());
 
   protected readonly positionForm = this.formBuilder.nonNullable.group({
-    codePosition: ['', [Validators.required, Validators.maxLength(40)]],
     name: ['', [Validators.required, Validators.maxLength(150)]],
     requiredWorkerCount: [1, [Validators.required, Validators.min(1), Validators.max(10000)]],
+    // El precio vive aqui desde que se retiro la configuracion del servicio: en seguridad privada
+    // se cotiza por puesto, no por servicio.
+    monthlyPrice: [0, [Validators.required, Validators.min(0)]],
+    isTaxIncluded: [false],
     requiredSkillProfile: ['', [Validators.maxLength(1000)]],
     notes: ['', [Validators.maxLength(1000)]],
   });
 
   protected readonly shiftPatternForm = this.formBuilder.nonNullable.group(
     {
-      codeShiftPattern: ['', [Validators.required, Validators.maxLength(40)]],
       name: ['', [Validators.required, Validators.maxLength(150)]],
       description: ['', [Validators.maxLength(1000)]],
       effectiveFromDate: ['', [Validators.required]],
@@ -1049,18 +977,22 @@ export class ServicesPage implements OnInit, OnDestroy {
     this.editingService.set(null);
     this.serviceWizardStep.set(1);
     this.serviceForm.reset({
-      codeService: '',
       idClientSite: this.sites().find((s) => s.active)?.idClientSite ?? '',
       idServiceContract: '',
       name: '',
       description: '',
-      invoiceDescription: '',
       startDate: this.today(),
       endDate: '',
     });
     this.serviceEditorOpen.set(true);
   }
 
+  /**
+   * Las horas al mes que salen del horario pactado.
+   *
+   * <p>Se redondea a un decimal, que es lo que la columna guarda. Cincuenta y dos semanas entre
+   * doce meses da 4.333, no 4: usar cuatro perderia mas de medio dia de trabajo al mes.</p>
+   */
   protected openEditService(service: ManagedService): void {
     if (!this.allowWrite(false)) return;
     this.closeEditors();
@@ -1068,12 +1000,10 @@ export class ServicesPage implements OnInit, OnDestroy {
     this.editingService.set(service);
     this.serviceWizardStep.set(1);
     this.serviceForm.reset({
-      codeService: service.codeService,
       idClientSite: service.idClientSite,
       idServiceContract: service.idServiceContract ?? '',
       name: service.name,
       description: service.description,
-      invoiceDescription: service.invoiceDescription ?? '',
       startDate: this.dateOnly(service.startDate),
       endDate: this.dateOnly(service.endDate),
     });
@@ -1085,11 +1015,10 @@ export class ServicesPage implements OnInit, OnDestroy {
     const controls =
       step === 1
         ? [
-            this.serviceForm.controls.codeService,
             this.serviceForm.controls.idClientSite,
             this.serviceForm.controls.name,
           ]
-        : [this.serviceForm.controls.description, this.serviceForm.controls.invoiceDescription];
+        : [this.serviceForm.controls.description];
 
     controls.forEach((control) => control.markAsTouched());
     if (controls.some((control) => control.invalid)) {
@@ -1121,17 +1050,17 @@ export class ServicesPage implements OnInit, OnDestroy {
       idServiceContract: this.optional(form.idServiceContract),
       name: form.name,
       description: form.description,
-      invoiceDescription: this.optional(form.invoiceDescription),
+      // Sin descripcion para factura: el campo se retiro por no usarse.
+      invoiceDescription: null,
       startDate: form.startDate,
       endDate: this.optionalDate(form.endDate),
     };
     const editing = this.editingService();
     const request = editing
       ? this.api.updateService(client.idClient, editing.idService, input)
-      : this.api.createService(client.idClient, {
-          ...input,
-          codeService: form.codeService,
-        } satisfies CreateManagedService);
+      // Sin codigo: lo genera el servidor. Mandar cadena vacia no seria lo mismo —la validaria
+      // como capturada y la rechazaria—, asi que se omite el campo entero.
+      : this.api.createService(client.idClient, { ...input } satisfies CreateManagedService);
 
     this.saving.set(true);
     request
@@ -1189,7 +1118,6 @@ export class ServicesPage implements OnInit, OnDestroy {
           this.message.set('Servicio desactivado correctamente.');
           if (this.selectedService()?.idService === service.idService) {
             this.selectedService.set(null);
-            this.configurations.set([]);
             this.positions.set([]);
             this.shiftPatterns.set([]);
             this.shiftPatternsLoaded.set(false);
@@ -1350,163 +1278,6 @@ export class ServicesPage implements OnInit, OnDestroy {
       });
   }
 
-  protected openCreateConfiguration(): void {
-    if (!this.allowWrite(false)) return;
-    if (!this.selectedService()?.active) return;
-    this.closeEditors();
-    this.error.set('');
-    if (!this.selectedClient() || !this.selectedService()) {
-      return;
-    }
-
-    this.editingConfiguration.set(null);
-    this.configurationForm.reset({
-      effectiveFromDate: this.today(),
-      effectiveToDate: '',
-      requiredWorkerCount: 1,
-      hoursPerDay: 8,
-      daysPerWeek: 6,
-      averageMonthlyHours: 208,
-      preparationLeadDays: 7,
-      workScheduleDescription: '',
-      specificInstructions: '',
-      monthlyPrice: 0,
-      currencyCode: 'MXN',
-      isTaxIncluded: false,
-    });
-    this.configurationEditorOpen.set(true);
-  }
-
-  protected openEditConfiguration(configuration: ServiceConfiguration): void {
-    if (!this.allowWrite(false)) return;
-    if (!this.selectedService()?.active) return;
-    this.closeEditors();
-    this.error.set('');
-    this.editingConfiguration.set(configuration);
-    this.configurationForm.reset({
-      effectiveFromDate: this.dateOnly(configuration.effectiveFromDate),
-      effectiveToDate: this.dateOnly(configuration.effectiveToDate),
-      requiredWorkerCount: configuration.requiredWorkerCount,
-      hoursPerDay: configuration.hoursPerDay,
-      daysPerWeek: configuration.daysPerWeek,
-      averageMonthlyHours: configuration.averageMonthlyHours,
-      preparationLeadDays: configuration.preparationLeadDays,
-      workScheduleDescription: configuration.workScheduleDescription,
-      specificInstructions: configuration.specificInstructions ?? '',
-      monthlyPrice: configuration.monthlyPrice,
-      currencyCode: configuration.currencyCode,
-      isTaxIncluded: configuration.isTaxIncluded,
-    });
-    this.correctionReason.set('');
-    this.motivoExigidoPorElServidor.set(false);
-    this.configurationEditorOpen.set(true);
-  }
-
-  protected saveConfiguration(): void {
-    if (!this.allowWrite(false)) return;
-    if (!this.selectedService()?.active) return;
-    this.error.set('');
-    this.conflict.set('');
-    const client = this.selectedClient();
-    const service = this.selectedService();
-    if (!client || !service || this.configurationForm.invalid) {
-      this.configurationForm.markAllAsTouched();
-      this.error.set('Revisa los campos obligatorios, los límites y la vigencia.');
-      return;
-    }
-
-    const form = this.configurationForm.getRawValue();
-    const input: ServiceConfigurationInput = {
-      idOrganization: this.selectedOrganizationId(),
-      idClient: client.idClient,
-      idService: service.idService,
-      effectiveFromDate: form.effectiveFromDate,
-      effectiveToDate: this.optionalDate(form.effectiveToDate),
-      requiredWorkerCount: Number(form.requiredWorkerCount),
-      hoursPerDay: Number(form.hoursPerDay),
-      daysPerWeek: Number(form.daysPerWeek),
-      averageMonthlyHours: Number(form.averageMonthlyHours),
-      preparationLeadDays: Number(form.preparationLeadDays),
-      workScheduleDescription: form.workScheduleDescription,
-      specificInstructions: this.optional(form.specificInstructions),
-      monthlyPrice: Number(form.monthlyPrice),
-      currencyCode: this.optional(form.currencyCode),
-      isTaxIncluded: form.isTaxIncluded,
-    };
-    const editing = this.editingConfiguration();
-    const request = editing
-      ? this.api.updateServiceConfiguration(
-          client.idClient,
-          service.idService,
-          editing.idServiceConfiguration,
-          {
-            ...input,
-            // El token que se leyó al abrir. Se devuelve tal cual: si alguien corrigió el registro
-            // mientras tanto, el servidor responde 409 y dice quién fue.
-            rowVersion: editing.rowVersion,
-            correctionReason: this.correctionReason().trim() || undefined,
-          },
-        )
-      : this.api.createServiceConfiguration(client.idClient, service.idService, input);
-
-    this.saving.set(true);
-    request
-      .pipe(
-        this.withScope(2),
-        finalize(() => this.saving.set(false)),
-      )
-      .subscribe({
-        next: () => {
-          this.saving.set(false);
-          this.configurationEditorOpen.set(false);
-          this.message.set(
-            editing
-              ? 'Configuración actualizada correctamente.'
-              : 'Configuración creada correctamente.',
-          );
-          this.loadConfigurations(service);
-        },
-        error: (error: HttpErrorResponse) => this.setError(error),
-      });
-  }
-
-  protected deactivateConfiguration(configuration: ServiceConfiguration): void {
-    if (!this.allowWrite(false)) return;
-    if (!this.selectedService()?.active) return;
-    this.error.set('');
-    const client = this.selectedClient();
-    const service = this.selectedService();
-    if (
-      !client ||
-      !service ||
-      !window.confirm('¿Deseas desactivar esta configuración de servicio?')
-    ) {
-      return;
-    }
-
-    this.saving.set(true);
-    this.api
-      .deactivateServiceConfiguration(
-        this.selectedOrganizationId(),
-        client.idClient,
-        service.idService,
-        configuration.idServiceConfiguration,
-        configuration.rowVersion,
-      )
-      .pipe(
-        this.withScope(2),
-        finalize(() => this.saving.set(false)),
-      )
-      .subscribe({
-        next: () => {
-          this.saving.set(false);
-          this.message.set('Configuración desactivada correctamente.');
-          this.loadConfigurations(service);
-        },
-        error: (error: HttpErrorResponse) => this.setError(error),
-      });
-  }
-
   protected openCreatePosition(): void {
     if (!this.allowWrite(true)) return;
     this.closeEditors();
@@ -1517,9 +1288,10 @@ export class ServicesPage implements OnInit, OnDestroy {
 
     this.editingPosition.set(null);
     this.positionForm.reset({
-      codePosition: '',
       name: '',
       requiredWorkerCount: 1,
+      monthlyPrice: 0,
+      isTaxIncluded: false,
       requiredSkillProfile: '',
       notes: '',
     });
@@ -1532,9 +1304,10 @@ export class ServicesPage implements OnInit, OnDestroy {
     this.error.set('');
     this.editingPosition.set(position);
     this.positionForm.reset({
-      codePosition: position.codePosition,
       name: position.name,
       requiredWorkerCount: position.requiredWorkerCount,
+      monthlyPrice: position.monthlyPrice,
+      isTaxIncluded: position.isTaxIncluded,
       requiredSkillProfile: position.requiredSkillProfile ?? '',
       notes: position.notes ?? '',
     });
@@ -1559,6 +1332,9 @@ export class ServicesPage implements OnInit, OnDestroy {
       idService: service.idService,
       name: form.name,
       requiredWorkerCount: Number(form.requiredWorkerCount),
+      monthlyPrice: Number(form.monthlyPrice),
+      currencyCode: 'MXN',
+      isTaxIncluded: form.isTaxIncluded,
       requiredSkillProfile: this.optional(form.requiredSkillProfile),
       notes: this.optional(form.notes),
     };
@@ -1567,7 +1343,7 @@ export class ServicesPage implements OnInit, OnDestroy {
       ? this.api.updatePosition(client.idClient, service.idService, editing.idPosition, input)
       : this.api.createPosition(client.idClient, service.idService, {
           ...input,
-          codePosition: form.codePosition,
+          // Sin codigo: lo genera el servidor como P-01, consecutivo por servicio.
         } satisfies CreateServicePosition);
 
     this.saving.set(true);
@@ -1655,7 +1431,6 @@ export class ServicesPage implements OnInit, OnDestroy {
 
     this.editingShiftPattern.set(null);
     this.shiftPatternForm.reset({
-      codeShiftPattern: '',
       name: '',
       description: '',
       effectiveFromDate: this.today(),
@@ -1670,7 +1445,6 @@ export class ServicesPage implements OnInit, OnDestroy {
     this.error.set('');
     this.editingShiftPattern.set(pattern);
     this.shiftPatternForm.reset({
-      codeShiftPattern: pattern.codeShiftPattern,
       name: pattern.name,
       description: pattern.description ?? '',
       effectiveFromDate: this.dateOnly(pattern.effectiveFromDate),
@@ -1713,7 +1487,7 @@ export class ServicesPage implements OnInit, OnDestroy {
         )
       : this.api.createShiftPattern(client.idClient, service.idService, position.idPosition, {
           ...input,
-          codeShiftPattern: form.codeShiftPattern,
+          // Sin codigo: lo genera el servidor como PAT-01, consecutivo por posicion.
         } satisfies CreateShiftPattern);
 
     this.saving.set(true);
@@ -1998,7 +1772,6 @@ export class ServicesPage implements OnInit, OnDestroy {
       // **Se cierra el editor.** Lo que hay dentro es la versión vieja, y dejarlo abierto invita a
       // volver a guardar lo mismo. Además el diálogo taparía el aviso, que es lo único que aquí
       // sirve: ver qué cambió la otra persona.
-      this.configurationEditorOpen.set(false);
       this.assignmentEditorOpen.set(false);
       this.conflict.set(mensaje);
       return;
@@ -2017,10 +1790,7 @@ export class ServicesPage implements OnInit, OnDestroy {
   /** Vuelve a leer la configuración para quedarse con el token bueno y el valor de la otra persona. */
   protected reloadAfterConflict(): void {
     this.conflict.set('');
-    this.configurationEditorOpen.set(false);
-    this.editingConfiguration.set(null);
     this.correctionReason.set('');
     this.motivoExigidoPorElServidor.set(false);
-    this.loadConfigurations();
   }
 }

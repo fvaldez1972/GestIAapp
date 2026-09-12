@@ -574,3 +574,21 @@ footer {
   outline: 2px solid var(--gestia-cyan);
   outline-offset: 2px;
 }
+
+/* La acción de la ficha, en su cabecera. Editar vivía sólo en el menú de la fila del listado, y
+   para llegar había que cerrar la ficha que se estaba mirando. */
+.panel-accion {
+  border: 1px solid var(--gestia-border);
+  border-radius: var(--gestia-radius);
+  padding: 0.2rem 0.6rem;
+  background: var(--gestia-surface);
+  color: var(--gestia-navy);
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.panel-accion:hover { border-color: var(--gestia-cyan-dark); }
+.panel-accion:focus-visible { outline: 2px solid var(--gestia-cyan); outline-offset: 1px; }

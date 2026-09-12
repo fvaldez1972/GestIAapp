@@ -2,7 +2,6 @@ using GestIA.Application.Clients;
 using GestIA.Application.Common;
 using GestIA.Domain.Services;
 using ServiceEntity = GestIA.Domain.Services.Service;
-using ServiceConfigurationEntity = GestIA.Domain.Services.ServiceConfiguration;
 
 namespace GestIA.Application.Services;
 
@@ -12,8 +11,8 @@ public sealed class ServiceManagementService(
     IServiceManagementRepository repository,
     IUnitOfWork unitOfWork,
     IActorContext actorContext,
-    IConcurrencyGuard concurrency,
-    IOperationReasonContext reasonContext,
+    // El guardia de concurrencia y el contexto de motivo eran de la configuracion: se fueron con
+    // ella. Los contratos y los servicios no los usaban.
     IClock clock) : IServiceManagementService
 {
     public async Task<IReadOnlyList<ServiceContractResponse>> ListContractsAsync(
@@ -125,7 +124,8 @@ public sealed class ServiceManagementService(
         await EnsureClientAsync(request.IdOrganization, request.IdClient, cancellationToken);
         await EnsureSiteAsync(request.IdClient, request.IdClientSite, cancellationToken);
         await EnsureContractAsync(request.IdClient, request.IdServiceContract, cancellationToken);
-        var (code, profile) = Validate(request);
+        var (capturado, profile) = Validate(request);
+        var code = capturado ?? await NextServiceCodeAsync(request.IdClient, cancellationToken);
 
         if (await repository.IsServiceCodeInUseAsync(request.IdClient, code, null, cancellationToken))
         {
@@ -182,95 +182,6 @@ public sealed class ServiceManagementService(
             ?? throw new ResourceNotFoundException("No se encontró el servicio solicitado.");
 
         service.Deactivate(actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
-        await unitOfWork.SaveChangesAsync(cancellationToken);
-    }
-
-    public async Task<IReadOnlyList<ServiceConfigurationResponse>> ListConfigurationsAsync(
-        Guid idOrganization,
-        Guid idClient,
-        Guid idService,
-        CancellationToken cancellationToken)
-    {
-        await EnsureServiceAsync(idOrganization, idClient, idService, cancellationToken);
-        var configurations = await repository.ListConfigurationsAsync(idService, cancellationToken);
-        return configurations.Select(Map).ToArray();
-    }
-
-    public async Task<ServiceConfigurationResponse> CreateConfigurationAsync(
-        CreateServiceConfigurationRequest request,
-        CancellationToken cancellationToken)
-    {
-        await EnsureServiceAsync(request.IdOrganization, request.IdClient, request.IdService, cancellationToken);
-        var profile = Validate(request);
-
-        // Dos configuraciones pueden empezar el mismo día. Antes no: había una comprobación aquí y
-        // un índice único detrás, y la fecha quedaba tomada incluso por una configuración dada de
-        // baja. El usuario pidió liberarla el 10 de septiembre de 2026, sabiendo la consecuencia:
-        // hoy nada resuelve «cuál rige», porque nada las consulta por fecha —sólo se listan, se
-        // abren por identificador y se auditan—, así que la ambigüedad no rompe nada todavía. El
-        // día que algo tenga que elegir una, ese código tendrá que decidir con qué criterio.
-        var configuration = ServiceConfigurationEntity.Create(
-            request.IdOrganization,
-            request.IdService,
-            profile,
-            actorContext.ActorId,
-            actorContext.ActorName,
-            clock.UtcNow);
-
-        await repository.AddConfigurationAsync(configuration, cancellationToken);
-        await unitOfWork.SaveChangesAsync(cancellationToken);
-        return Map(configuration);
-    }
-
-    public async Task<ServiceConfigurationResponse> UpdateConfigurationAsync(
-        Guid idServiceConfiguration,
-        UpdateServiceConfigurationRequest request,
-        CancellationToken cancellationToken)
-    {
-        await EnsureServiceAsync(request.IdOrganization, request.IdClient, request.IdService, cancellationToken);
-        var profile = Validate(request);
-        var configuration = await repository.GetConfigurationAsync(
-                request.IdService,
-                idServiceConfiguration,
-                cancellationToken)
-            ?? throw new ResourceNotFoundException("No se encontró la configuración solicitada.");
-
-        // Motivo obligatorio si la vigencia ya terminó, o si el cambio toca el precio, la moneda
-        // o el impuesto: ése es el dato que se le factura al cliente, y cambiarlo mientras está
-        // vigente es más delicado que corregir una vigencia pasada, no menos.
-        var requirement = CorrectionReasonPolicy.ConfigurationRequirement(
-            configuration, profile.MonthlyPrice, profile.CurrencyCode, profile.IsTaxIncluded,
-            clock.Today);
-
-        var reasonErrors = new Dictionary<string, string[]>();
-        var reason = CorrectionReasonPolicy.Validate(
-            request.CorrectionReason, requirement, "CorrectionReason", reasonErrors);
-        InputValidation.ThrowIfInvalid(reasonErrors);
-        reasonContext.SetReason(reason, requirement is not null);
-        concurrency.Expect(configuration, request.RowVersion);
-
-        configuration.UpdateProfile(profile, actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
-        await unitOfWork.SaveChangesAsync(cancellationToken);
-        return Map(configuration);
-    }
-
-    public async Task DeactivateConfigurationAsync(
-        Guid idOrganization,
-        Guid idClient,
-        Guid idService,
-        Guid idServiceConfiguration,
-        byte[] rowVersion,
-        CancellationToken cancellationToken)
-    {
-        await EnsureServiceAsync(idOrganization, idClient, idService, cancellationToken);
-        var configuration = await repository.GetConfigurationAsync(idService, idServiceConfiguration, cancellationToken)
-            ?? throw new ResourceNotFoundException("No se encontró la configuración solicitada.");
-
-        // El token llega por parametro de consulta porque un DELETE no lleva cuerpo. Lo correcto
-        // en HTTP seria el encabezado If-Match; se eligio el parametro por consistencia con el
-        // resto de esta API, que ya pasa organizationId asi. Queda anotado como deuda menor.
-        concurrency.Expect(configuration, rowVersion);
-        configuration.Deactivate(actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
         await unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
@@ -407,10 +318,29 @@ public sealed class ServiceManagementService(
             InputValidation.Optional(notes, nameof(notes), 2000, errors));
     }
 
-    private static (string Code, ServiceProfile Profile) Validate(CreateServiceRequest request)
+    /// <summary>
+    /// El siguiente codigo libre con la forma <c>SRV-01</c>, por cliente.
+    ///
+    /// <para>Se cuenta desde el mas alto ya usado, incluidos los inactivos, porque el codigo sigue
+    /// ocupado aunque el servicio este dado de baja. No es un consecutivo garantizado: si dos altas
+    /// coinciden, la segunda choca con la unicidad y quien da de alta reintenta, que es preferible a
+    /// tomar un candado sobre la tabla por un identificador de conveniencia.</para>
+    /// </summary>
+    private async Task<string> NextServiceCodeAsync(Guid idClient, CancellationToken cancellationToken)
+    {
+        var highest = await repository.HighestServiceCodeNumberAsync(idClient, cancellationToken);
+        return $"SRV-{highest + 1:00}";
+    }
+
+    private static (string? Code, ServiceProfile Profile) Validate(CreateServiceRequest request)
     {
         var errors = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
-        var code = InputValidation.Required(request.CodeService, nameof(request.CodeService), 40, errors).ToUpperInvariant();
+
+        // Opcional a proposito: sin codigo lo pone el servidor. Cuando viene, se respeta y se valida
+        // como siempre.
+        var code = string.IsNullOrWhiteSpace(request.CodeService)
+            ? null
+            : InputValidation.Required(request.CodeService, nameof(request.CodeService), 40, errors).ToUpperInvariant();
         var profile = ValidateServiceProfile(
             request.Name,
             request.Description,
@@ -457,104 +387,6 @@ public sealed class ServiceManagementService(
             endDate);
     }
 
-    private static ServiceConfigurationProfile Validate(CreateServiceConfigurationRequest request) =>
-        ValidateConfiguration(
-            request.EffectiveFromDate,
-            request.EffectiveToDate,
-            request.RequiredWorkerCount,
-            request.HoursPerDay,
-            request.DaysPerWeek,
-            request.AverageMonthlyHours,
-            request.PreparationLeadDays,
-            request.WorkScheduleDescription,
-            request.SpecificInstructions,
-            request.MonthlyPrice,
-            request.CurrencyCode,
-            request.IsTaxIncluded);
-
-    private static ServiceConfigurationProfile Validate(UpdateServiceConfigurationRequest request) =>
-        ValidateConfiguration(
-            request.EffectiveFromDate,
-            request.EffectiveToDate,
-            request.RequiredWorkerCount,
-            request.HoursPerDay,
-            request.DaysPerWeek,
-            request.AverageMonthlyHours,
-            request.PreparationLeadDays,
-            request.WorkScheduleDescription,
-            request.SpecificInstructions,
-            request.MonthlyPrice,
-            request.CurrencyCode,
-            request.IsTaxIncluded);
-
-    private static ServiceConfigurationProfile ValidateConfiguration(
-        DateOnly effectiveFromDate,
-        DateOnly? effectiveToDate,
-        short requiredWorkerCount,
-        decimal hoursPerDay,
-        byte daysPerWeek,
-        decimal averageMonthlyHours,
-        short preparationLeadDays,
-        string workScheduleDescription,
-        string? specificInstructions,
-        decimal monthlyPrice,
-        string? currencyCode,
-        bool isTaxIncluded)
-    {
-        var errors = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
-
-        if (effectiveToDate < effectiveFromDate)
-        {
-            errors[nameof(effectiveToDate)] = ["La fecha final no puede ser menor a la fecha inicial."];
-        }
-
-        if (requiredWorkerCount <= 0)
-        {
-            errors[nameof(requiredWorkerCount)] = ["El número de elementos debe ser mayor a cero."];
-        }
-
-        if (hoursPerDay <= 0 || hoursPerDay > 24)
-        {
-            errors[nameof(hoursPerDay)] = ["Las horas por día deben estar entre 1 y 24."];
-        }
-
-        if (daysPerWeek is < 1 or > 7)
-        {
-            errors[nameof(daysPerWeek)] = ["Los días por semana deben estar entre 1 y 7."];
-        }
-
-        if (averageMonthlyHours <= 0)
-        {
-            errors[nameof(averageMonthlyHours)] = ["Las horas mensuales deben ser mayores a cero."];
-        }
-
-        if (preparationLeadDays < 0)
-        {
-            errors[nameof(preparationLeadDays)] = ["Los días de anticipación no pueden ser negativos."];
-        }
-
-        if (monthlyPrice < 0)
-        {
-            errors[nameof(monthlyPrice)] = ["El precio mensual no puede ser negativo."];
-        }
-
-        var profile = new ServiceConfigurationProfile(
-            effectiveFromDate,
-            effectiveToDate,
-            requiredWorkerCount,
-            hoursPerDay,
-            daysPerWeek,
-            averageMonthlyHours,
-            preparationLeadDays,
-            InputValidation.Required(workScheduleDescription, nameof(workScheduleDescription), 500, errors),
-            InputValidation.Optional(specificInstructions, nameof(specificInstructions), 2000, errors),
-            monthlyPrice,
-            (InputValidation.Optional(currencyCode, nameof(currencyCode), 3, errors) ?? "MXN").ToUpperInvariant(),
-            isTaxIncluded);
-        InputValidation.ThrowIfInvalid(errors);
-        return profile;
-    }
-
     private static ServiceContractResponse Map(ServiceContract contract) => new(
         contract.IdServiceContract,
         contract.IdClient,
@@ -585,22 +417,4 @@ public sealed class ServiceManagementService(
         service.EndDate,
         service.Active);
 
-    private static ServiceConfigurationResponse Map(ServiceConfigurationEntity configuration) => new(
-        configuration.IdServiceConfiguration,
-        configuration.IdService,
-        configuration.EffectiveFromDate,
-        configuration.EffectiveToDate,
-        configuration.RequiredWorkerCount,
-        configuration.HoursPerDay,
-        configuration.DaysPerWeek,
-        configuration.AverageWeeklyHours,
-        configuration.AverageMonthlyHours,
-        configuration.PreparationLeadDays,
-        configuration.WorkScheduleDescription,
-        configuration.SpecificInstructions,
-        configuration.MonthlyPrice,
-        configuration.CurrencyCode,
-        configuration.IsTaxIncluded,
-        configuration.Active,
-        configuration.RowVersion);
 }

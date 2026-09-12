@@ -253,58 +253,15 @@ export type ManagedServiceInput = {
   readonly endDate: string | null;
 };
 
+/**
+ * El alta de un servicio contratado.
+ *
+ * <p>El codigo es <b>opcional</b>: sin el, lo pone el servidor con la forma `SRV-01`, consecutivo
+ * por cliente. Es el mismo trato que el de cliente y el de organizacion, y por la misma razon: es
+ * un identificador de conveniencia, no la clave del registro.</p>
+ */
 export type CreateManagedService = ManagedServiceInput & {
-  readonly codeService: string;
-};
-
-export type ServiceConfiguration = {
-  readonly idServiceConfiguration: string;
-  readonly idService: string;
-  readonly effectiveFromDate: string;
-  readonly effectiveToDate: string | null;
-  readonly requiredWorkerCount: number;
-  readonly hoursPerDay: number;
-  readonly daysPerWeek: number;
-  readonly averageWeeklyHours: number;
-  readonly averageMonthlyHours: number;
-  readonly preparationLeadDays: number;
-  readonly workScheduleDescription: string;
-  readonly specificInstructions: string | null;
-  readonly monthlyPrice: number;
-  readonly currencyCode: string;
-  readonly isTaxIncluded: boolean;
-  readonly active: boolean;
-  /**
-   * Token de concurrencia. Es `rowversion` en la base y viaja como **base64**: no se interpreta,
-   * no se compara y no se construye. Se lee al abrir y se devuelve igual al guardar; si alguien
-   * corrigió el registro entre una cosa y la otra, el servidor responde 409 y dice quién fue.
-   */
-  readonly rowVersion: string;
-};
-
-export type ServiceConfigurationInput = {
-  readonly idOrganization: string;
-  readonly idClient: string;
-  readonly idService: string;
-  readonly effectiveFromDate: string;
-  readonly effectiveToDate: string | null;
-  readonly requiredWorkerCount: number;
-  readonly hoursPerDay: number;
-  readonly daysPerWeek: number;
-  readonly averageMonthlyHours: number;
-  readonly preparationLeadDays: number;
-  readonly workScheduleDescription: string;
-  readonly specificInstructions: string | null;
-  readonly monthlyPrice: number;
-  readonly currencyCode: string | null;
-  readonly isTaxIncluded: boolean;
-};
-
-/** La corrección de una configuración. Mismo criterio que `ServiceAssignmentCorrectionInput`. */
-export type ServiceConfigurationCorrectionInput = ServiceConfigurationInput & {
-  readonly rowVersion: string;
-  /** Por qué se corrige. Obligatorio cuando la regla del servidor lo exige. */
-  readonly correctionReason?: string;
+  readonly codeService?: string | null;
 };
 
 export type ServicePosition = {
@@ -316,6 +273,10 @@ export type ServicePosition = {
   readonly requiredSkillProfile: string | null;
   readonly notes: string | null;
   readonly active: boolean;
+  /** Lo que se cobra al mes por este puesto. Vive aqui desde que se retiro la configuracion. */
+  readonly monthlyPrice: number;
+  readonly currencyCode: string;
+  readonly isTaxIncluded: boolean;
 };
 
 export type ServicePositionInput = {
@@ -326,10 +287,18 @@ export type ServicePositionInput = {
   readonly requiredWorkerCount: number;
   readonly requiredSkillProfile: string | null;
   readonly notes: string | null;
+  /** Lo que se cobra al mes por este puesto. Vive aqui desde que se retiro la configuracion. */
+  readonly monthlyPrice: number;
+  readonly currencyCode: string;
+  readonly isTaxIncluded: boolean;
 };
 
+/**
+ * El alta de una posicion. El codigo es **opcional**: sin el, lo pone el servidor con la forma
+ * `P-01`, consecutivo por servicio.
+ */
 export type CreateServicePosition = ServicePositionInput & {
-  readonly codePosition: string;
+  readonly codePosition?: string | null;
 };
 
 export type ShiftPattern = {
@@ -354,8 +323,12 @@ export type ShiftPatternInput = {
   readonly effectiveToDate: string | null;
 };
 
+/**
+ * El alta de un patron de turnos. El codigo es **opcional**: sin el, lo pone el servidor con la
+ * forma `PAT-01`, consecutivo por posicion.
+ */
 export type CreateShiftPattern = ShiftPatternInput & {
-  readonly codeShiftPattern: string;
+  readonly codeShiftPattern?: string | null;
 };
 
 export type ShiftSegment = {
@@ -402,7 +375,7 @@ export type ServiceAssignment = {
   readonly isPrimary: boolean;
   readonly notes: string | null;
   readonly active: boolean;
-  /** Token de concurrencia. Ver la nota de `ServiceConfiguration`. */
+  /** Token de concurrencia: detecta que otro guardo mientras esta pantalla tenia el dato. */
   readonly rowVersion: string;
 };
 

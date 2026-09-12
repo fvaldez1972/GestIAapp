@@ -52,6 +52,39 @@ public sealed class PlanningRepository(GestIaDbContext dbContext) : IPlanningRep
             position => position.IdService == idService && position.IdPosition == idPosition,
             cancellationToken);
 
+    public async Task<int> HighestPositionCodeNumberAsync(Guid idService, CancellationToken cancellationToken)
+    {
+        // Se parsea en memoria, como los demas consecutivos: SQL Server no tiene un TryParse que EF
+        // pueda traducir, y son pocas posiciones por servicio. Cuenta tambien las inactivas, porque
+        // el codigo sigue ocupado aunque la posicion este dada de baja.
+        var codes = await dbContext.Positions
+            .AsNoTracking()
+            .IgnoreQueryFilters(["Active"])
+            .Where(position => position.IdService == idService && position.CodePosition.StartsWith("P-"))
+            .Select(position => position.CodePosition)
+            .ToArrayAsync(cancellationToken);
+
+        return codes
+            .Select(code => int.TryParse(code.AsSpan(2), out var number) ? number : 0)
+            .DefaultIfEmpty(0)
+            .Max();
+    }
+
+    public async Task<int> HighestShiftPatternCodeNumberAsync(Guid idPosition, CancellationToken cancellationToken)
+    {
+        var codes = await dbContext.ShiftPatterns
+            .AsNoTracking()
+            .IgnoreQueryFilters(["Active"])
+            .Where(pattern => pattern.IdPosition == idPosition && pattern.CodeShiftPattern.StartsWith("PAT-"))
+            .Select(pattern => pattern.CodeShiftPattern)
+            .ToArrayAsync(cancellationToken);
+
+        return codes
+            .Select(code => int.TryParse(code.AsSpan(4), out var number) ? number : 0)
+            .DefaultIfEmpty(0)
+            .Max();
+    }
+
     public Task<bool> IsPositionCodeInUseAsync(
         Guid idService,
         string codePosition,

@@ -4,6 +4,7 @@ using GestIA.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GestIA.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(GestIaDbContext))]
-    partial class GestIaDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260912065646_AddPositionPricing")]
+    partial class AddPositionPricing
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -2539,6 +2542,127 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("GestIA.Domain.Services.ServiceConfiguration", b =>
+                {
+                    b.Property<Guid>("IdServiceConfiguration")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Active")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true)
+                        .HasColumnName("Active");
+
+                    b.Property<decimal>("AverageMonthlyHours")
+                        .HasPrecision(8, 2)
+                        .HasColumnType("decimal(8,2)");
+
+                    b.Property<decimal>("AverageWeeklyHours")
+                        .HasPrecision(7, 2)
+                        .HasColumnType("decimal(7,2)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2(0)")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CreatedByName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("CurrencyCode")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(3)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(3)")
+                        .HasDefaultValue("MXN");
+
+                    b.Property<byte>("DaysPerWeek")
+                        .HasColumnType("tinyint");
+
+                    b.Property<DateOnly>("EffectiveFromDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("EffectiveToDate")
+                        .HasColumnType("date");
+
+                    b.Property<decimal>("HoursPerDay")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<Guid>("IdOrganization")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("IdService")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsTaxIncluded")
+                        .HasColumnType("bit");
+
+                    b.Property<decimal>("MonthlyPrice")
+                        .HasPrecision(19, 4)
+                        .HasColumnType("decimal(19,4)");
+
+                    b.Property<short>("PreparationLeadDays")
+                        .HasColumnType("smallint");
+
+                    b.Property<short>("RequiredWorkerCount")
+                        .HasColumnType("smallint");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("SpecificInstructions")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2(0)");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("UpdatedByName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("WorkScheduleDescription")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.HasKey("IdServiceConfiguration")
+                        .HasName("PK_ServiceConfigurations");
+
+                    b.HasIndex("IdOrganization", "EffectiveFromDate")
+                        .HasDatabaseName("IX_ServiceConfigurations_IdOrganization_EffectiveFromDate");
+
+                    b.HasIndex("IdService", "EffectiveFromDate")
+                        .HasDatabaseName("IX_ServiceConfigurations_IdService_EffectiveFromDate");
+
+                    b.ToTable("ServiceConfigurations", "dbo", t =>
+                        {
+                            t.HasCheckConstraint("CK_ServiceConfigurations_DaysPerWeek", "[DaysPerWeek] BETWEEN 1 AND 7");
+
+                            t.HasCheckConstraint("CK_ServiceConfigurations_EffectiveDateRange", "[EffectiveToDate] IS NULL OR [EffectiveToDate] >= [EffectiveFromDate]");
+
+                            t.HasCheckConstraint("CK_ServiceConfigurations_HoursPerDay", "[HoursPerDay] > 0 AND [HoursPerDay] <= 24");
+
+                            t.HasCheckConstraint("CK_ServiceConfigurations_MonthlyPrice", "[MonthlyPrice] >= 0");
+
+                            t.HasCheckConstraint("CK_ServiceConfigurations_RequiredWorkerCount", "[RequiredWorkerCount] > 0");
+                        });
+                });
+
             modelBuilder.Entity("GestIA.Domain.Services.ServiceContract", b =>
                 {
                     b.Property<Guid>("IdServiceContract")
@@ -3835,6 +3959,25 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                     b.Navigation("ServiceContract");
                 });
 
+            modelBuilder.Entity("GestIA.Domain.Services.ServiceConfiguration", b =>
+                {
+                    b.HasOne("GestIA.Domain.Organizations.Organization", null)
+                        .WithMany()
+                        .HasForeignKey("IdOrganization")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_ServiceConfigurations_Organizations_IdOrganization");
+
+                    b.HasOne("GestIA.Domain.Services.Service", "Service")
+                        .WithMany("Configurations")
+                        .HasForeignKey("IdService")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_ServiceConfigurations_Services_IdService");
+
+                    b.Navigation("Service");
+                });
+
             modelBuilder.Entity("GestIA.Domain.Services.ServiceContract", b =>
                 {
                     b.HasOne("GestIA.Domain.Clients.Client", "Client")
@@ -3978,6 +4121,11 @@ namespace GestIA.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("GestIA.Domain.Planning.ShiftPattern", b =>
                 {
                     b.Navigation("Segments");
+                });
+
+            modelBuilder.Entity("GestIA.Domain.Services.Service", b =>
+                {
+                    b.Navigation("Configurations");
                 });
 
             modelBuilder.Entity("GestIA.Domain.Workforce.Employee", b =>

@@ -117,7 +117,6 @@ describe('Servicios · ficha', () => {
     http.expectOne((r) => r.url.endsWith('/contacts')).flush([
       { idClientContact: 'c-1', idClientSite: 'site-1', purpose: 'Operational', fullName: 'Adriana Quiñones', jobTitle: 'Jefa de seguridad', phone: '55 4821 9033', isPrimary: true, active: true },
     ]);
-    http.expectOne((r) => r.url.endsWith('/configurations')).flush(configuraciones);
     http.expectOne((r) => r.url.endsWith('/positions')).flush([]);
     http.expectOne((r) => r.url.endsWith('/assignments')).flush([]);
     http.expectOne((r) => r.url.endsWith('/positions/vacancy')).flush(VACANTES);
@@ -152,13 +151,13 @@ describe('Servicios · ficha', () => {
     expect(despues).toEqual(['Servicio', 'Posiciones', 'Estado', '']);
   });
 
-  it('las cuatro pestañas, y la primera se llama Datos', () => {
+  it('las tres pestañas, y la primera se llama Datos', () => {
     abrir();
     const pestanas = Array.from(raiz().querySelectorAll('[role="tab"] > span:first-child')).map((t) =>
       t.textContent?.trim(),
     );
 
-    expect(pestanas).toEqual(['Datos', 'Configuración', 'Posiciones', 'Asignaciones']);
+    expect(pestanas).toEqual(['Datos', 'Posiciones', 'Asignaciones']);
   });
 
   /** El contador evita abrir la pestaña para descubrir si hay hueco. */
@@ -175,116 +174,6 @@ describe('Servicios · ficha', () => {
 
     expect(raiz().textContent).toContain('Adriana Quiñones');
     expect(raiz().textContent).toContain('Jefa de seguridad');
-  });
-
-  describe('el token de concurrencia', () => {
-    /**
-     * <b>Lo que F2 construyó y nadie usaba.</b> El contrato acepta el token nulo, así que hasta
-     * ahora la aplicación guardaba las configuraciones sin comprobación de concurrencia.
-     */
-    it('se devuelve igual al guardar', () => {
-      abrir();
-      pagina()['openEditConfiguration'](CONFIGURACION);
-      pagina()['saveConfiguration']();
-
-      const request = http.expectOne((r) => r.method === 'PUT' && r.url.includes('/configurations/'));
-      expect(request.request.body.rowVersion).toBe(TOKEN);
-      request.flush({ ...CONFIGURACION, rowVersion: 'AAAAAAAAB9I=' });
-
-      http.expectOne((r) => r.url.endsWith('/configurations')).flush([CONFIGURACION]);
-    });
-
-    /**
-     * El 409 de concurrencia dice **quién** corrigió el registro y **cuándo**, y su salida es
-     * volver a cargar: no se arregla reintentando.
-     */
-    it('el 409 de concurrencia dice quién fue y ofrece recargar', () => {
-      abrir();
-      pagina()['openEditConfiguration'](CONFIGURACION);
-      pagina()['saveConfiguration']();
-
-      http.expectOne((r) => r.method === 'PUT').flush(
-        {
-          title: 'Conflicto de concurrencia',
-          detail: 'Ana Ruiz, el 04 sep 2026 a las 10:05, corrigió este registro. Vuelve a cargarlo para no perder su corrección.',
-        },
-        { status: 409, statusText: 'Conflict' },
-      );
-      fixture.detectChanges();
-
-      expect(pagina()['conflict']()).toContain('Ana Ruiz');
-      expect(pagina()['error']()).toBe('');
-      expect(raiz().querySelector('.conflict')?.textContent).toContain('Volver a cargar');
-      // El editor se cierra: lo que hay dentro es la versión vieja, y además taparía el aviso.
-      expect(pagina()['configurationEditorOpen']()).toBe(false);
-    });
-
-    /**
-     * <b>No todo 409 es concurrencia.</b> Un código repetido también lo es, y ése sí se arregla
-     * en el formulario: va a la franja de errores, no a la de conflicto.
-     */
-    it('un 409 que no es de concurrencia no se confunde con uno que sí', () => {
-      abrir();
-      pagina()['openEditConfiguration'](CONFIGURACION);
-      pagina()['saveConfiguration']();
-
-      http.expectOne((r) => r.method === 'PUT').flush(
-        { title: 'Conflicto de datos', detail: 'Ya existe una configuración vigente en ese periodo.' },
-        { status: 409, statusText: 'Conflict' },
-      );
-      fixture.detectChanges();
-
-      expect(pagina()['conflict']()).toBe('');
-      expect(pagina()['error']()).toContain('Ya existe una configuración vigente');
-    });
-
-    it('volver a cargar cierra el editor y relee la configuración', () => {
-      abrir();
-      pagina()['openEditConfiguration'](CONFIGURACION);
-      pagina()['conflict'].set('Alguien la corrigió.');
-
-      pagina()['reloadAfterConflict']();
-
-      expect(pagina()['conflict']()).toBe('');
-      expect(pagina()['configurationEditorOpen']()).toBe(false);
-      http.expectOne((r) => r.url.endsWith('/configurations')).flush([CONFIGURACION]);
-    });
-  });
-
-  describe('el motivo de corrección', () => {
-    /** El campo aparece cuando el servidor lo exige, y **llega vacío**. */
-    it('se abre vacío cuando el servidor lo pide, y no se sugiere nada', () => {
-      abrir();
-      pagina()['openEditConfiguration'](CONFIGURACION);
-      pagina()['saveConfiguration']();
-
-      http.expectOne((r) => r.method === 'PUT').flush(
-        { title: 'Conflicto de datos', detail: 'Corregir una configuración vencida requiere motivo.' },
-        { status: 409, statusText: 'Conflict' },
-      );
-      fixture.detectChanges();
-
-      expect(pagina()['correctionReasonRequired']()).toBe(true);
-      expect(pagina()['correctionReason']()).toBe('');
-
-      const campo = raiz().querySelector<HTMLTextAreaElement>('textarea[minlength="10"]')!;
-      expect(campo.value).toBe('');
-      expect(campo.placeholder).toBe('');
-    });
-
-    it('el motivo viaja al servidor cuando se escribe', () => {
-      abrir();
-      pagina()['openEditConfiguration'](CONFIGURACION);
-      pagina()['correctionReason'].set('Se corrigió el precio pactado en el anexo firmado.');
-      pagina()['saveConfiguration']();
-
-      const request = http.expectOne((r) => r.method === 'PUT');
-      expect(request.request.body.correctionReason).toBe(
-        'Se corrigió el precio pactado en el anexo firmado.',
-      );
-      request.flush(CONFIGURACION);
-      http.expectOne((r) => r.url.endsWith('/configurations')).flush([CONFIGURACION]);
-    });
   });
 
   describe('la cobertura por posición', () => {

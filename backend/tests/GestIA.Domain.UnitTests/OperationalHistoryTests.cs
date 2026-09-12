@@ -21,7 +21,6 @@ public sealed class OperationalHistoryTests
     private static readonly Type[] SnapshotTypes =
     [
         typeof(AttendanceRecordSnapshot),
-        typeof(ServiceConfigurationSnapshot),
         typeof(IncidentSnapshot),
         typeof(CoverageRecordSnapshot),
         typeof(ServiceAssignmentSnapshot)
@@ -33,7 +32,8 @@ public sealed class OperationalHistoryTests
     /// </summary>
     private static readonly HashSet<string> AllowedTextFields = new(StringComparer.Ordinal)
     {
-        nameof(ServiceConfigurationSnapshot.CurrencyCode),
+        // La moneda de la configuracion salio de la lista con la propia entidad: el precio vive
+        // ahora en el puesto.
         nameof(IncidentSnapshot.IncidentType)
     };
 
@@ -171,7 +171,6 @@ public sealed class OperationalHistoryTests
     public static TheoryData<object, OperationalEntityType> Records() => new()
     {
         { Attendance(), OperationalEntityType.AttendanceRecord },
-        { Configuration(), OperationalEntityType.ServiceConfiguration },
         { NewIncident(), OperationalEntityType.Incident },
         { Coverage(), OperationalEntityType.CoverageRecord },
         { Assignment(), OperationalEntityType.ServiceAssignment }
@@ -180,11 +179,6 @@ public sealed class OperationalHistoryTests
     private static AttendanceRecord Attendance() => AttendanceRecord.Create(
         Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Day,
         new(AttendanceStatus.Late, new TimeOnly(8, 15), new TimeOnly(16, 0), 15, "Confidencial: llegó tarde"),
-        ActorId, ActorName, Now);
-
-    private static ServiceConfiguration Configuration() => ServiceConfiguration.Create(
-        Guid.NewGuid(), Guid.NewGuid(),
-        new(Day, null, 1, 8m, 5, 176m, 5, "Turno diurno", "Confidencial: instrucciones del cliente", 10000m, "MXN", true),
         ActorId, ActorName, Now);
 
     private static Incident NewIncident() => Incident.Create(

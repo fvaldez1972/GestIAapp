@@ -36,45 +36,6 @@ public sealed class CorrectionReasonPolicyTests
     }
 
     [Fact]
-    public void AnExpiredConfigurationRequiresAReason()
-    {
-        var configuration = Configuration(expiresOn: Today.AddDays(-1));
-
-        Assert.Equal(
-            "corrige una configuración cuya vigencia ya terminó",
-            CorrectionReasonPolicy.ConfigurationRequirement(
-                configuration, configuration.MonthlyPrice, configuration.CurrencyCode, configuration.IsTaxIncluded, Today));
-    }
-
-    /// <summary>
-    /// El caso que decidiste al revés de mi propuesta, y con razón: el precio es el dato que se le
-    /// factura al cliente, y cambiarlo mientras está vigente es más delicado que corregir una
-    /// vigencia pasada, no menos.
-    /// </summary>
-    [Theory]
-    [InlineData(12000, "MXN", true)]
-    [InlineData(10000, "USD", true)]
-    [InlineData(10000, "MXN", false)]
-    public void TouchingTheMoneyRequiresAReasonEvenWhileCurrent(decimal price, string currency, bool isTaxIncluded)
-    {
-        var configuration = Configuration(expiresOn: null);
-
-        // El mensaje dice la regla que se aplicó: es dinero, no vigencia vencida.
-        Assert.Equal(
-            "toca el precio, la moneda o el impuesto que se le factura al cliente",
-            CorrectionReasonPolicy.ConfigurationRequirement(configuration, price, currency, isTaxIncluded, Today));
-    }
-
-    [Fact]
-    public void ChangingSomethingElseOnACurrentConfigurationDoesNotRequireAReason()
-    {
-        var configuration = Configuration(expiresOn: null);
-
-        Assert.Null(CorrectionReasonPolicy.ConfigurationRequirement(
-            configuration, configuration.MonthlyPrice, configuration.CurrencyCode, configuration.IsTaxIncluded, Today));
-    }
-
-    [Fact]
     public void AnAssignmentThatEndedRequiresAReasonAndAnOpenOneDoesNot()
     {
         Assert.NotNull(CorrectionReasonPolicy.AssignmentRequirement(Assignment(Today.AddDays(-1)), Today));
@@ -121,11 +82,6 @@ public sealed class CorrectionReasonPolicyTests
         Assert.Empty(errors);
         Assert.Equal("Se corrigió la hora de entrada", reason);
     }
-
-    private static ServiceConfiguration Configuration(DateOnly? expiresOn) => ServiceConfiguration.Create(
-        Guid.NewGuid(), Guid.NewGuid(),
-        new(Today.AddMonths(-6), expiresOn, 1, 8m, 5, 176m, 5, "Turno diurno", null, 10000m, "MXN", true),
-        ActorId, ActorName, Now);
 
     private static ServiceAssignment Assignment(DateOnly? endDate) => ServiceAssignment.Create(
         Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),

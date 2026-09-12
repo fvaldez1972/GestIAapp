@@ -215,7 +215,6 @@ describe('Servicios · listado', () => {
 
     // Abrir el menú **no** abre la ficha: el clic no burbujea a la fila.
     expect(fixture.componentInstance['selectedService']()).toBeNull();
-    http.expectNone((r) => r.url.includes('/configurations'));
   });
 
   it('buscar y filtrar vuelven a preguntar al servidor, sin botón de aplicar', () => {

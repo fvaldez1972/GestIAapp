@@ -24,6 +24,9 @@ const posicion = (id: string, code: string, required = 2): ServicePosition => ({
   requiredSkillProfile: null,
   notes: null,
   active: true,
+  monthlyPrice: 0,
+  currencyCode: 'MXN',
+  isTaxIncluded: false,
 });
 
 const segmento = (idPattern: string, dayOfWeek: string, required = 2): ShiftSegment => ({

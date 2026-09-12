@@ -17,7 +17,6 @@ public sealed class AuditRepository(GestIaDbContext dbContext, IActorContext act
         "Contactos",
         "Contratos",
         "Servicios",
-        "Configuraciones",
         "Personal",
         "Documentos",
         "Evaluaciones",
@@ -226,23 +225,6 @@ public sealed class AuditRepository(GestIaDbContext dbContext, IActorContext act
                 .ToArrayAsync(cancellationToken));
         }
 
-        if (Matches(entity, "Configuraciones"))
-        {
-            AddRows(rows, await dbContext.ServiceConfigurations
-                .IgnoreQueryFilters(["Active"])
-                .Where(item => item.IdOrganization == query.IdOrganization)
-                .Select(item => new AuditableRecord(
-                    "Configuraciones",
-                    item.Service.Name,
-                    item.IdServiceConfiguration,
-                    item.Active,
-                    item.CreatedByName,
-                    item.CreatedAt,
-                    item.UpdatedByName,
-                    item.UpdatedAt,
-                    item.WorkScheduleDescription))
-                .ToArrayAsync(cancellationToken));
-        }
 
         if (Matches(entity, "Personal"))
         {

@@ -306,6 +306,11 @@ export class PlanningPage {
         requiredWorkerCount: draft.requiredWorkerCount,
         requiredSkillProfile: null,
         notes: draft.notes,
+        // El precio se pacta en Servicios, que es donde se ve el contrato. Aqui se crea la
+        // posicion para poder planear, y el precio queda en cero hasta que alguien lo ponga.
+        monthlyPrice: 0,
+        currencyCode: 'MXN',
+        isTaxIncluded: false,
       })
       .subscribe({
         next: (position) => {

@@ -1,6 +1,5 @@
 using GestIA.Domain.Services;
 using ServiceEntity = GestIA.Domain.Services.Service;
-using ServiceConfigurationEntity = GestIA.Domain.Services.ServiceConfiguration;
 
 namespace GestIA.Application.Services;
 
@@ -23,9 +22,14 @@ public interface IServiceManagementRepository
     Task<IReadOnlyList<ServiceEntity>> ListServicesAsync(Guid idClient, CancellationToken cancellationToken);
     Task<ServiceEntity?> GetServiceAsync(Guid idClient, Guid idService, CancellationToken cancellationToken);
     Task<bool> IsServiceCodeInUseAsync(Guid idClient, string codeService, Guid? excludedServiceId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// El numero mas alto ya usado en los codigos <c>SRV-NN</c> de ese cliente.
+    ///
+    /// <para>Cuenta tambien los servicios inactivos: el codigo sigue ocupado aunque el servicio
+    /// este dado de baja, porque aqui los registros no se eliminan.</para>
+    /// </summary>
+    Task<int> HighestServiceCodeNumberAsync(Guid idClient, CancellationToken cancellationToken);
     Task AddServiceAsync(ServiceEntity service, CancellationToken cancellationToken);
 
-    Task<IReadOnlyList<ServiceConfigurationEntity>> ListConfigurationsAsync(Guid idService, CancellationToken cancellationToken);
-    Task<ServiceConfigurationEntity?> GetConfigurationAsync(Guid idService, Guid idServiceConfiguration, CancellationToken cancellationToken);
-    Task AddConfigurationAsync(ServiceConfigurationEntity configuration, CancellationToken cancellationToken);
 }

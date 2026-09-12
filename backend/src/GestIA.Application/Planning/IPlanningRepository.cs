@@ -26,6 +26,12 @@ public interface IPlanningRepository
         Guid idPosition,
         CancellationToken cancellationToken);
 
+    /// <summary>El numero mas alto ya usado en los codigos <c>P-NN</c> de ese servicio.</summary>
+    Task<int> HighestPositionCodeNumberAsync(Guid idService, CancellationToken cancellationToken);
+
+    /// <summary>El numero mas alto ya usado en los codigos <c>PAT-NN</c> de esa posicion.</summary>
+    Task<int> HighestShiftPatternCodeNumberAsync(Guid idPosition, CancellationToken cancellationToken);
+
     Task<bool> IsPositionCodeInUseAsync(
         Guid idService,
         string codePosition,

@@ -99,14 +99,14 @@ public sealed class OrganizationFilterModelTests
     /// esta prueba se lo dice en lugar de contarla sola y no enterarse.
     /// </summary>
     [Fact]
-    public void TwentyNineEntitiesAreScoped()
+    public void TwentyEightEntitiesAreScoped()
     {
         using var context = CreateContext();
 
         // 24 hasta la tanda C, más las cinco que la tanda E denormalizó: sedes y contactos de
         // cliente, y documentos, evaluaciones y habilidades de empleado. Ya no queda ninguna
         // entidad operativa fuera del filtro.
-        Assert.Equal(29, ScopedEntityTypes(context).Count());
+        Assert.Equal(28, ScopedEntityTypes(context).Count());
     }
 
     [Theory]

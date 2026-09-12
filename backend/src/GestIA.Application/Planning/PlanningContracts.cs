@@ -2,16 +2,26 @@ using GestIA.Domain.Planning;
 
 namespace GestIA.Application.Planning;
 
+/// <summary>
+/// El alta de una posicion del servicio.
+///
+/// <para><c>CodePosition</c> es opcional: sin el, lo pone el servidor con la forma <c>P-01</c>,
+/// consecutivo por servicio. Es el mismo trato que el codigo de servicio, de cliente y de
+/// organizacion: un identificador de conveniencia, no la clave del registro.</para>
+/// </summary>
 public sealed record CreatePositionRequest(
     Guid IdOrganization,
     Guid IdClient,
     Guid IdService,
-    string CodePosition,
+    string? CodePosition,
     string Name,
     int RequiredWorkerCount,
     string? RequiredSkillProfile,
     string? Notes,
-    Guid? IdJobPositionCatalogItem = null);
+    Guid? IdJobPositionCatalogItem = null,
+    decimal MonthlyPrice = 0m,
+    string CurrencyCode = "MXN",
+    bool IsTaxIncluded = false);
 
 public sealed record UpdatePositionRequest(
     Guid IdOrganization,
@@ -21,7 +31,10 @@ public sealed record UpdatePositionRequest(
     int RequiredWorkerCount,
     string? RequiredSkillProfile,
     string? Notes,
-    Guid? IdJobPositionCatalogItem = null);
+    Guid? IdJobPositionCatalogItem = null,
+    decimal MonthlyPrice = 0m,
+    string CurrencyCode = "MXN",
+    bool IsTaxIncluded = false);
 
 public sealed record PositionResponse(
     Guid IdPosition,
@@ -32,14 +45,21 @@ public sealed record PositionResponse(
     string? RequiredSkillProfile,
     Guid? IdJobPositionCatalogItem,
     string? Notes,
-    bool Active);
+    bool Active,
+    decimal MonthlyPrice,
+    string CurrencyCode,
+    bool IsTaxIncluded);
 
+/// <summary>
+/// El alta de un patron de turnos. <c>CodeShiftPattern</c> es opcional: sin el, lo pone el servidor
+/// con la forma <c>PAT-01</c>, consecutivo por posicion.
+/// </summary>
 public sealed record CreateShiftPatternRequest(
     Guid IdOrganization,
     Guid IdClient,
     Guid IdService,
     Guid IdPosition,
-    string CodeShiftPattern,
+    string? CodeShiftPattern,
     string Name,
     string? Description,
     DateOnly EffectiveFromDate,

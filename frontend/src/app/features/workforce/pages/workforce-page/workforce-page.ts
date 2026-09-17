@@ -574,6 +574,9 @@ export class WorkforcePage {
       issuedDate: saved.issuedDate,
       expiresDate: saved.expiresDate,
       storageReference: null,
+      // El archivo que acaba de subirse. Antes esta fila no apuntaba a ningun archivo y desde el
+      // requisito no se podia llegar a el; la columna se agrego para eso.
+      idBusinessDocument: saved.idBusinessDocument,
       notes: existente?.notes ?? null,
     };
 

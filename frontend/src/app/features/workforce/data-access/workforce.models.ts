@@ -90,6 +90,13 @@ export type EmployeeDocument = {
   readonly storageReference: string | null;
   readonly notes: string | null;
   readonly active: boolean;
+  /**
+   * El archivo que cubre este requisito.
+   *
+   * <p>Nulo significa que el requisito se registro sin pasar por la carga de un archivo, que es el
+   * caso de todo lo que existia antes de que hubiera pantalla para subirlo.</p>
+   */
+  readonly idBusinessDocument: string | null;
 };
 
 export type EmployeeDocumentInput = Omit<EmployeeDocument, 'idEmployeeDocument' | 'active'> & {

@@ -28,16 +28,13 @@ export type EntityDocumentTypeOption = {
   readonly isRequired: boolean;
 };
 
-/**
- * Lo que se guardo, para quien tenga que registrarlo en otro lado.
- *
- * <p>No lleva el identificador del archivo, y la omision es deliberada: ver la nota de
- * <c>documentSaved</c>.</p>
- */
+/** Lo que se guardo, para quien tenga que registrarlo en otro lado. */
 export type EntityDocumentSaved = {
   readonly documentType: string;
   readonly issuedDate: string | null;
   readonly expiresDate: string | null;
+  /** El documento que se acaba de guardar, para que quien registre el requisito pueda ligarlo. */
+  readonly idBusinessDocument: string;
 };
 
 @Component({
@@ -433,12 +430,20 @@ export class EntityDocuments implements OnDestroy {
         isSensitive: value.isSensitive, notes: value.notes.trim() || null, status: 'PendingReview', storageReference,
       };
       return selected ? this.api.updateDocument(selected.idBusinessDocument, request) : this.api.createDocument(request);
-    })), 'Documento guardado. Pendiente de revision.', () => {
+    })), 'Documento guardado. Pendiente de revision.', (guardado) => {
       if (!this.typed() || !value.documentType) return;
+
+      // El identificador sale de la respuesta del servidor, no del que estaba seleccionado: al
+      // crear no habia ninguno, y es justo el caso en que hay que ligar el archivo nuevo.
+      const idBusinessDocument = guardado?.idBusinessDocument ?? selected?.idBusinessDocument ?? '';
+
+      if (!idBusinessDocument) return;
+
       this.documentSaved.emit({
         documentType: value.documentType,
         issuedDate: value.issuedDate || null,
         expiresDate: value.expiresDate || null,
+        idBusinessDocument,
       });
     });
   }
@@ -535,14 +540,14 @@ export class EntityDocuments implements OnDestroy {
    * <p><c>onSuccess</c> corre <b>antes</b> de <c>closeEditor()</c> a proposito: ese metodo limpia el
    * formulario, y quien avisa hacia fuera necesita lo que se acaba de guardar.</p>
    */
-  private runAction<T>(request: Observable<T>, message: string, onSuccess?: () => void) {
+  private runAction<T>(request: Observable<T>, message: string, onSuccess?: (value: T) => void) {
     this.busy.set(true);
     this.actionError.set('');
     this.message.set('');
     this.requests.add(request.pipe(finalize(() => this.busy.set(false))).subscribe({
-      next: () => {
+      next: (value) => {
         this.busy.set(false);
-        onSuccess?.();
+        onSuccess?.(value);
         this.closeEditor();
         this.message.set(message);
         this.load();

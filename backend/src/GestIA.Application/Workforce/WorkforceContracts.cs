@@ -120,7 +120,9 @@ public sealed record CreateEmployeeDocumentRequest(
     DateOnly? IssuedDate,
     DateOnly? ExpiresDate,
     string? StorageReference,
-    string? Notes);
+    string? Notes,
+    /// <summary>El archivo que cubre el requisito, cuando se subió desde el expediente.</summary>
+    Guid? IdBusinessDocument = null);
 
 public sealed record UpdateEmployeeDocumentRequest(
     Guid IdOrganization,
@@ -132,7 +134,8 @@ public sealed record UpdateEmployeeDocumentRequest(
     DateOnly? IssuedDate,
     DateOnly? ExpiresDate,
     string? StorageReference,
-    string? Notes);
+    string? Notes,
+    Guid? IdBusinessDocument = null);
 
 public sealed record EmployeeDocumentResponse(
     Guid IdEmployeeDocument,
@@ -145,7 +148,9 @@ public sealed record EmployeeDocumentResponse(
     DateOnly? ExpiresDate,
     string? StorageReference,
     string? Notes,
-    bool Active);
+    bool Active,
+    /// <summary>El archivo que cubre el requisito. Nulo si el requisito se registró sin archivo.</summary>
+    Guid? IdBusinessDocument);
 
 public sealed record CreateEmployeeEvaluationRequest(
     Guid IdOrganization,

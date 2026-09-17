@@ -540,10 +540,13 @@ describe('EntityDocuments', () => {
     http.expectOne('/api/v1/documents').flush(document);
     flushList();
 
+    // Y lleva el identificador del archivo que el servidor acaba de devolver: es lo que permite
+    // ligar el requisito con el documento, en lugar de dejar las dos filas sin relacion.
     expect(avisos).toEqual([{
       documentType: 'CriminalRecordCertificate',
       issuedDate: '2026-09-01',
       expiresDate: '2027-09-01',
+      idBusinessDocument: 'document-1',
     }]);
   });
 

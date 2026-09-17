@@ -18,6 +18,12 @@ public sealed class EmployeeDocumentConfiguration : IEntityTypeConfiguration<Emp
         builder.Property(entity => entity.Status).HasConversion<string>().HasMaxLength(30).IsUnicode(false).IsRequired();
         builder.Property(entity => entity.DocumentNumber).HasMaxLength(80);
         builder.Property(entity => entity.StorageReference).HasMaxLength(500);
+        // El archivo que cubre el requisito. Va con indice para poder ir del requisito al archivo,
+        // y **sin clave foranea**: un documento de negocio se archiva y esta fila es historia del
+        // expediente, asi que una restriccion impediria archivar el archivo o arrastraria la fila.
+        builder.Property(entity => entity.IdBusinessDocument);
+        builder.HasIndex(entity => entity.IdBusinessDocument)
+            .HasFilter("[IdBusinessDocument] IS NOT NULL");
         builder.Property(entity => entity.Notes).HasMaxLength(1000);
         builder.HasOne(entity => entity.Employee)
             .WithMany(employee => employee.Documents)

@@ -71,6 +71,7 @@ export function documentFixture(overrides: Partial<EmployeeDocument> = {}): Empl
     issuedDate: '2026-03-01',
     expiresDate: null,
     storageReference: null,
+    idBusinessDocument: null,
     notes: null,
     active: true,
     ...overrides,

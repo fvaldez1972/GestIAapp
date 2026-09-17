@@ -104,6 +104,8 @@
               [documents]="documents()"
               [today]="today()"
               [expiringWithinDays]="expiringWithinDays()"
+              [canWrite]="canWrite()"
+              (cargar)="cargarRequisito($event)"
             />
 
             <!--
@@ -117,6 +119,9 @@
               [ownerId]="employee.idEmployee"
               [ownerLabel]="employee.fullName"
               [documentTypes]="documentTypeOptions()"
+              [openAdd]="cargandoRequisito() !== ''"
+              [presetDocumentType]="cargandoRequisito()"
+              (closeAdd)="cargandoRequisito.set('')"
               (documentSaved)="registerEmployeeDocument($event)"
               (totalChange)="documentCount.set($event)"
             />

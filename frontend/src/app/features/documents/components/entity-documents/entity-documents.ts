@@ -119,6 +119,14 @@ export class EntityDocuments implements OnDestroy {
   /** Para que quien abrió pueda bajar su bandera al cerrarse el alta. */
   readonly closeAdd = output<void>();
 
+  /**
+   * El tipo con el que abrir el alta, cuando la pantalla ya sabe cuál falta.
+   *
+   * <p>Se abre desde la fila del requisito, que ya nombra el tipo: volver a pedirlo seria pedir dos
+   * veces el mismo dato. Solo tiene efecto en el modo tipado.</p>
+   */
+  readonly presetDocumentType = input('');
+
   private readonly api = inject(DocumentApiService);
   private readonly auth = inject(AuthService);
   private readonly fb = inject(FormBuilder);
@@ -201,6 +209,13 @@ export class EntityDocuments implements OnDestroy {
     const tipo = this.documentTypes().find((item) => item.code === code);
     this.form.controls.documentType.setValue(tipo ? code : '');
     this.form.controls.category.setValue(tipo?.label ?? '');
+
+    // El titulo se propone con el nombre del tipo, y queda editable. Antes habia que teclearlo a
+    // mano aunque el tipo ya lo dijera: dos capturas para el mismo dato, y el caso normal —elegir
+    // el archivo y guardar— pasaba por escribir lo que la pantalla ya sabia.
+    if (tipo && !this.form.controls.title.value.trim()) {
+      this.form.controls.title.setValue(tipo.label);
+    }
   }
 
   /**
@@ -279,6 +294,12 @@ export class EntityDocuments implements OnDestroy {
         // bandera ya puesta ese cierre interno emitiría un aviso de algo que nadie cerró.
         this.openEditor('create');
         this.abiertoDesdeFuera = true;
+
+        const preseleccionado = this.presetDocumentType();
+
+        if (preseleccionado && this.typed()) {
+          this.elegirTipo(preseleccionado);
+        }
       }
     });
   });

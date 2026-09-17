@@ -28,7 +28,7 @@ describe('EntityDocuments', () => {
         Input(signalInput)(EntityDocuments.prototype, name);
       }
       // Opcionales: el mismo descriptor, sin `required`.
-      for (const name of ['simple', 'categories', 'documentTypes', 'openAdd']) {
+      for (const name of ['simple', 'categories', 'documentTypes', 'openAdd', 'presetDocumentType']) {
         Input({ isSignal: true, required: false } as never)(EntityDocuments.prototype, name);
       }
       Input(signalInput)(AppIcon.prototype, 'name');
@@ -616,5 +616,43 @@ describe('EntityDocuments', () => {
     fixture.detectChanges();
 
     expect(component['mode']()).toBeNull();
+  });
+
+  /**
+   * El alta abierta desde la fila del requisito llega con el tipo puesto y el titulo propuesto.
+   *
+   * <p>La fila ya nombra el tipo: volver a pedirlo seria pedir dos veces el mismo dato, y teclear
+   * el titulo a mano era escribir lo que la pantalla ya sabia.</p>
+   */
+  it('abre con el tipo preseleccionado y propone el titulo', () => {
+    const tipos = [
+      { code: 'Curp', label: 'CURP', isRequired: true },
+      { code: 'ProofOfAddress', label: 'Comprobante de domicilio', isRequired: true },
+    ];
+
+    flushList();
+    fixture.componentRef.setInput('documentTypes', tipos);
+    fixture.componentRef.setInput('presetDocumentType', 'ProofOfAddress');
+    fixture.componentRef.setInput('openAdd', true);
+    fixture.detectChanges();
+
+    expect(component['mode']()).toBe('create');
+    expect(component['form'].controls.documentType.value).toBe('ProofOfAddress');
+    expect(component['form'].controls.category.value).toBe('Comprobante de domicilio');
+    expect(component['form'].controls.title.value).toBe('Comprobante de domicilio');
+  });
+
+  /** Un titulo ya escrito no se pisa: lo propuesto es una ayuda, no una imposicion. */
+  it('no pisa un titulo que alguien ya escribio', () => {
+    flushList();
+    fixture.componentRef.setInput('documentTypes', [{ code: 'Curp', label: 'CURP', isRequired: true }]);
+    fixture.detectChanges();
+
+    component['openEditor']('create');
+    component['form'].controls.title.setValue('CURP de Renata, reposicion');
+    component['elegirTipo']('Curp');
+
+    expect(component['form'].controls.title.value).toBe('CURP de Renata, reposicion');
+    expect(component['form'].controls.category.value).toBe('CURP');
   });
 });

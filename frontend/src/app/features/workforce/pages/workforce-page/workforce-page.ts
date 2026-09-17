@@ -133,6 +133,31 @@ export class WorkforcePage {
    */
   protected readonly documentCount = signal(0);
 
+  /**
+   * El tipo de requisito que se está cargando desde su propia fila. Vacío si nadie pidió cargar.
+   *
+   * <p>Es lo que ata la fila del requisito con el alta de abajo: la fila ya nombra el tipo, así que
+   * el alta se abre con él puesto en lugar de pedirlo otra vez.</p>
+   */
+  protected readonly cargandoRequisito = signal('');
+
+  /**
+   * Abre el alta con el tipo del requisito que falta.
+   *
+   * <p>Antes «Sin cargar» era una etiqueta sin salida: la pantalla decía qué faltaba y obligaba a
+   * bajar al expediente y volver a buscar el tipo a mano.</p>
+   */
+  protected cargarRequisito(documentType: string): void {
+    if (!this.canWrite()) {
+      return;
+    }
+
+    // La pestaña de Documentos es la que tiene el alta debajo, así que hay que estar en ella. Si
+    // alguien llega desde otra pestaña, se abre la correcta en lugar de no hacer nada.
+    this.activeTab.set('documents');
+    this.cargandoRequisito.set(documentType);
+  }
+
   protected readonly search = signal('');
   protected readonly status = signal<EmployeeStatus | ''>('');
   protected readonly jobPosition = signal('');

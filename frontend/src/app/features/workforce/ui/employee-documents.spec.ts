@@ -16,6 +16,8 @@ const HOY = '2026-09-06';
       [documents]="documents()"
       [today]="hoy()"
       [expiringWithinDays]="umbral()"
+      [canWrite]="canWrite()"
+      (cargar)="pedidos.push($event)"
     />
   `,
 })
@@ -31,6 +33,8 @@ class Anfitrion {
   readonly documents = signal<readonly EmployeeDocument[]>([documentFixture()]);
   readonly hoy = signal(HOY);
   readonly umbral = signal(30);
+  readonly canWrite = signal(true);
+  readonly pedidos: string[] = [];
 }
 
 function montar(configurar: (host: Anfitrion) => void = () => {}) {
@@ -43,7 +47,16 @@ function montar(configurar: (host: Anfitrion) => void = () => {}) {
   return {
     fixture,
     raiz,
+    host: fixture.componentInstance,
     filas: () => Array.from(raiz.querySelectorAll<HTMLElement>('.req')),
+    acciones: () =>
+      Array.from(raiz.querySelectorAll<HTMLButtonElement>('.req__accion')).map((b) =>
+        b.textContent!.trim(),
+      ),
+    pulsar: (texto: string) =>
+      Array.from(raiz.querySelectorAll<HTMLButtonElement>('.req__accion'))
+        .find((b) => b.textContent!.trim() === texto)!
+        .click(),
     estados: () =>
       Array.from(raiz.querySelectorAll('.req__state')).map((n) => n.textContent!.trim()),
   };
@@ -145,5 +158,44 @@ describe('La pestaña de documentos', () => {
     );
 
     expect(raiz.querySelector('.req__soft')?.textContent?.trim()).toBe('no bloquea');
+  });
+
+  // ── La salida de cada requisito ──────────────────────────────────────────────────────────
+
+  /**
+   * El hueco que cerró esto: la pantalla decía «Sin cargar» y no dejaba hacer nada con esa
+   * información. Había que bajar al bloque del expediente y volver a buscar el tipo a mano.
+   */
+  it('un requisito sin cubrir ofrece cargarlo, y emite su tipo', () => {
+    const { acciones, pulsar, host } = montar();
+
+    expect(acciones()).toEqual(['Cargar']);
+
+    pulsar('Cargar');
+    expect(host.pedidos).toEqual(['ProofOfAddress']);
+  });
+
+  /** Lo que ya está cubierto no ofrece nada: no hay nada que hacer con él. */
+  it('un requisito al día no ofrece accion', () => {
+    const { filas, acciones } = montar();
+
+    expect(filas().length).toBe(2);
+    expect(acciones()).toHaveLength(1);
+  });
+
+  /** Con un documento que existe pero no cuenta, la acción es reemplazar, no cargar. */
+  it('un rechazado ofrece reemplazar en lugar de cargar', () => {
+    const { acciones } = montar((host) =>
+      host.documents.set([documentFixture({ status: 'Rejected', expiresDate: '2028-01-01' })]),
+    );
+
+    expect(acciones()).toContain('Reemplazar');
+  });
+
+  /** Sin permiso de escritura no se ofrece: el servidor lo rechazaría igual. */
+  it('sin permiso de escritura no aparece ninguna accion', () => {
+    const { acciones } = montar((host) => host.canWrite.set(false));
+
+    expect(acciones()).toEqual([]);
   });
 });

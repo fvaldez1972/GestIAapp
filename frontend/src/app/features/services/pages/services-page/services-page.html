@@ -3,7 +3,7 @@
     <div>
       <span class="eyebrow">Configuración</span>
       <h1>Servicios</h1>
-      <p>La organización se hereda de la barra de contexto.</p>
+      <p>{{ serviceCountNote() }}</p>
     </div>
     <!--
       El botón ya no se apaga por no haber sede. Antes se deshabilitaba con `hasActiveSite()`, que
@@ -798,9 +798,25 @@
             <label class="check"
               ><input type="checkbox" formControlName="isTaxIncluded" /><span>IVA incluido</span></label
             >
+            <!--
+              El perfil deja de ser una descripción y pasa a ser una lista comprobable. El texto
+              libre se queda como nota, porque lo que alguien escribió no se borra, pero la pantalla
+              dice lo que es: algo que se lee, no algo que el sistema compare con nadie.
+            -->
+            <app-position-skills
+              [catalogSkills]="catalogSkills()"
+              [requirements]="positionSkillRequirements()"
+              [pending]="pendingPositionSkills()"
+              [canWrite]="canWriteClients()"
+              [saving]="saving()"
+              (add)="addPositionSkill($event)"
+              (remove)="removePositionSkill($event)"
+              (removePending)="removePendingPositionSkill($event)"
+              (createSkill)="createSkillForProfile($event)"
+            />
             <label class="wide"
-              ><span>Perfil requerido</span
-              ><textarea rows="3" formControlName="requiredSkillProfile"></textarea>
+              ><span>Perfil en palabras · nota, no se comprueba</span
+              ><textarea rows="2" formControlName="requiredSkillProfile"></textarea>
             </label>
             <label class="wide"
               ><span>Notas</span><textarea rows="3" formControlName="notes"></textarea>
@@ -851,22 +867,21 @@
         }
         <fieldset [disabled]="saving()">
           <div class="form-grid">
-            <label class="wide">
-              <span>Empleado activo *</span>
-              <select formControlName="idEmployee">
-                @if (editingAssignment(); as assignment) {
+            @if (editingAssignment(); as assignment) {
+              <!-- Editando no se cambia de persona: eso es retirar una asignación y crear otra. -->
+              <label class="wide">
+                <span>Empleado</span>
+                <select formControlName="idEmployee">
                   <option [value]="assignment.idEmployee">{{ assignment.employeeName }}</option>
-                }
-                @for (employee of activeEmployees(); track employee.idEmployee) {
-                  <option [value]="employee.idEmployee">
-                    {{ employee.codeEmployee }} · {{ employee.fullName }}
-                  </option>
-                }
-              </select>
-            </label>
+                </select>
+              </label>
+            }
             <label class="wide">
               <span>Posición *</span>
-              <select formControlName="idPosition">
+              <select
+                formControlName="idPosition"
+                (change)="onCandidatePositionChange($any($event.target).value)"
+              >
                 @for (position of positions(); track position.idPosition) {
                   <option
                     [disabled]="
@@ -898,6 +913,25 @@
               ><span>Notas</span><textarea rows="3" formControlName="notes"></textarea>
             </label>
           </div>
+
+          @if (!editingAssignment()) {
+            <!--
+              La lista de candidatos con el estado antes de guardar. Antes ofrecía a todos los
+              empleados activos sin distinguir y el rechazo llegaba al guardar, que es donde se
+              atoraba quien asignaba. «Ocupado» no impide elegir: alguien puede estar cubriendo sólo
+              los domingos y hacer falta un miércoles.
+            -->
+            <gi-candidate-picker
+              [candidates]="assignmentCandidates()"
+              title="CANDIDATOS PARA ESTA POSICIÓN"
+              emptyTitle="No hay personal activo que ofrecer"
+              emptyBody="Da de alta personal en Personal, o reactiva a alguien: aquí sólo se ofrecen las personas activas de esta organización."
+              emptyActionLabel="Ir a Personal"
+              (choose)="chooseCandidate($event)"
+              (resolveEmpty)="goToWorkforce()"
+            />
+          }
+
           <footer>
             <button class="button button--secondary" type="button" (click)="closeEditors()">
               Cancelar

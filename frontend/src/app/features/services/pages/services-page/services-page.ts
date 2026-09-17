@@ -52,6 +52,13 @@ import {
 } from '../../data-access/service.models';
 import { SystemInfoService } from '../../../../core/system/system-info.service';
 import { WorkforceApiService } from '../../../workforce/data-access/workforce-api.service';
+import { EmployeeListApiService } from '../../../workforce/data-access/employee-list-api.service';
+import { CatalogApiService } from '../../../catalogs/data-access/catalog-api.service';
+import { CandidateEligibility } from '../../../planning/data-access/planning.models';
+import {
+  AssignmentCandidateSource,
+  buildAssignmentCandidates,
+} from '../../data-access/assignment-candidates';
 import { Employee } from '../../../workforce/data-access/workforce.models';
 import { ClientApiService } from '../../../clients/data-access/client-api.service';
 import {
@@ -80,6 +87,10 @@ import {
 import { ServiceDialog } from '../../ui/service-dialog';
 import { ServiceContextApi } from '../../data-access/service-context-api';
 import { EntityDocuments } from '../../../documents/components/entity-documents/entity-documents';
+import { GiCandidatePicker } from '../../../../shared/ui/gi-candidate-picker/gi-candidate-picker';
+import { GiCatalogCreation } from '../../../../shared/ui/gi-catalog-picker/gi-catalog-picker';
+import { PositionSkillRequest, PositionSkills } from '../../ui/position-skills';
+import { EligibilityRequirement, EligibilityRequirementInput } from '../../../catalogs/data-access/catalog.models';
 import { AppIcon } from '../../../../shared/ui/app-icon/app-icon';
 import { dateRangeValidator, shiftIntervalValidator } from '../../ui/service-validators';
 
@@ -98,6 +109,8 @@ import { dateRangeValidator, shiftIntervalValidator } from '../../ui/service-val
     GiTabContent,
     GiRowActions,
     GiConfirmDialog,
+    GiCandidatePicker,
+    PositionSkills,
   ],
   templateUrl: './services-page.html',
   styleUrl: './services-page.scss',
@@ -111,6 +124,8 @@ export class ServicesPage implements OnInit, OnDestroy {
   private readonly router = inject(Router);
   private pendingServiceLink = '';
   private readonly workforceApi = inject(WorkforceApiService);
+  private readonly employeeListApi = inject(EmployeeListApiService);
+  private readonly catalogApi = inject(CatalogApiService);
   private readonly auth = inject(AuthService);
   private readonly systemInfo = inject(SystemInfoService);
   private readonly formBuilder = inject(FormBuilder);
@@ -170,6 +185,47 @@ export class ServicesPage implements OnInit, OnDestroy {
    */
   private readonly motivoExigidoPorElServidor = signal(false);
   protected readonly activeEmployees = signal<readonly Employee[]>([]);
+
+  /**
+   * Las personas que se pueden ofrecer, con lo que el servidor sabe de ellas.
+   *
+   * <p>Salen del listado de Personal y no del alta de empleados, porque ahí viene el conteo de
+   * asignaciones vigentes: es lo que permite decir «Ocupado» sin inventarlo.</p>
+   */
+  protected readonly candidateRows = signal<readonly AssignmentCandidateSource[]>([]);
+
+  /**
+   * El veredicto del servidor por persona. Vacío mientras no contesta, y vacío si falla.
+   *
+   * <p>En los dos casos los candidatos salen «Sin comprobar», que es la verdad. «Elegible» es una
+   * afirmación y sólo la puede hacer el servidor.</p>
+   */
+  protected readonly candidateEligibility = signal<ReadonlyMap<string, CandidateEligibility>>(new Map());
+
+  /** El catálogo de habilidades de la organización, para armar el perfil de una posición. */
+  protected readonly catalogSkills = signal<readonly { idCatalogItem: string; name: string }[]>([]);
+
+  /** Las reglas de habilidad ya guardadas para la posición abierta. */
+  protected readonly positionSkillRequirements = signal<readonly EligibilityRequirement[]>([]);
+
+  /**
+   * Las habilidades elegidas para una posición que todavía no existe.
+   *
+   * <p>Una regla necesita el identificador de la posición, y al dar de alta no hay ninguno: se
+   * guardan aquí y se crean en cuanto el servidor devuelve la posición. Así el alta no obliga a
+   * guardar primero y volver a entrar para declarar el perfil.</p>
+   */
+  protected readonly pendingPositionSkills = signal<readonly PositionSkillRequest[]>([]);
+
+  /** La lista que se ofrece, con disponibilidad y veredicto en cada fila. */
+  protected readonly assignmentCandidates = computed(() =>
+    buildAssignmentCandidates({
+      employees: this.candidateRows(),
+      assignments: this.assignments(),
+      idPosition: this.assignmentForm.controls.idPosition.value,
+      eligibility: this.candidateEligibility(),
+    }),
+  );
   /**
    * El listado de la organización. **Antes esto era la lista de clientes**, y no se veía un solo
    * servicio hasta elegir uno: la cascada organización → cliente → servicio.
@@ -815,6 +871,136 @@ export class ServicesPage implements OnInit, OnDestroy {
       );
   }
 
+
+  /**
+   * Carga a quién se puede ofrecer, y le pregunta al servidor por cada uno.
+   *
+   * <p>Se pide al abrir el alta y no al entrar a la pantalla: son dos consultas que sólo sirven
+   * cuando alguien va a asignar, y la segunda depende de la posición elegida.</p>
+   */
+
+  /**
+   * El subtítulo dice cuántos servicios hay y cuántos tienen hueco.
+   *
+   * <p>Antes decía «La organización se hereda de la barra de contexto», que es cierto y no le sirve
+   * a nadie: describe cómo funciona la pantalla por dentro, no lo que hay en ella. Clientes y
+   * Personal llevan un conteo con la consecuencia; esto hace lo mismo, y la vacante es lo que de
+   * verdad se busca al abrir Servicios.</p>
+   */
+  protected readonly serviceCountNote = computed(() => {
+    if (this.platformAdmin() && !this.selectedOrganizationId()) {
+      return '';
+    }
+
+    const total = this.serviceList().totalCount;
+
+    if (!total) {
+      return 'Un servicio se contrata para un cliente con al menos una sede activa.';
+    }
+
+    const conHueco = this.serviceList().items.filter((row) => this.vacantes(row) > 0).length;
+    const base = `${total} ${total === 1 ? 'servicio' : 'servicios'}.`;
+
+    if (conHueco === 0) {
+      return `${base} Ninguno de los que se ven tiene posiciones sin cubrir.`;
+    }
+
+    return conHueco === 1
+      ? `${base} Uno de los que se ven tiene posiciones sin cubrir.`
+      : `${base} ${conHueco} de los que se ven tienen posiciones sin cubrir.`;
+  });
+
+  private loadAssignmentCandidates(): void {
+    const org = this.selectedOrganizationId();
+
+    if (!this.canReadEmployees() || !org) return;
+
+    this.candidateRows.set([]);
+    this.candidateEligibility.set(new Map());
+
+    this.read(
+      this.employeeListApi.searchEmployees({ organizationId: org, status: 'Active', pageSize: 200 }),
+      2,
+      (result) => {
+        this.candidateRows.set(
+          result.page.items.map((item) => ({
+            idEmployee: item.idEmployee,
+            codeEmployee: item.codeEmployee,
+            fullName: item.fullName,
+            jobPositionName: item.jobPositionName,
+            jobTitle: item.jobTitle,
+            assignmentCount: item.assignmentCount,
+          })),
+        );
+        this.loadCandidateEligibility();
+      },
+    );
+  }
+
+  /**
+   * Le pregunta al servidor quién cumple, para la posición elegida.
+   *
+   * <p>Si falla no se enseña un error: los candidatos se quedan «Sin comprobar». Un fallo de esta
+   * consulta no impide asignar —el servidor vuelve a decidir al guardar—, y bloquear la pantalla
+   * por no poder adelantar el veredicto sería peor que no adelantarlo.</p>
+   */
+  private loadCandidateEligibility(): void {
+    const org = this.selectedOrganizationId();
+    const service = this.selectedService();
+    const idPosition = this.assignmentForm.controls.idPosition.value;
+    const ids = this.candidateRows().map((row) => row.idEmployee);
+
+    if (!org || !service || ids.length === 0) return;
+
+    this.catalogApi
+      .checkEligibilityBatch({
+        organizationId: org,
+        employeeIds: ids,
+        clientId: service.idClient,
+        serviceId: service.idService,
+        positionId: idPosition || null,
+        referenceDate: this.assignmentForm.controls.startDate.value || this.today(),
+      })
+      .pipe(takeUntil(this.destroyed))
+      .subscribe({
+        next: (checks) =>
+          this.candidateEligibility.set(
+            new Map(
+              checks.map((check) => [
+                check.idEmployee,
+                {
+                  isEligible: check.isEligible,
+                  blockingReasons: check.reasons
+                    .filter((reason) => reason.isBlocking && !reason.passed)
+                    .map((reason) => reason.message),
+                },
+              ]),
+            ),
+          ),
+        error: () => this.candidateEligibility.set(new Map()),
+      });
+  }
+
+  /** Al cambiar la posición cambia el veredicto: se vuelve a preguntar. */
+  protected onCandidatePositionChange(idPosition: string): void {
+    this.assignmentForm.controls.idPosition.setValue(idPosition);
+    this.candidateEligibility.set(new Map());
+    this.loadCandidateEligibility();
+  }
+
+  protected chooseCandidate(candidate: { readonly id: string }): void {
+    this.assignmentForm.controls.idEmployee.setValue(candidate.id);
+  }
+
+  /**
+   * La salida del estado vacío. No preselecciona nada en Personal, porque esa pantalla no lee
+   * ningún parámetro: mandarle uno que ignora sería el defecto que ya se corrigió en el enlace de
+   * Clientes a Servicios.
+   */
+  protected goToWorkforce(): void {
+    void this.router.navigate(['/personal']);
+  }
+
   private read<T>(source: Observable<T>, level: number, next: (value: T) => void): void {
     this.pending.update((n) => n + 1);
     source
@@ -1154,6 +1340,7 @@ export class ServicesPage implements OnInit, OnDestroy {
       isPrimary: true,
       notes: '',
     });
+    this.loadAssignmentCandidates();
     this.assignmentEditorOpen.set(true);
   }
 
@@ -1295,6 +1482,7 @@ export class ServicesPage implements OnInit, OnDestroy {
       requiredSkillProfile: '',
       notes: '',
     });
+    this.loadPositionSkills(null);
     this.positionEditorOpen.set(true);
   }
 
@@ -1311,7 +1499,188 @@ export class ServicesPage implements OnInit, OnDestroy {
       requiredSkillProfile: position.requiredSkillProfile ?? '',
       notes: position.notes ?? '',
     });
+    this.loadPositionSkills(position.idPosition);
     this.positionEditorOpen.set(true);
+  }
+
+
+  // ── El perfil de la posición, por habilidades del catálogo ────────────────────────────────
+
+  /**
+   * Carga el catálogo de habilidades y lo que ya se exige para la posición abierta.
+   *
+   * <p>Las reglas de habilidad con alcance de posición son el perfil requerido: el servidor ya las
+   * evalúa al asignar y al publicar. Aquí sólo se enseñan y se editan.</p>
+   */
+  private loadPositionSkills(idPosition: string | null): void {
+    const org = this.selectedOrganizationId();
+    this.positionSkillRequirements.set([]);
+    this.pendingPositionSkills.set([]);
+
+    if (!org) return;
+
+    this.read(this.catalogApi.listItems(org, 'Skill'), 2, (items) =>
+      this.catalogSkills.set(
+        items
+          .filter((item) => item.active)
+          .map((item) => ({ idCatalogItem: item.idCatalogItem, name: item.name })),
+      ),
+    );
+
+    if (!idPosition) return;
+
+    this.read(this.catalogApi.listEligibilityRequirements(org), 2, (requirements) =>
+      this.positionSkillRequirements.set(
+        requirements.filter(
+          (requirement) =>
+            requirement.active &&
+            requirement.requirementType === 'Skill' &&
+            requirement.targetType === 'Position' &&
+            requirement.idPosition === idPosition,
+        ),
+      ),
+    );
+  }
+
+  /**
+   * Suma una habilidad al perfil.
+   *
+   * <p>Si la posición ya existe, la regla se crea de inmediato: es un hecho sobre la posición, no
+   * un borrador del formulario, y esperar al guardado dejaría al usuario sin saber si quedó. Si la
+   * posición todavía no existe, se anota y se crea al guardarla.</p>
+   */
+  protected addPositionSkill(request: PositionSkillRequest): void {
+    const org = this.selectedOrganizationId();
+    const position = this.editingPosition();
+
+    if (!org || !this.allowWrite(true)) return;
+
+    if (!position) {
+      this.pendingPositionSkills.update((valores) =>
+        valores.some((item) => item.idSkillCatalogItem === request.idSkillCatalogItem)
+          ? valores
+          : [...valores, request],
+      );
+      return;
+    }
+
+    this.saving.set(true);
+    this.catalogApi
+      .createEligibilityRequirement(this.reglaDeHabilidad(org, position.idPosition, request))
+      .pipe(
+        this.withScope(2),
+        finalize(() => this.saving.set(false)),
+      )
+      .subscribe({
+        next: (creada) => {
+          this.positionSkillRequirements.update((valores) => [...valores, creada]);
+          this.message.set(`«${request.name}» se pide para esta posición.`);
+        },
+        error: (error: HttpErrorResponse) => this.setError(error),
+      });
+  }
+
+  /** Desactiva la regla, nunca la borra: el perfil de ayer explica las asignaciones de ayer. */
+  protected removePositionSkill(idEligibilityRequirement: string): void {
+    const org = this.selectedOrganizationId();
+
+    if (!org || !this.allowWrite(true)) return;
+
+    this.saving.set(true);
+    this.catalogApi
+      .deactivateEligibilityRequirement(org, idEligibilityRequirement)
+      .pipe(
+        this.withScope(2),
+        finalize(() => this.saving.set(false)),
+      )
+      .subscribe({
+        next: () => {
+          this.positionSkillRequirements.update((valores) =>
+            valores.filter((item) => item.idEligibilityRequirement !== idEligibilityRequirement),
+          );
+          this.message.set('La habilidad ya no se pide para esta posición.');
+        },
+        error: (error: HttpErrorResponse) => this.setError(error),
+      });
+  }
+
+  protected removePendingPositionSkill(idSkillCatalogItem: string): void {
+    this.pendingPositionSkills.update((valores) =>
+      valores.filter((item) => item.idSkillCatalogItem !== idSkillCatalogItem),
+    );
+  }
+
+  /** Alta al vuelo de una habilidad del catálogo, sin abandonar el alta de la posición. */
+  protected createSkillForProfile(creation: GiCatalogCreation): void {
+    const org = this.selectedOrganizationId();
+
+    if (!org || !this.auth.hasPermission('CATALOGS.WRITE')) {
+      this.error.set('No tienes permiso para crear valores de catálogo.');
+      return;
+    }
+
+    this.catalogApi
+      .createItem({ idOrganization: org, type: 'Skill', name: creation.name, description: null })
+      .pipe(this.withScope(2))
+      .subscribe({
+        next: (creado) => {
+          this.catalogSkills.update((valores) => [
+            ...valores,
+            { idCatalogItem: creado.idCatalogItem, name: creado.name },
+          ]);
+          this.message.set(`«${creado.name}» se agregó al catálogo de habilidades.`);
+        },
+        error: (error: HttpErrorResponse) => this.setError(error),
+      });
+  }
+
+  /**
+   * Crea las reglas que quedaron esperando a que la posición existiera.
+   *
+   * <p>Si alguna falla no se deshace la posición: ya está creada y es correcta. Se dice cuáles no
+   * quedaron, para que se puedan volver a poner desde la ficha.</p>
+   */
+  private savePendingPositionSkills(idPosition: string): void {
+    const org = this.selectedOrganizationId();
+    const pendientes = this.pendingPositionSkills();
+
+    if (!org || pendientes.length === 0) return;
+
+    this.pendingPositionSkills.set([]);
+
+    for (const pendiente of pendientes) {
+      this.catalogApi
+        .createEligibilityRequirement(this.reglaDeHabilidad(org, idPosition, pendiente))
+        .pipe(this.withScope(2))
+        .subscribe({
+          error: () =>
+            this.error.set(
+              `La posición se creó, pero «${pendiente.name}» no quedó como habilidad exigida. `
+              + 'Vuelve a agregarla desde la ficha de la posición.',
+            ),
+        });
+    }
+  }
+
+  private reglaDeHabilidad(
+    idOrganization: string,
+    idPosition: string,
+    request: PositionSkillRequest,
+  ): EligibilityRequirementInput {
+    return {
+      idOrganization,
+      targetType: 'Position',
+      idClient: null,
+      idService: null,
+      idPosition,
+      requirementType: 'Skill',
+      idRequiredCatalogItem: request.idSkillCatalogItem,
+      requiredDocumentType: null,
+      requiredEvaluationType: null,
+      name: request.name,
+      description: null,
+      isBlocking: request.isBlocking,
+    };
   }
 
   protected savePosition(): void {
@@ -1360,6 +1729,7 @@ export class ServicesPage implements OnInit, OnDestroy {
             editing ? 'Posición actualizada correctamente.' : 'Posición creada correctamente.',
           );
           this.selectedPosition.set(position);
+          this.savePendingPositionSkills(position.idPosition);
           // Ficha y listado, los dos.
           //
           // El panel se refrescaba solo, y de la lista salen los contadores de la fila —Posiciones,

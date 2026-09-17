@@ -48,7 +48,7 @@
     }
 
     <!-- El alta ya no parte el espacio: va en ventana, encima. Solo la ficha comprime la lista. -->
-    <div class="clients__workspace" [class.clients__workspace--split]="selected()">
+    <div class="clients__workspace">
       <div class="clients__list">
         <gi-filter-bar
           [search]="search()"
@@ -75,8 +75,25 @@
         />
       </div>
 
-      @if (selected(); as client) {
-        <gi-detail-panel
+    </div>
+  }
+</div>
+
+<!--
+  La ficha va en ventana emergente.
+
+  Antes vivia en una columna de 620 px al lado de la tabla, y por debajo de 80 rem el diseño la
+  bajaba a una sola columna: la ficha quedaba **debajo** del listado y en una pantalla chica no se
+  veia. Quien abria un cliente no notaba que algo habia pasado.
+
+  Lo que se pierde, y conviene tenerlo escrito: al lado se podia comparar la ficha con la fila del
+  listado sin cerrarla. En ventana no. Se acepto el cambio porque una ficha que no se ve es peor que
+  una que no se puede comparar.
+-->
+@if (selected(); as client) {
+  <div class="modal-backdrop" (click)="closePanel()">
+    <section class="modal modal--ficha" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+      <gi-detail-panel
           [title]="name(client)"
           [subtitle]="client.active ? 'Activo' : 'Inactivo'"
           [tabs]="panelTabs()"
@@ -173,11 +190,10 @@
               Crear servicio de este cliente
             </button>
           </footer>
-        </gi-detail-panel>
-      }
-    </div>
-  }
-</div>
+      </gi-detail-panel>
+    </section>
+  </div>
+}
 
 @if (confirming(); as target) {
   <gi-confirm-dialog
@@ -210,7 +226,19 @@
         <div>
           <span class="eyebrow">Nuevo cliente</span>
           <h2 id="alta-cliente-title">Alta de cliente</h2>
-          <p>El código y la fecha de alta los pone el sistema.</p>
+          <!--
+            Se dice que el alta pide poco a proposito, y donde se captura el resto.
+
+            Los datos fiscales y de constitucion aparecen al editar y no aqui, y quien lo notaba
+            suponia que se le habia olvidado algo o que el formulario estaba incompleto. La decision
+            fue no sumarlos al alta: un formulario largo se abandona a la mitad, y un registro
+            abandonado no sirve para nada. Lo que se agrega es la frase que lo explica.
+          -->
+          <p>
+            El código y la fecha de alta los pone el sistema. El alta pide lo mínimo para poder
+            trabajar: los datos fiscales y de constitución se capturan después, en la ficha del
+            cliente, y no hacen falta para crearlo.
+          </p>
         </div>
         <button type="button" class="modal-close" [disabled]="saving()" aria-label="Cerrar" (click)="creating.set(false)">
           ×

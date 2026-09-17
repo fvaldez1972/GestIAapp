@@ -97,9 +97,8 @@
   min-width: 0;
 }
 
-.clients__workspace--split {
-  grid-template-columns: minmax(0, 1fr) var(--gestia-panel-width);
-}
+/* La ficha ya no parte el espacio: va en ventana. Por debajo de 80 rem la columna lateral caia
+   debajo del listado y la ficha desaparecia de la vista. */
 
 .clients__list {
   display: flex;
@@ -165,11 +164,7 @@
   background: var(--gestia-surface-soft);
 }
 
-@media (width < 80rem) {
-  .clients__workspace--split {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
+
 
 /* ── Ventana emergente ─────────────────────────────────────────────────────────────────────
    El alta va encima y no en el panel lateral. El panel comprime la tabla para no perder de vista
@@ -186,6 +181,9 @@
   padding: 1.25rem;
   background: var(--gestia-dialog-veil);
 }
+
+/* La ficha necesita mas ancho que un formulario: lleva pestañas con tablas dentro. */
+.modal--ficha { width: min(var(--gestia-panel-width-wide, 1040px), 100%); }
 
 .modal {
   width: min(760px, 100%);

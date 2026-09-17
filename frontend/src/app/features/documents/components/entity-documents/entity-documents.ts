@@ -213,7 +213,15 @@ export class EntityDocuments implements OnDestroy {
     // El titulo se propone con el nombre del tipo, y queda editable. Antes habia que teclearlo a
     // mano aunque el tipo ya lo dijera: dos capturas para el mismo dato, y el caso normal —elegir
     // el archivo y guardar— pasaba por escribir lo que la pantalla ya sabia.
-    if (tipo && !this.form.controls.title.value.trim()) {
+    //
+    // Y sigue a la categoria mientras siga siendo la propuesta. La primera version solo lo ponia
+    // si estaba vacio, asi que al cambiar de categoria el titulo se quedaba con el nombre de la
+    // anterior y el documento se guardaba con el nombre equivocado, que es peor que no proponer
+    // nada. En cuanto alguien lo teclea, lo que escribio se respeta.
+    const actual = this.form.controls.title.value.trim();
+    const esPropuesta = !actual || this.documentTypes().some((opcion) => opcion.label === actual);
+
+    if (tipo && esPropuesta) {
       this.form.controls.title.setValue(tipo.label);
     }
   }

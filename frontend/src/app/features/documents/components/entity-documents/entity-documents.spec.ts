@@ -507,6 +507,38 @@ describe('EntityDocuments', () => {
     expect(component['form'].controls.documentType.value).toBe('ProofOfAddress');
   });
 
+  /**
+   * El titulo sigue a la categoria mientras siga siendo la propuesta.
+   *
+   * <p>La primera version solo proponia el titulo si estaba vacio, asi que al cambiar de categoria
+   * se quedaba el nombre de la anterior y el documento se guardaba mal nombrado. QA lo reporto el
+   * 17 de septiembre de 2026.</p>
+   */
+  it('al cambiar de tipo el titulo propuesto se actualiza', () => {
+    conTipos();
+    flushList();
+    component['openEditor']('create');
+
+    component['elegirTipo']('ProofOfAddress');
+    expect(component['form'].controls.title.value).toBe('Comprobante de domicilio');
+
+    component['elegirTipo']('CriminalRecordCertificate');
+    expect(component['form'].controls.title.value).toBe('Antecedentes no penales');
+  });
+
+  /** Pero lo que alguien escribio no se pisa: por eso se distingue la propuesta del texto propio. */
+  it('respeta el titulo que se escribio a mano al cambiar de tipo', () => {
+    conTipos();
+    flushList();
+    component['openEditor']('create');
+
+    component['elegirTipo']('ProofOfAddress');
+    component['form'].controls.title.setValue('Recibo de luz de agosto');
+    component['elegirTipo']('CriminalRecordCertificate');
+
+    expect(component['form'].controls.title.value).toBe('Recibo de luz de agosto');
+  });
+
   /** Sin tipo no se guarda: sin el, la fila del requisito no se podria escribir. */
   it('no guarda si falta el tipo aunque haya archivo', () => {
     conTipos();

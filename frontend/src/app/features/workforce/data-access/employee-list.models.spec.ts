@@ -1,4 +1,8 @@
-import { eligibilityDetail, employeeJobPositionLabel } from './employee-list.models';
+import {
+  eligibilityDetail,
+  employeeDocumentTypeOptions,
+  employeeJobPositionLabel,
+} from './employee-list.models';
 import { EmployeeListItem } from './employee-list.models';
 
 const empleado = (extra: Partial<EmployeeListItem>) => ({ jobTitle: null, jobPositionName: null, ...extra } as EmployeeListItem);
@@ -36,5 +40,54 @@ describe('Ningún nulo llega escrito a la pantalla', () => {
     expect(employeeJobPositionLabel(empleado({ jobPositionName: 'Escolta' }))).toBe('Escolta');
     expect(employeeJobPositionLabel(empleado({ jobTitle: 'Guardia' }))).toBe('Guardia · sin catalogar');
     expect(employeeJobPositionLabel(empleado({}))).toBe('Sin puesto');
+  });
+});
+
+describe('Los tipos de documento que se ofrecen al capturar', () => {
+  /**
+   * La lista es del sistema y la marca es de la organizacion.
+   *
+   * <p>Los catorce tipos salen del enum que el servidor reconoce: una categoria escrita a mano no
+   * cumple ningun requisito, porque las reglas de elegibilidad apuntan al enum y no a un texto.</p>
+   */
+  it('ofrece los catorce tipos aunque la organizacion no exija ninguno', () => {
+    const tipos = employeeDocumentTypeOptions([]);
+
+    expect(tipos).toHaveLength(14);
+    expect(tipos.every((tipo) => !tipo.isRequired)).toBe(true);
+    expect(tipos.map((tipo) => tipo.label)).toContain('Antecedentes no penales');
+  });
+
+  /** Los exigidos van primero, porque son los que destraban una asignacion. */
+  it('marca los exigidos y los pone al principio', () => {
+    const tipos = employeeDocumentTypeOptions([
+      { requiredDocumentType: 'ProofOfAddress', isBlocking: true },
+      { requiredDocumentType: 'Curp', isBlocking: true },
+    ]);
+
+    expect(tipos.slice(0, 2).map((tipo) => tipo.code)).toEqual(['Curp', 'ProofOfAddress']);
+    expect(tipos.slice(0, 2).every((tipo) => tipo.isRequired)).toBe(true);
+    expect(tipos[2].isRequired).toBe(false);
+  });
+
+  /**
+   * Una regla que no bloquea se pide igual, pero no se marca como obligatoria.
+   *
+   * <p>Marcarla seria decirle al usuario que sin ese documento no puede asignar, y si puede. La
+   * pestaña de requisitos ya la lista aparte, diciendo que no bloquea.</p>
+   */
+  it('no marca como obligatoria una regla informativa', () => {
+    const tipos = employeeDocumentTypeOptions([
+      { requiredDocumentType: 'DriverLicense', isBlocking: false },
+    ]);
+
+    expect(tipos.find((tipo) => tipo.code === 'DriverLicense')?.isRequired).toBe(false);
+  });
+
+  /** Y una regla que no es de documento no tiene tipo: no debe marcar nada. */
+  it('ignora las reglas sin tipo de documento', () => {
+    const tipos = employeeDocumentTypeOptions([{ requiredDocumentType: null, isBlocking: true }]);
+
+    expect(tipos.every((tipo) => !tipo.isRequired)).toBe(true);
   });
 });

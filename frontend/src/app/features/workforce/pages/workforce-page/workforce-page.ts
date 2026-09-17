@@ -17,7 +17,10 @@ import {
   GiTableState,
 } from '../../../../shared/ui/gi-ui';
 import { CatalogApiService } from '../../../catalogs/data-access/catalog-api.service';
-import { EntityDocuments } from '../../../documents/components/entity-documents/entity-documents';
+import {
+  EntityDocumentSaved,
+  EntityDocuments,
+} from '../../../documents/components/entity-documents/entity-documents';
 import { EligibilityRequirement } from '../../../catalogs/data-access/catalog.models';
 import { EmployeeListApiService } from '../../data-access/employee-list-api.service';
 import {
@@ -28,9 +31,16 @@ import {
   EMPLOYEE_STATUS_OPTIONS,
   documentRequirementsNote,
   employeeDocumentBadge,
+  employeeDocumentTypeOptions,
 } from '../../data-access/employee-list.models';
 import { WorkforceApiService } from '../../data-access/workforce-api.service';
-import { Employee, EmployeeDocument, EmployeeStatus } from '../../data-access/workforce.models';
+import {
+  Employee,
+  EmployeeDocument,
+  EmployeeDocumentInput,
+  EmployeeDocumentType,
+  EmployeeStatus,
+} from '../../data-access/workforce.models';
 import { EmployeeAssignments } from '../../ui/employee-assignments';
 import { EmployeeData } from '../../ui/employee-data';
 import { EmployeeDocuments } from '../../ui/employee-documents';
@@ -123,6 +133,14 @@ export class WorkforcePage {
   /** Todos los puestos activos del catálogo: los del alta y los del editor de la ficha. */
   protected readonly catalogJobPositions = signal<readonly EmployeeJobPositionOption[]>([]);
   protected readonly requirements = signal<readonly EligibilityRequirement[]>([]);
+
+  /**
+   * Los tipos que ofrece el alta de documento, con los que esta organización exige al principio.
+   *
+   * <p>Se derivan de los requisitos ya cargados, así que una regla nueva aparece marcada sin tocar
+   * esta pantalla.</p>
+   */
+  protected readonly documentTypeOptions = computed(() => employeeDocumentTypeOptions(this.requirements()));
 
   protected readonly selected = signal<EmployeeListItem | null>(null);
   protected readonly activeTab = signal('data');
@@ -454,6 +472,78 @@ export class WorkforcePage {
       this.documents.set(data.detail?.documents ?? []);
       this.assignments.set(data.assignments);
       this.detailLoading.set(false);
+    });
+  }
+
+  // ── El documento subido, que tiene que contar como requisito cubierto ─────────────────────
+
+  /**
+   * Registra en el expediente el documento que se acaba de subir.
+   *
+   * <p><b>Por qué hacen falta dos escrituras.</b> La pieza compartida guarda un
+   * <c>BusinessDocument</c>: el archivo, con su historial y su revisión. Pero la vigencia
+   * documental y la elegibilidad para cubrir un turno se calculan sobre <c>EmployeeDocument</c>,
+   * que es otra tabla. Hasta ahora subir un archivo no movía la bandera porque nadie escribía la
+   * segunda fila, y no era un problema de refresco: la pantalla escribía donde el indicador no
+   * lee.</p>
+   *
+   * <p><b>El estado es <c>Received</c> y no es un detalle.</b> El servidor sólo acepta como
+   * cubierto un documento en <c>Received</c> o <c>Validated</c>; con cualquier otro la persona
+   * sigue sin ser elegible y el archivo subido no serviría de nada.</p>
+   *
+   * <p><b>Se actualiza en lugar de agregar</b> cuando ya hay una fila activa del mismo tipo. Dos
+   * filas del mismo requisito harían que la pestaña dijera dos cosas del mismo documento, y el
+   * cruce se queda con la primera que encuentra.</p>
+   *
+   * <p><b>PENDIENTE.</b> La fila no apunta al archivo: falta la columna <c>IdBusinessDocument</c>
+   * en <c>EmployeeDocuments</c>, nulable y aditiva, agendada para después de la demo del 17 de
+   * septiembre de 2026. Mientras no exista, el archivo se consulta en la lista de abajo, que está
+   * en esta misma pestaña. No se usa <c>StorageReference</c> para eso porque esa columna la sirve
+   * una ruta heredada del prototipo y guardar ahí un identificador le daría un significado que no
+   * tiene.</p>
+   */
+  protected registerEmployeeDocument(saved: EntityDocumentSaved): void {
+    const organizationId = this.organizationId();
+    const employee = this.detail();
+
+    if (!organizationId || !employee || !this.canWrite()) {
+      return;
+    }
+
+    const existente = this.documents().find(
+      (documento) =>
+        documento.active && documento.documentType.toLowerCase() === saved.documentType.toLowerCase(),
+    );
+
+    const request: EmployeeDocumentInput = {
+      idOrganization: organizationId,
+      idEmployee: employee.idEmployee,
+      documentType: saved.documentType as EmployeeDocumentType,
+      status: 'Received',
+      documentNumber: existente?.documentNumber ?? null,
+      receivedDate: this.today(),
+      issuedDate: saved.issuedDate,
+      expiresDate: saved.expiresDate,
+      storageReference: null,
+      notes: existente?.notes ?? null,
+    };
+
+    const peticion = existente
+      ? this.workforceApi.updateDocument(employee.idEmployee, existente.idEmployeeDocument, request)
+      : this.workforceApi.createDocument(employee.idEmployee, request);
+
+    peticion.subscribe({
+      next: () => {
+        // Las dos recargas tienen destinatario distinto: el detalle mueve la bandera de la ficha,
+        // la lista mueve la insignia de la tabla.
+        this.loadDetail(employee.idEmployee);
+        this.load();
+      },
+      error: () =>
+        this.error.set(
+          'El archivo se guardó, pero no se pudo registrar como requisito del expediente. '
+          + 'Vuelve a guardarlo para que cuente en la vigencia.',
+        ),
     });
   }
 

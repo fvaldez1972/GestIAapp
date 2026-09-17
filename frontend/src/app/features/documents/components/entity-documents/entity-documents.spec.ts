@@ -4,6 +4,8 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ElementRef, Input, ViewChild, signal, ɵresolveComponentResources as resolveComponentResources } from '@angular/core';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { AppIcon } from '../../../../shared/ui/app-icon/app-icon';
+import { GiFileInput } from '../../../../shared/ui/gi-file-input/gi-file-input';
+import { GiSelect } from '../../../../shared/ui/gi-select/gi-select';
 import { BusinessDocument } from '../../data-access/document.models';
 import { EntityDocuments } from './entity-documents';
 
@@ -25,10 +27,22 @@ describe('EntityDocuments', () => {
         Input(signalInput)(EntityDocuments.prototype, name);
       }
       // Opcionales: el mismo descriptor, sin `required`.
-      for (const name of ['simple', 'categories']) {
+      for (const name of ['simple', 'categories', 'documentTypes']) {
         Input({ isSignal: true, required: false } as never)(EntityDocuments.prototype, name);
       }
       Input(signalInput)(AppIcon.prototype, 'name');
+      // Las piezas hijas del formulario: se registran porque las pruebas del desplegable son las
+      // primeras que dibujan el editor, y hasta ahora nadie habia pasado por sus entradas.
+      for (const name of ['label', 'options']) {
+        Input(signalInput)(GiSelect.prototype, name);
+      }
+      for (const name of ['value', 'placeholder', 'disabled']) {
+        Input({ isSignal: true, required: false } as never)(GiSelect.prototype, name);
+      }
+      Input(signalInput)(GiFileInput.prototype, 'label');
+      for (const name of ['accept', 'disabled', 'hint', 'emptyLabel']) {
+        Input({ isSignal: true, required: false } as never)(GiFileInput.prototype, name);
+      }
       const signalQuery = { isSignal: true, read: ElementRef };
       ViewChild('historyDialog', signalQuery)(EntityDocuments.prototype, 'historyDialog');
     }
@@ -437,5 +451,110 @@ describe('EntityDocuments', () => {
     expect(texto).toContain('Revisar');
     expect(texto).toContain('Archivar');
     expect(texto).toContain('Agregar documento');
+  });
+
+  // ── Los tipos de documento, cuando el expediente los declara ──────────────────────────────
+
+  const tipos = [
+    { code: 'CriminalRecordCertificate', label: 'Antecedentes no penales', isRequired: true },
+    { code: 'ProofOfAddress', label: 'Comprobante de domicilio', isRequired: false },
+  ];
+  const conTipos = () => {
+    fixture.componentRef.setInput('documentTypes', tipos);
+    fixture.detectChanges();
+  };
+
+  /**
+   * La categoria dejaba escribir cualquier cosa, y una escrita a mano no cumple ningun requisito:
+   * las reglas de elegibilidad apuntan al tipo del sistema, no a un texto.
+   */
+  it('con tipos declarados cambia el texto libre por un selector', () => {
+    conTipos();
+    flushList();
+    component['openEditor']('create');
+    fixture.detectChanges();
+
+    const raiz = fixture.nativeElement as HTMLElement;
+    expect(raiz.querySelector('gi-select')).not.toBeNull();
+    expect(raiz.querySelector('input[formcontrolname="category"]')).toBeNull();
+  });
+
+  /** Y dice cuales exige la organizacion, que son los que destraban una asignacion. */
+  it('marca en el selector los tipos que la organizacion exige', () => {
+    conTipos();
+    flushList();
+    component['openEditor']('create');
+    fixture.detectChanges();
+
+    const opciones = component['typeOptions']();
+    expect(opciones[0]).toMatchObject({ value: 'CriminalRecordCertificate', hint: 'Lo exige esta organizacion' });
+    expect(opciones[1].hint).toBeUndefined();
+  });
+
+  /** El tipo manda la categoria: la columna que ya existe se sigue llenando con la etiqueta. */
+  it('al elegir el tipo llena la categoria con su etiqueta', () => {
+    conTipos();
+    flushList();
+    component['openEditor']('create');
+    component['elegirTipo']('ProofOfAddress');
+
+    expect(component['form'].controls.category.value).toBe('Comprobante de domicilio');
+    expect(component['form'].controls.documentType.value).toBe('ProofOfAddress');
+  });
+
+  /** Sin tipo no se guarda: sin el, la fila del requisito no se podria escribir. */
+  it('no guarda si falta el tipo aunque haya archivo', () => {
+    conTipos();
+    flushList();
+    component['openEditor']('create');
+    component['form'].patchValue({ title: 'Comprobante', category: 'Comprobante' });
+    chooseFile();
+    component['save']();
+
+    expect(component['actionError']()).toBe('Elige el tipo de documento.');
+  });
+
+  /**
+   * El aviso hacia fuera es lo que mueve la bandera de vigencia: el archivo va a
+   * `BusinessDocument` y la vigencia se calcula sobre `EmployeeDocument`, que es otra tabla.
+   */
+  it('avisa del tipo guardado para que el expediente registre el requisito', () => {
+    conTipos();
+    flushList();
+    const avisos: unknown[] = [];
+    component.documentSaved.subscribe((evento) => avisos.push(evento));
+
+    component['openEditor']('create');
+    component['elegirTipo']('CriminalRecordCertificate');
+    component['form'].patchValue({ title: 'Carta', issuedDate: '2026-09-01', expiresDate: '2027-09-01' });
+    chooseFile();
+    component['save']();
+
+    http.expectOne(request => request.url === '/api/v1/documents/upload')
+      .flush({ storageReference: 'business-documents/new.pdf' });
+    http.expectOne('/api/v1/documents').flush(document);
+    flushList();
+
+    expect(avisos).toEqual([{
+      documentType: 'CriminalRecordCertificate',
+      issuedDate: '2026-09-01',
+      expiresDate: '2027-09-01',
+    }]);
+  });
+
+  /** Y no avisa cuando el expediente no declara tipos: Clientes no tiene requisitos que mover. */
+  it('sin tipos declarados no emite el aviso', () => {
+    flushList();
+    const avisos: unknown[] = [];
+    component.documentSaved.subscribe((evento) => avisos.push(evento));
+
+    createForm();
+    component['save']();
+    http.expectOne(request => request.url === '/api/v1/documents/upload')
+      .flush({ storageReference: 'business-documents/new.pdf' });
+    http.expectOne('/api/v1/documents').flush(document);
+    flushList();
+
+    expect(avisos).toEqual([]);
   });
 });

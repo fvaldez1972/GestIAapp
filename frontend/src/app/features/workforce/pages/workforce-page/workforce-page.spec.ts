@@ -83,4 +83,117 @@ describe('Personal · carga', () => {
     responder();
     responderLoDemas();
   });
+
+  /**
+   * Subir un archivo tiene que contar como requisito cubierto.
+   *
+   * <p>El archivo se guarda como <c>BusinessDocument</c> y la vigencia se calcula sobre
+   * <c>EmployeeDocument</c>, que es otra tabla. Antes nadie escribía la segunda, así que la bandera
+   * no se movía nunca: no era un problema de refresco, la pantalla escribía donde el indicador no
+   * lee.</p>
+   *
+   * <p>Lo que se fija aquí es el estado: el servidor sólo acepta como cubierto un documento en
+   * <c>Received</c> o <c>Validated</c>. Con cualquier otro, la persona sigue sin ser elegible y el
+   * archivo subido no sirve para asignarla.</p>
+   */
+  it('al guardar un documento registra el requisito con estado Received', () => {
+    const { fixture, http, empleados, responder, responderLoDemas } = montar();
+    responder();
+    responderLoDemas();
+    fixture.detectChanges();
+
+    const pagina = fixture.componentInstance as unknown as {
+      detail: { set(valor: unknown): void };
+      documents: { set(valor: unknown): void };
+      registerEmployeeDocument(guardado: {
+        documentType: string;
+        issuedDate: string | null;
+        expiresDate: string | null;
+      }): void;
+    };
+
+    pagina.detail.set({ idEmployee: 'emp-1', fullName: 'Laura Méndez' });
+    pagina.documents.set([]);
+
+    pagina.registerEmployeeDocument({
+      documentType: 'CriminalRecordCertificate',
+      issuedDate: '2026-09-01',
+      expiresDate: '2027-09-01',
+    });
+
+    const alta = http.expectOne(
+      (r) => r.url === '/api/v1/employees/emp-1/documents' && r.method === 'POST',
+    );
+    expect(alta.request.body).toMatchObject({
+      idOrganization: 'org-a',
+      idEmployee: 'emp-1',
+      documentType: 'CriminalRecordCertificate',
+      status: 'Received',
+      issuedDate: '2026-09-01',
+      expiresDate: '2027-09-01',
+      storageReference: null,
+    });
+    alta.flush({});
+
+    // Y recarga las dos cosas: el detalle mueve la bandera de la ficha, la lista la insignia.
+    expect(http.match((r) => r.url === '/api/v1/employees/emp-1')).toHaveLength(1);
+    expect(empleados()).toHaveLength(1);
+    responder();
+    responderLoDemas();
+  });
+
+  /** Con una fila activa del mismo tipo se actualiza: dos filas del mismo requisito se contradicen. */
+  it('actualiza en lugar de agregar cuando ya hay documento activo del tipo', () => {
+    const { fixture, http, empleados, responder, responderLoDemas } = montar();
+    responder();
+    responderLoDemas();
+    fixture.detectChanges();
+
+    const pagina = fixture.componentInstance as unknown as {
+      detail: { set(valor: unknown): void };
+      documents: { set(valor: unknown): void };
+      registerEmployeeDocument(guardado: {
+        documentType: string;
+        issuedDate: string | null;
+        expiresDate: string | null;
+      }): void;
+    };
+
+    pagina.detail.set({ idEmployee: 'emp-1', fullName: 'Laura Méndez' });
+    pagina.documents.set([
+      {
+        idEmployeeDocument: 'doc-9',
+        idEmployee: 'emp-1',
+        documentType: 'CriminalRecordCertificate',
+        status: 'Received',
+        documentNumber: 'ABC-123',
+        receivedDate: null,
+        issuedDate: null,
+        expiresDate: '2026-01-01',
+        storageReference: null,
+        notes: null,
+        active: true,
+      },
+    ]);
+
+    pagina.registerEmployeeDocument({
+      documentType: 'CriminalRecordCertificate',
+      issuedDate: null,
+      expiresDate: '2028-01-01',
+    });
+
+    const cambio = http.expectOne(
+      (r) => r.url === '/api/v1/employees/emp-1/documents/doc-9' && r.method === 'PUT',
+    );
+    // El número que ya estaba capturado se conserva: el archivo nuevo no lo sabe.
+    expect(cambio.request.body).toMatchObject({
+      documentNumber: 'ABC-123',
+      expiresDate: '2028-01-01',
+      status: 'Received',
+    });
+    cambio.flush({});
+    expect(empleados()).toHaveLength(1);
+    responder();
+    responderLoDemas();
+  });
 });

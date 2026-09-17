@@ -9,6 +9,7 @@ import { AuthService } from '../../../../core/auth/auth.service';
 import { AppIcon } from '../../../../shared/ui/app-icon/app-icon';
 import { GiCatalogCreation, GiCatalogOption, GiCatalogPicker } from '../../../../shared/ui/gi-catalog-picker/gi-catalog-picker';
 import { GiFileInput } from '../../../../shared/ui/gi-file-input/gi-file-input';
+import { GiSelect, GiSelectOption } from '../../../../shared/ui/gi-select/gi-select';
 import { formatOperationalDate, formatOperationalInstant } from '../../../../shared/util/operational-date';
 import { DocumentApiService } from '../../data-access/document-api.service';
 import { documentStatusLabels, historyChanges } from './entity-document-history';
@@ -20,9 +21,28 @@ import {
 type OwnerContext = Pick<BusinessDocumentInput, 'idOrganization' | 'ownerType' | 'ownerId'>;
 type EditorMode = 'create' | 'edit' | 'review' | 'archive';
 
+/** Un tipo de documento ofrecido en el desplegable, con la marca de si la organizacion lo exige. */
+export type EntityDocumentTypeOption = {
+  readonly code: string;
+  readonly label: string;
+  readonly isRequired: boolean;
+};
+
+/**
+ * Lo que se guardo, para quien tenga que registrarlo en otro lado.
+ *
+ * <p>No lleva el identificador del archivo, y la omision es deliberada: ver la nota de
+ * <c>documentSaved</c>.</p>
+ */
+export type EntityDocumentSaved = {
+  readonly documentType: string;
+  readonly issuedDate: string | null;
+  readonly expiresDate: string | null;
+};
+
 @Component({
   selector: 'app-entity-documents',
-  imports: [ReactiveFormsModule, AppIcon, GiFileInput, GiCatalogPicker],
+  imports: [ReactiveFormsModule, AppIcon, GiFileInput, GiCatalogPicker, GiSelect],
   templateUrl: './entity-documents.html',
   styleUrl: './entity-documents.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -60,6 +80,33 @@ export class EntityDocuments implements OnDestroy {
   /** Las categorias del catalogo, cuando la variante simple las usa en vez de texto libre. */
   readonly categories = input<readonly GiCatalogOption[]>([]);
   readonly createCategory = output<GiCatalogCreation>();
+
+  /**
+   * Los tipos de documento que el expediente reconoce. Vacio deja el campo como texto libre.
+   *
+   * <p>Personal los manda porque alli la categoria no es una etiqueta: es el tipo contra el que la
+   * organizacion declara sus requisitos, y un texto escrito a mano no cumple ninguno. Clientes no
+   * los manda, porque su categoria si es un catalogo editable de la organizacion.</p>
+   */
+  readonly documentTypes = input<readonly EntityDocumentTypeOption[]>([]);
+
+  /**
+   * Se emite al guardar, con el tipo elegido, para quien tenga que registrar el documento aparte.
+   *
+   * <p><b>Por que hace falta este aviso.</b> Este componente guarda un <c>BusinessDocument</c>, que
+   * es el archivo con su historial y su revision. La vigencia documental de una persona y su
+   * elegibilidad para cubrir un turno se calculan sobre <c>EmployeeDocument</c>, que es otra tabla.
+   * Subir un archivo aqui no movia la bandera de alla porque nadie escribia la segunda fila.</p>
+   *
+   * <p><b>PENDIENTE, con fecha y forma.</b> Las dos filas quedan sin enlace: el
+   * <c>EmployeeDocument</c> no apunta al archivo. <c>StorageReference</c> existe pero lo sirve una
+   * ruta heredada del prototipo, y meter ahi el identificador del <c>BusinessDocument</c> seria
+   * darle a una columna un significado que no tiene. El enlace honesto es una columna nueva
+   * <c>IdBusinessDocument</c> en <c>EmployeeDocuments</c>, nulable y aditiva; se decidio dejarla
+   * para despues de la demo del 17 de septiembre de 2026 en lugar de migrar la noche anterior.
+   * Mientras no exista, el archivo se ve y se descarga en la lista de este mismo componente.</p>
+   */
+  readonly documentSaved = output<EntityDocumentSaved>();
 
   private readonly api = inject(DocumentApiService);
   private readonly auth = inject(AuthService);
@@ -114,8 +161,34 @@ export class EntityDocuments implements OnDestroy {
   protected readonly form = this.fb.nonNullable.group({
     title: ['', [Validators.pattern(/\S/), Validators.maxLength(180)]],
     category: ['', [Validators.required, Validators.pattern(/\S/), Validators.maxLength(80)]],
+    documentType: [''],
     issuedDate: [''], expiresDate: [''], isSensitive: [false], notes: ['', Validators.maxLength(1000)],
   });
+
+  /** Con tipos declarados la categoria se elige; sin ellos se escribe, como hasta ahora. */
+  protected readonly typed = computed(() => this.documentTypes().length > 0);
+
+  /** El obligatorio se marca en el renglon secundario del selector, que ya existe para eso. */
+  protected readonly typeOptions = computed<readonly GiSelectOption[]>(() =>
+    this.documentTypes().map((tipo) => ({
+      value: tipo.code,
+      label: tipo.label,
+      hint: tipo.isRequired ? 'Lo exige esta organizacion' : undefined,
+    })),
+  );
+
+  /**
+   * El tipo manda la categoria, no al reves.
+   *
+   * <p>La columna <c>Category</c> se sigue llenando con la etiqueta visible, que es lo que la lista
+   * enseña y lo que el servidor ya exige. Asi el cambio no le da un significado nuevo a una columna
+   * que ya tenia uno.</p>
+   */
+  protected elegirTipo(code: string): void {
+    const tipo = this.documentTypes().find((item) => item.code === code);
+    this.form.controls.documentType.setValue(tipo ? code : '');
+    this.form.controls.category.setValue(tipo?.label ?? '');
+  }
 
   /**
    * En la variante simple el titulo lo pone la categoria.
@@ -239,7 +312,12 @@ export class EntityDocuments implements OnDestroy {
     this.message.set('');
     if (document) {
       this.form.reset({
-        title: document.title, category: document.category, issuedDate: document.issuedDate ?? '',
+        title: document.title, category: document.category,
+        // El documento no guarda el tipo: se reconoce por la etiqueta con la que se guardo la
+        // categoria. Si no coincide con ninguno, el selector abre vacio y obliga a elegir, que es
+        // mejor que proponer un tipo que nadie escribio.
+        documentType: this.documentTypes().find((tipo) => tipo.label === document.category)?.code ?? '',
+        issuedDate: document.issuedDate ?? '',
         expiresDate: document.expiresDate ?? '', isSensitive: document.isSensitive, notes: document.notes ?? '',
       });
     }
@@ -282,6 +360,10 @@ export class EntityDocuments implements OnDestroy {
       this.actionError.set('Revisa los campos obligatorios y sus limites de longitud.');
       return;
     }
+    if (this.typed() && !value.documentType) {
+      this.actionError.set('Elige el tipo de documento.');
+      return;
+    }
     if (value.issuedDate && value.expiresDate && value.expiresDate < value.issuedDate) {
       this.actionError.set('El vencimiento no puede ser anterior a la emision.');
       return;
@@ -312,7 +394,14 @@ export class EntityDocuments implements OnDestroy {
         isSensitive: value.isSensitive, notes: value.notes.trim() || null, status: 'PendingReview', storageReference,
       };
       return selected ? this.api.updateDocument(selected.idBusinessDocument, request) : this.api.createDocument(request);
-    })), 'Documento guardado. Pendiente de revision.');
+    })), 'Documento guardado. Pendiente de revision.', () => {
+      if (!this.typed() || !value.documentType) return;
+      this.documentSaved.emit({
+        documentType: value.documentType,
+        issuedDate: value.issuedDate || null,
+        expiresDate: value.expiresDate || null,
+      });
+    });
   }
 
   protected review() {
@@ -403,13 +492,18 @@ export class EntityDocuments implements OnDestroy {
       && (!selected || this.canEdit(selected));
   }
 
-  private runAction<T>(request: Observable<T>, message: string) {
+  /**
+   * <p><c>onSuccess</c> corre <b>antes</b> de <c>closeEditor()</c> a proposito: ese metodo limpia el
+   * formulario, y quien avisa hacia fuera necesita lo que se acaba de guardar.</p>
+   */
+  private runAction<T>(request: Observable<T>, message: string, onSuccess?: () => void) {
     this.busy.set(true);
     this.actionError.set('');
     this.message.set('');
     this.requests.add(request.pipe(finalize(() => this.busy.set(false))).subscribe({
       next: () => {
         this.busy.set(false);
+        onSuccess?.();
         this.closeEditor();
         this.message.set(message);
         this.load();

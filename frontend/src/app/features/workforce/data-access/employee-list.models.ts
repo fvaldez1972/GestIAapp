@@ -286,6 +286,46 @@ const TIPOS_DE_DOCUMENTO: Record<string, string> = {
 
 export const documentTypeLabel = (type: string): string => TIPOS_DE_DOCUMENTO[type] ?? type;
 
+/** Un tipo de documento como se ofrece al capturar, con la marca de si la organización lo exige. */
+export type EmployeeDocumentTypeOption = {
+  readonly code: string;
+  readonly label: string;
+  readonly isRequired: boolean;
+};
+
+/**
+ * Los tipos que se ofrecen al subir un documento, con los exigidos primero.
+ *
+ * <p><b>La lista es del sistema y la marca es de la organización.</b> Los catorce tipos salen del
+ * enum que el servidor reconoce —una categoría escrita a mano no la podría cumplir nadie, porque
+ * las reglas de elegibilidad apuntan al enum—, y cuáles son obligatorios sale de las reglas que esa
+ * organización tenga declaradas como bloqueantes.</p>
+ *
+ * <p>Los obligatorios van al principio porque son los que destraban una asignación. Dentro de cada
+ * grupo se conserva el orden del expediente, que es el del enum, y no el alfabético: así la lista
+ * se lee en el mismo orden en que se arma una carpeta.</p>
+ */
+export function employeeDocumentTypeOptions(
+  required: readonly {
+    readonly requiredDocumentType: string | null;
+    readonly isBlocking: boolean;
+  }[],
+): readonly EmployeeDocumentTypeOption[] {
+  const exigidos = new Set(
+    required
+      .filter((regla) => regla.isBlocking && regla.requiredDocumentType)
+      .map((regla) => regla.requiredDocumentType!.toLowerCase()),
+  );
+
+  const tipos = Object.entries(TIPOS_DE_DOCUMENTO).map(([code, label]) => ({
+    code,
+    label,
+    isRequired: exigidos.has(code.toLowerCase()),
+  }));
+
+  return [...tipos.filter((tipo) => tipo.isRequired), ...tipos.filter((tipo) => !tipo.isRequired)];
+}
+
 /** Un requisito de la organización y cómo lo cubre esta persona. */
 export type EmployeeRequirementRow = {
   /** El tipo del sistema, tal como lo exige la organización. */

@@ -62,9 +62,31 @@
             <label class="gi-field"><span>Titulo *</span><input class="gi-input" formControlName="title" maxlength="180" required />
               @if (form.controls.title.touched && form.controls.title.invalid) { <small class="field-error">Titulo obligatorio, hasta 180 caracteres.</small> }
             </label>
-            <label class="gi-field"><span>Categoria *</span><input class="gi-input" formControlName="category" maxlength="80" required />
-              @if (form.controls.category.touched && form.controls.category.invalid) { <small class="field-error">Categoria obligatoria, hasta 80 caracteres.</small> }
-            </label>
+            @if (typed()) {
+              <!--
+                En Personal la categoria no es una etiqueta libre: es el tipo contra el que la
+                organizacion declara sus requisitos documentales, y uno escrito a mano no cumple
+                ninguno. Los que esta organizacion exige salen marcados en el propio selector.
+              -->
+              <div class="gi-field">
+                <span>Categoria *</span>
+                <gi-select
+                  label="Tipo de documento"
+                  placeholder="Elige el tipo"
+                  [options]="typeOptions()"
+                  [value]="form.controls.documentType.value"
+                  [disabled]="busy() || !canWrite()"
+                  (valueChange)="elegirTipo($event)"
+                />
+                @if (form.controls.documentType.touched && !form.controls.documentType.value) {
+                  <small class="field-error">Elige el tipo de documento.</small>
+                }
+              </div>
+            } @else {
+              <label class="gi-field"><span>Categoria *</span><input class="gi-input" formControlName="category" maxlength="80" required />
+                @if (form.controls.category.touched && form.controls.category.invalid) { <small class="field-error">Categoria obligatoria, hasta 80 caracteres.</small> }
+              </label>
+            }
             <label class="gi-field"><span>Emision</span><input class="gi-input" type="date" formControlName="issuedDate" /></label>
             <label class="gi-field"><span>Vencimiento</span><input class="gi-input" type="date" formControlName="expiresDate" [min]="form.controls.issuedDate.value" /></label>
           }

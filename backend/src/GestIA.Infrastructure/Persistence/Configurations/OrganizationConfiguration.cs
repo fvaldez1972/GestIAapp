@@ -13,6 +13,11 @@ public sealed class OrganizationConfiguration : IEntityTypeConfiguration<Organiz
         builder.Property(entity => entity.CodeOrganization).HasMaxLength(30).IsUnicode(false).IsRequired();
         builder.Property(entity => entity.LegalName).HasMaxLength(200).IsRequired();
         builder.Property(entity => entity.Rfc).HasMaxLength(13).IsUnicode(false);
+        // Nulable a proposito: nulo es «nadie lo ha declarado», y no se rellena con una suposicion.
+        builder.Property(entity => entity.PayrollFrequency)
+            .HasConversion<string>()
+            .HasMaxLength(20)
+            .IsUnicode(false);
         builder.HasIndex(entity => entity.CodeOrganization).IsUnique();
         builder.HasIndex(entity => entity.Rfc).IsUnique().HasFilter("[Rfc] IS NOT NULL");
     }

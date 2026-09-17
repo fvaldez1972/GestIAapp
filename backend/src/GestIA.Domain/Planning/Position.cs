@@ -17,9 +17,10 @@ public sealed record PositionProfile(
     string? RequiredSkillProfile,
     string? Notes,
     Guid? IdJobPositionCatalogItem = null,
-    decimal MonthlyPrice = 0m,
+    decimal Price = 0m,
     string CurrencyCode = "MXN",
-    bool IsTaxIncluded = false);
+    bool IsTaxIncluded = false,
+    PaymentFrequency PriceFrequency = PaymentFrequency.Monthly);
 
 public sealed class Position : AuditableEntity, IOrganizationScopedEntity
 {
@@ -67,8 +68,25 @@ public sealed class Position : AuditableEntity, IOrganizationScopedEntity
     /// </summary>
     public Guid? IdJobPositionCatalogItem { get; private set; }
 
-    /// <summary>Lo que se cobra al mes por este puesto. Cero mientras no se pacte.</summary>
-    public decimal MonthlyPrice { get; private set; }
+    /// <summary>
+    /// Lo que se cobra por este puesto, en el periodo que declara <see cref="PriceFrequency"/>.
+    /// Cero mientras no se pacte.
+    ///
+    /// <para><b>La columna se llamaba <c>MonthlyPrice</c> y dejó de ser cierto.</b> Desde que el
+    /// precio se puede pactar por semana, un nombre que afirma el mes describiría mal la mitad de
+    /// los casos. El importe <b>no se convierte</b>: se guarda tal como se pactó, con su periodo al
+    /// lado. Pasarlo todo a mensual para conservar el nombre habría metido un redondeo en un dato
+    /// que nadie pidió redondear.</para>
+    /// </summary>
+    public decimal Price { get; private set; }
+
+    /// <summary>
+    /// Cada cuándo se cobra ese precio.
+    ///
+    /// <para>Es lo que se le factura al cliente, y no tiene por qué coincidir con cada cuándo se le
+    /// paga al personal, que es de la organización.</para>
+    /// </summary>
+    public PaymentFrequency PriceFrequency { get; private set; }
 
     public string CurrencyCode { get; private set; } = "MXN";
     public bool IsTaxIncluded { get; private set; }
@@ -106,14 +124,15 @@ public sealed class Position : AuditableEntity, IOrganizationScopedEntity
             throw new ArgumentOutOfRangeException(nameof(profile));
         }
 
-        if (profile.MonthlyPrice < 0)
+        if (profile.Price < 0)
         {
             throw new ArgumentOutOfRangeException(nameof(profile));
         }
 
         Name = Required(profile.Name, nameof(profile.Name));
         RequiredWorkerCount = profile.RequiredWorkerCount;
-        MonthlyPrice = profile.MonthlyPrice;
+        Price = profile.Price;
+        PriceFrequency = profile.PriceFrequency;
         CurrencyCode = Required(profile.CurrencyCode, nameof(profile.CurrencyCode)).ToUpperInvariant();
         IsTaxIncluded = profile.IsTaxIncluded;
         IdJobPositionCatalogItem = profile.IdJobPositionCatalogItem;

@@ -5,7 +5,12 @@ import { RouterLink } from '@angular/router';
 import { forkJoin, of, switchMap } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { ClientApiService } from '../../../clients/data-access/client-api.service';
-import { Organization, OrganizationClientSummary } from '../../../clients/data-access/client.models';
+import {
+  Organization,
+  OrganizationClientSummary,
+  PAYMENT_FREQUENCY_LABELS,
+  PaymentFrequency,
+} from '../../../clients/data-access/client.models';
 import { SecurityApiService } from '../../../security/data-access/security-api.service';
 import { ServerProblem, fieldError, readServerProblem } from '../../../../shared/util/server-problem';
 import { SecurityRole, SecurityUser } from '../../../security/data-access/security.models';
@@ -151,6 +156,20 @@ export class PlatformPage implements OnInit {
   protected readonly selectedAdminPassword = signal('');
   protected readonly editOrganizationLegalName = signal('');
   protected readonly editOrganizationRfc = signal('');
+
+  /**
+   * La periodicidad de pago del personal. Vacio es «sin declarar».
+   *
+   * <p>No se captura en el alta a proposito: el alta se queda minima y esto se decide despues,
+   * probablemente en el onboarding. Obligar a capturarlo de entrada es lo que hace que la gente
+   * abandone el formulario a la mitad.</p>
+   */
+  protected readonly editOrganizationPayrollFrequency = signal<PaymentFrequency | ''>('');
+
+  /** Los cuatro periodos, mas la opcion de dejarlo sin declarar. */
+  protected readonly payrollFrequencies = (
+    Object.keys(PAYMENT_FREQUENCY_LABELS) as PaymentFrequency[]
+  ).map((value) => ({ value, label: PAYMENT_FREQUENCY_LABELS[value] }));
 
   protected readonly selectedSummary = computed(
     () => this.summaries().find((summary) => summary.organization.idOrganization === this.selectedOrganizationRowId()) ?? this.summaries()[0] ?? null,
@@ -385,6 +404,9 @@ export class PlatformPage implements OnInit {
         // aqui, asi que mandarlo solo abriria la puerta a cambiarlo sin querer al guardar.
         legalName: this.editOrganizationLegalName().trim(),
         rfc: this.normalizeOptional(this.editOrganizationRfc()),
+        // Vacio significa «sin declarar», y se manda como nulo: no se le inventa una periodicidad
+        // a una organizacion que no la ha decidido.
+        payrollFrequency: this.editOrganizationPayrollFrequency() || null,
       })
       .pipe(
         // El estado va en la misma peticion de guardar sólo si cambio. El alta y la baja son
@@ -468,6 +490,7 @@ export class PlatformPage implements OnInit {
   private syncOrganizationEditor(organization: Organization) {
     this.editOrganizationLegalName.set(organization.legalName);
     this.editOrganizationRfc.set(organization.rfc ?? '');
+    this.editOrganizationPayrollFrequency.set(organization.payrollFrequency ?? '');
   }
 
   private normalizeOptional(value: string) {

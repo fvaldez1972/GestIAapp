@@ -130,6 +130,14 @@ public sealed class OrganizationService(
             actorContext.ActorName,
             clock.UtcNow);
 
+        // La periodicidad se fija aparte porque es una decision de la organizacion y no parte de su
+        // identidad: nulo la deja sin declarar en lugar de inventarle una.
+        organization.SetPayrollFrequency(
+            request.PayrollFrequency,
+            actorContext.ActorId,
+            actorContext.ActorName,
+            clock.UtcNow);
+
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return Map(organization);
     }
@@ -156,5 +164,6 @@ public sealed class OrganizationService(
         organization.CodeOrganization,
         organization.LegalName,
         organization.Rfc,
-        organization.Active);
+        organization.Active,
+        organization.PayrollFrequency);
 }

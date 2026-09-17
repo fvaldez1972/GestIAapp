@@ -1,3 +1,4 @@
+using GestIA.Domain.Common;
 namespace GestIA.Application.Organizations;
 
 /// <summary>
@@ -20,14 +21,20 @@ public sealed record CreateOrganizationRequest(
 public sealed record UpdateOrganizationRequest(
     string? CodeOrganization,
     string LegalName,
-    string? Rfc);
+    string? Rfc,
+    /// <summary>
+    /// Cada cuándo se le paga al personal. Nulo la deja sin declarar, que es un estado válido y no
+    /// un valor faltante: nadie decide por la organización lo que la organización no ha dicho.
+    /// </summary>
+    PaymentFrequency? PayrollFrequency = null);
 
 public sealed record OrganizationResponse(
     Guid IdOrganization,
     string CodeOrganization,
     string LegalName,
     string? Rfc,
-    bool Active);
+    bool Active,
+    PaymentFrequency? PayrollFrequency);
 
 public sealed record OrganizationClientSummaryResponse(
     Guid IdClient,

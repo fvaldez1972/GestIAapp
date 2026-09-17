@@ -1,5 +1,6 @@
 using GestIA.Application.Catalogs;
 using GestIA.Application.Common;
+using GestIA.Domain.Common;
 using GestIA.Domain.Planning;
 
 namespace GestIA.Application.Planning;
@@ -49,7 +50,7 @@ public sealed class PlanningService(
         var profile = ValidatePosition(
             request.Name, request.RequiredWorkerCount, request.RequiredSkillProfile,
             request.Notes, request.IdJobPositionCatalogItem,
-            request.MonthlyPrice, request.CurrencyCode, request.IsTaxIncluded);
+            request.Price, request.CurrencyCode, request.IsTaxIncluded, request.PriceFrequency);
         await EnsureJobPositionAsync(request.IdOrganization, profile.IdJobPositionCatalogItem, cancellationToken);
 
         if (await repository.IsPositionCodeInUseAsync(request.IdService, code, null, cancellationToken))
@@ -81,7 +82,7 @@ public sealed class PlanningService(
         var profile = ValidatePosition(
             request.Name, request.RequiredWorkerCount, request.RequiredSkillProfile,
             request.Notes, request.IdJobPositionCatalogItem,
-            request.MonthlyPrice, request.CurrencyCode, request.IsTaxIncluded);
+            request.Price, request.CurrencyCode, request.IsTaxIncluded, request.PriceFrequency);
         await EnsureJobPositionAsync(request.IdOrganization, profile.IdJobPositionCatalogItem, cancellationToken);
 
         position.UpdateProfile(profile, actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
@@ -352,9 +353,10 @@ public sealed class PlanningService(
         string? requiredSkillProfile,
         string? notes,
         Guid? idJobPositionCatalogItem,
-        decimal monthlyPrice,
+        decimal price,
         string currencyCode,
-        bool isTaxIncluded)
+        bool isTaxIncluded,
+        PaymentFrequency priceFrequency)
     {
         var errors = new Dictionary<string, string[]>();
         Required(name, nameof(name), 150, errors);
@@ -365,9 +367,9 @@ public sealed class PlanningService(
             errors[nameof(requiredWorkerCount)] = ["La cantidad requerida debe ser mayor a cero."];
         }
 
-        if (monthlyPrice < 0)
+        if (price < 0)
         {
-            errors[nameof(monthlyPrice)] = ["El precio no puede ser negativo."];
+            errors[nameof(price)] = ["El precio no puede ser negativo."];
         }
 
         ThrowIfInvalid(errors);
@@ -377,9 +379,10 @@ public sealed class PlanningService(
             requiredSkillProfile,
             notes,
             idJobPositionCatalogItem,
-            monthlyPrice,
+            price,
             string.IsNullOrWhiteSpace(currencyCode) ? "MXN" : currencyCode,
-            isTaxIncluded);
+            isTaxIncluded,
+            priceFrequency);
     }
 
     private static ShiftPatternProfile ValidateShiftPattern(
@@ -478,9 +481,10 @@ public sealed class PlanningService(
             position.IdJobPositionCatalogItem,
             position.Notes,
             position.Active,
-            position.MonthlyPrice,
+            position.Price,
             position.CurrencyCode,
-            position.IsTaxIncluded);
+            position.IsTaxIncluded,
+            position.PriceFrequency);
 
     private static ShiftPatternResponse Map(ShiftPattern shiftPattern) =>
         new(

@@ -1,3 +1,4 @@
+using GestIA.Domain.Common;
 using GestIA.Domain.Planning;
 
 namespace GestIA.Application.Planning;
@@ -19,9 +20,10 @@ public sealed record CreatePositionRequest(
     string? RequiredSkillProfile,
     string? Notes,
     Guid? IdJobPositionCatalogItem = null,
-    decimal MonthlyPrice = 0m,
+    decimal Price = 0m,
     string CurrencyCode = "MXN",
-    bool IsTaxIncluded = false);
+    bool IsTaxIncluded = false,
+    PaymentFrequency PriceFrequency = PaymentFrequency.Monthly);
 
 public sealed record UpdatePositionRequest(
     Guid IdOrganization,
@@ -32,9 +34,10 @@ public sealed record UpdatePositionRequest(
     string? RequiredSkillProfile,
     string? Notes,
     Guid? IdJobPositionCatalogItem = null,
-    decimal MonthlyPrice = 0m,
+    decimal Price = 0m,
     string CurrencyCode = "MXN",
-    bool IsTaxIncluded = false);
+    bool IsTaxIncluded = false,
+    PaymentFrequency PriceFrequency = PaymentFrequency.Monthly);
 
 public sealed record PositionResponse(
     Guid IdPosition,
@@ -46,9 +49,11 @@ public sealed record PositionResponse(
     Guid? IdJobPositionCatalogItem,
     string? Notes,
     bool Active,
-    decimal MonthlyPrice,
+    decimal Price,
     string CurrencyCode,
-    bool IsTaxIncluded);
+    bool IsTaxIncluded,
+    /// <summary>Cada cuándo se cobra el precio. Un importe sin su periodo no significa nada.</summary>
+    PaymentFrequency PriceFrequency);
 
 /// <summary>
 /// El alta de un patron de turnos. <c>CodeShiftPattern</c> es opcional: sin el, lo pone el servidor

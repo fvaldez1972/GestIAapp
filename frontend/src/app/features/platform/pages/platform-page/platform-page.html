@@ -499,6 +499,26 @@
               />
             </label>
             <!--
+              La periodicidad de pago del personal. Es de la organizacion y no de la persona: una
+              empresa de seguridad paga semanal y una de limpieza puede pagar quincenal, pero dentro
+              de la misma empresa no cambia de una persona a otra.
+
+              No se pide en el alta: el alta se queda minima y esto se decide despues.
+            -->
+            <label>
+              <span>Periodicidad de pago al personal</span>
+              <select
+                name="editOrganizationPayrollFrequency"
+                [ngModel]="editOrganizationPayrollFrequency()"
+                (ngModelChange)="editOrganizationPayrollFrequency.set($event)"
+              >
+                <option value="">Sin declarar</option>
+                @for (opcion of payrollFrequencies; track opcion.value) {
+                  <option [value]="opcion.value">{{ opcion.label }}</option>
+                }
+              </select>
+            </label>
+            <!--
               La baja vive aqui, con los demas cambios de la organizacion, en vez de en un boton
               suelto. Asi se ve en que estado queda antes de guardar, y no hay una accion que se
               aplica sola mientras el resto del formulario espera.

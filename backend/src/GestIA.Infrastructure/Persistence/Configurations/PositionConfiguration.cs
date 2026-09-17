@@ -16,16 +16,23 @@ public sealed class PositionConfiguration : IEntityTypeConfiguration<Position>
                 "CK_Positions_RequiredWorkerCount",
                 "[RequiredWorkerCount] > 0");
             table.HasCheckConstraint(
-                "CK_Positions_MonthlyPrice",
-                "[MonthlyPrice] >= 0");
+                "CK_Positions_Price",
+                "[Price] >= 0");
         });
         builder.HasKey(entity => entity.IdPosition);
         builder.Property(entity => entity.CodePosition).HasMaxLength(40).IsUnicode(false).IsRequired();
         builder.Property(entity => entity.Name).HasMaxLength(150).IsRequired();
         // El precio del puesto. decimal(19,4) es el tipo de importe del estandar; los float estan
         // prohibidos para dinero.
-        builder.Property(entity => entity.MonthlyPrice).HasColumnType("decimal(19,4)").IsRequired();
+        builder.Property(entity => entity.Price).HasColumnType("decimal(19,4)").IsRequired();
         builder.Property(entity => entity.CurrencyCode).HasColumnType("varchar(3)").IsRequired();
+        // El periodo del precio, como texto: un importe sin su periodo no significa nada, y el
+        // texto deja la base legible sin tener que saber el orden del enum.
+        builder.Property(entity => entity.PriceFrequency)
+            .HasConversion<string>()
+            .HasMaxLength(20)
+            .IsUnicode(false)
+            .IsRequired();
         builder.Property(entity => entity.IsTaxIncluded).IsRequired();
         builder.Property(entity => entity.RequiredSkillProfile).HasMaxLength(1000);
         builder.Property(entity => entity.Notes).HasMaxLength(1000);

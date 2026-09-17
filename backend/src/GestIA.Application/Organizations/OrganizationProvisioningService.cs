@@ -108,7 +108,10 @@ public sealed class OrganizationProvisioningService(
                 organization.CodeOrganization,
                 organization.LegalName,
                 organization.Rfc,
-                organization.Active),
+                organization.Active,
+                // Una organizacion recien creada no tiene periodicidad declarada, y eso es lo
+                // correcto: el alta se queda minima y la decision se captura despues.
+                organization.PayrollFrequency),
             user.IdUser,
             user.Email,
             user.DisplayName);

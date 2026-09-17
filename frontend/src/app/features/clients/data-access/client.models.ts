@@ -4,6 +4,14 @@ export type Organization = {
   readonly legalName: string;
   readonly rfc: string | null;
   readonly active: boolean;
+  /**
+   * Cada cuando se le paga al personal de esta organizacion.
+   *
+   * <p>Nulo es «sin declarar», no un valor faltante: es de la organizacion y nadie decide por ella.
+   * En seguridad se paga semanal y en limpieza puede ser quincenal, pero dentro de una misma
+   * empresa no cambia de una persona a otra.</p>
+   */
+  readonly payrollFrequency: PaymentFrequency | null;
 };
 
 export type CreateOrganization = {
@@ -16,7 +24,15 @@ export type CreateOrganization = {
   readonly rfc: string | null;
 };
 
-export type UpdateOrganization = CreateOrganization;
+/**
+ * La edicion de una organizacion.
+ *
+ * <p>Lleva la periodicidad de pago, que el alta no pide: el alta se queda minima y esto se decide
+ * despues. Nulo la deja «sin declarar», que es un estado valido.</p>
+ */
+export type UpdateOrganization = CreateOrganization & {
+  readonly payrollFrequency?: PaymentFrequency | null;
+};
 
 /**
  * El alta de una organizacion junto con su administrador inicial.
@@ -264,6 +280,30 @@ export type CreateManagedService = ManagedServiceInput & {
   readonly codeService?: string | null;
 };
 
+/**
+ * Cada cuando se paga o se cobra algo.
+ *
+ * <p>Sirve para dos hechos distintos: cada cuando se le cobra al cliente el precio de un puesto, y
+ * cada cuando se le paga al personal, que es de la organizacion. En seguridad privada casi nunca
+ * coinciden.</p>
+ *
+ * <p><b>Quincenal y catorcenal no son lo mismo</b> y se confunden todo el tiempo: catorcenal son
+ * veintiseis pagos al año y cae siempre en el mismo dia de la semana; quincenal son veinticuatro y
+ * cae en fechas fijas. Entran las dos porque en Mexico conviven.</p>
+ */
+export type PaymentFrequency = 'Weekly' | 'Biweekly' | 'SemiMonthly' | 'Monthly';
+
+/** Como se dice cada periodo en pantalla. */
+export const PAYMENT_FREQUENCY_LABELS: Record<PaymentFrequency, string> = {
+  Weekly: 'Semanal',
+  Biweekly: 'Catorcenal',
+  SemiMonthly: 'Quincenal',
+  Monthly: 'Mensual',
+};
+
+export const paymentFrequencyLabel = (frequency: PaymentFrequency | null): string =>
+  frequency ? PAYMENT_FREQUENCY_LABELS[frequency] : 'Sin declarar';
+
 export type ServicePosition = {
   readonly idPosition: string;
   readonly idService: string;
@@ -273,8 +313,14 @@ export type ServicePosition = {
   readonly requiredSkillProfile: string | null;
   readonly notes: string | null;
   readonly active: boolean;
-  /** Lo que se cobra al mes por este puesto. Vive aqui desde que se retiro la configuracion. */
-  readonly monthlyPrice: number;
+  /**
+   * Lo que se cobra por este puesto, en el periodo que dice `priceFrequency`.
+   *
+   * <p>Se llamaba `monthlyPrice` y dejo de ser cierto: el precio se pacta por semana o por mes
+   * segun el cliente, y el importe se guarda tal como se pacto, sin convertirlo.</p>
+   */
+  readonly price: number;
+  readonly priceFrequency: PaymentFrequency;
   readonly currencyCode: string;
   readonly isTaxIncluded: boolean;
 };
@@ -287,8 +333,8 @@ export type ServicePositionInput = {
   readonly requiredWorkerCount: number;
   readonly requiredSkillProfile: string | null;
   readonly notes: string | null;
-  /** Lo que se cobra al mes por este puesto. Vive aqui desde que se retiro la configuracion. */
-  readonly monthlyPrice: number;
+  readonly price: number;
+  readonly priceFrequency: PaymentFrequency;
   readonly currencyCode: string;
   readonly isTaxIncluded: boolean;
 };

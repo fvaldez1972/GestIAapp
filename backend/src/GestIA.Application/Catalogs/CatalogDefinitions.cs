@@ -1,7 +1,8 @@
 using GestIA.Domain.Catalogs;
-using GestIA.Domain.History;
 using GestIA.Domain.Clients;
+using GestIA.Domain.Common;
 using GestIA.Domain.Documents;
+using GestIA.Domain.History;
 using GestIA.Domain.Operations;
 using GestIA.Domain.Planning;
 using GestIA.Domain.Requests;
@@ -43,6 +44,9 @@ public static class CatalogDefinitions
         Fixed<EmployeeEvaluationResult>("Resultados de evaluacion", "Personal"),
         Fixed<EmployeeStatus>("Estados del personal", "Personal"),
         Fixed<ServiceAssignmentType>("Tipos de asignacion", "Servicios"),
+        // Sirve para dos cosas distintas: el periodo del precio de un puesto y la
+        // periodicidad de pago al personal de la organizacion.
+        Fixed<PaymentFrequency>("Periodicidades de pago y cobro", "Servicios"),
         Fixed<ServiceContractStatus>("Estados del contrato", "Clientes"),
         Fixed<BusinessDocumentOwnerType>("Propietarios documentales", "Documentos"),
         Fixed<BusinessDocumentStatus>("Estados documentales", "Documentos"),
@@ -77,6 +81,8 @@ public static class CatalogDefinitions
         "Draft" => "Borrador", "Submitted" => "Enviada", "InReview" or "UnderReview" => "En revision",
         "Approved" => "Aprobado", "Rejected" => "Rechazado", "Cancelled" => "Cancelado", "Completed" => "Completado",
         "Low" => "Baja", "Medium" => "Media", "High" => "Alta", "Critical" => "Critica",
+        // Catorcenal no es quincenal: veintiseis pagos al año contra veinticuatro.
+        "Weekly" => "Semanal", "Biweekly" => "Catorcenal", "SemiMonthly" => "Quincenal", "Monthly" => "Mensual",
         "EmploymentApplication" => "Solicitud de empleo", "BirthCertificate" => "Acta de nacimiento",
         "MarriageCertificate" => "Acta de matrimonio", "VoterId" => "INE", "Curp" => "CURP", "SocialSecurityNumber" => "NSS",
         "Rfc" => "RFC", "TaxStatusCertificate" => "Constancia de situacion fiscal", "DriverLicense" => "Licencia de conducir",

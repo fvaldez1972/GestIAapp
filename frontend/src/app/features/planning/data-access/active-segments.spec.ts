@@ -11,7 +11,8 @@ const posicion = (id: string): ServicePosition => ({
   requiredSkillProfile: null,
   notes: null,
   active: true,
-  monthlyPrice: 0,
+  price: 0,
+  priceFrequency: 'Monthly',
   currencyCode: 'MXN',
   isTaxIncluded: false,
 });

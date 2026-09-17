@@ -54,6 +54,7 @@ import { SystemInfoService } from '../../../../core/system/system-info.service';
 import { WorkforceApiService } from '../../../workforce/data-access/workforce-api.service';
 import { EmployeeListApiService } from '../../../workforce/data-access/employee-list-api.service';
 import { CatalogApiService } from '../../../catalogs/data-access/catalog-api.service';
+import { PAYMENT_FREQUENCY_LABELS, PaymentFrequency } from '../../../clients/data-access/client.models';
 import { CandidateEligibility } from '../../../planning/data-access/planning.models';
 import {
   AssignmentCandidateSource,
@@ -1038,6 +1039,11 @@ export class ServicesPage implements OnInit, OnDestroy {
     { value: 'Sunday', label: 'Domingo' },
   ];
 
+  /** Los cuatro periodos, para el selector del precio. Quincenal y catorcenal son distintos. */
+  protected readonly paymentFrequencies = (
+    Object.keys(PAYMENT_FREQUENCY_LABELS) as PaymentFrequency[]
+  ).map((value) => ({ value, label: PAYMENT_FREQUENCY_LABELS[value] }));
+
   protected readonly assignmentTypes: readonly { value: ServiceAssignmentType; label: string }[] = [
     { value: 'Primary', label: 'Principal' },
     { value: 'Support', label: 'Apoyo' },
@@ -1081,7 +1087,8 @@ export class ServicesPage implements OnInit, OnDestroy {
     requiredWorkerCount: [1, [Validators.required, Validators.min(1), Validators.max(10000)]],
     // El precio vive aqui desde que se retiro la configuracion del servicio: en seguridad privada
     // se cotiza por puesto, no por servicio.
-    monthlyPrice: [0, [Validators.required, Validators.min(0)]],
+    price: [0, [Validators.required, Validators.min(0)]],
+    priceFrequency: ['Monthly' as PaymentFrequency, [Validators.required]],
     isTaxIncluded: [false],
     requiredSkillProfile: ['', [Validators.maxLength(1000)]],
     notes: ['', [Validators.maxLength(1000)]],
@@ -1477,7 +1484,8 @@ export class ServicesPage implements OnInit, OnDestroy {
     this.positionForm.reset({
       name: '',
       requiredWorkerCount: 1,
-      monthlyPrice: 0,
+      price: 0,
+      priceFrequency: 'Monthly',
       isTaxIncluded: false,
       requiredSkillProfile: '',
       notes: '',
@@ -1494,7 +1502,8 @@ export class ServicesPage implements OnInit, OnDestroy {
     this.positionForm.reset({
       name: position.name,
       requiredWorkerCount: position.requiredWorkerCount,
-      monthlyPrice: position.monthlyPrice,
+      price: position.price,
+      priceFrequency: position.priceFrequency,
       isTaxIncluded: position.isTaxIncluded,
       requiredSkillProfile: position.requiredSkillProfile ?? '',
       notes: position.notes ?? '',
@@ -1701,7 +1710,8 @@ export class ServicesPage implements OnInit, OnDestroy {
       idService: service.idService,
       name: form.name,
       requiredWorkerCount: Number(form.requiredWorkerCount),
-      monthlyPrice: Number(form.monthlyPrice),
+      price: Number(form.price),
+      priceFrequency: form.priceFrequency,
       currencyCode: 'MXN',
       isTaxIncluded: form.isTaxIncluded,
       requiredSkillProfile: this.optional(form.requiredSkillProfile),

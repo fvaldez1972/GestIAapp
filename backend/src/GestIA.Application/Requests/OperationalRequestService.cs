@@ -1,9 +1,10 @@
-using GestIA.Application.Common;
 using GestIA.Application.Assignments;
 using GestIA.Application.Clients;
+using GestIA.Application.Common;
 using GestIA.Application.Operations;
 using GestIA.Application.Organizations;
 using GestIA.Application.Services;
+using GestIA.Domain.Common;
 using GestIA.Domain.Requests;
 
 using GestIA.Application.Planning;
@@ -662,7 +663,12 @@ public sealed class OperationalRequestService(
                     input.IdJobPositionCatalogItem,
                     input.MonthlyPrice,
                     string.IsNullOrWhiteSpace(input.CurrencyCode) ? "MXN" : input.CurrencyCode,
-                    input.IsTaxIncluded),
+                    input.IsTaxIncluded,
+                    // El periodo va explicito y es mensual: el campo de la solicitud se llama
+                    // `MonthlyPrice` y eso es lo que quiso decir quien la capturo. El nombre no se
+                    // renombra porque hay solicitudes ya guardadas con esa forma, y cambiarlo
+                    // dejaria sin leer lo que ya esta escrito.
+                    PaymentFrequency.Monthly),
                 cancellationToken));
         }
 

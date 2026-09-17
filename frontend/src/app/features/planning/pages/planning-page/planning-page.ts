@@ -308,7 +308,8 @@ export class PlanningPage {
         notes: draft.notes,
         // El precio se pacta en Servicios, que es donde se ve el contrato. Aqui se crea la
         // posicion para poder planear, y el precio queda en cero hasta que alguien lo ponga.
-        monthlyPrice: 0,
+        price: 0,
+        priceFrequency: 'Monthly',
         currencyCode: 'MXN',
         isTaxIncluded: false,
       })

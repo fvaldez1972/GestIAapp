@@ -792,9 +792,22 @@
               rondin y monitorista tiene tres precios, no uno.
             -->
             <label
-              ><span>Precio mensual *</span
-              ><input type="number" formControlName="monthlyPrice" min="0" step="0.01"
+              ><span>Precio *</span
+              ><input type="number" formControlName="price" min="0" step="0.01"
             /></label>
+            <!--
+              El periodo va junto al importe porque un precio sin periodo no significa nada. Antes
+              el campo decia «Precio mensual» y el mes estaba metido en el rotulo: al guardia se le
+              cobra por semana y no habia forma de decirlo.
+            -->
+            <label
+              ><span>Periodo del precio *</span
+              ><select formControlName="priceFrequency">
+                @for (opcion of paymentFrequencies; track opcion.value) {
+                  <option [value]="opcion.value">{{ opcion.label }}</option>
+                }
+              </select>
+            </label>
             <label class="check"
               ><input type="checkbox" formControlName="isTaxIncluded" /><span>IVA incluido</span></label
             >

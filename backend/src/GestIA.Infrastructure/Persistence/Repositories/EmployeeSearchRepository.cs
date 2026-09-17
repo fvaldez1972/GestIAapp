@@ -105,11 +105,17 @@ public sealed partial class WorkforceRepository
                     .Distinct()
                     .Count() < required.Length),
 
+            // «Al día» exige que cada requisito esté **cubierto**, no sólo que haya un archivo del
+            // tipo: con la comprobación por presencia, alguien con la carta rechazada y vencimiento
+            // en 2028 salía en este filtro mientras el servidor le negaba la asignación.
             EmployeeDocumentFilter.UpToDate => query.Where(employee =>
                 dbContext.EmployeeDocuments
                     .Where(document =>
                         document.IdEmployee == employee.IdEmployee &&
-                        required.Contains(document.DocumentType))
+                        required.Contains(document.DocumentType) &&
+                        (document.Status == EmployeeDocumentStatus.Received ||
+                            document.Status == EmployeeDocumentStatus.Validated) &&
+                        (document.ExpiresDate == null || document.ExpiresDate >= criteria.Today))
                     .Select(document => document.DocumentType)
                     .Distinct()
                     .Count() == required.Length &&
@@ -160,6 +166,8 @@ public sealed partial class WorkforceRepository
                     document.ExpiresDate >= criteria.Today &&
                     document.ExpiresDate <= limite),
 
+                // Con algún documento del tipo exigido, sea cual sea su estado. De aquí sale
+                // «sin cargar», que es literalmente eso: no hay archivo.
                 Covered = dbContext.EmployeeDocuments
                     .Where(document =>
                         document.IdEmployee == employee.IdEmployee &&
@@ -167,6 +175,31 @@ public sealed partial class WorkforceRepository
                     .Select(document => document.DocumentType)
                     .Distinct()
                     .Count(),
+
+                // Requisitos con archivo que **no cuenta**: rechazado, pendiente de validar o no
+                // aplicable, y sin estar vencido —lo vencido ya tiene su propia cuenta—. Es el
+                // hueco que la tabla no veía: la ficha decía «Rechazado» y la píldora «Al día».
+                //
+                // El criterio de cubierto es el mismo que aplica el servidor al comprobar la
+                // elegibilidad: `Received` o `Validated`, y vigente.
+                NotValid = dbContext.EmployeeDocuments
+                    .Where(document =>
+                        document.IdEmployee == employee.IdEmployee &&
+                        required.Contains(document.DocumentType))
+                    .Select(document => document.DocumentType)
+                    .Distinct()
+                    .Count(tipo =>
+                        !dbContext.EmployeeDocuments.Any(document =>
+                            document.IdEmployee == employee.IdEmployee &&
+                            document.DocumentType == tipo &&
+                            (document.Status == EmployeeDocumentStatus.Received ||
+                                document.Status == EmployeeDocumentStatus.Validated) &&
+                            (document.ExpiresDate == null || document.ExpiresDate >= criteria.Today)) &&
+                        !dbContext.EmployeeDocuments.Any(document =>
+                            document.IdEmployee == employee.IdEmployee &&
+                            document.DocumentType == tipo &&
+                            (document.Status == EmployeeDocumentStatus.Expired ||
+                                (document.ExpiresDate != null && document.ExpiresDate < criteria.Today)))),
 
                 // El expediente: los archivos que la persona tiene, no los tipos que se le exigen.
                 //
@@ -209,9 +242,10 @@ public sealed partial class WorkforceRepository
                 fila.Expired,
                 fila.Expiring,
                 required.Length - fila.Covered,
+                fila.NotValid,
                 fila.Assignments,
                 fila.Documents,
-                Health(fila.Expired, fila.Expiring, required.Length - fila.Covered)))
+                Health(fila.Expired, fila.Expiring, required.Length - fila.Covered, fila.NotValid)))
             .ToArray();
 
         return (items, totalCount);
@@ -254,8 +288,16 @@ public sealed partial class WorkforceRepository
             .ToDictionaryAsync(item => item.IdBusinessCatalogItem, item => item.Name, cancellationToken);
     }
 
-    private static EmployeeDocumentHealth Health(int expired, int expiring, int missing) =>
+    /// <summary>
+    /// El peor manda, y «no cuenta» pesa más que «falta».
+    ///
+    /// <para>Un requisito con un documento rechazado está más cerca de bloquear que uno sin
+    /// documento: el segundo se resuelve subiendo un archivo, el primero hay que revisarlo con
+    /// quien lo rechazó.</para>
+    /// </summary>
+    private static EmployeeDocumentHealth Health(int expired, int expiring, int missing, int notValid) =>
         expired > 0 ? EmployeeDocumentHealth.Expired
+        : notValid > 0 ? EmployeeDocumentHealth.NotValid
         : missing > 0 ? EmployeeDocumentHealth.Missing
         : expiring > 0 ? EmployeeDocumentHealth.Expiring
         : EmployeeDocumentHealth.UpToDate;

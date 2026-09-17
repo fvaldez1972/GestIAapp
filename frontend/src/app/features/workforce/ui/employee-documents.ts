@@ -56,7 +56,7 @@ import {
                     <span class="req__soft">no bloquea</span>
                   }
                 </span>
-                <span class="req__detail">{{ detail(row.state, row.expiresDate) }}</span>
+                <span class="req__detail">{{ detail(row.state, row.expiresDate, row.documentStatus) }}</span>
               </span>
               <span class="req__state">{{ stateLabel(row.state) }}</span>
             </li>
@@ -195,9 +195,26 @@ export class EmployeeDocuments {
     return date ? `vence el ${formatOperationalDate(date)}` : 'sin fecha de vencimiento';
   }
 
-  protected detail(state: string, expires: string | null): string {
+  /**
+   * Por qué el requisito está como está.
+   *
+   * <p>Los dos casos de documento cargado que no cuenta se explican, en lugar de dejar sólo la
+   * etiqueta: quien ve «Rechazado» sobre un documento que subió necesita saber que el requisito
+   * sigue abierto, y quien ve «Sin validar» necesita saber que falta que alguien lo revise.</p>
+   */
+  protected detail(state: string, expires: string | null, status: string | null = null): string {
     if (state === 'Missing') {
       return 'No hay documento cargado para este requisito.';
+    }
+
+    if (state === 'Rejected') {
+      return 'El documento cargado se rechazó, así que el requisito sigue sin cubrirse.';
+    }
+
+    if (state === 'Unvalidated') {
+      return status === 'NotApplicable'
+        ? 'El documento está marcado como no aplicable, así que no cubre el requisito.'
+        : 'El documento está cargado pero sin validar, así que todavía no cubre el requisito.';
     }
 
     if (!expires) {

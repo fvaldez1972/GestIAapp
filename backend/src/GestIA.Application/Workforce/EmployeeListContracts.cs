@@ -20,6 +20,19 @@ public enum EmployeeDocumentHealth
     /// <summary>Falta el documento de algún requisito de la organización.</summary>
     Missing,
 
+    /// <summary>
+    /// Hay documento y no cuenta: rechazado, sin validar o marcado como no aplicable.
+    ///
+    /// <para><b>Existe porque «cargado» no es «cubierto».</b> La cuenta de cubiertos miraba sólo si
+    /// había un documento del tipo exigido, sin su estado, así que un rechazado con vencimiento
+    /// futuro dejaba la fila diciendo «Al día» mientras el servidor rechazaba la asignación por ese
+    /// mismo documento. La ficha ya lo decía; la tabla no, y las dos se contradecían.</para>
+    ///
+    /// <para>No es <c>Missing</c>: el archivo está, y decir «sin cargar» mandaría a subirlo otra
+    /// vez en lugar de a revisarlo.</para>
+    /// </summary>
+    NotValid,
+
     /// <summary>Alguno caduca dentro del umbral.</summary>
     Expiring,
 
@@ -63,6 +76,8 @@ public sealed record EmployeeListItemResponse(
     int ExpiredDocuments,
     int ExpiringDocuments,
     int MissingDocuments,
+    /// <summary>Requisitos con documento que no cuenta: rechazado, sin validar o no aplicable.</summary>
+    int NotValidDocuments,
     int AssignmentCount,
     /// <summary>
     /// Cuántos documentos tiene el expediente de la persona.

@@ -582,6 +582,149 @@ public sealed class EmployeeSearchTests(OperationalSqlDatabase database)
             new EmployeeDocumentProfile(tipo, EmployeeDocumentStatus.Validated, null, null, null, caduca, null, null),
             ActorId, ActorName, Now);
 
+
+    // ── El documento cargado que no cuenta ───────────────────────────────────────────────────
+
+    /// <summary>
+    /// <b>«Cargado» no es «cubierto», y la tabla lo daba por bueno.</b>
+    ///
+    /// <para>La cuenta de cubiertos miraba sólo si existía un documento del tipo exigido, sin su
+    /// estado. Así, alguien con la CURP <b>rechazada</b> y vencimiento en 2028 salía en el listado
+    /// como si no le faltara nada, mientras la ficha decía «Rechazado» y el servidor le negaba la
+    /// asignación por ese mismo documento: dos pantallas del mismo sistema contradiciéndose.</para>
+    ///
+    /// <para>El criterio que se aplica aquí es el mismo que usa la comprobación de elegibilidad:
+    /// sólo <c>Received</c> y <c>Validated</c> cubren, y sólo si están vigentes.</para>
+    /// </summary>
+    [OperationalSqlFact]
+    public async Task ARejectedDocumentDoesNotCountAsCoveredAndTheRowSaysSo()
+    {
+        var seed = await SeedAsync("RCH");
+
+        await using (var context = database.Context())
+        {
+            var empleado = await context.Employees.SingleAsync(item => item.CodeEmployee == "RCH-EMP-OK");
+            var curp = await context.EmployeeDocuments.SingleAsync(item =>
+                item.IdEmployee == empleado.IdEmployee && item.DocumentType == EmployeeDocumentType.Curp);
+
+            // Rechazado, y con vencimiento lejano: por fecha parecería estar perfecto.
+            curp.UpdateProfile(
+                new EmployeeDocumentProfile(
+                    EmployeeDocumentType.Curp, EmployeeDocumentStatus.Rejected, null, null, null,
+                    Day.AddDays(700), null, null),
+                ActorId, ActorName, Now);
+
+            await context.SaveChangesAsync(Token);
+        }
+
+        var (items, _) = await SearchAsync(Criterios(seed.OrganizationId));
+        var fila = Assert.Single(items, item => item.CodeEmployee == "RCH-EMP-OK");
+
+        // El archivo está, así que no es «sin cargar»: es «sin validar».
+        Assert.Equal(0, fila.MissingDocuments);
+        Assert.Equal(1, fila.NotValidDocuments);
+        Assert.Equal(0, fila.ExpiredDocuments);
+        Assert.Equal(EmployeeDocumentHealth.NotValid, fila.DocumentHealth);
+        Assert.NotEqual(EmployeeDocumentHealth.UpToDate, fila.DocumentHealth);
+    }
+
+    /// <summary>Un pendiente de validar tampoco cubre, y tiene el mismo tratamiento.</summary>
+    [OperationalSqlFact]
+    public async Task APendingDocumentDoesNotCountEither()
+    {
+        var seed = await SeedAsync("PEN");
+
+        await using (var context = database.Context())
+        {
+            var empleado = await context.Employees.SingleAsync(item => item.CodeEmployee == "PEN-EMP-OK");
+            var curp = await context.EmployeeDocuments.SingleAsync(item =>
+                item.IdEmployee == empleado.IdEmployee && item.DocumentType == EmployeeDocumentType.Curp);
+
+            curp.UpdateProfile(
+                new EmployeeDocumentProfile(
+                    EmployeeDocumentType.Curp, EmployeeDocumentStatus.Pending, null, null, null,
+                    Day.AddDays(700), null, null),
+                ActorId, ActorName, Now);
+
+            await context.SaveChangesAsync(Token);
+        }
+
+        var (items, _) = await SearchAsync(Criterios(seed.OrganizationId));
+        var fila = Assert.Single(items, item => item.CodeEmployee == "PEN-EMP-OK");
+
+        Assert.Equal(1, fila.NotValidDocuments);
+        Assert.Equal(EmployeeDocumentHealth.NotValid, fila.DocumentHealth);
+    }
+
+    /// <summary>
+    /// Y el filtro «al día» deja de traerlo.
+    ///
+    /// <para>Es la otra mitad del mismo defecto: el filtro comprobaba presencia, así que quien
+    /// tenía el documento rechazado aparecía entre los expedientes en orden.</para>
+    /// </summary>
+    [OperationalSqlFact]
+    public async Task TheUpToDateFilterExcludesWhoeverHasADocumentThatDoesNotCount()
+    {
+        var seed = await SeedAsync("FUD");
+
+        await using (var context = database.Context())
+        {
+            var empleado = await context.Employees.SingleAsync(item => item.CodeEmployee == "FUD-EMP-OK");
+            var curp = await context.EmployeeDocuments.SingleAsync(item =>
+                item.IdEmployee == empleado.IdEmployee && item.DocumentType == EmployeeDocumentType.Curp);
+
+            curp.UpdateProfile(
+                new EmployeeDocumentProfile(
+                    EmployeeDocumentType.Curp, EmployeeDocumentStatus.Rejected, null, null, null,
+                    Day.AddDays(700), null, null),
+                ActorId, ActorName, Now);
+
+            await context.SaveChangesAsync(Token);
+        }
+
+        var (alDia, _) = await SearchAsync(
+            Criterios(seed.OrganizationId) with { DocumentFilter = EmployeeDocumentFilter.UpToDate });
+
+        Assert.DoesNotContain(alDia, item => item.CodeEmployee == "FUD-EMP-OK");
+    }
+
+    /// <summary>El peor sigue mandando: un vencido pesa más que un rechazado.</summary>
+    [OperationalSqlFact]
+    public async Task AnExpiredDocumentStillOutweighsOneThatDoesNotCount()
+    {
+        var seed = await SeedAsync("MIX");
+
+        await using (var context = database.Context())
+        {
+            var empleado = await context.Employees.SingleAsync(item => item.CodeEmployee == "MIX-EMP-OK");
+            var curp = await context.EmployeeDocuments.SingleAsync(item =>
+                item.IdEmployee == empleado.IdEmployee && item.DocumentType == EmployeeDocumentType.Curp);
+            var domicilio = await context.EmployeeDocuments.SingleAsync(item =>
+                item.IdEmployee == empleado.IdEmployee &&
+                item.DocumentType == EmployeeDocumentType.ProofOfAddress);
+
+            curp.UpdateProfile(
+                new EmployeeDocumentProfile(
+                    EmployeeDocumentType.Curp, EmployeeDocumentStatus.Rejected, null, null, null,
+                    Day.AddDays(700), null, null),
+                ActorId, ActorName, Now);
+            domicilio.UpdateProfile(
+                new EmployeeDocumentProfile(
+                    EmployeeDocumentType.ProofOfAddress, EmployeeDocumentStatus.Validated, null, null,
+                    null, Day.AddDays(-1), null, null),
+                ActorId, ActorName, Now);
+
+            await context.SaveChangesAsync(Token);
+        }
+
+        var (items, _) = await SearchAsync(Criterios(seed.OrganizationId));
+        var fila = Assert.Single(items, item => item.CodeEmployee == "MIX-EMP-OK");
+
+        Assert.Equal(1, fila.NotValidDocuments);
+        Assert.Equal(1, fila.ExpiredDocuments);
+        Assert.Equal(EmployeeDocumentHealth.Expired, fila.DocumentHealth);
+    }
+
     private sealed record Seed(
         Guid OrganizationId,
         Guid JobPositionId,

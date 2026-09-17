@@ -133,6 +133,22 @@ describe('El constructor de patrones de turno', () => {
         campo.dispatchEvent(new Event('input'));
         fixture.detectChanges();
       },
+      // La hora vive en el formulario, no en un input: se escribe por el control y se lee de ahí.
+      elegirHora: (indice: number, campo: 'startTime' | 'endTime', valor: string) => {
+        const dias = (fixture.debugElement.children[0].componentInstance as {
+          form: { controls: { days: { at(i: number): { controls: Record<string, { setValue(v: string): void }> } } } };
+        }).form.controls.days;
+
+        dias.at(indice).controls[campo].setValue(valor);
+        fixture.detectChanges();
+      },
+      horaDe: (indice: number, campo: 'startTime' | 'endTime') => {
+        const dias = (fixture.debugElement.children[0].componentInstance as {
+          form: { controls: { days: { at(i: number): { controls: Record<string, { value: string }> } } } };
+        }).form.controls.days;
+
+        return dias.at(indice).controls[campo].value;
+      },
     };
   }
 
@@ -156,13 +172,13 @@ describe('El constructor de patrones de turno', () => {
 
     expect(pantalla.dias()).toHaveLength(2);
 
-    pantalla.escribir('.pat__dia .gi-input[type="time"]', '06:00');
+    // La hora se elige en el selector propio, no en el input nativo del navegador: su desplegable
+    // no se podía cerrar ni estilizar y tapaba las filas de abajo.
+    pantalla.elegirHora(0, 'startTime', '06:00');
     pantalla.escribir('input[type="number"]', '3');
 
     expect(pantalla.dias()).toHaveLength(3);
-    expect(
-      pantalla.raiz.querySelector<HTMLInputElement>('.pat__dia .gi-input[type="time"]')!.value,
-    ).toBe('06:00');
+    expect(pantalla.horaDe(0, 'startTime')).toBe('06:00');
   });
 
   it('un día de descanso viaja sin horario, y el número de ciclo lo pone la posición de la fila', () => {
@@ -193,6 +209,31 @@ describe('El constructor de patrones de turno', () => {
       { cycleDayNumber: 1, isRest: false, startTime: '07:00', endTime: '19:00' },
       { cycleDayNumber: 2, isRest: true, startTime: null, endTime: null },
     ]);
+  });
+
+  /**
+   * Las dos cifras, no una.
+   *
+   * <p>QA reporto que «las horas no se estan contando bien»: cuatro dias de 12 h en un ciclo de
+   * seis son 48 h en el ciclo y 56 por semana, y la pantalla solo ensenaba el 56. Los dos numeros
+   * eran correctos y parecia que mentia porque faltaba el primero.</p>
+   */
+  it('la previa dice las horas del ciclo y las de la semana', () => {
+    const pantalla = montar();
+    pantalla.abrirNuevo();
+
+    // Ciclo de dos dias: un turno de 12 h y un descanso. 12 h en el ciclo, 42 por semana.
+    const descanso = pantalla
+      .dias()[1]
+      .querySelector<HTMLInputElement>('input[type="checkbox"]')!;
+    descanso.click();
+    pantalla.fixture.detectChanges();
+
+    const previa = pantalla.raiz.querySelector<HTMLElement>('.pat__previa')!.textContent ?? '';
+
+    expect(previa).toContain('12 h de turno');
+    expect(previa).toContain('en el ciclo de 2 días');
+    expect(previa).toContain('42 h por semana');
   });
 
   it('sin permiso de escritura no se puede abrir el constructor', () => {

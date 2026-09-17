@@ -238,14 +238,34 @@ type DiaGrupo = FormGroup<{
                 <span>Descanso</span>
               </label>
               @if (!dia.grupo.controls.isRest.value) {
-                <label class="pat__hora">
+<!--
+                  La hora va en un control propio y no en un input de tipo «time».
+                  El desplegable del nativo lo dibuja el navegador: no se puede cerrar al elegir, no
+                  se puede estilizar, y dentro del modal tapaba las filas de abajo con huecos en
+                  blanco en sus columnas. Además el sistema cerrado exige que los selectores de esta
+                  pantalla sean nuestros, y el input de tipo «time» se colaba porque no es un
+                  selector nativo y la prueba no lo atrapaba.
+                -->
+                <span class="pat__hora">
                   <span>Entra</span>
-                  <input class="gi-input" type="time" formControlName="startTime" />
-                </label>
-                <label class="pat__hora">
+                  <gi-select
+                    label="Hora de entrada del día {{ dia.numero }}"
+                    [options]="timeOptions"
+                    [value]="dia.grupo.controls.startTime.value"
+                    [disabled]="!canWrite() || saving()"
+                    (valueChange)="dia.grupo.controls.startTime.setValue($event)"
+                  />
+                </span>
+                <span class="pat__hora">
                   <span>Sale</span>
-                  <input class="gi-input" type="time" formControlName="endTime" />
-                </label>
+                  <gi-select
+                    label="Hora de salida del día {{ dia.numero }}"
+                    [options]="timeOptions"
+                    [value]="dia.grupo.controls.endTime.value"
+                    [disabled]="!canWrite() || saving()"
+                    (valueChange)="dia.grupo.controls.endTime.setValue($event)"
+                  />
+                </span>
                 <span class="pat__dia-duracion">
                   {{ duracionDe(dia.numero) }}
                   @if (cruzaDe(dia.numero)) {
@@ -263,12 +283,33 @@ type DiaGrupo = FormGroup<{
           La previa. Las horas por semana son aritmética del ciclo y se pueden mostrar aquí; el
           juicio contra la jornada legal lo hace el servidor, porque el límite cambia con la ley.
         -->
+        <!--
+          Las dos cifras, no una. Antes sólo decía las horas por semana y quien sumaba los turnos a
+          mano obtenía otra cosa: cuatro días de 12 h en un ciclo de seis son 48 h de trabajo en el
+          ciclo y 56 por semana —48 x 7 / 6—. Los dos números eran correctos y la pantalla parecía
+          equivocada porque enseñaba el segundo sin el primero.
+        -->
         <p class="pat__previa" role="status">
+          <strong>{{ previaHorasCiclo() }} h de turno</strong>
+          en el ciclo de {{ form.controls.cycleDays.value }}
+          {{ form.controls.cycleDays.value === 1 ? 'día' : 'días' }}
+          ({{ previaTurnos() }} de turno y {{ previaDescansos() }} de descanso) ·
           <strong>{{ previaHoras() }} h por semana</strong>
-          · {{ previaTurnos() }} de turno y {{ previaDescansos() }} de descanso en
-          {{ form.controls.cycleDays.value }} días de ciclo
+          <!--
+            La operación escrita, no sólo el resultado.
+            Con las dos cifras sueltas seguía leyéndose como un error: quien suma 4 x 12 obtiene 48
+            y ve 56 al lado. El paso que falta es que el ciclo dura seis días y la semana siete, así
+            que el promedio semanal sube. Enseñar la división lo cierra sin discutir la definición.
+          -->
           <small>
-            El servidor lo vuelve a calcular y lo juzga contra el límite vigente al guardar. Si
+            {{ previaHorasCiclo() }} h ÷ {{ form.controls.cycleDays.value }}
+            {{ form.controls.cycleDays.value === 1 ? 'día' : 'días' }} × 7 días =
+            {{ previaHoras() }} h por semana. Un ciclo que no dura una semana exacta no reparte sus
+            horas en siete días, y por eso el promedio semanal no coincide con la suma de los
+            turnos.
+          </small>
+          <small>
+            El servidor las vuelve a calcular y las juzga contra el límite vigente al guardar. Si
             excede, el patrón se guarda igual y la tabla dice por cuántas horas.
           </small>
         </p>
@@ -361,7 +402,7 @@ type DiaGrupo = FormGroup<{
 
     .pat__casilla, .pat__hora { display: flex; align-items: center; gap: 0.35rem; font-size: 11.5px; }
 
-    .pat__hora .gi-input { width: 7.5rem; }
+    .pat__hora gi-select { display: block; width: 7.5rem; }
 
     .pat__previa {
       margin: 0;
@@ -397,6 +438,22 @@ export class ShiftPatternTemplates {
     value: opcion.value,
     label: opcion.label,
   }));
+
+  /**
+   * Las horas que se pueden elegir, en pasos de quince minutos.
+   *
+   * <p>Los patrones de seguridad privada caen en hora o media hora —07:00, 19:00, 20:00, 06:30—,
+   * así que el cuarto de hora cubre de sobra lo que se captura y deja una lista navegable. Si
+   * alguna vez hace falta un 06:35, lo que cambia es el paso, no el control.</p>
+   *
+   * <p>Se escriben en 24 horas a propósito: el nativo mostraba «07:00 PM» y en una tabla de turnos
+   * eso obliga a traducir mentalmente cada renglón.</p>
+   */
+  protected readonly timeOptions = Array.from({ length: (24 * 60) / 15 }, (_, indice) => {
+    const minutos = indice * 15;
+    const valor = `${String(Math.floor(minutos / 60)).padStart(2, '0')}:${String(minutos % 60).padStart(2, '0')}`;
+    return { value: valor, label: valor };
+  });
 
   protected readonly templates = signal<readonly ShiftPatternTemplate[]>([]);
   protected readonly loading = signal(false);
@@ -438,14 +495,21 @@ export class ShiftPatternTemplates {
     () => this.formValue().days.filter((dia) => !dia.isRest).length,
   );
 
-  protected readonly previaHoras = computed(() => {
-    const dias = this.formValue().days;
-    const minutos = dias
-      .filter((dia) => !dia.isRest && dia.startTime && dia.endTime)
-      .reduce((total, dia) => total + shiftDurationMinutes(dia.startTime, dia.endTime), 0);
+  /** Los minutos de turno que declara el ciclo completo. */
+  private readonly previaMinutos = computed(() =>
+    this.formValue()
+      .days.filter((dia) => !dia.isRest && dia.startTime && dia.endTime)
+      .reduce((total, dia) => total + shiftDurationMinutes(dia.startTime, dia.endTime), 0),
+  );
 
-    return weeklyHoursOf(minutos, Math.max(1, Number(this.formValue().cycleDays) || 1));
-  });
+  /** Las horas de turno del ciclo, que es lo que alguien suma a mano al revisar la pantalla. */
+  protected readonly previaHorasCiclo = computed(
+    () => Math.round((this.previaMinutos() / 60) * 100) / 100,
+  );
+
+  protected readonly previaHoras = computed(() =>
+    weeklyHoursOf(this.previaMinutos(), Math.max(1, Number(this.formValue().cycleDays) || 1)),
+  );
 
   constructor() {
     this.form.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {

@@ -323,6 +323,14 @@ export type ServicePosition = {
   readonly priceFrequency: PaymentFrequency;
   readonly currencyCode: string;
   readonly isTaxIncluded: boolean;
+  /**
+   * El patron del catalogo de turnos que sigue este puesto.
+   *
+   * <p>Nulo mientras la posicion conserve su patron propio, el que se le capturo por dentro antes
+   * de que existiera el catalogo. No es un dato faltante: es una posicion que todavia no se
+   * migro.</p>
+   */
+  readonly idShiftPatternTemplate: string | null;
 };
 
 export type ServicePositionInput = {
@@ -337,6 +345,8 @@ export type ServicePositionInput = {
   readonly priceFrequency: PaymentFrequency;
   readonly currencyCode: string;
   readonly isTaxIncluded: boolean;
+  /** Opcional: una pantalla que no elige patron manda la posicion sin el campo y queda en nulo. */
+  readonly idShiftPatternTemplate?: string | null;
 };
 
 /**

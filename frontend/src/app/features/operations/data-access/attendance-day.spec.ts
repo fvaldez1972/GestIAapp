@@ -67,6 +67,7 @@ const posicion = (id: string, required: number): ServicePosition => ({
   priceFrequency: 'Monthly',
   currencyCode: 'MXN',
   isTaxIncluded: false,
+  idShiftPatternTemplate: null,
 });
 
 const cierre = (status: 'Closed' | 'Reopened'): OperationDayClosure => ({

@@ -11,6 +11,11 @@ import {
   EmployeeSkill,
   EmployeeSkillInput,
 } from './catalog.models';
+import {
+  ShiftPatternTemplate,
+  ShiftPatternTemplateInput,
+  ShiftPatternTemplateOption,
+} from './shift-pattern-template.models';
 
 @Injectable({ providedIn: 'root' })
 export class CatalogApiService {
@@ -142,5 +147,43 @@ export class CatalogApiService {
         referenceDate: request.referenceDate ?? null,
       },
     );
+  }
+
+  /**
+   * El catálogo de patrones de turno.
+   *
+   * <p>Vive bajo catálogos y no bajo una posición porque eso es lo que cambió: el patrón dejó de
+   * capturarse dentro de cada posición para capturarse una vez y elegirse de un desplegable.</p>
+   */
+  listShiftPatternTemplates(organizationId: string, includeInactive = false) {
+    let params = new HttpParams().set('organizationId', organizationId);
+    if (includeInactive) params = params.set('includeInactive', true);
+
+    return this.http.get<readonly ShiftPatternTemplate[]>(`${this.baseUrl}/shift-pattern-templates`, { params });
+  }
+
+  /** Sólo los patrones completos: uno con días sin declarar generaría turnos con huecos. */
+  listShiftPatternTemplateOptions(organizationId: string) {
+    const params = new HttpParams().set('organizationId', organizationId);
+    return this.http.get<readonly ShiftPatternTemplateOption[]>(
+      `${this.baseUrl}/shift-pattern-templates/options`,
+      { params },
+    );
+  }
+
+  createShiftPatternTemplate(request: ShiftPatternTemplateInput) {
+    return this.http.post<ShiftPatternTemplate>(`${this.baseUrl}/shift-pattern-templates`, request);
+  }
+
+  updateShiftPatternTemplate(idShiftPatternTemplate: string, request: ShiftPatternTemplateInput) {
+    return this.http.put<ShiftPatternTemplate>(
+      `${this.baseUrl}/shift-pattern-templates/${idShiftPatternTemplate}`,
+      request,
+    );
+  }
+
+  deactivateShiftPatternTemplate(organizationId: string, idShiftPatternTemplate: string) {
+    const params = new HttpParams().set('organizationId', organizationId);
+    return this.http.delete<void>(`${this.baseUrl}/shift-pattern-templates/${idShiftPatternTemplate}`, { params });
   }
 }

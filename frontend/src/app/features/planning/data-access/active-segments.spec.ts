@@ -15,6 +15,7 @@ const posicion = (id: string): ServicePosition => ({
   priceFrequency: 'Monthly',
   currencyCode: 'MXN',
   isTaxIncluded: false,
+  idShiftPatternTemplate: null,
 });
 
 const segmento = (idShiftPattern: string, dayOfWeek: string): ShiftSegment => ({

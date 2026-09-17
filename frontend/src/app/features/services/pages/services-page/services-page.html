@@ -812,6 +812,46 @@
               ><input type="checkbox" formControlName="isTaxIncluded" /><span>IVA incluido</span></label
             >
             <!--
+              El patron de turno sale del catalogo. Antes se capturaba dentro de cada posicion y sus
+              dias se declaraban por dia de la semana, asi que un 24x48 —ciclo de tres dias— no
+              cabia, y habia que volver a teclear el mismo horario en cada puesto. El catalogo se
+              construye en Catalogos y aqui solo se elige.
+            -->
+            <label class="wide"
+              ><span>Patrón de turno</span
+              ><select
+                [value]="selectedShiftPatternTemplateId()"
+                (change)="elegirPatronDeTurno($any($event.target).value)"
+              >
+                <option value="">Conserva su patrón propio</option>
+                @for (patron of shiftPatternTemplates(); track patron.idShiftPatternTemplate) {
+                  <option [value]="patron.idShiftPatternTemplate">{{ patronEtiqueta(patron) }}</option>
+                }
+              </select>
+              @if (selectedShiftPatternTemplate(); as patron) {
+                <small>
+                  El puesto sigue el ciclo de {{ patron.cycleDays }}
+                  {{ patron.cycleDays === 1 ? 'día' : 'días' }} de este patrón:
+                  {{ patron.weeklyHours }} horas por semana.
+                  @if (patron.compliance === 'Exceeds') {
+                    Excede la jornada legal por {{ patron.excessHours }} horas; se guarda igual y
+                    queda registrado.
+                  }
+                </small>
+              } @else if (!shiftPatternTemplates().length) {
+                <small>
+                  Todavía no hay patrones completos en el catálogo. Se construyen en Catálogos ·
+                  Patrones de turno; mientras no haya ninguno, el puesto conserva el patrón que se le
+                  capturó por dentro.
+                </small>
+              } @else {
+                <small>
+                  Sin patrón del catálogo el puesto conserva el que se le capturó por dentro. Sólo
+                  se ofrecen los patrones con todos los días del ciclo declarados.
+                </small>
+              }
+            </label>
+            <!--
               El perfil deja de ser una descripción y pasa a ser una lista comprobable. El texto
               libre se queda como nota, porque lo que alguien escribió no se borra, pero la pantalla
               dice lo que es: algo que se lee, no algo que el sistema compare con nadie.

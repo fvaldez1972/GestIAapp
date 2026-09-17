@@ -231,6 +231,14 @@
     </article>
   </section>
 
+  <!-- ══ Patrones de turno ══════════════════════════════════════════════════════════════════ -->
+  <section class="cat__zona" aria-label="Patrones de turno">
+    <app-shift-pattern-templates
+      [organizationId]="selectedOrganizationId()"
+      [canWrite]="canWrite()"
+    />
+  </section>
+
   <!-- ══ ZONA 2 · Las listas fijas del sistema ═══════════════════════════════════════════════ -->
   <section class="cat__zona" aria-labelledby="cat-zona-sistema">
     <h2 class="gi-section-heading" id="cat-zona-sistema">Listas fijas del sistema</h2>

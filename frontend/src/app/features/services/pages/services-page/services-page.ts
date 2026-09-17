@@ -54,6 +54,10 @@ import { SystemInfoService } from '../../../../core/system/system-info.service';
 import { WorkforceApiService } from '../../../workforce/data-access/workforce-api.service';
 import { EmployeeListApiService } from '../../../workforce/data-access/employee-list-api.service';
 import { CatalogApiService } from '../../../catalogs/data-access/catalog-api.service';
+import {
+  ShiftPatternTemplateOption,
+  shiftDaypartLabel,
+} from '../../../catalogs/data-access/shift-pattern-template.models';
 import { PAYMENT_FREQUENCY_LABELS, PaymentFrequency } from '../../../clients/data-access/client.models';
 import { CandidateEligibility } from '../../../planning/data-access/planning.models';
 import {
@@ -205,6 +209,15 @@ export class ServicesPage implements OnInit, OnDestroy {
 
   /** El catálogo de habilidades de la organización, para armar el perfil de una posición. */
   protected readonly catalogSkills = signal<readonly { idCatalogItem: string; name: string }[]>([]);
+
+  /**
+   * Los patrones del catálogo que la posición puede seguir.
+   *
+   * <p>El servidor sólo ofrece los completos —los que tienen todos los días del ciclo declarados—
+   * porque elegir uno con huecos generaría turnos que nadie pidió, y en la pantalla parecería que
+   * el patrón ya está listo.</p>
+   */
+  protected readonly shiftPatternTemplates = signal<readonly ShiftPatternTemplateOption[]>([]);
 
   /** Las reglas de habilidad ya guardadas para la posición abierta. */
   protected readonly positionSkillRequirements = signal<readonly EligibilityRequirement[]>([]);
@@ -1090,6 +1103,9 @@ export class ServicesPage implements OnInit, OnDestroy {
     price: [0, [Validators.required, Validators.min(0)]],
     priceFrequency: ['Monthly' as PaymentFrequency, [Validators.required]],
     isTaxIncluded: [false],
+    // El patron de turno sale del catalogo. Vacio significa que la posicion conserva el patron que
+    // se le capturo por dentro, no que no tenga turnos.
+    idShiftPatternTemplate: [''],
     requiredSkillProfile: ['', [Validators.maxLength(1000)]],
     notes: ['', [Validators.maxLength(1000)]],
   });
@@ -1487,10 +1503,13 @@ export class ServicesPage implements OnInit, OnDestroy {
       price: 0,
       priceFrequency: 'Monthly',
       isTaxIncluded: false,
+      idShiftPatternTemplate: '',
       requiredSkillProfile: '',
       notes: '',
     });
+    this.selectedShiftPatternTemplateId.set('');
     this.loadPositionSkills(null);
+    this.loadShiftPatternTemplates();
     this.positionEditorOpen.set(true);
   }
 
@@ -1505,10 +1524,13 @@ export class ServicesPage implements OnInit, OnDestroy {
       price: position.price,
       priceFrequency: position.priceFrequency,
       isTaxIncluded: position.isTaxIncluded,
+      idShiftPatternTemplate: position.idShiftPatternTemplate ?? '',
       requiredSkillProfile: position.requiredSkillProfile ?? '',
       notes: position.notes ?? '',
     });
+    this.selectedShiftPatternTemplateId.set(position.idShiftPatternTemplate ?? '');
     this.loadPositionSkills(position.idPosition);
+    this.loadShiftPatternTemplates();
     this.positionEditorOpen.set(true);
   }
 
@@ -1549,6 +1571,49 @@ export class ServicesPage implements OnInit, OnDestroy {
         ),
       ),
     );
+  }
+
+  /**
+   * Los patrones del catálogo, para el desplegable.
+   *
+   * <p>Se piden al abrir el modal y no al entrar a la pantalla: la mayoría de las visitas a
+   * Servicios no abre una posición, y pedirlos siempre sería una consulta por visita que nadie
+   * mira.</p>
+   */
+  private loadShiftPatternTemplates(): void {
+    const org = this.selectedOrganizationId();
+    if (!org) return;
+
+    this.read(this.catalogApi.listShiftPatternTemplateOptions(org), 2, (opciones) =>
+      this.shiftPatternTemplates.set(opciones),
+    );
+  }
+
+  /** La etiqueta de un patrón en el desplegable: el nombre, y el ciclo y las horas al lado. */
+  protected patronEtiqueta(patron: ShiftPatternTemplateOption): string {
+    const dias = patron.cycleDays === 1 ? '1 día' : `${patron.cycleDays} días`;
+    const exceso = patron.compliance === 'Exceeds' ? ` · excede por ${patron.excessHours} h` : '';
+    return `${patron.name} · ${shiftDaypartLabel(patron.daypart)} · ciclo de ${dias} · ${patron.weeklyHours} h/semana${exceso}`;
+  }
+
+  /**
+   * El patrón elegido, para explicar debajo del control qué implica.
+   *
+   * <p>Sale de una señal y no del control porque un `FormControl` no es reactivo para las señales:
+   * leerlo desde un `computed` dejaba el texto congelado en el primer patrón elegido.</p>
+   */
+  protected readonly selectedShiftPatternTemplate = computed(() =>
+    this.shiftPatternTemplates().find(
+      (patron) => patron.idShiftPatternTemplate === this.selectedShiftPatternTemplateId(),
+    ),
+  );
+
+  protected readonly selectedShiftPatternTemplateId = signal('');
+
+  /** El patrón se elige aquí para que el texto de abajo siga al control. */
+  protected elegirPatronDeTurno(idShiftPatternTemplate: string): void {
+    this.selectedShiftPatternTemplateId.set(idShiftPatternTemplate);
+    this.positionForm.controls.idShiftPatternTemplate.setValue(idShiftPatternTemplate);
   }
 
   /**
@@ -1714,6 +1779,7 @@ export class ServicesPage implements OnInit, OnDestroy {
       priceFrequency: form.priceFrequency,
       currencyCode: 'MXN',
       isTaxIncluded: form.isTaxIncluded,
+      idShiftPatternTemplate: form.idShiftPatternTemplate || null,
       requiredSkillProfile: this.optional(form.requiredSkillProfile),
       notes: this.optional(form.notes),
     };

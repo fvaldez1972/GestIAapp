@@ -34,6 +34,7 @@ import { GiSelect, GiSelectOption } from '../../../../shared/ui/gi-select/gi-sel
 import { serviceOptionLabel } from '../../../services/data-access/service.models';
 import { normalizeCatalogName } from '../../../../shared/util/catalog-name';
 import { CatalogApiService } from '../../data-access/catalog-api.service';
+import { ShiftPatternTemplates } from '../../ui/shift-pattern-templates/shift-pattern-templates';
 import {
   BusinessCatalogItemType,
   CatalogDefinition,
@@ -59,7 +60,7 @@ import {
  */
 @Component({
   selector: 'app-catalogs-page',
-  imports: [ReactiveFormsModule, NgTemplateOutlet, GiSelect],
+  imports: [ReactiveFormsModule, NgTemplateOutlet, GiSelect, ShiftPatternTemplates],
   templateUrl: './catalogs-page.html',
   styleUrl: './catalogs-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

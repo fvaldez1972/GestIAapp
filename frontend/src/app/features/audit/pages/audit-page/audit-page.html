@@ -145,6 +145,7 @@
               <th>Fecha y hora</th>
               <th>Usuario</th>
               <th>Acción</th>
+              <th>Módulo</th>
               <th>Entidad</th>
               <th>Registro</th>
               <th>Resultado</th>
@@ -159,6 +160,7 @@
                 <td>{{ formatDateTime(event.occurredAt) }}</td>
                 <td>{{ event.actorName }}</td>
                 <td><span [class]="'audit-status ' + actionClass(event.action)">{{ actionLabel(event.action) }}</span></td>
+                <td>{{ moduleLabel(event.entity) }}</td>
                 <td>{{ entityLabel(event.entity) }}</td>
                 <td>
                   <strong>{{ translateText(event.entityName) }}</strong>
@@ -287,9 +289,20 @@
           <p>El objeto actual puede haber sido modificado después de este evento.</p>
           <strong>{{ currentObjectStatus(event) }}</strong>
           <div class="drawer-actions">
-            <button class="gi-button gi-button--primary" type="button">Ver objeto actual</button>
-            <button class="gi-button gi-button--secondary" type="button" (click)="copyReference()">Copiar referencia</button>
+            @if (currentObjectRoute(event)) {
+              <button class="gi-button gi-button--primary" type="button" (click)="openCurrentObject(event)">
+                Ver objeto actual
+              </button>
+            }
+            <button class="gi-button gi-button--secondary" type="button" (click)="copyReference()">
+              Copiar referencia
+            </button>
           </div>
+          @if (copyFeedback()) {
+            <p class="gi-alert gi-alert--success" role="status">{{ copyFeedback() }}</p>
+          } @else if (!currentObjectRoute(event)) {
+            <p>Esta entidad no tiene pantalla propia. Su rastro es la referencia de arriba.</p>
+          }
         </article>
       </section>
 

@@ -1,6 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { SystemInfoService } from '../../../../core/system/system-info.service';
 import { AuditApiService } from '../../data-access/audit-api.service';
@@ -16,6 +17,7 @@ import { AuditEvent, AuditResult } from '../../data-access/audit.models';
 })
 export class AuditPage implements OnInit {
   private readonly api = inject(AuditApiService);
+  private readonly router = inject(Router);
   private readonly auth = inject(AuthService);
   private readonly systemInfo = inject(SystemInfoService);
 
@@ -468,14 +470,107 @@ export class AuditPage implements OnInit {
     this.showExportConfig.set(false);
   }
 
+  /**
+   * A qué pantalla lleva cada entidad de la bitácora.
+   *
+   * <p><b>Sólo las que existen.</b> El botón «Ver objeto actual» no tenía manejador: era un botón
+   * muerto, y pulsarlo no hacía nada sin decir por qué. Las entidades que no tienen pantalla propia
+   * —un segmento de turno, un cierre diario— no ganan un enlace inventado: el botón no se ofrece, y
+   * la tarjeta dice que el rastro es la referencia.</p>
+   *
+   * <p>Lleva a la pantalla del módulo, no a la ficha: la bitácora guarda el identificador del
+   * registro, pero ninguna de estas pantallas lee hoy un parámetro de ruta para abrir una ficha
+   * concreta. Mandarle uno que ignora sería el defecto que ya se corrigió en el enlace de Clientes
+   * a Servicios.</p>
+   */
+  /**
+   * De qué módulo es cada entidad, y a qué pantalla lleva.
+   *
+   * <p><b>La clave es lo que manda el servidor, que ya viene en español.</b> `AuditRepository`
+   * escribe la entidad como etiqueta —«Documentos», «Posiciones», «Segmentos»—, no como el nombre
+   * de la tabla. La primera versión de esta tabla usaba los nombres ingleses del modelo, así que no
+   * coincidía con nada y las treinta filas decían «Sin módulo». Es el defecto que QA reportó el 17
+   * de septiembre de 2026, y era mío.</p>
+   *
+   * <p>Módulo y ruta van juntos porque son la misma pregunta —de quién es esta entidad—, y en dos
+   * tablas separadas podían divergir sin que nada avisara. Una ruta vacía significa que la entidad
+   * no tiene pantalla propia: entonces no se ofrece el botón en lugar de ofrecer un enlace que no
+   * lleva a ninguna parte.</p>
+   *
+   * <p>Una entidad que no esté aquí sale como «Sin módulo» y no se le inventa uno: es la señal de
+   * que hay una bitácora nueva que nadie clasificó.</p>
+   */
+  private static readonly EntityOwners: Record<string, { readonly module: string; readonly route: string }> = {
+    Organizaciones: { module: 'Organizaciones', route: '' },
+    Clientes: { module: 'Clientes', route: '/clientes' },
+    Sedes: { module: 'Clientes', route: '/clientes' },
+    Contactos: { module: 'Clientes', route: '/clientes' },
+    Contratos: { module: 'Clientes', route: '/clientes' },
+    Servicios: { module: 'Servicios', route: '/servicios' },
+    Posiciones: { module: 'Servicios', route: '/servicios' },
+    Personal: { module: 'Personal', route: '/personal' },
+    Evaluaciones: { module: 'Personal', route: '/personal' },
+    Habilidades: { module: 'Personal', route: '/personal' },
+    Documentos: { module: 'Documentos', route: '/documentos' },
+    'Catálogos': { module: 'Catálogos', route: '/catalogos' },
+    'Reglas de elegibilidad': { module: 'Catálogos', route: '/catalogos' },
+    Patrones: { module: 'Planeación', route: '/planeacion' },
+    Segmentos: { module: 'Planeación', route: '/planeacion' },
+    Versiones: { module: 'Planeación', route: '/planeacion' },
+    Turnos: { module: 'Planeación', route: '/planeacion' },
+    Asistencia: { module: 'Asistencia', route: '/asistencia' },
+    Incidencias: { module: 'Incidencias', route: '/incidencias' },
+    Coberturas: { module: 'Cobertura', route: '/cobertura' },
+    Evidencias: { module: 'Operación', route: '' },
+    'Cierres diarios': { module: 'Operación', route: '' },
+    Autorizaciones: { module: 'Solicitudes', route: '/solicitudes' },
+    Solicitudes: { module: 'Solicitudes', route: '/solicitudes' },
+    'Sesiones de soporte': { module: 'Seguridad', route: '/seguridad' },
+    Usuarios: { module: 'Seguridad', route: '/seguridad' },
+    Accesos: { module: 'Seguridad', route: '/seguridad' },
+  };
+
+  protected moduleLabel(entity: string): string {
+    return AuditPage.EntityOwners[entity]?.module ?? 'Sin módulo';
+  }
+
+  protected currentObjectRoute(event: AuditEvent): string | null {
+    return AuditPage.EntityOwners[event.entity]?.route || null;
+  }
+
+  protected openCurrentObject(event: AuditEvent): void {
+    const ruta = this.currentObjectRoute(event);
+    if (!ruta) return;
+
+    void this.router.navigate([ruta]);
+  }
+
+  /**
+   * Copia la referencia y <b>lo dice</b>.
+   *
+   * <p>Copiaba en silencio, así que desde fuera no se distinguía de un botón muerto: la queja de
+   * QA fue que «no hace nada». Y si el navegador niega el portapapeles, ahora se entera, en lugar
+   * de creer que copió.</p>
+   */
   protected copyReference() {
     const event = this.selectedEvent();
     if (!event) {
       return;
     }
 
-    void navigator.clipboard?.writeText(this.snapshotReference(event));
+    const referencia = this.snapshotReference(event);
+
+    navigator.clipboard
+      ?.writeText(referencia)
+      .then(() => this.copyFeedback.set(`Referencia ${referencia} copiada.`))
+      .catch(() =>
+        this.copyFeedback.set(
+          `El navegador no dejó copiar. La referencia es ${referencia}.`,
+        ),
+      );
   }
+
+  protected readonly copyFeedback = signal('');
 
   protected valueLabel(value: string | null | undefined) {
     if (!value || value === 'null' || value === 'undefined') {

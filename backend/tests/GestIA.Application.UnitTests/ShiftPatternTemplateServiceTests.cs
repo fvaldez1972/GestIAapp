@@ -139,6 +139,93 @@ public class ShiftPatternTemplateServiceTests
         Assert.Equal(1, fila.RestDays);
     }
 
+    /// <summary>
+    /// La regresión del 409 que nadie provocaba.
+    ///
+    /// <para>Al completar un patrón promovido —darle el día que le faltaba— el día nuevo tiene que
+    /// llegar al repositorio para darse de alta. Si se queda sólo colgado de la colección, EF lo
+    /// guarda como la modificación de una fila que no existe, el UPDATE afecta cero filas, y la
+    /// pantalla recibe «los datos cambiaron mientras editabas» sin que nadie los haya cambiado.</para>
+    /// </summary>
+    [Fact]
+    public async Task ADayBornWhileEditingIsHandedToTheRepository()
+    {
+        var plantilla = Plantilla("12x12 diurno", cycleDays: 2, (1, new TimeOnly(7, 0), new TimeOnly(19, 0), false));
+        var repositorio = new FakeRepository([plantilla]);
+        var servicio = Servicio(repositorio);
+
+        await servicio.UpdateAsync(
+            plantilla.IdShiftPatternTemplate,
+            new UpdateShiftPatternTemplateRequest(
+                Organizacion,
+                "12x12 diurno",
+                null,
+                ShiftDaypart.Day,
+                2,
+                new DateOnly(2026, 1, 1),
+                null,
+                [
+                    new ShiftPatternTemplateDayInput(1, new TimeOnly(7, 0), new TimeOnly(19, 0), false),
+                    new ShiftPatternTemplateDayInput(2, null, null, true)
+                ]),
+            CancellationToken.None);
+
+        // Sólo el día 2 es nuevo. El día 1 ya existía y se corrige, no se da de alta.
+        var nuevo = Assert.Single(repositorio.AddedDays);
+        Assert.Equal(2, nuevo.CycleDayNumber);
+        Assert.True(nuevo.IsRest);
+        Assert.True(plantilla.IsComplete);
+    }
+
+    /// <summary>
+    /// Acortar el ciclo retira los días que quedaron fuera, y volver a alargarlo los reactiva en
+    /// lugar de crear otra fila con el mismo número, que la clave única rechazaría.
+    /// </summary>
+    [Fact]
+    public async Task ShorteningTheCycleRetiresTheDaysLeftOutsideIt()
+    {
+        var plantilla = Plantilla(
+            "Rol de tres",
+            cycleDays: 3,
+            (1, new TimeOnly(7, 0), new TimeOnly(19, 0), false),
+            (2, new TimeOnly(7, 0), new TimeOnly(19, 0), false),
+            (3, null, null, true));
+
+        var repositorio = new FakeRepository([plantilla]);
+        var servicio = Servicio(repositorio);
+
+        await servicio.UpdateAsync(
+            plantilla.IdShiftPatternTemplate,
+            new UpdateShiftPatternTemplateRequest(
+                Organizacion, "Rol de tres", null, ShiftDaypart.Day, 2, new DateOnly(2026, 1, 1), null,
+                [
+                    new ShiftPatternTemplateDayInput(1, new TimeOnly(7, 0), new TimeOnly(19, 0), false),
+                    new ShiftPatternTemplateDayInput(2, null, null, true)
+                ]),
+            CancellationToken.None);
+
+        // El día 3 sigue existiendo —aquí no se borra nada— pero ya no cuenta ni se ve.
+        Assert.Equal(3, plantilla.Days.Count);
+        Assert.False(plantilla.Days.Single(day => day.CycleDayNumber == 3).Active);
+        Assert.True(plantilla.IsComplete);
+        Assert.Empty(repositorio.AddedDays);
+
+        await servicio.UpdateAsync(
+            plantilla.IdShiftPatternTemplate,
+            new UpdateShiftPatternTemplateRequest(
+                Organizacion, "Rol de tres", null, ShiftDaypart.Day, 3, new DateOnly(2026, 1, 1), null,
+                [
+                    new ShiftPatternTemplateDayInput(1, new TimeOnly(7, 0), new TimeOnly(19, 0), false),
+                    new ShiftPatternTemplateDayInput(2, new TimeOnly(7, 0), new TimeOnly(19, 0), false),
+                    new ShiftPatternTemplateDayInput(3, null, null, true)
+                ]),
+            CancellationToken.None);
+
+        Assert.Equal(3, plantilla.Days.Count);
+        Assert.True(plantilla.Days.Single(day => day.CycleDayNumber == 3).Active);
+        Assert.Empty(repositorio.AddedDays);
+    }
+
     private static ShiftPatternTemplateService Servicio(FakeRepository repositorio) =>
         new(repositorio, new StubUnitOfWork(), new StubActorContext(), new StubClock());
 
@@ -201,6 +288,16 @@ public class ShiftPatternTemplateServiceTests
 
         public Task AddAsync(ShiftPatternTemplate pattern, CancellationToken cancellationToken) =>
             Task.CompletedTask;
+
+        public List<ShiftPatternTemplateDay> AddedDays { get; } = [];
+
+        public Task AddDaysAsync(
+            IReadOnlyCollection<ShiftPatternTemplateDay> days,
+            CancellationToken cancellationToken)
+        {
+            AddedDays.AddRange(days);
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class StubUnitOfWork : IUnitOfWork

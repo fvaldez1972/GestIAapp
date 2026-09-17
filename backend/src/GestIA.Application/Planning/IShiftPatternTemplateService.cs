@@ -36,6 +36,12 @@ public interface IShiftPatternTemplateRepository
         bool includeInactive,
         CancellationToken cancellationToken);
 
+    /// <summary>
+    /// La plantilla con <b>todos</b> sus días, incluidos los retirados por un ciclo más corto.
+    ///
+    /// <para>Tienen que venir: si el ciclo vuelve a crecer, el día retirado se reactiva en lugar de
+    /// crearse otra vez, y crear otro chocaría con la clave única del día dentro del patrón.</para>
+    /// </summary>
     Task<ShiftPatternTemplate?> GetTrackedAsync(
         Guid idShiftPatternTemplate,
         CancellationToken cancellationToken);
@@ -69,4 +75,16 @@ public interface IShiftPatternTemplateRepository
         CancellationToken cancellationToken);
 
     Task AddAsync(ShiftPatternTemplate pattern, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Da de alta los días que acaban de nacer, uno por uno y de forma explícita.
+    ///
+    /// <para>No es ceremonia. Un día nuevo colgado de la colección de una plantilla que ya se
+    /// rastrea se guarda como la <i>modificación</i> de una fila que no existe, el UPDATE no afecta
+    /// ninguna fila, y EF lo reporta como un conflicto de concurrencia que nadie provocó. Es el
+    /// mismo motivo por el que un segmento de turno se agrega con su propio método.</para>
+    /// </summary>
+    Task AddDaysAsync(
+        IReadOnlyCollection<ShiftPatternTemplateDay> days,
+        CancellationToken cancellationToken);
 }

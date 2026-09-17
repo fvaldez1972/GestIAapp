@@ -33,10 +33,19 @@ public sealed class ShiftPatternTemplateRepository(GestIaDbContext dbContext) : 
             .ToArrayAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// Trae la plantilla con todos sus días, retirados incluidos.
+    ///
+    /// <para>El filtro de borrado lógico se apaga a propósito: un día que un ciclo más corto retiró
+    /// sigue ocupando su número dentro del patrón, así que si el ciclo vuelve a crecer hay que
+    /// reactivar esa misma fila. Sin él cargado, declarar el día otra vez crearía una segunda fila
+    /// con el mismo número y la clave única lo rechazaría.</para>
+    /// </summary>
     public Task<ShiftPatternTemplate?> GetTrackedAsync(
         Guid idShiftPatternTemplate,
         CancellationToken cancellationToken) =>
         dbContext.ShiftPatternTemplates
+            .IgnoreQueryFilters(["Active"])
             .Include(plantilla => plantilla.Days)
             .SingleOrDefaultAsync(
                 plantilla => plantilla.IdShiftPatternTemplate == idShiftPatternTemplate,
@@ -89,4 +98,17 @@ public sealed class ShiftPatternTemplateRepository(GestIaDbContext dbContext) : 
 
     public Task AddAsync(ShiftPatternTemplate pattern, CancellationToken cancellationToken) =>
         dbContext.ShiftPatternTemplates.AddAsync(pattern, cancellationToken).AsTask();
+
+    public Task AddDaysAsync(
+        IReadOnlyCollection<ShiftPatternTemplateDay> days,
+        CancellationToken cancellationToken)
+    {
+        if (days.Count == 0)
+        {
+            return Task.CompletedTask;
+        }
+
+        dbContext.ShiftPatternTemplateDays.AddRange(days);
+        return Task.CompletedTask;
+    }
 }

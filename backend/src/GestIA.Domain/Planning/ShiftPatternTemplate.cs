@@ -105,7 +105,25 @@ public sealed class ShiftPatternTemplate : AuditableEntity, IOrganizationScopedE
         DateTime occurredAt)
     {
         ApplyProfile(profile);
+        RetireDaysBeyondCycle(actorId, actorName, occurredAt);
         RegisterUpdate(actorId, actorName, occurredAt);
+    }
+
+    /// <summary>
+    /// Retira los días que quedaron fuera del ciclo al acortarlo.
+    ///
+    /// <para>Bajar el ciclo de siete a seis días dejaba el día siete en la base: fuera del ciclo,
+    /// invisible en la pantalla y contando en las horas. No se borra —aquí los registros no se
+    /// borran— se desactiva, y su número de día sigue ocupado. Si el ciclo vuelve a crecer,
+    /// <see cref="DeclareDay"/> reactiva esa misma fila en lugar de crear otra, que es lo que
+    /// chocaría con la clave única del día dentro del patrón.</para>
+    /// </summary>
+    private void RetireDaysBeyondCycle(Guid actorId, string actorName, DateTime occurredAt)
+    {
+        foreach (var day in days.Where(day => day.Active && day.CycleDayNumber > CycleDays))
+        {
+            day.Deactivate(actorId, actorName, occurredAt);
+        }
     }
 
     private void ApplyProfile(ShiftPatternTemplateProfile profile)
@@ -139,8 +157,15 @@ public sealed class ShiftPatternTemplate : AuditableEntity, IOrganizationScopedE
     /// <para>El día se identifica por su posición en el ciclo, empezando en uno. Un día que nadie
     /// declara es un día <b>sin declarar</b>, que no es lo mismo que un descanso: por eso la
     /// plantilla sabe decir si está completa.</para>
+    ///
+    /// <para><b>Devuelve el día si acaba de nacer, y nulo si ya existía.</b> No es un adorno: el
+    /// día nuevo tiene que darse de alta por el repositorio, porque una entidad nueva con su clave
+    /// ya puesta, colgada de una colección que EF ya rastrea, se guarda como una <i>modificación</i>
+    /// de una fila que no existe. El UPDATE no afecta ninguna fila y EF lo reporta como un conflicto
+    /// de concurrencia: «los datos cambiaron mientras editabas», sin que nadie los cambiara. Es el
+    /// mismo motivo por el que <c>ShiftSegment</c> se agrega con <c>AddShiftSegmentAsync</c>.</para>
     /// </summary>
-    public void DeclareDay(
+    public ShiftPatternTemplateDay? DeclareDay(
         int cycleDayNumber,
         TimeOnly? startTime,
         TimeOnly? endTime,
@@ -160,16 +185,26 @@ public sealed class ShiftPatternTemplate : AuditableEntity, IOrganizationScopedE
 
         if (existente is null)
         {
-            days.Add(ShiftPatternTemplateDay.Create(
+            var nuevo = ShiftPatternTemplateDay.Create(
                 IdOrganization, IdShiftPatternTemplate, cycleDayNumber, startTime, endTime, isRest,
-                actorId, actorName, occurredAt));
-        }
-        else
-        {
-            existente.Redeclare(startTime, endTime, isRest, actorId, actorName, occurredAt);
+                actorId, actorName, occurredAt);
+
+            days.Add(nuevo);
+            RegisterUpdate(actorId, actorName, occurredAt);
+            return nuevo;
         }
 
+        // Un día retirado por un ciclo más corto se reactiva al volver a declararse. Crear otra
+        // fila para el mismo número de día chocaría con su clave única, y con razón: es el mismo
+        // día del mismo patrón.
+        if (!existente.Active)
+        {
+            existente.Activate(actorId, actorName, occurredAt);
+        }
+
+        existente.Redeclare(startTime, endTime, isRest, actorId, actorName, occurredAt);
         RegisterUpdate(actorId, actorName, occurredAt);
+        return null;
     }
 
     /// <summary>

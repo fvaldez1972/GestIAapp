@@ -85,6 +85,8 @@ public sealed class ShiftPatternTemplateService(
             actorContext.ActorName,
             clock.UtcNow);
 
+        // En el alta la plantilla entera entra como nueva, y sus días con ella: no hace falta
+        // darlos de alta aparte.
         Declare(plantilla, request.Days);
 
         await repository.AddAsync(plantilla, cancellationToken);
@@ -122,7 +124,11 @@ public sealed class ShiftPatternTemplateService(
             actorContext.ActorName,
             clock.UtcNow);
 
-        Declare(plantilla, request.Days);
+        // Los días que nacen en esta edición se dan de alta explícitamente. Ver AddDaysAsync: sin
+        // esto EF los guarda como la modificación de una fila que no existe, y la pantalla recibe
+        // un conflicto de concurrencia que nadie provocó.
+        var nuevos = Declare(plantilla, request.Days);
+        await repository.AddDaysAsync(nuevos, cancellationToken);
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return Map(plantilla);
@@ -185,11 +191,16 @@ public sealed class ShiftPatternTemplateService(
         InputValidation.ThrowIfInvalid(errors);
     }
 
-    private void Declare(ShiftPatternTemplate plantilla, IReadOnlyList<ShiftPatternTemplateDayInput> days)
+    /// <summary>Declara los días y devuelve los que acabaron de nacer.</summary>
+    private List<ShiftPatternTemplateDay> Declare(
+        ShiftPatternTemplate plantilla,
+        IReadOnlyList<ShiftPatternTemplateDayInput> days)
     {
+        var nuevos = new List<ShiftPatternTemplateDay>();
+
         foreach (var day in days.OrderBy(item => item.CycleDayNumber))
         {
-            plantilla.DeclareDay(
+            var nuevo = plantilla.DeclareDay(
                 day.CycleDayNumber,
                 day.StartTime,
                 day.EndTime,
@@ -197,7 +208,14 @@ public sealed class ShiftPatternTemplateService(
                 actorContext.ActorId,
                 actorContext.ActorName,
                 clock.UtcNow);
+
+            if (nuevo is not null)
+            {
+                nuevos.Add(nuevo);
+            }
         }
+
+        return nuevos;
     }
 
     /// <summary>

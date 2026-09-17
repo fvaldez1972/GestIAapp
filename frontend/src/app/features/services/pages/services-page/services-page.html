@@ -819,8 +819,13 @@
             -->
             <label class="wide"
               ><span>Patrón de turno</span
-              ><select
-                [value]="selectedShiftPatternTemplateId()"
+              ><!--
+                Va con formControlName y no con [value]. Con [value] el patron guardado no se veia
+                al reabrir: las opciones llegan por HTTP despues del primer dibujado, un <select>
+                ignora un value que todavia no corresponde a ninguna opcion, y Angular no lo vuelve
+                a aplicar. El dato estaba bien guardado y la pantalla decia que no habia ninguno.
+              --><select
+                formControlName="idShiftPatternTemplate"
                 (change)="elegirPatronDeTurno($any($event.target).value)"
               >
                 <option value="">Conserva su patrón propio</option>
@@ -865,6 +870,7 @@
               (add)="addPositionSkill($event)"
               (remove)="removePositionSkill($event)"
               (removePending)="removePendingPositionSkill($event)"
+              (toggleBlocking)="togglePositionSkill($event)"
               (createSkill)="createSkillForProfile($event)"
             />
             <label class="wide"
@@ -976,9 +982,10 @@
             -->
             <gi-candidate-picker
               [candidates]="assignmentCandidates()"
+              [selectedId]="assignmentForm.controls.idEmployee.value"
               title="CANDIDATOS PARA ESTA POSICIÓN"
-              emptyTitle="No hay personal activo que ofrecer"
-              emptyBody="Da de alta personal en Personal, o reactiva a alguien: aquí sólo se ofrecen las personas activas de esta organización."
+              [emptyTitle]="candidatesEmptyTitle()"
+              [emptyBody]="candidatesEmptyBody()"
               emptyActionLabel="Ir a Personal"
               (choose)="chooseCandidate($event)"
               (resolveEmpty)="goToWorkforce()"

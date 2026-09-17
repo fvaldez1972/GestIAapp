@@ -7,6 +7,17 @@ import {
 import { EligibilityRequirement } from '../../catalogs/data-access/catalog.models';
 
 /** Una habilidad que se pide para la posición, tal como se acaba de elegir. */
+/** Lo que hace falta para cambiarle el modo a una habilidad ya puesta. */
+export type PositionSkillToggle = {
+  /** El identificador de la regla si ya existe, o el de la habilidad si está pendiente. */
+  readonly key: string;
+  readonly idSkillCatalogItem: string;
+  readonly name: string;
+  readonly isBlocking: boolean;
+  /** Si todavía no existe en el servidor porque la posición no se ha guardado. */
+  readonly pending: boolean;
+};
+
 export type PositionSkillRequest = {
   readonly idSkillCatalogItem: string;
   readonly name: string;
@@ -63,6 +74,18 @@ export type PositionSkillRequest = {
                 </span>
               </span>
               @if (canWrite()) {
+                <!--
+                  Y se puede cambiar de opinión sin quitarla y volver a ponerla: es lo que QA
+                  intentaba hacer cuando reportó que desmarcar la casilla no se guardaba.
+                -->
+                <button
+                  class="button button--secondary"
+                  type="button"
+                  [disabled]="saving()"
+                  (click)="alternar(row)"
+                >
+                  {{ row.isBlocking ? 'Sólo dejar constancia' : 'Que impida asignar' }}
+                </button>
                 <button
                   class="button button--secondary"
                   type="button"
@@ -87,13 +110,28 @@ export type PositionSkillRequest = {
             [value]="elegida()"
             [canWrite]="canWrite()"
             [disabled]="saving()"
-            (valueChange)="elegir($event)"
+            (valueChange)="elegida.set($event)"
             (create)="createSkill.emit($event)"
           />
+          <!--
+            La casilla se lee al pulsar «Agregar», no al elegir la habilidad.
+            Antes la habilidad se creaba en el momento de elegirla del catálogo, y la casilla está
+            al lado: quien la desmarcaba después lo hacía cuando la regla ya existía como
+            bloqueante, y desmarcarla no cambiaba nada. La pantalla leía un dato antes de que la
+            persona lo diera.
+          -->
           <label class="perfil__check">
             <input type="checkbox" [checked]="bloquea()" (change)="bloquea.set($any($event.target).checked)" />
             <span>Impide asignar si no la tiene</span>
           </label>
+          <button
+            class="button button--primary"
+            type="button"
+            [disabled]="saving() || !elegida()"
+            (click)="agregar()"
+          >
+            Agregar
+          </button>
         </div>
         <p class="perfil__note">
           Una habilidad que impide asignar detiene también la publicación de la semana. Si sólo
@@ -153,6 +191,9 @@ export class PositionSkills {
   readonly canWrite = input(false);
   readonly saving = input(false);
 
+  /** Cambiar una regla ya puesta de bloqueante a informativa, o al revés. */
+  readonly toggleBlocking = output<PositionSkillToggle>();
+
   readonly add = output<PositionSkillRequest>();
   /** Quitar una ya guardada, por identificador de regla. */
   readonly remove = output<string>();
@@ -188,8 +229,15 @@ export class PositionSkills {
     return this.catalogSkills().filter((option) => !puestas.has(option.idCatalogItem));
   });
 
-  protected elegir(idCatalogItem: string): void {
-    const opcion = this.catalogSkills().find((item) => item.idCatalogItem === idCatalogItem);
+  /**
+   * Suma la habilidad elegida con el modo que dice la casilla.
+   *
+   * <p>Se dispara con «Agregar» y no al elegir del catálogo. Elegir y decidir si impide asignar son
+   * dos datos, y leerlos en momentos distintos era el defecto: la regla nacía bloqueante antes de
+   * que nadie tocara la casilla.</p>
+   */
+  protected agregar(): void {
+    const opcion = this.catalogSkills().find((item) => item.idCatalogItem === this.elegida());
 
     if (!opcion) {
       this.elegida.set('');
@@ -202,8 +250,27 @@ export class PositionSkills {
       isBlocking: this.bloquea(),
     });
 
-    // El selector se limpia para poder sumar otra sin borrar a mano lo anterior.
+    // El selector se limpia para poder sumar otra sin borrar a mano lo anterior. La casilla se
+    // queda como estaba: quien pide tres habilidades informativas no quiere desmarcarla tres veces.
     this.elegida.set('');
+  }
+
+  protected alternar(row: {
+    readonly key: string;
+    readonly idSkillCatalogItem: string;
+    readonly name: string;
+    readonly isBlocking: boolean;
+    readonly pending: boolean;
+  }): void {
+    if (this.saving()) return;
+
+    this.toggleBlocking.emit({
+      key: row.key,
+      idSkillCatalogItem: row.idSkillCatalogItem,
+      name: row.name,
+      isBlocking: !row.isBlocking,
+      pending: row.pending,
+    });
   }
 
   protected quitar(row: { readonly key: string; readonly idSkillCatalogItem: string; readonly pending: boolean }): void {

@@ -93,15 +93,25 @@ const PILDORA: Record<GiCandidateStanding, string> = {
       } @else {
         <ul class="gi-cand__list">
           @for (candidate of candidates(); track candidate.id) {
-            <li class="gi-cand__item">
+            <!--
+              La fila dice si es la elegida. Antes pulsar «Elegir» no cambiaba nada en pantalla
+              —la elección viajaba al formulario y la lista seguía idéntica—, así que parecía que
+              el botón no funcionaba: «cuando das clic en elegir no te permite seleccionarlos».
+              La acción sí ocurría; lo que faltaba era que la pantalla lo dijera.
+            -->
+            <li class="gi-cand__item" [class.is-chosen]="candidate.id === selectedId()">
               <div class="gi-cand__row">
                 <span class="gi-cand__name">{{ candidate.name }}</span>
                 <span class="gi-cand__pill" [class]="'gi-cand__pill--' + candidate.standing">
                   {{ pill(candidate) }}
                 </span>
-                <button class="gi-cand__choose" type="button" (click)="choose.emit(candidate)">
-                  Elegir
-                </button>
+                @if (candidate.id === selectedId()) {
+                  <span class="gi-cand__chosen">Elegido</span>
+                } @else {
+                  <button class="gi-cand__choose" type="button" (click)="choose.emit(candidate)">
+                    Elegir
+                  </button>
+                }
               </div>
 
               <p class="gi-cand__meta">{{ candidate.role }} · {{ candidate.availability }}</p>
@@ -151,6 +161,20 @@ const PILDORA: Record<GiCandidateStanding, string> = {
     }
 
     .gi-cand__item:last-child { border-bottom: none; }
+
+    .gi-cand__item.is-chosen {
+      border-left: 3px solid var(--gestia-cyan);
+      background: var(--gestia-cyan-soft);
+    }
+
+    .gi-cand__chosen {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      color: var(--gestia-cyan-dark);
+      font-size: 12.5px;
+      font-weight: 600;
+    }
 
     .gi-cand__row { display: flex; align-items: center; gap: 0.65rem; }
     .gi-cand__name { flex: 1; min-width: 0; color: var(--gestia-text); font-size: 13px; font-weight: 600; }
@@ -221,6 +245,14 @@ export class GiCandidatePicker implements OnInit {
     'No hay personal activo asignado al servicio para esa fecha. Sin candidatos, la salida es declarar el turno sin cubrir.',
   );
   readonly emptyActionLabel = input('Asignar personal al servicio');
+
+  /**
+   * Quién quedó elegido, para que la lista lo diga.
+   *
+   * <p>La elección vive en el formulario que hospeda este componente, no aquí: quien asigna puede
+   * cambiarla, y el que manda es el formulario. Esto sólo la refleja.</p>
+   */
+  readonly selectedId = input('');
 
   readonly choose = output<GiCandidate>();
   readonly resolveEmpty = output<void>();

@@ -307,6 +307,30 @@ describe('ServicesPage organization-scoped workflows', () => {
     http.expectOne(url + '?organizationId=org-a').flush([]);
   });
 
+  /**
+   * El alta de asignacion no elige a nadie por su cuenta.
+   *
+   * <p>Venia con el primer empleado activo ya puesto en el formulario, y el alta no ensena ningun
+   * selector de empleado —se elige en la lista de candidatos—, asi que guardar sin tocar nada
+   * asignaba a una persona que nadie habia elegido y sin forma de verlo. QA lo reporto el 17 de
+   * septiembre de 2026: «si das clic en Guardar asignacion te pone al primer empleado activo».</p>
+   */
+  it('el alta de asignacion no prellena a la persona, y lo dice si falta', () => {
+    selectClient();
+    page.selectedService.set(service);
+    page.positions.set([position]);
+
+    page.openCreateAssignment();
+
+    expect(page.assignmentForm.controls.idEmployee.value).toBe('');
+
+    page.saveAssignment();
+
+    // Nada viaja: sin persona elegida no hay asignacion que crear.
+    http.expectNone(r => r.method === 'POST');
+    expect(page.error()).toBe('Elige a la persona en la lista de candidatos de abajo.');
+  });
+
   it('updates an assignment without offering an employee change the API cannot save', () => {
     selectClient();
     page.selectedService.set(service);

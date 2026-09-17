@@ -2,7 +2,7 @@ import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { GiCatalogOption } from '../../../shared/ui/gi-catalog-picker/gi-catalog-picker';
 import { EligibilityRequirement } from '../../catalogs/data-access/catalog.models';
-import { PositionSkillRequest, PositionSkills } from './position-skills';
+import { PositionSkillRequest, PositionSkillToggle, PositionSkills } from './position-skills';
 
 const CCTV = 'sk-cctv';
 const MANEJO = 'sk-manejo';
@@ -41,6 +41,7 @@ const regla = (overrides: Partial<EligibilityRequirement> = {}): EligibilityRequ
       (add)="agregadas.push($event)"
       (remove)="quitadas.push($event)"
       (removePending)="quitadasPendientes.push($event)"
+      (toggleBlocking)="alternadas.push($event)"
     />
   `,
 })
@@ -56,6 +57,7 @@ class Anfitrion {
   readonly agregadas: PositionSkillRequest[] = [];
   readonly quitadas: string[] = [];
   readonly quitadasPendientes: string[] = [];
+  readonly alternadas: PositionSkillToggle[] = [];
 }
 
 function montar(configurar: (host: Anfitrion) => void = () => {}) {
@@ -70,11 +72,14 @@ function montar(configurar: (host: Anfitrion) => void = () => {}) {
     raiz: fixture.nativeElement as HTMLElement,
     host: fixture.componentInstance,
     componente: componente as unknown as {
-      elegir(id: string): void;
+      agregar(): void;
       bloquea: { set(valor: boolean): void };
+      elegida: { set(valor: string): void; (): string };
       available(): readonly GiCatalogOption[];
-      elegida(): string;
     },
+    boton: (texto: string) =>
+      Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('.skill button'))
+        .find((b) => b.textContent!.trim() === texto)!,
     filas: () =>
       Array.from(
         (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('.skill'),
@@ -108,22 +113,32 @@ describe('El perfil requerido de una posición', () => {
     expect(filas()[0].textContent).toContain('Sólo deja constancia');
   });
 
-  /** Elegir del catálogo emite por identificador, con la marca de bloqueo elegida. */
-  it('al elegir emite la habilidad por identificador', () => {
+  /** Agregar emite por identificador, con la marca de bloqueo elegida. */
+  it('al agregar emite la habilidad por identificador', () => {
     const { componente, host } = montar();
 
-    componente.elegir(CCTV);
+    componente.elegida.set(CCTV);
+    componente.agregar();
 
     expect(host.agregadas).toEqual([
       { idSkillCatalogItem: CCTV, name: 'Manejo de CCTV', isBlocking: true },
     ]);
   });
 
-  it('respeta la casilla de bloqueo al emitir', () => {
+  /**
+   * La casilla se lee al agregar, no al elegir la habilidad.
+   *
+   * <p>Antes la regla se creaba en el momento de elegir del catálogo, y la casilla está al lado:
+   * quien la desmarcaba después lo hacía cuando la regla ya existía como bloqueante, y no cambiaba
+   * nada. QA lo reportó como «quitas la opción y no se guarda». Esta prueba hace el gesto en el
+   * orden natural —primero la habilidad, después la casilla— y exige que valga el segundo.</p>
+   */
+  it('respeta la casilla aunque se desmarque después de elegir la habilidad', () => {
     const { componente, host } = montar();
 
+    componente.elegida.set(MANEJO);
     componente.bloquea.set(false);
-    componente.elegir(MANEJO);
+    componente.agregar();
 
     expect(host.agregadas[0]).toEqual({
       idSkillCatalogItem: MANEJO,
@@ -132,13 +147,44 @@ describe('El perfil requerido de una posición', () => {
     });
   });
 
+  /** Elegir del catálogo no crea nada por sí solo: hace falta el gesto de agregar. */
+  it('elegir la habilidad no la agrega todavía', () => {
+    const { componente, host } = montar();
+
+    componente.elegida.set(CCTV);
+
+    expect(host.agregadas).toEqual([]);
+  });
+
   /** El selector se limpia para poder sumar varias sin borrar a mano la anterior. */
   it('el selector queda vacío después de agregar', () => {
     const { componente } = montar();
 
-    componente.elegir(CCTV);
+    componente.elegida.set(CCTV);
+    componente.agregar();
 
     expect(componente.elegida()).toBe('');
+  });
+
+  /** Y una regla ya puesta puede cambiar de modo sin quitarla y volver a ponerla. */
+  it('alterna una regla guardada entre bloqueante e informativa', () => {
+    const { boton, host } = montar((h) => h.requirements.set([regla()]));
+
+    boton('Sólo dejar constancia').click();
+
+    expect(host.alternadas).toEqual([
+      { key: 'r1', idSkillCatalogItem: CCTV, name: 'Manejo de CCTV', isBlocking: false, pending: false },
+    ]);
+  });
+
+  it('alterna una pendiente sin tocar el servidor', () => {
+    const { boton, host } = montar((h) =>
+      h.pending.set([{ idSkillCatalogItem: CCTV, name: 'Manejo de CCTV', isBlocking: false }]),
+    );
+
+    boton('Que impida asignar').click();
+
+    expect(host.alternadas[0]).toMatchObject({ idSkillCatalogItem: CCTV, isBlocking: true, pending: true });
   });
 
   /** Lo ya pedido no se vuelve a ofrecer: dos reglas de lo mismo dirían lo mismo dos veces. */
@@ -166,20 +212,20 @@ describe('El perfil requerido de una posición', () => {
   });
 
   it('quitar una guardada emite el identificador de la regla', () => {
-    const { raiz, host } = montar((h) => h.requirements.set([regla()]));
+    const { boton, host } = montar((h) => h.requirements.set([regla()]));
 
-    raiz.querySelector<HTMLButtonElement>('.skill button')!.click();
+    boton('Quitar').click();
 
     expect(host.quitadas).toEqual(['r1']);
     expect(host.quitadasPendientes).toEqual([]);
   });
 
   it('quitar una pendiente emite el identificador de catálogo', () => {
-    const { raiz, host } = montar((h) =>
+    const { boton, host } = montar((h) =>
       h.pending.set([{ idSkillCatalogItem: CCTV, name: 'Manejo de CCTV', isBlocking: true }]),
     );
 
-    raiz.querySelector<HTMLButtonElement>('.skill button')!.click();
+    boton('Quitar').click();
 
     expect(host.quitadasPendientes).toEqual([CCTV]);
     expect(host.quitadas).toEqual([]);

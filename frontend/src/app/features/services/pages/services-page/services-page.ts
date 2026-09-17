@@ -94,7 +94,7 @@ import { ServiceContextApi } from '../../data-access/service-context-api';
 import { EntityDocuments } from '../../../documents/components/entity-documents/entity-documents';
 import { GiCandidatePicker } from '../../../../shared/ui/gi-candidate-picker/gi-candidate-picker';
 import { GiCatalogCreation } from '../../../../shared/ui/gi-catalog-picker/gi-catalog-picker';
-import { PositionSkillRequest, PositionSkills } from '../../ui/position-skills';
+import { PositionSkillRequest, PositionSkillToggle, PositionSkills } from '../../ui/position-skills';
 import { EligibilityRequirement, EligibilityRequirementInput } from '../../../catalogs/data-access/catalog.models';
 import { AppIcon } from '../../../../shared/ui/app-icon/app-icon';
 import { dateRangeValidator, shiftIntervalValidator } from '../../ui/service-validators';
@@ -198,6 +198,28 @@ export class ServicesPage implements OnInit, OnDestroy {
    * asignaciones vigentes: es lo que permite decir «Ocupado» sin inventarlo.</p>
    */
   protected readonly candidateRows = signal<readonly AssignmentCandidateSource[]>([]);
+
+  /**
+   * Si la lista de candidatos llego a contestar.
+   *
+   * <p>Sin esto, «no hay personal activo que ofrecer» se decia igual cuando la consulta fallaba,
+   * y son dos cosas distintas con salidas distintas: una se resuelve dando de alta gente y la otra
+   * volviendo a intentar. Afirmar la primera cuando pasa la segunda es el defecto que este proyecto
+   * lleva semanas cerrando.</p>
+   */
+  protected readonly candidatesLoaded = signal(false);
+
+  protected readonly candidatesEmptyTitle = computed(() =>
+    this.candidatesLoaded()
+      ? 'No hay personal activo que ofrecer'
+      : 'No se pudo traer la lista de personal',
+  );
+
+  protected readonly candidatesEmptyBody = computed(() =>
+    this.candidatesLoaded()
+      ? 'Da de alta personal en Personal, o reactiva a alguien: aqui solo se ofrecen las personas activas de esta organizacion.'
+      : 'Cierra y vuelve a abrir el alta para intentarlo otra vez. No quiere decir que no haya personal.',
+  );
 
   /**
    * El veredicto del servidor por persona. Vacío mientras no contesta, y vacío si falla.
@@ -613,7 +635,9 @@ export class ServicesPage implements OnInit, OnDestroy {
         clientId: idClient,
         status: 'All',
         coverageDate: this.operationDate() || undefined,
-        pageSize: 200,
+        // Cien es el maximo que acepta el servidor. Con doscientos contestaba 400 y la pantalla
+        // ensenaba «La solicitud contiene datos invalidos» sin decir de que.
+        pageSize: 100,
       }),
       1,
       (result) => {
@@ -929,13 +953,18 @@ export class ServicesPage implements OnInit, OnDestroy {
 
     if (!this.canReadEmployees() || !org) return;
 
+    this.candidatesLoaded.set(false);
     this.candidateRows.set([]);
     this.candidateEligibility.set(new Map());
 
     this.read(
-      this.employeeListApi.searchEmployees({ organizationId: org, status: 'Active', pageSize: 200 }),
+      // Cien es el maximo del servidor. Con doscientos esta consulta contestaba 400, la lista de
+      // candidatos quedaba vacia, y el recuadro afirmaba que no habia personal activo cuando si lo
+      // habia: la pantalla daba por hecho un dato que nunca recibio.
+      this.employeeListApi.searchEmployees({ organizationId: org, status: 'Active', pageSize: 100 }),
       2,
       (result) => {
+        this.candidatesLoaded.set(true);
         this.candidateRows.set(
           result.page.items.map((item) => ({
             idEmployee: item.idEmployee,
@@ -1352,7 +1381,11 @@ export class ServicesPage implements OnInit, OnDestroy {
     this.assignmentForm.controls.idEmployee.enable();
     this.editingAssignment.set(null);
     this.assignmentForm.reset({
-      idEmployee: this.activeEmployees()[0]?.idEmployee ?? '',
+      // Vacio, a proposito. Venia con el primer empleado activo ya puesto, asi que guardar sin
+      // tocar nada asignaba a una persona que nadie eligio —y el alta no ensena ningun selector de
+      // empleado, solo la lista de candidatos, asi que no habia forma de verlo—. Es el mismo
+      // criterio del campo de motivo: un dato que compromete a alguien no se prellena.
+      idEmployee: '',
       idPosition:
         (this.selectedPosition()?.active ? this.selectedPosition()?.idPosition : '') ||
         this.positions().find((position) => position.active)?.idPosition ||
@@ -1392,7 +1425,14 @@ export class ServicesPage implements OnInit, OnDestroy {
     const service = this.selectedService();
     if (!client || !service || this.assignmentForm.invalid) {
       this.assignmentForm.markAllAsTouched();
-      this.error.set('Revisa los campos obligatorios, los límites y la vigencia.');
+      // Si lo unico que falta es la persona, se dice cual es el campo y donde se elige. El alta no
+      // tiene selector de empleado —se elige en la lista de candidatos— asi que «revisa los campos
+      // obligatorios» dejaba a quien asigna buscando un campo que no existe.
+      this.error.set(
+        this.assignmentForm.controls.idEmployee.value
+          ? 'Revisa los campos obligatorios, los límites y la vigencia.'
+          : 'Elige a la persona en la lista de candidatos de abajo.',
+      );
       return;
     }
 
@@ -1682,6 +1722,70 @@ export class ServicesPage implements OnInit, OnDestroy {
     this.pendingPositionSkills.update((valores) =>
       valores.filter((item) => item.idSkillCatalogItem !== idSkillCatalogItem),
     );
+  }
+
+  /**
+   * Cambia una habilidad ya puesta de bloqueante a informativa, o al revés.
+   *
+   * <p>Si la posición todavía no existe, la habilidad es un pendiente del formulario y basta con
+   * corregirlo ahí. Si ya existe, la regla vive en el servidor y se actualiza: la alternativa era
+   * quitarla y volver a ponerla, que deja dos registros en la bitácora para un solo cambio de
+   * opinión.</p>
+   */
+  protected togglePositionSkill(toggle: PositionSkillToggle): void {
+    const org = this.selectedOrganizationId();
+
+    if (!org || !this.allowWrite(true)) return;
+
+    if (toggle.pending) {
+      this.pendingPositionSkills.update((valores) =>
+        valores.map((item) =>
+          item.idSkillCatalogItem === toggle.idSkillCatalogItem
+            ? { ...item, isBlocking: toggle.isBlocking }
+            : item,
+        ),
+      );
+      return;
+    }
+
+    const position = this.editingPosition();
+    if (!position) return;
+
+    const regla = this.positionSkillRequirements().find(
+      (item) => item.idEligibilityRequirement === toggle.key,
+    );
+
+    if (!regla) return;
+
+    this.saving.set(true);
+    this.error.set('');
+    this.catalogApi
+      .updateEligibilityRequirement(toggle.key, {
+        ...this.reglaDeHabilidad(org, position.idPosition, {
+          idSkillCatalogItem: toggle.idSkillCatalogItem,
+          name: regla.name,
+          isBlocking: toggle.isBlocking,
+        }),
+      })
+      .pipe(
+        this.withScope(2),
+        finalize(() => this.saving.set(false)),
+      )
+      .subscribe({
+        next: (actualizada) => {
+          this.positionSkillRequirements.update((valores) =>
+            valores.map((item) =>
+              item.idEligibilityRequirement === toggle.key ? actualizada : item,
+            ),
+          );
+          this.message.set(
+            toggle.isBlocking
+              ? `«${regla.name}» vuelve a impedir la asignación.`
+              : `«${regla.name}» queda sólo como constancia.`,
+          );
+        },
+        error: (error: HttpErrorResponse) => this.setError(error),
+      });
   }
 
   /** Alta al vuelo de una habilidad del catálogo, sin abandonar el alta de la posición. */

@@ -87,15 +87,9 @@ public sealed class EmployeeSearchService(
         Guid idOrganization,
         CancellationToken cancellationToken)
     {
-        var codes = await repository.ListRequiredDocumentCodesAsync(idOrganization, cancellationToken);
-
-        return codes
-            .Select(code => Enum.TryParse<EmployeeDocumentType>(code, ignoreCase: true, out var type)
-                ? type
-                : (EmployeeDocumentType?)null)
-            .Where(type => type is not null)
-            .Select(type => type!.Value)
-            .Distinct()
-            .ToArray();
+        // Ya no hay que interpretar texto: la regla guarda el tipo de documento con su tipo. Antes
+        // esto era un Enum.TryParse sobre una cadena, y lo que no se podia interpretar desaparecia
+        // en silencio del filtro.
+        return await repository.ListRequiredDocumentTypesAsync(idOrganization, cancellationToken);
     }
 }

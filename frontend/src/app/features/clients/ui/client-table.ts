@@ -74,7 +74,7 @@ import {
         -->
         <span class="cell__actions" (click)="$event.stopPropagation()">
           <gi-row-actions
-            [actions]="actions()"
+            [actions]="actions(client)"
             [label]="'Acciones de ' + name(client) + ', ' + client.codeClient"
             (select)="action.emit({ id: $event.id, client })"
           />
@@ -162,26 +162,29 @@ export class ClientTable {
   );
 
   /**
-   * Una sola acción de editar.
+   * Las acciones que caben sobre <b>este</b> cliente.
    *
-   * <p>Antes había dos, «Editar cliente» y «Editar ficha», que hacían lo mismo. Dos nombres para
-   * una acción obligan a elegir entre opciones que no se distinguen.</p>
+   * <p>Una sola acción de editar. Antes había dos, «Editar cliente» y «Editar ficha», que hacían lo
+   * mismo. Dos nombres para una acción obligan a elegir entre opciones que no se distinguen.</p>
+   *
+   * <p><b>Y depende de la fila, que antes no.</b> El menú era el mismo para todos, así que a un
+   * cliente ya desactivado se le seguía ofreciendo «Desactivar cliente» —una acción sin efecto— y
+   * a ninguno se le ofrecía volver. El diálogo de desactivar promete que «se puede reactivar»: si
+   * el menú no lo ofrece nunca, la promesa es falsa aunque el servidor sepa hacerlo.</p>
    */
-  protected readonly actions = computed<readonly GiRowAction[]>(() => [
-    {
-      id: 'edit',
-      label: 'Editar cliente',
+  protected actions(client: ClientListItem): readonly GiRowAction[] {
+    const sinPermiso = {
       disabled: !this.canWrite(),
       disabledReason: 'Necesitas permiso de escritura sobre clientes',
-    },
-    { id: 'sites', label: 'Ver sedes' },
-    { id: 'documents', label: 'Documentos' },
-    {
-      id: 'deactivate',
-      label: 'Desactivar cliente',
-      destructive: true,
-      disabled: !this.canWrite(),
-      disabledReason: 'Necesitas permiso de escritura sobre clientes',
-    },
-  ]);
+    };
+
+    return [
+      { id: 'edit', label: 'Editar cliente', ...sinPermiso },
+      { id: 'sites', label: 'Ver sedes' },
+      { id: 'documents', label: 'Documentos' },
+      client.active
+        ? { id: 'deactivate', label: 'Desactivar cliente', destructive: true, ...sinPermiso }
+        : { id: 'activate', label: 'Reactivar cliente', ...sinPermiso },
+    ];
+  }
 }

@@ -39,7 +39,15 @@ public sealed class ClientRepository(GestIaDbContext dbContext) : IClientReposit
                 (client.TradeName != null && client.TradeName.Contains(search)) ||
                 client.Rfc.Contains(search) ||
                 // También por sede: quien busca «Torre Altavista» busca a su cliente.
-                dbContext.ClientSites.Any(site => site.IdClient == client.IdClient && site.Name.Contains(search)));
+                //
+                // El `Active` va escrito en las cuatro subconsultas de este método, y no se hereda.
+                // Con el filtro de estado en «Todos» o «Inactivos» la consulta lleva
+                // `IgnoreQueryFilters(["Active"])`, que vale para la CONSULTA ENTERA: sin esto, una
+                // sede dada de baja seguía contando como sede.
+                dbContext.ClientSites.Any(site =>
+                    site.Active &&
+                    site.IdClient == client.IdClient &&
+                    site.Name.Contains(search)));
         }
 
         // «Sin sede» quiere decir sin ninguna **activa**: una sede dada de baja no permite crear
@@ -48,9 +56,11 @@ public sealed class ClientRepository(GestIaDbContext dbContext) : IClientReposit
         query = criteria.SitePresence switch
         {
             ClientSitePresenceFilter.WithSite =>
-                query.Where(client => dbContext.ClientSites.Any(site => site.IdClient == client.IdClient)),
+                query.Where(client => dbContext.ClientSites.Any(site =>
+                    site.Active && site.IdClient == client.IdClient)),
             ClientSitePresenceFilter.WithoutSite =>
-                query.Where(client => !dbContext.ClientSites.Any(site => site.IdClient == client.IdClient)),
+                query.Where(client => !dbContext.ClientSites.Any(site =>
+                    site.Active && site.IdClient == client.IdClient)),
             _ => query,
         };
 
@@ -59,7 +69,9 @@ public sealed class ClientRepository(GestIaDbContext dbContext) : IClientReposit
             var municipality = criteria.Municipality.Trim();
             query = query.Where(client =>
                 dbContext.ClientSites.Any(site =>
-                    site.IdClient == client.IdClient && site.Municipality == municipality));
+                    site.Active &&
+                    site.IdClient == client.IdClient &&
+                    site.Municipality == municipality));
         }
 
         var totalCount = await query.CountAsync(cancellationToken);
@@ -78,26 +90,41 @@ public sealed class ClientRepository(GestIaDbContext dbContext) : IClientReposit
                 client.Rfc,
                 client.Active,
                 client.CreatedAt,
-                dbContext.ClientSites.Count(site => site.IdClient == client.IdClient),
+                // El "Active" va escrito, no heredado del filtro global. Estas subconsultas no lo
+                // recibian, asi que la pestana decia "Sedes 6" mientras la lista mostraba 3: las
+                // tres desactivadas se contaban y no se veian. Un contador que no cuadra con la
+                // lista que tiene al lado hace dudar de los dos.
+                dbContext.ClientSites.Count(site => site.IdClient == client.IdClient && site.Active),
                 dbContext.ClientSites.Count(site =>
                     site.IdClient == client.IdClient
-                    && !dbContext.ClientContacts.Any(contact => contact.IdClientSite == site.IdClientSite)),
-                dbContext.ClientContacts.Count(contact => contact.IdClient == client.IdClient),
-                dbContext.Services.Count(service => service.IdClient == client.IdClient),
+                    && site.Active
+                    // Un contacto del cliente cubre a todas sus sedes: no hace falta uno por sede
+                    // para que alguien responda. Antes solo contaba los atados a la sede, y como 23
+                    // de los 26 contactos son del cliente, casi toda sede salia "sin contacto".
+                    //
+                    // "Del cliente" es el que NO tiene sede. Uno atado a otra sede no cubre a esta:
+                    // el primer intento lo daba por bueno y dejaba en cero el conteo de sedes sin
+                    // contacto en cuanto el cliente tuviera un contacto en cualquier parte.
+                    && !dbContext.ClientContacts.Any(contact =>
+                        contact.Active
+                        && contact.IdClient == client.IdClient
+                        && (contact.IdClientSite == site.IdClientSite || contact.IdClientSite == null))),
+                dbContext.ClientContacts.Count(contact => contact.IdClient == client.IdClient && contact.Active),
+                dbContext.Services.Count(service => service.IdClient == client.IdClient && service.Active),
                 // La sede principal es la primera por nombre. No hay marca de «principal» en el
                 // modelo, y elegir una al azar haría que la misma fila cambiara entre cargas.
                 dbContext.ClientSites
-                    .Where(site => site.IdClient == client.IdClient)
+                    .Where(site => site.IdClient == client.IdClient && site.Active)
                     .OrderBy(site => site.Name)
                     .Select(site => site.Name)
                     .FirstOrDefault(),
                 dbContext.ClientSites
-                    .Where(site => site.IdClient == client.IdClient)
+                    .Where(site => site.IdClient == client.IdClient && site.Active)
                     .OrderBy(site => site.Name)
                     .Select(site => site.Municipality)
                     .FirstOrDefault(),
                 dbContext.ClientSites
-                    .Where(site => site.IdClient == client.IdClient)
+                    .Where(site => site.IdClient == client.IdClient && site.Active)
                     .OrderBy(site => site.Name)
                     .Select(site => site.State)
                     .FirstOrDefault()))
@@ -145,6 +172,20 @@ public sealed class ClientRepository(GestIaDbContext dbContext) : IClientReposit
         Guid idClient,
         CancellationToken cancellationToken) =>
         dbContext.Clients
+            .Include(client => client.Organization)
+            .SingleOrDefaultAsync(
+                client => client.IdOrganization == idOrganization && client.IdClient == idClient,
+                cancellationToken);
+
+    public Task<Client?> GetIncludingInactiveAsync(
+        Guid idOrganization,
+        Guid idClient,
+        CancellationToken cancellationToken) =>
+        dbContext.Clients
+            // Sólo se apaga el filtro de actividad. El de organización se queda puesto: reactivar
+            // no es motivo para dejar de aislar organizaciones, y apagarlo aquí abriría el cliente
+            // de otra empresa a quien acierte el identificador.
+            .IgnoreQueryFilters(["Active"])
             .Include(client => client.Organization)
             .SingleOrDefaultAsync(
                 client => client.IdOrganization == idOrganization && client.IdClient == idClient,

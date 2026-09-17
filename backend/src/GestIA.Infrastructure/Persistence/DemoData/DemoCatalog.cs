@@ -1,4 +1,5 @@
 using GestIA.Domain.Catalogs;
+using GestIA.Domain.Workforce;
 using GestIA.Domain.Clients;
 using GestIA.Domain.Services;
 
@@ -10,59 +11,57 @@ namespace GestIA.Infrastructure.Persistence.DemoData;
 /// </summary>
 internal static class DemoCatalog
 {
-    public static readonly (string Code, string Name)[] JobPositions =
+    public static readonly string[] JobPositions =
     [
-        ("GUARDIA", "Guardia de seguridad"),
-        ("SUPERVISOR", "Supervisor de sitio"),
-        ("JEFE_TURNO", "Jefe de turno"),
-        ("MONITORISTA", "Monitorista de CCTV"),
-        ("INTENDENCIA", "Auxiliar de intendencia"),
-        ("RECEPCION", "Recepcionista"),
-        ("CHOFER", "Chofer operativo"),
-        ("COORDINADOR", "Coordinador operativo")
+        "Guardia de seguridad",
+        "Supervisor de sitio",
+        "Jefe de turno",
+        "Monitorista de CCTV",
+        "Auxiliar de intendencia",
+        "Recepcionista",
+        "Chofer operativo",
+        "Coordinador operativo"
     ];
 
-    public static readonly (string Code, string Name)[] Skills =
+    public static readonly string[] Skills =
     [
-        ("MANEJO_ARMA", "Manejo de arma"),
-        ("PRIMEROS_AUX", "Primeros auxilios"),
-        ("CCTV", "Operación de CCTV"),
-        ("CONTROL_ACCESO", "Control de acceso"),
-        ("MANEJO_CRISIS", "Manejo de crisis"),
-        ("LICENCIA_A", "Licencia de conducir tipo A")
+        "Manejo de arma",
+        "Primeros auxilios",
+        "Operación de CCTV",
+        "Control de acceso",
+        "Manejo de crisis",
+        "Licencia de conducir tipo A"
     ];
 
-    public static readonly (string Code, string Name)[] Zones =
-    [
-        ("ZONA_NORTE", "Zona Norte"),
-        ("ZONA_CENTRO", "Zona Centro"),
-        ("ZONA_SUR", "Zona Sur"),
-        ("ZONA_BAJIO", "Zona Bajío")
-    ];
-
+    /// <summary>
+    /// Una regla del catalogo demo. <c>RequiredSkillName</c> nombra la habilidad del catalogo que
+    /// la regla exige; el sembrador la resuelve a su identificador al crearla.
+    /// </summary>
     public sealed record EligibilityRule(
         EligibilityRequirementType RequirementType,
-        string RequiredCode,
+        EmployeeDocumentType? RequiredDocumentType,
+        EmployeeEvaluationType? RequiredEvaluationType,
         string Name,
         string? Description,
-        bool IsBlocking);
+        bool IsBlocking,
+        string? RequiredSkillName = null);
 
     public static readonly EligibilityRule[] EligibilityRules =
     [
-        new(EligibilityRequirementType.Document, "Curp", "CURP vigente",
+        new(EligibilityRequirementType.Document, EmployeeDocumentType.Curp, null, "CURP vigente",
             "Toda asignación exige CURP capturada y validada.", true),
-        new(EligibilityRequirementType.Document, "ProofOfAddress", "Comprobante de domicilio",
+        new(EligibilityRequirementType.Document, EmployeeDocumentType.ProofOfAddress, null, "Comprobante de domicilio",
             "Comprobante con antigüedad máxima de tres meses.", true),
-        new(EligibilityRequirementType.Document, "CriminalRecordCertificate", "Carta de no antecedentes",
+        new(EligibilityRequirementType.Document, EmployeeDocumentType.CriminalRecordCertificate, null, "Carta de no antecedentes",
             "Vigencia de un año desde la expedición.", true),
-        new(EligibilityRequirementType.Document, "ProofOfStudies", "Comprobante de estudios",
+        new(EligibilityRequirementType.Document, EmployeeDocumentType.ProofOfStudies, null, "Comprobante de estudios",
             "Requisito informativo, no bloquea la asignación.", false),
-        new(EligibilityRequirementType.Evaluation, "Polygraph", "Examen poligráfico",
+        new(EligibilityRequirementType.Evaluation, null, EmployeeEvaluationType.Polygraph, "Examen poligráfico",
             "Obligatorio para posiciones con manejo de valores.", true),
-        new(EligibilityRequirementType.Evaluation, "SocioeconomicStudy", "Estudio socioeconómico",
+        new(EligibilityRequirementType.Evaluation, null, EmployeeEvaluationType.SocioeconomicStudy, "Estudio socioeconómico",
             "Se revisa cada dos años.", false),
-        new(EligibilityRequirementType.Skill, "PRIMEROS_AUX", "Primeros auxilios",
-            "Deseable en todas las posiciones de sitio.", false)
+        new(EligibilityRequirementType.Skill, null, null, "Primeros auxilios",
+            "Deseable en todas las posiciones de sitio.", false, RequiredSkillName: "Primeros auxilios")
     ];
 
     public sealed record DemoClient(

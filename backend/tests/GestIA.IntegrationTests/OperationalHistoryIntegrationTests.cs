@@ -141,25 +141,28 @@ public sealed class OperationalHistoryIntegrationTests(OperationalSqlDatabase da
 
         await using (var context = database.Context())
         {
-            var configuration = await context.ServiceConfigurations
-                .SingleAsync(item => item.IdServiceConfiguration == seed.ConfigurationId);
+            // El sujeto es el registro de asistencia: la configuracion del servicio se retiro del
+            // modelo, y la asistencia es otra de las entidades con historial funcional.
+            var attendance = await context.AttendanceRecords
+                .SingleAsync(item => item.IdAttendanceRecord == seed.AttendanceId);
 
-            configuration.UpdateProfile(
-                new(Day, null, 2, 12m, 6, 264m, 7, "Turno mixto", null, 15000m, "MXN", false),
-                ActorId, ActorName, Now);
+            attendance.UpdateProfile(
+                new(AttendanceStatus.Late, new TimeOnly(8, 30), new TimeOnly(16, 30), 35, null),
+                ActorId,
+                ActorName,
+                Now);
 
             await context.SaveChangesAsync();
         }
 
         await using var check = database.Context();
         var events = await check.OperationalEvents
-            .Where(item => item.RecordId == seed.ConfigurationId)
+            .Where(item => item.RecordId == seed.AttendanceId)
             .ToArrayAsync();
 
         var item = Assert.Single(events);
         Assert.Equal("Se renegoció el contrato con el cliente", item.Reason);
-        Assert.Equal(10000m, decimal.Parse(Field(item.BeforeSnapshot!, "MonthlyPrice"), CultureInfo.InvariantCulture));
-        Assert.Equal(15000m, decimal.Parse(Field(item.AfterSnapshot, "MonthlyPrice"), CultureInfo.InvariantCulture));
+        Assert.Equal("35", Field(item.AfterSnapshot, "MinutesLate"));
     }
 
     /// <summary>
@@ -289,10 +292,6 @@ public sealed class OperationalHistoryIntegrationTests(OperationalSqlDatabase da
         var client = Client.Create(organizationId, $"{prefix}-CLI", "Cliente", "EXA010101AA1", ActorId, ActorName, Now);
         var site = ClientSite.Create(client.IdOrganization, client.IdClient, $"{prefix}-SED", "Sede", "Calle", "Ciudad", "Estado", "01000", ActorId, ActorName, Now);
         var service = Service.Create(organizationId, client.IdClient, site.IdClientSite, null, $"{prefix}-SER", "Servicio", "Servicio", Day, ActorId, ActorName, Now);
-        var configuration = ServiceConfiguration.Create(
-            organizationId, service.IdService,
-            new(Day, null, 1, 8m, 5, 176m, 5, "Turno diurno", null, 10000m, "MXN", true),
-            ActorId, ActorName, Now);
         var position = Position.Create(organizationId, service.IdService, $"{prefix}-PUE", new("Puesto", 1, null, null), ActorId, ActorName, Now);
         var employee = Employee.Create(organizationId, $"{prefix}-EMP", "Empleado", null, Day, ActorId, ActorName, Now);
         var version = ScheduleVersion.Create(organizationId, service.IdService, new("Versión", Day, Day.AddDays(1), null), ActorId, ActorName, Now);
@@ -306,12 +305,12 @@ public sealed class OperationalHistoryIntegrationTests(OperationalSqlDatabase da
             new(AttendanceStatus.Present, new TimeOnly(8, 0), new TimeOnly(16, 0), 0, null),
             ActorId, ActorName, Now);
 
-        context.AddRange(organization, client, site, service, configuration, position, employee, version, shift, attendance);
+        context.AddRange(organization, client, site, service, position, employee, version, shift, attendance);
         await context.SaveChangesAsync();
 
         database.Organization.SetAuthorizedOrganization(organizationId);
-        return new(organizationId, client.IdClient, configuration.IdServiceConfiguration, attendance.IdAttendanceRecord);
+        return new(organizationId, client.IdClient, attendance.IdAttendanceRecord);
     }
 
-    private sealed record Seed(Guid OrganizationId, Guid ClientId, Guid ConfigurationId, Guid AttendanceId);
+    private sealed record Seed(Guid OrganizationId, Guid ClientId, Guid AttendanceId);
 }

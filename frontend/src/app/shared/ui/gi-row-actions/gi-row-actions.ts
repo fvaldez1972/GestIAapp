@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, ElementRef, OnInit, computed, input, output, signal, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, OnInit, computed, effect, input, output, signal, viewChild } from '@angular/core';
 import { devAssert } from '../dev-assert';
 
 export type GiRowAction = {
@@ -47,8 +47,21 @@ let instancias = 0;
       <span aria-hidden="true">⋯</span>
     </button>
 
+    <!--
+      El menú va en la capa superior del navegador, con «popover», y no dentro del flujo de la
+      fila. La razón es concreta: la tabla vive en un contenedor con «overflow-x: auto», y en CSS
+      eso obliga al eje vertical a «auto» también, así que el menú quedaba **recortado** por el
+      borde de la tabla. No era el z-index —el menú ya iba por encima—, era el recorte.
+    -->
     @if (abierto()) {
-      <ul class="gi-actions__menu" [id]="menuId" role="menu" [attr.aria-label]="label()">
+      <ul
+        #menu
+        class="gi-actions__menu"
+        popover="manual"
+        [id]="menuId"
+        role="menu"
+        [attr.aria-label]="label()"
+      >
         @for (accion of normales(); track accion.id; let i = $index) {
           <li role="none">
             <button
@@ -116,13 +129,13 @@ let instancias = 0;
     .gi-actions__trigger:focus-visible { outline: 2px solid var(--gestia-cyan); outline-offset: 2px; }
 
     .gi-actions__menu {
-      position: absolute;
+      /* Colocado a mano al abrir, en coordenadas de ventana: ver «mostrar». */
+      position: fixed;
       z-index: 30;
-      top: calc(100% + 0.25rem);
-      right: 0;
       min-width: 12rem;
       margin: 0;
       padding: 0.25rem;
+      overflow: visible;
       list-style: none;
       border: 1px solid var(--gestia-border);
       border-radius: var(--gestia-radius);
@@ -170,6 +183,41 @@ export class GiRowActions implements OnInit {
   protected readonly activa = signal(0);
   protected readonly menuId = `gi-row-actions-${++instancias}`;
   private readonly disparador = viewChild.required<ElementRef<HTMLButtonElement>>('disparador');
+  private readonly menu = viewChild<ElementRef<HTMLElement>>('menu');
+
+  constructor() {
+    // El menú sólo existe mientras está abierto, así que se coloca en cuanto aparece.
+    effect(() => {
+      const elemento = this.menu()?.nativeElement;
+      if (elemento) {
+        this.mostrar(elemento);
+      }
+    });
+  }
+
+  /**
+   * Coloca el menú bajo el disparador, en coordenadas de ventana.
+   *
+   * <p>Al estar en la capa superior ya no hereda la posición de la fila, así que hay que dársela.
+   * Se alinea por la derecha con el disparador, y si no cabe hacia abajo se abre hacia arriba: un
+   * menú que se sale de la pantalla es tan inútil como uno recortado.</p>
+   */
+  private mostrar(elemento: HTMLElement): void {
+    // `showPopover` no existe en jsdom, donde corren las pruebas. Sin capa superior el menú sigue
+    // funcionando; sólo vuelve a estar sujeto al recorte, que en una prueba no importa.
+    if (typeof elemento.showPopover === 'function' && !elemento.matches(':popover-open')) {
+      elemento.showPopover();
+    }
+
+    const ancla = this.disparador().nativeElement.getBoundingClientRect();
+    const alto = elemento.offsetHeight;
+    const cabeDebajo = ancla.bottom + alto + 8 <= window.innerHeight;
+
+    elemento.style.left = `${Math.max(8, ancla.right - elemento.offsetWidth)}px`;
+    elemento.style.top = cabeDebajo
+      ? `${ancla.bottom + 4}px`
+      : `${Math.max(8, ancla.top - alto - 4)}px`;
+  }
 
   protected readonly normales = computed(() => this.actions().filter((accion) => !accion.destructive));
   protected readonly destructiva = computed(() => this.actions().find((accion) => accion.destructive) ?? null);
@@ -220,6 +268,11 @@ export class GiRowActions implements OnInit {
   }
 
   protected cerrar() {
+    const elemento = this.menu()?.nativeElement;
+    if (elemento && typeof elemento.hidePopover === 'function' && elemento.matches(':popover-open')) {
+      elemento.hidePopover();
+    }
+
     this.abierto.set(false);
     this.disparador().nativeElement.focus();
   }

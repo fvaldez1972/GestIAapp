@@ -106,6 +106,9 @@ public sealed class ClientSiteServiceTests
         public Task<Client?> GetAsync(Guid idOrganization, Guid idClient, CancellationToken cancellationToken) =>
             Task.FromResult(client?.IdOrganization == idOrganization && client.IdClient == idClient ? client : null);
 
+        public Task<Client?> GetIncludingInactiveAsync(Guid idOrganization, Guid idClient, CancellationToken cancellationToken) =>
+            Task.FromResult(client?.IdOrganization == idOrganization && client.IdClient == idClient ? client : null);
+
         public Task<bool> IsCodeInUseAsync(Guid idOrganization, string codeClient, Guid? excludedClientId, CancellationToken cancellationToken) =>
             Task.FromResult(false);
 

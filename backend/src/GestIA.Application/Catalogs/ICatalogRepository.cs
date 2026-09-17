@@ -11,7 +11,15 @@ public interface ICatalogRepository
     Task<bool> OrganizationExistsAsync(Guid idOrganization, CancellationToken cancellationToken);
     Task<IReadOnlyList<BusinessCatalogItem>> ListCatalogItemsAsync(Guid idOrganization, BusinessCatalogItemType? type, CancellationToken cancellationToken);
     Task<BusinessCatalogItem?> GetCatalogItemAsync(Guid idOrganization, Guid idCatalogItem, CancellationToken cancellationToken);
-    Task<bool> CatalogCodeExistsAsync(Guid idOrganization, BusinessCatalogItemType type, string code, Guid? excludedId, CancellationToken cancellationToken);
+    /// <summary>
+    /// Si ya hay un valor de ese tipo con el mismo nombre plegado bajo el mismo padre.
+    ///
+    /// <para>Lleva el padre porque la unicidad del catalogo es por rama: un municipio es unico en
+    /// su estado, no en el pais. Es la misma forma del indice unico de la base, que es quien de
+    /// verdad impide el duplicado; esto sirve para responder con un mensaje util en vez de con una
+    /// violacion de indice.</para>
+    /// </summary>
+    Task<bool> CatalogNameExistsAsync(Guid idOrganization, BusinessCatalogItemType type, string normalizedName, Guid? idParentCatalogItem, Guid? excludedId, CancellationToken cancellationToken);
     Task AddCatalogItemAsync(BusinessCatalogItem item, CancellationToken cancellationToken);
 
     Task<IReadOnlyList<EligibilityRequirement>> ListEligibilityRequirementsAsync(Guid idOrganization, CancellationToken cancellationToken);

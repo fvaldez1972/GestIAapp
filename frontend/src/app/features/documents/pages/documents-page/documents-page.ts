@@ -595,10 +595,10 @@ export class DocumentsPage implements OnInit {
     }
 
     if (document.isExpired) {
-      return `Vencido: ${document.expiresDate}`;
+      return `Vencido: ${document.expiresDate ?? 'sin fecha'}`;
     }
 
-    return `Vence: ${document.expiresDate}`;
+    return `Vence: ${document.expiresDate ?? 'sin fecha'}`;
   }
 
   protected formattedDate(value: string | null) {

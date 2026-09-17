@@ -114,6 +114,8 @@
         <app-incident-form
           [row]="editingIncident()"
           [reasons]="incidentReasons()"
+          [canWrite]="canWrite()"
+          (createReason)="createIncidentReason($event)"
           [dayClosed]="dayClosed()"
           [saving]="saving()"
           (save)="saveIncident($event)"
@@ -135,6 +137,8 @@
           [target]="target"
           [candidates]="candidates()"
           [reasons]="coverageReasons()"
+          [canWrite]="canWrite()"
+          (createReason)="createCoverageReason($event)"
           [isCorrection]="!!editingCoverage()"
           [dayClosed]="dayClosed()"
           [saving]="saving()"

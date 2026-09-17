@@ -146,7 +146,6 @@ public sealed class OrganizationIsolationTests(OperationalSqlDatabase database)
         await Check(context.Employees);
         await Check(context.Services);
         await Check(context.ServiceContracts);
-        await Check(context.ServiceConfigurations);
         await Check(context.Positions);
         await Check(context.ShiftPatterns);
         await Check(context.ShiftSegments);
@@ -178,7 +177,7 @@ public sealed class OrganizationIsolationTests(OperationalSqlDatabase database)
         {
             // Sin esto la prueba pasaría igual con la base vacía, que es la forma más fácil de
             // que una prueba de aislamiento deje de comprobar nada.
-            Assert.Equal(26, seeded);
+            Assert.Equal(25, seeded);
         }
     }
 
@@ -215,10 +214,6 @@ public sealed class OrganizationIsolationTests(OperationalSqlDatabase database)
         var contract = ServiceContract.Create(
             organizationId, client.IdClient, $"{prefix}-CON",
             new(ServiceContractStatus.Effective, null, Day, null, 30, 30, "MXN", null, null),
-            ActorId, ActorName, Now);
-        var configuration = ServiceConfiguration.Create(
-            organizationId, service.IdService,
-            new(Day, null, 1, 8m, 5, 176m, 5, "Turno diurno", null, 10000m, "MXN", true),
             ActorId, ActorName, Now);
         var position = Position.Create(
             organizationId, service.IdService, $"{prefix}-PUE", new("Puesto", 1, null, null),
@@ -265,12 +260,12 @@ public sealed class OrganizationIsolationTests(OperationalSqlDatabase database)
                 "Evidencia", $"operation-evidences/{prefix}.jpg", null),
             ActorId, ActorName, Now);
         var catalogItem = BusinessCatalogItem.Create(
-            organizationId, new(BusinessCatalogItemType.CoverageReason, $"{prefix}-FAL", "Falta", null),
+            organizationId, new(BusinessCatalogItemType.CoverageReason, $"Falta {prefix}", null),
             ActorId, ActorName, Now);
         var requirement = EligibilityRequirement.Create(
             organizationId,
             new(EligibilityRequirementTargetType.Organization, null, null, null,
-                EligibilityRequirementType.Document, $"{prefix}-DOC", "Documento", null, true),
+                EligibilityRequirementType.Document, null, EmployeeDocumentType.Curp, null, "Documento", null, true),
             ActorId, ActorName, Now);
         var request = OperationalRequest.Create(
             organizationId, null, null, $"{prefix}-SOL", OperationalRequestType.NewClient,
@@ -300,7 +295,7 @@ public sealed class OrganizationIsolationTests(OperationalSqlDatabase database)
             new(EmployeeEvaluationType.Polygraph, EmployeeEvaluationResult.Approved, Day, null, null, null, null),
             ActorId, ActorName, Now);
         var skillCatalogItem = BusinessCatalogItem.Create(
-            organizationId, new(BusinessCatalogItemType.Skill, $"{prefix}-HAB", "Habilidad", null),
+            organizationId, new(BusinessCatalogItemType.Skill, $"Habilidad {prefix}", null),
             ActorId, ActorName, Now);
         var employeeSkill = EmployeeSkill.Create(
             organizationId, employee.IdEmployee,
@@ -308,7 +303,7 @@ public sealed class OrganizationIsolationTests(OperationalSqlDatabase database)
             ActorId, ActorName, Now);
 
         context.AddRange(
-            organization, client, site, service, contract, configuration, position, pattern, segment,
+            organization, client, site, service, contract, position, pattern, segment,
             employee, replacement, version, shift, assignment, attendance, coverage, incident, evidence,
             catalogItem, requirement, request, document, documentEvent,
             contact, employeeDocument, employeeEvaluation, skillCatalogItem, employeeSkill);

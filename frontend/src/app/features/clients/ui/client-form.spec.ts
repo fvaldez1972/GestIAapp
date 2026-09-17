@@ -1,4 +1,5 @@
 import { Component, signal } from '@angular/core';
+import { ServerProblem } from '../../../shared/util/server-problem';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
@@ -6,10 +7,13 @@ import { ClientForm, ClientFormValue } from './client-form';
 
 @Component({
   imports: [ClientForm],
-  template: `<app-client-form organizationId="org-a" (save)="guardado.set($event)" />`,
+  template: `
+    <app-client-form organizationId="org-a" [problem]="problema()" (save)="guardado.set($event)" />
+  `,
 })
 class Anfitrion {
   readonly guardado = signal<{ value: ClientFormValue; withSite: boolean } | null>(null);
+  readonly problema = signal<ServerProblem | null>(null);
 }
 
 function montar() {
@@ -44,11 +48,11 @@ function montar() {
  * hace que el municipio aparezca sólo cuando su estado está elegido.</p>
  */
 const GEOGRAFIA = [
-  { idCatalogItem: 'mx', type: 'Country', code: 'MX', name: 'México', active: true, idParentCatalogItem: null },
-  { idCatalogItem: 'jal', type: 'State', code: 'JAL', name: 'Jalisco', active: true, idParentCatalogItem: 'mx' },
-  { idCatalogItem: 'nl', type: 'State', code: 'NL', name: 'Nuevo León', active: true, idParentCatalogItem: 'mx' },
-  { idCatalogItem: 'tlaq', type: 'City', code: 'TLAQ', name: 'Tlaquepaque', active: true, idParentCatalogItem: 'jal' },
-  { idCatalogItem: 'snic', type: 'City', code: 'SNIC', name: 'San Nicolás de los Garza', active: true, idParentCatalogItem: 'nl' },
+  { idCatalogItem: 'mx', type: 'Country', name: 'México', active: true, idParentCatalogItem: null },
+  { idCatalogItem: 'jal', type: 'State', name: 'Jalisco', active: true, idParentCatalogItem: 'mx' },
+  { idCatalogItem: 'nl', type: 'State', name: 'Nuevo León', active: true, idParentCatalogItem: 'mx' },
+  { idCatalogItem: 'tlaq', type: 'City', name: 'Tlaquepaque', active: true, idParentCatalogItem: 'jal' },
+  { idCatalogItem: 'snic', type: 'City', name: 'San Nicolás de los Garza', active: true, idParentCatalogItem: 'nl' },
 ];
 
 /** Responde la única petición del catálogo y deja los selectores con sus opciones. */
@@ -204,5 +208,33 @@ describe('El alta de cliente', () => {
 
     const municipio = raiz.querySelector<HTMLSelectElement>('#cf-municipio select')!;
     expect(municipio.value).toBe('');
+  });
+});
+
+describe('El rechazo del servidor, en el campo que falló', () => {
+  /**
+   * Antes el alta decía «La solicitud contiene datos inválidos» arriba y nada más. El servidor
+   * mandaba el detalle por campo y el frontend lo tiraba: el usuario veía un rechazo sin saber
+   * qué corregir.
+   */
+  it('pinta el mensaje junto al campo, no sólo arriba', () => {
+    const fixture = TestBed.createComponent(Anfitrion);
+    fixture.detectChanges();
+
+    fixture.componentInstance.problema.set({
+      message: 'El RFC no tiene el formato del SAT.',
+      fieldErrors: { Rfc: 'El RFC no tiene el formato del SAT.' },
+    });
+    fixture.detectChanges();
+
+    const raiz = fixture.nativeElement as HTMLElement;
+    const rfc = raiz.querySelector<HTMLInputElement>('#cf-rfc')!;
+
+    expect(rfc.classList).toContain('is-invalid');
+    expect(rfc.getAttribute('aria-invalid')).toBe('true');
+    expect(raiz.querySelector('.field__error')?.textContent).toContain('formato del SAT');
+
+    // Y el campo que no falló no se marca.
+    expect(raiz.querySelector<HTMLInputElement>('#cf-razon')!.classList).not.toContain('is-invalid');
   });
 });

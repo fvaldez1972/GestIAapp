@@ -1,7 +1,8 @@
 using GestIA.Domain.Catalogs;
-using GestIA.Domain.History;
 using GestIA.Domain.Clients;
+using GestIA.Domain.Common;
 using GestIA.Domain.Documents;
+using GestIA.Domain.History;
 using GestIA.Domain.Operations;
 using GestIA.Domain.Planning;
 using GestIA.Domain.Requests;
@@ -11,35 +12,29 @@ using GestIA.Domain.Workforce;
 namespace GestIA.Application.Catalogs;
 
 public sealed record CatalogDefinitionValue(string Code, string Label);
-public sealed record CatalogDefinition(string Key, string Name, string Group, string Module,
+
+/// <summary>
+/// Un catálogo del sistema, editable o fijo.
+///
+/// <para>Perdió el grupo el 7 de septiembre de 2026, junto con la columna <c>CatalogGroup</c> de la
+/// tabla: nadie lo leía, y agrupar catorce catálogos en tres cajones no ayudaba a encontrarlos.</para>
+/// </summary>
+public sealed record CatalogDefinition(string Key, string Name, string Module,
     bool Editable, BusinessCatalogItemType? Type, IReadOnlyList<CatalogDefinitionValue> Values);
 
 public static class CatalogDefinitions
 {
-    public static string DefaultGroup(BusinessCatalogItemType type) => type switch
-    {
-        BusinessCatalogItemType.IncidentReason or BusinessCatalogItemType.CoverageReason or BusinessCatalogItemType.CancellationReason => "Operativo",
-        BusinessCatalogItemType.DocumentRequirement or BusinessCatalogItemType.EvaluationRequirement or
-            BusinessCatalogItemType.ClientRestriction or BusinessCatalogItemType.ServiceRestriction => "Elegibilidad",
-        _ => "General"
-    };
-
     public static IReadOnlyList<CatalogDefinition> All { get; } =
     [
         Editable(BusinessCatalogItemType.Skill, "Habilidades", "Personal"),
         Editable(BusinessCatalogItemType.JobPosition, "Puestos", "Personal"),
-        Editable(BusinessCatalogItemType.Zone, "Zonas", "Clientes"),
         Editable(BusinessCatalogItemType.Country, "Paises", "Domicilios"),
         Editable(BusinessCatalogItemType.State, "Estados", "Domicilios"),
         Editable(BusinessCatalogItemType.City, "Ciudades y municipios", "Domicilios"),
         Editable(BusinessCatalogItemType.Nationality, "Nacionalidades", "Clientes"),
         Editable(BusinessCatalogItemType.IncidentReason, "Motivos de incidencia", "Operacion"),
         Editable(BusinessCatalogItemType.CoverageReason, "Motivos de cobertura", "Operacion"),
-        Editable(BusinessCatalogItemType.CancellationReason, "Motivos de cancelacion", "Solicitudes"),
-        Editable(BusinessCatalogItemType.DocumentRequirement, "Requisitos de documentos", "Personal"),
-        Editable(BusinessCatalogItemType.EvaluationRequirement, "Requisitos de evaluaciones", "Personal"),
-        Editable(BusinessCatalogItemType.ClientRestriction, "Restricciones de clientes", "Clientes"),
-        Editable(BusinessCatalogItemType.ServiceRestriction, "Restricciones de servicios", "Servicios"),
+        Editable(BusinessCatalogItemType.ClientDocumentCategory, "Categorias de documento del cliente", "Clientes"),
         Fixed<OperationalRequestType>("Tipos de solicitud", "Solicitudes"),
         Fixed<OperationalRequestStatus>("Estados de solicitud", "Solicitudes"),
         Fixed<OperationalRequestPriority>("Prioridades de solicitud", "Solicitudes"),
@@ -49,6 +44,9 @@ public static class CatalogDefinitions
         Fixed<EmployeeEvaluationResult>("Resultados de evaluacion", "Personal"),
         Fixed<EmployeeStatus>("Estados del personal", "Personal"),
         Fixed<ServiceAssignmentType>("Tipos de asignacion", "Servicios"),
+        // Sirve para dos cosas distintas: el periodo del precio de un puesto y la
+        // periodicidad de pago al personal de la organizacion.
+        Fixed<PaymentFrequency>("Periodicidades de pago y cobro", "Servicios"),
         Fixed<ServiceContractStatus>("Estados del contrato", "Clientes"),
         Fixed<BusinessDocumentOwnerType>("Propietarios documentales", "Documentos"),
         Fixed<BusinessDocumentStatus>("Estados documentales", "Documentos"),
@@ -68,10 +66,10 @@ public static class CatalogDefinitions
     ];
 
     private static CatalogDefinition Editable(BusinessCatalogItemType type, string name, string module) =>
-        new(type.ToString(), name, DefaultGroup(type), module, true, type, []);
+        new(type.ToString(), name, module, true, type, []);
 
     private static CatalogDefinition Fixed<T>(string name, string module) where T : struct, Enum =>
-        new(typeof(T).Name, name, "Sistema", module, false, null,
+        new(typeof(T).Name, name, module, false, null,
             Enum.GetNames<T>().Select(code => new CatalogDefinitionValue(code, Label(code))).ToArray());
 
     private static string Label(string code) => code switch
@@ -83,6 +81,8 @@ public static class CatalogDefinitions
         "Draft" => "Borrador", "Submitted" => "Enviada", "InReview" or "UnderReview" => "En revision",
         "Approved" => "Aprobado", "Rejected" => "Rechazado", "Cancelled" => "Cancelado", "Completed" => "Completado",
         "Low" => "Baja", "Medium" => "Media", "High" => "Alta", "Critical" => "Critica",
+        // Catorcenal no es quincenal: veintiseis pagos al año contra veinticuatro.
+        "Weekly" => "Semanal", "Biweekly" => "Catorcenal", "SemiMonthly" => "Quincenal", "Monthly" => "Mensual",
         "EmploymentApplication" => "Solicitud de empleo", "BirthCertificate" => "Acta de nacimiento",
         "MarriageCertificate" => "Acta de matrimonio", "VoterId" => "INE", "Curp" => "CURP", "SocialSecurityNumber" => "NSS",
         "Rfc" => "RFC", "TaxStatusCertificate" => "Constancia de situacion fiscal", "DriverLicense" => "Licencia de conducir",

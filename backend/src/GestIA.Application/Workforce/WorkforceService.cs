@@ -540,7 +540,8 @@ public sealed class WorkforceService(
             request.IssuedDate,
             request.ExpiresDate,
             request.StorageReference,
-            request.Notes);
+            request.Notes,
+            request.IdBusinessDocument);
 
     private static EmployeeDocumentProfile Validate(UpdateEmployeeDocumentRequest request) =>
         ValidateDocumentProfile(
@@ -551,7 +552,8 @@ public sealed class WorkforceService(
             request.IssuedDate,
             request.ExpiresDate,
             request.StorageReference,
-            request.Notes);
+            request.Notes,
+            request.IdBusinessDocument);
 
     private static EmployeeDocumentProfile ValidateDocumentProfile(
         EmployeeDocumentType documentType,
@@ -561,7 +563,8 @@ public sealed class WorkforceService(
         DateOnly? issuedDate,
         DateOnly? expiresDate,
         string? storageReference,
-        string? notes)
+        string? notes,
+        Guid? idBusinessDocument)
     {
         var errors = new Dictionary<string, string[]>();
         MaxLength(documentNumber, nameof(documentNumber), 80, errors);
@@ -581,7 +584,8 @@ public sealed class WorkforceService(
             issuedDate,
             expiresDate,
             storageReference,
-            notes);
+            notes,
+            idBusinessDocument);
     }
 
     private static EmployeeEvaluationProfile Validate(CreateEmployeeEvaluationRequest request) =>
@@ -717,7 +721,9 @@ public sealed class WorkforceService(
             employee.ResidenceSinceDate,
             employee.Active,
             employee.CreatedAt,
-            employee.UpdatedAt, employee.CountryCode);
+            employee.UpdatedAt,
+            employee.CountryCode,
+            employee.IdJobPositionCatalogItem);
 
     private static EmployeeDocumentResponse Map(EmployeeDocument document) =>
         new(
@@ -731,7 +737,8 @@ public sealed class WorkforceService(
             document.ExpiresDate,
             document.StorageReference,
             document.Notes,
-            document.Active);
+            document.Active,
+            document.IdBusinessDocument);
 
     private static EmployeeEvaluationResponse Map(EmployeeEvaluation evaluation) =>
         new(

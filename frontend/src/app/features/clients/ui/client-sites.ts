@@ -1,7 +1,7 @@
-import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CatalogSelect } from '../../../shared/ui/catalog-select/catalog-select';
-import { GiEmptyState, GiRowAction, GiRowActions } from '../../../shared/ui/gi-ui';
+import { GiEmptyState } from '../../../shared/ui/gi-ui';
 import { ClientContact, ClientSite } from '../data-access/client.models';
 
 /** Lo que hace falta para dar de alta una sede. Nada más: el código lo pone el sistema. */
@@ -27,12 +27,12 @@ export type NewSite = {
 @Component({
   selector: 'app-client-sites',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CatalogSelect, FormsModule, GiEmptyState, GiRowActions],
+  imports: [CatalogSelect, FormsModule, GiEmptyState],
   template: `
     <section class="sites">
       @if (adding()) {
         <form class="new" (ngSubmit)="$event.preventDefault()">
-          <p class="new__kicker">NUEVA SEDE</p>
+          <p class="new__kicker">{{ editando() ? 'EDITAR SEDE' : 'NUEVA SEDE' }}</p>
 
           <label class="field" for="ns-nombre">
             <span class="field__label">NOMBRE DE LA SEDE</span>
@@ -124,11 +124,14 @@ export type NewSite = {
           </p>
         }
       } @else {
+        <!--
+          Sin boton aqui: «Agregar sede» vive en la cabecera de la ficha, con las acciones de los
+          demas apartados. Estaba en los dos sitios a la vez, uno encima del otro, y eran el mismo.
+          El de la lista vacia si se queda: ahi no hay cabecera que mirar todavia, y esa pantalla
+          existe para decir que falta la sede y como ponerla.
+        -->
         <p class="sites__intro">
           <span>Cada servicio se liga a una sede. Al crear el servicio se elige de esta lista.</span>
-          @if (canWrite()) {
-            <button class="sites__add" type="button" (click)="startAdd()">Agregar sede</button>
-          }
         </p>
 
         <ul class="sites__list">
@@ -140,13 +143,21 @@ export type NewSite = {
                 @if (!contact) {
                   <span class="site__pill">Sin contacto</span>
                 }
-                <span class="site__actions">
-                  <gi-row-actions
-                    [actions]="actions()"
-                    [label]="'Acciones de la sede ' + site.name"
-                    (select)="act.emit({ id: $event.id, site })"
-                  />
-                </span>
+                <!--
+                  Sin menu de tres puntos: las acciones se ven. El menu escondia «Editar sede»
+                  detras de un clic y de un icono que no dice nada, y habia que abrirlo para
+                  descubrir que se podia hacer con la sede.
+                -->
+                @if (canWrite()) {
+                  <span class="site__actions">
+                    <button class="site__accion" type="button" (click)="act.emit({ id: 'edit', site })">
+                      Editar
+                    </button>
+                    <button class="site__accion site__accion--baja" type="button" (click)="act.emit({ id: 'deactivate', site })">
+                      Desactivar
+                    </button>
+                  </span>
+                }
               </p>
 
               <div class="site__body">
@@ -158,7 +169,9 @@ export type NewSite = {
                   <span class="site__label">CONTACTO</span>
                   @if (contact) {
                     <span class="site__value site__value--strong">{{ contact.fullName }}</span>
-                    <span class="site__note">{{ contact.jobTitle || 'Sin puesto registrado' }}</span>
+                    <span class="site__note">
+                      {{ contact.jobTitle || 'Sin puesto registrado' }}@if (contactIsFromClient(site.idClientSite)) { · contacto del cliente }
+                    </span>
                   } @else {
                     <span class="site__value site__value--missing">Sin contacto</span>
                     <span class="site__note">La sede funciona, pero nadie responde por ella.</span>
@@ -241,7 +254,25 @@ export type NewSite = {
       font-weight: 600;
     }
 
-    .site__actions { margin-left: auto; display: flex; }
+    .site__actions { display: flex; gap: 0.35rem; }
+
+    .site__accion {
+      border: 1px solid var(--gestia-border);
+      border-radius: var(--gestia-radius);
+      padding: 0.15rem 0.5rem;
+      background: var(--gestia-surface);
+      color: var(--gestia-navy);
+      font: inherit;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .site__accion:hover { border-color: var(--gestia-cyan-dark); }
+    .site__accion:focus-visible { outline: 2px solid var(--gestia-cyan); outline-offset: 1px; }
+    .site__accion--baja { color: var(--gestia-danger); }
+
+    .site__actions-vieja { margin-left: auto; display: flex; }
 
     .site__body { display: flex; gap: 1.25rem; padding: 0.7rem 0.8rem; }
 
@@ -355,11 +386,61 @@ export class ClientSites {
   /** Se abre desde fuera cuando el aviso de «guardado sin sede» manda aquí. */
   readonly openAdd = input(false);
 
+  /** La sede a editar, cuando la pide el menú de la fila. */
+  readonly editing = input<ClientSite | null>(null);
+
   readonly act = output<{ id: string; site: ClientSite }>();
+  /** «Ya no estoy editando esta sede». La pagina es la que suelta la sede, no este componente. */
+  readonly closeEdit = output<void>();
+
+  /**
+   * El alta se cerro.
+   *
+   * <p>Hace falta desde que «Agregar sede» vive en la cabecera de la ficha: quien decide abrirla es
+   * la pagina, y sin este aviso cancelar apagaba la bandera de aqui dentro pero no la de alla. El
+   * formulario se quedaba abierto y no habia forma de cerrarlo.</p>
+   */
+  readonly closeAdd = output<void>();
+  readonly edit = output<{ site: ClientSite; datos: NewSite }>();
   readonly create = output<NewSite>();
 
   private readonly addingByHand = signal(false);
-  protected readonly adding = computed(() => this.addingByHand() || this.openAdd());
+  protected readonly adding = computed(() => this.addingByHand() || this.openAdd() || !!this.editando());
+
+  /**
+   * La sede que se esta editando, o nula si se esta creando una.
+   *
+   * <p>El formulario es el mismo. Antes «Editar sede» no hacia nada: el menu emitia la accion y la
+   * pagina solo atendia «Ver contactos», asi que editar y desactivar caian al vacio.</p>
+   */
+  protected readonly editando = signal<ClientSite | null>(null);
+
+  constructor() {
+    // La orden viene del menú, que vive en la fila; el formulario vive aquí.
+    //
+    // El efecto manda en los DOS sentidos, y esa es la correccion. Antes solo sabia abrir: cuando
+    // `editing` volvia a nulo no hacia nada, y cuando el formulario se cerraba por su cuenta el
+    // efecto veia `editing` todavia puesto y lo volvia a abrir en el acto. El resultado era que
+    // «Guardar sede» guardaba de verdad —la sede cambiaba en la base y salia el aviso de que habia
+    // quedado actualizada— y el formulario seguia ahi, como si no hubiera pasado nada. «Cancelar»
+    // hacia lo mismo.
+    effect(() => {
+      const pedida = this.editing();
+
+      if (!pedida) {
+        if (this.editando()) {
+          this.editando.set(null);
+          this.limpiar();
+        }
+
+        return;
+      }
+
+      if (pedida.idClientSite !== this.editando()?.idClientSite) {
+        this.startEdit(pedida);
+      }
+    });
+  }
 
   protected readonly siteName = signal('');
   protected readonly street = signal('');
@@ -378,22 +459,6 @@ export class ClientSites {
       !!this.postalCode().trim(),
   );
 
-  protected readonly actions = computed<readonly GiRowAction[]>(() => [
-    {
-      id: 'edit',
-      label: 'Editar sede',
-      disabled: !this.canWrite(),
-      disabledReason: 'Necesitas permiso de escritura sobre clientes',
-    },
-    { id: 'contacts', label: 'Ver contactos' },
-    {
-      id: 'deactivate',
-      label: 'Desactivar sede',
-      destructive: true,
-      disabled: !this.canWrite(),
-      disabledReason: 'Necesitas permiso de escritura sobre clientes',
-    },
-  ]);
 
 
   /**
@@ -410,11 +475,77 @@ export class ClientSites {
   }
 
   protected startAdd(): void {
+    this.editando.set(null);
+    this.limpiar();
     this.addingByHand.set(true);
+  }
+
+  /** Abre el mismo formulario, con la sede cargada. */
+  protected startEdit(site: ClientSite): void {
+    this.addingByHand.set(false);
+    this.editando.set(site);
+    this.siteName.set(site.name);
+    this.street.set(site.street ?? '');
+    this.neighborhood.set(site.neighborhood ?? '');
+    this.municipality.set(site.municipality ?? '');
+    this.state.set(site.state ?? '');
+    this.postalCode.set(site.postalCode ?? '');
   }
 
   protected cancelAdd(): void {
     this.addingByHand.set(false);
+
+    // Editando, el que suelta la sede es la pagina; cerrar aqui y no avisarle dejaba `editing`
+    // apuntando a la sede, y el efecto reabria el formulario en cuanto se cerraba.
+    if (this.editando()) {
+      this.closeEdit.emit();
+      return;
+    }
+
+    this.limpiar();
+    this.closeAdd.emit();
+  }
+
+  /**
+   * Guarda y deja el formulario como lo encontró.
+   *
+   * <p><b>Antes no limpiaba ni cerraba.</b> Al guardar, la sede se creaba y el formulario se
+   * quedaba abierto con los mismos datos dentro: pulsar otra vez creaba una sede idéntica, y nada
+   * lo impedía. Se podían acumular duplicados sin darse cuenta.</p>
+   *
+   * <p>La guarda de `saving` cubre el otro camino del mismo problema: el doble clic mientras la
+   * primera petición sigue en vuelo.</p>
+   */
+  protected submit(): void {
+    if (this.saving() || !this.ready()) {
+      return;
+    }
+
+    const datos: NewSite = {
+      name: this.siteName().trim(),
+      street: this.street().trim(),
+      neighborhood: this.neighborhood().trim(),
+      municipality: this.municipality().trim(),
+      state: this.state().trim(),
+      postalCode: this.postalCode().trim(),
+    };
+
+    const enEdicion = this.editando();
+
+    if (enEdicion) {
+      // Se cierra cuando el servidor confirma, no ahora. Cerrarlo aqui lo reabria, y ademas
+      // habria borrado lo escrito si el guardado fallaba.
+      this.edit.emit({ site: enEdicion, datos });
+      return;
+    }
+
+    this.create.emit(datos);
+    this.addingByHand.set(false);
+    this.limpiar();
+    this.closeAdd.emit();
+  }
+
+  private limpiar(): void {
     this.siteName.set('');
     this.street.set('');
     this.neighborhood.set('');
@@ -423,20 +554,28 @@ export class ClientSites {
     this.postalCode.set('');
   }
 
-  protected submit(): void {
-    this.create.emit({
-      name: this.siteName().trim(),
-      street: this.street().trim(),
-      neighborhood: this.neighborhood().trim(),
-      municipality: this.municipality().trim(),
-      state: this.state().trim(),
-      postalCode: this.postalCode().trim(),
-    });
+  /** El primer contacto de la sede. La marca de principal no siempre está puesta. */
+  /**
+   * Quién responde por esta sede.
+   *
+   * <p><b>Primero el contacto de la sede; si no lo hay, el del cliente.</b> Antes sólo miraba los
+   * atados a la sede, y como la mayoría de los contactos se registran a nivel de cliente —23 de 26
+   * en la base viva—, casi toda sede decía «Sin contacto· la sede funciona, pero nadie responde por
+   * ella», con la pestaña de Contactos mostrando un número mayor que cero al lado.</p>
+   *
+   * <p>Un contacto del cliente cubre a todas sus sedes: para eso existe.</p>
+   */
+  protected contactOf(idClientSite: string): ClientContact | undefined {
+    const activos = this.contacts().filter((contact) => contact.active !== false);
+
+    return activos.find((contact) => contact.idClientSite === idClientSite)
+      ?? activos.find((contact) => !contact.idClientSite);
   }
 
-  /** El primer contacto de la sede. La marca de principal no siempre está puesta. */
-  protected contactOf(idClientSite: string): ClientContact | undefined {
-    return this.contacts().find((contact) => contact.idClientSite === idClientSite);
+  /** Si quien responde es del cliente y no de esta sede, conviene decirlo. */
+  protected contactIsFromClient(idClientSite: string): boolean {
+    const contacto = this.contactOf(idClientSite);
+    return !!contacto && !contacto.idClientSite;
   }
 
   protected address(site: ClientSite): string {

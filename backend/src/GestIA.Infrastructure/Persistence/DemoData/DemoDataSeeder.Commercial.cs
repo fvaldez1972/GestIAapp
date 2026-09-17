@@ -20,7 +20,9 @@ public sealed partial class DemoDataSeeder
     {
         var existing = await dbContext.Clients
             .IgnoreQueryFilters(["Active", "Organization"])
-            .AnyAsync(item => item.IdOrganization == organization.IdOrganization, cancellationToken);
+            .AnyAsync(
+                item => item.IdOrganization == organization.IdOrganization && item.CreatedBy == DemoActorId,
+                cancellationToken);
 
         if (existing)
         {
@@ -28,8 +30,25 @@ public sealed partial class DemoDataSeeder
         }
         else
         {
+            // Los codigos ya ocupados se respetan. La organizacion puede tener clientes propios
+            // justo en CLI-01 y CLI-02, y el codigo es unico por organizacion: insertar encima
+            // revienta la carga entera. Como los registros no se borran, un cliente desactivado
+            // tambien sigue ocupando el suyo, por eso se miran todos y no solo los activos.
+            var ocupados = await dbContext.Clients
+                .IgnoreQueryFilters(["Active", "Organization"])
+                .Where(item => item.IdOrganization == organization.IdOrganization)
+                .Select(item => item.CodeClient)
+                .ToListAsync(cancellationToken);
+            var tomados = new HashSet<string>(ocupados, StringComparer.OrdinalIgnoreCase);
+
             foreach (var definition in DemoCatalog.Clients)
             {
+                if (tomados.Contains(definition.Code))
+                {
+                    DemoSeedLog.CodeTaken(logger, "client", definition.Code);
+                    continue;
+                }
+
                 var client = Client.Create(
                     organization.IdOrganization,
                     definition.Code,
@@ -115,7 +134,7 @@ public sealed partial class DemoDataSeeder
                 new ClientContactDetails(
                     DemoCatalog.ContactPurposes[index % DemoCatalog.ContactPurposes.Length],
                     fullName,
-                    Pick(DemoCatalog.JobPositions).Name,
+                    Pick(DemoCatalog.JobPositions),
                     $"contacto{index + 1}.{definition.Code.ToLowerInvariant()}@ejemplo.mx",
                     $"55{Rng.Next(10000000, 99999999)}",
                     index % 2 == 0 ? $"55{Rng.Next(10000000, 99999999)}" : null,
@@ -174,7 +193,9 @@ public sealed partial class DemoDataSeeder
     {
         var existing = await dbContext.Services
             .IgnoreQueryFilters(["Active", "Organization"])
-            .AnyAsync(item => item.IdOrganization == organization.IdOrganization, cancellationToken);
+            .AnyAsync(
+                item => item.IdOrganization == organization.IdOrganization && item.CreatedBy == DemoActorId,
+                cancellationToken);
 
         if (existing)
         {
@@ -184,17 +205,9 @@ public sealed partial class DemoDataSeeder
         {
             var clients = await dbContext.Clients
                 .IgnoreQueryFilters(["Active", "Organization"])
-                .Where(item => item.IdOrganization == organization.IdOrganization)
+                .Where(item => item.IdOrganization == organization.IdOrganization && item.CreatedBy == DemoActorId)
                 .OrderBy(item => item.CodeClient)
                 .ToListAsync(cancellationToken);
-
-            // Tres servicios reciben varias vigencias históricas; el resto una sola.
-            var multiVersionCodes = new HashSet<string>(StringComparer.Ordinal)
-            {
-                "CLI-01-SRV-01",
-                "CLI-01-SRV-03",
-                "CLI-02-SRV-02"
-            };
 
             foreach (var client in clients)
             {
@@ -241,9 +254,6 @@ public sealed partial class DemoDataSeeder
                         DemoActorName,
                         OccurredAt);
                     await dbContext.Services.AddAsync(service, cancellationToken);
-
-                    var versions = multiVersionCodes.Contains(codeService) ? Rng.Next(2, 4) : 1;
-                    await AddConfigurationsAsync(service, versions, cancellationToken);
                 }
             }
 
@@ -252,50 +262,6 @@ public sealed partial class DemoDataSeeder
 
         report.Services = await dbContext.Services.IgnoreQueryFilters(["Active", "Organization"])
             .CountAsync(item => item.IdOrganization == organization.IdOrganization, cancellationToken);
-        report.ServiceConfigurations = await dbContext.ServiceConfigurations.IgnoreQueryFilters(["Active", "Organization"])
-            .CountAsync(item => item.IdOrganization == organization.IdOrganization, cancellationToken);
-    }
-
-    /// <summary>
-    /// Crea vigencias encadenadas: cada versión cierra el día anterior al inicio de la siguiente
-    /// y sólo la última queda abierta.
-    /// </summary>
-    private async Task AddConfigurationsAsync(
-        Service service,
-        int versions,
-        CancellationToken cancellationToken)
-    {
-        for (var version = 0; version < versions; version++)
-        {
-            var from = Months(-(versions - version) * 6);
-            DateOnly? to = version == versions - 1 ? null : Months(-(versions - version - 1) * 6).AddDays(-1);
-            var workers = (short)Rng.Next(1, 9);
-            var hoursPerDay = 8m + (version * 2);
-            var daysPerWeek = (byte)Rng.Next(5, 8);
-
-            var configuration = ServiceConfiguration.Create(
-                service.IdOrganization,
-                service.IdService,
-                new ServiceConfigurationProfile(
-                    from,
-                    to,
-                    workers,
-                    hoursPerDay,
-                    daysPerWeek,
-                    Math.Round(hoursPerDay * daysPerWeek * 4.33m, 2),
-                    (short)Rng.Next(3, 21),
-                    $"Cobertura de {hoursPerDay:0.#} horas diarias, {daysPerWeek} días por semana.",
-                    version == 0
-                        ? "Vigencia inicial del servicio."
-                        : "Ajuste de cobertura acordado con el cliente; conserva el histórico anterior.",
-                    Math.Round(workers * hoursPerDay * daysPerWeek * 4.33m * 95m, 4),
-                    "MXN",
-                    version % 2 == 0),
-                DemoActorId,
-                DemoActorName,
-                OccurredAt);
-            await dbContext.ServiceConfigurations.AddAsync(configuration, cancellationToken);
-        }
     }
 
     private async Task EnsurePositionsAndPatternsAsync(
@@ -305,7 +271,9 @@ public sealed partial class DemoDataSeeder
     {
         var existing = await dbContext.Positions
             .IgnoreQueryFilters(["Active", "Organization"])
-            .AnyAsync(item => item.IdOrganization == organization.IdOrganization, cancellationToken);
+            .AnyAsync(
+                item => item.IdOrganization == organization.IdOrganization && item.CreatedBy == DemoActorId,
+                cancellationToken);
 
         if (existing)
         {
@@ -330,17 +298,28 @@ public sealed partial class DemoDataSeeder
                 for (var index = 0; index < positionCount; index++)
                 {
                     var job = DemoCatalog.JobPositions[(serviceIndex + index) % DemoCatalog.JobPositions.Length];
+                    var elementos = Rng.Next(1, 5);
+
+                    // El precio vive en el puesto, no en el servicio: es lo que se cobra por
+                    // cubrirlo. Se arma como tarifa mensual por elemento —un rango creible para
+                    // vigilancia privada en Mexico— multiplicada por los elementos que pide, y
+                    // se redondea a pesos para que las pantallas no muestren centavos inventados.
+                    var tarifaPorElemento = Rng.Next(14_000, 24_000);
                     var position = Position.Create(
                         service.IdOrganization,
                         service.IdService,
                         $"{service.CodeService}-P{index + 1:00}",
                         new PositionProfile(
-                            job.Name,
-                            Rng.Next(1, 5),
-                            job.Name,
+                            job,
+                            elementos,
+                            job,
                             index == 0 ? "Posición principal del sitio." : "Posición de apoyo en horario pico.",
                             // Mismo motivo que en el empleado: la comparación es por identificador.
-                            ResolveJobPosition(jobPositions, job.Name)),
+                            ResolveJobPosition(jobPositions, job),
+                            tarifaPorElemento * elementos,
+                            "MXN",
+                            // Uno de cada tres con IVA incluido, para que la ficha muestre los dos casos.
+                            index % 3 == 0),
                         DemoActorId,
                         DemoActorName,
                         OccurredAt);

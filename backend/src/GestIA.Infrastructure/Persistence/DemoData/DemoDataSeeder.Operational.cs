@@ -32,7 +32,9 @@ public sealed partial class DemoDataSeeder
     {
         var existing = await dbContext.Employees
             .IgnoreQueryFilters(["Active", "Organization"])
-            .AnyAsync(item => item.IdOrganization == organization.IdOrganization, cancellationToken);
+            .AnyAsync(
+                item => item.IdOrganization == organization.IdOrganization && item.CreatedBy == DemoActorId,
+                cancellationToken);
 
         if (existing)
         {
@@ -44,7 +46,7 @@ public sealed partial class DemoDataSeeder
                 .IgnoreQueryFilters(["Active", "Organization"])
                 .Where(item => item.IdOrganization == organization.IdOrganization &&
                     item.Type == BusinessCatalogItemType.Skill)
-                .OrderBy(item => item.Code)
+                .OrderBy(item => item.Name)
                 .ToListAsync(cancellationToken);
 
             var jobPositions = await JobPositionCatalogAsync(organization, cancellationToken);
@@ -99,7 +101,7 @@ public sealed partial class DemoDataSeeder
             $"EMP-{number:000}",
             new EmployeeProfile(
                 $"{first} {paternal} {maternal}",
-                job.Name,
+                job,
                 hireDate,
                 hireDate.AddYears(-Rng.Next(20, 45)),
                 place.Municipality,
@@ -125,7 +127,7 @@ public sealed partial class DemoDataSeeder
                 "MX",
                 // El identificador, además del nombre. Sin él la persona queda con el puesto sólo
                 // como texto y nadie puede comprobar que corresponde al perfil de una posición.
-                ResolveJobPosition(jobPositions, job.Name)),
+                ResolveJobPosition(jobPositions, job)),
             DemoActorId,
             DemoActorName,
             OccurredAt);
@@ -324,7 +326,9 @@ public sealed partial class DemoDataSeeder
     {
         var existing = await dbContext.ServiceAssignments
             .IgnoreQueryFilters(["Active", "Organization"])
-            .AnyAsync(item => item.Employee.IdOrganization == organization.IdOrganization, cancellationToken);
+            .AnyAsync(
+                item => item.Employee.IdOrganization == organization.IdOrganization && item.CreatedBy == DemoActorId,
+                cancellationToken);
 
         if (existing)
         {
@@ -416,7 +420,7 @@ public sealed partial class DemoDataSeeder
         var existing = await dbContext.ScheduleVersions
             .IgnoreQueryFilters(["Active", "Organization"])
             .AnyAsync(
-                item => item.IdOrganization == organization.IdOrganization,
+                item => item.IdOrganization == organization.IdOrganization && item.CreatedBy == DemoActorId,
                 cancellationToken);
 
         if (existing)

@@ -127,7 +127,7 @@ public sealed class OperationalConcurrencyTests : IClassFixture<OperationalSqlDa
         {
             context.EligibilityRequirements.Add(EligibilityRequirement.Create(seed.OrganizationId,
                 new(EligibilityRequirementTargetType.Position, null, null, seed.PositionId,
-                    EligibilityRequirementType.Restriction, "BLOCK", "Restricted", null, true),
+                    EligibilityRequirementType.Restriction, null, null, null, "Restricted", null, true),
                 Actor.ActorId, Actor.ActorName, Now));
             await context.SaveChangesAsync();
         }
@@ -496,11 +496,11 @@ public sealed class OperationalConcurrencyTests : IClassFixture<OperationalSqlDa
         version.Publish(Actor.ActorId, Actor.ActorName, Now);
         var shift = Shift(organization.IdOrganization, version.IdScheduleVersion, position.IdPosition, employee.IdEmployee);
         context.AddRange(organization, client, site, service, position, employee, replacement, version, shift);
-        var country = BusinessCatalogItem.Create(organization.IdOrganization, new(BusinessCatalogItemType.Country, "MX", "Mexico", null), Actor.ActorId, Actor.ActorName, Now);
-        var state = BusinessCatalogItem.Create(organization.IdOrganization, new(BusinessCatalogItemType.State, "STATE", "State", null, IdParentCatalogItem: country.IdBusinessCatalogItem), Actor.ActorId, Actor.ActorName, Now);
-        var city = BusinessCatalogItem.Create(organization.IdOrganization, new(BusinessCatalogItemType.City, "CITY", "City", null, IdParentCatalogItem: state.IdBusinessCatalogItem), Actor.ActorId, Actor.ActorName, Now);
+        var country = BusinessCatalogItem.Create(organization.IdOrganization, new(BusinessCatalogItemType.Country, "Mexico", null), Actor.ActorId, Actor.ActorName, Now);
+        var state = BusinessCatalogItem.Create(organization.IdOrganization, new(BusinessCatalogItemType.State, "State", null, IdParentCatalogItem: country.IdBusinessCatalogItem), Actor.ActorId, Actor.ActorName, Now);
+        var city = BusinessCatalogItem.Create(organization.IdOrganization, new(BusinessCatalogItemType.City, "City", null, IdParentCatalogItem: state.IdBusinessCatalogItem), Actor.ActorId, Actor.ActorName, Now);
         context.AddRange(country, state, city);
-        var reason = BusinessCatalogItem.Create(organization.IdOrganization, new(BusinessCatalogItemType.CoverageReason, "FALTA", "Falta", null), Actor.ActorId, Actor.ActorName, Now);
+        var reason = BusinessCatalogItem.Create(organization.IdOrganization, new(BusinessCatalogItemType.CoverageReason, "Falta", null), Actor.ActorId, Actor.ActorName, Now);
         context.Add(reason);
         await context.SaveChangesAsync();
         // El alta escribe sin filtro; a partir de aquí las lecturas van dentro de esta organización.

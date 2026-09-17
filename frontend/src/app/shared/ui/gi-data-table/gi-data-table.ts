@@ -129,7 +129,9 @@ export class GiCell {
           [title]="emptyTitle()"
           [description]="emptyDescription()"
           [actionLabel]="emptyActionLabel()"
+          [secondaryActionLabel]="emptySecondaryActionLabel()"
           (action)="emptyAction.emit()"
+          (secondaryAction)="emptySecondaryAction.emit()"
         />
       }
 
@@ -269,12 +271,14 @@ export class GiDataTable<TRow> {
   readonly emptyTitle = input('');
   readonly emptyDescription = input('');
   readonly emptyActionLabel = input('');
+  readonly emptySecondaryActionLabel = input('');
   /** Nombre accesible de la tabla. Una tabla sin nombre se anuncia como «tabla». */
   readonly label = input('');
 
   readonly rowSelect = output<TRow>();
   readonly retry = output<void>();
   readonly emptyAction = output<void>();
+  readonly emptySecondaryAction = output<void>();
 
   private readonly celdas = contentChildren(GiCell);
 

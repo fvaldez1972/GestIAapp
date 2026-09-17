@@ -10,7 +10,8 @@ public sealed record EmployeeDocumentProfile(
     DateOnly? IssuedDate,
     DateOnly? ExpiresDate,
     string? StorageReference,
-    string? Notes);
+    string? Notes,
+    Guid? IdBusinessDocument = null);
 
 /// <summary>
 /// Lleva su propia <c>IdOrganization</c> aunque la alcanzaría por su padre.
@@ -58,6 +59,26 @@ public sealed class EmployeeDocument : AuditableEntity, IOrganizationScopedEntit
     public DateOnly? IssuedDate { get; private set; }
     public DateOnly? ExpiresDate { get; private set; }
     public string? StorageReference { get; private set; }
+
+    /// <summary>
+    /// El archivo que cubre este requisito, cuando se subió desde el expediente.
+    ///
+    /// <para><b>Por qué hacía falta.</b> El expediente guarda el archivo como
+    /// <c>BusinessDocument</c> —con su historial, su revisión y su permiso de sensibles— y la
+    /// vigencia documental se calcula sobre esta tabla. Las dos filas existían sin ninguna liga, así
+    /// que desde el requisito no se podía llegar al archivo que lo cubre.</para>
+    ///
+    /// <para><b>No se usó <c>StorageReference</c> para esto.</b> Esa columna la sirve una ruta
+    /// heredada del prototipo, y guardar ahí un identificador le habría dado un significado que no
+    /// tiene: dos cosas distintas compartiendo una columna es exactamente lo que el proyecto viene
+    /// deshaciendo.</para>
+    ///
+    /// <para><b>Es nulable, y el nulo significa algo:</b> «este requisito se registró sin pasar por
+    /// la carga de un archivo». Los documentos que ya existían no tienen archivo ligado y no se les
+    /// inventa uno.</para>
+    /// </summary>
+    public Guid? IdBusinessDocument { get; private set; }
+
     public string? Notes { get; private set; }
     public Employee Employee { get; private set; } = null!;
 
@@ -115,6 +136,7 @@ public sealed class EmployeeDocument : AuditableEntity, IOrganizationScopedEntit
         IssuedDate = profile.IssuedDate;
         ExpiresDate = profile.ExpiresDate;
         StorageReference = Normalize(profile.StorageReference);
+        IdBusinessDocument = profile.IdBusinessDocument;
         Notes = Normalize(profile.Notes);
     }
 

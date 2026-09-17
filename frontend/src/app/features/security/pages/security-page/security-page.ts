@@ -26,6 +26,7 @@ type MembershipRow = {
 @Component({
   selector: 'app-security-page',
   imports: [ReactiveFormsModule],
+  host: { '(document:keydown.escape)': 'onEscape()' },
   templateUrl: './security-page.html',
   styleUrl: './security-page.scss',
 })
@@ -267,7 +268,13 @@ export class SecurityPage implements OnInit {
         this.roles.set(roles);
         this.permissions.set(permissions);
         this.organizations.set(organizations);
-        this.selectedUserId.set(this.selectedUserId() || users[0]?.idUser || '');
+        // Se conserva la seleccion si el usuario sigue en la lista, y NO se elige uno por
+        // omision. Antes ponia `users[0]`, y el cajon de detalle —544 px fijos sobre la mitad
+        // derecha de la pantalla— aparecia solo al entrar y se volvia a abrir en cada «Filtrar».
+        // Eso era, a la vez, el defecto del scroll y el de «te sigue mandando a un unico usuario».
+        this.selectedUserId.set(
+          users.some((item) => item.idUser === this.selectedUserId()) ? this.selectedUserId() : '',
+        );
         this.selectedRoleId.set(this.selectedRoleId() || roles.find((role) => !role.isSystem)?.idRole || '');
         this.resetDefaults();
         this.syncSelectedEditors();
@@ -309,7 +316,18 @@ export class SecurityPage implements OnInit {
     this.lastAccessFilter.set((event.target as HTMLSelectElement).value as 'all' | 'recent' | 'withoutAccess');
   }
 
+  /**
+   * Los filtros ya son reactivos: escribir en la busqueda cambia la tabla sin pulsar nada. El boton
+   * existe porque la gente lo busca, y lo unico util que puede hacer es apartar el cajon de detalle
+   * para dejar ver el resultado. Antes recargaba del servidor, que era trabajo inutil y —peor—
+   * volvia a abrir el cajon.
+   */
+  protected applyUserFilters() {
+    this.selectedUserId.set('');
+  }
+
   protected clearUserFilters() {
+    this.selectedUserId.set('');
     this.userSearch.set('');
     this.statusFilter.set('all');
     this.roleFilter.set('');
@@ -391,6 +409,22 @@ export class SecurityPage implements OnInit {
 
   protected closeUserDetail() {
     this.selectedUserId.set('');
+  }
+
+  /**
+   * Escape cierra lo que este encima, empezando por lo mas reciente. Un panel que tapa media
+   * pantalla y solo se cierra apuntando a una «x» de 2 rem es el motivo por el que se reporto que
+   * «el scroll de la pantalla no te permite ver bien».
+   */
+  protected onEscape() {
+    if (this.showAccessWizard()) {
+      this.closeAccessWizard();
+      return;
+    }
+
+    if (this.selectedUserId()) {
+      this.closeUserDetail();
+    }
   }
 
   protected selectRole(role: SecurityRole) {
@@ -497,8 +531,16 @@ export class SecurityPage implements OnInit {
   protected resetPassword() {
     const user = this.selectedUser();
 
-    if (!user || this.passwordForm.invalid) {
+    if (!user) {
+      return;
+    }
+
+    // Callarse aqui era el defecto. El formulario ni siquiera estaba dibujado, asi que
+    // `passwordForm.invalid` era siempre cierto y el boton no hacia absolutamente nada: ni error,
+    // ni aviso, ni peticion. Ahora el campo existe en el cajon y, si falta algo, se dice.
+    if (this.passwordForm.invalid) {
       this.passwordForm.markAllAsTouched();
+      this.error.set('Escribe la contraseña temporal: al menos 12 caracteres.');
       return;
     }
 

@@ -92,7 +92,10 @@ describe('La franja de indicadores', () => {
       expect(raiz.textContent).toContain('Sin planeación publicada');
       expect(raiz.textContent).toContain('Sin posiciones definidas');
       expect(raiz.textContent).toContain('Ir a Planeación');
-      expect(raiz.textContent).toContain('Definir posiciones');
+      // «Ir a Servicios», no «Definir posiciones»: las posiciones se definen en Servicios, y el
+      // botón siempre llevó ahí. El rótulo era el que no lo decía.
+      expect(raiz.textContent).toContain('Ir a Servicios');
+      expect(raiz.textContent).not.toContain('Definir posiciones');
     });
 
     it('los dos conviven en la misma franja sin confundirse', () => {

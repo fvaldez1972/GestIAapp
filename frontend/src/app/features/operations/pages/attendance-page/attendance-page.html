@@ -75,6 +75,7 @@
       [rows]="day().rows"
       [gaps]="day().gaps"
       [shiftCount]="day().rows.length"
+      [pendingCount]="pending().length"
       [dayClosed]="dayClosed()"
       (pick)="onException($event)"
       (gapPick)="onGap($event)"

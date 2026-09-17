@@ -16,7 +16,7 @@ import { ClientApiService } from './client-api.service';
  * llega al cable —un `payload` armado bien y enviado a la ruta equivocada, un parámetro de consulta
  * que se pierde—, y eso es lo que se mira aquí.
  */
-describe('El token de concurrencia viaja en las seis correcciones', () => {
+describe('El token de concurrencia viaja en las cinco correcciones', () => {
   let service: ClientApiService;
   let http: HttpTestingController;
 
@@ -34,34 +34,6 @@ describe('El token de concurrencia viaja en las seis correcciones', () => {
   afterEach(() => http.verify());
 
   const base = '/api/v1/clients/client-1/services/service-1';
-
-  it('lo manda en el cuerpo al corregir una configuración de servicio', () => {
-    service
-      .updateServiceConfiguration('client-1', 'service-1', 'configuration-1', {
-        idOrganization: 'organization-1',
-        idClient: 'client-1',
-        idService: 'service-1',
-        effectiveFromDate: '2026-09-01',
-        effectiveToDate: null,
-        requiredWorkerCount: 2,
-        hoursPerDay: 8,
-        daysPerWeek: 5,
-        averageMonthlyHours: 176,
-        preparationLeadDays: 3,
-        workScheduleDescription: 'Lunes a viernes',
-        specificInstructions: null,
-        monthlyPrice: 10000,
-        currencyCode: 'MXN',
-        isTaxIncluded: false,
-        rowVersion: TOKEN,
-      })
-      .subscribe();
-
-    const request = http.expectOne(`${base}/configurations/configuration-1`);
-    expect(request.request.method).toBe('PUT');
-    expect(request.request.body.rowVersion).toBe(TOKEN);
-    request.flush({});
-  });
 
   it('lo manda en el cuerpo al corregir una asignación', () => {
     service
@@ -198,17 +170,9 @@ describe('El token de concurrencia viaja en las seis correcciones', () => {
    * cadena de consulta porque un DELETE no lleva cuerpo. Se comprueba aparte del cuerpo justo por
    * eso: es otro camino, y perderlo ahí no lo notaría ninguna de las pruebas de arriba.
    */
-  it('lo manda en la consulta al desactivar una configuración y una asignación', () => {
-    service
-      .deactivateServiceConfiguration('organization-1', 'client-1', 'service-1', 'configuration-1', TOKEN)
-      .subscribe();
-    const configuration = http.expectOne(
-      (candidate) => candidate.url === `${base}/configurations/configuration-1`,
-    );
-    expect(configuration.request.method).toBe('DELETE');
-    expect(configuration.request.params.get('rowVersion')).toBe(TOKEN);
-    configuration.flush(null);
-
+  it('lo manda en la consulta al desactivar una asignación', () => {
+    // La configuracion del servicio se retiro del modelo; queda la asignacion, que recorre el
+    // mismo camino: DELETE con el token en la cadena de consulta.
     service
       .deactivateAssignment('organization-1', 'client-1', 'service-1', 'assignment-1', TOKEN)
       .subscribe();

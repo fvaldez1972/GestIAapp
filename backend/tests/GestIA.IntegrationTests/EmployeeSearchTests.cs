@@ -1,6 +1,7 @@
 using GestIA.Application.Assignments;
 using GestIA.Application.Workforce;
 using GestIA.Domain.Catalogs;
+using GestIA.Domain.Documents;
 using GestIA.Domain.Clients;
 using GestIA.Domain.Operations;
 using GestIA.Domain.Organizations;
@@ -47,7 +48,7 @@ public sealed class EmployeeSearchTests(OperationalSqlDatabase database)
         Assert.Equal(4, total);
 
         var alDia = Assert.Single(items, item => item.CodeEmployee == "RES-EMP-OK");
-        Assert.Equal("Guardia de acceso", alDia.JobPositionName);
+        Assert.StartsWith("Guardia de acceso", alDia.JobPositionName, StringComparison.Ordinal);
         Assert.Equal(2, alDia.RequiredDocuments);
         Assert.Equal(0, alDia.MissingDocuments);
         Assert.Equal(0, alDia.ExpiredDocuments);
@@ -183,38 +184,43 @@ public sealed class EmployeeSearchTests(OperationalSqlDatabase database)
 
         // El segundo puesto del catálogo no lo tiene nadie, así que no se ofrece: un filtro con una
         // opción que no puede traer nada es un control que estorba.
-        Assert.Equal("Guardia de acceso", Assert.Single(puestos).Name);
+        Assert.StartsWith("Guardia de acceso", Assert.Single(puestos).Name, StringComparison.Ordinal);
     }
 
     // ── Los requisitos de la organización ────────────────────────────────────────────────────
 
     /// <summary>
     /// La organización elige qué exigir, <b>pero sobre el vocabulario que el sistema reconoce</b>.
-    /// Un código escrito a mano que no corresponde a ningún tipo no puede convertirse en un
-    /// requisito que nadie podrá cumplir nunca.
+    ///
+    /// <para><b>Esta prueba cambió de sentido el 7 de septiembre de 2026, y el cambio es la mejora.</b>
+    /// Antes comprobaba que un código escrito a mano que no correspondía a ningún tipo —«CARTA_ASTRAL»—
+    /// <i>se descartara</i> al leerlo, porque el requisito guardaba texto libre y nada impedía
+    /// escribir cualquier cosa. Ahora el tipo de documento es una columna tipada: ese estado ya no
+    /// se puede crear, así que no hay nada que descartar después. La prueba afirma lo que de verdad
+    /// protege hoy, que es que la regla ni siquiera llegue a existir.</para>
     /// </summary>
     [OperationalSqlFact]
-    public async Task ARequirementNamingAnUnknownTypeIsDiscardedInsteadOfBlockingEveryone()
+    public async Task ARequirementCannotBeCreatedWithoutSayingWhichDocumentItDemands()
     {
         var seed = await SeedAsync("VOC");
 
-        await using (var context = database.Context())
-        {
-            context.Add(EligibilityRequirement.Create(
-                seed.OrganizationId,
-                new EligibilityRequirementProfile(
-                    EligibilityRequirementTargetType.Organization, null, null, null,
-                    EligibilityRequirementType.Document, "CARTA_ASTRAL", "Carta astral", null, true),
-                ActorId, ActorName, Now));
-            await context.SaveChangesAsync(Token);
-        }
+        Assert.Throws<ArgumentOutOfRangeException>(() => EligibilityRequirement.Create(
+            seed.OrganizationId,
+            new EligibilityRequirementProfile(
+                EligibilityRequirementTargetType.Organization, null, null, null,
+                EligibilityRequirementType.Document, null, null, null, "Carta astral", null, true),
+            ActorId, ActorName, Now));
 
-        await using var lectura = database.Context();
-        var repository = new WorkforceRepository(lectura);
-        var codigos = await repository.ListRequiredDocumentCodesAsync(seed.OrganizationId, Token);
-        Assert.Contains("CARTA_ASTRAL", codigos);
+        // Y una regla de documento no puede exigir una evaluación: cada tipo pide lo suyo.
+        Assert.Throws<ArgumentOutOfRangeException>(() => EligibilityRequirement.Create(
+            seed.OrganizationId,
+            new EligibilityRequirementProfile(
+                EligibilityRequirementTargetType.Organization, null, null, null,
+                EligibilityRequirementType.Document, null, null, EmployeeEvaluationType.Polygraph,
+                "Carta astral", null, true),
+            ActorId, ActorName, Now));
 
-        // El servicio lo descarta, así que el empleado completo sigue al día.
+        // Sin reglas imposibles de por medio, el empleado completo sigue al día.
         var (items, _) = await SearchAsync(Criterios(seed.OrganizationId));
         var alDia = Assert.Single(items, item => item.CodeEmployee == "VOC-EMP-OK");
         Assert.Equal(2, alDia.RequiredDocuments);
@@ -317,6 +323,69 @@ public sealed class EmployeeSearchTests(OperationalSqlDatabase database)
 
     // ── Ayudas ───────────────────────────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// El expediente se cuenta en el listado, y no es lo mismo que los requisitos.
+    ///
+    /// <para>Se reportó que la pestaña decía «Documentos 0» mientras la lista de abajo enseñaba
+    /// documentos de esa misma persona. El número salía del propio expediente, que vive en una
+    /// pestaña perezosa: hasta que alguien la abría no había nada que emitir. Había que abrir la
+    /// pestaña para saber lo que la pestaña servía para no tener que abrir.</para>
+    ///
+    /// <para>Son dos tablas distintas y ahí está la trampa: los requisitos se cuentan sobre
+    /// <c>EmployeeDocuments</c> y el expediente sobre <c>BusinessDocuments</c>. Una organización
+    /// puede exigir dos documentos y tener cinco archivos guardados, o exigir cero y tener tres.</para>
+    /// </summary>
+    [OperationalSqlFact]
+    public async Task TheListCountsTheFilesInTheRecordApartFromTheRequirements()
+    {
+        var seed = await SeedAsync("EXP");
+
+        Guid idEmpleado;
+        await using (var context = database.Context())
+        {
+            idEmpleado = context.Employees
+                .Single(item => item.CodeEmployee == "EXP-EMP-OK")
+                .IdEmployee;
+
+            context.Add(Archivo(seed.OrganizationId, idEmpleado, "Acta de nacimiento"));
+            context.Add(Archivo(seed.OrganizationId, idEmpleado, "Comprobante de estudios"));
+
+            // Uno archivado: está en la tabla y no se cuenta, porque tampoco se lista.
+            var archivado = Archivo(seed.OrganizationId, idEmpleado, "Constancia retirada");
+            archivado.Deactivate(ActorId, ActorName, Now);
+            context.Add(archivado);
+
+            await context.SaveChangesAsync(Token);
+        }
+
+        var (items, _) = await SearchAsync(Criterios(seed.OrganizationId));
+
+        var conExpediente = Assert.Single(items, item => item.CodeEmployee == "EXP-EMP-OK");
+        Assert.Equal(2, conExpediente.DocumentCount);
+        // Y sigue siendo un número distinto del de los requisitos, que son dos por otra razón.
+        Assert.Equal(2, conExpediente.RequiredDocuments);
+
+        // Quien no tiene ningún archivo dice cero, y eso sí es un cero de verdad.
+        var sinExpediente = Assert.Single(items, item => item.CodeEmployee == "EXP-EMP-SIN");
+        Assert.Equal(0, sinExpediente.DocumentCount);
+    }
+
+    private static BusinessDocument Archivo(Guid organizationId, Guid idEmployee, string titulo) =>
+        BusinessDocument.Create(
+            organizationId,
+            new BusinessDocumentProfile(
+                BusinessDocumentOwnerType.Employee,
+                idEmployee,
+                "Identificacion",
+                titulo,
+                BusinessDocumentStatus.PendingReview,
+                null,
+                null,
+                $"{Guid.NewGuid():N}.pdf",
+                false,
+                null),
+            ActorId, ActorName, Now);
+
     private static EmployeeSearchCriteria Criterios(Guid organizationId) =>
         new(organizationId, null, null, null, EmployeeDocumentFilter.Any, null, Day, Umbral, 0, 50);
 
@@ -345,14 +414,14 @@ public sealed class EmployeeSearchTests(OperationalSqlDatabase database)
         var puesto = BusinessCatalogItem.Create(
             organizationId,
             new BusinessCatalogItemProfile(
-                BusinessCatalogItemType.JobPosition, $"{prefix}-PUE", "Guardia de acceso", null),
+                BusinessCatalogItemType.JobPosition, $"Guardia de acceso {prefix}", null),
             ActorId, ActorName, Now);
 
         // Un segundo puesto que nadie tiene: el filtro no debe ofrecerlo.
         var puestoSinUso = BusinessCatalogItem.Create(
             organizationId,
             new BusinessCatalogItemProfile(
-                BusinessCatalogItemType.JobPosition, $"{prefix}-PU2", "Supervisor", null),
+                BusinessCatalogItemType.JobPosition, $"Supervisor {prefix}", null),
             ActorId, ActorName, Now);
 
         context.AddRange(organization, puesto, puestoSinUso);
@@ -363,7 +432,7 @@ public sealed class EmployeeSearchTests(OperationalSqlDatabase database)
                 organizationId,
                 new EligibilityRequirementProfile(
                     EligibilityRequirementTargetType.Organization, null, null, null,
-                    EligibilityRequirementType.Document, tipo.ToString().ToUpperInvariant(),
+                    EligibilityRequirementType.Document, null, tipo, null,
                     $"Requisito {tipo}", null, true),
                 ActorId, ActorName, Now));
         }
@@ -419,6 +488,72 @@ public sealed class EmployeeSearchTests(OperationalSqlDatabase database)
         return new(organizationId, puesto.IdBusinessCatalogItem, servicio.IdService, alDia.IdEmployee);
     }
 
+    /// <summary>
+    /// El puesto viaja en el listado, no solo en la busqueda.
+    ///
+    /// <para>Son dos caminos distintos y solo uno estaba bien. La busqueda proyecta el puesto a
+    /// mano y siempre lo trajo; el listado usa un mapeo que <b>no lo pasaba</b>, y como el contrato
+    /// lo declaraba con valor por defecto, compilaba y respondia 200 con el campo nulo. La columna
+    /// de uso de Catalogos decia "Nadie lo tiene" aunque hubiera empleados con ese puesto.</para>
+    ///
+    /// <para>La prueba lee por el camino que estaba roto.</para>
+    /// </summary>
+    [OperationalSqlFact]
+    public async Task ListedEmployeeCarriesItsCatalogJobPosition()
+    {
+        var datos = await SeedAsync("lst");
+
+        await using var context = database.Context();
+        var pagina = await new WorkforceRepository(context).ListEmployeesAsync(
+            new EmployeeQuery(datos.OrganizationId, null, null, 1, 50), Token);
+
+        var conPuesto = pagina.Items.Where(item => item.IdJobPositionCatalogItem == datos.JobPositionId).ToArray();
+        Assert.NotEmpty(conPuesto);
+    }
+
+    /// <summary>
+    /// El puesto desactivado sigue teniendo nombre, y desactivarlo no afloja nada mas.
+    ///
+    /// <para>Son dos cosas y la segunda es la que importa. La primera: el nombre es historia, la
+    /// persona tuvo ese puesto, y que el catalogo cambie despues no borra el hecho; antes llegaba
+    /// nulo y la pantalla escribia el texto "NULL".</para>
+    ///
+    /// <para>La segunda: resolverlo <b>no puede</b> apagar el filtro de activos del resto de la
+    /// consulta. El primer intento lo hizo sin querer —<c>IgnoreQueryFilters</c> es un operador de
+    /// toda la consulta, no de la subconsulta donde se escribe— y los documentos dados de baja
+    /// volvieron a contarse como vigentes. Por eso aqui se comprueban las dos.</para>
+    /// </summary>
+    [OperationalSqlFact]
+    public async Task DeactivatedJobPositionKeepsItsNameWithoutLooseningTheActiveFilter()
+    {
+        var datos = await SeedAsync("DES");
+
+        await using (var context = database.Context())
+        {
+            var puesto = await context.BusinessCatalogItems
+                .SingleAsync(item => item.IdBusinessCatalogItem == datos.JobPositionId, Token);
+            puesto.Deactivate(ActorId, ActorName, Now);
+
+            // Y un documento de baja, para comprobar que el filtro de activos sigue puesto.
+            var empleado = await context.Employees.SingleAsync(item => item.CodeEmployee == "DES-EMP-VEN", Token);
+            var comprobante = await context.EmployeeDocuments.SingleAsync(document =>
+                document.IdEmployee == empleado.IdEmployee &&
+                document.DocumentType == EmployeeDocumentType.ProofOfAddress, Token);
+            comprobante.Deactivate(ActorId, ActorName, Now);
+
+            await context.SaveChangesAsync(Token);
+        }
+
+        var (items, _) = await SearchAsync(Criterios(datos.OrganizationId));
+        var conPuesto = items.Where(item => item.IdJobPositionCatalogItem == datos.JobPositionId).ToArray();
+
+        Assert.NotEmpty(conPuesto);
+        Assert.All(conPuesto, item => Assert.False(string.IsNullOrWhiteSpace(item.JobPositionName)));
+
+        var vencido = Assert.Single(items, item => item.CodeEmployee == "DES-EMP-VEN");
+        Assert.True(vencido.MissingDocuments > 0);
+    }
+
     private static Employee Empleado(Guid organizationId, string code, string nombre, Guid idPuesto)
     {
         var empleado = Employee.Create(
@@ -446,6 +581,149 @@ public sealed class EmployeeSearchTests(OperationalSqlDatabase database)
             idEmployee,
             new EmployeeDocumentProfile(tipo, EmployeeDocumentStatus.Validated, null, null, null, caduca, null, null),
             ActorId, ActorName, Now);
+
+
+    // ── El documento cargado que no cuenta ───────────────────────────────────────────────────
+
+    /// <summary>
+    /// <b>«Cargado» no es «cubierto», y la tabla lo daba por bueno.</b>
+    ///
+    /// <para>La cuenta de cubiertos miraba sólo si existía un documento del tipo exigido, sin su
+    /// estado. Así, alguien con la CURP <b>rechazada</b> y vencimiento en 2028 salía en el listado
+    /// como si no le faltara nada, mientras la ficha decía «Rechazado» y el servidor le negaba la
+    /// asignación por ese mismo documento: dos pantallas del mismo sistema contradiciéndose.</para>
+    ///
+    /// <para>El criterio que se aplica aquí es el mismo que usa la comprobación de elegibilidad:
+    /// sólo <c>Received</c> y <c>Validated</c> cubren, y sólo si están vigentes.</para>
+    /// </summary>
+    [OperationalSqlFact]
+    public async Task ARejectedDocumentDoesNotCountAsCoveredAndTheRowSaysSo()
+    {
+        var seed = await SeedAsync("RCH");
+
+        await using (var context = database.Context())
+        {
+            var empleado = await context.Employees.SingleAsync(item => item.CodeEmployee == "RCH-EMP-OK");
+            var curp = await context.EmployeeDocuments.SingleAsync(item =>
+                item.IdEmployee == empleado.IdEmployee && item.DocumentType == EmployeeDocumentType.Curp);
+
+            // Rechazado, y con vencimiento lejano: por fecha parecería estar perfecto.
+            curp.UpdateProfile(
+                new EmployeeDocumentProfile(
+                    EmployeeDocumentType.Curp, EmployeeDocumentStatus.Rejected, null, null, null,
+                    Day.AddDays(700), null, null),
+                ActorId, ActorName, Now);
+
+            await context.SaveChangesAsync(Token);
+        }
+
+        var (items, _) = await SearchAsync(Criterios(seed.OrganizationId));
+        var fila = Assert.Single(items, item => item.CodeEmployee == "RCH-EMP-OK");
+
+        // El archivo está, así que no es «sin cargar»: es «sin validar».
+        Assert.Equal(0, fila.MissingDocuments);
+        Assert.Equal(1, fila.NotValidDocuments);
+        Assert.Equal(0, fila.ExpiredDocuments);
+        Assert.Equal(EmployeeDocumentHealth.NotValid, fila.DocumentHealth);
+        Assert.NotEqual(EmployeeDocumentHealth.UpToDate, fila.DocumentHealth);
+    }
+
+    /// <summary>Un pendiente de validar tampoco cubre, y tiene el mismo tratamiento.</summary>
+    [OperationalSqlFact]
+    public async Task APendingDocumentDoesNotCountEither()
+    {
+        var seed = await SeedAsync("PEN");
+
+        await using (var context = database.Context())
+        {
+            var empleado = await context.Employees.SingleAsync(item => item.CodeEmployee == "PEN-EMP-OK");
+            var curp = await context.EmployeeDocuments.SingleAsync(item =>
+                item.IdEmployee == empleado.IdEmployee && item.DocumentType == EmployeeDocumentType.Curp);
+
+            curp.UpdateProfile(
+                new EmployeeDocumentProfile(
+                    EmployeeDocumentType.Curp, EmployeeDocumentStatus.Pending, null, null, null,
+                    Day.AddDays(700), null, null),
+                ActorId, ActorName, Now);
+
+            await context.SaveChangesAsync(Token);
+        }
+
+        var (items, _) = await SearchAsync(Criterios(seed.OrganizationId));
+        var fila = Assert.Single(items, item => item.CodeEmployee == "PEN-EMP-OK");
+
+        Assert.Equal(1, fila.NotValidDocuments);
+        Assert.Equal(EmployeeDocumentHealth.NotValid, fila.DocumentHealth);
+    }
+
+    /// <summary>
+    /// Y el filtro «al día» deja de traerlo.
+    ///
+    /// <para>Es la otra mitad del mismo defecto: el filtro comprobaba presencia, así que quien
+    /// tenía el documento rechazado aparecía entre los expedientes en orden.</para>
+    /// </summary>
+    [OperationalSqlFact]
+    public async Task TheUpToDateFilterExcludesWhoeverHasADocumentThatDoesNotCount()
+    {
+        var seed = await SeedAsync("FUD");
+
+        await using (var context = database.Context())
+        {
+            var empleado = await context.Employees.SingleAsync(item => item.CodeEmployee == "FUD-EMP-OK");
+            var curp = await context.EmployeeDocuments.SingleAsync(item =>
+                item.IdEmployee == empleado.IdEmployee && item.DocumentType == EmployeeDocumentType.Curp);
+
+            curp.UpdateProfile(
+                new EmployeeDocumentProfile(
+                    EmployeeDocumentType.Curp, EmployeeDocumentStatus.Rejected, null, null, null,
+                    Day.AddDays(700), null, null),
+                ActorId, ActorName, Now);
+
+            await context.SaveChangesAsync(Token);
+        }
+
+        var (alDia, _) = await SearchAsync(
+            Criterios(seed.OrganizationId) with { DocumentFilter = EmployeeDocumentFilter.UpToDate });
+
+        Assert.DoesNotContain(alDia, item => item.CodeEmployee == "FUD-EMP-OK");
+    }
+
+    /// <summary>El peor sigue mandando: un vencido pesa más que un rechazado.</summary>
+    [OperationalSqlFact]
+    public async Task AnExpiredDocumentStillOutweighsOneThatDoesNotCount()
+    {
+        var seed = await SeedAsync("MIX");
+
+        await using (var context = database.Context())
+        {
+            var empleado = await context.Employees.SingleAsync(item => item.CodeEmployee == "MIX-EMP-OK");
+            var curp = await context.EmployeeDocuments.SingleAsync(item =>
+                item.IdEmployee == empleado.IdEmployee && item.DocumentType == EmployeeDocumentType.Curp);
+            var domicilio = await context.EmployeeDocuments.SingleAsync(item =>
+                item.IdEmployee == empleado.IdEmployee &&
+                item.DocumentType == EmployeeDocumentType.ProofOfAddress);
+
+            curp.UpdateProfile(
+                new EmployeeDocumentProfile(
+                    EmployeeDocumentType.Curp, EmployeeDocumentStatus.Rejected, null, null, null,
+                    Day.AddDays(700), null, null),
+                ActorId, ActorName, Now);
+            domicilio.UpdateProfile(
+                new EmployeeDocumentProfile(
+                    EmployeeDocumentType.ProofOfAddress, EmployeeDocumentStatus.Validated, null, null,
+                    null, Day.AddDays(-1), null, null),
+                ActorId, ActorName, Now);
+
+            await context.SaveChangesAsync(Token);
+        }
+
+        var (items, _) = await SearchAsync(Criterios(seed.OrganizationId));
+        var fila = Assert.Single(items, item => item.CodeEmployee == "MIX-EMP-OK");
+
+        Assert.Equal(1, fila.NotValidDocuments);
+        Assert.Equal(1, fila.ExpiredDocuments);
+        Assert.Equal(EmployeeDocumentHealth.Expired, fila.DocumentHealth);
+    }
 
     private sealed record Seed(
         Guid OrganizationId,

@@ -4,6 +4,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Subscription } from 'rxjs';
 import { CatalogApiService } from '../../../features/catalogs/data-access/catalog-api.service';
 import { BusinessCatalogItemType, CatalogItem } from '../../../features/catalogs/data-access/catalog.models';
+import { normalizeCatalogName } from '../../util/catalog-name';
 
 @Component({
   selector: 'app-catalog-select',
@@ -26,7 +27,6 @@ export class CatalogSelect implements ControlValueAccessor, OnChanges {
   @Input() label = 'Valor';
   @Input() country = '';
   @Input() state = '';
-  @Input() useCode = false;
   @Input() useId = false;
   @Output() selectionChange = new EventEmitter<string>();
   private readonly api = inject(CatalogApiService);
@@ -48,16 +48,26 @@ export class CatalogSelect implements ControlValueAccessor, OnChanges {
     return values.filter(item => {
       if (!item.active || item.type !== this.type) return false;
       const parent = byId.get(item.idParentCatalogItem ?? '');
-      if (this.type === 'State') return parent?.active && parent.code === this.country;
+      // El pais se resuelve por nombre plegado, no por codigo: el catalogo ya no lleva codigo.
+      // Se acepta ademas el ISO de dos letras que ClientSite y Employee guardan en CountryCode,
+      // que es un estandar externo y no una clave de este catalogo. Todo esto desaparece en la
+      // tanda de geografia, cuando las tres columnas pasen a ser claves foraneas.
+      if (this.type === 'State') return !!parent?.active && this.esElPais(parent);
       if (this.type === 'City') {
         const country = byId.get(parent?.idParentCatalogItem ?? '');
-        return parent?.active && parent.name === this.state && country?.active && country.code === this.country;
+        return !!parent?.active && normalizeCatalogName(parent.name) === normalizeCatalogName(this.state)
+          && !!country?.active && this.esElPais(country);
       }
       return true;
     });
   });
+  private esElPais(item: CatalogItem): boolean {
+    const buscado = normalizeCatalogName(this.country);
+    return normalizeCatalogName(item.name) === buscado || (buscado === 'MX' && normalizeCatalogName(item.name) === 'MEXICO');
+  }
+
   readonly hasCurrent = computed(() => this.options().some(item => this.optionValue(item) === this.value()));
-  optionValue(item: CatalogItem): string { return this.useId ? item.idCatalogItem : this.useCode ? item.code : item.name; }
+  optionValue(item: CatalogItem): string { return this.useId ? item.idCatalogItem : item.name; }
   ngOnChanges(): void {
     this.revision.update(value => value + 1);
     if (this.organizationId !== this.loadedOrganization) this.load();

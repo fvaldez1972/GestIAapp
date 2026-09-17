@@ -115,4 +115,32 @@ export class CatalogApiService {
 
     return this.http.get<EligibilityCheck>(`${this.baseUrl}/eligibility/check`, { params });
   }
+
+  /**
+   * La misma comprobación para varias personas y un solo contexto.
+   *
+   * <p>Va por POST aunque no escriba nada: la lista de personas viaja en el cuerpo. En la dirección
+   * serían tantos identificadores como candidatos, y ahí se choca con el límite de longitud de la
+   * URL justo cuando la lista es larga, que es cuando este endpoint sirve para algo.</p>
+   */
+  checkEligibilityBatch(request: {
+    readonly organizationId: string;
+    readonly employeeIds: readonly string[];
+    readonly clientId?: string | null;
+    readonly serviceId?: string | null;
+    readonly positionId?: string | null;
+    readonly referenceDate?: string | null;
+  }) {
+    return this.http.post<readonly EligibilityCheck[]>(
+      `${this.baseUrl}/eligibility/check-batch`,
+      {
+        organizationId: request.organizationId,
+        employeeIds: request.employeeIds,
+        clientId: request.clientId ?? null,
+        serviceId: request.serviceId ?? null,
+        positionId: request.positionId ?? null,
+        referenceDate: request.referenceDate ?? null,
+      },
+    );
+  }
 }

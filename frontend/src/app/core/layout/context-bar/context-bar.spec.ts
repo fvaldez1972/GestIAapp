@@ -7,6 +7,7 @@ import { ContextBar } from './context-bar';
 
 const ALFA = { idOrganization: 'org-a', codeOrganization: 'ALFA', legalName: 'Alfa Seguridad Privada' };
 const BETA = { idOrganization: 'org-b', codeOrganization: 'BETA', legalName: 'Beta Custodia' };
+const NUEVA = { idOrganization: 'org-c', codeOrganization: 'ORG-03', legalName: 'Empresa recien dada de alta' };
 
 function session(permissions: readonly string[], organizations: readonly (typeof ALFA)[]): AuthSession {
   return {
@@ -72,6 +73,49 @@ describe('ContextBar', () => {
     expect(raiz.textContent).not.toMatch(/\d{2} \w{3} \d{4}/);
     http.expectNone('/api/v1/system/info');
     http.verify();
+  });
+
+  /**
+   * La lista se refresca al desplegarla.
+   *
+   * <p>Se cargaba <b>una sola vez</b>, al construir el shell, asi que una organizacion dada de alta
+   * despues no aparecia aqui hasta recargar la pagina entera. Y no habia nada que lo delatara: el
+   * desplegable se abria con normalidad y simplemente le faltaba una.</p>
+   */
+  it('al abrir el desplegable vuelve a pedir la lista, y aparece lo recien creado', () => {
+    const { raiz, fixture } = montar(['PLATFORM.ADMIN'], [ALFA], {
+      platformOrganizations: [ALFA, BETA],
+    });
+
+    expect(raiz.textContent).not.toContain('Empresa recien dada de alta');
+
+    raiz.querySelector<HTMLButtonElement>('gi-select button')!.click();
+    fixture.detectChanges();
+
+    http.expectOne('/api/v1/organizations').flush([ALFA, BETA, NUEVA]);
+    fixture.detectChanges();
+
+    expect(raiz.textContent).toContain('Empresa recien dada de alta');
+  });
+
+  /**
+   * Y si el refresco falla no se vacia la lista: quien abrio el desplegable queria cambiar de
+   * organizacion, y dejarlo sin opciones porque la peticion no llego seria peor que enseñarle una
+   * que quiza no incluye la ultima.
+   */
+  it('si el refresco falla se queda con las opciones que ya tenía', () => {
+    const { raiz, fixture } = montar(['PLATFORM.ADMIN'], [ALFA], {
+      platformOrganizations: [ALFA, BETA],
+    });
+
+    raiz.querySelector<HTMLButtonElement>('gi-select button')!.click();
+    fixture.detectChanges();
+
+    http.expectOne('/api/v1/organizations').error(new ProgressEvent('error'));
+    fixture.detectChanges();
+
+    expect(raiz.textContent).toContain('Alfa Seguridad Privada');
+    expect(raiz.textContent).toContain('Beta Custodia');
   });
 
   it('con una sola organización muestra el nombre y no ofrece cambiarla', () => {

@@ -45,25 +45,28 @@ public sealed class CatalogRepository(GestIaDbContext dbContext) : ICatalogRepos
             item => item.IdOrganization == idOrganization && item.IdBusinessCatalogItem == idCatalogItem,
             cancellationToken);
 
-    public Task<bool> CatalogCodeExistsAsync(
+    /// <summary>
+    /// <c>IgnoreQueryFilters(["Active"])</c> a proposito: aqui los registros no se borran, asi que
+    /// un valor desactivado sigue ocupando su nombre. Preguntar solo por los activos diria que el
+    /// nombre esta libre y el indice unico lo desmentiria al guardar.
+    /// </summary>
+    public Task<bool> CatalogNameExistsAsync(
         Guid idOrganization,
         BusinessCatalogItemType type,
-        string code,
+        string normalizedName,
+        Guid? idParentCatalogItem,
         Guid? excludedId,
-        CancellationToken cancellationToken)
-    {
-        var normalizedCode = code.Trim().ToUpperInvariant();
-
-        return dbContext.BusinessCatalogItems
+        CancellationToken cancellationToken) =>
+        dbContext.BusinessCatalogItems
             .IgnoreQueryFilters(["Active"])
             .AnyAsync(
                 item =>
                     item.IdOrganization == idOrganization &&
                     item.Type == type &&
-                    item.Code == normalizedCode &&
+                    item.IdParentCatalogItem == idParentCatalogItem &&
+                    item.NormalizedName == normalizedName &&
                     (!excludedId.HasValue || item.IdBusinessCatalogItem != excludedId.Value),
                 cancellationToken);
-    }
 
     public Task AddCatalogItemAsync(BusinessCatalogItem item, CancellationToken cancellationToken) =>
         dbContext.BusinessCatalogItems.AddAsync(item, cancellationToken).AsTask();

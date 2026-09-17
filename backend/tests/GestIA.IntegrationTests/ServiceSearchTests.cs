@@ -91,6 +91,70 @@ public sealed class ServiceSearchTests(OperationalSqlDatabase database)
         Assert.Equal(1, Assert.Single(items, item => item.CodeService == "POS-SER-A").PositionsCount);
     }
 
+    /// <summary>
+    /// Y siguen sin contarse con el filtro de estado en «Todos», que es donde fallaba.
+    ///
+    /// <para>La prueba de arriba pasaba y el defecto existía igual, porque sólo miraba el filtro por
+    /// omisión. Con «Todos» o «Inactivos» la consulta lleva <c>IgnoreQueryFilters(["Active"])</c>, y
+    /// ese operador vale para la <b>consulta entera</b>: apagaba el filtro también en las
+    /// subconsultas que cuentan posiciones y asignaciones. Una fila decía «6 / 6» mientras su propia
+    /// ficha decía «Posiciones 0 · Sin posiciones registradas».</para>
+    /// </summary>
+    [OperationalSqlFact]
+    public async Task ThePositionCountIgnoresInactivePositionsAlsoWhenTheListShowsEveryStatus()
+    {
+        var seed = await SeedAsync("TOD");
+
+        await using (var context = database.Context())
+        {
+            // Por código, no la primera que salga: las dos piden distinto número de personas
+            // —una y dos—, así que dejarlo al orden de la base haría que la cuenta esperada
+            // cambiara de una corrida a otra.
+            var position = await context.Positions
+                .SingleAsync(item => item.CodePosition == "TOD-P1");
+            position.Deactivate(ActorId, ActorName, Now);
+            await context.SaveChangesAsync();
+        }
+
+        var (items, _) = await SearchAsync(
+            Criterios(seed.OrganizationId, status: ServiceStatusFilter.All));
+
+        var servicio = Assert.Single(items, item => item.CodeService == "TOD-SER-A");
+        Assert.Equal(1, servicio.PositionsCount);
+        // La suma de personas requeridas viene de las mismas posiciones: si una cuenta, la otra
+        // también, y el «6 / 6» de la captura era esto.
+        Assert.Equal(2, servicio.RequiredWorkerCount);
+    }
+
+    /// <summary>
+    /// Un servicio dado de baja se puede abrir.
+    ///
+    /// <para>El listado sabe enseñarlos —el filtro de estado tiene «Inactivos» y «Todos»—, así que
+    /// se puede pulsar una fila que está a la vista. La búsqueda por identificador no ignoraba el
+    /// filtro de activo, y esa fila respondía «No se encontró el servicio solicitado»: la pantalla
+    /// ofrecía abrir algo que se declaraba inexistente.</para>
+    /// </summary>
+    [OperationalSqlFact]
+    public async Task AnInactiveServiceCanStillBeOpened()
+    {
+        var seed = await SeedAsync("BAJ");
+
+        await using (var context = database.Context())
+        {
+            var servicio = await context.Services
+                .FirstAsync(item => item.IdService == seed.ServiceWithPositionsId);
+            servicio.Deactivate(ActorId, ActorName, Now);
+            await context.SaveChangesAsync();
+        }
+
+        await using var lectura = database.Context();
+        var encontrado = await new ServiceManagementRepository(lectura)
+            .GetServiceAsync(seed.ClientId, seed.ServiceWithPositionsId, Token);
+
+        Assert.NotNull(encontrado);
+        Assert.False(encontrado!.Active);
+    }
+
     [OperationalSqlFact]
     public async Task EachOptionalFilterNarrowsTheList()
     {

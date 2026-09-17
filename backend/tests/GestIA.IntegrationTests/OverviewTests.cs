@@ -317,7 +317,6 @@ public sealed class OverviewTests(OperationalSqlDatabase database)
             context.AddRange(
                 jobPosition,
                 Catalog(organizationId, BusinessCatalogItemType.Skill, $"{prefix}-HAB"),
-                Catalog(organizationId, BusinessCatalogItemType.Zone, $"{prefix}-ZON"),
                 Catalog(organizationId, BusinessCatalogItemType.IncidentReason, $"{prefix}-INC"),
                 Catalog(organizationId, BusinessCatalogItemType.CoverageReason, $"{prefix}-COB"));
         }
@@ -341,12 +340,7 @@ public sealed class OverviewTests(OperationalSqlDatabase database)
                     $"{prefix}-SER", $"Servicio {prefix}", "Servicio", Day.AddDays(-60), ActorId, ActorName, Now);
                 serviceId = service.IdService;
 
-                var configuration = ServiceConfiguration.Create(
-                    organizationId, service.IdService,
-                    new ServiceConfigurationProfile(
-                        Day.AddDays(-60), null, 1, 8m, 5, 176m, 0, "Turno diurno", null, 10000m, "MXN", true),
-                    ActorId, ActorName, Now);
-                context.AddRange(service, configuration);
+                context.Add(service);
             }
 
             if (level >= Level.Positions)
@@ -413,7 +407,7 @@ public sealed class OverviewTests(OperationalSqlDatabase database)
     private static BusinessCatalogItem Catalog(Guid organizationId, BusinessCatalogItemType type, string code) =>
         BusinessCatalogItem.Create(
             organizationId,
-            new BusinessCatalogItemProfile(type, code, $"Valor {code}", null),
+            new BusinessCatalogItemProfile(type, $"Valor {code}", null),
             ActorId, ActorName, Now);
 
     private async Task AddAsync(Guid organizationId, params object[] entities)

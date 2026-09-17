@@ -100,6 +100,9 @@ public sealed class OverviewService(
         {
             // La regla es del dato y no del calendario: si ayer no hubo planeación publicada, no
             // había turnos que cubrir, y decir «0 sin cubrir» sería felicitarse por nada.
+            // El destino depende del estado, y no es un matiz: sin plan publicado ayer no hay
+            // turnos que cubrir, y mandar a Cobertura seria mandar a una pantalla vacia. Lo que
+            // falta entonces es la planeacion.
             metrics.Add(new OverviewMetricResponse(
                 OverviewMetricKey.UncoveredShiftsYesterday,
                 facts.PreviousDayHasPublishedPlan ? OverviewMetricState.Ready : OverviewMetricState.Pending,
@@ -108,7 +111,7 @@ public sealed class OverviewService(
                 facts.PreviousDayShifts,
                 facts.PreviousDayUncoveredServices,
                 previousDay,
-                "/operacion/cobertura"));
+                facts.PreviousDayHasPublishedPlan ? "/operacion/cobertura" : "/planeacion"));
         }
 
         if (Allowed(SecurityPermissions.WorkforceRead))

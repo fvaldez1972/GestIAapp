@@ -122,17 +122,8 @@ public sealed partial class DemoDataSeeder
 
         dbContext.AddRange(openEnded, finished);
 
-        // La configuración del servicio terminado también está vencida, y ése es el caso que de
-        // verdad ejercita la regla de la tanda C: corregirla exige motivo. El servicio en sí no
-        // lleva bitácora —sólo lo hacen las cinco entidades con historial—, así que sin esta
-        // configuración el caso "vigencia terminada" se vería en la pantalla pero no probaría la
-        // regla.
-        dbContext.Add(ServiceConfiguration.Create(
-            organizationId, finished.IdService,
-            new ServiceConfigurationProfile(
-                Today.AddYears(-1), Today.AddDays(-30), 1, 8m, 6, 208m, 10,
-                "Turno diurno de vigencia terminada", null, 18500m, "MXN", true),
-            DemoActorId, DemoActorName, OccurredAt));
+        // La configuracion del servicio terminado se retiro con la entidad: el precio vive ahora
+        // en el puesto, y con el se fue la regla de correccion que este caso ejercitaba.
 
         // 8. Doce servicios en un solo cliente, para que la paginación tenga qué paginar.
         var many = new List<Service>();
@@ -249,9 +240,11 @@ public sealed partial class DemoDataSeeder
         employee.Deactivate(DemoActorId, DemoActorName, OccurredAt);
         dbContext.Add(employee);
 
+        // Era una zona; el catalogo de zonas se retiro. Un motivo de incidencia sirve igual para lo
+        // que este caso duro prueba: que un valor desactivado siga ahi y no se pueda elegir.
         var catalogItem = BusinessCatalogItem.Create(
             organizationId,
-            new BusinessCatalogItemProfile(BusinessCatalogItemType.Zone, $"{HardCasePrefix}-ZONA", "Zona dada de baja", null),
+            new BusinessCatalogItemProfile(BusinessCatalogItemType.IncidentReason, $"Motivo dado de baja {HardCasePrefix}", null),
             DemoActorId, DemoActorName, OccurredAt);
         catalogItem.Deactivate(DemoActorId, DemoActorName, OccurredAt);
         dbContext.Add(catalogItem);

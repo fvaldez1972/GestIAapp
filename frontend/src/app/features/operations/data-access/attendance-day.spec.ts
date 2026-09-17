@@ -63,6 +63,10 @@ const posicion = (id: string, required: number): ServicePosition => ({
   requiredSkillProfile: null,
   notes: null,
   active: true,
+  price: 0,
+  priceFrequency: 'Monthly',
+  currencyCode: 'MXN',
+  isTaxIncluded: false,
 });
 
 const cierre = (status: 'Closed' | 'Reopened'): OperationDayClosure => ({

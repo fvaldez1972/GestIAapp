@@ -1,4 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
+import { toSignal } from '@angular/core/rxjs-interop';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -51,6 +52,14 @@ import {
 } from '../../data-access/service.models';
 import { SystemInfoService } from '../../../../core/system/system-info.service';
 import { WorkforceApiService } from '../../../workforce/data-access/workforce-api.service';
+import { EmployeeListApiService } from '../../../workforce/data-access/employee-list-api.service';
+import { CatalogApiService } from '../../../catalogs/data-access/catalog-api.service';
+import { PAYMENT_FREQUENCY_LABELS, PaymentFrequency } from '../../../clients/data-access/client.models';
+import { CandidateEligibility } from '../../../planning/data-access/planning.models';
+import {
+  AssignmentCandidateSource,
+  buildAssignmentCandidates,
+} from '../../data-access/assignment-candidates';
 import { Employee } from '../../../workforce/data-access/workforce.models';
 import { ClientApiService } from '../../../clients/data-access/client-api.service';
 import {
@@ -68,8 +77,6 @@ import {
   ServiceAssignment,
   ServiceAssignmentInput,
   ServiceAssignmentType,
-  ServiceConfiguration,
-  ServiceConfigurationInput,
   ServiceContract,
   ServicePosition,
   ServicePositionInput,
@@ -81,6 +88,10 @@ import {
 import { ServiceDialog } from '../../ui/service-dialog';
 import { ServiceContextApi } from '../../data-access/service-context-api';
 import { EntityDocuments } from '../../../documents/components/entity-documents/entity-documents';
+import { GiCandidatePicker } from '../../../../shared/ui/gi-candidate-picker/gi-candidate-picker';
+import { GiCatalogCreation } from '../../../../shared/ui/gi-catalog-picker/gi-catalog-picker';
+import { PositionSkillRequest, PositionSkills } from '../../ui/position-skills';
+import { EligibilityRequirement, EligibilityRequirementInput } from '../../../catalogs/data-access/catalog.models';
 import { AppIcon } from '../../../../shared/ui/app-icon/app-icon';
 import { dateRangeValidator, shiftIntervalValidator } from '../../ui/service-validators';
 
@@ -99,6 +110,8 @@ import { dateRangeValidator, shiftIntervalValidator } from '../../ui/service-val
     GiTabContent,
     GiRowActions,
     GiConfirmDialog,
+    GiCandidatePicker,
+    PositionSkills,
   ],
   templateUrl: './services-page.html',
   styleUrl: './services-page.scss',
@@ -112,6 +125,8 @@ export class ServicesPage implements OnInit, OnDestroy {
   private readonly router = inject(Router);
   private pendingServiceLink = '';
   private readonly workforceApi = inject(WorkforceApiService);
+  private readonly employeeListApi = inject(EmployeeListApiService);
+  private readonly catalogApi = inject(CatalogApiService);
   private readonly auth = inject(AuthService);
   private readonly systemInfo = inject(SystemInfoService);
   private readonly formBuilder = inject(FormBuilder);
@@ -133,12 +148,26 @@ export class ServicesPage implements OnInit, OnDestroy {
   protected readonly contracts = signal<readonly ServiceContract[]>([]);
   protected readonly contacts = signal<readonly ClientContact[]>([]);
   protected readonly services = signal<readonly ManagedService[]>([]);
-  protected readonly configurations = signal<readonly ServiceConfiguration[]>([]);
   protected readonly positions = signal<readonly ServicePosition[]>([]);
   protected readonly shiftPatterns = signal<readonly ShiftPattern[]>([]);
   protected readonly shiftSegments = signal<readonly ShiftSegment[]>([]);
   protected readonly assignments = signal<readonly ServiceAssignment[]>([]);
   protected readonly positionVacancy = signal<readonly PositionVacancy[]>([]);
+
+  /**
+   * Si la lista de patrones ya llegó del servidor.
+   *
+   * <p><b>Una lista vacía no significa «no hay».</b> Puede significar «todavía no se han pedido» o
+   * «se pidieron y la petición se canceló»: estas lecturas se cancelan cuando cambia el ámbito
+   * —al abrir otro servicio, otra posición— y no se reintentan. Sin esta señal, la pantalla decía
+   * «Sin patrones registrados para esta posición» sobre una posición que sí tenía patrones, y sólo
+   * al crear otro aparecían todos. Se reportó así: «una vez que agregas un nuevo patrón, aparecen
+   * los que están ocultos».</p>
+   *
+   * <p>Es la tercera vez que esta confusión cuesta un defecto en esta pantalla, después de las
+   * sedes del cliente y del aviso de «todavía se están cargando».</p>
+   */
+  protected readonly shiftPatternsLoaded = signal(false);
   /** El servicio que se va a desactivar, mientras el diálogo pregunta. */
   protected readonly serviceToDeactivate = signal<ManagedService | null>(null);
   /**
@@ -151,8 +180,53 @@ export class ServicesPage implements OnInit, OnDestroy {
    * motivo. El servidor decide si hace falta, y lo dice en el error.
    */
   protected readonly correctionReason = signal('');
-  protected readonly correctionReasonRequired = signal(false);
+
+  /**
+   * El servidor pidió motivo por un caso que aquí no se previó. Red de seguridad, no la vía normal.
+   */
+  private readonly motivoExigidoPorElServidor = signal(false);
   protected readonly activeEmployees = signal<readonly Employee[]>([]);
+
+  /**
+   * Las personas que se pueden ofrecer, con lo que el servidor sabe de ellas.
+   *
+   * <p>Salen del listado de Personal y no del alta de empleados, porque ahí viene el conteo de
+   * asignaciones vigentes: es lo que permite decir «Ocupado» sin inventarlo.</p>
+   */
+  protected readonly candidateRows = signal<readonly AssignmentCandidateSource[]>([]);
+
+  /**
+   * El veredicto del servidor por persona. Vacío mientras no contesta, y vacío si falla.
+   *
+   * <p>En los dos casos los candidatos salen «Sin comprobar», que es la verdad. «Elegible» es una
+   * afirmación y sólo la puede hacer el servidor.</p>
+   */
+  protected readonly candidateEligibility = signal<ReadonlyMap<string, CandidateEligibility>>(new Map());
+
+  /** El catálogo de habilidades de la organización, para armar el perfil de una posición. */
+  protected readonly catalogSkills = signal<readonly { idCatalogItem: string; name: string }[]>([]);
+
+  /** Las reglas de habilidad ya guardadas para la posición abierta. */
+  protected readonly positionSkillRequirements = signal<readonly EligibilityRequirement[]>([]);
+
+  /**
+   * Las habilidades elegidas para una posición que todavía no existe.
+   *
+   * <p>Una regla necesita el identificador de la posición, y al dar de alta no hay ninguno: se
+   * guardan aquí y se crean en cuanto el servidor devuelve la posición. Así el alta no obliga a
+   * guardar primero y volver a entrar para declarar el perfil.</p>
+   */
+  protected readonly pendingPositionSkills = signal<readonly PositionSkillRequest[]>([]);
+
+  /** La lista que se ofrece, con disponibilidad y veredicto en cada fila. */
+  protected readonly assignmentCandidates = computed(() =>
+    buildAssignmentCandidates({
+      employees: this.candidateRows(),
+      assignments: this.assignments(),
+      idPosition: this.assignmentForm.controls.idPosition.value,
+      eligibility: this.candidateEligibility(),
+    }),
+  );
   /**
    * El listado de la organización. **Antes esto era la lista de clientes**, y no se veía un solo
    * servicio hasta elegir uno: la cascada organización → cliente → servicio.
@@ -189,12 +263,42 @@ export class ServicesPage implements OnInit, OnDestroy {
   protected readonly canReadDocuments = computed(
     () => this.canRead() && this.auth.hasPermission('DOCUMENTS.READ'),
   );
+  /**
+   * Permiso para escribir clientes <b>y</b> que el cliente elegido esté activo.
+   *
+   * <p>Mezcla dos preguntas y para las acciones de una fila está bien: editar un servicio de un
+   * cliente dado de baja no tiene sentido. Para <b>crear</b>, no: ver `puedeCrearServicios`.</p>
+   */
   protected readonly canWriteClients = computed(
     () =>
       this.canRead() &&
       this.auth.hasPermission('CLIENTS.WRITE') &&
       !!this.auth.activeOrganization() &&
       !!this.selectedClient()?.active,
+  );
+
+  /**
+   * Sólo el permiso, sin el contexto.
+   *
+   * <p>El botón de «Nuevo servicio» se apagaba porque `canWriteClients` exige un cliente elegido y
+   * activo, y sin cliente eso es siempre falso. Preguntar por el permiso al dibujar el botón, y
+   * por el contexto al pulsarlo, es lo que permite explicar qué falta en lugar de apagarlo.</p>
+   */
+  /**
+   * Lo que falta para poder crear, que no es un error de carga.
+   *
+   * <p>Va aparte de `error()` porque ese alimenta el `errorMessage` de la tabla: escrito ahi, el
+   * aviso hacia desaparecer la lista y ofrecia un "Reintentar" que no reintentaba nada.</p>
+   */
+  protected readonly aviso = signal('');
+
+  /** El nombre con el que el resto de la pantalla llama al cliente. */
+  protected nombreDe(cliente: { readonly tradeName?: string | null; readonly legalName: string }): string {
+    return cliente.tradeName || cliente.legalName;
+  }
+
+  protected readonly puedeCrearServicios = computed(
+    () => this.canRead() && this.auth.hasPermission('CLIENTS.WRITE') && !!this.auth.activeOrganization(),
   );
   protected readonly canWritePlanning = computed(
     () =>
@@ -258,8 +362,6 @@ export class ServicesPage implements OnInit, OnDestroy {
   protected readonly serviceWizardStep = signal(1);
   protected readonly serviceEditorOpen = signal(false);
   protected readonly editingService = signal<ManagedService | null>(null);
-  protected readonly configurationEditorOpen = signal(false);
-  protected readonly editingConfiguration = signal<ServiceConfiguration | null>(null);
   protected readonly positionEditorOpen = signal(false);
   protected readonly editingPosition = signal<ServicePosition | null>(null);
   protected readonly shiftPatternEditorOpen = signal(false);
@@ -371,6 +473,10 @@ export class ServicesPage implements OnInit, OnDestroy {
     this.services.set([]);
     this.sites.set([]);
     this.contracts.set([]);
+    // Los contactos tambien, que se quedaban fuera. Las tres listas se piden juntas y son del
+    // mismo cliente: dejar una sin vaciar deja los contactos del cliente anterior en pantalla
+    // mientras llegan los del nuevo.
+    this.contacts.set([]);
     this.clearServiceDetail();
     this.pendingServiceLink = params.get('serviceId') ?? '';
     this.linkedClientId.set(clientId);
@@ -381,6 +487,20 @@ export class ServicesPage implements OnInit, OnDestroy {
         return;
       }
       this.selectedClient.set(client);
+      // Las sedes, los contratos y los contactos del cliente enlazado, salvo que venga tambien un
+      // servicio: al abrirlo se piden estas mismas listas, y pedirlas aqui las duplicaria.
+      //
+      //
+      // Faltaban, y ese era el defecto. Este camino —el de «Crear servicio de este cliente», que
+      // llega con `?clientId=`— dejaba `sites` en la lista vacia con la que se entra, y la unica
+      // rutina que la llenaba era `loadClientContext`, a la que solo se llama al abrir un servicio
+      // que ya existe. Con un cliente sin servicios eso no pasa nunca, asi que «Nuevo servicio»
+      // respondia que el cliente no tenia ninguna sede activa mientras Clientes le mostraba dos.
+      //
+      // La lista vacia no significaba «no tiene»: significaba «nadie las pidio».
+      if (!this.pendingServiceLink) {
+        this.loadClientLists(client.idClient);
+      }
       // La lista se vuelve a pedir ya filtrada por el cliente del enlace.
       this.loadServices(1);
       this.openLinkedService(client.idClient);
@@ -425,11 +545,38 @@ export class ServicesPage implements OnInit, OnDestroy {
       1,
       (data) => {
         this.selectedClient.set(data.client);
-        this.sites.set(data.sites);
-        this.contracts.set(data.contracts);
-        this.contacts.set(data.contacts);
+        this.applyClientLists(data);
       },
     );
+  }
+
+  /**
+   * Las listas del cliente, sin volver a pedir el cliente.
+   *
+   * <p>Existe para el camino que llega desde Clientes: ahi el cliente ya se pidio para comprobar
+   * que pertenece a la organizacion, y repetir esa consulta seria una peticion de mas.</p>
+   */
+  private loadClientLists(idClient: string): void {
+    const org = this.selectedOrganizationId();
+    this.read(
+      forkJoin({
+        sites: this.api.listSites(org, idClient),
+        contracts: this.api.listContracts(org, idClient),
+        contacts: this.api.listContacts(org, idClient),
+      }),
+      1,
+      (data) => this.applyClientLists(data),
+    );
+  }
+
+  private applyClientLists(data: {
+    readonly sites: readonly ClientSite[];
+    readonly contracts: readonly ServiceContract[];
+    readonly contacts: readonly ClientContact[];
+  }): void {
+    this.sites.set(data.sites);
+    this.contracts.set(data.contracts);
+    this.contacts.set(data.contacts);
   }
 
   /**
@@ -463,13 +610,15 @@ export class ServicesPage implements OnInit, OnDestroy {
           this.openService(servicio);
         } else {
           this.error.set('El servicio solicitado no está disponible en esta organización.');
+          // No se abrio ningun servicio, asi que nadie cargo las listas del cliente. Sin esto, la
+          // pantalla quedaria otra vez creyendo que el cliente no tiene sedes.
+          this.loadClientLists(idClient);
         }
       },
     );
   }
 
   private loadServiceDetail(service: ManagedService): void {
-    this.loadConfigurations(service);
     if (this.canReadPlanning()) {
       this.loadPositions(service);
       this.loadAssignments(service);
@@ -498,12 +647,12 @@ export class ServicesPage implements OnInit, OnDestroy {
   private clearServiceDetail(): void {
     this.positionVacancy.set([]);
     this.activeEmployees.set([]);
-    this.configurations.set([]);
     this.positions.set([]);
     this.assignments.set([]);
     this.selectedPosition.set(null);
     this.selectedShiftPattern.set(null);
     this.shiftPatterns.set([]);
+    this.shiftPatternsLoaded.set(false);
     this.shiftSegments.set([]);
   }
 
@@ -554,7 +703,6 @@ export class ServicesPage implements OnInit, OnDestroy {
 
   protected readonly panelTabs = computed<readonly GiTab[]>(() => [
     { id: 'data', label: 'Datos' },
-    { id: 'configuration', label: 'Configuración', count: this.configurations().length },
     { id: 'positions', label: 'Posiciones', count: this.positions().length },
     { id: 'assignments', label: 'Asignaciones', count: this.vacantesAbiertas() },
   ]);
@@ -585,28 +733,23 @@ export class ServicesPage implements OnInit, OnDestroy {
     if (action.id === 'deactivate') this.confirmDeactivateService(item);
   }
 
+  /**
+   * Deja al día lo que se ve del servicio: su ficha y su fila en el listado.
+   *
+   * <p>Se usa después de escribir posiciones o asignaciones. `refresh()` hace lo mismo pero es la
+   * acción manual del usuario, con sus guardas; ésta es la que se llama sola tras guardar.</p>
+   */
+  private refrescarFichaYListado(service: ManagedService): void {
+    this.loadServiceDetail(service);
+    this.loadServices(this.serviceList().page);
+  }
+
   protected refresh(): void {
     if (this.saving()) return;
     this.error.set('');
     const service = this.selectedService();
     if (service) this.loadServiceDetail(service);
     this.loadServices(this.serviceList().page);
-  }
-
-  protected loadConfigurations(service = this.selectedService()): void {
-    if (!service || !this.canRead()) return;
-    this.read(
-      this.api.listServiceConfigurations(
-        this.selectedOrganizationId(),
-        service.idClient,
-        service.idService,
-      ),
-      2,
-      (rows) =>
-        this.configurations.set(
-          [...rows].sort((a, b) => b.effectiveFromDate.localeCompare(a.effectiveFromDate)),
-        ),
-    );
   }
 
   protected loadPositions(service = this.selectedService()): void {
@@ -623,6 +766,7 @@ export class ServicesPage implements OnInit, OnDestroy {
           this.selectedPosition.set(null);
           this.selectedShiftPattern.set(null);
           this.shiftPatterns.set([]);
+          this.shiftPatternsLoaded.set(false);
           this.shiftSegments.set([]);
         }
       },
@@ -635,6 +779,7 @@ export class ServicesPage implements OnInit, OnDestroy {
     this.selectedPosition.set(position);
     this.selectedShiftPattern.set(null);
     this.shiftPatterns.set([]);
+    this.shiftPatternsLoaded.set(false);
     this.shiftSegments.set([]);
     this.loadShiftPatterns(position);
   }
@@ -643,6 +788,7 @@ export class ServicesPage implements OnInit, OnDestroy {
     const client = this.selectedClient(),
       service = this.selectedService();
     if (!client || !service || !position || !this.canReadPlanning()) return;
+    this.shiftPatternsLoaded.set(false);
     this.read(
       this.api.listShiftPatterns(
         this.selectedOrganizationId(),
@@ -652,6 +798,7 @@ export class ServicesPage implements OnInit, OnDestroy {
       ),
       3,
       (rows) => {
+        this.shiftPatternsLoaded.set(true);
         this.shiftPatterns.set(rows);
         const pattern =
           rows.find((p) => p.idShiftPattern === this.selectedShiftPattern()?.idShiftPattern) ??
@@ -725,6 +872,136 @@ export class ServicesPage implements OnInit, OnDestroy {
       );
   }
 
+
+  /**
+   * Carga a quién se puede ofrecer, y le pregunta al servidor por cada uno.
+   *
+   * <p>Se pide al abrir el alta y no al entrar a la pantalla: son dos consultas que sólo sirven
+   * cuando alguien va a asignar, y la segunda depende de la posición elegida.</p>
+   */
+
+  /**
+   * El subtítulo dice cuántos servicios hay y cuántos tienen hueco.
+   *
+   * <p>Antes decía «La organización se hereda de la barra de contexto», que es cierto y no le sirve
+   * a nadie: describe cómo funciona la pantalla por dentro, no lo que hay en ella. Clientes y
+   * Personal llevan un conteo con la consecuencia; esto hace lo mismo, y la vacante es lo que de
+   * verdad se busca al abrir Servicios.</p>
+   */
+  protected readonly serviceCountNote = computed(() => {
+    if (this.platformAdmin() && !this.selectedOrganizationId()) {
+      return '';
+    }
+
+    const total = this.serviceList().totalCount;
+
+    if (!total) {
+      return 'Un servicio se contrata para un cliente con al menos una sede activa.';
+    }
+
+    const conHueco = this.serviceList().items.filter((row) => this.vacantes(row) > 0).length;
+    const base = `${total} ${total === 1 ? 'servicio' : 'servicios'}.`;
+
+    if (conHueco === 0) {
+      return `${base} Ninguno de los que se ven tiene posiciones sin cubrir.`;
+    }
+
+    return conHueco === 1
+      ? `${base} Uno de los que se ven tiene posiciones sin cubrir.`
+      : `${base} ${conHueco} de los que se ven tienen posiciones sin cubrir.`;
+  });
+
+  private loadAssignmentCandidates(): void {
+    const org = this.selectedOrganizationId();
+
+    if (!this.canReadEmployees() || !org) return;
+
+    this.candidateRows.set([]);
+    this.candidateEligibility.set(new Map());
+
+    this.read(
+      this.employeeListApi.searchEmployees({ organizationId: org, status: 'Active', pageSize: 200 }),
+      2,
+      (result) => {
+        this.candidateRows.set(
+          result.page.items.map((item) => ({
+            idEmployee: item.idEmployee,
+            codeEmployee: item.codeEmployee,
+            fullName: item.fullName,
+            jobPositionName: item.jobPositionName,
+            jobTitle: item.jobTitle,
+            assignmentCount: item.assignmentCount,
+          })),
+        );
+        this.loadCandidateEligibility();
+      },
+    );
+  }
+
+  /**
+   * Le pregunta al servidor quién cumple, para la posición elegida.
+   *
+   * <p>Si falla no se enseña un error: los candidatos se quedan «Sin comprobar». Un fallo de esta
+   * consulta no impide asignar —el servidor vuelve a decidir al guardar—, y bloquear la pantalla
+   * por no poder adelantar el veredicto sería peor que no adelantarlo.</p>
+   */
+  private loadCandidateEligibility(): void {
+    const org = this.selectedOrganizationId();
+    const service = this.selectedService();
+    const idPosition = this.assignmentForm.controls.idPosition.value;
+    const ids = this.candidateRows().map((row) => row.idEmployee);
+
+    if (!org || !service || ids.length === 0) return;
+
+    this.catalogApi
+      .checkEligibilityBatch({
+        organizationId: org,
+        employeeIds: ids,
+        clientId: service.idClient,
+        serviceId: service.idService,
+        positionId: idPosition || null,
+        referenceDate: this.assignmentForm.controls.startDate.value || this.today(),
+      })
+      .pipe(takeUntil(this.destroyed))
+      .subscribe({
+        next: (checks) =>
+          this.candidateEligibility.set(
+            new Map(
+              checks.map((check) => [
+                check.idEmployee,
+                {
+                  isEligible: check.isEligible,
+                  blockingReasons: check.reasons
+                    .filter((reason) => reason.isBlocking && !reason.passed)
+                    .map((reason) => reason.message),
+                },
+              ]),
+            ),
+          ),
+        error: () => this.candidateEligibility.set(new Map()),
+      });
+  }
+
+  /** Al cambiar la posición cambia el veredicto: se vuelve a preguntar. */
+  protected onCandidatePositionChange(idPosition: string): void {
+    this.assignmentForm.controls.idPosition.setValue(idPosition);
+    this.candidateEligibility.set(new Map());
+    this.loadCandidateEligibility();
+  }
+
+  protected chooseCandidate(candidate: { readonly id: string }): void {
+    this.assignmentForm.controls.idEmployee.setValue(candidate.id);
+  }
+
+  /**
+   * La salida del estado vacío. No preselecciona nada en Personal, porque esa pantalla no lee
+   * ningún parámetro: mandarle uno que ignora sería el defecto que ya se corrigió en el enlace de
+   * Clientes a Servicios.
+   */
+  protected goToWorkforce(): void {
+    void this.router.navigate(['/personal']);
+  }
+
   private read<T>(source: Observable<T>, level: number, next: (value: T) => void): void {
     this.pending.update((n) => n + 1);
     source
@@ -741,7 +1018,6 @@ export class ServicesPage implements OnInit, OnDestroy {
   protected closeEditors(): void {
     if (this.saving()) return;
     this.serviceEditorOpen.set(false);
-    this.configurationEditorOpen.set(false);
     this.positionEditorOpen.set(false);
     this.shiftPatternEditorOpen.set(false);
     this.shiftSegmentEditorOpen.set(false);
@@ -763,6 +1039,11 @@ export class ServicesPage implements OnInit, OnDestroy {
     { value: 'Sunday', label: 'Domingo' },
   ];
 
+  /** Los cuatro periodos, para el selector del precio. Quincenal y catorcenal son distintos. */
+  protected readonly paymentFrequencies = (
+    Object.keys(PAYMENT_FREQUENCY_LABELS) as PaymentFrequency[]
+  ).map((value) => ({ value, label: PAYMENT_FREQUENCY_LABELS[value] }));
+
   protected readonly assignmentTypes: readonly { value: ServiceAssignmentType; label: string }[] = [
     { value: 'Primary', label: 'Principal' },
     { value: 'Support', label: 'Apoyo' },
@@ -772,47 +1053,49 @@ export class ServicesPage implements OnInit, OnDestroy {
 
   protected readonly serviceForm = this.formBuilder.nonNullable.group(
     {
-      codeService: ['', [Validators.required, Validators.maxLength(30)]],
       idClientSite: ['', [Validators.required]],
       idServiceContract: [''],
       name: ['', [Validators.required, Validators.maxLength(160)]],
       description: ['', [Validators.required, Validators.maxLength(1000)]],
-      invoiceDescription: ['', [Validators.maxLength(300)]],
       startDate: ['', [Validators.required]],
       endDate: [''],
     },
     { validators: dateRangeValidator('startDate', 'endDate') },
   );
 
-  protected readonly configurationForm = this.formBuilder.nonNullable.group(
-    {
-      effectiveFromDate: ['', [Validators.required]],
-      effectiveToDate: [''],
-      requiredWorkerCount: [1, [Validators.required, Validators.min(1), Validators.max(10000)]],
-      hoursPerDay: [8, [Validators.required, Validators.min(0.5), Validators.max(24)]],
-      daysPerWeek: [6, [Validators.required, Validators.min(1), Validators.max(7)]],
-      averageMonthlyHours: [208, [Validators.required, Validators.min(1), Validators.max(744)]],
-      preparationLeadDays: [7, [Validators.required, Validators.min(0), Validators.max(365)]],
-      workScheduleDescription: ['', [Validators.required, Validators.maxLength(500)]],
-      specificInstructions: ['', [Validators.maxLength(2000)]],
-      monthlyPrice: [0, [Validators.required, Validators.min(0)]],
-      currencyCode: ['MXN', [Validators.required, Validators.maxLength(3)]],
-      isTaxIncluded: [false],
-    },
-    { validators: dateRangeValidator('effectiveFromDate', 'effectiveToDate') },
-  );
+  /** Lo que hay escrito en el formulario de configuración, como señal. */
+  /**
+   * Por qué se va a exigir motivo, dicho <b>antes</b> de intentar guardar. Vacío si no hace falta.
+   *
+   * <p><b>Antes había que fallar para enterarse.</b> El campo del motivo sólo aparecía cuando el
+   * servidor rechazaba con un mensaje que contuviera «motivo», y ese rechazo llega como validación:
+   * el detalle es «La solicitud contiene datos inválidos» y la explicación viaja dentro de
+   * `errors`, no en `detail`. La comprobación de la cadena nunca se cumplía, el campo no aparecía
+   * nunca, y cambiar el precio mensual resultaba imposible. Se reportó tal cual: «no te deja
+   * modificarlo, tienes que poner el mismo valor que pusiste al crearlo».</p>
+   *
+   * <p>La regla se puede saber aquí, y es la misma que aplica el servidor: el precio, la moneda y el
+   * impuesto son lo que se le factura al cliente, y una vigencia terminada se corrige, no se edita.
+   * La del servidor sigue mandando; ésta sólo llega a tiempo.</p>
+   */
+  // El motivo lo sigue exigiendo el servidor cuando toca; la regla local que lo anticipaba era de
+  // la configuracion y se fue con ella.
+  protected readonly correctionReasonRequired = computed(() => this.motivoExigidoPorElServidor());
 
   protected readonly positionForm = this.formBuilder.nonNullable.group({
-    codePosition: ['', [Validators.required, Validators.maxLength(40)]],
     name: ['', [Validators.required, Validators.maxLength(150)]],
     requiredWorkerCount: [1, [Validators.required, Validators.min(1), Validators.max(10000)]],
+    // El precio vive aqui desde que se retiro la configuracion del servicio: en seguridad privada
+    // se cotiza por puesto, no por servicio.
+    price: [0, [Validators.required, Validators.min(0)]],
+    priceFrequency: ['Monthly' as PaymentFrequency, [Validators.required]],
+    isTaxIncluded: [false],
     requiredSkillProfile: ['', [Validators.maxLength(1000)]],
     notes: ['', [Validators.maxLength(1000)]],
   });
 
   protected readonly shiftPatternForm = this.formBuilder.nonNullable.group(
     {
-      codeShiftPattern: ['', [Validators.required, Validators.maxLength(40)]],
       name: ['', [Validators.required, Validators.maxLength(150)]],
       description: ['', [Validators.maxLength(1000)]],
       effectiveFromDate: ['', [Validators.required]],
@@ -846,29 +1129,63 @@ export class ServicesPage implements OnInit, OnDestroy {
     { validators: dateRangeValidator('startDate', 'endDate') },
   );
 
+  /**
+   * Abre el alta de servicio, o dice qué falta para poder abrirla.
+   *
+   * <p>Antes salía en silencio por esta misma condición, con el botón además deshabilitado: desde
+   * fuera parecía que el botón no respondía. Un servicio necesita un cliente con sede activa, y
+   * eso es cierto; lo que no puede es no decirse.</p>
+   */
   protected openCreateService(): void {
-    if (!this.allowWrite(false)) return;
+    if (this.saving() || !this.puedeCrearServicios()) return;
     this.closeEditors();
-    this.error.set('');
-    if (!this.selectedClient() || !this.sites().some((s) => s.active)) {
+    this.aviso.set('');
+
+    const cliente = this.selectedClient();
+
+    if (!cliente) {
+      this.aviso.set(
+        'Un servicio se contrata para un cliente. Abre el cliente en Clientes y entra a sus '
+        + 'servicios desde ahí.',
+      );
+      return;
+    }
+
+    // "Todavia no se han cargado" no es "no tiene". Decir que un cliente no tiene sedes cuando la
+    // peticion sigue en vuelo es afirmar algo que la pantalla no sabe, y el cliente de la captura
+    // tenia tres.
+    if (this.loading()) {
+      this.aviso.set('Todavía se están cargando las sedes de este cliente. Espera un momento.');
+      return;
+    }
+
+    if (!this.sites().some((site) => site.active)) {
+      this.aviso.set(
+        `${this.nombreDe(cliente)} no tiene ninguna sede activa, y un servicio se presta en una `
+        + 'sede. Registra la sede antes de contratar el servicio.',
+      );
       return;
     }
 
     this.editingService.set(null);
     this.serviceWizardStep.set(1);
     this.serviceForm.reset({
-      codeService: '',
       idClientSite: this.sites().find((s) => s.active)?.idClientSite ?? '',
       idServiceContract: '',
       name: '',
       description: '',
-      invoiceDescription: '',
       startDate: this.today(),
       endDate: '',
     });
     this.serviceEditorOpen.set(true);
   }
 
+  /**
+   * Las horas al mes que salen del horario pactado.
+   *
+   * <p>Se redondea a un decimal, que es lo que la columna guarda. Cincuenta y dos semanas entre
+   * doce meses da 4.333, no 4: usar cuatro perderia mas de medio dia de trabajo al mes.</p>
+   */
   protected openEditService(service: ManagedService): void {
     if (!this.allowWrite(false)) return;
     this.closeEditors();
@@ -876,12 +1193,10 @@ export class ServicesPage implements OnInit, OnDestroy {
     this.editingService.set(service);
     this.serviceWizardStep.set(1);
     this.serviceForm.reset({
-      codeService: service.codeService,
       idClientSite: service.idClientSite,
       idServiceContract: service.idServiceContract ?? '',
       name: service.name,
       description: service.description,
-      invoiceDescription: service.invoiceDescription ?? '',
       startDate: this.dateOnly(service.startDate),
       endDate: this.dateOnly(service.endDate),
     });
@@ -893,11 +1208,10 @@ export class ServicesPage implements OnInit, OnDestroy {
     const controls =
       step === 1
         ? [
-            this.serviceForm.controls.codeService,
             this.serviceForm.controls.idClientSite,
             this.serviceForm.controls.name,
           ]
-        : [this.serviceForm.controls.description, this.serviceForm.controls.invoiceDescription];
+        : [this.serviceForm.controls.description];
 
     controls.forEach((control) => control.markAsTouched());
     if (controls.some((control) => control.invalid)) {
@@ -929,17 +1243,17 @@ export class ServicesPage implements OnInit, OnDestroy {
       idServiceContract: this.optional(form.idServiceContract),
       name: form.name,
       description: form.description,
-      invoiceDescription: this.optional(form.invoiceDescription),
+      // Sin descripcion para factura: el campo se retiro por no usarse.
+      invoiceDescription: null,
       startDate: form.startDate,
       endDate: this.optionalDate(form.endDate),
     };
     const editing = this.editingService();
     const request = editing
       ? this.api.updateService(client.idClient, editing.idService, input)
-      : this.api.createService(client.idClient, {
-          ...input,
-          codeService: form.codeService,
-        } satisfies CreateManagedService);
+      // Sin codigo: lo genera el servidor. Mandar cadena vacia no seria lo mismo —la validaria
+      // como capturada y la rechazaria—, asi que se omite el campo entero.
+      : this.api.createService(client.idClient, { ...input } satisfies CreateManagedService);
 
     this.saving.set(true);
     request
@@ -997,9 +1311,9 @@ export class ServicesPage implements OnInit, OnDestroy {
           this.message.set('Servicio desactivado correctamente.');
           if (this.selectedService()?.idService === service.idService) {
             this.selectedService.set(null);
-            this.configurations.set([]);
             this.positions.set([]);
             this.shiftPatterns.set([]);
+            this.shiftPatternsLoaded.set(false);
             this.shiftSegments.set([]);
             this.selectedPosition.set(null);
             this.selectedShiftPattern.set(null);
@@ -1033,6 +1347,7 @@ export class ServicesPage implements OnInit, OnDestroy {
       isPrimary: true,
       notes: '',
     });
+    this.loadAssignmentCandidates();
     this.assignmentEditorOpen.set(true);
   }
 
@@ -1103,7 +1418,13 @@ export class ServicesPage implements OnInit, OnDestroy {
           this.message.set(
             editing ? 'Asignación actualizada correctamente.' : 'Asignación creada correctamente.',
           );
-          this.loadAssignments(service);
+          // Ficha y listado, los dos.
+          //
+          // El panel se refrescaba solo, y de la lista salen los contadores de la fila —Posiciones,
+          // Req./Asig.— y tambien la cuenta de vacantes de la pestaña, que se calcula sobre datos
+          // del detalle. Refrescar la mitad dejaba dos numeros distintos sobre el mismo servicio,
+          // uno al lado del otro. Son cuatro defectos reportados y una sola causa.
+          this.refrescarFichaYListado(service);
         },
         error: (error: HttpErrorResponse) => this.setError(error),
       });
@@ -1139,162 +1460,13 @@ export class ServicesPage implements OnInit, OnDestroy {
         next: () => {
           this.saving.set(false);
           this.message.set('Asignación desactivada correctamente.');
-          this.loadAssignments(service);
-        },
-        error: (error: HttpErrorResponse) => this.setError(error),
-      });
-  }
-
-  protected openCreateConfiguration(): void {
-    if (!this.allowWrite(false)) return;
-    if (!this.selectedService()?.active) return;
-    this.closeEditors();
-    this.error.set('');
-    if (!this.selectedClient() || !this.selectedService()) {
-      return;
-    }
-
-    this.editingConfiguration.set(null);
-    this.configurationForm.reset({
-      effectiveFromDate: this.today(),
-      effectiveToDate: '',
-      requiredWorkerCount: 1,
-      hoursPerDay: 8,
-      daysPerWeek: 6,
-      averageMonthlyHours: 208,
-      preparationLeadDays: 7,
-      workScheduleDescription: '',
-      specificInstructions: '',
-      monthlyPrice: 0,
-      currencyCode: 'MXN',
-      isTaxIncluded: false,
-    });
-    this.configurationEditorOpen.set(true);
-  }
-
-  protected openEditConfiguration(configuration: ServiceConfiguration): void {
-    if (!this.allowWrite(false)) return;
-    if (!this.selectedService()?.active) return;
-    this.closeEditors();
-    this.error.set('');
-    this.editingConfiguration.set(configuration);
-    this.configurationForm.reset({
-      effectiveFromDate: this.dateOnly(configuration.effectiveFromDate),
-      effectiveToDate: this.dateOnly(configuration.effectiveToDate),
-      requiredWorkerCount: configuration.requiredWorkerCount,
-      hoursPerDay: configuration.hoursPerDay,
-      daysPerWeek: configuration.daysPerWeek,
-      averageMonthlyHours: configuration.averageMonthlyHours,
-      preparationLeadDays: configuration.preparationLeadDays,
-      workScheduleDescription: configuration.workScheduleDescription,
-      specificInstructions: configuration.specificInstructions ?? '',
-      monthlyPrice: configuration.monthlyPrice,
-      currencyCode: configuration.currencyCode,
-      isTaxIncluded: configuration.isTaxIncluded,
-    });
-    this.configurationEditorOpen.set(true);
-  }
-
-  protected saveConfiguration(): void {
-    if (!this.allowWrite(false)) return;
-    if (!this.selectedService()?.active) return;
-    this.error.set('');
-    this.conflict.set('');
-    const client = this.selectedClient();
-    const service = this.selectedService();
-    if (!client || !service || this.configurationForm.invalid) {
-      this.configurationForm.markAllAsTouched();
-      this.error.set('Revisa los campos obligatorios, los límites y la vigencia.');
-      return;
-    }
-
-    const form = this.configurationForm.getRawValue();
-    const input: ServiceConfigurationInput = {
-      idOrganization: this.selectedOrganizationId(),
-      idClient: client.idClient,
-      idService: service.idService,
-      effectiveFromDate: form.effectiveFromDate,
-      effectiveToDate: this.optionalDate(form.effectiveToDate),
-      requiredWorkerCount: Number(form.requiredWorkerCount),
-      hoursPerDay: Number(form.hoursPerDay),
-      daysPerWeek: Number(form.daysPerWeek),
-      averageMonthlyHours: Number(form.averageMonthlyHours),
-      preparationLeadDays: Number(form.preparationLeadDays),
-      workScheduleDescription: form.workScheduleDescription,
-      specificInstructions: this.optional(form.specificInstructions),
-      monthlyPrice: Number(form.monthlyPrice),
-      currencyCode: this.optional(form.currencyCode),
-      isTaxIncluded: form.isTaxIncluded,
-    };
-    const editing = this.editingConfiguration();
-    const request = editing
-      ? this.api.updateServiceConfiguration(
-          client.idClient,
-          service.idService,
-          editing.idServiceConfiguration,
-          {
-            ...input,
-            // El token que se leyó al abrir. Se devuelve tal cual: si alguien corrigió el registro
-            // mientras tanto, el servidor responde 409 y dice quién fue.
-            rowVersion: editing.rowVersion,
-            correctionReason: this.correctionReason().trim() || undefined,
-          },
-        )
-      : this.api.createServiceConfiguration(client.idClient, service.idService, input);
-
-    this.saving.set(true);
-    request
-      .pipe(
-        this.withScope(2),
-        finalize(() => this.saving.set(false)),
-      )
-      .subscribe({
-        next: () => {
-          this.saving.set(false);
-          this.configurationEditorOpen.set(false);
-          this.message.set(
-            editing
-              ? 'Configuración actualizada correctamente.'
-              : 'Configuración creada correctamente.',
-          );
-          this.loadConfigurations(service);
-        },
-        error: (error: HttpErrorResponse) => this.setError(error),
-      });
-  }
-
-  protected deactivateConfiguration(configuration: ServiceConfiguration): void {
-    if (!this.allowWrite(false)) return;
-    if (!this.selectedService()?.active) return;
-    this.error.set('');
-    const client = this.selectedClient();
-    const service = this.selectedService();
-    if (
-      !client ||
-      !service ||
-      !window.confirm('¿Deseas desactivar esta configuración de servicio?')
-    ) {
-      return;
-    }
-
-    this.saving.set(true);
-    this.api
-      .deactivateServiceConfiguration(
-        this.selectedOrganizationId(),
-        client.idClient,
-        service.idService,
-        configuration.idServiceConfiguration,
-        configuration.rowVersion,
-      )
-      .pipe(
-        this.withScope(2),
-        finalize(() => this.saving.set(false)),
-      )
-      .subscribe({
-        next: () => {
-          this.saving.set(false);
-          this.message.set('Configuración desactivada correctamente.');
-          this.loadConfigurations(service);
+          // Ficha y listado, los dos.
+          //
+          // El panel se refrescaba solo, y de la lista salen los contadores de la fila —Posiciones,
+          // Req./Asig.— y tambien la cuenta de vacantes de la pestaña, que se calcula sobre datos
+          // del detalle. Refrescar la mitad dejaba dos numeros distintos sobre el mismo servicio,
+          // uno al lado del otro. Son cuatro defectos reportados y una sola causa.
+          this.refrescarFichaYListado(service);
         },
         error: (error: HttpErrorResponse) => this.setError(error),
       });
@@ -1310,12 +1482,15 @@ export class ServicesPage implements OnInit, OnDestroy {
 
     this.editingPosition.set(null);
     this.positionForm.reset({
-      codePosition: '',
       name: '',
       requiredWorkerCount: 1,
+      price: 0,
+      priceFrequency: 'Monthly',
+      isTaxIncluded: false,
       requiredSkillProfile: '',
       notes: '',
     });
+    this.loadPositionSkills(null);
     this.positionEditorOpen.set(true);
   }
 
@@ -1325,13 +1500,196 @@ export class ServicesPage implements OnInit, OnDestroy {
     this.error.set('');
     this.editingPosition.set(position);
     this.positionForm.reset({
-      codePosition: position.codePosition,
       name: position.name,
       requiredWorkerCount: position.requiredWorkerCount,
+      price: position.price,
+      priceFrequency: position.priceFrequency,
+      isTaxIncluded: position.isTaxIncluded,
       requiredSkillProfile: position.requiredSkillProfile ?? '',
       notes: position.notes ?? '',
     });
+    this.loadPositionSkills(position.idPosition);
     this.positionEditorOpen.set(true);
+  }
+
+
+  // ── El perfil de la posición, por habilidades del catálogo ────────────────────────────────
+
+  /**
+   * Carga el catálogo de habilidades y lo que ya se exige para la posición abierta.
+   *
+   * <p>Las reglas de habilidad con alcance de posición son el perfil requerido: el servidor ya las
+   * evalúa al asignar y al publicar. Aquí sólo se enseñan y se editan.</p>
+   */
+  private loadPositionSkills(idPosition: string | null): void {
+    const org = this.selectedOrganizationId();
+    this.positionSkillRequirements.set([]);
+    this.pendingPositionSkills.set([]);
+
+    if (!org) return;
+
+    this.read(this.catalogApi.listItems(org, 'Skill'), 2, (items) =>
+      this.catalogSkills.set(
+        items
+          .filter((item) => item.active)
+          .map((item) => ({ idCatalogItem: item.idCatalogItem, name: item.name })),
+      ),
+    );
+
+    if (!idPosition) return;
+
+    this.read(this.catalogApi.listEligibilityRequirements(org), 2, (requirements) =>
+      this.positionSkillRequirements.set(
+        requirements.filter(
+          (requirement) =>
+            requirement.active &&
+            requirement.requirementType === 'Skill' &&
+            requirement.targetType === 'Position' &&
+            requirement.idPosition === idPosition,
+        ),
+      ),
+    );
+  }
+
+  /**
+   * Suma una habilidad al perfil.
+   *
+   * <p>Si la posición ya existe, la regla se crea de inmediato: es un hecho sobre la posición, no
+   * un borrador del formulario, y esperar al guardado dejaría al usuario sin saber si quedó. Si la
+   * posición todavía no existe, se anota y se crea al guardarla.</p>
+   */
+  protected addPositionSkill(request: PositionSkillRequest): void {
+    const org = this.selectedOrganizationId();
+    const position = this.editingPosition();
+
+    if (!org || !this.allowWrite(true)) return;
+
+    if (!position) {
+      this.pendingPositionSkills.update((valores) =>
+        valores.some((item) => item.idSkillCatalogItem === request.idSkillCatalogItem)
+          ? valores
+          : [...valores, request],
+      );
+      return;
+    }
+
+    this.saving.set(true);
+    this.catalogApi
+      .createEligibilityRequirement(this.reglaDeHabilidad(org, position.idPosition, request))
+      .pipe(
+        this.withScope(2),
+        finalize(() => this.saving.set(false)),
+      )
+      .subscribe({
+        next: (creada) => {
+          this.positionSkillRequirements.update((valores) => [...valores, creada]);
+          this.message.set(`«${request.name}» se pide para esta posición.`);
+        },
+        error: (error: HttpErrorResponse) => this.setError(error),
+      });
+  }
+
+  /** Desactiva la regla, nunca la borra: el perfil de ayer explica las asignaciones de ayer. */
+  protected removePositionSkill(idEligibilityRequirement: string): void {
+    const org = this.selectedOrganizationId();
+
+    if (!org || !this.allowWrite(true)) return;
+
+    this.saving.set(true);
+    this.catalogApi
+      .deactivateEligibilityRequirement(org, idEligibilityRequirement)
+      .pipe(
+        this.withScope(2),
+        finalize(() => this.saving.set(false)),
+      )
+      .subscribe({
+        next: () => {
+          this.positionSkillRequirements.update((valores) =>
+            valores.filter((item) => item.idEligibilityRequirement !== idEligibilityRequirement),
+          );
+          this.message.set('La habilidad ya no se pide para esta posición.');
+        },
+        error: (error: HttpErrorResponse) => this.setError(error),
+      });
+  }
+
+  protected removePendingPositionSkill(idSkillCatalogItem: string): void {
+    this.pendingPositionSkills.update((valores) =>
+      valores.filter((item) => item.idSkillCatalogItem !== idSkillCatalogItem),
+    );
+  }
+
+  /** Alta al vuelo de una habilidad del catálogo, sin abandonar el alta de la posición. */
+  protected createSkillForProfile(creation: GiCatalogCreation): void {
+    const org = this.selectedOrganizationId();
+
+    if (!org || !this.auth.hasPermission('CATALOGS.WRITE')) {
+      this.error.set('No tienes permiso para crear valores de catálogo.');
+      return;
+    }
+
+    this.catalogApi
+      .createItem({ idOrganization: org, type: 'Skill', name: creation.name, description: null })
+      .pipe(this.withScope(2))
+      .subscribe({
+        next: (creado) => {
+          this.catalogSkills.update((valores) => [
+            ...valores,
+            { idCatalogItem: creado.idCatalogItem, name: creado.name },
+          ]);
+          this.message.set(`«${creado.name}» se agregó al catálogo de habilidades.`);
+        },
+        error: (error: HttpErrorResponse) => this.setError(error),
+      });
+  }
+
+  /**
+   * Crea las reglas que quedaron esperando a que la posición existiera.
+   *
+   * <p>Si alguna falla no se deshace la posición: ya está creada y es correcta. Se dice cuáles no
+   * quedaron, para que se puedan volver a poner desde la ficha.</p>
+   */
+  private savePendingPositionSkills(idPosition: string): void {
+    const org = this.selectedOrganizationId();
+    const pendientes = this.pendingPositionSkills();
+
+    if (!org || pendientes.length === 0) return;
+
+    this.pendingPositionSkills.set([]);
+
+    for (const pendiente of pendientes) {
+      this.catalogApi
+        .createEligibilityRequirement(this.reglaDeHabilidad(org, idPosition, pendiente))
+        .pipe(this.withScope(2))
+        .subscribe({
+          error: () =>
+            this.error.set(
+              `La posición se creó, pero «${pendiente.name}» no quedó como habilidad exigida. `
+              + 'Vuelve a agregarla desde la ficha de la posición.',
+            ),
+        });
+    }
+  }
+
+  private reglaDeHabilidad(
+    idOrganization: string,
+    idPosition: string,
+    request: PositionSkillRequest,
+  ): EligibilityRequirementInput {
+    return {
+      idOrganization,
+      targetType: 'Position',
+      idClient: null,
+      idService: null,
+      idPosition,
+      requirementType: 'Skill',
+      idRequiredCatalogItem: request.idSkillCatalogItem,
+      requiredDocumentType: null,
+      requiredEvaluationType: null,
+      name: request.name,
+      description: null,
+      isBlocking: request.isBlocking,
+    };
   }
 
   protected savePosition(): void {
@@ -1352,6 +1710,10 @@ export class ServicesPage implements OnInit, OnDestroy {
       idService: service.idService,
       name: form.name,
       requiredWorkerCount: Number(form.requiredWorkerCount),
+      price: Number(form.price),
+      priceFrequency: form.priceFrequency,
+      currencyCode: 'MXN',
+      isTaxIncluded: form.isTaxIncluded,
       requiredSkillProfile: this.optional(form.requiredSkillProfile),
       notes: this.optional(form.notes),
     };
@@ -1360,7 +1722,7 @@ export class ServicesPage implements OnInit, OnDestroy {
       ? this.api.updatePosition(client.idClient, service.idService, editing.idPosition, input)
       : this.api.createPosition(client.idClient, service.idService, {
           ...input,
-          codePosition: form.codePosition,
+          // Sin codigo: lo genera el servidor como P-01, consecutivo por servicio.
         } satisfies CreateServicePosition);
 
     this.saving.set(true);
@@ -1377,7 +1739,14 @@ export class ServicesPage implements OnInit, OnDestroy {
             editing ? 'Posición actualizada correctamente.' : 'Posición creada correctamente.',
           );
           this.selectedPosition.set(position);
-          this.loadPositions(service);
+          this.savePendingPositionSkills(position.idPosition);
+          // Ficha y listado, los dos.
+          //
+          // El panel se refrescaba solo, y de la lista salen los contadores de la fila —Posiciones,
+          // Req./Asig.— y tambien la cuenta de vacantes de la pestaña, que se calcula sobre datos
+          // del detalle. Refrescar la mitad dejaba dos numeros distintos sobre el mismo servicio,
+          // uno al lado del otro. Son cuatro defectos reportados y una sola causa.
+          this.refrescarFichaYListado(service);
         },
         error: (error: HttpErrorResponse) => this.setError(error),
       });
@@ -1416,9 +1785,16 @@ export class ServicesPage implements OnInit, OnDestroy {
             this.selectedPosition.set(null);
             this.selectedShiftPattern.set(null);
             this.shiftPatterns.set([]);
+            this.shiftPatternsLoaded.set(false);
             this.shiftSegments.set([]);
           }
-          this.loadPositions(service);
+          // Ficha y listado, los dos.
+          //
+          // El panel se refrescaba solo, y de la lista salen los contadores de la fila —Posiciones,
+          // Req./Asig.— y tambien la cuenta de vacantes de la pestaña, que se calcula sobre datos
+          // del detalle. Refrescar la mitad dejaba dos numeros distintos sobre el mismo servicio,
+          // uno al lado del otro. Son cuatro defectos reportados y una sola causa.
+          this.refrescarFichaYListado(service);
         },
         error: (error: HttpErrorResponse) => this.setError(error),
       });
@@ -1435,7 +1811,6 @@ export class ServicesPage implements OnInit, OnDestroy {
 
     this.editingShiftPattern.set(null);
     this.shiftPatternForm.reset({
-      codeShiftPattern: '',
       name: '',
       description: '',
       effectiveFromDate: this.today(),
@@ -1450,7 +1825,6 @@ export class ServicesPage implements OnInit, OnDestroy {
     this.error.set('');
     this.editingShiftPattern.set(pattern);
     this.shiftPatternForm.reset({
-      codeShiftPattern: pattern.codeShiftPattern,
       name: pattern.name,
       description: pattern.description ?? '',
       effectiveFromDate: this.dateOnly(pattern.effectiveFromDate),
@@ -1493,7 +1867,7 @@ export class ServicesPage implements OnInit, OnDestroy {
         )
       : this.api.createShiftPattern(client.idClient, service.idService, position.idPosition, {
           ...input,
-          codeShiftPattern: form.codeShiftPattern,
+          // Sin codigo: lo genera el servidor como PAT-01, consecutivo por posicion.
         } satisfies CreateShiftPattern);
 
     this.saving.set(true);
@@ -1778,14 +2152,16 @@ export class ServicesPage implements OnInit, OnDestroy {
       // **Se cierra el editor.** Lo que hay dentro es la versión vieja, y dejarlo abierto invita a
       // volver a guardar lo mismo. Además el diálogo taparía el aviso, que es lo único que aquí
       // sirve: ver qué cambió la otra persona.
-      this.configurationEditorOpen.set(false);
       this.assignmentEditorOpen.set(false);
       this.conflict.set(mensaje);
       return;
     }
 
-    if (/motivo/i.test(mensaje)) {
-      this.correctionReasonRequired.set(true);
+    // Red de seguridad: si el servidor pide motivo por un caso que aquí no se previó, el campo
+    // aparece igual. Se mira también el detalle de los campos, porque en una validación el
+    // «motivo» viaja ahí y no en el mensaje de cabecera.
+    if (/motivo/i.test(mensaje) || /motivo/i.test(JSON.stringify(error.error ?? ''))) {
+      this.motivoExigidoPorElServidor.set(true);
     }
 
     this.error.set(mensaje);
@@ -1794,10 +2170,7 @@ export class ServicesPage implements OnInit, OnDestroy {
   /** Vuelve a leer la configuración para quedarse con el token bueno y el valor de la otra persona. */
   protected reloadAfterConflict(): void {
     this.conflict.set('');
-    this.configurationEditorOpen.set(false);
-    this.editingConfiguration.set(null);
     this.correctionReason.set('');
-    this.correctionReasonRequired.set(false);
-    this.loadConfigurations();
+    this.motivoExigidoPorElServidor.set(false);
   }
 }

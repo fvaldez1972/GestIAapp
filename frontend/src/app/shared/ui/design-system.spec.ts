@@ -35,6 +35,9 @@ const RAICES = [
   resolve('src/app/features/operations/data-access'),
   resolve('src/app/features/operations/pages/attendance-page'),
   resolve('src/app/features/operations/pages/incidents-page'),
+  // Catálogos, rehecha el 7 de septiembre de 2026: dos zonas, sin diálogo de entrada y sin un solo
+  // color escrito a mano. Entra a la lista, que es la señal de que una pantalla ya se rehizo.
+  resolve('src/app/features/catalogs'),
 ];
 
 /** Los siete tamaños de la escala. Ni uno más; el 13.5 px está prohibido por nombre. */
@@ -175,5 +178,35 @@ describe('El sistema se aplica en shared/ui y en las pantallas ya rehechas', () 
 
     expect(conFoco.length).toBeGreaterThan(4);
     expect(sinCian, 'El foco va en --gestia-cyan').toEqual([]);
+  });
+
+  /**
+   * El diálogo modal se centra, y eso hay que escribirlo.
+   *
+   * <p>El navegador centra un <c>&lt;dialog&gt;</c> abierto con <c>showModal()</c> dándole
+   * <c>margin: auto</c>. El preflight de Tailwind 4 pone <c>margin: 0</c> en todos los elementos y
+   * se lo quita, así que el cuadro aparecía pegado a la esquina superior izquierda, encima del
+   * menú. No era una pantalla: eran los cinco diálogos de la aplicación.</p>
+   *
+   * <p>La regla vive en la hoja global y por eso se comprueba aquí: si alguien la borra limpiando
+   * estilos, vuelven los cinco a la esquina a la vez y nadie lo nota hasta abrir uno.</p>
+   */
+  it('el diálogo modal recupera el centrado que Tailwind le quita', () => {
+    const global = readFileSync(resolve('src/styles.css'), 'utf8');
+
+    expect(global, 'falta la regla que devuelve `margin: auto` a dialog:modal')
+      .toMatch(/dialog:modal\s*\{[^}]*margin:\s*auto/);
+  });
+
+  /**
+   * Y que sigan siendo diálogos: si una pantalla cambia a <c>show()</c> pierde el centrado, el
+   * fondo y el cierre con Escape, y vuelve el defecto por otra puerta.
+   */
+  it('todo diálogo de la aplicación se abre con showModal, no con show', () => {
+    const conShowSuelto = piezas
+      .filter(({ texto }) => /\.show\(\)/.test(texto))
+      .map(({ ruta }) => ruta);
+
+    expect(conShowSuelto, 'Un <dialog> se abre con showModal()').toEqual([]);
   });
 });

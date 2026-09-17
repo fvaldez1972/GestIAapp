@@ -9,6 +9,7 @@ import { AuditEvent, AuditResult } from '../../data-access/audit.models';
 @Component({
   selector: 'app-audit-page',
   imports: [FormsModule],
+  host: { '(document:keydown.escape)': 'onEscape()' },
   templateUrl: './audit-page.html',
   styleUrl: './audit-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -208,6 +209,24 @@ export class AuditPage implements OnInit {
 
   protected closeEventDetail() {
     this.selectedEventKey.set('');
+  }
+
+  /**
+   * Escape cierra lo que este encima, empezando por lo mas reciente.
+   *
+   * <p>«Ver detalle» abre una capa fija que se queda pegada mientras la pagina rueda por debajo. Sin
+   * una salida evidente, tapa la tabla que se queria leer; era la mitad del reporte sobre el scroll
+   * en Seguridad, que decia «esto tambien ocurre en Auditoria».</p>
+   */
+  protected onEscape() {
+    if (this.showExportConfig()) {
+      this.closeExportConfig();
+      return;
+    }
+
+    if (this.selectedEventKey()) {
+      this.closeEventDetail();
+    }
   }
 
   protected actionClass(action: string) {

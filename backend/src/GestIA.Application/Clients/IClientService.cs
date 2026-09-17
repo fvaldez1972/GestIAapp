@@ -30,4 +30,16 @@ public interface IClientService
         Guid idOrganization,
         Guid idClient,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Vuelve a poner en activo un cliente desactivado.
+    ///
+    /// <para>El diálogo de desactivar promete que «se puede reactivar». Durante un tiempo esa
+    /// promesa no tenía nada detrás: no existía ni endpoint ni caso de uso, así que desactivar un
+    /// cliente era, en la práctica, definitivo.</para>
+    /// </summary>
+    Task<ClientResponse> ActivateAsync(
+        Guid idOrganization,
+        Guid idClient,
+        CancellationToken cancellationToken);
 }

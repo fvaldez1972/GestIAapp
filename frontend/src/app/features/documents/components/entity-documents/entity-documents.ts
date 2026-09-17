@@ -1,12 +1,15 @@
 import { HttpErrorResponse, HttpResponse } from '@angular/common/http';
 import {
   ChangeDetectionStrategy, Component, ElementRef, OnDestroy, computed, effect, inject,
-  input, signal, untracked, viewChild,
+  input, output, signal, untracked, viewChild,
 } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Observable, Subscription, finalize, map, of, switchMap, tap } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { AppIcon } from '../../../../shared/ui/app-icon/app-icon';
+import { GiCatalogCreation, GiCatalogOption, GiCatalogPicker } from '../../../../shared/ui/gi-catalog-picker/gi-catalog-picker';
+import { GiFileInput } from '../../../../shared/ui/gi-file-input/gi-file-input';
+import { GiSelect, GiSelectOption } from '../../../../shared/ui/gi-select/gi-select';
 import { formatOperationalDate, formatOperationalInstant } from '../../../../shared/util/operational-date';
 import { DocumentApiService } from '../../data-access/document-api.service';
 import { documentStatusLabels, historyChanges } from './entity-document-history';
@@ -18,9 +21,25 @@ import {
 type OwnerContext = Pick<BusinessDocumentInput, 'idOrganization' | 'ownerType' | 'ownerId'>;
 type EditorMode = 'create' | 'edit' | 'review' | 'archive';
 
+/** Un tipo de documento ofrecido en el desplegable, con la marca de si la organizacion lo exige. */
+export type EntityDocumentTypeOption = {
+  readonly code: string;
+  readonly label: string;
+  readonly isRequired: boolean;
+};
+
+/** Lo que se guardo, para quien tenga que registrarlo en otro lado. */
+export type EntityDocumentSaved = {
+  readonly documentType: string;
+  readonly issuedDate: string | null;
+  readonly expiresDate: string | null;
+  /** El documento que se acaba de guardar, para que quien registre el requisito pueda ligarlo. */
+  readonly idBusinessDocument: string;
+};
+
 @Component({
   selector: 'app-entity-documents',
-  imports: [ReactiveFormsModule, AppIcon],
+  imports: [ReactiveFormsModule, AppIcon, GiFileInput, GiCatalogPicker, GiSelect],
   templateUrl: './entity-documents.html',
   styleUrl: './entity-documents.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -42,15 +61,76 @@ export class EntityDocuments implements OnDestroy {
   readonly ownerId = input.required<string>();
   readonly ownerLabel = input.required<string>();
 
+  /**
+   * El expediente del cliente pide menos que el del empleado.
+   *
+   * <p>Un documento de cliente se identifica con su categoria y su archivo: acta constitutiva,
+   * poder notarial, comprobante de domicilio. El titulo era un segundo nombre para lo mismo, y las
+   * fechas de emision y vencimiento y la marca de sensible no tienen aqui a quien le sirvan.</p>
+   *
+   * <p><b>En Personal no se quitan.</b> Alli el vencimiento no es decoracion: alimenta la vigencia
+   * documental y la elegibilidad para cubrir un turno, y la marca de sensible decide quien puede
+   * ver el archivo. Por eso esto es una variante y no un recorte del componente.</p>
+   */
+  readonly simple = input(false);
+
+  /** Las categorias del catalogo, cuando la variante simple las usa en vez de texto libre. */
+  readonly categories = input<readonly GiCatalogOption[]>([]);
+  readonly createCategory = output<GiCatalogCreation>();
+
+  /**
+   * Los tipos de documento que el expediente reconoce. Vacio deja el campo como texto libre.
+   *
+   * <p>Personal los manda porque alli la categoria no es una etiqueta: es el tipo contra el que la
+   * organizacion declara sus requisitos, y un texto escrito a mano no cumple ninguno. Clientes no
+   * los manda, porque su categoria si es un catalogo editable de la organizacion.</p>
+   */
+  readonly documentTypes = input<readonly EntityDocumentTypeOption[]>([]);
+
+  /**
+   * Se emite al guardar, con el tipo elegido, para quien tenga que registrar el documento aparte.
+   *
+   * <p><b>Por que hace falta este aviso.</b> Este componente guarda un <c>BusinessDocument</c>, que
+   * es el archivo con su historial y su revision. La vigencia documental de una persona y su
+   * elegibilidad para cubrir un turno se calculan sobre <c>EmployeeDocument</c>, que es otra tabla.
+   * Subir un archivo aqui no movia la bandera de alla porque nadie escribia la segunda fila.</p>
+   *
+   * <p><b>PENDIENTE, con fecha y forma.</b> Las dos filas quedan sin enlace: el
+   * <c>EmployeeDocument</c> no apunta al archivo. <c>StorageReference</c> existe pero lo sirve una
+   * ruta heredada del prototipo, y meter ahi el identificador del <c>BusinessDocument</c> seria
+   * darle a una columna un significado que no tiene. El enlace honesto es una columna nueva
+   * <c>IdBusinessDocument</c> en <c>EmployeeDocuments</c>, nulable y aditiva; se decidio dejarla
+   * para despues de la demo del 17 de septiembre de 2026 en lugar de migrar la noche anterior.
+   * Mientras no exista, el archivo se ve y se descarga en la lista de este mismo componente.</p>
+   */
+  readonly documentSaved = output<EntityDocumentSaved>();
+
+  /**
+   * Abre el alta desde fuera, para quien tiene el botón en su propia cabecera.
+   *
+   * <p><b>Existe porque faltaba y nadie lo notaba.</b> En la variante simple este componente no
+   * dibuja su «Agregar documento» —la ficha del cliente ya lo tiene arriba, con las demás
+   * acciones—, pero no había forma de decirle que lo abriera: la pantalla ponía su señal en
+   * <c>true</c> y nadie la leía, así que el botón no hacía nada. Es la misma familia del defecto de
+   * «Agregar contacto», del lado de la entrada en vez de la salida.</p>
+   */
+  readonly openAdd = input(false);
+
+  /** Para que quien abrió pueda bajar su bandera al cerrarse el alta. */
+  readonly closeAdd = output<void>();
+
   private readonly api = inject(DocumentApiService);
   private readonly auth = inject(AuthService);
   private readonly fb = inject(FormBuilder);
   private readonly historyDialog = viewChild<ElementRef<HTMLDialogElement>>('historyDialog');
+  private readonly selectorDeArchivo = viewChild(GiFileInput);
   private requests = new Subscription();
   private listRequest?: Subscription;
   private historyRequest?: Subscription;
   private editorContext: OwnerContext | null = null;
   private uploadedReference = '';
+  /** Si el alta abierta la pidió la pantalla de fuera, para avisarle al cerrarse y sólo entonces. */
+  private abiertoDesdeFuera = false;
   private file: File | null = null;
 
   protected readonly context = computed<OwnerContext>(() => ({
@@ -71,7 +151,17 @@ export class EntityDocuments implements OnDestroy {
   protected readonly page = signal(1);
   protected readonly totalPages = signal(1);
   protected readonly totalCount = signal(0);
-  protected readonly pageSize = 10;
+  /**
+   * Cinco por página, no diez.
+   *
+   * <p>Esto vive dentro de un panel de detalle, no en una pantalla completa. Con diez, cada
+   * documento ocupa cuatro renglones y cinco botones, así que la lista crecía hasta empujar el
+   * navegador de páginas fuera de la vista y parecía que los documentos se acumulaban sin fin.</p>
+   */
+  protected readonly pageSize = 5;
+
+  /** Cuántos documentos hay, para quien dibuje un contador fuera de este componente. */
+  readonly totalChange = output<number>();
   protected readonly mode = signal<EditorMode | null>(null);
   protected readonly selected = signal<BusinessDocument | null>(null);
   protected readonly fileName = signal('');
@@ -82,10 +172,71 @@ export class EntityDocuments implements OnDestroy {
   protected readonly statusLabels = documentStatusLabels;
   protected readonly filters = this.fb.nonNullable.group({ search: [''], status: ['' as BusinessDocumentStatus | ''] });
   protected readonly form = this.fb.nonNullable.group({
-    title: ['', [Validators.required, Validators.pattern(/\S/), Validators.maxLength(180)]],
+    title: ['', [Validators.pattern(/\S/), Validators.maxLength(180)]],
     category: ['', [Validators.required, Validators.pattern(/\S/), Validators.maxLength(80)]],
+    documentType: [''],
     issuedDate: [''], expiresDate: [''], isSensitive: [false], notes: ['', Validators.maxLength(1000)],
   });
+
+  /** Con tipos declarados la categoria se elige; sin ellos se escribe, como hasta ahora. */
+  protected readonly typed = computed(() => this.documentTypes().length > 0);
+
+  /** El obligatorio se marca en el renglon secundario del selector, que ya existe para eso. */
+  protected readonly typeOptions = computed<readonly GiSelectOption[]>(() =>
+    this.documentTypes().map((tipo) => ({
+      value: tipo.code,
+      label: tipo.label,
+      hint: tipo.isRequired ? 'Lo exige esta organizacion' : undefined,
+    })),
+  );
+
+  /**
+   * El tipo manda la categoria, no al reves.
+   *
+   * <p>La columna <c>Category</c> se sigue llenando con la etiqueta visible, que es lo que la lista
+   * enseña y lo que el servidor ya exige. Asi el cambio no le da un significado nuevo a una columna
+   * que ya tenia uno.</p>
+   */
+  protected elegirTipo(code: string): void {
+    const tipo = this.documentTypes().find((item) => item.code === code);
+    this.form.controls.documentType.setValue(tipo ? code : '');
+    this.form.controls.category.setValue(tipo?.label ?? '');
+  }
+
+  /**
+   * En la variante simple el titulo lo pone la categoria.
+   *
+   * <p>El servidor sigue exigiendolo y sigue siendo lo que se lee en la lista; lo que se quita es
+   * pedirlo dos veces. Se resuelve al guardar y no al escribir, para que cambiar de categoria no
+   * pise un titulo que alguien si haya escrito en la variante completa.</p>
+   */
+  /** La categoria elegida, como identificador del catalogo, para pintarla en el selector. */
+  protected categoriaElegida(): string {
+    const nombre = this.form.controls.category.value;
+    return this.categories().find((c) => c.name === nombre)?.idCatalogItem ?? '';
+  }
+
+  /**
+   * El documento guarda la categoria <b>por nombre</b>, no por identificador.
+   *
+   * <p>Es la columna que ya existe y lo que la lista enseña. Se apunta en el catalogo para que dos
+   * personas no escriban la misma categoria de dos formas, pero renombrarla despues no reclasifica
+   * lo ya cargado, y eso se dice en la pantalla de Catalogos.</p>
+   */
+  protected elegirCategoria(idCatalogItem: string): void {
+    const nombre = this.categories().find((c) => c.idCatalogItem === idCatalogItem)?.name ?? '';
+    this.form.controls.category.setValue(nombre);
+  }
+
+  protected tituloAGuardar(): string {
+    const titulo = this.form.controls.title.value.trim();
+
+    if (titulo) {
+      return titulo;
+    }
+
+    return this.form.controls.category.value.trim();
+  }
   protected readonly reviewForm = this.fb.nonNullable.group({
     status: ['Validated' as 'Validated' | 'Rejected'], notes: ['', Validators.maxLength(1000)],
   });
@@ -112,6 +263,25 @@ export class EntityDocuments implements OnDestroy {
   }
 
   ngOnDestroy() { this.requests.unsubscribe(); }
+
+  /**
+   * Abre el alta cuando la pantalla lo pide, y avisa al cerrarla.
+   *
+   * <p>Se comprueba el permiso y el contexto igual que en el botón propio: una entrada desde fuera
+   * no puede ser una puerta con menos guardas que la de dentro.</p>
+   */
+  private readonly abrirDesdeFuera = effect(() => {
+    const pedido = this.openAdd();
+
+    untracked(() => {
+      if (pedido && !this.mode() && this.canWrite() && this.validContext() && !this.busy()) {
+        // Se marca **después** de abrir: `openEditor` empieza cerrando lo que hubiera, y con la
+        // bandera ya puesta ese cierre interno emitiría un aviso de algo que nadie cerró.
+        this.openEditor('create');
+        this.abiertoDesdeFuera = true;
+      }
+    });
+  });
 
   protected load(page = this.page()) {
     this.listRequest?.unsubscribe();
@@ -140,6 +310,7 @@ export class EntityDocuments implements OnDestroy {
         this.documents.set(result.items.filter(document => this.belongsToContext(document)));
         this.totalCount.set(result.totalCount);
         this.totalPages.set(lastPage);
+        this.totalChange.emit(result.totalCount);
       },
       error: error => this.listError.set(this.errorMessage(error, 'No se pudieron cargar los documentos.')),
     });
@@ -173,7 +344,12 @@ export class EntityDocuments implements OnDestroy {
     this.message.set('');
     if (document) {
       this.form.reset({
-        title: document.title, category: document.category, issuedDate: document.issuedDate ?? '',
+        title: document.title, category: document.category,
+        // El documento no guarda el tipo: se reconoce por la etiqueta con la que se guardo la
+        // categoria. Si no coincide con ninguno, el selector abre vacio y obliga a elegir, que es
+        // mejor que proponer un tipo que nadie escribio.
+        documentType: this.documentTypes().find((tipo) => tipo.label === document.category)?.code ?? '',
+        issuedDate: document.issuedDate ?? '',
         expiresDate: document.expiresDate ?? '', isSensitive: document.isSensitive, notes: document.notes ?? '',
       });
     }
@@ -181,6 +357,10 @@ export class EntityDocuments implements OnDestroy {
 
   protected closeEditor() {
     if (this.busy()) return;
+    if (this.abiertoDesdeFuera) {
+      this.abiertoDesdeFuera = false;
+      this.closeAdd.emit();
+    }
     this.mode.set(null);
     this.selected.set(null);
     this.editorContext = null;
@@ -192,22 +372,20 @@ export class EntityDocuments implements OnDestroy {
     this.reviewForm.reset({ status: 'Validated', notes: '' });
   }
 
-  protected selectFile(event: Event) {
+  protected selectFile(archivo: File | null) {
     if (this.busy() || !this.canWrite()) return;
-    const input = event.target as HTMLInputElement;
     this.file = null;
     this.uploadedReference = '';
     this.fileName.set('');
     this.actionError.set('');
-    const file = input.files?.[0];
-    if (!file) return;
-    if (file.size === 0 || file.size > 30 * 1024 * 1024) {
+    if (!archivo) return;
+    if (archivo.size === 0 || archivo.size > 30 * 1024 * 1024) {
       this.actionError.set('El archivo debe contener datos y no superar 30 MB.');
-      input.value = '';
+      this.selectorDeArchivo()?.reset();
       return;
     }
-    this.file = file;
-    this.fileName.set(file.name);
+    this.file = archivo;
+    this.fileName.set(archivo.name);
   }
 
   protected save() {
@@ -216,6 +394,10 @@ export class EntityDocuments implements OnDestroy {
     const value = this.form.getRawValue();
     if (this.form.invalid) {
       this.actionError.set('Revisa los campos obligatorios y sus limites de longitud.');
+      return;
+    }
+    if (this.typed() && !value.documentType) {
+      this.actionError.set('Elige el tipo de documento.');
       return;
     }
     if (value.issuedDate && value.expiresDate && value.expiresDate < value.issuedDate) {
@@ -243,12 +425,27 @@ export class EntityDocuments implements OnDestroy {
     this.runAction(reference$.pipe(switchMap(storageReference => {
       if (!storageReference.trim() || storageReference.length > 500) throw new Error('Invalid upload reference');
       const request: BusinessDocumentInput = {
-        ...context, title: value.title.trim(), category: value.category.trim(),
+        ...context, title: this.tituloAGuardar(), category: value.category.trim(),
         issuedDate: value.issuedDate || null, expiresDate: value.expiresDate || null,
         isSensitive: value.isSensitive, notes: value.notes.trim() || null, status: 'PendingReview', storageReference,
       };
       return selected ? this.api.updateDocument(selected.idBusinessDocument, request) : this.api.createDocument(request);
-    })), 'Documento guardado. Pendiente de revision.');
+    })), 'Documento guardado. Pendiente de revision.', (guardado) => {
+      if (!this.typed() || !value.documentType) return;
+
+      // El identificador sale de la respuesta del servidor, no del que estaba seleccionado: al
+      // crear no habia ninguno, y es justo el caso en que hay que ligar el archivo nuevo.
+      const idBusinessDocument = guardado?.idBusinessDocument ?? selected?.idBusinessDocument ?? '';
+
+      if (!idBusinessDocument) return;
+
+      this.documentSaved.emit({
+        documentType: value.documentType,
+        issuedDate: value.issuedDate || null,
+        expiresDate: value.expiresDate || null,
+        idBusinessDocument,
+      });
+    });
   }
 
   protected review() {
@@ -339,13 +536,18 @@ export class EntityDocuments implements OnDestroy {
       && (!selected || this.canEdit(selected));
   }
 
-  private runAction<T>(request: Observable<T>, message: string) {
+  /**
+   * <p><c>onSuccess</c> corre <b>antes</b> de <c>closeEditor()</c> a proposito: ese metodo limpia el
+   * formulario, y quien avisa hacia fuera necesita lo que se acaba de guardar.</p>
+   */
+  private runAction<T>(request: Observable<T>, message: string, onSuccess?: (value: T) => void) {
     this.busy.set(true);
     this.actionError.set('');
     this.message.set('');
     this.requests.add(request.pipe(finalize(() => this.busy.set(false))).subscribe({
-      next: () => {
+      next: (value) => {
         this.busy.set(false);
+        onSuccess?.(value);
         this.closeEditor();
         this.message.set(message);
         this.load();

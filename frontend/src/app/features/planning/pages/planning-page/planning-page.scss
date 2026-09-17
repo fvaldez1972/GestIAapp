@@ -1,3 +1,15 @@
+/*
+  El anclaje va al borde real del cromo, no a la altura de la barra superior.
+
+  Encima de esa barra va la de organizacion, que rueda con la pagina: con la pagina arriba del
+  todo el cromo termina en 151 px y no en 72, y esos 79 px se comian la cabecera del panel. El
+  boton de cerrar quedaba DEBAJO de la barra —`elementFromPoint` devolvia el boton de perfil—, asi
+  que pulsar donde se veia «Cerrar» abria el dialogo de salir.
+
+  `--gestia-chrome-bottom` la publica el armazon midiendo, y se vuelve a medir al rodar la pagina.
+  El valor de reserva es el de antes, por si el armazon no llegara a publicarla.
+*/
+
 /* Sólo composición: color, radio y altura salen de los tokens. Ni un valor escrito a mano. */
 
 .planeacion {
@@ -84,7 +96,7 @@
 
 .planeacion__cajon {
   position: fixed;
-  inset: var(--gestia-topbar-height) 0 0 auto;
+  inset: var(--gestia-chrome-bottom, var(--gestia-topbar-height)) 0 0 auto;
   z-index: 20;
   display: flex;
   flex-direction: column;

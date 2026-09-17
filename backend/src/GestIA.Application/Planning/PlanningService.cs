@@ -1,5 +1,6 @@
 using GestIA.Application.Catalogs;
 using GestIA.Application.Common;
+using GestIA.Domain.Common;
 using GestIA.Domain.Planning;
 
 namespace GestIA.Application.Planning;
@@ -42,10 +43,14 @@ public sealed class PlanningService(
         CancellationToken cancellationToken)
     {
         await EnsureServiceAsync(request.IdOrganization, request.IdClient, request.IdService, cancellationToken);
-        var code = NormalizeCode(request.CodePosition, nameof(request.CodePosition));
+        // Opcional a proposito: sin codigo lo pone el servidor, consecutivo por servicio.
+        var code = string.IsNullOrWhiteSpace(request.CodePosition)
+            ? $"P-{await repository.HighestPositionCodeNumberAsync(request.IdService, cancellationToken) + 1:00}"
+            : NormalizeCode(request.CodePosition, nameof(request.CodePosition));
         var profile = ValidatePosition(
             request.Name, request.RequiredWorkerCount, request.RequiredSkillProfile,
-            request.Notes, request.IdJobPositionCatalogItem);
+            request.Notes, request.IdJobPositionCatalogItem,
+            request.Price, request.CurrencyCode, request.IsTaxIncluded, request.PriceFrequency);
         await EnsureJobPositionAsync(request.IdOrganization, profile.IdJobPositionCatalogItem, cancellationToken);
 
         if (await repository.IsPositionCodeInUseAsync(request.IdService, code, null, cancellationToken))
@@ -76,7 +81,8 @@ public sealed class PlanningService(
         var position = await EnsurePositionAsync(request.IdService, idPosition, cancellationToken);
         var profile = ValidatePosition(
             request.Name, request.RequiredWorkerCount, request.RequiredSkillProfile,
-            request.Notes, request.IdJobPositionCatalogItem);
+            request.Notes, request.IdJobPositionCatalogItem,
+            request.Price, request.CurrencyCode, request.IsTaxIncluded, request.PriceFrequency);
         await EnsureJobPositionAsync(request.IdOrganization, profile.IdJobPositionCatalogItem, cancellationToken);
 
         position.UpdateProfile(profile, actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
@@ -114,7 +120,9 @@ public sealed class PlanningService(
         CancellationToken cancellationToken)
     {
         await EnsurePositionInServiceAsync(request.IdOrganization, request.IdClient, request.IdService, request.IdPosition, cancellationToken);
-        var code = NormalizeCode(request.CodeShiftPattern, nameof(request.CodeShiftPattern));
+        var code = string.IsNullOrWhiteSpace(request.CodeShiftPattern)
+            ? $"PAT-{await repository.HighestShiftPatternCodeNumberAsync(request.IdPosition, cancellationToken) + 1:00}"
+            : NormalizeCode(request.CodeShiftPattern, nameof(request.CodeShiftPattern));
         var profile = ValidateShiftPattern(request.Name, request.Description, request.EffectiveFromDate, request.EffectiveToDate);
 
         if (await repository.IsShiftPatternCodeInUseAsync(request.IdPosition, code, null, cancellationToken))
@@ -344,7 +352,11 @@ public sealed class PlanningService(
         int requiredWorkerCount,
         string? requiredSkillProfile,
         string? notes,
-        Guid? idJobPositionCatalogItem)
+        Guid? idJobPositionCatalogItem,
+        decimal price,
+        string currencyCode,
+        bool isTaxIncluded,
+        PaymentFrequency priceFrequency)
     {
         var errors = new Dictionary<string, string[]>();
         Required(name, nameof(name), 150, errors);
@@ -355,8 +367,22 @@ public sealed class PlanningService(
             errors[nameof(requiredWorkerCount)] = ["La cantidad requerida debe ser mayor a cero."];
         }
 
+        if (price < 0)
+        {
+            errors[nameof(price)] = ["El precio no puede ser negativo."];
+        }
+
         ThrowIfInvalid(errors);
-        return new PositionProfile(name, requiredWorkerCount, requiredSkillProfile, notes, idJobPositionCatalogItem);
+        return new PositionProfile(
+            name,
+            requiredWorkerCount,
+            requiredSkillProfile,
+            notes,
+            idJobPositionCatalogItem,
+            price,
+            string.IsNullOrWhiteSpace(currencyCode) ? "MXN" : currencyCode,
+            isTaxIncluded,
+            priceFrequency);
     }
 
     private static ShiftPatternProfile ValidateShiftPattern(
@@ -454,7 +480,11 @@ public sealed class PlanningService(
             position.RequiredSkillProfile,
             position.IdJobPositionCatalogItem,
             position.Notes,
-            position.Active);
+            position.Active,
+            position.Price,
+            position.CurrencyCode,
+            position.IsTaxIncluded,
+            position.PriceFrequency);
 
     private static ShiftPatternResponse Map(ShiftPattern shiftPattern) =>
         new(

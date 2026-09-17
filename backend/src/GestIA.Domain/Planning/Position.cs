@@ -3,12 +3,24 @@ using GestIA.Domain.Services;
 
 namespace GestIA.Domain.Planning;
 
+/// <summary>
+/// Lo que define un puesto del servicio, incluido lo que se cobra por el.
+///
+/// <para>El precio vive aqui y no en el servicio porque en seguridad privada se cotiza <b>por
+/// puesto</b>: un servicio con caseta, rondin y monitorista tiene tres precios, no uno. Antes
+/// estaba en una configuracion del servicio, que obligaba a un solo numero para todos los puestos
+/// y ademas repetia en texto libre el horario que el patron de turnos ya declara.</para>
+/// </summary>
 public sealed record PositionProfile(
     string Name,
     int RequiredWorkerCount,
     string? RequiredSkillProfile,
     string? Notes,
-    Guid? IdJobPositionCatalogItem = null);
+    Guid? IdJobPositionCatalogItem = null,
+    decimal Price = 0m,
+    string CurrencyCode = "MXN",
+    bool IsTaxIncluded = false,
+    PaymentFrequency PriceFrequency = PaymentFrequency.Monthly);
 
 public sealed class Position : AuditableEntity, IOrganizationScopedEntity
 {
@@ -56,6 +68,29 @@ public sealed class Position : AuditableEntity, IOrganizationScopedEntity
     /// </summary>
     public Guid? IdJobPositionCatalogItem { get; private set; }
 
+    /// <summary>
+    /// Lo que se cobra por este puesto, en el periodo que declara <see cref="PriceFrequency"/>.
+    /// Cero mientras no se pacte.
+    ///
+    /// <para><b>La columna se llamaba <c>MonthlyPrice</c> y dejó de ser cierto.</b> Desde que el
+    /// precio se puede pactar por semana, un nombre que afirma el mes describiría mal la mitad de
+    /// los casos. El importe <b>no se convierte</b>: se guarda tal como se pactó, con su periodo al
+    /// lado. Pasarlo todo a mensual para conservar el nombre habría metido un redondeo en un dato
+    /// que nadie pidió redondear.</para>
+    /// </summary>
+    public decimal Price { get; private set; }
+
+    /// <summary>
+    /// Cada cuándo se cobra ese precio.
+    ///
+    /// <para>Es lo que se le factura al cliente, y no tiene por qué coincidir con cada cuándo se le
+    /// paga al personal, que es de la organización.</para>
+    /// </summary>
+    public PaymentFrequency PriceFrequency { get; private set; }
+
+    public string CurrencyCode { get; private set; } = "MXN";
+    public bool IsTaxIncluded { get; private set; }
+
     public string? RequiredSkillProfile { get; private set; }
     public string? Notes { get; private set; }
     public Service Service { get; private set; } = null!;
@@ -89,8 +124,17 @@ public sealed class Position : AuditableEntity, IOrganizationScopedEntity
             throw new ArgumentOutOfRangeException(nameof(profile));
         }
 
+        if (profile.Price < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(profile));
+        }
+
         Name = Required(profile.Name, nameof(profile.Name));
         RequiredWorkerCount = profile.RequiredWorkerCount;
+        Price = profile.Price;
+        PriceFrequency = profile.PriceFrequency;
+        CurrencyCode = Required(profile.CurrencyCode, nameof(profile.CurrencyCode)).ToUpperInvariant();
+        IsTaxIncluded = profile.IsTaxIncluded;
         IdJobPositionCatalogItem = profile.IdJobPositionCatalogItem;
         RequiredSkillProfile = Optional(profile.RequiredSkillProfile);
         Notes = Optional(profile.Notes);

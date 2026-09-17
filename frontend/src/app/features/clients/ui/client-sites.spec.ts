@@ -16,7 +16,11 @@ import { contacto, sede } from './client-fixtures';
       [contacts]="contacts()"
       [canWrite]="canWrite()"
       [openAdd]="openAdd()"
+      [editing]="editing()"
       (create)="creada.set($event)"
+      (edit)="editada.set($event)"
+      (closeEdit)="editing.set(null)"
+      (closeAdd)="cerrados.set(cerrados() + 1); openAdd.set(false)"
     />
   `,
 })
@@ -25,7 +29,10 @@ class Anfitrion {
   readonly contacts = signal<readonly ClientContact[]>([]);
   readonly canWrite = signal(true);
   readonly openAdd = signal(false);
+  readonly editing = signal<ClientSite | null>(null);
+  readonly cerrados = signal(0);
   readonly creada = signal<NewSite | null>(null);
+  readonly editada = signal<{ site: ClientSite; datos: NewSite } | null>(null);
 }
 
 function montar(configurar: (host: Anfitrion) => void = () => {}) {
@@ -57,11 +64,11 @@ function montar(configurar: (host: Anfitrion) => void = () => {}) {
  * hace que el municipio aparezca sólo cuando su estado está elegido.</p>
  */
 const GEOGRAFIA = [
-  { idCatalogItem: 'mx', type: 'Country', code: 'MX', name: 'México', active: true, idParentCatalogItem: null },
-  { idCatalogItem: 'jal', type: 'State', code: 'JAL', name: 'Jalisco', active: true, idParentCatalogItem: 'mx' },
-  { idCatalogItem: 'nl', type: 'State', code: 'NL', name: 'Nuevo León', active: true, idParentCatalogItem: 'mx' },
-  { idCatalogItem: 'tlaq', type: 'City', code: 'TLAQ', name: 'Tlaquepaque', active: true, idParentCatalogItem: 'jal' },
-  { idCatalogItem: 'snic', type: 'City', code: 'SNIC', name: 'San Nicolás de los Garza', active: true, idParentCatalogItem: 'nl' },
+  { idCatalogItem: 'mx', type: 'Country', name: 'México', active: true, idParentCatalogItem: null },
+  { idCatalogItem: 'jal', type: 'State', name: 'Jalisco', active: true, idParentCatalogItem: 'mx' },
+  { idCatalogItem: 'nl', type: 'State', name: 'Nuevo León', active: true, idParentCatalogItem: 'mx' },
+  { idCatalogItem: 'tlaq', type: 'City', name: 'Tlaquepaque', active: true, idParentCatalogItem: 'jal' },
+  { idCatalogItem: 'snic', type: 'City', name: 'San Nicolás de los Garza', active: true, idParentCatalogItem: 'nl' },
 ];
 
 /** Responde la única petición del catálogo y deja los selectores con sus opciones. */
@@ -182,12 +189,70 @@ describe('La pestaña de Sedes', () => {
     expect(raiz.querySelector('.site__pill')).toBeNull();
   });
 
-  /** Seis menús idénticos no sirven a quien navega con lector: cada uno nombra su sede. */
-  it('el menú de cada sede se nombra con su sede', () => {
+  /**
+   * «Agregar sede» está una sola vez.
+   *
+   * <p>Estaba dos: en la cabecera de la ficha y otra vez sobre la lista, uno encima del otro y
+   * siendo el mismo. La de la cabecera es la que se queda, con las acciones de los demás apartados.
+   * </p>
+   */
+  it('no repite «Agregar sede» sobre la lista: vive en la cabecera de la ficha', () => {
     const { raiz } = montar((host) => host.lista.set([sede()]));
 
-    expect(raiz.querySelector('gi-row-actions button')?.getAttribute('aria-label'))
-      .toBe('Acciones de la sede Torre Altavista');
+    const botones = Array.from(raiz.querySelectorAll('button')).filter(
+      (b) => b.textContent?.trim() === 'Agregar sede',
+    );
+    expect(botones).toHaveLength(0);
+  });
+
+  /**
+   * Y cancelar cierra de verdad.
+   *
+   * <p>Desde que el alta se abre desde la cabecera, la bandera la tiene la página. Cancelar apagaba
+   * la de aquí dentro y no la de allá, así que el formulario se quedaba abierto y no había forma de
+   * cerrarlo.</p>
+   */
+  it('al cancelar avisa que el alta se cerró', () => {
+    const { raiz, fixture, host } = montar((host) => {
+      host.lista.set([sede()]);
+      host.openAdd.set(true);
+    });
+
+    const cancelar = Array.from(raiz.querySelectorAll('button')).find(
+      (b) => b.textContent?.trim() === 'Cancelar',
+    );
+    expect(cancelar).toBeDefined();
+
+    cancelar!.click();
+    fixture.detectChanges();
+
+    expect(host.cerrados()).toBe(1);
+  });
+
+  /**
+   * Las acciones se ven, no se esconden tras tres puntos.
+   *
+   * <p>El menú guardaba «Editar sede» detrás de un clic y de un icono que no dice nada: había que
+   * abrirlo para descubrir qué se podía hacer con la sede.</p>
+   */
+  it('cada sede enseña sus acciones, sin menú de tres puntos', () => {
+    const { raiz } = montar((host) => host.lista.set([sede()]));
+
+    expect(raiz.querySelector('gi-row-actions')).toBeNull();
+
+    const acciones = Array.from(raiz.querySelectorAll('.site__accion')).map((n) =>
+      n.textContent!.trim(),
+    );
+    expect(acciones).toEqual(['Editar', 'Desactivar']);
+  });
+
+  it('sin permiso de escritura no ofrece ninguna acción sobre la sede', () => {
+    const { raiz } = montar((host) => {
+      host.lista.set([sede()]);
+      host.canWrite.set(false);
+    });
+
+    expect(raiz.querySelector('.site__accion')).toBeNull();
   });
 
   it('la dirección se arma legible, sin comas sueltas de los campos vacíos', () => {
@@ -197,5 +262,155 @@ describe('La pestaña de Sedes', () => {
 
     expect(raiz.querySelector('.site__value')?.textContent?.trim())
       .toBe('Av. Patria 1250, Zapopan, Jalisco, 45110');
+  });
+  /**
+   * El defecto: al guardar, la sede se creaba y el formulario se quedaba abierto con los mismos
+   * datos dentro. Pulsar otra vez creaba una sede idéntica y nada lo impedía.
+   */
+  it('se vacía y se cierra al guardar', () => {
+    const { fixture, raiz, escribir, guardar, host } = montar((anfitrion) => anfitrion.openAdd.set(false));
+
+    const abrir = Array.from(raiz.querySelectorAll<HTMLButtonElement>('button'))
+      .find((b) => b.textContent?.includes('Agregar sede'));
+    abrir?.click();
+    fixture.detectChanges();
+
+    escribir('ns-nombre', 'Planta Norte');
+    escribir('ns-calle', 'Av. Central 100');
+    escribir('ns-cp', '45010');
+    surtirCatalogo(TestBed.inject(HttpTestingController), fixture);
+    elegir(raiz, 'ns-estado', 'Nuevo León', fixture);
+    elegir(raiz, 'ns-municipio', 'San Nicolás de los Garza', fixture);
+    fixture.detectChanges();
+
+    guardar()?.click();
+    fixture.detectChanges();
+
+    expect(host.creada()?.name).toBe('Planta Norte');
+    // Cerrado: el formulario ya no está en pantalla.
+    expect(raiz.querySelector('#ns-nombre')).toBeNull();
+
+    // Se vuelve a buscar el botón: el anterior quedó fuera del DOM al cerrarse el formulario.
+    Array.from(raiz.querySelectorAll<HTMLButtonElement>('button'))
+      .find((b) => b.textContent?.includes('Agregar sede'))
+      ?.click();
+    fixture.detectChanges();
+
+    const campo = raiz.querySelector<HTMLInputElement>('#ns-nombre');
+    expect(campo).not.toBeNull();
+    expect(campo!.value).toBe('');
+  });
+
+  /**
+   * El «sin contacto» que mentía.
+   *
+   * <p>La tarjeta sólo miraba contactos atados a la sede, y en la base viva 23 de 26 contactos son
+   * del cliente. Así, casi toda sede decía «nadie responde por ella» mientras la pestaña de
+   * Contactos mostraba un número mayor que cero al lado.</p>
+   */
+  it('un contacto del cliente cubre a la sede que no tiene el suyo', () => {
+    const { raiz } = montar((host) => {
+      host.lista.set([sede({ idClientSite: 's1', name: 'Planta Norte' })]);
+      host.contacts.set([contacto({ idClientSite: null, fullName: 'Laura del cliente' })]);
+    });
+
+    expect(raiz.textContent).toContain('Laura del cliente');
+    expect(raiz.textContent).toContain('contacto del cliente');
+    expect(raiz.textContent).not.toContain('nadie responde por ella');
+  });
+
+  it('el contacto propio de la sede gana al del cliente', () => {
+    const { raiz } = montar((host) => {
+      host.lista.set([sede({ idClientSite: 's1', name: 'Planta Norte' })]);
+      host.contacts.set([
+        contacto({ idClientSite: null, fullName: 'Laura del cliente' }),
+        contacto({ idClientSite: 's1', fullName: 'Mario de la sede' }),
+      ]);
+    });
+
+    expect(raiz.textContent).toContain('Mario de la sede');
+    expect(raiz.textContent).not.toContain('Laura del cliente');
+  });
+
+  it('sin ningún contacto sí lo dice', () => {
+    const { raiz } = montar((host) => {
+      host.lista.set([sede({ idClientSite: 's1', name: 'Planta Norte' })]);
+      host.contacts.set([]);
+    });
+
+    expect(raiz.textContent).toContain('nadie responde por ella');
+  });
+});
+
+/**
+ * Editar una sede, que es donde el formulario y la página tienen que ponerse de acuerdo.
+ *
+ * <p>Salió al validar contra el sistema publicado: «Guardar sede» guardaba de verdad —la sede
+ * cambiaba en la base y salía el aviso de que había quedado actualizada— y el formulario se
+ * quedaba abierto, como si no hubiera pasado nada. El motivo era una carrera: el formulario se
+ * cerraba solo, el efecto veía que la página seguía apuntando a esa sede, y lo reabría en el acto.
+ * «Cancelar» hacía exactamente lo mismo.</p>
+ *
+ * <p>Ahora manda la página: ella sabe si el servidor confirmó, y el formulario la sigue.</p>
+ */
+describe('La pestaña de Sedes · editar', () => {
+  beforeEach(() =>
+    TestBed.configureTestingModule({
+      imports: [Anfitrion],
+      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
+    }));
+
+  afterEach(() => TestBed.resetTestingModule());
+
+  const abierta = (raiz: HTMLElement) => raiz.textContent?.includes('EDITAR SEDE') ?? false;
+
+  it('abre con los datos de la sede que pide la página', async () => {
+    const original = sede({ idClientSite: 's-1', name: 'Torre Altavista' });
+    const { raiz, fixture, host } = montar((anfitrion) => anfitrion.lista.set([original]));
+    host.editing.set(original);
+    fixture.detectChanges();
+    // `ngModel` escribe en el campo en el ciclo siguiente, no en el mismo.
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(abierta(raiz)).toBe(true);
+    expect(raiz.querySelector<HTMLInputElement>('#ns-nombre')?.value).toBe('Torre Altavista');
+  });
+
+  it('al guardar emite el cambio y NO se cierra solo: espera a la página', () => {
+    const original = sede({ idClientSite: 's-1', name: 'Torre Altavista' });
+    const { raiz, fixture, host, guardar } = montar((anfitrion) => anfitrion.lista.set([original]));
+    host.editing.set(original);
+    fixture.detectChanges();
+
+    guardar()!.click();
+    fixture.detectChanges();
+
+    expect(host.editada()?.site.idClientSite).toBe('s-1');
+    // Sigue abierto: si el guardado falla, lo escrito no se pierde.
+    expect(abierta(raiz)).toBe(true);
+
+    // Y cuando la página confirma soltando la sede, el formulario se cierra de una vez.
+    host.editing.set(null);
+    fixture.detectChanges();
+
+    expect(abierta(raiz)).toBe(false);
+  });
+
+  it('«Cancelar» avisa a la página, y el formulario no se reabre', () => {
+    const original = sede({ idClientSite: 's-1', name: 'Torre Altavista' });
+    const { raiz, fixture, host } = montar((anfitrion) => anfitrion.lista.set([original]));
+    host.editing.set(original);
+    fixture.detectChanges();
+
+    const cancelar = Array.from(raiz.querySelectorAll('button')).find(
+      (boton) => boton.textContent?.trim() === 'Cancelar',
+    );
+    expect(cancelar).toBeDefined();
+    cancelar!.click();
+    fixture.detectChanges();
+
+    expect(host.editing()).toBeNull();
+    expect(abierta(raiz)).toBe(false);
   });
 });

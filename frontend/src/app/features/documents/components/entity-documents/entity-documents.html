@@ -1,7 +1,12 @@
 <section class="entity-documents" aria-label="Documentos de la entidad">
   <header class="entity-heading">
     <div><h3><app-icon name="document" /> Documentos</h3><p>{{ ownerLabel() }}</p></div>
-    @if (canWrite() && validContext()) {
+    <!--
+      En la variante simple no va: la ficha del cliente ya tiene «Agregar documento» en su propia
+      cabecera, con las acciones de los demas apartados, y estaban los dos a la vez, uno encima del
+      otro. En Personal se queda, porque alli el componente vive solo y esta es su unica salida.
+    -->
+    @if (canWrite() && validContext() && !simple()) {
       <button class="gi-button gi-button--primary" type="button" [disabled]="busy()" (click)="openEditor('create')">
         <app-icon name="document" /> Agregar documento
       </button>
@@ -33,22 +38,71 @@
         <h4>{{ mode() === 'create' ? 'Nuevo documento' : 'Editar documento' }}</h4>
         <p class="entity-context">{{ ownerLabel() }}</p>
         <fieldset [disabled]="busy()" class="entity-fields">
-          <label class="gi-field"><span>Titulo *</span><input class="gi-input" formControlName="title" maxlength="180" required />
-            @if (form.controls.title.touched && form.controls.title.invalid) { <small class="field-error">Titulo obligatorio, hasta 180 caracteres.</small> }
-          </label>
-          <label class="gi-field"><span>Categoria *</span><input class="gi-input" formControlName="category" maxlength="80" required />
-            @if (form.controls.category.touched && form.controls.category.invalid) { <small class="field-error">Categoria obligatoria, hasta 80 caracteres.</small> }
-          </label>
-          <label class="gi-field"><span>Emision</span><input class="gi-input" type="date" formControlName="issuedDate" /></label>
-          <label class="gi-field"><span>Vencimiento</span><input class="gi-input" type="date" formControlName="expiresDate" [min]="form.controls.issuedDate.value" /></label>
-          <label class="gi-field entity-wide"><span>{{ mode() === 'create' ? 'Archivo *' : 'Reemplazar archivo (opcional)' }}</span>
-            <input class="gi-input" type="file" (change)="selectFile($event)" />
-            @if (fileName()) { <small>{{ fileName() }}</small> }
-          </label>
-          @if (selected()?.isSensitive) {
-            <p class="entity-wide"><app-icon name="security" /> Documento sensible</p>
-          } @else if (canWriteSensitive()) {
-            <label class="entity-check entity-wide"><input type="checkbox" formControlName="isSensitive" /><span>Documento sensible</span></label>
+          @if (simple()) {
+            <!--
+              El expediente del cliente pide menos: categoria y archivo. El titulo era un segundo
+              nombre para lo mismo, y emision, vencimiento y la marca de sensible no tienen aqui a
+              quien le sirvan. En Personal siguen, porque alli el vencimiento alimenta la vigencia
+              documental y la elegibilidad para cubrir un turno.
+            -->
+            <div class="gi-field entity-wide">
+              <span>Categoria *</span>
+              <gi-catalog-picker
+                label="Categoria del documento"
+                catalogLabel="el catalogo de categorias de documento"
+                inputId="ed-categoria"
+                [options]="categories()"
+                [value]="categoriaElegida()"
+                [canWrite]="canWrite()"
+                (valueChange)="elegirCategoria($event)"
+                (create)="createCategory.emit($event)"
+              />
+            </div>
+          } @else {
+            <label class="gi-field"><span>Titulo *</span><input class="gi-input" formControlName="title" maxlength="180" required />
+              @if (form.controls.title.touched && form.controls.title.invalid) { <small class="field-error">Titulo obligatorio, hasta 180 caracteres.</small> }
+            </label>
+            @if (typed()) {
+              <!--
+                En Personal la categoria no es una etiqueta libre: es el tipo contra el que la
+                organizacion declara sus requisitos documentales, y uno escrito a mano no cumple
+                ninguno. Los que esta organizacion exige salen marcados en el propio selector.
+              -->
+              <div class="gi-field">
+                <span>Categoria *</span>
+                <gi-select
+                  label="Tipo de documento"
+                  placeholder="Elige el tipo"
+                  [options]="typeOptions()"
+                  [value]="form.controls.documentType.value"
+                  [disabled]="busy() || !canWrite()"
+                  (valueChange)="elegirTipo($event)"
+                />
+                @if (form.controls.documentType.touched && !form.controls.documentType.value) {
+                  <small class="field-error">Elige el tipo de documento.</small>
+                }
+              </div>
+            } @else {
+              <label class="gi-field"><span>Categoria *</span><input class="gi-input" formControlName="category" maxlength="80" required />
+                @if (form.controls.category.touched && form.controls.category.invalid) { <small class="field-error">Categoria obligatoria, hasta 80 caracteres.</small> }
+              </label>
+            }
+            <label class="gi-field"><span>Emision</span><input class="gi-input" type="date" formControlName="issuedDate" /></label>
+            <label class="gi-field"><span>Vencimiento</span><input class="gi-input" type="date" formControlName="expiresDate" [min]="form.controls.issuedDate.value" /></label>
+          }
+          <gi-file-input
+            class="entity-wide"
+            [label]="mode() === 'create' ? 'Archivo *' : 'Reemplazar archivo (opcional)'"
+            [disabled]="busy() || !canWrite()"
+            emptyLabel="Ningún archivo elegido"
+            (fileSelected)="selectFile($event)"
+          />
+          @if (!simple()) {
+            @if (selected()?.isSensitive) {
+              <p class="entity-wide"><app-icon name="security" /> Documento sensible</p>
+            } @else if (canWriteSensitive()) {
+              <label class="entity-check entity-wide"><input type="checkbox" formControlName="isSensitive" /><span>Documento sensible</span></label>
+            }
           }
           <label class="gi-field entity-wide"><span>Notas</span><textarea class="gi-input" formControlName="notes" rows="2" maxlength="1000"></textarea></label>
         </fieldset>
@@ -111,12 +165,22 @@
                   }
                 </div>
                 <div class="entity-actions" [attr.aria-label]="'Acciones de ' + document.title">
+                  <!--
+                    En el expediente del cliente solo Descargar y Editar. Historial, Revisar y
+                    Archivar existen para el expediente del PERSONAL, donde un documento se valida
+                    o se rechaza y esa decision manda sobre la elegibilidad para cubrir un turno;
+                    aqui no hay a quien le sirvan.
+                  -->
                   <button class="gi-button gi-button--secondary" type="button" [disabled]="busy()" (click)="download(document)"><app-icon name="document" /> Descargar</button>
-                  <button class="gi-button gi-button--secondary" type="button" [disabled]="busy()" (click)="openHistory(document)"><app-icon name="audit" /> Historial</button>
+                  @if (!simple()) {
+                    <button class="gi-button gi-button--secondary" type="button" [disabled]="busy()" (click)="openHistory(document)"><app-icon name="audit" /> Historial</button>
+                  }
                   @if (canEdit(document)) {
                     <button class="gi-button gi-button--secondary" type="button" [disabled]="busy()" (click)="openEditor('edit', document)">Editar</button>
-                    <button class="gi-button gi-button--secondary" type="button" [disabled]="busy()" (click)="openEditor('review', document)"><app-icon name="coverage" /> Revisar</button>
-                    <button class="gi-button gi-button--danger" type="button" [disabled]="busy()" (click)="openEditor('archive', document)">Archivar</button>
+                    @if (!simple()) {
+                      <button class="gi-button gi-button--secondary" type="button" [disabled]="busy()" (click)="openEditor('review', document)"><app-icon name="coverage" /> Revisar</button>
+                      <button class="gi-button gi-button--danger" type="button" [disabled]="busy()" (click)="openEditor('archive', document)">Archivar</button>
+                    }
                   }
                 </div>
               } @else {
@@ -129,11 +193,18 @@
         </ul>
         <nav class="entity-pagination" aria-label="Paginas de documentos">
           <span>{{ totalCount() }} documentos</span>
-          <div class="entity-actions">
-            <button class="gi-button gi-button--secondary" type="button" title="Pagina anterior" aria-label="Pagina anterior" [disabled]="page() <= 1 || busy()" (click)="load(page() - 1)">&larr;</button>
-            <span aria-live="polite">{{ page() }} / {{ totalPages() }}</span>
-            <button class="gi-button gi-button--secondary" type="button" title="Pagina siguiente" aria-label="Pagina siguiente" [disabled]="page() >= totalPages() || busy()" (click)="load(page() + 1)">&rarr;</button>
-          </div>
+          <!--
+            El navegador sólo aparece cuando hay más de una página. Antes se dibujaba siempre, con
+            las dos flechas apagadas y un «1 / 1» al lado: desde fuera se veía como un control roto
+            en lugar de como una lista que cabe entera.
+          -->
+          @if (totalPages() > 1) {
+            <div class="entity-actions">
+              <button class="gi-button gi-button--secondary" type="button" title="Pagina anterior" aria-label="Pagina anterior" [disabled]="page() <= 1 || busy()" (click)="load(page() - 1)">&larr;</button>
+              <span aria-live="polite">{{ page() }} / {{ totalPages() }}</span>
+              <button class="gi-button gi-button--secondary" type="button" title="Pagina siguiente" aria-label="Pagina siguiente" [disabled]="page() >= totalPages() || busy()" (click)="load(page() + 1)">&rarr;</button>
+            </div>
+          }
         </nav>
       }
     </div>

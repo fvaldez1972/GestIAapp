@@ -36,6 +36,7 @@ import { GiSelect, GiSelectOption } from '../../../shared/ui/gi-select/gi-select
             [options]="options()"
             [value]="auth.activeOrganizationId()"
             [placeholder]="emptyLabel()"
+            (opened)="refrescarOrganizaciones()"
             (valueChange)="auth.setActiveOrganization($event)"
           />
         } @else {
@@ -128,6 +129,26 @@ import { GiSelect, GiSelectOption } from '../../../shared/ui/gi-select/gi-select
 })
 export class ContextBar {
   protected readonly auth = inject(AuthService);
+
+  /**
+   * Vuelve a pedir la lista al desplegarla.
+   *
+   * <p>La lista del super admin se cargaba <b>una sola vez</b>, al construir el shell, asi que una
+   * organizacion dada de alta despues no aparecia aqui hasta recargar la pagina entera. Peor aun,
+   * no habia nada que lo delatara: el desplegable se abria con normalidad y simplemente le faltaba
+   * una.</p>
+   *
+   * <p>Si la peticion falla no se enseña error ni se vacia nada: se quedan las opciones que ya
+   * habia. Quien abrio el desplegable queria cambiar de organizacion, y dejarlo sin lista porque el
+   * refresco no llego seria peor que enseñarle una que quiza no incluye la ultima.</p>
+   */
+  protected refrescarOrganizaciones() {
+    if (!this.auth.isPlatformAdmin()) {
+      return;
+    }
+
+    this.auth.loadPlatformOrganizations().subscribe({ error: () => undefined });
+  }
 
   protected readonly options = computed<readonly GiSelectOption[]>(() =>
     this.auth.availableOrganizations().map((organization) => ({

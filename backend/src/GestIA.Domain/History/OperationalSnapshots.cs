@@ -43,7 +43,7 @@ public static class OperationalSnapshot
 
     /// <summary>Los tipos con historial, para que Infrastructure no repita la lista.</summary>
     public static bool IsTracked(object entity) =>
-        entity is AttendanceRecord or ServiceConfiguration or Incident or CoverageRecord or ServiceAssignment;
+        entity is AttendanceRecord or Incident or CoverageRecord or ServiceAssignment;
 
     /// <summary>
     /// Identidad y foto de un registro. La identidad sale del propio registro —no del contexto
@@ -60,12 +60,6 @@ public static class OperationalSnapshot
                 item.IdAttendanceRecord,
                 item.IdOrganization,
                 Serialize(AttendanceRecordSnapshot.From(item))),
-
-            ServiceConfiguration item => new(
-                OperationalEntityType.ServiceConfiguration,
-                item.IdServiceConfiguration,
-                item.IdOrganization,
-                Serialize(ServiceConfigurationSnapshot.From(item))),
 
             Incident item => new(
                 OperationalEntityType.Incident,
@@ -124,40 +118,10 @@ public sealed record AttendanceRecordSnapshot(
     }
 }
 
-public sealed record ServiceConfigurationSnapshot(
-    Guid IdServiceConfiguration,
-    Guid IdOrganization,
-    Guid IdService,
-    DateOnly EffectiveFromDate,
-    DateOnly? EffectiveToDate,
-    short RequiredWorkerCount,
-    decimal HoursPerDay,
-    byte DaysPerWeek,
-    decimal AverageWeeklyHours,
-    decimal AverageMonthlyHours,
-    short PreparationLeadDays,
-    decimal MonthlyPrice,
-    string CurrencyCode,
-    bool IsTaxIncluded,
-    bool HasWorkScheduleDescription,
-    bool HasSpecificInstructions,
-    bool Active)
-{
-    public static ServiceConfigurationSnapshot From(ServiceConfiguration item)
-    {
-        ArgumentNullException.ThrowIfNull(item);
-
-        // El precio, la moneda y el impuesto SÍ entran: son el dato que se factura al cliente y
-        // la razón principal de tener historial en esta entidad.
-        return new(
-            item.IdServiceConfiguration, item.IdOrganization, item.IdService,
-            item.EffectiveFromDate, item.EffectiveToDate, item.RequiredWorkerCount,
-            item.HoursPerDay, item.DaysPerWeek, item.AverageWeeklyHours, item.AverageMonthlyHours,
-            item.PreparationLeadDays, item.MonthlyPrice, item.CurrencyCode, item.IsTaxIncluded,
-            !string.IsNullOrWhiteSpace(item.WorkScheduleDescription),
-            !string.IsNullOrWhiteSpace(item.SpecificInstructions), item.Active);
-    }
-}
+/*
+ * El snapshot de ServiceConfiguration se retiro con la entidad. El tipo de evento y su ruta de
+ * historial se quedan: hay eventos ya guardados de ese tipo y las bitacoras son de solo agregar.
+ */
 
 public sealed record IncidentSnapshot(
     Guid IdIncident,

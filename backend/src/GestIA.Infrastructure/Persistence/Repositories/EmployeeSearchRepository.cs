@@ -1,5 +1,6 @@
 using GestIA.Application.Workforce;
 using GestIA.Domain.Catalogs;
+using GestIA.Domain.Documents;
 using GestIA.Domain.Operations;
 using GestIA.Domain.Workforce;
 using Microsoft.EntityFrameworkCore;
@@ -104,11 +105,17 @@ public sealed partial class WorkforceRepository
                     .Distinct()
                     .Count() < required.Length),
 
+            // «Al día» exige que cada requisito esté **cubierto**, no sólo que haya un archivo del
+            // tipo: con la comprobación por presencia, alguien con la carta rechazada y vencimiento
+            // en 2028 salía en este filtro mientras el servidor le negaba la asignación.
             EmployeeDocumentFilter.UpToDate => query.Where(employee =>
                 dbContext.EmployeeDocuments
                     .Where(document =>
                         document.IdEmployee == employee.IdEmployee &&
-                        required.Contains(document.DocumentType))
+                        required.Contains(document.DocumentType) &&
+                        (document.Status == EmployeeDocumentStatus.Received ||
+                            document.Status == EmployeeDocumentStatus.Validated) &&
+                        (document.ExpiresDate == null || document.ExpiresDate >= criteria.Today))
                     .Select(document => document.DocumentType)
                     .Distinct()
                     .Count() == required.Length &&
@@ -142,10 +149,8 @@ public sealed partial class WorkforceRepository
                 employee.State,
                 employee.Municipality,
 
-                JobPositionName = dbContext.BusinessCatalogItems
-                    .Where(item => item.IdBusinessCatalogItem == employee.IdJobPositionCatalogItem)
-                    .Select(item => item.Name)
-                    .FirstOrDefault(),
+                // El nombre del puesto ya no sale de aqui: se resuelve despues, en una consulta
+                // aparte. Ver `NombresDePuestoAsync`.
 
                 Expired = dbContext.EmployeeDocuments.Count(document =>
                     document.IdEmployee == employee.IdEmployee &&
@@ -161,6 +166,8 @@ public sealed partial class WorkforceRepository
                     document.ExpiresDate >= criteria.Today &&
                     document.ExpiresDate <= limite),
 
+                // Con algún documento del tipo exigido, sea cual sea su estado. De aquí sale
+                // «sin cargar», que es literalmente eso: no hay archivo.
                 Covered = dbContext.EmployeeDocuments
                     .Where(document =>
                         document.IdEmployee == employee.IdEmployee &&
@@ -169,12 +176,51 @@ public sealed partial class WorkforceRepository
                     .Distinct()
                     .Count(),
 
+                // Requisitos con archivo que **no cuenta**: rechazado, pendiente de validar o no
+                // aplicable, y sin estar vencido —lo vencido ya tiene su propia cuenta—. Es el
+                // hueco que la tabla no veía: la ficha decía «Rechazado» y la píldora «Al día».
+                //
+                // El criterio de cubierto es el mismo que aplica el servidor al comprobar la
+                // elegibilidad: `Received` o `Validated`, y vigente.
+                NotValid = dbContext.EmployeeDocuments
+                    .Where(document =>
+                        document.IdEmployee == employee.IdEmployee &&
+                        required.Contains(document.DocumentType))
+                    .Select(document => document.DocumentType)
+                    .Distinct()
+                    .Count(tipo =>
+                        !dbContext.EmployeeDocuments.Any(document =>
+                            document.IdEmployee == employee.IdEmployee &&
+                            document.DocumentType == tipo &&
+                            (document.Status == EmployeeDocumentStatus.Received ||
+                                document.Status == EmployeeDocumentStatus.Validated) &&
+                            (document.ExpiresDate == null || document.ExpiresDate >= criteria.Today)) &&
+                        !dbContext.EmployeeDocuments.Any(document =>
+                            document.IdEmployee == employee.IdEmployee &&
+                            document.DocumentType == tipo &&
+                            (document.Status == EmployeeDocumentStatus.Expired ||
+                                (document.ExpiresDate != null && document.ExpiresDate < criteria.Today)))),
+
+                // El expediente: los archivos que la persona tiene, no los tipos que se le exigen.
+                //
+                // El `Active` va escrito, y no se hereda: si esta consulta llegara a apagar el
+                // filtro global, un documento archivado seguiria contando y la pestaña diria un
+                // numero que la lista de abajo no respalda.
+                Documents = dbContext.BusinessDocuments.Count(document =>
+                    document.Active &&
+                    document.OwnerType == BusinessDocumentOwnerType.Employee &&
+                    document.OwnerId == employee.IdEmployee),
+
                 Assignments = dbContext.ServiceAssignments.Count(assignment =>
                     assignment.IdEmployee == employee.IdEmployee &&
                     assignment.StartDate <= criteria.Today &&
                     (assignment.EndDate == null || assignment.EndDate >= criteria.Today)),
             })
             .ToArrayAsync(cancellationToken);
+
+        var nombresDePuesto = await NombresDePuestoAsync(
+            filas.Select(fila => fila.IdJobPositionCatalogItem).ToArray(),
+            cancellationToken);
 
         var items = filas
             .Select(fila => new EmployeeListItemResponse(
@@ -186,7 +232,9 @@ public sealed partial class WorkforceRepository
                 fila.HireDate,
                 fila.Curp,
                 fila.IdJobPositionCatalogItem,
-                fila.JobPositionName,
+                fila.IdJobPositionCatalogItem is { } idPuesto && nombresDePuesto.TryGetValue(idPuesto, out var nombre)
+                    ? nombre
+                    : null,
                 fila.JobTitle,
                 fila.State,
                 fila.Municipality,
@@ -194,8 +242,10 @@ public sealed partial class WorkforceRepository
                 fila.Expired,
                 fila.Expiring,
                 required.Length - fila.Covered,
+                fila.NotValid,
                 fila.Assignments,
-                Health(fila.Expired, fila.Expiring, required.Length - fila.Covered)))
+                fila.Documents,
+                Health(fila.Expired, fila.Expiring, required.Length - fila.Covered, fila.NotValid)))
             .ToArray();
 
         return (items, totalCount);
@@ -205,24 +255,70 @@ public sealed partial class WorkforceRepository
     /// El peor manda. Un vencido pesa más que un hueco, y un hueco más que algo por caducar: los
     /// tres son problemas, pero el primero ya está bloqueando.
     /// </summary>
-    private static EmployeeDocumentHealth Health(int expired, int expiring, int missing) =>
+    /// <summary>
+    /// Los nombres de los puestos, incluidos los desactivados.
+    ///
+    /// <para><b>Va en su propia consulta y no como subconsulta, y esa es toda la razón de que
+    /// exista.</b> <c>IgnoreQueryFilters</c> no se aplica a la subconsulta donde se escribe: es un
+    /// operador de <b>toda</b> la consulta. Puesto dentro de la proyección apagaba el filtro
+    /// <c>Active</c> del listado entero, y los documentos dados de baja volvían a contarse como
+    /// vigentes. Aquí el apagado queda confinado a leer nombres de catálogo.</para>
+    ///
+    /// <para>Se resuelven aunque el valor esté desactivado porque es historia: la persona tuvo ese
+    /// puesto, y que el catálogo cambie después no borra el hecho. Antes el nombre llegaba nulo y
+    /// la pantalla lo escribía como el texto «NULL».</para>
+    ///
+    /// <para>Sólo se apaga <c>Active</c>. El aislamiento por organización sigue puesto.</para>
+    /// </summary>
+    private async Task<Dictionary<Guid, string>> NombresDePuestoAsync(
+        IReadOnlyCollection<Guid?> identificadores,
+        CancellationToken cancellationToken)
+    {
+        var buscados = identificadores.Where(id => id.HasValue).Select(id => id!.Value).Distinct().ToArray();
+
+        if (buscados.Length == 0)
+        {
+            return [];
+        }
+
+        return await dbContext.BusinessCatalogItems
+            .IgnoreQueryFilters(QueryFilterNames.ActiveOnly)
+            .Where(item => buscados.Contains(item.IdBusinessCatalogItem))
+            .Select(item => new { item.IdBusinessCatalogItem, item.Name })
+            .ToDictionaryAsync(item => item.IdBusinessCatalogItem, item => item.Name, cancellationToken);
+    }
+
+    /// <summary>
+    /// El peor manda, y «no cuenta» pesa más que «falta».
+    ///
+    /// <para>Un requisito con un documento rechazado está más cerca de bloquear que uno sin
+    /// documento: el segundo se resuelve subiendo un archivo, el primero hay que revisarlo con
+    /// quien lo rechazó.</para>
+    /// </summary>
+    private static EmployeeDocumentHealth Health(int expired, int expiring, int missing, int notValid) =>
         expired > 0 ? EmployeeDocumentHealth.Expired
+        : notValid > 0 ? EmployeeDocumentHealth.NotValid
         : missing > 0 ? EmployeeDocumentHealth.Missing
         : expiring > 0 ? EmployeeDocumentHealth.Expiring
         : EmployeeDocumentHealth.UpToDate;
 
-    public async Task<IReadOnlyList<string>> ListRequiredDocumentCodesAsync(
+    public async Task<IReadOnlyList<EmployeeDocumentType>> ListRequiredDocumentTypesAsync(
         Guid idOrganization,
-        CancellationToken cancellationToken) =>
-        await dbContext.EligibilityRequirements
+        CancellationToken cancellationToken)
+    {
+        var tipos = await dbContext.EligibilityRequirements
             .AsNoTracking()
             .Where(requirement =>
                 requirement.IdOrganization == idOrganization &&
                 requirement.RequirementType == EligibilityRequirementType.Document &&
-                requirement.TargetType == EligibilityRequirementTargetType.Organization)
-            .Select(requirement => requirement.RequiredCode)
+                requirement.TargetType == EligibilityRequirementTargetType.Organization &&
+                requirement.RequiredDocumentType != null)
+            .Select(requirement => requirement.RequiredDocumentType!.Value)
             .Distinct()
             .ToArrayAsync(cancellationToken);
+
+        return tipos;
+    }
 
     public async Task<IReadOnlyList<(Guid Id, string Name)>> ListUsedJobPositionsAsync(
         Guid idOrganization,

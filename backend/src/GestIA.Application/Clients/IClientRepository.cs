@@ -28,6 +28,18 @@ public interface IClientRepository
         Guid idClient,
         CancellationToken cancellationToken);
 
+    /// <summary>
+    /// El cliente sin mirar si está activo.
+    ///
+    /// <para>Existe sólo para reactivar. <c>GetAsync</c> respeta el filtro global <c>Active</c>, así
+    /// que un cliente desactivado no se encuentra por ahí —que es lo correcto para todo lo demás—
+    /// y reactivarlo con él sería imposible por construcción.</para>
+    /// </summary>
+    Task<Client?> GetIncludingInactiveAsync(
+        Guid idOrganization,
+        Guid idClient,
+        CancellationToken cancellationToken);
+
     Task<bool> IsCodeInUseAsync(
         Guid idOrganization,
         string codeClient,

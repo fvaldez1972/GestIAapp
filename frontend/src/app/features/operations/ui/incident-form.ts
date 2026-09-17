@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input, linkedSignal, output } from '@angular/core';
-import { GiSelect, GiSelectOption, GI_REASON_MIN_LENGTH } from '../../../shared/ui/gi-ui';
+import { GiCatalogCreation, GiCatalogPicker, GiSelect, GiSelectOption, GI_REASON_MIN_LENGTH } from '../../../shared/ui/gi-ui';
 import { IncidentDraft, IncidentRow } from '../data-access/incident-day';
 
 const SEVERIDADES: readonly GiSelectOption[] = [
@@ -50,7 +50,7 @@ const TERMINALES = new Set(['Resolved', 'Cancelled']);
 @Component({
   selector: 'app-incident-form',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [GiSelect],
+  imports: [GiCatalogPicker, GiSelect],
   template: `
     <form class="incf" (submit)="$event.preventDefault(); guardar()">
       <section class="incf__bloque">
@@ -60,23 +60,21 @@ const TERMINALES = new Set(['Resolved', 'Cancelled']);
           organización y describe la realidad operativa.
         </p>
 
-        <label class="incf__campo">
-          <span>Motivo</span>
-          <gi-select
-            label="Motivo del hecho, del catálogo de la organización"
-            [options]="reasons()"
-            [value]="draft().factReasonCode"
-            (valueChange)="cambiar('factReasonCode', $event)"
-          />
-          @if (reasons().length === 0) {
-            <small class="incf__falta">
-              El catálogo de motivos de incidencia está vacío.
-              <button type="button" class="incf__link" (click)="openCatalog.emit()">
-                Llenarlo en Catálogos
-              </button>
-            </small>
-          }
-        </label>
+        <!--
+          El catálogo vacío deja de mandar a otra pantalla. Antes decía «está vacío» y ofrecía ir a
+          Catálogos, lo que obligaba a abandonar la incidencia a medias; y una incidencia que no se
+          registra en el momento se registra fuera del sistema, o no se registra.
+        -->
+        <gi-catalog-picker
+          label="Motivo"
+          catalogLabel="el catálogo de motivos de incidencia"
+          inputId="incf-motivo"
+          [options]="reasonOptions()"
+          [value]="draft().factReasonCode"
+          [canWrite]="canWrite()"
+          (valueChange)="cambiar('factReasonCode', $event)"
+          (create)="createReason.emit($event)"
+        />
 
         <div class="incf__par">
           <label class="incf__campo">
@@ -256,6 +254,21 @@ export class IncidentForm {
 
   /** Los motivos del catálogo de la organización. Nunca texto libre. */
   readonly reasons = input.required<readonly GiSelectOption[]>();
+
+  /** El motivo que hay que crear en el catálogo antes de poder elegirlo. */
+  readonly createReason = output<GiCatalogCreation>();
+
+  /** Sin esto, el alta al vuelo ofrecería crear algo que el servidor va a rechazar con 403. */
+  readonly canWrite = input(false);
+
+  /**
+   * El motivo del hecho viaja por <b>nombre</b>, no por identificador, porque es lo que
+   * <c>Incident.IncidentType</c> guarda. La cobertura sí guarda el identificador. Que las dos no se
+   * parezcan es deuda reconocida y tiene tanda propia.
+   */
+  protected readonly reasonOptions = computed(() =>
+    this.reasons().map((option) => ({ idCatalogItem: option.value, name: option.label })),
+  );
 
   /** Si el día está cerrado. Es lo único que decide si se pide el motivo de la corrección. */
   readonly dayClosed = input(false);

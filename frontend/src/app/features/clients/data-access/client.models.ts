@@ -4,17 +4,46 @@ export type Organization = {
   readonly legalName: string;
   readonly rfc: string | null;
   readonly active: boolean;
+  /**
+   * Cada cuando se le paga al personal de esta organizacion.
+   *
+   * <p>Nulo es «sin declarar», no un valor faltante: es de la organizacion y nadie decide por ella.
+   * En seguridad se paga semanal y en limpieza puede ser quincenal, pero dentro de una misma
+   * empresa no cambia de una persona a otra.</p>
+   */
+  readonly payrollFrequency: PaymentFrequency | null;
 };
 
 export type CreateOrganization = {
-  readonly codeOrganization: string;
+  /**
+   * Opcional: sin el, lo pone el servidor con la forma `ORG-01`. No se captura desde ninguna
+   * pantalla, y al editar una organizacion omitirlo conserva el que ya tiene.
+   */
+  readonly codeOrganization?: string | null;
   readonly legalName: string;
   readonly rfc: string | null;
 };
 
-export type UpdateOrganization = CreateOrganization;
+/**
+ * La edicion de una organizacion.
+ *
+ * <p>Lleva la periodicidad de pago, que el alta no pide: el alta se queda minima y esto se decide
+ * despues. Nulo la deja «sin declarar», que es un estado valido.</p>
+ */
+export type UpdateOrganization = CreateOrganization & {
+  readonly payrollFrequency?: PaymentFrequency | null;
+};
 
-export type CreateOrganizationWithAdmin = CreateOrganization & {
+/**
+ * El alta de una organizacion junto con su administrador inicial.
+ *
+ * <p>El codigo va aparte de <c>CreateOrganization</c> porque aqui es <b>opcional</b>: cuando no se
+ * manda, lo pone el servidor con la forma <c>ORG-01</c>. Pedirselo a quien da de alta una empresa
+ * le hace inventar una convencion que el sistema ya tiene, y el codigo no es la clave del
+ * registro sino un identificador de conveniencia.</p>
+ */
+export type CreateOrganizationWithAdmin = Omit<CreateOrganization, 'codeOrganization'> & {
+  readonly codeOrganization?: string | null;
   readonly admin: {
     readonly displayName: string;
     readonly email: string;
@@ -240,59 +269,40 @@ export type ManagedServiceInput = {
   readonly endDate: string | null;
 };
 
+/**
+ * El alta de un servicio contratado.
+ *
+ * <p>El codigo es <b>opcional</b>: sin el, lo pone el servidor con la forma `SRV-01`, consecutivo
+ * por cliente. Es el mismo trato que el de cliente y el de organizacion, y por la misma razon: es
+ * un identificador de conveniencia, no la clave del registro.</p>
+ */
 export type CreateManagedService = ManagedServiceInput & {
-  readonly codeService: string;
+  readonly codeService?: string | null;
 };
 
-export type ServiceConfiguration = {
-  readonly idServiceConfiguration: string;
-  readonly idService: string;
-  readonly effectiveFromDate: string;
-  readonly effectiveToDate: string | null;
-  readonly requiredWorkerCount: number;
-  readonly hoursPerDay: number;
-  readonly daysPerWeek: number;
-  readonly averageWeeklyHours: number;
-  readonly averageMonthlyHours: number;
-  readonly preparationLeadDays: number;
-  readonly workScheduleDescription: string;
-  readonly specificInstructions: string | null;
-  readonly monthlyPrice: number;
-  readonly currencyCode: string;
-  readonly isTaxIncluded: boolean;
-  readonly active: boolean;
-  /**
-   * Token de concurrencia. Es `rowversion` en la base y viaja como **base64**: no se interpreta,
-   * no se compara y no se construye. Se lee al abrir y se devuelve igual al guardar; si alguien
-   * corrigió el registro entre una cosa y la otra, el servidor responde 409 y dice quién fue.
-   */
-  readonly rowVersion: string;
+/**
+ * Cada cuando se paga o se cobra algo.
+ *
+ * <p>Sirve para dos hechos distintos: cada cuando se le cobra al cliente el precio de un puesto, y
+ * cada cuando se le paga al personal, que es de la organizacion. En seguridad privada casi nunca
+ * coinciden.</p>
+ *
+ * <p><b>Quincenal y catorcenal no son lo mismo</b> y se confunden todo el tiempo: catorcenal son
+ * veintiseis pagos al año y cae siempre en el mismo dia de la semana; quincenal son veinticuatro y
+ * cae en fechas fijas. Entran las dos porque en Mexico conviven.</p>
+ */
+export type PaymentFrequency = 'Weekly' | 'Biweekly' | 'SemiMonthly' | 'Monthly';
+
+/** Como se dice cada periodo en pantalla. */
+export const PAYMENT_FREQUENCY_LABELS: Record<PaymentFrequency, string> = {
+  Weekly: 'Semanal',
+  Biweekly: 'Catorcenal',
+  SemiMonthly: 'Quincenal',
+  Monthly: 'Mensual',
 };
 
-export type ServiceConfigurationInput = {
-  readonly idOrganization: string;
-  readonly idClient: string;
-  readonly idService: string;
-  readonly effectiveFromDate: string;
-  readonly effectiveToDate: string | null;
-  readonly requiredWorkerCount: number;
-  readonly hoursPerDay: number;
-  readonly daysPerWeek: number;
-  readonly averageMonthlyHours: number;
-  readonly preparationLeadDays: number;
-  readonly workScheduleDescription: string;
-  readonly specificInstructions: string | null;
-  readonly monthlyPrice: number;
-  readonly currencyCode: string | null;
-  readonly isTaxIncluded: boolean;
-};
-
-/** La corrección de una configuración. Mismo criterio que `ServiceAssignmentCorrectionInput`. */
-export type ServiceConfigurationCorrectionInput = ServiceConfigurationInput & {
-  readonly rowVersion: string;
-  /** Por qué se corrige. Obligatorio cuando la regla del servidor lo exige. */
-  readonly correctionReason?: string;
-};
+export const paymentFrequencyLabel = (frequency: PaymentFrequency | null): string =>
+  frequency ? PAYMENT_FREQUENCY_LABELS[frequency] : 'Sin declarar';
 
 export type ServicePosition = {
   readonly idPosition: string;
@@ -303,6 +313,16 @@ export type ServicePosition = {
   readonly requiredSkillProfile: string | null;
   readonly notes: string | null;
   readonly active: boolean;
+  /**
+   * Lo que se cobra por este puesto, en el periodo que dice `priceFrequency`.
+   *
+   * <p>Se llamaba `monthlyPrice` y dejo de ser cierto: el precio se pacta por semana o por mes
+   * segun el cliente, y el importe se guarda tal como se pacto, sin convertirlo.</p>
+   */
+  readonly price: number;
+  readonly priceFrequency: PaymentFrequency;
+  readonly currencyCode: string;
+  readonly isTaxIncluded: boolean;
 };
 
 export type ServicePositionInput = {
@@ -313,10 +333,18 @@ export type ServicePositionInput = {
   readonly requiredWorkerCount: number;
   readonly requiredSkillProfile: string | null;
   readonly notes: string | null;
+  readonly price: number;
+  readonly priceFrequency: PaymentFrequency;
+  readonly currencyCode: string;
+  readonly isTaxIncluded: boolean;
 };
 
+/**
+ * El alta de una posicion. El codigo es **opcional**: sin el, lo pone el servidor con la forma
+ * `P-01`, consecutivo por servicio.
+ */
 export type CreateServicePosition = ServicePositionInput & {
-  readonly codePosition: string;
+  readonly codePosition?: string | null;
 };
 
 export type ShiftPattern = {
@@ -341,8 +369,12 @@ export type ShiftPatternInput = {
   readonly effectiveToDate: string | null;
 };
 
+/**
+ * El alta de un patron de turnos. El codigo es **opcional**: sin el, lo pone el servidor con la
+ * forma `PAT-01`, consecutivo por posicion.
+ */
 export type CreateShiftPattern = ShiftPatternInput & {
-  readonly codeShiftPattern: string;
+  readonly codeShiftPattern?: string | null;
 };
 
 export type ShiftSegment = {
@@ -389,7 +421,7 @@ export type ServiceAssignment = {
   readonly isPrimary: boolean;
   readonly notes: string | null;
   readonly active: boolean;
-  /** Token de concurrencia. Ver la nota de `ServiceConfiguration`. */
+  /** Token de concurrencia: detecta que otro guardo mientras esta pantalla tenia el dato. */
   readonly rowVersion: string;
 };
 

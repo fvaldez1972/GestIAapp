@@ -143,6 +143,8 @@
               [ownerLabel]="name(client)"
               [simple]="true"
               [categories]="documentCategories()"
+              [openAdd]="addingDocument()"
+              (closeAdd)="addingDocument.set(false)"
               (createCategory)="createDocumentCategory($event)"
             />
           </ng-template>

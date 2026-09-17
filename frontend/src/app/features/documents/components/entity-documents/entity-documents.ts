@@ -108,6 +108,20 @@ export class EntityDocuments implements OnDestroy {
    */
   readonly documentSaved = output<EntityDocumentSaved>();
 
+  /**
+   * Abre el alta desde fuera, para quien tiene el botón en su propia cabecera.
+   *
+   * <p><b>Existe porque faltaba y nadie lo notaba.</b> En la variante simple este componente no
+   * dibuja su «Agregar documento» —la ficha del cliente ya lo tiene arriba, con las demás
+   * acciones—, pero no había forma de decirle que lo abriera: la pantalla ponía su señal en
+   * <c>true</c> y nadie la leía, así que el botón no hacía nada. Es la misma familia del defecto de
+   * «Agregar contacto», del lado de la entrada en vez de la salida.</p>
+   */
+  readonly openAdd = input(false);
+
+  /** Para que quien abrió pueda bajar su bandera al cerrarse el alta. */
+  readonly closeAdd = output<void>();
+
   private readonly api = inject(DocumentApiService);
   private readonly auth = inject(AuthService);
   private readonly fb = inject(FormBuilder);
@@ -118,6 +132,8 @@ export class EntityDocuments implements OnDestroy {
   private historyRequest?: Subscription;
   private editorContext: OwnerContext | null = null;
   private uploadedReference = '';
+  /** Si el alta abierta la pidió la pantalla de fuera, para avisarle al cerrarse y sólo entonces. */
+  private abiertoDesdeFuera = false;
   private file: File | null = null;
 
   protected readonly context = computed<OwnerContext>(() => ({
@@ -251,6 +267,25 @@ export class EntityDocuments implements OnDestroy {
 
   ngOnDestroy() { this.requests.unsubscribe(); }
 
+  /**
+   * Abre el alta cuando la pantalla lo pide, y avisa al cerrarla.
+   *
+   * <p>Se comprueba el permiso y el contexto igual que en el botón propio: una entrada desde fuera
+   * no puede ser una puerta con menos guardas que la de dentro.</p>
+   */
+  private readonly abrirDesdeFuera = effect(() => {
+    const pedido = this.openAdd();
+
+    untracked(() => {
+      if (pedido && !this.mode() && this.canWrite() && this.validContext() && !this.busy()) {
+        // Se marca **después** de abrir: `openEditor` empieza cerrando lo que hubiera, y con la
+        // bandera ya puesta ese cierre interno emitiría un aviso de algo que nadie cerró.
+        this.openEditor('create');
+        this.abiertoDesdeFuera = true;
+      }
+    });
+  });
+
   protected load(page = this.page()) {
     this.listRequest?.unsubscribe();
     this.documents.set([]);
@@ -325,6 +360,10 @@ export class EntityDocuments implements OnDestroy {
 
   protected closeEditor() {
     if (this.busy()) return;
+    if (this.abiertoDesdeFuera) {
+      this.abiertoDesdeFuera = false;
+      this.closeAdd.emit();
+    }
     this.mode.set(null);
     this.selected.set(null);
     this.editorContext = null;

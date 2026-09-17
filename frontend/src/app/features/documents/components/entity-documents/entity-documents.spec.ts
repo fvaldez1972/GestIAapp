@@ -4,6 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ElementRef, Input, ViewChild, signal, ɵresolveComponentResources as resolveComponentResources } from '@angular/core';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { AppIcon } from '../../../../shared/ui/app-icon/app-icon';
+import { GiCatalogPicker } from '../../../../shared/ui/gi-catalog-picker/gi-catalog-picker';
 import { GiFileInput } from '../../../../shared/ui/gi-file-input/gi-file-input';
 import { GiSelect } from '../../../../shared/ui/gi-select/gi-select';
 import { BusinessDocument } from '../../data-access/document.models';
@@ -27,7 +28,7 @@ describe('EntityDocuments', () => {
         Input(signalInput)(EntityDocuments.prototype, name);
       }
       // Opcionales: el mismo descriptor, sin `required`.
-      for (const name of ['simple', 'categories', 'documentTypes']) {
+      for (const name of ['simple', 'categories', 'documentTypes', 'openAdd']) {
         Input({ isSignal: true, required: false } as never)(EntityDocuments.prototype, name);
       }
       Input(signalInput)(AppIcon.prototype, 'name');
@@ -38,6 +39,10 @@ describe('EntityDocuments', () => {
       }
       for (const name of ['value', 'placeholder', 'disabled']) {
         Input({ isSignal: true, required: false } as never)(GiSelect.prototype, name);
+      }
+      Input(signalInput)(GiCatalogPicker.prototype, 'options');
+      for (const name of ['value', 'label', 'catalogLabel', 'canWrite', 'disabled', 'inputId']) {
+        Input({ isSignal: true, required: false } as never)(GiCatalogPicker.prototype, name);
       }
       Input(signalInput)(GiFileInput.prototype, 'label');
       for (const name of ['accept', 'disabled', 'hint', 'emptyLabel']) {
@@ -556,5 +561,57 @@ describe('EntityDocuments', () => {
     flushList();
 
     expect(avisos).toEqual([]);
+  });
+
+  // ── La entrada que nadie ataba ────────────────────────────────────────────────────────────
+
+  /**
+   * El defecto de «Agregar documento» en Clientes: la pantalla ponía su señal en true y este
+   * componente no tenía forma de enterarse, así que el botón no hacía nada. La variante simple no
+   * dibuja su propio botón —la ficha del cliente ya lo tiene arriba—, de modo que sin esta entrada
+   * no había ninguna manera de abrir el alta.
+   */
+  it('la variante simple abre el alta cuando la pantalla lo pide', () => {
+    flushList();
+    fixture.componentRef.setInput('simple', true);
+    fixture.componentRef.setInput('categories', [{ idCatalogItem: 'c1', name: 'Contrato' }]);
+    fixture.detectChanges();
+
+    expect(component['mode']()).toBeNull();
+
+    fixture.componentRef.setInput('openAdd', true);
+    fixture.detectChanges();
+
+    expect(component['mode']()).toBe('create');
+  });
+
+  /** Y avisa al cerrarse, para que quien abrió pueda bajar su bandera. */
+  it('avisa al cerrar el alta que abrió la pantalla', () => {
+    const cierres: unknown[] = [];
+    component.closeAdd.subscribe(() => cierres.push(true));
+
+    flushList();
+    fixture.componentRef.setInput('simple', true);
+    fixture.componentRef.setInput('categories', [{ idCatalogItem: 'c1', name: 'Contrato' }]);
+    fixture.componentRef.setInput('openAdd', true);
+    fixture.detectChanges();
+
+    component['closeEditor']();
+
+    expect(cierres).toHaveLength(1);
+    expect(component['mode']()).toBeNull();
+  });
+
+  /** Una entrada desde fuera no puede tener menos guardas que el botón de dentro. */
+  it('no abre el alta sin permiso de escritura', () => {
+    flushList();
+    permissions.set(['DOCUMENTS.READ']);
+    fixture.detectChanges();
+    flushList();
+    fixture.componentRef.setInput('simple', true);
+    fixture.componentRef.setInput('openAdd', true);
+    fixture.detectChanges();
+
+    expect(component['mode']()).toBeNull();
   });
 });

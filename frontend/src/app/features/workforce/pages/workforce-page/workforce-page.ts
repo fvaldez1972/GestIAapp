@@ -21,7 +21,7 @@ import {
   EntityDocumentSaved,
   EntityDocuments,
 } from '../../../documents/components/entity-documents/entity-documents';
-import { EligibilityRequirement } from '../../../catalogs/data-access/catalog.models';
+import { EligibilityRequirement, EmployeeSkill, EmployeeSkillInput } from '../../../catalogs/data-access/catalog.models';
 import { EmployeeListApiService } from '../../data-access/employee-list-api.service';
 import {
   EmployeeAssignment,
@@ -39,12 +39,21 @@ import {
   EmployeeDocument,
   EmployeeDocumentInput,
   EmployeeDocumentType,
+  EmployeeEvaluation,
+  EmployeeEvaluationInput,
+  EmployeeEvaluationResult,
+  EmployeeEvaluationType,
   EmployeeStatus,
 } from '../../data-access/workforce.models';
 import { EmployeeAssignments } from '../../ui/employee-assignments';
 import { EmployeeData } from '../../ui/employee-data';
 import { EmployeeDocuments } from '../../ui/employee-documents';
+import {
+  EmployeeEvaluationFormValue,
+  EmployeeEvaluations,
+} from '../../ui/employee-evaluations';
 import { EmployeeForm, EmployeeFormValue } from '../../ui/employee-form';
+import { EmployeeSkillFormValue, EmployeeSkills } from '../../ui/employee-skills';
 import { EmployeeTable } from '../../ui/employee-table';
 
 type PendingAction = { readonly employee: EmployeeListItem; readonly kind: 'leave' | 'terminate' };
@@ -69,7 +78,9 @@ type PendingAction = { readonly employee: EmployeeListItem; readonly kind: 'leav
     EmployeeAssignments,
     EmployeeData,
     EmployeeDocuments,
+    EmployeeEvaluations,
     EmployeeForm,
+    EmployeeSkills,
     EmployeeTable,
     EntityDocuments,
     GiConfirmDialog,
@@ -135,6 +146,19 @@ export class WorkforcePage {
   protected readonly requirements = signal<readonly EligibilityRequirement[]>([]);
 
   /**
+   * Las evaluaciones que exige la organización.
+   *
+   * <p>Van en su propia señal y no mezcladas con las documentales: son dos catálogos de requisitos
+   * distintos, cada pestaña lee el suyo, y confundirlos haría que una pestaña listara requisitos
+   * que no le toca cubrir.</p>
+   */
+  protected readonly evaluationRequirements = signal<readonly EligibilityRequirement[]>([]);
+
+  /** Las habilidades que exige la organización, y el catálogo del que salen. */
+  protected readonly skillRequirements = signal<readonly EligibilityRequirement[]>([]);
+  protected readonly catalogSkills = signal<readonly EmployeeJobPositionOption[]>([]);
+
+  /**
    * Los tipos que ofrece el alta de documento, con los que esta organización exige al principio.
    *
    * <p>Se derivan de los requisitos ya cargados, así que una regla nueva aparece marcada sin tocar
@@ -146,6 +170,8 @@ export class WorkforcePage {
   protected readonly activeTab = signal('data');
   protected readonly detail = signal<Employee | null>(null);
   protected readonly documents = signal<readonly EmployeeDocument[]>([]);
+  protected readonly evaluations = signal<readonly EmployeeEvaluation[]>([]);
+  protected readonly skills = signal<readonly EmployeeSkill[]>([]);
   protected readonly assignments = signal<readonly EmployeeAssignment[]>([]);
   protected readonly detailLoading = signal(false);
 
@@ -277,6 +303,10 @@ export class WorkforcePage {
       // documentos listados debajo, porque esa organización no exige ninguno. Dos cosas distintas
       // compartiendo un rótulo.
       { id: 'documents', label: 'Documentos', count: this.documentCount() },
+      // El conteo son las evaluaciones registradas, no las exigidas: es el mismo error que la
+      // pestaña de Documentos ya cometió una vez, diciendo «0» con registros listados debajo.
+      { id: 'evaluations', label: 'Evaluaciones', count: this.evaluations().filter((item) => item.active).length },
+      { id: 'skills', label: 'Habilidades', count: this.skills().filter((item) => item.active).length },
       { id: 'assignments', label: 'Asignaciones', count: employee?.assignmentCount ?? 0 },
     ];
   });
@@ -413,10 +443,20 @@ export class WorkforcePage {
 
       // Sólo los de la organización: los de un cliente, un servicio o una posición se exigen en
       // ese contexto, no en el expediente de la persona.
-      this.requirements.set(
-        data.requirements.filter(
-          (item) => item.active && item.requirementType === 'Document' && item.targetType === 'Organization',
-        ),
+      const deLaOrganizacion = data.requirements.filter(
+        (item) => item.active && item.targetType === 'Organization',
+      );
+
+      this.requirements.set(deLaOrganizacion.filter((item) => item.requirementType === 'Document'));
+      this.evaluationRequirements.set(
+        deLaOrganizacion.filter((item) => item.requirementType === 'Evaluation'),
+      );
+      this.skillRequirements.set(deLaOrganizacion.filter((item) => item.requirementType === 'Skill'));
+
+      this.catalogSkills.set(
+        data.items
+          .filter((item) => item.active && item.type === 'Skill')
+          .map((item) => ({ idCatalogItem: item.idCatalogItem, name: item.name })),
       );
     });
   }
@@ -440,6 +480,8 @@ export class WorkforcePage {
     this.activeTab.set(tab);
     this.detail.set(null);
     this.documents.set([]);
+    this.evaluations.set([]);
+    this.skills.set([]);
     this.documentCount.set(employee.documentCount);
     this.assignments.set([]);
     this.loadDetail(employee.idEmployee);
@@ -467,9 +509,16 @@ export class WorkforcePage {
       assignments: this.api
         .listAssignments(organizationId, idEmployee)
         .pipe(catchError(() => of([] as readonly EmployeeAssignment[]))),
+      // Las habilidades no vienen en el detalle del empleado: son del módulo de catálogos y se
+      // piden aparte. Si fallan, la pestaña dice que no hay ninguna, no que no se pudieron leer.
+      skills: this.catalogApi
+        .listEmployeeSkills(organizationId, idEmployee)
+        .pipe(catchError(() => of([] as readonly EmployeeSkill[]))),
     }).subscribe((data) => {
       this.detail.set(data.detail?.employee ?? null);
       this.documents.set(data.detail?.documents ?? []);
+      this.evaluations.set(data.detail?.evaluations ?? []);
+      this.skills.set(data.skills);
       this.assignments.set(data.assignments);
       this.detailLoading.set(false);
     });
@@ -545,6 +594,208 @@ export class WorkforcePage {
           + 'Vuelve a guardarlo para que cuente en la vigencia.',
         ),
     });
+  }
+
+
+  // ── Las evaluaciones del expediente ───────────────────────────────────────────────────────
+
+  /**
+   * Guarda una evaluación, nueva o corregida.
+   *
+   * <p><b>Por qué esta pantalla no existía.</b> Las cuatro rutas y los tres métodos del cliente
+   * llevaban semanas escritos sin que nadie los llamara, y mientras tanto una organización con una
+   * regla de evaluación bloqueante no podía asignar a nadie desde el portal. Era el mismo patrón de
+   * los documentos y de las habilidades: el servidor listo y la interfaz sin conectar.</p>
+   *
+   * <p><b>El resultado no se toca aquí.</b> Se guarda tal como lo capturó quien evaluó, y es el
+   * servidor el que decide si cubre el requisito —sólo <c>Approved</c> y
+   * <c>ApprovedWithObservations</c> cuentan—. Traducirlo en el camino sería decidir dos veces la
+   * misma regla, en dos sitios, con la posibilidad de que dejen de coincidir.</p>
+   */
+  protected saveEvaluation(valor: EmployeeEvaluationFormValue): void {
+    const organizationId = this.organizationId();
+    const employee = this.detail();
+
+    if (!organizationId || !employee || !this.canWrite() || this.saving()) {
+      return;
+    }
+
+    const request: EmployeeEvaluationInput = {
+      idOrganization: organizationId,
+      idEmployee: employee.idEmployee,
+      evaluationType: valor.evaluationType as EmployeeEvaluationType,
+      result: valor.result as EmployeeEvaluationResult,
+      evaluatedDate: valor.evaluatedDate,
+      expiresDate: valor.expiresDate,
+      certificateNumber: valor.certificateNumber,
+      // El archivo del certificado no se sube desde aquí: la ruta de descarga del expediente es
+      // heredada del prototipo y no hay una de carga. Queda anotado con la columna pendiente.
+      storageReference: null,
+      notes: valor.notes,
+    };
+
+    this.saving.set(true);
+    this.error.set('');
+
+    const peticion = valor.idEmployeeEvaluation
+      ? this.workforceApi.updateEvaluation(employee.idEmployee, valor.idEmployeeEvaluation, request)
+      : this.workforceApi.createEvaluation(employee.idEmployee, request);
+
+    peticion.subscribe({
+      next: () => {
+        this.saving.set(false);
+        this.message.set(
+          valor.idEmployeeEvaluation
+            ? 'Evaluación actualizada.'
+            : 'Evaluación registrada en el expediente.',
+        );
+        this.loadDetail(employee.idEmployee);
+        this.load();
+      },
+      error: (problem: unknown) => {
+        this.saving.set(false);
+        this.error.set(
+          problem instanceof HttpErrorResponse && problem.status === 403
+            ? 'No tienes permiso para registrar evaluaciones.'
+            : 'No se pudo guardar la evaluación.',
+        );
+      },
+    });
+  }
+
+  /** Desactiva, nunca borra: una evaluación registrada es historia del expediente. */
+  protected deactivateEvaluation(idEmployeeEvaluation: string): void {
+    const organizationId = this.organizationId();
+    const employee = this.detail();
+
+    if (!organizationId || !employee || !this.canWrite() || this.saving()) {
+      return;
+    }
+
+    this.saving.set(true);
+    this.error.set('');
+
+    this.workforceApi
+      .deactivateEvaluation(organizationId, employee.idEmployee, idEmployeeEvaluation)
+      .subscribe({
+        next: () => {
+          this.saving.set(false);
+          this.message.set('Evaluación retirada del expediente.');
+          this.loadDetail(employee.idEmployee);
+          this.load();
+        },
+        error: () => {
+          this.saving.set(false);
+          this.error.set('No se pudo retirar la evaluación.');
+        },
+      });
+  }
+
+
+  // ── Las habilidades del expediente ────────────────────────────────────────────────────────
+
+  /**
+   * Acredita una habilidad, o corrige una ya acreditada.
+   *
+   * <p><b>Esto cierra la trampa</b>: hasta ahora una regla de elegibilidad de tipo habilidad se
+   * podía crear y no se podía cumplir, porque ninguna pantalla otorgaba habilidades. Quien caía en
+   * ella sólo podía salir desactivando la regla.</p>
+   *
+   * <p>La habilidad va <b>por identificador de catálogo</b>, como la exige la regla. Al editar no
+   * se cambia cuál es: se retira la que estaba y se acredita la otra, porque cambiarla en su sitio
+   * convertiría el historial de una habilidad en el de otra.</p>
+   */
+  protected saveSkill(valor: EmployeeSkillFormValue): void {
+    const organizationId = this.organizationId();
+    const employee = this.detail();
+
+    if (!organizationId || !employee || !this.canWrite() || this.saving()) {
+      return;
+    }
+
+    const request: EmployeeSkillInput = {
+      idOrganization: organizationId,
+      idEmployee: employee.idEmployee,
+      idSkillCatalogItem: valor.idSkillCatalogItem,
+      acquiredDate: valor.acquiredDate,
+      expiresDate: valor.expiresDate,
+      notes: valor.notes,
+    };
+
+    this.saving.set(true);
+    this.error.set('');
+
+    const peticion = valor.idEmployeeSkill
+      ? this.catalogApi.updateEmployeeSkill(employee.idEmployee, valor.idEmployeeSkill, request)
+      : this.catalogApi.createEmployeeSkill(employee.idEmployee, request);
+
+    peticion.subscribe({
+      next: () => {
+        this.saving.set(false);
+        this.message.set(
+          valor.idEmployeeSkill ? 'Habilidad actualizada.' : 'Habilidad acreditada en el expediente.',
+        );
+        this.loadDetail(employee.idEmployee);
+      },
+      error: (problem: unknown) => {
+        this.saving.set(false);
+        this.error.set(
+          problem instanceof HttpErrorResponse && problem.status === 409
+            ? 'Esa habilidad ya está acreditada en este expediente.'
+            : 'No se pudo guardar la habilidad.',
+        );
+      },
+    });
+  }
+
+  /** Desactiva, nunca borra: lo acreditado en su día es historia del expediente. */
+  protected deactivateSkill(idEmployeeSkill: string): void {
+    const organizationId = this.organizationId();
+    const employee = this.detail();
+
+    if (!organizationId || !employee || !this.canWrite() || this.saving()) {
+      return;
+    }
+
+    this.saving.set(true);
+    this.error.set('');
+
+    this.catalogApi
+      .deactivateEmployeeSkill(organizationId, employee.idEmployee, idEmployeeSkill)
+      .subscribe({
+        next: () => {
+          this.saving.set(false);
+          this.message.set('Habilidad retirada del expediente.');
+          this.loadDetail(employee.idEmployee);
+        },
+        error: () => {
+          this.saving.set(false);
+          this.error.set('No se pudo retirar la habilidad.');
+        },
+      });
+  }
+
+  /** Alta al vuelo de una habilidad del catálogo, sin salir del expediente. */
+  protected createSkillCatalogItem(creation: GiCatalogCreation): void {
+    const organizationId = this.organizationId();
+
+    if (!organizationId || !this.auth.hasPermission('CATALOGS.WRITE')) {
+      this.error.set('No tienes permiso para crear valores de catálogo.');
+      return;
+    }
+
+    this.catalogApi
+      .createItem({ idOrganization: organizationId, type: 'Skill', name: creation.name, description: null })
+      .subscribe({
+        next: (creado) => {
+          this.catalogSkills.update((valores) => [
+            ...valores,
+            { idCatalogItem: creado.idCatalogItem, name: creado.name },
+          ]);
+          this.message.set(`«${creado.name}» se agregó al catálogo de habilidades.`);
+        },
+        error: () => this.error.set('No se pudo crear la habilidad en el catálogo.'),
+      });
   }
 
   // ── El puesto del catálogo, que es la salida de la franja ─────────────────────────────────

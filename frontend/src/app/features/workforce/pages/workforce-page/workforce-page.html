@@ -122,6 +122,44 @@
             />
           </ng-template>
 
+          <ng-template giTab="evaluations">
+            <!--
+              Arriba lo que la organización exige, abajo lo que la persona tiene. Igual que en
+              Documentos, porque el caso que importa —el requisito que nadie cubrió— no tiene
+              registro que lo represente y sólo se ve recorriendo los requisitos.
+            -->
+            <app-employee-evaluations
+              [requirements]="evaluationRequirements()"
+              [evaluations]="evaluations()"
+              [today]="today()"
+              [expiringWithinDays]="expiringWithinDays()"
+              [canWrite]="canWrite()"
+              [saving]="saving()"
+              (save)="saveEvaluation($event)"
+              (deactivate)="deactivateEvaluation($event)"
+            />
+          </ng-template>
+
+          <ng-template giTab="skills">
+            <!--
+              Cierra la trampa: hasta ahora se podía exigir una habilidad que nadie podía otorgar.
+              El selector permite crearla al vuelo, porque quien acredita a una persona no tiene por
+              qué irse a Catálogos a medias.
+            -->
+            <app-employee-skills
+              [requirements]="skillRequirements()"
+              [skills]="skills()"
+              [catalogSkills]="catalogSkills()"
+              [today]="today()"
+              [expiringWithinDays]="expiringWithinDays()"
+              [canWrite]="canWrite()"
+              [saving]="saving()"
+              (save)="saveSkill($event)"
+              (deactivate)="deactivateSkill($event)"
+              (createSkill)="createSkillCatalogItem($event)"
+            />
+          </ng-template>
+
           <ng-template giTab="assignments">
             <app-employee-assignments
               [assignments]="assignments()"

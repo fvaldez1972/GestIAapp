@@ -8,6 +8,7 @@ namespace GestIA.Application.Planning;
 public sealed class PlanningService(
     IPlanningRepository repository,
     ICatalogService catalogService,
+    IShiftPatternTemplateRepository shiftPatternTemplates,
     IUnitOfWork unitOfWork,
     IActorContext actorContext,
     IClock clock) : IPlanningService
@@ -50,8 +51,11 @@ public sealed class PlanningService(
         var profile = ValidatePosition(
             request.Name, request.RequiredWorkerCount, request.RequiredSkillProfile,
             request.Notes, request.IdJobPositionCatalogItem,
-            request.Price, request.CurrencyCode, request.IsTaxIncluded, request.PriceFrequency);
+            request.Price, request.CurrencyCode, request.IsTaxIncluded, request.PriceFrequency,
+            request.IdShiftPatternTemplate);
         await EnsureJobPositionAsync(request.IdOrganization, profile.IdJobPositionCatalogItem, cancellationToken);
+        await EnsureShiftPatternTemplateAsync(
+            request.IdOrganization, profile.IdShiftPatternTemplate, cancellationToken);
 
         if (await repository.IsPositionCodeInUseAsync(request.IdService, code, null, cancellationToken))
         {
@@ -82,8 +86,11 @@ public sealed class PlanningService(
         var profile = ValidatePosition(
             request.Name, request.RequiredWorkerCount, request.RequiredSkillProfile,
             request.Notes, request.IdJobPositionCatalogItem,
-            request.Price, request.CurrencyCode, request.IsTaxIncluded, request.PriceFrequency);
+            request.Price, request.CurrencyCode, request.IsTaxIncluded, request.PriceFrequency,
+            request.IdShiftPatternTemplate);
         await EnsureJobPositionAsync(request.IdOrganization, profile.IdJobPositionCatalogItem, cancellationToken);
+        await EnsureShiftPatternTemplateAsync(
+            request.IdOrganization, profile.IdShiftPatternTemplate, cancellationToken);
 
         position.UpdateProfile(profile, actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
         await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -347,6 +354,33 @@ public sealed class PlanningService(
         }
     }
 
+    /// <summary>
+    /// Comprueba en el servidor que el patrón elegido se puede asignar.
+    ///
+    /// <para>El desplegable ya sólo ofrece patrones completos de la propia organización, pero eso
+    /// es cromo: ocultar una opción no es autorización, y una posición apuntando a un patrón con
+    /// días sin declarar generaría turnos con huecos que nadie pidió.</para>
+    /// </summary>
+    private async Task EnsureShiftPatternTemplateAsync(
+        Guid idOrganization,
+        Guid? idShiftPatternTemplate,
+        CancellationToken cancellationToken)
+    {
+        if (idShiftPatternTemplate is not { } id)
+        {
+            return;
+        }
+
+        if (!await shiftPatternTemplates.IsAssignableAsync(idOrganization, id, cancellationToken))
+        {
+            throw new RequestValidationException(new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["idShiftPatternTemplate"] =
+                    ["El patrón de turno no existe, está retirado o tiene días del ciclo sin declarar."]
+            });
+        }
+    }
+
     private static PositionProfile ValidatePosition(
         string name,
         int requiredWorkerCount,
@@ -356,7 +390,8 @@ public sealed class PlanningService(
         decimal price,
         string currencyCode,
         bool isTaxIncluded,
-        PaymentFrequency priceFrequency)
+        PaymentFrequency priceFrequency,
+        Guid? idShiftPatternTemplate)
     {
         var errors = new Dictionary<string, string[]>();
         Required(name, nameof(name), 150, errors);
@@ -382,7 +417,8 @@ public sealed class PlanningService(
             price,
             string.IsNullOrWhiteSpace(currencyCode) ? "MXN" : currencyCode,
             isTaxIncluded,
-            priceFrequency);
+            priceFrequency,
+            idShiftPatternTemplate);
     }
 
     private static ShiftPatternProfile ValidateShiftPattern(
@@ -484,7 +520,8 @@ public sealed class PlanningService(
             position.Price,
             position.CurrencyCode,
             position.IsTaxIncluded,
-            position.PriceFrequency);
+            position.PriceFrequency,
+            position.IdShiftPatternTemplate);
 
     private static ShiftPatternResponse Map(ShiftPattern shiftPattern) =>
         new(

@@ -99,14 +99,18 @@ public sealed class OrganizationFilterModelTests
     /// esta prueba se lo dice en lugar de contarla sola y no enterarse.
     /// </summary>
     [Fact]
-    public void TwentyEightEntitiesAreScoped()
+    public void ThirtyEntitiesAreScoped()
     {
         using var context = CreateContext();
 
-        // 24 hasta la tanda C, más las cinco que la tanda E denormalizó: sedes y contactos de
-        // cliente, y documentos, evaluaciones y habilidades de empleado. Ya no queda ninguna
-        // entidad operativa fuera del filtro.
-        Assert.Equal(28, ScopedEntityTypes(context).Count());
+        // 24 hasta la tanda C, más las cinco que la tanda E denormalizó —sedes y contactos de
+        // cliente, y documentos, evaluaciones y habilidades de empleado—, más las dos del catálogo
+        // de patrones de turno: la plantilla y sus días del ciclo.
+        //
+        // La plantilla es **de la organización**, no compartida: un 12x12 de una empresa tiene su
+        // propio horario y su propia vigencia, y ver los patrones de otra organización sería
+        // exactamente la fuga que el filtro existe para impedir.
+        Assert.Equal(30, ScopedEntityTypes(context).Count());
     }
 
     [Theory]

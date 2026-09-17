@@ -18,9 +18,10 @@ namespace GestIA.IntegrationTests;
 /// organizaciones sembradas con los mismos datos. Es la diferencia entre afirmar que el filtro
 /// existe y demostrar que separa.
 ///
-/// <para><b>Cobertura.</b> Se siembran 26 de las 29 entidades con alcance de organización. Las
-/// tres que faltan —<c>ApprovalRequest</c>, <c>OperationDayClosure</c> y <c>SupportSession</c>—
-/// se consultan igual: el filtro lo aplica una sola convención a las 29 por igual, y
+/// <para><b>Cobertura.</b> Se siembran 26 de las 30 entidades con alcance de organización. Las
+/// cuatro que faltan —<c>ApprovalRequest</c>, <c>OperationDayClosure</c>, <c>SupportSession</c> y
+/// los días de la plantilla de turno— se consultan igual: el filtro lo aplica una sola convención a
+/// las 30 por igual, y
 /// <see cref="OrganizationFilterModelTests"/> ya comprueba que ninguna se quedó sin él en el
 /// modelo. Sembrar más grafos probaría constructores, no el filtro.</para>
 ///

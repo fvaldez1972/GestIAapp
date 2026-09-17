@@ -20,7 +20,8 @@ public sealed record PositionProfile(
     decimal Price = 0m,
     string CurrencyCode = "MXN",
     bool IsTaxIncluded = false,
-    PaymentFrequency PriceFrequency = PaymentFrequency.Monthly);
+    PaymentFrequency PriceFrequency = PaymentFrequency.Monthly,
+    Guid? IdShiftPatternTemplate = null);
 
 public sealed class Position : AuditableEntity, IOrganizationScopedEntity
 {
@@ -88,6 +89,20 @@ public sealed class Position : AuditableEntity, IOrganizationScopedEntity
     /// </summary>
     public PaymentFrequency PriceFrequency { get; private set; }
 
+    /// <summary>
+    /// El patrón de turno del catálogo que sigue esta posición.
+    ///
+    /// <para><b>Es nulable mientras conviven los dos modelos.</b> Hasta ahora cada posición
+    /// construía su patrón desde cero, con sus días declarados por día de la semana; esos patrones
+    /// siguen vivos y el generador de turnos sigue leyéndolos. Un nulo aquí significa «esta posición
+    /// todavía usa su patrón propio», no «no tiene patrón».</para>
+    ///
+    /// <para>Cuando el generador pase a leer la plantilla, los patrones por posición se retiran y
+    /// esto deja de ser nulable. Ese paso espera las respuestas de negocio sobre festivos y corte de
+    /// semana, que son las que deciden cómo se recorre el ciclo.</para>
+    /// </summary>
+    public Guid? IdShiftPatternTemplate { get; private set; }
+
     public string CurrencyCode { get; private set; } = "MXN";
     public bool IsTaxIncluded { get; private set; }
 
@@ -133,6 +148,7 @@ public sealed class Position : AuditableEntity, IOrganizationScopedEntity
         RequiredWorkerCount = profile.RequiredWorkerCount;
         Price = profile.Price;
         PriceFrequency = profile.PriceFrequency;
+        IdShiftPatternTemplate = profile.IdShiftPatternTemplate;
         CurrencyCode = Required(profile.CurrencyCode, nameof(profile.CurrencyCode)).ToUpperInvariant();
         IsTaxIncluded = profile.IsTaxIncluded;
         IdJobPositionCatalogItem = profile.IdJobPositionCatalogItem;

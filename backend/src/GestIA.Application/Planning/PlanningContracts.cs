@@ -23,7 +23,8 @@ public sealed record CreatePositionRequest(
     decimal Price = 0m,
     string CurrencyCode = "MXN",
     bool IsTaxIncluded = false,
-    PaymentFrequency PriceFrequency = PaymentFrequency.Monthly);
+    PaymentFrequency PriceFrequency = PaymentFrequency.Monthly,
+    Guid? IdShiftPatternTemplate = null);
 
 public sealed record UpdatePositionRequest(
     Guid IdOrganization,
@@ -37,7 +38,8 @@ public sealed record UpdatePositionRequest(
     decimal Price = 0m,
     string CurrencyCode = "MXN",
     bool IsTaxIncluded = false,
-    PaymentFrequency PriceFrequency = PaymentFrequency.Monthly);
+    PaymentFrequency PriceFrequency = PaymentFrequency.Monthly,
+    Guid? IdShiftPatternTemplate = null);
 
 public sealed record PositionResponse(
     Guid IdPosition,
@@ -53,7 +55,12 @@ public sealed record PositionResponse(
     string CurrencyCode,
     bool IsTaxIncluded,
     /// <summary>Cada cuándo se cobra el precio. Un importe sin su periodo no significa nada.</summary>
-    PaymentFrequency PriceFrequency);
+    PaymentFrequency PriceFrequency,
+    /// <summary>
+    /// El patrón del catálogo que sigue la posición. Nulo mientras la posición conserve su patrón
+    /// propio, capturado antes de que existiera el catálogo.
+    /// </summary>
+    Guid? IdShiftPatternTemplate);
 
 /// <summary>
 /// El alta de un patron de turnos. <c>CodeShiftPattern</c> es opcional: sin el, lo pone el servidor

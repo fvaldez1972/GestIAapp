@@ -32,6 +32,7 @@ public static class DependencyInjection
         services.AddScoped<IServiceManagementService, ServiceManagementService>();
         services.AddScoped<IWorkforceService, WorkforceService>();
         services.AddScoped<IPlanningService, PlanningService>();
+        services.AddScoped<IShiftPatternTemplateService, ShiftPatternTemplateService>();
         services.AddScoped<IAssignmentService, AssignmentService>();
         services.AddScoped<ICatalogService, CatalogService>();
         services.AddScoped<FormCatalogValidator>();

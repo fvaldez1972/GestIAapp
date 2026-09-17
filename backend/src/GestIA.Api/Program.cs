@@ -101,6 +101,7 @@ app.MapOperationsEndpoints();
 app.MapFileUploadEndpoints();
 app.MapBusinessDocumentEndpoints();
 app.MapCatalogEndpoints();
+app.MapShiftPatternTemplateEndpoints();
 app.MapReportsEndpoints();
 app.MapOverviewEndpoints();
 app.MapSecurityAdministrationEndpoints();

@@ -44,6 +44,8 @@ public sealed class GestIaDbContext(
     public DbSet<ServiceAssignment> ServiceAssignments => Set<ServiceAssignment>();
     public DbSet<Position> Positions => Set<Position>();
     public DbSet<ShiftPattern> ShiftPatterns => Set<ShiftPattern>();
+    public DbSet<ShiftPatternTemplate> ShiftPatternTemplates => Set<ShiftPatternTemplate>();
+    public DbSet<ShiftPatternTemplateDay> ShiftPatternTemplateDays => Set<ShiftPatternTemplateDay>();
     public DbSet<ShiftSegment> ShiftSegments => Set<ShiftSegment>();
     public DbSet<ScheduleVersion> ScheduleVersions => Set<ScheduleVersion>();
     public DbSet<ScheduledShift> ScheduledShifts => Set<ScheduledShift>();

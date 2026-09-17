@@ -47,6 +47,8 @@ public static class CatalogDefinitions
         // Sirve para dos cosas distintas: el periodo del precio de un puesto y la
         // periodicidad de pago al personal de la organizacion.
         Fixed<PaymentFrequency>("Periodicidades de pago y cobro", "Servicios"),
+        Fixed<ShiftDaypart>("Jornadas del patron de turno", "Planeacion"),
+        Fixed<WeeklyHoursCompliance>("Conformidad con la jornada semanal", "Planeacion"),
         Fixed<ServiceContractStatus>("Estados del contrato", "Clientes"),
         Fixed<BusinessDocumentOwnerType>("Propietarios documentales", "Documentos"),
         Fixed<BusinessDocumentStatus>("Estados documentales", "Documentos"),
@@ -83,6 +85,9 @@ public static class CatalogDefinitions
         "Low" => "Baja", "Medium" => "Media", "High" => "Alta", "Critical" => "Critica",
         // Catorcenal no es quincenal: veintiseis pagos al año contra veinticuatro.
         "Weekly" => "Semanal", "Biweekly" => "Catorcenal", "SemiMonthly" => "Quincenal", "Monthly" => "Mensual",
+        // La jornada del patron y como queda frente al limite legal.
+        "Day" => "Diurno", "Night" => "Nocturno", "Mixed" => "Mixto", "Rotating" => "Rotativo",
+        "Compliant" => "Conforme", "Exceeds" => "Excede",
         "EmploymentApplication" => "Solicitud de empleo", "BirthCertificate" => "Acta de nacimiento",
         "MarriageCertificate" => "Acta de matrimonio", "VoterId" => "INE", "Curp" => "CURP", "SocialSecurityNumber" => "NSS",
         "Rfc" => "RFC", "TaxStatusCertificate" => "Constancia de situacion fiscal", "DriverLicense" => "Licencia de conducir",

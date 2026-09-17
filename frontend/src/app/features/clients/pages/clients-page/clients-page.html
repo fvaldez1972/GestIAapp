@@ -161,6 +161,7 @@
               [simple]="true"
               [categories]="documentCategories()"
               [openAdd]="addingDocument()"
+              (totalChange)="documentCount.set($event)"
               (closeAdd)="addingDocument.set(false)"
               (createCategory)="createDocumentCategory($event)"
             />
@@ -287,6 +288,7 @@
 
       <app-client-edit-form
         [client]="cliente"
+        [nationalities]="nationalities()"
         [saving]="saving()"
         [problem]="formProblem()"
         (cancel)="cancelEdit()"

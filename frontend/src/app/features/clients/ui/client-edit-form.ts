@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, effect, input, output, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { GiSelect } from '../../../shared/ui/gi-select/gi-select';
 import { ServerProblem, fieldError } from '../../../shared/util/server-problem';
 import { Client, ClientInput } from '../data-access/client.models';
 
@@ -19,7 +20,7 @@ import { Client, ClientInput } from '../data-access/client.models';
 @Component({
   selector: 'app-client-edit-form',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule],
+  imports: [FormsModule, GiSelect],
   template: `
     <form class="edit" (ngSubmit)="guardar()">
       <p class="edit__ref">
@@ -64,11 +65,33 @@ import { Client, ClientInput } from '../data-access/client.models';
         <legend>Datos fiscales</legend>
 
         <div class="edit__dos">
-          <label class="field" for="ce-nac">
+          <!--
+            La nacionalidad sale del catálogo, no de un texto libre. El servidor la valida contra el
+            nombre de un valor activo del catálogo de Nacionalidades y devuelve 409 con cualquier
+            otra cosa: escribir «Mexicana» cuando el catálogo dice «Mexicano» fallaba al guardar sin
+            enseñar de dónde elegir. Se manda el nombre y no el identificador porque el nombre es lo
+            que el servidor compara.
+          -->
+          <div class="field">
+            <!--
+              El rótulo va escrito. gi-select usa su «label» como aria-label y no lo dibuja, así que
+              sin esto el campo quedaba sin nombre visible mientras los once de al lado sí lo tienen.
+            -->
             <span class="field__label">NACIONALIDAD</span>
-            <input id="ce-nac" name="nationality" type="text" autocomplete="off"
-              [ngModel]="nationality()" (ngModelChange)="nationality.set($event)" [ngModelOptions]="sueltos" />
-          </label>
+            <gi-select
+              label="NACIONALIDAD"
+              placeholder="Sin nacionalidad"
+              [options]="nationalityOptions()"
+              [value]="nationality()"
+              (valueChange)="nationality.set($event)"
+            />
+            @if (!nationalities().length) {
+              <small class="field__ayuda">
+                El catálogo de Nacionalidades está vacío o no se pudo cargar. Se conserva lo que ya
+                tenía el cliente.
+              </small>
+            }
+          </div>
           <label class="field" for="ce-act">
             <span class="field__label">ACTIVIDAD FISCAL</span>
             <input id="ce-act" name="taxActivity" type="text" autocomplete="off"
@@ -241,6 +264,27 @@ export class ClientEditForm {
   protected readonly tradeName = signal('');
   protected readonly rfc = signal('');
   protected readonly nationality = signal('');
+
+  /** Los nombres del catálogo de Nacionalidades, cargados por la pantalla. */
+  readonly nationalities = input<readonly string[]>([]);
+
+  /**
+   * Las opciones del desplegable, más el valor que ya tenía el cliente si el catálogo ya no lo
+   * trae.
+   *
+   * <p>Sin eso, abrir la ficha de un cliente cuya nacionalidad se retiró del catálogo dejaría el
+   * campo en blanco y guardar la borraría. El servidor no revalida un valor que no cambió, así que
+   * conservarlo es correcto; lo que no sería correcto es perderlo por no poder ofrecerlo.</p>
+   */
+  protected readonly nationalityOptions = computed(() => {
+    const catalogo = this.nationalities();
+    const actual = this.nationality().trim();
+    const opciones = catalogo.map((nombre) => ({ value: nombre, label: nombre }));
+
+    return actual && !catalogo.includes(actual)
+      ? [{ value: actual, label: actual, hint: 'Valor actual · ya no está en el catálogo' }, ...opciones]
+      : opciones;
+  });
   protected readonly taxActivity = signal('');
   protected readonly taxAddress = signal('');
   protected readonly publicRegistryDate = signal('');

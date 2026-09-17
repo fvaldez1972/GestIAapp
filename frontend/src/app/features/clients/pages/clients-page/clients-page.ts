@@ -245,6 +245,27 @@ export class ClientsPage {
   /** Las categorias de documento del cliente, del catalogo de la organizacion. */
   protected readonly documentCategories = signal<readonly { idCatalogItem: string; name: string }[]>([]);
 
+  /**
+   * Las nacionalidades del catálogo, por nombre.
+   *
+   * <p>El servidor valida la nacionalidad del cliente contra el <b>nombre</b> de un valor activo del
+   * catálogo, no contra su identificador, y rechaza con 409 cualquier otra cosa. El formulario la
+   * pedía como texto libre, así que escribir «Mexicana» cuando el catálogo dice «Mexicano» fallaba
+   * al guardar sin enseñar de dónde elegir. Por eso viajan los nombres y no los identificadores:
+   * es lo que el servidor compara.</p>
+   */
+  protected readonly nationalities = signal<readonly string[]>([]);
+
+  /**
+   * Cuántos documentos tiene el cliente abierto.
+   *
+   * <p>La pestaña era la única de las cuatro sin contador: Sedes y Contactos lo traían y Documentos
+   * no, así que había que abrirla para saber si había algo. El componente de documentos ya lo
+   * publicaba con <c>totalChange</c> —está escrito en su código «para quien dibuje un contador
+   * fuera de este componente»— y esta pantalla simplemente no lo escuchaba.</p>
+   */
+  protected readonly documentCount = signal(0);
+
   protected createDocumentCategory(creation: GiCatalogCreation): void {
     const organizationId = this.organizationId();
 
@@ -271,6 +292,24 @@ export class ClientsPage {
             readServerProblem(problem, 'No se pudo agregar la categoría al catálogo.').message,
           ),
       });
+  }
+
+  /**
+   * Las nacionalidades activas.
+   *
+   * <p>Si la consulta falla la lista queda vacía y el formulario deja el valor que ya tenía el
+   * cliente: el servidor no revalida un valor que no cambió, así que guardar sigue funcionando.
+   * Vaciar el campo por no haber podido cargar el catálogo sí perdería el dato.</p>
+   */
+  private loadNationalities(): void {
+    const organizationId = this.organizationId();
+    if (!organizationId) return;
+
+    this.catalogApi.listItems(organizationId, 'Nationality').subscribe({
+      next: (items) =>
+        this.nationalities.set(items.filter((item) => item.active).map((item) => item.name)),
+      error: () => this.nationalities.set([]),
+    });
   }
 
   private loadDocumentCategories(): void {
@@ -392,7 +431,7 @@ export class ClientsPage {
       { id: 'data', label: 'Datos' },
       { id: 'sites', label: 'Sedes', count: cargando ? (client?.siteCount ?? 0) : this.sites().length },
       { id: 'contacts', label: 'Contactos', count: cargando ? (client?.contactCount ?? 0) : this.contacts().length },
-      { id: 'documents', label: 'Documentos' },
+      { id: 'documents', label: 'Documentos', count: this.documentCount() },
     ];
   });
 
@@ -431,6 +470,7 @@ export class ClientsPage {
           // filtro.
           this.loadJobPositions();
           this.loadDocumentCategories();
+          this.loadNationalities();
         } else {
           this.clients.set([]);
         }

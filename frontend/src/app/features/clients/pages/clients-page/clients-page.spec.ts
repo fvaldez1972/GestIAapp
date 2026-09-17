@@ -88,11 +88,11 @@ describe('Clientes · carga inicial', () => {
 
     http.match((r) => r.url.includes('municipalities')).forEach((r) => r.flush([]));
 
-    // Los dos catálogos vuelven VACÍOS —puestos y categorías de documento—, que es el caso de una
-    // organización recién creada. Antes, ese arreglo nuevo despertaba al efecto y arrancaba la
-    // vuelta siguiente.
+    // Los tres catálogos vuelven VACÍOS —puestos, categorías de documento y nacionalidades—, que
+    // es el caso de una organización recién creada. Antes, ese arreglo nuevo despertaba al efecto y
+    // arrancaba la vuelta siguiente.
     const catalogos = http.match((r) => r.url === '/api/v1/catalogs/items');
-    expect(catalogos).toHaveLength(2);
+    expect(catalogos).toHaveLength(3);
     catalogos.forEach((r) => r.flush([]));
     fixture.detectChanges();
 

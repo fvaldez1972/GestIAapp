@@ -63,11 +63,13 @@ describe('Editar cliente', () => {
 
     const nombres = Array.from(raiz.querySelectorAll('input')).map((i) => i.getAttribute('name'));
 
+    // Once en campo de texto. La nacionalidad es el doceavo y va en el selector del catálogo, no
+    // en un input: el servidor la valida contra el nombre de un valor activo del catálogo de
+    // Nacionalidades y rechazaba con 409 cualquier cosa escrita a mano.
     expect(nombres).toEqual([
       'legalName',
       'tradeName',
       'rfc',
-      'nationality',
       'taxActivity',
       'taxAddress',
       'employerRegistrationNumber',
@@ -77,6 +79,24 @@ describe('Editar cliente', () => {
       'commercialRegistryFolio',
       'legalRepresentativeInstrumentNumber',
     ]);
+
+    expect(raiz.querySelector('gi-select')).not.toBeNull();
+    expect(raiz.textContent).toContain('NACIONALIDAD');
+  });
+
+  /**
+   * Y la nacionalidad que ya tenía el cliente se conserva aunque no esté en el catálogo.
+   *
+   * <p>El servidor no revalida un valor que no cambió, así que dejar de ofrecerlo sólo conseguiría
+   * que guardar lo borrara. Aquí el catálogo llega vacío, que es el caso peor.</p>
+   */
+  it('conserva la nacionalidad actual cuando el catálogo no la trae', () => {
+    const { raiz } = montar();
+
+    const valor = raiz.querySelector<HTMLElement>('.gi-select__value')!;
+
+    expect(valor.textContent!.trim()).toBe('Mexicana');
+    expect(raiz.textContent).toContain('El catálogo de Nacionalidades está vacío');
   });
 
   it('se prellena con lo que hay, incluidos los datos fiscales', async () => {
@@ -87,7 +107,6 @@ describe('Editar cliente', () => {
 
     expect(campo('legalName').value).toBe('Muebles Modernos S.A. de C.V.');
     expect(campo('rfc').value).toBe('MODN890913LN8');
-    expect(campo('nationality').value).toBe('Mexicana');
     expect(campo('employerRegistrationNumber').value).toBe('B5512345678');
     expect(campo('incorporationDate').value).toBe('2018-02-15');
   });

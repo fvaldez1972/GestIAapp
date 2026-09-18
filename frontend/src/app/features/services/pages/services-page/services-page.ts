@@ -1633,7 +1633,7 @@ export class ServicesPage implements OnInit, OnDestroy {
   protected patronEtiqueta(patron: ShiftPatternTemplateOption): string {
     const dias = patron.cycleDays === 1 ? '1 día' : `${patron.cycleDays} días`;
     const exceso = patron.compliance === 'Exceeds' ? ` · excede por ${patron.excessHours} h` : '';
-    return `${patron.name} · ${shiftDaypartLabel(patron.daypart)} · ciclo de ${dias} · ${patron.weeklyHours} h/semana${exceso}`;
+    return `${patron.name} · ${shiftDaypartLabel(patron.daypart)} · ciclo de ${dias} · promedio ${patron.weeklyHours} h/semana${exceso}`;
   }
 
   /**

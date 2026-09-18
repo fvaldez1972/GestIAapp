@@ -837,7 +837,7 @@
                 <small>
                   El puesto sigue el ciclo de {{ patron.cycleDays }}
                   {{ patron.cycleDays === 1 ? 'día' : 'días' }} de este patrón:
-                  {{ patron.weeklyHours }} horas por semana.
+                  un promedio de {{ patron.weeklyHours }} horas por semana.
                   @if (patron.compliance === 'Exceeds') {
                     Excede la jornada legal por {{ patron.excessHours }} horas; se guarda igual y
                     queda registrado.

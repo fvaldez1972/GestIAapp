@@ -101,6 +101,14 @@ export type PositionSkillRequest = {
       }
 
       @if (canWrite()) {
+        <!--
+          El alta va rotulada y encerrada.
+          La casilla «Impide asignar si no la tiene» queda justo debajo de la lista de habilidades
+          ya pedidas, y sin rótulo parecía gobernarlas: quien la desmarcaba creía estar cambiando la
+          habilidad de arriba y no pasaba nada, porque es la casilla de la que se va a agregar. Cada
+          habilidad ya puesta se cambia con su propio botón, en su fila.
+        -->
+        <p class="perfil__kicker perfil__kicker--add">AGREGAR UNA HABILIDAD</p>
         <div class="perfil__add">
           <gi-catalog-picker
             label="Habilidad"
@@ -122,7 +130,7 @@ export type PositionSkillRequest = {
           -->
           <label class="perfil__check">
             <input type="checkbox" [checked]="bloquea()" (change)="bloquea.set($any($event.target).checked)" />
-            <span>Impide asignar si no la tiene</span>
+            <span>Que la nueva impida asignar si no la tiene</span>
           </label>
           <button
             class="button button--primary"
@@ -135,7 +143,8 @@ export type PositionSkillRequest = {
         </div>
         <p class="perfil__note">
           Una habilidad que impide asignar detiene también la publicación de la semana. Si sólo
-          quieres que quede escrita, desmarca la casilla.
+          quieres que quede escrita, desmarca la casilla antes de agregarla. Para cambiar una que ya
+          está en la lista, usa su propio botón.
         </p>
       }
     </section>
@@ -153,6 +162,12 @@ export type PositionSkillRequest = {
       font-size: 11px;
       font-weight: 600;
       letter-spacing: 0.08em;
+    }
+
+    .perfil__kicker--add {
+      margin-top: 0.35rem;
+      padding-top: 0.5rem;
+      border-top: 1px solid var(--gestia-border);
     }
 
     .perfil__pending { color: var(--gestia-muted); font-size: 10.5px; }

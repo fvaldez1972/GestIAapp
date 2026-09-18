@@ -106,7 +106,7 @@ type DiaGrupo = FormGroup<{
                 <th scope="col">Jornada</th>
                 <th scope="col">Ciclo</th>
                 <th scope="col">Horas turno</th>
-                <th scope="col">Horas/semana</th>
+                <th scope="col">Promedio semanal</th>
                 <th scope="col">Jornada 48 h</th>
                 <th scope="col">Descanso</th>
                 <th scope="col">Vigencia</th>
@@ -294,7 +294,7 @@ type DiaGrupo = FormGroup<{
           en el ciclo de {{ form.controls.cycleDays.value }}
           {{ form.controls.cycleDays.value === 1 ? 'día' : 'días' }}
           ({{ previaTurnos() }} de turno y {{ previaDescansos() }} de descanso) ·
-          <strong>{{ previaHoras() }} h por semana</strong>
+          <strong>promedio semanal de {{ previaHoras() }} h</strong>
           <!--
             La operación escrita, no sólo el resultado.
             Con las dos cifras sueltas seguía leyéndose como un error: quien suma 4 x 12 obtiene 48
@@ -304,9 +304,9 @@ type DiaGrupo = FormGroup<{
           <small>
             {{ previaHorasCiclo() }} h ÷ {{ form.controls.cycleDays.value }}
             {{ form.controls.cycleDays.value === 1 ? 'día' : 'días' }} × 7 días =
-            {{ previaHoras() }} h por semana. Un ciclo que no dura una semana exacta no reparte sus
-            horas en siete días, y por eso el promedio semanal no coincide con la suma de los
-            turnos.
+            {{ previaHoras() }} h. Es un <b>promedio</b>, no las horas de una semana concreta: un
+            ciclo que no dura siete días cae en días distintos cada semana, así que unas semanas se
+            trabajan más horas que otras y el promedio es lo único comparable con la jornada legal.
           </small>
           <small>
             El servidor las vuelve a calcular y las juzga contra el límite vigente al guardar. Si

@@ -233,7 +233,10 @@ describe('El constructor de patrones de turno', () => {
 
     expect(previa).toContain('12 h de turno');
     expect(previa).toContain('en el ciclo de 2 días');
-    expect(previa).toContain('42 h por semana');
+    // «Promedio semanal» y no «horas por semana»: el ciclo de dos días cae en días distintos cada
+    // semana, así que 42 no son las horas de ninguna semana concreta. El nombre era la queja.
+    expect(previa).toContain('promedio semanal de 42 h');
+    expect(previa).toContain('12 h ÷ 2 días × 7 días = 42 h');
   });
 
   it('sin permiso de escritura no se puede abrir el constructor', () => {

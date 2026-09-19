@@ -3681,6 +3681,12 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("FK_ClientContacts_ClientSites_IdClientSite");
 
+                    b.HasOne("GestIA.Domain.Catalogs.BusinessCatalogItem", "ContactJobPositionCatalogItem")
+                        .WithMany()
+                        .HasForeignKey("IdContactJobPositionCatalogItem")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_ClientContacts_BusinessCatalogItems_IdContactJobPositionCatalogItem");
+
                     b.HasOne("GestIA.Domain.Organizations.Organization", null)
                         .WithMany()
                         .HasForeignKey("IdOrganization")
@@ -3688,9 +3694,19 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasConstraintName("FK_ClientContacts_Organizations_IdOrganization");
 
+                    b.HasOne("GestIA.Domain.Catalogs.BusinessCatalogItem", "PurposeCatalogItem")
+                        .WithMany()
+                        .HasForeignKey("IdPurposeCatalogItem")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_ClientContacts_BusinessCatalogItems_IdPurposeCatalogItem");
+
                     b.Navigation("Client");
 
                     b.Navigation("ClientSite");
+
+                    b.Navigation("ContactJobPositionCatalogItem");
+
+                    b.Navigation("PurposeCatalogItem");
                 });
 
             modelBuilder.Entity("GestIA.Domain.Clients.ClientSite", b =>
@@ -3998,7 +4014,7 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                         .HasConstraintName("FK_PositionRequiredEquipments_Organizations_IdOrganization");
 
                     b.HasOne("GestIA.Domain.Planning.Position", "Position")
-                        .WithMany()
+                        .WithMany("RequiredEquipment")
                         .HasForeignKey("IdPosition")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
@@ -4438,6 +4454,8 @@ namespace GestIA.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("GestIA.Domain.Planning.Position", b =>
                 {
+                    b.Navigation("RequiredEquipment");
+
                     b.Navigation("ShiftPatterns");
                 });
 

@@ -118,29 +118,53 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                    END
                 WHERE c.IdPurposeCatalogItem IS NULL;
 
-                -- El puesto del contacto se copia del catalogo de puestos del personal al suyo
-                -- propio, por nombre. Los que no correspondan a ningun puesto quedan nulos: es
-                -- preferible a inventarles una entrada en un catalogo nuevo.
+                -- El puesto que cada contacto tenia como texto se lleva a su catalogo propio.
+                --
+                -- Se pliega el nombre antes de agrupar, y no basta con DISTINCT. El indice unico
+                -- del catalogo es sobre el nombre PLEGADO —sin acentos, sin mayusculas y sin
+                -- espacios de mas—, asi que «Supervisor de sitio» y «Supervisor de Sitio» son dos
+                -- textos distintos y una sola entrada. El ensayo sobre la copia restaurada lo
+                -- encontro: la primera version de esta migracion fallo justo con ese par.
+                --
+                -- El colapso de espacios interiores reproduce lo que hace CatalogName.Normalize:
+                -- se marcan los espacios, se eliminan los pares, y se devuelve uno solo.
+                ;WITH Puestos AS (
+                    SELECT
+                        c.IdOrganization,
+                        LTRIM(RTRIM(c.JobTitle)) AS Nombre,
+                        ROW_NUMBER() OVER (
+                            PARTITION BY
+                                c.IdOrganization,
+                                REPLACE(REPLACE(REPLACE(LTRIM(RTRIM(c.JobTitle)), ' ', '<>'), '><', ''), '<>', ' ')
+                                    COLLATE Latin1_General_CI_AI
+                            ORDER BY LTRIM(RTRIM(c.JobTitle))) AS Fila
+                    FROM dbo.ClientContacts c
+                    WHERE c.JobTitle IS NOT NULL AND LEN(LTRIM(RTRIM(c.JobTitle))) > 0
+                )
                 INSERT dbo.BusinessCatalogItems
                     (IdBusinessCatalogItem, IdOrganization, Type, Name, Description, Active,
                      CreatedAt, CreatedBy, CreatedByName, DisplayOrder, IdParentCatalogItem, IsBlocking)
-                SELECT DISTINCT NEWID(), c.IdOrganization, 'ContactJobPosition', LTRIM(RTRIM(c.JobTitle)), NULL, 1,
+                SELECT NEWID(), p.IdOrganization, 'ContactJobPosition', p.Nombre, NULL, 1,
                        SYSUTCDATETIME(), '00000000-0000-0000-0000-000000000000', N'Catalog migration', 1, NULL, NULL
-                FROM dbo.ClientContacts c
-                WHERE c.JobTitle IS NOT NULL AND LEN(LTRIM(RTRIM(c.JobTitle))) > 0
+                FROM Puestos p
+                WHERE p.Fila = 1
                   AND NOT EXISTS (
                     SELECT 1 FROM dbo.BusinessCatalogItems b
-                    WHERE b.IdOrganization = c.IdOrganization
+                    WHERE b.IdOrganization = p.IdOrganization
                       AND b.Type = 'ContactJobPosition'
-                      AND b.Name = LTRIM(RTRIM(c.JobTitle)));
+                      AND b.Name COLLATE Latin1_General_CI_AI = p.Nombre COLLATE Latin1_General_CI_AI);
 
+                -- Y se emparejan tambien por nombre plegado, para que los dos que colapsaron en uno
+                -- apunten a la misma entrada. Los que no correspondan a ninguna quedan nulos: es
+                -- preferible a inventarles una.
                 UPDATE c
                 SET IdContactJobPositionCatalogItem = b.IdBusinessCatalogItem
                 FROM dbo.ClientContacts c
                 JOIN dbo.BusinessCatalogItems b
                     ON b.IdOrganization = c.IdOrganization
                    AND b.Type = 'ContactJobPosition'
-                   AND b.Name = LTRIM(RTRIM(c.JobTitle))
+                   AND REPLACE(REPLACE(REPLACE(b.Name, ' ', '<>'), '><', ''), '<>', ' ') COLLATE Latin1_General_CI_AI
+                     = REPLACE(REPLACE(REPLACE(LTRIM(RTRIM(c.JobTitle)), ' ', '<>'), '><', ''), '<>', ' ') COLLATE Latin1_General_CI_AI
                 WHERE c.IdContactJobPositionCatalogItem IS NULL AND c.JobTitle IS NOT NULL;
             ");
 
@@ -321,11 +345,43 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                 table: "PositionRequiredEquipments",
                 columns: new[] { "IdPosition", "IdEquipmentCatalogItem" },
                 unique: true);
+
+            // Van despues del rellenado a proposito: es el que deja el proposito y el puesto
+            // apuntando a filas que existen. Antes de el, los 43 contactos vivos los tenian en nulo.
+            migrationBuilder.AddForeignKey(
+                name: "FK_ClientContacts_BusinessCatalogItems_IdContactJobPositionCatalogItem",
+                schema: "dbo",
+                table: "ClientContacts",
+                column: "IdContactJobPositionCatalogItem",
+                principalSchema: "dbo",
+                principalTable: "BusinessCatalogItems",
+                principalColumn: "IdBusinessCatalogItem",
+                onDelete: ReferentialAction.Restrict);
+
+            migrationBuilder.AddForeignKey(
+                name: "FK_ClientContacts_BusinessCatalogItems_IdPurposeCatalogItem",
+                schema: "dbo",
+                table: "ClientContacts",
+                column: "IdPurposeCatalogItem",
+                principalSchema: "dbo",
+                principalTable: "BusinessCatalogItems",
+                principalColumn: "IdBusinessCatalogItem",
+                onDelete: ReferentialAction.Restrict);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DropForeignKey(
+                name: "FK_ClientContacts_BusinessCatalogItems_IdContactJobPositionCatalogItem",
+                schema: "dbo",
+                table: "ClientContacts");
+
+            migrationBuilder.DropForeignKey(
+                name: "FK_ClientContacts_BusinessCatalogItems_IdPurposeCatalogItem",
+                schema: "dbo",
+                table: "ClientContacts");
+
             migrationBuilder.DropTable(
                 name: "AdministrativeIncidents",
                 schema: "dbo");

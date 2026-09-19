@@ -42,6 +42,7 @@ public static class CatalogDefinitions
         Editable(BusinessCatalogItemType.IncidentReason, "Motivos de incidencia", "Operacion"),
         Editable(BusinessCatalogItemType.CoverageReason, "Motivos de cobertura", "Operacion"),
         Editable(BusinessCatalogItemType.ClientDocumentCategory, "Categorias de documento del cliente", "Clientes"),
+        Editable(BusinessCatalogItemType.EmployeeDocumentGroup, "Categorias de documento del personal", "Personal"),
         Editable(BusinessCatalogItemType.EmployeeDocumentCategory, "Tipos de documento del personal", "Personal"),
         Editable(BusinessCatalogItemType.EmployeeEvaluationCategory, "Tipos de evaluacion", "Personal"),
         Editable(BusinessCatalogItemType.AdministrativeIncidentType, "Incidencias administrativas", "Personal"),

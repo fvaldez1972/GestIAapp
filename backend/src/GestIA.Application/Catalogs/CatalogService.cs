@@ -717,24 +717,42 @@ public sealed class CatalogService(
         return new BusinessCatalogItemProfile(request.Type, name, description, order, request.IdParentCatalogItem, isBlocking);
     }
 
+    /// <summary>
+    /// De qué tipo tiene que ser el padre de cada catálogo, y si es obligatorio tenerlo.
+    ///
+    /// <para>La geografía lo exige: un estado sin país y un municipio sin estado no significan nada.
+    /// El grupo del tipo de documento <b>no</b>: agrupar es una comodidad, y obligar a crear
+    /// «Identidad» antes de poder registrar «INE» invertiría el orden en que se trabaja.</para>
+    /// </summary>
+    private static readonly Dictionary<BusinessCatalogItemType, (BusinessCatalogItemType Parent, bool Required)> ParentRules =
+        new()
+        {
+            [BusinessCatalogItemType.State] = (BusinessCatalogItemType.Country, true),
+            [BusinessCatalogItemType.City] = (BusinessCatalogItemType.State, true),
+            [BusinessCatalogItemType.EmployeeDocumentCategory] = (BusinessCatalogItemType.EmployeeDocumentGroup, false)
+        };
+
     private async Task ValidateParentAsync(CatalogItemInput request, CancellationToken token, Guid? excludedId = null)
     {
-        BusinessCatalogItemType? expected = request.Type switch
-        {
-            BusinessCatalogItemType.State => BusinessCatalogItemType.Country,
-            BusinessCatalogItemType.City => BusinessCatalogItemType.State,
-            _ => null
-        };
+        var tieneRegla = ParentRules.TryGetValue(request.Type, out var rule);
+        BusinessCatalogItemType? expected = tieneRegla ? rule.Parent : null;
+        var required = tieneRegla && rule.Required;
+
         if (expected is null && request.IdParentCatalogItem is null) return;
-        if (expected is null || request.IdParentCatalogItem is null)
+        if (expected is null)
+            throw new ResourceConflictException("Este catalogo no cuelga de ningun otro.");
+        if (request.IdParentCatalogItem is null)
+        {
+            if (!required) return;
             throw new ResourceConflictException("Selecciona la relacion geografica correspondiente.");
+        }
         var parent = await repository.GetCatalogItemAsync(request.IdOrganization, request.IdParentCatalogItem.Value, token);
         if (parent is null || !parent.Active || parent.Type != expected)
-            throw new ResourceConflictException("El pais o estado debe estar activo y pertenecer a la misma organizacion.");
+            throw new ResourceConflictException("El valor del que cuelga debe estar activo y pertenecer a la misma organizacion.");
         var siblings = await repository.ListCatalogItemsAsync(request.IdOrganization, request.Type, token);
         if (siblings.Any(item => item.IdBusinessCatalogItem != excludedId && item.IdParentCatalogItem == request.IdParentCatalogItem &&
             string.Equals(item.Name, request.Name?.Trim(), StringComparison.OrdinalIgnoreCase)))
-            throw new ResourceConflictException("Ya existe ese nombre en el pais o estado seleccionado.");
+            throw new ResourceConflictException("Ya existe ese nombre dentro del valor seleccionado.");
         if (parent.IdParentCatalogItem is { } grandparentId)
         {
             var grandparent = await repository.GetCatalogItemAsync(request.IdOrganization, grandparentId, token);

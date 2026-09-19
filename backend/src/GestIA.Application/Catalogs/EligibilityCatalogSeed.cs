@@ -11,11 +11,26 @@ namespace GestIA.Application.Catalogs;
 /// <param name="EnumValue">El nombre del miembro del enum, tal como está guardado en la base.</param>
 /// <param name="Name">El nombre visible de la fila del catálogo.</param>
 /// <param name="Order">El orden en que se enseña.</param>
+/// <param name="Group">
+/// El grupo del que cuelga, cuando el catálogo tiene dos niveles. Sólo lo usan las categorías de
+/// documento del personal; en los demás va nulo.
+/// </param>
 public sealed record EligibilityCatalogSeedValue(
     BusinessCatalogItemType Type,
     string EnumValue,
     string Name,
-    int Order);
+    int Order,
+    string? Group = null);
+
+/// <summary>
+/// Los grupos con los que nace el catálogo de categorías de documento del personal.
+///
+/// <para>Se siembran por la misma razón que las categorías: un catálogo de dos niveles con el nivel
+/// de arriba vacío no se puede usar. Son un punto de partida editable, no una taxonomía impuesta:
+/// la organización puede renombrarlos, desactivarlos o reagrupar sus tipos, porque es un catálogo
+/// como cualquier otro.</para>
+/// </summary>
+public sealed record EmployeeDocumentGroupSeed(string Name, int Order);
 
 /// <summary>
 /// Los valores con los que nace una organización en los tres catálogos que dejaron de ser enums.
@@ -35,22 +50,34 @@ public sealed record EligibilityCatalogSeedValue(
 /// </summary>
 public static class EligibilityCatalogSeed
 {
+    public static IReadOnlyList<EmployeeDocumentGroupSeed> DocumentGroups { get; } =
+    [
+        new("Identidad", 1),
+        new("Fiscal", 2),
+        new("Seguridad social", 3),
+        new("Domicilio", 4),
+        new("Formacion", 5),
+        new("Licencias y permisos", 6),
+        new("Antecedentes", 7),
+        new("Empleo", 8),
+    ];
+
     public static IReadOnlyList<EligibilityCatalogSeedValue> All { get; } =
     [
-        Document(EmployeeDocumentType.EmploymentApplication, "Solicitud de empleo", 1),
-        Document(EmployeeDocumentType.BirthCertificate, "Acta de nacimiento", 2),
-        Document(EmployeeDocumentType.MarriageCertificate, "Acta de matrimonio", 3),
-        Document(EmployeeDocumentType.VoterId, "INE", 4),
-        Document(EmployeeDocumentType.Curp, "CURP", 5),
-        Document(EmployeeDocumentType.SocialSecurityNumber, "NSS", 6),
-        Document(EmployeeDocumentType.Rfc, "RFC", 7),
-        Document(EmployeeDocumentType.TaxStatusCertificate, "Constancia de situación fiscal", 8),
-        Document(EmployeeDocumentType.DriverLicense, "Licencia de conducir", 9),
-        Document(EmployeeDocumentType.ProofOfAddress, "Comprobante de domicilio", 10),
-        Document(EmployeeDocumentType.ProofOfStudies, "Comprobante de estudios", 11),
-        Document(EmployeeDocumentType.MilitaryServiceCard, "Cartilla militar", 12),
-        Document(EmployeeDocumentType.CriminalRecordCertificate, "Constancia de antecedentes", 13),
-        Document(EmployeeDocumentType.Other, "Otro documento", 14),
+        Document(EmployeeDocumentType.EmploymentApplication, "Solicitud de empleo", 1, "Empleo"),
+        Document(EmployeeDocumentType.BirthCertificate, "Acta de nacimiento", 2, "Identidad"),
+        Document(EmployeeDocumentType.MarriageCertificate, "Acta de matrimonio", 3, "Identidad"),
+        Document(EmployeeDocumentType.VoterId, "INE", 4, "Identidad"),
+        Document(EmployeeDocumentType.Curp, "CURP", 5, "Identidad"),
+        Document(EmployeeDocumentType.SocialSecurityNumber, "NSS", 6, "Seguridad social"),
+        Document(EmployeeDocumentType.Rfc, "RFC", 7, "Fiscal"),
+        Document(EmployeeDocumentType.TaxStatusCertificate, "Constancia de situación fiscal", 8, "Fiscal"),
+        Document(EmployeeDocumentType.DriverLicense, "Licencia de conducir", 9, "Licencias y permisos"),
+        Document(EmployeeDocumentType.ProofOfAddress, "Comprobante de domicilio", 10, "Domicilio"),
+        Document(EmployeeDocumentType.ProofOfStudies, "Comprobante de estudios", 11, "Formacion"),
+        Document(EmployeeDocumentType.MilitaryServiceCard, "Cartilla militar", 12, "Licencias y permisos"),
+        Document(EmployeeDocumentType.CriminalRecordCertificate, "Constancia de antecedentes", 13, "Antecedentes"),
+        Document(EmployeeDocumentType.Other, "Otro documento", 14, "Empleo"),
 
         Evaluation(EmployeeEvaluationType.Polygraph, "Polígrafo", 1),
         Evaluation(EmployeeEvaluationType.SocioeconomicStudy, "Estudio socioeconómico", 2),
@@ -86,8 +113,9 @@ public static class EligibilityCatalogSeed
             value.Type == BusinessCatalogItemType.ContactPurpose &&
             value.EnumValue == purpose.ToString()).Name;
 
-    private static EligibilityCatalogSeedValue Document(EmployeeDocumentType type, string name, int order) =>
-        new(BusinessCatalogItemType.EmployeeDocumentCategory, type.ToString(), name, order);
+    private static EligibilityCatalogSeedValue Document(
+        EmployeeDocumentType type, string name, int order, string group) =>
+        new(BusinessCatalogItemType.EmployeeDocumentCategory, type.ToString(), name, order, group);
 
     private static EligibilityCatalogSeedValue Evaluation(EmployeeEvaluationType type, string name, int order) =>
         new(BusinessCatalogItemType.EmployeeEvaluationCategory, type.ToString(), name, order);

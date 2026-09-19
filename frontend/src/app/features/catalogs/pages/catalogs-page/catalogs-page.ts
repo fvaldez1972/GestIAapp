@@ -168,6 +168,16 @@ export class CatalogsPage implements OnInit, AfterViewInit {
       linkDetail: 'El documento guarda la categoría por nombre; renombrarla no reclasifica lo ya cargado.',
     },
     {
+      type: 'EmployeeDocumentGroup',
+      title: 'Categorías de documento del personal',
+      example: 'Ej. Identidad',
+      purpose: 'Agrupa los tipos de documento para poder leer el expediente por bloques.',
+      usedBy: 'Personal',
+      link: 'identificador',
+      linkDetail: 'El tipo de documento cuelga de su categoría. Es opcional: un tipo sin categoría'
+        + ' es válido, y así nacieron los catorce que venían de la lista fija.',
+    },
+    {
       type: 'EmployeeDocumentCategory',
       title: 'Tipos de documento del personal',
       example: 'Ej. INE',
@@ -580,14 +590,19 @@ export class CatalogsPage implements OnInit, AfterViewInit {
 
   /** Los padres posibles para un estado o una ciudad, y sólo activos. */
   protected readonly parentOptions = computed<readonly GiSelectOption[]>(() => {
-    const type = this.openCatalogType();
-    const parentType: BusinessCatalogItemType | null = type === 'State' ? 'Country' : type === 'City' ? 'State' : null;
+    const parentType = this.parentType();
     if (!parentType) return [];
 
-    return this.items()
+    const opciones = this.items()
       .filter((item) => item.active && item.type === parentType)
       .sort((a, b) => a.name.localeCompare(b.name, 'es'))
       .map((item) => ({ value: item.idCatalogItem, label: item.name }));
+
+    // La categoría del documento es opcional, así que la lista ofrece no elegir ninguna. La
+    // geografía no: un estado sin país no significa nada, y ahí el selector obliga.
+    return this.openCatalogType() === 'EmployeeDocumentCategory'
+      ? [{ value: '', label: 'Sin categoría' }, ...opciones]
+      : opciones;
   });
 
   /**
@@ -752,9 +767,36 @@ export class CatalogsPage implements OnInit, AfterViewInit {
     return this.items().find((parent) => parent.idCatalogItem === item.idParentCatalogItem)?.name ?? 'Padre no encontrado';
   }
 
+  /**
+   * Si el catálogo abierto cuelga de otro.
+   *
+   * <p>La geografía lo exige y la categoría del documento no: agrupar es una comodidad, y obligar a
+   * crear «Identidad» antes de poder registrar «INE» invertiría el orden en que se trabaja. El
+   * servidor aplica la misma distinción; esto sólo decide si se dibuja el selector.</p>
+   */
   protected needsParent(): boolean {
     const type = this.openCatalogType();
-    return type === 'State' || type === 'City';
+    return type === 'State' || type === 'City' || type === 'EmployeeDocumentCategory';
+  }
+
+  /** El rótulo del selector de padre, según de qué cuelgue el catálogo abierto. */
+  protected parentLabel(): string {
+    switch (this.openCatalogType()) {
+      case 'State': return 'País';
+      case 'City': return 'Estado';
+      case 'EmployeeDocumentCategory': return 'Categoría';
+      default: return 'Pertenece a';
+    }
+  }
+
+  /** De qué catálogo salen los padres del catálogo abierto. */
+  protected parentType(): BusinessCatalogItemType | null {
+    switch (this.openCatalogType()) {
+      case 'State': return 'Country';
+      case 'City': return 'State';
+      case 'EmployeeDocumentCategory': return 'EmployeeDocumentGroup';
+      default: return null;
+    }
   }
 
   // ── Zona 1: editor de un valor ──────────────────────────────────────────────────────────────

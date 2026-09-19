@@ -35,10 +35,29 @@ public sealed class OrganizationCatalogDefaults(ICatalogRepository repository, I
         // organizacion tenia desde el primer minuto; al volverse editables habria que sembrarlas o
         // una organizacion nueva no podria registrar ni un documento. Se conserva lo que ya habia;
         // lo nuevo es que se pueden cambiar.
-        foreach (var value in EligibilityCatalogSeed.All)
+        // Los grupos primero, porque las categorias de documento cuelgan de ellos. Sin este orden
+        // la categoria no tendria a que apuntar y naceria suelta, que es valido pero deja a una
+        // organizacion nueva con un catalogo distinto del de las que ya existian.
+        var grupos = new Dictionary<string, Guid>(StringComparer.Ordinal);
+
+        foreach (var grupo in EligibilityCatalogSeed.DocumentGroups)
         {
             var item = BusinessCatalogItem.Create(organization,
-                new(value.Type, value.Name, null, value.Order), actor.ActorId, actor.ActorName, clock.UtcNow);
+                new(BusinessCatalogItemType.EmployeeDocumentGroup, grupo.Name, null, grupo.Order),
+                actor.ActorId, actor.ActorName, clock.UtcNow);
+            grupos[grupo.Name] = item.IdBusinessCatalogItem;
+            await repository.AddCatalogItemAsync(item, token);
+        }
+
+        foreach (var value in EligibilityCatalogSeed.All)
+        {
+            var padre = value.Group is not null && grupos.TryGetValue(value.Group, out var idGrupo)
+                ? idGrupo
+                : (Guid?)null;
+
+            var item = BusinessCatalogItem.Create(organization,
+                new(value.Type, value.Name, null, value.Order, padre),
+                actor.ActorId, actor.ActorName, clock.UtcNow);
             await repository.AddCatalogItemAsync(item, token);
         }
 

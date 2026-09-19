@@ -418,11 +418,11 @@
 
       @if (needsParent()) {
         <gi-select
-          [label]="openCatalogType() === 'State' ? 'País' : 'Estado'"
+          [label]="parentLabel()"
           placeholder="Selecciona"
           [options]="parentOptions()"
           [value]="catalogParent()"
-          [disabled]="!!selectedCatalogItem()"
+          [disabled]="!!selectedCatalogItem() && openCatalogType() !== 'EmployeeDocumentCategory'"
           (valueChange)="catalogForm.controls.idParentCatalogItem.setValue($event)"
         />
       }

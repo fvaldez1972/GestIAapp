@@ -31,6 +31,20 @@ public enum BusinessCatalogItemType
     EmployeeDocumentCategory,
 
     /// <summary>
+    /// El agrupador de las categorías de documento del personal: Identidad, Fiscal, Domicilio.
+    ///
+    /// <para><b>Es un catálogo aparte y no una entrada padre dentro del mismo</b>, aunque la tabla
+    /// admita las dos formas. Si el grupo y el tipo compartieran tipo de catálogo, un selector de
+    /// «tipo de documento» tendría que distinguirlos por si llevan padre o no, y una lista recién
+    /// creada —donde nada tiene padre todavía— sería ambigua. Con dos tipos distintos, cada
+    /// selector pide lo suyo y no hay nada que adivinar.</para>
+    ///
+    /// <para>El grupo es <b>opcional</b>: un tipo de documento sin grupo es válido, y es como nacen
+    /// los catorce que venían del enum hasta que alguien los agrupe.</para>
+    /// </summary>
+    EmployeeDocumentGroup,
+
+    /// <summary>
     /// Qué evaluación se le practica a una persona: polígrafo, socioeconómico, antidoping.
     /// Editable por la misma razón que la categoría de documento.
     /// </summary>

@@ -17,6 +17,7 @@ export type BusinessCatalogItemType =
   | 'CoverageReason'
   | 'ClientDocumentCategory'
   | 'EmployeeDocumentCategory'
+  | 'EmployeeDocumentGroup'
   | 'EmployeeEvaluationCategory'
   | 'AdministrativeIncidentType'
   | 'Sex'

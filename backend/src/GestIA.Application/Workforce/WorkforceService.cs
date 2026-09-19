@@ -412,7 +412,8 @@ public sealed class WorkforceService(
             request.PostalCode,
             request.HousingType,
             request.ResidenceSinceDate, request.CountryCode,
-            request.IdJobPositionCatalogItem);
+            request.IdJobPositionCatalogItem,
+            request.IdEducationLevelCatalogItem);
 
     private static EmployeeProfile Validate(UpdateEmployeeRequest request) =>
         ValidateProfile(
@@ -444,7 +445,8 @@ public sealed class WorkforceService(
             request.PostalCode,
             request.HousingType,
             request.ResidenceSinceDate, request.CountryCode,
-            request.IdJobPositionCatalogItem);
+            request.IdJobPositionCatalogItem,
+            request.IdEducationLevelCatalogItem);
 
     private static EmployeeProfile ValidateProfile(
         string fullName,
@@ -475,7 +477,8 @@ public sealed class WorkforceService(
         string? postalCode,
         string? housingType,
         DateOnly? residenceSinceDate, string? countryCode,
-        Guid? idJobPositionCatalogItem)
+        Guid? idJobPositionCatalogItem,
+        Guid? idEducationLevelCatalogItem)
     {
         var errors = new Dictionary<string, string[]>();
         Required(fullName, nameof(fullName), 200, errors);
@@ -534,7 +537,8 @@ public sealed class WorkforceService(
             state,
             postalCode,
             housingType,
-            residenceSinceDate, countryCode, idJobPositionCatalogItem);
+            residenceSinceDate, countryCode, idJobPositionCatalogItem,
+            idEducationLevelCatalogItem);
     }
 
     /// <summary>
@@ -755,7 +759,8 @@ public sealed class WorkforceService(
             employee.CreatedAt,
             employee.UpdatedAt,
             employee.CountryCode,
-            employee.IdJobPositionCatalogItem);
+            employee.IdJobPositionCatalogItem,
+            employee.IdEducationLevelCatalogItem);
 
     private static EmployeeDocumentResponse Map(EmployeeDocument document) =>
         new(

@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
-import { GiCatalogCreation } from '../../../shared/ui/gi-ui';
+import { GiCatalogCreation, GiSelect, GiSelectOption } from '../../../shared/ui/gi-ui';
 import { formatOperationalDate } from '../../../shared/util/operational-date';
 import { Employee } from '../data-access/workforce.models';
 import {
@@ -24,7 +24,7 @@ import { EmployeeJobPosition } from './employee-job-position';
 @Component({
   selector: 'app-employee-data',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [EmployeeEligibilityBand, EmployeeJobPosition],
+  imports: [EmployeeEligibilityBand, EmployeeJobPosition, GiSelect],
   template: `
     <div class="data">
       <app-employee-eligibility
@@ -72,6 +72,28 @@ import { EmployeeJobPosition } from './employee-job-position';
           <div class="data__field">
             <dt>RFC</dt>
             <dd>{{ delDetalle(masked(employee()?.rfc ?? null)) }}</dd>
+          </div>
+          <!--
+            La escolaridad. Se compara contra la que pide la posicion, asi que se guarda por
+            identificador del catalogo y no como texto. Vacia significa «no se sabe», no «no
+            cumple»: la columna nacio el 19 de septiembre de 2026 y ningun expediente la traia.
+          -->
+          <div class="data__field">
+            <dt>ESCOLARIDAD</dt>
+            <dd>
+              @if (canWrite()) {
+                <gi-select
+                  label="Escolaridad"
+                  placeholder="Sin registrar"
+                  [options]="educationLevelOptions()"
+                  [value]="employee()?.idEducationLevelCatalogItem ?? ''"
+                  [disabled]="savingEducation()"
+                  (valueChange)="saveEducation.emit($event || null)"
+                />
+              } @else {
+                {{ delDetalle(educationLevelName()) }}
+              }
+            </dd>
           </div>
         </dl>
         @if (!canViewSensitive()) {
@@ -243,7 +265,24 @@ export class EmployeeData {
   readonly editingJobPosition = input(false);
   readonly savingJobPosition = input(false);
   readonly jobPositionProblem = input('');
+  /** Los niveles de escolaridad del catálogo, para ver y capturar hasta dónde estudió. */
+  readonly educationLevels = input<readonly EmployeeJobPositionOption[]>([]);
+  readonly savingEducation = input(false);
   readonly canWrite = input(false);
+
+  /** La escolaridad elegida, resuelta a nombre. Vacía cuando no se ha registrado. */
+  readonly saveEducation = output<string | null>();
+
+  protected readonly educationLevelOptions = computed<readonly GiSelectOption[]>(() =>
+    this.educationLevels().map((nivel) => ({ value: nivel.idCatalogItem, label: nivel.name })),
+  );
+
+  protected educationLevelName(): string {
+    const id = this.employee()?.idEducationLevelCatalogItem;
+    if (!id) return 'Sin escolaridad registrada';
+    return this.educationLevels().find((nivel) => nivel.idCatalogItem === id)?.name
+      ?? 'Sin escolaridad registrada';
+  }
 
   /** Si el expediente completo todavía viene en camino. */
   readonly loading = input(false);

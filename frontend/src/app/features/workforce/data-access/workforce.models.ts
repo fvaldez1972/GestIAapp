@@ -73,6 +73,15 @@ export type Employee = {
 
   /** El número, alfanumérico: admite «45-A» o «123 int. 4». */
   readonly streetNumber: string | null;
+  /**
+   * Hasta dónde estudió, del catálogo de escolaridad.
+   *
+   * <p>Por identificador y no texto, para que se pueda comparar contra lo que pide la posición, que
+   * lo guarda igual. Nulo dice «no se sabe», no «no cumple»: la columna nació el 19 de septiembre
+   * de 2026 y ningún expediente la traía.</p>
+   */
+  readonly idEducationLevelCatalogItem: string | null;
+
   /** La colonia del domicilio. Texto libre por la decisión D-05. */
   readonly neighborhood: string | null;
   readonly municipality: string | null;

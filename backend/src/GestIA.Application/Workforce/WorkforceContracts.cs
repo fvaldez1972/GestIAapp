@@ -45,7 +45,9 @@ public sealed record CreateEmployeeRequest(
     string? HousingType,
     DateOnly? ResidenceSinceDate,
     string? CountryCode = null,
-    Guid? IdJobPositionCatalogItem = null);
+    Guid? IdJobPositionCatalogItem = null,
+    /// <summary>Hasta dónde estudió, del catálogo. Nulo es «no se sabe».</summary>
+    Guid? IdEducationLevelCatalogItem = null);
 
 public sealed record UpdateEmployeeRequest(
     Guid IdOrganization,
@@ -81,7 +83,9 @@ public sealed record UpdateEmployeeRequest(
     string? HousingType,
     DateOnly? ResidenceSinceDate,
     string? CountryCode = null,
-    Guid? IdJobPositionCatalogItem = null);
+    Guid? IdJobPositionCatalogItem = null,
+    /// <summary>Hasta dónde estudió, del catálogo. Nulo es «no se sabe».</summary>
+    Guid? IdEducationLevelCatalogItem = null);
 
 public sealed record ChangeEmployeeStatusRequest(Guid IdOrganization, EmployeeStatus Status);
 
@@ -129,7 +133,9 @@ public sealed record EmployeeResponse(
     // olvidaron de pasar el puesto durante semanas: compilaba, respondia 200, y el campo llegaba
     // nulo en todos los empleados. La columna de uso de Catalogos decia "Nadie lo tiene" siempre.
     // Sin defecto, el compilador senala cada sitio que no lo pasa.
-    Guid? IdJobPositionCatalogItem);
+    Guid? IdJobPositionCatalogItem,
+    // Sin valor por defecto por la misma razon de arriba.
+    Guid? IdEducationLevelCatalogItem);
 
 public sealed record CreateEmployeeDocumentRequest(
     Guid IdOrganization,

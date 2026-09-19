@@ -33,7 +33,8 @@ public sealed record EmployeeProfile(
     string? HousingType,
     DateOnly? ResidenceSinceDate,
     string? CountryCode = null,
-    Guid? IdJobPositionCatalogItem = null);
+    Guid? IdJobPositionCatalogItem = null,
+    Guid? IdEducationLevelCatalogItem = null);
 
 public sealed class Employee : AuditableEntity, IOrganizationScopedEntity
 {
@@ -87,6 +88,17 @@ public sealed class Employee : AuditableEntity, IOrganizationScopedEntity
     /// comparación de elegibilidad usa este identificador; el texto ya no decide nada.</para>
     /// </summary>
     public Guid? IdJobPositionCatalogItem { get; private set; }
+
+    /// <summary>
+    /// Hasta dónde estudió, contra el catálogo <c>EducationLevel</c>.
+    ///
+    /// <para><b>El mismo criterio que el puesto, y por la misma razón.</b> Es identificador y no
+    /// texto para que se pueda comparar contra lo que pide la posición, que también lo guarda así.
+    /// Y un nulo dice «no se sabe», no «no cumple»: de 271 expedientes, ninguno tenía escolaridad
+    /// registrada antes del 19 de septiembre de 2026, porque la columna no existía. Bloquear por un
+    /// nulo dejaría fuera a toda la plantilla el día del despliegue.</para>
+    /// </summary>
+    public Guid? IdEducationLevelCatalogItem { get; private set; }
 
     public string? JobTitle { get; private set; }
     public DateOnly HireDate { get; private set; }
@@ -228,6 +240,7 @@ public sealed class Employee : AuditableEntity, IOrganizationScopedEntity
 
         FullName = profile.FullName.Trim();
         IdJobPositionCatalogItem = profile.IdJobPositionCatalogItem;
+        IdEducationLevelCatalogItem = profile.IdEducationLevelCatalogItem;
         JobTitle = Normalize(profile.JobTitle);
         HireDate = profile.HireDate;
         BirthDate = profile.BirthDate;

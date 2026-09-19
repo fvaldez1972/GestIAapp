@@ -53,6 +53,13 @@ public sealed class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
 
         builder.HasIndex(entity => new { entity.IdOrganization, entity.IdJobPositionCatalogItem });
 
+        // La escolaridad, con el mismo trato: opcional, por identificador, y sin borrado en
+        // cascada. Desactivar un nivel del catalogo no puede vaciar la escolaridad de nadie.
+        builder.HasOne<BusinessCatalogItem>()
+            .WithMany()
+            .HasForeignKey(entity => entity.IdEducationLevelCatalogItem)
+            .OnDelete(DeleteBehavior.Restrict);
+
         builder.HasIndex(entity => new { entity.IdOrganization, entity.CodeEmployee }).IsUnique();
         builder.HasIndex(entity => new { entity.IdOrganization, entity.Rfc })
             .IsUnique()

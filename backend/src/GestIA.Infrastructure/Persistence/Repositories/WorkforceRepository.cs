@@ -212,5 +212,6 @@ public sealed partial class WorkforceRepository(GestIaDbContext dbContext) : IWo
             employee.CreatedAt,
             employee.UpdatedAt,
             employee.CountryCode,
-            employee.IdJobPositionCatalogItem);
+            employee.IdJobPositionCatalogItem,
+            employee.IdEducationLevelCatalogItem);
 }

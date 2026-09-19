@@ -206,6 +206,9 @@ export class WorkforcePage {
   protected readonly administrativeIncidents = signal<readonly AdministrativeIncident[]>([]);
   protected readonly catalogEvaluationCategories = signal<readonly EmployeeJobPositionOption[]>([]);
 
+  /** Los niveles de escolaridad, para ver y capturar hasta dónde estudió cada persona. */
+  protected readonly catalogEducationLevels = signal<readonly EmployeeJobPositionOption[]>([]);
+
   protected readonly selected = signal<EmployeeListItem | null>(null);
   protected readonly activeTab = signal('data');
   protected readonly detail = signal<Employee | null>(null);
@@ -514,6 +517,11 @@ export class WorkforcePage {
       this.catalogIncidentTypes.set(
         data.items
           .filter((item) => item.active && item.type === 'AdministrativeIncidentType')
+          .map((item) => ({ idCatalogItem: item.idCatalogItem, name: item.name })),
+      );
+      this.catalogEducationLevels.set(
+        data.items
+          .filter((item) => item.active && item.type === 'EducationLevel')
           .map((item) => ({ idCatalogItem: item.idCatalogItem, name: item.name })),
       );
       this.catalogEvaluationCategories.set(
@@ -1041,6 +1049,97 @@ export class WorkforcePage {
       });
   }
 
+  protected readonly savingEducation = signal(false);
+
+  /**
+   * Guarda hasta dónde estudió la persona.
+   *
+   * <p>Manda el expediente entero con un campo cambiado, igual que el editor del puesto: la
+   * edición del personal es un solo reemplazo de perfil, y mandar sólo el campo tocado lo dejaría
+   * todo lo demás en nulo. Vacío se guarda como nulo, que significa «no se sabe» y no bloquea.</p>
+   */
+  protected saveEducation(idCatalogItem: string | null): void {
+    const organizationId = this.organizationId();
+    const employee = this.detail();
+
+    if (!organizationId || !employee || !this.canWrite()) {
+      return;
+    }
+
+    this.savingEducation.set(true);
+
+    this.workforceApi
+      .updateEmployee(employee.idEmployee, {
+        ...this.perfilDe(employee, organizationId),
+        idEducationLevelCatalogItem: idCatalogItem,
+      })
+      .subscribe({
+        next: () => {
+          this.savingEducation.set(false);
+          const nivel = this.catalogEducationLevels().find(
+            (item) => item.idCatalogItem === idCatalogItem,
+          );
+          this.message.set(
+            nivel
+              ? `${employee.fullName} queda con escolaridad ${nivel.name}.`
+              : `${employee.fullName} queda sin escolaridad registrada.`,
+          );
+          this.loadDetail(employee.idEmployee);
+        },
+        error: (problem) => {
+          this.savingEducation.set(false);
+          this.error.set(
+            problem?.error?.detail ?? 'No se pudo guardar la escolaridad.',
+          );
+        },
+      });
+  }
+
+  /**
+   * El expediente tal como el servidor lo quiere para una edición.
+   *
+   * <p>Existe porque la ficha edita campo a campo y el servidor reemplaza el perfil completo:
+   * cada editor tiene que mandar todo lo demás igual que estaba. Cuando esto se repetía escrito a
+   * mano, un campo nuevo se olvidaba en uno de los editores y se guardaba en nulo sin que nadie
+   * lo notara.</p>
+   */
+  private perfilDe(employee: Employee, organizationId: string) {
+    return {
+      idOrganization: organizationId,
+      fullName: employee.fullName,
+      jobTitle: employee.jobTitle,
+      idJobPositionCatalogItem: employee.idJobPositionCatalogItem,
+      idEducationLevelCatalogItem: employee.idEducationLevelCatalogItem,
+      hireDate: employee.hireDate,
+      birthDate: employee.birthDate,
+      birthPlace: employee.birthPlace,
+      sex: employee.sex,
+      maritalStatus: employee.maritalStatus,
+      rfc: employee.rfc,
+      curp: employee.curp,
+      socialSecurityNumber: employee.socialSecurityNumber,
+      voterIdNumber: employee.voterIdNumber,
+      driverLicenseNumber: employee.driverLicenseNumber,
+      militaryServiceCardNumber: employee.militaryServiceCardNumber,
+      email: employee.email,
+      mobilePhone: employee.mobilePhone,
+      homePhone: employee.homePhone,
+      emergencyContactName: employee.emergencyContactName,
+      emergencyContactPhone: employee.emergencyContactPhone,
+      emergencyContactRelationship: employee.emergencyContactRelationship,
+      address: employee.address,
+      street: employee.street,
+      streetNumber: employee.streetNumber,
+      neighborhood: employee.neighborhood,
+      municipality: employee.municipality,
+      state: employee.state,
+      countryCode: employee.countryCode ?? null,
+      postalCode: employee.postalCode,
+      housingType: employee.housingType,
+      residenceSinceDate: employee.residenceSinceDate,
+    };
+  }
+
   protected saveJobPosition(idCatalogItem: string): void {
     const organizationId = this.organizationId();
     const employee = this.detail();
@@ -1055,37 +1154,9 @@ export class WorkforcePage {
 
     this.workforceApi
       .updateEmployee(employee.idEmployee, {
-        idOrganization: organizationId,
-        fullName: employee.fullName,
+        ...this.perfilDe(employee, organizationId),
         jobTitle: chosen.name,
         idJobPositionCatalogItem: chosen.idCatalogItem,
-        hireDate: employee.hireDate,
-        birthDate: employee.birthDate,
-        birthPlace: employee.birthPlace,
-        sex: employee.sex,
-        maritalStatus: employee.maritalStatus,
-        rfc: employee.rfc,
-        curp: employee.curp,
-        socialSecurityNumber: employee.socialSecurityNumber,
-        voterIdNumber: employee.voterIdNumber,
-        driverLicenseNumber: employee.driverLicenseNumber,
-        militaryServiceCardNumber: employee.militaryServiceCardNumber,
-        email: employee.email,
-        mobilePhone: employee.mobilePhone,
-        homePhone: employee.homePhone,
-        emergencyContactName: employee.emergencyContactName,
-        emergencyContactPhone: employee.emergencyContactPhone,
-        emergencyContactRelationship: employee.emergencyContactRelationship,
-        address: employee.address,
-        street: employee.street,
-        streetNumber: employee.streetNumber,
-        neighborhood: employee.neighborhood,
-        municipality: employee.municipality,
-        state: employee.state,
-        countryCode: employee.countryCode ?? null,
-        postalCode: employee.postalCode,
-        housingType: employee.housingType,
-        residenceSinceDate: employee.residenceSinceDate,
       })
       .subscribe({
         next: () => {
@@ -1228,6 +1299,8 @@ export class WorkforcePage {
         fullName: value.fullName,
         jobTitle: value.jobPositionName || null,
         idJobPositionCatalogItem: value.idJobPositionCatalogItem || null,
+        // El alta se queda minima: la escolaridad se captura despues, en la ficha.
+        idEducationLevelCatalogItem: null,
         hireDate: value.hireDate,
         birthDate: null,
         birthPlace: null,

@@ -230,25 +230,6 @@ describe('ServicesPage organization-scoped workflows', () => {
     expect(page.activeEmployees().map((e: { idEmployee: string }) => e.idEmployee)).toEqual(['employee-a', 'employee-b']);
   });
 
-  it('creates a weekly segment with the full organization and parent scope', () => {
-    selectClient();
-    page.selectedService.set(service);
-    page.selectedPosition.set(position);
-    page.selectedShiftPattern.set({ idShiftPattern: 'pattern-a', active: true });
-    page.openCreateShiftSegment();
-    page.shiftSegmentForm.patchValue({ startTime: '22:00', endTime: '06:00', isOvernight: true });
-    page.saveShiftSegment();
-    const url = '/api/v1/clients/client-a/services/service-a/positions/position-a/shift-patterns/pattern-a/segments';
-    const request = http.expectOne(url);
-    expect(request.request.method).toBe('POST');
-    expect(request.request.body).toMatchObject({
-      idOrganization: 'org-a', idClient: 'client-a', idService: 'service-a',
-      idPosition: 'position-a', idShiftPattern: 'pattern-a', startTime: '22:00:00', endTime: '06:00:00', isOvernight: true,
-    });
-    request.flush({});
-    http.expectOne(url + '?organizationId=org-a').flush([]);
-  });
-
   it('retains backend validation feedback and the open editor after a failed save', () => {
     selectClient();
     page.openCreateService();
@@ -289,9 +270,13 @@ describe('ServicesPage organization-scoped workflows', () => {
     expect(clientsPage.createZone).toBeTypeOf('function');
   });
 
+  /**
+   * El patrón propio salió de esta tabla el 19 de septiembre de 2026: la posición dejó de crear
+   * patrones y de capturar segmentos, y ahora sólo elige uno del catálogo. Queda la posición, que
+   * sigue siendo lo que esta pantalla escribe.
+   */
   it.each([
     ['Position', 'positionForm', 'positions', 'idPosition', { name: 'Main gate' }],
-    ['ShiftPattern', 'shiftPatternForm', 'positions/position-a/shift-patterns', 'idShiftPattern', { name: 'Weekdays', effectiveFromDate: '2026-09-03' }],
   ])('creates and updates %s with organization-scoped bodies', (kind, form, suffix, idField, fields) => {
     selectClient();
     page.selectedService.set(service);

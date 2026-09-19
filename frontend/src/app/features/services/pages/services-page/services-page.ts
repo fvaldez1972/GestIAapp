@@ -55,6 +55,7 @@ import { WorkforceApiService } from '../../../workforce/data-access/workforce-ap
 import { EmployeeListApiService } from '../../../workforce/data-access/employee-list-api.service';
 import { CatalogApiService } from '../../../catalogs/data-access/catalog-api.service';
 import {
+  ShiftPatternTemplate,
   ShiftPatternTemplateOption,
   shiftDaypartLabel,
 } from '../../../catalogs/data-access/shift-pattern-template.models';
@@ -143,7 +144,6 @@ export class ServicesPage implements OnInit, OnDestroy {
   protected readonly selectedClient = signal<Client | null>(null);
   protected readonly selectedService = signal<ManagedService | null>(null);
   protected readonly selectedPosition = signal<ServicePosition | null>(null);
-  protected readonly selectedShiftPattern = signal<ShiftPattern | null>(null);
   protected readonly zones = signal<readonly ClientZone[]>([]);
   protected readonly hasActiveZone = computed(() => this.zones().some((zone) => zone.active));
   protected readonly hasActivePosition = computed(() =>
@@ -153,8 +153,6 @@ export class ServicesPage implements OnInit, OnDestroy {
   protected readonly contacts = signal<readonly ClientContact[]>([]);
   protected readonly services = signal<readonly ManagedService[]>([]);
   protected readonly positions = signal<readonly ServicePosition[]>([]);
-  protected readonly shiftPatterns = signal<readonly ShiftPattern[]>([]);
-  protected readonly shiftSegments = signal<readonly ShiftSegment[]>([]);
   protected readonly assignments = signal<readonly ServiceAssignment[]>([]);
   protected readonly positionVacancy = signal<readonly PositionVacancy[]>([]);
 
@@ -171,7 +169,6 @@ export class ServicesPage implements OnInit, OnDestroy {
    * <p>Es la tercera vez que esta confusión cuesta un defecto en esta pantalla, después de las
    * zonas del cliente y del aviso de «todavía se están cargando».</p>
    */
-  protected readonly shiftPatternsLoaded = signal(false);
   /** El servicio que se va a desactivar, mientras el diálogo pregunta. */
   protected readonly serviceToDeactivate = signal<ManagedService | null>(null);
   /**
@@ -240,6 +237,24 @@ export class ServicesPage implements OnInit, OnDestroy {
    * el patrón ya está listo.</p>
    */
   protected readonly shiftPatternTemplates = signal<readonly ShiftPatternTemplateOption[]>([]);
+
+  /**
+   * Las plantillas con sus días declarados, para pintar el calendario de la posición.
+   *
+   * <p>Van aparte del desplegable y no en lugar de él: el desplegable sale de
+   * <c>/options</c>, que sólo ofrece las plantillas completas —una con días sin declarar
+   * generaría turnos con huecos—, y el calendario necesita los días, que esa lista no trae.</p>
+   */
+  protected readonly shiftPatternTemplateDetails = signal<readonly ShiftPatternTemplate[]>([]);
+
+  /** La plantilla que sigue la posición abierta, resuelta. Nula si todavía no tiene ninguna. */
+  protected readonly selectedPositionTemplate = computed<ShiftPatternTemplate | null>(() => {
+    const id = this.selectedPosition()?.idShiftPatternTemplate;
+    if (!id) return null;
+    return this.shiftPatternTemplateDetails().find(
+      (plantilla) => plantilla.idShiftPatternTemplate === id,
+    ) ?? null;
+  });
 
   /** Las reglas de experiencia ya guardadas para la posición abierta. */
   protected readonly positionSkillRequirements = signal<readonly EligibilityRequirement[]>([]);
@@ -391,18 +406,11 @@ export class ServicesPage implements OnInit, OnDestroy {
   protected readonly selectedClientName = computed(() => this.selectedClient()?.legalName ?? '');
   protected readonly selectedServiceName = computed(() => this.selectedService()?.name ?? '');
   protected readonly selectedPositionName = computed(() => this.selectedPosition()?.name ?? '');
-  protected readonly selectedShiftPatternName = computed(
-    () => this.selectedShiftPattern()?.name ?? '',
-  );
   protected readonly serviceWizardStep = signal(1);
   protected readonly serviceEditorOpen = signal(false);
   protected readonly editingService = signal<ManagedService | null>(null);
   protected readonly positionEditorOpen = signal(false);
   protected readonly editingPosition = signal<ServicePosition | null>(null);
-  protected readonly shiftPatternEditorOpen = signal(false);
-  protected readonly editingShiftPattern = signal<ShiftPattern | null>(null);
-  protected readonly shiftSegmentEditorOpen = signal(false);
-  protected readonly editingShiftSegment = signal<ShiftSegment | null>(null);
   protected readonly assignmentEditorOpen = signal(false);
   protected readonly editingAssignment = signal<ServiceAssignment | null>(null);
 
@@ -687,10 +695,6 @@ export class ServicesPage implements OnInit, OnDestroy {
     this.positions.set([]);
     this.assignments.set([]);
     this.selectedPosition.set(null);
-    this.selectedShiftPattern.set(null);
-    this.shiftPatterns.set([]);
-    this.shiftPatternsLoaded.set(false);
-    this.shiftSegments.set([]);
   }
 
   /** El estado que se pinta en la fila. Ver la nota de `serviceState`: vencido no es inactivo. */
@@ -801,10 +805,6 @@ export class ServicesPage implements OnInit, OnDestroy {
         if (position) this.selectPosition(position);
         else {
           this.selectedPosition.set(null);
-          this.selectedShiftPattern.set(null);
-          this.shiftPatterns.set([]);
-          this.shiftPatternsLoaded.set(false);
-          this.shiftSegments.set([]);
         }
       },
     );
@@ -814,65 +814,6 @@ export class ServicesPage implements OnInit, OnDestroy {
     if (this.saving()) return;
     this.scopeChanges.next(3);
     this.selectedPosition.set(position);
-    this.selectedShiftPattern.set(null);
-    this.shiftPatterns.set([]);
-    this.shiftPatternsLoaded.set(false);
-    this.shiftSegments.set([]);
-    this.loadShiftPatterns(position);
-  }
-
-  protected loadShiftPatterns(position = this.selectedPosition()): void {
-    const client = this.selectedClient(),
-      service = this.selectedService();
-    if (!client || !service || !position || !this.canReadPlanning()) return;
-    this.shiftPatternsLoaded.set(false);
-    this.read(
-      this.api.listShiftPatterns(
-        this.selectedOrganizationId(),
-        client.idClient,
-        service.idService,
-        position.idPosition,
-      ),
-      3,
-      (rows) => {
-        this.shiftPatternsLoaded.set(true);
-        this.shiftPatterns.set(rows);
-        const pattern =
-          rows.find((p) => p.idShiftPattern === this.selectedShiftPattern()?.idShiftPattern) ??
-          rows[0];
-        if (pattern) this.selectShiftPattern(pattern);
-        else {
-          this.selectedShiftPattern.set(null);
-          this.shiftSegments.set([]);
-        }
-      },
-    );
-  }
-
-  protected selectShiftPattern(pattern: ShiftPattern): void {
-    if (this.saving()) return;
-    this.scopeChanges.next(4);
-    this.selectedShiftPattern.set(pattern);
-    this.shiftSegments.set([]);
-    this.loadShiftSegments(pattern);
-  }
-
-  protected loadShiftSegments(pattern = this.selectedShiftPattern()): void {
-    const client = this.selectedClient(),
-      service = this.selectedService(),
-      position = this.selectedPosition();
-    if (!client || !service || !position || !pattern || !this.canReadPlanning()) return;
-    this.read(
-      this.api.listShiftSegments(
-        this.selectedOrganizationId(),
-        client.idClient,
-        service.idService,
-        position.idPosition,
-        pattern.idShiftPattern,
-      ),
-      4,
-      (rows) => this.shiftSegments.set(rows),
-    );
   }
 
   protected loadAssignments(service = this.selectedService()): void {
@@ -1061,8 +1002,6 @@ export class ServicesPage implements OnInit, OnDestroy {
     if (this.saving()) return;
     this.serviceEditorOpen.set(false);
     this.positionEditorOpen.set(false);
-    this.shiftPatternEditorOpen.set(false);
-    this.shiftSegmentEditorOpen.set(false);
     this.assignmentEditorOpen.set(false);
     this.error.set('');
   }
@@ -1202,27 +1141,6 @@ export class ServicesPage implements OnInit, OnDestroy {
     });
   }
 
-  protected readonly shiftPatternForm = this.formBuilder.nonNullable.group(
-    {
-      name: ['', [Validators.required, Validators.maxLength(150)]],
-      description: ['', [Validators.maxLength(1000)]],
-      effectiveFromDate: ['', [Validators.required]],
-      effectiveToDate: [''],
-    },
-    { validators: dateRangeValidator('effectiveFromDate', 'effectiveToDate') },
-  );
-
-  protected readonly shiftSegmentForm = this.formBuilder.nonNullable.group(
-    {
-      dayOfWeek: ['Monday', [Validators.required]],
-      startTime: ['08:00', [Validators.required]],
-      endTime: ['16:00', [Validators.required]],
-      isOvernight: [false],
-      requiredWorkerCount: [1, [Validators.required, Validators.min(1), Validators.max(10000)]],
-      notes: ['', [Validators.maxLength(1000)]],
-    },
-    { validators: shiftIntervalValidator },
-  );
 
   protected readonly assignmentForm = this.formBuilder.nonNullable.group(
     {
@@ -1420,11 +1338,7 @@ export class ServicesPage implements OnInit, OnDestroy {
           if (this.selectedService()?.idService === service.idService) {
             this.selectedService.set(null);
             this.positions.set([]);
-            this.shiftPatterns.set([]);
-            this.shiftPatternsLoaded.set(false);
-            this.shiftSegments.set([]);
             this.selectedPosition.set(null);
-            this.selectedShiftPattern.set(null);
           }
           this.loadServices(this.serviceList().page);
         },
@@ -1706,6 +1620,11 @@ export class ServicesPage implements OnInit, OnDestroy {
     this.read(this.catalogApi.listShiftPatternTemplateOptions(org), 2, (opciones) =>
       this.shiftPatternTemplates.set(opciones),
     );
+    // Con las inactivas incluidas: una posición puede seguir apuntando a una plantilla retirada, y
+    // el calendario tiene que poder decir qué horario está siguiendo hoy.
+    this.read(this.catalogApi.listShiftPatternTemplates(org, true), 2, (plantillas) =>
+      this.shiftPatternTemplateDetails.set(plantillas),
+    );
   }
 
   /** La etiqueta de un patrón en el desplegable: el nombre, y el ciclo y las horas al lado. */
@@ -1975,10 +1894,6 @@ export class ServicesPage implements OnInit, OnDestroy {
           this.message.set('Posición desactivada correctamente.');
           if (this.selectedPosition()?.idPosition === position.idPosition) {
             this.selectedPosition.set(null);
-            this.selectedShiftPattern.set(null);
-            this.shiftPatterns.set([]);
-            this.shiftPatternsLoaded.set(false);
-            this.shiftSegments.set([]);
           }
           // Ficha y listado, los dos.
           //
@@ -1992,293 +1907,10 @@ export class ServicesPage implements OnInit, OnDestroy {
       });
   }
 
-  protected openCreateShiftPattern(): void {
-    if (!this.allowWrite(true)) return;
-    if (!this.selectedPosition()?.active) return;
-    this.closeEditors();
-    this.error.set('');
-    if (!this.selectedClient() || !this.selectedService() || !this.selectedPosition()) {
-      return;
-    }
-
-    this.editingShiftPattern.set(null);
-    this.shiftPatternForm.reset({
-      name: '',
-      description: '',
-      effectiveFromDate: this.today(),
-      effectiveToDate: '',
-    });
-    this.shiftPatternEditorOpen.set(true);
-  }
-
-  protected openEditShiftPattern(pattern: ShiftPattern): void {
-    if (!this.allowWrite(true)) return;
-    this.closeEditors();
-    this.error.set('');
-    this.editingShiftPattern.set(pattern);
-    this.shiftPatternForm.reset({
-      name: pattern.name,
-      description: pattern.description ?? '',
-      effectiveFromDate: this.dateOnly(pattern.effectiveFromDate),
-      effectiveToDate: this.dateOnly(pattern.effectiveToDate),
-    });
-    this.shiftPatternEditorOpen.set(true);
-  }
-
-  protected saveShiftPattern(): void {
-    if (!this.allowWrite(true)) return;
-    this.error.set('');
-    const client = this.selectedClient();
-    const service = this.selectedService();
-    const position = this.selectedPosition();
-    if (!client || !service || !position || this.shiftPatternForm.invalid) {
-      this.shiftPatternForm.markAllAsTouched();
-      this.error.set('Revisa los campos obligatorios, los límites y la vigencia.');
-      return;
-    }
-
-    const form = this.shiftPatternForm.getRawValue();
-    const input: ShiftPatternInput = {
-      idOrganization: this.selectedOrganizationId(),
-      idClient: client.idClient,
-      idService: service.idService,
-      idPosition: position.idPosition,
-      name: form.name,
-      description: this.optional(form.description),
-      effectiveFromDate: form.effectiveFromDate,
-      effectiveToDate: this.optionalDate(form.effectiveToDate),
-    };
-    const editing = this.editingShiftPattern();
-    const request = editing
-      ? this.api.updateShiftPattern(
-          client.idClient,
-          service.idService,
-          position.idPosition,
-          editing.idShiftPattern,
-          input,
-        )
-      : this.api.createShiftPattern(client.idClient, service.idService, position.idPosition, {
-          ...input,
-          // Sin codigo: lo genera el servidor como PAT-01, consecutivo por posicion.
-        } satisfies CreateShiftPattern);
-
-    this.saving.set(true);
-    request
-      .pipe(
-        this.withScope(2),
-        finalize(() => this.saving.set(false)),
-      )
-      .subscribe({
-        next: (pattern) => {
-          this.saving.set(false);
-          this.shiftPatternEditorOpen.set(false);
-          this.message.set(
-            editing ? 'Patrón actualizado correctamente.' : 'Patrón creado correctamente.',
-          );
-          this.selectedShiftPattern.set(pattern);
-          this.loadShiftPatterns(position);
-        },
-        error: (error: HttpErrorResponse) => this.setError(error),
-      });
-  }
-
-  protected deactivateShiftPattern(pattern: ShiftPattern): void {
-    if (!this.allowWrite(true)) return;
-    this.error.set('');
-    const client = this.selectedClient();
-    const service = this.selectedService();
-    const position = this.selectedPosition();
-    if (
-      !client ||
-      !service ||
-      !position ||
-      !window.confirm(`¿Deseas desactivar el patrón ${pattern.name}?`)
-    ) {
-      return;
-    }
-
-    this.saving.set(true);
-    this.api
-      .deactivateShiftPattern(
-        this.selectedOrganizationId(),
-        client.idClient,
-        service.idService,
-        position.idPosition,
-        pattern.idShiftPattern,
-      )
-      .pipe(
-        this.withScope(2),
-        finalize(() => this.saving.set(false)),
-      )
-      .subscribe({
-        next: () => {
-          this.saving.set(false);
-          this.message.set('Patrón desactivado correctamente.');
-          if (this.selectedShiftPattern()?.idShiftPattern === pattern.idShiftPattern) {
-            this.selectedShiftPattern.set(null);
-            this.shiftSegments.set([]);
-          }
-          this.loadShiftPatterns(position);
-        },
-        error: (error: HttpErrorResponse) => this.setError(error),
-      });
-  }
-
-  protected openCreateShiftSegment(): void {
-    if (!this.allowWrite(true)) return;
-    if (!this.selectedPosition()?.active || !this.selectedShiftPattern()?.active) return;
-    this.closeEditors();
-    this.error.set('');
-    if (
-      !this.selectedClient() ||
-      !this.selectedService() ||
-      !this.selectedPosition() ||
-      !this.selectedShiftPattern()
-    ) {
-      return;
-    }
-
-    this.editingShiftSegment.set(null);
-    this.shiftSegmentForm.reset({
-      dayOfWeek: 'Monday',
-      startTime: '08:00',
-      endTime: '16:00',
-      isOvernight: false,
-      requiredWorkerCount: this.selectedPosition()?.requiredWorkerCount ?? 1,
-      notes: '',
-    });
-    this.shiftSegmentEditorOpen.set(true);
-  }
-
-  protected openEditShiftSegment(segment: ShiftSegment): void {
-    if (!this.allowWrite(true)) return;
-    this.closeEditors();
-    this.error.set('');
-    this.editingShiftSegment.set(segment);
-    this.shiftSegmentForm.reset({
-      dayOfWeek: segment.dayOfWeek,
-      startTime: segment.startTime.slice(0, 5),
-      endTime: segment.endTime.slice(0, 5),
-      isOvernight: segment.isOvernight,
-      requiredWorkerCount: segment.requiredWorkerCount,
-      notes: segment.notes ?? '',
-    });
-    this.shiftSegmentEditorOpen.set(true);
-  }
-
-  protected saveShiftSegment(): void {
-    if (!this.allowWrite(true)) return;
-    this.error.set('');
-    const client = this.selectedClient();
-    const service = this.selectedService();
-    const position = this.selectedPosition();
-    const pattern = this.selectedShiftPattern();
-    if (!client || !service || !position || !pattern || this.shiftSegmentForm.invalid) {
-      this.shiftSegmentForm.markAllAsTouched();
-      this.error.set('Revisa los campos obligatorios, los límites y la vigencia.');
-      return;
-    }
-
-    const form = this.shiftSegmentForm.getRawValue();
-    const input: ShiftSegmentInput = {
-      idOrganization: this.selectedOrganizationId(),
-      idClient: client.idClient,
-      idService: service.idService,
-      idPosition: position.idPosition,
-      idShiftPattern: pattern.idShiftPattern,
-      dayOfWeek: form.dayOfWeek,
-      startTime: this.toApiTime(form.startTime),
-      endTime: this.toApiTime(form.endTime),
-      isOvernight: form.isOvernight,
-      requiredWorkerCount: Number(form.requiredWorkerCount),
-      notes: this.optional(form.notes),
-    };
-    const editing = this.editingShiftSegment();
-    const request = editing
-      ? this.api.updateShiftSegment(
-          client.idClient,
-          service.idService,
-          position.idPosition,
-          pattern.idShiftPattern,
-          editing.idShiftSegment,
-          input,
-        )
-      : this.api.createShiftSegment(
-          client.idClient,
-          service.idService,
-          position.idPosition,
-          pattern.idShiftPattern,
-          input,
-        );
-
-    this.saving.set(true);
-    request
-      .pipe(
-        this.withScope(2),
-        finalize(() => this.saving.set(false)),
-      )
-      .subscribe({
-        next: () => {
-          this.saving.set(false);
-          this.shiftSegmentEditorOpen.set(false);
-          this.message.set(
-            editing ? 'Segmento actualizado correctamente.' : 'Segmento creado correctamente.',
-          );
-          this.loadShiftSegments(pattern);
-        },
-        error: (error: HttpErrorResponse) => this.setError(error),
-      });
-  }
-
-  protected deactivateShiftSegment(segment: ShiftSegment): void {
-    if (!this.allowWrite(true)) return;
-    this.error.set('');
-    const client = this.selectedClient();
-    const service = this.selectedService();
-    const position = this.selectedPosition();
-    const pattern = this.selectedShiftPattern();
-    if (
-      !client ||
-      !service ||
-      !position ||
-      !pattern ||
-      !window.confirm('¿Deseas desactivar este segmento?')
-    ) {
-      return;
-    }
-
-    this.saving.set(true);
-    this.api
-      .deactivateShiftSegment(
-        this.selectedOrganizationId(),
-        client.idClient,
-        service.idService,
-        position.idPosition,
-        pattern.idShiftPattern,
-        segment.idShiftSegment,
-      )
-      .pipe(
-        this.withScope(2),
-        finalize(() => this.saving.set(false)),
-      )
-      .subscribe({
-        next: () => {
-          this.saving.set(false);
-          this.message.set('Segmento desactivado correctamente.');
-          this.loadShiftSegments(pattern);
-        },
-        error: (error: HttpErrorResponse) => this.setError(error),
-      });
-  }
-
   protected money(value: number, currencyCode: string): string {
     return new Intl.NumberFormat('es-MX', { style: 'currency', currency: currencyCode }).format(
       value,
     );
-  }
-
-  protected dayLabel(value: string): string {
-    return this.weekDays.find((day) => day.value === value)?.label ?? 'Día no especificado';
   }
 
   protected durationLabel(minutes: number): string {

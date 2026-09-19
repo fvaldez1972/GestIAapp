@@ -297,140 +297,45 @@
           <section class="detail-section" [hidden]="activeTab() !== 'positions'">
             <header>
               <div>
-                <h3>Patrones de turno</h3>
+                <h3>Calendario del patrón</h3>
                 <span>{{ selectedPositionName() }}</span>
               </div>
-              <button
-                class="button button--secondary"
-                type="button"
-                [disabled]="
-                  !canWritePlanning() || saving() || loading() || !selectedPosition()?.active
-                "
-                (click)="openCreateShiftPattern()"
-              >
-                Nuevo patrón
-              </button>
             </header>
 
+            <!--
+              De sólo lectura, y es el cambio de fondo de esta pantalla: la posición ya no
+              configura su horario, lo consume. Antes tenía dos secciones editables —patrones
+              propios y segmentos semanales— que podían divergir del catálogo y de Planeación, que
+              es de donde salen los turnos de verdad. El horario se cambia ahora en Catálogos, una
+              vez, y todas las posiciones que usen ese patrón lo ven cambiado.
+            -->
             @if (!selectedPosition()) {
-              <div class="compact-state">Selecciona una posición para configurar sus patrones.</div>
-            } @else if (!shiftPatternsLoaded()) {
-              <!--
-                «Todavía no han llegado» no es «no hay». Estas lecturas se cancelan al cambiar de
-                servicio o de posición y no se reintentan; sin distinguirlo, la pantalla afirmaba
-                «Sin patrones registrados» sobre una posición que sí los tenía, y sólo al crear otro
-                aparecían todos.
-              -->
-              <div class="compact-state">Cargando los patrones de esta posición…</div>
-            } @else if (!shiftPatterns().length) {
-              <div class="compact-state">Sin patrones registrados para esta posición.</div>
-            } @else {
-              <div class="cards-list">
-                @for (pattern of shiftPatterns(); track pattern.idShiftPattern) {
-                  <article
-                    class="mini-card selectable"
-                    [class.is-active]="
-                      selectedShiftPattern()?.idShiftPattern === pattern.idShiftPattern
-                    "
-                  >
-                    <button
-                      [disabled]="saving()"
-                      class="mini-card__main"
-                      type="button"
-                      (click)="selectShiftPattern(pattern)"
-                    >
-                      <span class="code">{{ pattern.codeShiftPattern }}</span>
-                      <strong>{{ pattern.name }}</strong>
-                      <small
-                        >Vigencia: {{ pattern.effectiveFromDate }} -
-                        {{ pattern.effectiveToDate || 'sin fecha de término' }}</small
-                      >
-                      <small>{{ pattern.description || 'Sin descripción capturada' }}</small>
-                    </button>
-                    <small>{{ pattern.active ? 'Activo' : 'Inactivo' }}</small>
-                    <div class="mini-actions">
-                      <button
-                        [disabled]="!canWritePlanning() || saving() || loading()"
-                        type="button"
-                        (click)="openEditShiftPattern(pattern)"
-                      >
-                        Editar
-                      </button>
-                      <button
-                        [disabled]="!canWritePlanning() || saving() || loading() || !pattern.active"
-                        class="danger"
-                        type="button"
-                        (click)="deactivateShiftPattern(pattern)"
-                      >
-                        Desactivar
-                      </button>
-                    </div>
-                  </article>
-                }
+              <div class="compact-state">Selecciona una posición para ver su calendario.</div>
+            } @else if (!selectedPositionTemplate()) {
+              <div class="compact-state">
+                Esta posición no tiene patrón del catálogo, así que no se puede planear todavía.
+                Elígele uno al editarla.
               </div>
-            }
-          </section>
-        }
-        @if (canReadPlanning()) {
-          <section class="detail-section" [hidden]="activeTab() !== 'positions'">
-            <header>
-              <div>
-                <h3>Segmentos semanales</h3>
-                <span>{{ selectedShiftPatternName() }}</span>
-              </div>
-              <button
-                class="button button--secondary"
-                type="button"
-                [disabled]="
-                  !canWritePlanning() ||
-                  saving() ||
-                  loading() ||
-                  !selectedPosition()?.active ||
-                  !selectedShiftPattern()?.active
-                "
-                (click)="openCreateShiftSegment()"
-              >
-                Nuevo segmento
-              </button>
-            </header>
-
-            @if (!selectedShiftPattern()) {
-              <div class="compact-state">Selecciona un patrón para ver sus horarios.</div>
-            } @else if (!shiftSegments().length) {
-              <div class="compact-state">Sin segmentos registrados para este patrón.</div>
-            } @else {
+            } @else if (selectedPositionTemplate(); as plantilla) {
+              <p class="notice">
+                <strong>{{ plantilla.name }}</strong> · ciclo de {{ plantilla.cycleDays }} día(s) ·
+                {{ plantilla.weeklyHours }} h a la semana. El horario se edita en Catálogos, no
+                aquí.
+              </p>
               <div class="schedule-grid">
-                @for (segment of shiftSegments(); track segment.idShiftSegment) {
+                @for (dia of plantilla.days; track dia.idShiftPatternTemplateDay) {
                   <article class="schedule-card">
                     <div>
-                      <span class="pill"
-                        >{{ dayLabel(segment.dayOfWeek)
-                        }}{{ segment.isOvernight ? ' · Nocturno' : '' }}</span
-                      >
-                      <strong>{{ segment.startTime }} - {{ segment.endTime }}</strong>
-                      <small
-                        >{{ durationLabel(segment.durationMinutes) }} ·
-                        {{ segment.requiredWorkerCount }} elemento(s)</small
-                      >
-                      <small>{{ segment.notes || 'Sin observaciones' }}</small>
-                    </div>
-                    <small>{{ segment.active ? 'Activo' : 'Inactivo' }}</small>
-                    <div class="mini-actions">
-                      <button
-                        [disabled]="!canWritePlanning() || saving() || loading()"
-                        type="button"
-                        (click)="openEditShiftSegment(segment)"
-                      >
-                        Editar
-                      </button>
-                      <button
-                        [disabled]="!canWritePlanning() || saving() || loading() || !segment.active"
-                        class="danger"
-                        type="button"
-                        (click)="deactivateShiftSegment(segment)"
-                      >
-                        Desactivar
-                      </button>
+                      <span class="pill">Día {{ dia.cycleDayNumber }}</span>
+                      @if (dia.isRest) {
+                        <strong>Descanso</strong>
+                      } @else {
+                        <strong
+                          >{{ dia.startTime }} - {{ dia.endTime
+                          }}{{ dia.isOvernight ? ' (cruza medianoche)' : '' }}</strong
+                        >
+                        <small>{{ durationLabel(dia.durationMinutes) }}</small>
+                      }
                     </div>
                   </article>
                 }
@@ -1077,127 +982,3 @@
   </div>
 }
 
-@if (shiftPatternEditorOpen() && canRead()) {
-  <div class="modal-backdrop" (click)="closeEditors()">
-    <section
-      serviceDialog
-      (dismiss)="closeEditors()"
-      class="modal"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="shift-pattern-editor-title"
-      (click)="$event.stopPropagation()"
-    >
-      <header>
-        <div>
-          <span class="eyebrow">Patrón de turno</span>
-          <h2 id="shift-pattern-editor-title">
-            {{ editingShiftPattern() ? 'Editar patrón' : 'Nuevo patrón' }}
-          </h2>
-        </div>
-        <button type="button" [disabled]="saving()" aria-label="Cerrar" (click)="closeEditors()">
-          ×
-        </button>
-      </header>
-      <form [formGroup]="shiftPatternForm" (ngSubmit)="saveShiftPattern()">
-        @if (shiftPatternForm.hasError('dateRange')) {
-          <p class="notice notice--error" role="alert">La fecha de fin debe ser igual o posterior al inicio.</p>
-        }
-        @if (error()) {
-          <p class="notice notice--error" role="alert">{{ error() }}</p>
-        }
-        <fieldset [disabled]="saving()">
-          <!-- Sin codigo: lo pone el servidor como PAT-01, consecutivo por posicion. -->
-          <div class="form-grid">
-            <label
-              ><span>Inicio vigencia *</span><input type="date" formControlName="effectiveFromDate"
-            /></label>
-            <label
-              ><span>Fin vigencia</span><input type="date" formControlName="effectiveToDate"
-            /></label>
-            <label class="wide"><span>Nombre *</span><input formControlName="name" /></label>
-            <label class="wide"
-              ><span>Descripción</span><textarea rows="3" formControlName="description"></textarea>
-            </label>
-          </div>
-          <footer>
-            <button class="button button--secondary" type="button" (click)="closeEditors()">
-              Cancelar
-            </button>
-            <button class="button button--primary" type="submit" [disabled]="saving()">
-              {{ saving() ? 'Guardando…' : 'Guardar patrón' }}
-            </button>
-          </footer>
-        </fieldset>
-      </form>
-    </section>
-  </div>
-}
-
-@if (shiftSegmentEditorOpen() && canRead()) {
-  <div class="modal-backdrop" (click)="closeEditors()">
-    <section
-      serviceDialog
-      (dismiss)="closeEditors()"
-      class="modal modal--small"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="shift-segment-editor-title"
-      (click)="$event.stopPropagation()"
-    >
-      <header>
-        <div>
-          <span class="eyebrow">Segmento semanal</span>
-          <h2 id="shift-segment-editor-title">
-            {{ editingShiftSegment() ? 'Editar segmento' : 'Nuevo segmento' }}
-          </h2>
-        </div>
-        <button type="button" [disabled]="saving()" aria-label="Cerrar" (click)="closeEditors()">
-          ×
-        </button>
-      </header>
-      <form [formGroup]="shiftSegmentForm" (ngSubmit)="saveShiftSegment()">
-        @if (shiftSegmentForm.hasError('shiftInterval')) {
-          <p class="notice notice--error" role="alert">Revisa los horarios y si el turno cruza medianoche. La duración debe ser mayor a cero y no superar 24 horas.</p>
-        }
-        @if (error()) {
-          <p class="notice notice--error" role="alert">{{ error() }}</p>
-        }
-        <fieldset [disabled]="saving()">
-          <div class="form-grid">
-            <label
-              ><span>Día *</span
-              ><select formControlName="dayOfWeek">
-                @for (day of weekDays; track day.value) {
-                  <option [value]="day.value">{{ day.label }}</option>
-                }
-              </select></label
-            >
-            <label
-              ><span>Personas requeridas *</span
-              ><input type="number" formControlName="requiredWorkerCount" min="1"
-            /></label>
-            <label><span>Inicio *</span><input type="time" formControlName="startTime" /></label>
-            <label><span>Fin *</span><input type="time" formControlName="endTime" /></label>
-            <label class="check"
-              ><input type="checkbox" formControlName="isOvernight" /><span
-                >Cruza medianoche</span
-              ></label
-            >
-            <label class="wide"
-              ><span>Notas</span><textarea rows="3" formControlName="notes"></textarea>
-            </label>
-          </div>
-          <footer>
-            <button class="button button--secondary" type="button" (click)="closeEditors()">
-              Cancelar
-            </button>
-            <button class="button button--primary" type="submit" [disabled]="saving()">
-              {{ saving() ? 'Guardando…' : 'Guardar segmento' }}
-            </button>
-          </footer>
-        </fieldset>
-      </form>
-    </section>
-  </div>
-}

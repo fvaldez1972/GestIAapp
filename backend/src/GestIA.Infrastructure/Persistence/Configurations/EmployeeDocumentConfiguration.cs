@@ -22,6 +22,11 @@ public sealed class EmployeeDocumentConfiguration : IEntityTypeConfiguration<Emp
         // y **sin clave foranea**: un documento de negocio se archiva y esta fila es historia del
         // expediente, asi que una restriccion impediria archivar el archivo o arrastraria la fila.
         builder.Property(entity => entity.IdBusinessDocument);
+
+        // Con valor por omision en la base, porque la columna es obligatoria y hay 1450 filas
+        // anteriores: «no sensible» es lo que todas eran hasta hoy, asi que el valor no inventa
+        // nada. Es el caso en que un defaultValue si es la respuesta correcta.
+        builder.Property(entity => entity.IsSensitive).HasDefaultValue(false);
         builder.HasIndex(entity => entity.IdBusinessDocument)
             .HasFilter("[IdBusinessDocument] IS NOT NULL");
         builder.Property(entity => entity.Notes).HasMaxLength(1000);

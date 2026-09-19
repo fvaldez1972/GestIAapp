@@ -24,7 +24,16 @@ public sealed record CreatePositionRequest(
     string CurrencyCode = "MXN",
     bool IsTaxIncluded = false,
     PaymentFrequency PriceFrequency = PaymentFrequency.Monthly,
-    Guid? IdShiftPatternTemplate = null);
+    Guid? IdShiftPatternTemplate = null,
+    /// <summary>El sexo que el cliente pide para la posición. Es del puesto, no de la persona.</summary>
+    Guid? IdSexCatalogItem = null,
+    Guid? IdAgeRangeCatalogItem = null,
+    Guid? IdEducationLevelCatalogItem = null,
+    /// <summary>
+    /// El equipo que el cliente pide, que casi nunca es uno. Nulo deja el equipo como estaba; una
+    /// lista vacía lo retira.
+    /// </summary>
+    IReadOnlyList<Guid>? IdRequiredEquipmentCatalogItems = null);
 
 public sealed record UpdatePositionRequest(
     Guid IdOrganization,
@@ -39,7 +48,16 @@ public sealed record UpdatePositionRequest(
     string CurrencyCode = "MXN",
     bool IsTaxIncluded = false,
     PaymentFrequency PriceFrequency = PaymentFrequency.Monthly,
-    Guid? IdShiftPatternTemplate = null);
+    Guid? IdShiftPatternTemplate = null,
+    /// <summary>El sexo que el cliente pide para la posición. Es del puesto, no de la persona.</summary>
+    Guid? IdSexCatalogItem = null,
+    Guid? IdAgeRangeCatalogItem = null,
+    Guid? IdEducationLevelCatalogItem = null,
+    /// <summary>
+    /// El equipo que el cliente pide, que casi nunca es uno. Nulo deja el equipo como estaba; una
+    /// lista vacía lo retira.
+    /// </summary>
+    IReadOnlyList<Guid>? IdRequiredEquipmentCatalogItems = null);
 
 public sealed record PositionResponse(
     Guid IdPosition,
@@ -60,7 +78,15 @@ public sealed record PositionResponse(
     /// El patrón del catálogo que sigue la posición. Nulo mientras la posición conserve su patrón
     /// propio, capturado antes de que existiera el catálogo.
     /// </summary>
-    Guid? IdShiftPatternTemplate);
+    Guid? IdShiftPatternTemplate,
+    Guid? IdSexCatalogItem,
+    Guid? IdAgeRangeCatalogItem,
+    Guid? IdEducationLevelCatalogItem,
+    /// <summary>El equipo requerido, resuelto: identificador y nombre de cada pieza.</summary>
+    IReadOnlyList<PositionEquipmentResponse> RequiredEquipment);
+
+/// <summary>Una pieza del equipo que una posición requiere.</summary>
+public sealed record PositionEquipmentResponse(Guid IdCatalogItem, string Name);
 
 /// <summary>
 /// El alta de un patron de turnos. <c>CodeShiftPattern</c> es opcional: sin el, lo pone el servidor

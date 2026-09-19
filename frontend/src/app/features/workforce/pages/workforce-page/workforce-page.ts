@@ -45,6 +45,12 @@ import {
   EmployeeEvaluationType,
   EmployeeStatus,
 } from '../../data-access/workforce.models';
+import { readServerProblem } from '../../../../shared/util/server-problem';
+import { AdministrativeIncident } from '../../data-access/administrative-incident.models';
+import {
+  EmployeeAdministrativeIncidents,
+  NewAdministrativeIncident,
+} from '../../ui/employee-administrative-incidents';
 import { EmployeeAssignments } from '../../ui/employee-assignments';
 import { EmployeeData } from '../../ui/employee-data';
 import { EmployeeDocuments } from '../../ui/employee-documents';
@@ -78,6 +84,7 @@ type PendingAction = { readonly employee: EmployeeListItem; readonly kind: 'leav
     EmployeeAssignments,
     EmployeeData,
     EmployeeDocuments,
+    EmployeeAdministrativeIncidents,
     EmployeeEvaluations,
     EmployeeForm,
     EmployeeSkills,
@@ -195,6 +202,8 @@ export class WorkforcePage {
 
   /** Las categorias de documento y de evaluacion del catalogo de la organizacion. */
   protected readonly catalogDocumentCategories = signal<readonly EmployeeJobPositionOption[]>([]);
+  protected readonly catalogIncidentTypes = signal<readonly EmployeeJobPositionOption[]>([]);
+  protected readonly administrativeIncidents = signal<readonly AdministrativeIncident[]>([]);
   protected readonly catalogEvaluationCategories = signal<readonly EmployeeJobPositionOption[]>([]);
 
   protected readonly selected = signal<EmployeeListItem | null>(null);
@@ -338,6 +347,13 @@ export class WorkforcePage {
       // pestaña de Documentos ya cometió una vez, diciendo «0» con registros listados debajo.
       { id: 'evaluations', label: 'Evaluaciones', count: this.evaluations().filter((item) => item.active).length },
       { id: 'skills', label: 'Experiencia', count: this.skills().filter((item) => item.active).length },
+      // Las administrativas, que no son las de la operación diaria. El conteo son las vigentes: una
+      // retirada sigue en el expediente pero ya no cuenta para nada.
+      {
+        id: 'administrative-incidents',
+        label: 'Incidencias',
+        count: this.administrativeIncidents().filter((item) => item.active).length,
+      },
       { id: 'assignments', label: 'Asignaciones', count: employee?.assignmentCount ?? 0 },
     ];
   });
@@ -495,6 +511,11 @@ export class WorkforcePage {
           .filter((item) => item.active && item.type === 'EmployeeDocumentCategory')
           .map((item) => ({ idCatalogItem: item.idCatalogItem, name: item.name })),
       );
+      this.catalogIncidentTypes.set(
+        data.items
+          .filter((item) => item.active && item.type === 'AdministrativeIncidentType')
+          .map((item) => ({ idCatalogItem: item.idCatalogItem, name: item.name })),
+      );
       this.catalogEvaluationCategories.set(
         data.items
           .filter((item) => item.active && item.type === 'EmployeeEvaluationCategory')
@@ -524,6 +545,7 @@ export class WorkforcePage {
     this.documents.set([]);
     this.evaluations.set([]);
     this.skills.set([]);
+    this.administrativeIncidents.set([]);
     this.documentCount.set(employee.documentCount);
     this.assignments.set([]);
     this.loadDetail(employee.idEmployee);
@@ -556,14 +578,127 @@ export class WorkforcePage {
       skills: this.catalogApi
         .listEmployeeSkills(organizationId, idEmployee)
         .pipe(catchError(() => of([] as readonly EmployeeSkill[]))),
+      // Igual que las experiencias: si fallan, la pestaña dice que no hay ninguna en vez de dejar
+      // la ficha entera sin abrir por una pestaña que quizá nadie mire.
+      administrativeIncidents: this.workforceApi
+        .listAdministrativeIncidents(organizationId, idEmployee)
+        .pipe(catchError(() => of([] as readonly AdministrativeIncident[]))),
     }).subscribe((data) => {
       this.detail.set(data.detail?.employee ?? null);
       this.documents.set(data.detail?.documents ?? []);
       this.evaluations.set(data.detail?.evaluations ?? []);
       this.skills.set(data.skills);
+      this.administrativeIncidents.set(data.administrativeIncidents);
       this.assignments.set(data.assignments);
       this.detailLoading.set(false);
     });
+  }
+
+  // ── Incidencias administrativas ──────────────────────────────────────────────────────────
+
+  protected createAdministrativeIncident(datos: NewAdministrativeIncident): void {
+    this.writeAdministrativeIncident(datos, null);
+  }
+
+  protected updateAdministrativeIncident(
+    event: { incident: AdministrativeIncident; datos: NewAdministrativeIncident },
+  ): void {
+    this.writeAdministrativeIncident(event.datos, event.incident.idAdministrativeIncident);
+  }
+
+  /**
+   * El alta y la edición, que sólo se distinguen en el verbo.
+   *
+   * <p>Se escribe una vez porque todo lo demás —la validación previa, el estado de guardado, el
+   * error y la recarga— es idéntico, y duplicarlo haría que un arreglo se aplicara a uno solo.</p>
+   */
+  private writeAdministrativeIncident(
+    datos: NewAdministrativeIncident,
+    idAdministrativeIncident: string | null,
+  ): void {
+    const organizationId = this.organizationId();
+    const employee = this.detail();
+
+    if (!organizationId || !employee || !this.canWrite() || this.saving()) {
+      return;
+    }
+
+    const request = {
+      idOrganization: organizationId,
+      idEmployee: employee.idEmployee,
+      idIncidentTypeCatalogItem: datos.idIncidentTypeCatalogItem,
+      occurredDate: datos.occurredDate,
+      details: datos.details,
+    };
+
+    this.saving.set(true);
+
+    const call = idAdministrativeIncident
+      ? this.workforceApi.updateAdministrativeIncident(
+          employee.idEmployee, idAdministrativeIncident, request)
+      : this.workforceApi.createAdministrativeIncident(employee.idEmployee, request);
+
+    call.subscribe({
+      next: () => {
+        this.saving.set(false);
+        this.loadDetail(employee.idEmployee);
+      },
+      error: (problem) => {
+        this.saving.set(false);
+        this.error.set(
+          readServerProblem(problem, 'No se pudo guardar la incidencia administrativa.').message);
+      },
+    });
+  }
+
+  protected retireAdministrativeIncident(idAdministrativeIncident: string): void {
+    const organizationId = this.organizationId();
+    const employee = this.detail();
+
+    if (!organizationId || !employee || !this.canWrite() || this.saving()) {
+      return;
+    }
+
+    this.saving.set(true);
+    this.workforceApi
+      .deactivateAdministrativeIncident(organizationId, employee.idEmployee, idAdministrativeIncident)
+      .subscribe({
+        next: () => {
+          this.saving.set(false);
+          this.loadDetail(employee.idEmployee);
+        },
+        error: (problem) => {
+          this.saving.set(false);
+          this.error.set(
+            readServerProblem(problem, 'No se pudo retirar la incidencia administrativa.').message);
+        },
+      });
+  }
+
+  protected createIncidentType(creation: GiCatalogCreation): void {
+    const organizationId = this.organizationId();
+
+    if (!organizationId || !this.canWrite()) {
+      return;
+    }
+
+    this.catalogApi
+      .createItem({
+        idOrganization: organizationId,
+        type: 'AdministrativeIncidentType',
+        name: creation.name,
+        description: null,
+      })
+      .subscribe({
+        next: (creado) =>
+          this.catalogIncidentTypes.update((valores) => [
+            ...valores,
+            { idCatalogItem: creado.idCatalogItem, name: creado.name },
+          ]),
+        error: (problem) =>
+          this.error.set(
+            readServerProblem(problem, 'No se pudo agregar el tipo de incidencia.').message),
+      });
   }
 
   // ── El documento subido, que tiene que contar como requisito cubierto ─────────────────────
@@ -611,6 +746,9 @@ export class WorkforcePage {
       idOrganization: organizationId,
       idEmployee: employee.idEmployee,
       idDocumentCategoryCatalogItem: saved.documentType,
+      // El requisito que se cubre desde la pestaña no se marca sensible: la clasificación se decide
+      // al revisar el papel, no al subirlo, y suponerla aquí sería inventar un dato.
+      isSensitive: false,
       // El enum heredado deja de clasificar: la categoría de verdad viaja arriba. Se manda «Otro»
       // porque es lo único cierto que se puede decir de una lista que la organización ya amplía.
       documentType: 'Other' as EmployeeDocumentType,
@@ -937,7 +1075,9 @@ export class WorkforcePage {
         homePhone: employee.homePhone,
         emergencyContactName: employee.emergencyContactName,
         emergencyContactPhone: employee.emergencyContactPhone,
+        emergencyContactRelationship: employee.emergencyContactRelationship,
         address: employee.address,
+        neighborhood: employee.neighborhood,
         municipality: employee.municipality,
         state: employee.state,
         countryCode: employee.countryCode ?? null,
@@ -1102,7 +1242,9 @@ export class WorkforcePage {
         homePhone: null,
         emergencyContactName: null,
         emergencyContactPhone: null,
+        emergencyContactRelationship: null,
         address: null,
+        neighborhood: null,
         municipality: value.municipality || null,
         state: value.state || null,
         countryCode: value.state ? 'MX' : null,

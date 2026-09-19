@@ -17,6 +17,26 @@ public sealed class ClientContactConfiguration : IEntityTypeConfiguration<Client
         builder.Property(entity => entity.Email).HasMaxLength(254).IsUnicode(false);
         builder.Property(entity => entity.Phone).HasMaxLength(30).IsUnicode(false);
         builder.Property(entity => entity.MobilePhone).HasMaxLength(30).IsUnicode(false);
+        builder.Property(entity => entity.Scope)
+            .HasConversion<string>()
+            .HasMaxLength(20)
+            .IsUnicode(false)
+            .IsRequired();
+
+        builder.HasOne(entity => entity.PurposeCatalogItem)
+            .WithMany()
+            .HasForeignKey(entity => entity.IdPurposeCatalogItem)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne(entity => entity.ContactJobPositionCatalogItem)
+            .WithMany()
+            .HasForeignKey(entity => entity.IdContactJobPositionCatalogItem)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasIndex(entity => entity.IdPurposeCatalogItem)
+            .HasFilter("[IdPurposeCatalogItem] IS NOT NULL");
+        builder.HasIndex(entity => entity.IdContactJobPositionCatalogItem)
+            .HasFilter("[IdContactJobPositionCatalogItem] IS NOT NULL");
+
         builder.HasOne(entity => entity.Client)
             .WithMany(client => client.Contacts)
             .HasForeignKey(entity => entity.IdClient)

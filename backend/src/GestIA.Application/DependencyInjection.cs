@@ -31,6 +31,7 @@ public static class DependencyInjection
         services.AddScoped<IBusinessDocumentService, BusinessDocumentService>();
         services.AddScoped<IServiceManagementService, ServiceManagementService>();
         services.AddScoped<IWorkforceService, WorkforceService>();
+        services.AddScoped<IAdministrativeIncidentService, AdministrativeIncidentService>();
         services.AddScoped<IPlanningService, PlanningService>();
         services.AddScoped<IShiftPatternTemplateService, ShiftPatternTemplateService>();
         services.AddScoped<IAssignmentService, AssignmentService>();

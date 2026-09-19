@@ -88,11 +88,13 @@ describe('Clientes · carga inicial', () => {
 
     http.match((r) => r.url.includes('municipalities')).forEach((r) => r.flush([]));
 
-    // Los tres catálogos vuelven VACÍOS —puestos, categorías de documento y nacionalidades—, que
-    // es el caso de una organización recién creada. Antes, ese arreglo nuevo despertaba al efecto y
-    // arrancaba la vuelta siguiente.
+    // Los catálogos vuelven VACÍOS, que es el caso de una organización recién creada. Antes, ese
+    // arreglo nuevo despertaba al efecto y arrancaba la vuelta siguiente.
+    //
+    // Son cinco desde el 19 de septiembre de 2026: a los puestos, las categorías de documento y las
+    // nacionalidades se suman los puestos de contacto y los propósitos, que son catálogos aparte.
     const catalogos = http.match((r) => r.url === '/api/v1/catalogs/items');
-    expect(catalogos).toHaveLength(3);
+    expect(catalogos).toHaveLength(5);
     catalogos.forEach((r) => r.flush([]));
     fixture.detectChanges();
 

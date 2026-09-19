@@ -21,11 +21,15 @@ public sealed record PositionProfile(
     string CurrencyCode = "MXN",
     bool IsTaxIncluded = false,
     PaymentFrequency PriceFrequency = PaymentFrequency.Monthly,
-    Guid? IdShiftPatternTemplate = null);
+    Guid? IdShiftPatternTemplate = null,
+    Guid? IdSexCatalogItem = null,
+    Guid? IdAgeRangeCatalogItem = null,
+    Guid? IdEducationLevelCatalogItem = null);
 
 public sealed class Position : AuditableEntity, IOrganizationScopedEntity
 {
     private readonly List<ShiftPattern> shiftPatterns = [];
+    private readonly List<PositionRequiredEquipment> requiredEquipment = [];
 
     private Position()
     {
@@ -106,10 +110,40 @@ public sealed class Position : AuditableEntity, IOrganizationScopedEntity
     public string CurrencyCode { get; private set; } = "MXN";
     public bool IsTaxIncluded { get; private set; }
 
+    /// <summary>
+    /// El sexo que el cliente pide para esta posición, contra el catálogo <c>Sex</c>.
+    ///
+    /// <para><b>Es del puesto, no de la persona.</b> Describe lo que el cliente contrató, y por eso
+    /// el catálogo admite valores como «Indistinto» que no describirían a nadie. No se compara
+    /// contra el expediente de quien se asigne: eso sería una regla de elegibilidad, y las reglas
+    /// viven en <c>EligibilityRequirement</c>.</para>
+    ///
+    /// <para><b>Nulable en la base aunque la matriz lo pida obligatorio.</b> Había 69 posiciones
+    /// capturadas antes de que el campo existiera, y un nulo dice «no se sabe», que es distinto de
+    /// «no cumple». Lo obligatorio se exige en el servidor para lo que se cree o edite desde hoy.
+    /// Es el mismo criterio que ya rige en <see cref="IdJobPositionCatalogItem"/>.</para>
+    /// </summary>
+    public Guid? IdSexCatalogItem { get; private set; }
+
+    /// <summary>El rango de edad que admite, contra el catálogo <c>AgeRange</c>. Nulable por lo mismo.</summary>
+    public Guid? IdAgeRangeCatalogItem { get; private set; }
+
+    /// <summary>La escolaridad mínima, contra el catálogo <c>EducationLevel</c>. Nulable por lo mismo.</summary>
+    public Guid? IdEducationLevelCatalogItem { get; private set; }
+
     public string? RequiredSkillProfile { get; private set; }
     public string? Notes { get; private set; }
     public Service Service { get; private set; } = null!;
     public IReadOnlyCollection<ShiftPattern> ShiftPatterns => shiftPatterns;
+
+    /// <summary>
+    /// El equipo que el cliente pide para esta posición, que casi nunca es uno.
+    ///
+    /// <para>Se administra desde el servicio de caso de uso y no desde aquí: agregar o retirar una
+    /// pieza es una escritura con su propio rastro de auditoría, y esconderla detrás de un método
+    /// de la entidad la dejaría sin actor ni fecha.</para>
+    /// </summary>
+    public IReadOnlyCollection<PositionRequiredEquipment> RequiredEquipment => requiredEquipment;
 
     public static Position Create(
         Guid idOrganization,
@@ -152,6 +186,9 @@ public sealed class Position : AuditableEntity, IOrganizationScopedEntity
         CurrencyCode = Required(profile.CurrencyCode, nameof(profile.CurrencyCode)).ToUpperInvariant();
         IsTaxIncluded = profile.IsTaxIncluded;
         IdJobPositionCatalogItem = profile.IdJobPositionCatalogItem;
+        IdSexCatalogItem = profile.IdSexCatalogItem;
+        IdAgeRangeCatalogItem = profile.IdAgeRangeCatalogItem;
+        IdEducationLevelCatalogItem = profile.IdEducationLevelCatalogItem;
         RequiredSkillProfile = Optional(profile.RequiredSkillProfile);
         Notes = Optional(profile.Notes);
     }

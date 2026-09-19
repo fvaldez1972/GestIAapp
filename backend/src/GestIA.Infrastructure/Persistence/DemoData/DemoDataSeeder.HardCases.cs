@@ -228,7 +228,7 @@ public sealed partial class DemoDataSeeder
             organizationId, client.IdClient, null,
             new ClientContactDetails(
                 ClientContactPurpose.Operational, "Contacto dado de baja", "Coordinador operativo",
-                null, null, null, false),
+                "baja@ejemplo.mx", "5500000000", null, false),
             DemoActorId, DemoActorName, OccurredAt);
         contact.Deactivate(DemoActorId, DemoActorName, OccurredAt);
         dbContext.Add(contact);

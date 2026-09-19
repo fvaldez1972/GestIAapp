@@ -402,7 +402,9 @@ public sealed class WorkforceService(
             request.HomePhone,
             request.EmergencyContactName,
             request.EmergencyContactPhone,
+            request.EmergencyContactRelationship,
             request.Address,
+            request.Neighborhood,
             request.Municipality,
             request.State,
             request.PostalCode,
@@ -430,7 +432,9 @@ public sealed class WorkforceService(
             request.HomePhone,
             request.EmergencyContactName,
             request.EmergencyContactPhone,
+            request.EmergencyContactRelationship,
             request.Address,
+            request.Neighborhood,
             request.Municipality,
             request.State,
             request.PostalCode,
@@ -457,7 +461,9 @@ public sealed class WorkforceService(
         string? homePhone,
         string? emergencyContactName,
         string? emergencyContactPhone,
+        string? emergencyContactRelationship,
         string? address,
+        string? neighborhood,
         string? municipality,
         string? state,
         string? postalCode,
@@ -482,7 +488,9 @@ public sealed class WorkforceService(
         MaxLength(homePhone, nameof(homePhone), 30, errors);
         MaxLength(emergencyContactName, nameof(emergencyContactName), 200, errors);
         MaxLength(emergencyContactPhone, nameof(emergencyContactPhone), 30, errors);
+        MaxLength(emergencyContactRelationship, nameof(emergencyContactRelationship), 80, errors);
         MaxLength(address, nameof(address), 500, errors);
+        MaxLength(neighborhood, nameof(neighborhood), 120, errors);
         MaxLength(municipality, nameof(municipality), 120, errors);
         MaxLength(state, nameof(state), 120, errors);
         MaxLength(countryCode, nameof(countryCode), 2, errors);
@@ -509,7 +517,9 @@ public sealed class WorkforceService(
             homePhone,
             emergencyContactName,
             emergencyContactPhone,
+            emergencyContactRelationship,
             address,
+            neighborhood,
             municipality,
             state,
             postalCode,
@@ -721,7 +731,9 @@ public sealed class WorkforceService(
             employee.HomePhone,
             employee.EmergencyContactName,
             employee.EmergencyContactPhone,
+            employee.EmergencyContactRelationship,
             employee.Address,
+            employee.Neighborhood,
             employee.Municipality,
             employee.State,
             employee.PostalCode,

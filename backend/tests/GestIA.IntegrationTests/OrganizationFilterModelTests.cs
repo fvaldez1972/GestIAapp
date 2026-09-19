@@ -110,7 +110,12 @@ public sealed class OrganizationFilterModelTests
         // La plantilla es **de la organización**, no compartida: un 12x12 de una empresa tiene su
         // propio horario y su propia vigencia, y ver los patrones de otra organización sería
         // exactamente la fuga que el filtro existe para impedir.
-        Assert.Equal(30, ScopedEntityTypes(context).Count());
+        //
+        // Y desde el 19 de septiembre de 2026, dos más: las incidencias administrativas del
+        // expediente y el equipo que requiere una posición. Las dos llevan su organización
+        // denormalizada como el resto de las entidades de detalle, porque el filtro de un hijo no
+        // puede depender del filtro de su padre.
+        Assert.Equal(32, ScopedEntityTypes(context).Count());
     }
 
     [Theory]

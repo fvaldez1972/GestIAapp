@@ -269,12 +269,14 @@ public sealed class CatalogMetadataTests(OperationalSqlDatabase database) : ICla
         }
         var service = scope.ServiceProvider.GetRequiredService<GestIA.Application.Clients.IClientContactService>();
         var input = new GestIA.Application.Clients.CreateClientContactRequest(org, clientId, null,
+            GestIA.Domain.Clients.ClientContactScope.General, null, null,
             GestIA.Domain.Clients.ClientContactPurpose.Operational, "Contact", "Supervisor", "contact@example.test", null, null, false);
         await Assert.ThrowsAsync<ResourceConflictException>(() => service.CreateAsync(input with { JobTitle = "Director" }, Token));
         var contact = await service.CreateAsync(input, Token);
         await catalogs.DeactivateCatalogItemAsync(org, position.IdCatalogItem, Token);
         await Assert.ThrowsAsync<ResourceConflictException>(() => service.CreateAsync(input, Token));
-        var updated = await service.UpdateAsync(contact.IdClientContact, new(org, clientId, null, input.Purpose,
+        var updated = await service.UpdateAsync(contact.IdClientContact, new(org, clientId, null,
+            GestIA.Domain.Clients.ClientContactScope.General, null, null, input.Purpose,
             "Contact edited", "Supervisor", input.Email, null, null, false), Token);
         Assert.Equal("Supervisor", updated.JobTitle);
     }

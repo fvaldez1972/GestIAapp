@@ -273,9 +273,14 @@ export class EmployeeData {
       return 'Sin contacto de emergencia registrado';
     }
 
+    // El parentesco entra si está: quien llama en una emergencia necesita saber con quién habla.
+    const parentesco = employee.emergencyContactRelationship
+      ? ` (${employee.emergencyContactRelationship})`
+      : '';
+
     return employee.emergencyContactPhone
-      ? `${employee.emergencyContactName} · ${employee.emergencyContactPhone}`
-      : `${employee.emergencyContactName} · sin teléfono`;
+      ? `${employee.emergencyContactName}${parentesco} · ${employee.emergencyContactPhone}`
+      : `${employee.emergencyContactName}${parentesco} · sin teléfono`;
   });
 
   /**

@@ -171,11 +171,26 @@ export type ClientContactPurpose =
   | 'Purchasing'
   | 'InternalSecurity';
 
+/**
+ * A quién cubre un contacto.
+ *
+ * <p>Se podía deducir de si tiene zona, y aun así viaja: un contacto sin zona porque nadie se la
+ * puso no es lo mismo que uno que vale para todo el cliente a propósito, y la decisión D-02 —un
+ * contacto principal por alcance— necesita contar de cada clase.</p>
+ */
+export type ClientContactScope = 'General' | 'Zone';
+
 export type ClientContact = {
   readonly idClientContact: string;
   readonly idClient: string;
   readonly idClientZone: string | null;
+  readonly scope: ClientContactScope;
+  readonly idPurposeCatalogItem: string | null;
+  readonly idContactJobPositionCatalogItem: string | null;
   readonly clientZoneName: string | null;
+  readonly purposeName: string | null;
+  readonly contactJobPositionName: string | null;
+  /** Para qué se le llama, como enum. <b>Rastro heredado</b> de antes de la conversión a catálogo. */
   readonly purpose: ClientContactPurpose;
   readonly fullName: string;
   readonly jobTitle: string | null;
@@ -190,6 +205,9 @@ export type ClientContactInput = {
   readonly idOrganization: string;
   readonly idClient: string;
   readonly idClientZone: string | null;
+  readonly scope: ClientContactScope;
+  readonly idPurposeCatalogItem: string | null;
+  readonly idContactJobPositionCatalogItem: string | null;
   readonly purpose: ClientContactPurpose;
   readonly fullName: string;
   readonly jobTitle: string | null;
@@ -331,6 +349,29 @@ export type ServicePosition = {
    * migro.</p>
    */
   readonly idShiftPatternTemplate: string | null;
+
+  /**
+   * Lo que el cliente pide para el puesto. <b>Es del puesto, no de la persona.</b>
+   *
+   * <p>Describe lo contratado, y por eso el catálogo de sexo admite «Indistinto», que no
+   * describiría a nadie. No se compara contra el expediente de quien se asigne: eso sería una regla
+   * de elegibilidad, y las reglas viven en su propia pantalla.</p>
+   *
+   * <p>Nulos en lo capturado antes de que existieran los campos. Un nulo dice «no se sabe», que es
+   * distinto de «no cumple».</p>
+   */
+  readonly idSexCatalogItem: string | null;
+  readonly idAgeRangeCatalogItem: string | null;
+  readonly idEducationLevelCatalogItem: string | null;
+
+  /** El equipo requerido, ya resuelto por el servidor con su nombre. */
+  readonly requiredEquipment: readonly PositionEquipment[];
+};
+
+/** Una pieza del equipo que una posición requiere. */
+export type PositionEquipment = {
+  readonly idCatalogItem: string;
+  readonly name: string;
 };
 
 export type ServicePositionInput = {
@@ -347,6 +388,18 @@ export type ServicePositionInput = {
   readonly isTaxIncluded: boolean;
   /** Opcional: una pantalla que no elige patron manda la posicion sin el campo y queda en nulo. */
   readonly idShiftPatternTemplate?: string | null;
+  readonly idSexCatalogItem?: string | null;
+  readonly idAgeRangeCatalogItem?: string | null;
+  readonly idEducationLevelCatalogItem?: string | null;
+
+  /**
+   * El equipo requerido, por identificador.
+   *
+   * <p>Omitirlo deja el equipo como estaba; mandar una lista vacía lo retira entero. La diferencia
+   * importa: una pantalla que edita sólo el precio no manda el equipo, y tratarlo como «vacío» le
+   * borraría lo que no venía a tocar.</p>
+   */
+  readonly idRequiredEquipmentCatalogItems?: readonly string[];
 };
 
 /**

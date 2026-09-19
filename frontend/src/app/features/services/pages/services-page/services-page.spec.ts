@@ -75,6 +75,15 @@ describe('ServicesPage organization-scoped workflows', () => {
 
   afterEach(() => {
     page.ngOnDestroy();
+
+    // Los cuatro catalogos del perfil de la posicion —sexo, edad, escolaridad y equipo— se piden al
+    // abrir el editor. No los pide esta prueba, que va de otra cosa, asi que se responden vacios en
+    // vez de dejarlos abiertos: verify() no distingue «no me importa» de «se me olvido».
+    http
+      .match((r) => r.url === '/api/v1/catalogs/items')
+      .filter((r) => !r.cancelled)
+      .forEach((r) => r.flush([]));
+
     http.verify({ ignoreCancelled: true });
     TestBed.resetTestingModule();
     vi.restoreAllMocks();

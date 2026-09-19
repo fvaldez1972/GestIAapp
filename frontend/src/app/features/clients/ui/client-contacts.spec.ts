@@ -97,10 +97,17 @@ describe('Contactos del cliente', () => {
 
     expect(host.creado()).toEqual({
       fullName: 'Laura Méndez',
+      // El propósito sale del catálogo desde el 19 de septiembre de 2026. El enum viaja igual
+      // mientras el servidor conserve su columna, pero ya no decide nada.
+      idPurposeCatalogItem: null,
       purpose: 'Operational',
+      // Sin elegir alcance, «a todo el cliente»: es el caso normal, veintitrés de los veintiséis
+      // contactos de la base viva son del cliente y no de una zona.
+      scope: 'General',
       idClientZone: null,
+      idContactJobPositionCatalogItem: null,
       // Sin puesto elegido va vacío. El puesto sale del catálogo, no de texto libre: el servidor
-      // lo valida contra el catálogo de puestos y rechaza con 409 cualquier cosa escrita a mano.
+      // lo valida contra el catálogo y rechaza con 409 cualquier cosa escrita a mano.
       jobTitle: '',
       email: '',
       phone: '3312345678',
@@ -134,7 +141,11 @@ describe('Contactos del cliente', () => {
   });
 
   /** Sólo las zonas activas: ofrecer una dada de baja sería ofrecer un destino que ya no existe. */
-  it('ofrece las zonas activas y la opción de no tener zona', () => {
+  /**
+   * El selector de zona ya no lleva una opción «sin zona»: eso ahora lo dice el alcance, y el
+   * selector sólo aparece cuando el alcance es «sólo a una zona».
+   */
+  it('ofrece sólo las zonas activas, y sólo cuando el alcance es de zona', () => {
     const { raiz, abrir, fixture } = montar((host) => {
       host.zones.set([
         zona({ idClientZone: 's1', name: 'Planta Norte', active: true }),
@@ -143,16 +154,22 @@ describe('Contactos del cliente', () => {
     });
     abrir();
 
+    const contactos = fixture.debugElement.children[0].componentInstance as {
+      scope: { set(v: string): void };
+    };
+    contactos.scope.set('Zone');
+    fixture.detectChanges();
+
     const disparadores = Array.from(raiz.querySelectorAll('gi-select button[role="combobox"]'));
-    const zonas = disparadores[1] as HTMLButtonElement;
+    const zonas = disparadores[disparadores.length - 1] as HTMLButtonElement;
     zonas.click();
     fixture.detectChanges();
     const opciones = Array.from(raiz.querySelectorAll('gi-select .gi-select__option'))
       .map((o) => o.textContent?.trim());
 
-    expect(opciones).toContain('Del cliente, no de una zona');
     expect(opciones).toContain('Planta Norte');
     expect(opciones).not.toContain('Bodega vieja');
+    expect(opciones).not.toContain('Del cliente, no de una zona');
   });
 
   /**
@@ -183,8 +200,10 @@ describe('Contactos del cliente', () => {
     escribir('nc-telefono', '3312345678');
 
     // Se elige por identificador, que es lo que el selector entrega.
-    const contactos = fixture.debugElement.children[0].componentInstance as { idJobPosition: { set(v: string): void } };
-    contactos.idJobPosition.set('p1');
+    const contactos = fixture.debugElement.children[0].componentInstance as {
+      idContactJobPosition: { set(v: string): void };
+    };
+    contactos.idContactJobPosition.set('p1');
     fixture.detectChanges();
 
     guardar()!.click();

@@ -136,14 +136,16 @@
             <app-client-contacts
               [contacts]="contacts()"
               [zones]="zones()"
-              [jobPositions]="jobPositions()"
+              [jobPositions]="contactJobPositions()"
+              [purposes]="contactPurposes()"
               [canWrite]="canWrite()"
               [saving]="saving()"
               [openAdd]="addingContact()"
               (closeAdd)="addingContact.set(false)"
               (create)="createContact($event)"
               (edit)="updateContact($event)"
-              (createJobPosition)="createJobPosition($event)"
+              (createJobPosition)="createContactJobPosition($event)"
+              (createPurpose)="createContactPurpose($event)"
             />
           </ng-template>
 

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, WritableSignal, computed, effect, inject, signal, untracked } from '@angular/core';
 import { Router } from '@angular/router';
 import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
@@ -139,6 +139,17 @@ export class ClientsPage {
    * Personal.</p>
    */
   protected readonly jobPositions = signal<readonly GiCatalogOption[]>([]);
+
+  /**
+   * Los puestos de contacto, que son un catálogo aparte del de puestos del personal.
+   *
+   * <p>Hasta el 19 de septiembre de 2026 el contacto elegía del catálogo de puestos del personal,
+   * que es el que sostiene la elegibilidad: dar de alta al vuelo un «Gerente de compras» desde la
+   * ficha de un cliente metía ese valor en la lista contra la que se comprueba si un guardia puede
+   * cubrir un turno.</p>
+   */
+  protected readonly contactJobPositions = signal<readonly GiCatalogOption[]>([]);
+  protected readonly contactPurposes = signal<readonly GiCatalogOption[]>([]);
 
   /**
    * El cliente que se esta editando, con su ficha completa.
@@ -360,6 +371,59 @@ export class ClientsPage {
         ),
       error: () => this.jobPositions.set([]),
     });
+
+    this.catalogApi.listItems(organizationId, 'ContactJobPosition').subscribe({
+      next: (items) =>
+        this.contactJobPositions.set(
+          items.filter((item) => item.active).map((item) => ({ idCatalogItem: item.idCatalogItem, name: item.name })),
+        ),
+      error: () => this.contactJobPositions.set([]),
+    });
+
+    this.catalogApi.listItems(organizationId, 'ContactPurpose').subscribe({
+      next: (items) =>
+        this.contactPurposes.set(
+          items.filter((item) => item.active).map((item) => ({ idCatalogItem: item.idCatalogItem, name: item.name })),
+        ),
+      error: () => this.contactPurposes.set([]),
+    });
+  }
+
+  protected createContactJobPosition(creation: GiCatalogCreation): void {
+    this.createCatalogValue('ContactJobPosition', creation, this.contactJobPositions, 'el puesto de contacto');
+  }
+
+  protected createContactPurpose(creation: GiCatalogCreation): void {
+    this.createCatalogValue('ContactPurpose', creation, this.contactPurposes, 'el propósito');
+  }
+
+  /**
+   * El alta al vuelo, la misma para los tres catálogos que la ficha del cliente ofrece.
+   *
+   * <p>Se escribió una vez y no tres porque lo único que cambia entre ellos es el tipo y la señal
+   * donde cae el valor nuevo; el resto —el error, el estado de guardado y meterlo en la lista sin
+   * recargar— es idéntico, y copiarlo habría hecho que un arreglo se aplicara a uno solo.</p>
+   */
+  private createCatalogValue(
+    type: 'ContactJobPosition' | 'ContactPurpose',
+    creation: GiCatalogCreation,
+    destino: WritableSignal<readonly GiCatalogOption[]>,
+    queEs: string,
+  ): void {
+    const organizationId = this.organizationId();
+
+    if (!organizationId || !this.canWrite()) {
+      return;
+    }
+
+    this.catalogApi
+      .createItem({ idOrganization: organizationId, type, name: creation.name, description: null })
+      .subscribe({
+        next: (creado) =>
+          destino.update((valores) => [...valores, { idCatalogItem: creado.idCatalogItem, name: creado.name }]),
+        error: (problem) =>
+          this.actionError.set(readServerProblem(problem, `No se pudo agregar ${queEs} al catálogo.`).message),
+      });
   }
 
   protected readonly tableState = computed<GiTableState>(() => {
@@ -787,6 +851,11 @@ export class ClientsPage {
         idOrganization: organizationId,
         idClient,
         idClientZone,
+        // El contacto que se captura junto con la primera zona es de esa zona: es el que va a
+        // atender ahi, y por eso el formulario de alta lo pide en el mismo bloque.
+        scope: 'Zone',
+        idPurposeCatalogItem: null,
+        idContactJobPositionCatalogItem: null,
         purpose: 'Operational',
         fullName: value.contact.fullName,
         jobTitle: value.contact.jobTitle || null,
@@ -1002,6 +1071,9 @@ No se borra: deja de poder elegirse para servicios `
         idOrganization: organizationId,
         idClient: client.idClient,
         idClientZone: event.datos.idClientZone,
+        scope: event.datos.scope,
+        idPurposeCatalogItem: event.datos.idPurposeCatalogItem,
+        idContactJobPositionCatalogItem: event.datos.idContactJobPositionCatalogItem,
         purpose: event.datos.purpose,
         fullName: event.datos.fullName,
         jobTitle: event.datos.jobTitle || null,
@@ -1041,6 +1113,9 @@ No se borra: deja de poder elegirse para servicios `
         idOrganization: organizationId,
         idClient: client.idClient,
         idClientZone: contact.idClientZone,
+        scope: contact.scope,
+        idPurposeCatalogItem: contact.idPurposeCatalogItem,
+        idContactJobPositionCatalogItem: contact.idContactJobPositionCatalogItem,
         purpose: contact.purpose,
         fullName: contact.fullName,
         jobTitle: contact.jobTitle || null,

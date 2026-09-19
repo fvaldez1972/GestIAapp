@@ -31,7 +31,10 @@ public sealed record CreateEmployeeRequest(
     string? HomePhone,
     string? EmergencyContactName,
     string? EmergencyContactPhone,
+    /// <summary>Qué es de la persona: madre, cónyuge, hermano. Texto libre.</summary>
+    string? EmergencyContactRelationship,
     string? Address,
+    string? Neighborhood,
     string? Municipality,
     string? State,
     string? PostalCode,
@@ -60,7 +63,10 @@ public sealed record UpdateEmployeeRequest(
     string? HomePhone,
     string? EmergencyContactName,
     string? EmergencyContactPhone,
+    /// <summary>Qué es de la persona: madre, cónyuge, hermano. Texto libre.</summary>
+    string? EmergencyContactRelationship,
     string? Address,
+    string? Neighborhood,
     string? Municipality,
     string? State,
     string? PostalCode,
@@ -94,7 +100,10 @@ public sealed record EmployeeResponse(
     string? HomePhone,
     string? EmergencyContactName,
     string? EmergencyContactPhone,
+    /// <summary>Qué es de la persona: madre, cónyuge, hermano. Texto libre.</summary>
+    string? EmergencyContactRelationship,
     string? Address,
+    string? Neighborhood,
     string? Municipality,
     string? State,
     string? PostalCode,

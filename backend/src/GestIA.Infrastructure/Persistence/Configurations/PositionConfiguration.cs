@@ -36,6 +36,16 @@ public sealed class PositionConfiguration : IEntityTypeConfiguration<Position>
         builder.Property(entity => entity.IsTaxIncluded).IsRequired();
         builder.Property(entity => entity.RequiredSkillProfile).HasMaxLength(1000);
         builder.Property(entity => entity.Notes).HasMaxLength(1000);
+        // Nulables las tres, y sin navegacion: la posicion las guarda por identificador y quien
+        // necesita el nombre lo resuelve con el catalogo que ya trae cargado. Una navegacion por
+        // cada una habria metido tres joins en la consulta del listado de servicios.
+        builder.HasIndex(entity => entity.IdSexCatalogItem)
+            .HasFilter("[IdSexCatalogItem] IS NOT NULL");
+        builder.HasIndex(entity => entity.IdAgeRangeCatalogItem)
+            .HasFilter("[IdAgeRangeCatalogItem] IS NOT NULL");
+        builder.HasIndex(entity => entity.IdEducationLevelCatalogItem)
+            .HasFilter("[IdEducationLevelCatalogItem] IS NOT NULL");
+
         builder.HasOne(entity => entity.Service)
             .WithMany()
             .HasForeignKey(entity => entity.IdService)

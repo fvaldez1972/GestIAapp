@@ -57,7 +57,11 @@ export type Employee = {
   readonly homePhone: string | null;
   readonly emergencyContactName: string | null;
   readonly emergencyContactPhone: string | null;
+  /** Qué es de la persona quien figura como contacto de emergencia. Texto libre. */
+  readonly emergencyContactRelationship: string | null;
   readonly address: string | null;
+  /** La colonia del domicilio. Texto libre por la decisión D-05. */
+  readonly neighborhood: string | null;
   readonly municipality: string | null;
   readonly state: string | null;
   readonly countryCode?: string | null;
@@ -94,6 +98,16 @@ export type EmployeeDocument = {
   /** La categoría, contra el catálogo que la organización edita. */
   readonly idDocumentCategoryCatalogItem: string | null;
   readonly documentCategoryName: string | null;
+
+  /**
+   * Si el documento lleva datos personales que piden trato especial.
+   *
+   * <p><b>Hoy es una clasificación, no un permiso.</b> Marca el papel para que quien administra la
+   * organización sepa qué está guardando; convertirla en una restricción de acceso es una decisión
+   * aparte, con su comprobación en el servidor. La pantalla lo dice así para que marcar la casilla
+   * no haga creer que esa restricción ya existe.</p>
+   */
+  readonly isSensitive: boolean;
   readonly status: EmployeeDocumentStatus;
   readonly documentNumber: string | null;
   readonly receivedDate: string | null;

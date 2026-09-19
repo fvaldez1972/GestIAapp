@@ -13,7 +13,8 @@ public sealed record EmployeeDocumentProfile(
     DateOnly? ExpiresDate,
     string? StorageReference,
     string? Notes,
-    Guid? IdBusinessDocument = null);
+    Guid? IdBusinessDocument = null,
+    bool IsSensitive = false);
 
 /// <summary>
 /// Lleva su propia <c>IdOrganization</c> aunque la alcanzaría por su padre.
@@ -104,6 +105,16 @@ public sealed class EmployeeDocument : AuditableEntity, IOrganizationScopedEntit
     public Guid? IdBusinessDocument { get; private set; }
 
     public string? Notes { get; private set; }
+
+    /// <summary>
+    /// Si el documento lleva datos personales que piden trato especial.
+    ///
+    /// <para>Hoy es una clasificación y no un permiso: marca el papel para que quien administre la
+    /// organización sepa qué está guardando. Convertirla en una restricción de acceso es una
+    /// decisión aparte, con su propia comprobación en el servidor, y marcar la casilla no debe
+    /// hacer creer que esa restricción ya existe.</para>
+    /// </summary>
+    public bool IsSensitive { get; private set; }
     public Employee Employee { get; private set; } = null!;
 
     public static EmployeeDocument Create(
@@ -162,6 +173,7 @@ public sealed class EmployeeDocument : AuditableEntity, IOrganizationScopedEntit
         ExpiresDate = profile.ExpiresDate;
         StorageReference = Normalize(profile.StorageReference);
         IdBusinessDocument = profile.IdBusinessDocument;
+        IsSensitive = profile.IsSensitive;
         Notes = Normalize(profile.Notes);
     }
 

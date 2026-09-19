@@ -30,6 +30,8 @@ public sealed class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
         builder.Property(entity => entity.EmergencyContactName).HasMaxLength(200);
         builder.Property(entity => entity.EmergencyContactPhone).HasMaxLength(30).IsUnicode(false);
         builder.Property(entity => entity.Address).HasMaxLength(500);
+        builder.Property(entity => entity.Neighborhood).HasMaxLength(120);
+        builder.Property(entity => entity.EmergencyContactRelationship).HasMaxLength(80);
         builder.Property(entity => entity.Municipality).HasMaxLength(120);
         builder.Property(entity => entity.State).HasMaxLength(120);
         builder.Property(entity => entity.CountryCode).HasMaxLength(2).IsUnicode(false);

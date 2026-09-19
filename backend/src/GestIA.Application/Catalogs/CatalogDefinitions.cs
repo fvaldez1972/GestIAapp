@@ -77,6 +77,7 @@ public static class CatalogDefinitions
         Fixed<ScheduleVersionStatus>("Estados de planeacion", "Planeacion"),
         Fixed<EligibilityRequirementType>("Tipos de regla", "Catalogos"),
         Fixed<EligibilityRequirementTargetType>("Alcances de regla", "Catalogos"),
+        Fixed<ClientContactScope>("Alcances del contacto", "Clientes"),
         Fixed<OperationalEntityType>("Registros con historial", "Auditoria")
     ];
 
@@ -115,6 +116,7 @@ public static class CatalogDefinitions
         "AttendanceRecord" => "Asistencia", "ServiceConfiguration" => "Configuracion de servicio",
         "Incident" => "Incidencia", "CoverageRecord" => "Cobertura", "ServiceAssignment" => "Asignacion",
         "Executed" => "Firmado", "Effective" => "Vigente", "PendingReview" => "Pendiente de revision", "Archived" => "Archivado",
+        "General" => "Todo el cliente", "Zone" => "Una zona",
         "Client" => "Cliente", "ServiceContract" => "Contrato", "Service" => "Servicio", "Employee" => "Empleado",
         "EmployeeEvaluation" => "Evaluacion del empleado", "OperationalRequest" => "Solicitud", "Organization" => "Organizacion",
         "Position" => "Posicion", "Skill" => "Experiencia", "Document" => "Documento", "Evaluation" => "Evaluacion", "Restriction" => "Restriccion",

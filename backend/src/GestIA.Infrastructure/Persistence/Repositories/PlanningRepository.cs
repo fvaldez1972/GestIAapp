@@ -1,4 +1,5 @@
 using GestIA.Application.Planning;
+using GestIA.Domain.Catalogs;
 using GestIA.Domain.Planning;
 using Microsoft.EntityFrameworkCore;
 using ServiceEntity = GestIA.Domain.Services.Service;
@@ -40,6 +41,10 @@ public sealed class PlanningRepository(GestIaDbContext dbContext) : IPlanningRep
         CancellationToken cancellationToken) =>
         await dbContext.Positions
             .AsNoTracking()
+            // El equipo viene resuelto con su nombre: la pantalla lo enseña por nombre, y sin esto
+            // cada posicion del listado costaria una consulta mas.
+            .Include(position => position.RequiredEquipment)
+                .ThenInclude(equipment => equipment.EquipmentCatalogItem)
             .Where(position => position.IdService == idService)
             .OrderBy(position => position.CodePosition)
             .ToArrayAsync(cancellationToken);
@@ -48,9 +53,45 @@ public sealed class PlanningRepository(GestIaDbContext dbContext) : IPlanningRep
         Guid idService,
         Guid idPosition,
         CancellationToken cancellationToken) =>
-        dbContext.Positions.SingleOrDefaultAsync(
-            position => position.IdService == idService && position.IdPosition == idPosition,
-            cancellationToken);
+        dbContext.Positions
+            .Include(position => position.RequiredEquipment)
+                .ThenInclude(equipment => equipment.EquipmentCatalogItem)
+            .SingleOrDefaultAsync(
+                position => position.IdService == idService && position.IdPosition == idPosition,
+                cancellationToken);
+
+    public async Task<IReadOnlyList<PositionRequiredEquipment>> ListPositionEquipmentAsync(
+        Guid idPosition,
+        CancellationToken cancellationToken) =>
+        await dbContext.PositionRequiredEquipments
+            .IgnoreQueryFilters(["Active"])
+            .Where(equipment => equipment.IdPosition == idPosition)
+            .ToArrayAsync(cancellationToken);
+
+    public Task AddPositionEquipmentAsync(PositionRequiredEquipment equipment, CancellationToken cancellationToken) =>
+        dbContext.PositionRequiredEquipments.AddAsync(equipment, cancellationToken).AsTask();
+
+    public async Task<bool> AreEquipmentCatalogItemsUsableAsync(
+        Guid idOrganization,
+        IReadOnlyCollection<Guid> idCatalogItems,
+        CancellationToken cancellationToken)
+    {
+        if (idCatalogItems.Count == 0)
+        {
+            return true;
+        }
+
+        var encontrados = await dbContext.BusinessCatalogItems
+            .AsNoTracking()
+            .CountAsync(
+                item => item.IdOrganization == idOrganization &&
+                    item.Type == BusinessCatalogItemType.RequiredEquipment &&
+                    item.Active &&
+                    idCatalogItems.Contains(item.IdBusinessCatalogItem),
+                cancellationToken);
+
+        return encontrados == idCatalogItems.Distinct().Count();
+    }
 
     public async Task<int> HighestPositionCodeNumberAsync(Guid idService, CancellationToken cancellationToken)
     {

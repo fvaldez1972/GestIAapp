@@ -289,7 +289,10 @@ public sealed class OrganizationIsolationTests(OperationalSqlDatabase database)
         // vacía: una prueba que recorre un conjunto sin filas no comprueba nada.
         var contact = ClientContact.Create(
             organizationId, client.IdClient, site.IdClientSite,
-            new(ClientContactPurpose.Operational, $"Contacto {prefix}", null, null, null, null, true),
+            // Con telefono: desde el 19 de septiembre de 2026 un contacto sin telefono ni correo
+            // no se puede guardar, y con alcance de zona tiene que decir de que zona es.
+            new(ClientContactPurpose.Operational, $"Contacto {prefix}", null, null, "5555555555", null, true,
+                ClientContactScope.Zone),
             ActorId, ActorName, Now);
         var employeeDocument = EmployeeDocument.Create(
             organizationId, employee.IdEmployee,

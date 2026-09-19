@@ -68,6 +68,7 @@ export function documentFixture(overrides: Partial<EmployeeDocument> = {}): Empl
     documentType: 'Curp',
     idDocumentCategoryCatalogItem: 'cat-curp',
     documentCategoryName: 'CURP',
+    isSensitive: false,
     status: 'Validated',
     documentNumber: 'VICR900101MJCLRN03',
     receivedDate: '2026-03-02',

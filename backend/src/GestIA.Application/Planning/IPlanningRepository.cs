@@ -40,6 +40,19 @@ public interface IPlanningRepository
 
     Task AddPositionAsync(Position position, CancellationToken cancellationToken);
 
+    /// <summary>El equipo que una posicion ya tiene registrado, activo o no.</summary>
+    Task<IReadOnlyList<PositionRequiredEquipment>> ListPositionEquipmentAsync(
+        Guid idPosition,
+        CancellationToken cancellationToken);
+
+    Task AddPositionEquipmentAsync(PositionRequiredEquipment equipment, CancellationToken cancellationToken);
+
+    /// <summary>Que las piezas elegidas existan, esten activas y sean del catalogo de equipo.</summary>
+    Task<bool> AreEquipmentCatalogItemsUsableAsync(
+        Guid idOrganization,
+        IReadOnlyCollection<Guid> idCatalogItems,
+        CancellationToken cancellationToken);
+
     Task<IReadOnlyList<ShiftPattern>> ListShiftPatternsAsync(Guid idPosition, CancellationToken cancellationToken);
 
     Task<ShiftPattern?> GetShiftPatternAsync(

@@ -122,6 +122,10 @@ public sealed partial class ClientContactService(
 
     private static ClientContactDetails Validate(CreateClientContactRequest request) =>
         Validate(
+            request.Scope,
+            request.IdPurposeCatalogItem,
+            request.IdContactJobPositionCatalogItem,
+            request.IdClientZone,
             request.Purpose,
             request.FullName,
             request.JobTitle,
@@ -132,6 +136,10 @@ public sealed partial class ClientContactService(
 
     private static ClientContactDetails Validate(UpdateClientContactRequest request) =>
         Validate(
+            request.Scope,
+            request.IdPurposeCatalogItem,
+            request.IdContactJobPositionCatalogItem,
+            request.IdClientZone,
             request.Purpose,
             request.FullName,
             request.JobTitle,
@@ -141,6 +149,10 @@ public sealed partial class ClientContactService(
             request.IsPrimary);
 
     private static ClientContactDetails Validate(
+        ClientContactScope scope,
+        Guid? idPurposeCatalogItem,
+        Guid? idContactJobPositionCatalogItem,
+        Guid? idClientZone,
         ClientContactPurpose purpose,
         string fullName,
         string? jobTitle,
@@ -154,6 +166,13 @@ public sealed partial class ClientContactService(
         if (!Enum.IsDefined(purpose))
         {
             errors[nameof(purpose)] = ["El propósito del contacto no es válido."];
+        }
+
+        // La regla de la matriz, dicha en el servidor: con alcance de zona hay que decir cuál. Que
+        // esa zona sea del cliente lo comprueba EnsureZoneAsync antes de llegar aquí.
+        if (scope is ClientContactScope.Zone && idClientZone is null)
+        {
+            errors[nameof(scope)] = ["Un contacto de zona tiene que decir de qué zona es."];
         }
 
         var normalizedEmail = InputValidation.Optional(email, nameof(email), 254, errors);
@@ -177,7 +196,10 @@ public sealed partial class ClientContactService(
             normalizedEmail,
             normalizedPhone,
             normalizedMobile,
-            isPrimary);
+            isPrimary,
+            scope,
+            idPurposeCatalogItem,
+            idContactJobPositionCatalogItem);
         InputValidation.ThrowIfInvalid(errors);
         return details;
     }
@@ -186,7 +208,12 @@ public sealed partial class ClientContactService(
         contact.IdClientContact,
         contact.IdClient,
         contact.IdClientSite,
+        contact.Scope,
+        contact.IdPurposeCatalogItem,
+        contact.IdContactJobPositionCatalogItem,
         contact.ClientSite?.Name,
+        contact.PurposeCatalogItem?.Name,
+        contact.ContactJobPositionCatalogItem?.Name,
         contact.Purpose,
         contact.FullName,
         contact.JobTitle,

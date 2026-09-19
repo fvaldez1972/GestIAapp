@@ -401,7 +401,7 @@ public sealed class OverviewTests(OperationalSqlDatabase database)
     private static EmployeeProfile ProfileFor(string fullName, Guid jobPositionId) =>
         new(fullName, "Guardia", Day.AddDays(-90),
             null, null, null, null, null, null, null, null, null, null,
-            null, null, null, null, null, null, null, null, null, null, null,
+            null, null, null, null, null, null, null, null, null, null, null, null, null,
             null, jobPositionId);
 
     private static BusinessCatalogItem Catalog(Guid organizationId, BusinessCatalogItemType type, string code) =>

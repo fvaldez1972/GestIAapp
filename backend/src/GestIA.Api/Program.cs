@@ -94,6 +94,7 @@ app.MapClientZoneEndpoints();
 app.MapClientContactEndpoints();
 app.MapServiceManagementEndpoints();
 app.MapWorkforceEndpoints();
+app.MapAdministrativeIncidentEndpoints();
 app.MapPlanningEndpoints();
 app.MapAssignmentEndpoints();
 app.MapSchedulingEndpoints();

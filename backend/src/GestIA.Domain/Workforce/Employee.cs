@@ -22,7 +22,9 @@ public sealed record EmployeeProfile(
     string? HomePhone,
     string? EmergencyContactName,
     string? EmergencyContactPhone,
+    string? EmergencyContactRelationship,
     string? Address,
+    string? Neighborhood,
     string? Municipality,
     string? State,
     string? PostalCode,
@@ -101,7 +103,20 @@ public sealed class Employee : AuditableEntity, IOrganizationScopedEntity
     public string? HomePhone { get; private set; }
     public string? EmergencyContactName { get; private set; }
     public string? EmergencyContactPhone { get; private set; }
+
+    /// <summary>
+    /// Qué es de la persona quien figura como contacto de emergencia: madre, cónyuge, hermano.
+    ///
+    /// <para>Es texto libre y no catálogo. Quien llama en una emergencia necesita saber con quién
+    /// habla, y una lista cerrada de parentescos obligaría a elegir mal en los casos que no
+    /// contempla.</para>
+    /// </summary>
+    public string? EmergencyContactRelationship { get; private set; }
+
     public string? Address { get; private set; }
+
+    /// <summary>La colonia del domicilio. Texto libre por la decisión D-05.</summary>
+    public string? Neighborhood { get; private set; }
     public string? Municipality { get; private set; }
     public string? State { get; private set; }
     public string? CountryCode { get; private set; }
@@ -206,7 +221,9 @@ public sealed class Employee : AuditableEntity, IOrganizationScopedEntity
         HomePhone = Normalize(profile.HomePhone);
         EmergencyContactName = Normalize(profile.EmergencyContactName);
         EmergencyContactPhone = Normalize(profile.EmergencyContactPhone);
+        EmergencyContactRelationship = Normalize(profile.EmergencyContactRelationship);
         Address = Normalize(profile.Address);
+        Neighborhood = Normalize(profile.Neighborhood);
         Municipality = Normalize(profile.Municipality);
         State = Normalize(profile.State);
         CountryCode = Normalize(profile.CountryCode)?.ToUpperInvariant();

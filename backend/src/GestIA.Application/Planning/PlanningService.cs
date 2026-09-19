@@ -52,7 +52,8 @@ public sealed class PlanningService(
             request.Name, request.RequiredWorkerCount, request.RequiredSkillProfile,
             request.Notes, request.IdJobPositionCatalogItem,
             request.Price, request.CurrencyCode, request.IsTaxIncluded, request.PriceFrequency,
-            request.IdShiftPatternTemplate);
+            request.IdShiftPatternTemplate,
+            request.IdSexCatalogItem, request.IdAgeRangeCatalogItem, request.IdEducationLevelCatalogItem);
         await EnsureJobPositionAsync(request.IdOrganization, profile.IdJobPositionCatalogItem, cancellationToken);
         await EnsureShiftPatternTemplateAsync(
             request.IdOrganization, profile.IdShiftPatternTemplate, cancellationToken);
@@ -72,6 +73,8 @@ public sealed class PlanningService(
             clock.UtcNow);
 
         await repository.AddPositionAsync(position, cancellationToken);
+        await SyncEquipmentAsync(
+            request.IdOrganization, position, request.IdRequiredEquipmentCatalogItems, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return Map(position);
     }
@@ -87,12 +90,15 @@ public sealed class PlanningService(
             request.Name, request.RequiredWorkerCount, request.RequiredSkillProfile,
             request.Notes, request.IdJobPositionCatalogItem,
             request.Price, request.CurrencyCode, request.IsTaxIncluded, request.PriceFrequency,
-            request.IdShiftPatternTemplate);
+            request.IdShiftPatternTemplate,
+            request.IdSexCatalogItem, request.IdAgeRangeCatalogItem, request.IdEducationLevelCatalogItem);
         await EnsureJobPositionAsync(request.IdOrganization, profile.IdJobPositionCatalogItem, cancellationToken);
         await EnsureShiftPatternTemplateAsync(
             request.IdOrganization, profile.IdShiftPatternTemplate, cancellationToken);
 
         position.UpdateProfile(profile, actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
+        await SyncEquipmentAsync(
+            request.IdOrganization, position, request.IdRequiredEquipmentCatalogItems, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return Map(position);
     }
@@ -391,7 +397,10 @@ public sealed class PlanningService(
         string currencyCode,
         bool isTaxIncluded,
         PaymentFrequency priceFrequency,
-        Guid? idShiftPatternTemplate)
+        Guid? idShiftPatternTemplate,
+        Guid? idSexCatalogItem,
+        Guid? idAgeRangeCatalogItem,
+        Guid? idEducationLevelCatalogItem)
     {
         var errors = new Dictionary<string, string[]>();
         Required(name, nameof(name), 150, errors);
@@ -418,7 +427,10 @@ public sealed class PlanningService(
             string.IsNullOrWhiteSpace(currencyCode) ? "MXN" : currencyCode,
             isTaxIncluded,
             priceFrequency,
-            idShiftPatternTemplate);
+            idShiftPatternTemplate,
+            idSexCatalogItem,
+            idAgeRangeCatalogItem,
+            idEducationLevelCatalogItem);
     }
 
     private static ShiftPatternProfile ValidateShiftPattern(
@@ -506,6 +518,73 @@ public sealed class PlanningService(
         }
     }
 
+    /// <summary>
+    /// El perfil de la posición, ya resuelto contra el catálogo.
+    ///
+    /// <para>El equipo llega resuelto y no como una lista de identificadores porque la pantalla lo
+    /// enseña por nombre, y pedirle que lo resuelva obligaría a que cada pantalla que muestre una
+    /// posición cargara antes el catálogo entero de equipos.</para>
+    /// </summary>
+    /// <summary>
+    /// Deja el equipo de la posición como dice la petición, sin borrar nada.
+    ///
+    /// <para><b>Retirar una pieza la desactiva, no la elimina</b>, y volver a pedirla reactiva la
+    /// fila que ya estaba. Es la misma regla que rige en todo el sistema —los registros no se
+    /// borran— y aquí además evita que el índice único choque: la pieza retirada sigue ocupando su
+    /// sitio, así que insertar otra igual fallaría.</para>
+    ///
+    /// <para>Un <c>null</c> deja el equipo como estaba; una lista vacía lo retira entero. La
+    /// diferencia importa porque una pantalla que edita sólo el precio no manda el equipo, y
+    /// tratarlo como «vacío» le borraría lo que no venía a tocar.</para>
+    /// </summary>
+    private async Task SyncEquipmentAsync(
+        Guid idOrganization,
+        Position position,
+        IReadOnlyList<Guid>? idCatalogItems,
+        CancellationToken cancellationToken)
+    {
+        if (idCatalogItems is null)
+        {
+            return;
+        }
+
+        var pedidos = idCatalogItems.Distinct().ToArray();
+
+        if (!await repository.AreEquipmentCatalogItemsUsableAsync(idOrganization, pedidos, cancellationToken))
+        {
+            throw new RequestValidationException(new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["idRequiredEquipmentCatalogItems"] =
+                    ["Elige equipo activo del catálogo de equipo requerido."]
+            });
+        }
+
+        var existentes = await repository.ListPositionEquipmentAsync(position.IdPosition, cancellationToken);
+
+        foreach (var existente in existentes)
+        {
+            var sigue = pedidos.Contains(existente.IdEquipmentCatalogItem);
+
+            if (sigue && !existente.Active)
+            {
+                existente.Activate(actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
+            }
+            else if (!sigue && existente.Active)
+            {
+                existente.Deactivate(actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
+            }
+        }
+
+        foreach (var nuevo in pedidos.Where(id => existentes.All(item => item.IdEquipmentCatalogItem != id)))
+        {
+            await repository.AddPositionEquipmentAsync(
+                PositionRequiredEquipment.Create(
+                    idOrganization, position.IdPosition, nuevo,
+                    actorContext.ActorId, actorContext.ActorName, clock.UtcNow),
+                cancellationToken);
+        }
+    }
+
     private static PositionResponse Map(Position position) =>
         new(
             position.IdPosition,
@@ -521,7 +600,16 @@ public sealed class PlanningService(
             position.CurrencyCode,
             position.IsTaxIncluded,
             position.PriceFrequency,
-            position.IdShiftPatternTemplate);
+            position.IdShiftPatternTemplate,
+            position.IdSexCatalogItem,
+            position.IdAgeRangeCatalogItem,
+            position.IdEducationLevelCatalogItem,
+            position.RequiredEquipment
+                .Where(item => item.Active)
+                .Select(item => new PositionEquipmentResponse(
+                    item.IdEquipmentCatalogItem,
+                    item.EquipmentCatalogItem?.Name ?? "Equipo no encontrado"))
+                .ToArray());
 
     private static ShiftPatternResponse Map(ShiftPattern shiftPattern) =>
         new(

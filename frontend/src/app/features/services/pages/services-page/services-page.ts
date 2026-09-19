@@ -93,7 +93,7 @@ import { ServiceDialog } from '../../ui/service-dialog';
 import { ServiceContextApi } from '../../data-access/service-context-api';
 import { EntityDocuments } from '../../../documents/components/entity-documents/entity-documents';
 import { GiCandidatePicker } from '../../../../shared/ui/gi-candidate-picker/gi-candidate-picker';
-import { GiCatalogCreation } from '../../../../shared/ui/gi-catalog-picker/gi-catalog-picker';
+import { GiCatalogCreation, GiCatalogOption } from '../../../../shared/ui/gi-catalog-picker/gi-catalog-picker';
 import { PositionSkillRequest, PositionSkillToggle, PositionSkills } from '../../ui/position-skills';
 import { EligibilityRequirement, EligibilityRequirementInput } from '../../../catalogs/data-access/catalog.models';
 import { AppIcon } from '../../../../shared/ui/app-icon/app-icon';
@@ -1135,9 +1135,67 @@ export class ServicesPage implements OnInit, OnDestroy {
     // El patron de turno sale del catalogo. Vacio significa que la posicion conserva el patron que
     // se le capturo por dentro, no que no tenga turnos.
     idShiftPatternTemplate: [''],
+    // El perfil que el cliente pide para el puesto. Es del puesto y no de la persona: describe lo
+    // contratado, y por eso el catálogo de sexo admite «Indistinto».
+    idSexCatalogItem: [''],
+    idAgeRangeCatalogItem: [''],
+    idEducationLevelCatalogItem: [''],
     requiredSkillProfile: ['', [Validators.maxLength(1000)]],
     notes: ['', [Validators.maxLength(1000)]],
   });
+
+  /**
+   * El equipo que el cliente pide, que casi nunca es uno.
+   *
+   * <p>Fuera del formulario reactivo porque es una lista y no un campo: el formulario guarda
+   * valores sueltos, y meter aquí un arreglo obligaría a sincronizarlo a mano en cada `reset`.</p>
+   */
+  protected readonly selectedEquipment = signal<readonly string[]>([]);
+
+  protected readonly equipmentCatalog = signal<readonly GiCatalogOption[]>([]);
+  protected readonly sexCatalog = signal<readonly GiCatalogOption[]>([]);
+  protected readonly ageRangeCatalog = signal<readonly GiCatalogOption[]>([]);
+  protected readonly educationCatalog = signal<readonly GiCatalogOption[]>([]);
+
+  /** Alterna una pieza de equipo. Elegir dos veces la misma la quita, que es lo que espera quien la pulsa. */
+  protected toggleEquipment(idCatalogItem: string): void {
+    this.selectedEquipment.update((actuales) =>
+      actuales.includes(idCatalogItem)
+        ? actuales.filter((id) => id !== idCatalogItem)
+        : [...actuales, idCatalogItem],
+    );
+  }
+
+  /**
+   * Los cuatro catálogos del perfil de la posición.
+   *
+   * <p>Se piden juntos y una vez por organización: son los mismos para todos sus servicios, y
+   * pedirlos al abrir cada posición repetiría cuatro respuestas idénticas.</p>
+   */
+  private loadPositionProfileCatalogs(): void {
+    const organizationId = this.selectedOrganizationId();
+    if (!organizationId) return;
+
+    const activos = (items: readonly { idCatalogItem: string; name: string; active: boolean }[]) =>
+      items.filter((item) => item.active).map((item) => ({ idCatalogItem: item.idCatalogItem, name: item.name }));
+
+    this.catalogApi.listItems(organizationId, 'Sex').subscribe({
+      next: (items) => this.sexCatalog.set(activos(items)),
+      error: () => this.sexCatalog.set([]),
+    });
+    this.catalogApi.listItems(organizationId, 'AgeRange').subscribe({
+      next: (items) => this.ageRangeCatalog.set(activos(items)),
+      error: () => this.ageRangeCatalog.set([]),
+    });
+    this.catalogApi.listItems(organizationId, 'EducationLevel').subscribe({
+      next: (items) => this.educationCatalog.set(activos(items)),
+      error: () => this.educationCatalog.set([]),
+    });
+    this.catalogApi.listItems(organizationId, 'RequiredEquipment').subscribe({
+      next: (items) => this.equipmentCatalog.set(activos(items)),
+      error: () => this.equipmentCatalog.set([]),
+    });
+  }
 
   protected readonly shiftPatternForm = this.formBuilder.nonNullable.group(
     {
@@ -1544,12 +1602,17 @@ export class ServicesPage implements OnInit, OnDestroy {
       priceFrequency: 'Monthly',
       isTaxIncluded: false,
       idShiftPatternTemplate: '',
+      idSexCatalogItem: '',
+      idAgeRangeCatalogItem: '',
+      idEducationLevelCatalogItem: '',
       requiredSkillProfile: '',
       notes: '',
     });
+    this.selectedEquipment.set([]);
     this.selectedShiftPatternTemplateId.set('');
     this.loadPositionSkills(null);
     this.loadShiftPatternTemplates();
+    this.loadPositionProfileCatalogs();
     this.positionEditorOpen.set(true);
   }
 
@@ -1565,12 +1628,19 @@ export class ServicesPage implements OnInit, OnDestroy {
       priceFrequency: position.priceFrequency,
       isTaxIncluded: position.isTaxIncluded,
       idShiftPatternTemplate: position.idShiftPatternTemplate ?? '',
+      idSexCatalogItem: position.idSexCatalogItem ?? '',
+      idAgeRangeCatalogItem: position.idAgeRangeCatalogItem ?? '',
+      idEducationLevelCatalogItem: position.idEducationLevelCatalogItem ?? '',
       requiredSkillProfile: position.requiredSkillProfile ?? '',
       notes: position.notes ?? '',
     });
+    // Con respaldo vacio: una respuesta de un servidor que todavia no trae el campo no puede
+    // tumbar la pantalla, y «sin equipo declarado» es exactamente lo que esa respuesta significa.
+    this.selectedEquipment.set((position.requiredEquipment ?? []).map((item) => item.idCatalogItem));
     this.selectedShiftPatternTemplateId.set(position.idShiftPatternTemplate ?? '');
     this.loadPositionSkills(position.idPosition);
     this.loadShiftPatternTemplates();
+    this.loadPositionProfileCatalogs();
     this.positionEditorOpen.set(true);
   }
 
@@ -1884,6 +1954,12 @@ export class ServicesPage implements OnInit, OnDestroy {
       currencyCode: 'MXN',
       isTaxIncluded: form.isTaxIncluded,
       idShiftPatternTemplate: form.idShiftPatternTemplate || null,
+      idSexCatalogItem: form.idSexCatalogItem || null,
+      idAgeRangeCatalogItem: form.idAgeRangeCatalogItem || null,
+      idEducationLevelCatalogItem: form.idEducationLevelCatalogItem || null,
+      // Siempre viaja, incluso vacío: este formulario sí edita el equipo, así que una lista vacía
+      // aquí quiere decir «ya no pide ninguno» y no «no vengo a tocarlo».
+      idRequiredEquipmentCatalogItems: this.selectedEquipment(),
       requiredSkillProfile: this.optional(form.requiredSkillProfile),
       notes: this.optional(form.notes),
     };

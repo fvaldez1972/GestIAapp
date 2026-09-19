@@ -29,6 +29,10 @@ const posicion = (id: string, code: string, required = 2): ServicePosition => ({
   currencyCode: 'MXN',
   isTaxIncluded: false,
   idShiftPatternTemplate: null,
+  idSexCatalogItem: null,
+  idAgeRangeCatalogItem: null,
+  idEducationLevelCatalogItem: null,
+  requiredEquipment: [],
 });
 
 const segmento = (idPattern: string, dayOfWeek: string, required = 2): ShiftSegment => ({

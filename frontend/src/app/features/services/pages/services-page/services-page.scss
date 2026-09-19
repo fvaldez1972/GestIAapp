@@ -592,3 +592,27 @@ footer {
 
 .panel-accion:hover { border-color: var(--gestia-cyan-dark); }
 .panel-accion:focus-visible { outline: 2px solid var(--gestia-cyan); outline-offset: 1px; }
+
+// El equipo que una posición requiere: varias piezas, no una.
+.equipo__titulo {
+  display: block;
+  margin-bottom: 0.35rem;
+  color: var(--gestia-muted);
+  font-size: 11.5px;
+}
+
+.equipo {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.9rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  label {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 12.5px;
+  }
+}

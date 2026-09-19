@@ -857,6 +857,66 @@
               }
             </label>
             <!--
+              Lo que el cliente pide para el puesto. Es del PUESTO y no de la persona: describe lo
+              contratado, y por eso el catálogo de sexo admite «Indistinto», que no describiría a
+              nadie. Nada de esto se compara contra el expediente de quien se asigne; eso son las
+              reglas de elegibilidad, que viven en Catálogos.
+            -->
+            <label
+              ><span>Sexo requerido</span
+              ><select formControlName="idSexCatalogItem">
+                <option value="">Sin declarar</option>
+                @for (valor of sexCatalog(); track valor.idCatalogItem) {
+                  <option [value]="valor.idCatalogItem">{{ valor.name }}</option>
+                }
+              </select>
+            </label>
+            <label
+              ><span>Rango de edad</span
+              ><select formControlName="idAgeRangeCatalogItem">
+                <option value="">Sin declarar</option>
+                @for (valor of ageRangeCatalog(); track valor.idCatalogItem) {
+                  <option [value]="valor.idCatalogItem">{{ valor.name }}</option>
+                }
+              </select>
+            </label>
+            <label
+              ><span>Escolaridad mínima</span
+              ><select formControlName="idEducationLevelCatalogItem">
+                <option value="">Sin declarar</option>
+                @for (valor of educationCatalog(); track valor.idCatalogItem) {
+                  <option [value]="valor.idCatalogItem">{{ valor.name }}</option>
+                }
+              </select>
+            </label>
+
+            <div class="wide">
+              <span class="equipo__titulo">Equipo requerido</span>
+              @if (equipmentCatalog().length) {
+                <ul class="equipo">
+                  @for (equipo of equipmentCatalog(); track equipo.idCatalogItem) {
+                    <li>
+                      <label>
+                        <input
+                          type="checkbox"
+                          [checked]="selectedEquipment().includes(equipo.idCatalogItem)"
+                          [disabled]="!canWriteClients()"
+                          (change)="toggleEquipment(equipo.idCatalogItem)"
+                        />
+                        <span>{{ equipo.name }}</span>
+                      </label>
+                    </li>
+                  }
+                </ul>
+              } @else {
+                <small>
+                  El catálogo de equipo requerido está vacío. Se llena en Catálogos · Equipo
+                  requerido, y hasta entonces la posición se guarda sin equipo declarado.
+                </small>
+              }
+            </div>
+
+            <!--
               El perfil deja de ser una descripción y pasa a ser una lista comprobable. El texto
               libre se queda como nota, porque lo que alguien escribió no se borra, pero la pantalla
               dice lo que es: algo que se lee, no algo que el sistema compare con nadie.

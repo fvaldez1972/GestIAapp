@@ -35,4 +35,17 @@ public interface ICatalogRepository
     Task AddEmployeeSkillAsync(EmployeeSkill skill, CancellationToken cancellationToken);
     Task<IReadOnlyList<EmployeeDocument>> ListEmployeeDocumentsAsync(Guid idEmployee, CancellationToken cancellationToken);
     Task<IReadOnlyList<EmployeeEvaluation>> ListEmployeeEvaluationsAsync(Guid idEmployee, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Las incidencias administrativas <b>activas</b> de una persona, con su tipo del catálogo.
+    ///
+    /// <para>Sólo las activas, y no es lo mismo que en las otras listas de este repositorio. Las
+    /// demás traen todo y el motor filtra, porque un documento inactivo todavía dice algo —que se
+    /// cargó y se retiró—. Una incidencia retirada no dice nada al motor: <b>retirarla es
+    /// justamente como deja de bloquear</b>, que es la decisión PD-PER-003.</para>
+    /// </summary>
+    Task<IReadOnlyList<AdministrativeIncident>> ListActiveAdministrativeIncidentsAsync(
+        Guid idOrganization,
+        Guid idEmployee,
+        CancellationToken cancellationToken);
 }

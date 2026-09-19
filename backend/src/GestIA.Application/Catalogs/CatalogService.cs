@@ -360,11 +360,23 @@ public sealed class CatalogService(
         var skills = await repository.ListEmployeeSkillsAsync(employee.IdOrganization, employee.IdEmployee, cancellationToken);
         var documents = await repository.ListEmployeeDocumentsAsync(employee.IdEmployee, cancellationToken);
         var evaluations = await repository.ListEmployeeEvaluationsAsync(employee.IdEmployee, cancellationToken);
+        var incidents = await repository.ListActiveAdministrativeIncidentsAsync(
+            employee.IdOrganization, employee.IdEmployee, cancellationToken);
 
         foreach (var requirement in requirements)
         {
             reasons.Add(EvaluateRequirement(requirement, skills, documents, evaluations, referenceDate));
         }
+
+        // Las incidencias van aparte del bucle de reglas, y no es un detalle de organización del
+        // código: es que no son la misma clase de cosa.
+        //
+        // Una regla de elegibilidad pregunta «¿tiene esto?» y se cumple teniéndolo. Una incidencia
+        // administrativa no se cumple: es un hecho en contra, y no hay nada que la persona pueda
+        // «tener» para satisfacerla. Meterla como un quinto tipo de regla habría obligado a
+        // inventar una regla por cada incidencia registrada, y a que el administrador creara una
+        // regla para que su acta significara algo.
+        reasons.AddRange(incidents.Select(EvaluateIncident));
 
         if (reasons.Count == 0)
         {
@@ -373,10 +385,43 @@ public sealed class CatalogService(
                 "Reglas configuradas",
                 false,
                 true,
-                "No hay reglas configuradas que bloqueen al empleado."));
+                "No hay reglas configuradas ni incidencias activas que bloqueen al empleado."));
         }
 
         return reasons;
+    }
+
+    /// <summary>
+    /// Una incidencia administrativa activa, leída como motivo de elegibilidad.
+    ///
+    /// <para><b>Siempre sale con <c>Passed</c> en falso</b>, y eso es lo correcto aunque parezca
+    /// raro: el motivo no es «le falta algo», es «pasó algo». Lo que decide si además detiene la
+    /// operación es la marca de su tipo en el catálogo. Una informativa queda entonces como un
+    /// motivo no cumplido que no bloquea, que es exactamente lo que pide RN-PER-003: deja
+    /// constancia y no impide operar.</para>
+    ///
+    /// <para><b>Sin alcance, por decisión.</b> Una incidencia bloquea en todas partes: no distingue
+    /// cliente, servicio ni posición. Si alguien abandonó el puesto, no lo abandonó sólo para un
+    /// cliente. Acotarlo más tarde es agregar un filtro; desacotarlo más tarde sería quitar una
+    /// protección que ya estaba puesta, y por eso se empieza por el alcance amplio. Si negocio
+    /// decide lo contrario, lo que cambia es una columna de alcance en <c>AdministrativeIncident</c>
+    /// y esta comprobación.</para>
+    /// </summary>
+    private static EligibilityReasonResponse EvaluateIncident(AdministrativeIncident incident)
+    {
+        var tipo = incident.IncidentTypeCatalogItem?.Name ?? "Incidencia administrativa";
+        var bloquea = incident.IncidentTypeCatalogItem?.IsBlocking ?? false;
+
+        return new EligibilityReasonResponse(
+            "Expediente",
+            tipo,
+            bloquea,
+            false,
+            // El tipo y la fecha, no «tiene una incidencia». Quien lee esto tiene que poder ir al
+            // expediente y encontrar cuál es sin buscarla una por una.
+            bloquea
+                ? $"Incidencia administrativa activa: {tipo}, del {incident.OccurredDate:dd/MM/yyyy}. Impide asignar mientras no se retire."
+                : $"Incidencia administrativa activa: {tipo}, del {incident.OccurredDate:dd/MM/yyyy}. Queda constancia y no impide asignar.");
     }
 
     private static EligibilityReasonResponse EvaluateRequirement(

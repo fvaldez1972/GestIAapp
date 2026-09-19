@@ -186,6 +186,23 @@ public sealed class CatalogRepository(GestIaDbContext dbContext) : ICatalogRepos
             .Where(document => document.IdEmployee == idEmployee)
             .ToArrayAsync(cancellationToken);
 
+    public async Task<IReadOnlyList<AdministrativeIncident>> ListActiveAdministrativeIncidentsAsync(
+        Guid idOrganization,
+        Guid idEmployee,
+        CancellationToken cancellationToken) =>
+        await dbContext.AdministrativeIncidents
+            .AsNoTracking()
+            // El tipo viene resuelto porque de el sale la marca de bloqueo y el nombre que va en el
+            // mensaje. Sin este Include, una incidencia bloqueante se evaluaria como informativa
+            // por no haber cargado la fila que lo dice.
+            .Include(incident => incident.IncidentTypeCatalogItem)
+            .Where(incident =>
+                incident.IdOrganization == idOrganization &&
+                incident.IdEmployee == idEmployee &&
+                incident.Active)
+            .OrderByDescending(incident => incident.OccurredDate)
+            .ToArrayAsync(cancellationToken);
+
     public async Task<IReadOnlyList<EmployeeEvaluation>> ListEmployeeEvaluationsAsync(
         Guid idEmployee,
         CancellationToken cancellationToken) =>

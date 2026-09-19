@@ -5,7 +5,7 @@ namespace GestIA.Application.Clients;
 public sealed record CreateClientContactRequest(
     Guid IdOrganization,
     Guid IdClient,
-    Guid? IdClientSite,
+    Guid? IdClientZone,
     ClientContactPurpose Purpose,
     string FullName,
     string? JobTitle,
@@ -17,7 +17,7 @@ public sealed record CreateClientContactRequest(
 public sealed record UpdateClientContactRequest(
     Guid IdOrganization,
     Guid IdClient,
-    Guid? IdClientSite,
+    Guid? IdClientZone,
     ClientContactPurpose Purpose,
     string FullName,
     string? JobTitle,
@@ -29,8 +29,8 @@ public sealed record UpdateClientContactRequest(
 public sealed record ClientContactResponse(
     Guid IdClientContact,
     Guid IdClient,
-    Guid? IdClientSite,
-    string? ClientSiteName,
+    Guid? IdClientZone,
+    string? ClientZoneName,
     ClientContactPurpose Purpose,
     string FullName,
     string? JobTitle,

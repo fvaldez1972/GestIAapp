@@ -171,7 +171,7 @@ describe('Catálogos', () => {
    * El uso por valor sólo se afirma donde se puede comprobar por identificador. La pantalla
    * anterior lo adivinaba comparando el nombre con textos de otros módulos.
    */
-  it('cuenta el uso de una habilidad por identificador, no por nombre', () => {
+  it('cuenta el uso de una experiencia por identificador, no por nombre', () => {
     const { fixture } = montar({
       items: [valor({ idCatalogItem: 'hab-1', name: 'Manejo de arma corta' })],
       requirements: [regla({ idRequiredCatalogItem: 'hab-1' }), regla({ idEligibilityRequirement: 'r2', idRequiredCatalogItem: 'otra' })],
@@ -183,17 +183,17 @@ describe('Catálogos', () => {
   });
 
   /**
-   * La trampa: una regla de habilidad bloqueante no se puede cumplir porque no hay pantalla para
-   * otorgar habilidades. La pantalla lo dice donde se crean las reglas, no en un documento.
+   * La trampa: una regla de experiencia bloqueante no se puede cumplir porque no hay pantalla para
+   * otorgar experiencias. La pantalla lo dice donde se crean las reglas, no en un documento.
    */
-  it('avisa de las reglas de habilidad bloqueantes que hoy nadie puede cumplir', () => {
+  it('avisa de las reglas de experiencia bloqueantes que hoy nadie puede cumplir', () => {
     const { raiz } = montar({ requirements: [regla({ isBlocking: true, requirementType: 'Skill' })] });
 
     expect(raiz.textContent).toContain('todavía no existe pantalla');
     expect(raiz.textContent).toContain('detiene la publicación de la planeación');
   });
 
-  it('no avisa cuando la regla de habilidad es sólo informativa', () => {
+  it('no avisa cuando la regla de experiencia es sólo informativa', () => {
     const { raiz } = montar({ requirements: [regla({ isBlocking: false })] });
 
     expect(raiz.textContent).not.toContain('todavía no existe pantalla');

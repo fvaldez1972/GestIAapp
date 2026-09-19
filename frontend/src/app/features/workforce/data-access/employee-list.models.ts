@@ -591,9 +591,9 @@ const ESTADO_DE_LA_EVALUACION: Record<EmployeeRequirementState, { readonly label
 export const evaluationStateLabel = (state: EmployeeRequirementState) => ESTADO_DE_LA_EVALUACION[state].label;
 export const evaluationStateTone = (state: EmployeeRequirementState) => ESTADO_DE_LA_EVALUACION[state].tone;
 
-// ── Las habilidades ───────────────────────────────────────────────────────────────────────────
+// ── Las experiencias ───────────────────────────────────────────────────────────────────────────
 
-/** Un requisito de habilidad de la organización y cómo lo cubre esta persona. */
+/** Un requisito de experiencia de la organización y cómo lo cubre esta persona. */
 export type EmployeeSkillRequirementRow = {
   /** El identificador del valor de catálogo que la regla exige. */
   readonly code: string;
@@ -604,11 +604,11 @@ export type EmployeeSkillRequirementRow = {
 };
 
 /**
- * Cruza las habilidades que la organización exige contra las que la persona tiene.
+ * Cruza las experiencias que la organización exige contra las que la persona tiene.
  *
  * <p><b>Por identificador y no por nombre</b>, igual que el servidor: la regla apunta a una fila
  * del catálogo, y comparar textos aceptaría «Manejo de CCTV» y «manejo de cctv» como dos
- * habilidades distintas. Una habilidad no tiene estado ni resultado, así que sólo hay hueco,
+ * experiencias distintas. Una experiencia no tiene estado ni resultado, así que sólo hay hueco,
  * vigente, por vencer y vencida.</p>
  */
 export function employeeSkillRequirementRows(
@@ -629,15 +629,15 @@ export function employeeSkillRequirementRows(
   const limite = shiftOperationalDate(today, expiringWithinDays);
 
   return required.map((requisito) => {
-    const habilidad = skills.find(
+    const experiencia = skills.find(
       (item) => item.active && item.idSkillCatalogItem === requisito.idRequiredCatalogItem,
     );
 
-    const state: EmployeeRequirementState = !habilidad
+    const state: EmployeeRequirementState = !experiencia
       ? 'Missing'
-      : habilidad.expiresDate && habilidad.expiresDate < today
+      : experiencia.expiresDate && experiencia.expiresDate < today
         ? 'Expired'
-        : habilidad.expiresDate && habilidad.expiresDate <= limite
+        : experiencia.expiresDate && experiencia.expiresDate <= limite
           ? 'Expiring'
           : 'UpToDate';
 
@@ -646,22 +646,22 @@ export function employeeSkillRequirementRows(
       label: requisito.requiredCatalogItemName || requisito.name,
       isBlocking: requisito.isBlocking,
       state,
-      expiresDate: habilidad?.expiresDate ?? null,
+      expiresDate: experiencia?.expiresDate ?? null,
     };
   });
 }
 
-/** Las mismas situaciones, dichas de una habilidad. */
-const ESTADO_DE_LA_HABILIDAD: Record<EmployeeRequirementState, { readonly label: string; readonly tone: string }> = {
+/** Las mismas situaciones, dichas de una experiencia. */
+const ESTADO_DE_LA_EXPERIENCIA: Record<EmployeeRequirementState, { readonly label: string; readonly tone: string }> = {
   UpToDate: { label: 'Acreditada', tone: 'success' },
   Expiring: { label: 'Por vencer', tone: 'warning' },
   Missing: { label: 'Sin acreditar', tone: 'warning' },
   Expired: { label: 'Vencida', tone: 'danger' },
-  // No le llegan a una habilidad, que no tiene estado ni resultado. Se declaran porque el tipo es
+  // No le llegan a una experiencia, que no tiene estado ni resultado. Se declaran porque el tipo es
   // compartido, y si algún día le llegaran, sería mejor verlas que perderlas.
   Rejected: { label: 'No acreditada', tone: 'danger' },
   Unvalidated: { label: 'Sin resolver', tone: 'warning' },
 };
 
-export const skillStateLabel = (state: EmployeeRequirementState) => ESTADO_DE_LA_HABILIDAD[state].label;
-export const skillStateTone = (state: EmployeeRequirementState) => ESTADO_DE_LA_HABILIDAD[state].tone;
+export const skillStateLabel = (state: EmployeeRequirementState) => ESTADO_DE_LA_EXPERIENCIA[state].label;
+export const skillStateTone = (state: EmployeeRequirementState) => ESTADO_DE_LA_EXPERIENCIA[state].tone;

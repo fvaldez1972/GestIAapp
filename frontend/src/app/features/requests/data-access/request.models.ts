@@ -65,7 +65,7 @@ export type ExecuteOperationalRequest = {
   readonly idOrganization: string;
   readonly executionNotes: string | null;
   readonly client?: OperationalRequestClientInput;
-  readonly clientSite?: OperationalRequestClientSiteInput;
+  readonly clientZone?: OperationalRequestClientZoneInput;
   readonly serviceContract?: OperationalRequestServiceContractInput;
   readonly service?: OperationalRequestServiceInput;
   readonly positions?: readonly OperationalRequestPositionInput[];
@@ -107,8 +107,8 @@ export type OperationalRequestClientInput = {
   readonly legalRepresentativeInstrumentNumber: string | null;
 };
 
-export type OperationalRequestClientSiteInput = {
-  readonly codeClientSite: string;
+export type OperationalRequestClientZoneInput = {
+  readonly codeClientZone: string;
   readonly name: string;
   readonly street: string;
   readonly exteriorNumber: string | null;
@@ -136,7 +136,7 @@ export type OperationalRequestServiceContractInput = {
 };
 
 export type OperationalRequestServiceInput = {
-  readonly idClientSite: string | null;
+  readonly idClientZone: string | null;
   readonly idServiceContract: string | null;
   readonly codeService: string;
   readonly name: string;

@@ -26,7 +26,7 @@ public static class CatalogDefinitions
 {
     public static IReadOnlyList<CatalogDefinition> All { get; } =
     [
-        Editable(BusinessCatalogItemType.Skill, "Habilidades", "Personal"),
+        Editable(BusinessCatalogItemType.Skill, "Experiencia requerida", "Personal"),
         Editable(BusinessCatalogItemType.JobPosition, "Puestos", "Personal"),
         Editable(BusinessCatalogItemType.Country, "Paises", "Domicilios"),
         Editable(BusinessCatalogItemType.State, "Estados", "Domicilios"),
@@ -104,7 +104,7 @@ public static class CatalogDefinitions
         "Executed" => "Firmado", "Effective" => "Vigente", "PendingReview" => "Pendiente de revision", "Archived" => "Archivado",
         "Client" => "Cliente", "ServiceContract" => "Contrato", "Service" => "Servicio", "Employee" => "Empleado",
         "EmployeeEvaluation" => "Evaluacion del empleado", "OperationalRequest" => "Solicitud", "Organization" => "Organizacion",
-        "Position" => "Posicion", "Skill" => "Habilidad", "Document" => "Documento", "Evaluation" => "Evaluacion", "Restriction" => "Restriccion",
+        "Position" => "Posicion", "Skill" => "Experiencia", "Document" => "Documento", "Evaluation" => "Evaluacion", "Restriction" => "Restriccion",
         "Expected" => "Esperada", "Present" => "Presente", "Late" => "Retardo", "Absent" => "Falta", "Excused" => "Justificada",
         "Open" => "Abierta", "Resolved" => "Resuelta", "Requested" => "Solicitada", "Confirmed" => "Confirmada",
         "Photo" => "Fotografia", "Report" => "Reporte", "Signature" => "Firma", "Closed" => "Cerrado", "Reopened" => "Reabierto",

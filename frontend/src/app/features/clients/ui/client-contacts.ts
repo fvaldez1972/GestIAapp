@@ -3,13 +3,13 @@ import { FormsModule } from '@angular/forms';
 import { GiEmptyState } from '../../../shared/ui/gi-ui';
 import { GiCatalogPicker, GiCatalogOption, GiCatalogCreation } from '../../../shared/ui/gi-catalog-picker/gi-catalog-picker';
 import { GiSelect, GiSelectOption } from '../../../shared/ui/gi-select/gi-select';
-import { ClientContact, ClientContactPurpose, ClientSite } from '../data-access/client.models';
+import { ClientContact, ClientContactPurpose, ClientZone } from '../data-access/client.models';
 
 /** Lo que hace falta para dar de alta un contacto. */
 export type NewContact = {
   readonly fullName: string;
   readonly purpose: ClientContactPurpose;
-  readonly idClientSite: string | null;
+  readonly idClientZone: string | null;
   readonly jobTitle: string;
   readonly email: string;
   readonly phone: string;
@@ -19,9 +19,9 @@ export type NewContact = {
 /**
  * La pestaña de Contactos.
  *
- * <p>Un contacto sin sede asignada no es un error: hay contactos comerciales que valen para todo
+ * <p>Un contacto sin zona asignada no es un error: hay contactos comerciales que valen para todo
  * el cliente. Se dice cuál es cuál en lugar de esconderlo, porque quien busca a quién llamar en
- * una sede necesita distinguirlos.</p>
+ * una zona necesita distinguirlos.</p>
  *
  * <p><b>El alta se agregó el 7 de septiembre de 2026.</b> Antes el botón «Agregar contacto» emitía
  * una señal que nadie escuchaba, y detrás no había formulario: la pestaña prometía algo que no
@@ -38,7 +38,7 @@ export type NewContact = {
         <gi-empty-state
           variant="no-data"
           title="Este cliente todavía no tiene contactos"
-          description="Un contacto dice a quién llamar cuando algo pasa en la sede."
+          description="Un contacto dice a quién llamar cuando algo pasa en la zona."
           [actionLabel]="canWrite() ? 'Agregar contacto' : ''"
           (action)="startAdd()"
         />
@@ -54,7 +54,7 @@ export type NewContact = {
               </span>
               <span class="contact__role">{{ contact.jobTitle || 'Sin puesto registrado' }}</span>
               <span class="contact__where">
-                {{ contact.clientSiteName || 'Contacto del cliente, no de una sede' }}
+                {{ contact.clientZoneName || 'Contacto del cliente, no de una zona' }}
               </span>
               <span class="contact__reach">{{ reach(contact) }}</span>
               @if (canWrite()) {
@@ -107,15 +107,15 @@ export type NewContact = {
               (valueChange)="purpose.set($any($event))"
             />
             <!--
-              Sin sede es una opción legítima y va primero: un contacto comercial vale para todo el
-              cliente, y obligar a elegir una sede lo obligaría a mentir.
+              Sin zona es una opción legítima y va primero: un contacto comercial vale para todo el
+              cliente, y obligar a elegir una zona lo obligaría a mentir.
             -->
             <gi-select
-              label="Sede a la que pertenece"
-              placeholder="Del cliente, no de una sede"
-              [options]="siteOptions()"
-              [value]="idClientSite()"
-              (valueChange)="idClientSite.set($event)"
+              label="Zona a la que pertenece"
+              placeholder="Del cliente, no de una zona"
+              [options]="zoneOptions()"
+              [value]="idClientZone()"
+              (valueChange)="idClientZone.set($event)"
             />
           </div>
 
@@ -263,11 +263,11 @@ export type NewContact = {
 })
 export class ClientContacts {
   readonly contacts = input.required<readonly ClientContact[]>();
-  readonly sites = input<readonly ClientSite[]>([]);
+  readonly zones = input<readonly ClientZone[]>([]);
   readonly canWrite = input(false);
   readonly saving = input(false);
 
-  /** Abre el alta desde fuera, como hace la pestaña de Sedes. */
+  /** Abre el alta desde fuera, como hace la pestaña de Zonas. */
   readonly openAdd = input(false);
 
   readonly jobPositions = input<readonly GiCatalogOption[]>([]);
@@ -302,14 +302,14 @@ export class ClientContacts {
   protected readonly email = signal('');
   protected readonly phone = signal('');
   protected readonly purpose = signal<ClientContactPurpose>('Operational');
-  protected readonly idClientSite = signal('');
+  protected readonly idClientZone = signal('');
   protected readonly isPrimary = signal(false);
 
-  protected readonly siteOptions = computed<readonly GiSelectOption[]>(() => [
-    { value: '', label: 'Del cliente, no de una sede' },
-    ...this.sites()
-      .filter((site) => site.active)
-      .map((site) => ({ value: site.idClientSite, label: site.name })),
+  protected readonly zoneOptions = computed<readonly GiSelectOption[]>(() => [
+    { value: '', label: 'Del cliente, no de una zona' },
+    ...this.zones()
+      .filter((zone) => zone.active)
+      .map((zone) => ({ value: zone.idClientZone, label: zone.name })),
   ]);
 
   /**
@@ -345,7 +345,7 @@ export class ClientContacts {
     this.email.set(contact.email ?? '');
     this.phone.set(contact.phone ?? '');
     this.purpose.set(contact.purpose);
-    this.idClientSite.set(contact.idClientSite ?? '');
+    this.idClientZone.set(contact.idClientZone ?? '');
     this.isPrimary.set(contact.isPrimary);
     this.idJobPosition.set(
       this.jobPositions().find((p) => p.name === contact.jobTitle)?.idCatalogItem ?? '',
@@ -368,7 +368,7 @@ export class ClientContacts {
     const datos: NewContact = {
       fullName: this.fullName().trim(),
       purpose: this.purpose(),
-      idClientSite: this.idClientSite() || null,
+      idClientZone: this.idClientZone() || null,
       jobTitle: this.jobPositions().find((p) => p.idCatalogItem === this.idJobPosition())?.name ?? '',
       email: this.email().trim(),
       phone: this.phone().trim(),
@@ -398,7 +398,7 @@ export class ClientContacts {
   /**
    * Se vacía siempre al abrir y al cerrar.
    *
-   * <p>Es lo que faltaba en el alta de sedes y por lo que se podían crear duplicados sin darse
+   * <p>Es lo que faltaba en el alta de zonas y por lo que se podían crear duplicados sin darse
    * cuenta: el formulario conservaba lo anterior y bastaba con volver a guardar.</p>
    */
   private reset(): void {
@@ -407,7 +407,7 @@ export class ClientContacts {
     this.email.set('');
     this.phone.set('');
     this.purpose.set('Operational');
-    this.idClientSite.set('');
+    this.idClientZone.set('');
     this.isPrimary.set(false);
   }
 }

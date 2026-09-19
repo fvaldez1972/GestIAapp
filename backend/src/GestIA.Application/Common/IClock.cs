@@ -18,9 +18,9 @@ public interface IClock
     /// vencido empezaba a exigirse un día antes de tiempo.</para>
     ///
     /// <para><b>Aquí es donde entra el huso por organización cuando se decida.</b> Hoy el huso es
-    /// fijo y viene de configuración porque el huso por sede depende de tres decisiones de negocio
+    /// fijo y viene de configuración porque el huso por zona depende de tres decisiones de negocio
     /// que aún no se toman: qué es el día operativo cuando un turno cruza la medianoche, en qué
-    /// huso se captura la asistencia, y qué muestra un tablero que ve sedes de dos husos.
+    /// huso se captura la asistencia, y qué muestra un tablero que ve zonas de dos husos.
     /// Construirlo adivinando obligaría a rehacerlo sobre datos ya sembrados. Cuando esas tres
     /// decisiones existan, el cambio entra en la implementación de esta propiedad, y sólo ahí.</para>
     ///

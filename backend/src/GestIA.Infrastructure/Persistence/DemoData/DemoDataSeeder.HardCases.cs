@@ -12,7 +12,7 @@ namespace GestIA.Infrastructure.Persistence.DemoData;
 /// Los casos feos: los datos que rompen una pantalla mal hecha.
 ///
 /// <para>Una demo con datos parejos —todos los nombres de largo medio, todos los clientes con
-/// sede y contrato, todo activo— hace que una tabla se vea bien y se rompa el primer día en
+/// zona y contrato, todo activo— hace que una tabla se vea bien y se rompa el primer día en
 /// producción. Estos registros existen para que se rompa antes, aquí.</para>
 ///
 /// <para><b>Es incremental.</b> Se agrega sobre la demo que ya existe en vez de resembrar desde
@@ -59,7 +59,7 @@ public sealed partial class DemoDataSeeder
         var longNamed = Client.Create(organizationId, $"{HardCasePrefix}-LARGO", longName, "LAR010101AA1", DemoActorId, DemoActorName, OccurredAt);
         var shortNamed = Client.Create(organizationId, $"{HardCasePrefix}-1", "Ñ", "UNO010101AA1", DemoActorId, DemoActorName, OccurredAt);
 
-        // 2. Acentos y eñes en razón social, nombre comercial, código de sede y calle.
+        // 2. Acentos y eñes en razón social, nombre comercial, código de zona y calle.
         var accented = Client.Create(organizationId, $"{HardCasePrefix}-ACENTO", "Señalización Ñandú, S.A. de C.V.", "ACE010101AA1", DemoActorId, DemoActorName, OccurredAt);
         accented.UpdateProfile(
             new ClientProfile(
@@ -67,9 +67,9 @@ public sealed partial class DemoDataSeeder
                 "Mexicana", null, "Calle Ñuño de Guzmán 14, Coyoacán", null, null, null, null, null, null),
             DemoActorId, DemoActorName, OccurredAt);
 
-        // 3. Cliente sin sede: no se le puede dar de alta un servicio, y la pantalla tiene que
+        // 3. Cliente sin zona: no se le puede dar de alta un servicio, y la pantalla tiene que
         //    decirlo en vez de ofrecer un selector vacío.
-        var withoutSite = Client.Create(organizationId, $"{HardCasePrefix}-SINSEDE", "Cliente sin sede", "SIN010101AA1", DemoActorId, DemoActorName, OccurredAt);
+        var withoutSite = Client.Create(organizationId, $"{HardCasePrefix}-SINSEDE", "Cliente sin zona", "SIN010101AA1", DemoActorId, DemoActorName, OccurredAt);
 
         // 4. Cliente con un solo servicio, y cliente con doce: paginación real.
         var one = Client.Create(organizationId, $"{HardCasePrefix}-UNO", "Cliente de un servicio", "ONE010101AA1", DemoActorId, DemoActorName, OccurredAt);
@@ -78,14 +78,14 @@ public sealed partial class DemoDataSeeder
         var clients = new[] { longNamed, shortNamed, accented, withoutSite, one, twelve };
         dbContext.AddRange(clients);
 
-        // Sedes, salvo la del cliente que deliberadamente no tiene.
+        // Zonas, salvo la del cliente que deliberadamente no tiene.
         var sites = new Dictionary<Guid, ClientSite>();
         foreach (var client in clients.Where(item => item.IdClient != withoutSite.IdClient))
         {
             var site = ClientSite.Create(
                 organizationId, client.IdClient, $"{client.CodeClient}-S01",
                 new ClientSiteAddress(
-                    "Sede Ñoño Peñón", "Avenida Álvaro Obregón", "48", null, "Roma Norte",
+                    "Zona Ñoño Peñón", "Avenida Álvaro Obregón", "48", null, "Roma Norte",
                     "Ciudad de México", "Ciudad de México", "06700", "MX", null, "America/Mexico_City"),
                 DemoActorId, DemoActorName, OccurredAt);
 
@@ -218,7 +218,7 @@ public sealed partial class DemoDataSeeder
         // incluye el identificador de su puesto.
         var inactiveJobPositions = await JobPositionCatalogAsync(organizationId, cancellationToken);
 
-        // Una sede inactiva del cliente de nombre largo.
+        // Una zona inactiva del cliente de nombre largo.
         sites[client.IdClient].Deactivate(DemoActorId, DemoActorName, OccurredAt);
 
         // El último de los doce servicios, para que la paginación muestre uno dado de baja.

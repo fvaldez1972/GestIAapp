@@ -1544,7 +1544,7 @@ export class OperationsPage implements OnInit {
           eligible: activeEmployee && !sameAsOriginal,
           conflicts: conflictShifts.map((conflict) => `${conflict.positionCode} · ${conflict.startTime.slice(0, 5)}-${conflict.endTime.slice(0, 5)}`),
           accumulatedHours: Math.round((accumulatedMinutes / 60) * 10) / 10,
-          distanceLabel: service?.clientSiteName ? service.clientSiteName : 'Sede del servicio',
+          distanceLabel: service?.clientZoneName ? service.clientZoneName : 'Zona del servicio',
           serviceCompatible,
           blockingReasons,
         };

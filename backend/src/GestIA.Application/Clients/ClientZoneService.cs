@@ -4,14 +4,14 @@ using GestIA.Domain.Clients;
 
 namespace GestIA.Application.Clients;
 
-public sealed class ClientSiteService(
+public sealed class ClientZoneService(
     IClientRepository clientRepository,
     IClientSiteRepository siteRepository,
     IUnitOfWork unitOfWork,
     IActorContext actorContext,
-    IClock clock, FormCatalogValidator catalogs) : IClientSiteService
+    IClock clock, FormCatalogValidator catalogs) : IClientZoneService
 {
-    public async Task<IReadOnlyList<ClientSiteResponse>> ListAsync(
+    public async Task<IReadOnlyList<ClientZoneResponse>> ListAsync(
         Guid idOrganization,
         Guid idClient,
         CancellationToken cancellationToken)
@@ -21,8 +21,8 @@ public sealed class ClientSiteService(
         return sites.Select(Map).ToArray();
     }
 
-    public async Task<ClientSiteResponse> CreateAsync(
-        CreateClientSiteRequest request,
+    public async Task<ClientZoneResponse> CreateAsync(
+        CreateClientZoneRequest request,
         CancellationToken cancellationToken)
     {
         await EnsureClientAsync(request.IdOrganization, request.IdClient, cancellationToken);
@@ -30,7 +30,7 @@ public sealed class ClientSiteService(
 
         if (await siteRepository.IsCodeInUseAsync(request.IdClient, code, null, cancellationToken))
         {
-            throw new ResourceConflictException($"Ya existe una sede con el código '{code}'.");
+            throw new ResourceConflictException($"Ya existe una zona con el código '{code}'.");
         }
 
         await catalogs.AddressAsync(request.IdOrganization, address.CountryCode, address.State, address.Municipality, null, null, null, cancellationToken);
@@ -48,15 +48,15 @@ public sealed class ClientSiteService(
         return Map(site);
     }
 
-    public async Task<ClientSiteResponse> UpdateAsync(
-        Guid idClientSite,
-        UpdateClientSiteRequest request,
+    public async Task<ClientZoneResponse> UpdateAsync(
+        Guid idClientZone,
+        UpdateClientZoneRequest request,
         CancellationToken cancellationToken)
     {
         await EnsureClientAsync(request.IdOrganization, request.IdClient, cancellationToken);
         var address = Validate(request);
-        var site = await siteRepository.GetAsync(request.IdClient, idClientSite, cancellationToken)
-            ?? throw new ResourceNotFoundException("No se encontró la sede solicitada.");
+        var site = await siteRepository.GetAsync(request.IdClient, idClientZone, cancellationToken)
+            ?? throw new ResourceNotFoundException("No se encontró la zona solicitada.");
 
         await catalogs.AddressAsync(request.IdOrganization, address.CountryCode, address.State, address.Municipality,
             site.CountryCode, site.State, site.Municipality, cancellationToken);
@@ -68,12 +68,12 @@ public sealed class ClientSiteService(
     public async Task DeactivateAsync(
         Guid idOrganization,
         Guid idClient,
-        Guid idClientSite,
+        Guid idClientZone,
         CancellationToken cancellationToken)
     {
         await EnsureClientAsync(idOrganization, idClient, cancellationToken);
-        var site = await siteRepository.GetAsync(idClient, idClientSite, cancellationToken)
-            ?? throw new ResourceNotFoundException("No se encontró la sede solicitada.");
+        var site = await siteRepository.GetAsync(idClient, idClientZone, cancellationToken)
+            ?? throw new ResourceNotFoundException("No se encontró la zona solicitada.");
 
         site.Deactivate(actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
         await unitOfWork.SaveChangesAsync(cancellationToken);
@@ -99,12 +99,12 @@ public sealed class ClientSiteService(
         }
     }
 
-    private static (string Code, ClientSiteAddress Address) Validate(CreateClientSiteRequest request)
+    private static (string Code, ClientSiteAddress Address) Validate(CreateClientZoneRequest request)
     {
         var errors = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
         var code = InputValidation.Required(
-            request.CodeClientSite,
-            nameof(request.CodeClientSite),
+            request.CodeClientZone,
+            nameof(request.CodeClientZone),
             30,
             errors).ToUpperInvariant();
         var address = ValidateAddress(
@@ -124,7 +124,7 @@ public sealed class ClientSiteService(
         return (code, address);
     }
 
-    private static ClientSiteAddress Validate(UpdateClientSiteRequest request)
+    private static ClientSiteAddress Validate(UpdateClientZoneRequest request)
     {
         var errors = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
         var address = ValidateAddress(
@@ -176,7 +176,7 @@ public sealed class ClientSiteService(
             InputValidation.Optional(timeZoneId, nameof(timeZoneId), 100, errors));
     }
 
-    private static ClientSiteResponse Map(ClientSite site) => new(
+    private static ClientZoneResponse Map(ClientSite site) => new(
         site.IdClientSite,
         site.IdClient,
         site.CodeClientSite,

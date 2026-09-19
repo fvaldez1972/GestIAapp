@@ -69,7 +69,7 @@ import { ClientApiService } from '../../../clients/data-access/client-api.servic
 import {
   Client,
   ClientContact,
-  ClientSite,
+  ClientZone,
   CreateManagedService,
   CreateServiceAssignment,
   CreateServicePosition,
@@ -144,8 +144,8 @@ export class ServicesPage implements OnInit, OnDestroy {
   protected readonly selectedService = signal<ManagedService | null>(null);
   protected readonly selectedPosition = signal<ServicePosition | null>(null);
   protected readonly selectedShiftPattern = signal<ShiftPattern | null>(null);
-  protected readonly sites = signal<readonly ClientSite[]>([]);
-  protected readonly hasActiveSite = computed(() => this.sites().some((site) => site.active));
+  protected readonly zones = signal<readonly ClientZone[]>([]);
+  protected readonly hasActiveZone = computed(() => this.zones().some((zone) => zone.active));
   protected readonly hasActivePosition = computed(() =>
     this.positions().some((position) => position.active),
   );
@@ -169,7 +169,7 @@ export class ServicesPage implements OnInit, OnDestroy {
    * los que están ocultos».</p>
    *
    * <p>Es la tercera vez que esta confusión cuesta un defecto en esta pantalla, después de las
-   * sedes del cliente y del aviso de «todavía se están cargando».</p>
+   * zonas del cliente y del aviso de «todavía se están cargando».</p>
    */
   protected readonly shiftPatternsLoaded = signal(false);
   /** El servicio que se va a desactivar, mientras el diálogo pregunta. */
@@ -229,7 +229,7 @@ export class ServicesPage implements OnInit, OnDestroy {
    */
   protected readonly candidateEligibility = signal<ReadonlyMap<string, CandidateEligibility>>(new Map());
 
-  /** El catálogo de habilidades de la organización, para armar el perfil de una posición. */
+  /** El catálogo de experiencias de la organización, para armar el perfil de una posición. */
   protected readonly catalogSkills = signal<readonly { idCatalogItem: string; name: string }[]>([]);
 
   /**
@@ -241,11 +241,11 @@ export class ServicesPage implements OnInit, OnDestroy {
    */
   protected readonly shiftPatternTemplates = signal<readonly ShiftPatternTemplateOption[]>([]);
 
-  /** Las reglas de habilidad ya guardadas para la posición abierta. */
+  /** Las reglas de experiencia ya guardadas para la posición abierta. */
   protected readonly positionSkillRequirements = signal<readonly EligibilityRequirement[]>([]);
 
   /**
-   * Las habilidades elegidas para una posición que todavía no existe.
+   * Las experiencias elegidas para una posición que todavía no existe.
    *
    * <p>Una regla necesita el identificador de la posición, y al dar de alta no hay ninguno: se
    * guardan aquí y se crean en cuanto el servidor devuelve la posición. Así el alta no obliga a
@@ -356,7 +356,7 @@ export class ServicesPage implements OnInit, OnDestroy {
   /** Los cuatro anchos de referencia del sistema, más el de la columna de acciones. */
   private readonly todasLasColumnas: readonly GiColumn[] = [
     { key: 'name', label: 'Servicio', width: '220px', kind: 'name' },
-    { key: 'clientSite', label: 'Cliente · Sede', width: '190px' },
+    { key: 'clientZone', label: 'Cliente · Zona', width: '190px' },
     { key: 'term', label: 'Vigencia', width: '150px', kind: 'meta' },
     { key: 'coverage', label: 'Posiciones', width: '130px', align: 'end' },
     { key: 'state', label: 'Estado', width: '130px' },
@@ -506,7 +506,7 @@ export class ServicesPage implements OnInit, OnDestroy {
     this.selectedClient.set(null);
     this.selectedService.set(null);
     this.services.set([]);
-    this.sites.set([]);
+    this.zones.set([]);
     this.contracts.set([]);
     // Los contactos tambien, que se quedaban fuera. Las tres listas se piden juntas y son del
     // mismo cliente: dejar una sin vaciar deja los contactos del cliente anterior en pantalla
@@ -522,15 +522,15 @@ export class ServicesPage implements OnInit, OnDestroy {
         return;
       }
       this.selectedClient.set(client);
-      // Las sedes, los contratos y los contactos del cliente enlazado, salvo que venga tambien un
+      // Las zonas, los contratos y los contactos del cliente enlazado, salvo que venga tambien un
       // servicio: al abrirlo se piden estas mismas listas, y pedirlas aqui las duplicaria.
       //
       //
       // Faltaban, y ese era el defecto. Este camino —el de «Crear servicio de este cliente», que
-      // llega con `?clientId=`— dejaba `sites` en la lista vacia con la que se entra, y la unica
+      // llega con `?clientId=`— dejaba `zones` en la lista vacia con la que se entra, y la unica
       // rutina que la llenaba era `loadClientContext`, a la que solo se llama al abrir un servicio
       // que ya existe. Con un cliente sin servicios eso no pasa nunca, asi que «Nuevo servicio»
-      // respondia que el cliente no tenia ninguna sede activa mientras Clientes le mostraba dos.
+      // respondia que el cliente no tenia ninguna zona activa mientras Clientes le mostraba dos.
       //
       // La lista vacia no significaba «no tiene»: significaba «nadie las pidio».
       if (!this.pendingServiceLink) {
@@ -543,7 +543,7 @@ export class ServicesPage implements OnInit, OnDestroy {
   }
 
   /**
-   * Abre la ficha de un servicio del listado. La sede, el contrato y el cliente se piden aquí
+   * Abre la ficha de un servicio del listado. La zona, el contrato y el cliente se piden aquí
    * porque el listado no los trae completos: trae los nombres para pintarlos, no las listas para
    * editarlos.
    */
@@ -573,7 +573,7 @@ export class ServicesPage implements OnInit, OnDestroy {
     this.read(
       forkJoin({
         client: this.contextApi.getClient(org, idClient),
-        sites: this.api.listSites(org, idClient),
+        zones: this.api.listZones(org, idClient),
         contracts: this.api.listContracts(org, idClient),
         contacts: this.api.listContacts(org, idClient),
       }),
@@ -595,7 +595,7 @@ export class ServicesPage implements OnInit, OnDestroy {
     const org = this.selectedOrganizationId();
     this.read(
       forkJoin({
-        sites: this.api.listSites(org, idClient),
+        zones: this.api.listZones(org, idClient),
         contracts: this.api.listContracts(org, idClient),
         contacts: this.api.listContacts(org, idClient),
       }),
@@ -605,11 +605,11 @@ export class ServicesPage implements OnInit, OnDestroy {
   }
 
   private applyClientLists(data: {
-    readonly sites: readonly ClientSite[];
+    readonly zones: readonly ClientZone[];
     readonly contracts: readonly ServiceContract[];
     readonly contacts: readonly ClientContact[];
   }): void {
-    this.sites.set(data.sites);
+    this.zones.set(data.zones);
     this.contracts.set(data.contracts);
     this.contacts.set(data.contacts);
   }
@@ -648,7 +648,7 @@ export class ServicesPage implements OnInit, OnDestroy {
         } else {
           this.error.set('El servicio solicitado no está disponible en esta organización.');
           // No se abrio ningun servicio, asi que nadie cargo las listas del cliente. Sin esto, la
-          // pantalla quedaria otra vez creyendo que el cliente no tiene sedes.
+          // pantalla quedaria otra vez creyendo que el cliente no tiene zonas.
           this.loadClientLists(idClient);
         }
       },
@@ -716,14 +716,14 @@ export class ServicesPage implements OnInit, OnDestroy {
   protected readonly formatearFecha = formatOperationalDate;
 
   /**
-   * El contacto operativo de la sede del servicio. Es dato del cliente, y aquí se muestra en
+   * El contacto operativo de la zona del servicio. Es dato del cliente, y aquí se muestra en
    * lectura para no salir a Clientes en mitad de la operación.
    */
   protected readonly contactoOperativo = computed(() => {
-    const sede = this.selectedService()?.idClientSite;
+    const zona = this.selectedService()?.idClientZone;
     return (
       this.contacts().find(
-        (contacto) => contacto.idClientSite === sede && contacto.purpose === 'Operational',
+        (contacto) => contacto.idClientZone === zona && contacto.purpose === 'Operational',
       ) ?? null
     );
   });
@@ -933,7 +933,7 @@ export class ServicesPage implements OnInit, OnDestroy {
     const total = this.serviceList().totalCount;
 
     if (!total) {
-      return 'Un servicio se contrata para un cliente con al menos una sede activa.';
+      return 'Un servicio se contrata para un cliente con al menos una zona activa.';
     }
 
     const conHueco = this.serviceList().items.filter((row) => this.vacantes(row) > 0).length;
@@ -1095,7 +1095,7 @@ export class ServicesPage implements OnInit, OnDestroy {
 
   protected readonly serviceForm = this.formBuilder.nonNullable.group(
     {
-      idClientSite: ['', [Validators.required]],
+      idClientZone: ['', [Validators.required]],
       idServiceContract: [''],
       name: ['', [Validators.required, Validators.maxLength(160)]],
       description: ['', [Validators.required, Validators.maxLength(1000)]],
@@ -1178,7 +1178,7 @@ export class ServicesPage implements OnInit, OnDestroy {
    * Abre el alta de servicio, o dice qué falta para poder abrirla.
    *
    * <p>Antes salía en silencio por esta misma condición, con el botón además deshabilitado: desde
-   * fuera parecía que el botón no respondía. Un servicio necesita un cliente con sede activa, y
+   * fuera parecía que el botón no respondía. Un servicio necesita un cliente con zona activa, y
    * eso es cierto; lo que no puede es no decirse.</p>
    */
   protected openCreateService(): void {
@@ -1196,18 +1196,18 @@ export class ServicesPage implements OnInit, OnDestroy {
       return;
     }
 
-    // "Todavia no se han cargado" no es "no tiene". Decir que un cliente no tiene sedes cuando la
+    // "Todavia no se han cargado" no es "no tiene". Decir que un cliente no tiene zonas cuando la
     // peticion sigue en vuelo es afirmar algo que la pantalla no sabe, y el cliente de la captura
     // tenia tres.
     if (this.loading()) {
-      this.aviso.set('Todavía se están cargando las sedes de este cliente. Espera un momento.');
+      this.aviso.set('Todavía se están cargando las zonas de este cliente. Espera un momento.');
       return;
     }
 
-    if (!this.sites().some((site) => site.active)) {
+    if (!this.zones().some((zone) => zone.active)) {
       this.aviso.set(
-        `${this.nombreDe(cliente)} no tiene ninguna sede activa, y un servicio se presta en una `
-        + 'sede. Registra la sede antes de contratar el servicio.',
+        `${this.nombreDe(cliente)} no tiene ninguna zona activa, y un servicio se presta en una `
+        + 'zona. Registra la zona antes de contratar el servicio.',
       );
       return;
     }
@@ -1215,7 +1215,7 @@ export class ServicesPage implements OnInit, OnDestroy {
     this.editingService.set(null);
     this.serviceWizardStep.set(1);
     this.serviceForm.reset({
-      idClientSite: this.sites().find((s) => s.active)?.idClientSite ?? '',
+      idClientZone: this.zones().find((s) => s.active)?.idClientZone ?? '',
       idServiceContract: '',
       name: '',
       description: '',
@@ -1238,7 +1238,7 @@ export class ServicesPage implements OnInit, OnDestroy {
     this.editingService.set(service);
     this.serviceWizardStep.set(1);
     this.serviceForm.reset({
-      idClientSite: service.idClientSite,
+      idClientZone: service.idClientZone,
       idServiceContract: service.idServiceContract ?? '',
       name: service.name,
       description: service.description,
@@ -1253,7 +1253,7 @@ export class ServicesPage implements OnInit, OnDestroy {
     const controls =
       step === 1
         ? [
-            this.serviceForm.controls.idClientSite,
+            this.serviceForm.controls.idClientZone,
             this.serviceForm.controls.name,
           ]
         : [this.serviceForm.controls.description];
@@ -1284,7 +1284,7 @@ export class ServicesPage implements OnInit, OnDestroy {
     const input: ManagedServiceInput = {
       idOrganization: this.selectedOrganizationId(),
       idClient: client.idClient,
-      idClientSite: form.idClientSite,
+      idClientZone: form.idClientZone,
       idServiceContract: this.optional(form.idServiceContract),
       name: form.name,
       description: form.description,
@@ -1575,12 +1575,12 @@ export class ServicesPage implements OnInit, OnDestroy {
   }
 
 
-  // ── El perfil de la posición, por habilidades del catálogo ────────────────────────────────
+  // ── El perfil de la posición, por experiencias del catálogo ────────────────────────────────
 
   /**
-   * Carga el catálogo de habilidades y lo que ya se exige para la posición abierta.
+   * Carga el catálogo de experiencias y lo que ya se exige para la posición abierta.
    *
-   * <p>Las reglas de habilidad con alcance de posición son el perfil requerido: el servidor ya las
+   * <p>Las reglas de experiencia con alcance de posición son el perfil requerido: el servidor ya las
    * evalúa al asignar y al publicar. Aquí sólo se enseñan y se editan.</p>
    */
   private loadPositionSkills(idPosition: string | null): void {
@@ -1657,7 +1657,7 @@ export class ServicesPage implements OnInit, OnDestroy {
   }
 
   /**
-   * Suma una habilidad al perfil.
+   * Suma una experiencia al perfil.
    *
    * <p>Si la posición ya existe, la regla se crea de inmediato: es un hecho sobre la posición, no
    * un borrador del formulario, y esperar al guardado dejaría al usuario sin saber si quedó. Si la
@@ -1680,7 +1680,7 @@ export class ServicesPage implements OnInit, OnDestroy {
 
     this.saving.set(true);
     this.catalogApi
-      .createEligibilityRequirement(this.reglaDeHabilidad(org, position.idPosition, request))
+      .createEligibilityRequirement(this.reglaDeExperiencia(org, position.idPosition, request))
       .pipe(
         this.withScope(2),
         finalize(() => this.saving.set(false)),
@@ -1712,7 +1712,7 @@ export class ServicesPage implements OnInit, OnDestroy {
           this.positionSkillRequirements.update((valores) =>
             valores.filter((item) => item.idEligibilityRequirement !== idEligibilityRequirement),
           );
-          this.message.set('La habilidad ya no se pide para esta posición.');
+          this.message.set('La experiencia ya no se pide para esta posición.');
         },
         error: (error: HttpErrorResponse) => this.setError(error),
       });
@@ -1725,9 +1725,9 @@ export class ServicesPage implements OnInit, OnDestroy {
   }
 
   /**
-   * Cambia una habilidad ya puesta de bloqueante a informativa, o al revés.
+   * Cambia una experiencia ya puesta de bloqueante a informativa, o al revés.
    *
-   * <p>Si la posición todavía no existe, la habilidad es un pendiente del formulario y basta con
+   * <p>Si la posición todavía no existe, la experiencia es un pendiente del formulario y basta con
    * corregirlo ahí. Si ya existe, la regla vive en el servidor y se actualiza: la alternativa era
    * quitarla y volver a ponerla, que deja dos registros en la bitácora para un solo cambio de
    * opinión.</p>
@@ -1761,7 +1761,7 @@ export class ServicesPage implements OnInit, OnDestroy {
     this.error.set('');
     this.catalogApi
       .updateEligibilityRequirement(toggle.key, {
-        ...this.reglaDeHabilidad(org, position.idPosition, {
+        ...this.reglaDeExperiencia(org, position.idPosition, {
           idSkillCatalogItem: toggle.idSkillCatalogItem,
           name: regla.name,
           isBlocking: toggle.isBlocking,
@@ -1788,7 +1788,7 @@ export class ServicesPage implements OnInit, OnDestroy {
       });
   }
 
-  /** Alta al vuelo de una habilidad del catálogo, sin abandonar el alta de la posición. */
+  /** Alta al vuelo de una experiencia del catálogo, sin abandonar el alta de la posición. */
   protected createSkillForProfile(creation: GiCatalogCreation): void {
     const org = this.selectedOrganizationId();
 
@@ -1806,7 +1806,7 @@ export class ServicesPage implements OnInit, OnDestroy {
             ...valores,
             { idCatalogItem: creado.idCatalogItem, name: creado.name },
           ]);
-          this.message.set(`«${creado.name}» se agregó al catálogo de habilidades.`);
+          this.message.set(`«${creado.name}» se agregó al catálogo de experiencias.`);
         },
         error: (error: HttpErrorResponse) => this.setError(error),
       });
@@ -1828,19 +1828,19 @@ export class ServicesPage implements OnInit, OnDestroy {
 
     for (const pendiente of pendientes) {
       this.catalogApi
-        .createEligibilityRequirement(this.reglaDeHabilidad(org, idPosition, pendiente))
+        .createEligibilityRequirement(this.reglaDeExperiencia(org, idPosition, pendiente))
         .pipe(this.withScope(2))
         .subscribe({
           error: () =>
             this.error.set(
-              `La posición se creó, pero «${pendiente.name}» no quedó como habilidad exigida. `
+              `La posición se creó, pero «${pendiente.name}» no quedó como experiencia exigida. `
               + 'Vuelve a agregarla desde la ficha de la posición.',
             ),
         });
     }
   }
 
-  private reglaDeHabilidad(
+  private reglaDeExperiencia(
     idOrganization: string,
     idPosition: string,
     request: PositionSkillRequest,

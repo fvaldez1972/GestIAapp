@@ -3,7 +3,7 @@ import { inject, Injectable } from '@angular/core';
 import { activeOptions } from '../../../shared/data-access/active-options';
 import {
   ClientListItem,
-  ClientSitePresenceFilter,
+  ClientZonePresenceFilter,
   ClientStatusFilter,
   AttendanceRecord,
   ApprovalRequest,
@@ -15,10 +15,10 @@ import {
   ClientContact,
   ClientContactInput,
   ClientInput,
-  ClientSite,
-  ClientSiteInput,
+  ClientZone,
+  ClientZoneInput,
   CreateClient,
-  CreateClientSite,
+  CreateClientZone,
   CreateApprovalRequest,
   CreateManagedService,
   CreateServiceContract,
@@ -109,7 +109,7 @@ export class ClientApiService {
     organizationId: string;
     search?: string;
     status?: ClientStatusFilter;
-    sitePresence?: ClientSitePresenceFilter;
+    zonePresence?: ClientZonePresenceFilter;
     municipality?: string;
     page?: number;
     pageSize?: number;
@@ -127,8 +127,8 @@ export class ClientApiService {
       params = params.set('status', options.status);
     }
 
-    if (options.sitePresence && options.sitePresence !== 'Any') {
-      params = params.set('sitePresence', options.sitePresence);
+    if (options.zonePresence && options.zonePresence !== 'Any') {
+      params = params.set('zonePresence', options.zonePresence);
     }
 
     if (options.municipality) {
@@ -138,7 +138,7 @@ export class ClientApiService {
     return this.http.get<PagedResult<ClientListItem>>(`${this.baseUrl}/clients`, { params });
   }
 
-  /** Las opciones reales del filtro de municipio, de todas las sedes y no sólo de la página. */
+  /** Las opciones reales del filtro de municipio, de todas las zonas y no sólo de la página. */
   listClientMunicipalities(organizationId: string) {
     return this.http.get<readonly string[]>(`${this.baseUrl}/clients/municipalities`, {
       params: new HttpParams().set('organizationId', organizationId),
@@ -193,22 +193,22 @@ export class ClientApiService {
     return this.http.patch<Client>(`${this.baseUrl}/clients/${idClient}/activate`, {}, { params });
   }
 
-  listSites(organizationId: string, idClient: string) {
+  listZones(organizationId: string, idClient: string) {
     const params = new HttpParams().set('organizationId', organizationId);
-    return this.http.get<readonly ClientSite[]>(`${this.baseUrl}/clients/${idClient}/sites`, { params });
+    return this.http.get<readonly ClientZone[]>(`${this.baseUrl}/clients/${idClient}/zones`, { params });
   }
 
-  createSite(idClient: string, request: CreateClientSite) {
-    return this.http.post<ClientSite>(`${this.baseUrl}/clients/${idClient}/sites`, request);
+  createZone(idClient: string, request: CreateClientZone) {
+    return this.http.post<ClientZone>(`${this.baseUrl}/clients/${idClient}/zones`, request);
   }
 
-  updateSite(idClient: string, idClientSite: string, request: ClientSiteInput) {
-    return this.http.put<ClientSite>(`${this.baseUrl}/clients/${idClient}/sites/${idClientSite}`, request);
+  updateZone(idClient: string, idClientZone: string, request: ClientZoneInput) {
+    return this.http.put<ClientZone>(`${this.baseUrl}/clients/${idClient}/zones/${idClientZone}`, request);
   }
 
-  deactivateSite(organizationId: string, idClient: string, idClientSite: string) {
+  deactivateZone(organizationId: string, idClient: string, idClientZone: string) {
     const params = new HttpParams().set('organizationId', organizationId);
-    return this.http.delete<void>(`${this.baseUrl}/clients/${idClient}/sites/${idClientSite}`, { params });
+    return this.http.delete<void>(`${this.baseUrl}/clients/${idClient}/zones/${idClientZone}`, { params });
   }
 
   listContacts(organizationId: string, idClient: string) {

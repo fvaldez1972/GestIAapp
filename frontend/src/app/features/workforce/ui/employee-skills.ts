@@ -19,20 +19,20 @@ export type EmployeeSkillFormValue = {
 };
 
 /**
- * La pestaña de Habilidades.
+ * La pestaña de Experiencia.
  *
  * <p><b>Cierra una trampa, no agrega una función.</b> Desde el 7 de septiembre de 2026 se podía
- * crear una regla de elegibilidad de tipo habilidad —que el servidor evalúa de verdad y que, si es
+ * crear una regla de elegibilidad de tipo experiencia —que el servidor evalúa de verdad y que, si es
  * bloqueante, detiene la publicación de una semana entera— sin que existiera ninguna pantalla para
- * otorgarle la habilidad a una persona. Quien caía en ella sólo podía salir desactivando la regla,
+ * otorgarle la experiencia a una persona. Quien caía en ella sólo podía salir desactivando la regla,
  * que es lo contrario de lo que quería al crearla, y lo descubría al publicar, cuando ya no hay
  * tiempo.</p>
  *
- * <p>Las habilidades se eligen <b>del catálogo, por identificador</b>, y se pueden crear al vuelo
+ * <p>Las experiencias se eligen <b>del catálogo, por identificador</b>, y se pueden crear al vuelo
  * si faltan. Comparar por nombre aceptaría «Manejo de CCTV» y «manejo de cctv» como dos cosas
  * distintas, y la regla dejaría de cumplirse sin que nada avisara.</p>
  *
- * <p><b>El vencimiento se ve</b> porque la evaluación de elegibilidad ya lo respeta: una habilidad
+ * <p><b>El vencimiento se ve</b> porque la evaluación de elegibilidad ya lo respeta: una experiencia
  * caducada no cubre su requisito, y esconderlo dejaría a alguien creyendo que sí.</p>
  */
 @Component({
@@ -43,13 +43,13 @@ export type EmployeeSkillFormValue = {
     <section class="skills">
       @if (requirements().length === 0) {
         <p class="skills__note">
-          Esta organización no exige ninguna habilidad. Las que se registren aquí no impiden
+          Esta organización no exige ninguna experiencia. Las que se registren aquí no impiden
           asignar a nadie, pero sirven para encontrar a quién puede cubrir un turno.
         </p>
       } @else {
         <p class="skills__note">
           {{ requirements().length }}
-          {{ requirements().length === 1 ? 'habilidad exigida' : 'habilidades exigidas' }} por esta
+          {{ requirements().length === 1 ? 'experiencia exigida' : 'experiencias exigidas' }} por esta
           organización. Se considera «por vencer» lo que caduca en {{ expiringWithinDays() }} días o
           menos.
         </p>
@@ -74,17 +74,17 @@ export type EmployeeSkillFormValue = {
 
       <div class="skills__block">
         <header class="skills__head">
-          <h3 class="skills__kicker">HABILIDADES ACREDITADAS</h3>
+          <h3 class="skills__kicker">EXPERIENCIA ACREDITADAS</h3>
           @if (canWrite() && !editorOpen()) {
             <button class="gi-button" type="button" [disabled]="saving()" (click)="openCreate()">
-              Acreditar habilidad
+              Acreditar experiencia
             </button>
           }
         </header>
 
         @if (activas().length === 0) {
           <p class="skills__note">
-            No hay ninguna habilidad acreditada. Si esta organización exige alguna, la persona no se
+            No hay ninguna experiencia acreditada. Si esta organización exige alguna, la persona no se
             puede asignar hasta que se registre.
           </p>
         } @else {
@@ -117,19 +117,19 @@ export type EmployeeSkillFormValue = {
         @if (editorOpen()) {
           <form class="form" [formGroup]="form" (ngSubmit)="submit()">
             <h4 class="skills__kicker">
-              {{ editing() ? 'EDITAR HABILIDAD' : 'NUEVA HABILIDAD' }}
+              {{ editing() ? 'EDITAR EXPERIENCIA' : 'NUEVA EXPERIENCIA' }}
             </h4>
 
             <div class="form__row">
               <div class="field field--wide">
-                <span class="field__label">HABILIDAD</span>
+                <span class="field__label">EXPERIENCIA</span>
                 @if (editing()) {
                   <p class="field__fixed">{{ editing()!.skillName }}</p>
                 } @else {
                   <gi-catalog-picker
-                    label="Habilidad"
-                    catalogLabel="el catálogo de habilidades"
-                    inputId="es-habilidad"
+                    label="Experiencia"
+                    catalogLabel="el catálogo de experiencias"
+                    inputId="es-experiencia"
                     [options]="catalogSkills()"
                     [value]="form.controls.idSkillCatalogItem.value"
                     [canWrite]="canWrite()"
@@ -154,7 +154,7 @@ export type EmployeeSkillFormValue = {
             </div>
 
             <p class="skills__note">
-              Una habilidad vencida deja de cubrir su requisito el día siguiente al vencimiento. Sin
+              Una experiencia vencida deja de cubrir su requisito el día siguiente al vencimiento. Sin
               fecha, se considera que no caduca.
             </p>
 
@@ -167,7 +167,7 @@ export type EmployeeSkillFormValue = {
                 Cancelar
               </button>
               <button class="gi-button gi-button--primary" type="submit" [disabled]="saving()">
-                {{ saving() ? 'Guardando…' : 'Guardar habilidad' }}
+                {{ saving() ? 'Guardando…' : 'Guardar experiencia' }}
               </button>
             </footer>
           </form>
@@ -289,7 +289,7 @@ export type EmployeeSkillFormValue = {
       letter-spacing: 0.06em;
     }
 
-    /* Al editar, la habilidad no se cambia: se retira y se acredita la otra. */
+    /* Al editar, la experiencia no se cambia: se retira y se acredita la otra. */
     .field__fixed { margin: 0; color: var(--gestia-text); font-size: 12.5px; font-weight: 600; }
 
     .field input, .field textarea {
@@ -318,7 +318,7 @@ export class EmployeeSkills {
 
   readonly requirements = input.required<readonly EligibilityRequirement[]>();
   readonly skills = input.required<readonly EmployeeSkill[]>();
-  /** Las habilidades activas del catálogo de la organización. */
+  /** Las experiencias activas del catálogo de la organización. */
   readonly catalogSkills = input.required<readonly GiCatalogOption[]>();
   /** El día operativo del servidor. No se lee del reloj del navegador. */
   readonly today = input.required<string>();
@@ -388,7 +388,7 @@ export class EmployeeSkills {
     const valor = this.form.getRawValue();
 
     if (!valor.idSkillCatalogItem) {
-      this.problem.set('Elige la habilidad del catálogo.');
+      this.problem.set('Elige la experiencia del catálogo.');
       return;
     }
 
@@ -409,7 +409,7 @@ export class EmployeeSkills {
 
   protected detail(state: string, expires: string | null): string {
     if (state === 'Missing') {
-      return 'Esta persona no tiene acreditada la habilidad que la regla exige.';
+      return 'Esta persona no tiene acreditada la experiencia que la regla exige.';
     }
 
     if (!expires) {

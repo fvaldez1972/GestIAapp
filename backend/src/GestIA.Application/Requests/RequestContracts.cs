@@ -38,7 +38,7 @@ public sealed record ExecuteOperationalRequestRequest(
     Guid IdOrganization,
     string? ExecutionNotes,
     OperationalRequestClientInput? Client,
-    OperationalRequestClientSiteInput? ClientSite,
+    OperationalRequestClientZoneInput? ClientZone,
     OperationalRequestServiceContractInput? ServiceContract,
     OperationalRequestServiceInput? Service,
     IReadOnlyList<OperationalRequestPositionInput>? Positions,
@@ -76,8 +76,8 @@ public sealed record OperationalRequestClientInput(
     string? IncorporationDeedNumber,
     string? LegalRepresentativeInstrumentNumber);
 
-public sealed record OperationalRequestClientSiteInput(
-    string CodeClientSite,
+public sealed record OperationalRequestClientZoneInput(
+    string CodeClientZone,
     string Name,
     string Street,
     string? ExteriorNumber,
@@ -103,7 +103,7 @@ public sealed record OperationalRequestServiceContractInput(
     string? Notes);
 
 public sealed record OperationalRequestServiceInput(
-    Guid? IdClientSite,
+    Guid? IdClientZone,
     Guid? IdServiceContract,
     string CodeService,
     string Name,

@@ -19,8 +19,8 @@ const SERVICIOS = [
     idService: 'srv-1',
     idClient: 'client-1',
     clientName: 'Corporativo Altavista',
-    idClientSite: 'site-1',
-    clientSiteName: 'Torre Altavista',
+    idClientZone: 'zone-1',
+    clientZoneName: 'Torre Altavista',
     idServiceContract: null,
     serviceContractCode: null,
     codeService: 'SRV-01',
@@ -39,8 +39,8 @@ const SERVICIOS = [
     idService: 'srv-2',
     idClient: 'client-2',
     clientName: 'Grupo Peña Muñoz',
-    idClientSite: 'site-2',
-    clientSiteName: 'Planta Ñuble',
+    idClientZone: 'zone-2',
+    clientZoneName: 'Planta Ñuble',
     idServiceContract: null,
     serviceContractCode: null,
     codeService: 'SRV-02',
@@ -59,8 +59,8 @@ const SERVICIOS = [
     idService: 'srv-3',
     idClient: 'client-3',
     clientName: 'Ñuble Logística',
-    idClientSite: 'site-3',
-    clientSiteName: 'Patio norte',
+    idClientZone: 'zone-3',
+    clientZoneName: 'Patio norte',
     idServiceContract: null,
     serviceContractCode: null,
     codeService: 'SRV-03',
@@ -265,7 +265,7 @@ describe('Servicios · listado', () => {
   /**
    * El botón que no respondía.
    *
-   * <p>Se deshabilitaba con `hasActiveSite()`, que sin cliente elegido es siempre falso: nacía
+   * <p>Se deshabilitaba con `hasActiveZone()`, que sin cliente elegido es siempre falso: nacía
    * apagado y pulsarlo no hacía nada. Ahora se puede pulsar, y la pantalla dice qué falta.</p>
    */
   it('sin cliente elegido, «Nuevo servicio» se puede pulsar y explica qué falta', () => {

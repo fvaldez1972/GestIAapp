@@ -263,7 +263,7 @@ export class ReportsPage implements OnInit {
         status: hasInsufficientRules ? 'Sin reglas suficientes' : employee.isEligible ? 'Elegible' : 'No elegible',
         fileStatus: employee.rejectedDocuments || employee.expiredDocuments ? 'Incompleto' : 'Completo',
         documentStatus: employee.rejectedDocuments || employee.expiredDocuments ? 'Pendiente' : 'Completo',
-        skillStatus: reasons.some((reason) => /habilidad/i.test(reason)) ? 'Faltante' : 'Completo',
+        skillStatus: reasons.some((reason) => /experiencia/i.test(reason)) ? 'Faltante' : 'Completo',
         reasons,
       } satisfies EligibilityReportRow;
     }),

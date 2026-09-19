@@ -208,7 +208,7 @@ public sealed class CatalogService(
                 request.IdEmployee,
                 idEmployeeSkill,
                 cancellationToken)
-            ?? throw new ResourceNotFoundException("No se encontró la habilidad del empleado.");
+            ?? throw new ResourceNotFoundException("No se encontró la experiencia del empleado.");
         skill.UpdateProfile(
             ValidateEmployeeSkillProfile(request),
             actorContext.ActorId,
@@ -234,7 +234,7 @@ public sealed class CatalogService(
                 idEmployee,
                 idEmployeeSkill,
                 cancellationToken)
-            ?? throw new ResourceNotFoundException("No se encontró la habilidad del empleado.");
+            ?? throw new ResourceNotFoundException("No se encontró la experiencia del empleado.");
         skill.Deactivate(actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
         await unitOfWork.SaveChangesAsync(cancellationToken);
     }
@@ -266,7 +266,7 @@ public sealed class CatalogService(
     ///
     /// <para>El contexto —cliente, servicio y posición— se resuelve <b>una vez</b>: es la posición
     /// la que pide los requisitos, y es la misma para toda la lista. Lo que sí se evalúa persona a
-    /// persona son sus documentos, sus habilidades y sus evaluaciones, que es de lo que trata la
+    /// persona son sus documentos, su experiencia y sus evaluaciones, que es de lo que trata la
     /// pregunta.</para>
     ///
     /// <para>Los identificadores repetidos se colapsan y el orden de la respuesta es el de la
@@ -417,8 +417,8 @@ public sealed class CatalogService(
             requirement.IsBlocking,
             skill is not null,
             skill is not null
-                ? $"Cuenta con habilidad {skill.SkillCatalogItem.Name}."
-                : $"Falta habilidad requerida: {requirement.RequiredCatalogItem?.Name ?? requirement.Name}.");
+                ? $"Cuenta con experiencia {skill.SkillCatalogItem.Name}."
+                : $"Falta experiencia requerida: {requirement.RequiredCatalogItem?.Name ?? requirement.Name}.");
     }
 
     private static EligibilityReasonResponse EvaluateDocument(
@@ -587,11 +587,11 @@ public sealed class CatalogService(
         CancellationToken cancellationToken)
     {
         var item = await repository.GetCatalogItemAsync(idOrganization, idSkillCatalogItem, cancellationToken)
-            ?? throw new ResourceNotFoundException("No se encontró la habilidad seleccionada.");
+            ?? throw new ResourceNotFoundException("No se encontró la experiencia seleccionada.");
 
         if (item.Type != BusinessCatalogItemType.Skill || !item.Active)
         {
-            throw new ResourceConflictException("El catálogo seleccionado no es una habilidad.");
+            throw new ResourceConflictException("El catálogo seleccionado no es una experiencia.");
         }
     }
 
@@ -672,7 +672,7 @@ public sealed class CatalogService(
         switch (request.RequirementType)
         {
             case EligibilityRequirementType.Skill when request.IdRequiredCatalogItem is null:
-                errors[nameof(request.IdRequiredCatalogItem)] = ["Elige la habilidad que la regla exige."];
+                errors[nameof(request.IdRequiredCatalogItem)] = ["Elige la experiencia que la regla exige."];
                 break;
             case EligibilityRequirementType.Document when request.RequiredDocumentType is null:
                 errors[nameof(request.RequiredDocumentType)] = ["Elige el tipo de documento que la regla exige."];
@@ -707,7 +707,7 @@ public sealed class CatalogService(
 
         if (request.IdSkillCatalogItem == Guid.Empty)
         {
-            errors[nameof(request.IdSkillCatalogItem)] = ["La habilidad es obligatoria."];
+            errors[nameof(request.IdSkillCatalogItem)] = ["La experiencia es obligatoria."];
         }
 
         if (request.ExpiresDate < request.AcquiredDate)

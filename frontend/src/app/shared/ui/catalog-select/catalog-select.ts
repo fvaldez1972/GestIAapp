@@ -49,7 +49,7 @@ export class CatalogSelect implements ControlValueAccessor, OnChanges {
       if (!item.active || item.type !== this.type) return false;
       const parent = byId.get(item.idParentCatalogItem ?? '');
       // El pais se resuelve por nombre plegado, no por codigo: el catalogo ya no lleva codigo.
-      // Se acepta ademas el ISO de dos letras que ClientSite y Employee guardan en CountryCode,
+      // Se acepta ademas el ISO de dos letras que ClientZone y Employee guardan en CountryCode,
       // que es un estandar externo y no una clave de este catalogo. Todo esto desaparece en la
       // tanda de geografia, cuando las tres columnas pasen a ser claves foraneas.
       if (this.type === 'State') return !!parent?.active && this.esElPais(parent);

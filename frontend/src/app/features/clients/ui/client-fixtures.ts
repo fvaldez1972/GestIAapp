@@ -1,4 +1,4 @@
-import { ClientContact, ClientListItem, ClientSite } from '../data-access/client.models';
+import { ClientContact, ClientListItem, ClientZone } from '../data-access/client.models';
 
 /**
  * Datos de ejemplo para las pruebas de Clientes.
@@ -18,39 +18,39 @@ export function cliente(extra: Partial<ClientListItem> = {}): ClientListItem {
     rfc: 'CAL180423K72',
     active: true,
     createdAt: '2026-02-12T15:00:00Z',
-    siteCount: 3,
-    sitesWithoutContact: 0,
+    zoneCount: 3,
+    zonesWithoutContact: 0,
     contactCount: 4,
     serviceCount: 5,
-    mainSiteName: 'Torre Altavista',
-    mainSiteMunicipality: 'Zapopan',
-    mainSiteState: 'Jalisco',
+    mainZoneName: 'Torre Altavista',
+    mainZoneMunicipality: 'Zapopan',
+    mainZoneState: 'Jalisco',
     ...extra,
   };
 }
 
 /** El caso que la pantalla existe para resolver: guardado, válido, y sin poder tener servicios. */
-export const sinSede = (extra: Partial<ClientListItem> = {}) =>
+export const sinZona = (extra: Partial<ClientListItem> = {}) =>
   cliente({
     idClient: 'cli-2',
     codeClient: 'CLI-02',
     legalName: 'Textiles La Concepción, S.A. de C.V.',
     tradeName: 'Textiles La Concepción',
-    siteCount: 0,
-    sitesWithoutContact: 0,
+    zoneCount: 0,
+    zonesWithoutContact: 0,
     contactCount: 0,
     serviceCount: 0,
-    mainSiteName: null,
-    mainSiteMunicipality: null,
-    mainSiteState: null,
+    mainZoneName: null,
+    mainZoneMunicipality: null,
+    mainZoneState: null,
     ...extra,
   });
 
-export function sede(extra: Partial<ClientSite> = {}): ClientSite {
+export function zona(extra: Partial<ClientZone> = {}): ClientZone {
   return {
-    idClientSite: 'sed-1',
+    idClientZone: 'sed-1',
     idClient: 'cli-1',
-    codeClientSite: 'SED-01',
+    codeClientZone: 'SED-01',
     name: 'Torre Altavista',
     street: 'Av. Patria 1250',
     exteriorNumber: null,
@@ -71,8 +71,8 @@ export function contacto(extra: Partial<ClientContact> = {}): ClientContact {
   return {
     idClientContact: 'con-1',
     idClient: 'cli-1',
-    idClientSite: 'sed-1',
-    clientSiteName: 'Torre Altavista',
+    idClientZone: 'sed-1',
+    clientZoneName: 'Torre Altavista',
     purpose: 'Operational',
     fullName: 'Mariana Escalante Ruvalcaba',
     jobTitle: 'Jefa de vigilancia',

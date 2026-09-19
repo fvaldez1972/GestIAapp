@@ -3,16 +3,16 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { ClientContact, ClientSite } from '../data-access/client.models';
-import { ClientSites, NewSite } from './client-sites';
-import { contacto, sede } from './client-fixtures';
+import { ClientContact, ClientZone } from '../data-access/client.models';
+import { ClientZones, NewZone } from './client-zones';
+import { contacto, zona } from './client-fixtures';
 
 @Component({
-  imports: [ClientSites],
+  imports: [ClientZones],
   template: `
-    <app-client-sites
+    <app-client-zones
       organizationId="org-a"
-      [sites]="lista()"
+      [zones]="lista()"
       [contacts]="contacts()"
       [canWrite]="canWrite()"
       [openAdd]="openAdd()"
@@ -25,14 +25,14 @@ import { contacto, sede } from './client-fixtures';
   `,
 })
 class Anfitrion {
-  readonly lista = signal<readonly ClientSite[]>([]);
+  readonly lista = signal<readonly ClientZone[]>([]);
   readonly contacts = signal<readonly ClientContact[]>([]);
   readonly canWrite = signal(true);
   readonly openAdd = signal(false);
-  readonly editing = signal<ClientSite | null>(null);
+  readonly editing = signal<ClientZone | null>(null);
   readonly cerrados = signal(0);
-  readonly creada = signal<NewSite | null>(null);
-  readonly editada = signal<{ site: ClientSite; datos: NewSite } | null>(null);
+  readonly creada = signal<NewZone | null>(null);
+  readonly editada = signal<{ zone: ClientZone; datos: NewZone } | null>(null);
 }
 
 function montar(configurar: (host: Anfitrion) => void = () => {}) {
@@ -90,7 +90,7 @@ function elegir(raiz: HTMLElement, id: string, valor: string, fixture: { detectC
   fixture.detectChanges();
 }
 
-describe('La pestaña de Sedes', () => {
+describe('La pestaña de Zonas', () => {
   beforeEach(() =>
     TestBed.configureTestingModule({
       imports: [Anfitrion],
@@ -100,18 +100,18 @@ describe('La pestaña de Sedes', () => {
   afterEach(() => TestBed.resetTestingModule());
 
   /**
-   * El punto de la pantalla. Un cliente sin sede no es «no hay nada»: <b>le falta el
+   * El punto de la pantalla. Un cliente sin zona no es «no hay nada»: <b>le falta el
    * prerrequisito del paso siguiente</b>, y el vacío tiene que decir eso y ofrecer la salida.
    */
-  it('sin sede muestra el vacío de prerrequisito, no el de sin datos', () => {
+  it('sin zona muestra el vacío de prerrequisito, no el de sin datos', () => {
     const { raiz } = montar();
 
-    expect(raiz.textContent).toContain('Este cliente todavía no tiene sede');
-    expect(raiz.textContent).toContain('El servicio se liga a una sede');
+    expect(raiz.textContent).toContain('Este cliente todavía no tiene zona');
+    expect(raiz.textContent).toContain('El servicio se liga a una zona');
     expect(raiz.querySelector('gi-empty-state')).not.toBeNull();
   });
 
-  it('el vacío ofrece agregar la sede, y agregarla es un formulario de verdad', () => {
+  it('el vacío ofrece agregar la zona, y agregarla es un formulario de verdad', () => {
     const { raiz, fixture } = montar();
 
     raiz.querySelector<HTMLButtonElement>('gi-empty-state button')!.click();
@@ -170,37 +170,37 @@ describe('La pestaña de Sedes', () => {
     });
   });
 
-  /** Una sede sin contacto funciona, pero nadie responde por ella, y eso se dice. */
-  it('una sede sin contacto lo dice, con palabras y no sólo con color', () => {
-    const { raiz } = montar((host) => host.lista.set([sede()]));
+  /** Una zona sin contacto funciona, pero nadie responde por ella, y eso se dice. */
+  it('una zona sin contacto lo dice, con palabras y no sólo con color', () => {
+    const { raiz } = montar((host) => host.lista.set([zona()]));
 
-    expect(raiz.querySelector('.site__pill')?.textContent?.trim()).toBe('Sin contacto');
-    expect(raiz.textContent).toContain('La sede funciona, pero nadie responde por ella');
+    expect(raiz.querySelector('.zone__pill')?.textContent?.trim()).toBe('Sin contacto');
+    expect(raiz.textContent).toContain('La zona funciona, pero nadie responde por ella');
   });
 
   it('con contacto muestra quién responde y su puesto', () => {
     const { raiz } = montar((host) => {
-      host.lista.set([sede()]);
+      host.lista.set([zona()]);
       host.contacts.set([contacto()]);
     });
 
     expect(raiz.textContent).toContain('Mariana Escalante Ruvalcaba');
     expect(raiz.textContent).toContain('Jefa de vigilancia');
-    expect(raiz.querySelector('.site__pill')).toBeNull();
+    expect(raiz.querySelector('.zone__pill')).toBeNull();
   });
 
   /**
-   * «Agregar sede» está una sola vez.
+   * «Agregar zona» está una sola vez.
    *
    * <p>Estaba dos: en la cabecera de la ficha y otra vez sobre la lista, uno encima del otro y
    * siendo el mismo. La de la cabecera es la que se queda, con las acciones de los demás apartados.
    * </p>
    */
-  it('no repite «Agregar sede» sobre la lista: vive en la cabecera de la ficha', () => {
-    const { raiz } = montar((host) => host.lista.set([sede()]));
+  it('no repite «Agregar zona» sobre la lista: vive en la cabecera de la ficha', () => {
+    const { raiz } = montar((host) => host.lista.set([zona()]));
 
     const botones = Array.from(raiz.querySelectorAll('button')).filter(
-      (b) => b.textContent?.trim() === 'Agregar sede',
+      (b) => b.textContent?.trim() === 'Agregar zona',
     );
     expect(botones).toHaveLength(0);
   });
@@ -214,7 +214,7 @@ describe('La pestaña de Sedes', () => {
    */
   it('al cancelar avisa que el alta se cerró', () => {
     const { raiz, fixture, host } = montar((host) => {
-      host.lista.set([sede()]);
+      host.lista.set([zona()]);
       host.openAdd.set(true);
     });
 
@@ -232,46 +232,46 @@ describe('La pestaña de Sedes', () => {
   /**
    * Las acciones se ven, no se esconden tras tres puntos.
    *
-   * <p>El menú guardaba «Editar sede» detrás de un clic y de un icono que no dice nada: había que
-   * abrirlo para descubrir qué se podía hacer con la sede.</p>
+   * <p>El menú guardaba «Editar zona» detrás de un clic y de un icono que no dice nada: había que
+   * abrirlo para descubrir qué se podía hacer con la zona.</p>
    */
-  it('cada sede enseña sus acciones, sin menú de tres puntos', () => {
-    const { raiz } = montar((host) => host.lista.set([sede()]));
+  it('cada zona enseña sus acciones, sin menú de tres puntos', () => {
+    const { raiz } = montar((host) => host.lista.set([zona()]));
 
     expect(raiz.querySelector('gi-row-actions')).toBeNull();
 
-    const acciones = Array.from(raiz.querySelectorAll('.site__accion')).map((n) =>
+    const acciones = Array.from(raiz.querySelectorAll('.zone__accion')).map((n) =>
       n.textContent!.trim(),
     );
     expect(acciones).toEqual(['Editar', 'Desactivar']);
   });
 
-  it('sin permiso de escritura no ofrece ninguna acción sobre la sede', () => {
+  it('sin permiso de escritura no ofrece ninguna acción sobre la zona', () => {
     const { raiz } = montar((host) => {
-      host.lista.set([sede()]);
+      host.lista.set([zona()]);
       host.canWrite.set(false);
     });
 
-    expect(raiz.querySelector('.site__accion')).toBeNull();
+    expect(raiz.querySelector('.zone__accion')).toBeNull();
   });
 
   it('la dirección se arma legible, sin comas sueltas de los campos vacíos', () => {
     const { raiz } = montar((host) =>
-      host.lista.set([sede({ neighborhood: null, exteriorNumber: null })]),
+      host.lista.set([zona({ neighborhood: null, exteriorNumber: null })]),
     );
 
-    expect(raiz.querySelector('.site__value')?.textContent?.trim())
+    expect(raiz.querySelector('.zone__value')?.textContent?.trim())
       .toBe('Av. Patria 1250, Zapopan, Jalisco, 45110');
   });
   /**
-   * El defecto: al guardar, la sede se creaba y el formulario se quedaba abierto con los mismos
-   * datos dentro. Pulsar otra vez creaba una sede idéntica y nada lo impedía.
+   * El defecto: al guardar, la zona se creaba y el formulario se quedaba abierto con los mismos
+   * datos dentro. Pulsar otra vez creaba una zona idéntica y nada lo impedía.
    */
   it('se vacía y se cierra al guardar', () => {
     const { fixture, raiz, escribir, guardar, host } = montar((anfitrion) => anfitrion.openAdd.set(false));
 
     const abrir = Array.from(raiz.querySelectorAll<HTMLButtonElement>('button'))
-      .find((b) => b.textContent?.includes('Agregar sede'));
+      .find((b) => b.textContent?.includes('Agregar zona'));
     abrir?.click();
     fixture.detectChanges();
 
@@ -292,7 +292,7 @@ describe('La pestaña de Sedes', () => {
 
     // Se vuelve a buscar el botón: el anterior quedó fuera del DOM al cerrarse el formulario.
     Array.from(raiz.querySelectorAll<HTMLButtonElement>('button'))
-      .find((b) => b.textContent?.includes('Agregar sede'))
+      .find((b) => b.textContent?.includes('Agregar zona'))
       ?.click();
     fixture.detectChanges();
 
@@ -304,14 +304,14 @@ describe('La pestaña de Sedes', () => {
   /**
    * El «sin contacto» que mentía.
    *
-   * <p>La tarjeta sólo miraba contactos atados a la sede, y en la base viva 23 de 26 contactos son
-   * del cliente. Así, casi toda sede decía «nadie responde por ella» mientras la pestaña de
+   * <p>La tarjeta sólo miraba contactos atados a la zona, y en la base viva 23 de 26 contactos son
+   * del cliente. Así, casi toda zona decía «nadie responde por ella» mientras la pestaña de
    * Contactos mostraba un número mayor que cero al lado.</p>
    */
-  it('un contacto del cliente cubre a la sede que no tiene el suyo', () => {
+  it('un contacto del cliente cubre a la zona que no tiene el suyo', () => {
     const { raiz } = montar((host) => {
-      host.lista.set([sede({ idClientSite: 's1', name: 'Planta Norte' })]);
-      host.contacts.set([contacto({ idClientSite: null, fullName: 'Laura del cliente' })]);
+      host.lista.set([zona({ idClientZone: 's1', name: 'Planta Norte' })]);
+      host.contacts.set([contacto({ idClientZone: null, fullName: 'Laura del cliente' })]);
     });
 
     expect(raiz.textContent).toContain('Laura del cliente');
@@ -319,22 +319,22 @@ describe('La pestaña de Sedes', () => {
     expect(raiz.textContent).not.toContain('nadie responde por ella');
   });
 
-  it('el contacto propio de la sede gana al del cliente', () => {
+  it('el contacto propio de la zona gana al del cliente', () => {
     const { raiz } = montar((host) => {
-      host.lista.set([sede({ idClientSite: 's1', name: 'Planta Norte' })]);
+      host.lista.set([zona({ idClientZone: 's1', name: 'Planta Norte' })]);
       host.contacts.set([
-        contacto({ idClientSite: null, fullName: 'Laura del cliente' }),
-        contacto({ idClientSite: 's1', fullName: 'Mario de la sede' }),
+        contacto({ idClientZone: null, fullName: 'Laura del cliente' }),
+        contacto({ idClientZone: 's1', fullName: 'Mario de la zona' }),
       ]);
     });
 
-    expect(raiz.textContent).toContain('Mario de la sede');
+    expect(raiz.textContent).toContain('Mario de la zona');
     expect(raiz.textContent).not.toContain('Laura del cliente');
   });
 
   it('sin ningún contacto sí lo dice', () => {
     const { raiz } = montar((host) => {
-      host.lista.set([sede({ idClientSite: 's1', name: 'Planta Norte' })]);
+      host.lista.set([zona({ idClientZone: 's1', name: 'Planta Norte' })]);
       host.contacts.set([]);
     });
 
@@ -343,17 +343,17 @@ describe('La pestaña de Sedes', () => {
 });
 
 /**
- * Editar una sede, que es donde el formulario y la página tienen que ponerse de acuerdo.
+ * Editar una zona, que es donde el formulario y la página tienen que ponerse de acuerdo.
  *
- * <p>Salió al validar contra el sistema publicado: «Guardar sede» guardaba de verdad —la sede
+ * <p>Salió al validar contra el sistema publicado: «Guardar zona» guardaba de verdad —la zona
  * cambiaba en la base y salía el aviso de que había quedado actualizada— y el formulario se
  * quedaba abierto, como si no hubiera pasado nada. El motivo era una carrera: el formulario se
- * cerraba solo, el efecto veía que la página seguía apuntando a esa sede, y lo reabría en el acto.
+ * cerraba solo, el efecto veía que la página seguía apuntando a esa zona, y lo reabría en el acto.
  * «Cancelar» hacía exactamente lo mismo.</p>
  *
  * <p>Ahora manda la página: ella sabe si el servidor confirmó, y el formulario la sigue.</p>
  */
-describe('La pestaña de Sedes · editar', () => {
+describe('La pestaña de Zonas · editar', () => {
   beforeEach(() =>
     TestBed.configureTestingModule({
       imports: [Anfitrion],
@@ -362,10 +362,10 @@ describe('La pestaña de Sedes · editar', () => {
 
   afterEach(() => TestBed.resetTestingModule());
 
-  const abierta = (raiz: HTMLElement) => raiz.textContent?.includes('EDITAR SEDE') ?? false;
+  const abierta = (raiz: HTMLElement) => raiz.textContent?.includes('EDITAR ZONA') ?? false;
 
-  it('abre con los datos de la sede que pide la página', async () => {
-    const original = sede({ idClientSite: 's-1', name: 'Torre Altavista' });
+  it('abre con los datos de la zona que pide la página', async () => {
+    const original = zona({ idClientZone: 's-1', name: 'Torre Altavista' });
     const { raiz, fixture, host } = montar((anfitrion) => anfitrion.lista.set([original]));
     host.editing.set(original);
     fixture.detectChanges();
@@ -378,7 +378,7 @@ describe('La pestaña de Sedes · editar', () => {
   });
 
   it('al guardar emite el cambio y NO se cierra solo: espera a la página', () => {
-    const original = sede({ idClientSite: 's-1', name: 'Torre Altavista' });
+    const original = zona({ idClientZone: 's-1', name: 'Torre Altavista' });
     const { raiz, fixture, host, guardar } = montar((anfitrion) => anfitrion.lista.set([original]));
     host.editing.set(original);
     fixture.detectChanges();
@@ -386,11 +386,11 @@ describe('La pestaña de Sedes · editar', () => {
     guardar()!.click();
     fixture.detectChanges();
 
-    expect(host.editada()?.site.idClientSite).toBe('s-1');
+    expect(host.editada()?.zone.idClientZone).toBe('s-1');
     // Sigue abierto: si el guardado falla, lo escrito no se pierde.
     expect(abierta(raiz)).toBe(true);
 
-    // Y cuando la página confirma soltando la sede, el formulario se cierra de una vez.
+    // Y cuando la página confirma soltando la zona, el formulario se cierra de una vez.
     host.editing.set(null);
     fixture.detectChanges();
 
@@ -398,7 +398,7 @@ describe('La pestaña de Sedes · editar', () => {
   });
 
   it('«Cancelar» avisa a la página, y el formulario no se reabre', () => {
-    const original = sede({ idClientSite: 's-1', name: 'Torre Altavista' });
+    const original = zona({ idClientZone: 's-1', name: 'Torre Altavista' });
     const { raiz, fixture, host } = montar((anfitrion) => anfitrion.lista.set([original]));
     host.editing.set(original);
     fixture.detectChanges();

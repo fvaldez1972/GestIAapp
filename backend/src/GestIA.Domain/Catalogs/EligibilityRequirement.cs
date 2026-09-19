@@ -164,7 +164,7 @@ public sealed class EligibilityRequirement : AuditableEntity, IOrganizationScope
             throw new ArgumentOutOfRangeException(
                 nameof(profile),
                 "Una regla de elegibilidad exige exactamente lo que corresponde a su tipo: una " +
-                "habilidad del catálogo, un tipo de documento, un tipo de evaluación, o nada si es " +
+                "experiencia del catálogo, un tipo de documento, un tipo de evaluación, o nada si es " +
                 "una restricción.");
         }
     }

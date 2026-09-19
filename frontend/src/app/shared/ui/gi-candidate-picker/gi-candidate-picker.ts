@@ -38,7 +38,7 @@ export type GiCandidate = {
  * <p><b>«Elegible» es una afirmación, y sólo la puede hacer el servidor.</b> Durante un tiempo la
  * ponía el navegador: bastaba con que la asignación trajera puesto para marcar a alguien como
  * elegible, sin haber consultado ni un requisito. Las reglas de elegibilidad —documentos vigentes,
- * habilidades, evaluaciones— viven en el servidor y es él quien las hace cumplir; repetirlas de
+ * experiencias, evaluaciones— viven en el servidor y es él quien las hace cumplir; repetirlas de
  * memoria en la pantalla es exactamente lo que el principio 5 prohíbe, y además da una respuesta
  * distinta de la que va a dar el servidor cuando toque.</p>
  *

@@ -4,12 +4,12 @@ import { CatalogSelect } from '../../../shared/ui/catalog-select/catalog-select'
 import { GiCatalogPicker, GiCatalogOption, GiCatalogCreation } from '../../../shared/ui/gi-catalog-picker/gi-catalog-picker';
 import { ServerProblem, fieldError } from '../../../shared/util/server-problem';
 
-/** Lo que el formulario devuelve. La sede y el contacto van aparte porque pueden no ir. */
+/** Lo que el formulario devuelve. La zona y el contacto van aparte porque pueden no ir. */
 export type ClientFormValue = {
   readonly legalName: string;
   readonly tradeName: string;
   readonly rfc: string;
-  readonly site: {
+  readonly zone: {
     readonly name: string;
     readonly street: string;
     readonly neighborhood: string;
@@ -26,12 +26,12 @@ export type ClientFormValue = {
 };
 
 /**
- * El alta de un cliente, con su sede y su contacto.
+ * El alta de un cliente, con su zona y su contacto.
  *
- * <p><b>Aquí se dice que la sede es obligatoria para crear servicios</b>, antes de guardar y no al
+ * <p><b>Aquí se dice que la zona es obligatoria para crear servicios</b>, antes de guardar y no al
  * fallar el paso siguiente. El bloque lleva el motivo en su propio rótulo, y las dos salidas dicen
- * exactamente qué hace cada una: «Guardar cliente y sede» deja el paso completo, «Guardar sin
- * sede» deja un expediente válido que todavía no permite servicios.</p>
+ * exactamente qué hace cada una: «Guardar cliente y zona» deja el paso completo, «Guardar sin
+ * zona» deja un expediente válido que todavía no permite servicios.</p>
  *
  * <p>No hay campo de código ni de fecha de alta: los pone el servidor. Pedirle al usuario que
  * invente un identificador es pedirle que resuelva un problema del sistema.</p>
@@ -74,13 +74,13 @@ export type ClientFormValue = {
 
       <section class="form__block">
         <h3 class="form__kicker">
-          SEDE · OBLIGATORIA PARA CREAR SERVICIOS
-          <span class="form__warning">Sin sede el cliente queda como expediente</span>
+          ZONA · OBLIGATORIA PARA CREAR SERVICIOS
+          <span class="form__warning">Sin zona el cliente queda como expediente</span>
         </h3>
 
-        <label class="field field--wide" for="cf-sede">
-          <span class="field__label">NOMBRE DE LA SEDE</span>
-          <input id="cf-sede" name="siteName" type="text" [ngModel]="siteName()" (ngModelChange)="siteName.set($event)" [ngModelOptions]="sueltos" autocomplete="off" />
+        <label class="field field--wide" for="cf-zona">
+          <span class="field__label">NOMBRE DE LA ZONA</span>
+          <input id="cf-zona" name="zoneName" type="text" [ngModel]="zoneName()" (ngModelChange)="zoneName.set($event)" [ngModelOptions]="sueltos" autocomplete="off" />
         </label>
 
         <div class="form__row form__row--calle">
@@ -130,7 +130,7 @@ export type ClientFormValue = {
       </section>
 
       <section class="form__block">
-        <h3 class="form__kicker">CONTACTO DE LA SEDE</h3>
+        <h3 class="form__kicker">CONTACTO DE LA ZONA</h3>
         <div class="form__row form__row--two">
           <label class="field" for="cf-cnombre">
             <span class="field__label">NOMBRE</span>
@@ -140,7 +140,7 @@ export type ClientFormValue = {
             <!--
               El puesto del contacto NO es texto libre: el servidor lo valida contra el catálogo de
               puestos y devuelve 409 con cualquier cosa escrita a mano. Cuando eso pasaba, el alta
-              guardaba el cliente y la sede, se tragaba el rechazo del contacto y la sede acababa
+              guardaba el cliente y la zona, se tragaba el rechazo del contacto y la zona acababa
               diciendo «sin contacto» sin que nadie supiera por qué.
             -->
             <span class="field__label">PUESTO</span>
@@ -180,14 +180,14 @@ export type ClientFormValue = {
           [disabled]="saving() || !clientReady()"
           [attr.aria-describedby]="clientReady() ? null : 'cf-razon-falta'"
           (click)="submit(false)"
-        >Guardar sin sede</button>
+        >Guardar sin zona</button>
         <button
           class="button button--primary"
           type="button"
-          [disabled]="saving() || !siteReady()"
-          [attr.aria-describedby]="siteReady() ? null : 'cf-sede-falta'"
+          [disabled]="saving() || !zoneReady()"
+          [attr.aria-describedby]="zoneReady() ? null : 'cf-zona-falta'"
           (click)="submit(true)"
-        >Guardar cliente y sede</button>
+        >Guardar cliente y zona</button>
       </span>
     </div>
 
@@ -195,8 +195,8 @@ export type ClientFormValue = {
     <p class="form__reason" id="cf-razon-falta" [hidden]="clientReady()">
       Falta la razón social o el RFC del cliente.
     </p>
-    <p class="form__reason" id="cf-sede-falta" [hidden]="siteReady()">
-      Para guardar con sede hacen falta su nombre, calle, municipio, estado y código postal.
+    <p class="form__reason" id="cf-zona-falta" [hidden]="zoneReady()">
+      Para guardar con zona hacen falta su nombre, calle, municipio, estado y código postal.
     </p>
   `,
   styles: `
@@ -338,12 +338,12 @@ export class ClientForm {
   readonly createJobPosition = output<GiCatalogCreation>();
 
   readonly cancel = output<void>();
-  readonly save = output<{ value: ClientFormValue; withSite: boolean }>();
+  readonly save = output<{ value: ClientFormValue; withZone: boolean }>();
 
   protected readonly legalName = signal('');
   protected readonly tradeName = signal('');
   protected readonly rfc = signal('');
-  protected readonly siteName = signal('');
+  protected readonly zoneName = signal('');
   protected readonly street = signal('');
   protected readonly neighborhood = signal('');
   protected readonly municipality = signal('');
@@ -355,14 +355,14 @@ export class ClientForm {
   protected readonly contactPhone = signal('');
   protected readonly contactEmail = signal('');
 
-  /** Lo mínimo para que exista el expediente. La sede no entra: puede no ir. */
+  /** Lo mínimo para que exista el expediente. La zona no entra: puede no ir. */
   protected readonly clientReady = computed(() => !!this.legalName().trim() && !!this.rfc().trim());
 
-  /** Lo mínimo para que la sede sea una dirección y no un nombre suelto. */
-  protected readonly siteReady = computed(
+  /** Lo mínimo para que la zona sea una dirección y no un nombre suelto. */
+  protected readonly zoneReady = computed(
     () =>
       this.clientReady() &&
-      !!this.siteName().trim() &&
+      !!this.zoneName().trim() &&
       !!this.street().trim() &&
       !!this.municipality().trim() &&
       !!this.state().trim() &&
@@ -382,15 +382,15 @@ export class ClientForm {
     this.municipality.set('');
   }
 
-  protected submit(withSite: boolean): void {
+  protected submit(withZone: boolean): void {
     this.save.emit({
-      withSite,
+      withZone,
       value: {
         legalName: this.legalName().trim(),
         tradeName: this.tradeName().trim(),
         rfc: this.rfc().trim().toUpperCase(),
-        site: {
-          name: this.siteName().trim(),
+        zone: {
+          name: this.zoneName().trim(),
           street: this.street().trim(),
           neighborhood: this.neighborhood().trim(),
           municipality: this.municipality().trim(),

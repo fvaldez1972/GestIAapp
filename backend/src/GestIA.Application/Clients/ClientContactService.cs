@@ -30,14 +30,14 @@ public sealed partial class ClientContactService(
         CancellationToken cancellationToken)
     {
         await EnsureClientAsync(request.IdOrganization, request.IdClient, cancellationToken);
-        await EnsureSiteAsync(request.IdClient, request.IdClientSite, cancellationToken);
+        await EnsureZoneAsync(request.IdClient, request.IdClientZone, cancellationToken);
         var details = Validate(request);
 
         await catalogValidator.ValueAsync(request.IdOrganization, BusinessCatalogItemType.JobPosition, details.JobTitle, null, cancellationToken);
         var contact = ClientContact.Create(
             request.IdOrganization,
             request.IdClient,
-            request.IdClientSite,
+            request.IdClientZone,
             details,
             actorContext.ActorId,
             actorContext.ActorName,
@@ -54,14 +54,14 @@ public sealed partial class ClientContactService(
         CancellationToken cancellationToken)
     {
         await EnsureClientAsync(request.IdOrganization, request.IdClient, cancellationToken);
-        await EnsureSiteAsync(request.IdClient, request.IdClientSite, cancellationToken);
+        await EnsureZoneAsync(request.IdClient, request.IdClientZone, cancellationToken);
         var details = Validate(request);
         var contact = await contactRepository.GetAsync(request.IdClient, idClientContact, cancellationToken)
             ?? throw new ResourceNotFoundException("No se encontró el contacto solicitado.");
 
         await catalogValidator.ValueAsync(request.IdOrganization, BusinessCatalogItemType.JobPosition, details.JobTitle, contact.JobTitle, cancellationToken);
         contact.UpdateDetails(
-            request.IdClientSite,
+            request.IdClientZone,
             details,
             actorContext.ActorId,
             actorContext.ActorName,
@@ -104,19 +104,19 @@ public sealed partial class ClientContactService(
         }
     }
 
-    private async Task EnsureSiteAsync(
+    private async Task EnsureZoneAsync(
         Guid idClient,
-        Guid? idClientSite,
+        Guid? idClientZone,
         CancellationToken cancellationToken)
     {
-        if (!idClientSite.HasValue)
+        if (!idClientZone.HasValue)
         {
             return;
         }
 
-        if (!await siteRepository.ExistsAsync(idClient, idClientSite.Value, cancellationToken))
+        if (!await siteRepository.ExistsAsync(idClient, idClientZone.Value, cancellationToken))
         {
-            throw new ResourceNotFoundException("La sede seleccionada no pertenece al cliente.");
+            throw new ResourceNotFoundException("La zona seleccionada no pertenece al cliente.");
         }
     }
 

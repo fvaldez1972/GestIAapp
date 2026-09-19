@@ -13,7 +13,7 @@ public sealed class AuditRepository(GestIaDbContext dbContext, IActorContext act
     [
         "Organizaciones",
         "Clientes",
-        "Sedes",
+        "Zonas",
         "Contactos",
         "Contratos",
         "Servicios",
@@ -22,7 +22,7 @@ public sealed class AuditRepository(GestIaDbContext dbContext, IActorContext act
         "Evaluaciones",
         "Catálogos",
         "Reglas de elegibilidad",
-        "Habilidades",
+        "Experiencia",
         "Posiciones",
         "Patrones",
         "Segmentos",
@@ -153,13 +153,13 @@ public sealed class AuditRepository(GestIaDbContext dbContext, IActorContext act
                 .ToArrayAsync(cancellationToken));
         }
 
-        if (Matches(entity, "Sedes"))
+        if (Matches(entity, "Zonas"))
         {
             AddRows(rows, await dbContext.ClientSites
                 .IgnoreQueryFilters(["Active"])
                 .Where(item => item.Client.IdOrganization == query.IdOrganization)
                 .Select(item => new AuditableRecord(
-                    "Sedes",
+                    "Zonas",
                     item.Name,
                     item.IdClientSite,
                     item.Active,
@@ -342,13 +342,13 @@ public sealed class AuditRepository(GestIaDbContext dbContext, IActorContext act
                 .ToArrayAsync(cancellationToken));
         }
 
-        if (Matches(entity, "Habilidades"))
+        if (Matches(entity, "Experiencia"))
         {
             AddRows(rows, await dbContext.EmployeeSkills
                 .IgnoreQueryFilters(["Active"])
                 .Where(item => item.Employee.IdOrganization == query.IdOrganization)
                 .Select(item => new AuditableRecord(
-                    "Habilidades",
+                    "Experiencia",
                     item.Employee.FullName,
                     item.IdEmployeeSkill,
                     item.Active,

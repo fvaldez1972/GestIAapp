@@ -24,7 +24,7 @@ public sealed class OrganizationCatalogDefaults(ICatalogRepository repository, I
         // es donde se necesitan. Sembrar once motivos que casi nadie usa obligaba a revisarlos y
         // desactivar los que sobraban antes de poder confiar en el catalogo.
         //
-        // Puestos, habilidades y zonas tampoco: los dos primeros se crean al vuelo desde Personal, y
+        // Puestos, experiencia y zonas tampoco: los dos primeros se crean al vuelo desde Personal, y
         // el catalogo de zonas se retiro por completo.
         //
         // Lo unico que sigue viniendo cargado es la geografia, porque no se captura: se elige. Sale

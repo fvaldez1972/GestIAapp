@@ -163,7 +163,7 @@ export class GiEmptyState implements OnInit {
 
   ngOnInit(): void {
     // La regla pedía el enlace a otro módulo, y eso dejaba fuera un caso real: a veces el
-    // prerrequisito se obtiene **aquí mismo**. La sede de un cliente se agrega en su propio panel,
+    // prerrequisito se obtiene **aquí mismo**. La zona de un cliente se agrega en su propio panel,
     // sin salir. Lo que sigue prohibido es lo de siempre: decir que falta algo y no ofrecer cómo
     // obtenerlo.
     devAssert(

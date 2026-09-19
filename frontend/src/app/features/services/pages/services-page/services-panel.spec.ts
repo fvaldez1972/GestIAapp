@@ -14,8 +14,8 @@ const SERVICIO = {
   idService: 'srv-1',
   idClient: 'client-1',
   clientName: 'Corporativo Altavista',
-  idClientSite: 'site-1',
-  clientSiteName: 'Torre Altavista',
+  idClientZone: 'zone-1',
+  clientZoneName: 'Torre Altavista',
   idServiceContract: null,
   serviceContractCode: null,
   codeService: 'SRV-01',
@@ -113,10 +113,10 @@ describe('Servicios · ficha', () => {
     pagina()['openService'](SERVICIO);
 
     http.expectOne((r) => r.url === '/api/v1/clients/client-1').flush({ idClient: 'client-1', idOrganization: 'org-a', legalName: 'Corporativo Altavista', active: true });
-    http.expectOne((r) => r.url.endsWith('/sites')).flush([]);
+    http.expectOne((r) => r.url.endsWith('/zones')).flush([]);
     http.expectOne((r) => r.url.endsWith('/contracts')).flush([]);
     http.expectOne((r) => r.url.endsWith('/contacts')).flush([
-      { idClientContact: 'c-1', idClientSite: 'site-1', purpose: 'Operational', fullName: 'Adriana Quiñones', jobTitle: 'Jefa de seguridad', phone: '55 4821 9033', isPrimary: true, active: true },
+      { idClientContact: 'c-1', idClientZone: 'zone-1', purpose: 'Operational', fullName: 'Adriana Quiñones', jobTitle: 'Jefa de seguridad', phone: '55 4821 9033', isPrimary: true, active: true },
     ]);
     http.expectOne((r) => r.url.endsWith('/positions')).flush([]);
     http.expectOne((r) => r.url.endsWith('/assignments')).flush([]);
@@ -142,7 +142,7 @@ describe('Servicios · ficha', () => {
     const antes = Array.from(raiz().querySelectorAll('gi-data-table thead th')).map((th) =>
       th.textContent?.trim(),
     );
-    expect(antes).toEqual(['Servicio', 'Cliente · Sede', 'Vigencia', 'Posiciones', 'Estado', '']);
+    expect(antes).toEqual(['Servicio', 'Cliente · Zona', 'Vigencia', 'Posiciones', 'Estado', '']);
 
     abrir();
 
@@ -170,7 +170,7 @@ describe('Servicios · ficha', () => {
     expect(asignaciones.querySelector('.gi-panel__count')?.textContent?.trim()).toBe('1');
   });
 
-  it('la pestaña Datos muestra el contacto operativo de la sede, en lectura', () => {
+  it('la pestaña Datos muestra el contacto operativo de la zona, en lectura', () => {
     abrir();
 
     expect(raiz().textContent).toContain('Adriana Quiñones');

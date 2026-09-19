@@ -495,18 +495,18 @@
               </div>
             </section>
             <section class="execution-section">
-              <header><div><span>02</span><h4>Sede</h4></div><p>Ubicación donde se prestará el servicio.</p></header>
+              <header><div><span>02</span><h4>Zona</h4></div><p>Ubicación donde se prestará el servicio.</p></header>
               <div class="form-grid">
-                <label class="gi-field"><span>Código de sede</span><input class="gi-input" formControlName="siteCode" /></label><label class="gi-field"><span>Nombre de la sede</span><input class="gi-input" formControlName="siteName" /></label>
-                <label class="gi-field form-span-2"><span>Calle y número</span><input class="gi-input" formControlName="siteStreet" /></label>
-                <!-- El pais dejo de salir del catalogo cuando este perdio el codigo: lo que la sede guarda
+                <label class="gi-field"><span>Código de zona</span><input class="gi-input" formControlName="zoneCode" /></label><label class="gi-field"><span>Nombre de la zona</span><input class="gi-input" formControlName="zoneName" /></label>
+                <label class="gi-field form-span-2"><span>Calle y número</span><input class="gi-input" formControlName="zoneStreet" /></label>
+                <!-- El pais dejo de salir del catalogo cuando este perdio el codigo: lo que la zona guarda
                      en CountryCode es un ISO de dos letras, un estandar externo, y el catalogo ya no
                      lo tiene. Hoy el sistema siembra un solo pais, asi que el campo queda fijo en MX
-                     y desaparece en la tanda de geografia, cuando la sede apunte por clave foranea. -->
-                <label class="gi-field"><span>País</span><input class="gi-input" formControlName="siteCountryCode" readonly /></label>
-                <label class="gi-field"><span>Estado</span><app-catalog-select formControlName="siteState" [organizationId]="selectedOrganizationId()" type="State" label="Estado" [country]="executionForm.controls.siteCountryCode.value" (selectionChange)="executionForm.patchValue({siteMunicipality: ''})" /></label>
-                <label class="gi-field"><span>Municipio</span><app-catalog-select formControlName="siteMunicipality" [organizationId]="selectedOrganizationId()" type="City" label="Municipio" [country]="executionForm.controls.siteCountryCode.value" [state]="executionForm.controls.siteState.value" /></label>
-                <label class="gi-field"><span>Código postal</span><input class="gi-input" formControlName="sitePostalCode" /></label>
+                     y desaparece en la tanda de geografia, cuando la zona apunte por clave foranea. -->
+                <label class="gi-field"><span>País</span><input class="gi-input" formControlName="zoneCountryCode" readonly /></label>
+                <label class="gi-field"><span>Estado</span><app-catalog-select formControlName="zoneState" [organizationId]="selectedOrganizationId()" type="State" label="Estado" [country]="executionForm.controls.zoneCountryCode.value" (selectionChange)="executionForm.patchValue({zoneMunicipality: ''})" /></label>
+                <label class="gi-field"><span>Municipio</span><app-catalog-select formControlName="zoneMunicipality" [organizationId]="selectedOrganizationId()" type="City" label="Municipio" [country]="executionForm.controls.zoneCountryCode.value" [state]="executionForm.controls.zoneState.value" /></label>
+                <label class="gi-field"><span>Código postal</span><input class="gi-input" formControlName="zonePostalCode" /></label>
               </div>
             </section>
           }

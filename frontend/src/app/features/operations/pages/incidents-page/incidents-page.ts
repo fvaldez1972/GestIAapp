@@ -236,7 +236,7 @@ export class IncidentsPage {
 
         // «Elegible» es una afirmación, y sólo la puede hacer el servidor. Antes la hacía esta
         // pantalla: bastaba con no tener otro turno ese día para marcar a alguien como elegible,
-        // sin consultar un solo requisito. Las reglas —documentos vigentes, habilidades,
+        // sin consultar un solo requisito. Las reglas —documentos vigentes, experiencias,
         // evaluaciones— viven en el servidor y es él quien las hace cumplir.
         const veredicto = this.eligibility().get(row.idEmployee);
 

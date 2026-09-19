@@ -22,7 +22,7 @@ const regla = (overrides: Partial<EligibilityRequirement> = {}): EligibilityRequ
   requiredCatalogItemName: 'Manejo de CCTV',
   requiredDocumentType: null,
   requiredEvaluationType: null,
-  name: 'Habilidad de CCTV',
+  name: 'Experiencia de CCTV',
   description: null,
   isBlocking: true,
   active: true,
@@ -91,14 +91,14 @@ describe('El perfil requerido de una posición', () => {
   beforeEach(() => TestBed.configureTestingModule({ imports: [Anfitrion] }));
   afterEach(() => TestBed.resetTestingModule());
 
-  /** Sin habilidades exigidas no se finge un perfil: se dice que cualquiera puede cubrirla. */
-  it('sin habilidades lo dice sin inventar un requisito', () => {
+  /** Sin experiencias exigidas no se finge un perfil: se dice que cualquiera puede cubrirla. */
+  it('sin experiencias lo dice sin inventar un requisito', () => {
     const { raiz } = montar();
 
-    expect(raiz.textContent).toContain('Ninguna habilidad exigida');
+    expect(raiz.textContent).toContain('Ninguna experiencia exigida');
   });
 
-  it('lista las habilidades ya exigidas por su nombre de catálogo', () => {
+  it('lista las experiencias ya exigidas por su nombre de catálogo', () => {
     const { filas } = montar((host) => host.requirements.set([regla()]));
 
     expect(filas()).toHaveLength(1);
@@ -107,14 +107,14 @@ describe('El perfil requerido de una posición', () => {
   });
 
   /** La distinción entre bloquear y dejar constancia se dice, porque el sistema la respeta. */
-  it('una habilidad informativa dice que sólo deja constancia', () => {
+  it('una experiencia informativa dice que sólo deja constancia', () => {
     const { filas } = montar((host) => host.requirements.set([regla({ isBlocking: false })]));
 
     expect(filas()[0].textContent).toContain('Sólo deja constancia');
   });
 
   /** Agregar emite por identificador, con la marca de bloqueo elegida. */
-  it('al agregar emite la habilidad por identificador', () => {
+  it('al agregar emite la experiencia por identificador', () => {
     const { componente, host } = montar();
 
     componente.elegida.set(CCTV);
@@ -126,14 +126,14 @@ describe('El perfil requerido de una posición', () => {
   });
 
   /**
-   * La casilla se lee al agregar, no al elegir la habilidad.
+   * La casilla se lee al agregar, no al elegir la experiencia.
    *
    * <p>Antes la regla se creaba en el momento de elegir del catálogo, y la casilla está al lado:
    * quien la desmarcaba después lo hacía cuando la regla ya existía como bloqueante, y no cambiaba
    * nada. QA lo reportó como «quitas la opción y no se guarda». Esta prueba hace el gesto en el
-   * orden natural —primero la habilidad, después la casilla— y exige que valga el segundo.</p>
+   * orden natural —primero la experiencia, después la casilla— y exige que valga el segundo.</p>
    */
-  it('respeta la casilla aunque se desmarque después de elegir la habilidad', () => {
+  it('respeta la casilla aunque se desmarque después de elegir la experiencia', () => {
     const { componente, host } = montar();
 
     componente.elegida.set(MANEJO);
@@ -148,7 +148,7 @@ describe('El perfil requerido de una posición', () => {
   });
 
   /** Elegir del catálogo no crea nada por sí solo: hace falta el gesto de agregar. */
-  it('elegir la habilidad no la agrega todavía', () => {
+  it('elegir la experiencia no la agrega todavía', () => {
     const { componente, host } = montar();
 
     componente.elegida.set(CCTV);
@@ -188,7 +188,7 @@ describe('El perfil requerido de una posición', () => {
   });
 
   /** Lo ya pedido no se vuelve a ofrecer: dos reglas de lo mismo dirían lo mismo dos veces. */
-  it('no ofrece una habilidad que ya está pedida, ni guardada ni pendiente', () => {
+  it('no ofrece una experiencia que ya está pedida, ni guardada ni pendiente', () => {
     const guardada = montar((host) => host.requirements.set([regla()]));
     expect(guardada.componente.available().map((o) => o.idCatalogItem)).toEqual([MANEJO]);
 

@@ -123,10 +123,10 @@ export type CreateClient = ClientInput & {
   readonly codeClient?: string;
 };
 
-export type ClientSite = {
-  readonly idClientSite: string;
+export type ClientZone = {
+  readonly idClientZone: string;
   readonly idClient: string;
-  readonly codeClientSite: string;
+  readonly codeClientZone: string;
   readonly name: string;
   readonly street: string;
   readonly exteriorNumber: string | null;
@@ -141,7 +141,7 @@ export type ClientSite = {
   readonly active: boolean;
 };
 
-export type ClientSiteInput = {
+export type ClientZoneInput = {
   readonly idOrganization: string;
   readonly idClient: string;
   readonly name: string;
@@ -157,8 +157,8 @@ export type ClientSiteInput = {
   readonly timeZoneId: string | null;
 };
 
-export type CreateClientSite = ClientSiteInput & {
-  readonly codeClientSite: string;
+export type CreateClientZone = ClientZoneInput & {
+  readonly codeClientZone: string;
 };
 
 export type ClientContactPurpose =
@@ -174,8 +174,8 @@ export type ClientContactPurpose =
 export type ClientContact = {
   readonly idClientContact: string;
   readonly idClient: string;
-  readonly idClientSite: string | null;
-  readonly clientSiteName: string | null;
+  readonly idClientZone: string | null;
+  readonly clientZoneName: string | null;
   readonly purpose: ClientContactPurpose;
   readonly fullName: string;
   readonly jobTitle: string | null;
@@ -189,7 +189,7 @@ export type ClientContact = {
 export type ClientContactInput = {
   readonly idOrganization: string;
   readonly idClient: string;
-  readonly idClientSite: string | null;
+  readonly idClientZone: string | null;
   readonly purpose: ClientContactPurpose;
   readonly fullName: string;
   readonly jobTitle: string | null;
@@ -244,8 +244,8 @@ export type CreateServiceContract = ServiceContractInput & {
 export type ManagedService = {
   readonly idService: string;
   readonly idClient: string;
-  readonly idClientSite: string;
-  readonly clientSiteName: string | null;
+  readonly idClientZone: string;
+  readonly clientZoneName: string | null;
   readonly idServiceContract: string | null;
   readonly serviceContractCode: string | null;
   readonly codeService: string;
@@ -260,7 +260,7 @@ export type ManagedService = {
 export type ManagedServiceInput = {
   readonly idOrganization: string;
   readonly idClient: string;
-  readonly idClientSite: string;
+  readonly idClientZone: string;
   readonly idServiceContract: string | null;
   readonly name: string;
   readonly description: string;
@@ -886,8 +886,8 @@ export type PagedResult<T> = {
 /**
  * Un cliente en el listado.
  *
- * <p>Trae los conteos resueltos por el servidor. El que importa es <c>siteCount</c>: <b>la sede es
- * el prerrequisito para crear servicios</b>, porque el servicio se liga a una sede. Saberlo aquí
+ * <p>Trae los conteos resueltos por el servidor. El que importa es <c>zoneCount</c>: <b>la zona es
+ * el prerrequisito para crear servicios</b>, porque el servicio se liga a una zona. Saberlo aquí
  * es lo que permite decirlo en esta pantalla en vez de dejar que el usuario se estrelle en la
  * siguiente.</p>
  */
@@ -900,20 +900,20 @@ export type ClientListItem = {
   readonly rfc: string;
   readonly active: boolean;
   readonly createdAt: string;
-  readonly siteCount: number;
-  readonly sitesWithoutContact: number;
+  readonly zoneCount: number;
+  readonly zonesWithoutContact: number;
   readonly contactCount: number;
   readonly serviceCount: number;
-  readonly mainSiteName: string | null;
-  readonly mainSiteMunicipality: string | null;
-  readonly mainSiteState: string | null;
+  readonly mainZoneName: string | null;
+  readonly mainZoneMunicipality: string | null;
+  readonly mainZoneState: string | null;
 };
 
 /** Los tres modos del listado. Coincide con el enum del servidor. */
 export type ClientStatusFilter = 'Active' | 'Inactive' | 'All';
 
-/** Si el cliente tiene sede: el filtro que separa a los que pueden tener servicios. */
-export type ClientSitePresenceFilter = 'Any' | 'WithSite' | 'WithoutSite';
+/** Si el cliente tiene zona: el filtro que separa a los que pueden tener servicios. */
+export type ClientZonePresenceFilter = 'Any' | 'WithZone' | 'WithoutZone';
 
 /** El nombre que se muestra. El comercial manda; muchos clientes no lo tienen. */
 export const clientDisplayName = (client: {
@@ -922,48 +922,48 @@ export const clientDisplayName = (client: {
 }) => client.tradeName ?? client.legalName;
 
 /**
- * Dónde está el cliente, según su sede principal.
+ * Dónde está el cliente, según su zona principal.
  *
  * <p>El bosquejo pedía «Zona · Municipio», y <b>la zona no existe en el modelo</b>: ni el cliente
- * ni la sede la tienen, y el catálogo <c>Zone</c> no lo referencia ninguna entidad. Lo que sí
- * existe, y es lo que se muestra, es el estado y el municipio de la sede.</p>
+ * ni la zona la tienen, y el catálogo <c>Zone</c> no lo referencia ninguna entidad. Lo que sí
+ * existe, y es lo que se muestra, es el estado y el municipio de la zona.</p>
  */
 export function clientLocation(client: ClientListItem): string {
-  if (!client.mainSiteMunicipality) {
-    return 'Sin ubicación: no tiene sede';
+  if (!client.mainZoneMunicipality) {
+    return 'Sin ubicación: no tiene zona';
   }
 
-  return client.mainSiteState
-    ? `${client.mainSiteState} · ${client.mainSiteMunicipality}`
-    : client.mainSiteMunicipality;
+  return client.mainZoneState
+    ? `${client.mainZoneState} · ${client.mainZoneMunicipality}`
+    : client.mainZoneMunicipality;
 }
 
 /**
- * Lo que dice la columna de sedes.
+ * Lo que dice la columna de zonas.
  *
- * <p><b>Cero sedes no se muestra como cero.</b> Un cero diría que está en orden, y lo que dice de
+ * <p><b>Cero zonas no se muestra como cero.</b> Un cero diría que está en orden, y lo que dice de
  * verdad es que a este cliente no se le puede crear un servicio. Va como raya más la palabra.</p>
  */
-export type ClientSiteBadge = {
+export type ClientZoneBadge = {
   readonly value: string;
   readonly pill: string;
   readonly tone: 'danger' | 'warning' | 'muted' | 'none';
 };
 
-export function clientSiteBadge(client: ClientListItem): ClientSiteBadge {
-  if (client.siteCount === 0) {
-    return { value: '—', pill: 'Sin sede', tone: 'warning' };
+export function clientZoneBadge(client: ClientListItem): ClientZoneBadge {
+  if (client.zoneCount === 0) {
+    return { value: '—', pill: 'Sin zona', tone: 'warning' };
   }
 
-  if (client.sitesWithoutContact > 0) {
+  if (client.zonesWithoutContact > 0) {
     return {
-      value: String(client.siteCount),
-      pill: client.sitesWithoutContact === 1 ? '1 sin contacto' : `${client.sitesWithoutContact} sin contacto`,
+      value: String(client.zoneCount),
+      pill: client.zonesWithoutContact === 1 ? '1 sin contacto' : `${client.zonesWithoutContact} sin contacto`,
       tone: 'muted',
     };
   }
 
-  return { value: String(client.siteCount), pill: '', tone: 'none' };
+  return { value: String(client.zoneCount), pill: '', tone: 'none' };
 }
 
 /**
@@ -972,5 +972,5 @@ export function clientSiteBadge(client: ClientListItem): ClientSiteBadge {
  * <p>La razón se escribe al lado del botón bloqueado. Un botón gris sin explicación obliga a
  * adivinar, y quien adivina mal se va a Servicios a intentarlo de todos modos.</p>
  */
-export const clientServiceBlockReason = (client: { readonly siteCount: number }) =>
-  client.siteCount === 0 ? 'No se puede crear el servicio: falta la sede a la que se ligaría.' : '';
+export const clientServiceBlockReason = (client: { readonly zoneCount: number }) =>
+  client.zoneCount === 0 ? 'No se puede crear el servicio: falta la zona a la que se ligaría.' : '';

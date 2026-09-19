@@ -68,8 +68,8 @@ const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', '
         (valueChange)="serviceChange.emit($event)"
       />
 
-      @if (siteLabel()) {
-        <span class="gi-bar__site">{{ siteLabel() }}</span>
+      @if (zoneLabel()) {
+        <span class="gi-bar__zone">{{ zoneLabel() }}</span>
       }
 
       <span class="gi-bar__spacer" aria-hidden="true"></span>
@@ -140,7 +140,7 @@ const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', '
     }
 
     .gi-bar__divider { width: 1px; height: 1.25rem; background: var(--gestia-border); }
-    .gi-bar__site { color: var(--gestia-muted); font-size: 11.5px; }
+    .gi-bar__zone { color: var(--gestia-muted); font-size: 11.5px; }
     .gi-bar__spacer { flex: 1; }
     .gi-bar__version { color: var(--gestia-muted); font-size: 11.5px; }
     .gi-bar__version strong { color: var(--gestia-text); }
@@ -169,7 +169,7 @@ export class GiOperationDayBar implements OnInit {
 
   readonly services = input.required<readonly GiSelectOption[]>();
   readonly idService = input('');
-  readonly siteLabel = input('');
+  readonly zoneLabel = input('');
 
   /**
    * Hasta qué día se puede avanzar. Vacío significa sin tope.

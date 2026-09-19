@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { ClientListItem } from '../data-access/client.models';
 import { ClientTable } from './client-table';
-import { cliente, sinSede } from './client-fixtures';
+import { cliente, sinZona } from './client-fixtures';
 
 @Component({
   imports: [ClientTable],
@@ -18,7 +18,7 @@ import { cliente, sinSede } from './client-fixtures';
   `,
 })
 class Anfitrion {
-  readonly clients = signal<readonly ClientListItem[]>([cliente(), sinSede()]);
+  readonly clients = signal<readonly ClientListItem[]>([cliente(), sinZona()]);
   readonly canWrite = signal(true);
   readonly compact = signal(false);
   readonly abierto = signal<ClientListItem | null>(null);
@@ -88,31 +88,31 @@ describe('El listado de clientes', () => {
   });
 
   /**
-   * <b>Cero sedes no se muestra como cero.</b> Un cero diría que el cliente está en orden; lo que
+   * <b>Cero zonas no se muestra como cero.</b> Un cero diría que el cliente está en orden; lo que
    * dice de verdad es que no se le puede crear un servicio.
    */
-  it('cero sedes se pinta como raya con la palabra, nunca como cero', () => {
+  it('cero zonas se pinta como raya con la palabra, nunca como cero', () => {
     const { filas } = montar();
     const fila = filas()[1];
 
     expect(fila.querySelector('.cell__count')?.textContent?.trim()).toBe('—');
-    expect(fila.querySelector('.pill')?.textContent?.trim()).toBe('Sin sede');
-    expect(fila.textContent).not.toMatch(/(^|\s)0 sedes/);
+    expect(fila.querySelector('.pill')?.textContent?.trim()).toBe('Sin zona');
+    expect(fila.textContent).not.toMatch(/(^|\s)0 zonas/);
   });
 
-  it('con sedes muestra el número, y avisa si alguna no tiene contacto', () => {
-    const { filas } = montar((host) => host.clients.set([cliente({ sitesWithoutContact: 1 })]));
+  it('con zonas muestra el número, y avisa si alguna no tiene contacto', () => {
+    const { filas } = montar((host) => host.clients.set([cliente({ zonesWithoutContact: 1 })]));
     const fila = filas()[0];
 
     expect(fila.querySelector('.cell__count')?.textContent?.trim()).toBe('3');
     expect(fila.querySelector('.pill')?.textContent?.trim()).toBe('1 sin contacto');
   });
 
-  it('la ubicación sale de la sede, y sin sede lo dice en vez de quedarse vacía', () => {
+  it('la ubicación sale de la zona, y sin zona lo dice en vez de quedarse vacía', () => {
     const { filas } = montar();
 
     expect(filas()[0].textContent).toContain('Jalisco · Zapopan');
-    expect(filas()[1].textContent).toContain('Sin ubicación: no tiene sede');
+    expect(filas()[1].textContent).toContain('Sin ubicación: no tiene zona');
   });
 
   /**
@@ -129,7 +129,7 @@ describe('El listado de clientes', () => {
       n.textContent?.trim(),
     );
 
-    expect(opciones).toEqual(['Editar cliente', 'Ver sedes', 'Documentos', 'Desactivar cliente']);
+    expect(opciones).toEqual(['Editar cliente', 'Ver zonas', 'Documentos', 'Desactivar cliente']);
     expect(opciones.filter((o) => o?.startsWith('Editar'))).toHaveLength(1);
   });
 
@@ -170,12 +170,12 @@ describe('El listado de clientes', () => {
   it('con la ficha abierta la tabla se reduce a lo esencial', () => {
     const { encabezados, host, fixture } = montar();
 
-    expect(encabezados()).toEqual(['Cliente', 'Estado · Municipio', 'Sedes', 'Servicios', 'Estado']);
+    expect(encabezados()).toEqual(['Cliente', 'Estado · Municipio', 'Zonas', 'Servicios', 'Estado']);
 
     host.compact.set(true);
     fixture.detectChanges();
 
-    expect(encabezados()).toEqual(['Cliente', 'Sedes']);
+    expect(encabezados()).toEqual(['Cliente', 'Zonas']);
   });
 
   it('el estado no depende del punto: la palabra va al lado', () => {

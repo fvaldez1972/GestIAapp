@@ -399,7 +399,7 @@ export class PlanningPage {
   /**
    * Preguntarle al servidor quién cumple, en vez de suponerlo.
    *
-   * <p>Las reglas de elegibilidad —documentos vigentes, habilidades, evaluaciones— viven en el
+   * <p>Las reglas de elegibilidad —documentos vigentes, experiencias, evaluaciones— viven en el
    * servidor y es él quien las hace cumplir. La pantalla las estaba afirmando por su cuenta:
    * bastaba con que la asignación trajera puesto para marcar a alguien «Elegible», sin consultar
    * un solo requisito.</p>

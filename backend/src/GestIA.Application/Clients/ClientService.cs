@@ -30,7 +30,7 @@ public sealed class ClientService(
             query.IdOrganization,
             search,
             query.Status,
-            query.SitePresence,
+            query.ZonePresence,
             municipality,
             (query.Page - 1) * query.PageSize,
             query.PageSize);
@@ -148,7 +148,7 @@ public sealed class ClientService(
     /// fallo, y una reactivación repetida no tiene por qué ensuciar la auditoría con un cambio que
     /// no cambia nada.</para>
     ///
-    /// <para>No se reviven las sedes, los contactos ni los servicios que se hubieran desactivado
+    /// <para>No se reviven las zonas, los contactos ni los servicios que se hubieran desactivado
     /// por su cuenta: cada uno se desactivó por su motivo, y devolverlos en bloque decidiría por el
     /// usuario cosas que él no pidió.</para>
     /// </summary>

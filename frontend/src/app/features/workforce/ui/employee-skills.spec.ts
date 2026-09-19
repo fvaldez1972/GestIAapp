@@ -8,17 +8,17 @@ import { requirementFixture } from './employee-fixtures';
 const HOY = '2026-09-16';
 const CCTV = 'sk-cctv';
 
-const reglaDeHabilidad = (overrides: Partial<EligibilityRequirement> = {}) =>
+const reglaDeExperiencia = (overrides: Partial<EligibilityRequirement> = {}) =>
   requirementFixture({
     requirementType: 'Skill',
     requiredDocumentType: null,
     idRequiredCatalogItem: CCTV,
     requiredCatalogItemName: 'Manejo de CCTV',
-    name: 'Habilidad de CCTV',
+    name: 'Experiencia de CCTV',
     ...overrides,
   });
 
-const habilidad = (overrides: Partial<EmployeeSkill> = {}): EmployeeSkill => ({
+const experiencia = (overrides: Partial<EmployeeSkill> = {}): EmployeeSkill => ({
   idEmployeeSkill: 'eh1',
   idEmployee: 'e1',
   idSkillCatalogItem: CCTV,
@@ -48,7 +48,7 @@ const habilidad = (overrides: Partial<EmployeeSkill> = {}): EmployeeSkill => ({
   `,
 })
 class Anfitrion {
-  readonly requirements = signal<readonly EligibilityRequirement[]>([reglaDeHabilidad()]);
+  readonly requirements = signal<readonly EligibilityRequirement[]>([reglaDeExperiencia()]);
   readonly skills = signal<readonly EmployeeSkill[]>([]);
   readonly catalogSkills = signal<readonly GiCatalogOption[]>([
     { idCatalogItem: CCTV, name: 'Manejo de CCTV' },
@@ -87,33 +87,33 @@ function montar(configurar: (host: Anfitrion) => void = () => {}) {
   };
 }
 
-describe('La pestaña de habilidades', () => {
+describe('La pestaña de experiencias', () => {
   beforeEach(() => TestBed.configureTestingModule({ imports: [Anfitrion] }));
   afterEach(() => TestBed.resetTestingModule());
 
   /**
-   * La trampa que esta pestaña cierra: una regla de habilidad bloqueante que nadie podía cumplir,
-   * porque ninguna pantalla otorgaba habilidades.
+   * La trampa que esta pestaña cierra: una regla de experiencia bloqueante que nadie podía cumplir,
+   * porque ninguna pantalla otorgaba experiencias.
    */
-  it('una habilidad exigida y no acreditada aparece como hueco', () => {
+  it('una experiencia exigida y no acreditada aparece como hueco', () => {
     const { filas, estados } = montar();
 
     expect(filas().length).toBe(1);
     expect(estados()).toEqual(['Sin acreditar']);
-    expect(filas()[0].textContent).toContain('no tiene acreditada la habilidad');
+    expect(filas()[0].textContent).toContain('no tiene acreditada la experiencia');
   });
 
   /** Por identificador y no por nombre, como la compara el servidor. */
-  it('una habilidad con otro identificador no cubre el requisito', () => {
+  it('una experiencia con otro identificador no cubre el requisito', () => {
     const { estados } = montar((host) =>
-      host.skills.set([habilidad({ idSkillCatalogItem: 'sk-otra', skillName: 'Manejo de CCTV' })]),
+      host.skills.set([experiencia({ idSkillCatalogItem: 'sk-otra', skillName: 'Manejo de CCTV' })]),
     );
 
     expect(estados()).toEqual(['Sin acreditar']);
   });
 
   it('acreditada sin vencimiento queda acreditada', () => {
-    const { estados, filas } = montar((host) => host.skills.set([habilidad()]));
+    const { estados, filas } = montar((host) => host.skills.set([experiencia()]));
 
     expect(estados()).toEqual(['Acreditada']);
     expect(filas()[0].textContent).toContain('sin fecha de vencimiento');
@@ -121,25 +121,25 @@ describe('La pestaña de habilidades', () => {
 
   /** El vencimiento se respeta porque la elegibilidad del servidor ya lo respeta. */
   it('distingue por vencer de vencida, contra el día operativo del servidor', () => {
-    expect(montar((h) => h.skills.set([habilidad({ expiresDate: '2026-10-01' })])).estados())
+    expect(montar((h) => h.skills.set([experiencia({ expiresDate: '2026-10-01' })])).estados())
       .toEqual(['Por vencer']);
-    expect(montar((h) => h.skills.set([habilidad({ expiresDate: '2026-12-31' })])).estados())
+    expect(montar((h) => h.skills.set([experiencia({ expiresDate: '2026-12-31' })])).estados())
       .toEqual(['Acreditada']);
-    expect(montar((h) => h.skills.set([habilidad({ expiresDate: '2026-09-15' })])).estados())
+    expect(montar((h) => h.skills.set([experiencia({ expiresDate: '2026-09-15' })])).estados())
       .toEqual(['Vencida']);
   });
 
-  /** Sin reglas, las habilidades sirven para buscar gente, no para bloquear. Se dice así. */
-  it('sin habilidades exigidas lo dice sin fingir que el expediente está incompleto', () => {
+  /** Sin reglas, las experiencias sirven para buscar gente, no para bloquear. Se dice así. */
+  it('sin experiencias exigidas lo dice sin fingir que el expediente está incompleto', () => {
     const { raiz } = montar((host) => host.requirements.set([]));
 
-    expect(raiz.textContent).toContain('no exige ninguna habilidad');
+    expect(raiz.textContent).toContain('no exige ninguna experiencia');
     expect(raiz.textContent).toContain('sirven para encontrar a quién puede cubrir un turno');
   });
 
   it('lista lo acreditado con su fecha', () => {
     const { registros } = montar((host) =>
-      host.skills.set([habilidad({ expiresDate: '2027-01-15' })]),
+      host.skills.set([experiencia({ expiresDate: '2027-01-15' })]),
     );
 
     expect(registros().length).toBe(1);
@@ -150,13 +150,13 @@ describe('La pestaña de habilidades', () => {
   it('sin permiso de escritura no ofrece acreditar ni editar', () => {
     const { raiz } = montar((host) => {
       host.canWrite.set(false);
-      host.skills.set([habilidad()]);
+      host.skills.set([experiencia()]);
     });
 
     expect(Array.from(raiz.querySelectorAll('button')).map((b) => b.textContent!.trim())).toEqual([]);
   });
 
-  it('el alta emite la habilidad por identificador y las fechas', () => {
+  it('el alta emite la experiencia por identificador y las fechas', () => {
     const { componente, host, fixture } = montar();
 
     componente.openCreate();
@@ -180,7 +180,7 @@ describe('La pestaña de habilidades', () => {
     ]);
   });
 
-  it('no guarda sin elegir la habilidad del catálogo', () => {
+  it('no guarda sin elegir la experiencia del catálogo', () => {
     const { componente, host, fixture } = montar();
 
     componente.openCreate();
@@ -188,7 +188,7 @@ describe('La pestaña de habilidades', () => {
     componente.submit();
 
     expect(host.guardadas).toEqual([]);
-    expect(componente.problem()).toContain('Elige la habilidad');
+    expect(componente.problem()).toContain('Elige la experiencia');
   });
 
   it('no guarda con un vencimiento anterior a la acreditación', () => {
@@ -207,11 +207,11 @@ describe('La pestaña de habilidades', () => {
     expect(componente.problem()).toContain('no puede ser anterior');
   });
 
-  /** Al editar no se cambia cuál es la habilidad: eso convertiría su historial en el de otra. */
-  it('editar conserva la habilidad y manda su identificador', () => {
-    const { componente, host, fixture, raiz } = montar((h) => h.skills.set([habilidad()]));
+  /** Al editar no se cambia cuál es la experiencia: eso convertiría su historial en el de otra. */
+  it('editar conserva la experiencia y manda su identificador', () => {
+    const { componente, host, fixture, raiz } = montar((h) => h.skills.set([experiencia()]));
 
-    componente.openEdit(habilidad());
+    componente.openEdit(experiencia());
     fixture.detectChanges();
 
     expect(raiz.querySelector('.field__fixed')!.textContent).toContain('Manejo de CCTV');
@@ -225,7 +225,7 @@ describe('La pestaña de habilidades', () => {
   });
 
   it('retirar emite el identificador, no borra en la pantalla', () => {
-    const { raiz, host } = montar((h) => h.skills.set([habilidad()]));
+    const { raiz, host } = montar((h) => h.skills.set([experiencia()]));
 
     Array.from(raiz.querySelectorAll('button'))
       .find((b) => b.textContent!.trim() === 'Quitar')!

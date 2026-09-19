@@ -132,12 +132,12 @@ export class CatalogsPage implements OnInit, AfterViewInit {
     },
     {
       type: 'Skill',
-      title: 'Habilidades',
+      title: 'Experiencia requerida',
       example: 'Ej. Manejo de arma corta',
       purpose: 'Competencias que una regla de elegibilidad puede exigir.',
       usedBy: 'Reglas de elegibilidad',
       link: 'identificador',
-      linkDetail: 'La regla apunta a la habilidad por identificador.',
+      linkDetail: 'La regla apunta a la experiencia por identificador.',
     },
     {
       type: 'IncidentReason',
@@ -223,7 +223,7 @@ export class CatalogsPage implements OnInit, AfterViewInit {
   ];
 
   protected readonly requirementTypes: readonly GiSelectOption[] = [
-    { value: 'Skill', label: 'Habilidad' },
+    { value: 'Skill', label: 'Experiencia' },
     { value: 'Document', label: 'Documento' },
     { value: 'Evaluation', label: 'Evaluación' },
     { value: 'Restriction', label: 'Restricción bloqueante' },
@@ -372,10 +372,10 @@ export class CatalogsPage implements OnInit, AfterViewInit {
   );
 
   /**
-   * Reglas de habilidad bloqueantes activas.
+   * Reglas de experiencia bloqueantes activas.
    *
    * <p>Se cuenta aparte porque hoy ninguna se puede cumplir: no hay pantalla que otorgue una
-   * habilidad. La pantalla lo dice donde se crean las reglas, no en un documento.</p>
+   * experiencia. La pantalla lo dice donde se crean las reglas, no en un documento.</p>
    */
   protected readonly unfulfillableSkillRules = computed(
     () => this.requirements().filter(
@@ -563,7 +563,7 @@ export class CatalogsPage implements OnInit, AfterViewInit {
    *
    * <p>Sólo se dice donde se puede comprobar. La pantalla anterior mostraba «Usado en: Operación»
    * comparando el nombre del valor con el texto de otros módulos, lo que acertaba por casualidad y
-   * fallaba en silencio. Un puesto y una habilidad sí se atan por identificador y aquí se cuentan;
+   * fallaba en silencio. Un puesto y una experiencia sí se atan por identificador y aquí se cuentan;
    * en el resto la relación se afirma a nivel de catálogo, no de valor.</p>
    */
   protected itemUsage(item: CatalogItem): string {
@@ -787,14 +787,14 @@ nombre sigue ocupado.`)) {
   /**
    * Qué exige la regla, dicho en una línea para la lista.
    *
-   * <p>Sustituye a la columna que enseñaba el código crudo. Cada tipo nombra lo suyo: la habilidad
+   * <p>Sustituye a la columna que enseñaba el código crudo. Cada tipo nombra lo suyo: la experiencia
    * por su nombre, el documento y la evaluación por su etiqueta, y la restricción dice que no exige
    * nada porque prohíbe.</p>
    */
   protected requirementDemandLabel(requirement: EligibilityRequirement): string {
     switch (requirement.requirementType) {
       case 'Skill':
-        return requirement.requiredCatalogItemName ?? 'Habilidad no encontrada';
+        return requirement.requiredCatalogItemName ?? 'Experiencia no encontrada';
       case 'Document':
         return this.documentTypes.find((item) => item.value === requirement.requiredDocumentType)?.label
           ?? 'Documento sin especificar';
@@ -1043,7 +1043,7 @@ type CatalogCard = {
    *
    * <p>Vive con la ficha, junto al título y al propósito, porque el editor es uno solo para los
    * ocho catálogos: con el ejemplo escrito en la plantilla, «Ej. Guardia de acceso» aparecía
-   * también en Habilidades, en los motivos y en las nacionalidades.</p>
+   * también en Experiencia, en los motivos y en las nacionalidades.</p>
    */
   readonly example: string;
   readonly purpose: string;

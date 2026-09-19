@@ -32,7 +32,7 @@ public sealed class Organization : AuditableEntity
     /// <summary>
     /// Cada cuándo se le paga al personal de esta organización.
     ///
-    /// <para><b>Es de la organización, y no de la persona, del cliente ni de la sede.</b> Fue una
+    /// <para><b>Es de la organización, y no de la persona, del cliente ni de la zona.</b> Fue una
     /// decisión explícita: una empresa de seguridad paga semanal y una de limpieza puede pagar
     /// quincenal, pero dentro de una misma empresa no cambia de una persona a otra.</para>
     ///

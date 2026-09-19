@@ -44,7 +44,7 @@ public sealed class ClientSiteConfiguration : IEntityTypeConfiguration<ClientSit
             .UseCollation("Latin1_General_CI_AI")
             .ValueGeneratedOnAddOrUpdate();
 
-        // Dos sedes del mismo cliente no pueden llamarse igual. Entre clientes distintos sí: dos
+        // Dos zonas del mismo cliente no pueden llamarse igual. Entre clientes distintos sí: dos
         // empresas pueden tener cada una su «Planta Norte».
         builder.HasIndex(entity => new { entity.IdClient, entity.NormalizedName })
             .IsUnique()

@@ -120,7 +120,7 @@ describe('GiEmptyState', () => {
     });
 
     /**
-     * A veces el prerrequisito se obtiene **aquí mismo** y no en otro módulo: la sede de un
+     * A veces el prerrequisito se obtiene **aquí mismo** y no en otro módulo: la zona de un
      * cliente se agrega en su propio panel. La acción vale como salida; lo que no vale es no
      * ofrecer ninguna.
      */
@@ -128,7 +128,7 @@ describe('GiEmptyState', () => {
       expect(() =>
         montar((host) => {
           host.variant.set('missing-prerequisite');
-          host.actionLabel.set('Agregar sede');
+          host.actionLabel.set('Agregar zona');
         }),
       ).not.toThrow();
     });

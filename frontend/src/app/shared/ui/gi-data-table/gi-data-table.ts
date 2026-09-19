@@ -20,7 +20,7 @@ import { GiEmptyState } from '../gi-empty-state/gi-empty-state';
 export type GiColumn = {
   readonly key: string;
   readonly label: string;
-  /** `220px` nombre de entidad · `190px` cliente o sede · `150px` vigencia · `130px` conteos. */
+  /** `220px` nombre de entidad · `190px` cliente o zona · `150px` vigencia · `130px` conteos. */
   readonly width?: string;
   readonly align?: 'start' | 'end';
   /** `name` 13/600 · `data` 12.5/400 · `meta` 11.5/400. Por omisión, `data`. */

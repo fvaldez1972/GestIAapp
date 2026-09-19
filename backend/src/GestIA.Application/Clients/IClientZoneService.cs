@@ -1,24 +1,24 @@
 namespace GestIA.Application.Clients;
 
-public interface IClientSiteService
+public interface IClientZoneService
 {
-    Task<IReadOnlyList<ClientSiteResponse>> ListAsync(
+    Task<IReadOnlyList<ClientZoneResponse>> ListAsync(
         Guid idOrganization,
         Guid idClient,
         CancellationToken cancellationToken);
 
-    Task<ClientSiteResponse> CreateAsync(
-        CreateClientSiteRequest request,
+    Task<ClientZoneResponse> CreateAsync(
+        CreateClientZoneRequest request,
         CancellationToken cancellationToken);
 
-    Task<ClientSiteResponse> UpdateAsync(
-        Guid idClientSite,
-        UpdateClientSiteRequest request,
+    Task<ClientZoneResponse> UpdateAsync(
+        Guid idClientZone,
+        UpdateClientZoneRequest request,
         CancellationToken cancellationToken);
 
     Task DeactivateAsync(
         Guid idOrganization,
         Guid idClient,
-        Guid idClientSite,
+        Guid idClientZone,
         CancellationToken cancellationToken);
 }

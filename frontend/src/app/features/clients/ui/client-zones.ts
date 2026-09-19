@@ -2,10 +2,10 @@ import { ChangeDetectionStrategy, Component, computed, effect, input, output, si
 import { FormsModule } from '@angular/forms';
 import { CatalogSelect } from '../../../shared/ui/catalog-select/catalog-select';
 import { GiEmptyState } from '../../../shared/ui/gi-ui';
-import { ClientContact, ClientSite } from '../data-access/client.models';
+import { ClientContact, ClientZone } from '../data-access/client.models';
 
-/** Lo que hace falta para dar de alta una sede. Nada más: el código lo pone el sistema. */
-export type NewSite = {
+/** Lo que hace falta para dar de alta una zona. Nada más: el código lo pone el sistema. */
+export type NewZone = {
   readonly name: string;
   readonly street: string;
   readonly neighborhood: string;
@@ -15,28 +15,28 @@ export type NewSite = {
 };
 
 /**
- * La pestaña de Sedes.
+ * La pestaña de Zonas.
  *
- * <p>Aquí se dice lo que la pantalla existe para decir: <b>sin sede no se puede crear un
- * servicio</b>, porque el servicio se liga a una sede. El aviso llega al mirar al cliente y no dos
+ * <p>Aquí se dice lo que la pantalla existe para decir: <b>sin zona no se puede crear un
+ * servicio</b>, porque el servicio se liga a una zona. El aviso llega al mirar al cliente y no dos
  * pantallas después, al fallar el alta del servicio.</p>
  *
  * <p>El vacío no es «no hay nada»: es <b>falta un prerrequisito</b>, y por eso usa esa variante y
  * ofrece, ahí mismo, el formulario que lo resuelve.</p>
  */
 @Component({
-  selector: 'app-client-sites',
+  selector: 'app-client-zones',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CatalogSelect, FormsModule, GiEmptyState],
   template: `
-    <section class="sites">
+    <section class="zones">
       @if (adding()) {
         <form class="new" (ngSubmit)="$event.preventDefault()">
-          <p class="new__kicker">{{ editando() ? 'EDITAR SEDE' : 'NUEVA SEDE' }}</p>
+          <p class="new__kicker">{{ editando() ? 'EDITAR ZONA' : 'NUEVA ZONA' }}</p>
 
           <label class="field" for="ns-nombre">
-            <span class="field__label">NOMBRE DE LA SEDE</span>
-            <input id="ns-nombre" name="name" type="text" [ngModel]="siteName()" (ngModelChange)="siteName.set($event)" [ngModelOptions]="sueltos" autocomplete="off" />
+            <span class="field__label">NOMBRE DE LA ZONA</span>
+            <input id="ns-nombre" name="name" type="text" [ngModel]="zoneName()" (ngModelChange)="zoneName.set($event)" [ngModelOptions]="sueltos" autocomplete="off" />
           </label>
 
           <div class="new__row new__row--calle">
@@ -92,7 +92,7 @@ export type NewSite = {
               [disabled]="saving() || !ready()"
               [attr.aria-describedby]="ready() ? null : 'ns-falta'"
               (click)="submit()"
-            >Guardar sede</button>
+            >Guardar zona</button>
           </p>
 
           <!-- La razón se escribe. Un botón gris sin explicación obliga a adivinar. -->
@@ -100,81 +100,81 @@ export type NewSite = {
             Hacen falta el nombre, la calle, el municipio, el estado y el código postal.
           </p>
         </form>
-      } @else if (sites().length === 0) {
+      } @else if (zones().length === 0) {
         @if (canWrite()) {
           <gi-empty-state
             variant="missing-prerequisite"
-            title="Este cliente todavía no tiene sede"
-            description="El servicio se liga a una sede, así que sin sede no se puede crear el servicio de este cliente. Con la dirección y un contacto queda resuelto."
-            actionLabel="Agregar sede"
+            title="Este cliente todavía no tiene zona"
+            description="El servicio se liga a una zona, así que sin zona no se puede crear el servicio de este cliente. Con la dirección y un contacto queda resuelto."
+            actionLabel="Agregar zona"
             (action)="startAdd()"
           />
         } @else {
           <!--
             Sin permiso de escritura esto sí es un callejón, y el sistema prohíbe con razón un
-            vacío que no ofrece salida. Se dice la verdad en su lugar: falta la sede, y quién
+            vacío que no ofrece salida. Se dice la verdad en su lugar: falta la zona, y quién
             puede ponerla.
           -->
-          <p class="sites__blocked">
-            <span class="sites__blocked-title">Este cliente todavía no tiene sede</span>
-            <span class="sites__blocked-body">
-              Sin sede no se le pueden crear servicios. Lo resuelve quien administra clientes en tu
+          <p class="zones__blocked">
+            <span class="zones__blocked-title">Este cliente todavía no tiene zona</span>
+            <span class="zones__blocked-body">
+              Sin zona no se le pueden crear servicios. Lo resuelve quien administra clientes en tu
               organización.
             </span>
           </p>
         }
       } @else {
         <!--
-          Sin boton aqui: «Agregar sede» vive en la cabecera de la ficha, con las acciones de los
+          Sin boton aqui: «Agregar zona» vive en la cabecera de la ficha, con las acciones de los
           demas apartados. Estaba en los dos sitios a la vez, uno encima del otro, y eran el mismo.
           El de la lista vacia si se queda: ahi no hay cabecera que mirar todavia, y esa pantalla
-          existe para decir que falta la sede y como ponerla.
+          existe para decir que falta la zona y como ponerla.
         -->
-        <p class="sites__intro">
-          <span>Cada servicio se liga a una sede. Al crear el servicio se elige de esta lista.</span>
+        <p class="zones__intro">
+          <span>Cada servicio se liga a una zona. Al crear el servicio se elige de esta lista.</span>
         </p>
 
-        <ul class="sites__list">
-          @for (site of sites(); track site.idClientSite) {
-            @let contact = contactOf(site.idClientSite);
-            <li class="site">
-              <p class="site__header">
-                <span class="site__name">{{ site.name }}</span>
+        <ul class="zones__list">
+          @for (zone of zones(); track zone.idClientZone) {
+            @let contact = contactOf(zone.idClientZone);
+            <li class="zone">
+              <p class="zone__header">
+                <span class="zone__name">{{ zone.name }}</span>
                 @if (!contact) {
-                  <span class="site__pill">Sin contacto</span>
+                  <span class="zone__pill">Sin contacto</span>
                 }
                 <!--
-                  Sin menu de tres puntos: las acciones se ven. El menu escondia «Editar sede»
+                  Sin menu de tres puntos: las acciones se ven. El menu escondia «Editar zona»
                   detras de un clic y de un icono que no dice nada, y habia que abrirlo para
-                  descubrir que se podia hacer con la sede.
+                  descubrir que se podia hacer con la zona.
                 -->
                 @if (canWrite()) {
-                  <span class="site__actions">
-                    <button class="site__accion" type="button" (click)="act.emit({ id: 'edit', site })">
+                  <span class="zone__actions">
+                    <button class="zone__accion" type="button" (click)="act.emit({ id: 'edit', zone })">
                       Editar
                     </button>
-                    <button class="site__accion site__accion--baja" type="button" (click)="act.emit({ id: 'deactivate', site })">
+                    <button class="zone__accion zone__accion--baja" type="button" (click)="act.emit({ id: 'deactivate', zone })">
                       Desactivar
                     </button>
                   </span>
                 }
               </p>
 
-              <div class="site__body">
-                <span class="site__field">
-                  <span class="site__label">DIRECCIÓN</span>
-                  <span class="site__value">{{ address(site) }}</span>
+              <div class="zone__body">
+                <span class="zone__field">
+                  <span class="zone__label">DIRECCIÓN</span>
+                  <span class="zone__value">{{ address(zone) }}</span>
                 </span>
-                <span class="site__field">
-                  <span class="site__label">CONTACTO</span>
+                <span class="zone__field">
+                  <span class="zone__label">CONTACTO</span>
                   @if (contact) {
-                    <span class="site__value site__value--strong">{{ contact.fullName }}</span>
-                    <span class="site__note">
-                      {{ contact.jobTitle || 'Sin puesto registrado' }}@if (contactIsFromClient(site.idClientSite)) { · contacto del cliente }
+                    <span class="zone__value zone__value--strong">{{ contact.fullName }}</span>
+                    <span class="zone__note">
+                      {{ contact.jobTitle || 'Sin puesto registrado' }}@if (contactIsFromClient(zone.idClientZone)) { · contacto del cliente }
                     </span>
                   } @else {
-                    <span class="site__value site__value--missing">Sin contacto</span>
-                    <span class="site__note">La sede funciona, pero nadie responde por ella.</span>
+                    <span class="zone__value zone__value--missing">Sin contacto</span>
+                    <span class="zone__note">La zona funciona, pero nadie responde por ella.</span>
                   }
                 </span>
               </div>
@@ -187,9 +187,9 @@ export type NewSite = {
   styles: `
     :host { display: block; }
 
-    .sites { display: flex; flex-direction: column; gap: 0.75rem; }
+    .zones { display: flex; flex-direction: column; gap: 0.75rem; }
 
-    .sites__intro {
+    .zones__intro {
       display: flex;
       align-items: center;
       gap: 0.75rem;
@@ -198,7 +198,7 @@ export type NewSite = {
       font-size: 12px;
     }
 
-    .sites__add {
+    .zones__add {
       flex: none;
       margin-left: auto;
       height: var(--gestia-control-height);
@@ -213,9 +213,9 @@ export type NewSite = {
       cursor: pointer;
     }
 
-    .sites__add:focus-visible { outline: 2px solid var(--gestia-cyan); outline-offset: 2px; }
+    .zones__add:focus-visible { outline: 2px solid var(--gestia-cyan); outline-offset: 2px; }
 
-    .sites__blocked {
+    .zones__blocked {
       display: flex;
       flex-direction: column;
       gap: 0.25rem;
@@ -226,14 +226,14 @@ export type NewSite = {
       background: var(--gestia-surface-soft);
     }
 
-    .sites__blocked-title { color: var(--gestia-text); font-size: 13px; font-weight: 600; }
-    .sites__blocked-body { color: var(--gestia-muted); font-size: 12.5px; }
+    .zones__blocked-title { color: var(--gestia-text); font-size: 13px; font-weight: 600; }
+    .zones__blocked-body { color: var(--gestia-muted); font-size: 12.5px; }
 
-    .sites__list { display: flex; flex-direction: column; gap: 0.75rem; margin: 0; padding: 0; list-style: none; }
+    .zones__list { display: flex; flex-direction: column; gap: 0.75rem; margin: 0; padding: 0; list-style: none; }
 
-    .site { border: 1px solid var(--gestia-border); border-radius: var(--gestia-radius); }
+    .zone { border: 1px solid var(--gestia-border); border-radius: var(--gestia-radius); }
 
-    .site__header {
+    .zone__header {
       display: flex;
       align-items: center;
       gap: 0.6rem;
@@ -243,9 +243,9 @@ export type NewSite = {
       background: var(--gestia-surface-soft);
     }
 
-    .site__name { color: var(--gestia-text); font-size: 12.5px; font-weight: 600; }
+    .zone__name { color: var(--gestia-text); font-size: 12.5px; font-weight: 600; }
 
-    .site__pill {
+    .zone__pill {
       padding: 0.1rem 0.4rem;
       border: 1px solid var(--gestia-border);
       border-radius: var(--gestia-radius-pill);
@@ -254,9 +254,9 @@ export type NewSite = {
       font-weight: 600;
     }
 
-    .site__actions { display: flex; gap: 0.35rem; }
+    .zone__actions { display: flex; gap: 0.35rem; }
 
-    .site__accion {
+    .zone__accion {
       border: 1px solid var(--gestia-border);
       border-radius: var(--gestia-radius);
       padding: 0.15rem 0.5rem;
@@ -268,23 +268,23 @@ export type NewSite = {
       cursor: pointer;
     }
 
-    .site__accion:hover { border-color: var(--gestia-cyan-dark); }
-    .site__accion:focus-visible { outline: 2px solid var(--gestia-cyan); outline-offset: 1px; }
-    .site__accion--baja { color: var(--gestia-danger); }
+    .zone__accion:hover { border-color: var(--gestia-cyan-dark); }
+    .zone__accion:focus-visible { outline: 2px solid var(--gestia-cyan); outline-offset: 1px; }
+    .zone__accion--baja { color: var(--gestia-danger); }
 
-    .site__actions-vieja { margin-left: auto; display: flex; }
+    .zone__actions-vieja { margin-left: auto; display: flex; }
 
-    .site__body { display: flex; gap: 1.25rem; padding: 0.7rem 0.8rem; }
+    .zone__body { display: flex; gap: 1.25rem; padding: 0.7rem 0.8rem; }
 
-    .site__field { display: flex; flex: 1; flex-direction: column; gap: 0.2rem; min-width: 0; }
+    .zone__field { display: flex; flex: 1; flex-direction: column; gap: 0.2rem; min-width: 0; }
 
-    .site__label { color: var(--gestia-muted); font-size: 11px; font-weight: 600; letter-spacing: 0.06em; }
+    .zone__label { color: var(--gestia-muted); font-size: 11px; font-weight: 600; letter-spacing: 0.06em; }
 
-    .site__value { color: var(--gestia-text); font-size: 12px; overflow-wrap: anywhere; }
-    .site__value--strong { font-weight: 600; }
-    .site__value--missing { color: var(--gestia-warning); font-weight: 600; }
+    .zone__value { color: var(--gestia-text); font-size: 12px; overflow-wrap: anywhere; }
+    .zone__value--strong { font-weight: 600; }
+    .zone__value--missing { color: var(--gestia-warning); font-weight: 600; }
 
-    .site__note { color: var(--gestia-muted); font-size: 11.5px; }
+    .zone__note { color: var(--gestia-muted); font-size: 11.5px; }
 
     .new {
       display: flex;
@@ -361,12 +361,12 @@ export type NewSite = {
     .button--primary:disabled { border-color: var(--gestia-border); background: var(--gestia-surface); }
 
     @media (width < 45rem) {
-      .site__body { flex-direction: column; gap: 0.6rem; }
+      .zone__body { flex-direction: column; gap: 0.6rem; }
       .new__row--three, .new__row--calle { grid-template-columns: minmax(0, 1fr); }
     }
   `,
 })
-export class ClientSites {
+export class ClientZones {
   /**
    * Las opciones de `ngModel`, en una sola instancia.
    *
@@ -377,43 +377,43 @@ export class ClientSites {
    */
   protected readonly sueltos = { standalone: true };
 
-  readonly sites = input.required<readonly ClientSite[]>();
+  readonly zones = input.required<readonly ClientZone[]>();
   readonly contacts = input<readonly ClientContact[]>([]);
   readonly canWrite = input(false);
   readonly saving = input(false);
   /** El catálogo geográfico es por organización. */
   readonly organizationId = input('');
-  /** Se abre desde fuera cuando el aviso de «guardado sin sede» manda aquí. */
+  /** Se abre desde fuera cuando el aviso de «guardado sin zona» manda aquí. */
   readonly openAdd = input(false);
 
-  /** La sede a editar, cuando la pide el menú de la fila. */
-  readonly editing = input<ClientSite | null>(null);
+  /** La zona a editar, cuando la pide el menú de la fila. */
+  readonly editing = input<ClientZone | null>(null);
 
-  readonly act = output<{ id: string; site: ClientSite }>();
-  /** «Ya no estoy editando esta sede». La pagina es la que suelta la sede, no este componente. */
+  readonly act = output<{ id: string; zone: ClientZone }>();
+  /** «Ya no estoy editando esta zona». La pagina es la que suelta la zona, no este componente. */
   readonly closeEdit = output<void>();
 
   /**
    * El alta se cerro.
    *
-   * <p>Hace falta desde que «Agregar sede» vive en la cabecera de la ficha: quien decide abrirla es
+   * <p>Hace falta desde que «Agregar zona» vive en la cabecera de la ficha: quien decide abrirla es
    * la pagina, y sin este aviso cancelar apagaba la bandera de aqui dentro pero no la de alla. El
    * formulario se quedaba abierto y no habia forma de cerrarlo.</p>
    */
   readonly closeAdd = output<void>();
-  readonly edit = output<{ site: ClientSite; datos: NewSite }>();
-  readonly create = output<NewSite>();
+  readonly edit = output<{ zone: ClientZone; datos: NewZone }>();
+  readonly create = output<NewZone>();
 
   private readonly addingByHand = signal(false);
   protected readonly adding = computed(() => this.addingByHand() || this.openAdd() || !!this.editando());
 
   /**
-   * La sede que se esta editando, o nula si se esta creando una.
+   * La zona que se esta editando, o nula si se esta creando una.
    *
-   * <p>El formulario es el mismo. Antes «Editar sede» no hacia nada: el menu emitia la accion y la
+   * <p>El formulario es el mismo. Antes «Editar zona» no hacia nada: el menu emitia la accion y la
    * pagina solo atendia «Ver contactos», asi que editar y desactivar caian al vacio.</p>
    */
-  protected readonly editando = signal<ClientSite | null>(null);
+  protected readonly editando = signal<ClientZone | null>(null);
 
   constructor() {
     // La orden viene del menú, que vive en la fila; el formulario vive aquí.
@@ -421,7 +421,7 @@ export class ClientSites {
     // El efecto manda en los DOS sentidos, y esa es la correccion. Antes solo sabia abrir: cuando
     // `editing` volvia a nulo no hacia nada, y cuando el formulario se cerraba por su cuenta el
     // efecto veia `editing` todavia puesto y lo volvia a abrir en el acto. El resultado era que
-    // «Guardar sede» guardaba de verdad —la sede cambiaba en la base y salia el aviso de que habia
+    // «Guardar zona» guardaba de verdad —la zona cambiaba en la base y salia el aviso de que habia
     // quedado actualizada— y el formulario seguia ahi, como si no hubiera pasado nada. «Cancelar»
     // hacia lo mismo.
     effect(() => {
@@ -436,23 +436,23 @@ export class ClientSites {
         return;
       }
 
-      if (pedida.idClientSite !== this.editando()?.idClientSite) {
+      if (pedida.idClientZone !== this.editando()?.idClientZone) {
         this.startEdit(pedida);
       }
     });
   }
 
-  protected readonly siteName = signal('');
+  protected readonly zoneName = signal('');
   protected readonly street = signal('');
   protected readonly neighborhood = signal('');
   protected readonly municipality = signal('');
   protected readonly state = signal('');
   protected readonly postalCode = signal('');
 
-  /** Lo mínimo para que la sede sea una dirección y no un nombre suelto. */
+  /** Lo mínimo para que la zona sea una dirección y no un nombre suelto. */
   protected readonly ready = computed(
     () =>
-      !!this.siteName().trim() &&
+      !!this.zoneName().trim() &&
       !!this.street().trim() &&
       !!this.municipality().trim() &&
       !!this.state().trim() &&
@@ -480,23 +480,23 @@ export class ClientSites {
     this.addingByHand.set(true);
   }
 
-  /** Abre el mismo formulario, con la sede cargada. */
-  protected startEdit(site: ClientSite): void {
+  /** Abre el mismo formulario, con la zona cargada. */
+  protected startEdit(zone: ClientZone): void {
     this.addingByHand.set(false);
-    this.editando.set(site);
-    this.siteName.set(site.name);
-    this.street.set(site.street ?? '');
-    this.neighborhood.set(site.neighborhood ?? '');
-    this.municipality.set(site.municipality ?? '');
-    this.state.set(site.state ?? '');
-    this.postalCode.set(site.postalCode ?? '');
+    this.editando.set(zone);
+    this.zoneName.set(zone.name);
+    this.street.set(zone.street ?? '');
+    this.neighborhood.set(zone.neighborhood ?? '');
+    this.municipality.set(zone.municipality ?? '');
+    this.state.set(zone.state ?? '');
+    this.postalCode.set(zone.postalCode ?? '');
   }
 
   protected cancelAdd(): void {
     this.addingByHand.set(false);
 
-    // Editando, el que suelta la sede es la pagina; cerrar aqui y no avisarle dejaba `editing`
-    // apuntando a la sede, y el efecto reabria el formulario en cuanto se cerraba.
+    // Editando, el que suelta la zona es la pagina; cerrar aqui y no avisarle dejaba `editing`
+    // apuntando a la zona, y el efecto reabria el formulario en cuanto se cerraba.
     if (this.editando()) {
       this.closeEdit.emit();
       return;
@@ -509,8 +509,8 @@ export class ClientSites {
   /**
    * Guarda y deja el formulario como lo encontró.
    *
-   * <p><b>Antes no limpiaba ni cerraba.</b> Al guardar, la sede se creaba y el formulario se
-   * quedaba abierto con los mismos datos dentro: pulsar otra vez creaba una sede idéntica, y nada
+   * <p><b>Antes no limpiaba ni cerraba.</b> Al guardar, la zona se creaba y el formulario se
+   * quedaba abierto con los mismos datos dentro: pulsar otra vez creaba una zona idéntica, y nada
    * lo impedía. Se podían acumular duplicados sin darse cuenta.</p>
    *
    * <p>La guarda de `saving` cubre el otro camino del mismo problema: el doble clic mientras la
@@ -521,8 +521,8 @@ export class ClientSites {
       return;
     }
 
-    const datos: NewSite = {
-      name: this.siteName().trim(),
+    const datos: NewZone = {
+      name: this.zoneName().trim(),
       street: this.street().trim(),
       neighborhood: this.neighborhood().trim(),
       municipality: this.municipality().trim(),
@@ -535,7 +535,7 @@ export class ClientSites {
     if (enEdicion) {
       // Se cierra cuando el servidor confirma, no ahora. Cerrarlo aqui lo reabria, y ademas
       // habria borrado lo escrito si el guardado fallaba.
-      this.edit.emit({ site: enEdicion, datos });
+      this.edit.emit({ zone: enEdicion, datos });
       return;
     }
 
@@ -546,7 +546,7 @@ export class ClientSites {
   }
 
   private limpiar(): void {
-    this.siteName.set('');
+    this.zoneName.set('');
     this.street.set('');
     this.neighborhood.set('');
     this.municipality.set('');
@@ -554,37 +554,37 @@ export class ClientSites {
     this.postalCode.set('');
   }
 
-  /** El primer contacto de la sede. La marca de principal no siempre está puesta. */
+  /** El primer contacto de la zona. La marca de principal no siempre está puesta. */
   /**
-   * Quién responde por esta sede.
+   * Quién responde por esta zona.
    *
-   * <p><b>Primero el contacto de la sede; si no lo hay, el del cliente.</b> Antes sólo miraba los
-   * atados a la sede, y como la mayoría de los contactos se registran a nivel de cliente —23 de 26
-   * en la base viva—, casi toda sede decía «Sin contacto· la sede funciona, pero nadie responde por
+   * <p><b>Primero el contacto de la zona; si no lo hay, el del cliente.</b> Antes sólo miraba los
+   * atados a la zona, y como la mayoría de los contactos se registran a nivel de cliente —23 de 26
+   * en la base viva—, casi toda zona decía «Sin contacto· la zona funciona, pero nadie responde por
    * ella», con la pestaña de Contactos mostrando un número mayor que cero al lado.</p>
    *
-   * <p>Un contacto del cliente cubre a todas sus sedes: para eso existe.</p>
+   * <p>Un contacto del cliente cubre a todas sus zonas: para eso existe.</p>
    */
-  protected contactOf(idClientSite: string): ClientContact | undefined {
+  protected contactOf(idClientZone: string): ClientContact | undefined {
     const activos = this.contacts().filter((contact) => contact.active !== false);
 
-    return activos.find((contact) => contact.idClientSite === idClientSite)
-      ?? activos.find((contact) => !contact.idClientSite);
+    return activos.find((contact) => contact.idClientZone === idClientZone)
+      ?? activos.find((contact) => !contact.idClientZone);
   }
 
-  /** Si quien responde es del cliente y no de esta sede, conviene decirlo. */
-  protected contactIsFromClient(idClientSite: string): boolean {
-    const contacto = this.contactOf(idClientSite);
-    return !!contacto && !contacto.idClientSite;
+  /** Si quien responde es del cliente y no de esta zona, conviene decirlo. */
+  protected contactIsFromClient(idClientZone: string): boolean {
+    const contacto = this.contactOf(idClientZone);
+    return !!contacto && !contacto.idClientZone;
   }
 
-  protected address(site: ClientSite): string {
+  protected address(zone: ClientZone): string {
     return [
-      [site.street, site.exteriorNumber].filter(Boolean).join(' '),
-      site.neighborhood,
-      site.municipality,
-      site.state,
-      site.postalCode,
+      [zone.street, zone.exteriorNumber].filter(Boolean).join(' '),
+      zone.neighborhood,
+      zone.municipality,
+      zone.state,
+      zone.postalCode,
     ]
       .filter((part) => !!part)
       .join(', ');

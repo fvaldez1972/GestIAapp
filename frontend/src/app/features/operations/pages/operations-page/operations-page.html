@@ -230,7 +230,7 @@
     <span>{{ service.codeService }}</span>
     <strong>{{ service.name }}</strong>
     <small>
-      {{ service.clientSiteName || 'Sin sede asignada' }}
+      {{ service.clientZoneName || 'Sin zona asignada' }}
       @if (publishedVersion(); as version) {
         · Planeación publicada: {{ version.name }}
       } @else {
@@ -830,7 +830,7 @@
     <div class="context-chips">
       <span>{{ operationDateLabel() }}</span>
       <span>{{ selectedService()?.name || 'Sin servicio' }}</span>
-      <span>{{ selectedService()?.clientSiteName || 'Sin sede asignada' }}</span>
+      <span>{{ selectedService()?.clientZoneName || 'Sin zona asignada' }}</span>
     </div>
 
     <div class="table-wrap">

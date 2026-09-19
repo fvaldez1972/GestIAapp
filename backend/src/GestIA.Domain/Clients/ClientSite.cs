@@ -3,9 +3,26 @@ using GestIA.Domain.Common;
 namespace GestIA.Domain.Clients;
 
 /// <summary>
-/// Lleva su propia <c>IdOrganization</c> aunque la alcanzaría por su padre.
+/// El lugar del cliente donde se entrega un servicio. <b>De aquí hacia arriba se llama Zona.</b>
 ///
-/// <para>Está denormalizada a propósito, y la decisión se tomó al revés de lo que dijo la tanda A.
+/// <para><b>El nombre técnico no coincide con el funcional, y es a propósito.</b> El 19 de
+/// septiembre de 2026 «Sede» pasó a «Zona» en todo lo que ve una persona y en todo lo que cruza el
+/// cable: etiquetas, mensajes, DTO y rutas de la API. La entidad, la tabla <c>ClientSites</c> y sus
+/// columnas <b>no</b> se renombraron.</para>
+///
+/// <para>La razón es el costo contra la ganancia. <c>ClientSites</c> tiene columna de organización
+/// desde la tanda E, llaves foráneas desde <c>Services</c> y desde los contratos, un índice único
+/// sobre el nombre plegado, y aparece en las pruebas de aislamiento entre organizaciones. Cambiarle
+/// el nombre sería una migración sobre datos vivos —56 filas en <c>db-gestia-dev</c> el día de la
+/// decisión— que no habilita ninguna función nueva: quien lee la pantalla nunca ve el nombre de la
+/// tabla.</para>
+///
+/// <para>La frontera está en el mapeo de <c>ClientZoneService</c>: por debajo, <c>IdClientSite</c>;
+/// por encima, <c>IdClientZone</c>. Si algún día se renombra físicamente, es una migración propia y
+/// este comentario se retira con ella.</para>
+///
+/// <para>Lleva además su propia <c>IdOrganization</c> aunque la alcanzaría por su padre. Está
+/// denormalizada a propósito, y la decisión se tomó al revés de lo que dijo la tanda A.
 /// Entonces la alternativa era "una columna redundante contra ningún costo". Con el filtro global
 /// de la tanda B la alternativa pasó a ser un filtro por navegación, y eso hace que <b>el filtro
 /// del hijo dependa del filtro del padre</b>: apagar uno sin el otro da resultados que hay que
@@ -48,7 +65,7 @@ public sealed class ClientSite : AuditableEntity, IOrganizationScopedEntity
     /// El nombre plegado, que lo calcula SQL Server y sostiene la unicidad por cliente.
     ///
     /// <para>Existe por un defecto que se vio en vivo: el formulario de alta no se limpiaba al
-    /// guardar, y pulsar otra vez creaba una sede idéntica. En la base viva quedaron cuatro
+    /// guardar, y pulsar otra vez creaba una zona idéntica. En la base viva quedaron cuatro
     /// «Vicente Eguia» del mismo cliente, creadas en dieciséis segundos.</para>
     ///
     /// <para>Es el mismo mecanismo que usa el catálogo, y por las mismas razones: columna calculada

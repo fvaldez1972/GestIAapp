@@ -11,11 +11,11 @@ import { ClientsPage } from '../../../clients/pages/clients-page/clients-page';
 
 const organization = { idOrganization: 'org-a', legalName: 'Organization A', codeOrganization: 'A', active: true };
 const client = { idClient: 'client-a', idOrganization: 'org-a', legalName: 'Client A', codeClient: 'A', active: true };
-const service = { idService: 'service-a', idClient: 'client-a', idClientSite: 'site-a', name: 'Service A', codeService: 'SA', description: 'Scope', startDate: '2026-09-03', endDate: null, active: true };
+const service = { idService: 'service-a', idClient: 'client-a', idClientZone: 'zone-a', name: 'Service A', codeService: 'SA', description: 'Scope', startDate: '2026-09-03', endDate: null, active: true };
 const listItem = {
   ...service,
   clientName: 'Client A',
-  clientSiteName: 'Site A',
+  clientZoneName: 'Zone A',
   idServiceContract: null,
   serviceContractCode: null,
   invoiceDescription: null,
@@ -24,7 +24,7 @@ const listItem = {
   assignedWorkerCount: 1,
   coverageDate: '2026-09-04',
 };
-const site = { idClientSite: 'site-a', idClient: 'client-a', name: 'Site A', active: true };
+const zone = { idClientZone: 'zone-a', idClient: 'client-a', name: 'Zone A', active: true };
 const position = { idPosition: 'position-a', idService: 'service-a', name: 'Position A', codePosition: 'PA', requiredWorkerCount: 1, active: true };
 
 describe('ServicesPage organization-scoped workflows', () => {
@@ -93,10 +93,10 @@ describe('ServicesPage organization-scoped workflows', () => {
     request.flush({ items: rows, totalCount: rows.length, page: 1, pageSize: 20, totalPages: 1 });
   }
 
-  /** Lo que la ficha pide al abrirse: el cliente, sus sedes, sus contratos y sus contactos. */
+  /** Lo que la ficha pide al abrirse: el cliente, sus zonas, sus contratos y sus contactos. */
   function flushClientContext() {
     http.expectOne(r => r.url === '/api/v1/clients/client-a').flush(client);
-    for (const [suffix, data] of [['sites', [site]], ['contacts', []], ['contracts', []]] as const) {
+    for (const [suffix, data] of [['zones', [zone]], ['contacts', []], ['contracts', []]] as const) {
       const request = http.expectOne(r => r.url === '/api/v1/clients/client-a/' + suffix);
       expect(request.request.params.get('organizationId')).toBe('org-a');
       request.flush(data);
@@ -198,7 +198,7 @@ describe('ServicesPage organization-scoped workflows', () => {
     page.saveService();
     const request = http.expectOne('/api/v1/clients/client-a/services');
     expect(request.request.method).toBe('POST');
-    expect(request.request.body).toMatchObject({ idOrganization: 'org-a', idClient: 'client-a', idClientSite: 'site-a' });
+    expect(request.request.body).toMatchObject({ idOrganization: 'org-a', idClient: 'client-a', idClientZone: 'zone-a' });
     // El código no viaja: lo pone el servidor con la forma SRV-01, consecutivo por cliente. Mandar
     // cadena vacía no sería lo mismo —la validaría como capturada y la rechazaría—.
     expect(request.request.body.codeService).toBeUndefined();
@@ -254,7 +254,7 @@ describe('ServicesPage organization-scoped workflows', () => {
 
   /**
    * La frontera entre las dos pantallas: **Clientes lee, Servicios escribe**. Clientes muestra
-   * sedes y contactos del cliente y no toca nada de planeación; el alta del servicio vive aquí.
+   * zonas y contactos del cliente y no toca nada de planeación; el alta del servicio vive aquí.
    *
    * La prueba se reescribió con la pantalla: en la tanda 6 la ficha pasó a pedir sólo lo que sus
    * pestañas muestran, y dejó de traer contratos y servicios que nadie pintaba.
@@ -262,12 +262,12 @@ describe('ServicesPage organization-scoped workflows', () => {
   it('la ficha de cliente sólo lee lo suyo, y no pide nada de planeación', () => {
     const clientsPage: any = TestBed.runInInjectionContext(() => new ClientsPage());
 
-    clientsPage.open({ idClient: 'client-a', siteCount: 1, contactCount: 1 });
+    clientsPage.open({ idClient: 'client-a', zoneCount: 1, contactCount: 1 });
 
     const requests = http.match(() => true);
     expect(requests.map(r => r.request.url).sort()).toEqual([
       '/api/v1/clients/client-a/contacts',
-      '/api/v1/clients/client-a/sites',
+      '/api/v1/clients/client-a/zones',
     ]);
     requests.forEach(r => r.flush([]));
 
@@ -276,8 +276,8 @@ describe('ServicesPage organization-scoped workflows', () => {
     expect(clientsPage.saveAssignment).toBeUndefined();
     expect(clientsPage.loadPositionVacancy).toBeUndefined();
 
-    // Y lo que sí es suyo: la sede, que es el prerrequisito del paso siguiente.
-    expect(clientsPage.createSite).toBeTypeOf('function');
+    // Y lo que sí es suyo: la zona, que es el prerrequisito del paso siguiente.
+    expect(clientsPage.createZone).toBeTypeOf('function');
   });
 
   it.each([

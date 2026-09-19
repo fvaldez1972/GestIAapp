@@ -5,15 +5,15 @@ export type ServiceStatusFilter = 'Active' | 'Inactive' | 'All';
  * Un servicio en el listado de la organización.
  *
  * <p>Lo devuelve `GET /api/v1/services`, el endpoint plano: **no hace falta elegir un cliente
- * antes**. Trae el nombre del cliente y de la sede resueltos, y la cobertura agregada, que son los
+ * antes**. Trae el nombre del cliente y de la zona resueltos, y la cobertura agregada, que son los
  * datos que la tabla muestra y que de otro modo pedirían una consulta por fila.</p>
  */
 export type ServiceListItem = {
   readonly idService: string;
   readonly idClient: string;
   readonly clientName: string;
-  readonly idClientSite: string;
-  readonly clientSiteName: string | null;
+  readonly idClientZone: string;
+  readonly clientZoneName: string | null;
   readonly idServiceContract: string | null;
   readonly serviceContractCode: string | null;
   readonly codeService: string;
@@ -66,17 +66,17 @@ export function serviceState(
  * «Vigilancia perimetral 24x7». En la barra del día operativo eso se veía como cinco opciones
  * idénticas, y elegir la equivocada significa capturar la asistencia contra el cliente que no es.</p>
  *
- * <p>Se acompaña del cliente y de la sede, que es lo mismo que hace la columna «Cliente · Sede» del
+ * <p>Se acompaña del cliente y de la zona, que es lo mismo que hace la columna «Cliente · Zona» del
  * listado de Servicios y por la misma razón.</p>
  */
 export const serviceOptionLabel = (service: {
   readonly name: string;
   // Opcional: cuando la lista ya viene acotada a un cliente, ese dato no viaja y tampoco hace
-  // falta; ahí basta la sede para distinguir.
+  // falta; ahí basta la zona para distinguir.
   readonly clientName?: string | null;
-  readonly clientSiteName: string | null;
+  readonly clientZoneName: string | null;
 }) =>
-  [service.name, service.clientName, service.clientSiteName].filter(Boolean).join(' · ');
+  [service.name, service.clientName, service.clientZoneName].filter(Boolean).join(' · ');
 
 /** Lo que falta en el servicio. **Negativo si sobra gente**, y se muestra así. */
 export const serviceVacancy = (service: ServiceListItem) =>

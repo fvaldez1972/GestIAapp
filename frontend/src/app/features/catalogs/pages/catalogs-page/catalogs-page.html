@@ -60,8 +60,8 @@
     @if (unfulfillableSkillRules() > 0) {
       <div class="gi-alert gi-alert--error" role="alert">
         <strong>{{ unfulfillableSkillRules() }}</strong>
-        regla(s) de habilidad bloqueantes que hoy nadie puede cumplir: todavía no existe pantalla
-        para otorgarle una habilidad a una persona. Mientras eso siga así, cada una de ellas detiene
+        regla(s) de experiencia bloqueantes que hoy nadie puede cumplir: todavía no existe pantalla
+        para otorgarle una experiencia a una persona. Mientras eso siga así, cada una de ellas detiene
         la publicación de la planeación de quien no la tenga.
       </div>
     }
@@ -528,14 +528,14 @@
       @switch (requirementKind()) {
         @case ('Skill') {
           <gi-select
-            label="Habilidad requerida"
-            placeholder="Selecciona una habilidad"
+            label="Experiencia requerida"
+            placeholder="Selecciona una experiencia"
             [options]="activeSkills()"
             [value]="requirementSkill()"
             (valueChange)="requirementForm.controls.idRequiredCatalogItem.setValue($event)"
           />
           <p class="cat__error">
-            Hoy no hay pantalla para otorgarle una habilidad a una persona. Si marcas esta regla como
+            Hoy no hay pantalla para otorgarle una experiencia a una persona. Si marcas esta regla como
             bloqueante, detendrá la publicación de la planeación sin forma de desbloquearla.
           </p>
         }

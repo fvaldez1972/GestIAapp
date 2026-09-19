@@ -404,7 +404,7 @@ describe('buildCandidates', () => {
    *
    * <p>Esta función la hacía sola: bastaba con que la asignación trajera puesto para marcar a
    * alguien como elegible, sin haber consultado un solo requisito. Las reglas —documentos
-   * vigentes, habilidades, evaluaciones— viven en el servidor y es él quien las hace cumplir;
+   * vigentes, experiencias, evaluaciones— viven en el servidor y es él quien las hace cumplir;
    * repetirlas aquí de memoria es lo que el principio 5 prohíbe, y encima puede dar una respuesta
    * distinta de la que el servidor va a dar al guardar el turno.</p>
    */

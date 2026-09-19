@@ -1,12 +1,12 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { formatOperationalDate, formatOperationalInstant } from '../../../shared/util/operational-date';
-import { ClientListItem, ClientSite } from '../data-access/client.models';
+import { ClientListItem, ClientZone } from '../data-access/client.models';
 
 /**
  * La pestaña de Datos.
  *
  * <p>El bloque de ubicación dice «Estado · Municipio» y no «Zona»: <b>la zona no existe en el
- * modelo</b> —ni el cliente ni la sede la tienen— y lo que se muestra sale de la sede principal,
+ * modelo</b> —ni el cliente ni la zona la tienen— y lo que se muestra sale de la zona principal,
  * que sí existe. Se rotula como tal para que nadie lo confunda con un dato del cliente.</p>
  *
  * <p><b>La ficha empieza diciendo de quién es.</b> Antes lo primero era «RAZÓN SOCIAL» con su valor
@@ -38,11 +38,11 @@ import { ClientListItem, ClientSite } from '../data-access/client.models';
         sólo en el número: se ve antes de leerlo, y debajo dice qué impide.
       -->
       <section class="cifras" aria-label="Resumen del cliente">
-        <article class="cifra" [class.cifra--falta]="client().siteCount === 0">
-          <span class="cifra__dato">{{ siteLabel() }}</span>
-          <span class="cifra__que">{{ client().siteCount === 1 ? 'Sede' : 'Sedes' }}</span>
-          @if (client().siteCount === 0) {
-            <span class="cifra__pero">Sin sede no se le pueden crear servicios</span>
+        <article class="cifra" [class.cifra--falta]="client().zoneCount === 0">
+          <span class="cifra__dato">{{ zoneLabel() }}</span>
+          <span class="cifra__que">{{ client().zoneCount === 1 ? 'Zona' : 'Zonas' }}</span>
+          @if (client().zoneCount === 0) {
+            <span class="cifra__pero">Sin zona no se le pueden crear servicios</span>
           }
         </article>
         <article class="cifra" [class.cifra--falta]="client().contactCount === 0">
@@ -59,35 +59,35 @@ import { ClientListItem, ClientSite } from '../data-access/client.models';
       </section>
 
       <section class="tarjeta">
-        <h4 class="tarjeta__kicker">Ubicación de la sede principal</h4>
+        <h4 class="tarjeta__kicker">Ubicación de la zona principal</h4>
 
-        @if (client().mainSiteName) {
+        @if (client().mainZoneName) {
           <dl class="campos campos--tres">
             <div class="campo">
-              <dt>Sede</dt>
-              <dd>{{ client().mainSiteName }}</dd>
+              <dt>Zona</dt>
+              <dd>{{ client().mainZoneName }}</dd>
             </div>
             <div class="campo">
               <dt>Estado</dt>
-              <dd>{{ client().mainSiteState }}</dd>
+              <dd>{{ client().mainZoneState }}</dd>
             </div>
             <div class="campo">
               <dt>Municipio</dt>
-              <dd>{{ client().mainSiteMunicipality }}</dd>
+              <dd>{{ client().mainZoneMunicipality }}</dd>
             </div>
           </dl>
 
-          @if (mainSite(); as site) {
+          @if (mainZone(); as zone) {
             <p class="domicilio">
               <span class="domicilio__rotulo">Domicilio</span>
-              <span class="domicilio__texto">{{ address(site) }}</span>
+              <span class="domicilio__texto">{{ address(zone) }}</span>
             </p>
           }
 
-          <p class="nota">Estado y municipio salen de la sede. No se administran aquí.</p>
+          <p class="nota">Estado y municipio salen de la zona. No se administran aquí.</p>
         } @else {
           <p class="falta">
-            No hay ubicación porque el cliente todavía no tiene sede. La sede es lo que permite
+            No hay ubicación porque el cliente todavía no tiene zona. La zona es lo que permite
             crearle servicios.
           </p>
         }
@@ -252,16 +252,16 @@ import { ClientListItem, ClientSite } from '../data-access/client.models';
 })
 export class ClientData {
   readonly client = input.required<ClientListItem>();
-  readonly sites = input<readonly ClientSite[]>([]);
+  readonly zones = input<readonly ClientZone[]>([]);
 
   protected readonly createdAt = computed(() =>
     formatOperationalInstant(this.client().createdAt).split(' a las ')[0] ||
     formatOperationalDate(this.client().createdAt.slice(0, 10)),
   );
 
-  /** Cero sedes se dice con palabras, no con un cero que parecería estar en orden. */
-  protected readonly siteLabel = computed(() =>
-    this.client().siteCount === 0 ? 'Ninguna' : String(this.client().siteCount),
+  /** Cero zonas se dice con palabras, no con un cero que parecería estar en orden. */
+  protected readonly zoneLabel = computed(() =>
+    this.client().zoneCount === 0 ? 'Ninguna' : String(this.client().zoneCount),
   );
 
   /** Y lo mismo con los contactos: un cero se lee como un dato, «Ninguno» como un pendiente. */
@@ -269,17 +269,17 @@ export class ClientData {
     this.client().contactCount === 0 ? 'Ninguno' : String(this.client().contactCount),
   );
 
-  protected readonly mainSite = computed(() =>
-    this.sites().find((site) => site.name === this.client().mainSiteName) ?? this.sites()[0],
+  protected readonly mainZone = computed(() =>
+    this.zones().find((zone) => zone.name === this.client().mainZoneName) ?? this.zones()[0],
   );
 
-  protected address(site: ClientSite): string {
+  protected address(zone: ClientZone): string {
     return [
-      [site.street, site.exteriorNumber].filter(Boolean).join(' '),
-      site.neighborhood,
-      site.municipality,
-      site.state,
-      site.postalCode,
+      [zone.street, zone.exteriorNumber].filter(Boolean).join(' '),
+      zone.neighborhood,
+      zone.municipality,
+      zone.state,
+      zone.postalCode,
     ]
       .filter((part) => !!part)
       .join(', ');

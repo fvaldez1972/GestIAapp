@@ -31,19 +31,19 @@
 
     <!--
       El aviso de la vista 5. Llega al volver al listado y **se va solo** en cuanto el cliente
-      tiene sede: no hay que cerrarlo, se resolvió.
+      tiene zona: no hay que cerrarlo, se resolvió.
     -->
-    @if (savedWithoutSite(); as pending) {
+    @if (savedWithoutZone(); as pending) {
       <aside class="warning" role="status">
         <span class="warning__bar" aria-hidden="true"></span>
         <span class="warning__body">
-          <span class="warning__title">{{ name(pending) }} se guardó sin sede</span>
+          <span class="warning__title">{{ name(pending) }} se guardó sin zona</span>
           <span class="warning__detail">
             El expediente es válido, pero no permite crear servicios: el servicio se liga a una
-            sede. Se resuelve agregando la primera sede.
+            zona. Se resuelve agregando la primera zona.
           </span>
         </span>
-        <button class="button button--primary" type="button" (click)="addSite()">Agregar sede</button>
+        <button class="button button--primary" type="button" (click)="addZone()">Agregar zona</button>
       </aside>
     }
 
@@ -53,7 +53,7 @@
         <gi-filter-bar
           [search]="search()"
           searchLabel="Buscar cliente"
-          searchPlaceholder="Cliente, RFC o sede"
+          searchPlaceholder="Cliente, RFC o zona"
           [groups]="filterGroups()"
           [resultCount]="total()"
           (searchChange)="onSearch($event)"
@@ -112,30 +112,30 @@
           }
 
           <ng-template giTab="data">
-            <app-client-data [client]="client" [sites]="sites()" />
+            <app-client-data [client]="client" [zones]="zones()" />
           </ng-template>
 
-          <ng-template giTab="sites">
-            <app-client-sites
+          <ng-template giTab="zones">
+            <app-client-zones
               [organizationId]="organizationId()"
-              [sites]="sites()"
+              [zones]="zones()"
               [contacts]="contacts()"
               [canWrite]="canWrite()"
               [saving]="saving()"
-              [openAdd]="addingSite()"
-              (closeAdd)="addingSite.set(false)"
-              [editing]="editingSite()"
-              (create)="createSite($event)"
-              (edit)="updateSite($event)"
-              (closeEdit)="editingSite.set(null)"
-              (act)="onSiteAction($event)"
+              [openAdd]="addingZone()"
+              (closeAdd)="addingZone.set(false)"
+              [editing]="editingZone()"
+              (create)="createZone($event)"
+              (edit)="updateZone($event)"
+              (closeEdit)="editingZone.set(null)"
+              (act)="onZoneAction($event)"
             />
           </ng-template>
 
           <ng-template giTab="contacts">
             <app-client-contacts
               [contacts]="contacts()"
-              [sites]="sites()"
+              [zones]="zones()"
               [jobPositions]="jobPositions()"
               [canWrite]="canWrite()"
               [saving]="saving()"
@@ -176,7 +176,7 @@
               <span class="panel-footer__reason" id="motivo-bloqueo">{{ blockReason() }}</span>
             } @else {
               <span class="panel-footer__summary">
-                {{ client.siteCount }} {{ client.siteCount === 1 ? 'sede' : 'sedes' }} ·
+                {{ client.zoneCount }} {{ client.zoneCount === 1 ? 'zona' : 'zonas' }} ·
                 {{ client.contactCount }} {{ client.contactCount === 1 ? 'contacto' : 'contactos' }}
               </span>
             }
@@ -249,7 +249,7 @@
       <!--
         La organización va atada, y sin ella el alta no servía: los desplegables de Estado y
         Municipio se quedaban vacíos porque `catalog-select` no pide las opciones sin saber de qué
-        organización son. Se notaba sólo al crear un cliente, porque en Agregar sede sí se pasaba.
+        organización son. Se notaba sólo al crear un cliente, porque en Agregar zona sí se pasaba.
       -->
       <app-client-form
         [organizationId]="organizationId()"

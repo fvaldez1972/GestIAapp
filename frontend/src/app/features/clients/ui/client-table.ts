@@ -4,14 +4,14 @@ import {
   ClientListItem,
   clientDisplayName,
   clientLocation,
-  clientSiteBadge,
+  clientZoneBadge,
 } from '../data-access/client.models';
 
 /**
  * El listado de clientes.
  *
- * <p>La columna de sedes es el prerrequisito del paso siguiente y por eso no es un número más:
- * <b>cero sedes se pinta como raya con la palabra «Sin sede»</b>, nunca como cero. Un cero diría
+ * <p>La columna de zonas es el prerrequisito del paso siguiente y por eso no es un número más:
+ * <b>cero zonas se pinta como raya con la palabra «Sin zona»</b>, nunca como cero. Un cero diría
  * que el cliente está en orden, y lo que dice de verdad es que no se le puede crear un
  * servicio.</p>
  *
@@ -43,9 +43,9 @@ import {
 
       <ng-template giCell="location" let-client>{{ location(client) }}</ng-template>
 
-      <ng-template giCell="sites" let-client>
-        @let badge = siteBadge(client);
-        <span class="cell__sites">
+      <ng-template giCell="zones" let-client>
+        @let badge = zoneBadge(client);
+        <span class="cell__zones">
           <span class="cell__count" [class]="'cell__count--' + badge.tone">{{ badge.value }}</span>
           @if (badge.pill) {
             <span class="pill" [class]="'pill--' + badge.tone">{{ badge.pill }}</span>
@@ -88,7 +88,7 @@ import {
     .cell__name { display: block; color: var(--gestia-text); font-size: 13px; font-weight: 600; }
     .cell__code { display: block; color: var(--gestia-muted); font-size: 11px; }
 
-    .cell__sites { display: flex; align-items: center; gap: 0.55rem; }
+    .cell__zones { display: flex; align-items: center; gap: 0.55rem; }
 
     .cell__count { color: var(--gestia-text); font-size: 13px; font-weight: 600; }
     .cell__count--warning { color: var(--gestia-warning); }
@@ -142,19 +142,19 @@ export class ClientTable {
 
   protected readonly name = clientDisplayName;
   protected readonly location = clientLocation;
-  protected readonly siteBadge = clientSiteBadge;
+  protected readonly zoneBadge = clientZoneBadge;
 
   protected readonly columns = computed<readonly GiColumn[]>(() =>
     this.compact()
       ? [
           { key: 'name', label: 'Cliente', kind: 'name' },
-          { key: 'sites', label: 'Sedes', width: '9rem' },
+          { key: 'zones', label: 'Zonas', width: '9rem' },
           { key: 'actions', label: '', width: '3rem', align: 'end' },
         ]
       : [
           { key: 'name', label: 'Cliente', width: '220px', kind: 'name' },
           { key: 'location', label: 'Estado · Municipio' },
-          { key: 'sites', label: 'Sedes', width: '190px' },
+          { key: 'zones', label: 'Zonas', width: '190px' },
           { key: 'services', label: 'Servicios', width: '130px' },
           { key: 'status', label: 'Estado', width: '130px' },
           { key: 'actions', label: '', width: '52px', align: 'end' },
@@ -180,7 +180,7 @@ export class ClientTable {
 
     return [
       { id: 'edit', label: 'Editar cliente', ...sinPermiso },
-      { id: 'sites', label: 'Ver sedes' },
+      { id: 'zones', label: 'Ver zonas' },
       { id: 'documents', label: 'Documentos' },
       client.active
         ? { id: 'deactivate', label: 'Desactivar cliente', destructive: true, ...sinPermiso }

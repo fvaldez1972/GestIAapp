@@ -6,7 +6,7 @@ import { GiDetailPanel, GiTab, GiTabContent } from './gi-detail-panel';
 
 const PESTANAS: readonly GiTab[] = [
   { id: 'datos', label: 'Datos' },
-  { id: 'sedes', label: 'Sedes', count: 4 },
+  { id: 'zonas', label: 'Zonas', count: 4 },
   { id: 'contactos', label: 'Contactos', count: 0 },
   { id: 'documentos', label: 'Documentos', count: 12 },
 ];
@@ -23,7 +23,7 @@ const PESTANAS: readonly GiTab[] = [
       (close)="cierres.set(cierres() + 1)"
     >
       <ng-template giTab="datos">Razón social y RFC</ng-template>
-      <ng-template giTab="sedes">Peñón de los Baños</ng-template>
+      <ng-template giTab="zonas">Peñón de los Baños</ng-template>
       <ng-template giTab="contactos">Sin contactos registrados</ng-template>
       <ng-template giTab="documentos">Acta constitutiva</ng-template>
       <button panelActions type="button">Editar</button>
@@ -130,7 +130,7 @@ describe('GiDetailPanel', () => {
     });
 
     it('la activa se marca con aria-selected y con la clase, no sólo con color', () => {
-      const { tabs } = montar((host) => host.activa.set('sedes'));
+      const { tabs } = montar((host) => host.activa.set('zonas'));
 
       expect(tabs().map((t) => t.getAttribute('aria-selected'))).toEqual(['false', 'true', 'false', 'false']);
       expect(tabs()[1].classList.contains('is-active')).toBe(true);
@@ -176,7 +176,7 @@ describe('GiDetailPanel', () => {
       };
 
       teclear(tabs()[0], 'ArrowRight');
-      expect(host.activa()).toBe('sedes');
+      expect(host.activa()).toBe('zonas');
 
       teclear(tabs()[1], 'ArrowLeft');
       expect(host.activa()).toBe('datos');
@@ -216,7 +216,7 @@ describe('GiDetailPanel', () => {
         montar((host) =>
           host.pestanas.set([
             { id: 'ficha', label: 'Ficha' },
-            { id: 'sedes', label: 'Sedes' },
+            { id: 'zonas', label: 'Zonas' },
           ]),
         ),
       ).toThrowError(/debe llamarse "Datos"/);

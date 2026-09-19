@@ -9,7 +9,7 @@ public interface IClientRepository
         CancellationToken cancellationToken);
 
     /// <summary>
-    /// Los municipios donde la organización tiene sedes.
+    /// Los municipios donde la organización tiene zonas.
     ///
     /// <para>El filtro de municipio necesita opciones reales. Sacarlas de la página ya traída
     /// daría una lista distinta en cada página, que es la clase de filtro que miente.</para>

@@ -6,10 +6,10 @@ import {
 } from '../../../shared/ui/gi-catalog-picker/gi-catalog-picker';
 import { EligibilityRequirement } from '../../catalogs/data-access/catalog.models';
 
-/** Una habilidad que se pide para la posición, tal como se acaba de elegir. */
-/** Lo que hace falta para cambiarle el modo a una habilidad ya puesta. */
+/** Una experiencia que se pide para la posición, tal como se acaba de elegir. */
+/** Lo que hace falta para cambiarle el modo a una experiencia ya puesta. */
 export type PositionSkillToggle = {
-  /** El identificador de la regla si ya existe, o el de la habilidad si está pendiente. */
+  /** El identificador de la regla si ya existe, o el de la experiencia si está pendiente. */
   readonly key: string;
   readonly idSkillCatalogItem: string;
   readonly name: string;
@@ -26,16 +26,16 @@ export type PositionSkillRequest = {
 };
 
 /**
- * El perfil requerido de una posición, armado con habilidades del catálogo.
+ * El perfil requerido de una posición, armado con experiencias del catálogo.
  *
  * <p><b>Por qué deja de ser texto libre.</b> El campo decía cosas como «30 a 40 años de edad,
  * hombre o mujer, buen trato»: una descripción que ninguna persona puede cumplir a ojos del
- * sistema, porque nada la compara con nadie. Con habilidades del catálogo el perfil se vuelve
- * comprobable —el servidor ya evalúa las reglas de habilidad al asignar y al publicar— y además
+ * sistema, porque nada la compara con nadie. Con experiencias del catálogo el perfil se vuelve
+ * comprobable —el servidor ya evalúa las reglas de experiencia al asignar y al publicar— y además
  * sirve para lo que de verdad hacía falta: filtrar. Con 250 guardias nadie los conoce por nombre;
- * se llega a los tres que pueden cubrir el turno quitando por habilidad.</p>
+ * se llega a los tres que pueden cubrir el turno quitando por experiencia.</p>
  *
- * <p><b>Por identificador, no por nombre.</b> Cada habilidad apunta a una fila del catálogo, así
+ * <p><b>Por identificador, no por nombre.</b> Cada experiencia apunta a una fila del catálogo, así
  * que renombrarla la renombra en todas partes en lugar de dejar reglas apuntando a un texto que ya
  * no existe.</p>
  *
@@ -49,7 +49,7 @@ export type PositionSkillRequest = {
   template: `
     <section class="perfil">
       <header class="perfil__head">
-        <h4 class="perfil__kicker">HABILIDADES QUE PIDE LA POSICIÓN</h4>
+        <h4 class="perfil__kicker">EXPERIENCIA QUE PIDE LA POSICIÓN</h4>
         @if (pendingCount() > 0) {
           <span class="perfil__pending">{{ pendingCount() }} se guardarán con la posición</span>
         }
@@ -57,7 +57,7 @@ export type PositionSkillRequest = {
 
       @if (rows().length === 0) {
         <p class="perfil__note">
-          Ninguna habilidad exigida. La posición se puede cubrir con cualquier persona que cumpla
+          Ninguna experiencia exigida. La posición se puede cubrir con cualquier persona que cumpla
           los requisitos de la organización.
         </p>
       } @else {
@@ -103,17 +103,17 @@ export type PositionSkillRequest = {
       @if (canWrite()) {
         <!--
           El alta va rotulada y encerrada.
-          La casilla «Impide asignar si no la tiene» queda justo debajo de la lista de habilidades
+          La casilla «Impide asignar si no la tiene» queda justo debajo de la lista de experiencias
           ya pedidas, y sin rótulo parecía gobernarlas: quien la desmarcaba creía estar cambiando la
-          habilidad de arriba y no pasaba nada, porque es la casilla de la que se va a agregar. Cada
-          habilidad ya puesta se cambia con su propio botón, en su fila.
+          experiencia de arriba y no pasaba nada, porque es la casilla de la que se va a agregar. Cada
+          experiencia ya puesta se cambia con su propio botón, en su fila.
         -->
-        <p class="perfil__kicker perfil__kicker--add">AGREGAR UNA HABILIDAD</p>
+        <p class="perfil__kicker perfil__kicker--add">AGREGAR UNA EXPERIENCIA</p>
         <div class="perfil__add">
           <gi-catalog-picker
-            label="Habilidad"
-            catalogLabel="el catálogo de habilidades"
-            inputId="ps-habilidad"
+            label="Experiencia"
+            catalogLabel="el catálogo de experiencias"
+            inputId="ps-experiencia"
             [options]="available()"
             [value]="elegida()"
             [canWrite]="canWrite()"
@@ -122,8 +122,8 @@ export type PositionSkillRequest = {
             (create)="createSkill.emit($event)"
           />
           <!--
-            La casilla se lee al pulsar «Agregar», no al elegir la habilidad.
-            Antes la habilidad se creaba en el momento de elegirla del catálogo, y la casilla está
+            La casilla se lee al pulsar «Agregar», no al elegir la experiencia.
+            Antes la experiencia se creaba en el momento de elegirla del catálogo, y la casilla está
             al lado: quien la desmarcaba después lo hacía cuando la regla ya existía como
             bloqueante, y desmarcarla no cambiaba nada. La pantalla leía un dato antes de que la
             persona lo diera.
@@ -142,7 +142,7 @@ export type PositionSkillRequest = {
           </button>
         </div>
         <p class="perfil__note">
-          Una habilidad que impide asignar detiene también la publicación de la semana. Si sólo
+          Una experiencia que impide asignar detiene también la publicación de la semana. Si sólo
           quieres que quede escrita, desmarca la casilla antes de agregarla. Para cambiar una que ya
           está en la lista, usa su propio botón.
         </p>
@@ -197,9 +197,9 @@ export type PositionSkillRequest = {
   `,
 })
 export class PositionSkills {
-  /** Las habilidades activas del catálogo de la organización. */
+  /** Las experiencias activas del catálogo de la organización. */
   readonly catalogSkills = input.required<readonly GiCatalogOption[]>();
-  /** Las reglas de habilidad ya guardadas para esta posición. */
+  /** Las reglas de experiencia ya guardadas para esta posición. */
   readonly requirements = input<readonly EligibilityRequirement[]>([]);
   /** Las elegidas que todavía no existen en el servidor, porque la posición tampoco. */
   readonly pending = input<readonly PositionSkillRequest[]>([]);
@@ -238,14 +238,14 @@ export class PositionSkills {
 
   protected readonly pendingCount = computed(() => this.pending().length);
 
-  /** Lo ya pedido no se vuelve a ofrecer: dos reglas de la misma habilidad dirían lo mismo dos veces. */
+  /** Lo ya pedido no se vuelve a ofrecer: dos reglas de la misma experiencia dirían lo mismo dos veces. */
   protected readonly available = computed(() => {
     const puestas = new Set(this.rows().map((row) => row.idSkillCatalogItem));
     return this.catalogSkills().filter((option) => !puestas.has(option.idCatalogItem));
   });
 
   /**
-   * Suma la habilidad elegida con el modo que dice la casilla.
+   * Suma la experiencia elegida con el modo que dice la casilla.
    *
    * <p>Se dispara con «Agregar» y no al elegir del catálogo. Elegir y decidir si impide asignar son
    * dos datos, y leerlos en momentos distintos era el defecto: la regla nacía bloqueante antes de
@@ -266,7 +266,7 @@ export class PositionSkills {
     });
 
     // El selector se limpia para poder sumar otra sin borrar a mano lo anterior. La casilla se
-    // queda como estaba: quien pide tres habilidades informativas no quiere desmarcarla tres veces.
+    // queda como estaba: quien pide tres experiencias informativas no quiere desmarcarla tres veces.
     this.elegida.set('');
   }
 

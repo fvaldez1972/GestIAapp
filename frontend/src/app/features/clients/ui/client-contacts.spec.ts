@@ -1,15 +1,15 @@
 import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { ClientContact, ClientSite } from '../data-access/client.models';
+import { ClientContact, ClientZone } from '../data-access/client.models';
 import { ClientContacts, NewContact } from './client-contacts';
-import { contacto, sede } from './client-fixtures';
+import { contacto, zona } from './client-fixtures';
 
 @Component({
   imports: [ClientContacts],
   template: `
     <app-client-contacts
       [contacts]="lista()"
-      [sites]="sites()"
+      [zones]="zones()"
       [jobPositions]="puestos()"
       [canWrite]="canWrite()"
       (create)="creado.set($event)"
@@ -18,7 +18,7 @@ import { contacto, sede } from './client-fixtures';
 })
 class Anfitrion {
   readonly lista = signal<readonly ClientContact[]>([]);
-  readonly sites = signal<readonly ClientSite[]>([]);
+  readonly zones = signal<readonly ClientZone[]>([]);
   readonly canWrite = signal(true);
   readonly puestos = signal<readonly { idCatalogItem: string; name: string }[]>([]);
   readonly creado = signal<NewContact | null>(null);
@@ -87,7 +87,7 @@ describe('Contactos del cliente', () => {
     expect(guardar()?.disabled).toBe(false);
   });
 
-  it('emite lo que se capturó, con la sede en nulo cuando es del cliente', () => {
+  it('emite lo que se capturó, con la zona en nulo cuando es del cliente', () => {
     const { abrir, escribir, guardar, host, fixture } = montar();
     abrir();
     escribir('nc-nombre', '  Laura Méndez  ');
@@ -98,7 +98,7 @@ describe('Contactos del cliente', () => {
     expect(host.creado()).toEqual({
       fullName: 'Laura Méndez',
       purpose: 'Operational',
-      idClientSite: null,
+      idClientZone: null,
       // Sin puesto elegido va vacío. El puesto sale del catálogo, no de texto libre: el servidor
       // lo valida contra el catálogo de puestos y rechaza con 409 cualquier cosa escrita a mano.
       jobTitle: '',
@@ -109,7 +109,7 @@ describe('Contactos del cliente', () => {
   });
 
   /**
-   * Se vacía al cerrar, que es justo lo que falta en el alta de sedes y por lo que ahí se pueden
+   * Se vacía al cerrar, que es justo lo que falta en el alta de zonas y por lo que ahí se pueden
    * crear duplicados sin darse cuenta: basta con volver a abrir y guardar.
    */
   it('se vacía al cancelar, para que no se guarde dos veces lo mismo', () => {
@@ -133,24 +133,24 @@ describe('Contactos del cliente', () => {
     expect(raiz.textContent).not.toContain('Agregar contacto');
   });
 
-  /** Sólo las sedes activas: ofrecer una dada de baja sería ofrecer un destino que ya no existe. */
-  it('ofrece las sedes activas y la opción de no tener sede', () => {
+  /** Sólo las zonas activas: ofrecer una dada de baja sería ofrecer un destino que ya no existe. */
+  it('ofrece las zonas activas y la opción de no tener zona', () => {
     const { raiz, abrir, fixture } = montar((host) => {
-      host.sites.set([
-        sede({ idClientSite: 's1', name: 'Planta Norte', active: true }),
-        sede({ idClientSite: 's2', name: 'Bodega vieja', active: false }),
+      host.zones.set([
+        zona({ idClientZone: 's1', name: 'Planta Norte', active: true }),
+        zona({ idClientZone: 's2', name: 'Bodega vieja', active: false }),
       ]);
     });
     abrir();
 
     const disparadores = Array.from(raiz.querySelectorAll('gi-select button[role="combobox"]'));
-    const sedes = disparadores[1] as HTMLButtonElement;
-    sedes.click();
+    const zonas = disparadores[1] as HTMLButtonElement;
+    zonas.click();
     fixture.detectChanges();
     const opciones = Array.from(raiz.querySelectorAll('gi-select .gi-select__option'))
       .map((o) => o.textContent?.trim());
 
-    expect(opciones).toContain('Del cliente, no de una sede');
+    expect(opciones).toContain('Del cliente, no de una zona');
     expect(opciones).toContain('Planta Norte');
     expect(opciones).not.toContain('Bodega vieja');
   });

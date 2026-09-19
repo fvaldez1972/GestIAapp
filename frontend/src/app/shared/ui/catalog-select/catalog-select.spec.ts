@@ -41,7 +41,7 @@ describe('CatalogSelect', () => {
   });
   /**
    * El pais se resuelve por nombre plegado ahora que el catalogo no lleva codigo, y ademas se
-   * acepta el ISO de dos letras que ClientSite y Employee guardan en CountryCode. Sin lo segundo,
+   * acepta el ISO de dos letras que ClientZone y Employee guardan en CountryCode. Sin lo segundo,
    * las direcciones ya capturadas dejarian de encontrar su pais.
    */
   it('resolves the country by folded name and also by its ISO code', () => {

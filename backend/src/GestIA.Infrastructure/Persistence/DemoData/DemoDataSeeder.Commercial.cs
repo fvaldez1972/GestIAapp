@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 namespace GestIA.Infrastructure.Persistence.DemoData;
 
 /// <summary>
-/// Fase comercial del sembrado: clientes, sedes, contactos, contratos, servicios,
+/// Fase comercial del sembrado: clientes, zonas, contactos, contratos, servicios,
 /// configuraciones históricas, posiciones, patrones de turno y segmentos.
 /// </summary>
 public sealed partial class DemoDataSeeder

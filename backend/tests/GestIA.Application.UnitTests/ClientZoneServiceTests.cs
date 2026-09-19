@@ -4,7 +4,7 @@ using GestIA.Domain.Clients;
 
 namespace GestIA.Application.UnitTests;
 
-public sealed class ClientSiteServiceTests
+public sealed class ClientZoneServiceTests
 {
     private static readonly Guid ActorId = Guid.Parse("11111111-1111-1111-1111-111111111111");
     private static readonly Guid OrganizationId = Guid.Parse("22222222-2222-2222-2222-222222222222");
@@ -24,7 +24,7 @@ public sealed class ClientSiteServiceTests
         var siteRepository = new StubClientSiteRepository { CodeInUse = true };
         var service = CreateService(clientRepository, siteRepository);
 
-        var request = new CreateClientSiteRequest(
+        var request = new CreateClientZoneRequest(
             OrganizationId,
             client.IdClient,
             "MTY",
@@ -82,7 +82,7 @@ public sealed class ClientSiteServiceTests
             service.CreateAsync(request, CancellationToken.None));
     }
 
-    private static ClientSiteService CreateService(
+    private static ClientZoneService CreateService(
         IClientRepository clientRepository,
         IClientSiteRepository siteRepository) =>
         new(

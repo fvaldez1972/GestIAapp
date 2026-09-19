@@ -70,7 +70,7 @@ public sealed class OperationalConcurrencyTests : IClassFixture<OperationalSqlDa
         var service = scope.ServiceProvider.GetRequiredService<IOperationalRequestService>();
         var input = ClientExecution(seed.OrganizationId) with
         {
-            ClientSite = new("SITE", "Site", "Street", null, null, null, "City", "State",
+            ClientZone = new("SITE", "Site", "Street", null, null, null, "City", "State",
                 "01000", "INVALID", null, null)
         };
         await Assert.ThrowsAsync<RequestValidationException>(() => service.ExecuteAsync(request, input, Token));
@@ -82,7 +82,7 @@ public sealed class OperationalConcurrencyTests : IClassFixture<OperationalSqlDa
                 (await context.OperationalRequests.SingleAsync(item => item.IdOperationalRequest == request)).Status);
         }
 
-        var result = await service.ExecuteAsync(request, input with { ClientSite = input.ClientSite! with { CountryCode = "MX" } }, Token);
+        var result = await service.ExecuteAsync(request, input with { ClientZone = input.ClientZone! with { CountryCode = "MX" } }, Token);
         Assert.Equal(OperationalRequestStatus.Completed, result.Request.Status);
         await Assert.ThrowsAsync<ResourceConflictException>(() => service.ExecuteAsync(request, input, Token));
     }

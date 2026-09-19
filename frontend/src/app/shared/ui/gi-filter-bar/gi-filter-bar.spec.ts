@@ -12,8 +12,8 @@ const GRUPOS: readonly GiFilterGroup[] = [
     ],
   },
   {
-    id: 'sede',
-    label: 'Sede',
+    id: 'zona',
+    label: 'Zona',
     options: [
       { value: 'centro', label: 'Centro histórico' },
       { value: 'penon', label: 'Peñón de los Baños' },

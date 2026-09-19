@@ -12,7 +12,7 @@ import { ClientForm, ClientFormValue } from './client-form';
   `,
 })
 class Anfitrion {
-  readonly guardado = signal<{ value: ClientFormValue; withSite: boolean } | null>(null);
+  readonly guardado = signal<{ value: ClientFormValue; withZone: boolean } | null>(null);
   readonly problema = signal<ServerProblem | null>(null);
 }
 
@@ -83,62 +83,62 @@ describe('El alta de cliente', () => {
   afterEach(() => TestBed.resetTestingModule());
 
   /**
-   * Lo que la pantalla existe para hacer: <b>decir que la sede es obligatoria antes de guardar</b>,
+   * Lo que la pantalla existe para hacer: <b>decir que la zona es obligatoria antes de guardar</b>,
    * no al fallar el alta del servicio dos pantallas después.
    */
-  it('el bloque de sede dice para qué es, antes de guardar', () => {
+  it('el bloque de zona dice para qué es, antes de guardar', () => {
     const { raiz } = montar();
 
-    expect(raiz.textContent).toContain('SEDE · OBLIGATORIA PARA CREAR SERVICIOS');
-    expect(raiz.textContent).toContain('Sin sede el cliente queda como expediente');
+    expect(raiz.textContent).toContain('ZONA · OBLIGATORIA PARA CREAR SERVICIOS');
+    expect(raiz.textContent).toContain('Sin zona el cliente queda como expediente');
   });
 
   it('son dos salidas y cada una dice exactamente qué hace', () => {
     const { boton } = montar();
 
-    expect(boton('Guardar sin sede')).toBeDefined();
-    expect(boton('Guardar cliente y sede')).toBeDefined();
+    expect(boton('Guardar sin zona')).toBeDefined();
+    expect(boton('Guardar cliente y zona')).toBeDefined();
   });
 
-  /** El expediente sin sede es válido: sólo pide lo del cliente. */
-  it('guardar sin sede no exige los campos de sede', () => {
+  /** El expediente sin zona es válido: sólo pide lo del cliente. */
+  it('guardar sin zona no exige los campos de zona', () => {
     const { boton, escribir, fixture, host } = montar();
 
     escribir('cf-razon', 'Textiles La Concepción, S.A. de C.V.');
     escribir('cf-rfc', 'TLC180423K72');
     fixture.detectChanges();
 
-    expect(boton('Guardar sin sede').disabled).toBe(false);
-    expect(boton('Guardar cliente y sede').disabled).toBe(true);
+    expect(boton('Guardar sin zona').disabled).toBe(false);
+    expect(boton('Guardar cliente y zona').disabled).toBe(true);
 
-    boton('Guardar sin sede').click();
+    boton('Guardar sin zona').click();
     fixture.detectChanges();
 
-    expect(host.guardado()?.withSite).toBe(false);
+    expect(host.guardado()?.withZone).toBe(false);
     expect(host.guardado()?.value.legalName).toBe('Textiles La Concepción, S.A. de C.V.');
   });
 
-  it('guardar con sede exige la dirección completa, y dice cuál falta', () => {
+  it('guardar con zona exige la dirección completa, y dice cuál falta', () => {
     const { raiz, boton, escribir } = montar();
 
     escribir('cf-razon', 'Distribuidora Peñasco del Norte, S.A. de C.V.');
     escribir('cf-rfc', 'DPN180423K72');
-    escribir('cf-sede', 'Planta San Nicolás');
+    escribir('cf-zona', 'Planta San Nicolás');
 
-    const guardar = boton('Guardar cliente y sede');
+    const guardar = boton('Guardar cliente y zona');
     expect(guardar.disabled).toBe(true);
 
     const razon = raiz.querySelector(`#${guardar.getAttribute('aria-describedby')}`)!;
     expect(razon.textContent).toContain('su nombre, calle, municipio, estado y código postal');
   });
 
-  it('con todo completo emite el cliente, la sede y el contacto', () => {
+  it('con todo completo emite el cliente, la zona y el contacto', () => {
     const { boton, escribir, fixture, host, raiz } = montar();
 
     escribir('cf-razon', 'Distribuidora Peñasco del Norte, S.A. de C.V.');
     escribir('cf-corto', 'Peñasco');
     escribir('cf-rfc', 'dpn180423k72');
-    escribir('cf-sede', 'Planta San Nicolás');
+    escribir('cf-zona', 'Planta San Nicolás');
     escribir('cf-calle', 'Av. Universidad 2340');
     escribir('cf-cp', '66450');
 
@@ -151,15 +151,15 @@ describe('El alta de cliente', () => {
     escribir('cf-ctel', '81 2264 7710');
     fixture.detectChanges();
 
-    boton('Guardar cliente y sede').click();
+    boton('Guardar cliente y zona').click();
     fixture.detectChanges();
 
     const guardado = host.guardado()!;
-    expect(guardado.withSite).toBe(true);
+    expect(guardado.withZone).toBe(true);
     // El RFC se normaliza: se compara en mayúsculas para la unicidad del servidor.
     expect(guardado.value.rfc).toBe('DPN180423K72');
-    expect(guardado.value.site.state).toBe('Nuevo León');
-    expect(guardado.value.site.municipality).toBe('San Nicolás de los Garza');
+    expect(guardado.value.zone.state).toBe('Nuevo León');
+    expect(guardado.value.zone.municipality).toBe('San Nicolás de los Garza');
     expect(guardado.value.contact.fullName).toBe('Aurora Ibáñez Zúñiga');
   });
 
@@ -172,7 +172,7 @@ describe('El alta de cliente', () => {
 
     escribir('cf-razon', 'Sólo razón social');
 
-    expect(boton('Guardar sin sede').disabled).toBe(true);
+    expect(boton('Guardar sin zona').disabled).toBe(true);
   });
 
   /** El código y la fecha los pone el sistema: pedirlos sería pedirle al usuario que los invente. */

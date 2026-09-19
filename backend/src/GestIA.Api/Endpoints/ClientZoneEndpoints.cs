@@ -4,18 +4,18 @@ using GestIA.Application.Security;
 
 namespace GestIA.Api.Endpoints;
 
-public static class ClientSiteEndpoints
+public static class ClientZoneEndpoints
 {
-    public static IEndpointRouteBuilder MapClientSiteEndpoints(this IEndpointRouteBuilder endpoints)
+    public static IEndpointRouteBuilder MapClientZoneEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        var group = endpoints.MapGroup("/api/v1/clients/{idClient:guid}/sites")
-            .WithTags("Client Sites");
+        var group = endpoints.MapGroup("/api/v1/clients/{idClient:guid}/zones")
+            .WithTags("Client Zones");
 
         group.MapGet("", async (
             HttpContext context,
             Guid idClient,
             Guid organizationId,
-            IClientSiteService service,
+            IClientZoneService service,
             CancellationToken cancellationToken) =>
         {
             if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
@@ -23,17 +23,17 @@ public static class ClientSiteEndpoints
                 return forbidden;
             }
 
-            var sites = await service.ListAsync(organizationId, idClient, cancellationToken);
-            return Results.Ok(sites);
+            var zones = await service.ListAsync(organizationId, idClient, cancellationToken);
+            return Results.Ok(zones);
         })
             .RequirePermission(SecurityPermissions.ClientsRead)
-            .WithName("ListClientSites");
+            .WithName("ListClientZones");
 
         group.MapPost("", async (
             HttpContext context,
             Guid idClient,
-            CreateClientSiteRequest request,
-            IClientSiteService service,
+            CreateClientZoneRequest request,
+            IClientZoneService service,
             CancellationToken cancellationToken) =>
         {
             if (OrganizationAccessGuard.ForbidIfUnauthorized(context, request.IdOrganization) is { } forbidden)
@@ -41,18 +41,18 @@ public static class ClientSiteEndpoints
                 return forbidden;
             }
 
-            var site = await service.CreateAsync(request with { IdClient = idClient }, cancellationToken);
-            return Results.Created($"/api/v1/clients/{idClient}/sites/{site.IdClientSite}", site);
+            var zone = await service.CreateAsync(request with { IdClient = idClient }, cancellationToken);
+            return Results.Created($"/api/v1/clients/{idClient}/zones/{zone.IdClientZone}", zone);
         })
             .RequirePermission(SecurityPermissions.ClientsWrite)
-            .WithName("CreateClientSite");
+            .WithName("CreateClientZone");
 
-        group.MapPut("/{idClientSite:guid}", async (
+        group.MapPut("/{idClientZone:guid}", async (
             HttpContext context,
             Guid idClient,
-            Guid idClientSite,
-            UpdateClientSiteRequest request,
-            IClientSiteService service,
+            Guid idClientZone,
+            UpdateClientZoneRequest request,
+            IClientZoneService service,
             CancellationToken cancellationToken) =>
         {
             if (OrganizationAccessGuard.ForbidIfUnauthorized(context, request.IdOrganization) is { } forbidden)
@@ -60,21 +60,21 @@ public static class ClientSiteEndpoints
                 return forbidden;
             }
 
-            var site = await service.UpdateAsync(
-                idClientSite,
+            var zone = await service.UpdateAsync(
+                idClientZone,
                 request with { IdClient = idClient },
                 cancellationToken);
-            return Results.Ok(site);
+            return Results.Ok(zone);
         })
             .RequirePermission(SecurityPermissions.ClientsWrite)
-            .WithName("UpdateClientSite");
+            .WithName("UpdateClientZone");
 
-        group.MapDelete("/{idClientSite:guid}", async (
+        group.MapDelete("/{idClientZone:guid}", async (
             HttpContext context,
             Guid idClient,
-            Guid idClientSite,
+            Guid idClientZone,
             Guid organizationId,
-            IClientSiteService service,
+            IClientZoneService service,
             CancellationToken cancellationToken) =>
         {
             if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
@@ -82,11 +82,11 @@ public static class ClientSiteEndpoints
                 return forbidden;
             }
 
-            await service.DeactivateAsync(organizationId, idClient, idClientSite, cancellationToken);
+            await service.DeactivateAsync(organizationId, idClient, idClientZone, cancellationToken);
             return Results.NoContent();
         })
             .RequirePermission(SecurityPermissions.ClientsWrite)
-            .WithName("DeactivateClientSite");
+            .WithName("DeactivateClientZone");
 
         return endpoints;
     }

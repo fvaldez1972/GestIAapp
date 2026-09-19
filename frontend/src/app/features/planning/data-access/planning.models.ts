@@ -300,7 +300,7 @@ export function buildCandidates(options: {
    *
    * <p><b>Sin este mapa nadie sale como «Elegible».</b> Antes esta función lo afirmaba sola: si la
    * asignación traía puesto, la persona quedaba marcada como elegible sin haber consultado un solo
-   * requisito. Las reglas —documentos vigentes, habilidades, evaluaciones— viven en el servidor y
+   * requisito. Las reglas —documentos vigentes, experiencias, evaluaciones— viven en el servidor y
    * es él quien las hace cumplir; repetirlas aquí de memoria es lo que el principio 5 prohíbe, y
    * encima da una respuesta que puede no coincidir con la suya.</p>
    *

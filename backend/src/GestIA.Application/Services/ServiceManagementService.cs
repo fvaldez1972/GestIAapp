@@ -206,7 +206,7 @@ public sealed class ServiceManagementService(
     {
         if (!await siteRepository.ExistsAsync(idClient, idClientSite, cancellationToken))
         {
-            throw new ResourceNotFoundException("La sede seleccionada no pertenece al cliente.");
+            throw new ResourceNotFoundException("La zona seleccionada no pertenece al cliente.");
         }
     }
 

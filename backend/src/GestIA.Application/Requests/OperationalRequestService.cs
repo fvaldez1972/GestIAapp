@@ -15,7 +15,7 @@ public sealed class OperationalRequestService(
     IOperationalRequestRepository repository,
     IOrganizationRepository organizationRepository,
     IClientService clientService,
-    IClientSiteService clientSiteService,
+    IClientZoneService clientZoneService,
     IServiceManagementService serviceManagementService,
     IPlanningService planningService,
     IAssignmentService assignmentService,
@@ -361,8 +361,8 @@ public sealed class OperationalRequestService(
             entityId = client.IdClient;
         }
 
-        var site = request.ClientSite is not null
-            ? await CreateClientSiteAsync(request.IdOrganization, RequireClient(idClient), request.ClientSite, cancellationToken)
+        var site = request.ClientZone is not null
+            ? await CreateClientZoneAsync(request.IdOrganization, RequireClient(idClient), request.ClientZone, cancellationToken)
             : null;
 
         var contract = request.ServiceContract is not null
@@ -375,7 +375,7 @@ public sealed class OperationalRequestService(
                 RequireClient(idClient),
                 request.Service with
                 {
-                    IdClientSite = request.Service.IdClientSite ?? site?.IdClientSite,
+                    IdClientZone = request.Service.IdClientZone ?? site?.IdClientZone,
                     IdServiceContract = request.Service.IdServiceContract ?? contract?.IdServiceContract
                 },
                 cancellationToken)
@@ -439,8 +439,8 @@ public sealed class OperationalRequestService(
         }
 
         var clientId = RequireClient(idClient);
-        var site = request.ClientSite is not null
-            ? await CreateClientSiteAsync(request.IdOrganization, clientId, request.ClientSite, cancellationToken)
+        var site = request.ClientZone is not null
+            ? await CreateClientZoneAsync(request.IdOrganization, clientId, request.ClientZone, cancellationToken)
             : null;
         var contract = request.ServiceContract is not null
             ? await CreateServiceContractAsync(request.IdOrganization, clientId, request.ServiceContract, cancellationToken)
@@ -452,7 +452,7 @@ public sealed class OperationalRequestService(
                 clientId,
                 request.Service with
                 {
-                    IdClientSite = request.Service.IdClientSite ?? site?.IdClientSite,
+                    IdClientZone = request.Service.IdClientZone ?? site?.IdClientZone,
                     IdServiceContract = request.Service.IdServiceContract ?? contract?.IdServiceContract
                 },
                 cancellationToken)
@@ -570,16 +570,16 @@ public sealed class OperationalRequestService(
             warnings);
     }
 
-    private Task<ClientSiteResponse> CreateClientSiteAsync(
+    private Task<ClientZoneResponse> CreateClientZoneAsync(
         Guid idOrganization,
         Guid idClient,
-        OperationalRequestClientSiteInput input,
+        OperationalRequestClientZoneInput input,
         CancellationToken cancellationToken) =>
-        clientSiteService.CreateAsync(
-            new CreateClientSiteRequest(
+        clientZoneService.CreateAsync(
+            new CreateClientZoneRequest(
                 idOrganization,
                 idClient,
-                input.CodeClientSite,
+                input.CodeClientZone,
                 input.Name,
                 input.Street,
                 input.ExteriorNumber,
@@ -623,7 +623,7 @@ public sealed class OperationalRequestService(
             new CreateServiceRequest(
                 idOrganization,
                 idClient,
-                RequireGuid(input.IdClientSite, "clientSite.idClientSite", "La sede del cliente es obligatoria para crear el servicio."),
+                RequireGuid(input.IdClientZone, "clientZone.idClientZone", "La zona del cliente es obligatoria para crear el servicio."),
                 input.IdServiceContract,
                 input.CodeService,
                 input.Name,
@@ -696,9 +696,9 @@ public sealed class OperationalRequestService(
                 impact.Add(request.IdClient.HasValue
                     ? "Ligará la solicitud al cliente ya seleccionado."
                     : "Creará un nuevo cliente real.");
-                if (execution.ClientSite is not null)
+                if (execution.ClientZone is not null)
                 {
-                    impact.Add("Creará una sede para el cliente.");
+                    impact.Add("Creará una zona para el cliente.");
                 }
 
                 if (execution.Service is not null)
@@ -712,14 +712,14 @@ public sealed class OperationalRequestService(
                     RequireNewClientFields(execution.Client, requiredFields, missingFields);
                 }
 
-                if (execution.ClientSite is not null)
+                if (execution.ClientZone is not null)
                 {
-                    RequireClientSiteFields(execution.ClientSite, requiredFields, missingFields);
+                    RequireClientZoneFields(execution.ClientZone, requiredFields, missingFields);
                 }
 
                 if (execution.Service is not null)
                 {
-                    RequireServiceFields(execution.Service, execution.ClientSite, requiredFields, missingFields);
+                    RequireServiceFields(execution.Service, execution.ClientZone, requiredFields, missingFields);
                 }
 
                 if (execution.Positions is { Count: > 0 })
@@ -757,14 +757,14 @@ public sealed class OperationalRequestService(
                     missingFields.Add("Captura los datos del servicio o liga un servicio existente.");
                 }
 
-                if (execution.ClientSite is not null)
+                if (execution.ClientZone is not null)
                 {
-                    RequireClientSiteFields(execution.ClientSite, requiredFields, missingFields);
+                    RequireClientZoneFields(execution.ClientZone, requiredFields, missingFields);
                 }
 
                 if (execution.Service is not null)
                 {
-                    RequireServiceFields(execution.Service, execution.ClientSite, requiredFields, missingFields);
+                    RequireServiceFields(execution.Service, execution.ClientZone, requiredFields, missingFields);
                 }
 
                 if (execution.Positions is { Count: > 0 })
@@ -911,25 +911,25 @@ public sealed class OperationalRequestService(
         AddMissingIf(string.IsNullOrWhiteSpace(client.Rfc), "Captura el RFC del cliente.", missingFields);
     }
 
-    private static void RequireClientSiteFields(
-        OperationalRequestClientSiteInput site,
+    private static void RequireClientZoneFields(
+        OperationalRequestClientZoneInput site,
         List<string> requiredFields,
         List<string> missingFields)
     {
-        requiredFields.Add("Código de sede");
-        requiredFields.Add("Nombre de sede");
-        requiredFields.Add("Dirección de sede");
-        AddMissingIf(string.IsNullOrWhiteSpace(site.CodeClientSite), "Captura el código de la sede.", missingFields);
-        AddMissingIf(string.IsNullOrWhiteSpace(site.Name), "Captura el nombre de la sede.", missingFields);
-        AddMissingIf(string.IsNullOrWhiteSpace(site.Street), "Captura la calle de la sede.", missingFields);
-        AddMissingIf(string.IsNullOrWhiteSpace(site.Municipality), "Captura el municipio de la sede.", missingFields);
-        AddMissingIf(string.IsNullOrWhiteSpace(site.State), "Captura el estado de la sede.", missingFields);
-        AddMissingIf(string.IsNullOrWhiteSpace(site.PostalCode), "Captura el código postal de la sede.", missingFields);
+        requiredFields.Add("Código de zona");
+        requiredFields.Add("Nombre de zona");
+        requiredFields.Add("Dirección de zona");
+        AddMissingIf(string.IsNullOrWhiteSpace(site.CodeClientZone), "Captura el código de la zona.", missingFields);
+        AddMissingIf(string.IsNullOrWhiteSpace(site.Name), "Captura el nombre de la zona.", missingFields);
+        AddMissingIf(string.IsNullOrWhiteSpace(site.Street), "Captura la calle de la zona.", missingFields);
+        AddMissingIf(string.IsNullOrWhiteSpace(site.Municipality), "Captura el municipio de la zona.", missingFields);
+        AddMissingIf(string.IsNullOrWhiteSpace(site.State), "Captura el estado de la zona.", missingFields);
+        AddMissingIf(string.IsNullOrWhiteSpace(site.PostalCode), "Captura el código postal de la zona.", missingFields);
     }
 
     private static void RequireServiceFields(
         OperationalRequestServiceInput service,
-        OperationalRequestClientSiteInput? clientSite,
+        OperationalRequestClientZoneInput? clientSite,
         List<string> requiredFields,
         List<string> missingFields)
     {
@@ -937,14 +937,14 @@ public sealed class OperationalRequestService(
         requiredFields.Add("Nombre de servicio");
         requiredFields.Add("Descripción de servicio");
         requiredFields.Add("Fecha de inicio del servicio");
-        requiredFields.Add("Sede del servicio");
+        requiredFields.Add("Zona del servicio");
 
         AddMissingIf(string.IsNullOrWhiteSpace(service.CodeService), "Captura el código del servicio.", missingFields);
         AddMissingIf(string.IsNullOrWhiteSpace(service.Name), "Captura el nombre del servicio.", missingFields);
         AddMissingIf(string.IsNullOrWhiteSpace(service.Description), "Captura la descripción del servicio.", missingFields);
-        if (!service.IdClientSite.HasValue && clientSite is null)
+        if (!service.IdClientZone.HasValue && clientSite is null)
         {
-            missingFields.Add("Selecciona una sede existente o captura los datos de la sede nueva.");
+            missingFields.Add("Selecciona una zona existente o captura los datos de la zona nueva.");
         }
     }
 

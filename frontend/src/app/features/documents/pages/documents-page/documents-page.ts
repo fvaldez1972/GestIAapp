@@ -145,7 +145,7 @@ export class DocumentsPage implements OnInit {
       {
         label: 'Personal',
         count: countByOwner(['Employee', 'EmployeeEvaluation']),
-        detail: 'INE, NSS, habilidades y evaluaciones.',
+        detail: 'INE, NSS, experiencias y evaluaciones.',
       },
       {
         label: 'Control',

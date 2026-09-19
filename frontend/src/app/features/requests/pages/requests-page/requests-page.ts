@@ -276,15 +276,15 @@ export class RequestsPage implements OnInit {
     clientLegalName: [''],
     clientTradeName: [''],
     clientRfc: [''],
-    siteCode: ['SEDE-01'],
-    siteName: [''],
-    siteStreet: [''],
-    siteMunicipality: [''],
-    siteState: [''],
-    siteCountryCode: ['MX'],
+    zoneCode: ['ZONA-01'],
+    zoneName: [''],
+    zoneStreet: [''],
+    zoneMunicipality: [''],
+    zoneState: [''],
+    zoneCountryCode: ['MX'],
     clientNationality: [''],
     idCoverageReason: [''],
-    sitePostalCode: [''],
+    zonePostalCode: [''],
     serviceCode: [''],
     serviceName: [''],
     serviceDescription: [''],
@@ -1285,15 +1285,15 @@ export class RequestsPage implements OnInit {
       clientLegalName: '',
       clientTradeName: '',
       clientRfc: '',
-      siteCode: 'SEDE-01',
-      siteName: '',
-      siteStreet: '',
-      siteMunicipality: '',
-      siteState: '',
-      siteCountryCode: 'MX',
+      zoneCode: 'ZONA-01',
+      zoneName: '',
+      zoneStreet: '',
+      zoneMunicipality: '',
+      zoneState: '',
+      zoneCountryCode: 'MX',
       clientNationality: '',
       idCoverageReason: '',
-      sitePostalCode: '',
+      zonePostalCode: '',
       serviceCode: '',
       serviceName: '',
       serviceDescription: '',
@@ -1321,13 +1321,13 @@ export class RequestsPage implements OnInit {
     const type = request?.requestType ?? this.activeExecutionType();
     const payload: MutableExecutionPayload = {};
     const hasServiceDetails = this.hasAnyText(form.serviceCode, form.serviceName, form.serviceDescription);
-    const hasSiteDetails = this.hasAnyText(
-      form.siteName,
-      form.siteStreet,
-      form.siteMunicipality,
-      form.siteState,
-      form.sitePostalCode,
-    ) || form.siteCode.trim() !== 'SEDE-01';
+    const hasZoneDetails = this.hasAnyText(
+      form.zoneName,
+      form.zoneStreet,
+      form.zoneMunicipality,
+      form.zoneState,
+      form.zonePostalCode,
+    ) || form.zoneCode.trim() !== 'ZONA-01';
 
     if ((type === 'NewClient' || type === 'NewService') && (!request?.idClient || this.hasAnyText(
       form.clientCode,
@@ -1352,18 +1352,18 @@ export class RequestsPage implements OnInit {
       };
     }
 
-    if ((type === 'NewClient' || type === 'NewService') && hasSiteDetails) {
-      payload.clientSite = {
-        codeClientSite: form.siteCode.trim(),
-        name: form.siteName.trim(),
-        street: form.siteStreet.trim(),
+    if ((type === 'NewClient' || type === 'NewService') && hasZoneDetails) {
+      payload.clientZone = {
+        codeClientZone: form.zoneCode.trim(),
+        name: form.zoneName.trim(),
+        street: form.zoneStreet.trim(),
         exteriorNumber: null,
         interiorNumber: null,
         neighborhood: null,
-        municipality: form.siteMunicipality.trim(),
-        state: form.siteState.trim(),
-        postalCode: form.sitePostalCode.trim(),
-        countryCode: form.siteCountryCode,
+        municipality: form.zoneMunicipality.trim(),
+        state: form.zoneState.trim(),
+        postalCode: form.zonePostalCode.trim(),
+        countryCode: form.zoneCountryCode,
         accessInstructions: null,
         timeZoneId: 'America/Mexico_City',
       };
@@ -1374,7 +1374,7 @@ export class RequestsPage implements OnInit {
       (type === 'NewClient' && hasServiceDetails)
     ) {
       payload.service = {
-        idClientSite: null,
+        idClientZone: null,
         idServiceContract: null,
         codeService: form.serviceCode.trim(),
         name: form.serviceName.trim(),

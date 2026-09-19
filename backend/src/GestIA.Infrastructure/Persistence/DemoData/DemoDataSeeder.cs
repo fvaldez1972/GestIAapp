@@ -385,7 +385,7 @@ public sealed class DemoSeedReport
     public int HardCaseServices { get; set; }
 
     public override string ToString() =>
-        $"clientes={Clients} sedes={ClientSites} contactos={ClientContacts} contratos={ServiceContracts} " +
+        $"clientes={Clients} zonas={ClientSites} contactos={ClientContacts} contratos={ServiceContracts} " +
         $"servicios={Services} configuraciones={ServiceConfigurations} posiciones={Positions} " +
         $"patrones={ShiftPatterns} segmentos={ShiftSegments} empleados={Employees} " +
         $"documentosEmpleado={EmployeeDocuments} evaluaciones={EmployeeEvaluations} habilidades={EmployeeSkills} " +

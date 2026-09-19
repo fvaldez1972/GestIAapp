@@ -90,7 +90,7 @@ app.MapGet("/api/v1/system/info", (IClock clock) => Results.Ok(new
 app.MapAuthEndpoints();
 app.MapOrganizationEndpoints();
 app.MapClientEndpoints();
-app.MapClientSiteEndpoints();
+app.MapClientZoneEndpoints();
 app.MapClientContactEndpoints();
 app.MapServiceManagementEndpoints();
 app.MapWorkforceEndpoints();

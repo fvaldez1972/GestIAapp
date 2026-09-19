@@ -179,7 +179,7 @@ export class WorkforcePage {
    */
   protected readonly evaluationRequirements = signal<readonly EligibilityRequirement[]>([]);
 
-  /** Las habilidades que exige la organización, y el catálogo del que salen. */
+  /** Las experiencias que exige la organización, y el catálogo del que salen. */
   protected readonly skillRequirements = signal<readonly EligibilityRequirement[]>([]);
   protected readonly catalogSkills = signal<readonly EmployeeJobPositionOption[]>([]);
 
@@ -331,7 +331,7 @@ export class WorkforcePage {
       // El conteo son las evaluaciones registradas, no las exigidas: es el mismo error que la
       // pestaña de Documentos ya cometió una vez, diciendo «0» con registros listados debajo.
       { id: 'evaluations', label: 'Evaluaciones', count: this.evaluations().filter((item) => item.active).length },
-      { id: 'skills', label: 'Habilidades', count: this.skills().filter((item) => item.active).length },
+      { id: 'skills', label: 'Experiencia', count: this.skills().filter((item) => item.active).length },
       { id: 'assignments', label: 'Asignaciones', count: employee?.assignmentCount ?? 0 },
     ];
   });
@@ -534,7 +534,7 @@ export class WorkforcePage {
       assignments: this.api
         .listAssignments(organizationId, idEmployee)
         .pipe(catchError(() => of([] as readonly EmployeeAssignment[]))),
-      // Las habilidades no vienen en el detalle del empleado: son del módulo de catálogos y se
+      // Las experiencias no vienen en el detalle del empleado: son del módulo de catálogos y se
       // piden aparte. Si fallan, la pestaña dice que no hay ninguna, no que no se pudieron leer.
       skills: this.catalogApi
         .listEmployeeSkills(organizationId, idEmployee)
@@ -633,7 +633,7 @@ export class WorkforcePage {
    * <p><b>Por qué esta pantalla no existía.</b> Las cuatro rutas y los tres métodos del cliente
    * llevaban semanas escritos sin que nadie los llamara, y mientras tanto una organización con una
    * regla de evaluación bloqueante no podía asignar a nadie desde el portal. Era el mismo patrón de
-   * los documentos y de las habilidades: el servidor listo y la interfaz sin conectar.</p>
+   * los documentos y de las experiencias: el servidor listo y la interfaz sin conectar.</p>
    *
    * <p><b>El resultado no se toca aquí.</b> Se guarda tal como lo capturó quien evaluó, y es el
    * servidor el que decide si cubre el requisito —sólo <c>Approved</c> y
@@ -720,18 +720,18 @@ export class WorkforcePage {
   }
 
 
-  // ── Las habilidades del expediente ────────────────────────────────────────────────────────
+  // ── Las experiencias del expediente ────────────────────────────────────────────────────────
 
   /**
-   * Acredita una habilidad, o corrige una ya acreditada.
+   * Acredita una experiencia, o corrige una ya acreditada.
    *
-   * <p><b>Esto cierra la trampa</b>: hasta ahora una regla de elegibilidad de tipo habilidad se
-   * podía crear y no se podía cumplir, porque ninguna pantalla otorgaba habilidades. Quien caía en
+   * <p><b>Esto cierra la trampa</b>: hasta ahora una regla de elegibilidad de tipo experiencia se
+   * podía crear y no se podía cumplir, porque ninguna pantalla otorgaba experiencias. Quien caía en
    * ella sólo podía salir desactivando la regla.</p>
    *
-   * <p>La habilidad va <b>por identificador de catálogo</b>, como la exige la regla. Al editar no
+   * <p>La experiencia va <b>por identificador de catálogo</b>, como la exige la regla. Al editar no
    * se cambia cuál es: se retira la que estaba y se acredita la otra, porque cambiarla en su sitio
-   * convertiría el historial de una habilidad en el de otra.</p>
+   * convertiría el historial de una experiencia en el de otra.</p>
    */
   protected saveSkill(valor: EmployeeSkillFormValue): void {
     const organizationId = this.organizationId();
@@ -761,7 +761,7 @@ export class WorkforcePage {
       next: () => {
         this.saving.set(false);
         this.message.set(
-          valor.idEmployeeSkill ? 'Habilidad actualizada.' : 'Habilidad acreditada en el expediente.',
+          valor.idEmployeeSkill ? 'Experiencia actualizada.' : 'Experiencia acreditada en el expediente.',
         );
         this.loadDetail(employee.idEmployee);
       },
@@ -769,8 +769,8 @@ export class WorkforcePage {
         this.saving.set(false);
         this.error.set(
           problem instanceof HttpErrorResponse && problem.status === 409
-            ? 'Esa habilidad ya está acreditada en este expediente.'
-            : 'No se pudo guardar la habilidad.',
+            ? 'Esa experiencia ya está acreditada en este expediente.'
+            : 'No se pudo guardar la experiencia.',
         );
       },
     });
@@ -793,17 +793,17 @@ export class WorkforcePage {
       .subscribe({
         next: () => {
           this.saving.set(false);
-          this.message.set('Habilidad retirada del expediente.');
+          this.message.set('Experiencia retirada del expediente.');
           this.loadDetail(employee.idEmployee);
         },
         error: () => {
           this.saving.set(false);
-          this.error.set('No se pudo retirar la habilidad.');
+          this.error.set('No se pudo retirar la experiencia.');
         },
       });
   }
 
-  /** Alta al vuelo de una habilidad del catálogo, sin salir del expediente. */
+  /** Alta al vuelo de una experiencia del catálogo, sin salir del expediente. */
   protected createSkillCatalogItem(creation: GiCatalogCreation): void {
     const organizationId = this.organizationId();
 
@@ -820,9 +820,9 @@ export class WorkforcePage {
             ...valores,
             { idCatalogItem: creado.idCatalogItem, name: creado.name },
           ]);
-          this.message.set(`«${creado.name}» se agregó al catálogo de habilidades.`);
+          this.message.set(`«${creado.name}» se agregó al catálogo de experiencias.`);
         },
-        error: () => this.error.set('No se pudo crear la habilidad en el catálogo.'),
+        error: () => this.error.set('No se pudo crear la experiencia en el catálogo.'),
       });
   }
 

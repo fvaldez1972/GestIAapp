@@ -68,7 +68,7 @@ export type EligibilityRequirement = {
    * Qué exige la regla, en tres campos y no en uno.
    *
    * <p>Antes había un solo `requiredCode` de texto cuyo significado cambiaba con el tipo: para una
-   * regla de habilidad era el código de un valor de catálogo, y para las de documento y evaluación
+   * regla de experiencia era el código de un valor de catálogo, y para las de documento y evaluación
    * era el nombre de un enum del servidor. Nada impedía guardar el valor de un enum en una regla
    * del otro. Ahora cada tipo apunta a lo suyo, y el servidor sólo acepta exactamente uno.</p>
    */

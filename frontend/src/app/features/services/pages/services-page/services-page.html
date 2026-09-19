@@ -6,8 +6,8 @@
       <p>{{ serviceCountNote() }}</p>
     </div>
     <!--
-      El botón ya no se apaga por no haber sede. Antes se deshabilitaba con `hasActiveSite()`, que
-      mira las sedes del cliente seleccionado, y sin cliente elegido eso es siempre falso: el botón
+      El botón ya no se apaga por no haber zona. Antes se deshabilitaba con `hasActiveZone()`, que
+      mira las zonas del cliente seleccionado, y sin cliente elegido eso es siempre falso: el botón
       nacía apagado, sin decir por qué, y pulsarlo no hacía nada. Ahora se puede pulsar y es la
       pantalla la que explica qué falta.
     -->
@@ -67,7 +67,7 @@
 
       <gi-filter-bar
         [search]="search()"
-        searchPlaceholder="Buscar servicio, cliente o sede"
+        searchPlaceholder="Buscar servicio, cliente o zona"
         [groups]="statusGroups()"
         [resultCount]="serviceList().totalCount"
         (searchChange)="onSearch($event)"
@@ -96,8 +96,8 @@
         (emptyAction)="openCreateService()"
         (emptySecondaryAction)="clearFilters()"
       >
-        <ng-template giCell="clientSite" let-row>
-          {{ row.clientName }}@if (row.clientSiteName) { · {{ row.clientSiteName }} }
+        <ng-template giCell="clientZone" let-row>
+          {{ row.clientName }}@if (row.clientZoneName) { · {{ row.clientZoneName }} }
         </ng-template>
 
         <ng-template giCell="term" let-row>{{ vigencia(row) }}</ng-template>
@@ -187,7 +187,7 @@
         <ng-template giTab="data">
           <dl class="ficha">
             <div><dt>Cliente</dt><dd>{{ selectedClient()?.legalName || '—' }}</dd></div>
-            <div><dt>Sede</dt><dd>{{ service.clientSiteName || '—' }}</dd></div>
+            <div><dt>Zona</dt><dd>{{ service.clientZoneName || '—' }}</dd></div>
             <div><dt>Vigencia</dt><dd>{{ vigencia(service) }}</dd></div>
             <div><dt>Estado</dt><dd>{{ estadoTexto(service) }}</dd></div>
             <div class="ficha__wide"><dt>Alcance</dt><dd>{{ service.description }}</dd></div>
@@ -199,11 +199,11 @@
 
           @if (contactoOperativo(); as contacto) {
             <!--
-              El contacto es del cliente y su sede: se muestra en lectura para no ir a Clientes
+              El contacto es del cliente y su zona: se muestra en lectura para no ir a Clientes
               durante la operación.
             -->
-            <section class="contacto" aria-label="Contacto operativo en la sede">
-              <h3>Contacto operativo en la sede</h3>
+            <section class="contacto" aria-label="Contacto operativo en la zona">
+              <h3>Contacto operativo en la zona</h3>
               <dl class="ficha">
                 <div><dt>Nombre</dt><dd>{{ contacto.fullName }}</dd></div>
                 <div><dt>Puesto</dt><dd>{{ contacto.jobTitle || '—' }}</dd></div>
@@ -645,16 +645,16 @@
               -->
               <div class="form-grid">
                 <label
-                  ><span>Sede *</span
-                  ><select formControlName="idClientSite">
-                    @for (site of sites(); track site.idClientSite) {
+                  ><span>Zona *</span
+                  ><select formControlName="idClientZone">
+                    @for (zone of zones(); track zone.idClientZone) {
                       <option
                         [disabled]="
-                          !site.active && site.idClientSite !== editingService()?.idClientSite
+                          !zone.active && zone.idClientZone !== editingService()?.idClientZone
                         "
-                        [value]="site.idClientSite"
+                        [value]="zone.idClientZone"
                       >
-                        {{ site.name }}
+                        {{ zone.name }}
                       </option>
                     }
                   </select></label

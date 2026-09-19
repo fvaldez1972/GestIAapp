@@ -61,6 +61,17 @@ public sealed class OrganizationCatalogDefaults(ICatalogRepository repository, I
             await repository.AddCatalogItemAsync(item, token);
         }
 
+        // Y los cinco catalogos de perfil, por la misma razon y con un motivo mas concreto: sexo,
+        // rango de edad, escolaridad, equipo requerido y motivos de incidencia se construyeron
+        // vacios, y un selector vacio no deja capturar el perfil que despues hay que comparar.
+        foreach (var value in ProfileCatalogSeed.All)
+        {
+            var item = BusinessCatalogItem.Create(organization,
+                new(value.Type, value.Name, null, value.Order, null, value.IsBlocking),
+                actor.ActorId, actor.ActorName, clock.UtcNow);
+            await repository.AddCatalogItemAsync(item, token);
+        }
+
         async Task<Guid> Add(BusinessCatalogItemType type, string name, Guid? parent)
         {
             var item = BusinessCatalogItem.Create(organization,

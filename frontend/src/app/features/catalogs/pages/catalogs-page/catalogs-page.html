@@ -156,79 +156,6 @@
       </table>
     </div>
 
-    <!-- Validador -->
-    <article class="cat__validador gi-card">
-      <h3>Validar a una persona</h3>
-      <p>El resultado enseña cada razón, no sólo un sí o un no.</p>
-
-      <form class="cat__validador-form" [formGroup]="eligibilityForm" (ngSubmit)="checkEligibility()">
-        <gi-select
-          label="Empleado"
-          placeholder="Elige a la persona"
-          [options]="employeeOptions()"
-          [value]="eligibilityEmployee()"
-          (valueChange)="eligibilityForm.controls.idEmployee.setValue($event)"
-        />
-        <gi-select
-          label="Cliente"
-          placeholder="Sin cliente específico"
-          [options]="clientContextOptions()"
-          [value]="eligibilityClient()"
-          (valueChange)="selectEligibilityClient($event)"
-        />
-        <gi-select
-          label="Servicio"
-          placeholder="Sin servicio específico"
-          [options]="serviceContextOptions()"
-          [value]="eligibilityService()"
-          [disabled]="!eligibilityClient()"
-          (valueChange)="selectEligibilityService($event)"
-        />
-        <gi-select
-          label="Posición"
-          placeholder="Sin posición específica"
-          [options]="positionContextOptions()"
-          [value]="eligibilityPosition()"
-          [disabled]="!eligibilityService()"
-          (valueChange)="eligibilityForm.controls.idPosition.setValue($event)"
-        />
-        <label class="gi-field">
-          Fecha de referencia
-          <input class="gi-input" type="date" formControlName="referenceDate" />
-        </label>
-        <button class="gi-button gi-button--secondary" type="submit" [disabled]="loading()">Validar</button>
-      </form>
-
-      @if (eligibilityResult(); as resultado) {
-        <div class="cat__resultado" [attr.data-estado]="eligibilityState(resultado)">
-          <p class="cat__resultado-cabecera">
-            <strong>{{ resultado.employeeName }}</strong>
-            <span class="gi-badge"
-              [class.gi-badge--success]="eligibilityState(resultado) === 'eligible'"
-              [class.gi-badge--danger]="eligibilityState(resultado) === 'notEligible'"
-              [class.gi-badge--muted]="eligibilityState(resultado) === 'insufficient'"
-            >{{ eligibilityLabel(resultado) }}</span>
-          </p>
-
-          @if (eligibilityState(resultado) === 'insufficient') {
-            <p class="cat__nota">
-              No hay reglas activas suficientes para concluir. La ausencia de reglas no se cuenta
-              como cumplimiento.
-            </p>
-          } @else {
-            <ul class="cat__razones">
-              @for (razon of resultado.reasons; track razon.scope + razon.requirement + razon.message) {
-                <li [class.is-fail]="!razon.passed">
-                  <strong>{{ razon.requirement }}</strong>
-                  <small>{{ razon.scope }} · {{ razon.isBlocking ? 'Bloqueante' : 'Informativa' }}</small>
-                  <p>{{ razon.message }}</p>
-                </li>
-              }
-            </ul>
-          }
-        </div>
-      }
-    </article>
   </section>
 
   <!-- ══ Patrones de turno ══════════════════════════════════════════════════════════════════ -->
@@ -237,42 +164,6 @@
       [organizationId]="selectedOrganizationId()"
       [canWrite]="canWrite()"
     />
-  </section>
-
-  <!-- ══ ZONA 2 · Las listas fijas del sistema ═══════════════════════════════════════════════ -->
-  <section class="cat__zona" aria-labelledby="cat-zona-sistema">
-    <h2 class="gi-section-heading" id="cat-zona-sistema">Listas fijas del sistema</h2>
-
-    <details class="cat__plegado">
-      <summary>
-        <span>Ver las listas del sistema</span>
-        <small>{{ systemDefinitions().length }} listas · no se editan</small>
-      </summary>
-      <p class="cat__nota">
-        Estos valores los define el propio sistema y las pantallas los usan por su identificador.
-        Están aquí para consultarlos, no para cambiarlos: cambiarlos rompería el comportamiento que
-        ya depende de ellos.
-      </p>
-
-      @for (definicion of systemDefinitions(); track definicion.key) {
-        <details class="cat__plegado cat__plegado--anidado">
-          <summary>
-            <span>{{ definicion.name }}</span>
-            <small>{{ definicion.module }} · {{ definicion.values.length }} valores</small>
-          </summary>
-          <div class="table-wrap">
-            <table class="gi-table">
-              <thead><tr><th scope="col">Identificador</th><th scope="col">Valor</th></tr></thead>
-              <tbody>
-                @for (valor of definicion.values; track valor.code) {
-                  <tr><th scope="row">{{ valor.code }}</th><td>{{ valor.label }}</td></tr>
-                }
-              </tbody>
-            </table>
-          </div>
-        </details>
-      }
-    </details>
   </section>
 
   <!-- ══ Plantilla de una fila de catálogo, con su lista desplegable ═════════════════════════ -->

@@ -102,7 +102,6 @@ export class CatalogsPage implements OnInit, AfterViewInit {
   protected readonly openCatalogType = signal<BusinessCatalogItemType | null>(null);
   protected readonly selectedCatalogItemId = signal('');
   protected readonly selectedRequirementId = signal('');
-  protected readonly eligibilityResult = signal<EligibilityCheck | null>(null);
 
   protected readonly valueSearch = signal('');
   protected readonly valueState = signal<'' | 'active' | 'inactive'>('');
@@ -391,14 +390,6 @@ export class CatalogsPage implements OnInit, AfterViewInit {
     description: ['', [Validators.maxLength(1000)]],
   });
 
-  protected readonly eligibilityForm = this.formBuilder.nonNullable.group({
-    idEmployee: ['', [Validators.required]],
-    idClient: [''],
-    idService: [''],
-    idPosition: [''],
-    referenceDate: [this.today(), [Validators.required]],
-  });
-
   /**
    * Puentes de control a señal.
    *
@@ -425,10 +416,6 @@ export class CatalogsPage implements OnInit, AfterViewInit {
       default: return [];
     }
   });
-  protected readonly eligibilityEmployee = this.controlSignal(this.eligibilityForm.controls.idEmployee);
-  protected readonly eligibilityClient = this.controlSignal(this.eligibilityForm.controls.idClient);
-  protected readonly eligibilityService = this.controlSignal(this.eligibilityForm.controls.idService);
-  protected readonly eligibilityPosition = this.controlSignal(this.eligibilityForm.controls.idPosition);
 
   // ── Derivados ───────────────────────────────────────────────────────────────────────────────
 
@@ -504,7 +491,6 @@ export class CatalogsPage implements OnInit, AfterViewInit {
       .map((item) => ({ value: item.idCatalogItem, label: item.name })),
   );
 
-  protected readonly systemDefinitions = computed(() => this.definitions().filter((item) => !item.editable));
 
   /** Los valores del catálogo abierto, filtrados y ordenados. */
   protected readonly openCatalogItems = computed(() => {
@@ -571,12 +557,6 @@ export class CatalogsPage implements OnInit, AfterViewInit {
   protected readonly clientFilterOptions = computed(() => this.conVacio(this.clientOptions(), 'Todos los clientes'));
   protected readonly serviceFilterOptions = computed(() => this.conVacio(this.serviceOptions(), 'Todos los servicios'));
   protected readonly positionFilterOptions = computed(() => this.conVacio(this.positionOptions(), 'Todas las posiciones'));
-  protected readonly clientContextOptions = computed(() => this.conVacio(this.clientOptions(), 'Sin cliente específico'));
-  protected readonly serviceContextOptions = computed(() => this.conVacio(this.serviceOptions(), 'Sin servicio específico'));
-  protected readonly positionContextOptions = computed(() => this.conVacio(this.positionOptions(), 'Sin posición específica'));
-  protected readonly employeeOptions = computed<readonly GiSelectOption[]>(() =>
-    this.employees().map((employee) => ({ value: employee.idEmployee, label: employee.fullName })),
-  );
 
   /** Los padres posibles para un estado o una ciudad, y sólo activos. */
   protected readonly parentOptions = computed<readonly GiSelectOption[]>(() => {
@@ -667,7 +647,6 @@ export class CatalogsPage implements OnInit, AfterViewInit {
         this.clients.set(clientItems);
         this.employees.set(employees.items);
         this.loadOperationalContext(clientItems);
-        this.syncDefaults();
         this.loading.set(false);
       },
       error: (error: HttpErrorResponse) => this.setError(error),
@@ -1009,57 +988,6 @@ nombre sigue ocupado.`)) {
     return active ? 'Activo' : 'Inactivo';
   }
 
-  // ── Validador de elegibilidad ───────────────────────────────────────────────────────────────
-
-  protected checkEligibility(): void {
-    if (!this.selectedOrganizationId() || this.eligibilityForm.invalid) {
-      this.eligibilityForm.markAllAsTouched();
-      return;
-    }
-
-    const form = this.eligibilityForm.getRawValue();
-    this.loading.set(true);
-    this.api
-      .checkEligibility(
-        this.selectedOrganizationId(),
-        form.idEmployee,
-        form.referenceDate,
-        this.optional(form.idClient) ?? undefined,
-        this.optional(form.idService) ?? undefined,
-        this.optional(form.idPosition) ?? undefined,
-      )
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: (result) => {
-          this.eligibilityResult.set(result);
-          this.loading.set(false);
-        },
-        error: (error: HttpErrorResponse) => this.setError(error),
-      });
-  }
-
-  /**
-   * Sin reglas activas no hay conclusión posible, y decirlo importa.
-   *
-   * <p>«Elegible» cuando no hay ninguna regla no significa que la persona cumpla: significa que no
-   * se comprobó nada. La ausencia de reglas no se presenta como cumplimiento.</p>
-   */
-  protected eligibilityState(result: EligibilityCheck | null): EligibilityUiState {
-    if (!result || this.activeRequirements() === 0 || result.reasons.length === 0) {
-      return 'insufficient';
-    }
-
-    return result.isEligible ? 'eligible' : 'notEligible';
-  }
-
-  protected eligibilityLabel(result: EligibilityCheck | null): string {
-    const state = this.eligibilityState(result);
-    if (state === 'eligible') return 'Elegible';
-    return state === 'notEligible' ? 'No elegible' : 'Sin reglas suficientes';
-  }
-
-  // ── Selectores encadenados ──────────────────────────────────────────────────────────────────
-
   protected selectRequirementClient(idClient: string): void {
     this.requirementForm.patchValue({ idClient, idService: '', idPosition: '' });
     this.loadServicesForClient(idClient);
@@ -1068,17 +996,6 @@ nombre sigue ocupado.`)) {
   protected selectRequirementService(idService: string): void {
     const idClient = this.requirementForm.getRawValue().idClient;
     this.requirementForm.patchValue({ idService, idPosition: '' });
-    this.loadPositionsForService(idClient, idService);
-  }
-
-  protected selectEligibilityClient(idClient: string): void {
-    this.eligibilityForm.patchValue({ idClient, idService: '', idPosition: '' });
-    this.loadServicesForClient(idClient);
-  }
-
-  protected selectEligibilityService(idService: string): void {
-    const idClient = this.eligibilityForm.getRawValue().idClient;
-    this.eligibilityForm.patchValue({ idService, idPosition: '' });
     this.loadPositionsForService(idClient, idService);
   }
 
@@ -1122,13 +1039,6 @@ nombre sigue ocupado.`)) {
       name: '',
       description: '',
     });
-  }
-
-  private syncDefaults(): void {
-    const employeeId = this.employees()[0]?.idEmployee ?? '';
-    if (employeeId && !this.eligibilityForm.getRawValue().idEmployee) {
-      this.eligibilityForm.patchValue({ idEmployee: employeeId });
-    }
   }
 
   private loadServicesForClient(idClient: string): void {

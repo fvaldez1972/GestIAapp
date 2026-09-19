@@ -200,22 +200,6 @@ describe('Catálogos', () => {
   });
 
   /**
-   * Sin reglas activas, «elegible» significaría que no se comprobó nada. La ausencia de reglas no
-   * se presenta como cumplimiento.
-   */
-  it('no concluye elegibilidad cuando no hay reglas activas', () => {
-    const { fixture } = montar({ requirements: [] });
-    const pagina = fixture.componentInstance as unknown as {
-      eligibilityState(r: unknown): string;
-      eligibilityLabel(r: unknown): string;
-    };
-    const resultado = { idEmployee: 'e1', employeeCode: 'E1', employeeName: 'Ana', isEligible: true, reasons: [] };
-
-    expect(pagina.eligibilityState(resultado)).toBe('insufficient');
-    expect(pagina.eligibilityLabel(resultado)).toBe('Sin reglas suficientes');
-  });
-
-  /**
    * El defecto que dejó la pantalla anterior sin poder guardar nada.
    *
    * <p>Al retirar el campo de código de la plantilla quedó su control de formulario, con

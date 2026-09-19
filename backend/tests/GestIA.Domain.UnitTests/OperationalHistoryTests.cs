@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Text.Json;
+using GestIA.Domain.Catalogs;
 using GestIA.Domain.History;
 using GestIA.Domain.Operations;
 using GestIA.Domain.Services;
@@ -23,7 +24,8 @@ public sealed class OperationalHistoryTests
         typeof(AttendanceRecordSnapshot),
         typeof(IncidentSnapshot),
         typeof(CoverageRecordSnapshot),
-        typeof(ServiceAssignmentSnapshot)
+        typeof(ServiceAssignmentSnapshot),
+        typeof(BusinessCatalogItemSnapshot)
     ];
 
     /// <summary>

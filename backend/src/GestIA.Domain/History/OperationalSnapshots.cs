@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using GestIA.Domain.Catalogs;
 using GestIA.Domain.Operations;
 using GestIA.Domain.Services;
 using GestIA.Domain.Workforce;
@@ -43,7 +44,7 @@ public static class OperationalSnapshot
 
     /// <summary>Los tipos con historial, para que Infrastructure no repita la lista.</summary>
     public static bool IsTracked(object entity) =>
-        entity is AttendanceRecord or Incident or CoverageRecord or ServiceAssignment;
+        entity is AttendanceRecord or Incident or CoverageRecord or ServiceAssignment or BusinessCatalogItem;
 
     /// <summary>
     /// Identidad y foto de un registro. La identidad sale del propio registro —no del contexto
@@ -79,6 +80,12 @@ public static class OperationalSnapshot
                 item.IdOrganization,
                 Serialize(ServiceAssignmentSnapshot.From(item))),
 
+            BusinessCatalogItem item => new(
+                OperationalEntityType.BusinessCatalogItem,
+                item.IdBusinessCatalogItem,
+                item.IdOrganization,
+                Serialize(BusinessCatalogItemSnapshot.From(item))),
+
             _ => throw new ArgumentException(
                 $"{entity.GetType().Name} no lleva historial funcional.", nameof(entity))
         };
@@ -93,6 +100,39 @@ public sealed record OperationalSnapshotCapture(
     Guid RecordId,
     Guid IdOrganization,
     string Json);
+
+/// <summary>
+/// La foto de una entrada de catálogo.
+///
+/// <para><b>No lleva el nombre</b>, aunque sea lo primero que uno querría ver. Es el principio 4:
+/// se conserva por identificador, y el nombre se lee del registro vivo cuando la pantalla de
+/// Auditoría lo muestra. Si mañana alguien corrige «Poligrafo» a «Polígrafo», no quedan copias del
+/// nombre viejo regadas por la bitácora diciendo que cambió algo que no cambió.</para>
+///
+/// <para>Tampoco lleva la descripción, que es texto libre: viaja si estaba llena o vacía.</para>
+///
+/// <para>Lo que sí lleva es <c>IsBlocking</c>, que es la razón de que esta entrada tenga
+/// historial: es el campo cuyo cambio deja fuera a gente en la siguiente validación.</para>
+/// </summary>
+public sealed record BusinessCatalogItemSnapshot(
+    Guid IdBusinessCatalogItem,
+    Guid IdOrganization,
+    BusinessCatalogItemType Type,
+    Guid? IdParentCatalogItem,
+    bool? IsBlocking,
+    int DisplayOrder,
+    bool HasDescription,
+    bool Active)
+{
+    public static BusinessCatalogItemSnapshot From(BusinessCatalogItem item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+
+        return new(
+            item.IdBusinessCatalogItem, item.IdOrganization, item.Type, item.IdParentCatalogItem,
+            item.IsBlocking, item.Order, !string.IsNullOrWhiteSpace(item.Description), item.Active);
+    }
+}
 
 public sealed record AttendanceRecordSnapshot(
     Guid IdAttendanceRecord,

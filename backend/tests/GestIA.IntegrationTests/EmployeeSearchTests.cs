@@ -466,7 +466,7 @@ public sealed class EmployeeSearchTests(OperationalSqlDatabase database)
             $"{prefix}-SER", "Servicio", "Vigilancia", Day.AddDays(-60), ActorId, ActorName, Now);
         var posicion = Position.Create(
             organizationId, servicio.IdService, $"{prefix}-POS",
-            new PositionProfile("Puesto de acceso", 1, null, null, puesto.IdBusinessCatalogItem),
+            new PositionProfile("Puesto de acceso", 1, null, null, Day, null, puesto.IdBusinessCatalogItem),
             ActorId, ActorName, Now);
 
         context.AddRange(cliente, sede, servicio, posicion);

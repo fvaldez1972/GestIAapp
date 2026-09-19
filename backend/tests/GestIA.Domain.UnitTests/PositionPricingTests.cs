@@ -17,12 +17,15 @@ public sealed class PositionPricingTests
     private const string ActorName = "Pruebas";
     private static readonly DateTime OccurredAt = new(2026, 9, 16, 20, 0, 0, DateTimeKind.Utc);
 
+    /// <summary>La vigencia no es lo que se prueba aqui, pero el puesto la necesita.</summary>
+    private static readonly DateOnly Inicio = new(2026, 1, 1);
+
     private static Position Puesto(decimal precio, PaymentFrequency periodo) =>
         Position.Create(
             Guid.NewGuid(),
             Guid.NewGuid(),
             "p-01",
-            new PositionProfile("Caseta poniente", 1, null, null, null, precio, "MXN", false, periodo),
+            new PositionProfile("Caseta poniente", 1, null, null, Inicio, null, null, precio, "MXN", false, periodo),
             ActorId,
             ActorName,
             OccurredAt);
@@ -35,7 +38,7 @@ public sealed class PositionPricingTests
             Guid.NewGuid(),
             Guid.NewGuid(),
             "p-02",
-            new PositionProfile("Rondín", 1, null, null, null, 42000m),
+            new PositionProfile("Rondín", 1, null, null, Inicio, null, null, 42000m),
             ActorId,
             ActorName,
             OccurredAt);
@@ -65,7 +68,7 @@ public sealed class PositionPricingTests
         var puesto = Puesto(42000m, PaymentFrequency.Monthly);
 
         puesto.UpdateProfile(
-            new PositionProfile("Caseta poniente", 1, null, null, null, 3500m, "MXN", false, PaymentFrequency.Weekly),
+            new PositionProfile("Caseta poniente", 1, null, null, Inicio, null, null, 3500m, "MXN", false, PaymentFrequency.Weekly),
             ActorId,
             ActorName,
             OccurredAt);

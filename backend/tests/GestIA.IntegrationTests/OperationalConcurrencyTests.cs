@@ -233,7 +233,7 @@ public sealed class OperationalConcurrencyTests : IClassFixture<OperationalSqlDa
             var originalService = await context.Services.SingleAsync(item => item.IdService == seed.ServiceId);
             var otherService = Service.Create(seed.OrganizationId, seed.ClientId, originalService.IdClientSite, null, "OTHER",
                 "Other", "Other service", Day, Actor.ActorId, Actor.ActorName, Now);
-            var position = Position.Create(seed.OrganizationId, otherService.IdService, "P", new("Position", 1, null, null),
+            var position = Position.Create(seed.OrganizationId, otherService.IdService, "P", new("Position", 1, null, null, Day),
                 Actor.ActorId, Actor.ActorName, Now);
             var version = Version(seed.OrganizationId, otherService.IdService);
             version.Publish(Actor.ActorId, Actor.ActorName, Now);
@@ -489,7 +489,7 @@ public sealed class OperationalConcurrencyTests : IClassFixture<OperationalSqlDa
         var client = Client.Create(organization.IdOrganization, "CLIENT", "Client", "EXA010101AA1", Actor.ActorId, Actor.ActorName, Now);
         var site = ClientSite.Create(client.IdOrganization, client.IdClient, "SITE", "Site", "Street", "City", "State", "01000", Actor.ActorId, Actor.ActorName, Now);
         var service = Service.Create(organization.IdOrganization, client.IdClient, site.IdClientSite, null, "SERVICE", "Service", "Service", Day, Actor.ActorId, Actor.ActorName, Now);
-        var position = Position.Create(organization.IdOrganization, service.IdService, "POSITION", new("Position", 1, null, null), Actor.ActorId, Actor.ActorName, Now);
+        var position = Position.Create(organization.IdOrganization, service.IdService, "POSITION", new("Position", 1, null, null, Day), Actor.ActorId, Actor.ActorName, Now);
         var employee = Employee.Create(organization.IdOrganization, "EMPLOYEE", "Employee", null, Day, Actor.ActorId, Actor.ActorName, Now);
         var replacement = Employee.Create(organization.IdOrganization, "REPLACEMENT", "Replacement", null, Day, Actor.ActorId, Actor.ActorName, Now);
         var version = Version(organization.IdOrganization, service.IdService);

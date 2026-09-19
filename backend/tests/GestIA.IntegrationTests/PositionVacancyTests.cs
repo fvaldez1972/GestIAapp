@@ -191,7 +191,7 @@ public sealed class PositionVacancyTests(OperationalSqlDatabase database)
             $"{prefix}-SER", "Servicio", "Servicio", Today.AddYears(-1), ActorId, ActorName, Now);
         var position = Position.Create(
             organization.IdOrganization, service.IdService, $"{prefix}-PUE",
-            new("Puesto", requiredWorkers, null, null), ActorId, ActorName, Now);
+            new("Puesto", requiredWorkers, null, null, Today), ActorId, ActorName, Now);
 
         context.AddRange(organization, client, site, service, position);
         await context.SaveChangesAsync();

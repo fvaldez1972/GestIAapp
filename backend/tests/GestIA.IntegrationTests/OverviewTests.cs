@@ -346,7 +346,7 @@ public sealed class OverviewTests(OperationalSqlDatabase database)
             if (level >= Level.Positions)
             {
                 var position = Position.Create(
-                    organizationId, serviceId, $"{prefix}-POS", new PositionProfile("Puesto", 1, null, null),
+                    organizationId, serviceId, $"{prefix}-POS", new PositionProfile("Puesto", 1, null, null, Day),
                     ActorId, ActorName, Now);
                 positionId = position.IdPosition;
 

@@ -18,6 +18,12 @@ public sealed class PositionConfiguration : IEntityTypeConfiguration<Position>
             table.HasCheckConstraint(
                 "CK_Positions_Price",
                 "[Price] >= 0");
+            // La vigencia del puesto. Que quepa dentro de la del servicio lo comprueba el caso de
+            // uso, que es quien puede leer el servicio; que no termine antes de empezar se cierra
+            // aqui, porque ninguna ruta de escritura tiene derecho a dejar pasar eso.
+            table.HasCheckConstraint(
+                "CK_Positions_DateRange",
+                "[EndDate] IS NULL OR [EndDate] >= [StartDate]");
         });
         builder.HasKey(entity => entity.IdPosition);
         builder.Property(entity => entity.CodePosition).HasMaxLength(40).IsUnicode(false).IsRequired();
@@ -34,6 +40,10 @@ public sealed class PositionConfiguration : IEntityTypeConfiguration<Position>
             .IsUnicode(false)
             .IsRequired();
         builder.Property(entity => entity.IsTaxIncluded).IsRequired();
+        // Fechas de negocio: terminan en Date y son date, no datetime2. La de fin admite nulo, que
+        // significa puesto permanente.
+        builder.Property(entity => entity.StartDate).HasColumnType("date").IsRequired();
+        builder.Property(entity => entity.EndDate).HasColumnType("date");
         builder.Property(entity => entity.RequiredSkillProfile).HasMaxLength(1000);
         builder.Property(entity => entity.Notes).HasMaxLength(1000);
         // Nulables las tres, y sin navegacion: la posicion las guarda por identificador y quien

@@ -33,7 +33,17 @@ public sealed record CreatePositionRequest(
     /// El equipo que el cliente pide, que casi nunca es uno. Nulo deja el equipo como estaba; una
     /// lista vacía lo retira.
     /// </summary>
-    IReadOnlyList<Guid>? IdRequiredEquipmentCatalogItems = null);
+    IReadOnlyList<Guid>? IdRequiredEquipmentCatalogItems = null,
+    /// <summary>
+    /// Desde cuándo hace falta el puesto. <b>Nulo hereda el inicio del servicio</b>, que es lo que
+    /// una posición sin vigencia propia tenía implícitamente.
+    /// </summary>
+    DateOnly? StartDate = null,
+    /// <summary>
+    /// Hasta cuándo. Nulo hereda el fin del servicio, incluido cuando el servicio no tiene: ahí el
+    /// puesto es permanente.
+    /// </summary>
+    DateOnly? EndDate = null);
 
 public sealed record UpdatePositionRequest(
     Guid IdOrganization,
@@ -57,7 +67,17 @@ public sealed record UpdatePositionRequest(
     /// El equipo que el cliente pide, que casi nunca es uno. Nulo deja el equipo como estaba; una
     /// lista vacía lo retira.
     /// </summary>
-    IReadOnlyList<Guid>? IdRequiredEquipmentCatalogItems = null);
+    IReadOnlyList<Guid>? IdRequiredEquipmentCatalogItems = null,
+    /// <summary>
+    /// Desde cuándo hace falta el puesto. <b>Nulo hereda el inicio del servicio</b>, que es lo que
+    /// una posición sin vigencia propia tenía implícitamente.
+    /// </summary>
+    DateOnly? StartDate = null,
+    /// <summary>
+    /// Hasta cuándo. Nulo hereda el fin del servicio, incluido cuando el servicio no tiene: ahí el
+    /// puesto es permanente.
+    /// </summary>
+    DateOnly? EndDate = null);
 
 public sealed record PositionResponse(
     Guid IdPosition,
@@ -68,6 +88,8 @@ public sealed record PositionResponse(
     string? RequiredSkillProfile,
     Guid? IdJobPositionCatalogItem,
     string? Notes,
+    DateOnly StartDate,
+    DateOnly? EndDate,
     bool Active,
     decimal Price,
     string CurrencyCode,

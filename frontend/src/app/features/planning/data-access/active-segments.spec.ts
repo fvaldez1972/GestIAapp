@@ -19,6 +19,8 @@ const posicion = (id: string): ServicePosition => ({
   idSexCatalogItem: null,
   idAgeRangeCatalogItem: null,
   idEducationLevelCatalogItem: null,
+  startDate: '2026-01-01',
+  endDate: null,
   requiredEquipment: [],
 });
 

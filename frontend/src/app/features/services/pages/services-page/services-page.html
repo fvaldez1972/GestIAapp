@@ -812,6 +812,18 @@
               ><input type="checkbox" formControlName="isTaxIncluded" /><span>IVA incluido</span></label
             >
             <!--
+              La vigencia del puesto. No es la del servicio: un servicio vigente todo el año puede
+              tener un refuerzo de octubre a diciembre, y hasta hoy eso no se podia expresar.
+              Dejarlas vacias hereda la del servicio, que es lo que tenian las 69 posiciones
+              capturadas antes de que el campo existiera.
+            -->
+            <label
+              ><span>Vigente desde</span><input type="date" formControlName="startDate"
+            /></label>
+            <label
+              ><span>Vigente hasta</span><input type="date" formControlName="endDate"
+            /></label>
+            <!--
               El patron de turno sale del catalogo. Antes se capturaba dentro de cada posicion y sus
               dias se declaraban por dia de la semana, asi que un 24x48 —ciclo de tres dias— no
               cabia, y habia que volver a teclear el mismo horario en cada puesto. El catalogo se
@@ -930,7 +942,6 @@
               (add)="addPositionSkill($event)"
               (remove)="removePositionSkill($event)"
               (removePending)="removePendingPositionSkill($event)"
-              (toggleBlocking)="togglePositionSkill($event)"
               (createSkill)="createSkillForProfile($event)"
             />
             <label class="wide"

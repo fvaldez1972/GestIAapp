@@ -314,6 +314,10 @@ public sealed partial class DemoDataSeeder
                             elementos,
                             job,
                             index == 0 ? "Posición principal del sitio." : "Posición de apoyo en horario pico.",
+                            // La vigencia sale de la del servicio, igual que en la migracion que
+                            // la estreno: el puesto existe mientras el servicio se presta.
+                            service.StartDate,
+                            service.EndDate,
                             // Mismo motivo que en el empleado: la comparación es por identificador.
                             ResolveJobPosition(jobPositions, job),
                             tarifaPorElemento * elementos,

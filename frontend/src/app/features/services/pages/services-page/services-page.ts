@@ -1135,6 +1135,11 @@ export class ServicesPage implements OnInit, OnDestroy {
     // El patron de turno sale del catalogo. Vacio significa que la posicion conserva el patron que
     // se le capturo por dentro, no que no tenga turnos.
     idShiftPatternTemplate: [''],
+    // La vigencia del puesto, que no es la del servicio: un servicio de todo el año puede tener un
+    // refuerzo de octubre a diciembre. Vacías heredan la del servicio, que es lo que las posiciones
+    // capturadas antes del 19 de septiembre de 2026 tenían implícitamente.
+    startDate: [''],
+    endDate: [''],
     // El perfil que el cliente pide para el puesto. Es del puesto y no de la persona: describe lo
     // contratado, y por eso el catálogo de sexo admite «Indistinto».
     idSexCatalogItem: [''],
@@ -1605,6 +1610,8 @@ export class ServicesPage implements OnInit, OnDestroy {
       idSexCatalogItem: '',
       idAgeRangeCatalogItem: '',
       idEducationLevelCatalogItem: '',
+      startDate: '',
+      endDate: '',
       requiredSkillProfile: '',
       notes: '',
     });
@@ -1631,6 +1638,8 @@ export class ServicesPage implements OnInit, OnDestroy {
       idSexCatalogItem: position.idSexCatalogItem ?? '',
       idAgeRangeCatalogItem: position.idAgeRangeCatalogItem ?? '',
       idEducationLevelCatalogItem: position.idEducationLevelCatalogItem ?? '',
+      startDate: position.startDate ?? '',
+      endDate: position.endDate ?? '',
       requiredSkillProfile: position.requiredSkillProfile ?? '',
       notes: position.notes ?? '',
     });
@@ -1957,6 +1966,8 @@ export class ServicesPage implements OnInit, OnDestroy {
       idSexCatalogItem: form.idSexCatalogItem || null,
       idAgeRangeCatalogItem: form.idAgeRangeCatalogItem || null,
       idEducationLevelCatalogItem: form.idEducationLevelCatalogItem || null,
+      startDate: form.startDate || null,
+      endDate: form.endDate || null,
       // Siempre viaja, incluso vacío: este formulario sí edita el equipo, así que una lista vacía
       // aquí quiere decir «ya no pide ninguno» y no «no vengo a tocarlo».
       idRequiredEquipmentCatalogItems: this.selectedEquipment(),

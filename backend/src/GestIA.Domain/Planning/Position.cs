@@ -16,6 +16,8 @@ public sealed record PositionProfile(
     int RequiredWorkerCount,
     string? RequiredSkillProfile,
     string? Notes,
+    DateOnly StartDate,
+    DateOnly? EndDate = null,
     Guid? IdJobPositionCatalogItem = null,
     decimal Price = 0m,
     string CurrencyCode = "MXN",
@@ -131,6 +133,25 @@ public sealed class Position : AuditableEntity, IOrganizationScopedEntity
     /// <summary>La escolaridad mínima, contra el catálogo <c>EducationLevel</c>. Nulable por lo mismo.</summary>
     public Guid? IdEducationLevelCatalogItem { get; private set; }
 
+    /// <summary>
+    /// Desde cuándo hace falta este puesto.
+    ///
+    /// <para><b>Es del puesto, no del servicio, y por eso no basta con la del contrato.</b> Un
+    /// servicio vigente todo el año puede tener una posición de refuerzo que sólo va de octubre a
+    /// diciembre; con una sola vigencia, la del servicio, eso no se podía expresar y el refuerzo
+    /// quedaba como un puesto permanente que alguien tenía que acordarse de retirar.</para>
+    ///
+    /// <para>Las 69 posiciones que existían antes del 19 de septiembre de 2026 heredaron la del
+    /// servicio en la migración, que es lo que implícitamente tenían.</para>
+    /// </summary>
+    public DateOnly StartDate { get; private set; }
+
+    /// <summary>
+    /// Hasta cuándo. Nulo significa <b>sin fecha de término</b>, no «no se sabe»: es el puesto
+    /// permanente, que es el caso normal.
+    /// </summary>
+    public DateOnly? EndDate { get; private set; }
+
     public string? RequiredSkillProfile { get; private set; }
     public string? Notes { get; private set; }
     public Service Service { get; private set; } = null!;
@@ -178,6 +199,17 @@ public sealed class Position : AuditableEntity, IOrganizationScopedEntity
             throw new ArgumentOutOfRangeException(nameof(profile));
         }
 
+        // Una vigencia que termina antes de empezar no es un dato raro: es un dato imposible, y
+        // dejarla entrar haría que la posición no estuviera vigente ningún día sin que nadie lo
+        // dijera. Que caiga dentro de la del servicio se comprueba en el caso de uso, que es quien
+        // puede leer el servicio.
+        if (profile.EndDate is { } fin && fin < profile.StartDate)
+        {
+            throw new ArgumentOutOfRangeException(nameof(profile));
+        }
+
+        StartDate = profile.StartDate;
+        EndDate = profile.EndDate;
         Name = Required(profile.Name, nameof(profile.Name));
         RequiredWorkerCount = profile.RequiredWorkerCount;
         Price = profile.Price;

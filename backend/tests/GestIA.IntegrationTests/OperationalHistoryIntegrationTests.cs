@@ -292,7 +292,7 @@ public sealed class OperationalHistoryIntegrationTests(OperationalSqlDatabase da
         var client = Client.Create(organizationId, $"{prefix}-CLI", "Cliente", "EXA010101AA1", ActorId, ActorName, Now);
         var site = ClientSite.Create(client.IdOrganization, client.IdClient, $"{prefix}-SED", "Sede", "Calle", "Ciudad", "Estado", "01000", ActorId, ActorName, Now);
         var service = Service.Create(organizationId, client.IdClient, site.IdClientSite, null, $"{prefix}-SER", "Servicio", "Servicio", Day, ActorId, ActorName, Now);
-        var position = Position.Create(organizationId, service.IdService, $"{prefix}-PUE", new("Puesto", 1, null, null), ActorId, ActorName, Now);
+        var position = Position.Create(organizationId, service.IdService, $"{prefix}-PUE", new("Puesto", 1, null, null, Day), ActorId, ActorName, Now);
         var employee = Employee.Create(organizationId, $"{prefix}-EMP", "Empleado", null, Day, ActorId, ActorName, Now);
         var version = ScheduleVersion.Create(organizationId, service.IdService, new("Versión", Day, Day.AddDays(1), null), ActorId, ActorName, Now);
         version.Publish(ActorId, ActorName, Now);

@@ -141,7 +141,7 @@ public sealed partial class DemoDataSeeder
         // con carga en la lista de Servicios.
         var position = Position.Create(
             organizationId, openEnded.IdService, $"{HardCasePrefix}-ACENTO-P01",
-            new PositionProfile("Puesto con acentos: Añil", 2, null, null),
+            new PositionProfile("Puesto con acentos: Añil", 2, null, null, openEnded.StartDate, openEnded.EndDate),
             DemoActorId, DemoActorName, OccurredAt);
         dbContext.Add(position);
 
@@ -183,7 +183,8 @@ public sealed partial class DemoDataSeeder
             dbContext.Add(Position.Create(
                 organizationId, openEnded.IdService, $"{HardCasePrefix}-P-{suffix}",
                 new PositionProfile(
-                    $"Puesto con perfil {suffix}", 1, profile, null, ResolveJobPosition(jobPositions, profile)),
+                    $"Puesto con perfil {suffix}", 1, profile, null, openEnded.StartDate, openEnded.EndDate,
+                    ResolveJobPosition(jobPositions, profile)),
                 DemoActorId, DemoActorName, OccurredAt));
         }
 

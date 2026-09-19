@@ -217,7 +217,7 @@ public sealed class OrganizationIsolationTests(OperationalSqlDatabase database)
             new(ServiceContractStatus.Effective, null, Day, null, 30, 30, "MXN", null, null),
             ActorId, ActorName, Now);
         var position = Position.Create(
-            organizationId, service.IdService, $"{prefix}-PUE", new("Puesto", 1, null, null),
+            organizationId, service.IdService, $"{prefix}-PUE", new("Puesto", 1, null, null, Day),
             ActorId, ActorName, Now);
         var pattern = ShiftPattern.Create(
             organizationId, position.IdPosition, $"{prefix}-PAT",

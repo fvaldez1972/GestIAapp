@@ -404,10 +404,10 @@ public sealed class ServiceSearchTests(OperationalSqlDatabase database)
             $"{prefix}-SER-B", "Servicio sin posiciones", "Servicio", Day, ActorId, ActorName, Now);
 
         var first = Position.Create(
-            organizationId, withPositions.IdService, $"{prefix}-P1", new("Puesto uno", 1, null, null),
+            organizationId, withPositions.IdService, $"{prefix}-P1", new("Puesto uno", 1, null, null, Day),
             ActorId, ActorName, Now);
         var second = Position.Create(
-            organizationId, withPositions.IdService, $"{prefix}-P2", new("Puesto dos", 2, null, null),
+            organizationId, withPositions.IdService, $"{prefix}-P2", new("Puesto dos", 2, null, null, Day),
             ActorId, ActorName, Now);
 
         context.AddRange(organization, client, site, contract, withPositions, withoutPositions, first, second);

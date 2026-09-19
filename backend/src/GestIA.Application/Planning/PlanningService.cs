@@ -2,6 +2,7 @@ using GestIA.Application.Catalogs;
 using GestIA.Application.Common;
 using GestIA.Domain.Common;
 using GestIA.Domain.Planning;
+using GestIA.Domain.Services;
 
 namespace GestIA.Application.Planning;
 
@@ -43,14 +44,15 @@ public sealed class PlanningService(
         CreatePositionRequest request,
         CancellationToken cancellationToken)
     {
-        await EnsureServiceAsync(request.IdOrganization, request.IdClient, request.IdService, cancellationToken);
+        var service = await EnsureServiceAsync(
+            request.IdOrganization, request.IdClient, request.IdService, cancellationToken);
         // Opcional a proposito: sin codigo lo pone el servidor, consecutivo por servicio.
         var code = string.IsNullOrWhiteSpace(request.CodePosition)
             ? $"P-{await repository.HighestPositionCodeNumberAsync(request.IdService, cancellationToken) + 1:00}"
             : NormalizeCode(request.CodePosition, nameof(request.CodePosition));
         var profile = ValidatePosition(
             request.Name, request.RequiredWorkerCount, request.RequiredSkillProfile,
-            request.Notes, request.IdJobPositionCatalogItem,
+            request.Notes, request.StartDate, request.EndDate, service, request.IdJobPositionCatalogItem,
             request.Price, request.CurrencyCode, request.IsTaxIncluded, request.PriceFrequency,
             request.IdShiftPatternTemplate,
             request.IdSexCatalogItem, request.IdAgeRangeCatalogItem, request.IdEducationLevelCatalogItem);
@@ -84,11 +86,12 @@ public sealed class PlanningService(
         UpdatePositionRequest request,
         CancellationToken cancellationToken)
     {
-        await EnsureServiceAsync(request.IdOrganization, request.IdClient, request.IdService, cancellationToken);
+        var service = await EnsureServiceAsync(
+            request.IdOrganization, request.IdClient, request.IdService, cancellationToken);
         var position = await EnsurePositionAsync(request.IdService, idPosition, cancellationToken);
         var profile = ValidatePosition(
             request.Name, request.RequiredWorkerCount, request.RequiredSkillProfile,
-            request.Notes, request.IdJobPositionCatalogItem,
+            request.Notes, request.StartDate, request.EndDate, service, request.IdJobPositionCatalogItem,
             request.Price, request.CurrencyCode, request.IsTaxIncluded, request.PriceFrequency,
             request.IdShiftPatternTemplate,
             request.IdSexCatalogItem, request.IdAgeRangeCatalogItem, request.IdEducationLevelCatalogItem);
@@ -273,7 +276,11 @@ public sealed class PlanningService(
         await unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
-    private async Task EnsureServiceAsync(Guid idOrganization, Guid idClient, Guid idService, CancellationToken cancellationToken)
+    /// <summary>
+    /// Que el servicio exista, y <b>devolverlo</b>: la vigencia de la posición se compara contra la
+    /// suya, y volver a leerlo en cada llamada sería un viaje de más a la base.
+    /// </summary>
+    private async Task<Service> EnsureServiceAsync(Guid idOrganization, Guid idClient, Guid idService, CancellationToken cancellationToken)
     {
         if (idOrganization == Guid.Empty || idClient == Guid.Empty || idService == Guid.Empty)
         {
@@ -285,10 +292,8 @@ public sealed class PlanningService(
             });
         }
 
-        if (await repository.GetServiceAsync(idOrganization, idClient, idService, cancellationToken) is null)
-        {
-            throw new ResourceNotFoundException("No se encontró el servicio solicitado.");
-        }
+        return await repository.GetServiceAsync(idOrganization, idClient, idService, cancellationToken)
+            ?? throw new ResourceNotFoundException("No se encontró el servicio solicitado.");
     }
 
     private async Task<Position> EnsurePositionAsync(Guid idService, Guid idPosition, CancellationToken cancellationToken) =>
@@ -392,6 +397,9 @@ public sealed class PlanningService(
         int requiredWorkerCount,
         string? requiredSkillProfile,
         string? notes,
+        DateOnly? startDate,
+        DateOnly? endDate,
+        Service service,
         Guid? idJobPositionCatalogItem,
         decimal price,
         string currencyCode,
@@ -416,12 +424,20 @@ public sealed class PlanningService(
             errors[nameof(price)] = ["El precio no puede ser negativo."];
         }
 
+        // Sin fechas propias, la posicion hereda la vigencia del servicio: es lo que tenia
+        // implicitamente antes de que la columna existiera, y deja que el alta siga siendo minima.
+        var inicio = startDate ?? service.StartDate;
+        var fin = endDate ?? service.EndDate;
+        ValidateValidity(inicio, fin, service, errors);
+
         ThrowIfInvalid(errors);
         return new PositionProfile(
             name,
             requiredWorkerCount,
             requiredSkillProfile,
             notes,
+            inicio,
+            fin,
             idJobPositionCatalogItem,
             price,
             string.IsNullOrWhiteSpace(currencyCode) ? "MXN" : currencyCode,
@@ -431,6 +447,57 @@ public sealed class PlanningService(
             idSexCatalogItem,
             idAgeRangeCatalogItem,
             idEducationLevelCatalogItem);
+    }
+
+    /// <summary>
+    /// Que la vigencia del puesto quepa dentro de la del servicio.
+    ///
+    /// <para><b>Es error y no aviso, por decisión tomada.</b> Un puesto que empieza antes de que el
+    /// servicio exista, o que sigue vigente después de que el contrato terminó, produce demanda de
+    /// planeación para días en los que no hay nada que cubrir: turnos que generar, vacantes que
+    /// reportar y personas a las que asignar un servicio que ya no se presta. Dejarlo pasar con un
+    /// aviso habría trasladado la corrección a quien lee el tablero tres semanas después.</para>
+    ///
+    /// <para>Un servicio sin fecha de término no acota por arriba: ahí un puesto permanente es
+    /// legítimo.</para>
+    /// </summary>
+    private static void ValidateValidity(
+        DateOnly startDate,
+        DateOnly? endDate,
+        Service service,
+        Dictionary<string, string[]> errors)
+    {
+        if (endDate is { } fin && fin < startDate)
+        {
+            errors[nameof(endDate)] = ["La fecha de fin no puede ser anterior a la de inicio."];
+        }
+
+        if (startDate < service.StartDate)
+        {
+            errors[nameof(startDate)] =
+                [$"La posición no puede empezar antes que el servicio, que inicia el {service.StartDate:dd/MM/yyyy}."];
+        }
+
+        if (service.EndDate is not { } finServicio)
+        {
+            return;
+        }
+
+        if (startDate > finServicio)
+        {
+            errors[nameof(startDate)] =
+                [$"La posición no puede empezar después de que el servicio termina, el {finServicio:dd/MM/yyyy}."];
+        }
+
+        // Un puesto sin fin dentro de un servicio que sí lo tiene seguiría pidiendo gente el día
+        // después de que el contrato acabó. No hace falta exigir la fecha como error: una petición
+        // sin fecha de fin hereda la del servicio, así que aquí sólo puede llegar una que alguien
+        // escribió a mano.
+        if (endDate is { } finPosicion && finPosicion > finServicio)
+        {
+            errors[nameof(endDate)] =
+                [$"La posición no puede terminar después que el servicio, que acaba el {finServicio:dd/MM/yyyy}."];
+        }
     }
 
     private static ShiftPatternProfile ValidateShiftPattern(
@@ -595,6 +662,8 @@ public sealed class PlanningService(
             position.RequiredSkillProfile,
             position.IdJobPositionCatalogItem,
             position.Notes,
+            position.StartDate,
+            position.EndDate,
             position.Active,
             position.Price,
             position.CurrencyCode,

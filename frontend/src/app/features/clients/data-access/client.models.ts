@@ -364,6 +364,18 @@ export type ServicePosition = {
   readonly idAgeRangeCatalogItem: string | null;
   readonly idEducationLevelCatalogItem: string | null;
 
+  /**
+   * Desde cuándo hace falta el puesto.
+   *
+   * <p><b>Es del puesto, no del servicio.</b> Un servicio vigente todo el año puede tener un
+   * refuerzo que sólo va de octubre a diciembre. Las posiciones capturadas antes del 19 de
+   * septiembre de 2026 heredaron la del servicio, que es la que tenían implícitamente.</p>
+   */
+  readonly startDate: string;
+
+  /** Hasta cuándo. Nulo es puesto permanente, no «no se sabe». */
+  readonly endDate: string | null;
+
   /** El equipo requerido, ya resuelto por el servidor con su nombre. */
   readonly requiredEquipment: readonly PositionEquipment[];
 };
@@ -391,6 +403,11 @@ export type ServicePositionInput = {
   readonly idSexCatalogItem?: string | null;
   readonly idAgeRangeCatalogItem?: string | null;
   readonly idEducationLevelCatalogItem?: string | null;
+
+  /** Desde cuándo hace falta. Omitirla hereda el inicio del servicio. */
+  readonly startDate?: string | null;
+  /** Hasta cuándo. Omitirla hereda el fin del servicio, que puede no tenerlo. */
+  readonly endDate?: string | null;
 
   /**
    * El equipo requerido, por identificador.

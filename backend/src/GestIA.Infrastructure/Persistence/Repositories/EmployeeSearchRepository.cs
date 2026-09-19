@@ -386,6 +386,9 @@ public sealed partial class WorkforceRepository
                 assignment.IdService,
                 ServiceName = assignment.Service.Name,
                 ClientName = assignment.Service.Client.TradeName ?? assignment.Service.Client.LegalName,
+                // La zona sale del servicio. El nombre tecnico de la tabla sigue siendo ClientSite;
+                // de la vista hacia arriba se llama Zona.
+                ZoneName = assignment.Service.ClientSite.Name,
                 assignment.IdPosition,
                 PositionName = dbContext.Positions
                     .Where(position => position.IdPosition == assignment.IdPosition)
@@ -414,6 +417,7 @@ public sealed partial class WorkforceRepository
                 fila.IdService,
                 fila.ServiceName,
                 fila.ClientName,
+                fila.ZoneName,
                 fila.IdPosition,
                 fila.PositionName,
                 fila.AssignmentType,

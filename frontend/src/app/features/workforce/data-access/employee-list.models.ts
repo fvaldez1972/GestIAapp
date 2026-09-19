@@ -70,6 +70,8 @@ export type EmployeeAssignment = {
   readonly idService: string;
   readonly serviceName: string;
   readonly clientName: string;
+  /** La zona del cliente donde se prestó el servicio, leída hoy. */
+  readonly zoneName: string;
   readonly idPosition: string | null;
   readonly positionName: string | null;
   readonly assignmentType: 'Primary' | 'Support' | 'Relief' | 'TemporaryReplacement';

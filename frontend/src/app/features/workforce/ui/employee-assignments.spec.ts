@@ -43,6 +43,23 @@ describe('La pestaña de asignaciones', () => {
 
   afterEach(() => TestBed.resetTestingModule());
 
+  /**
+   * La zona, que es RF-HIS-005 y lo único que le faltaba al historial.
+   *
+   * <p>Sin ella, dos servicios homónimos de un cliente grande no se distinguen en la trayectoria
+   * de una persona: «Vigilancia nocturna» en la matriz y «Vigilancia nocturna» en la planta se leen
+   * igual.</p>
+   */
+  it('cada fila dice el cliente, la zona y el servicio', () => {
+    const { raiz } = montar((host) =>
+      host.assignments.set([
+        assignmentFixture({ clientName: 'Meridian Cines', zoneName: 'Matriz', serviceName: 'Acceso' }),
+      ]),
+    );
+
+    expect(raiz.textContent).toContain('Meridian Cines · Matriz · Acceso');
+  });
+
   it('una asignación vigente sin turno abierto se lee como vigente', () => {
     const { estados } = montar();
 

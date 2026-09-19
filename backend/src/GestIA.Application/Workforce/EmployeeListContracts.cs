@@ -107,6 +107,16 @@ public sealed record EmployeeAssignmentResponse(
     Guid IdService,
     string ServiceName,
     string ClientName,
+    /// <summary>
+    /// La zona del cliente donde se prestó el servicio.
+    ///
+    /// <para><b>Es la del servicio, leída hoy.</b> No es una fotografía del momento en que se
+    /// asignó: si la zona se renombra, el historial enseña el nombre nuevo. Es una decisión, no un
+    /// descuido —guardar el nombre viejo es lo que hace falta cuando el registro tiene que probar
+    /// qué decía entonces, y para eso está la bitácora funcional—. Aquí se responde «dónde
+    /// trabajó», y esa respuesta sigue al lugar aunque le cambien el rótulo.</para>
+    /// </summary>
+    string ZoneName,
     Guid? IdPosition,
     string? PositionName,
     ServiceAssignmentType AssignmentType,

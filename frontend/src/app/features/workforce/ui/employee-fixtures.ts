@@ -87,6 +87,7 @@ export function assignmentFixture(overrides: Partial<EmployeeAssignment> = {}): 
     idService: 's1',
     serviceName: 'Vigilancia nocturna',
     clientName: 'Corporativo Altavista',
+    zoneName: 'Matriz',
     idPosition: 'p1',
     positionName: 'Caseta poniente · nocturno',
     assignmentType: 'Primary',

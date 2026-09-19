@@ -149,7 +149,7 @@ export class ReportsPage implements OnInit {
   protected readonly reportTypes: readonly { value: ReportType; label: string; description: string }[] = [
     { value: 'resumen', label: 'Resumen ejecutivo', description: 'Vista ejecutiva del periodo' },
     { value: 'servicios', label: 'Operación por servicio', description: 'Comparativo por cliente y servicio' },
-    { value: 'elegibilidad', label: 'Elegibilidad', description: 'Personal elegible y pendientes' },
+    { value: 'elegibilidad', label: 'Incumplimientos', description: 'Quién incumple qué, y por qué' },
     { value: 'alertas', label: 'Alertas y distribución', description: 'Riesgos y severidades del periodo' },
     { value: 'exportacion', label: 'Exportación operativa', description: 'Salida para dirección o administración' },
   ];
@@ -253,6 +253,27 @@ export class ReportsPage implements OnInit {
       { label: 'Bajas', value: summary?.excusedAttendance ?? 0, detail: 'Sin impacto crítico', className: 'is-low' },
     ];
   });
+  /**
+   * Si la tabla enseña a todos o sólo a quien incumple.
+   *
+   * <p><b>Arranca enseñando sólo los incumplimientos, y por eso la pantalla se llama así.</b> Quien
+   * la abre viene a corregir, no a contemplar: con 271 personas, una lista donde la mayoría cumple
+   * obliga a buscar los pocos casos que importan. Los que cumplen siguen a un clic, porque a veces
+   * la pregunta es «¿por qué éste sí pasa?».</p>
+   */
+  protected readonly onlyNonCompliant = signal(true);
+
+  protected toggleOnlyNonCompliant(): void {
+    this.onlyNonCompliant.update((valor) => !valor);
+  }
+
+  /** Las filas que la tabla enseña, según el filtro. */
+  protected readonly complianceRows = computed(() =>
+    this.onlyNonCompliant()
+      ? this.eligibilityRows().filter((employee) => employee.status !== 'Elegible')
+      : this.eligibilityRows(),
+  );
+
   protected readonly eligibilityRows = computed(() =>
     this.workforceEligibility().map((employee) => {
       const reasons = employee.reasons.length ? employee.reasons : employee.isEligible ? ['Cumple requisitos actuales'] : ['Requiere revisión'];

@@ -113,7 +113,7 @@
         <small>Rendimiento detallado</small>
       </button>
       <button class="quick-link" type="button" (click)="selectReportType('elegibilidad')">
-        <span>Ver elegibilidad</span>
+        <span>Ver incumplimientos</span>
         <small>Estado del personal</small>
       </button>
       <button class="quick-link" type="button" (click)="selectReportType('alertas')">
@@ -206,7 +206,23 @@
 
     <article class="gi-card report-panel">
       <span class="eyebrow">Elegibilidad</span>
-      <h2>Reporte de elegibilidad</h2>
+      <h2>Incumplimientos</h2>
+      <p class="report-note">
+        Qué impide hoy que una persona sea asignada. Se evalúan las reglas de <b>toda la
+        organización</b>; las que aplican sólo a un cliente, un servicio o una posición se
+        comprueban al asignar y al publicar la planeación, porque dependen de a dónde se va a
+        asignar.
+      </p>
+      <p class="report-filter">
+        <button class="gi-button gi-button--secondary" type="button" (click)="toggleOnlyNonCompliant()">
+          {{ onlyNonCompliant() ? 'Ver también a quienes cumplen' : 'Ver sólo incumplimientos' }}
+        </button>
+        <small>
+          {{ onlyNonCompliant()
+              ? complianceRows().length + ' de ' + eligibilityRows().length + ' personas incumplen algo'
+              : 'Mostrando las ' + eligibilityRows().length + ' personas' }}
+        </small>
+      </p>
       <div class="table-wrap">
         <table class="gi-table">
           <thead>
@@ -218,11 +234,12 @@
               <th>Documentos</th>
               <th>Experiencia</th>
               <th>Elegibilidad</th>
+              <th>Impacto</th>
               <th>Motivos</th>
             </tr>
           </thead>
           <tbody>
-            @for (employee of eligibilityRows(); track employee.idEmployee) {
+            @for (employee of complianceRows(); track employee.idEmployee) {
               <tr [class.row-warning]="employee.status !== 'Elegible'">
                 <td>
                   <strong>{{ employee.fullName }}</strong>
@@ -234,6 +251,17 @@
                 <td><span class="soft-status" [class.warning]="employee.documentStatus !== 'Completo'" [class.ok]="employee.documentStatus === 'Completo'">{{ employee.documentStatus }}</span></td>
                 <td><span class="soft-status" [class.warning]="employee.skillStatus !== 'Completo'" [class.ok]="employee.skillStatus === 'Completo'">{{ employee.skillStatus }}</span></td>
                 <td><span class="soft-status" [class]="eligibilityStatusClass(employee.status)">{{ employee.status }}</span></td>
+                <!--
+                  Los motivos que llegan aquí son los que impiden asignar: el servidor sólo suma a
+                  esta lista las reglas bloqueantes incumplidas y las incidencias activas de motivo
+                  bloqueante. Una informativa no aparece porque no impide nada, y mezclarlas haría
+                  que la pantalla dijera «incumple» de algo que no detiene la operación.
+                -->
+                <td>
+                  <span class="soft-status" [class.warning]="employee.status !== 'Elegible'">
+                    {{ employee.status === 'Elegible' ? 'Ninguno' : 'Bloqueante' }}
+                  </span>
+                </td>
                 <td>{{ employee.reasons.join(' · ') }}</td>
               </tr>
             } @empty {

@@ -355,8 +355,17 @@ public sealed class ReportsRepository(GestIaDbContext dbContext) : IReportsRepos
             .Include(skill => skill.SkillCatalogItem)
             .Where(skill => employeeIds.Contains(skill.IdEmployee))
             .ToArrayAsync(cancellationToken);
+        var incidents = await dbContext.AdministrativeIncidents
+            .AsNoTracking()
+            .Include(incident => incident.IncidentTypeCatalogItem)
+            .Where(incident => employeeIds.Contains(incident.IdEmployee) && incident.Active)
+            .ToArrayAsync(cancellationToken);
         var organizationRequirements = await dbContext.EligibilityRequirements
             .AsNoTracking()
+            // La entrada del catalogo, que es de donde sale la severidad cuando la regla no la
+            // fija. Sin este Include, una regla que hereda su marca se leeria como informativa y el
+            // reporte diria que alguien es elegible mientras el motor le niega la asignacion.
+            .Include(requirement => requirement.RequiredCatalogItem)
             .Where(requirement =>
                 requirement.IdOrganization == query.IdOrganization &&
                 requirement.Active &&
@@ -368,6 +377,7 @@ public sealed class ReportsRepository(GestIaDbContext dbContext) : IReportsRepos
             var employeeDocuments = documents.Where(document => document.IdEmployee == employee.IdEmployee).ToArray();
             var employeeEvaluations = evaluations.Where(evaluation => evaluation.IdEmployee == employee.IdEmployee).ToArray();
             var employeeSkills = skills.Where(skill => skill.IdEmployee == employee.IdEmployee).ToArray();
+            var employeeIncidents = incidents.Where(incident => incident.IdEmployee == employee.IdEmployee).ToArray();
             var expiredDocuments = employeeDocuments.Count(document =>
                 document.Status == EmployeeDocumentStatus.Expired ||
                 (document.ExpiresDate.HasValue && document.ExpiresDate.Value < query.ReferenceDate));
@@ -399,6 +409,13 @@ public sealed class ReportsRepository(GestIaDbContext dbContext) : IReportsRepos
 
             foreach (var requirement in organizationRequirements)
             {
+                // Por identificador del catalogo, igual que el motor, con el enum de respaldo solo
+                // para las filas que la conversion del 19 de septiembre todavia no emparejo.
+                //
+                // Antes esto comparaba SOLO por enum, y desde la conversion una regla nueva puede no
+                // llevarlo: el reporte daba por incumplido lo que el motor daba por cubierto. Dos
+                // pantallas del mismo sistema contradiciendose, que es el defecto que este proyecto
+                // ya persiguio en el listado de personal.
                 var passed = requirement.RequirementType switch
                 {
                     EligibilityRequirementType.Skill => employeeSkills.Any(skill =>
@@ -407,12 +424,16 @@ public sealed class ReportsRepository(GestIaDbContext dbContext) : IReportsRepos
                         (!skill.ExpiresDate.HasValue || skill.ExpiresDate.Value >= query.ReferenceDate)),
                     EligibilityRequirementType.Document => employeeDocuments.Any(document =>
                         document.Active &&
-                        document.DocumentType == requirement.RequiredDocumentType &&
+                        (document.IdDocumentCategoryCatalogItem.HasValue
+                            ? document.IdDocumentCategoryCatalogItem == requirement.IdRequiredCatalogItem
+                            : document.DocumentType == requirement.RequiredDocumentType) &&
                         (document.Status is EmployeeDocumentStatus.Validated or EmployeeDocumentStatus.Received) &&
                         (!document.ExpiresDate.HasValue || document.ExpiresDate.Value >= query.ReferenceDate)),
                     EligibilityRequirementType.Evaluation => employeeEvaluations.Any(evaluation =>
                         evaluation.Active &&
-                        evaluation.EvaluationType == requirement.RequiredEvaluationType &&
+                        (evaluation.IdEvaluationCategoryCatalogItem.HasValue
+                            ? evaluation.IdEvaluationCategoryCatalogItem == requirement.IdRequiredCatalogItem
+                            : evaluation.EvaluationType == requirement.RequiredEvaluationType) &&
                         (evaluation.Result is EmployeeEvaluationResult.Approved or EmployeeEvaluationResult.ApprovedWithObservations) &&
                         (!evaluation.ExpiresDate.HasValue || evaluation.ExpiresDate.Value >= query.ReferenceDate)),
                     EligibilityRequirementType.Restriction => false,
@@ -425,6 +446,15 @@ public sealed class ReportsRepository(GestIaDbContext dbContext) : IReportsRepos
                 {
                     reasons.Add($"Regla obligatoria no cumplida: {requirement.Name}.");
                 }
+            }
+
+            // Las incidencias activas, con el mismo criterio que el motor: bloquea la que tenga el
+            // tipo marcado bloqueante en el catalogo, y deja de bloquear al retirarse.
+            foreach (var incident in employeeIncidents.Where(item => item.IncidentTypeCatalogItem?.IsBlocking == true))
+            {
+                reasons.Add(
+                    $"Incidencia administrativa activa: {incident.IncidentTypeCatalogItem!.Name}, " +
+                    $"del {incident.OccurredDate:dd/MM/yyyy}.");
             }
 
             if (reasons.Count == 0)

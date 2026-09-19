@@ -34,6 +34,10 @@ public sealed record CreateEmployeeRequest(
     /// <summary>Qué es de la persona: madre, cónyuge, hermano. Texto libre.</summary>
     string? EmergencyContactRelationship,
     string? Address,
+    /// <summary>La vialidad, sin el número.</summary>
+    string? Street,
+    /// <summary>El número, alfanumérico: admite «45-A» o «123 int. 4».</summary>
+    string? StreetNumber,
     string? Neighborhood,
     string? Municipality,
     string? State,
@@ -66,6 +70,10 @@ public sealed record UpdateEmployeeRequest(
     /// <summary>Qué es de la persona: madre, cónyuge, hermano. Texto libre.</summary>
     string? EmergencyContactRelationship,
     string? Address,
+    /// <summary>La vialidad, sin el número.</summary>
+    string? Street,
+    /// <summary>El número, alfanumérico: admite «45-A» o «123 int. 4».</summary>
+    string? StreetNumber,
     string? Neighborhood,
     string? Municipality,
     string? State,
@@ -103,6 +111,10 @@ public sealed record EmployeeResponse(
     /// <summary>Qué es de la persona: madre, cónyuge, hermano. Texto libre.</summary>
     string? EmergencyContactRelationship,
     string? Address,
+    /// <summary>La vialidad, sin el número.</summary>
+    string? Street,
+    /// <summary>El número, alfanumérico: admite «45-A» o «123 int. 4».</summary>
+    string? StreetNumber,
     string? Neighborhood,
     string? Municipality,
     string? State,

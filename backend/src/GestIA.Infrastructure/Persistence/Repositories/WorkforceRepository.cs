@@ -200,6 +200,8 @@ public sealed partial class WorkforceRepository(GestIaDbContext dbContext) : IWo
             employee.EmergencyContactPhone,
             employee.EmergencyContactRelationship,
             employee.Address,
+            employee.Street,
+            employee.StreetNumber,
             employee.Neighborhood,
             employee.Municipality,
             employee.State,

@@ -583,7 +583,7 @@ public sealed class EmployeeSearchTests(OperationalSqlDatabase database)
             new EmployeeProfile(
                 nombre, "Guardia", Day.AddDays(-90),
                 null, null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, "Zapopan", "Jalisco", null, null, null,
+                null, null, null, null, null, null, null, null, null, null, "Zapopan", "Jalisco", null, null, null,
                 null, idPuesto),
             ActorId, ActorName, Now);
 

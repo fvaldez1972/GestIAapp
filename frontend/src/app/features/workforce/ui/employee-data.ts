@@ -115,6 +115,28 @@ import { EmployeeJobPosition } from './employee-job-position';
       <section class="data__block">
         <h3 class="data__kicker">UBICACIÓN Y CONTACTO</h3>
         <dl class="data__grid data__grid--two">
+          <!--
+            Calle y número aparte desde el 19 de septiembre de 2026. Los expedientes anteriores
+            traen la dirección en una sola línea, que se copió a la calle sin partirla: por eso el
+            número puede estar vacío en un domicilio que sí está capturado, y la pantalla lo dice
+            así en vez de fingir que falta el domicilio entero.
+          -->
+          <div class="data__field">
+            <dt>CALLE</dt>
+            <dd>{{ delDetalle(employee()?.street || 'Sin calle registrada') }}</dd>
+          </div>
+          <div class="data__field">
+            <dt>NÚMERO</dt>
+            <dd>{{ delDetalle(employee()?.streetNumber || 'Sin número registrado') }}</dd>
+          </div>
+          <div class="data__field">
+            <dt>COLONIA</dt>
+            <dd>{{ delDetalle(employee()?.neighborhood || 'Sin colonia registrada') }}</dd>
+          </div>
+          <div class="data__field">
+            <dt>CÓDIGO POSTAL</dt>
+            <dd>{{ delDetalle(employee()?.postalCode || 'Sin código postal') }}</dd>
+          </div>
           <div class="data__field">
             <dt>ESTADO</dt>
             <dd>{{ row().state || 'Sin estado registrado' }}</dd>

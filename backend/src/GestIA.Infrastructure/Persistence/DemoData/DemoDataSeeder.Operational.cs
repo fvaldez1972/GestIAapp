@@ -120,6 +120,10 @@ public sealed partial class DemoDataSeeder
                 $"55{Rng.Next(10000000, 99999999)}",
                 number % 2 == 0 ? "Cónyuge" : "Madre",
                 $"{Pick(DemoCatalog.Streets)} {Rng.Next(10, 999)}",
+                // La calle y el numero ya separados, que es como se capturan desde el 19 de
+                // septiembre de 2026. El campo de arriba conserva la direccion en una sola linea.
+                Pick(DemoCatalog.Streets),
+                $"{Rng.Next(10, 999)}{(number % 4 == 0 ? "-A" : string.Empty)}",
                 Pick(DemoCatalog.Streets),
                 place.Municipality,
                 place.State,

@@ -404,6 +404,8 @@ public sealed class WorkforceService(
             request.EmergencyContactPhone,
             request.EmergencyContactRelationship,
             request.Address,
+            request.Street,
+            request.StreetNumber,
             request.Neighborhood,
             request.Municipality,
             request.State,
@@ -434,6 +436,8 @@ public sealed class WorkforceService(
             request.EmergencyContactPhone,
             request.EmergencyContactRelationship,
             request.Address,
+            request.Street,
+            request.StreetNumber,
             request.Neighborhood,
             request.Municipality,
             request.State,
@@ -463,6 +467,8 @@ public sealed class WorkforceService(
         string? emergencyContactPhone,
         string? emergencyContactRelationship,
         string? address,
+        string? street,
+        string? streetNumber,
         string? neighborhood,
         string? municipality,
         string? state,
@@ -491,6 +497,8 @@ public sealed class WorkforceService(
         MaxLength(emergencyContactRelationship, nameof(emergencyContactRelationship), 80, errors);
         MaxLength(address, nameof(address), 500, errors);
         MaxLength(neighborhood, nameof(neighborhood), 120, errors);
+        MaxLength(street, nameof(street), 200, errors);
+        MaxLength(streetNumber, nameof(streetNumber), 30, errors);
         MaxLength(municipality, nameof(municipality), 120, errors);
         MaxLength(state, nameof(state), 120, errors);
         MaxLength(countryCode, nameof(countryCode), 2, errors);
@@ -519,6 +527,8 @@ public sealed class WorkforceService(
             emergencyContactPhone,
             emergencyContactRelationship,
             address,
+            street,
+            streetNumber,
             neighborhood,
             municipality,
             state,
@@ -733,6 +743,8 @@ public sealed class WorkforceService(
             employee.EmergencyContactPhone,
             employee.EmergencyContactRelationship,
             employee.Address,
+            employee.Street,
+            employee.StreetNumber,
             employee.Neighborhood,
             employee.Municipality,
             employee.State,

@@ -24,6 +24,8 @@ public sealed record EmployeeProfile(
     string? EmergencyContactPhone,
     string? EmergencyContactRelationship,
     string? Address,
+    string? Street,
+    string? StreetNumber,
     string? Neighborhood,
     string? Municipality,
     string? State,
@@ -113,7 +115,29 @@ public sealed class Employee : AuditableEntity, IOrganizationScopedEntity
     /// </summary>
     public string? EmergencyContactRelationship { get; private set; }
 
+    /// <summary>
+    /// El domicilio en un solo campo. <b>Rastro heredado desde el 19 de septiembre de 2026.</b>
+    ///
+    /// <para>La calle y el número viven ahora en <see cref="Street"/> y
+    /// <see cref="StreetNumber"/>. Esta columna se conserva llena con lo que hubiera, y su contenido
+    /// se copió tal cual a la calle: <b>no se intentó partirlo</b>. Adivinar dónde acaba el nombre
+    /// de la vialidad y empieza el número acierta en «Juárez 123» y falla en «Calzada de los 100
+    /// Metros 45», y un domicilio partido mal es peor que uno sin partir, porque parece correcto.
+    /// Se retira cuando alguien haya repasado los expedientes.</para>
+    /// </summary>
     public string? Address { get; private set; }
+
+    /// <summary>El nombre de la vialidad, sin el número.</summary>
+    public string? Street { get; private set; }
+
+    /// <summary>
+    /// El número, <b>alfanumérico</b>.
+    ///
+    /// <para>No es un entero, y la diferencia importa: un domicilio real dice «45-A», «S/N» o
+    /// «123 int. 4». Guardarlo como número obligaría a tirar el interior, que es justo lo que hace
+    /// falta para encontrar a alguien.</para>
+    /// </summary>
+    public string? StreetNumber { get; private set; }
 
     /// <summary>La colonia del domicilio. Texto libre por la decisión D-05.</summary>
     public string? Neighborhood { get; private set; }
@@ -223,6 +247,8 @@ public sealed class Employee : AuditableEntity, IOrganizationScopedEntity
         EmergencyContactPhone = Normalize(profile.EmergencyContactPhone);
         EmergencyContactRelationship = Normalize(profile.EmergencyContactRelationship);
         Address = Normalize(profile.Address);
+        Street = Normalize(profile.Street);
+        StreetNumber = Normalize(profile.StreetNumber);
         Neighborhood = Normalize(profile.Neighborhood);
         Municipality = Normalize(profile.Municipality);
         State = Normalize(profile.State);

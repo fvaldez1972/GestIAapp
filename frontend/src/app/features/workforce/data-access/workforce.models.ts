@@ -59,7 +59,20 @@ export type Employee = {
   readonly emergencyContactPhone: string | null;
   /** Qué es de la persona quien figura como contacto de emergencia. Texto libre. */
   readonly emergencyContactRelationship: string | null;
+  /**
+   * El domicilio en una sola línea. <b>Rastro heredado.</b>
+   *
+   * <p>La calle y el número viven ahora aparte. Esto se conserva con lo que hubiera, y su contenido
+   * se copió tal cual a la calle sin intentar partirlo: adivinar dónde acaba la vialidad y empieza
+   * el número acierta en «Juárez 123» y falla en «Calzada de los 100 Metros 45».</p>
+   */
   readonly address: string | null;
+
+  /** La vialidad, sin el número. */
+  readonly street: string | null;
+
+  /** El número, alfanumérico: admite «45-A» o «123 int. 4». */
+  readonly streetNumber: string | null;
   /** La colonia del domicilio. Texto libre por la decisión D-05. */
   readonly neighborhood: string | null;
   readonly municipality: string | null;

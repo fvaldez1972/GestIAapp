@@ -616,3 +616,7 @@ footer {
     font-size: 12.5px;
   }
 }
+
+/* La marca de revisión de una posición sin patrón del catálogo. En el color de advertencia del
+   sistema, no en un rojo propio: no es un error, es algo que falta por decidir. */
+.mini-card__main .warn { color: var(--gestia-warning); font-weight: 600; }

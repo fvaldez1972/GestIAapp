@@ -266,6 +266,15 @@
                           position.notes ||
                           'Sin perfil requerido capturado'
                       }}</small>
+                      <!--
+                        La marca de revisión. Se ve aquí y no sólo en la evidencia de la
+                        migración: una posición sin patrón del catálogo no se puede planear, y eso
+                        tiene que verse donde alguien mira las posiciones, no en un registro que
+                        nadie abre.
+                      -->
+                      @if (!position.idShiftPatternTemplate) {
+                        <small class="warn">Sin patrón del catálogo · requiere revisión</small>
+                      }
                     </button>
                     <small>{{ position.active ? 'Activo' : 'Inactivo' }}</small>
                     <div class="mini-actions">
@@ -745,7 +754,13 @@
                 formControlName="idShiftPatternTemplate"
                 (change)="elegirPatronDeTurno($any($event.target).value)"
               >
-                <option value="">Conserva su patrón propio</option>
+                <!--
+                  Sigue existiendo porque retirarla dejaría sin planear a las 64 posiciones que
+                  hoy no tienen plantilla, y porque el catálogo sólo ofrece las plantillas
+                  completas: de diez activas, nueve tienen días del ciclo sin declarar. El rótulo
+                  dice lo que la opción significa de verdad, que es que queda pendiente.
+                -->
+                <option value="">Sin patrón del catálogo · queda pendiente de revisión</option>
                 @for (patron of shiftPatternTemplates(); track patron.idShiftPatternTemplate) {
                   <option [value]="patron.idShiftPatternTemplate">{{ patronEtiqueta(patron) }}</option>
                 }

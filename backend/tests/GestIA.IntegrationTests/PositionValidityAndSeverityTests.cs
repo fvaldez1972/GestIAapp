@@ -139,23 +139,39 @@ public sealed class PositionValidityAndSeverityTests(OperationalSqlDatabase data
     }
 
     /// <summary>
-    /// Y la restricción sigue prohibiendo, que es la excepción de la fuente única.
+    /// La restricción bloqueante ya no se puede crear.
     ///
-    /// <para>No apunta a ninguna entrada del catálogo —no exige nada, prohíbe—, así que si heredara
-    /// la severidad de un catálogo que no tiene quedaría informativa siempre. Esta prueba existe
-    /// porque la suite completa lo destapó: al estrenar la fuente única, una restricción dejó de
-    /// detener una cobertura que antes detenía.</para>
+    /// <para><b>Esta prueba tuvo otra forma durante unas horas.</b> Cuando la severidad pasó a salir
+    /// sólo del catálogo, la restricción quedó como excepción —bloqueaba por lo que era, porque no
+    /// apunta a ninguna entrada de la que heredar—. Esa misma noche el tipo se retiró entero: su
+    /// efecto lo absorbieron las incidencias administrativas, que dejan constancia con fecha, tipo
+    /// y detalle. La excepción no se revirtió por capricho; se retiró aquello de lo que era
+    /// excepción.</para>
+    ///
+    /// <para>Se comprueba en el servidor y no en la pantalla, porque quitarla del desplegable no es
+    /// protegerla: una petición armada a mano seguiría creándolas.</para>
     /// </summary>
     [OperationalSqlFact]
-    public async Task ARestrictionStillBlocks()
+    public async Task ABlockingRestrictionCanNoLongerBeCreated()
     {
-        var seed = await SeedAsync("RES", Day, null, restriction: true);
+        var seed = await SeedAsync("RES", Day, null);
 
-        var check = await CheckEligibilityAsync(seed);
+        using var provider = Provider();
+        await using var scope = provider.CreateAsyncScope();
+        var catalogos = scope.ServiceProvider.GetRequiredService<ICatalogService>();
 
-        var motivo = Assert.Single(check.Reasons, reason => reason.Requirement == "Sin acceso a bóveda");
-        Assert.True(motivo.IsBlocking);
-        Assert.False(check.IsEligible);
+        var error = await Assert.ThrowsAsync<RequestValidationException>(() =>
+            catalogos.CreateEligibilityRequirementAsync(
+                new EligibilityRequirementInput(
+                    seed.IdOrganization,
+                    EligibilityRequirementTargetType.Organization,
+                    null, null, null,
+                    EligibilityRequirementType.Restriction,
+                    null, null, null,
+                    "Sin acceso a bóveda", null),
+                Token));
+
+        Assert.Contains("incidencia administrativa", Mensajes(error), StringComparison.OrdinalIgnoreCase);
     }
 
     private static string Mensajes(RequestValidationException error) =>
@@ -206,8 +222,7 @@ public sealed class PositionValidityAndSeverityTests(OperationalSqlDatabase data
         DateOnly serviceStart,
         DateOnly? serviceEnd,
         bool? catalogIsBlocking = null,
-        bool ruleIsBlocking = false,
-        bool restriction = false)
+        bool ruleIsBlocking = false)
     {
         await using var context = database.Context();
         var sufijo = Guid.NewGuid().ToString("N")[..8].ToUpperInvariant();
@@ -238,17 +253,6 @@ public sealed class PositionValidityAndSeverityTests(OperationalSqlDatabase data
             organization.IdOrganization, $"{prefix}-E{sufijo}", "Adrián Escobar",
             "Guardia", Day.AddDays(-200), TestActor.ActorId, TestActor.ActorName, Now);
         context.Add(employee);
-
-        if (restriction)
-        {
-            context.Add(EligibilityRequirement.Create(
-                organization.IdOrganization,
-                new EligibilityRequirementProfile(
-                    EligibilityRequirementTargetType.Organization, null, null, null,
-                    EligibilityRequirementType.Restriction, null, null, null,
-                    "Sin acceso a bóveda", null),
-                TestActor.ActorId, TestActor.ActorName, Now));
-        }
 
         if (catalogIsBlocking.HasValue || ruleIsBlocking)
         {

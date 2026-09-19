@@ -125,9 +125,20 @@ public sealed class OperationalConcurrencyTests : IClassFixture<OperationalSqlDa
 
         await using (var context = database.Context())
         {
+            // Una experiencia que la persona no tiene, con su marca de bloqueo en el catálogo.
+            // Antes esto era una regla de tipo Restriction, que bloqueaba por serlo; el tipo se
+            // retiró el 19 de septiembre de 2026 y la severidad sale ahora del catálogo.
+            var experiencia = BusinessCatalogItem.Create(
+                seed.OrganizationId,
+                new BusinessCatalogItemProfile(
+                    BusinessCatalogItemType.Skill, "Restricted", null, 1, null, IsBlocking: true),
+                Actor.ActorId, Actor.ActorName, Now);
+            context.BusinessCatalogItems.Add(experiencia);
+
             context.EligibilityRequirements.Add(EligibilityRequirement.Create(seed.OrganizationId,
                 new(EligibilityRequirementTargetType.Position, null, null, seed.PositionId,
-                    EligibilityRequirementType.Restriction, null, null, null, "Restricted", null),
+                    EligibilityRequirementType.Skill, experiencia.IdBusinessCatalogItem,
+                    null, null, "Restricted", null),
                 Actor.ActorId, Actor.ActorName, Now));
             await context.SaveChangesAsync();
         }

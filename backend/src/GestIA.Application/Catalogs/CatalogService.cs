@@ -462,16 +462,16 @@ public sealed class CatalogService(
     /// sin marca todavía no se ha decidido, y estrenar impidiendo asignar a todo el mundo sería
     /// peor que dejar constancia hasta que alguien la marque.</para>
     ///
-    /// <para><b>La restricción es la excepción, y no por comodidad.</b> Una regla de tipo
-    /// <c>Restriction</c> no exige nada: prohíbe, y por eso no apunta a ninguna entrada del
-    /// catálogo. Si heredara de un catálogo que no tiene, quedaría informativa siempre, y una
-    /// prohibición que no prohíbe es una nota. Se resuelve por lo que la regla <i>es</i>, no por
-    /// una marca que alguien puso: no hay dos fuentes que se puedan contradecir, que es lo que
-    /// RF-POS-010 vino a evitar.</para>
+    /// <para><b>La restricción fue una excepción durante unas horas, y dejó de hacer falta.</b>
+    /// El 19 de septiembre de 2026, por la tarde, se decidió que una regla de tipo
+    /// <c>Restriction</c> bloqueara por lo que es, porque no apunta a ningún catálogo del que
+    /// heredar la severidad. Esa misma noche el tipo se retiró entero —su efecto lo absorbieron las
+    /// incidencias administrativas, que dejan constancia con fecha, tipo y detalle—, así que la
+    /// excepción quedó sin objeto. No se revirtió por capricho: se retiró aquello de lo que era
+    /// excepción.</para>
     /// </summary>
     private static bool Severity(EligibilityRequirement requirement) =>
-        requirement.RequirementType is EligibilityRequirementType.Restriction
-        || (requirement.RequiredCatalogItem?.IsBlocking ?? false);
+        requirement.RequiredCatalogItem?.IsBlocking ?? false;
 
     private static EligibilityReasonResponse EvaluateSkill(
         EligibilityRequirement requirement,
@@ -780,6 +780,15 @@ public sealed class CatalogService(
     {
         var errors = new Dictionary<string, string[]>();
         var name = InputValidation.Required(request.Name, nameof(request.Name), 160, errors);
+
+        // La restriccion se retiro el 19 de septiembre de 2026. Se rechaza en el servidor y no solo
+        // quitandola del desplegable: el frontend no es donde se protegen las reglas, y una
+        // peticion armada a mano podria seguir creandolas.
+        if (request.RequirementType is EligibilityRequirementType.Restriction)
+        {
+            errors[nameof(request.RequirementType)] =
+                ["La restricción bloqueante se retiró. Registra una incidencia administrativa, que deja constancia con su fecha y su motivo."];
+        }
 
         // Se dice aqui, con el nombre del campo que falta, para que el formulario pueda senalarlo.
         // La entidad lo vuelve a comprobar y la base lo garantiza con una restriccion.

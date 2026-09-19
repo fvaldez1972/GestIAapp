@@ -318,7 +318,10 @@ export class CatalogsPage implements OnInit, AfterViewInit {
     { value: 'Skill', label: 'Experiencia' },
     { value: 'Document', label: 'Documento' },
     { value: 'Evaluation', label: 'Evaluación' },
-    { value: 'Restriction', label: 'Restricción bloqueante' },
+    // La restricción bloqueante se retiró el 19 de septiembre de 2026. Era una regla sin
+    // requisito —no exigía nada, prohibía—, y su efecto lo absorbieron las incidencias
+    // administrativas, que dejan constancia con fecha, tipo y detalle. El servidor también la
+    // rechaza: quitarla de aquí sola no sería protegerla.
   ];
 
   /**

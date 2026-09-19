@@ -254,6 +254,18 @@ public sealed class AssignmentService(
         }
     }
 
+    /// <summary>
+    /// Que la persona cumpla las reglas de elegibilidad configuradas que le aplican.
+    ///
+    /// <para><b>El cliente y el servicio van en nulo a propósito, y aun así se aplican sus
+    /// reglas.</b> No es un olvido: <c>CheckEligibilityAsync</c> resuelve el contexto completo a
+    /// partir de la posición antes de evaluar nada —la posición determina su servicio y el servicio
+    /// su cliente—, así que mandarlos desde aquí sería repetir una consulta que el motor ya hace, y
+    /// peor: abriría la puerta a mandar un alcance distinto del que la posición determina.</para>
+    ///
+    /// <para>Lo sujeta <c>AssignmentScopeEligibilityTests</c>, porque es una garantía que no se ve
+    /// leyendo esta llamada.</para>
+    /// </summary>
     private async Task EnsureConfiguredEligibilityAsync(
         Guid idOrganization,
         Guid idEmployee,

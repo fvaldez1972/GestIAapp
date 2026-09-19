@@ -189,7 +189,13 @@ export class WorkforcePage {
    * <p>Se derivan de los requisitos ya cargados, así que una regla nueva aparece marcada sin tocar
    * esta pantalla.</p>
    */
-  protected readonly documentTypeOptions = computed(() => employeeDocumentTypeOptions(this.requirements()));
+  protected readonly documentTypeOptions = computed(
+    () => employeeDocumentTypeOptions(this.requirements(), this.catalogDocumentCategories()),
+  );
+
+  /** Las categorias de documento y de evaluacion del catalogo de la organizacion. */
+  protected readonly catalogDocumentCategories = signal<readonly EmployeeJobPositionOption[]>([]);
+  protected readonly catalogEvaluationCategories = signal<readonly EmployeeJobPositionOption[]>([]);
 
   protected readonly selected = signal<EmployeeListItem | null>(null);
   protected readonly activeTab = signal('data');
@@ -483,6 +489,17 @@ export class WorkforcePage {
           .filter((item) => item.active && item.type === 'Skill')
           .map((item) => ({ idCatalogItem: item.idCatalogItem, name: item.name })),
       );
+
+      this.catalogDocumentCategories.set(
+        data.items
+          .filter((item) => item.active && item.type === 'EmployeeDocumentCategory')
+          .map((item) => ({ idCatalogItem: item.idCatalogItem, name: item.name })),
+      );
+      this.catalogEvaluationCategories.set(
+        data.items
+          .filter((item) => item.active && item.type === 'EmployeeEvaluationCategory')
+          .map((item) => ({ idCatalogItem: item.idCatalogItem, name: item.name })),
+      );
     });
   }
 
@@ -584,15 +601,19 @@ export class WorkforcePage {
       return;
     }
 
+    // `saved.documentType` trae el identificador de la categoría del catálogo desde la conversión
+    // del 19 de septiembre de 2026, no el nombre de un miembro del enum.
     const existente = this.documents().find(
-      (documento) =>
-        documento.active && documento.documentType.toLowerCase() === saved.documentType.toLowerCase(),
+      (documento) => documento.active && documento.idDocumentCategoryCatalogItem === saved.documentType,
     );
 
     const request: EmployeeDocumentInput = {
       idOrganization: organizationId,
       idEmployee: employee.idEmployee,
-      documentType: saved.documentType as EmployeeDocumentType,
+      idDocumentCategoryCatalogItem: saved.documentType,
+      // El enum heredado deja de clasificar: la categoría de verdad viaja arriba. Se manda «Otro»
+      // porque es lo único cierto que se puede decir de una lista que la organización ya amplía.
+      documentType: 'Other' as EmployeeDocumentType,
       status: 'Received',
       documentNumber: existente?.documentNumber ?? null,
       receivedDate: this.today(),
@@ -651,7 +672,8 @@ export class WorkforcePage {
     const request: EmployeeEvaluationInput = {
       idOrganization: organizationId,
       idEmployee: employee.idEmployee,
-      evaluationType: valor.evaluationType as EmployeeEvaluationType,
+      idEvaluationCategoryCatalogItem: valor.evaluationType,
+      evaluationType: 'Other' as EmployeeEvaluationType,
       result: valor.result as EmployeeEvaluationResult,
       evaluatedDate: valor.evaluatedDate,
       expiresDate: valor.expiresDate,

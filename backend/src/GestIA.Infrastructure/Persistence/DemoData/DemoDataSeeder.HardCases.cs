@@ -190,7 +190,7 @@ public sealed partial class DemoDataSeeder
         dbContext.Add(EmployeeDocument.Create(
             organizationId, withExpired.IdEmployee,
             new EmployeeDocumentProfile(
-                EmployeeDocumentType.VoterId, EmployeeDocumentStatus.Expired, "VENCIDO-01",
+                EmployeeDocumentType.VoterId, EmployeeDocumentStatus.Expired, null, "VENCIDO-01",
                 Today.AddYears(-3), Today.AddYears(-3), Today.AddDays(-15),
                 $"employee-documents/{HardCasePrefix.ToLowerInvariant()}-vencido.pdf",
                 "Documento vencido a propósito para la demo."),

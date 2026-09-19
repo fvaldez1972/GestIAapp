@@ -12,11 +12,11 @@ public interface IWorkforceRepository
     /// </summary>
     Task<(IReadOnlyList<EmployeeListItemResponse> Items, int TotalCount)> SearchEmployeesAsync(
         EmployeeSearchCriteria criteria,
-        IReadOnlyCollection<EmployeeDocumentType> requiredDocuments,
+        IReadOnlyCollection<Guid> requiredDocuments,
         CancellationToken cancellationToken);
 
     /// <summary>Los tipos de documento que esta organización exige, de EligibilityRequirement.</summary>
-    Task<IReadOnlyList<EmployeeDocumentType>> ListRequiredDocumentTypesAsync(
+    Task<IReadOnlyList<Guid>> ListRequiredDocumentTypesAsync(
         Guid idOrganization,
         CancellationToken cancellationToken);
 

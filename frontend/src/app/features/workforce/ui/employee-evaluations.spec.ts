@@ -11,6 +11,8 @@ const HOY = '2026-09-16';
 const reglaDeEvaluacion = (overrides: Partial<EligibilityRequirement> = {}) =>
   requirementFixture({
     requirementType: 'Evaluation',
+    idRequiredCatalogItem: 'cat-poligrafo',
+    requiredCatalogItemName: 'Polígrafo',
     requiredDocumentType: null,
     requiredEvaluationType: 'Polygraph',
     name: 'Polígrafo vigente',

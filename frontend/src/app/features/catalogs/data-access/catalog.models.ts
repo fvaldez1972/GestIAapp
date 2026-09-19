@@ -1,11 +1,14 @@
 /**
- * Los ocho catálogos editables que quedan.
+ * Los catálogos editables por organización.
  *
  * <p>El 7 de septiembre de 2026 se retiraron seis —`Zone`, `CancellationReason`,
  * `DocumentRequirement`, `EvaluationRequirement`, `ClientRestriction` y `ServiceRestriction`—
  * porque ninguna pantalla ni regla del servidor leía sus valores: se podían llenar, y llenarlos no
- * cambiaba nada. Los requisitos de documento y evaluación viven en los enums del expediente, no
- * aquí.</p>
+ * cambiaba nada.</p>
+ *
+ * <p>El 19 de septiembre de 2026 entraron diez. Tres vienen de enums que dejaron de ser fijos
+ * —`EmployeeDocumentCategory`, `EmployeeEvaluationCategory` y `ContactPurpose`—, y siete son nuevos.
+ * Los cuatro que participan en la elegibilidad llevan además marca de bloqueante o informativa.</p>
  */
 export type BusinessCatalogItemType =
   | 'Skill'
@@ -13,6 +16,15 @@ export type BusinessCatalogItemType =
   | 'IncidentReason'
   | 'CoverageReason'
   | 'ClientDocumentCategory'
+  | 'EmployeeDocumentCategory'
+  | 'EmployeeEvaluationCategory'
+  | 'AdministrativeIncidentType'
+  | 'Sex'
+  | 'AgeRange'
+  | 'EducationLevel'
+  | 'RequiredEquipment'
+  | 'ContactJobPosition'
+  | 'ContactPurpose'
   | 'Country' | 'State' | 'City' | 'Nationality';
 
 export type EligibilityRequirementTargetType = 'Organization' | 'Client' | 'Service' | 'Position';
@@ -39,6 +51,16 @@ export type CatalogItem = {
   readonly order?: number;
   readonly updatedAt?: string | null;
   readonly idParentCatalogItem?: string | null;
+
+  /**
+   * Si faltar esta entrada impide asignar y publicar, o sólo deja constancia.
+   *
+   * <p>Nulo no es «informativa»: es «este catálogo no tiene severidad», que es el caso de la
+   * geografía y los puestos. La pantalla decide si dibuja la marca con `supportsBlockingMark`, no
+   * mirando si el valor viene nulo.</p>
+   */
+  readonly isBlocking?: boolean | null;
+  readonly supportsBlockingMark?: boolean;
 };
 
 export type CatalogItemInput = Omit<CatalogItem, 'idCatalogItem' | 'active' | 'updatedAt'> & { readonly active?: boolean };
@@ -79,7 +101,16 @@ export type EligibilityRequirement = {
 
   readonly name: string;
   readonly description: string | null;
-  readonly isBlocking: boolean;
+
+  /**
+   * Lo que la regla fija. <b>Nulo hereda la marca del catálogo</b>, que es la decisión PD-04 del 19
+   * de septiembre de 2026: el catálogo pone el valor por omisión de la organización y la regla lo
+   * afina para un cliente, un servicio o una posición.
+   */
+  readonly isBlocking: boolean | null;
+
+  /** La severidad ya resuelta por el servidor. Es la que decide, y nunca es nula. */
+  readonly isBlockingEffective: boolean;
   readonly active: boolean;
 };
 
@@ -90,6 +121,7 @@ export type EligibilityRequirementInput = Omit<
   | 'serviceName'
   | 'positionName'
   | 'requiredCatalogItemName'
+  | 'isBlockingEffective'
   | 'active'
 >;
 

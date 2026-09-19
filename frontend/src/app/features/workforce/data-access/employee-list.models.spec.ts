@@ -52,22 +52,35 @@ describe('Los tipos de documento que se ofrecen al capturar', () => {
    * <p>Los catorce tipos salen del enum que el servidor reconoce: una categoria escrita a mano no
    * cumple ningun requisito, porque las reglas de elegibilidad apuntan al enum y no a un texto.</p>
    */
-  it('ofrece los catorce tipos aunque la organizacion no exija ninguno', () => {
-    const tipos = employeeDocumentTypeOptions([]);
+  /**
+   * El catálogo de la organización, que desde el 19 de septiembre de 2026 es de donde sale la lista.
+   * Antes eran catorce valores fijos del servidor.
+   */
+  const categorias = [
+    { idCatalogItem: 'c-curp', name: 'CURP' },
+    { idCatalogItem: 'c-domicilio', name: 'Comprobante de domicilio' },
+    { idCatalogItem: 'c-licencia', name: 'Licencia de conducir' },
+    { idCatalogItem: 'c-propia', name: 'Carta de recomendación' },
+  ];
 
-    expect(tipos).toHaveLength(14);
+  it('ofrece lo que la organizacion tenga en su catalogo, aunque no exija ninguno', () => {
+    const tipos = employeeDocumentTypeOptions([], categorias);
+
+    expect(tipos).toHaveLength(4);
     expect(tipos.every((tipo) => !tipo.isRequired)).toBe(true);
-    expect(tipos.map((tipo) => tipo.label)).toContain('Antecedentes no penales');
+    // Y una categoria que la organizacion agrego sale igual que las que venian sembradas: es lo
+    // que la conversion a catalogo vino a permitir.
+    expect(tipos.map((tipo) => tipo.label)).toContain('Carta de recomendación');
   });
 
   /** Los exigidos van primero, porque son los que destraban una asignacion. */
   it('marca los exigidos y los pone al principio', () => {
     const tipos = employeeDocumentTypeOptions([
-      { requiredDocumentType: 'ProofOfAddress', isBlocking: true },
-      { requiredDocumentType: 'Curp', isBlocking: true },
-    ]);
+      { idRequiredCatalogItem: 'c-domicilio', isBlockingEffective: true },
+      { idRequiredCatalogItem: 'c-curp', isBlockingEffective: true },
+    ], categorias);
 
-    expect(tipos.slice(0, 2).map((tipo) => tipo.code)).toEqual(['Curp', 'ProofOfAddress']);
+    expect(tipos.slice(0, 2).map((tipo) => tipo.code)).toEqual(['c-curp', 'c-domicilio']);
     expect(tipos.slice(0, 2).every((tipo) => tipo.isRequired)).toBe(true);
     expect(tipos[2].isRequired).toBe(false);
   });
@@ -80,23 +93,29 @@ describe('Los tipos de documento que se ofrecen al capturar', () => {
    */
   it('no marca como obligatoria una regla informativa', () => {
     const tipos = employeeDocumentTypeOptions([
-      { requiredDocumentType: 'DriverLicense', isBlocking: false },
-    ]);
+      { idRequiredCatalogItem: 'c-licencia', isBlockingEffective: false },
+    ], categorias);
 
-    expect(tipos.find((tipo) => tipo.code === 'DriverLicense')?.isRequired).toBe(false);
+    expect(tipos.find((tipo) => tipo.code === 'c-licencia')?.isRequired).toBe(false);
   });
 
-  /** Y una regla que no es de documento no tiene tipo: no debe marcar nada. */
-  it('ignora las reglas sin tipo de documento', () => {
-    const tipos = employeeDocumentTypeOptions([{ requiredDocumentType: null, isBlocking: true }]);
+  /** Y una regla que no exige nada del catálogo —una restricción— no debe marcar nada. */
+  it('ignora las reglas sin entrada de catalogo', () => {
+    const tipos = employeeDocumentTypeOptions([{ idRequiredCatalogItem: null, isBlockingEffective: true }], categorias);
 
     expect(tipos.every((tipo) => !tipo.isRequired)).toBe(true);
   });
 });
 
 describe('Un documento cargado que no cuenta no puede leerse «Al día»', () => {
-  const requisito = [{ requiredDocumentType: 'CriminalRecordCertificate', name: 'Carta de no antecedentes', isBlocking: true }];
+  const requisito = [{
+    idRequiredCatalogItem: 'c-antecedentes',
+    requiredCatalogItemName: 'Antecedentes no penales',
+    name: 'Carta de no antecedentes',
+    isBlockingEffective: true,
+  }];
   const documento = (extra: Record<string, unknown>) => [{
+    idDocumentCategoryCatalogItem: 'c-antecedentes',
     documentType: 'CriminalRecordCertificate',
     status: 'Validated',
     expiresDate: null,

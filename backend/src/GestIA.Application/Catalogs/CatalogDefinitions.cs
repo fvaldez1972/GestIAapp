@@ -18,6 +18,13 @@ public sealed record CatalogDefinitionValue(string Code, string Label);
 ///
 /// <para>Perdió el grupo el 7 de septiembre de 2026, junto con la columna <c>CatalogGroup</c> de la
 /// tabla: nadie lo leía, y agrupar catorce catálogos en tres cajones no ayudaba a encontrarlos.</para>
+///
+/// <para><b>El 19 de septiembre de 2026 tres catálogos cambiaron de lado.</b> Los tipos de documento
+/// del personal, los de evaluación y los propósitos de contacto eran listas fijas que sólo se podían
+/// ampliar con una migración; la matriz los pidió editables por organización, así que dejaron de
+/// anunciarse como enums y pasaron a ser filas de <c>BusinessCatalogItems</c>. Los enums siguen en el
+/// código como rastro de lo que había, pero ya no se ofrecen aquí: anunciarlos habría enseñado dos
+/// listas para lo mismo, una editable y otra no.</para>
 /// </summary>
 public sealed record CatalogDefinition(string Key, string Name, string Module,
     bool Editable, BusinessCatalogItemType? Type, IReadOnlyList<CatalogDefinitionValue> Values);
@@ -35,12 +42,19 @@ public static class CatalogDefinitions
         Editable(BusinessCatalogItemType.IncidentReason, "Motivos de incidencia", "Operacion"),
         Editable(BusinessCatalogItemType.CoverageReason, "Motivos de cobertura", "Operacion"),
         Editable(BusinessCatalogItemType.ClientDocumentCategory, "Categorias de documento del cliente", "Clientes"),
+        Editable(BusinessCatalogItemType.EmployeeDocumentCategory, "Tipos de documento del personal", "Personal"),
+        Editable(BusinessCatalogItemType.EmployeeEvaluationCategory, "Tipos de evaluacion", "Personal"),
+        Editable(BusinessCatalogItemType.AdministrativeIncidentType, "Incidencias administrativas", "Personal"),
+        Editable(BusinessCatalogItemType.Sex, "Sexo", "Servicios"),
+        Editable(BusinessCatalogItemType.AgeRange, "Rangos de edad", "Servicios"),
+        Editable(BusinessCatalogItemType.EducationLevel, "Escolaridad", "Servicios"),
+        Editable(BusinessCatalogItemType.RequiredEquipment, "Equipo requerido", "Servicios"),
+        Editable(BusinessCatalogItemType.ContactJobPosition, "Puestos de contacto", "Clientes"),
+        Editable(BusinessCatalogItemType.ContactPurpose, "Propositos de contacto", "Clientes"),
         Fixed<OperationalRequestType>("Tipos de solicitud", "Solicitudes"),
         Fixed<OperationalRequestStatus>("Estados de solicitud", "Solicitudes"),
         Fixed<OperationalRequestPriority>("Prioridades de solicitud", "Solicitudes"),
-        Fixed<EmployeeDocumentType>("Tipos de documento del personal", "Personal"),
         Fixed<EmployeeDocumentStatus>("Estados del documento del personal", "Personal"),
-        Fixed<EmployeeEvaluationType>("Tipos de evaluacion", "Personal"),
         Fixed<EmployeeEvaluationResult>("Resultados de evaluacion", "Personal"),
         Fixed<EmployeeStatus>("Estados del personal", "Personal"),
         Fixed<ServiceAssignmentType>("Tipos de asignacion", "Servicios"),
@@ -55,7 +69,6 @@ public static class CatalogDefinitions
         Fixed<AttendanceStatus>("Estados de asistencia", "Operacion"),
         Fixed<IncidentStatus>("Estados de incidencia", "Operacion"),
         Fixed<IncidentSeverity>("Severidades de incidencia", "Operacion"),
-        Fixed<ClientContactPurpose>("Propositos de contacto", "Clientes"),
         Fixed<CoverageStatus>("Estados de cobertura", "Operacion"),
         Fixed<OperationEvidenceType>("Tipos de evidencia", "Operacion"),
         Fixed<OperationDayClosureStatus>("Estados del cierre diario", "Operacion"),

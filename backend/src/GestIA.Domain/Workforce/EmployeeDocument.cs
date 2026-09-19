@@ -1,3 +1,4 @@
+using GestIA.Domain.Catalogs;
 using GestIA.Domain.Common;
 
 namespace GestIA.Domain.Workforce;
@@ -5,6 +6,7 @@ namespace GestIA.Domain.Workforce;
 public sealed record EmployeeDocumentProfile(
     EmployeeDocumentType DocumentType,
     EmployeeDocumentStatus Status,
+    Guid? IdDocumentCategoryCatalogItem,
     string? DocumentNumber,
     DateOnly? ReceivedDate,
     DateOnly? IssuedDate,
@@ -52,7 +54,29 @@ public sealed class EmployeeDocument : AuditableEntity, IOrganizationScopedEntit
     public Guid IdEmployeeDocument { get; private set; }
     public Guid IdOrganization { get; private set; }
     public Guid IdEmployee { get; private set; }
+    /// <summary>
+    /// De qué es el documento, como enum. <b>Rastro heredado desde el 19 de septiembre de 2026.</b>
+    ///
+    /// <para>La categoría de verdad vive ahora en <see cref="IdDocumentCategoryCatalogItem"/>, contra
+    /// un catálogo que la organización edita. Esta columna se conserva llena mientras queden filas
+    /// sin identificador y se retira cuando no queden; nada decide por ella.</para>
+    /// </summary>
     public EmployeeDocumentType DocumentType { get; private set; }
+
+    /// <summary>
+    /// La categoría del documento, por identificador contra el catálogo
+    /// <c>EmployeeDocumentCategory</c>.
+    ///
+    /// <para><b>Es nulable, y eso significa algo distinto de «no cumple».</b> Un nulo dice que la
+    /// fila nació antes de la conversión y todavía no se emparejó con su entrada del catálogo. La
+    /// elegibilidad no bloquea por un nulo: es el mismo criterio que ya rige en
+    /// <c>IdJobPositionCatalogItem</c>.</para>
+    /// </summary>
+    public Guid? IdDocumentCategoryCatalogItem { get; private set; }
+
+    /// <summary>La entrada del catálogo, para poder nombrarla sin una consulta aparte.</summary>
+    public BusinessCatalogItem? DocumentCategoryCatalogItem { get; private set; }
+
     public EmployeeDocumentStatus Status { get; private set; }
     public string? DocumentNumber { get; private set; }
     public DateOnly? ReceivedDate { get; private set; }
@@ -130,6 +154,7 @@ public sealed class EmployeeDocument : AuditableEntity, IOrganizationScopedEntit
         }
 
         DocumentType = profile.DocumentType;
+        IdDocumentCategoryCatalogItem = profile.IdDocumentCategoryCatalogItem;
         Status = profile.Status;
         DocumentNumber = Normalize(profile.DocumentNumber);
         ReceivedDate = profile.ReceivedDate;

@@ -95,7 +95,7 @@ import {
             </p>
             <ul class="docs__plain">
               @for (extra of extras(); track extra.idEmployeeDocument) {
-                <li>{{ typeLabel(extra.documentType) }} · {{ expiry(extra.expiresDate) }}</li>
+                <li>{{ categoryLabel(extra) }} · {{ expiry(extra.expiresDate) }}</li>
               }
             </ul>
           </div>
@@ -207,12 +207,40 @@ export class EmployeeDocuments {
   readonly expiringWithinDays = input(30);
   readonly canWrite = input(false);
 
+  /**
+   * Las categorías del catálogo de la organización.
+   *
+   * <p>Entra como dato y no se descubre aquí porque la pantalla que la contiene ya las tiene
+   * cargadas: pedirlas otra vez sería un viaje al servidor por cada pestaña que se abre.</p>
+   */
+  readonly categories = input<readonly { readonly idCatalogItem: string; readonly name: string }[]>([]);
+
   /** El tipo de documento del requisito que hay que cubrir. La pantalla abre el alta con él puesto. */
   readonly cargar = output<string>();
 
   protected readonly stateLabel = requirementStateLabel;
   protected readonly tone = requirementStateTone;
   protected readonly typeLabel = documentTypeLabel;
+
+  /**
+   * Cómo se nombra un documento en la lista.
+   *
+   * <p>Manda el nombre de la categoría del catálogo. El enum sólo se usa de respaldo, para los
+   * expedientes anteriores a la conversión del 19 de septiembre de 2026 que todavía no tienen
+   * categoría: son los únicos donde ese enum significa algo.</p>
+   */
+  protected categoryLabel(document: { readonly documentCategoryName: string | null; readonly documentType: string }): string {
+    return document.documentCategoryName ?? documentTypeLabel(document.documentType);
+  }
+
+  /**
+   * Cómo se nombra un documento en la lista.
+   *
+   * <p>Manda el nombre de la categoría del catálogo. El enum sólo se usa de respaldo, para los
+   * expedientes anteriores a la conversión del 19 de septiembre de 2026 que todavía no tienen
+   * categoría: son los únicos donde ese enum significa algo.</p>
+   */
+
 
   protected readonly rows = computed(() =>
     employeeRequirementRows(

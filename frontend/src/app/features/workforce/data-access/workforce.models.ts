@@ -81,7 +81,19 @@ export type CreateEmployee = EmployeeInput & {
 export type EmployeeDocument = {
   readonly idEmployeeDocument: string;
   readonly idEmployee: string;
+
+  /**
+   * De qué es el documento, como enum. <b>Rastro heredado.</b>
+   *
+   * <p>La categoría de verdad es `idDocumentCategoryCatalogItem`. Esta columna se conserva llena
+   * mientras queden expedientes anteriores a la conversión del 19 de septiembre de 2026, y nada
+   * decide por ella.</p>
+   */
   readonly documentType: EmployeeDocumentType;
+
+  /** La categoría, contra el catálogo que la organización edita. */
+  readonly idDocumentCategoryCatalogItem: string | null;
+  readonly documentCategoryName: string | null;
   readonly status: EmployeeDocumentStatus;
   readonly documentNumber: string | null;
   readonly receivedDate: string | null;
@@ -99,14 +111,20 @@ export type EmployeeDocument = {
   readonly idBusinessDocument: string | null;
 };
 
-export type EmployeeDocumentInput = Omit<EmployeeDocument, 'idEmployeeDocument' | 'active'> & {
+export type EmployeeDocumentInput = Omit<EmployeeDocument, 'idEmployeeDocument' | 'active' | 'documentCategoryName'> & {
   readonly idOrganization: string;
 };
 
 export type EmployeeEvaluation = {
   readonly idEmployeeEvaluation: string;
   readonly idEmployee: string;
+
+  /** Qué evaluación es, como enum. <b>Rastro heredado</b>, igual que en el documento. */
   readonly evaluationType: EmployeeEvaluationType;
+
+  /** La categoría, contra el catálogo que la organización edita. */
+  readonly idEvaluationCategoryCatalogItem: string | null;
+  readonly evaluationCategoryName: string | null;
   readonly result: EmployeeEvaluationResult;
   readonly evaluatedDate: string;
   readonly expiresDate: string | null;
@@ -116,7 +134,7 @@ export type EmployeeEvaluation = {
   readonly active: boolean;
 };
 
-export type EmployeeEvaluationInput = Omit<EmployeeEvaluation, 'idEmployeeEvaluation' | 'active'> & {
+export type EmployeeEvaluationInput = Omit<EmployeeEvaluation, 'idEmployeeEvaluation' | 'active' | 'evaluationCategoryName'> & {
   readonly idOrganization: string;
 };
 

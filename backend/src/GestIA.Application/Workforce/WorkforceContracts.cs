@@ -114,6 +114,11 @@ public sealed record CreateEmployeeDocumentRequest(
     Guid IdOrganization,
     Guid IdEmployee,
     EmployeeDocumentType DocumentType,
+    /// <summary>
+    /// La categoría del documento, contra el catálogo <c>EmployeeDocumentCategory</c>. Nula sólo en
+    /// expedientes anteriores a la conversión del 19 de septiembre de 2026.
+    /// </summary>
+    Guid? IdDocumentCategoryCatalogItem,
     EmployeeDocumentStatus Status,
     string? DocumentNumber,
     DateOnly? ReceivedDate,
@@ -128,6 +133,11 @@ public sealed record UpdateEmployeeDocumentRequest(
     Guid IdOrganization,
     Guid IdEmployee,
     EmployeeDocumentType DocumentType,
+    /// <summary>
+    /// La categoría del documento, contra el catálogo <c>EmployeeDocumentCategory</c>. Nula sólo en
+    /// expedientes anteriores a la conversión del 19 de septiembre de 2026.
+    /// </summary>
+    Guid? IdDocumentCategoryCatalogItem,
     EmployeeDocumentStatus Status,
     string? DocumentNumber,
     DateOnly? ReceivedDate,
@@ -141,6 +151,12 @@ public sealed record EmployeeDocumentResponse(
     Guid IdEmployeeDocument,
     Guid IdEmployee,
     EmployeeDocumentType DocumentType,
+    /// <summary>
+    /// La categoría del documento, contra el catálogo <c>EmployeeDocumentCategory</c>. Nula sólo en
+    /// expedientes anteriores a la conversión del 19 de septiembre de 2026.
+    /// </summary>
+    Guid? IdDocumentCategoryCatalogItem,
+    string? DocumentCategoryName,
     EmployeeDocumentStatus Status,
     string? DocumentNumber,
     DateOnly? ReceivedDate,
@@ -156,6 +172,10 @@ public sealed record CreateEmployeeEvaluationRequest(
     Guid IdOrganization,
     Guid IdEmployee,
     EmployeeEvaluationType EvaluationType,
+    /// <summary>
+    /// La categoría de la evaluación, contra el catálogo <c>EmployeeEvaluationCategory</c>.
+    /// </summary>
+    Guid? IdEvaluationCategoryCatalogItem,
     EmployeeEvaluationResult Result,
     DateOnly EvaluatedDate,
     DateOnly? ExpiresDate,
@@ -167,6 +187,10 @@ public sealed record UpdateEmployeeEvaluationRequest(
     Guid IdOrganization,
     Guid IdEmployee,
     EmployeeEvaluationType EvaluationType,
+    /// <summary>
+    /// La categoría de la evaluación, contra el catálogo <c>EmployeeEvaluationCategory</c>.
+    /// </summary>
+    Guid? IdEvaluationCategoryCatalogItem,
     EmployeeEvaluationResult Result,
     DateOnly EvaluatedDate,
     DateOnly? ExpiresDate,
@@ -178,6 +202,11 @@ public sealed record EmployeeEvaluationResponse(
     Guid IdEmployeeEvaluation,
     Guid IdEmployee,
     EmployeeEvaluationType EvaluationType,
+    /// <summary>
+    /// La categoría de la evaluación, contra el catálogo <c>EmployeeEvaluationCategory</c>.
+    /// </summary>
+    Guid? IdEvaluationCategoryCatalogItem,
+    string? EvaluationCategoryName,
     EmployeeEvaluationResult Result,
     DateOnly EvaluatedDate,
     DateOnly? ExpiresDate,

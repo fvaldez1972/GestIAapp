@@ -77,19 +77,16 @@ public sealed class EmployeeSearchService(
         repository.ListAssignmentsAsync(idOrganization, idEmployee, clock.Today, cancellationToken);
 
     /// <summary>
-    /// Los requisitos documentales de la organización, traducidos a tipos del enum.
+    /// Los requisitos documentales de la organización, por identificador del catálogo.
     ///
-    /// <para><b>El código que no corresponde a ningún tipo se descarta.</b> La organización elige
-    /// qué exigir, pero sobre el vocabulario que el sistema reconoce; un código escrito a mano que
-    /// no existe no puede convertirse en un requisito que nadie podrá cumplir nunca.</para>
+    /// <para>Desde el 19 de septiembre de 2026 la categoría de un documento es una fila del catálogo
+    /// que la organización edita, así que el requisito y el documento se comparan por identificador.
+    /// Antes se comparaban por enum, y el vocabulario lo fijaba el sistema.</para>
     /// </summary>
-    private async Task<IReadOnlyList<EmployeeDocumentType>> RequiredDocumentsAsync(
+    private async Task<IReadOnlyList<Guid>> RequiredDocumentsAsync(
         Guid idOrganization,
         CancellationToken cancellationToken)
     {
-        // Ya no hay que interpretar texto: la regla guarda el tipo de documento con su tipo. Antes
-        // esto era un Enum.TryParse sobre una cadena, y lo que no se podia interpretar desaparecia
-        // en silencio del filtro.
         return await repository.ListRequiredDocumentTypesAsync(idOrganization, cancellationToken);
     }
 }

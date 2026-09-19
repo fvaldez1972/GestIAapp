@@ -419,7 +419,9 @@ public sealed class ReportsRepository(GestIaDbContext dbContext) : IReportsRepos
                     _ => false
                 };
 
-                if (!passed && requirement.IsBlocking)
+                // Misma resolución que en la elegibilidad: manda la regla, si calla hereda el catálogo, y si
+                // ninguno lo dice queda informativa.
+                if (!passed && (requirement.IsBlocking ?? requirement.RequiredCatalogItem?.IsBlocking ?? false))
                 {
                     reasons.Add($"Regla obligatoria no cumplida: {requirement.Name}.");
                 }

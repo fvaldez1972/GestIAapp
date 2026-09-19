@@ -13,7 +13,7 @@ export type PositionSkillToggle = {
   readonly key: string;
   readonly idSkillCatalogItem: string;
   readonly name: string;
-  readonly isBlocking: boolean;
+  readonly isBlocking: boolean | null;
   /** Si todavía no existe en el servidor porque la posición no se ha guardado. */
   readonly pending: boolean;
 };
@@ -22,7 +22,7 @@ export type PositionSkillRequest = {
   readonly idSkillCatalogItem: string;
   readonly name: string;
   /** Si impide asignar, o sólo deja constancia. */
-  readonly isBlocking: boolean;
+  readonly isBlocking: boolean | null;
 };
 
 /**
@@ -274,7 +274,7 @@ export class PositionSkills {
     readonly key: string;
     readonly idSkillCatalogItem: string;
     readonly name: string;
-    readonly isBlocking: boolean;
+    readonly isBlocking: boolean | null;
     readonly pending: boolean;
   }): void {
     if (this.saving()) return;

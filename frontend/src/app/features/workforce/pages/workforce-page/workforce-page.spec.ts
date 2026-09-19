@@ -115,8 +115,9 @@ describe('Personal · carga', () => {
     pagina.detail.set({ idEmployee: 'emp-1', fullName: 'Laura Méndez' });
     pagina.documents.set([]);
 
+    // Lo que la pestaña emite es el identificador de la categoría del catálogo, no el enum.
     pagina.registerEmployeeDocument({
-      documentType: 'CriminalRecordCertificate',
+      documentType: 'cat-antecedentes',
       issuedDate: '2026-09-01',
       expiresDate: '2027-09-01',
     });
@@ -127,7 +128,7 @@ describe('Personal · carga', () => {
     expect(alta.request.body).toMatchObject({
       idOrganization: 'org-a',
       idEmployee: 'emp-1',
-      documentType: 'CriminalRecordCertificate',
+      idDocumentCategoryCatalogItem: 'cat-antecedentes',
       status: 'Received',
       issuedDate: '2026-09-01',
       expiresDate: '2027-09-01',
@@ -164,6 +165,8 @@ describe('Personal · carga', () => {
       {
         idEmployeeDocument: 'doc-9',
         idEmployee: 'emp-1',
+        idDocumentCategoryCatalogItem: 'cat-antecedentes',
+        documentCategoryName: 'Antecedentes no penales',
         documentType: 'CriminalRecordCertificate',
         status: 'Received',
         documentNumber: 'ABC-123',
@@ -177,7 +180,7 @@ describe('Personal · carga', () => {
     ]);
 
     pagina.registerEmployeeDocument({
-      documentType: 'CriminalRecordCertificate',
+      documentType: 'cat-antecedentes',
       issuedDate: null,
       expiresDate: '2028-01-01',
     });

@@ -26,13 +26,16 @@ public sealed partial class WorkforceRepository
     /// </summary>
     public async Task<(IReadOnlyList<EmployeeListItemResponse> Items, int TotalCount)> SearchEmployeesAsync(
         EmployeeSearchCriteria criteria,
-        IReadOnlyCollection<EmployeeDocumentType> requiredDocuments,
+        IReadOnlyCollection<Guid> requiredDocuments,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(criteria);
         ArgumentNullException.ThrowIfNull(requiredDocuments);
 
-        var required = requiredDocuments.Distinct().ToArray();
+        // Guid? y no Guid para poder compararlo directo contra la columna, que es nulable mientras
+        // queden documentos anteriores a la conversion del catalogo. Un documento sin identificador
+        // no cubre ningun requisito, que es justo lo que hace un Contains sobre un nulo.
+        var required = requiredDocuments.Distinct().Select(item => (Guid?)item).ToArray();
         var limite = criteria.Today.AddDays(criteria.ExpiringWithinDays);
 
         var query = dbContext.Employees
@@ -73,7 +76,7 @@ public sealed partial class WorkforceRepository
         // bloqueo aparezca al asignar.
         var vencidos = (Employee employee) => dbContext.EmployeeDocuments.Count(document =>
             document.IdEmployee == employee.IdEmployee &&
-            required.Contains(document.DocumentType) &&
+            required.Contains(document.IdDocumentCategoryCatalogItem) &&
             (document.Status == EmployeeDocumentStatus.Expired ||
                 (document.ExpiresDate != null && document.ExpiresDate < criteria.Today)));
 
@@ -82,14 +85,14 @@ public sealed partial class WorkforceRepository
             EmployeeDocumentFilter.Expired => query.Where(employee =>
                 dbContext.EmployeeDocuments.Any(document =>
                     document.IdEmployee == employee.IdEmployee &&
-                    required.Contains(document.DocumentType) &&
+                    required.Contains(document.IdDocumentCategoryCatalogItem) &&
                     (document.Status == EmployeeDocumentStatus.Expired ||
                         (document.ExpiresDate != null && document.ExpiresDate < criteria.Today)))),
 
             EmployeeDocumentFilter.Expiring => query.Where(employee =>
                 dbContext.EmployeeDocuments.Any(document =>
                     document.IdEmployee == employee.IdEmployee &&
-                    required.Contains(document.DocumentType) &&
+                    required.Contains(document.IdDocumentCategoryCatalogItem) &&
                     document.Status != EmployeeDocumentStatus.Expired &&
                     document.ExpiresDate != null &&
                     document.ExpiresDate >= criteria.Today &&
@@ -100,7 +103,7 @@ public sealed partial class WorkforceRepository
                 dbContext.EmployeeDocuments
                     .Where(document =>
                         document.IdEmployee == employee.IdEmployee &&
-                        required.Contains(document.DocumentType))
+                        required.Contains(document.IdDocumentCategoryCatalogItem))
                     .Select(document => document.DocumentType)
                     .Distinct()
                     .Count() < required.Length),
@@ -112,7 +115,7 @@ public sealed partial class WorkforceRepository
                 dbContext.EmployeeDocuments
                     .Where(document =>
                         document.IdEmployee == employee.IdEmployee &&
-                        required.Contains(document.DocumentType) &&
+                        required.Contains(document.IdDocumentCategoryCatalogItem) &&
                         (document.Status == EmployeeDocumentStatus.Received ||
                             document.Status == EmployeeDocumentStatus.Validated) &&
                         (document.ExpiresDate == null || document.ExpiresDate >= criteria.Today))
@@ -121,7 +124,7 @@ public sealed partial class WorkforceRepository
                     .Count() == required.Length &&
                 !dbContext.EmployeeDocuments.Any(document =>
                     document.IdEmployee == employee.IdEmployee &&
-                    required.Contains(document.DocumentType) &&
+                    required.Contains(document.IdDocumentCategoryCatalogItem) &&
                     (document.Status == EmployeeDocumentStatus.Expired ||
                         (document.ExpiresDate != null && document.ExpiresDate <= limite)))),
 
@@ -154,13 +157,13 @@ public sealed partial class WorkforceRepository
 
                 Expired = dbContext.EmployeeDocuments.Count(document =>
                     document.IdEmployee == employee.IdEmployee &&
-                    required.Contains(document.DocumentType) &&
+                    required.Contains(document.IdDocumentCategoryCatalogItem) &&
                     (document.Status == EmployeeDocumentStatus.Expired ||
                         (document.ExpiresDate != null && document.ExpiresDate < criteria.Today))),
 
                 Expiring = dbContext.EmployeeDocuments.Count(document =>
                     document.IdEmployee == employee.IdEmployee &&
-                    required.Contains(document.DocumentType) &&
+                    required.Contains(document.IdDocumentCategoryCatalogItem) &&
                     document.Status != EmployeeDocumentStatus.Expired &&
                     document.ExpiresDate != null &&
                     document.ExpiresDate >= criteria.Today &&
@@ -171,7 +174,7 @@ public sealed partial class WorkforceRepository
                 Covered = dbContext.EmployeeDocuments
                     .Where(document =>
                         document.IdEmployee == employee.IdEmployee &&
-                        required.Contains(document.DocumentType))
+                        required.Contains(document.IdDocumentCategoryCatalogItem))
                     .Select(document => document.DocumentType)
                     .Distinct()
                     .Count(),
@@ -185,7 +188,7 @@ public sealed partial class WorkforceRepository
                 NotValid = dbContext.EmployeeDocuments
                     .Where(document =>
                         document.IdEmployee == employee.IdEmployee &&
-                        required.Contains(document.DocumentType))
+                        required.Contains(document.IdDocumentCategoryCatalogItem))
                     .Select(document => document.DocumentType)
                     .Distinct()
                     .Count(tipo =>
@@ -302,23 +305,27 @@ public sealed partial class WorkforceRepository
         : expiring > 0 ? EmployeeDocumentHealth.Expiring
         : EmployeeDocumentHealth.UpToDate;
 
-    public async Task<IReadOnlyList<EmployeeDocumentType>> ListRequiredDocumentTypesAsync(
+    /// <summary>
+    /// Las categorias de documento que la organizacion exige, por identificador del catalogo.
+    ///
+    /// <para><b>Sale del identificador y ya no del enum.</b> Una regla creada despues de la
+    /// conversion del 19 de septiembre de 2026 apunta a una fila del catalogo y puede no llevar
+    /// enum —el suyo quiza no exista, porque la lista ya se puede ampliar—, asi que leer el enum
+    /// habria dejado fuera del conteo justo a los requisitos nuevos.</para>
+    /// </summary>
+    public async Task<IReadOnlyList<Guid>> ListRequiredDocumentTypesAsync(
         Guid idOrganization,
-        CancellationToken cancellationToken)
-    {
-        var tipos = await dbContext.EligibilityRequirements
+        CancellationToken cancellationToken) =>
+        await dbContext.EligibilityRequirements
             .AsNoTracking()
             .Where(requirement =>
                 requirement.IdOrganization == idOrganization &&
                 requirement.RequirementType == EligibilityRequirementType.Document &&
                 requirement.TargetType == EligibilityRequirementTargetType.Organization &&
-                requirement.RequiredDocumentType != null)
-            .Select(requirement => requirement.RequiredDocumentType!.Value)
+                requirement.IdRequiredCatalogItem != null)
+            .Select(requirement => requirement.IdRequiredCatalogItem!.Value)
             .Distinct()
             .ToArrayAsync(cancellationToken);
-
-        return tipos;
-    }
 
     public async Task<IReadOnlyList<(Guid Id, string Name)>> ListUsedJobPositionsAsync(
         Guid idOrganization,

@@ -8,7 +8,8 @@ public sealed record BusinessCatalogItemProfile(
     string Name,
     string? Description,
     int Order = 1,
-    Guid? IdParentCatalogItem = null);
+    Guid? IdParentCatalogItem = null,
+    bool? IsBlocking = null);
 
 public sealed class BusinessCatalogItem : AuditableEntity, IOrganizationScopedEntity
 {
@@ -51,6 +52,23 @@ public sealed class BusinessCatalogItem : AuditableEntity, IOrganizationScopedEn
     public string? Description { get; private set; }
     public int Order { get; private set; } = 1;
     public Guid? IdParentCatalogItem { get; private set; }
+
+    /// <summary>
+    /// Si faltar esta entrada impide asignar y publicar, o sólo deja constancia.
+    ///
+    /// <para><b>Es el valor por omisión de la organización, no la única fuente.</b> La marca dice
+    /// qué tan grave es que falte; quién lo exige —toda la organización, un cliente, un servicio o
+    /// una posición— lo dice <c>EligibilityRequirement</c>, que puede afinarla. Los dos hechos se
+    /// parecen y no son el mismo: la propia matriz los separa cuando dice que una bloqueante
+    /// «impide asignar al personal a un servicio <b>que lo requiera</b>».</para>
+    ///
+    /// <para><b>Nulo significa que este catálogo no tiene severidad</b>, y es el caso de la mayoría:
+    /// un país, un municipio o un puesto no son algo que se cumpla o se incumpla. Sólo la tienen los
+    /// cuatro catálogos que participan en la elegibilidad: experiencia, categoría de documento,
+    /// categoría de evaluación e incidencia administrativa.</para>
+    /// </summary>
+    public bool? IsBlocking { get; private set; }
+
     public Organization Organization { get; private set; } = null!;
 
     public static BusinessCatalogItem Create(
@@ -78,10 +96,34 @@ public sealed class BusinessCatalogItem : AuditableEntity, IOrganizationScopedEn
         if (!Enum.IsDefined(profile.Type)) throw new ArgumentException("Unknown catalog type.");
         if (profile.Order < 1) throw new ArgumentOutOfRangeException(nameof(profile), "Order must be positive.");
 
+        // Marcar como bloqueante un municipio o una nacionalidad no querría decir nada, y guardarlo
+        // dejaría un dato que alguien leería como si significara algo. Se descarta en la entidad y
+        // no en la pantalla, para que no dependa de por dónde entre la fila.
+        if (profile.IsBlocking.HasValue && !SupportsBlockingMark(profile.Type))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(profile),
+                "Sólo los catálogos que participan en la elegibilidad llevan marca de bloqueo.");
+        }
+
         Type = profile.Type;
+        IsBlocking = profile.IsBlocking;
         Name = profile.Name.Trim();
         Description = string.IsNullOrWhiteSpace(profile.Description) ? null : profile.Description.Trim();
         IdParentCatalogItem = profile.IdParentCatalogItem;
         Order = profile.Order;
     }
+
+    /// <summary>
+    /// Los cuatro catálogos que participan en la elegibilidad, y por tanto los únicos donde la marca
+    /// de bloqueo significa algo.
+    ///
+    /// <para>Está aquí y no en una tabla de configuración porque no es una preferencia: es la lista
+    /// de cosas que una regla de elegibilidad sabe comprobar. Crece cuando crece esa lista.</para>
+    /// </summary>
+    public static bool SupportsBlockingMark(BusinessCatalogItemType type) => type is
+        BusinessCatalogItemType.Skill or
+        BusinessCatalogItemType.EmployeeDocumentCategory or
+        BusinessCatalogItemType.EmployeeEvaluationCategory or
+        BusinessCatalogItemType.AdministrativeIncidentType;
 }

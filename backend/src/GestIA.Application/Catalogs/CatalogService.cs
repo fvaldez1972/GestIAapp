@@ -393,11 +393,24 @@ public sealed class CatalogService(
             EligibilityRequirementType.Restriction => new EligibilityReasonResponse(
                 ScopeLabel(requirement),
                 requirement.Name,
-                requirement.IsBlocking,
+                Severity(requirement),
                 false,
                 requirement.Description ?? "Restricción configurada para este alcance."),
-            _ => new EligibilityReasonResponse(ScopeLabel(requirement), requirement.Name, requirement.IsBlocking, false, "Tipo de regla no soportado.")
+            _ => new EligibilityReasonResponse(ScopeLabel(requirement), requirement.Name, Severity(requirement), false, "Tipo de regla no soportado.")
         };
+
+    /// <summary>
+    /// Si incumplir la regla bloquea, resuelto en el orden que decidió PD-04.
+    ///
+    /// <para><b>Manda la regla si lo dice; si calla, hereda el catálogo; y si tampoco, informa.</b>
+    /// El orden importa y no es arbitrario: la marca del catálogo vale para toda la organización y
+    /// la regla puede afinarla para un cliente, un servicio o una posición. Cerrar en
+    /// <c>false</c> —informativa— y no en <c>true</c> es deliberado: una entrada sin marca todavía no
+    /// se ha decidido, y estrenar la conversión impidiendo asignar a todo el mundo sería peor que
+    /// dejar constancia hasta que alguien la marque.</para>
+    /// </summary>
+    private static bool Severity(EligibilityRequirement requirement) =>
+        requirement.IsBlocking ?? requirement.RequiredCatalogItem?.IsBlocking ?? false;
 
     private static EligibilityReasonResponse EvaluateSkill(
         EligibilityRequirement requirement,
@@ -414,7 +427,7 @@ public sealed class CatalogService(
         return new EligibilityReasonResponse(
             ScopeLabel(requirement),
             requirement.Name,
-            requirement.IsBlocking,
+            Severity(requirement),
             skill is not null,
             skill is not null
                 ? $"Cuenta con experiencia {skill.SkillCatalogItem.Name}."
@@ -426,20 +439,25 @@ public sealed class CatalogService(
         IReadOnlyList<EmployeeDocument> documents,
         DateOnly referenceDate)
     {
+        // Por identificador del catálogo, igual que la experiencia. El enum sigue comparándose como
+        // respaldo para las filas que la conversión todavía no emparejó: sin él, un documento
+        // anterior dejaría de cubrir un requisito que sí cubre.
         var document = documents.FirstOrDefault(item =>
             item.Active &&
-            item.DocumentType == requirement.RequiredDocumentType &&
+            (item.IdDocumentCategoryCatalogItem.HasValue
+                ? item.IdDocumentCategoryCatalogItem == requirement.IdRequiredCatalogItem
+                : item.DocumentType == requirement.RequiredDocumentType) &&
             (item.Status is EmployeeDocumentStatus.Validated or EmployeeDocumentStatus.Received) &&
             (!item.ExpiresDate.HasValue || item.ExpiresDate.Value >= referenceDate));
 
         return new EligibilityReasonResponse(
             ScopeLabel(requirement),
             requirement.Name,
-            requirement.IsBlocking,
+            Severity(requirement),
             document is not null,
             document is not null
-                ? $"Documento vigente: {document.DocumentType}."
-                : $"Falta documento vigente o validado: {requirement.RequiredDocumentType}.");
+                ? $"Documento vigente: {requirement.RequiredCatalogItem?.Name ?? requirement.Name}."
+                : $"Falta documento vigente o validado: {requirement.RequiredCatalogItem?.Name ?? requirement.Name}.");
     }
 
     private static EligibilityReasonResponse EvaluateEvaluation(
@@ -449,18 +467,20 @@ public sealed class CatalogService(
     {
         var evaluation = evaluations.FirstOrDefault(item =>
             item.Active &&
-            item.EvaluationType == requirement.RequiredEvaluationType &&
+            (item.IdEvaluationCategoryCatalogItem.HasValue
+                ? item.IdEvaluationCategoryCatalogItem == requirement.IdRequiredCatalogItem
+                : item.EvaluationType == requirement.RequiredEvaluationType) &&
             (item.Result is EmployeeEvaluationResult.Approved or EmployeeEvaluationResult.ApprovedWithObservations) &&
             (!item.ExpiresDate.HasValue || item.ExpiresDate.Value >= referenceDate));
 
         return new EligibilityReasonResponse(
             ScopeLabel(requirement),
             requirement.Name,
-            requirement.IsBlocking,
+            Severity(requirement),
             evaluation is not null,
             evaluation is not null
-                ? $"Evaluación aprobada: {evaluation.EvaluationType}."
-                : $"Falta evaluación aprobada/vigente: {requirement.RequiredEvaluationType}.");
+                ? $"Evaluación aprobada: {requirement.RequiredCatalogItem?.Name ?? requirement.Name}."
+                : $"Falta evaluación aprobada/vigente: {requirement.RequiredCatalogItem?.Name ?? requirement.Name}.");
     }
 
     private async Task<(Guid? IdClient, Guid? IdService, Guid? IdPosition)> ResolveEligibilityContextAsync(
@@ -633,8 +653,23 @@ public sealed class CatalogService(
         if (!Enum.IsDefined(request.Type)) errors[nameof(request.Type)] = ["Selecciona un catalogo del sistema."];
         var order = request.Order ?? existing?.Order ?? 1;
         if (order < 1 || order > 100000) errors[nameof(request.Order)] = ["El orden debe estar entre 1 y 100000."];
+
+        // La marca de bloqueo sólo la admiten los cuatro catálogos de la elegibilidad. Se avisa aquí
+        // en vez de dejar que la entidad lance, porque desde aquí sale un 400 que nombra el campo y
+        // desde allá saldría un error de argumento.
+        var admiteMarca = BusinessCatalogItem.SupportsBlockingMark(request.Type);
+        if (request.IsBlocking.HasValue && !admiteMarca)
+        {
+            errors[nameof(request.IsBlocking)] =
+                ["Este catálogo no participa en la elegibilidad, así que no lleva marca de bloqueo."];
+        }
+
         InputValidation.ThrowIfInvalid(errors);
-        return new BusinessCatalogItemProfile(request.Type, name, description, order, request.IdParentCatalogItem);
+
+        // Al editar sin mandar la marca se conserva la que tenía: una pantalla que sólo corrige el
+        // nombre no debería convertir en informativa una entrada bloqueante.
+        var isBlocking = admiteMarca ? request.IsBlocking ?? existing?.IsBlocking : null;
+        return new BusinessCatalogItemProfile(request.Type, name, description, order, request.IdParentCatalogItem, isBlocking);
     }
 
     private async Task ValidateParentAsync(CatalogItemInput request, CancellationToken token, Guid? excludedId = null)
@@ -721,7 +756,8 @@ public sealed class CatalogService(
 
     private static CatalogItemResponse MapCatalogItem(BusinessCatalogItem item) =>
         new(item.IdBusinessCatalogItem, item.IdOrganization, item.Type, item.Name, item.Description, item.Active,
-            item.Order, item.UpdatedAt ?? item.CreatedAt, item.IdParentCatalogItem);
+            item.Order, item.UpdatedAt ?? item.CreatedAt, item.IdParentCatalogItem,
+            item.IsBlocking, BusinessCatalogItem.SupportsBlockingMark(item.Type));
 
     private static EligibilityRequirementResponse MapRequirement(EligibilityRequirement requirement) =>
         new(
@@ -742,6 +778,7 @@ public sealed class CatalogService(
             requirement.Name,
             requirement.Description,
             requirement.IsBlocking,
+            Severity(requirement),
             requirement.Active);
 
     private static EmployeeSkillResponse MapEmployeeSkill(EmployeeSkill skill) =>

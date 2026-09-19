@@ -38,6 +38,7 @@ const regla = (parcial: Partial<EligibilityRequirement>): EligibilityRequirement
   name: 'Requiere arma corta',
   description: null,
   isBlocking: true,
+  isBlockingEffective: true,
   active: true,
   ...parcial,
 });
@@ -194,7 +195,7 @@ describe('Catálogos', () => {
   });
 
   it('no avisa cuando la regla de experiencia es sólo informativa', () => {
-    const { raiz } = montar({ requirements: [regla({ isBlocking: false })] });
+    const { raiz } = montar({ requirements: [regla({ isBlocking: false, isBlockingEffective: false })] });
 
     expect(raiz.textContent).not.toContain('todavía no existe pantalla');
   });
@@ -238,7 +239,7 @@ describe('Catálogos', () => {
     expect(pagina.catalogForm.valid).toBe(true);
 
     // Y ningún control obligatorio que la plantilla no dibuje: ésa fue exactamente la trampa.
-    const dibujados = ['name', 'status', 'order', 'description', 'idParentCatalogItem'];
+    const dibujados = ['name', 'status', 'order', 'description', 'idParentCatalogItem', 'blockingMark'];
     expect(Object.keys(pagina.catalogForm.controls).sort()).toEqual([...dibujados].sort());
   });
 

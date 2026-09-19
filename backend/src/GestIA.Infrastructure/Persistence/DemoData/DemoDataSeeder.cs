@@ -153,6 +153,16 @@ public sealed partial class DemoDataSeeder(
         await EnsureCatalogItemsAsync(
             organization, BusinessCatalogItemType.Skill, DemoCatalog.Skills, cancellationToken);
 
+        // Las tres listas que dejaron de ser enums. Se comprueban aparte de la geografia por la
+        // misma razon que los puestos: una organizacion demo sembrada antes del 19 de septiembre de
+        // 2026 ya tiene geografia, asi que colgarlas de «¿ya hay geografia?» las habria dejado sin
+        // categorias y las reglas de documento no encontrarian a que apuntar.
+        foreach (var grupo in EligibilityCatalogSeed.All.GroupBy(value => value.Type))
+        {
+            await EnsureCatalogItemsAsync(
+                organization, grupo.Key, grupo.Select(value => value.Name).ToArray(), cancellationToken);
+        }
+
         report.CatalogItems = await dbContext.BusinessCatalogItems
             .IgnoreQueryFilters(["Active", "Organization"])
             .CountAsync(item => item.IdOrganization == organization.IdOrganization, cancellationToken);
@@ -212,20 +222,41 @@ public sealed partial class DemoDataSeeder(
             .ToUpperInvariant();
 
     /// <summary>
-    /// El identificador de la habilidad del catalogo que una regla demo exige, buscada por su
-    /// nombre plegado. El catalogo ya no lleva codigo, asi que el nombre es lo que la identifica.
+    /// La entrada del catalogo que una regla demo exige, cualquiera que sea su tipo.
+    ///
+    /// <para>Hasta el 19 de septiembre de 2026 esto solo resolvia habilidades, porque documentos y
+    /// evaluaciones se exigian por enum. Desde que los tres salen del catalogo, la regla se resuelve
+    /// igual para los tres: el tipo de regla dice de que catalogo, y el nombre dice cual fila.</para>
     /// </summary>
-    private async Task<Guid?> SkillIdAsync(
+    private async Task<Guid?> RequiredCatalogItemIdAsync(
         Organization organization,
-        string skillName,
+        DemoCatalog.EligibilityRule rule,
         CancellationToken cancellationToken)
     {
-        var plegado = CatalogName.Normalize(skillName);
+        var (type, name) = rule.RequirementType switch
+        {
+            EligibilityRequirementType.Skill =>
+                (BusinessCatalogItemType.Skill, rule.RequiredSkillName),
+            EligibilityRequirementType.Document when rule.RequiredDocumentType.HasValue =>
+                (BusinessCatalogItemType.EmployeeDocumentCategory,
+                 EligibilityCatalogSeed.NameFor(rule.RequiredDocumentType.Value)),
+            EligibilityRequirementType.Evaluation when rule.RequiredEvaluationType.HasValue =>
+                (BusinessCatalogItemType.EmployeeEvaluationCategory,
+                 EligibilityCatalogSeed.NameFor(rule.RequiredEvaluationType.Value)),
+            _ => (BusinessCatalogItemType.Skill, null)
+        };
+
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return null;
+        }
+
+        var plegado = CatalogName.Normalize(name);
 
         return await dbContext.BusinessCatalogItems
             .IgnoreQueryFilters(["Active", "Organization"])
             .Where(item => item.IdOrganization == organization.IdOrganization &&
-                item.Type == BusinessCatalogItemType.Skill &&
+                item.Type == type &&
                 item.NormalizedName == plegado)
             .Select(item => (Guid?)item.IdBusinessCatalogItem)
             .FirstOrDefaultAsync(cancellationToken);
@@ -319,9 +350,7 @@ public sealed partial class DemoDataSeeder(
                         null,
                         null,
                         rule.RequirementType,
-                        rule.RequiredSkillName is null
-                            ? null
-                            : await SkillIdAsync(organization, rule.RequiredSkillName, cancellationToken),
+                        await RequiredCatalogItemIdAsync(organization, rule, cancellationToken),
                         rule.RequiredDocumentType,
                         rule.RequiredEvaluationType,
                         rule.Name,

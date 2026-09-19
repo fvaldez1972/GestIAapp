@@ -26,6 +26,8 @@ class Anfitrion {
     requirementFixture(),
     requirementFixture({
       idEligibilityRequirement: 'r2',
+      idRequiredCatalogItem: 'cat-domicilio',
+      requiredCatalogItemName: 'Comprobante de domicilio',
       requiredDocumentType: 'ProofOfAddress',
       name: 'Comprobante de domicilio',
     }),
@@ -96,6 +98,8 @@ describe('La pestaña de documentos', () => {
         documentFixture({ expiresDate: '2026-09-20' }),
         documentFixture({
           idEmployeeDocument: 'd2',
+          idDocumentCategoryCatalogItem: 'cat-domicilio',
+          documentCategoryName: 'Comprobante de domicilio',
           documentType: 'ProofOfAddress',
           expiresDate: '2026-12-31',
         }),
@@ -141,7 +145,12 @@ describe('La pestaña de documentos', () => {
     const { raiz } = montar((host) =>
       host.documents.set([
         documentFixture(),
-        documentFixture({ idEmployeeDocument: 'd3', documentType: 'DriverLicense' }),
+        documentFixture({
+          idEmployeeDocument: 'd3',
+          idDocumentCategoryCatalogItem: 'cat-licencia',
+          documentCategoryName: 'Licencia de conducir',
+          documentType: 'DriverLicense',
+        }),
       ]),
     );
 
@@ -154,7 +163,7 @@ describe('La pestaña de documentos', () => {
   /** Un requisito que no bloquea se pide igual; decirlo evita que se lea como opcional. */
   it('marca el requisito que no bloquea', () => {
     const { raiz } = montar((host) =>
-      host.requirements.set([requirementFixture({ isBlocking: false })]),
+      host.requirements.set([requirementFixture({ isBlocking: false, isBlockingEffective: false })]),
     );
 
     expect(raiz.querySelector('.req__soft')?.textContent?.trim()).toBe('no bloquea');
@@ -172,7 +181,9 @@ describe('La pestaña de documentos', () => {
     expect(acciones()).toEqual(['Cargar']);
 
     pulsar('Cargar');
-    expect(host.pedidos).toEqual(['ProofOfAddress']);
+    // Lo que emite es el identificador de la categoría del catálogo, que es lo que el alta
+    // necesita desde la conversión del 19 de septiembre de 2026.
+    expect(host.pedidos).toEqual(['cat-domicilio']);
   });
 
   /** Lo que ya está cubierto no ofrece nada: no hay nada que hacer con él. */

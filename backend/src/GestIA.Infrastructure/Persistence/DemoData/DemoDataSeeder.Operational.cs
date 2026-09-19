@@ -211,6 +211,7 @@ public sealed partial class DemoDataSeeder
                 new EmployeeDocumentProfile(
                     types[index],
                     status,
+                    null,
                     $"DOC-{number:000}-{index + 1:00}",
                     status == EmployeeDocumentStatus.Pending ? null : issued.AddDays(Rng.Next(1, 20)),
                     status == EmployeeDocumentStatus.Pending ? null : issued,
@@ -262,6 +263,7 @@ public sealed partial class DemoDataSeeder
                 new EmployeeEvaluationProfile(
                     types[index],
                     result,
+                    null,
                     evaluatedDate,
                     result == EmployeeEvaluationResult.Pending ? null : evaluatedDate.AddYears(1),
                     result == EmployeeEvaluationResult.Pending ? null : $"CERT-{number:000}-{index + 1:00}",

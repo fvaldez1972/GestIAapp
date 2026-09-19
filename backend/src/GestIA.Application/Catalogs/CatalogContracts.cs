@@ -10,7 +10,11 @@ public sealed record CatalogItemInput(
     string? Description,
     int? Order = null,
     bool? Active = null,
-    Guid? IdParentCatalogItem = null);
+    Guid? IdParentCatalogItem = null,
+    /// <summary>
+    /// Sólo la aceptan los cuatro catálogos que participan en la elegibilidad; en los demás va nula.
+    /// </summary>
+    bool? IsBlocking = null);
 
 public sealed record CatalogItemResponse(
     Guid IdCatalogItem,
@@ -21,7 +25,11 @@ public sealed record CatalogItemResponse(
     bool Active,
     int Order = 1,
     DateTime? UpdatedAt = null,
-    Guid? IdParentCatalogItem = null);
+    Guid? IdParentCatalogItem = null,
+    /// <summary>Nula en los catálogos que no participan en la elegibilidad.</summary>
+    bool? IsBlocking = null,
+    /// <summary>Si este catálogo admite la marca. La pantalla decide con esto si la dibuja.</summary>
+    bool SupportsBlockingMark = false);
 
 public sealed record EligibilityRequirementInput(
     Guid IdOrganization,
@@ -35,7 +43,8 @@ public sealed record EligibilityRequirementInput(
     EmployeeEvaluationType? RequiredEvaluationType,
     string Name,
     string? Description,
-    bool IsBlocking);
+    /// <summary>Nulo hereda la marca de la entrada del catálogo que la regla exige.</summary>
+    bool? IsBlocking);
 
 public sealed record EligibilityRequirementResponse(
     Guid IdEligibilityRequirement,
@@ -54,7 +63,10 @@ public sealed record EligibilityRequirementResponse(
     EmployeeEvaluationType? RequiredEvaluationType,
     string Name,
     string? Description,
-    bool IsBlocking,
+    /// <summary>Lo que la regla fija. Nulo quiere decir que hereda del catálogo.</summary>
+    bool? IsBlocking,
+    /// <summary>La severidad ya resuelta, que es la que decide. Nunca es nula.</summary>
+    bool IsBlockingEffective,
     bool Active);
 
 public sealed record EmployeeSkillInput(

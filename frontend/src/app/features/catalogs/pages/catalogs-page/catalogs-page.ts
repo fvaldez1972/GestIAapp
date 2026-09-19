@@ -168,6 +168,89 @@ export class CatalogsPage implements OnInit, AfterViewInit {
       linkDetail: 'El documento guarda la categoría por nombre; renombrarla no reclasifica lo ya cargado.',
     },
     {
+      type: 'EmployeeDocumentCategory',
+      title: 'Tipos de documento del personal',
+      example: 'Ej. INE',
+      purpose: 'De qué es cada papel del expediente de una persona.',
+      usedBy: 'Personal · Reglas de elegibilidad',
+      link: 'identificador',
+      linkDetail: 'Era una lista fija de catorce valores hasta el 19 de septiembre de 2026;'
+        + ' el documento y la regla guardan su identificador.',
+    },
+    {
+      type: 'EmployeeEvaluationCategory',
+      title: 'Tipos de evaluación',
+      example: 'Ej. Polígrafo',
+      purpose: 'Qué evaluaciones se le practican al personal.',
+      usedBy: 'Personal · Reglas de elegibilidad',
+      link: 'identificador',
+      linkDetail: 'Era una lista fija de cinco valores; la evaluación y la regla guardan su identificador.',
+    },
+    {
+      type: 'AdministrativeIncidentType',
+      title: 'Incidencias administrativas',
+      example: 'Ej. Acta administrativa',
+      purpose: 'De qué es una incidencia del expediente, que no es lo mismo que una de la operación diaria.',
+      usedBy: 'Personal',
+      link: 'identificador',
+      linkDetail: 'La incidencia del expediente guarda el identificador de su tipo.',
+    },
+    {
+      type: 'Sex',
+      title: 'Sexo requerido',
+      example: 'Ej. Indistinto',
+      purpose: 'Lo que el cliente pide para una posición. Es del puesto, no de la persona.',
+      usedBy: 'Servicios',
+      link: 'identificador',
+      linkDetail: 'La posición guarda el identificador.',
+    },
+    {
+      type: 'AgeRange',
+      title: 'Rangos de edad',
+      example: 'Ej. 31 a 50 años',
+      purpose: 'Edad que una posición admite.',
+      usedBy: 'Servicios',
+      link: 'identificador',
+      linkDetail: 'La posición guarda el identificador.',
+    },
+    {
+      type: 'EducationLevel',
+      title: 'Escolaridad',
+      example: 'Ej. Secundaria',
+      purpose: 'Escolaridad mínima que pide una posición.',
+      usedBy: 'Servicios',
+      link: 'identificador',
+      linkDetail: 'La posición guarda el identificador.',
+    },
+    {
+      type: 'RequiredEquipment',
+      title: 'Equipo requerido',
+      example: 'Ej. Radio portátil',
+      purpose: 'Equipo que el cliente pide que traiga el personal.',
+      usedBy: 'Servicios',
+      link: 'identificador',
+      linkDetail: 'Una posición puede pedir varios; cada uno se guarda por identificador.',
+    },
+    {
+      type: 'ContactJobPosition',
+      title: 'Puestos de contacto',
+      example: 'Ej. Gerente de compras',
+      purpose: 'El puesto de una persona de contacto del cliente.',
+      usedBy: 'Clientes',
+      link: 'identificador',
+      linkDetail: 'Es un catálogo aparte del de puestos del personal a propósito: aquel sostiene la'
+        + ' elegibilidad, y dar de alta al vuelo un puesto de contacto no debe entrar en esa lista.',
+    },
+    {
+      type: 'ContactPurpose',
+      title: 'Propósitos de contacto',
+      example: 'Ej. Facturación',
+      purpose: 'Para qué se le llama a un contacto del cliente.',
+      usedBy: 'Clientes',
+      link: 'identificador',
+      linkDetail: 'Era una lista fija de ocho valores hasta el 19 de septiembre de 2026.',
+    },
+    {
       type: 'Nationality',
       title: 'Nacionalidades',
       example: 'Ej. Mexicana',
@@ -279,6 +362,10 @@ export class CatalogsPage implements OnInit, AfterViewInit {
     status: ['active' as 'active' | 'inactive', [Validators.required]],
     order: [1, [Validators.required, Validators.min(1), Validators.max(100000), Validators.pattern(/^\d+$/)]],
     description: ['', [Validators.maxLength(1000)]],
+    // Tres estados y no dos. «Sin decidir» no es lo mismo que «informativa»: la regla que hereda
+    // de una entrada sin decidir queda informativa, pero quien administra el catálogo tiene que
+    // poder ver cuáles no ha revisado todavía.
+    blockingMark: ['' as '' | 'blocking' | 'informative'],
   });
 
   protected readonly requirementForm = this.formBuilder.nonNullable.group({
@@ -287,14 +374,12 @@ export class CatalogsPage implements OnInit, AfterViewInit {
     idService: [''],
     idPosition: [''],
     requirementType: ['Skill' as EligibilityRequirementType, [Validators.required]],
-    // Uno por tipo de regla. El servidor sólo acepta el que corresponde y rechaza los otros dos,
-    // así que aquí se mandan todos y se limpian los que no aplican al armar la petición.
+    // Un solo control desde el 19 de septiembre de 2026: los tres tipos que exigen algo lo exigen
+    // por identificador del catálogo, y el tipo de regla dice de cuál de los tres catálogos sale.
     idRequiredCatalogItem: [''],
-    requiredDocumentType: [''],
-    requiredEvaluationType: [''],
     name: ['', [Validators.required, Validators.maxLength(160)]],
     description: ['', [Validators.maxLength(1000)]],
-    isBlocking: [true],
+    blockingMark: ['' as '' | 'blocking' | 'informative'],
   });
 
   protected readonly eligibilityForm = this.formBuilder.nonNullable.group({
@@ -321,8 +406,17 @@ export class CatalogsPage implements OnInit, AfterViewInit {
   protected readonly requirementService = this.controlSignal(this.requirementForm.controls.idService);
   protected readonly requirementPosition = this.controlSignal(this.requirementForm.controls.idPosition);
   protected readonly requirementSkill = this.controlSignal(this.requirementForm.controls.idRequiredCatalogItem);
-  protected readonly requirementDocument = this.controlSignal(this.requirementForm.controls.requiredDocumentType);
-  protected readonly requirementEvaluation = this.controlSignal(this.requirementForm.controls.requiredEvaluationType);
+  protected readonly requirementBlocking = this.controlSignal(this.requirementForm.controls.blockingMark);
+
+  /** De qué catálogo salen las opciones, según el tipo de regla abierto. */
+  protected readonly requirementDemandOptions = computed<readonly GiSelectOption[]>(() => {
+    switch (this.requirementKind()) {
+      case 'Skill': return this.activeSkills();
+      case 'Document': return this.activeDocumentCategories();
+      case 'Evaluation': return this.activeEvaluationCategories();
+      default: return [];
+    }
+  });
   protected readonly eligibilityEmployee = this.controlSignal(this.eligibilityForm.controls.idEmployee);
   protected readonly eligibilityClient = this.controlSignal(this.eligibilityForm.controls.idClient);
   protected readonly eligibilityService = this.controlSignal(this.eligibilityForm.controls.idService);
@@ -340,6 +434,69 @@ export class CatalogsPage implements OnInit, AfterViewInit {
     () => [...this.organizationCatalogs, ...this.geographyCatalogs]
       .find((card) => card.type === this.openCatalogType()) ?? null,
   );
+
+  /**
+   * Los cuatro catálogos cuya entrada lleva marca de bloqueante o informativa.
+   *
+   * <p>Es la misma lista que el servidor comprueba en `BusinessCatalogItem.SupportsBlockingMark`.
+   * Está repetida aquí a propósito y no se descubre del dato: la pantalla tiene que saber si dibuja
+   * el control <b>antes</b> de que exista el primer valor del catálogo.</p>
+   */
+  private static readonly CatalogosConMarcaDeBloqueo: readonly BusinessCatalogItemType[] = [
+    'Skill',
+    'EmployeeDocumentCategory',
+    'EmployeeEvaluationCategory',
+    'AdministrativeIncidentType',
+  ];
+
+  protected readonly openCatalogSupportsBlockingMark = computed(() => {
+    const type = this.openCatalogType();
+    return !!type && CatalogsPage.CatalogosConMarcaDeBloqueo.includes(type);
+  });
+
+  protected readonly blockingMarks: readonly GiSelectOption[] = [
+    { value: '', label: 'Sin decidir' },
+    { value: 'blocking', label: 'Bloqueante: impide asignar y publicar' },
+    { value: 'informative', label: 'Informativa: sólo deja constancia' },
+  ];
+
+  /** Lo que la regla fija, con la opción de no fijar nada y heredar la del catálogo. */
+  protected readonly requirementBlockingMarks: readonly GiSelectOption[] = [
+    { value: '', label: 'La que diga el catálogo' },
+    { value: 'blocking', label: 'Bloqueante' },
+    { value: 'informative', label: 'Informativa' },
+  ];
+
+  protected readonly activeDocumentCategories = computed(() =>
+    this.items()
+      .filter((item) => item.type === 'EmployeeDocumentCategory' && item.active)
+      .map((item) => ({ value: item.idCatalogItem, label: item.name })),
+  );
+
+  protected readonly activeEvaluationCategories = computed(() =>
+    this.items()
+      .filter((item) => item.type === 'EmployeeEvaluationCategory' && item.active)
+      .map((item) => ({ value: item.idCatalogItem, label: item.name })),
+  );
+
+  protected readonly catalogBlocking = this.controlSignal(this.catalogForm.controls.blockingMark);
+
+  /** Cómo se lee la marca de una entrada del catálogo, con sus tres estados. */
+  protected blockingMarkLabel(value: boolean | null | undefined): string {
+    return value === true ? 'Bloqueante' : value === false ? 'Informativa' : 'Sin decidir';
+  }
+
+  /**
+   * Cómo se lee la severidad de una regla.
+   *
+   * <p>Dice de dónde sale, y no sólo cuál es: una regla que hereda y una que lo fija se comportan
+   * igual hoy y distinto el día que alguien cambie el catálogo, así que quien la revisa necesita
+   * distinguirlas sin abrir el editor.</p>
+   */
+  protected requirementSeverityLabel(requirement: EligibilityRequirement): string {
+    const severidad = requirement.isBlockingEffective ? 'Bloqueante' : 'Informativa';
+    return requirement.isBlocking === null ? `${severidad} · del catálogo` : severidad;
+  }
 
   protected readonly activeSkills = computed(() =>
     this.items()
@@ -365,7 +522,7 @@ export class CatalogsPage implements OnInit, AfterViewInit {
   });
 
   protected readonly blockingRequirements = computed(
-    () => this.requirements().filter((requirement) => requirement.active && requirement.isBlocking).length,
+    () => this.requirements().filter((requirement) => requirement.active && requirement.isBlockingEffective).length,
   );
   protected readonly activeRequirements = computed(
     () => this.requirements().filter((requirement) => requirement.active).length,
@@ -379,7 +536,7 @@ export class CatalogsPage implements OnInit, AfterViewInit {
    */
   protected readonly unfulfillableSkillRules = computed(
     () => this.requirements().filter(
-      (requirement) => requirement.active && requirement.isBlocking && requirement.requirementType === 'Skill',
+      (requirement) => requirement.active && requirement.isBlockingEffective && requirement.requirementType === 'Skill',
     ).length,
   );
 
@@ -627,6 +784,7 @@ export class CatalogsPage implements OnInit, AfterViewInit {
       order: item.order ?? 1,
       description: item.description ?? '',
       idParentCatalogItem: item.idParentCatalogItem ?? '',
+      blockingMark: item.isBlocking === true ? 'blocking' : item.isBlocking === false ? 'informative' : '',
     });
     this.catalogEditor()?.nativeElement.showModal();
   }
@@ -653,6 +811,11 @@ export class CatalogsPage implements OnInit, AfterViewInit {
       idParentCatalogItem: this.optional(form.idParentCatalogItem),
       order: Number(form.order),
       active: form.status === 'active',
+      // Sólo viaja en los catálogos que participan en la elegibilidad. En los demás el servidor la
+      // rechaza con un 400, y mandarla vacía por costumbre sería pedir ese 400.
+      isBlocking: this.openCatalogSupportsBlockingMark()
+        ? (form.blockingMark === '' ? null : form.blockingMark === 'blocking')
+        : null,
     };
     const selected = this.selectedCatalogItem();
     this.saving.set(true);
@@ -713,11 +876,11 @@ nombre sigue ocupado.`)) {
       idPosition: requirement.idPosition ?? '',
       requirementType: requirement.requirementType,
       idRequiredCatalogItem: requirement.idRequiredCatalogItem ?? '',
-      requiredDocumentType: requirement.requiredDocumentType ?? '',
-      requiredEvaluationType: requirement.requiredEvaluationType ?? '',
       name: requirement.name,
       description: requirement.description ?? '',
-      isBlocking: requirement.isBlocking,
+      blockingMark: requirement.isBlocking === true
+        ? 'blocking'
+        : requirement.isBlocking === false ? 'informative' : '',
     });
     this.requirementEditor()?.nativeElement.showModal();
   }
@@ -739,18 +902,17 @@ nombre sigue ocupado.`)) {
       targetType: form.targetType,
       ...this.targetIds(form.targetType, form.idClient, form.idService, form.idPosition),
       requirementType: form.requirementType,
-      // Cada tipo manda lo suyo y nulo en los otros dos: si al cambiar de tipo quedara puesto el
-      // valor del anterior, la regla pediría algo que nadie puede cumplir y bloquearía a todos.
-      idRequiredCatalogItem: form.requirementType === 'Skill' ? this.optional(form.idRequiredCatalogItem) : null,
-      requiredDocumentType: form.requirementType === 'Document'
-        ? (this.optional(form.requiredDocumentType) as EmployeeDocumentType | null)
-        : null,
-      requiredEvaluationType: form.requirementType === 'Evaluation'
-        ? (this.optional(form.requiredEvaluationType) as EmployeeEvaluationType | null)
-        : null,
+      // La restricción no exige nada: prohíbe. Los otros tres exigen una entrada del catálogo.
+      idRequiredCatalogItem: form.requirementType === 'Restriction'
+        ? null
+        : this.optional(form.idRequiredCatalogItem),
+      // Los dos enums ya no se mandan. El servidor los conserva como rastro de lo que había, pero
+      // no decide nada con ellos desde la conversión del catálogo.
+      requiredDocumentType: null,
+      requiredEvaluationType: null,
       name: form.name.trim(),
       description: this.optional(form.description),
-      isBlocking: form.isBlocking,
+      isBlocking: form.blockingMark === '' ? null : form.blockingMark === 'blocking',
     };
     const selected = this.selectedRequirement();
     this.saving.set(true);
@@ -796,11 +958,9 @@ nombre sigue ocupado.`)) {
       case 'Skill':
         return requirement.requiredCatalogItemName ?? 'Experiencia no encontrada';
       case 'Document':
-        return this.documentTypes.find((item) => item.value === requirement.requiredDocumentType)?.label
-          ?? 'Documento sin especificar';
+        return requirement.requiredCatalogItemName ?? 'Documento sin especificar';
       case 'Evaluation':
-        return this.evaluationTypes.find((item) => item.value === requirement.requiredEvaluationType)?.label
-          ?? 'Evaluación sin especificar';
+        return requirement.requiredCatalogItemName ?? 'Evaluación sin especificar';
       default:
         return 'Prohíbe: no exige nada concreto';
     }
@@ -930,11 +1090,10 @@ nombre sigue ocupado.`)) {
       idPosition: '',
       requirementType: 'Skill',
       idRequiredCatalogItem: '',
-      requiredDocumentType: '',
-      requiredEvaluationType: '',
+
       name: '',
       description: '',
-      isBlocking: true,
+      blockingMark: '',
     });
   }
 

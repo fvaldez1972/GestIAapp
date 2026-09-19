@@ -263,10 +263,15 @@ public sealed class OrganizationIsolationTests(OperationalSqlDatabase database)
         var catalogItem = BusinessCatalogItem.Create(
             organizationId, new(BusinessCatalogItemType.CoverageReason, $"Falta {prefix}", null),
             ActorId, ActorName, Now);
+        var documentCategory = BusinessCatalogItem.Create(
+            organizationId,
+            new(BusinessCatalogItemType.EmployeeDocumentCategory, $"CURP {prefix}", null),
+            ActorId, ActorName, Now);
         var requirement = EligibilityRequirement.Create(
             organizationId,
             new(EligibilityRequirementTargetType.Organization, null, null, null,
-                EligibilityRequirementType.Document, null, EmployeeDocumentType.Curp, null, "Documento", null, true),
+                EligibilityRequirementType.Document, documentCategory.IdBusinessCatalogItem,
+                EmployeeDocumentType.Curp, null, "Documento", null, true),
             ActorId, ActorName, Now);
         var request = OperationalRequest.Create(
             organizationId, null, null, $"{prefix}-SOL", OperationalRequestType.NewClient,
@@ -289,14 +294,14 @@ public sealed class OrganizationIsolationTests(OperationalSqlDatabase database)
         var employeeDocument = EmployeeDocument.Create(
             organizationId, employee.IdEmployee,
             new(EmployeeDocumentType.VoterId, EmployeeDocumentStatus.Validated,
-                null, null, null, null, $"employee-documents/{prefix}.pdf", null),
+                null, null, null, null, null, $"employee-documents/{prefix}.pdf", null),
             ActorId, ActorName, Now);
         var employeeEvaluation = EmployeeEvaluation.Create(
             organizationId, employee.IdEmployee,
-            new(EmployeeEvaluationType.Polygraph, EmployeeEvaluationResult.Approved, Day, null, null, null, null),
+            new(EmployeeEvaluationType.Polygraph, EmployeeEvaluationResult.Approved, null, Day, null, null, null, null),
             ActorId, ActorName, Now);
         var skillCatalogItem = BusinessCatalogItem.Create(
-            organizationId, new(BusinessCatalogItemType.Skill, $"Habilidad {prefix}", null),
+            organizationId, new(BusinessCatalogItemType.Skill, $"Experiencia {prefix}", null),
             ActorId, ActorName, Now);
         var employeeSkill = EmployeeSkill.Create(
             organizationId, employee.IdEmployee,
@@ -306,7 +311,7 @@ public sealed class OrganizationIsolationTests(OperationalSqlDatabase database)
         context.AddRange(
             organization, client, site, service, contract, position, pattern, segment,
             employee, replacement, version, shift, assignment, attendance, coverage, incident, evidence,
-            catalogItem, requirement, request, document, documentEvent,
+            catalogItem, documentCategory, requirement, request, document, documentEvent,
             contact, employeeDocument, employeeEvaluation, skillCatalogItem, employeeSkill);
 
         await context.SaveChangesAsync();

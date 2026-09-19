@@ -104,7 +104,7 @@ const RESULTADOS = ['Approved', 'ApprovedWithObservations', 'Pending', 'Inconclu
             @for (item of activas(); track item.idEmployeeEvaluation) {
               <li class="row">
                 <span class="row__body">
-                  <span class="row__name">{{ typeLabel(item.evaluationType) }}</span>
+                  <span class="row__name">{{ categoryLabel(item) }}</span>
                   <span class="row__detail">
                     {{ resultLabel(item.result) }} · evaluada el
                     {{ formatDate(item.evaluatedDate) }} ·
@@ -342,6 +342,14 @@ export class EmployeeEvaluations {
   readonly today = input.required<string>();
   readonly expiringWithinDays = input(30);
   readonly canWrite = input(false);
+
+  /**
+   * Las categorías del catálogo de la organización.
+   *
+   * <p>Entra como dato y no se descubre aquí porque la pantalla que la contiene ya las tiene
+   * cargadas: pedirlas otra vez sería un viaje al servidor por cada pestaña que se abre.</p>
+   */
+  readonly categories = input<readonly { readonly idCatalogItem: string; readonly name: string }[]>([]);
   readonly saving = input(false);
 
   readonly save = output<EmployeeEvaluationFormValue>();
@@ -350,6 +358,14 @@ export class EmployeeEvaluations {
   protected readonly stateLabel = evaluationStateLabel;
   protected readonly tone = evaluationStateTone;
   protected readonly typeLabel = evaluationTypeLabel;
+
+  /** El nombre de la categoría del catálogo, con el enum heredado de respaldo. */
+  protected categoryLabel(evaluation: { readonly evaluationCategoryName: string | null; readonly evaluationType: string }): string {
+    return evaluation.evaluationCategoryName ?? evaluationTypeLabel(evaluation.evaluationType);
+  }
+
+  /** El nombre de la categoría del catálogo, con el enum heredado de respaldo. */
+
   protected readonly resultLabel = evaluationResultLabel;
   protected readonly formatDate = formatOperationalDate;
 
@@ -379,7 +395,7 @@ export class EmployeeEvaluations {
 
   /** Los tipos, con los que esta organización exige al principio y marcados. */
   protected readonly typeOptions = computed<readonly GiSelectOption[]>(() =>
-    evaluationTypeOptions(this.requirements()).map((tipo) => ({
+    evaluationTypeOptions(this.requirements(), this.categories()).map((tipo) => ({
       value: tipo.code,
       label: tipo.label,
       hint: tipo.isRequired ? 'Lo exige esta organización' : undefined,

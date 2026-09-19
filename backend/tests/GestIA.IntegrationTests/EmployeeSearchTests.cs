@@ -36,6 +36,15 @@ public sealed class EmployeeSearchTests(OperationalSqlDatabase database)
     private static readonly EmployeeDocumentType[] Requeridos =
         [EmployeeDocumentType.Curp, EmployeeDocumentType.ProofOfAddress];
 
+    /// <summary>
+    /// La entrada de catálogo de cada tipo requerido, sembrada por la corrida.
+    ///
+    /// <para>Desde la conversión del 19 de septiembre de 2026 el requisito y el documento se
+    /// comparan por identificador, y cada corrida siembra su propia organización, así que los
+    /// identificadores cambian entre corridas y no pueden ser constantes.</para>
+    /// </summary>
+    private readonly Dictionary<EmployeeDocumentType, Guid> categorias = [];
+
     // ── El resumen documental ────────────────────────────────────────────────────────────────
 
     [OperationalSqlFact]
@@ -394,7 +403,8 @@ public sealed class EmployeeSearchTests(OperationalSqlDatabase database)
     {
         database.Organization.SetAuthorizedOrganization(criteria.IdOrganization);
         await using var context = database.Context();
-        return await new WorkforceRepository(context).SearchEmployeesAsync(criteria, Requeridos, Token);
+        return await new WorkforceRepository(context).SearchEmployeesAsync(
+            criteria, Requeridos.Select(tipo => categorias[tipo]).ToArray(), Token);
     }
 
     /// <summary>
@@ -426,13 +436,22 @@ public sealed class EmployeeSearchTests(OperationalSqlDatabase database)
 
         context.AddRange(organization, puesto, puestoSinUso);
 
+        categorias.Clear();
         foreach (var tipo in Requeridos)
         {
+            var categoria = BusinessCatalogItem.Create(
+                organizationId,
+                new BusinessCatalogItemProfile(
+                    BusinessCatalogItemType.EmployeeDocumentCategory, $"{tipo} {prefix}", null),
+                ActorId, ActorName, Now);
+            categorias[tipo] = categoria.IdBusinessCatalogItem;
+            context.Add(categoria);
+
             context.Add(EligibilityRequirement.Create(
                 organizationId,
                 new EligibilityRequirementProfile(
                     EligibilityRequirementTargetType.Organization, null, null, null,
-                    EligibilityRequirementType.Document, null, tipo, null,
+                    EligibilityRequirementType.Document, categoria.IdBusinessCatalogItem, tipo, null,
                     $"Requisito {tipo}", null, true),
                 ActorId, ActorName, Now));
         }
@@ -571,7 +590,7 @@ public sealed class EmployeeSearchTests(OperationalSqlDatabase database)
         return empleado;
     }
 
-    private static EmployeeDocument Documento(
+    private EmployeeDocument Documento(
         Guid organizationId,
         Guid idEmployee,
         EmployeeDocumentType tipo,
@@ -579,7 +598,9 @@ public sealed class EmployeeSearchTests(OperationalSqlDatabase database)
         EmployeeDocument.Create(
             organizationId,
             idEmployee,
-            new EmployeeDocumentProfile(tipo, EmployeeDocumentStatus.Validated, null, null, null, caduca, null, null),
+            new EmployeeDocumentProfile(
+                tipo, EmployeeDocumentStatus.Validated, categorias[tipo],
+                null, null, null, caduca, null, null),
             ActorId, ActorName, Now);
 
 
@@ -610,7 +631,8 @@ public sealed class EmployeeSearchTests(OperationalSqlDatabase database)
             // Rechazado, y con vencimiento lejano: por fecha parecería estar perfecto.
             curp.UpdateProfile(
                 new EmployeeDocumentProfile(
-                    EmployeeDocumentType.Curp, EmployeeDocumentStatus.Rejected, null, null, null,
+                    EmployeeDocumentType.Curp, EmployeeDocumentStatus.Rejected,
+                    curp.IdDocumentCategoryCatalogItem, null, null, null,
                     Day.AddDays(700), null, null),
                 ActorId, ActorName, Now);
 
@@ -642,7 +664,8 @@ public sealed class EmployeeSearchTests(OperationalSqlDatabase database)
 
             curp.UpdateProfile(
                 new EmployeeDocumentProfile(
-                    EmployeeDocumentType.Curp, EmployeeDocumentStatus.Pending, null, null, null,
+                    EmployeeDocumentType.Curp, EmployeeDocumentStatus.Pending,
+                    curp.IdDocumentCategoryCatalogItem, null, null, null,
                     Day.AddDays(700), null, null),
                 ActorId, ActorName, Now);
 
@@ -675,7 +698,8 @@ public sealed class EmployeeSearchTests(OperationalSqlDatabase database)
 
             curp.UpdateProfile(
                 new EmployeeDocumentProfile(
-                    EmployeeDocumentType.Curp, EmployeeDocumentStatus.Rejected, null, null, null,
+                    EmployeeDocumentType.Curp, EmployeeDocumentStatus.Rejected,
+                    curp.IdDocumentCategoryCatalogItem, null, null, null,
                     Day.AddDays(700), null, null),
                 ActorId, ActorName, Now);
 
@@ -705,12 +729,14 @@ public sealed class EmployeeSearchTests(OperationalSqlDatabase database)
 
             curp.UpdateProfile(
                 new EmployeeDocumentProfile(
-                    EmployeeDocumentType.Curp, EmployeeDocumentStatus.Rejected, null, null, null,
+                    EmployeeDocumentType.Curp, EmployeeDocumentStatus.Rejected,
+                    curp.IdDocumentCategoryCatalogItem, null, null, null,
                     Day.AddDays(700), null, null),
                 ActorId, ActorName, Now);
             domicilio.UpdateProfile(
                 new EmployeeDocumentProfile(
-                    EmployeeDocumentType.ProofOfAddress, EmployeeDocumentStatus.Validated, null, null,
+                    EmployeeDocumentType.ProofOfAddress, EmployeeDocumentStatus.Validated,
+                    domicilio.IdDocumentCategoryCatalogItem, null, null,
                     null, Day.AddDays(-1), null, null),
                 ActorId, ActorName, Now);
 

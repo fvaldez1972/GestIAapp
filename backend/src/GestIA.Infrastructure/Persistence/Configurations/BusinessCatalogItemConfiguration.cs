@@ -54,6 +54,11 @@ public sealed class BusinessCatalogItemConfiguration : IEntityTypeConfiguration<
             .ValueGeneratedOnAddOrUpdate();
         builder.Property(entity => entity.Description).HasMaxLength(1000);
         builder.Property(entity => entity.Order).HasColumnName("DisplayOrder").HasDefaultValue(1);
+
+        // Sin valor por omision, y eso es lo que se quiere: nulo significa «este catalogo no tiene
+        // severidad», que es el caso de la geografia, los puestos y las nacionalidades. Poner un
+        // false por omision habria dicho «informativa» de todo, que es una afirmacion distinta.
+        builder.Property(entity => entity.IsBlocking);
         builder.HasOne(entity => entity.Organization)
             .WithMany()
             .HasForeignKey(entity => entity.IdOrganization)

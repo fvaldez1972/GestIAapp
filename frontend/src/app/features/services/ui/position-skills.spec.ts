@@ -25,6 +25,7 @@ const regla = (overrides: Partial<EligibilityRequirement> = {}): EligibilityRequ
   name: 'Experiencia de CCTV',
   description: null,
   isBlocking: true,
+  isBlockingEffective: true,
   active: true,
   ...overrides,
 });

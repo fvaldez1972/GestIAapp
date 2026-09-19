@@ -116,8 +116,8 @@
               <td>{{ requirementTypeLabel(regla.requirementType) }}</td>
               <td>{{ requirementScopeLabel(regla) }}</td>
               <td>
-                <span class="gi-badge" [class.gi-badge--warning]="regla.isBlocking" [class.gi-badge--muted]="!regla.isBlocking">
-                  {{ regla.isBlocking ? 'Bloqueante' : 'Informativa' }}
+                <span class="gi-badge" [class.gi-badge--warning]="regla.isBlockingEffective" [class.gi-badge--muted]="!regla.isBlockingEffective">
+                  {{ requirementSeverityLabel(regla) }}
                 </span>
               </td>
               <td>
@@ -330,6 +330,7 @@
                   <th scope="col">Nombre</th>
                   @if (needsParent()) { <th scope="col">Pertenece a</th> }
                   <th scope="col">Uso</th>
+                  @if (openCatalogSupportsBlockingMark()) { <th scope="col">Si falta</th> }
                   <th scope="col">Estado</th>
                   <th scope="col">Última edición</th>
                   <th scope="col"><span class="cat__oculto">Acciones</span></th>
@@ -344,6 +345,20 @@
                     </th>
                     @if (needsParent()) { <td>{{ parentName(valor) }}</td> }
                     <td>{{ itemUsage(valor) || '—' }}</td>
+                    @if (openCatalogSupportsBlockingMark()) {
+                      <td>
+                        <!--
+                          Sin decidir no se dibuja como «informativa». Una entrada que nadie ha
+                          revisado y una que alguien decidió que sólo deje constancia son dos cosas
+                          distintas, y pintarlas igual esconde el trabajo que falta.
+                        -->
+                        <span
+                          class="gi-badge"
+                          [class.gi-badge--warning]="valor.isBlocking === true"
+                          [class.gi-badge--muted]="valor.isBlocking !== true"
+                        >{{ blockingMarkLabel(valor.isBlocking) }}</span>
+                      </td>
+                    }
                     <td>
                       <span class="gi-badge" [class.gi-badge--success]="valor.active" [class.gi-badge--muted]="!valor.active">
                         {{ activeLabel(valor.active) }}
@@ -366,7 +381,7 @@
                   </tr>
                 } @empty {
                   <tr>
-                    <td [attr.colspan]="needsParent() ? 6 : 5">
+                    <td [attr.colspan]="(needsParent() ? 6 : 5) + (openCatalogSupportsBlockingMark() ? 1 : 0)">
                       <div class="gi-empty-state">
                         <h3>Sin valores</h3>
                         <p>
@@ -435,6 +450,19 @@
           <input class="gi-input" type="number" min="1" max="100000" step="1" formControlName="order" />
         </label>
       </div>
+
+      @if (openCatalogSupportsBlockingMark()) {
+        <gi-select
+          label="Si a una persona le falta esto"
+          [options]="blockingMarks"
+          [value]="catalogBlocking()"
+          (valueChange)="catalogForm.controls.blockingMark.setValue($any($event))"
+        />
+        <p class="cat__nota">
+          Es el valor por omisión de toda la organización. Una regla de elegibilidad puede afinarlo
+          para un cliente, un servicio o una posición concreta.
+        </p>
+      }
 
       <label class="gi-field">
         Descripción
@@ -530,7 +558,7 @@
           <gi-select
             label="Experiencia requerida"
             placeholder="Selecciona una experiencia"
-            [options]="activeSkills()"
+            [options]="requirementDemandOptions()"
             [value]="requirementSkill()"
             (valueChange)="requirementForm.controls.idRequiredCatalogItem.setValue($event)"
           />
@@ -543,18 +571,18 @@
           <gi-select
             label="Documento requerido"
             placeholder="Selecciona un documento"
-            [options]="documentTypes"
-            [value]="requirementDocument()"
-            (valueChange)="requirementForm.controls.requiredDocumentType.setValue($event)"
+            [options]="requirementDemandOptions()"
+            [value]="requirementSkill()"
+            (valueChange)="requirementForm.controls.idRequiredCatalogItem.setValue($event)"
           />
         }
         @case ('Evaluation') {
           <gi-select
             label="Evaluación requerida"
             placeholder="Selecciona una evaluación"
-            [options]="evaluationTypes"
-            [value]="requirementEvaluation()"
-            (valueChange)="requirementForm.controls.requiredEvaluationType.setValue($event)"
+            [options]="requirementDemandOptions()"
+            [value]="requirementSkill()"
+            (valueChange)="requirementForm.controls.idRequiredCatalogItem.setValue($event)"
           />
         }
         @default {
@@ -573,10 +601,16 @@
           placeholder="Qué se valida y qué debe corregirse si falla."></textarea>
       </label>
 
-      <label class="cat__casilla">
-        <input type="checkbox" formControlName="isBlocking" />
-        <span>Bloquea la asignación y la publicación si no se cumple</span>
-      </label>
+      <gi-select
+        label="Si no se cumple"
+        [options]="requirementBlockingMarks"
+        [value]="requirementBlocking()"
+        (valueChange)="requirementForm.controls.blockingMark.setValue($any($event))"
+      />
+      <p class="cat__nota">
+        Dejarlo en «la que diga el catálogo» es lo normal: la marca vive en la entrada del catálogo y
+        vale para toda la organización. Fíjala aquí sólo cuando este alcance necesite algo distinto.
+      </p>
 
       @if (error()) { <p class="gi-alert gi-alert--error" role="alert">{{ error() }}</p> }
 

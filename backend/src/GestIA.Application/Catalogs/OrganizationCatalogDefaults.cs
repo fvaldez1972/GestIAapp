@@ -29,6 +29,18 @@ public sealed class OrganizationCatalogDefaults(ICatalogRepository repository, I
         //
         // Lo unico que sigue viniendo cargado es la geografia, porque no se captura: se elige. Sale
         // de esta clase en su propia tanda, a una tabla compartida entre organizaciones.
+        //
+        // Y desde el 19 de septiembre de 2026, tambien las categorias de documento, las de
+        // evaluacion y los propositos de contacto. Esas tres eran listas fijas del sistema que toda
+        // organizacion tenia desde el primer minuto; al volverse editables habria que sembrarlas o
+        // una organizacion nueva no podria registrar ni un documento. Se conserva lo que ya habia;
+        // lo nuevo es que se pueden cambiar.
+        foreach (var value in EligibilityCatalogSeed.All)
+        {
+            var item = BusinessCatalogItem.Create(organization,
+                new(value.Type, value.Name, null, value.Order), actor.ActorId, actor.ActorName, clock.UtcNow);
+            await repository.AddCatalogItemAsync(item, token);
+        }
 
         async Task<Guid> Add(BusinessCatalogItemType type, string name, Guid? parent)
         {

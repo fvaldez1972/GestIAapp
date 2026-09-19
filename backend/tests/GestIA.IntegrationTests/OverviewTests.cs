@@ -212,7 +212,7 @@ public sealed class OverviewTests(OperationalSqlDatabase database)
                 new EmployeeDocumentProfile(
                     EmployeeDocumentType.VoterId,
                     EmployeeDocumentStatus.Validated,
-                    null, null, null, Day.AddDays(-11), null, null),
+                    null, null, null, null, Day.AddDays(-11), null, null),
                 ActorId, ActorName, Now));
             await context.SaveChangesAsync(Token);
         }

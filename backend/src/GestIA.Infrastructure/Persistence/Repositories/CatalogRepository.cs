@@ -79,6 +79,11 @@ public sealed class CatalogRepository(GestIaDbContext dbContext) : ICatalogRepos
             .Include(requirement => requirement.Client)
             .Include(requirement => requirement.Service)
             .Include(requirement => requirement.Position)
+            // La entrada del catálogo hace falta por dos razones: nombra lo que falta en el mensaje
+            // que bloquea, y desde el 19 de septiembre de 2026 es de donde sale la severidad cuando
+            // la regla no la fija. Sin este Include, una regla que hereda su marca se evaluaría como
+            // informativa por no haber cargado la fila.
+            .Include(requirement => requirement.RequiredCatalogItem)
             .Where(requirement => requirement.IdOrganization == idOrganization)
             .OrderBy(requirement => requirement.TargetType)
             .ThenBy(requirement => requirement.RequirementType)

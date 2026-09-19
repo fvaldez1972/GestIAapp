@@ -102,6 +102,7 @@
             <app-employee-documents
               [requirements]="requirements()"
               [documents]="documents()"
+              [categories]="catalogDocumentCategories()"
               [today]="today()"
               [expiringWithinDays]="expiringWithinDays()"
               [canWrite]="canWrite()"
@@ -136,6 +137,7 @@
             <app-employee-evaluations
               [requirements]="evaluationRequirements()"
               [evaluations]="evaluations()"
+              [categories]="catalogEvaluationCategories()"
               [today]="today()"
               [expiringWithinDays]="expiringWithinDays()"
               [canWrite]="canWrite()"

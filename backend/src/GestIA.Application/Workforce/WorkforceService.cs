@@ -535,6 +535,7 @@ public sealed class WorkforceService(
         ValidateDocumentProfile(
             request.DocumentType,
             request.Status,
+            request.IdDocumentCategoryCatalogItem,
             request.DocumentNumber,
             request.ReceivedDate,
             request.IssuedDate,
@@ -547,6 +548,7 @@ public sealed class WorkforceService(
         ValidateDocumentProfile(
             request.DocumentType,
             request.Status,
+            request.IdDocumentCategoryCatalogItem,
             request.DocumentNumber,
             request.ReceivedDate,
             request.IssuedDate,
@@ -558,6 +560,7 @@ public sealed class WorkforceService(
     private static EmployeeDocumentProfile ValidateDocumentProfile(
         EmployeeDocumentType documentType,
         EmployeeDocumentStatus status,
+        Guid? idDocumentCategoryCatalogItem,
         string? documentNumber,
         DateOnly? receivedDate,
         DateOnly? issuedDate,
@@ -579,6 +582,7 @@ public sealed class WorkforceService(
         return new EmployeeDocumentProfile(
             documentType,
             status,
+            idDocumentCategoryCatalogItem,
             documentNumber,
             receivedDate,
             issuedDate,
@@ -592,6 +596,7 @@ public sealed class WorkforceService(
         ValidateEvaluationProfile(
             request.EvaluationType,
             request.Result,
+            request.IdEvaluationCategoryCatalogItem,
             request.EvaluatedDate,
             request.ExpiresDate,
             request.CertificateNumber,
@@ -602,6 +607,7 @@ public sealed class WorkforceService(
         ValidateEvaluationProfile(
             request.EvaluationType,
             request.Result,
+            request.IdEvaluationCategoryCatalogItem,
             request.EvaluatedDate,
             request.ExpiresDate,
             request.CertificateNumber,
@@ -611,6 +617,7 @@ public sealed class WorkforceService(
     private static EmployeeEvaluationProfile ValidateEvaluationProfile(
         EmployeeEvaluationType evaluationType,
         EmployeeEvaluationResult result,
+        Guid? idEvaluationCategoryCatalogItem,
         DateOnly evaluatedDate,
         DateOnly? expiresDate,
         string? certificateNumber,
@@ -630,6 +637,7 @@ public sealed class WorkforceService(
         return new EmployeeEvaluationProfile(
             evaluationType,
             result,
+            idEvaluationCategoryCatalogItem,
             evaluatedDate,
             expiresDate,
             certificateNumber,
@@ -730,6 +738,8 @@ public sealed class WorkforceService(
             document.IdEmployeeDocument,
             document.IdEmployee,
             document.DocumentType,
+            document.IdDocumentCategoryCatalogItem,
+            document.DocumentCategoryCatalogItem?.Name,
             document.Status,
             document.DocumentNumber,
             document.ReceivedDate,
@@ -745,6 +755,8 @@ public sealed class WorkforceService(
             evaluation.IdEmployeeEvaluation,
             evaluation.IdEmployee,
             evaluation.EvaluationType,
+            evaluation.IdEvaluationCategoryCatalogItem,
+            evaluation.EvaluationCategoryCatalogItem?.Name,
             evaluation.Result,
             evaluation.EvaluatedDate,
             evaluation.ExpiresDate,

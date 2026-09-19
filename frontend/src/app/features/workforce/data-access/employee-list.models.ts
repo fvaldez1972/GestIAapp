@@ -310,31 +310,32 @@ export type EmployeeDocumentTypeOption = {
 /**
  * Los tipos que se ofrecen al subir un documento, con los exigidos primero.
  *
- * <p><b>La lista es del sistema y la marca es de la organización.</b> Los catorce tipos salen del
- * enum que el servidor reconoce —una categoría escrita a mano no la podría cumplir nadie, porque
- * las reglas de elegibilidad apuntan al enum—, y cuáles son obligatorios sale de las reglas que esa
- * organización tenga declaradas como bloqueantes.</p>
+ * <p><b>La lista y la marca son las dos de la organización desde el 19 de septiembre de 2026.</b>
+ * Hasta entonces los catorce tipos salían de un enum del servidor y lo único que la organización
+ * elegía era cuáles exigir; ahora la lista es un catálogo que se puede ampliar, y `code` es el
+ * identificador de la fila, no el nombre de un miembro del enum.</p>
  *
  * <p>Los obligatorios van al principio porque son los que destraban una asignación. Dentro de cada
- * grupo se conserva el orden del expediente, que es el del enum, y no el alfabético: así la lista
- * se lee en el mismo orden en que se arma una carpeta.</p>
+ * grupo se conserva el orden del catálogo, que es el que la organización decidió, y no el
+ * alfabético: así la lista se lee en el mismo orden en que se arma una carpeta.</p>
  */
 export function employeeDocumentTypeOptions(
   required: readonly {
-    readonly requiredDocumentType: string | null;
-    readonly isBlocking: boolean;
+    readonly idRequiredCatalogItem: string | null;
+    readonly isBlockingEffective: boolean;
   }[],
+  categories: readonly { readonly idCatalogItem: string; readonly name: string }[],
 ): readonly EmployeeDocumentTypeOption[] {
   const exigidos = new Set(
     required
-      .filter((regla) => regla.isBlocking && regla.requiredDocumentType)
-      .map((regla) => regla.requiredDocumentType!.toLowerCase()),
+      .filter((regla) => regla.isBlockingEffective && regla.idRequiredCatalogItem)
+      .map((regla) => regla.idRequiredCatalogItem!),
   );
 
-  const tipos = Object.entries(TIPOS_DE_DOCUMENTO).map(([code, label]) => ({
-    code,
-    label,
-    isRequired: exigidos.has(code.toLowerCase()),
+  const tipos = categories.map((categoria) => ({
+    code: categoria.idCatalogItem,
+    label: categoria.name,
+    isRequired: exigidos.has(categoria.idCatalogItem),
   }));
 
   return [...tipos.filter((tipo) => tipo.isRequired), ...tipos.filter((tipo) => !tipo.isRequired)];
@@ -387,12 +388,14 @@ export type EmployeeRequirementRow = {
  */
 export function employeeRequirementRows(
   required: readonly {
-    /** El tipo de documento que la regla exige. Nulo en las reglas que no son de documento. */
-    readonly requiredDocumentType: string | null;
+    /** La categoría de documento que la regla exige, por identificador del catálogo. */
+    readonly idRequiredCatalogItem: string | null;
+    readonly requiredCatalogItemName: string | null;
     readonly name: string;
-    readonly isBlocking: boolean;
+    readonly isBlockingEffective: boolean;
   }[],
   documents: readonly {
+    readonly idDocumentCategoryCatalogItem: string | null;
     readonly documentType: string;
     readonly status: string;
     readonly expiresDate: string | null;
@@ -405,8 +408,13 @@ export function employeeRequirementRows(
   const limite = shiftOperationalDate(today, expiringWithinDays);
 
   return required.map((requisito) => {
+    // Por identificador, que es como los compara el servidor. Un documento anterior a la conversión
+    // del catálogo todavía puede no tenerlo; ése no cubre el requisito, y es correcto que no lo
+    // cubra, porque tampoco lo cubre para el servidor.
     const documento = documents.find(
-      (item) => item.active && item.documentType.toLowerCase() === (requisito.requiredDocumentType ?? '').toLowerCase(),
+      (item) => item.active &&
+        !!item.idDocumentCategoryCatalogItem &&
+        item.idDocumentCategoryCatalogItem === requisito.idRequiredCatalogItem,
     );
 
     // El mismo orden que usa el servidor para decidir si el requisito está cubierto: primero el
@@ -427,9 +435,9 @@ export function employeeRequirementRows(
                 : 'UpToDate';
 
     return {
-      code: requisito.requiredDocumentType ?? '',
-      label: requisito.name || documentTypeLabel(requisito.requiredDocumentType ?? ''),
-      isBlocking: requisito.isBlocking,
+      code: requisito.idRequiredCatalogItem ?? '',
+      label: requisito.name || requisito.requiredCatalogItemName || 'Requisito sin nombre',
+      isBlocking: requisito.isBlockingEffective,
       state,
       expiresDate: documento?.expiresDate ?? null,
       documentNumber: documento?.documentNumber ?? null,
@@ -484,20 +492,21 @@ export const evaluationResultLabel = (result: string): string =>
 /** Los tipos que se ofrecen al registrar, con los que la organización exige al principio. */
 export function evaluationTypeOptions(
   required: readonly {
-    readonly requiredEvaluationType: string | null;
-    readonly isBlocking: boolean;
+    readonly idRequiredCatalogItem: string | null;
+    readonly isBlockingEffective: boolean;
   }[],
+  categories: readonly { readonly idCatalogItem: string; readonly name: string }[],
 ): readonly EmployeeDocumentTypeOption[] {
   const exigidos = new Set(
     required
-      .filter((regla) => regla.isBlocking && regla.requiredEvaluationType)
-      .map((regla) => regla.requiredEvaluationType!.toLowerCase()),
+      .filter((regla) => regla.isBlockingEffective && regla.idRequiredCatalogItem)
+      .map((regla) => regla.idRequiredCatalogItem!),
   );
 
-  const tipos = Object.entries(TIPOS_DE_EVALUACION).map(([code, label]) => ({
-    code,
-    label,
-    isRequired: exigidos.has(code.toLowerCase()),
+  const tipos = categories.map((categoria) => ({
+    code: categoria.idCatalogItem,
+    label: categoria.name,
+    isRequired: exigidos.has(categoria.idCatalogItem),
   }));
 
   return [...tipos.filter((tipo) => tipo.isRequired), ...tipos.filter((tipo) => !tipo.isRequired)];
@@ -527,11 +536,13 @@ export type EmployeeEvaluationRequirementRow = {
  */
 export function employeeEvaluationRequirementRows(
   required: readonly {
-    readonly requiredEvaluationType: string | null;
+    readonly idRequiredCatalogItem: string | null;
+    readonly requiredCatalogItemName: string | null;
     readonly name: string;
-    readonly isBlocking: boolean;
+    readonly isBlockingEffective: boolean;
   }[],
   evaluations: readonly {
+    readonly idEvaluationCategoryCatalogItem: string | null;
     readonly evaluationType: string;
     readonly result: string;
     readonly expiresDate: string | null;
@@ -546,7 +557,8 @@ export function employeeEvaluationRequirementRows(
     const evaluacion = evaluations.find(
       (item) =>
         item.active &&
-        item.evaluationType.toLowerCase() === (requisito.requiredEvaluationType ?? '').toLowerCase(),
+        !!item.idEvaluationCategoryCatalogItem &&
+        item.idEvaluationCategoryCatalogItem === requisito.idRequiredCatalogItem,
     );
 
     const state: EmployeeRequirementState = !evaluacion
@@ -562,9 +574,9 @@ export function employeeEvaluationRequirementRows(
               : 'UpToDate';
 
     return {
-      code: requisito.requiredEvaluationType ?? '',
-      label: requisito.name || evaluationTypeLabel(requisito.requiredEvaluationType ?? ''),
-      isBlocking: requisito.isBlocking,
+      code: requisito.idRequiredCatalogItem ?? '',
+      label: requisito.name || requisito.requiredCatalogItemName || 'Requisito sin nombre',
+      isBlocking: requisito.isBlockingEffective,
       state,
       expiresDate: evaluacion?.expiresDate ?? null,
       result: evaluacion?.result ?? null,
@@ -616,7 +628,7 @@ export function employeeSkillRequirementRows(
     readonly idRequiredCatalogItem: string | null;
     readonly requiredCatalogItemName: string | null;
     readonly name: string;
-    readonly isBlocking: boolean;
+    readonly isBlockingEffective: boolean;
   }[],
   skills: readonly {
     readonly idSkillCatalogItem: string;
@@ -644,7 +656,7 @@ export function employeeSkillRequirementRows(
     return {
       code: requisito.idRequiredCatalogItem ?? '',
       label: requisito.requiredCatalogItemName || requisito.name,
-      isBlocking: requisito.isBlocking,
+      isBlocking: requisito.isBlockingEffective,
       state,
       expiresDate: experiencia?.expiresDate ?? null,
     };

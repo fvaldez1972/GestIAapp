@@ -127,7 +127,7 @@ public sealed class OperationalConcurrencyTests : IClassFixture<OperationalSqlDa
         {
             context.EligibilityRequirements.Add(EligibilityRequirement.Create(seed.OrganizationId,
                 new(EligibilityRequirementTargetType.Position, null, null, seed.PositionId,
-                    EligibilityRequirementType.Restriction, null, null, null, "Restricted", null, true),
+                    EligibilityRequirementType.Restriction, null, null, null, "Restricted", null),
                 Actor.ActorId, Actor.ActorName, Now));
             await context.SaveChangesAsync();
         }

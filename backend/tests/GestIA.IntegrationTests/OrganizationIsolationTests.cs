@@ -271,7 +271,7 @@ public sealed class OrganizationIsolationTests(OperationalSqlDatabase database)
             organizationId,
             new(EligibilityRequirementTargetType.Organization, null, null, null,
                 EligibilityRequirementType.Document, documentCategory.IdBusinessCatalogItem,
-                EmployeeDocumentType.Curp, null, "Documento", null, true),
+                EmployeeDocumentType.Curp, null, "Documento", null),
             ActorId, ActorName, Now);
         var request = OperationalRequest.Create(
             organizationId, null, null, $"{prefix}-SOL", OperationalRequestType.NewClient,

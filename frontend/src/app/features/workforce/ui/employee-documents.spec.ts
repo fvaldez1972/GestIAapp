@@ -163,7 +163,7 @@ describe('La pestaña de documentos', () => {
   /** Un requisito que no bloquea se pide igual; decirlo evita que se lea como opcional. */
   it('marca el requisito que no bloquea', () => {
     const { raiz } = montar((host) =>
-      host.requirements.set([requirementFixture({ isBlocking: false, isBlockingEffective: false })]),
+      host.requirements.set([requirementFixture({ isBlockingEffective: false })]),
     );
 
     expect(raiz.querySelector('.req__soft')?.textContent?.trim()).toBe('no bloquea');

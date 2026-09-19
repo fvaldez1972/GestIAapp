@@ -601,15 +601,10 @@
           placeholder="Qué se valida y qué debe corregirse si falla."></textarea>
       </label>
 
-      <gi-select
-        label="Si no se cumple"
-        [options]="requirementBlockingMarks"
-        [value]="requirementBlocking()"
-        (valueChange)="requirementForm.controls.blockingMark.setValue($any($event))"
-      />
       <p class="cat__nota">
-        Dejarlo en «la que diga el catálogo» es lo normal: la marca vive en la entrada del catálogo y
-        vale para toda la organización. Fíjala aquí sólo cuando este alcance necesite algo distinto.
+        Si la regla impide asignar o sólo deja constancia lo dice la entrada del catálogo que exige,
+        y vale para toda la organización. La regla decide a quién aplica; qué tan grave es que falte
+        se cambia en el catálogo.
       </p>
 
       @if (error()) { <p class="gi-alert gi-alert--error" role="alert">{{ error() }}</p> }

@@ -94,7 +94,7 @@ import { ServiceContextApi } from '../../data-access/service-context-api';
 import { EntityDocuments } from '../../../documents/components/entity-documents/entity-documents';
 import { GiCandidatePicker } from '../../../../shared/ui/gi-candidate-picker/gi-candidate-picker';
 import { GiCatalogCreation, GiCatalogOption } from '../../../../shared/ui/gi-catalog-picker/gi-catalog-picker';
-import { PositionSkillRequest, PositionSkillToggle, PositionSkills } from '../../ui/position-skills';
+import { PositionSkillRequest, PositionSkills } from '../../ui/position-skills';
 import { EligibilityRequirement, EligibilityRequirementInput } from '../../../catalogs/data-access/catalog.models';
 import { AppIcon } from '../../../../shared/ui/app-icon/app-icon';
 import { dateRangeValidator, shiftIntervalValidator } from '../../ui/service-validators';
@@ -1803,70 +1803,6 @@ export class ServicesPage implements OnInit, OnDestroy {
     );
   }
 
-  /**
-   * Cambia una experiencia ya puesta de bloqueante a informativa, o al revés.
-   *
-   * <p>Si la posición todavía no existe, la experiencia es un pendiente del formulario y basta con
-   * corregirlo ahí. Si ya existe, la regla vive en el servidor y se actualiza: la alternativa era
-   * quitarla y volver a ponerla, que deja dos registros en la bitácora para un solo cambio de
-   * opinión.</p>
-   */
-  protected togglePositionSkill(toggle: PositionSkillToggle): void {
-    const org = this.selectedOrganizationId();
-
-    if (!org || !this.allowWrite(true)) return;
-
-    if (toggle.pending) {
-      this.pendingPositionSkills.update((valores) =>
-        valores.map((item) =>
-          item.idSkillCatalogItem === toggle.idSkillCatalogItem
-            ? { ...item, isBlocking: toggle.isBlocking }
-            : item,
-        ),
-      );
-      return;
-    }
-
-    const position = this.editingPosition();
-    if (!position) return;
-
-    const regla = this.positionSkillRequirements().find(
-      (item) => item.idEligibilityRequirement === toggle.key,
-    );
-
-    if (!regla) return;
-
-    this.saving.set(true);
-    this.error.set('');
-    this.catalogApi
-      .updateEligibilityRequirement(toggle.key, {
-        ...this.reglaDeExperiencia(org, position.idPosition, {
-          idSkillCatalogItem: toggle.idSkillCatalogItem,
-          name: regla.name,
-          isBlocking: toggle.isBlocking,
-        }),
-      })
-      .pipe(
-        this.withScope(2),
-        finalize(() => this.saving.set(false)),
-      )
-      .subscribe({
-        next: (actualizada) => {
-          this.positionSkillRequirements.update((valores) =>
-            valores.map((item) =>
-              item.idEligibilityRequirement === toggle.key ? actualizada : item,
-            ),
-          );
-          this.message.set(
-            toggle.isBlocking
-              ? `«${regla.name}» vuelve a impedir la asignación.`
-              : `«${regla.name}» queda sólo como constancia.`,
-          );
-        },
-        error: (error: HttpErrorResponse) => this.setError(error),
-      });
-  }
-
   /** Alta al vuelo de una experiencia del catálogo, sin abandonar el alta de la posición. */
   protected createSkillForProfile(creation: GiCatalogCreation): void {
     const org = this.selectedOrganizationId();
@@ -1936,7 +1872,6 @@ export class ServicesPage implements OnInit, OnDestroy {
       requiredEvaluationType: null,
       name: request.name,
       description: null,
-      isBlocking: request.isBlocking,
     };
   }
 

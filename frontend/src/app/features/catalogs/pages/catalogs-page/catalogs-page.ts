@@ -389,7 +389,6 @@ export class CatalogsPage implements OnInit, AfterViewInit {
     idRequiredCatalogItem: [''],
     name: ['', [Validators.required, Validators.maxLength(160)]],
     description: ['', [Validators.maxLength(1000)]],
-    blockingMark: ['' as '' | 'blocking' | 'informative'],
   });
 
   protected readonly eligibilityForm = this.formBuilder.nonNullable.group({
@@ -416,7 +415,6 @@ export class CatalogsPage implements OnInit, AfterViewInit {
   protected readonly requirementService = this.controlSignal(this.requirementForm.controls.idService);
   protected readonly requirementPosition = this.controlSignal(this.requirementForm.controls.idPosition);
   protected readonly requirementSkill = this.controlSignal(this.requirementForm.controls.idRequiredCatalogItem);
-  protected readonly requirementBlocking = this.controlSignal(this.requirementForm.controls.blockingMark);
 
   /** De qué catálogo salen las opciones, según el tipo de regla abierto. */
   protected readonly requirementDemandOptions = computed<readonly GiSelectOption[]>(() => {
@@ -470,13 +468,6 @@ export class CatalogsPage implements OnInit, AfterViewInit {
     { value: 'informative', label: 'Informativa: sólo deja constancia' },
   ];
 
-  /** Lo que la regla fija, con la opción de no fijar nada y heredar la del catálogo. */
-  protected readonly requirementBlockingMarks: readonly GiSelectOption[] = [
-    { value: '', label: 'La que diga el catálogo' },
-    { value: 'blocking', label: 'Bloqueante' },
-    { value: 'informative', label: 'Informativa' },
-  ];
-
   protected readonly activeDocumentCategories = computed(() =>
     this.items()
       .filter((item) => item.type === 'EmployeeDocumentCategory' && item.active)
@@ -499,13 +490,12 @@ export class CatalogsPage implements OnInit, AfterViewInit {
   /**
    * Cómo se lee la severidad de una regla.
    *
-   * <p>Dice de dónde sale, y no sólo cuál es: una regla que hereda y una que lo fija se comportan
-   * igual hoy y distinto el día que alguien cambie el catálogo, así que quien la revisa necesita
-   * distinguirlas sin abrir el editor.</p>
+   * <p>Sale de la entrada del catálogo que la regla exige, y no de la regla: desde el 19 de
+   * septiembre de 2026 hay una sola fuente. Ya no hace falta distinguir «lo fija» de «lo hereda»,
+   * porque todas lo heredan.</p>
    */
   protected requirementSeverityLabel(requirement: EligibilityRequirement): string {
-    const severidad = requirement.isBlockingEffective ? 'Bloqueante' : 'Informativa';
-    return requirement.isBlocking === null ? `${severidad} · del catálogo` : severidad;
+    return requirement.isBlockingEffective ? 'Bloqueante' : 'Informativa';
   }
 
   protected readonly activeSkills = computed(() =>
@@ -920,9 +910,6 @@ nombre sigue ocupado.`)) {
       idRequiredCatalogItem: requirement.idRequiredCatalogItem ?? '',
       name: requirement.name,
       description: requirement.description ?? '',
-      blockingMark: requirement.isBlocking === true
-        ? 'blocking'
-        : requirement.isBlocking === false ? 'informative' : '',
     });
     this.requirementEditor()?.nativeElement.showModal();
   }
@@ -954,7 +941,6 @@ nombre sigue ocupado.`)) {
       requiredEvaluationType: null,
       name: form.name.trim(),
       description: this.optional(form.description),
-      isBlocking: form.blockingMark === '' ? null : form.blockingMark === 'blocking',
     };
     const selected = this.selectedRequirement();
     this.saving.set(true);
@@ -1135,7 +1121,6 @@ nombre sigue ocupado.`)) {
 
       name: '',
       description: '',
-      blockingMark: '',
     });
   }
 

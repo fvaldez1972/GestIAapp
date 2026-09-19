@@ -217,7 +217,7 @@ public sealed class EmployeeSearchTests(OperationalSqlDatabase database)
             seed.OrganizationId,
             new EligibilityRequirementProfile(
                 EligibilityRequirementTargetType.Organization, null, null, null,
-                EligibilityRequirementType.Document, null, null, null, "Carta astral", null, true),
+                EligibilityRequirementType.Document, null, null, null, "Carta astral", null),
             ActorId, ActorName, Now));
 
         // Y una regla de documento no puede exigir una evaluación: cada tipo pide lo suyo.
@@ -226,7 +226,7 @@ public sealed class EmployeeSearchTests(OperationalSqlDatabase database)
             new EligibilityRequirementProfile(
                 EligibilityRequirementTargetType.Organization, null, null, null,
                 EligibilityRequirementType.Document, null, null, EmployeeEvaluationType.Polygraph,
-                "Carta astral", null, true),
+                "Carta astral", null),
             ActorId, ActorName, Now));
 
         // Sin reglas imposibles de por medio, el empleado completo sigue al día.
@@ -452,7 +452,7 @@ public sealed class EmployeeSearchTests(OperationalSqlDatabase database)
                 new EligibilityRequirementProfile(
                     EligibilityRequirementTargetType.Organization, null, null, null,
                     EligibilityRequirementType.Document, categoria.IdBusinessCatalogItem, tipo, null,
-                    $"Requisito {tipo}", null, true),
+                    $"Requisito {tipo}", null),
                 ActorId, ActorName, Now));
         }
 

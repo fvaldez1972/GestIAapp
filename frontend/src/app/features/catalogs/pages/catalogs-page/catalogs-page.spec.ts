@@ -37,7 +37,6 @@ const regla = (parcial: Partial<EligibilityRequirement>): EligibilityRequirement
   requiredEvaluationType: null,
   name: 'Requiere arma corta',
   description: null,
-  isBlocking: true,
   isBlockingEffective: true,
   active: true,
   ...parcial,
@@ -188,14 +187,14 @@ describe('Catálogos', () => {
    * otorgar experiencias. La pantalla lo dice donde se crean las reglas, no en un documento.
    */
   it('avisa de las reglas de experiencia bloqueantes que hoy nadie puede cumplir', () => {
-    const { raiz } = montar({ requirements: [regla({ isBlocking: true, requirementType: 'Skill' })] });
+    const { raiz } = montar({ requirements: [regla({ isBlockingEffective: true, requirementType: 'Skill' })] });
 
     expect(raiz.textContent).toContain('todavía no existe pantalla');
     expect(raiz.textContent).toContain('detiene la publicación de la planeación');
   });
 
   it('no avisa cuando la regla de experiencia es sólo informativa', () => {
-    const { raiz } = montar({ requirements: [regla({ isBlocking: false, isBlockingEffective: false })] });
+    const { raiz } = montar({ requirements: [regla({ isBlockingEffective: false })] });
 
     expect(raiz.textContent).not.toContain('todavía no existe pantalla');
   });

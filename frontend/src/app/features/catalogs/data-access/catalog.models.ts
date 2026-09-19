@@ -104,13 +104,12 @@ export type EligibilityRequirement = {
   readonly description: string | null;
 
   /**
-   * Lo que la regla fija. <b>Nulo hereda la marca del catálogo</b>, que es la decisión PD-04 del 19
-   * de septiembre de 2026: el catálogo pone el valor por omisión de la organización y la regla lo
-   * afina para un cliente, un servicio o una posición.
+   * La severidad, resuelta por el servidor a partir de la entrada del catálogo que la regla exige.
+   *
+   * <p>La regla <b>ya no la afina</b>. Hasta el 19 de septiembre de 2026 podía, y eso permitía
+   * configurar el mismo requisito como bloqueante en un sitio e informativo en otro; RF-POS-010
+   * pidió una sola fuente. El catálogo dice qué tan grave es, la regla dice a quién aplica.</p>
    */
-  readonly isBlocking: boolean | null;
-
-  /** La severidad ya resuelta por el servidor. Es la que decide, y nunca es nula. */
   readonly isBlockingEffective: boolean;
   readonly active: boolean;
 };

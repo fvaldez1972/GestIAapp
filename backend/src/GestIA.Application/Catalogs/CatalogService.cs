@@ -445,17 +445,33 @@ public sealed class CatalogService(
         };
 
     /// <summary>
-    /// Si incumplir la regla bloquea, resuelto en el orden que decidió PD-04.
+    /// Si incumplir la regla bloquea. <b>Lo dice el catálogo, y sólo el catálogo.</b>
     ///
-    /// <para><b>Manda la regla si lo dice; si calla, hereda el catálogo; y si tampoco, informa.</b>
-    /// El orden importa y no es arbitrario: la marca del catálogo vale para toda la organización y
-    /// la regla puede afinarla para un cliente, un servicio o una posición. Cerrar en
-    /// <c>false</c> —informativa— y no en <c>true</c> es deliberado: una entrada sin marca todavía no
-    /// se ha decidido, y estrenar la conversión impidiendo asignar a todo el mundo sería peor que
-    /// dejar constancia hasta que alguien la marque.</para>
+    /// <para>Hasta el 19 de septiembre de 2026 la regla podía afinar la marca del catálogo, y eso
+    /// permitía configurar el mismo requisito como bloqueante en un sitio e informativo en otro.
+    /// Nadie lo había hecho —ninguna entrada del catálogo tenía dos severidades entre sus reglas—,
+    /// pero el modelo lo consentía, y una contradicción que el sistema permite acaba ocurriendo.
+    /// RF-POS-010 pidió una sola fuente y ésta es: el catálogo dice <b>qué tan grave</b>, la regla
+    /// dice <b>a quién aplica</b>.</para>
+    ///
+    /// <para>La marca que las reglas tenían no se perdió: la migración de la retrocarga la copió a
+    /// su entrada del catálogo antes de que esto dejara de leerla, porque sin ese paso las trece
+    /// reglas que bloqueaban habrían pasado a informativas el día del despliegue.</para>
+    ///
+    /// <para>Cerrar en <c>false</c> cuando el catálogo calla sigue siendo deliberado: una entrada
+    /// sin marca todavía no se ha decidido, y estrenar impidiendo asignar a todo el mundo sería
+    /// peor que dejar constancia hasta que alguien la marque.</para>
+    ///
+    /// <para><b>La restricción es la excepción, y no por comodidad.</b> Una regla de tipo
+    /// <c>Restriction</c> no exige nada: prohíbe, y por eso no apunta a ninguna entrada del
+    /// catálogo. Si heredara de un catálogo que no tiene, quedaría informativa siempre, y una
+    /// prohibición que no prohíbe es una nota. Se resuelve por lo que la regla <i>es</i>, no por
+    /// una marca que alguien puso: no hay dos fuentes que se puedan contradecir, que es lo que
+    /// RF-POS-010 vino a evitar.</para>
     /// </summary>
     private static bool Severity(EligibilityRequirement requirement) =>
-        requirement.IsBlocking ?? requirement.RequiredCatalogItem?.IsBlocking ?? false;
+        requirement.RequirementType is EligibilityRequirementType.Restriction
+        || (requirement.RequiredCatalogItem?.IsBlocking ?? false);
 
     private static EligibilityReasonResponse EvaluateSkill(
         EligibilityRequirement requirement,
@@ -794,8 +810,7 @@ public sealed class CatalogService(
             request.RequiredDocumentType,
             request.RequiredEvaluationType,
             name,
-            description,
-            request.IsBlocking);
+            description);
     }
 
     private static EmployeeSkillProfile ValidateEmployeeSkillProfile(EmployeeSkillInput request)
@@ -840,7 +855,6 @@ public sealed class CatalogService(
             requirement.RequiredEvaluationType,
             requirement.Name,
             requirement.Description,
-            requirement.IsBlocking,
             Severity(requirement),
             requirement.Active);
 

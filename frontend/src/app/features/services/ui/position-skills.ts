@@ -6,23 +6,16 @@ import {
 } from '../../../shared/ui/gi-catalog-picker/gi-catalog-picker';
 import { EligibilityRequirement } from '../../catalogs/data-access/catalog.models';
 
-/** Una experiencia que se pide para la posición, tal como se acaba de elegir. */
-/** Lo que hace falta para cambiarle el modo a una experiencia ya puesta. */
-export type PositionSkillToggle = {
-  /** El identificador de la regla si ya existe, o el de la experiencia si está pendiente. */
-  readonly key: string;
-  readonly idSkillCatalogItem: string;
-  readonly name: string;
-  readonly isBlocking: boolean | null;
-  /** Si todavía no existe en el servidor porque la posición no se ha guardado. */
-  readonly pending: boolean;
-};
-
+/**
+ * Una experiencia que se pide para la posición, tal como se acaba de elegir.
+ *
+ * <p><b>Sin severidad, desde el 19 de septiembre de 2026.</b> Qué tan grave es que falte lo dice la
+ * entrada del catálogo, no la posición: RF-POS-010 pidió una sola fuente, porque con dos el mismo
+ * requisito podía quedar bloqueante en un sitio e informativo en otro.</p>
+ */
 export type PositionSkillRequest = {
   readonly idSkillCatalogItem: string;
   readonly name: string;
-  /** Si impide asignar, o sólo deja constancia. */
-  readonly isBlocking: boolean | null;
 };
 
 /**
@@ -67,25 +60,15 @@ export type PositionSkillRequest = {
               <span class="skill__body">
                 <span class="skill__name">{{ row.name }}</span>
                 <span class="skill__detail">
-                  {{ row.isBlocking ? 'Impide asignar a quien no la tenga' : 'Sólo deja constancia' }}
                   @if (row.pending) {
-                    · se guarda al guardar la posición
+                    Se guarda al guardar la posición
+                  } @else {
+                    {{ row.isBlocking ? 'Impide asignar a quien no la tenga' : 'Sólo deja constancia' }}
+                    · lo decide el catálogo
                   }
                 </span>
               </span>
               @if (canWrite()) {
-                <!--
-                  Y se puede cambiar de opinión sin quitarla y volver a ponerla: es lo que QA
-                  intentaba hacer cuando reportó que desmarcar la casilla no se guardaba.
-                -->
-                <button
-                  class="button button--secondary"
-                  type="button"
-                  [disabled]="saving()"
-                  (click)="alternar(row)"
-                >
-                  {{ row.isBlocking ? 'Sólo dejar constancia' : 'Que impida asignar' }}
-                </button>
                 <button
                   class="button button--secondary"
                   type="button"
@@ -101,13 +84,6 @@ export type PositionSkillRequest = {
       }
 
       @if (canWrite()) {
-        <!--
-          El alta va rotulada y encerrada.
-          La casilla «Impide asignar si no la tiene» queda justo debajo de la lista de experiencias
-          ya pedidas, y sin rótulo parecía gobernarlas: quien la desmarcaba creía estar cambiando la
-          experiencia de arriba y no pasaba nada, porque es la casilla de la que se va a agregar. Cada
-          experiencia ya puesta se cambia con su propio botón, en su fila.
-        -->
         <p class="perfil__kicker perfil__kicker--add">AGREGAR UNA EXPERIENCIA</p>
         <div class="perfil__add">
           <gi-catalog-picker
@@ -121,17 +97,6 @@ export type PositionSkillRequest = {
             (valueChange)="elegida.set($event)"
             (create)="createSkill.emit($event)"
           />
-          <!--
-            La casilla se lee al pulsar «Agregar», no al elegir la experiencia.
-            Antes la experiencia se creaba en el momento de elegirla del catálogo, y la casilla está
-            al lado: quien la desmarcaba después lo hacía cuando la regla ya existía como
-            bloqueante, y desmarcarla no cambiaba nada. La pantalla leía un dato antes de que la
-            persona lo diera.
-          -->
-          <label class="perfil__check">
-            <input type="checkbox" [checked]="bloquea()" (change)="bloquea.set($any($event.target).checked)" />
-            <span>Que la nueva impida asignar si no la tiene</span>
-          </label>
           <button
             class="button button--primary"
             type="button"
@@ -142,9 +107,9 @@ export type PositionSkillRequest = {
           </button>
         </div>
         <p class="perfil__note">
-          Una experiencia que impide asignar detiene también la publicación de la semana. Si sólo
-          quieres que quede escrita, desmarca la casilla antes de agregarla. Para cambiar una que ya
-          está en la lista, usa su propio botón.
+          Si una experiencia impide asignar o sólo deja constancia lo decide el catálogo de
+          experiencias, y vale para toda la organización. La posición elige cuáles pide; para
+          cambiar qué tan grave es que falte, se cambia en Catálogos.
         </p>
       }
     </section>
@@ -178,8 +143,6 @@ export type PositionSkillRequest = {
 
     .perfil__add { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
 
-    .perfil__check { display: flex; align-items: center; gap: 0.35rem; font-size: 12px; }
-
     .skill {
       display: flex;
       align-items: center;
@@ -206,9 +169,6 @@ export class PositionSkills {
   readonly canWrite = input(false);
   readonly saving = input(false);
 
-  /** Cambiar una regla ya puesta de bloqueante a informativa, o al revés. */
-  readonly toggleBlocking = output<PositionSkillToggle>();
-
   readonly add = output<PositionSkillRequest>();
   /** Quitar una ya guardada, por identificador de regla. */
   readonly remove = output<string>();
@@ -217,21 +177,22 @@ export class PositionSkills {
   readonly createSkill = output<GiCatalogCreation>();
 
   protected readonly elegida = signal('');
-  protected readonly bloquea = signal(true);
 
   protected readonly rows = computed(() => [
     ...this.requirements().map((requirement) => ({
       key: requirement.idEligibilityRequirement,
       idSkillCatalogItem: requirement.idRequiredCatalogItem ?? '',
       name: requirement.requiredCatalogItemName || requirement.name,
-      isBlocking: requirement.isBlocking,
+      isBlocking: requirement.isBlockingEffective,
       pending: false,
     })),
     ...this.pending().map((item) => ({
       key: `pendiente:${item.idSkillCatalogItem}`,
       idSkillCatalogItem: item.idSkillCatalogItem,
       name: item.name,
-      isBlocking: item.isBlocking,
+      // Todavia no hay regla, asi que no hay severidad resuelta que ensenar. La fila lo dice con
+      // «se guarda al guardar la posicion» en vez de afirmar algo que no sabe.
+      isBlocking: false,
       pending: true,
     })),
   ]);
@@ -244,13 +205,7 @@ export class PositionSkills {
     return this.catalogSkills().filter((option) => !puestas.has(option.idCatalogItem));
   });
 
-  /**
-   * Suma la experiencia elegida con el modo que dice la casilla.
-   *
-   * <p>Se dispara con «Agregar» y no al elegir del catálogo. Elegir y decidir si impide asignar son
-   * dos datos, y leerlos en momentos distintos era el defecto: la regla nacía bloqueante antes de
-   * que nadie tocara la casilla.</p>
-   */
+  /** Suma la experiencia elegida a las que la posición pide. */
   protected agregar(): void {
     const opcion = this.catalogSkills().find((item) => item.idCatalogItem === this.elegida());
 
@@ -262,30 +217,10 @@ export class PositionSkills {
     this.add.emit({
       idSkillCatalogItem: opcion.idCatalogItem,
       name: opcion.name,
-      isBlocking: this.bloquea(),
     });
 
-    // El selector se limpia para poder sumar otra sin borrar a mano lo anterior. La casilla se
-    // queda como estaba: quien pide tres experiencias informativas no quiere desmarcarla tres veces.
+    // El selector se limpia para poder sumar otra sin borrar a mano lo anterior.
     this.elegida.set('');
-  }
-
-  protected alternar(row: {
-    readonly key: string;
-    readonly idSkillCatalogItem: string;
-    readonly name: string;
-    readonly isBlocking: boolean | null;
-    readonly pending: boolean;
-  }): void {
-    if (this.saving()) return;
-
-    this.toggleBlocking.emit({
-      key: row.key,
-      idSkillCatalogItem: row.idSkillCatalogItem,
-      name: row.name,
-      isBlocking: !row.isBlocking,
-      pending: row.pending,
-    });
   }
 
   protected quitar(row: { readonly key: string; readonly idSkillCatalogItem: string; readonly pending: boolean }): void {

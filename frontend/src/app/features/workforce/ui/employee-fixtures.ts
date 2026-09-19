@@ -54,7 +54,6 @@ export function requirementFixture(
     name: 'CURP',
     description: null,
     idRequiredCatalogItem: 'cat-curp',
-    isBlocking: true,
     isBlockingEffective: true,
     active: true,
     ...overrides,

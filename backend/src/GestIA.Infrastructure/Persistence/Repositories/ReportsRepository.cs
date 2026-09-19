@@ -440,9 +440,12 @@ public sealed class ReportsRepository(GestIaDbContext dbContext) : IReportsRepos
                     _ => false
                 };
 
-                // Misma resolución que en la elegibilidad: manda la regla, si calla hereda el catálogo, y si
-                // ninguno lo dice queda informativa.
-                if (!passed && (requirement.IsBlocking ?? requirement.RequiredCatalogItem?.IsBlocking ?? false))
+                // Misma resolución que en la elegibilidad, y tiene que seguir siéndolo: la marca sale
+                // de la entrada del catálogo, salvo la restricción, que prohíbe por lo que es. Cuando
+                // estas dos resoluciones se separaron, el reporte y el motor dijeron cosas distintas
+                // sobre la misma persona durante un día.
+                if (!passed && (requirement.RequirementType is EligibilityRequirementType.Restriction
+                    || (requirement.RequiredCatalogItem?.IsBlocking ?? false)))
                 {
                     reasons.Add($"Regla obligatoria no cumplida: {requirement.Name}.");
                 }

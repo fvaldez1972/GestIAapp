@@ -17,8 +17,7 @@ public sealed record EligibilityRequirementProfile(
     EmployeeDocumentType? RequiredDocumentType,
     EmployeeEvaluationType? RequiredEvaluationType,
     string Name,
-    string? Description,
-    bool? IsBlocking);
+    string? Description);
 
 /// <summary>
 /// Una regla que decide si alguien puede cubrir un turno.
@@ -152,7 +151,6 @@ public sealed class EligibilityRequirement : AuditableEntity, IOrganizationScope
 
         Name = profile.Name.Trim();
         Description = string.IsNullOrWhiteSpace(profile.Description) ? null : profile.Description.Trim();
-        IsBlocking = profile.IsBlocking;
     }
 
     /// <summary>

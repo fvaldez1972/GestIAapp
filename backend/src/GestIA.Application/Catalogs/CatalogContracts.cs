@@ -42,9 +42,7 @@ public sealed record EligibilityRequirementInput(
     EmployeeDocumentType? RequiredDocumentType,
     EmployeeEvaluationType? RequiredEvaluationType,
     string Name,
-    string? Description,
-    /// <summary>Nulo hereda la marca de la entrada del catálogo que la regla exige.</summary>
-    bool? IsBlocking);
+    string? Description);
 
 public sealed record EligibilityRequirementResponse(
     Guid IdEligibilityRequirement,
@@ -63,9 +61,10 @@ public sealed record EligibilityRequirementResponse(
     EmployeeEvaluationType? RequiredEvaluationType,
     string Name,
     string? Description,
-    /// <summary>Lo que la regla fija. Nulo quiere decir que hereda del catálogo.</summary>
-    bool? IsBlocking,
-    /// <summary>La severidad ya resuelta, que es la que decide. Nunca es nula.</summary>
+    /// <summary>
+    /// La severidad, que sale de la entrada del catálogo que la regla exige. La regla ya no la
+    /// afina: desde el 19 de septiembre de 2026 hay una sola fuente, que es RF-POS-010.
+    /// </summary>
     bool IsBlockingEffective,
     bool Active);
 

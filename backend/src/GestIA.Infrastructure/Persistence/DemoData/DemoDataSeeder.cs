@@ -228,6 +228,39 @@ public sealed partial class DemoDataSeeder(
     /// evaluaciones se exigian por enum. Desde que los tres salen del catalogo, la regla se resuelve
     /// igual para los tres: el tipo de regla dice de que catalogo, y el nombre dice cual fila.</para>
     /// </summary>
+    /// <summary>
+    /// Deja la marca de bloqueo en la entrada del catálogo que la regla exige.
+    ///
+    /// <para>Sólo si no la tiene: si alguien ya decidió la severidad de ese requisito, el sembrador
+    /// demo no es quién para cambiarla.</para>
+    /// </summary>
+    private async Task MarcarSeveridadAsync(
+        Guid? idCatalogItem,
+        bool isBlocking,
+        CancellationToken cancellationToken)
+    {
+        if (idCatalogItem is not { } id)
+        {
+            return;
+        }
+
+        var item = await dbContext.BusinessCatalogItems
+            .IgnoreQueryFilters(["Active", "Organization"])
+            .FirstOrDefaultAsync(entry => entry.IdBusinessCatalogItem == id, cancellationToken);
+
+        if (item is null || item.IsBlocking.HasValue || !BusinessCatalogItem.SupportsBlockingMark(item.Type))
+        {
+            return;
+        }
+
+        item.UpdateProfile(
+            new BusinessCatalogItemProfile(
+                item.Type, item.Name, item.Description, item.Order, item.IdParentCatalogItem, isBlocking),
+            DemoActorId,
+            DemoActorName,
+            OccurredAt);
+    }
+
     private async Task<Guid?> RequiredCatalogItemIdAsync(
         Organization organization,
         DemoCatalog.EligibilityRule rule,
@@ -342,6 +375,12 @@ public sealed partial class DemoDataSeeder(
         {
             foreach (var rule in DemoCatalog.EligibilityRules)
             {
+                var idCatalogo = await RequiredCatalogItemIdAsync(organization, rule, cancellationToken);
+
+                // La severidad se marca en el catalogo, que desde el 19 de septiembre de 2026 es
+                // su unica fuente. Marcarla en la regla ya no haria nada: nadie la lee.
+                await MarcarSeveridadAsync(idCatalogo, rule.IsBlocking, cancellationToken);
+
                 var requirement = EligibilityRequirement.Create(
                     organization.IdOrganization,
                     new EligibilityRequirementProfile(
@@ -350,12 +389,11 @@ public sealed partial class DemoDataSeeder(
                         null,
                         null,
                         rule.RequirementType,
-                        await RequiredCatalogItemIdAsync(organization, rule, cancellationToken),
+                        idCatalogo,
                         rule.RequiredDocumentType,
                         rule.RequiredEvaluationType,
                         rule.Name,
-                        rule.Description,
-                        rule.IsBlocking),
+                        rule.Description),
                     DemoActorId,
                     DemoActorName,
                     OccurredAt);

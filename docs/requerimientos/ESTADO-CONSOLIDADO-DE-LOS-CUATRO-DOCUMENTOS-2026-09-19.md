@@ -33,19 +33,21 @@ decisión: seis de negocio, dos de cumplimiento legal y dos de datos que llena o
 |---|---|---|
 | **Cédula de servicio**: el documento opcional del servicio | Clientes §5 | Chico. El mecanismo de documentos ya existe |
 
-### Espera datos, no decisiones de diseño — 2
+### Espera una decisión de negocio, ya no datos — 2
 
-Los dos son el bloque de patrones, y **están bloqueados por el catálogo a medio llenar**, no por el
-modelo. El modelo está construido y verificado.
+Los dos son el bloque de patrones. **Ya no los bloquea el catálogo a medio llenar**: el 20 de
+septiembre se quitó la exigencia de declarar los siete días del ciclo, y las diez plantillas se
+pueden usar tal como están.
 
 | Qué | De dónde | Quién lo desbloquea |
 |---|---|---|
 | **RF-PAT-002** · Retirar el patrón propio de la posición | Catálogos §3 | La junta con Óscar y Joab |
 | **RF-PAT-005** · Migrar los 51 horarios propios al catálogo | Catálogos §3 | La misma junta |
 
-Nueve de las diez plantillas activas tienen días del ciclo sin declarar. Con dos confirmaciones
-—el día 7 del rol diurno y los días 2, 4 y 6 del nocturno— quedan enlazadas 46 de las 51 posiciones
-sin recapturar nada. La lista está en `PLANTILLAS-DE-TURNO-PARA-LA-JUNTA-2026-09-19.md`.
+Lo que queda por decidir no es qué días declara cada plantilla, sino si el patrón propio de la
+posición se retira. La lista de `PLANTILLAS-DE-TURNO-PARA-LA-JUNTA-2026-09-19.md` sigue sirviendo
+para la junta, pero **ya no como bloqueo**: sirve para acordar nombres y horarios, no para poder
+usar el catálogo.
 
 ### Espera decisiones de negocio — 6
 
@@ -103,8 +105,9 @@ quien los lea sin esta nota va a construirlas otra vez.
 de incidencia existían como pantalla y no tenían un solo valor en las ocho organizaciones. Se
 sembraron hoy. Era el tipo de hueco que no aparece en ninguna matriz porque todo está «construido».
 
-**2. Nueve de diez plantillas de turno están a medio llenar.** Es lo que bloquea la pieza más
-grande, y no figura como pendiente en ningún documento.
+**2. Nueve de diez plantillas de turno están a medio llenar.** Ya no bloquea nada —ver la decisión
+del 20 de septiembre, al final— pero sigue sin figurar como pendiente en ningún documento, y el
+catálogo sigue enseñando cuáles están completas porque saberlo es útil.
 
 **3. Incumplimientos no distingue «sin reglas» de «en regla».** El validador manual que se retiró
 hoy sí lo distinguía: decía «sin reglas suficientes para concluir» cuando no había ninguna regla
@@ -113,6 +116,13 @@ una lista vacía que parece tranquilizadora y no lo es. Pequeño, y conviene rec
 
 **4. Persona física y moral** sigue pospuesto por la decisión D-04. No bloquea nada, pero sigue sin
 existir.
+
+**4-bis. Confirmar por observación tres cosas que hoy sólo están comprobadas por prueba** —que los
+contratos se guardan y se leen completos, que una organización no ve la otra desde la pantalla, y
+que una corrección deja su rastro visible— **queda omitido por instrucción del usuario**, el 20 de
+septiembre. No se descartó porque esté hecho: se descartó porque el usuario decidió no gastar la
+tanda ahí. El filtro global, el historial funcional y los contratos siguen cubiertos por las suites
+de integración.
 
 **5. RF-CLI-002 a 005, 008 a 010 y los cuatro UX** del documento original de Clientes nunca se
 verificaron contra sus criterios de aceptación, porque ese documento no se subió completo. Puede que
@@ -170,3 +180,25 @@ nueva debería quitar esa libertad.
 Si más adelante hace falta que la planeación diga «este domingo sí se trabaja» de una vez para toda
 la semana, es una pieza propia —una excepción declarada sobre la semana— y no se resuelve haciendo
 que el catálogo mande.
+
+---
+
+## La segunda mitad de esa decisión: el catálogo tampoco exige el ciclo completo
+
+**20 de septiembre de 2026**, por instrucción del usuario:
+
+> Eso de los horarios déjalo que sea flexible para que no nos quebremos la cabeza.
+
+Hasta ese día, una plantilla de turno sólo se ofrecía en la posición si declaraba **los siete días**
+de su ciclo. El efecto medido: de las diez plantillas del catálogo, el selector ofrecía **una**.
+
+Ahora basta con que declare **al menos un día de trabajo**. Un día sin declarar significa «aquí no
+hay turno propuesto», no «aquí está prohibido trabajar»; el alta manual de un turno sigue sin
+consultar ni el patrón ni la plantilla, así que se puede programar a alguien cualquier día.
+
+Lo único que se sigue rechazando es una plantilla que no declara ni un día de trabajo: no es un
+patrón de turno, no propondría un solo turno nunca. Esa es la prueba de control.
+
+Se quitó en el repositorio (`IsAssignableAsync`), en el servicio (`ListOptionsAsync`) y en el texto
+del calendario de la posición, que ahora dice que es **la referencia del patrón** y que la semana que
+de verdad se trabaja se decide al planear.

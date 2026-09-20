@@ -2,6 +2,25 @@
 
 **Para la junta con Óscar y Joab · 19 de septiembre de 2026**
 
+> **RESUELTO EL MISMO DÍA. Esta lista ya no hace falta para una junta.**
+>
+> Los horarios salieron del proceso de campo y de la llamada, y las nueve plantillas se completaron
+> por migración esa noche: los días que faltaban quedaron declarados como **descanso**. Las diez
+> plantillas del catálogo están completas y el selector de la posición las ofrece todas.
+>
+> **49 de las 51 posiciones con horario propio quedaron enlazadas solas**, sin recapturar nada. Las
+> 15 que quedan sin plantilla están marcadas para revisión en la pantalla de posiciones.
+>
+> **Y una corrección:** este documento decía que había dos parejas de plantillas duplicadas y que
+> había que decidir cuál se quedaba. **No las hay.** Cada pareja es la misma plantilla en dos
+> organizaciones distintas, que es lo normal en un sistema multiempresa; dentro de una organización
+> el índice único impide que se repita un nombre. El error fue mío: leí la lista sin la columna de
+> organización.
+>
+> Lo que sigue se conserva como quedó escrito, porque explica de dónde salieron los horarios y
+> porque **dos preguntas siguen abiertas**: las del grupo 2 y la de la plantilla «de 12x12», donde
+> el nombre o la franja no coinciden con el horario declarado. Ésas no se tocaron.
+
 ---
 
 ## Qué es esto y por qué importa
@@ -51,8 +70,8 @@ duplicada en el catálogo.
 **Lo que hay que decidir:** ¿el día 7 del rol diurno es descanso? ¿Los días 2, 4 y 6 del nocturno
 son descanso? Si la respuesta es sí en los dos casos, 46 posiciones quedan enlazadas.
 
-**Y además:** las dos están **duplicadas**, con el mismo nombre y el mismo contenido. Hay que
-decidir cuál se queda; la otra se retira.
+**Sobre las «duplicadas»:** no lo están. Cada una aparece dos veces porque **dos organizaciones
+distintas tienen una plantilla con ese nombre**, y eso es correcto. No hay nada que decidir aquí.
 
 ### Grupo 2 · El nombre no coincide con el horario que declara
 
@@ -100,10 +119,10 @@ entre otras cosas, si aplica prima nocturna.
 
 1. ¿El día 7 del **rol diurno** es descanso? *(desbloquea 30 posiciones)*
 2. ¿Los días 2, 4 y 6 del **rol nocturno 12x12** son descanso? *(desbloquea 16)*
-3. De cada pareja duplicada —rol diurno y rol nocturno—, ¿cuál se queda?
-4. **Dia 6h - 16h** y **Mixto 10h - 20h**: ¿manda el nombre o manda el horario?
-5. **Diurno smoke**: ¿se retira o se completa?
-6. **de 12x12**: ¿es diurno, o el horario está mal?
+3. ~~De cada pareja duplicada, ¿cuál se queda?~~ **Retirada: no hay duplicados.**
+4. **Dia 6h - 16h** y **Mixto 10h - 20h**: ¿manda el nombre o manda el horario? **Sigue abierta**
+5. **Diurno smoke**: ¿se retira o se completa? **Sigue abierta**
+6. **de 12x12**: ¿es diurno, o el horario está mal? **Sigue abierta**
 
 Con las dos primeras respondidas, el sistema enlaza 46 de las 51 posiciones sin que nadie recapture
 un horario. Con las seis, quedan **51 de 53**, y las que no encajen se marcan una por una para que

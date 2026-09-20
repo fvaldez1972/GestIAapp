@@ -378,6 +378,16 @@ public sealed class CatalogService(
         // regla para que su acta significara algo.
         reasons.AddRange(incidents.Select(EvaluateIncident));
 
+        // El perfil que el cliente pidio para el puesto, comparado contra la persona. Va despues de
+        // las reglas y de las incidencias porque responde otra pregunta: aquellas dicen si la
+        // persona esta en regla, esto dice si encaja en el puesto. Un «no elegible» por documento
+        // vencido se corrige; un «no encaja» por escolaridad, casi nunca.
+        if (idPosition.HasValue)
+        {
+            reasons.AddRange(await EvaluatePositionProfileAsync(
+                employee, idPosition.Value, cancellationToken));
+        }
+
         if (reasons.Count == 0)
         {
             reasons.Add(new EligibilityReasonResponse(
@@ -389,6 +399,184 @@ public sealed class CatalogService(
         }
 
         return reasons;
+    }
+
+    /// <summary>
+    /// El perfil que la posición pide, comparado contra la persona.
+    ///
+    /// <para><b>Ninguno de estos cuatro bloquea, y no es un descuido.</b> La matriz «Datos
+    /// necesarios para GestIA» marca con asterisco —el que define bloqueante e informativa— sólo
+    /// tres catálogos: experiencia requerida, tipo de documento y evaluación. Sexo, edad,
+    /// escolaridad y equipo no lo llevan. Así que el sistema los compara, los enseña, y no excluye
+    /// a nadie por ellos; con eso desaparece además el riesgo legal de excluir por sexo o por
+    /// edad, que era lo que tenía frenada esta pieza.</para>
+    ///
+    /// <para><b>Sólo la escolaridad se compara de verdad.</b> Es la única de las cuatro donde los
+    /// dos lados son identificadores del mismo catálogo, así que se pueden medir sin adivinar: la
+    /// persona cumple si su nivel es igual o superior al que la posición pide, y «superior» lo dice
+    /// el orden del catálogo.</para>
+    ///
+    /// <para><b>El sexo y el rango de edad se enseñan sin veredicto, a propósito.</b> El sexo de la
+    /// persona es texto libre y el de la posición un identificador de catálogo; compararlos exigiría
+    /// emparejar por nombre visible, que es justo lo que el principio 4 evita. Y un rango de edad
+    /// como «18 a 30 años» es un <b>nombre</b>, no dos números: el catálogo no guarda mínimo ni
+    /// máximo, y sacárselos al texto acierta hasta el día que alguien escriba «mayores de 18».
+    /// Enseñar lo que el cliente pidió es útil y es honesto; inventar la comparación no.</para>
+    /// </summary>
+    private async Task<IReadOnlyList<EligibilityReasonResponse>> EvaluatePositionProfileAsync(
+        Employee employee,
+        Guid idPosition,
+        CancellationToken cancellationToken)
+    {
+        var position = await repository.GetPositionAsync(
+            employee.IdOrganization, idPosition, cancellationToken);
+
+        if (position is null)
+        {
+            return [];
+        }
+
+        var motivos = new List<EligibilityReasonResponse>();
+
+        if (position.IdEducationLevelCatalogItem is { } idExigida)
+        {
+            motivos.Add(await EvaluateEducationAsync(employee, idExigida, cancellationToken));
+        }
+
+        if (position.IdSexCatalogItem is { } idSexo)
+        {
+            var pedido = await repository.GetCatalogItemAsync(
+                employee.IdOrganization, idSexo, cancellationToken);
+
+            if (pedido is not null)
+            {
+                motivos.Add(new EligibilityReasonResponse(
+                    "Perfil del puesto",
+                    "Sexo",
+                    false,
+                    true,
+                    $"El cliente pidió {pedido.Name} para esta posición. " +
+                    $"En el expediente: {employee.Sex ?? "sin capturar"}. No impide asignar."));
+            }
+        }
+
+        if (position.IdAgeRangeCatalogItem is { } idEdad)
+        {
+            var pedido = await repository.GetCatalogItemAsync(
+                employee.IdOrganization, idEdad, cancellationToken);
+
+            if (pedido is not null)
+            {
+                var edad = employee.BirthDate is { } nacimiento
+                    ? $"{Edad(nacimiento, clock.Today)} años"
+                    : "sin fecha de nacimiento";
+
+                motivos.Add(new EligibilityReasonResponse(
+                    "Perfil del puesto",
+                    "Rango de edad",
+                    false,
+                    true,
+                    $"El cliente pidió {pedido.Name} para esta posición. " +
+                    $"En el expediente: {edad}. No impide asignar."));
+            }
+        }
+
+        var equipo = position.RequiredEquipment.Where(item => item.Active).ToArray();
+
+        if (equipo.Length > 0)
+        {
+            var nombres = new List<string>();
+
+            foreach (var pieza in equipo)
+            {
+                var item = await repository.GetCatalogItemAsync(
+                    employee.IdOrganization, pieza.IdEquipmentCatalogItem, cancellationToken);
+
+                if (item is not null)
+                {
+                    nombres.Add(item.Name);
+                }
+            }
+
+            if (nombres.Count > 0)
+            {
+                // El equipo lo dota la empresa, no lo trae la persona: el expediente no tiene donde
+                // guardarlo y la matriz lo coloca del lado de la posicion. Se enseña para saber que
+                // hay que entregar, no para decidir si alguien puede.
+                motivos.Add(new EligibilityReasonResponse(
+                    "Perfil del puesto",
+                    "Equipo requerido",
+                    false,
+                    true,
+                    $"Esta posición requiere: {string.Join(", ", nombres)}. Lo dota la empresa; " +
+                    "no impide asignar."));
+            }
+        }
+
+        return motivos;
+    }
+
+    /// <summary>
+    /// La escolaridad, comparada por el <b>orden</b> del catálogo y no por su nombre.
+    ///
+    /// <para>La matriz pide «escolaridad mínima necesaria», así que la persona cumple con su nivel
+    /// o con uno más alto. Qué es «más alto» lo dice la columna de orden —Primaria, Secundaria,
+    /// Bachillerato, Carrera técnica, Licenciatura, Posgrado—, que es la razón por la que ese campo
+    /// existe y por la que el catálogo se sembró en ese orden.</para>
+    ///
+    /// <para>Un expediente sin escolaridad capturada <b>no incumple</b>: dice «no se sabe», que es
+    /// distinto de «no llega». Es el mismo criterio que rige en el puesto, y el que impide que el
+    /// día del despliegue toda la plantilla aparezca como que no encaja.</para>
+    /// </summary>
+    private async Task<EligibilityReasonResponse> EvaluateEducationAsync(
+        Employee employee,
+        Guid idRequerida,
+        CancellationToken cancellationToken)
+    {
+        var requerida = await repository.GetCatalogItemAsync(
+            employee.IdOrganization, idRequerida, cancellationToken);
+
+        var nombreRequerido = requerida?.Name ?? "la escolaridad configurada";
+
+        if (employee.IdEducationLevelCatalogItem is not { } idPersona)
+        {
+            return new EligibilityReasonResponse(
+                "Perfil del puesto",
+                "Escolaridad",
+                false,
+                true,
+                $"La posición pide {nombreRequerido} o más. El expediente no tiene escolaridad " +
+                "capturada, así que no se puede comparar. No impide asignar.");
+        }
+
+        var dePersona = await repository.GetCatalogItemAsync(
+            employee.IdOrganization, idPersona, cancellationToken);
+
+        if (requerida is null || dePersona is null)
+        {
+            return new EligibilityReasonResponse(
+                "Perfil del puesto", "Escolaridad", false, true,
+                "No se pudo comparar la escolaridad. No impide asignar.");
+        }
+
+        var alcanza = dePersona.Order >= requerida.Order;
+
+        return new EligibilityReasonResponse(
+            "Perfil del puesto",
+            "Escolaridad",
+            false,
+            true,
+            alcanza
+                ? $"La posición pide {requerida.Name} o más, y el expediente dice {dePersona.Name}."
+                : $"La posición pide {requerida.Name} o más, y el expediente dice {dePersona.Name}. " +
+                  "No alcanza el mínimo, pero no impide asignar.");
+    }
+
+    /// <summary>Los años cumplidos a una fecha. Se calcula, no se guarda: guardarlo lo dejaría viejo.</summary>
+    private static int Edad(DateOnly nacimiento, DateOnly hoy)
+    {
+        var anios = hoy.Year - nacimiento.Year;
+        return nacimiento > hoy.AddYears(-anios) ? anios - 1 : anios;
     }
 
     /// <summary>

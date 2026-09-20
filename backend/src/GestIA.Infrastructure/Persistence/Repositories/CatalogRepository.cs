@@ -142,6 +142,10 @@ public sealed class CatalogRepository(GestIaDbContext dbContext) : ICatalogRepos
         dbContext.Positions
             .Include(position => position.Service)
             .ThenInclude(service => service.Client)
+            // El equipo requerido viaja con la posicion porque el motor lo enseña al comparar el
+            // perfil. Sin este Include la lista sale vacia y la pantalla diria que la posicion no
+            // pide equipo, que es distinto de no saberlo.
+            .Include(position => position.RequiredEquipment)
             .SingleOrDefaultAsync(
                 position =>
                     position.IdPosition == idPosition &&

@@ -117,6 +117,7 @@ import { dateRangeValidator, shiftIntervalValidator } from '../../ui/service-val
     GiConfirmDialog,
     GiCandidatePicker,
     PositionSkills,
+    EntityDocuments,
   ],
   templateUrl: './services-page.html',
   styleUrl: './services-page.scss',
@@ -1026,10 +1027,13 @@ export class ServicesPage implements OnInit, OnDestroy {
   ).map((value) => ({ value, label: PAYMENT_FREQUENCY_LABELS[value] }));
 
   protected readonly assignmentTypes: readonly { value: ServiceAssignmentType; label: string }[] = [
-    { value: 'Primary', label: 'Principal' },
+    // Los rótulos llevan el vocabulario de la operación, no el del enum. «Titular» y
+    // «cubre-descansos» son como se nombran en la llamada y en el proceso de campo; el valor
+    // guardado no cambia, así que los datos vivos siguen valiendo.
+    { value: 'Primary', label: 'Titular' },
     { value: 'Support', label: 'Apoyo' },
-    { value: 'Relief', label: 'Relevo' },
-    { value: 'TemporaryReplacement', label: 'Sustitución temporal' },
+    { value: 'Relief', label: 'Cubre-descansos' },
+    { value: 'TemporaryReplacement', label: 'Suplencia temporal' },
   ];
 
   protected readonly serviceForm = this.formBuilder.nonNullable.group(

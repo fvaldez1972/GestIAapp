@@ -951,14 +951,27 @@
                   <option [value]="type.value">{{ type.label }}</option>
                 }
               </select>
+              <small>Con qué calidad cubre <strong>esta posición</strong>.</small>
             </label>
             <label><span>Inicio *</span><input type="date" formControlName="startDate" /></label>
             <label><span>Fin</span><input type="date" formControlName="endDate" /></label>
+            <!--
+              El tipo y la asignación principal parecen lo mismo y responden preguntas distintas.
+              Sin decirlo, quien captura marca la casilla porque eligió «Titular» arriba, y las dos
+              dejan de significar algo: hoy hay 112 asignaciones marcadas principales y 38 con tipo
+              distinto de titular, así que en los datos ya son cosas separadas.
+            -->
             <label class="check"
               ><input type="checkbox" formControlName="isPrimary" /><span
                 >Asignación principal</span
               ></label
             >
+            <p class="hint wide">
+              <strong>Tipo</strong> dice con qué calidad cubre esta posición.
+              <strong>Asignación principal</strong> dice si éste es el puesto base
+              <strong>de la persona</strong>, cuando cubre varios. Alguien puede ser titular de una
+              posición y tener su puesto base en otra.
+            </p>
             <label class="wide"
               ><span>Notas</span><textarea rows="3" formControlName="notes"></textarea>
             </label>

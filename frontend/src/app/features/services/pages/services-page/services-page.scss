@@ -620,3 +620,11 @@ footer {
 /* La marca de revisión de una posición sin patrón del catálogo. En el color de advertencia del
    sistema, no en un rojo propio: no es un error, es algo que falta por decidir. */
 .mini-card__main .warn { color: var(--gestia-warning); font-weight: 600; }
+
+/* La aclaración bajo un par de campos que se confunden entre sí. */
+.hint {
+  margin: 0;
+  color: var(--gestia-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}

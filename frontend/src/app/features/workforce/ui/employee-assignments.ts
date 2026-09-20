@@ -6,7 +6,7 @@ import { EmployeeAssignment } from '../data-access/employee-list.models';
 const TIPOS: Record<EmployeeAssignment['assignmentType'], string> = {
   Primary: 'Titular',
   Support: 'Apoyo',
-  Relief: 'Relevo',
+  Relief: 'Cubre-descansos',
   TemporaryReplacement: 'Suplencia temporal',
 };
 

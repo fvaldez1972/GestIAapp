@@ -458,9 +458,16 @@ public sealed class ReportsRepository(GestIaDbContext dbContext) : IReportsRepos
                     $"del {incident.OccurredDate:dd/MM/yyyy}.");
             }
 
+            // Sin reglas no se concluye. La cuenta mira las reglas que APLICAN a esta persona,
+            // no los documentos ni las evaluaciones que tenga: el estado responde «¿había algo
+            // contra que comprobar?», y si no lo habia, decir «elegible» seria afirmar de mas.
+            var sinReglas = organizationRequirements.Length == 0;
+
             if (reasons.Count == 0)
             {
-                reasons.Add("Elegible con las reglas actuales.");
+                reasons.Add(sinReglas
+                    ? "Sin reglas configuradas que apliquen: no se comprobó nada."
+                    : "Elegible con las reglas actuales.");
             }
 
             return new WorkforceEligibilityResponse(
@@ -468,7 +475,10 @@ public sealed class ReportsRepository(GestIaDbContext dbContext) : IReportsRepos
                 employee.CodeEmployee,
                 employee.FullName,
                 employee.JobTitle,
-                reasons.Count == 1 && reasons[0] == "Elegible con las reglas actuales.",
+                // Elegible es lo que pasa las reglas; sin reglas NO es elegible, es otra cosa, y
+                // por eso va en su propia bandera en vez de colarse aqui como un si.
+                !sinReglas && reasons.Count == 1 && reasons[0] == "Elegible con las reglas actuales.",
+                sinReglas,
                 reasons,
                 expiredDocuments,
                 rejectedDocuments,

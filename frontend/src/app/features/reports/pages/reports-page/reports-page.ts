@@ -277,11 +277,16 @@ export class ReportsPage implements OnInit {
   protected readonly eligibilityRows = computed(() =>
     this.workforceEligibility().map((employee) => {
       const reasons = employee.reasons.length ? employee.reasons : employee.isEligible ? ['Cumple requisitos actuales'] : ['Requiere revisión'];
-      const hasInsufficientRules = reasons.some((reason) => /regla|suficiente|configur/i.test(reason));
 
       return {
         ...employee,
-        status: hasInsufficientRules ? 'Sin reglas suficientes' : employee.isEligible ? 'Elegible' : 'No elegible',
+        // Lo dice el servidor, no una expresión regular sobre el texto del motivo. Cuando lo
+        // adivinaba aquí buscaba «regla» en los motivos, y el de quien cumple dice «Elegible con
+        // las reglas actuales»: toda persona elegible salía como «Sin reglas suficientes» y el
+        // filtro de incumplimientos las mostraba a todas.
+        status: employee.hasNoApplicableRules
+          ? 'Sin reglas suficientes'
+          : employee.isEligible ? 'Elegible' : 'No elegible',
         fileStatus: employee.rejectedDocuments || employee.expiredDocuments ? 'Incompleto' : 'Completo',
         documentStatus: employee.rejectedDocuments || employee.expiredDocuments ? 'Pendiente' : 'Completo',
         skillStatus: reasons.some((reason) => /experiencia/i.test(reason)) ? 'Faltante' : 'Completo',

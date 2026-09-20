@@ -939,6 +939,15 @@ export type WorkforceEligibilityReport = {
   readonly fullName: string;
   readonly jobTitle: string | null;
   readonly isEligible: boolean;
+  /**
+   * Si no había ninguna regla activa que aplicara a esta persona.
+   *
+   * <p>Tercer estado, y lo resuelve el servidor. Antes la pantalla lo adivinaba buscando las
+   * palabras «regla», «suficiente» o «configur» en los motivos, y el motivo de quien sí cumple
+   * dice «Elegible con las reglas actuales»: contenía «reglas», así que <b>toda persona elegible
+   * se rotulaba «Sin reglas suficientes»</b> y aparecía en el filtro de incumplimientos.</p>
+   */
+  readonly hasNoApplicableRules: boolean;
   readonly reasons: readonly string[];
   readonly expiredDocuments: number;
   readonly rejectedDocuments: number;

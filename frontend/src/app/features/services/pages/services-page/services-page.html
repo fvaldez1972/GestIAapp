@@ -354,6 +354,29 @@
         }
         </ng-template>
 
+        <ng-template giTab="documents">
+          @if (selectedService(); as servicio) {
+            <section class="detail-section" [hidden]="activeTab() !== 'documents'">
+              <header>
+                <div>
+                  <h3>Documentos del servicio</h3>
+                  <span>La cédula de servicio y lo que lo acompañe</span>
+                </div>
+              </header>
+              <app-entity-documents
+                [organizationId]="selectedOrganizationId()"
+                ownerType="Service"
+                [ownerId]="servicio.idService"
+                [ownerLabel]="servicio.name"
+                [simple]="true"
+                (totalChange)="serviceDocumentCount.set($event)"
+              />
+            </section>
+          } @else {
+            <div class="compact-state">Selecciona un servicio para ver sus documentos.</div>
+          }
+        </ng-template>
+
         <ng-template giTab="assignments">
         @if (canReadPlanning()) {
           <section class="detail-section" [hidden]="activeTab() !== 'assignments'">

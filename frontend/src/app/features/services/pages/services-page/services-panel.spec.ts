@@ -152,19 +152,25 @@ describe('Servicios · ficha', () => {
     expect(despues).toEqual(['Servicio', 'Posiciones', 'Estado', '']);
   });
 
-  it('las tres pestañas, y la primera se llama Datos', () => {
+  it('las cuatro pestañas, y la primera se llama Datos', () => {
     abrir();
     const pestanas = Array.from(raiz().querySelectorAll('[role="tab"] > span:first-child')).map((t) =>
       t.textContent?.trim(),
     );
 
-    expect(pestanas).toEqual(['Datos', 'Posiciones', 'Asignaciones']);
+    // Documentos entró el 19 de septiembre de 2026 con la cédula de servicio. El modelo ya admitía
+    // documentos del servicio; lo que faltaba era dónde verlos.
+    expect(pestanas).toEqual(['Datos', 'Posiciones', 'Asignaciones', 'Documentos']);
   });
 
   /** El contador evita abrir la pestaña para descubrir si hay hueco. */
   it('Asignaciones lleva el número de vacantes en el tabulador', () => {
     abrir();
-    const asignaciones = Array.from(raiz().querySelectorAll('[role="tab"]')).at(-1)!;
+    // Por su rótulo y no por su posición: Asignaciones dejó de ser la última cuando entró
+    // Documentos, y una prueba que dice «la última» se rompe cada vez que se suma una pestaña.
+    const asignaciones = Array.from(raiz().querySelectorAll('[role="tab"]')).find((tab) =>
+      tab.textContent?.includes('Asignaciones'),
+    )!;
 
     // Una vacante en P-01 y ninguna en P-02.
     expect(asignaciones.querySelector('.gi-panel__count')?.textContent?.trim()).toBe('1');

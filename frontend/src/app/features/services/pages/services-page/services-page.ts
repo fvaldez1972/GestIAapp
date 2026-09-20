@@ -747,7 +747,14 @@ export class ServicesPage implements OnInit, OnDestroy {
     { id: 'data', label: 'Datos' },
     { id: 'positions', label: 'Posiciones', count: this.positions().length },
     { id: 'assignments', label: 'Asignaciones', count: this.vacantesAbiertas() },
+    // La cedula de servicio vive aqui, con los demas documentos del servicio. El modelo ya los
+    // admitia —BusinessDocumentOwnerType.Service existe desde antes— y lo que faltaba era la
+    // pestana: el servicio era el unico dueno de documentos sin donde verlos.
+    { id: 'documents', label: 'Documentos', count: this.serviceDocumentCount() },
   ]);
+
+  /** Cuántos documentos tiene el servicio abierto, para el contador de la pestaña. */
+  protected readonly serviceDocumentCount = signal(0);
 
   protected readonly rowActions = computed<readonly GiRowAction[]>(() => [
     { id: 'edit', label: 'Editar servicio', disabled: !this.canWriteClients(), disabledReason: 'No tienes permiso para editar servicios' },

@@ -130,3 +130,43 @@ estén cumplidos; no lo sé, y prefiero decirlo a suponerlo.
    requerimientos chicos.
 4. **Disponibilidad**, cuando haya modelo. Es lo único que se parece a un módulo nuevo, y conviene
    tratarlo como tal y no como parte de una tanda.
+
+---
+
+## Una decisión que los documentos piden y que NO se va a hacer
+
+**Que Planeación genere los turnos desde la plantilla del catálogo.** Los documentos lo piden —el
+criterio dice «Planeación consume la misma definición»— y el 20 de septiembre de 2026 se empezó a
+construir. Se revirtió antes de commitearlo, por instrucción del usuario:
+
+> necesito que eso no esté candadeado, nosotros debemos de elegir cuándo descansan; el domingo no es
+> de a fuerzas descanso, es conforme se haga la planeación
+
+Queda anotado como **decisión**, no como pendiente, porque quien lea el documento sin esta nota lo
+va a reabrir.
+
+### Por qué pesa más que el criterio del documento
+
+Generar desde la plantilla amarra la forma de la semana al catálogo. Dos consecuencias concretas,
+las dos medidas antes de revertir:
+
+- **El ciclo habría quedado anclado a un día fijo.** La plantilla declara días numerados y no dice
+  en qué fecha empieza a contar; su `EffectiveFromDate` es «vigente desde», y las diez del catálogo
+  la tienen en un jueves, que es el día en que se capturaron. Anclar ahí habría hecho que «Rol
+  diurno lunes a sábado» descansara los miércoles. Anclar en lunes lo arregla y sigue siendo un
+  candado: fija qué día natural le toca a cada día del ciclo.
+- **Se habría perdido el número de personas por día.** El patrón propio puede pedir dos elementos el
+  lunes y uno el sábado; la plantilla sólo conoce el número de la posición, igual toda la semana.
+  Sobre los datos de prueba, la semana pasaba de **378 a 583 plazas**: 33 posiciones hacia arriba y
+  13 hacia abajo.
+
+### Lo que sí es cierto hoy, y conviene no romper
+
+**El alta manual de un turno no consulta el patrón ni la plantilla.** Se puede programar a alguien
+cualquier día —incluido uno que la plantilla marque como descanso— y se puede quitar. La generación
+automática es una **propuesta**; lo que queda planeado es lo que alguien dejó. Ninguna validación
+nueva debería quitar esa libertad.
+
+Si más adelante hace falta que la planeación diga «este domingo sí se trabaja» de una vez para toda
+la semana, es una pieza propia —una excepción declarada sobre la semana— y no se resuelve haciendo
+que el catálogo mande.

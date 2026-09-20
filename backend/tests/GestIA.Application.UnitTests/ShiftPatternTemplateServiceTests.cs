@@ -16,8 +16,20 @@ public class ShiftPatternTemplateServiceTests
 {
     private static readonly Guid Organizacion = Guid.Parse("11111111-1111-1111-1111-111111111111");
 
+    /// <summary>
+    /// Una plantilla con días sin declarar <b>sí</b> se ofrece.
+    ///
+    /// <para><b>Esta prueba decía lo contrario hasta el 20 de septiembre de 2026</b>, y la regla que
+    /// fijaba salió cara: de las diez plantillas del catálogo, el selector de la posición ofrecía
+    /// <b>una</b>. Exigir el ciclo completo obliga a decidir los siete días —incluido cuál se
+    /// descansa— antes de poder usar el patrón para nada, y ése no es el momento de decidirlo: la
+    /// semana que de verdad se trabaja se resuelve al planear.</para>
+    ///
+    /// <para>Un día sin declarar significa «aquí no hay turno propuesto», no «aquí está prohibido
+    /// trabajar». Nada impide programar a alguien ese día.</para>
+    /// </summary>
     [Fact]
-    public async Task IncompleteTemplatesAreNotOffered()
+    public async Task ATemplateWithUndeclaredDaysIsStillOffered()
     {
         // Doce por doce, pero sólo con el día 1 declarado: falta el día 2.
         var incompleta = Plantilla("12x12 diurno", cycleDays: 2, (1, new TimeOnly(7, 0), new TimeOnly(19, 0), false));
@@ -31,9 +43,27 @@ public class ShiftPatternTemplateServiceTests
 
         var opciones = await servicio.ListOptionsAsync(Organizacion, CancellationToken.None);
 
-        // Una plantilla con días sin declarar generaría turnos con huecos, y elegirla parecería que
-        // el patrón ya está listo.
-        Assert.Equal(["12x12 nocturno"], opciones.Select(opcion => opcion.Name));
+        Assert.Equal(["12x12 diurno", "12x12 nocturno"], opciones.Select(opcion => opcion.Name).Order());
+    }
+
+    /// <summary>
+    /// Lo único que sigue sin ofrecerse: una plantilla que no declara ni un día de trabajo.
+    ///
+    /// <para>Es el control de la prueba anterior. Sin él, «se ofrecen las incompletas» no
+    /// distinguiría la regla nueva de no tener ninguna regla, y una plantilla que sólo declara
+    /// descansos no es un patrón de turno: no propondría un solo turno nunca.</para>
+    /// </summary>
+    [Fact]
+    public async Task ATemplateWithoutASingleWorkingDayIsNotOffered()
+    {
+        var soloDescansos = Plantilla("Vacía", cycleDays: 2, (1, null, null, true), (2, null, null, true));
+        var conTrabajo = Plantilla("Diurno", cycleDays: 2, (1, new TimeOnly(7, 0), new TimeOnly(19, 0), false));
+
+        var servicio = Servicio(new FakeRepository([soloDescansos, conTrabajo]));
+
+        var opciones = await servicio.ListOptionsAsync(Organizacion, CancellationToken.None);
+
+        Assert.Equal(["Diurno"], opciones.Select(opcion => opcion.Name));
     }
 
     [Fact]

@@ -37,12 +37,21 @@ public sealed class ShiftPatternTemplateService(
     {
         var plantillas = await repository.ListAsync(idOrganization, false, cancellationToken);
 
-        // Sólo las completas se ofrecen: una plantilla con días sin declarar generaría turnos con
-        // huecos que nadie pidió, y elegirla parecería que el patrón ya está listo.
+        // Se ofrecen todas las que declaren al menos un día de trabajo.
+        //
+        // <para>Antes sólo se ofrecían las que declaraban los siete días del ciclo, y el efecto no
+        // era el que se buscaba: de diez plantillas del catálogo, el selector de la posición
+        // ofrecía <b>una</b>. Obligaba a decidir los siete días —incluido cuál se descansa— antes
+        // de poder usar el patrón para nada, y ese no es el momento de decidirlo: el descanso se
+        // resuelve al planear la semana, caso por caso.</para>
+        //
+        // <para>Un día sin declarar significa «aquí no hay turno propuesto», no «aquí está
+        // prohibido trabajar». La pantalla sigue diciendo cuáles están completas, porque saberlo
+        // es útil; lo que ya no hace es esconder las demás.</para>
         return
         [
             .. plantillas
-                .Where(plantilla => plantilla.IsComplete)
+                .Where(plantilla => plantilla.Days.Any(day => day.Active && !day.IsRest))
                 .Select(plantilla =>
                 {
                     var evaluacion = Assess(plantilla);

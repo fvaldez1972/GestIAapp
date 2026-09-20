@@ -93,7 +93,10 @@ public sealed class ShiftPatternTemplateRepository(GestIaDbContext dbContext) : 
                 plantilla =>
                     plantilla.IdOrganization == idOrganization &&
                     plantilla.IdShiftPatternTemplate == idShiftPatternTemplate &&
-                    plantilla.Days.Count(day => day.Active) == plantilla.CycleDays,
+                    // Basta con que declare al menos un dia de trabajo. Exigir el ciclo completo
+                    // obligaba a decidir los siete antes de poder usar la plantilla, y el horario
+                    // de verdad lo decide la planeacion, no el catalogo.
+                    plantilla.Days.Any(day => day.Active && !day.IsRest),
                 cancellationToken);
 
     public Task AddAsync(ShiftPatternTemplate pattern, CancellationToken cancellationToken) =>

@@ -326,10 +326,17 @@
                 Elígele uno al editarla.
               </div>
             } @else if (selectedPositionTemplate(); as plantilla) {
+              <!--
+                Dice «referencia» y no «horario», y la diferencia no es de estilo. Lo que se
+                trabaja cada semana lo decide la planeación: puede programarse un día que aquí
+                aparece como descanso, y puede no programarse uno que aquí aparece con horario.
+                Sin decirlo, este calendario se lee como una regla y no lo es.
+              -->
               <p class="notice">
                 <strong>{{ plantilla.name }}</strong> · ciclo de {{ plantilla.cycleDays }} día(s) ·
-                {{ plantilla.weeklyHours }} h a la semana. El horario se edita en Catálogos, no
-                aquí.
+                {{ plantilla.weeklyHours }} h a la semana. Es la <strong>referencia</strong> del
+                patrón: la semana que de verdad se trabaja se decide al planear, y puede no
+                coincidir. Para cambiar la referencia, en Catálogos.
               </p>
               <div class="schedule-grid">
                 @for (dia of plantilla.days; track dia.idShiftPatternTemplateDay) {

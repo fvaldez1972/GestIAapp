@@ -58,7 +58,7 @@ public sealed class PlanningService(
             request.IdSexCatalogItem, request.IdAgeRangeCatalogItem, request.IdEducationLevelCatalogItem);
         await EnsureJobPositionAsync(request.IdOrganization, profile.IdJobPositionCatalogItem, cancellationToken);
         await EnsureShiftPatternTemplateAsync(
-            request.IdOrganization, profile.IdShiftPatternTemplate, cancellationToken);
+            request.IdOrganization, profile.IdShiftPatternTemplate, cancellationToken, required: true);
 
         if (await repository.IsPositionCodeInUseAsync(request.IdService, code, null, cancellationToken))
         {
@@ -372,13 +372,36 @@ public sealed class PlanningService(
     /// es cromo: ocultar una opción no es autorización, y una posición apuntando a un patrón con
     /// días sin declarar generaría turnos con huecos que nadie pidió.</para>
     /// </summary>
+    /// <summary>
+    /// Que el patrón exista, esté activo y tenga su ciclo completo.
+    ///
+    /// <para><b>Y que lo haya, cuando la posición es nueva.</b> Desde el 19 de septiembre de 2026
+    /// una posición no nace sin patrón del catálogo: sin él no se pueden proyectar turnos ni
+    /// publicar la planeación, y la posición existía igual, en silencio, hasta que alguien
+    /// intentaba planear.</para>
+    ///
+    /// <para><b>Al editar no se exige, y es deliberado.</b> Quedan posiciones capturadas antes de
+    /// esta regla sin patrón —las que la migración no pudo reconciliar— y exigirlo aquí impediría
+    /// corregirles el nombre o el precio hasta resolver su horario, que es un problema aparte. La
+    /// pantalla las marca para revisión; eso es lo que las cierra, no un candado.</para>
+    /// </summary>
     private async Task EnsureShiftPatternTemplateAsync(
         Guid idOrganization,
         Guid? idShiftPatternTemplate,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool required = false)
     {
         if (idShiftPatternTemplate is not { } id)
         {
+            if (required)
+            {
+                throw new RequestValidationException(new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["idShiftPatternTemplate"] =
+                        ["Elige el patrón de turno del catálogo. Sin patrón no se pueden proyectar turnos ni publicar la planeación."]
+                });
+            }
+
             return;
         }
 

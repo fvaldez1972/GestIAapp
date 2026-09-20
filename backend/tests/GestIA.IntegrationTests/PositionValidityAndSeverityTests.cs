@@ -5,6 +5,7 @@ using GestIA.Application.Planning;
 using GestIA.Domain.Catalogs;
 using GestIA.Domain.Clients;
 using GestIA.Domain.Organizations;
+using GestIA.Domain.Planning;
 using GestIA.Domain.Services;
 using GestIA.Domain.Workforce;
 using GestIA.Infrastructure;
@@ -193,6 +194,7 @@ public sealed class PositionValidityAndSeverityTests(OperationalSqlDatabase data
                 1,
                 null,
                 null,
+                IdShiftPatternTemplate: seed.IdShiftPatternTemplate,
                 StartDate: start,
                 EndDate: end),
             Token);
@@ -254,6 +256,17 @@ public sealed class PositionValidityAndSeverityTests(OperationalSqlDatabase data
             "Guardia", Day.AddDays(-200), TestActor.ActorId, TestActor.ActorName, Now);
         context.Add(employee);
 
+        // Una plantilla completa, porque desde el 19 de septiembre de 2026 una posición nueva no
+        // nace sin patrón del catálogo: sin él no se pueden proyectar turnos ni publicar.
+        var plantilla = ShiftPatternTemplate.Create(
+            organization.IdOrganization,
+            new ShiftPatternTemplateProfile(
+                $"Diurno {sufijo[..4]}", null, ShiftDaypart.Day, 1, Day.AddDays(-30), null),
+            TestActor.ActorId, TestActor.ActorName, Now);
+        plantilla.DeclareDay(1, new TimeOnly(8, 0), new TimeOnly(16, 0), false,
+            TestActor.ActorId, TestActor.ActorName, Now);
+        context.Add(plantilla);
+
         if (catalogIsBlocking.HasValue || ruleIsBlocking)
         {
             var experiencia = BusinessCatalogItem.Create(
@@ -285,10 +298,16 @@ public sealed class PositionValidityAndSeverityTests(OperationalSqlDatabase data
         database.Organization.SetAuthorizedOrganization(organization.IdOrganization);
 
         return new Seed(
-            organization.IdOrganization, client.IdClient, service.IdService, employee.IdEmployee);
+            organization.IdOrganization, client.IdClient, service.IdService, employee.IdEmployee,
+            plantilla.IdShiftPatternTemplate);
     }
 
-    private sealed record Seed(Guid IdOrganization, Guid IdClient, Guid IdService, Guid IdEmployee);
+    private sealed record Seed(
+        Guid IdOrganization,
+        Guid IdClient,
+        Guid IdService,
+        Guid IdEmployee,
+        Guid IdShiftPatternTemplate);
 
     private ServiceProvider Provider()
     {

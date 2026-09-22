@@ -122,23 +122,27 @@ public sealed partial class DemoDataSeeder(
     }
 
     /// <summary>
-    /// Reimporta la geografía versionada y los motivos operativos usando exactamente la misma
-    /// pieza que usa el alta real, y encima agrega puestos y habilidades, que el alta real
-    /// deliberadamente no inventa.
+    /// Siembra los catálogos del alta real usando exactamente la misma pieza que el alta real, y
+    /// encima agrega puestos y habilidades, que el alta real deliberadamente no inventa.
     /// </summary>
     private async Task EnsureCatalogsAsync(
         Organization organization,
         DemoSeedReport report,
         CancellationToken cancellationToken)
     {
-        var hasGeography = await dbContext.BusinessCatalogItems
+        // La señal de «aquí ya corrió el alta» es que la organización tenga algún valor de
+        // catálogo, y no que tenga uno de un tipo concreto.
+        //
+        // Hasta el 22 de septiembre de 2026 preguntaba si tenía estados. Ese día la geografía salió
+        // del catálogo por organización y el alta dejó de sembrarla, así que la pregunta pasó a
+        // responder «no» siempre y el sembrador volvía a sembrar encima: las tres pruebas de esta
+        // clase fallaron con clave duplicada. Un centinela atado a un tipo concreto vuelve a
+        // romperse el día que ese tipo se retire, y ya se retiraron varios.
+        var yaSembrada = await dbContext.BusinessCatalogItems
             .IgnoreQueryFilters(["Active", "Organization"])
-            .AnyAsync(
-                item => item.IdOrganization == organization.IdOrganization &&
-                    item.Type == BusinessCatalogItemType.State,
-                cancellationToken);
+            .AnyAsync(item => item.IdOrganization == organization.IdOrganization, cancellationToken);
 
-        if (!hasGeography)
+        if (!yaSembrada)
         {
             await catalogDefaults.StageAsync(organization.IdOrganization, cancellationToken);
             await dbContext.SaveChangesAsync(cancellationToken);
@@ -153,10 +157,10 @@ public sealed partial class DemoDataSeeder(
         await EnsureCatalogItemsAsync(
             organization, BusinessCatalogItemType.Skill, DemoCatalog.Skills, cancellationToken);
 
-        // Las tres listas que dejaron de ser enums. Se comprueban aparte de la geografia por la
-        // misma razon que los puestos: una organizacion demo sembrada antes del 19 de septiembre de
-        // 2026 ya tiene geografia, asi que colgarlas de «¿ya hay geografia?» las habria dejado sin
-        // categorias y las reglas de documento no encontrarian a que apuntar.
+        // Las tres listas que dejaron de ser enums. Se comprueban aparte por la misma razon que los
+        // puestos: una organizacion demo sembrada antes del 19 de septiembre de 2026 ya tenia
+        // catalogos, asi que colgarlas del centinela las habria dejado sin categorias y las reglas
+        // de documento no encontrarian a que apuntar.
         foreach (var grupo in EligibilityCatalogSeed.All.GroupBy(value => value.Type))
         {
             await EnsureCatalogItemsAsync(

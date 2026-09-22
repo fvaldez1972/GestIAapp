@@ -135,8 +135,8 @@ public sealed class CatalogMetadataTests(OperationalSqlDatabase database) : ICla
     // No se reescriben porque no se puede: una migracion desplegada no se toca, y su premisa ya no
     // existe. Lo que verificaban era un relleno de una sola vez que ya corrio en todas las bases
     // vivas, asi que su valor era historico. La siembra de geografia que si sigue viva la cubre
-    // NewOrganizationsReceiveCompleteScopedDefaultsWithAndWithoutAdmin, que cuenta estados y
-    // municipios.
+    // NewOrganizationsReceiveCompleteScopedDefaultsWithAndWithoutAdmin, que desde el 22 de
+    // septiembre de 2026 comprueba lo contrario: que el alta ya NO siembra geografia.
 
     [OperationalSqlFact]
     public async Task NewOrganizationsReceiveCompleteScopedDefaultsWithAndWithoutAdmin()
@@ -163,9 +163,17 @@ public sealed class CatalogMetadataTests(OperationalSqlDatabase database) : ICla
             // demuestra que cambiar de organización sobre el MISMO contexto cambia lo que ve.
             database.Organization.SetAuthorizedOrganization(id);
             var items = await check.BusinessCatalogItems.Where(item => item.IdOrganization == id).ToArrayAsync();
-            // La geografia sigue viniendo cargada porque no se captura: se elige.
-            Assert.Equal(32, items.Count(item => item.Type == BusinessCatalogItemType.State));
-            Assert.Equal(2478, items.Count(item => item.Type == BusinessCatalogItemType.City));
+            // La geografia ya NO viene cargada, y ese es el cambio del 22 de septiembre de 2026.
+            // Eran 2 511 filas por organizacion -un pais, 32 estados y 2 478 municipios- de unos
+            // datos identicos para todas, escritas antes de que nadie capturara nada. Ahora viven
+            // en GeoCountries, GeoStates y GeoMunicipalities, que no llevan organizacion.
+            Assert.DoesNotContain(items, item => item.Type == BusinessCatalogItemType.Country);
+            Assert.DoesNotContain(items, item => item.Type == BusinessCatalogItemType.State);
+            Assert.DoesNotContain(items, item => item.Type == BusinessCatalogItemType.City);
+
+            // Y el control de eso: la nacionalidad si se sigue sembrando. Sin el, «no hay
+            // geografia» pasaria igual si el alta hubiera dejado de sembrar nada.
+            Assert.Contains(items, item => item.Type == BusinessCatalogItemType.Nationality);
 
             // Los motivos ya NO se siembran, y eso es el punto de la tanda: el administrador no
             // tiene que revisar once valores que no eligio antes de poder confiar en su catalogo.

@@ -1,4 +1,3 @@
-using System.Text.Json;
 using GestIA.Application.Common;
 using GestIA.Domain.Catalogs;
 
@@ -6,20 +5,20 @@ namespace GestIA.Application.Catalogs;
 
 public sealed class OrganizationCatalogDefaults(ICatalogRepository repository, IActorContext actor, IClock clock)
 {
+    /// <summary>
+    /// El catálogo del INEGI empaquetado con la aplicación.
+    ///
+    /// <para><b>Ya no se usa para sembrar nada, y aun así se queda.</b> La migración
+    /// <c>20260903214645_CoverageCatalogReference</c> lo lee, y una migración ya desplegada no se
+    /// reescribe. Los mismos datos viven hoy en las tablas compartidas, sembrados por
+    /// <c>20260922131723_SharedGeographyTables</c>.</para>
+    /// </summary>
     public static string GeographyJson { get; } = ReadGeography();
-    public static MexicoGeography Geography { get; } = JsonSerializer.Deserialize<MexicoGeography>(GeographyJson)!;
 
     // Stage defaults in the same unit of work as the organization and its initial admin.
     public async Task StageAsync(Guid organization, CancellationToken token)
     {
-        var country = await Add(BusinessCatalogItemType.Country, "México", null);
         await Add(BusinessCatalogItemType.Nationality, "Mexicana", null);
-        foreach (var state in Geography.States)
-        {
-            var parent = await Add(BusinessCatalogItemType.State, state.Name, country);
-            foreach (var city in state.Cities)
-                await Add(BusinessCatalogItemType.City, city.Name, parent);
-        }
         // Los motivos ya no se siembran: se crean al vuelo desde Incidencias y desde Cobertura, que
         // es donde se necesitan. Sembrar once motivos que casi nadie usa obligaba a revisarlos y
         // desactivar los que sobraban antes de poder confiar en el catalogo.
@@ -27,8 +26,10 @@ public sealed class OrganizationCatalogDefaults(ICatalogRepository repository, I
         // Puestos, experiencia y zonas tampoco: los dos primeros se crean al vuelo desde Personal, y
         // el catalogo de zonas se retiro por completo.
         //
-        // Lo unico que sigue viniendo cargado es la geografia, porque no se captura: se elige. Sale
-        // de esta clase en su propia tanda, a una tabla compartida entre organizaciones.
+        // La geografia salio de aqui el 22 de septiembre de 2026. Eran 2 511 filas por organizacion
+        // -un pais, 32 estados y 2 478 municipios- de unos datos que son los mismos para todas, asi
+        // que el alta de una organizacion escribia dos mil quinientas filas antes de que nadie
+        // capturara nada. Ahora vive en las tablas compartidas y no se siembra por empresa.
         //
         // Y desde el 19 de septiembre de 2026, tambien las categorias de documento, las de
         // evaluacion y los propositos de contacto. Esas tres eran listas fijas del sistema que toda
@@ -89,7 +90,3 @@ public sealed class OrganizationCatalogDefaults(ICatalogRepository repository, I
         return reader.ReadToEnd();
     }
 }
-
-public sealed record MexicoGeography(string Source, string RetrievedAt, MexicoState[] States);
-public sealed record MexicoState(string Code, string Name, MexicoCity[] Cities);
-public sealed record MexicoCity(string Code, string Name);

@@ -57,6 +57,8 @@ import { CatalogApiService } from '../../../catalogs/data-access/catalog-api.ser
 import {
   ShiftPatternTemplate,
   ShiftPatternTemplateOption,
+  cycleLabel,
+  cyclePhrase,
   shiftDaypartLabel,
 } from '../../../catalogs/data-access/shift-pattern-template.models';
 import { PAYMENT_FREQUENCY_LABELS, PaymentFrequency } from '../../../clients/data-access/client.models';
@@ -1640,9 +1642,22 @@ export class ServicesPage implements OnInit, OnDestroy {
 
   /** La etiqueta de un patrón en el desplegable: el nombre, y el ciclo y las horas al lado. */
   protected patronEtiqueta(patron: ShiftPatternTemplateOption): string {
-    const dias = patron.cycleDays === 1 ? '1 día' : `${patron.cycleDays} días`;
     const exceso = patron.compliance === 'Exceeds' ? ` · excede por ${patron.excessHours} h` : '';
-    return `${patron.name} · ${shiftDaypartLabel(patron.daypart)} · ciclo de ${dias} · promedio ${patron.weeklyHours} h/semana${exceso}`;
+    return `${patron.name} · ${shiftDaypartLabel(patron.daypart)} · ${cycleLabel(patron.cycleDays)} · promedio ${patron.weeklyHours} h/semana${exceso}`;
+  }
+
+  /**
+   * La longitud del ciclo, con las mismas palabras que el catálogo.
+   *
+   * <p>Salen de <c>cycleLabel</c> y <c>cyclePhrase</c>, compartidas con la pantalla de patrones.
+   * Escritas aparte se separaron: allá decía «Semanal» y aquí «ciclo de 7 días».</p>
+   */
+  protected cicloTexto(cycleDays: number): string {
+    return cycleLabel(cycleDays);
+  }
+
+  protected cicloEnFrase(cycleDays: number): string {
+    return cyclePhrase(cycleDays);
   }
 
   /**

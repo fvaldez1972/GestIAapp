@@ -3,7 +3,10 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { SystemInfoService } from '../../../../core/system/system-info.service';
-import { ShiftPatternTemplate, ShiftPatternTemplateInput } from '../../data-access/shift-pattern-template.models';
+import { ShiftPatternTemplate, ShiftPatternTemplateInput,
+  cycleLabel,
+  cyclePhrase,
+} from '../../data-access/shift-pattern-template.models';
 import { ShiftPatternTemplates } from './shift-pattern-templates';
 
 const HOY = '2026-09-17';
@@ -211,6 +214,26 @@ describe('El constructor de patrones de turno', () => {
     pagina.form.controls.cycleDays.setValue(6);
 
     expect(pagina.nombreDelDia(1), 'sin semana no hay día que nombrar').toBe('Día 1');
+  });
+
+  /**
+   * Un ciclo de siete días se dice «Semanal», y con las mismas palabras en todas partes.
+   *
+   * <p>La longitud del ciclo estaba escrita en cuatro sitios —esta tabla, el desplegable de la
+   * posición, el aviso del calendario y la nota del patrón elegido— y se separaron: aquí decía
+   * «Semanal» y los otros tres «ciclo de 7 días». Ahora sale de una función compartida, y esta
+   * prueba la sujeta desde el lado que la gente ve.</p>
+   */
+  it('el ciclo de siete días se dice «Semanal», y los demás se cuentan', () => {
+    expect(cycleLabel(7)).toBe('Semanal');
+    expect(cycleLabel(3)).toBe('3 días');
+    expect(cycleLabel(1)).toBe('1 día');
+
+    // Y dentro de una frase, para que «el ciclo …de este patrón» se lea en los dos casos.
+    expect(cyclePhrase(7)).toBe('semanal');
+    expect(cyclePhrase(3)).toBe('de 3 días');
+
+    expect(montar([patronFixture({ cycleDays: 7 })]).texto()).toContain('Semanal');
   });
 
   it('marca el patrón al que le faltan días por declarar, que es distinto de tener descanso', () => {

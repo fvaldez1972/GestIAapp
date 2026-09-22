@@ -333,7 +333,7 @@
                 Sin decirlo, este calendario se lee como una regla y no lo es.
               -->
               <p class="notice">
-                <strong>{{ plantilla.name }}</strong> · ciclo de {{ plantilla.cycleDays }} día(s) ·
+                <strong>{{ plantilla.name }}</strong> · {{ cicloTexto(plantilla.cycleDays) }} ·
                 {{ plantilla.weeklyHours }} h a la semana. Es la <strong>referencia</strong> del
                 patrón: la semana que de verdad se trabaja se decide al planear, y puede no
                 coincidir. Para cambiar la referencia, en Catálogos.
@@ -797,8 +797,7 @@
               </select>
               @if (selectedShiftPatternTemplate(); as patron) {
                 <small>
-                  El puesto sigue el ciclo de {{ patron.cycleDays }}
-                  {{ patron.cycleDays === 1 ? 'día' : 'días' }} de este patrón:
+                  El puesto sigue el ciclo {{ cicloEnFrase(patron.cycleDays) }} de este patrón:
                   un promedio de {{ patron.weeklyHours }} horas por semana.
                   @if (patron.compliance === 'Exceeds') {
                     Excede la jornada legal por {{ patron.excessHours }} horas; se guarda igual y

@@ -43,6 +43,29 @@ export const SHIFT_DAYPARTS: readonly { readonly value: ShiftDaypart; readonly l
  */
 const SEMANA = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'];
 
+/**
+ * Cómo se dice la longitud de un ciclo. **En una sola función, y por una razón.**
+ *
+ * <p>Estaba escrita en cuatro sitios —la tabla de patrones, el desplegable de la posición, el aviso
+ * del calendario y la nota del patrón elegido— y se separaron: la tabla decía «Semanal» y los
+ * otros tres «ciclo de 7 días». Dos vocabularios para el mismo dato se leen como dos cosas.</p>
+ *
+ * <p>Siete días es «Semanal» y no «7 días» porque es lo que la gente dice: nadie llama a una
+ * semana «un ciclo de siete días» salvo cuando quiere distinguirla de un 24x48.</p>
+ */
+export function cycleLabel(cycleDays: number): string {
+  if (cycleDays === 7) {
+    return 'Semanal';
+  }
+
+  return cycleDays === 1 ? '1 día' : `${cycleDays} días`;
+}
+
+/** La misma longitud dentro de una frase: «el ciclo semanal», «el ciclo de 3 días». */
+export function cyclePhrase(cycleDays: number): string {
+  return cycleDays === 7 ? 'semanal' : `de ${cycleLabel(cycleDays).toLowerCase()}`;
+}
+
 export function cycleDayLabel(dayNumber: number, cycleDays: number): string {
   if (cycleDays === 7 && dayNumber >= 1 && dayNumber <= 7) {
     const nombre = SEMANA[dayNumber - 1];

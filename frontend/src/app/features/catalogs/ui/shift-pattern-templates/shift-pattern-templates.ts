@@ -31,6 +31,7 @@ import {
   ShiftPatternTemplateInput,
   crossesMidnight,
   cycleDayLabel,
+  cycleLabel,
   formatHours,
   shiftDaypartLabel,
   shiftDurationMinutes,
@@ -608,11 +609,7 @@ export class ShiftPatternTemplates {
   protected daypartLabel = shiftDaypartLabel;
 
   protected cicloTexto(patron: ShiftPatternTemplate): string {
-    if (patron.cycleDays === 7) {
-      return 'Semanal';
-    }
-
-    return patron.cycleDays === 1 ? '1 día' : `${patron.cycleDays} días`;
+    return cycleLabel(patron.cycleDays);
   }
 
   /** Cómo se llama el día que se está capturando: lunes, martes… o «Día 3» fuera de la semana. */

@@ -1,4 +1,5 @@
 import { routes } from '../../app.routes';
+import { CATALOG_PAGE_GROUPS } from '../../features/catalogs/data-access/catalog-pages';
 import {
   GESTIA_NAVIGATION,
   GESTIA_NAVIGATION_ITEMS,
@@ -185,16 +186,52 @@ describe('Menú lateral', () => {
   });
 
   it('toda entrada visible apunta a una ruta que el enrutador conoce', () => {
+    // Una ruta con parámetro cubre a todas sus hijas: `/operacion/asistencia` cae en
+    // `operacion/:section`, y `/catalogos/puestos` en `catalogos/:catalogo`.
+    const conocida = (route: string) =>
+      rutasRegistradas.has(route) ||
+      rutasRegistradas.has(`/${route.split('/')[1]}/:section`) ||
+      rutasRegistradas.has(`/${route.split('/')[1]}/:catalogo`);
+
     for (const audience of [superAdmin(false), superAdmin(true), adminDeOrganizacion]) {
       for (const item of visibleNavigationItems(audience)) {
-        // `/operacion/asistencia` y sus hermanas caen en la ruta con parámetro `operacion/:section`.
-        const conocida =
-          rutasRegistradas.has(item.route) ||
-          rutasRegistradas.has(`/${item.route.split('/')[1]}/:section`);
+        expect(conocida(item.route), `Ruta sin registrar: ${item.route}`).toBe(true);
 
-        expect(conocida, `Ruta sin registrar: ${item.route}`).toBe(true);
+        // Y los hijos igual. Sin esto, agregar una entrada al submenú apuntando a una página que
+        // todavía no existe pasaría la prueba y llegaría a producción como un renglón que no hace
+        // nada. Es exactamente lo que puede ocurrir mientras el rediseño avanza por bloques.
+        for (const bloque of item.children ?? []) {
+          for (const hijo of bloque.items) {
+            expect(conocida(hijo.route), `Ruta de submenú sin registrar: ${hijo.route}`).toBe(true);
+          }
+        }
       }
     }
+  });
+
+  /**
+   * El submenú de Catálogos y las páginas de catálogo dicen lo mismo.
+   *
+   * <p>El menú vive en `core` y las páginas en `features`, y esa dirección no se invierte: el menú
+   * no importa la definición de las pantallas. El precio es que las rutas están escritas dos veces,
+   * y esta prueba es lo que impide que se separen. Sin ella, renombrar un `slug` dejaría el menú
+   * apuntando a una dirección que ya no responde.</p>
+   *
+   * <p>Se comparan sólo las que son listas simples: Patrones de turno y Reglas de elegibilidad
+   * tienen pantalla propia y no salen de `CATALOG_PAGE_GROUPS`.</p>
+   */
+  it('el submenú de Catálogos coincide con las páginas de catálogo que existen', () => {
+    const catalogos = GESTIA_NAVIGATION_ITEMS.find((item) => item.route === '/catalogos');
+    const enElMenu = (catalogos?.children ?? [])
+      .flatMap((bloque) => bloque.items)
+      .map((hijo) => hijo.route)
+      .filter((route) => route !== '/catalogos/patrones-de-turno' && route !== '/catalogos/reglas-de-elegibilidad');
+
+    const enLasPaginas = CATALOG_PAGE_GROUPS.flatMap((grupo) => grupo.pages).map(
+      (pagina) => `/catalogos/${pagina.slug}`,
+    );
+
+    expect([...enElMenu].sort()).toEqual([...enLasPaginas].sort());
   });
 
   /**

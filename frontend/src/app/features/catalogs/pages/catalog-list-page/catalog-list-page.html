@@ -1,0 +1,184 @@
+@if (page(); as catalogo) {
+  <header class="cat-head gi-card">
+    <div class="cat-head__text">
+      <span class="eyebrow">Catálogos</span>
+      <h1>{{ catalogo.title }}</h1>
+      <p class="cat-head__lead">{{ catalogo.lead }}</p>
+    </div>
+
+    @if (canWrite()) {
+      <button type="button" class="gi-button gi-button--primary" (click)="newItem()">
+        Agregar {{ catalogo.singular }}
+      </button>
+    }
+  </header>
+
+  @if (message()) {
+    <div class="gi-alert gi-alert--success" role="status">{{ message() }}</div>
+  }
+
+  <gi-filter-bar
+    [search]="search()"
+    searchLabel="Buscar"
+    [searchPlaceholder]="'Buscar ' + catalogo.singular + '…'"
+    [groups]="filterGroups()"
+    [resultCount]="filtradas().length"
+    (searchChange)="onSearch($event)"
+    (filterChange)="onFilter($event)"
+    (clearAll)="clearFilters()"
+  />
+
+  <gi-data-table
+    [label]="catalogo.title"
+    [columns]="columns()"
+    [rows]="paginadas()"
+    [rowId]="porId"
+    [state]="tableState()"
+    [selectable]="false"
+    [errorMessage]="error()"
+    [emptyTitle]="tableState() === 'empty' ? 'Todavía no hay valores' : 'Ningún valor con este filtro'"
+    [emptyDescription]="
+      tableState() === 'empty'
+        ? catalogo.example + '. Agrega el primero para que aparezca en los formularios.'
+        : 'Ninguno coincide con lo que buscas. Puedes quitar los filtros.'
+    "
+    [emptyActionLabel]="tableState() === 'empty' && canWrite() ? 'Agregar ' + catalogo.singular : ''"
+    [emptySecondaryActionLabel]="tableState() === 'empty-filtered' ? 'Quitar filtros' : ''"
+    (retry)="loadData()"
+    (emptyAction)="newItem()"
+    (emptySecondaryAction)="clearFilters()"
+  >
+    <!--
+      El número de fila es una ayuda de lectura, no un dato: cambia con el orden y con el filtro.
+      Por eso la columna se llama «#» y no «ID». Ningún catálogo enseña identificadores.
+    -->
+    <ng-template giCell="fila" let-row>{{ rowNumber(row) }}</ng-template>
+
+    <ng-template giCell="parent" let-row>{{ parentName(row) }}</ng-template>
+
+    <ng-template giCell="description" let-row>{{ row.description || '—' }}</ng-template>
+
+    <ng-template giCell="nature" let-row>
+      <span class="gi-badge" [class.gi-badge--warning]="row.isBlocking === true" [class.gi-badge--muted]="row.isBlocking !== true">{{ natureLabel(row) }}</span>
+    </ng-template>
+
+    <ng-template giCell="state" let-row>
+      <span class="gi-badge" [class.gi-badge--success]="row.active" [class.gi-badge--muted]="!row.active">{{ row.active ? 'Activo' : 'Inactivo' }}</span>
+    </ng-template>
+
+    <ng-template giCell="updatedAt" let-row>{{ fecha(row.updatedAt) }}</ng-template>
+
+    <ng-template giCell="actions" let-row>
+      @if (canWrite()) {
+        <gi-row-actions
+          [actions]="rowActions(row)"
+          [label]="'Acciones de ' + row.name"
+          (select)="$event.id === 'edit' ? editItem(row) : toggleActive(row)"
+        />
+      }
+    </ng-template>
+  </gi-data-table>
+
+  @if (totalPaginas() > 1) {
+    <nav class="cat-pages" aria-label="Páginas de la lista">
+      <button
+        type="button"
+        class="gi-button gi-button--ghost"
+        [disabled]="currentPage() === 1"
+        (click)="goToPage(currentPage() - 1)"
+      >Anterior</button>
+
+      <span class="cat-pages__count">Página {{ currentPage() }} de {{ totalPaginas() }}</span>
+
+      <button
+        type="button"
+        class="gi-button gi-button--ghost"
+        [disabled]="currentPage() === totalPaginas()"
+        (click)="goToPage(currentPage() + 1)"
+      >Siguiente</button>
+    </nav>
+  }
+
+  <dialog
+    #editor
+    class="cat-dialog"
+    [attr.aria-label]="'Valor de ' + catalogo.title"
+    (cancel)="saving() ? $event.preventDefault() : closeEditor()"
+  >
+    <form [formGroup]="form" (ngSubmit)="save()">
+      <header class="cat-dialog__head">
+        <div>
+          <span class="eyebrow">{{ catalogo.title }}</span>
+          <h2>{{ selectedItemId() ? 'Editar' : 'Agregar' }} {{ catalogo.singular }}</h2>
+        </div>
+        <button type="button" class="gi-button gi-button--ghost" (click)="closeEditor()">Cerrar</button>
+      </header>
+
+      @if (error()) {
+        <div class="gi-alert gi-alert--error" role="alert">{{ error() }}</div>
+      }
+
+      <label class="gi-field">
+        Nombre
+        <input class="gi-input" type="text" maxlength="160" formControlName="name" />
+      </label>
+
+      <label class="gi-field">
+        Descripción
+        <textarea class="gi-input" rows="2" maxlength="1000" formControlName="description"></textarea>
+      </label>
+
+      @if (catalogo.parentType) {
+        <gi-select
+          label="Categoría"
+          [options]="parentOptions()"
+          [value]="form.controls.idParentCatalogItem.value"
+          (valueChange)="form.controls.idParentCatalogItem.setValue($any($event))"
+        />
+      }
+
+      <div class="cat-editor__row">
+        <gi-select
+          label="Estatus"
+          [options]="statusOptions"
+          [value]="form.controls.status.value"
+          (valueChange)="form.controls.status.setValue($any($event))"
+        />
+
+        <label class="gi-field">
+          Orden
+          <input class="gi-input" type="number" min="1" max="100000" step="1" formControlName="order" />
+        </label>
+      </div>
+
+      @if (catalogo.hasNature) {
+        <gi-select
+          label="Si a una persona le falta esto"
+          [options]="natureOptions"
+          [value]="form.controls.blockingMark.value"
+          (valueChange)="form.controls.blockingMark.setValue($any($event))"
+        />
+        <p class="cat-editor__note">
+          Es el valor por omisión de toda la organización. Una regla de elegibilidad puede afinarlo
+          para un cliente, un servicio o una posición concreta.
+        </p>
+      }
+
+      <footer class="cat-dialog__foot">
+        <button type="button" class="gi-button gi-button--ghost" (click)="closeEditor()">Cancelar</button>
+        <button type="submit" class="gi-button gi-button--primary" [disabled]="saving()">
+          {{ saving() ? 'Guardando…' : 'Guardar' }}
+        </button>
+      </footer>
+    </form>
+  </dialog>
+} @else {
+  <!--
+    Una dirección inventada o un catálogo que ya no existe. Se dice qué pasó en vez de dejar la
+    página en blanco, que es indistinguible de una pantalla rota.
+  -->
+  <div class="cat-missing gi-card">
+    <h1>Ese catálogo no existe</h1>
+    <p>La dirección no corresponde a ningún catálogo. Elige uno del menú de Catálogos.</p>
+  </div>
+}

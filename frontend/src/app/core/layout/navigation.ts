@@ -146,7 +146,63 @@ export const GESTIA_NAVIGATION: readonly NavigationGroup[] = [
       { label: 'Clientes', icon: 'customer', route: '/clientes', permission: 'CLIENTS.READ', needsOrganization: true },
       { label: 'Servicios', icon: 'coverage', route: '/servicios', permission: 'CLIENTS.READ', needsOrganization: true },
       { label: 'Personal', icon: 'people', route: '/personal', permission: 'WORKFORCE.READ', needsOrganization: true },
-      { label: 'Catálogos', icon: 'catalog', route: '/catalogos', permission: 'CATALOGS.READ', needsOrganization: true },
+      {
+        label: 'Catálogos',
+        icon: 'catalog',
+        route: '/catalogos',
+        permission: 'CATALOGS.READ',
+        needsOrganization: true,
+        /**
+         * Los dieciocho catálogos, agrupados por el módulo que los usa.
+         *
+         * <p><b>Están escritos aquí y no importados de la definición del catálogo</b> para que el
+         * menú no dependa de una pantalla: el menú es cromo y vive en `core`, las pantallas viven
+         * en `features`, y esa dirección no se invierte por ahorrar dieciséis renglones. Lo que
+         * evita que las dos listas se separen es una prueba que las compara, no un import.</p>
+         *
+         * <p><b>La geografía no está.</b> Países, estados y ciudades vienen cargados y no se
+         * administran: son diecisiete mil filas que son las mismas para todas las organizaciones.
+         * Siguen siendo consultables desde la pantalla anterior.</p>
+         */
+        children: [
+          {
+            label: 'Personal',
+            items: [
+              { label: 'Puestos', route: '/catalogos/puestos' },
+              { label: 'Experiencia requerida', route: '/catalogos/experiencia' },
+              { label: 'Categorías de documento', route: '/catalogos/categorias-de-documento' },
+              { label: 'Tipos de documento', route: '/catalogos/tipos-de-documento' },
+              { label: 'Tipos de evaluación', route: '/catalogos/tipos-de-evaluacion' },
+              { label: 'Incidencias administrativas', route: '/catalogos/incidencias-administrativas' },
+            ],
+          },
+          {
+            label: 'Posiciones',
+            items: [
+              { label: 'Sexo requerido', route: '/catalogos/sexo' },
+              { label: 'Rangos de edad', route: '/catalogos/rangos-de-edad' },
+              { label: 'Escolaridad', route: '/catalogos/escolaridad' },
+              { label: 'Equipo requerido', route: '/catalogos/equipo-requerido' },
+            ],
+          },
+          {
+            label: 'Operación',
+            items: [
+              { label: 'Motivos de incidencia', route: '/catalogos/motivos-de-incidencia' },
+              { label: 'Motivos de cobertura', route: '/catalogos/motivos-de-cobertura' },
+            ],
+          },
+          {
+            label: 'Clientes',
+            items: [
+              { label: 'Categorías de documento', route: '/catalogos/categorias-de-documento-del-cliente' },
+              { label: 'Puestos de contacto', route: '/catalogos/puestos-de-contacto' },
+              { label: 'Propósitos de contacto', route: '/catalogos/propositos-de-contacto' },
+              { label: 'Nacionalidades', route: '/catalogos/nacionalidades' },
+            ],
+          },
+        ],
+      },
       { label: 'Auditoría', icon: 'audit', route: '/auditoria', permission: 'AUDIT.READ', needsOrganization: true },
 
       // Las dos caras de la misma entrada. Nunca se muestran juntas: `onlyFor` las hace excluyentes.

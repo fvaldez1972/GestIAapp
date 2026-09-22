@@ -94,6 +94,18 @@ export const routes: Routes = [
           ),
       },
       {
+        // Una ruta con parámetro para los dieciséis catálogos simples, no dieciséis rutas iguales.
+        // El `slug` es el que fija `CATALOG_PAGE_GROUPS`; uno que no exista cae en la propia página,
+        // que lo dice, en vez de en el comodín que manda al inicio sin explicar nada.
+        path: 'catalogos/:catalogo',
+        title: 'GestIA | Catálogos',
+        data: { permission: 'CATALOGS.READ' },
+        loadComponent: () =>
+          import('./features/catalogs/pages/catalog-list-page/catalog-list-page').then(
+            (component) => component.CatalogListPage,
+          ),
+      },
+      {
         path: 'configuracion/documentos',
         title: 'GestIA | Reglas documentales',
         data: { permission: 'CATALOGS.READ', catalogTab: 'eligibility' },

@@ -110,31 +110,22 @@ Cada paso es un commit, y la migración va sola como siempre.
 
 ---
 
-## Lo único que no puedo resolver yo
-
-**El archivo de SEPOMEX está bajado y leído; lo que falta es qué hacer con él.**
+## De dónde salieron las colonias, y dónde vive el archivo
 
 Lo tomé de `https://www.correosdemexico.gob.mx/datosabiertos/cp/cpdescarga.txt` el 22 de septiembre
-de 2026: 14 336 147 bytes, 145 420 renglones, 144 261 combinaciones únicas de municipio + código
-postal + colonia, 32 292 códigos postales y 2 458 municipios. De todo eso, los campos que hacen
-falta pesan unos 5 MB. Está en el área de trabajo temporal de la sesión, **no en el repositorio**.
+de 2026: 14 336 147 bytes, 145 420 renglones de datos, 32 292 códigos postales y 2 458 municipios.
 
-**No lo he metido a Git**, y ésa es la decisión que te toca. El archivo trae un aviso que dice que
-no se permite *«su comercialización, total o parcial, ni su distribución a terceros bajo ningún
-concepto»*. Versionarlo en el repositorio es, como mínimo, discutible bajo esa frase, y el proyecto
-tiene la costumbre de anotar de dónde salió cada dato en vez de improvisar.
+**No está en Git**, por su aviso de uso: *«no estando permitida su comercialización, total o
+parcial, ni su distribución a terceros bajo ningún concepto»*. **Y tampoco se baja en cada
+despliegue**, que era la otra salida que yo había propuesto y no servía: una fuente externa viva es
+una dependencia que nadie del equipo controla, y si el sitio se cae o cambia el formato, se cae el
+despliegue.
 
-**Dos salidas:**
-
-- **Cargarlo sin versionarlo.** Un guion de carga que lea el archivo y escriba en `GeoPostalCodes`
-  de cada despliegue, con su procedencia anotada —origen, fecha, número de renglones— en la
-  documentación y en la propia base. El repositorio no lo distribuye; cada instalación lo baja de la
-  fuente oficial. Es lo que recomiendo.
-- **Versionarlo igual**, como está el JSON del INEGI, asumiendo la lectura de que usarlo dentro del
-  producto no es «distribuirlo a terceros».
-
-Mientras no se decida, el paso 4 se queda donde está: la tabla de códigos postales existe y está
-vacía, y la colonia sigue siendo texto libre, que es lo que es hoy.
+Vive en `C:\\Users\\danie\\Backups\\gestia\\fuentes\\`, con un archivo de procedencia al lado que registra URL, fecha, tamaño, renglones,
+SHA-256 y el aviso copiado tal cual. El guion `scripts/cargar-codigos-postales.py` lee de ahí,
+**exige** ese archivo de procedencia y comprueba el SHA-256 antes de escribir nada: un archivo
+cambiado en silencio es justo lo que no se quiere descubrir después, con las colonias ya en la base.
+El guion es idempotente —correrlo dos veces inserta cero— y las dos cosas se comprobaron.
 
 ---
 

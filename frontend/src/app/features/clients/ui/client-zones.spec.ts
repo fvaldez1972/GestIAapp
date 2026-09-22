@@ -167,6 +167,9 @@ describe('La pestaña de Zonas', () => {
       municipality: 'San Nicolás de los Garza',
       state: 'Nuevo León',
       postalCode: '66450',
+      // El país viaja con la zona desde el 22 de septiembre de 2026. México por omisión: es donde
+      // opera todo lo capturado, y así el campo no llega vacío a quien sólo iba a escribir la calle.
+      countryCode: 'MX',
     });
   });
 
@@ -412,5 +415,33 @@ describe('La pestaña de Zonas · editar', () => {
 
     expect(host.editing()).toBeNull();
     expect(abierta(raiz)).toBe(false);
+  });
+
+  /**
+   * Cambiar de país invalida el estado y el municipio.
+   *
+   * <p>Pertenecían al país anterior. Sin esto se puede guardar una zona con un estado de México y
+   * un país que no es México, y nada en la pantalla lo dice: los dos desplegables se quedan con lo
+   * que tenían y parecen correctos.</p>
+   *
+   * <p>Es la misma regla que ya tenía estado sobre municipio, un escalón más arriba.</p>
+   */
+  it('cambiar de país vacía el estado y el municipio', () => {
+    const { fixture } = montar();
+    const pestana = fixture.debugElement.children[0].componentInstance as unknown as {
+      countryCode(): string;
+      state: { (): string; set(v: string): void };
+      municipality: { (): string; set(v: string): void };
+      onCountry(v: string): void;
+    };
+
+    pestana.state.set('Nuevo León');
+    pestana.municipality.set('San Nicolás de los Garza');
+
+    pestana.onCountry('US');
+
+    expect(pestana.countryCode()).toBe('US');
+    expect(pestana.state(), 'el estado era de otro país').toBe('');
+    expect(pestana.municipality()).toBe('');
   });
 });

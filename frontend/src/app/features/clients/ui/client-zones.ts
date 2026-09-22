@@ -12,6 +12,8 @@ export type NewZone = {
   readonly municipality: string;
   readonly state: string;
   readonly postalCode: string;
+  /** El país, en clave. Iba fijo en «MX» hasta el 22 de septiembre de 2026. */
+  readonly countryCode: string;
 };
 
 /**
@@ -50,7 +52,25 @@ export type NewZone = {
             </label>
           </div>
 
+          <!--
+            El país se elige, no se supone. Iba fijo en «MX» y los otros dos desplegables lo
+            recibían como constante: una organización que opere fuera no podía capturar una zona, y
+            nada en la pantalla lo decía. Ahora encabeza la cascada —país, estado, municipio— y
+            cambiarlo invalida lo de abajo, que pertenecía al país anterior.
+          -->
           <div class="new__row new__row--three">
+            <label class="field" for="ns-pais">
+              <span class="field__label">PAÍS</span>
+              <app-catalog-select
+                id="ns-pais"
+                type="Country"
+                label="País"
+                [organizationId]="organizationId()"
+                [ngModel]="countryCode()"
+                (ngModelChange)="onCountry($event)"
+                [ngModelOptions]="sueltos"
+              />
+            </label>
             <label class="field" for="ns-colonia">
               <span class="field__label">COLONIA</span>
               <input id="ns-colonia" name="neighborhood" type="text" [ngModel]="neighborhood()" (ngModelChange)="neighborhood.set($event)" [ngModelOptions]="sueltos" autocomplete="off" />
@@ -61,7 +81,7 @@ export type NewZone = {
                 id="ns-estado"
                 type="State"
                 label="Estado"
-                country="MX"
+                [country]="countryCode()"
                 [organizationId]="organizationId()"
                 [ngModel]="state()"
                 (ngModelChange)="onState($event)"
@@ -74,7 +94,7 @@ export type NewZone = {
                 id="ns-municipio"
                 type="City"
                 label="Municipio"
-                country="MX"
+                [country]="countryCode()"
                 [state]="state()"
                 [organizationId]="organizationId()"
                 [ngModel]="municipality()"
@@ -305,7 +325,7 @@ export type NewZone = {
     }
 
     .new__row { display: grid; gap: 0.7rem; }
-    .new__row--three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .new__row--three { grid-template-columns: repeat(4, minmax(0, 1fr)); }
     .new__row--calle { grid-template-columns: 2fr 1fr; }
 
     .field { display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; }
@@ -444,6 +464,8 @@ export class ClientZones {
 
   protected readonly zoneName = signal('');
   protected readonly street = signal('');
+  /** México por omisión: es donde opera todo lo capturado hasta hoy, y evita un campo vacío. */
+  protected readonly countryCode = signal('MX');
   protected readonly neighborhood = signal('');
   protected readonly municipality = signal('');
   protected readonly state = signal('');
@@ -471,6 +493,13 @@ export class ClientZones {
   protected onState(valor: string): void {
     this.state.set(valor);
     // Cambiar de estado invalida el municipio elegido: pertenecía al estado anterior.
+    this.municipality.set('');
+  }
+
+  /** Y cambiar de país invalida los dos de abajo, por la misma razón. */
+  protected onCountry(valor: string): void {
+    this.countryCode.set(valor);
+    this.state.set('');
     this.municipality.set('');
   }
 
@@ -528,6 +557,7 @@ export class ClientZones {
       municipality: this.municipality().trim(),
       state: this.state().trim(),
       postalCode: this.postalCode().trim(),
+      countryCode: this.countryCode(),
     };
 
     const enEdicion = this.editando();

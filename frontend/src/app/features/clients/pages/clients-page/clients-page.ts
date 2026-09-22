@@ -819,6 +819,8 @@ export class ClientsPage {
         municipality: value.zone.municipality,
         state: value.zone.state,
         postalCode: value.zone.postalCode,
+        // El alta del cliente captura su zona en el mismo formulario, y ese no pregunta el país:
+        // se queda en México, que es lo que hacía antes. El país se elige en la pestaña de Zonas.
         countryCode: 'MX',
         accessInstructions: null,
         timeZoneId: null,
@@ -981,7 +983,7 @@ export class ClientsPage {
         municipality: event.datos.municipality,
         state: event.datos.state,
         postalCode: event.datos.postalCode,
-        countryCode: 'MX',
+        countryCode: event.datos.countryCode,
         accessInstructions: null,
         timeZoneId: null,
       })
@@ -1164,7 +1166,7 @@ No se borra: deja de poder elegirse para servicios `
         municipality: zone.municipality,
         state: zone.state,
         postalCode: zone.postalCode,
-        countryCode: 'MX',
+        countryCode: zone.countryCode,
         accessInstructions: null,
         timeZoneId: null,
       })

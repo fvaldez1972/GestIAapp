@@ -21,6 +21,14 @@ public sealed class ClientZoneService(
         return sites.Select(Map).ToArray();
     }
 
+    public async Task<IReadOnlyList<OrganizationClientZoneResponse>> ListForOrganizationAsync(
+        Guid idOrganization,
+        CancellationToken cancellationToken)
+    {
+        var filas = await siteRepository.ListForOrganizationAsync(idOrganization, cancellationToken);
+        return [.. filas.Select(fila => Map(fila.Zone, fila.ClientName))];
+    }
+
     public async Task<ClientZoneResponse> CreateAsync(
         CreateClientZoneRequest request,
         CancellationToken cancellationToken)
@@ -175,6 +183,24 @@ public sealed class ClientZoneService(
             InputValidation.Optional(accessInstructions, nameof(accessInstructions), 1000, errors),
             InputValidation.Optional(timeZoneId, nameof(timeZoneId), 100, errors));
     }
+
+    private static OrganizationClientZoneResponse Map(ClientSite site, string clientName) => new(
+        site.IdClientSite,
+        site.IdClient,
+        clientName,
+        site.CodeClientSite,
+        site.Name,
+        site.Street,
+        site.ExteriorNumber,
+        site.InteriorNumber,
+        site.Neighborhood,
+        site.Municipality,
+        site.State,
+        site.PostalCode,
+        site.CountryCode,
+        site.AccessInstructions,
+        site.TimeZoneId,
+        site.Active);
 
     private static ClientZoneResponse Map(ClientSite site) => new(
         site.IdClientSite,

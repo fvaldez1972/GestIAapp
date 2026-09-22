@@ -56,3 +56,28 @@ public sealed record ClientZoneResponse(
     string? AccessInstructions,
     string? TimeZoneId,
     bool Active);
+
+/// <summary>
+/// Una zona vista desde fuera de la ficha de su cliente, con el cliente al lado.
+///
+/// <para>Es lo que permite verlas todas juntas. Va aparte de <see cref="ClientZoneResponse"/> y no
+/// como un campo opcional suyo porque dentro de la ficha el cliente ya se sabe: agregarlo allí
+/// obligaría a repetirlo en cada fila para decir lo que el encabezado ya dice.</para>
+/// </summary>
+public sealed record OrganizationClientZoneResponse(
+    Guid IdClientZone,
+    Guid IdClient,
+    string ClientName,
+    string CodeClientZone,
+    string Name,
+    string Street,
+    string? ExteriorNumber,
+    string? InteriorNumber,
+    string? Neighborhood,
+    string Municipality,
+    string State,
+    string PostalCode,
+    string CountryCode,
+    string? AccessInstructions,
+    string? TimeZoneId,
+    bool Active);

@@ -129,6 +129,11 @@ public sealed class ClientZoneServiceTests
         public Task<IReadOnlyList<ClientSite>> ListAsync(Guid idClient, CancellationToken cancellationToken) =>
             Task.FromResult((IReadOnlyList<ClientSite>)[]);
 
+        public Task<IReadOnlyList<(ClientSite Zone, string ClientName)>> ListForOrganizationAsync(
+            Guid idOrganization,
+            CancellationToken cancellationToken) =>
+            Task.FromResult((IReadOnlyList<(ClientSite, string)>)[]);
+
         public Task<ClientSite?> GetAsync(Guid idClient, Guid idClientSite, CancellationToken cancellationToken) =>
             Task.FromResult<ClientSite?>(null);
 

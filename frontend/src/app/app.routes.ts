@@ -94,6 +94,17 @@ export const routes: Routes = [
           ),
       },
       {
+        // Las zonas tampoco son una lista simple: cada una pertenece a un cliente y tiene su propia
+        // dirección, así que no cabe en la página genérica. Va antes de la ruta con parámetro.
+        path: 'catalogos/zonas',
+        title: 'GestIA | Zonas',
+        data: { permission: 'CLIENTS.READ' },
+        loadComponent: () =>
+          import('./features/catalogs/pages/client-zones-page/client-zones-page').then(
+            (component) => component.ClientZonesPage,
+          ),
+      },
+      {
         // Patrones de turno y Reglas de elegibilidad van ANTES de la ruta con parámetro: el
         // enrutador toma la primera que encaja, y `catalogos/:catalogo` encajaría con las dos.
         path: 'catalogos/patrones-de-turno',

@@ -141,6 +141,14 @@ export type ClientZone = {
   readonly active: boolean;
 };
 
+/**
+ * Una zona vista desde fuera de la ficha de su cliente.
+ *
+ * <p>Lleva el nombre del cliente porque sin él no se puede leer: hay cinco nombres de zona
+ * repetidos entre clientes distintos, y dos filas idénticas serían indistinguibles.</p>
+ */
+export type OrganizationClientZone = ClientZone & { readonly clientName: string };
+
 export type ClientZoneInput = {
   readonly idOrganization: string;
   readonly idClient: string;

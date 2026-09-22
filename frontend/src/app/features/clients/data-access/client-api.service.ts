@@ -64,6 +64,7 @@ import {
   ShiftSegmentInput,
   UpsertAttendanceRecord,
   WorkforceEligibilityReport,
+  OrganizationClientZone,
 } from './client.models';
 
 @Injectable({ providedIn: 'root' })
@@ -196,6 +197,12 @@ export class ClientApiService {
   listZones(organizationId: string, idClient: string) {
     const params = new HttpParams().set('organizationId', organizationId);
     return this.http.get<readonly ClientZone[]>(`${this.baseUrl}/clients/${idClient}/zones`, { params });
+  }
+
+  /** Todas las zonas de la organización, con su cliente. Para verlas juntas. */
+  listAllZones(organizationId: string) {
+    const params = new HttpParams().set('organizationId', organizationId);
+    return this.http.get<readonly OrganizationClientZone[]>(`${this.baseUrl}/client-zones`, { params });
   }
 
   createZone(idClient: string, request: CreateClientZone) {

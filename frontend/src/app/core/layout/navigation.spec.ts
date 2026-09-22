@@ -68,6 +68,19 @@ const rutasRegistradas = new Set(
   ]),
 );
 
+/**
+ * Las entradas del submenú que NO son listas simples de nombre y descripción.
+ *
+ * <p>Un patrón tiene ciclo, días y horas; una regla tiene ámbito, tipo y requisito; y una zona es
+ * un lugar de un cliente concreto, con su propia dirección. Las tres tienen su pantalla y por eso
+ * no salen de `CATALOG_PAGE_GROUPS`.</p>
+ */
+const CON_PANTALLA_PROPIA = [
+  '/catalogos/patrones-de-turno',
+  '/catalogos/reglas-de-elegibilidad',
+  '/catalogos/zonas',
+];
+
 describe('Menú lateral', () => {
   /**
    * Los tres estados, ahora con sus grupos. Las cuentas de entradas son las mismas de antes
@@ -236,15 +249,16 @@ describe('Menú lateral', () => {
    * y esta prueba es lo que impide que se separen. Sin ella, renombrar un `slug` dejaría el menú
    * apuntando a una dirección que ya no responde.</p>
    *
-   * <p>Se comparan sólo las que son listas simples: Patrones de turno y Reglas de elegibilidad
-   * tienen pantalla propia y no salen de `CATALOG_PAGE_GROUPS`.</p>
+   * <p>Se comparan sólo las que son listas simples. Las tres con pantalla propia se excluyen por
+   * nombre —ver `CON_PANTALLA_PROPIA`— para que agregar una cuarta obligue a decir por qué no es
+   * una lista simple, en vez de que la comparación deje de valer sin que nadie lo note.</p>
    */
   it('el submenú de Catálogos coincide con las páginas de catálogo que existen', () => {
     const catalogos = GESTIA_NAVIGATION_ITEMS.find((item) => item.route === '/catalogos');
     const enElMenu = (catalogos?.children ?? [])
       .flatMap((bloque) => bloque.items)
       .map((hijo) => hijo.route)
-      .filter((route) => route !== '/catalogos/patrones-de-turno' && route !== '/catalogos/reglas-de-elegibilidad');
+      .filter((route) => !CON_PANTALLA_PROPIA.includes(route));
 
     const enLasPaginas = CATALOG_PAGE_GROUPS.flatMap((grupo) => grupo.pages).map(
       (pagina) => `/catalogos/${pagina.slug}`,

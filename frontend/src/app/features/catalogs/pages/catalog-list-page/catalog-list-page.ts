@@ -392,7 +392,12 @@ export class CatalogListPage {
       type: page.type,
       name: value.name.trim(),
       description: value.description.trim() || null,
-      idParentCatalogItem: page.parentType ? value.idParentCatalogItem || null : null,
+      // Donde la pantalla no enseña la categoría, se reenvía la que el valor ya tenía. El servidor
+      // toma esta columna tal cual, así que mandar nulo la borraría: retirar un campo de la vista
+      // no puede ir soltando enlaces en la base cada vez que alguien corrige un nombre.
+      idParentCatalogItem: page.parentType
+        ? value.idParentCatalogItem || null
+        : selectedItem?.idParentCatalogItem ?? null,
       // El orden lo pone la pantalla, no el usuario: al crear va al final, al editar se conserva.
       order: selectedItem?.order ?? this.siguienteOrden(),
       active: value.status === 'active',

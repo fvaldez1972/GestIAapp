@@ -49,6 +49,20 @@ export type CatalogPageGroup = {
  * <p><b>Patrones de turno y Reglas de elegibilidad tampoco están aquí</b>, porque no son listas de
  * nombre y descripción: un patrón tiene ciclo, días y horas, y una regla tiene ámbito, tipo y
  * requisito. Tienen su propia pantalla y entran al submenú por su cuenta.</p>
+ *
+ * <p><b>Dos que se retiraron el 21 de septiembre de 2026, y por qué.</b></p>
+ *
+ * <p><i>Categorías de documento del personal</i> (<c>EmployeeDocumentGroup</c>) agrupaba los tipos
+ * de documento «para poder leer el expediente por bloques», y esa lectura por bloques <b>nunca se
+ * construyó</b>: se buscó quién la consumía y no la consume nadie más que su propio selector. Dos
+ * entradas del menú que se llamaban casi igual —categorías y tipos— para una agrupación que no se
+ * usaba en ninguna pantalla.</p>
+ *
+ * <p><i>Incidencias administrativas</i> sale del submenú <b>y nada más</b>: la incidencia del
+ * expediente sigue existiendo, sigue atada a la persona y sigue pudiendo impedir una asignación.
+ * Lo que se retira es su renglón aquí, porque en el menú de catálogos ya hay «Motivos de
+ * incidencia» y tener dos entradas que empiezan por «incidencia» invita a confundirlas. Su
+ * catálogo se sigue administrando desde la pantalla anterior.</p>
  */
 export const CATALOG_PAGE_GROUPS: readonly CatalogPageGroup[] = [
   {
@@ -72,14 +86,6 @@ export const CATALOG_PAGE_GROUPS: readonly CatalogPageGroup[] = [
         hasNature: true,
       },
       {
-        slug: 'categorias-de-documento',
-        type: 'EmployeeDocumentGroup',
-        title: 'Categorías de documento del personal',
-        singular: 'categoría',
-        lead: 'Agrupa los tipos de documento para poder leer el expediente por bloques.',
-        example: 'Ej. Identidad',
-      },
-      {
         slug: 'tipos-de-documento',
         type: 'EmployeeDocumentCategory',
         title: 'Tipos de documento del personal',
@@ -87,7 +93,6 @@ export const CATALOG_PAGE_GROUPS: readonly CatalogPageGroup[] = [
         lead: 'De qué es cada papel del expediente de una persona.',
         example: 'Ej. INE',
         hasNature: true,
-        parentType: 'EmployeeDocumentGroup',
       },
       {
         slug: 'tipos-de-evaluacion',
@@ -96,15 +101,6 @@ export const CATALOG_PAGE_GROUPS: readonly CatalogPageGroup[] = [
         singular: 'tipo de evaluación',
         lead: 'Qué evaluaciones se le practican al personal.',
         example: 'Ej. Polígrafo',
-        hasNature: true,
-      },
-      {
-        slug: 'incidencias-administrativas',
-        type: 'AdministrativeIncidentType',
-        title: 'Incidencias administrativas',
-        singular: 'tipo de incidencia',
-        lead: 'De qué es una incidencia del expediente, que no es lo mismo que una de la operación diaria.',
-        example: 'Ej. Acta administrativa',
         hasNature: true,
       },
     ],

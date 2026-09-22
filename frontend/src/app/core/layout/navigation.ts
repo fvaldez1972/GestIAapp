@@ -170,10 +170,8 @@ export const GESTIA_NAVIGATION: readonly NavigationGroup[] = [
             items: [
               { label: 'Puestos', route: '/catalogos/puestos' },
               { label: 'Experiencia requerida', route: '/catalogos/experiencia' },
-              { label: 'Categorías de documento', route: '/catalogos/categorias-de-documento' },
               { label: 'Tipos de documento', route: '/catalogos/tipos-de-documento' },
               { label: 'Tipos de evaluación', route: '/catalogos/tipos-de-evaluacion' },
-              { label: 'Incidencias administrativas', route: '/catalogos/incidencias-administrativas' },
             ],
           },
           {

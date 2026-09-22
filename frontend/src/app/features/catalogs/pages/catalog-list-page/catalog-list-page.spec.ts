@@ -319,10 +319,57 @@ describe('Página de un catálogo', () => {
     responder([]);
   });
 
-  /** Los dieciséis slugs son únicos: dos iguales dejarían un catálogo inalcanzable. */
+  /** Los slugs son únicos: dos iguales dejarían un catálogo inalcanzable. */
   it('ningún slug se repite', () => {
     const slugs = CATALOG_PAGES.map((pagina) => pagina.slug);
 
     expect(new Set(slugs).size).toBe(slugs.length);
+  });
+
+  /**
+   * Los dos que se retiraron el 21 de septiembre de 2026 ya no se ofrecen.
+   *
+   * <p>Categorías de documento del personal agrupaba tipos para una lectura por bloques que nunca
+   * se construyó. Incidencias administrativas sale del submenú porque «Motivos de incidencia» ya
+   * está ahí y dos entradas que empiezan igual se confunden; <b>la incidencia del expediente sigue
+   * existiendo y sigue pudiendo bloquear</b>, que es lo que esta prueba no debe hacer creer que se
+   * fue.</p>
+   */
+  it('ni las categorías de documento ni las incidencias administrativas se ofrecen ya', () => {
+    const tipos = CATALOG_PAGES.map((pagina) => pagina.type);
+
+    expect(tipos).not.toContain('EmployeeDocumentGroup');
+    expect(tipos).not.toContain('AdministrativeIncidentType');
+    expect(CATALOG_PAGES.some((pagina) => pagina.parentType), 'ninguno cuelga ya de otro').toBe(false);
+  });
+
+  /**
+   * Editar un tipo de documento **no borra** el grupo al que pertenece, aunque ya no se vea.
+   *
+   * <p>Es la trampa de retirar un campo de la vista: el servidor toma `idParentCatalogItem` tal
+   * cual, así que dejar de mandarlo lo pondría en nulo, y los 112 tipos de documento se irían
+   * soltando de su grupo uno a uno según alguien les corrigiera el nombre. Sin ruido, sin error, y
+   * sin forma de saber cuándo empezó.</p>
+   */
+  it('editar un tipo de documento conserva el grupo que ya tenía', () => {
+    fingirDialogo();
+    const { pagina } = montar('tipos-de-documento');
+    const conGrupo = valor({
+      idCatalogItem: 'd1',
+      type: 'EmployeeDocumentCategory',
+      name: 'INE',
+      order: 4,
+      idParentCatalogItem: 'grupo-identidad',
+    });
+    responder([conGrupo]);
+
+    pagina.editItem(conGrupo);
+    pagina.form.patchValue({ name: 'INE vigente' });
+    pagina.save();
+
+    const edicion = http.expectOne((peticion) => peticion.method === 'PUT');
+    expect(edicion.request.body.idParentCatalogItem).toBe('grupo-identidad');
+    edicion.flush(conGrupo);
+    responder([]);
   });
 });

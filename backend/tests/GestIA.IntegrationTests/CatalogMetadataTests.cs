@@ -24,7 +24,11 @@ public sealed class CatalogMetadataTests(OperationalSqlDatabase database) : ICla
         await using (var scope = provider.CreateAsyncScope())
         {
             var result = await scope.ServiceProvider.GetRequiredService<ICatalogService>().CreateCatalogItemAsync(
-                new(organization, BusinessCatalogItemType.Skill, "  Guardia  ", null, 7, false), Token);
+                // Un catálogo sin marca de bloqueo, a propósito: esta prueba es del recorte del
+                // nombre, del orden y de la reactivación, no de la elegibilidad. Desde el 21 de
+                // septiembre de 2026 los cuatro catálogos que llevan marca la exigen al crear, y
+                // usar uno de ésos aquí obligaría a arrastrar un dato que no se está probando.
+                new(organization, BusinessCatalogItemType.CoverageReason, "  Guardia  ", null, 7, false), Token);
             id = result.IdCatalogItem;
             Assert.False(result.Active);
             // El nombre se recorta al guardar: es lo que sostiene la unicidad.
@@ -56,7 +60,7 @@ public sealed class CatalogMetadataTests(OperationalSqlDatabase database) : ICla
         using var provider = Provider();
         await using var scope = provider.CreateAsyncScope();
         var service = scope.ServiceProvider.GetRequiredService<ICatalogService>();
-        var input = new CatalogItemInput(organization, BusinessCatalogItemType.Skill, "Norte", null);
+        var input = new CatalogItemInput(organization, BusinessCatalogItemType.CoverageReason, "Norte", null);
         var value = await service.CreateCatalogItemAsync(input, Token);
         await service.DeactivateCatalogItemAsync(organization, value.IdCatalogItem, Token);
         await Assert.ThrowsAsync<ResourceConflictException>(() => service.CreateCatalogItemAsync(input, Token));
@@ -72,7 +76,10 @@ public sealed class CatalogMetadataTests(OperationalSqlDatabase database) : ICla
         using var provider = Provider();
         await using var scope = provider.CreateAsyncScope();
         var service = scope.ServiceProvider.GetRequiredService<ICatalogService>();
-        var input = new CatalogItemInput(organization, BusinessCatalogItemType.Skill, "Zona", null);
+        // Sin marca de bloqueo: si el catálogo base la exigiera, los cuatro casos inválidos de
+        // abajo fallarían por la marca que falta y no por lo que cada uno quiere probar. Pasarían
+        // igual, que es lo peligroso.
+        var input = new CatalogItemInput(organization, BusinessCatalogItemType.CoverageReason, "Zona", null);
         foreach (var invalid in new[] { input with { Type = (BusinessCatalogItemType)999 }, input with { Order = 0 },
                      input with { Order = 100001 }, input with { Name = " " } })
         {

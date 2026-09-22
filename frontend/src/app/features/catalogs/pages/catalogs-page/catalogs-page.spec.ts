@@ -226,6 +226,50 @@ describe('Catálogos', () => {
     expect(Object.keys(pagina.catalogForm.controls).sort()).toEqual([...dibujados].sort());
   });
 
+  /**
+   * La marca de bloqueo tiene dos opciones, no tres.
+   *
+   * <p>Hubo un «Sin decidir» y se retiró el 21 de septiembre de 2026: no lo pedía la matriz —que
+   * habla de bloqueante o informativa—, no se podía guardar, y en el servidor ya se comportaba
+   * igual que informativa. Esta prueba existe para que no vuelva.</p>
+   */
+  it('ofrece dos marcas de bloqueo y ninguna de ellas es «Sin decidir»', () => {
+    const { componente } = montar();
+    const pagina = componente as unknown as {
+      blockingMarks: readonly { value: string; label: string }[];
+    };
+
+    expect(pagina.blockingMarks.map((opcion) => opcion.value)).toEqual(['blocking', 'informative']);
+    expect(pagina.blockingMarks.some((opcion) => opcion.value === '')).toBe(false);
+  });
+
+  /**
+   * Y el control: al abrir una entrada que quedó sin marca en la base se dibuja «Informativa».
+   *
+   * <p>Sin esto, quitar la opción dejaría el desplegable en blanco para las entradas viejas y el
+   * formulario inválido sin decir por qué. Informativa es además lo que esa entrada ya hacía.</p>
+   */
+  it('dibuja «Informativa» cuando la entrada guardada no tiene marca', () => {
+    const { fixture, componente } = montar();
+    const pagina = componente as unknown as {
+      openCatalogType: { set(v: string): void };
+      editCatalogItem(item: unknown): void;
+      catalogForm: { value: { blockingMark?: string } };
+    };
+
+    // jsdom no implementa <dialog>.showModal(); abrir el editor es incidental para esta prueba.
+    Object.defineProperty(HTMLDialogElement.prototype, 'showModal', {
+      configurable: true,
+      value: function (this: HTMLDialogElement) { this.open = true; },
+    });
+
+    pagina.openCatalogType.set('EmployeeEvaluationCategory');
+    pagina.editCatalogItem(valor({ idCatalogItem: 'z', name: 'Polígrafo', isBlocking: null }));
+    fixture.detectChanges();
+
+    expect(pagina.catalogForm.value.blockingMark).toBe('informative');
+  });
+
   it('filtra los valores del catálogo abierto por estado y por texto', () => {
     const { fixture } = montar({
       items: [

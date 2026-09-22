@@ -913,11 +913,27 @@ public sealed class CatalogService(
                 ["Este catálogo no participa en la elegibilidad, así que no lleva marca de bloqueo."];
         }
 
+        // Y donde la marca significa algo, es obligatoria al crear.
+        //
+        // Hasta el 21 de septiembre de 2026 podía nacer sin decidir, y ese tercer estado resultó
+        // ser una trampa: como «no te mando la marca» y «déjala sin decidir» viajan los dos como
+        // nulo, el servidor no podía distinguirlos y conservaba la que había. Quien elegía «Sin
+        // decidir» veía un guardado correcto y ningún cambio. La matriz pide dos estados —«impide
+        // asignar y publicar» o «sólo deja constancia»—, así que el tercero se retira en vez de
+        // arreglarse.
+        if (admiteMarca && existing is null && !request.IsBlocking.HasValue)
+        {
+            errors[nameof(request.IsBlocking)] =
+                ["Di si su falta impide asignar y publicar, o si sólo deja constancia."];
+        }
+
         InputValidation.ThrowIfInvalid(errors);
 
         // Al editar sin mandar la marca se conserva la que tenía: una pantalla que sólo corrige el
-        // nombre no debería convertir en informativa una entrada bloqueante.
-        var isBlocking = admiteMarca ? request.IsBlocking ?? existing?.IsBlocking : null;
+        // nombre no debería convertir en informativa una entrada bloqueante. Ya no puede engañar,
+        // porque después de la migración compensatoria ninguna entrada de estos cuatro catálogos
+        // está sin decidir, y ninguna puede volver a estarlo.
+        bool? isBlocking = admiteMarca ? request.IsBlocking ?? existing?.IsBlocking ?? false : null;
         return new BusinessCatalogItemProfile(request.Type, name, description, order, request.IdParentCatalogItem, isBlocking);
     }
 

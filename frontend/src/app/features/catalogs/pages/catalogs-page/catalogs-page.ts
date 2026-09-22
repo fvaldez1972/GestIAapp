@@ -374,10 +374,12 @@ export class CatalogsPage implements OnInit, AfterViewInit {
     status: ['active' as 'active' | 'inactive', [Validators.required]],
     order: [1, [Validators.required, Validators.min(1), Validators.max(100000), Validators.pattern(/^\d+$/)]],
     description: ['', [Validators.maxLength(1000)]],
-    // Tres estados y no dos. «Sin decidir» no es lo mismo que «informativa»: la regla que hereda
-    // de una entrada sin decidir queda informativa, pero quien administra el catálogo tiene que
-    // poder ver cuáles no ha revisado todavía.
-    blockingMark: ['' as '' | 'blocking' | 'informative'],
+    // Dos estados, que son los que pide la matriz: «impide asignar y publicar» o «sólo deja
+    // constancia». Hubo un tercero, «Sin decidir», y se retiró el 21 de septiembre de 2026: no
+    // salía del negocio sino del modelo —la marca nació nulable para no declarar informativas de
+    // golpe las entradas que ya existían—, no se podía guardar, y en ejecución ya se comportaba
+    // igual que «informativa». Ofrecía una distinción que el sistema no respetaba.
+    blockingMark: ['informative' as 'blocking' | 'informative', [Validators.required]],
   });
 
   protected readonly requirementForm = this.formBuilder.nonNullable.group({
@@ -453,7 +455,6 @@ export class CatalogsPage implements OnInit, AfterViewInit {
   });
 
   protected readonly blockingMarks: readonly GiSelectOption[] = [
-    { value: '', label: 'Sin decidir' },
     { value: 'blocking', label: 'Bloqueante: impide asignar y publicar' },
     { value: 'informative', label: 'Informativa: sólo deja constancia' },
   ];
@@ -472,9 +473,16 @@ export class CatalogsPage implements OnInit, AfterViewInit {
 
   protected readonly catalogBlocking = this.controlSignal(this.catalogForm.controls.blockingMark);
 
-  /** Cómo se lee la marca de una entrada del catálogo, con sus tres estados. */
+  /**
+   * Cómo se lee la marca de una entrada del catálogo.
+   *
+   * <p>Un nulo se lee «Informativa» y no «Sin decidir», porque es lo que de verdad hace: los dos
+   * únicos lugares que consultan la marca resuelven el nulo con <c>?? false</c>. La migración
+   * compensatoria del 21 de septiembre de 2026 dejó sin nulos los cuatro catálogos que la llevan,
+   * así que esta rama ya sólo cubre datos que no deberían existir.</p>
+   */
   protected blockingMarkLabel(value: boolean | null | undefined): string {
-    return value === true ? 'Bloqueante' : value === false ? 'Informativa' : 'Sin decidir';
+    return value === true ? 'Bloqueante' : 'Informativa';
   }
 
   /**
@@ -798,7 +806,7 @@ export class CatalogsPage implements OnInit, AfterViewInit {
       order: item.order ?? 1,
       description: item.description ?? '',
       idParentCatalogItem: item.idParentCatalogItem ?? '',
-      blockingMark: item.isBlocking === true ? 'blocking' : item.isBlocking === false ? 'informative' : '',
+      blockingMark: item.isBlocking === true ? 'blocking' : 'informative',
     });
     this.catalogEditor()?.nativeElement.showModal();
   }
@@ -827,9 +835,7 @@ export class CatalogsPage implements OnInit, AfterViewInit {
       active: form.status === 'active',
       // Sólo viaja en los catálogos que participan en la elegibilidad. En los demás el servidor la
       // rechaza con un 400, y mandarla vacía por costumbre sería pedir ese 400.
-      isBlocking: this.openCatalogSupportsBlockingMark()
-        ? (form.blockingMark === '' ? null : form.blockingMark === 'blocking')
-        : null,
+      isBlocking: this.openCatalogSupportsBlockingMark() ? form.blockingMark === 'blocking' : null,
     };
     const selected = this.selectedCatalogItem();
     this.saving.set(true);

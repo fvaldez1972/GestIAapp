@@ -100,11 +100,10 @@ y **no borra lo que ya había**. Quien está corrigiendo el teléfono de una zon
 su dirección por teclear mal un dígito. Abrir una zona para editarla tampoco consulta el código:
 resolverlo otra vez podría reescribir sola una dirección que nadie pidió cambiar.
 
-Los datos son de SEPOMEX y están cargados **sólo en `db-gestia-dev`**: 144 242 colonias, 32 292
-códigos postales, 2 458 municipios. La clave del INEGI cruzó el 100 % del archivo, sin un solo
-renglón huérfano. `db-gestia-local` se quedó vacía a propósito, y ahí se puede ver el respaldo
-funcionando: el mismo código postal responde 200 en dev y 404 en local, y en local el formulario
-ofrece los desplegables.
+Los datos son de SEPOMEX y están cargados en **los dos ambientes de desarrollo**, `db-gestia-dev` y
+`db-gestia-local`: 144 242 colonias, 32 292 códigos postales, 2 458 municipios en cada uno. La clave
+del INEGI cruzó el 100 % del archivo, sin un solo renglón huérfano, y las dos tablas tienen la misma
+huella de contenido —los identificadores son deterministas, así que se comparan fila a fila—.
 
 Cada paso es un commit, y la migración va sola como siempre.
 
@@ -174,9 +173,12 @@ mide antes de escribir nada.
 
 ## La pregunta abierta, que no es técnica
 
-El archivo de SEPOMEX está cargado **sólo en desarrollo**. Antes de que lo use un cliente de pago
-hay que resolver si mostrar este catálogo dentro de un producto que se vende cuenta como
-«comercialización» en el sentido de su aviso. **Eso lo resuelve BKT, no el equipo técnico.**
+El archivo de SEPOMEX está cargado **en los ambientes de desarrollo**. Antes de que lo use un
+cliente de pago hay que resolver si mostrar este catálogo dentro de un producto que se vende cuenta
+como «comercialización» en el sentido de su aviso. **Eso lo resuelve BKT, no el equipo técnico.**
 
-El guion de carga lo tiene puesto como candado: apuntar a una base que no sea `db-gestia-dev` exige
-pasar `--si-se-que-no-es-dev` y explica por qué en el propio mensaje de rechazo.
+El guion de carga lo tiene puesto como candado, y el candado es contra el **ambiente**, no contra
+una base concreta: `db-gestia-dev`, `db-gestia-local` y `db-gestia-test` pasan; cualquier otra exige
+`--si-se-que-no-es-desarrollo` y el rechazo explica por qué. La primera versión miraba sólo el
+nombre `db-gestia-dev`, que leído al pie de la letra habría dejado los dos ambientes de desarrollo
+desiguales.

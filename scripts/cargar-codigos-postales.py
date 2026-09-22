@@ -21,16 +21,18 @@ despues, con las colonias ya escritas.
 
 DONDE SE PUEDE CARGAR
 ---------------------
-Solo en db-gestia-dev, que es desarrollo, y por eso es el valor por omision. Cargarlo en un
+En los ambientes de desarrollo, que hoy son db-gestia-dev y db-gestia-local. Cargarlo en un
 ambiente que use un cliente de pago depende de una pregunta que no es tecnica --si mostrar este
 catalogo dentro de un producto que se vende cuenta como "comercializacion" en el sentido del
-aviso-- y esa la resuelve BKT, no el equipo tecnico. Por eso apuntar a otra base exige --si-se-que-
-no-es-dev y deja constancia en la salida.
+aviso-- y esa la resuelve BKT, no el equipo tecnico. Por eso apuntar a cualquier otra base exige
+--si-se-que-no-es-desarrollo y deja constancia en la salida.
 
 COMO SE USA
 -----------
-    python scripts/cargar-codigos-postales.py                      # db-gestia-dev, puerto 1433
+    python scripts/cargar-codigos-postales.py                      # db-gestia-dev
     python scripts/cargar-codigos-postales.py --solo-medir         # no escribe nada
+    python scripts/cargar-codigos-postales.py --base db-gestia-local \
+        --contenedor gestia-local-sqlserver-1      # el otro ambiente de desarrollo
 """
 
 from __future__ import annotations
@@ -54,6 +56,11 @@ ESPACIO = uuid.UUID("7b3a0e2c-6f1d-4d5a-9c2b-0a1f3e5d7c90")
 FUENTE_POR_OMISION = r"C:\Users\danie\Backups\gestia\fuentes\sepomex-cpdescarga-20260922.txt"
 BASE_POR_OMISION = "db-gestia-dev"
 CONTENEDOR_POR_OMISION = "gestia-sqlserver-1"
+
+# Los ambientes de desarrollo del proyecto. El candado no es contra una base concreta sino
+# contra un ambiente que use un cliente de pago, que es el unico caso que espera la decision
+# de BKT. Leer "solo db-gestia-dev" al pie de la letra dejaria los dos ambientes desiguales.
+BASES_DE_DESARROLLO = frozenset({"db-gestia-dev", "db-gestia-local", "db-gestia-test"})
 
 # Los limites de las columnas, de GeoPostalCodeConfiguration. Se recortan aqui y no en la base para
 # que un nombre largo no tumbe la carga entera a la mitad.
@@ -179,16 +186,17 @@ def main() -> int:
     parser.add_argument("--contenedor", default=CONTENEDOR_POR_OMISION)
     parser.add_argument("--solo-medir", action="store_true",
                         help="Lee y reporta, pero no escribe nada en la base.")
-    parser.add_argument("--si-se-que-no-es-dev", action="store_true",
-                        help="Exigido para apuntar a una base que no sea db-gestia-dev.")
+    parser.add_argument("--si-se-que-no-es-desarrollo", action="store_true",
+                        help="Exigido para apuntar a una base que no sea de desarrollo.")
     args = parser.parse_args()
 
-    if args.base != BASE_POR_OMISION and not args.si_se_que_no_es_dev:
+    if args.base not in BASES_DE_DESARROLLO and not args.si_se_que_no_es_desarrollo:
         raise SystemExit(
-            f"Te estas apuntando a {args.base}, que no es {BASE_POR_OMISION}.\n"
+            f"Te estas apuntando a {args.base}, que no es de desarrollo.\n"
+            f"Las de desarrollo son: {', '.join(sorted(BASES_DE_DESARROLLO))}.\n"
             "Este catalogo solo esta autorizado en desarrollo mientras BKT no resuelva si mostrarlo\n"
             "dentro de un producto que se vende cuenta como comercializacion. Si ya se resolvio,\n"
-            "vuelve a correrlo con --si-se-que-no-es-dev."
+            "vuelve a correrlo con --si-se-que-no-es-desarrollo."
         )
 
     origen = procedencia(args.fuente)

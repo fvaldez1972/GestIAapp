@@ -70,6 +70,10 @@ describe('Página de un catálogo', () => {
     goToPage(n: number): void;
     natureLabel(item: CatalogItem): string;
     rowActions(item: CatalogItem): readonly { id: string; label: string }[];
+    form: { controls: Record<string, unknown>; patchValue(v: object): void };
+    newItem(): void;
+    editItem(item: CatalogItem): void;
+    save(): void;
   };
 
   /** Responde las peticiones que la pantalla lanza al montarse, con la lista que se le pase. */
@@ -81,6 +85,29 @@ describe('Página de un catálogo', () => {
   }
 
   afterEach(() => http.verify());
+
+  /**
+   * jsdom no implementa `<dialog>.showModal()`, y abrir el editor es incidental para estas pruebas.
+   *
+   * <p>Se repone al terminar. Dejarlo fingido en el prototipo se lo lleva puesto cualquier prueba
+   * que corra después en el mismo entorno —la del diálogo compartido comprueba justo que abre de
+   * verdad—, y como el reparto de archivos entre procesos cambia, el fallo aparece y desaparece
+   * sin que nadie haya tocado nada. Ya pasó una vez.</p>
+   */
+  function fingirDialogo() {
+    const original = Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, 'showModal');
+    Object.defineProperty(HTMLDialogElement.prototype, 'showModal', {
+      configurable: true,
+      value: function (this: HTMLDialogElement) { this.open = true; },
+    });
+    onTestFinished(() => {
+      if (original) {
+        Object.defineProperty(HTMLDialogElement.prototype, 'showModal', original);
+      } else {
+        delete (HTMLDialogElement.prototype as Partial<HTMLDialogElement>).showModal;
+      }
+    });
+  }
 
   it('resuelve el catálogo desde la ruta', () => {
     const { pagina } = montar('tipos-de-evaluacion');
@@ -217,6 +244,52 @@ describe('Página de un catálogo', () => {
     pagina.search.set('laboratorio');
 
     expect(pagina.filtradas().map((item) => item.name)).toEqual(['Médica']);
+  });
+
+  /**
+   * El editor ya no pide el orden, y el orden se sigue guardando.
+   *
+   * <p>Retirado el 21 de septiembre de 2026: no se enseñaba en la tabla y pedía un número que nadie
+   * sabía qué significaba. Pero el servidor lo necesita para que la lista salga siempre igual, así
+   * que lo pone la pantalla: al crear, detrás del último; al editar, el que ya tenía.</p>
+   */
+  it('no pide el orden, y aun así lo manda', () => {
+    fingirDialogo();
+    const { pagina } = montar('tipos-de-evaluacion');
+    responder([
+      valor({ idCatalogItem: 'a', name: 'Polígrafo', order: 3 }),
+      valor({ idCatalogItem: 'b', name: 'Médica', order: 7 }),
+    ]);
+
+    expect(Object.keys(pagina.form.controls)).not.toContain('order');
+
+    pagina.newItem();
+    pagina.form.patchValue({ name: 'Psicométrica' });
+    pagina.save();
+
+    const alta = http.expectOne((peticion) => peticion.method === 'POST');
+    expect(alta.request.body.order, 'detrás del último').toBe(8);
+    alta.flush(valor({ idCatalogItem: 'c', name: 'Psicométrica', order: 8 }));
+    responder([]);
+  });
+
+  /** Y al editar conserva el que tenía, en vez de mandarlo al final. */
+  it('al editar conserva el orden que ya tenía', () => {
+    fingirDialogo();
+    const { pagina } = montar('tipos-de-evaluacion');
+    responder([
+      valor({ idCatalogItem: 'a', name: 'Polígrafo', order: 3 }),
+      valor({ idCatalogItem: 'b', name: 'Médica', order: 7 }),
+    ]);
+
+    pagina.editItem(valor({ idCatalogItem: 'a', name: 'Polígrafo', order: 3 }));
+    pagina.form.patchValue({ name: 'Polígrafo completo' });
+    pagina.save();
+
+    const edicion = http.expectOne((peticion) => peticion.method === 'PUT');
+    expect(edicion.request.body.order).toBe(3);
+    edicion.flush(valor({ idCatalogItem: 'a', name: 'Polígrafo completo', order: 3 }));
+    responder([]);
   });
 
   /** Los dieciséis slugs son únicos: dos iguales dejarían un catálogo inalcanzable. */

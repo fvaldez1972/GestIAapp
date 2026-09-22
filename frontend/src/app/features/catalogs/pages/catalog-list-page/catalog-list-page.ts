@@ -99,10 +99,17 @@ export class CatalogListPage {
   protected readonly currentPage = signal(1);
   protected readonly pageSize = signal<number>(TAMANO_POR_OMISION);
 
+  /**
+   * El formulario del editor. **Sin campo de orden**, retirado el 21 de septiembre de 2026.
+   *
+   * <p>No se enseñaba en la tabla, no se podía usar para nada visible y ocupaba media fila del
+   * cuadro pidiendo un número que nadie sabía qué significaba. El servidor sigue guardando un
+   * orden —lo necesita para que la lista salga siempre igual—, pero lo pone solo: al crear, el
+   * siguiente; al editar, el que ya tenía.</p>
+   */
   protected readonly form = this.formBuilder.nonNullable.group({
     name: ['', [Validators.required, Validators.maxLength(160)]],
     description: ['', [Validators.maxLength(1000)]],
-    order: [1, [Validators.required, Validators.min(1), Validators.max(100000)]],
     status: ['active' as 'active' | 'inactive', [Validators.required]],
     idParentCatalogItem: [''],
     blockingMark: ['informative' as 'blocking' | 'informative'],
@@ -250,6 +257,11 @@ export class CatalogListPage {
   /** Cómo se identifica una fila para la tabla. Sin esto no hay `track` fiable. */
   protected readonly porId = (item: CatalogItem) => item.idCatalogItem;
 
+  /** El orden que le toca a un valor nuevo: detrás del último. */
+  private siguienteOrden(): number {
+    return Math.min(100000, Math.max(0, ...this.items().map((item) => item.order ?? 1)) + 1);
+  }
+
   protected rowActions(item: CatalogItem): readonly GiRowAction[] {
     // Nunca «Eliminar»: aquí nada se borra. Desactivar deja el valor consultable y libera la
     // pantalla sin romper los registros que ya lo apuntan.
@@ -328,7 +340,6 @@ export class CatalogListPage {
     this.form.reset({
       name: '',
       description: '',
-      order: Math.min(100000, Math.max(0, ...this.items().map((item) => item.order ?? 1)) + 1),
       status: 'active',
       idParentCatalogItem: '',
       blockingMark: 'informative',
@@ -344,7 +355,6 @@ export class CatalogListPage {
     this.form.reset({
       name: item.name,
       description: item.description ?? '',
-      order: item.order ?? 1,
       status: item.active ? 'active' : 'inactive',
       idParentCatalogItem: item.idParentCatalogItem ?? '',
       // Una entrada sin marca se dibuja informativa, que es lo que ya hace: los dos lugares que
@@ -367,13 +377,15 @@ export class CatalogListPage {
     }
 
     const value = this.form.getRawValue();
+    const selectedItem = this.items().find((item) => item.idCatalogItem === this.selectedItemId());
     const request = {
       idOrganization: organizationId,
       type: page.type,
       name: value.name.trim(),
       description: value.description.trim() || null,
       idParentCatalogItem: page.parentType ? value.idParentCatalogItem || null : null,
-      order: Number(value.order),
+      // El orden lo pone la pantalla, no el usuario: al crear va al final, al editar se conserva.
+      order: selectedItem?.order ?? this.siguienteOrden(),
       active: value.status === 'active',
       // Sólo viaja donde significa algo. En los demás catálogos el servidor la rechaza.
       isBlocking: page.hasNature ? value.blockingMark === 'blocking' : null,

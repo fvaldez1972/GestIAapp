@@ -142,51 +142,65 @@
         <div class="gi-alert gi-alert--error" role="alert">{{ error() }}</div>
       }
 
-      <label class="gi-field">
-        Nombre
-        <input class="gi-input" type="text" maxlength="160" formControlName="name" />
-      </label>
-
-      <label class="gi-field">
-        Descripción
-        <textarea class="gi-input" rows="2" maxlength="1000" formControlName="description"></textarea>
-      </label>
-
-      @if (catalogo.parentType) {
-        <gi-select
-          label="Categoría"
-          [options]="parentOptions()"
-          [value]="form.controls.idParentCatalogItem.value"
-          (valueChange)="form.controls.idParentCatalogItem.setValue($any($event))"
-        />
-      }
-
-      <div class="cat-editor__row">
-        <gi-select
-          label="Estatus"
-          [options]="statusOptions"
-          [value]="form.controls.status.value"
-          (valueChange)="form.controls.status.setValue($any($event))"
-        />
+      <!--
+        Una columna y todos los campos rotulados igual. Antes el estatus iba en media fila junto al
+        orden, y como `gi-select` no dibuja su rótulo —se nombra con `aria-label`— quedaba un
+        desplegable suelto sin decir de qué era, al lado de un campo que sí lo decía. El rótulo va
+        en un <span> dentro del mismo `.gi-field` que usan los demás, así que el desplegable se lee
+        como un campo más.
+      -->
+      <div class="cat-dialog__body">
+        <label class="gi-field">
+          <span>Nombre</span>
+          <input class="gi-input" type="text" maxlength="160" [placeholder]="catalogo.example" formControlName="name" />
+        </label>
 
         <label class="gi-field">
-          Orden
-          <input class="gi-input" type="number" min="1" max="100000" step="1" formControlName="order" />
+          <span>Descripción</span>
+          <textarea class="gi-input" rows="3" maxlength="1000" formControlName="description"></textarea>
         </label>
-      </div>
 
-      @if (catalogo.hasNature) {
-        <gi-select
-          label="Si a una persona le falta esto"
-          [options]="natureOptions"
-          [value]="form.controls.blockingMark.value"
-          (valueChange)="form.controls.blockingMark.setValue($any($event))"
-        />
-        <p class="cat-editor__note">
-          Es el valor por omisión de toda la organización. Una regla de elegibilidad puede afinarlo
-          para un cliente, un servicio o una posición concreta.
-        </p>
-      }
+        @if (catalogo.parentType) {
+          <div class="gi-field">
+            <span>Categoría</span>
+            <gi-select
+              label="Categoría"
+              [options]="parentOptions()"
+              [value]="form.controls.idParentCatalogItem.value"
+              (valueChange)="form.controls.idParentCatalogItem.setValue($any($event))"
+            />
+          </div>
+        }
+
+        @if (catalogo.hasNature) {
+          <div class="gi-field">
+            <span>Si a una persona le falta esto</span>
+            <gi-select
+              label="Si a una persona le falta esto"
+              [options]="natureOptions"
+              [value]="form.controls.blockingMark.value"
+              (valueChange)="form.controls.blockingMark.setValue($any($event))"
+            />
+            <small class="cat-dialog__hint">
+              Es el valor por omisión de toda la organización. Una regla de elegibilidad puede
+              afinarlo para un cliente, un servicio o una posición concreta.
+            </small>
+          </div>
+        }
+
+        <div class="gi-field">
+          <span>Estatus</span>
+          <gi-select
+            label="Estatus"
+            [options]="statusOptions"
+            [value]="form.controls.status.value"
+            (valueChange)="form.controls.status.setValue($any($event))"
+          />
+          <small class="cat-dialog__hint">
+            Inactivo deja de ofrecerse en los formularios. Los registros que ya lo usan lo conservan.
+          </small>
+        </div>
+      </div>
 
       <footer class="cat-dialog__foot">
         <button type="button" class="gi-button gi-button--ghost" (click)="closeEditor()">Cancelar</button>

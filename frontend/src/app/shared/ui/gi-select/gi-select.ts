@@ -63,7 +63,13 @@ let instances = 0;
     </button>
 
     @if (open()) {
-      <ul class="gi-select__list" [id]="listId" role="listbox" [attr.aria-label]="label()">
+      <ul
+        class="gi-select__list"
+        [class.gi-select__list--up]="abreHaciaArriba()"
+        [id]="listId"
+        role="listbox"
+        [attr.aria-label]="label()"
+      >
         @if (!options().length) {
           <li class="gi-select__empty" role="presentation">Sin opciones disponibles</li>
         }
@@ -154,6 +160,23 @@ let instances = 0;
       background: var(--gestia-surface);
     }
 
+    .gi-select__list--up {
+      top: auto;
+      bottom: calc(100% + 0.25rem);
+    }
+
+    /*
+      Hacia arriba cuando abajo no cabe. Sin esto, un desplegable al pie de una pantalla larga
+      —el de registros por página de los catálogos— abre su lista fuera de la ventana: se ve el
+      borde y nada más, y con el ratón no hay forma de elegir.
+
+      VA DESPUES de la regla de arriba, y no es casual. Las dos son un solo nombre de clase, así
+      que pesan igual y gana la última que se escribe. Puesta antes, el "top" de la base le borraba
+      el "top: auto" y la lista seguía abriendo hacia abajo —con la clase aplicada, que es lo que
+      hace que el defecto no se vea en una prueba que sólo mire clases—.
+    */
+
+
     .gi-select__option {
       display: flex;
       flex-direction: column;
@@ -197,6 +220,7 @@ export class GiSelect {
   readonly opened = output<void>();
 
   protected readonly open = signal(false);
+  protected readonly abreHaciaArriba = signal(false);
   protected readonly activeIndex = signal(0);
   protected readonly listId = `gi-select-list-${++instances}`;
   private readonly trigger = viewChild.required<ElementRef<HTMLButtonElement>>('trigger');
@@ -217,8 +241,29 @@ export class GiSelect {
 
     const current = this.options().findIndex((option) => option.value === this.value());
     this.activeIndex.set(current >= 0 ? current : 0);
+    this.abreHaciaArriba.set(this.noCabeAbajo());
     this.open.set(true);
     this.opened.emit();
+  }
+
+  /**
+   * Si la lista cabe debajo del control o hay que dibujarla encima.
+   *
+   * <p>Se decide <b>al abrir</b> y no en cada dibujo: la lista no cambia de sitio mientras está
+   * abierta, y recalcularlo al rodar la haría saltar bajo el cursor justo cuando alguien va a
+   * elegir.</p>
+   *
+   * <p>La altura que se compara es la máxima que la lista puede tomar —16 rem—, no la que va a
+   * tener. Medir la real exigiría dibujarla primero para luego moverla, y eso es un parpadeo
+   * visible. Equivocarse por exceso sólo hace que una lista corta se dibuje arriba teniendo sitio
+   * abajo, que es inofensivo; equivocarse por defecto la deja fuera de la ventana.</p>
+   */
+  private noCabeAbajo(): boolean {
+    const boton = this.trigger().nativeElement.getBoundingClientRect();
+    const alto = this.trigger().nativeElement.ownerDocument.defaultView?.innerHeight ?? 0;
+    const maximoDeLaLista = 16 * 16;
+
+    return boton.bottom + maximoDeLaLista > alto && boton.top > alto - boton.bottom;
   }
 
   protected choose(option: GiSelectOption) {

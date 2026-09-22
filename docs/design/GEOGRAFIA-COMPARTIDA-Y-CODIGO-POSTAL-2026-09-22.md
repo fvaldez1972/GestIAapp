@@ -52,21 +52,47 @@ prueba, para que nadie las «arregle» agregándoles una columna de organizació
 
 ## Los pasos, en orden
 
-**1 · Las tablas y su carga.** Migración que las crea y siembra países, estados y municipios desde
-el JSON del INEGI. Nada las lee todavía: al terminar este paso el sistema funciona igual que antes.
+**1 · Las tablas y su carga. Hecho y desplegado.** Migración `20260922131723_SharedGeographyTables`:
+crea las cuatro tablas y siembra 1 país, 32 estados y 2 478 municipios desde el JSON del INEGI. Nada
+las leía todavía, así que al terminar el sistema funcionaba igual que antes.
 
-**2 · Los lectores cambian de fuente.** `catalog-select` para país, estado y municipio; el validador
-de direcciones; la pantalla de Catálogos. Aquí es donde se nota: las mismas pantallas, otra tabla
-detrás.
+**2 · Los lectores cambian de fuente. Hecho y desplegado.** `catalog-select` pide país, estado y
+municipio a `/api/v1/geography/*`, y la cascada la resuelve el servidor en vez de traerse el catálogo
+entero y recorrer el árbol en el navegador. `FormCatalogValidator.AddressAsync` delega en
+`IGeographyService` y pierde el parámetro de organización. La pantalla vieja de Catálogos deja de
+ofrecer la geografía y dice por qué.
 
-**3 · La geografía del catálogo por organización se desactiva.** No se borra: son 19 826 filas y el
-principio del proyecto es que nada se elimina. Desactivadas dejan de ofrecerse y siguen consultables
-por si algo salió mal. Y el sembrador deja de crearlas para las organizaciones nuevas.
+Tres cosas que aparecieron al hacerlo y no estaban en el plan:
 
-**4 · El código postal manda en la dirección.** Escribes el CP y se resuelven estado y municipio, y
-se ofrece la lista de colonias de ese CP. Los tres desplegables se quedan como respaldo para cuando
-el CP no aparezca —los hay recientes que el catálogo no trae— y para el día que haya un país que no
-sea México.
+- **La comparación de nombres necesitaba una intercalación distinta.** La base es
+  `SQL_Latin1_General_CP1_CI_AS`: ignora mayúsculas pero **no acentos**. Sin `Latin1_General_CI_AI`,
+  una dirección escrita «Nuevo Leon» no encontraba su estado y el mensaje decía «selecciona un estado
+  activo» delante de un estado que existe y está activo.
+- **El país se guardaba mal, y era un defecto mío del 22 de septiembre.** `CountryCode` es de dos
+  caracteres; el desplegable de país que añadí al alta de zona ofrecía el **nombre** como valor a
+  guardar, así que elegir «México» mandaba seis caracteres a una columna de dos. Ahora guarda la
+  clave y muestra el nombre.
+- **El sembrador demo se apoyaba en la geografía sin decirlo.** Decidía «¿ya corrió el alta aquí?»
+  preguntando si la organización tenía estados. Al dejar de sembrarlos la pregunta respondía que no
+  siempre y sembraba encima: clave duplicada. El centinela pasa a ser «¿tiene algún valor de
+  catálogo?».
+
+**3 · La geografía del catálogo por organización se desactiva. Hecho y desplegado.** Migración
+`20260922135223_DeactivateOrganizationGeography`: **20 092 filas** de 8 organizaciones —8 países, 258
+estados y 19 826 municipios— quedan con `Active = 0`. No se borran, y no sólo por el tercer principio:
+los domicilios ya capturados guardan el **nombre** del estado y del municipio, no su identificador,
+así que la fila del catálogo es la única constancia de de dónde salió ese texto. El alta de
+organización dejó de crearlas.
+
+El índice único conserva su filtro sobre `Country`, `State` y `City`. Desactivar una fila no la saca
+de un índice filtrado por `Type`, y el catálogo del INEGI tiene municipios homónimos dentro de un
+mismo estado —Oaxaca tiene dos San Juan Mixtepec, distinguidos por distrito—, así que quitar el
+filtro hoy haría fallar la reconstrucción del índice. Se irá el día que las filas se vayan, si se van.
+
+**4 · El código postal manda en la dirección. Pendiente de una decisión.** Escribes el CP y se
+resuelven estado y municipio, y se ofrece la lista de colonias de ese CP. Los tres desplegables se
+quedan como respaldo para cuando el CP no aparezca —los hay recientes que el catálogo no trae— y para
+el día que haya un país que no sea México. Depende de la sección siguiente.
 
 Cada paso es un commit, y la migración va sola como siempre.
 
@@ -74,22 +100,26 @@ Cada paso es un commit, y la migración va sola como siempre.
 
 ## Lo único que no puedo resolver yo
 
-**Las colonias.** Los países, estados y municipios ya están en el repositorio —un JSON de 214 KB del
-catálogo único del INEGI, tomado el 3 de septiembre—. Las colonias no, y son de **SEPOMEX**, no de
-RENAPO: el padrón de asentamientos que viene con el catálogo de códigos postales.
+**El archivo de SEPOMEX está bajado y leído; lo que falta es qué hacer con él.**
 
-Comprobé que hay salida a internet y que el sitio de Correos de México responde. Lo que no voy a
-hacer por mi cuenta es rastrear el sitio a ver de dónde cuelga hoy el archivo y meter al repositorio
-un paquete de datos de origen externo sin que alguien lo mire: el proyecto ya tiene la costumbre de
-registrar de dónde salió cada dato y cuándo —el JSON del INEGI lleva su `Source` y su
-`RetrievedAt`— y eso se decide, no se improvisa.
+Lo tomé de `https://www.correosdemexico.gob.mx/datosabiertos/cp/cpdescarga.txt` el 22 de septiembre
+de 2026: 14 336 147 bytes, 145 420 renglones, 144 261 combinaciones únicas de municipio + código
+postal + colonia, 32 292 códigos postales y 2 458 municipios. De todo eso, los campos que hacen
+falta pesan unos 5 MB. Está en el área de trabajo temporal de la sesión, **no en el repositorio**.
 
-**Dos salidas, y la primera es la que recomiendo:**
+**No lo he metido a Git**, y ésa es la decisión que te toca. El archivo trae un aviso que dice que
+no se permite *«su comercialización, total o parcial, ni su distribución a terceros bajo ningún
+concepto»*. Versionarlo en el repositorio es, como mínimo, discutible bajo esa frase, y el proyecto
+tiene la costumbre de anotar de dónde salió cada dato en vez de improvisar.
 
-- Me pasas el archivo de SEPOMEX —el `CPdescarga.txt` o el CSV equivalente— y lo cargo con su
-  procedencia anotada, igual que el del INEGI.
-- O me dices de qué dirección bajarlo y lo traigo yo, quedando anotado que se tomó de ahí ese día.
+**Dos salidas:**
 
-**Mientras tanto, los pasos 1, 2 y 3 no dependen de eso** y los puedo hacer ya: la tabla de códigos
-postales se crea vacía y el paso 4 la llena cuando haya datos. La colonia sigue siendo texto libre
-hasta entonces, que es lo que es hoy.
+- **Cargarlo sin versionarlo.** Un guion de carga que lea el archivo y escriba en `GeoPostalCodes`
+  de cada despliegue, con su procedencia anotada —origen, fecha, número de renglones— en la
+  documentación y en la propia base. El repositorio no lo distribuye; cada instalación lo baja de la
+  fuente oficial. Es lo que recomiendo.
+- **Versionarlo igual**, como está el JSON del INEGI, asumiendo la lectura de que usarlo dentro del
+  producto no es «distribuirlo a terceros».
+
+Mientras no se decida, el paso 4 se queda donde está: la tabla de códigos postales existe y está
+vacía, y la colonia sigue siendo texto libre, que es lo que es hoy.

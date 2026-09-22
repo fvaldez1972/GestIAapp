@@ -1,12 +1,15 @@
 using GestIA.Application.Catalogs;
 using GestIA.Application.Common;
+using GestIA.Domain.Common;
 using GestIA.Domain.Planning;
+using GestIA.Domain.Services;
 
 namespace GestIA.Application.Planning;
 
 public sealed class PlanningService(
     IPlanningRepository repository,
     ICatalogService catalogService,
+    IShiftPatternTemplateRepository shiftPatternTemplates,
     IUnitOfWork unitOfWork,
     IActorContext actorContext,
     IClock clock) : IPlanningService
@@ -41,12 +44,21 @@ public sealed class PlanningService(
         CreatePositionRequest request,
         CancellationToken cancellationToken)
     {
-        await EnsureServiceAsync(request.IdOrganization, request.IdClient, request.IdService, cancellationToken);
-        var code = NormalizeCode(request.CodePosition, nameof(request.CodePosition));
+        var service = await EnsureServiceAsync(
+            request.IdOrganization, request.IdClient, request.IdService, cancellationToken);
+        // Opcional a proposito: sin codigo lo pone el servidor, consecutivo por servicio.
+        var code = string.IsNullOrWhiteSpace(request.CodePosition)
+            ? $"P-{await repository.HighestPositionCodeNumberAsync(request.IdService, cancellationToken) + 1:00}"
+            : NormalizeCode(request.CodePosition, nameof(request.CodePosition));
         var profile = ValidatePosition(
             request.Name, request.RequiredWorkerCount, request.RequiredSkillProfile,
-            request.Notes, request.IdJobPositionCatalogItem);
+            request.Notes, request.StartDate, request.EndDate, service, request.IdJobPositionCatalogItem,
+            request.Price, request.CurrencyCode, request.IsTaxIncluded, request.PriceFrequency,
+            request.IdShiftPatternTemplate,
+            request.IdSexCatalogItem, request.IdAgeRangeCatalogItem, request.IdEducationLevelCatalogItem);
         await EnsureJobPositionAsync(request.IdOrganization, profile.IdJobPositionCatalogItem, cancellationToken);
+        await EnsureShiftPatternTemplateAsync(
+            request.IdOrganization, profile.IdShiftPatternTemplate, cancellationToken, required: true);
 
         if (await repository.IsPositionCodeInUseAsync(request.IdService, code, null, cancellationToken))
         {
@@ -63,6 +75,8 @@ public sealed class PlanningService(
             clock.UtcNow);
 
         await repository.AddPositionAsync(position, cancellationToken);
+        await SyncEquipmentAsync(
+            request.IdOrganization, position, request.IdRequiredEquipmentCatalogItems, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return Map(position);
     }
@@ -72,14 +86,22 @@ public sealed class PlanningService(
         UpdatePositionRequest request,
         CancellationToken cancellationToken)
     {
-        await EnsureServiceAsync(request.IdOrganization, request.IdClient, request.IdService, cancellationToken);
+        var service = await EnsureServiceAsync(
+            request.IdOrganization, request.IdClient, request.IdService, cancellationToken);
         var position = await EnsurePositionAsync(request.IdService, idPosition, cancellationToken);
         var profile = ValidatePosition(
             request.Name, request.RequiredWorkerCount, request.RequiredSkillProfile,
-            request.Notes, request.IdJobPositionCatalogItem);
+            request.Notes, request.StartDate, request.EndDate, service, request.IdJobPositionCatalogItem,
+            request.Price, request.CurrencyCode, request.IsTaxIncluded, request.PriceFrequency,
+            request.IdShiftPatternTemplate,
+            request.IdSexCatalogItem, request.IdAgeRangeCatalogItem, request.IdEducationLevelCatalogItem);
         await EnsureJobPositionAsync(request.IdOrganization, profile.IdJobPositionCatalogItem, cancellationToken);
+        await EnsureShiftPatternTemplateAsync(
+            request.IdOrganization, profile.IdShiftPatternTemplate, cancellationToken);
 
         position.UpdateProfile(profile, actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
+        await SyncEquipmentAsync(
+            request.IdOrganization, position, request.IdRequiredEquipmentCatalogItems, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return Map(position);
     }
@@ -114,7 +136,9 @@ public sealed class PlanningService(
         CancellationToken cancellationToken)
     {
         await EnsurePositionInServiceAsync(request.IdOrganization, request.IdClient, request.IdService, request.IdPosition, cancellationToken);
-        var code = NormalizeCode(request.CodeShiftPattern, nameof(request.CodeShiftPattern));
+        var code = string.IsNullOrWhiteSpace(request.CodeShiftPattern)
+            ? $"PAT-{await repository.HighestShiftPatternCodeNumberAsync(request.IdPosition, cancellationToken) + 1:00}"
+            : NormalizeCode(request.CodeShiftPattern, nameof(request.CodeShiftPattern));
         var profile = ValidateShiftPattern(request.Name, request.Description, request.EffectiveFromDate, request.EffectiveToDate);
 
         if (await repository.IsShiftPatternCodeInUseAsync(request.IdPosition, code, null, cancellationToken))
@@ -252,7 +276,11 @@ public sealed class PlanningService(
         await unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
-    private async Task EnsureServiceAsync(Guid idOrganization, Guid idClient, Guid idService, CancellationToken cancellationToken)
+    /// <summary>
+    /// Que el servicio exista, y <b>devolverlo</b>: la vigencia de la posición se compara contra la
+    /// suya, y volver a leerlo en cada llamada sería un viaje de más a la base.
+    /// </summary>
+    private async Task<Service> EnsureServiceAsync(Guid idOrganization, Guid idClient, Guid idService, CancellationToken cancellationToken)
     {
         if (idOrganization == Guid.Empty || idClient == Guid.Empty || idService == Guid.Empty)
         {
@@ -264,10 +292,8 @@ public sealed class PlanningService(
             });
         }
 
-        if (await repository.GetServiceAsync(idOrganization, idClient, idService, cancellationToken) is null)
-        {
-            throw new ResourceNotFoundException("No se encontró el servicio solicitado.");
-        }
+        return await repository.GetServiceAsync(idOrganization, idClient, idService, cancellationToken)
+            ?? throw new ResourceNotFoundException("No se encontró el servicio solicitado.");
     }
 
     private async Task<Position> EnsurePositionAsync(Guid idService, Guid idPosition, CancellationToken cancellationToken) =>
@@ -339,12 +365,73 @@ public sealed class PlanningService(
         }
     }
 
+    /// <summary>
+    /// Comprueba en el servidor que el patrón elegido se puede asignar.
+    ///
+    /// <para>El desplegable ya sólo ofrece patrones completos de la propia organización, pero eso
+    /// es cromo: ocultar una opción no es autorización, y una posición apuntando a un patrón con
+    /// días sin declarar generaría turnos con huecos que nadie pidió.</para>
+    /// </summary>
+    /// <summary>
+    /// Que el patrón exista, esté activo y tenga su ciclo completo.
+    ///
+    /// <para><b>Y que lo haya, cuando la posición es nueva.</b> Desde el 19 de septiembre de 2026
+    /// una posición no nace sin patrón del catálogo: sin él no se pueden proyectar turnos ni
+    /// publicar la planeación, y la posición existía igual, en silencio, hasta que alguien
+    /// intentaba planear.</para>
+    ///
+    /// <para><b>Al editar no se exige, y es deliberado.</b> Quedan posiciones capturadas antes de
+    /// esta regla sin patrón —las que la migración no pudo reconciliar— y exigirlo aquí impediría
+    /// corregirles el nombre o el precio hasta resolver su horario, que es un problema aparte. La
+    /// pantalla las marca para revisión; eso es lo que las cierra, no un candado.</para>
+    /// </summary>
+    private async Task EnsureShiftPatternTemplateAsync(
+        Guid idOrganization,
+        Guid? idShiftPatternTemplate,
+        CancellationToken cancellationToken,
+        bool required = false)
+    {
+        if (idShiftPatternTemplate is not { } id)
+        {
+            if (required)
+            {
+                throw new RequestValidationException(new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["idShiftPatternTemplate"] =
+                        ["Elige el patrón de turno del catálogo. Sin patrón no se pueden proyectar turnos ni publicar la planeación."]
+                });
+            }
+
+            return;
+        }
+
+        if (!await shiftPatternTemplates.IsAssignableAsync(idOrganization, id, cancellationToken))
+        {
+            throw new RequestValidationException(new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["idShiftPatternTemplate"] =
+                    ["El patrón de turno no existe, está retirado o tiene días del ciclo sin declarar."]
+            });
+        }
+    }
+
     private static PositionProfile ValidatePosition(
         string name,
         int requiredWorkerCount,
         string? requiredSkillProfile,
         string? notes,
-        Guid? idJobPositionCatalogItem)
+        DateOnly? startDate,
+        DateOnly? endDate,
+        Service service,
+        Guid? idJobPositionCatalogItem,
+        decimal price,
+        string currencyCode,
+        bool isTaxIncluded,
+        PaymentFrequency priceFrequency,
+        Guid? idShiftPatternTemplate,
+        Guid? idSexCatalogItem,
+        Guid? idAgeRangeCatalogItem,
+        Guid? idEducationLevelCatalogItem)
     {
         var errors = new Dictionary<string, string[]>();
         Required(name, nameof(name), 150, errors);
@@ -355,8 +442,85 @@ public sealed class PlanningService(
             errors[nameof(requiredWorkerCount)] = ["La cantidad requerida debe ser mayor a cero."];
         }
 
+        if (price < 0)
+        {
+            errors[nameof(price)] = ["El precio no puede ser negativo."];
+        }
+
+        // Sin fechas propias, la posicion hereda la vigencia del servicio: es lo que tenia
+        // implicitamente antes de que la columna existiera, y deja que el alta siga siendo minima.
+        var inicio = startDate ?? service.StartDate;
+        var fin = endDate ?? service.EndDate;
+        ValidateValidity(inicio, fin, service, errors);
+
         ThrowIfInvalid(errors);
-        return new PositionProfile(name, requiredWorkerCount, requiredSkillProfile, notes, idJobPositionCatalogItem);
+        return new PositionProfile(
+            name,
+            requiredWorkerCount,
+            requiredSkillProfile,
+            notes,
+            inicio,
+            fin,
+            idJobPositionCatalogItem,
+            price,
+            string.IsNullOrWhiteSpace(currencyCode) ? "MXN" : currencyCode,
+            isTaxIncluded,
+            priceFrequency,
+            idShiftPatternTemplate,
+            idSexCatalogItem,
+            idAgeRangeCatalogItem,
+            idEducationLevelCatalogItem);
+    }
+
+    /// <summary>
+    /// Que la vigencia del puesto quepa dentro de la del servicio.
+    ///
+    /// <para><b>Es error y no aviso, por decisión tomada.</b> Un puesto que empieza antes de que el
+    /// servicio exista, o que sigue vigente después de que el contrato terminó, produce demanda de
+    /// planeación para días en los que no hay nada que cubrir: turnos que generar, vacantes que
+    /// reportar y personas a las que asignar un servicio que ya no se presta. Dejarlo pasar con un
+    /// aviso habría trasladado la corrección a quien lee el tablero tres semanas después.</para>
+    ///
+    /// <para>Un servicio sin fecha de término no acota por arriba: ahí un puesto permanente es
+    /// legítimo.</para>
+    /// </summary>
+    private static void ValidateValidity(
+        DateOnly startDate,
+        DateOnly? endDate,
+        Service service,
+        Dictionary<string, string[]> errors)
+    {
+        if (endDate is { } fin && fin < startDate)
+        {
+            errors[nameof(endDate)] = ["La fecha de fin no puede ser anterior a la de inicio."];
+        }
+
+        if (startDate < service.StartDate)
+        {
+            errors[nameof(startDate)] =
+                [$"La posición no puede empezar antes que el servicio, que inicia el {service.StartDate:dd/MM/yyyy}."];
+        }
+
+        if (service.EndDate is not { } finServicio)
+        {
+            return;
+        }
+
+        if (startDate > finServicio)
+        {
+            errors[nameof(startDate)] =
+                [$"La posición no puede empezar después de que el servicio termina, el {finServicio:dd/MM/yyyy}."];
+        }
+
+        // Un puesto sin fin dentro de un servicio que sí lo tiene seguiría pidiendo gente el día
+        // después de que el contrato acabó. No hace falta exigir la fecha como error: una petición
+        // sin fecha de fin hereda la del servicio, así que aquí sólo puede llegar una que alguien
+        // escribió a mano.
+        if (endDate is { } finPosicion && finPosicion > finServicio)
+        {
+            errors[nameof(endDate)] =
+                [$"La posición no puede terminar después que el servicio, que acaba el {finServicio:dd/MM/yyyy}."];
+        }
     }
 
     private static ShiftPatternProfile ValidateShiftPattern(
@@ -444,6 +608,73 @@ public sealed class PlanningService(
         }
     }
 
+    /// <summary>
+    /// El perfil de la posición, ya resuelto contra el catálogo.
+    ///
+    /// <para>El equipo llega resuelto y no como una lista de identificadores porque la pantalla lo
+    /// enseña por nombre, y pedirle que lo resuelva obligaría a que cada pantalla que muestre una
+    /// posición cargara antes el catálogo entero de equipos.</para>
+    /// </summary>
+    /// <summary>
+    /// Deja el equipo de la posición como dice la petición, sin borrar nada.
+    ///
+    /// <para><b>Retirar una pieza la desactiva, no la elimina</b>, y volver a pedirla reactiva la
+    /// fila que ya estaba. Es la misma regla que rige en todo el sistema —los registros no se
+    /// borran— y aquí además evita que el índice único choque: la pieza retirada sigue ocupando su
+    /// sitio, así que insertar otra igual fallaría.</para>
+    ///
+    /// <para>Un <c>null</c> deja el equipo como estaba; una lista vacía lo retira entero. La
+    /// diferencia importa porque una pantalla que edita sólo el precio no manda el equipo, y
+    /// tratarlo como «vacío» le borraría lo que no venía a tocar.</para>
+    /// </summary>
+    private async Task SyncEquipmentAsync(
+        Guid idOrganization,
+        Position position,
+        IReadOnlyList<Guid>? idCatalogItems,
+        CancellationToken cancellationToken)
+    {
+        if (idCatalogItems is null)
+        {
+            return;
+        }
+
+        var pedidos = idCatalogItems.Distinct().ToArray();
+
+        if (!await repository.AreEquipmentCatalogItemsUsableAsync(idOrganization, pedidos, cancellationToken))
+        {
+            throw new RequestValidationException(new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["idRequiredEquipmentCatalogItems"] =
+                    ["Elige equipo activo del catálogo de equipo requerido."]
+            });
+        }
+
+        var existentes = await repository.ListPositionEquipmentAsync(position.IdPosition, cancellationToken);
+
+        foreach (var existente in existentes)
+        {
+            var sigue = pedidos.Contains(existente.IdEquipmentCatalogItem);
+
+            if (sigue && !existente.Active)
+            {
+                existente.Activate(actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
+            }
+            else if (!sigue && existente.Active)
+            {
+                existente.Deactivate(actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
+            }
+        }
+
+        foreach (var nuevo in pedidos.Where(id => existentes.All(item => item.IdEquipmentCatalogItem != id)))
+        {
+            await repository.AddPositionEquipmentAsync(
+                PositionRequiredEquipment.Create(
+                    idOrganization, position.IdPosition, nuevo,
+                    actorContext.ActorId, actorContext.ActorName, clock.UtcNow),
+                cancellationToken);
+        }
+    }
+
     private static PositionResponse Map(Position position) =>
         new(
             position.IdPosition,
@@ -454,7 +685,23 @@ public sealed class PlanningService(
             position.RequiredSkillProfile,
             position.IdJobPositionCatalogItem,
             position.Notes,
-            position.Active);
+            position.StartDate,
+            position.EndDate,
+            position.Active,
+            position.Price,
+            position.CurrencyCode,
+            position.IsTaxIncluded,
+            position.PriceFrequency,
+            position.IdShiftPatternTemplate,
+            position.IdSexCatalogItem,
+            position.IdAgeRangeCatalogItem,
+            position.IdEducationLevelCatalogItem,
+            position.RequiredEquipment
+                .Where(item => item.Active)
+                .Select(item => new PositionEquipmentResponse(
+                    item.IdEquipmentCatalogItem,
+                    item.EquipmentCatalogItem?.Name ?? "Equipo no encontrado"))
+                .ToArray());
 
     private static ShiftPatternResponse Map(ShiftPattern shiftPattern) =>
         new(

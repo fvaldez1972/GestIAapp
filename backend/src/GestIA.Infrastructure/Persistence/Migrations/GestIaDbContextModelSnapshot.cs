@@ -35,12 +35,6 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                         .HasDefaultValue(true)
                         .HasColumnName("Active");
 
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasMaxLength(80)
-                        .IsUnicode(false)
-                        .HasColumnType("varchar(80)");
-
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2(0)")
@@ -58,36 +52,32 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
 
-                    b.Property<string>("Group")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(80)
-                        .HasColumnType("nvarchar(80)")
-                        .HasDefaultValue("General")
-                        .HasColumnName("CatalogGroup");
-
                     b.Property<Guid>("IdOrganization")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<Guid?>("IdParentCatalogItem")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<bool?>("IsBlocking")
+                        .HasColumnType("bit");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(160)
                         .HasColumnType("nvarchar(160)");
+
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("varchar(200)")
+                        .HasComputedColumnSql("CAST(UPPER(LTRIM(RTRIM(\r\n    REPLACE(\r\n        REPLACE(\r\n            REPLACE(\r\n                REPLACE(REPLACE(REPLACE([Name], CHAR(9), ' '), CHAR(10), ' '), CHAR(13), ' '),\r\n                ' ', CHAR(1) + CHAR(2)),\r\n            CHAR(2) + CHAR(1), ''),\r\n        CHAR(1) + CHAR(2), ' ')\r\n))) AS varchar(200))", true)
+                        .UseCollation("Latin1_General_CI_AI");
 
                     b.Property<int>("Order")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int")
                         .HasDefaultValue(1)
                         .HasColumnName("DisplayOrder");
-
-                    b.Property<string>("Synonyms")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("nvarchar(max)")
-                        .HasDefaultValueSql("N'[]'");
 
                     b.Property<string>("Type")
                         .IsRequired()
@@ -111,9 +101,10 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                     b.HasIndex("IdParentCatalogItem")
                         .HasDatabaseName("IX_BusinessCatalogItems_IdParentCatalogItem");
 
-                    b.HasIndex("IdOrganization", "Type", "Code")
+                    b.HasIndex("IdOrganization", "Type", "IdParentCatalogItem", "NormalizedName")
                         .IsUnique()
-                        .HasDatabaseName("UX_BusinessCatalogItems_IdOrganization_Type_Code");
+                        .HasDatabaseName("UX_BusinessCatalogItems_IdOrganization_Type_IdParentCatalogItem_NormalizedName")
+                        .HasFilter("[Type] <> 'Country' AND [Type] <> 'State' AND [Type] <> 'City'");
 
                     b.ToTable("BusinessCatalogItems", "dbo");
                 });
@@ -156,10 +147,13 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("IdPosition")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid?>("IdRequiredCatalogItem")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid?>("IdService")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<bool>("IsBlocking")
+                    b.Property<bool?>("IsBlocking")
                         .HasColumnType("bit");
 
                     b.Property<string>("Name")
@@ -167,11 +161,15 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                         .HasMaxLength(160)
                         .HasColumnType("nvarchar(160)");
 
-                    b.Property<string>("RequiredCode")
-                        .IsRequired()
-                        .HasMaxLength(80)
+                    b.Property<string>("RequiredDocumentType")
+                        .HasMaxLength(60)
                         .IsUnicode(false)
-                        .HasColumnType("varchar(80)");
+                        .HasColumnType("varchar(60)");
+
+                    b.Property<string>("RequiredEvaluationType")
+                        .HasMaxLength(60)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(60)");
 
                     b.Property<string>("RequirementType")
                         .IsRequired()
@@ -204,14 +202,19 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                     b.HasIndex("IdPosition")
                         .HasDatabaseName("IX_EligibilityRequirements_IdPosition");
 
+                    b.HasIndex("IdRequiredCatalogItem")
+                        .HasDatabaseName("IX_EligibilityRequirements_IdRequiredCatalogItem");
+
                     b.HasIndex("IdService")
                         .HasDatabaseName("IX_EligibilityRequirements_IdService");
 
-                    b.HasIndex("IdOrganization", "TargetType", "RequirementType", "RequiredCode")
-                        .HasDatabaseName("IX_EligibilityRequirements_IdOrganization_TargetType_RequirementType_RequiredCode");
+                    b.HasIndex("IdOrganization", "TargetType", "RequirementType")
+                        .HasDatabaseName("IX_EligibilityRequirements_IdOrganization_TargetType_RequirementType");
 
                     b.ToTable("EligibilityRequirements", "dbo", t =>
                         {
+                            t.HasCheckConstraint("CK_EligibilityRequirements_RequirementByType", "(RequirementType IN ('Skill', 'Document', 'Evaluation') AND IdRequiredCatalogItem IS NOT NULL) OR (RequirementType = 'Restriction' AND IdRequiredCatalogItem IS NULL AND RequiredDocumentType IS NULL AND RequiredEvaluationType IS NULL)");
+
                             t.HasCheckConstraint("CK_EligibilityRequirements_Target_ExactlyOne", "([TargetType] = 'Organization' AND [IdClient] IS NULL AND [IdService] IS NULL AND [IdPosition] IS NULL) OR ([TargetType] = 'Client' AND [IdClient] IS NOT NULL AND [IdService] IS NULL AND [IdPosition] IS NULL) OR ([TargetType] = 'Service' AND [IdClient] IS NULL AND [IdService] IS NOT NULL AND [IdPosition] IS NULL) OR ([TargetType] = 'Position' AND [IdClient] IS NULL AND [IdService] IS NULL AND [IdPosition] IS NOT NULL)");
                         });
                 });
@@ -444,7 +447,13 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("IdClientSite")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid?>("IdContactJobPositionCatalogItem")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid>("IdOrganization")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("IdPurposeCatalogItem")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<bool>("IsPrimary")
@@ -470,6 +479,14 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                         .IsUnicode(false)
                         .HasColumnType("varchar(40)");
 
+                    b.Property<string>("Scope")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)")
+                        .HasDefaultValue("General");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2(0)");
 
@@ -485,6 +502,14 @@ namespace GestIA.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("IdClientSite")
                         .HasDatabaseName("IX_ClientContacts_IdClientSite");
+
+                    b.HasIndex("IdContactJobPositionCatalogItem")
+                        .HasDatabaseName("IX_ClientContacts_IdContactJobPositionCatalogItem")
+                        .HasFilter("[IdContactJobPositionCatalogItem] IS NOT NULL");
+
+                    b.HasIndex("IdPurposeCatalogItem")
+                        .HasDatabaseName("IX_ClientContacts_IdPurposeCatalogItem")
+                        .HasFilter("[IdPurposeCatalogItem] IS NOT NULL");
 
                     b.HasIndex("IdClient", "Purpose")
                         .HasDatabaseName("IX_ClientContacts_IdClient_Purpose");
@@ -566,6 +591,13 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                         .HasMaxLength(120)
                         .HasColumnType("nvarchar(120)");
 
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("varchar(200)")
+                        .HasComputedColumnSql("CAST(UPPER(LTRIM(RTRIM(\r\n    REPLACE(\r\n        REPLACE(\r\n            REPLACE(\r\n                REPLACE(REPLACE(REPLACE([Name], CHAR(9), ' '), CHAR(10), ' '), CHAR(13), ' '),\r\n                ' ', CHAR(1) + CHAR(2)),\r\n            CHAR(2) + CHAR(1), ''),\r\n        CHAR(1) + CHAR(2), ' ')\r\n))) AS varchar(200))", true)
+                        .UseCollation("Latin1_General_CI_AI");
+
                     b.Property<string>("PostalCode")
                         .IsRequired()
                         .HasMaxLength(10)
@@ -603,6 +635,10 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                     b.HasIndex("IdClient", "CodeClientSite")
                         .IsUnique()
                         .HasDatabaseName("UX_ClientSites_IdClient_CodeClientSite");
+
+                    b.HasIndex("IdClient", "NormalizedName")
+                        .IsUnique()
+                        .HasDatabaseName("UX_ClientSites_IdClient_NormalizedName");
 
                     b.HasIndex("IdOrganization", "CodeClientSite")
                         .HasDatabaseName("IX_ClientSites_IdOrganization_CodeClientSite");
@@ -1535,6 +1571,11 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
+                    b.Property<string>("PayrollFrequency")
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
+
                     b.Property<string>("Rfc")
                         .HasMaxLength(13)
                         .IsUnicode(false)
@@ -1596,6 +1637,19 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<string>("CurrencyCode")
+                        .IsRequired()
+                        .HasColumnType("varchar(3)");
+
+                    b.Property<DateOnly?>("EndDate")
+                        .HasColumnType("date");
+
+                    b.Property<Guid?>("IdAgeRangeCatalogItem")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("IdEducationLevelCatalogItem")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid?>("IdJobPositionCatalogItem")
                         .HasColumnType("uniqueidentifier");
 
@@ -1604,6 +1658,15 @@ namespace GestIA.Infrastructure.Persistence.Migrations
 
                     b.Property<Guid>("IdService")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("IdSexCatalogItem")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("IdShiftPatternTemplate")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsTaxIncluded")
+                        .HasColumnType("bit");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -1614,12 +1677,24 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
 
+                    b.Property<decimal>("Price")
+                        .HasColumnType("decimal(19,4)");
+
+                    b.Property<string>("PriceFrequency")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
+
                     b.Property<string>("RequiredSkillProfile")
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
 
                     b.Property<int>("RequiredWorkerCount")
                         .HasColumnType("int");
+
+                    b.Property<DateOnly>("StartDate")
+                        .HasColumnType("date");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2(0)");
@@ -1634,8 +1709,20 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                     b.HasKey("IdPosition")
                         .HasName("PK_Positions");
 
+                    b.HasIndex("IdAgeRangeCatalogItem")
+                        .HasDatabaseName("IX_Positions_IdAgeRangeCatalogItem")
+                        .HasFilter("[IdAgeRangeCatalogItem] IS NOT NULL");
+
+                    b.HasIndex("IdEducationLevelCatalogItem")
+                        .HasDatabaseName("IX_Positions_IdEducationLevelCatalogItem")
+                        .HasFilter("[IdEducationLevelCatalogItem] IS NOT NULL");
+
                     b.HasIndex("IdJobPositionCatalogItem")
                         .HasDatabaseName("IX_Positions_IdJobPositionCatalogItem");
+
+                    b.HasIndex("IdSexCatalogItem")
+                        .HasDatabaseName("IX_Positions_IdSexCatalogItem")
+                        .HasFilter("[IdSexCatalogItem] IS NOT NULL");
 
                     b.HasIndex("IdOrganization", "CodePosition")
                         .HasDatabaseName("IX_Positions_IdOrganization_CodePosition");
@@ -1649,8 +1736,72 @@ namespace GestIA.Infrastructure.Persistence.Migrations
 
                     b.ToTable("Positions", "dbo", t =>
                         {
+                            t.HasCheckConstraint("CK_Positions_DateRange", "[EndDate] IS NULL OR [EndDate] >= [StartDate]");
+
+                            t.HasCheckConstraint("CK_Positions_Price", "[Price] >= 0");
+
                             t.HasCheckConstraint("CK_Positions_RequiredWorkerCount", "[RequiredWorkerCount] > 0");
                         });
+                });
+
+            modelBuilder.Entity("GestIA.Domain.Planning.PositionRequiredEquipment", b =>
+                {
+                    b.Property<Guid>("IdPositionRequiredEquipment")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Active")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true)
+                        .HasColumnName("Active");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2(0)")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CreatedByName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<Guid>("IdEquipmentCatalogItem")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("IdOrganization")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("IdPosition")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2(0)");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("UpdatedByName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("IdPositionRequiredEquipment")
+                        .HasName("PK_PositionRequiredEquipments");
+
+                    b.HasIndex("IdEquipmentCatalogItem")
+                        .HasDatabaseName("IX_PositionRequiredEquipments_IdEquipmentCatalogItem");
+
+                    b.HasIndex("IdOrganization")
+                        .HasDatabaseName("IX_PositionRequiredEquipments_IdOrganization");
+
+                    b.HasIndex("IdPosition", "IdEquipmentCatalogItem")
+                        .IsUnique()
+                        .HasDatabaseName("UX_PositionRequiredEquipments_IdPosition_IdEquipmentCatalogItem");
+
+                    b.ToTable("PositionRequiredEquipments", "dbo");
                 });
 
             modelBuilder.Entity("GestIA.Domain.Planning.ScheduleVersion", b =>
@@ -1905,6 +2056,162 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                     b.ToTable("ShiftPatterns", "dbo", t =>
                         {
                             t.HasCheckConstraint("CK_ShiftPatterns_EffectiveDateRange", "[EffectiveToDate] IS NULL OR [EffectiveToDate] >= [EffectiveFromDate]");
+                        });
+                });
+
+            modelBuilder.Entity("GestIA.Domain.Planning.ShiftPatternTemplate", b =>
+                {
+                    b.Property<Guid>("IdShiftPatternTemplate")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Active")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true)
+                        .HasColumnName("Active");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2(0)")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CreatedByName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("CycleDays")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Daypart")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateOnly>("EffectiveFromDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("EffectiveToDate")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("IdOrganization")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2(0)");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("UpdatedByName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("IdShiftPatternTemplate")
+                        .HasName("PK_ShiftPatternTemplates");
+
+                    b.HasIndex("IdOrganization", "NormalizedName")
+                        .IsUnique()
+                        .HasDatabaseName("UX_ShiftPatternTemplates_IdOrganization_NormalizedName");
+
+                    b.ToTable("ShiftPatternTemplates", "dbo", t =>
+                        {
+                            t.HasCheckConstraint("CK_ShiftPatternTemplates_CycleDays", "[CycleDays] BETWEEN 1 AND 366");
+
+                            t.HasCheckConstraint("CK_ShiftPatternTemplates_DateRange", "[EffectiveToDate] IS NULL OR [EffectiveToDate] >= [EffectiveFromDate]");
+                        });
+                });
+
+            modelBuilder.Entity("GestIA.Domain.Planning.ShiftPatternTemplateDay", b =>
+                {
+                    b.Property<Guid>("IdShiftPatternTemplateDay")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Active")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true)
+                        .HasColumnName("Active");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2(0)")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CreatedByName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("CycleDayNumber")
+                        .HasColumnType("int");
+
+                    b.Property<int>("DurationMinutes")
+                        .HasColumnType("int");
+
+                    b.Property<TimeOnly?>("EndTime")
+                        .HasColumnType("time(0)");
+
+                    b.Property<Guid>("IdOrganization")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("IdShiftPatternTemplate")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsOvernight")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsRest")
+                        .HasColumnType("bit");
+
+                    b.Property<TimeOnly?>("StartTime")
+                        .HasColumnType("time(0)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2(0)");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("UpdatedByName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("IdShiftPatternTemplateDay")
+                        .HasName("PK_ShiftPatternTemplateDays");
+
+                    b.HasIndex("IdShiftPatternTemplate", "CycleDayNumber")
+                        .IsUnique()
+                        .HasDatabaseName("UX_ShiftPatternTemplateDays_IdShiftPatternTemplate_CycleDayNumber");
+
+                    b.ToTable("ShiftPatternTemplateDays", "dbo", t =>
+                        {
+                            t.HasCheckConstraint("CK_ShiftPatternTemplateDays_CycleDayNumber", "[CycleDayNumber] >= 1");
+
+                            t.HasCheckConstraint("CK_ShiftPatternTemplateDays_RestHasNoSchedule", "([IsRest] = CAST(1 AS bit) AND [StartTime] IS NULL AND [EndTime] IS NULL AND [DurationMinutes] = 0) OR ([IsRest] = CAST(0 AS bit) AND [StartTime] IS NOT NULL AND [EndTime] IS NOT NULL AND [DurationMinutes] > 0)");
                         });
                 });
 
@@ -2516,128 +2823,6 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                         });
                 });
 
-            modelBuilder.Entity("GestIA.Domain.Services.ServiceConfiguration", b =>
-                {
-                    b.Property<Guid>("IdServiceConfiguration")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<bool>("Active")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(true)
-                        .HasColumnName("Active");
-
-                    b.Property<decimal>("AverageMonthlyHours")
-                        .HasPrecision(8, 2)
-                        .HasColumnType("decimal(8,2)");
-
-                    b.Property<decimal>("AverageWeeklyHours")
-                        .HasPrecision(7, 2)
-                        .HasColumnType("decimal(7,2)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2(0)")
-                        .HasDefaultValueSql("SYSUTCDATETIME()");
-
-                    b.Property<Guid>("CreatedBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("CreatedByName")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("CurrencyCode")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(3)
-                        .IsUnicode(false)
-                        .HasColumnType("varchar(3)")
-                        .HasDefaultValue("MXN");
-
-                    b.Property<byte>("DaysPerWeek")
-                        .HasColumnType("tinyint");
-
-                    b.Property<DateOnly>("EffectiveFromDate")
-                        .HasColumnType("date");
-
-                    b.Property<DateOnly?>("EffectiveToDate")
-                        .HasColumnType("date");
-
-                    b.Property<decimal>("HoursPerDay")
-                        .HasPrecision(5, 2)
-                        .HasColumnType("decimal(5,2)");
-
-                    b.Property<Guid>("IdOrganization")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("IdService")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<bool>("IsTaxIncluded")
-                        .HasColumnType("bit");
-
-                    b.Property<decimal>("MonthlyPrice")
-                        .HasPrecision(19, 4)
-                        .HasColumnType("decimal(19,4)");
-
-                    b.Property<short>("PreparationLeadDays")
-                        .HasColumnType("smallint");
-
-                    b.Property<short>("RequiredWorkerCount")
-                        .HasColumnType("smallint");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
-
-                    b.Property<string>("SpecificInstructions")
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2(0)");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("UpdatedByName")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("WorkScheduleDescription")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.HasKey("IdServiceConfiguration")
-                        .HasName("PK_ServiceConfigurations");
-
-                    b.HasIndex("IdOrganization", "EffectiveFromDate")
-                        .HasDatabaseName("IX_ServiceConfigurations_IdOrganization_EffectiveFromDate");
-
-                    b.HasIndex("IdService", "EffectiveFromDate")
-                        .IsUnique()
-                        .HasDatabaseName("UX_ServiceConfigurations_IdService_EffectiveFromDate");
-
-                    b.ToTable("ServiceConfigurations", "dbo", t =>
-                        {
-                            t.HasCheckConstraint("CK_ServiceConfigurations_DaysPerWeek", "[DaysPerWeek] BETWEEN 1 AND 7");
-
-                            t.HasCheckConstraint("CK_ServiceConfigurations_EffectiveDateRange", "[EffectiveToDate] IS NULL OR [EffectiveToDate] >= [EffectiveFromDate]");
-
-                            t.HasCheckConstraint("CK_ServiceConfigurations_HoursPerDay", "[HoursPerDay] > 0 AND [HoursPerDay] <= 24");
-
-                            t.HasCheckConstraint("CK_ServiceConfigurations_MonthlyPrice", "[MonthlyPrice] >= 0");
-
-                            t.HasCheckConstraint("CK_ServiceConfigurations_RequiredWorkerCount", "[RequiredWorkerCount] > 0");
-                        });
-                });
-
             modelBuilder.Entity("GestIA.Domain.Services.ServiceContract", b =>
                 {
                     b.Property<Guid>("IdServiceContract")
@@ -2819,6 +3004,73 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("GestIA.Domain.Workforce.AdministrativeIncident", b =>
+                {
+                    b.Property<Guid>("IdAdministrativeIncident")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Active")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true)
+                        .HasColumnName("Active");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2(0)")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CreatedByName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Details")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<Guid>("IdEmployee")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("IdIncidentTypeCatalogItem")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("IdOrganization")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateOnly>("OccurredDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2(0)");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("UpdatedByName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("IdAdministrativeIncident")
+                        .HasName("PK_AdministrativeIncidents");
+
+                    b.HasIndex("IdIncidentTypeCatalogItem")
+                        .HasDatabaseName("IX_AdministrativeIncidents_IdIncidentTypeCatalogItem");
+
+                    b.HasIndex("IdOrganization")
+                        .HasDatabaseName("IX_AdministrativeIncidents_IdOrganization");
+
+                    b.HasIndex("IdEmployee", "OccurredDate")
+                        .HasDatabaseName("IX_AdministrativeIncidents_IdEmployee_OccurredDate");
+
+                    b.ToTable("AdministrativeIncidents", "dbo");
+                });
+
             modelBuilder.Entity("GestIA.Domain.Workforce.Employee", b =>
                 {
                     b.Property<Guid>("IdEmployee")
@@ -2890,6 +3142,10 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                         .IsUnicode(false)
                         .HasColumnType("varchar(30)");
 
+                    b.Property<string>("EmergencyContactRelationship")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
                     b.Property<string>("FullName")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -2906,6 +3162,9 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                     b.Property<string>("HousingType")
                         .HasMaxLength(30)
                         .HasColumnType("nvarchar(30)");
+
+                    b.Property<Guid?>("IdEducationLevelCatalogItem")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<Guid?>("IdJobPositionCatalogItem")
                         .HasColumnType("uniqueidentifier");
@@ -2932,6 +3191,10 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                         .HasColumnType("varchar(30)");
 
                     b.Property<string>("Municipality")
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<string>("Neighborhood")
                         .HasMaxLength(120)
                         .HasColumnType("nvarchar(120)");
 
@@ -2967,6 +3230,14 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                         .IsUnicode(false)
                         .HasColumnType("varchar(30)");
 
+                    b.Property<string>("Street")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("StreetNumber")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2(0)");
 
@@ -2984,6 +3255,9 @@ namespace GestIA.Infrastructure.Persistence.Migrations
 
                     b.HasKey("IdEmployee")
                         .HasName("PK_Employees");
+
+                    b.HasIndex("IdEducationLevelCatalogItem")
+                        .HasDatabaseName("IX_Employees_IdEducationLevelCatalogItem");
 
                     b.HasIndex("IdJobPositionCatalogItem")
                         .HasDatabaseName("IX_Employees_IdJobPositionCatalogItem");
@@ -3051,11 +3325,22 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                     b.Property<DateOnly?>("ExpiresDate")
                         .HasColumnType("date");
 
+                    b.Property<Guid?>("IdBusinessDocument")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("IdDocumentCategoryCatalogItem")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid>("IdEmployee")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<Guid>("IdOrganization")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsSensitive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
 
                     b.Property<DateOnly?>("IssuedDate")
                         .HasColumnType("date");
@@ -3089,6 +3374,14 @@ namespace GestIA.Infrastructure.Persistence.Migrations
 
                     b.HasKey("IdEmployeeDocument")
                         .HasName("PK_EmployeeDocuments");
+
+                    b.HasIndex("IdBusinessDocument")
+                        .HasDatabaseName("IX_EmployeeDocuments_IdBusinessDocument")
+                        .HasFilter("[IdBusinessDocument] IS NOT NULL");
+
+                    b.HasIndex("IdDocumentCategoryCatalogItem")
+                        .HasDatabaseName("IX_EmployeeDocuments_IdDocumentCategoryCatalogItem")
+                        .HasFilter("[IdDocumentCategoryCatalogItem] IS NOT NULL");
 
                     b.HasIndex("IdEmployee", "DocumentType")
                         .HasDatabaseName("IX_EmployeeDocuments_IdEmployee_DocumentType");
@@ -3149,6 +3442,9 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("IdEmployee")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid?>("IdEvaluationCategoryCatalogItem")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid>("IdOrganization")
                         .HasColumnType("uniqueidentifier");
 
@@ -3178,6 +3474,10 @@ namespace GestIA.Infrastructure.Persistence.Migrations
 
                     b.HasKey("IdEmployeeEvaluation")
                         .HasName("PK_EmployeeEvaluations");
+
+                    b.HasIndex("IdEvaluationCategoryCatalogItem")
+                        .HasDatabaseName("IX_EmployeeEvaluations_IdEvaluationCategoryCatalogItem")
+                        .HasFilter("[IdEvaluationCategoryCatalogItem] IS NOT NULL");
 
                     b.HasIndex("IdOrganization", "EvaluationType")
                         .HasDatabaseName("IX_EmployeeEvaluations_IdOrganization_EvaluationType");
@@ -3327,6 +3627,12 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("FK_EligibilityRequirements_Positions_IdPosition");
 
+                    b.HasOne("GestIA.Domain.Catalogs.BusinessCatalogItem", "RequiredCatalogItem")
+                        .WithMany()
+                        .HasForeignKey("IdRequiredCatalogItem")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_EligibilityRequirements_BusinessCatalogItems_IdRequiredCatalogItem");
+
                     b.HasOne("GestIA.Domain.Services.Service", "Service")
                         .WithMany()
                         .HasForeignKey("IdService")
@@ -3338,6 +3644,8 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                     b.Navigation("Organization");
 
                     b.Navigation("Position");
+
+                    b.Navigation("RequiredCatalogItem");
 
                     b.Navigation("Service");
                 });
@@ -3397,6 +3705,12 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("FK_ClientContacts_ClientSites_IdClientSite");
 
+                    b.HasOne("GestIA.Domain.Catalogs.BusinessCatalogItem", "ContactJobPositionCatalogItem")
+                        .WithMany()
+                        .HasForeignKey("IdContactJobPositionCatalogItem")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_ClientContacts_BusinessCatalogItems_IdContactJobPositionCatalogItem");
+
                     b.HasOne("GestIA.Domain.Organizations.Organization", null)
                         .WithMany()
                         .HasForeignKey("IdOrganization")
@@ -3404,9 +3718,19 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasConstraintName("FK_ClientContacts_Organizations_IdOrganization");
 
+                    b.HasOne("GestIA.Domain.Catalogs.BusinessCatalogItem", "PurposeCatalogItem")
+                        .WithMany()
+                        .HasForeignKey("IdPurposeCatalogItem")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_ClientContacts_BusinessCatalogItems_IdPurposeCatalogItem");
+
                     b.Navigation("Client");
 
                     b.Navigation("ClientSite");
+
+                    b.Navigation("ContactJobPositionCatalogItem");
+
+                    b.Navigation("PurposeCatalogItem");
                 });
 
             modelBuilder.Entity("GestIA.Domain.Clients.ClientSite", b =>
@@ -3697,6 +4021,34 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                     b.Navigation("Service");
                 });
 
+            modelBuilder.Entity("GestIA.Domain.Planning.PositionRequiredEquipment", b =>
+                {
+                    b.HasOne("GestIA.Domain.Catalogs.BusinessCatalogItem", "EquipmentCatalogItem")
+                        .WithMany()
+                        .HasForeignKey("IdEquipmentCatalogItem")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_PositionRequiredEquipments_BusinessCatalogItems_IdEquipmentCatalogItem");
+
+                    b.HasOne("GestIA.Domain.Organizations.Organization", null)
+                        .WithMany()
+                        .HasForeignKey("IdOrganization")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_PositionRequiredEquipments_Organizations_IdOrganization");
+
+                    b.HasOne("GestIA.Domain.Planning.Position", "Position")
+                        .WithMany("RequiredEquipment")
+                        .HasForeignKey("IdPosition")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_PositionRequiredEquipments_Positions_IdPosition");
+
+                    b.Navigation("EquipmentCatalogItem");
+
+                    b.Navigation("Position");
+                });
+
             modelBuilder.Entity("GestIA.Domain.Planning.ScheduleVersion", b =>
                 {
                     b.HasOne("GestIA.Domain.Organizations.Organization", null)
@@ -3770,6 +4122,30 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                         .HasConstraintName("FK_ShiftPatterns_Positions_IdPosition");
 
                     b.Navigation("Position");
+                });
+
+            modelBuilder.Entity("GestIA.Domain.Planning.ShiftPatternTemplate", b =>
+                {
+                    b.HasOne("GestIA.Domain.Organizations.Organization", "Organization")
+                        .WithMany()
+                        .HasForeignKey("IdOrganization")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_ShiftPatternTemplates_Organizations_IdOrganization");
+
+                    b.Navigation("Organization");
+                });
+
+            modelBuilder.Entity("GestIA.Domain.Planning.ShiftPatternTemplateDay", b =>
+                {
+                    b.HasOne("GestIA.Domain.Planning.ShiftPatternTemplate", "ShiftPatternTemplate")
+                        .WithMany("Days")
+                        .HasForeignKey("IdShiftPatternTemplate")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_ShiftPatternTemplateDays_ShiftPatternTemplates_IdShiftPatternTemplate");
+
+                    b.Navigation("ShiftPatternTemplate");
                 });
 
             modelBuilder.Entity("GestIA.Domain.Planning.ShiftSegment", b =>
@@ -3926,25 +4302,6 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                     b.Navigation("ServiceContract");
                 });
 
-            modelBuilder.Entity("GestIA.Domain.Services.ServiceConfiguration", b =>
-                {
-                    b.HasOne("GestIA.Domain.Organizations.Organization", null)
-                        .WithMany()
-                        .HasForeignKey("IdOrganization")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("FK_ServiceConfigurations_Organizations_IdOrganization");
-
-                    b.HasOne("GestIA.Domain.Services.Service", "Service")
-                        .WithMany("Configurations")
-                        .HasForeignKey("IdService")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("FK_ServiceConfigurations_Services_IdService");
-
-                    b.Navigation("Service");
-                });
-
             modelBuilder.Entity("GestIA.Domain.Services.ServiceContract", b =>
                 {
                     b.HasOne("GestIA.Domain.Clients.Client", "Client")
@@ -3976,8 +4333,42 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                     b.Navigation("Organization");
                 });
 
+            modelBuilder.Entity("GestIA.Domain.Workforce.AdministrativeIncident", b =>
+                {
+                    b.HasOne("GestIA.Domain.Workforce.Employee", "Employee")
+                        .WithMany()
+                        .HasForeignKey("IdEmployee")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_AdministrativeIncidents_Employees_IdEmployee");
+
+                    b.HasOne("GestIA.Domain.Catalogs.BusinessCatalogItem", "IncidentTypeCatalogItem")
+                        .WithMany()
+                        .HasForeignKey("IdIncidentTypeCatalogItem")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_AdministrativeIncidents_BusinessCatalogItems_IdIncidentTypeCatalogItem");
+
+                    b.HasOne("GestIA.Domain.Organizations.Organization", null)
+                        .WithMany()
+                        .HasForeignKey("IdOrganization")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_AdministrativeIncidents_Organizations_IdOrganization");
+
+                    b.Navigation("Employee");
+
+                    b.Navigation("IncidentTypeCatalogItem");
+                });
+
             modelBuilder.Entity("GestIA.Domain.Workforce.Employee", b =>
                 {
+                    b.HasOne("GestIA.Domain.Catalogs.BusinessCatalogItem", null)
+                        .WithMany()
+                        .HasForeignKey("IdEducationLevelCatalogItem")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_Employees_BusinessCatalogItems_IdEducationLevelCatalogItem");
+
                     b.HasOne("GestIA.Domain.Catalogs.BusinessCatalogItem", null)
                         .WithMany()
                         .HasForeignKey("IdJobPositionCatalogItem")
@@ -3996,6 +4387,12 @@ namespace GestIA.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("GestIA.Domain.Workforce.EmployeeDocument", b =>
                 {
+                    b.HasOne("GestIA.Domain.Catalogs.BusinessCatalogItem", "DocumentCategoryCatalogItem")
+                        .WithMany()
+                        .HasForeignKey("IdDocumentCategoryCatalogItem")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_EmployeeDocuments_BusinessCatalogItems_IdDocumentCategoryCatalogItem");
+
                     b.HasOne("GestIA.Domain.Workforce.Employee", "Employee")
                         .WithMany("Documents")
                         .HasForeignKey("IdEmployee")
@@ -4010,6 +4407,8 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasConstraintName("FK_EmployeeDocuments_Organizations_IdOrganization");
 
+                    b.Navigation("DocumentCategoryCatalogItem");
+
                     b.Navigation("Employee");
                 });
 
@@ -4022,6 +4421,12 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasConstraintName("FK_EmployeeEvaluations_Employees_IdEmployee");
 
+                    b.HasOne("GestIA.Domain.Catalogs.BusinessCatalogItem", "EvaluationCategoryCatalogItem")
+                        .WithMany()
+                        .HasForeignKey("IdEvaluationCategoryCatalogItem")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_EmployeeEvaluations_BusinessCatalogItems_IdEvaluationCategoryCatalogItem");
+
                     b.HasOne("GestIA.Domain.Organizations.Organization", null)
                         .WithMany()
                         .HasForeignKey("IdOrganization")
@@ -4030,6 +4435,8 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                         .HasConstraintName("FK_EmployeeEvaluations_Organizations_IdOrganization");
 
                     b.Navigation("Employee");
+
+                    b.Navigation("EvaluationCategoryCatalogItem");
                 });
 
             modelBuilder.Entity("GestIA.Domain.Workforce.ServiceAssignment", b =>
@@ -4077,6 +4484,8 @@ namespace GestIA.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("GestIA.Domain.Planning.Position", b =>
                 {
+                    b.Navigation("RequiredEquipment");
+
                     b.Navigation("ShiftPatterns");
                 });
 
@@ -4090,9 +4499,9 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                     b.Navigation("Segments");
                 });
 
-            modelBuilder.Entity("GestIA.Domain.Services.Service", b =>
+            modelBuilder.Entity("GestIA.Domain.Planning.ShiftPatternTemplate", b =>
                 {
-                    b.Navigation("Configurations");
+                    b.Navigation("Days");
                 });
 
             modelBuilder.Entity("GestIA.Domain.Workforce.Employee", b =>

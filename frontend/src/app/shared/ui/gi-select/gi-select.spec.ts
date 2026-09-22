@@ -166,4 +166,51 @@ describe('GiSelect', () => {
     expect(lista.id).toBe(trigger().getAttribute('aria-controls'));
     expect(lista.id).toBeTruthy();
   });
+
+  /**
+   * Al pie de la ventana la lista se dibuja hacia arriba.
+   *
+   * <p>Se encontró con el selector de registros por página de los catálogos, que vive en la última
+   * línea de una pantalla larga: la lista abría hacia abajo, quedaba fuera de la ventana y sólo se
+   * veía su borde superior. Con el ratón no había forma de elegir.</p>
+   *
+   * <p>Se finge el rectángulo del botón porque en jsdom todo mide cero, y con todo a cero no hay
+   * arriba ni abajo que decidir.</p>
+   */
+  it('abre hacia arriba cuando abajo no cabe', () => {
+    const { fixture, raiz, trigger } = montar();
+    window.innerHeight = 800;
+    trigger().getBoundingClientRect = () => ({ top: 760, bottom: 790 }) as DOMRect;
+
+    trigger().click();
+    fixture.detectChanges();
+
+    const lista = raiz.querySelector('[role="listbox"]')!;
+
+    expect(lista.classList).toContain('gi-select__list--up');
+    // Y que la clase de verdad la mueva. Mirar sólo la clase dejó pasar el defecto una vez: la
+    // regla `--up` estaba escrita ANTES que la base, las dos pesan igual por ser un solo nombre de
+    // clase, y la base le borraba el `top`. La clase se aplicaba y la lista seguía abriendo abajo.
+    expect(getComputedStyle(lista).top, 'la regla --up tiene que ganarle a la base').toBe('auto');
+  });
+
+  /**
+   * Y el control: con sitio de sobra debajo, abre hacia abajo como siempre.
+   *
+   * <p>Sin esta mitad, «abre hacia arriba» no distinguiría decidir de abrir siempre hacia arriba,
+   * que sería un defecto nuevo en los demás selectores de la aplicación.</p>
+   */
+  it('y hacia abajo cuando sí cabe', () => {
+    const { fixture, raiz, trigger } = montar();
+    window.innerHeight = 800;
+    trigger().getBoundingClientRect = () => ({ top: 40, bottom: 70 }) as DOMRect;
+
+    trigger().click();
+    fixture.detectChanges();
+
+    const lista = raiz.querySelector('[role="listbox"]')!;
+
+    expect(lista.classList).not.toContain('gi-select__list--up');
+    expect(getComputedStyle(lista).top).not.toBe('auto');
+  });
 });

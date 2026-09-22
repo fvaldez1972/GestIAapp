@@ -1,0 +1,221 @@
+@if (page(); as catalogo) {
+  <header class="cat-head gi-card">
+    <!--
+      Sólo el nombre. Llevaba encima un «CATÁLOGOS» que las migas ya dicen dos renglones más
+      arriba, y debajo una frase explicando el catálogo que ocupaba el mismo alto que el título y
+      se leía una vez: quien entra a Puestos sabe lo que es un puesto.
+    -->
+    <h1>{{ catalogo.title }}</h1>
+
+    @if (canWrite()) {
+      <button type="button" class="gi-button gi-button--primary" (click)="newItem()">
+        Agregar {{ catalogo.singular }}
+      </button>
+    }
+  </header>
+
+  @if (message()) {
+    <div class="gi-alert gi-alert--success" role="status">{{ message() }}</div>
+  }
+
+  <gi-filter-bar
+    [search]="search()"
+    searchLabel="Buscar"
+    [searchPlaceholder]="'Buscar ' + catalogo.singular + '…'"
+    [groups]="filterGroups()"
+    [resultCount]="filtradas().length"
+    (searchChange)="onSearch($event)"
+    (filterChange)="onFilter($event)"
+    (clearAll)="clearFilters()"
+  />
+
+  <gi-data-table
+    [label]="catalogo.title"
+    [columns]="columns()"
+    [rows]="paginadas()"
+    [rowId]="porId"
+    [state]="tableState()"
+    [selectable]="false"
+    [errorMessage]="error()"
+    [emptyTitle]="tableState() === 'empty' ? 'Todavía no hay valores' : 'Ningún valor con este filtro'"
+    [emptyDescription]="
+      tableState() === 'empty'
+        ? catalogo.example + '. Agrega el primero para que aparezca en los formularios.'
+        : 'Ninguno coincide con lo que buscas. Puedes quitar los filtros.'
+    "
+    [emptyActionLabel]="tableState() === 'empty' && canWrite() ? 'Agregar ' + catalogo.singular : ''"
+    [emptySecondaryActionLabel]="tableState() === 'empty-filtered' ? 'Quitar filtros' : ''"
+    (retry)="loadData()"
+    (emptyAction)="newItem()"
+    (emptySecondaryAction)="clearFilters()"
+  >
+    <!--
+      El número de fila es una ayuda de lectura, no un dato: cambia con el orden y con el filtro.
+      Por eso la columna se llama «#» y no «ID». Ningún catálogo enseña identificadores.
+    -->
+    <ng-template giCell="fila" let-row>{{ rowNumber(row) }}</ng-template>
+
+    <ng-template giCell="parent" let-row>{{ parentName(row) }}</ng-template>
+
+    <ng-template giCell="description" let-row>{{ row.description || '—' }}</ng-template>
+
+    <ng-template giCell="nature" let-row>
+      <span class="gi-badge" [class.gi-badge--warning]="row.isBlocking === true" [class.gi-badge--muted]="row.isBlocking !== true">{{ natureLabel(row) }}</span>
+    </ng-template>
+
+    <ng-template giCell="state" let-row>
+      <span class="gi-badge" [class.gi-badge--success]="row.active" [class.gi-badge--muted]="!row.active">{{ row.active ? 'Activo' : 'Inactivo' }}</span>
+    </ng-template>
+
+    <ng-template giCell="updatedAt" let-row>{{ fecha(row.updatedAt) }}</ng-template>
+
+    <ng-template giCell="actions" let-row>
+      @if (canWrite()) {
+        <gi-row-actions
+          [actions]="rowActions(row)"
+          [label]="'Acciones de ' + row.name"
+          (select)="$event.id === 'edit' ? editItem(row) : toggleActive(row)"
+        />
+      }
+    </ng-template>
+  </gi-data-table>
+
+  <!--
+    La paginación se dibuja SIEMPRE que haya filas, aunque quepan todas en una página. El selector
+    de tamaño es lo que evita que un catálogo que crece se convierta en una barra de desplazamiento
+    dentro de otra, y esconderlo mientras «todavía caben» es justo esconderlo cuando sirve para
+    decidir. Los botones de mover página se inhabilitan; no desaparecen.
+  -->
+  @if (filtradas().length) {
+    <nav class="cat-pages" aria-label="Páginas de la lista">
+      <!--
+        No va envuelto en un <label>: `gi-select` no es un control nativo y se nombra a sí mismo con
+        `aria-label`, así que un <label> alrededor no lo ataría a nada y sí añadiría un elemento que
+        el lector de pantalla anuncia de más.
+      -->
+      <div class="cat-pages__size">
+        <span>Mostrar</span>
+        <gi-select
+          label="Registros por página"
+          [options]="pageSizeOptions"
+          [value]="pageSize().toString()"
+          (valueChange)="setPageSize($any($event))"
+        />
+        <span>de {{ rango() }}</span>
+      </div>
+
+      <div class="cat-pages__nav">
+        <button
+          type="button"
+          class="gi-button gi-button--ghost"
+          [disabled]="currentPage() === 1"
+          (click)="goToPage(currentPage() - 1)"
+        >Anterior</button>
+
+        <span class="cat-pages__count">Página {{ currentPage() }} de {{ totalPaginas() }}</span>
+
+        <button
+          type="button"
+          class="gi-button gi-button--ghost"
+          [disabled]="currentPage() === totalPaginas()"
+          (click)="goToPage(currentPage() + 1)"
+        >Siguiente</button>
+      </div>
+    </nav>
+  }
+
+  <dialog
+    #editor
+    class="cat-dialog"
+    [attr.aria-label]="'Valor de ' + catalogo.title"
+    (cancel)="saving() ? $event.preventDefault() : closeEditor()"
+  >
+    <form [formGroup]="form" (ngSubmit)="save()">
+      <header class="cat-dialog__head">
+        <div>
+          <span class="eyebrow">{{ catalogo.title }}</span>
+          <h2>{{ selectedItemId() ? 'Editar' : 'Agregar' }} {{ catalogo.singular }}</h2>
+        </div>
+        <button type="button" class="gi-button gi-button--ghost" (click)="closeEditor()">Cerrar</button>
+      </header>
+
+      @if (error()) {
+        <div class="gi-alert gi-alert--error" role="alert">{{ error() }}</div>
+      }
+
+      <!--
+        Una columna y todos los campos rotulados igual. Antes el estatus iba en media fila junto al
+        orden, y como `gi-select` no dibuja su rótulo —se nombra con `aria-label`— quedaba un
+        desplegable suelto sin decir de qué era, al lado de un campo que sí lo decía. El rótulo va
+        en un <span> dentro del mismo `.gi-field` que usan los demás, así que el desplegable se lee
+        como un campo más.
+      -->
+      <div class="cat-dialog__body">
+        <label class="gi-field">
+          <span>Nombre</span>
+          <input class="gi-input" type="text" maxlength="160" [placeholder]="catalogo.example" formControlName="name" />
+        </label>
+
+        <label class="gi-field">
+          <span>Descripción</span>
+          <textarea class="gi-input" rows="3" maxlength="1000" formControlName="description"></textarea>
+        </label>
+
+        @if (catalogo.parentType) {
+          <div class="gi-field">
+            <span>Categoría</span>
+            <gi-select
+              label="Categoría"
+              [options]="parentOptions()"
+              [value]="form.controls.idParentCatalogItem.value"
+              (valueChange)="form.controls.idParentCatalogItem.setValue($any($event))"
+            />
+          </div>
+        }
+
+        <!--
+          Se rotula «Naturaleza», que es como se llama la columna de la tabla. Antes decía «Si a una
+          persona le falta esto», que explicaba el concepto en el rótulo y obligaba a leer una frase
+          para encontrar un campo; y las dos opciones ya dicen qué hace cada una.
+        -->
+        @if (catalogo.hasNature) {
+          <div class="gi-field">
+            <span>{{ naturalezaLabel }}</span>
+            <gi-select
+              [label]="naturalezaLabel"
+              [options]="natureOptions"
+              [value]="form.controls.blockingMark.value"
+              (valueChange)="form.controls.blockingMark.setValue($any($event))"
+            />
+          </div>
+        }
+
+        <div class="gi-field">
+          <span>Estatus</span>
+          <gi-select
+            label="Estatus"
+            [options]="statusOptions"
+            [value]="form.controls.status.value"
+            (valueChange)="form.controls.status.setValue($any($event))"
+          />
+        </div>
+      </div>
+
+      <footer class="cat-dialog__foot">
+        <button type="button" class="gi-button gi-button--ghost" (click)="closeEditor()">Cancelar</button>
+        <button type="submit" class="gi-button gi-button--primary" [disabled]="saving()">
+          {{ saving() ? 'Guardando…' : 'Guardar' }}
+        </button>
+      </footer>
+    </form>
+  </dialog>
+} @else {
+  <!--
+    Una dirección inventada o un catálogo que ya no existe. Se dice qué pasó en vez de dejar la
+    página en blanco, que es indistinguible de una pantalla rota.
+  -->
+  <div class="cat-missing gi-card">
+    <h1>Ese catálogo no existe</h1>
+    <p>La dirección no corresponde a ningún catálogo. Elige uno del menú de Catálogos.</p>
+  </div>
+}

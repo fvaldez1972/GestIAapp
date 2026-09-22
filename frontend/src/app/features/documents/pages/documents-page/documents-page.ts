@@ -145,7 +145,7 @@ export class DocumentsPage implements OnInit {
       {
         label: 'Personal',
         count: countByOwner(['Employee', 'EmployeeEvaluation']),
-        detail: 'INE, NSS, habilidades y evaluaciones.',
+        detail: 'INE, NSS, experiencias y evaluaciones.',
       },
       {
         label: 'Control',
@@ -595,10 +595,10 @@ export class DocumentsPage implements OnInit {
     }
 
     if (document.isExpired) {
-      return `Vencido: ${document.expiresDate}`;
+      return `Vencido: ${document.expiresDate ?? 'sin fecha'}`;
     }
 
-    return `Vence: ${document.expiresDate}`;
+    return `Vence: ${document.expiresDate ?? 'sin fecha'}`;
   }
 
   protected formattedDate(value: string | null) {

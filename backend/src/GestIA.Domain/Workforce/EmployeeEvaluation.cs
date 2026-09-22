@@ -1,3 +1,4 @@
+using GestIA.Domain.Catalogs;
 using GestIA.Domain.Common;
 
 namespace GestIA.Domain.Workforce;
@@ -5,6 +6,7 @@ namespace GestIA.Domain.Workforce;
 public sealed record EmployeeEvaluationProfile(
     EmployeeEvaluationType EvaluationType,
     EmployeeEvaluationResult Result,
+    Guid? IdEvaluationCategoryCatalogItem,
     DateOnly EvaluatedDate,
     DateOnly? ExpiresDate,
     string? CertificateNumber,
@@ -52,7 +54,22 @@ public sealed class EmployeeEvaluation : AuditableEntity, IOrganizationScopedEnt
     public Guid IdEmployeeEvaluation { get; private set; }
     public Guid IdOrganization { get; private set; }
     public Guid IdEmployee { get; private set; }
+    /// <summary>
+    /// Qué evaluación es, como enum. <b>Rastro heredado desde el 19 de septiembre de 2026</b>, igual
+    /// que en el documento del personal: la categoría de verdad vive en
+    /// <see cref="IdEvaluationCategoryCatalogItem"/>.
+    /// </summary>
     public EmployeeEvaluationType EvaluationType { get; private set; }
+
+    /// <summary>
+    /// La categoría de la evaluación, por identificador contra el catálogo
+    /// <c>EmployeeEvaluationCategory</c>. Nulable mientras queden filas anteriores a la conversión.
+    /// </summary>
+    public Guid? IdEvaluationCategoryCatalogItem { get; private set; }
+
+    /// <summary>La entrada del catálogo, para poder nombrarla sin una consulta aparte.</summary>
+    public BusinessCatalogItem? EvaluationCategoryCatalogItem { get; private set; }
+
     public EmployeeEvaluationResult Result { get; private set; }
     public DateOnly EvaluatedDate { get; private set; }
     public DateOnly? ExpiresDate { get; private set; }
@@ -120,6 +137,7 @@ public sealed class EmployeeEvaluation : AuditableEntity, IOrganizationScopedEnt
         }
 
         EvaluationType = profile.EvaluationType;
+        IdEvaluationCategoryCatalogItem = profile.IdEvaluationCategoryCatalogItem;
         Result = profile.Result;
         EvaluatedDate = profile.EvaluatedDate;
         ExpiresDate = profile.ExpiresDate;

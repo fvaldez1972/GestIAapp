@@ -6,6 +6,21 @@ namespace GestIA.Infrastructure.Persistence.Configurations;
 
 public sealed class EligibilityRequirementConfiguration : IEntityTypeConfiguration<EligibilityRequirement>
 {
+    /// <summary>
+    /// Lo que exige la regla sale del catálogo, salvo en la restricción, que no exige nada. Vive como
+    /// constante para que la migracion y el modelo no puedan separarse.
+    ///
+    /// <para><b>Se relajó el 19 de septiembre de 2026.</b> Hasta entonces exigía que cada tipo
+    /// llenara su columna y dejara vacías las otras dos. Desde que las categorías de documento y de
+    /// evaluación son filas del catálogo, una regla convertida lleva su identificador <b>y</b> el enum
+    /// que tenía antes, así que la versión vieja habría dejado sin poder guardarse a las once reglas
+    /// que ya existían. Lo que se comprueba ahora es lo que de verdad importa: que haya una entrada
+    /// del catálogo.</para>
+    /// </summary>
+    public const string RequirementByTypeSql =
+        "(RequirementType IN ('Skill', 'Document', 'Evaluation') AND IdRequiredCatalogItem IS NOT NULL) " +
+        "OR (RequirementType = 'Restriction' AND IdRequiredCatalogItem IS NULL AND RequiredDocumentType IS NULL AND RequiredEvaluationType IS NULL)";
+
     public void Configure(EntityTypeBuilder<EligibilityRequirement> builder)
     {
         builder.ToTable("EligibilityRequirements", "dbo", table =>
@@ -28,7 +43,18 @@ public sealed class EligibilityRequirementConfiguration : IEntityTypeConfigurati
             .HasMaxLength(40)
             .IsUnicode(false)
             .IsRequired();
-        builder.Property(entity => entity.RequiredCode).HasMaxLength(80).IsUnicode(false).IsRequired();
+        builder.Property(entity => entity.RequiredDocumentType)
+            .HasConversion<string>()
+            .HasMaxLength(60)
+            .IsUnicode(false);
+        builder.Property(entity => entity.RequiredEvaluationType)
+            .HasConversion<string>()
+            .HasMaxLength(60)
+            .IsUnicode(false);
+        builder.HasOne(entity => entity.RequiredCatalogItem)
+            .WithMany()
+            .HasForeignKey(entity => entity.IdRequiredCatalogItem)
+            .OnDelete(DeleteBehavior.Restrict);
         builder.Property(entity => entity.Name).HasMaxLength(160).IsRequired();
         builder.Property(entity => entity.Description).HasMaxLength(1000);
         builder.HasOne(entity => entity.Organization)
@@ -51,8 +77,13 @@ public sealed class EligibilityRequirementConfiguration : IEntityTypeConfigurati
         {
             entity.IdOrganization,
             entity.TargetType,
-            entity.RequirementType,
-            entity.RequiredCode
+            entity.RequirementType
         });
+
+        // Cada tipo de regla exige lo suyo, y exactamente uno. La entidad lo comprueba para poder
+        // decir cual falta; esto lo garantiza aunque una fila entre por otro camino.
+        builder.ToTable(table => table.HasCheckConstraint(
+            "CK_EligibilityRequirements_RequirementByType",
+            RequirementByTypeSql));
     }
 }

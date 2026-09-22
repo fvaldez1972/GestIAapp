@@ -19,6 +19,13 @@ public sealed class EmployeeEvaluationConfiguration : IEntityTypeConfiguration<E
         builder.Property(entity => entity.CertificateNumber).HasMaxLength(80);
         builder.Property(entity => entity.StorageReference).HasMaxLength(500);
         builder.Property(entity => entity.Notes).HasMaxLength(1000);
+        builder.HasOne(entity => entity.EvaluationCategoryCatalogItem)
+            .WithMany()
+            .HasForeignKey(entity => entity.IdEvaluationCategoryCatalogItem)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasIndex(entity => entity.IdEvaluationCategoryCatalogItem)
+            .HasFilter("[IdEvaluationCategoryCatalogItem] IS NOT NULL");
+
         builder.HasOne(entity => entity.Employee)
             .WithMany(employee => employee.Evaluations)
             .HasForeignKey(entity => entity.IdEmployee)

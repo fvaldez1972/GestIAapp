@@ -11,6 +11,7 @@ import {
   GiEmptyState,
   GiOperationDayBar,
   GiSelectOption,
+  GiTabContent,
 } from '../../../../shared/ui/gi-ui';
 import { ClientApiService } from '../../../clients/data-access/client-api.service';
 import {
@@ -22,7 +23,7 @@ import {
   ServicePosition,
 } from '../../../clients/data-access/client.models';
 import { ServiceApiService } from '../../../services/data-access/service-api.service';
-import { ServiceListItem } from '../../../services/data-access/service.models';
+import { ServiceListItem, serviceOptionLabel } from '../../../services/data-access/service.models';
 import {
   AttendanceGap,
   AttendanceRow,
@@ -58,6 +59,7 @@ import { AttendanceSummary } from '../../ui/attendance-summary';
     AttendanceSummary,
     GiDayClosure,
     GiDetailPanel,
+    GiTabContent,
     GiEmptyState,
     GiOperationDayBar,
   ],
@@ -98,7 +100,7 @@ export class AttendancePage {
   protected readonly editing = signal<AttendanceRow | null>(null);
 
   protected readonly serviceOptions = computed<readonly GiSelectOption[]>(() =>
-    this.services().map((service) => ({ value: service.idService, label: service.name })),
+    this.services().map((service) => ({ value: service.idService, label: serviceOptionLabel(service) })),
   );
 
   protected readonly selectedService = computed(
@@ -242,8 +244,18 @@ export class AttendancePage {
     this.message.set(`${gap.positionCode} se resuelve en Cobertura: falta gente asignada, no es una falta.`);
   }
 
+  /**
+   * Ir a Planeación a resolver lo que falta.
+   *
+   * <p>Se llega aquí desde el aviso de que <b>esta</b> semana de <b>este</b> servicio no está
+   * publicada, así que hay que llevarse las dos cosas. Sin ellas, Planeación arrancaba en el primer
+   * servicio de la lista y en el día de hoy, y el botón que prometía resolver el problema dejaba al
+   * usuario mirando otro servicio y otra semana.</p>
+   */
   protected goToPlanning(): void {
-    this.router.navigate(['/planeacion']);
+    this.router.navigate(['/planeacion'], {
+      queryParams: { serviceId: this.idService() || null, date: this.date() || null },
+    });
   }
 
   protected closeEditor(): void {
@@ -421,12 +433,25 @@ export class AttendancePage {
     }
   }
 
+  /**
+   * Deja dicho qué falló, y <b>suelta el guardado</b>.
+   *
+   * <p>Lo segundo importa tanto como lo primero. Cada guardado de esta pantalla pone `saving` en
+   * verdadero y lo suelta en el `complete` de la suscripción, y <b>RxJS no llama a `complete`
+   * cuando el observable falla</b>. Sin soltarlo aquí, un guardado que falla deja el botón apagado
+   * para siempre: el aviso explica el error y no hay forma de reintentar salvo recargar.</p>
+   *
+   * <p>Salió cubriendo un turno en el recorrido del portal: el panel se quedó con «Registrar la
+   * cobertura» deshabilitado, sin pedir nada más y sin mandar ninguna petición. Las otras cuatro
+   * pantallas con guardados ya lo hacían aquí; éstas tres no.</p>
+   */
   private setError(error: HttpErrorResponse, porOmision: string): void {
     const detail =
       typeof error.error === 'object' && error.error !== null
         ? (error.error as Record<string, unknown>)['detail']
         : null;
 
+    this.saving.set(false);
     this.error.set(typeof detail === 'string' ? detail : porOmision);
   }
 }

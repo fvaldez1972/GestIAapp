@@ -11,11 +11,11 @@ import { ClientsPage } from '../../../clients/pages/clients-page/clients-page';
 
 const organization = { idOrganization: 'org-a', legalName: 'Organization A', codeOrganization: 'A', active: true };
 const client = { idClient: 'client-a', idOrganization: 'org-a', legalName: 'Client A', codeClient: 'A', active: true };
-const service = { idService: 'service-a', idClient: 'client-a', idClientSite: 'site-a', name: 'Service A', codeService: 'SA', description: 'Scope', startDate: '2026-09-03', endDate: null, active: true };
+const service = { idService: 'service-a', idClient: 'client-a', idClientZone: 'zone-a', name: 'Service A', codeService: 'SA', description: 'Scope', startDate: '2026-09-03', endDate: null, active: true };
 const listItem = {
   ...service,
   clientName: 'Client A',
-  clientSiteName: 'Site A',
+  clientZoneName: 'Zone A',
   idServiceContract: null,
   serviceContractCode: null,
   invoiceDescription: null,
@@ -24,7 +24,7 @@ const listItem = {
   assignedWorkerCount: 1,
   coverageDate: '2026-09-04',
 };
-const site = { idClientSite: 'site-a', idClient: 'client-a', name: 'Site A', active: true };
+const zone = { idClientZone: 'zone-a', idClient: 'client-a', name: 'Zone A', active: true };
 const position = { idPosition: 'position-a', idService: 'service-a', name: 'Position A', codePosition: 'PA', requiredWorkerCount: 1, active: true };
 
 describe('ServicesPage organization-scoped workflows', () => {
@@ -75,6 +75,15 @@ describe('ServicesPage organization-scoped workflows', () => {
 
   afterEach(() => {
     page.ngOnDestroy();
+
+    // Los cuatro catalogos del perfil de la posicion —sexo, edad, escolaridad y equipo— se piden al
+    // abrir el editor. No los pide esta prueba, que va de otra cosa, asi que se responden vacios en
+    // vez de dejarlos abiertos: verify() no distingue «no me importa» de «se me olvido».
+    http
+      .match((r) => r.url === '/api/v1/catalogs/items')
+      .filter((r) => !r.cancelled)
+      .forEach((r) => r.flush([]));
+
     http.verify({ ignoreCancelled: true });
     TestBed.resetTestingModule();
     vi.restoreAllMocks();
@@ -93,10 +102,10 @@ describe('ServicesPage organization-scoped workflows', () => {
     request.flush({ items: rows, totalCount: rows.length, page: 1, pageSize: 20, totalPages: 1 });
   }
 
-  /** Lo que la ficha pide al abrirse: el cliente, sus sedes, sus contratos y sus contactos. */
+  /** Lo que la ficha pide al abrirse: el cliente, sus zonas, sus contratos y sus contactos. */
   function flushClientContext() {
     http.expectOne(r => r.url === '/api/v1/clients/client-a').flush(client);
-    for (const [suffix, data] of [['sites', [site]], ['contacts', []], ['contracts', []]] as const) {
+    for (const [suffix, data] of [['zones', [zone]], ['contacts', []], ['contracts', []]] as const) {
       const request = http.expectOne(r => r.url === '/api/v1/clients/client-a/' + suffix);
       expect(request.request.params.get('organizationId')).toBe('org-a');
       request.flush(data);
@@ -112,7 +121,6 @@ describe('ServicesPage organization-scoped workflows', () => {
   }
 
   function flushService() {
-    http.expectOne(r => r.url.endsWith('/configurations')).flush([]);
     http.expectOne(r => r.url.endsWith('/positions')).flush([]);
     http.expectOne(r => r.url.endsWith('/assignments')).flush([]);
     http.expectOne(r => r.url.endsWith('/positions/vacancy')).flush([]);
@@ -136,7 +144,6 @@ describe('ServicesPage organization-scoped workflows', () => {
     page.openService(listItem);
     flushClientContext();
     // Sin permiso de planeación no se piden ni posiciones, ni asignaciones, ni la cobertura.
-    http.expectOne(r => r.url.endsWith('/configurations')).flush([]);
     page.openCreatePosition();
     page.saveService();
     page.savePosition();
@@ -184,7 +191,6 @@ describe('ServicesPage organization-scoped workflows', () => {
     const requests = http.match(() => true);
     page.openService({ ...listItem, idService: 'service-b' });
     expect(requests.every(r => r.cancelled)).toBe(true);
-    expect(page.configurations()).toEqual([]);
     expect(page.positions()).toEqual([]);
     flushService();
   });
@@ -197,11 +203,14 @@ describe('ServicesPage organization-scoped workflows', () => {
   it('creates a service using the selected organization and client, then reloads its detail', () => {
     selectClient();
     page.openCreateService();
-    page.serviceForm.patchValue({ codeService: 'NEW', name: 'New service', description: 'Contracted scope' });
+    page.serviceForm.patchValue({ name: 'New service', description: 'Contracted scope' });
     page.saveService();
     const request = http.expectOne('/api/v1/clients/client-a/services');
     expect(request.request.method).toBe('POST');
-    expect(request.request.body).toMatchObject({ idOrganization: 'org-a', idClient: 'client-a', idClientSite: 'site-a', codeService: 'NEW' });
+    expect(request.request.body).toMatchObject({ idOrganization: 'org-a', idClient: 'client-a', idClientZone: 'zone-a' });
+    // El código no viaja: lo pone el servidor con la forma SRV-01, consecutivo por cliente. Mandar
+    // cadena vacía no sería lo mismo —la validaría como capturada y la rechazaría—.
+    expect(request.request.body.codeService).toBeUndefined();
     request.flush(service);
     flushList();
     expect(page.serviceEditorOpen()).toBe(false);
@@ -212,7 +221,6 @@ describe('ServicesPage organization-scoped workflows', () => {
     selectClient();
     page.openService(listItem);
     flushClientContext();
-    http.expectOne(r => r.url.endsWith('/configurations')).flush([]);
     http.expectOne(r => r.url.endsWith('/positions')).flush([]);
     http.expectOne(r => r.url.endsWith('/assignments')).flush([]);
     http.expectOne(r => r.url === '/api/v1/employees' && r.params.get('page') === '1')
@@ -220,25 +228,6 @@ describe('ServicesPage organization-scoped workflows', () => {
     http.expectOne(r => r.url === '/api/v1/employees' && r.params.get('page') === '2')
       .flush({ items: [{ idEmployee: 'employee-b' }], page: 2, totalPages: 2 });
     expect(page.activeEmployees().map((e: { idEmployee: string }) => e.idEmployee)).toEqual(['employee-a', 'employee-b']);
-  });
-
-  it('creates a weekly segment with the full organization and parent scope', () => {
-    selectClient();
-    page.selectedService.set(service);
-    page.selectedPosition.set(position);
-    page.selectedShiftPattern.set({ idShiftPattern: 'pattern-a', active: true });
-    page.openCreateShiftSegment();
-    page.shiftSegmentForm.patchValue({ startTime: '22:00', endTime: '06:00', isOvernight: true });
-    page.saveShiftSegment();
-    const url = '/api/v1/clients/client-a/services/service-a/positions/position-a/shift-patterns/pattern-a/segments';
-    const request = http.expectOne(url);
-    expect(request.request.method).toBe('POST');
-    expect(request.request.body).toMatchObject({
-      idOrganization: 'org-a', idClient: 'client-a', idService: 'service-a',
-      idPosition: 'position-a', idShiftPattern: 'pattern-a', startTime: '22:00:00', endTime: '06:00:00', isOvernight: true,
-    });
-    request.flush({});
-    http.expectOne(url + '?organizationId=org-a').flush([]);
   });
 
   it('retains backend validation feedback and the open editor after a failed save', () => {
@@ -255,7 +244,7 @@ describe('ServicesPage organization-scoped workflows', () => {
 
   /**
    * La frontera entre las dos pantallas: **Clientes lee, Servicios escribe**. Clientes muestra
-   * sedes y contactos del cliente y no toca nada de planeación; el alta del servicio vive aquí.
+   * zonas y contactos del cliente y no toca nada de planeación; el alta del servicio vive aquí.
    *
    * La prueba se reescribió con la pantalla: en la tanda 6 la ficha pasó a pedir sólo lo que sus
    * pestañas muestran, y dejó de traer contratos y servicios que nadie pintaba.
@@ -263,12 +252,12 @@ describe('ServicesPage organization-scoped workflows', () => {
   it('la ficha de cliente sólo lee lo suyo, y no pide nada de planeación', () => {
     const clientsPage: any = TestBed.runInInjectionContext(() => new ClientsPage());
 
-    clientsPage.open({ idClient: 'client-a', siteCount: 1, contactCount: 1 });
+    clientsPage.open({ idClient: 'client-a', zoneCount: 1, contactCount: 1 });
 
     const requests = http.match(() => true);
     expect(requests.map(r => r.request.url).sort()).toEqual([
       '/api/v1/clients/client-a/contacts',
-      '/api/v1/clients/client-a/sites',
+      '/api/v1/clients/client-a/zones',
     ]);
     requests.forEach(r => r.flush([]));
 
@@ -277,14 +266,17 @@ describe('ServicesPage organization-scoped workflows', () => {
     expect(clientsPage.saveAssignment).toBeUndefined();
     expect(clientsPage.loadPositionVacancy).toBeUndefined();
 
-    // Y lo que sí es suyo: la sede, que es el prerrequisito del paso siguiente.
-    expect(clientsPage.createSite).toBeTypeOf('function');
+    // Y lo que sí es suyo: la zona, que es el prerrequisito del paso siguiente.
+    expect(clientsPage.createZone).toBeTypeOf('function');
   });
 
+  /**
+   * El patrón propio salió de esta tabla el 19 de septiembre de 2026: la posición dejó de crear
+   * patrones y de capturar segmentos, y ahora sólo elige uno del catálogo. Queda la posición, que
+   * sigue siendo lo que esta pantalla escribe.
+   */
   it.each([
-    ['Configuration', 'configurationForm', 'configurations', 'idServiceConfiguration', { workScheduleDescription: 'Weekdays', effectiveFromDate: '2026-09-03' }],
-    ['Position', 'positionForm', 'positions', 'idPosition', { codePosition: 'PA', name: 'Main gate' }],
-    ['ShiftPattern', 'shiftPatternForm', 'positions/position-a/shift-patterns', 'idShiftPattern', { codeShiftPattern: 'WEEK', name: 'Weekdays', effectiveFromDate: '2026-09-03' }],
+    ['Position', 'positionForm', 'positions', 'idPosition', { name: 'Main gate' }],
   ])('creates and updates %s with organization-scoped bodies', (kind, form, suffix, idField, fields) => {
     selectClient();
     page.selectedService.set(service);
@@ -307,6 +299,30 @@ describe('ServicesPage organization-scoped workflows', () => {
     expect(update.request.body).toMatchObject({ idOrganization: 'org-a', idClient: 'client-a', idService: 'service-a' });
     update.flush(record);
     http.expectOne(url + '?organizationId=org-a').flush([]);
+  });
+
+  /**
+   * El alta de asignacion no elige a nadie por su cuenta.
+   *
+   * <p>Venia con el primer empleado activo ya puesto en el formulario, y el alta no ensena ningun
+   * selector de empleado —se elige en la lista de candidatos—, asi que guardar sin tocar nada
+   * asignaba a una persona que nadie habia elegido y sin forma de verlo. QA lo reporto el 17 de
+   * septiembre de 2026: «si das clic en Guardar asignacion te pone al primer empleado activo».</p>
+   */
+  it('el alta de asignacion no prellena a la persona, y lo dice si falta', () => {
+    selectClient();
+    page.selectedService.set(service);
+    page.positions.set([position]);
+
+    page.openCreateAssignment();
+
+    expect(page.assignmentForm.controls.idEmployee.value).toBe('');
+
+    page.saveAssignment();
+
+    // Nada viaja: sin persona elegida no hay asignacion que crear.
+    http.expectNone(r => r.method === 'POST');
+    expect(page.error()).toBe('Elige a la persona en la lista de candidatos de abajo.');
   });
 
   it('updates an assignment without offering an employee change the API cannot save', () => {
@@ -359,4 +375,5 @@ describe('ServicesPage organization-scoped workflows', () => {
     expect(page.serviceToDeactivate()).toBeNull();
     http.expectNone(r => r.method === 'DELETE');
   });
+
 });

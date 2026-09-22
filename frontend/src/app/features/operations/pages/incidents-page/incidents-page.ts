@@ -7,13 +7,17 @@ import { AuthService } from '../../../../core/auth/auth.service';
 import { SystemInfoService } from '../../../../core/system/system-info.service';
 import {
   GiCandidate,
+  GiCatalogCreation,
   GiDayClosure,
   GiDetailPanel,
   GiEmptyState,
   GiOperationDayBar,
   GiSelectOption,
+  GiTabContent,
 } from '../../../../shared/ui/gi-ui';
 import { CatalogApiService } from '../../../catalogs/data-access/catalog-api.service';
+import { EligibilityCheck } from '../../../catalogs/data-access/catalog.models';
+import { CandidateEligibility } from '../../../planning/data-access/planning.models';
 import { ClientApiService } from '../../../clients/data-access/client-api.service';
 import {
   AttendanceRecord,
@@ -24,7 +28,7 @@ import {
   ScheduleVersion,
 } from '../../../clients/data-access/client.models';
 import { ServiceApiService } from '../../../services/data-access/service-api.service';
-import { ServiceListItem } from '../../../services/data-access/service.models';
+import { ServiceListItem, serviceOptionLabel } from '../../../services/data-access/service.models';
 import { buildAttendanceDay, correctionNeedsReason, dayState } from '../../data-access/attendance-day';
 import { IncidentDraft, IncidentRow, buildIncidentDay, openIncidents } from '../../data-access/incident-day';
 import { CoverageDraft, CoverageForm, CoverageTarget } from '../../ui/coverage-form';
@@ -53,6 +57,7 @@ import { IncidentList } from '../../ui/incident-list';
     CoverageList,
     GiDayClosure,
     GiDetailPanel,
+    GiTabContent,
     GiEmptyState,
     GiOperationDayBar,
     IncidentForm,
@@ -99,7 +104,7 @@ export class IncidentsPage {
   protected readonly editingCoverage = signal<CoverageRecord | null>(null);
 
   protected readonly serviceOptions = computed<readonly GiSelectOption[]>(() =>
-    this.services().map((service) => ({ value: service.idService, label: service.name })),
+    this.services().map((service) => ({ value: service.idService, label: serviceOptionLabel(service) })),
   );
 
   protected readonly selectedService = computed(
@@ -189,6 +194,15 @@ export class IncidentsPage {
    * <p>Nadie queda fuera. El que ya tiene turno a esa hora aparece con el aviso de qué posición
    * queda corta, que es la decisión del traslape.</p>
    */
+  /**
+   * Lo que el servidor contestó sobre los candidatos, por identificador de empleado.
+   *
+   * <p>Vacío mientras no haya contestado, y vacío también si la consulta falla. En los dos casos
+   * los candidatos salen «Sin comprobar», que es la verdad: no es lo mismo no saber que saber que
+   * sí.</p>
+   */
+  protected readonly eligibility = signal<ReadonlyMap<string, CandidateEligibility>>(new Map());
+
   protected readonly candidates = computed<readonly GiCandidate[]>(() => {
     const target = this.coverageTarget();
 
@@ -209,22 +223,54 @@ export class IncidentsPage {
       .map((row): GiCandidate => {
         const otro = ocupados.get(row.idEmployee);
 
-        return otro
-          ? {
-              id: row.idEmployee,
-              name: row.employeeName,
-              role: row.positionName,
-              availability: `Cubre ${otro.positionCode} ese día, ${otro.planned}`,
-              standing: 'overlap',
-              consequence: `Al elegirlo, ${otro.positionCode} queda con un elemento menos ese día: el hueco se mueve, no desaparece.`,
-            }
-          : {
-              id: row.idEmployee,
-              name: row.employeeName,
-              role: row.positionName,
-              availability: 'Sin turno ese día',
-              standing: 'eligible',
-            };
+        if (otro) {
+          return {
+            id: row.idEmployee,
+            name: row.employeeName,
+            role: row.positionName,
+            availability: `Cubre ${otro.positionCode} ese día, ${otro.planned}`,
+            standing: 'overlap',
+            consequence: `Al elegirlo, ${otro.positionCode} queda con un elemento menos ese día: el hueco se mueve, no desaparece.`,
+          };
+        }
+
+        // «Elegible» es una afirmación, y sólo la puede hacer el servidor. Antes la hacía esta
+        // pantalla: bastaba con no tener otro turno ese día para marcar a alguien como elegible,
+        // sin consultar un solo requisito. Las reglas —documentos vigentes, experiencias,
+        // evaluaciones— viven en el servidor y es él quien las hace cumplir.
+        const veredicto = this.eligibility().get(row.idEmployee);
+
+        if (!veredicto) {
+          return {
+            id: row.idEmployee,
+            name: row.employeeName,
+            role: row.positionName,
+            availability: 'Sin turno ese día',
+            standing: 'unchecked',
+          };
+        }
+
+        if (!veredicto.isEligible) {
+          return {
+            id: row.idEmployee,
+            name: row.employeeName,
+            role: row.positionName,
+            availability: 'Sin turno ese día',
+            standing: 'blocked',
+            consequence:
+              veredicto.blockingReasons.length > 0
+                ? veredicto.blockingReasons.join(' · ')
+                : 'El servidor no lo considera elegible para esta posición.',
+          };
+        }
+
+        return {
+          id: row.idEmployee,
+          name: row.employeeName,
+          role: row.positionName,
+          availability: 'Sin turno ese día',
+          standing: 'eligible',
+        };
       });
   });
 
@@ -267,8 +313,18 @@ export class IncidentsPage {
     this.cerrarTodo();
   }
 
+  /**
+   * Ir a Planeación a resolver lo que falta.
+   *
+   * <p>Se llega aquí desde el aviso de que <b>esta</b> semana de <b>este</b> servicio no está
+   * publicada, así que hay que llevarse las dos cosas. Sin ellas, Planeación arrancaba en el primer
+   * servicio de la lista y en el día de hoy, y el botón que prometía resolver el problema dejaba al
+   * usuario mirando otro servicio y otra semana.</p>
+   */
   protected goToPlanning(): void {
-    this.router.navigate(['/planeacion']);
+    this.router.navigate(['/planeacion'], {
+      queryParams: { serviceId: this.idService() || null, date: this.date() || null },
+    });
   }
 
   protected goToCatalog(): void {
@@ -303,6 +359,56 @@ export class IncidentsPage {
       endTime: row.planned.slice(-5),
       isOvernight: row.planned.slice(-5) <= row.planned.slice(0, 5),
     });
+    this.cargarElegibilidad(row.idPosition, row.idScheduledShift);
+  }
+
+  /**
+   * Preguntarle al servidor quién cumple los requisitos de esta posición, en vez de suponerlo.
+   *
+   * <p>Si la consulta falla no se enseña un error: los candidatos se quedan «Sin comprobar» y quien
+   * cubre sigue pudiendo hacerlo. La comprobación ayuda a decidir, y el servidor vuelve a aplicar
+   * sus reglas al guardar la cobertura; tumbar la lista porque la ayuda no llegó dejaría el turno
+   * al descubierto por un motivo que no es del turno.</p>
+   */
+  private cargarElegibilidad(idPosition: string, idScheduledShift: string): void {
+    const context = this.context();
+    const candidatos = [...new Set(this.day().rows.map((row) => row.idEmployee))];
+
+    if (!context || candidatos.length === 0) {
+      return;
+    }
+
+    this.catalogApi
+      .checkEligibilityBatch({
+        organizationId: context.idOrganization,
+        employeeIds: candidatos,
+        clientId: context.idClient,
+        serviceId: context.idService,
+        positionId: idPosition,
+        referenceDate: this.date(),
+      })
+      .pipe(catchError(() => of([] as readonly EligibilityCheck[])))
+      .subscribe((respuestas) => {
+        // Entre la petición y su vuelta el usuario pudo cerrar el panel o abrir otro turno. Pintar
+        // el veredicto viejo sobre el turno nuevo es peor que no pintar nada.
+        if (this.coverageTarget()?.idScheduledShift !== idScheduledShift) {
+          return;
+        }
+
+        this.eligibility.set(
+          new Map(
+            respuestas.map((respuesta) => [
+              respuesta.idEmployee,
+              {
+                isEligible: respuesta.isEligible,
+                blockingReasons: respuesta.reasons
+                  .filter((reason) => reason.isBlocking && !reason.passed)
+                  .map((reason) => reason.message),
+              },
+            ]),
+          ),
+        );
+      });
   }
 
   protected editCoverage(coverage: CoverageRecord): void {
@@ -319,6 +425,10 @@ export class IncidentsPage {
       endTime: coverage.coverageEndTime.slice(0, 5),
       isOvernight: coverage.isOvernight,
     });
+
+    if (row) {
+      this.cargarElegibilidad(row.idPosition, coverage.idScheduledShift);
+    }
   }
 
   protected cerrarTodo(): void {
@@ -326,6 +436,9 @@ export class IncidentsPage {
     this.editingIncident.set(null);
     this.coverageTarget.set(null);
     this.editingCoverage.set(null);
+    // El veredicto anterior era de otra posición y otros requisitos: dejarlo puesto enseñaría
+    // respuestas de una pregunta que ya no es la que se está haciendo.
+    this.eligibility.set(new Map());
     this.error.set('');
   }
 
@@ -495,6 +608,44 @@ export class IncidentsPage {
    * cobertura por <b>identificador</b>. Es una inconsistencia del servidor, no de esta pantalla, y
    * mezclarlos haría que un motivo se guardara en el campo del otro.</p>
    */
+  /**
+   * Crear un motivo que no estaba en el catálogo, sin salir de la incidencia.
+   *
+   * <p><b>Aquí importa más que en otras pantallas.</b> Una incidencia que no se registra en el
+   * momento se registra fuera del sistema, o no se registra. Antes, con el catálogo vacío, la
+   * pantalla mandaba a Catálogos y había que abandonar el registro a medias.</p>
+   */
+  protected createIncidentReason(creation: GiCatalogCreation): void {
+    this.createReason('IncidentReason', creation, 'motivos de incidencia');
+  }
+
+  protected createCoverageReason(creation: GiCatalogCreation): void {
+    this.createReason('CoverageReason', creation, 'motivos de cobertura');
+  }
+
+  private createReason(
+    type: 'IncidentReason' | 'CoverageReason',
+    creation: GiCatalogCreation,
+    etiqueta: string,
+  ): void {
+    const organizationId = this.organizationId();
+
+    if (!organizationId || !this.canWrite()) {
+      return;
+    }
+
+    this.catalogApi
+      .createItem({ idOrganization: organizationId, type, name: creation.name, description: null })
+      .subscribe({
+        next: (creado) => {
+          this.message.set(`«${creado.name}» quedó en el catálogo de ${etiqueta} y se puede reutilizar.`);
+          this.loadReasons(organizationId);
+        },
+        error: (error: HttpErrorResponse) =>
+          this.setError(error, `No se pudo agregar el motivo al catálogo de ${etiqueta}.`),
+      });
+  }
+
   private loadReasons(organizationId: string): void {
     this.catalogApi
       .listItems(organizationId)
@@ -502,8 +653,11 @@ export class IncidentsPage {
       .subscribe((items) => {
         this.incidentReasons.set(
           items
+            // Por nombre, que es lo que Incident.IncidentType guarda. La cobertura, en cambio, va
+            // por identificador porque CoverageRecord si tiene su clave foranea. Que las dos no se
+            // parezcan es deuda reconocida: la incidencia deberia guardar el identificador tambien.
             .filter((item) => item.active && item.type === 'IncidentReason')
-            .map((item) => ({ value: item.code, label: item.name })),
+            .map((item) => ({ value: item.name, label: item.name })),
         );
 
         this.coverageReasons.set(
@@ -571,12 +725,25 @@ export class IncidentsPage {
     }
   }
 
+  /**
+   * Deja dicho qué falló, y <b>suelta el guardado</b>.
+   *
+   * <p>Lo segundo importa tanto como lo primero. Cada guardado de esta pantalla pone `saving` en
+   * verdadero y lo suelta en el `complete` de la suscripción, y <b>RxJS no llama a `complete`
+   * cuando el observable falla</b>. Sin soltarlo aquí, un guardado que falla deja el botón apagado
+   * para siempre: el aviso explica el error y no hay forma de reintentar salvo recargar.</p>
+   *
+   * <p>Salió cubriendo un turno en el recorrido del portal: el panel se quedó con «Registrar la
+   * cobertura» deshabilitado, sin pedir nada más y sin mandar ninguna petición. Las otras cuatro
+   * pantallas con guardados ya lo hacían aquí; éstas tres no.</p>
+   */
   private setError(error: HttpErrorResponse, porOmision: string): void {
     const detail =
       typeof error.error === 'object' && error.error !== null
         ? (error.error as Record<string, unknown>)['detail']
         : null;
 
+    this.saving.set(false);
     this.error.set(typeof detail === 'string' ? detail : porOmision);
   }
 }

@@ -263,33 +263,32 @@ export class RequestsPage implements OnInit {
     resolutionNotes: [''],
   });
 
+  /**
+   * Los puestos que la ejecución va a crear. Van en un arreglo aparte del grupo principal porque
+   * son <b>varios</b>: un servicio de vigilancia normal lleva dos o tres puestos con precios
+   * distintos, y antes esta pantalla sólo dejaba capturar una configuración con un único precio.
+   */
+  protected readonly executionPositions = this.formBuilder.array([this.buildPositionGroup()]);
+
   protected readonly executionForm = this.formBuilder.nonNullable.group({
     executionNotes: [''],
     clientCode: [''],
     clientLegalName: [''],
     clientTradeName: [''],
     clientRfc: [''],
-    siteCode: ['SEDE-01'],
-    siteName: [''],
-    siteStreet: [''],
-    siteMunicipality: [''],
-    siteState: [''],
-    siteCountryCode: ['MX'],
+    zoneCode: ['ZONA-01'],
+    zoneName: [''],
+    zoneStreet: [''],
+    zoneMunicipality: [''],
+    zoneState: [''],
+    zoneCountryCode: ['MX'],
     clientNationality: [''],
     idCoverageReason: [''],
-    sitePostalCode: [''],
+    zonePostalCode: [''],
     serviceCode: [''],
     serviceName: [''],
     serviceDescription: [''],
     serviceStartDate: [this.today()],
-    configEffectiveFromDate: [this.today()],
-    configRequiredWorkerCount: [1],
-    configHoursPerDay: [8],
-    configDaysPerWeek: [6],
-    configAverageMonthlyHours: [208],
-    configPreparationLeadDays: [3],
-    configWorkScheduleDescription: [''],
-    configMonthlyPrice: [0],
     idEmployee: [''],
     idPosition: [''],
     assignmentType: ['Primary'],
@@ -608,13 +607,6 @@ export class RequestsPage implements OnInit {
         serviceCode: `${request.codeOperationalRequest}-SRV`,
         serviceName: request.title,
         serviceDescription: request.description,
-        configWorkScheduleDescription: request.description,
-      });
-    }
-
-    if (request.requestType === 'ServiceChange') {
-      this.executionForm.patchValue({
-        configWorkScheduleDescription: request.description,
       });
     }
 
@@ -1264,6 +1256,28 @@ export class RequestsPage implements OnInit {
     return needles.some((needle) => normalized.includes(needle));
   }
 
+  private buildPositionGroup() {
+    return this.formBuilder.nonNullable.group({
+      name: ['', [Validators.maxLength(160)]],
+      requiredWorkerCount: [1],
+      monthlyPrice: [0],
+      isTaxIncluded: [false],
+      notes: [''],
+    });
+  }
+
+  protected addExecutionPosition() {
+    this.executionPositions.push(this.buildPositionGroup());
+  }
+
+  /** Nunca se queda en cero filas: sin fila no hay dónde escribir el primer puesto. */
+  protected removeExecutionPosition(index: number) {
+    this.executionPositions.removeAt(index);
+    if (this.executionPositions.length === 0) {
+      this.addExecutionPosition();
+    }
+  }
+
   private resetExecutionForm() {
     this.executionForm.reset({
       executionNotes: '',
@@ -1271,27 +1285,19 @@ export class RequestsPage implements OnInit {
       clientLegalName: '',
       clientTradeName: '',
       clientRfc: '',
-      siteCode: 'SEDE-01',
-      siteName: '',
-      siteStreet: '',
-      siteMunicipality: '',
-      siteState: '',
-      siteCountryCode: 'MX',
+      zoneCode: 'ZONA-01',
+      zoneName: '',
+      zoneStreet: '',
+      zoneMunicipality: '',
+      zoneState: '',
+      zoneCountryCode: 'MX',
       clientNationality: '',
       idCoverageReason: '',
-      sitePostalCode: '',
+      zonePostalCode: '',
       serviceCode: '',
       serviceName: '',
       serviceDescription: '',
       serviceStartDate: this.today(),
-      configEffectiveFromDate: this.today(),
-      configRequiredWorkerCount: 1,
-      configHoursPerDay: 8,
-      configDaysPerWeek: 6,
-      configAverageMonthlyHours: 208,
-      configPreparationLeadDays: 3,
-      configWorkScheduleDescription: '',
-      configMonthlyPrice: 0,
       idEmployee: this.employees()[0]?.idEmployee ?? '',
       idPosition: this.positions()[0]?.idPosition ?? '',
       assignmentType: 'Primary',
@@ -1306,6 +1312,8 @@ export class RequestsPage implements OnInit {
       coverageStatus: 'Confirmed',
       coverageNotes: '',
     });
+    this.executionPositions.clear();
+    this.addExecutionPosition();
   }
 
   private buildExecutionPayload(request = this.selectedRequest()): Partial<ExecuteOperationalRequest> | null {
@@ -1313,13 +1321,13 @@ export class RequestsPage implements OnInit {
     const type = request?.requestType ?? this.activeExecutionType();
     const payload: MutableExecutionPayload = {};
     const hasServiceDetails = this.hasAnyText(form.serviceCode, form.serviceName, form.serviceDescription);
-    const hasSiteDetails = this.hasAnyText(
-      form.siteName,
-      form.siteStreet,
-      form.siteMunicipality,
-      form.siteState,
-      form.sitePostalCode,
-    ) || form.siteCode.trim() !== 'SEDE-01';
+    const hasZoneDetails = this.hasAnyText(
+      form.zoneName,
+      form.zoneStreet,
+      form.zoneMunicipality,
+      form.zoneState,
+      form.zonePostalCode,
+    ) || form.zoneCode.trim() !== 'ZONA-01';
 
     if ((type === 'NewClient' || type === 'NewService') && (!request?.idClient || this.hasAnyText(
       form.clientCode,
@@ -1344,18 +1352,18 @@ export class RequestsPage implements OnInit {
       };
     }
 
-    if ((type === 'NewClient' || type === 'NewService') && hasSiteDetails) {
-      payload.clientSite = {
-        codeClientSite: form.siteCode.trim(),
-        name: form.siteName.trim(),
-        street: form.siteStreet.trim(),
+    if ((type === 'NewClient' || type === 'NewService') && hasZoneDetails) {
+      payload.clientZone = {
+        codeClientZone: form.zoneCode.trim(),
+        name: form.zoneName.trim(),
+        street: form.zoneStreet.trim(),
         exteriorNumber: null,
         interiorNumber: null,
         neighborhood: null,
-        municipality: form.siteMunicipality.trim(),
-        state: form.siteState.trim(),
-        postalCode: form.sitePostalCode.trim(),
-        countryCode: form.siteCountryCode,
+        municipality: form.zoneMunicipality.trim(),
+        state: form.zoneState.trim(),
+        postalCode: form.zonePostalCode.trim(),
+        countryCode: form.zoneCountryCode,
         accessInstructions: null,
         timeZoneId: 'America/Mexico_City',
       };
@@ -1366,7 +1374,7 @@ export class RequestsPage implements OnInit {
       (type === 'NewClient' && hasServiceDetails)
     ) {
       payload.service = {
-        idClientSite: null,
+        idClientZone: null,
         idServiceContract: null,
         codeService: form.serviceCode.trim(),
         name: form.serviceName.trim(),
@@ -1377,25 +1385,28 @@ export class RequestsPage implements OnInit {
       };
     }
 
-    if (
-      type === 'ServiceChange' ||
-      type === 'NewService' ||
-      (type === 'NewClient' && Boolean(payload.service || request?.idService) && form.configWorkScheduleDescription.trim().length > 0)
-    ) {
-      payload.serviceConfiguration = {
-        effectiveFromDate: form.configEffectiveFromDate || this.today(),
-        effectiveToDate: null,
-        requiredWorkerCount: this.toNumber(form.configRequiredWorkerCount),
-        hoursPerDay: this.toNumber(form.configHoursPerDay),
-        daysPerWeek: this.toNumber(form.configDaysPerWeek),
-        averageMonthlyHours: this.toNumber(form.configAverageMonthlyHours),
-        preparationLeadDays: this.toNumber(form.configPreparationLeadDays),
-        workScheduleDescription: form.configWorkScheduleDescription.trim(),
-        specificInstructions: null,
-        monthlyPrice: this.toNumber(form.configMonthlyPrice),
+    // Los puestos son lo que la solicitud crea del lado comercial. Se mandan sólo los que tienen
+    // nombre: una fila en blanco es una fila que el usuario abrió y no llenó, no un puesto vacío
+    // que el servidor deba rechazar.
+    const puestos = this.executionPositions.getRawValue()
+      .filter((puesto) => puesto.name.trim().length > 0)
+      .map((puesto) => ({
+        name: puesto.name.trim(),
+        requiredWorkerCount: this.toNumber(puesto.requiredWorkerCount),
+        monthlyPrice: this.toNumber(puesto.monthlyPrice),
         currencyCode: 'MXN',
-        isTaxIncluded: false,
-      };
+        isTaxIncluded: puesto.isTaxIncluded,
+        notes: this.emptyToNull(puesto.notes),
+        idJobPositionCatalogItem: null,
+      }));
+
+    if (
+      puestos.length > 0 &&
+      (type === 'ServiceChange' ||
+        type === 'NewService' ||
+        (type === 'NewClient' && Boolean(payload.service || request?.idService)))
+    ) {
+      payload.positions = puestos;
     }
 
     if (type === 'StaffChange') {

@@ -65,10 +65,10 @@ export type ExecuteOperationalRequest = {
   readonly idOrganization: string;
   readonly executionNotes: string | null;
   readonly client?: OperationalRequestClientInput;
-  readonly clientSite?: OperationalRequestClientSiteInput;
+  readonly clientZone?: OperationalRequestClientZoneInput;
   readonly serviceContract?: OperationalRequestServiceContractInput;
   readonly service?: OperationalRequestServiceInput;
-  readonly serviceConfiguration?: OperationalRequestServiceConfigurationInput;
+  readonly positions?: readonly OperationalRequestPositionInput[];
   readonly staffAssignment?: OperationalRequestStaffAssignmentInput;
   readonly coverage?: OperationalRequestCoverageInput;
 };
@@ -107,8 +107,8 @@ export type OperationalRequestClientInput = {
   readonly legalRepresentativeInstrumentNumber: string | null;
 };
 
-export type OperationalRequestClientSiteInput = {
-  readonly codeClientSite: string;
+export type OperationalRequestClientZoneInput = {
+  readonly codeClientZone: string;
   readonly name: string;
   readonly street: string;
   readonly exteriorNumber: string | null;
@@ -136,7 +136,7 @@ export type OperationalRequestServiceContractInput = {
 };
 
 export type OperationalRequestServiceInput = {
-  readonly idClientSite: string | null;
+  readonly idClientZone: string | null;
   readonly idServiceContract: string | null;
   readonly codeService: string;
   readonly name: string;
@@ -146,19 +146,20 @@ export type OperationalRequestServiceInput = {
   readonly endDate: string | null;
 };
 
-export type OperationalRequestServiceConfigurationInput = {
-  readonly effectiveFromDate: string;
-  readonly effectiveToDate: string | null;
+/**
+ * Lo que la solicitud crea del lado comercial: **puestos con precio**, no una configuración
+ * aparte. El precio vive en el puesto porque es lo que se cobra —tantos elementos de tal puesto a
+ * tal precio—; la jornada y los días los dice el patrón de turnos del puesto, y la vigencia la del
+ * propio servicio.
+ */
+export type OperationalRequestPositionInput = {
+  readonly name: string;
   readonly requiredWorkerCount: number;
-  readonly hoursPerDay: number;
-  readonly daysPerWeek: number;
-  readonly averageMonthlyHours: number;
-  readonly preparationLeadDays: number;
-  readonly workScheduleDescription: string;
-  readonly specificInstructions: string | null;
   readonly monthlyPrice: number;
   readonly currencyCode: string | null;
   readonly isTaxIncluded: boolean;
+  readonly notes: string | null;
+  readonly idJobPositionCatalogItem: string | null;
 };
 
 export type OperationalRequestStaffAssignmentInput = {

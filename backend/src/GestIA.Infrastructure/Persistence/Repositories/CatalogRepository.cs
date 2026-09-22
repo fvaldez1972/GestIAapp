@@ -45,25 +45,28 @@ public sealed class CatalogRepository(GestIaDbContext dbContext) : ICatalogRepos
             item => item.IdOrganization == idOrganization && item.IdBusinessCatalogItem == idCatalogItem,
             cancellationToken);
 
-    public Task<bool> CatalogCodeExistsAsync(
+    /// <summary>
+    /// <c>IgnoreQueryFilters(["Active"])</c> a proposito: aqui los registros no se borran, asi que
+    /// un valor desactivado sigue ocupando su nombre. Preguntar solo por los activos diria que el
+    /// nombre esta libre y el indice unico lo desmentiria al guardar.
+    /// </summary>
+    public Task<bool> CatalogNameExistsAsync(
         Guid idOrganization,
         BusinessCatalogItemType type,
-        string code,
+        string normalizedName,
+        Guid? idParentCatalogItem,
         Guid? excludedId,
-        CancellationToken cancellationToken)
-    {
-        var normalizedCode = code.Trim().ToUpperInvariant();
-
-        return dbContext.BusinessCatalogItems
+        CancellationToken cancellationToken) =>
+        dbContext.BusinessCatalogItems
             .IgnoreQueryFilters(["Active"])
             .AnyAsync(
                 item =>
                     item.IdOrganization == idOrganization &&
                     item.Type == type &&
-                    item.Code == normalizedCode &&
+                    item.IdParentCatalogItem == idParentCatalogItem &&
+                    item.NormalizedName == normalizedName &&
                     (!excludedId.HasValue || item.IdBusinessCatalogItem != excludedId.Value),
                 cancellationToken);
-    }
 
     public Task AddCatalogItemAsync(BusinessCatalogItem item, CancellationToken cancellationToken) =>
         dbContext.BusinessCatalogItems.AddAsync(item, cancellationToken).AsTask();
@@ -76,6 +79,11 @@ public sealed class CatalogRepository(GestIaDbContext dbContext) : ICatalogRepos
             .Include(requirement => requirement.Client)
             .Include(requirement => requirement.Service)
             .Include(requirement => requirement.Position)
+            // La entrada del catálogo hace falta por dos razones: nombra lo que falta en el mensaje
+            // que bloquea, y desde el 19 de septiembre de 2026 es de donde sale la severidad cuando
+            // la regla no la fija. Sin este Include, una regla que hereda su marca se evaluaría como
+            // informativa por no haber cargado la fila.
+            .Include(requirement => requirement.RequiredCatalogItem)
             .Where(requirement => requirement.IdOrganization == idOrganization)
             .OrderBy(requirement => requirement.TargetType)
             .ThenBy(requirement => requirement.RequirementType)
@@ -134,6 +142,10 @@ public sealed class CatalogRepository(GestIaDbContext dbContext) : ICatalogRepos
         dbContext.Positions
             .Include(position => position.Service)
             .ThenInclude(service => service.Client)
+            // El equipo requerido viaja con la posicion porque el motor lo enseña al comparar el
+            // perfil. Sin este Include la lista sale vacia y la pantalla diria que la posicion no
+            // pide equipo, que es distinto de no saberlo.
+            .Include(position => position.RequiredEquipment)
             .SingleOrDefaultAsync(
                 position =>
                     position.IdPosition == idPosition &&
@@ -176,6 +188,23 @@ public sealed class CatalogRepository(GestIaDbContext dbContext) : ICatalogRepos
         await dbContext.EmployeeDocuments
             .AsNoTracking()
             .Where(document => document.IdEmployee == idEmployee)
+            .ToArrayAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<AdministrativeIncident>> ListActiveAdministrativeIncidentsAsync(
+        Guid idOrganization,
+        Guid idEmployee,
+        CancellationToken cancellationToken) =>
+        await dbContext.AdministrativeIncidents
+            .AsNoTracking()
+            // El tipo viene resuelto porque de el sale la marca de bloqueo y el nombre que va en el
+            // mensaje. Sin este Include, una incidencia bloqueante se evaluaria como informativa
+            // por no haber cargado la fila que lo dice.
+            .Include(incident => incident.IncidentTypeCatalogItem)
+            .Where(incident =>
+                incident.IdOrganization == idOrganization &&
+                incident.IdEmployee == idEmployee &&
+                incident.Active)
+            .OrderByDescending(incident => incident.OccurredDate)
             .ToArrayAsync(cancellationToken);
 
     public async Task<IReadOnlyList<EmployeeEvaluation>> ListEmployeeEvaluationsAsync(

@@ -1,5 +1,13 @@
 # Tanda de catálogos — aprobada, pendiente de ejecutar
 
+> **Ejecutada el 7 de septiembre de 2026, salvo la pantalla.** Estado real y decisiones tomadas:
+> [`../../ESTADO-TANDA-CATALOGOS-2026-09-07.md`](../../ESTADO-TANDA-CATALOGOS-2026-09-07.md).
+>
+> Lo que este documento dice quedó desactualizado en dos puntos, y conviene no leerlo al revés:
+> el **punto 2 se invirtió** —el `Code` sí se fue, completo—, y el **punto 1 sí se hizo**, aunque
+> aquí figuraba como pendiente separado. Lo único que queda vivo de esta lista es rehacer la
+> pantalla.
+
 Aprobada el 6 de septiembre de 2026, después del diagnóstico de catálogos. Se ejecuta cuando
 terminen las pantallas de operación. **El punto 5 lleva plan aparte**, porque es el único con
 migración y relleno de datos.

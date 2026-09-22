@@ -66,47 +66,4 @@ public sealed class BusinessEntityTests
         Assert.Equal(updateAt, client.UpdatedAt);
     }
 
-    [Fact]
-    public void ServiceConfigurationKeepsTheContractedMonthlyHours()
-    {
-        var configuration = ServiceConfiguration.Create(
-            Guid.NewGuid(),
-            Guid.NewGuid(),
-            new DateOnly(2026, 9, 1),
-            1,
-            24,
-            7,
-            729,
-            20,
-            "24 hours, 7 days per week",
-            42_500,
-            false,
-            ActorId,
-            "Dany",
-            OccurredAt);
-
-        Assert.Equal(168, configuration.AverageWeeklyHours);
-        Assert.Equal(729, configuration.AverageMonthlyHours);
-        Assert.Equal(20, configuration.PreparationLeadDays);
-    }
-
-    [Fact]
-    public void ServiceConfigurationRejectsMoreThanSevenDaysPerWeek()
-    {
-        Assert.Throws<ArgumentOutOfRangeException>(() => ServiceConfiguration.Create(
-            Guid.NewGuid(),
-            Guid.NewGuid(),
-            new DateOnly(2026, 9, 1),
-            1,
-            24,
-            8,
-            729,
-            20,
-            "Invalid schedule",
-            42_500,
-            false,
-            ActorId,
-            "Dany",
-            OccurredAt));
-    }
 }

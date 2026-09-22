@@ -9,7 +9,7 @@ public interface IClientRepository
         CancellationToken cancellationToken);
 
     /// <summary>
-    /// Los municipios donde la organización tiene sedes.
+    /// Los municipios donde la organización tiene zonas.
     ///
     /// <para>El filtro de municipio necesita opciones reales. Sacarlas de la página ya traída
     /// daría una lista distinta en cada página, que es la clase de filtro que miente.</para>
@@ -24,6 +24,18 @@ public interface IClientRepository
         CancellationToken cancellationToken);
 
     Task<Client?> GetAsync(
+        Guid idOrganization,
+        Guid idClient,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// El cliente sin mirar si está activo.
+    ///
+    /// <para>Existe sólo para reactivar. <c>GetAsync</c> respeta el filtro global <c>Active</c>, así
+    /// que un cliente desactivado no se encuentra por ahí —que es lo correcto para todo lo demás—
+    /// y reactivarlo con él sería imposible por construcción.</para>
+    /// </summary>
+    Task<Client?> GetIncludingInactiveAsync(
         Guid idOrganization,
         Guid idClient,
         CancellationToken cancellationToken);

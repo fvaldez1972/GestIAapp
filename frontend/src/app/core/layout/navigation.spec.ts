@@ -1,4 +1,5 @@
 import { routes } from '../../app.routes';
+import { CATALOG_PAGE_GROUPS } from '../../features/catalogs/data-access/catalog-pages';
 import {
   GESTIA_NAVIGATION,
   GESTIA_NAVIGATION_ITEMS,
@@ -185,16 +186,71 @@ describe('Menú lateral', () => {
   });
 
   it('toda entrada visible apunta a una ruta que el enrutador conoce', () => {
+    // Una ruta con parámetro cubre a todas sus hijas: `/operacion/asistencia` cae en
+    // `operacion/:section`, y `/catalogos/puestos` en `catalogos/:catalogo`.
+    const conocida = (route: string) =>
+      rutasRegistradas.has(route) ||
+      rutasRegistradas.has(`/${route.split('/')[1]}/:section`) ||
+      rutasRegistradas.has(`/${route.split('/')[1]}/:catalogo`);
+
     for (const audience of [superAdmin(false), superAdmin(true), adminDeOrganizacion]) {
       for (const item of visibleNavigationItems(audience)) {
-        // `/operacion/asistencia` y sus hermanas caen en la ruta con parámetro `operacion/:section`.
-        const conocida =
-          rutasRegistradas.has(item.route) ||
-          rutasRegistradas.has(`/${item.route.split('/')[1]}/:section`);
+        expect(conocida(item.route), `Ruta sin registrar: ${item.route}`).toBe(true);
 
-        expect(conocida, `Ruta sin registrar: ${item.route}`).toBe(true);
+        // Y los hijos igual. Sin esto, agregar una entrada al submenú apuntando a una página que
+        // todavía no existe pasaría la prueba y llegaría a producción como un renglón que no hace
+        // nada. Es exactamente lo que puede ocurrir mientras el rediseño avanza por bloques.
+        for (const bloque of item.children ?? []) {
+          for (const hijo of bloque.items) {
+            expect(conocida(hijo.route), `Ruta de submenú sin registrar: ${hijo.route}`).toBe(true);
+          }
+        }
       }
     }
+  });
+
+  /**
+   * Las dos pantallas propias van declaradas ANTES de la ruta con parámetro.
+   *
+   * <p>El enrutador toma la primera ruta que encaja, y `catalogos/:catalogo` encaja con
+   * `catalogos/patrones-de-turno`. Si alguien las reordena, esas dos entradas dejarían de abrir su
+   * pantalla y caerían en la página genérica, que diría «ese catálogo no existe» —y el menú y las
+   * rutas seguirían pareciendo correctos—.</p>
+   */
+  it('las pantallas propias ganan a la ruta con parámetro', () => {
+    const hijas = routes.flatMap((route) => route.children ?? []).map((route) => route.path ?? '');
+    const conParametro = hijas.indexOf('catalogos/:catalogo');
+
+    expect(conParametro, 'la ruta con parámetro tiene que existir').toBeGreaterThan(-1);
+
+    for (const propia of ['catalogos/patrones-de-turno', 'catalogos/reglas-de-elegibilidad']) {
+      expect(hijas.indexOf(propia), `${propia} tiene que ir antes`).toBeLessThan(conParametro);
+    }
+  });
+
+  /**
+   * El submenú de Catálogos y las páginas de catálogo dicen lo mismo.
+   *
+   * <p>El menú vive en `core` y las páginas en `features`, y esa dirección no se invierte: el menú
+   * no importa la definición de las pantallas. El precio es que las rutas están escritas dos veces,
+   * y esta prueba es lo que impide que se separen. Sin ella, renombrar un `slug` dejaría el menú
+   * apuntando a una dirección que ya no responde.</p>
+   *
+   * <p>Se comparan sólo las que son listas simples: Patrones de turno y Reglas de elegibilidad
+   * tienen pantalla propia y no salen de `CATALOG_PAGE_GROUPS`.</p>
+   */
+  it('el submenú de Catálogos coincide con las páginas de catálogo que existen', () => {
+    const catalogos = GESTIA_NAVIGATION_ITEMS.find((item) => item.route === '/catalogos');
+    const enElMenu = (catalogos?.children ?? [])
+      .flatMap((bloque) => bloque.items)
+      .map((hijo) => hijo.route)
+      .filter((route) => route !== '/catalogos/patrones-de-turno' && route !== '/catalogos/reglas-de-elegibilidad');
+
+    const enLasPaginas = CATALOG_PAGE_GROUPS.flatMap((grupo) => grupo.pages).map(
+      (pagina) => `/catalogos/${pagina.slug}`,
+    );
+
+    expect([...enElMenu].sort()).toEqual([...enLasPaginas].sort());
   });
 
   /**
@@ -240,5 +296,80 @@ describe('Menú lateral', () => {
     const rutas = GESTIA_NAVIGATION_ITEMS.map((item) => item.route);
 
     expect(new Set(rutas).size).toBe(rutas.length);
+  });
+
+  /**
+   * Los hijos de una entrada se filtran por permiso igual que las entradas de primer nivel.
+   *
+   * <p>Es la razón de ser del submenú como concepto del modelo y no como adorno de la plantilla:
+   * si los hijos no pasaran por el mismo filtro, el menú ofrecería puertas cerradas.</p>
+   */
+  it('poda los hijos que el usuario no puede ver, y el bloque que se queda sin ninguno', () => {
+    const conHijos = [
+      {
+        label: 'Configuración',
+        items: [
+          {
+            label: 'Catálogos',
+            icon: 'catalog' as const,
+            route: '/catalogos',
+            permission: 'CATALOGS.READ',
+            children: [
+              {
+                label: 'Personal',
+                items: [
+                  { label: 'Puestos', route: '/catalogos/puestos' },
+                  { label: 'Reservado', route: '/catalogos/reservado', permission: 'PLATFORM.ADMIN' },
+                ],
+              },
+              {
+                label: 'Sólo plataforma',
+                items: [{ label: 'Otro', route: '/catalogos/otro', permission: 'PLATFORM.ADMIN' }],
+              },
+            ],
+          },
+        ],
+      },
+    ];
+
+    const [configuracion] = visibleNavigation(adminDeOrganizacion, conHijos);
+    const catalogos = configuracion.items[0];
+
+    expect(catalogos.children?.map((bloque) => bloque.label)).toEqual(['Personal']);
+    expect(catalogos.children?.[0].items.map((hijo) => hijo.label)).toEqual(['Puestos']);
+  });
+
+  /**
+   * El control de la anterior: un padre que se queda sin hijos visibles <b>no desaparece</b>.
+   *
+   * <p>Sin esta prueba, podar hijos y podar grupos vacíos se parecen tanto que es fácil aplicar la
+   * segunda regla al padre y dejar sin Catálogos a quien sí puede entrar. Un padre tiene ruta
+   * propia; un grupo no.
+   */
+  it('un padre sin hijos visibles sigue estando, porque tiene ruta propia', () => {
+    const conHijos = [
+      {
+        label: 'Configuración',
+        items: [
+          {
+            label: 'Catálogos',
+            icon: 'catalog' as const,
+            route: '/catalogos',
+            permission: 'CATALOGS.READ',
+            children: [
+              {
+                label: 'Sólo plataforma',
+                items: [{ label: 'Otro', route: '/catalogos/otro', permission: 'PLATFORM.ADMIN' }],
+              },
+            ],
+          },
+        ],
+      },
+    ];
+
+    const [configuracion] = visibleNavigation(adminDeOrganizacion, conHijos);
+
+    expect(configuracion.items.map((item) => item.label)).toEqual(['Catálogos']);
+    expect(configuracion.items[0].children).toEqual([]);
   });
 });

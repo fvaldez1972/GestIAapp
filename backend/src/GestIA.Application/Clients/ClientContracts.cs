@@ -66,7 +66,7 @@ public sealed record ClientListQuery(
     Guid IdOrganization,
     string? Search = null,
     ClientStatusFilter Status = ClientStatusFilter.Active,
-    ClientSitePresenceFilter SitePresence = ClientSitePresenceFilter.Any,
+    ClientZonePresenceFilter ZonePresence = ClientZonePresenceFilter.Any,
     string? Municipality = null,
     int Page = 1,
     int PageSize = 20);
@@ -86,24 +86,24 @@ public enum ClientStatusFilter
 }
 
 /// <summary>
-/// Si el cliente tiene sede.
+/// Si el cliente tiene zona.
 ///
-/// <para>No es un detalle de catálogo: <b>la sede es el prerrequisito para crear servicios</b>,
-/// porque el servicio se liga a una sede. Poder listar los que no la tienen es poder cerrar el
+/// <para>No es un detalle de catálogo: <b>la zona es el prerrequisito para crear servicios</b>,
+/// porque el servicio se liga a una zona. Poder listar los que no la tienen es poder cerrar el
 /// hueco antes de que alguien tropiece con él en la pantalla siguiente.</para>
 /// </summary>
-public enum ClientSitePresenceFilter
+public enum ClientZonePresenceFilter
 {
     Any,
-    WithSite,
-    WithoutSite
+    WithZone,
+    WithoutZone
 }
 
 public sealed record ClientSearchCriteria(
     Guid IdOrganization,
     string? Search,
     ClientStatusFilter Status,
-    ClientSitePresenceFilter SitePresence,
+    ClientZonePresenceFilter ZonePresence,
     string? Municipality,
     int Skip,
     int Take);
@@ -112,7 +112,7 @@ public sealed record ClientSearchCriteria(
 /// Un cliente en el listado.
 ///
 /// <para>Trae resueltos los conteos que la tabla muestra. Sin ellos, saber si un cliente tiene
-/// sede costaría una consulta por fila, y es justo el dato que decide si el paso siguiente se
+/// zona costaría una consulta por fila, y es justo el dato que decide si el paso siguiente se
 /// puede dar.</para>
 /// </summary>
 public sealed record ClientListItemResponse(
@@ -124,13 +124,13 @@ public sealed record ClientListItemResponse(
     string Rfc,
     bool Active,
     DateTime CreatedAt,
-    int SiteCount,
-    int SitesWithoutContact,
+    int ZoneCount,
+    int ZonesWithoutContact,
     int ContactCount,
     int ServiceCount,
-    string? MainSiteName,
-    string? MainSiteMunicipality,
-    string? MainSiteState);
+    string? MainZoneName,
+    string? MainZoneMunicipality,
+    string? MainZoneState);
 
 public sealed record ClientSearchResult(
     IReadOnlyList<ClientResponse> Items,

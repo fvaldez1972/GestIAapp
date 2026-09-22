@@ -27,10 +27,11 @@ public sealed class CatalogService(
         await EnsureOrganizationAsync(request.IdOrganization, cancellationToken);
         var profile = ValidateCatalogProfile(request);
         await ValidateParentAsync(request, cancellationToken);
-        await EnsureCatalogCodeAvailableAsync(
+        await EnsureCatalogNameAvailableAsync(
             request.IdOrganization,
             profile.Type,
-            profile.Code,
+            profile.Name,
+            profile.IdParentCatalogItem,
             null,
             cancellationToken);
 
@@ -56,8 +57,8 @@ public sealed class CatalogService(
         await EnsureOrganizationAsync(request.IdOrganization, cancellationToken);
         var item = await repository.GetCatalogItemAsync(request.IdOrganization, idCatalogItem, cancellationToken)
             ?? throw new ResourceNotFoundException("No se encontró el catálogo solicitado.");
-        if (request.Type != item.Type || !string.Equals(request.Code?.Trim(), item.Code, StringComparison.OrdinalIgnoreCase))
-            throw new ResourceConflictException("El tipo y codigo de un valor existente no pueden cambiarse.");
+        if (request.Type != item.Type)
+            throw new ResourceConflictException("El tipo de un valor existente no puede cambiarse.");
         if (item.Type is BusinessCatalogItemType.State or BusinessCatalogItemType.City &&
             !string.Equals(request.Name?.Trim(), item.Name, StringComparison.Ordinal))
             throw new ResourceConflictException("El nombre geografico esta vinculado a domicilios y no puede cambiarse.");
@@ -65,10 +66,11 @@ public sealed class CatalogService(
         if (request.IdParentCatalogItem != item.IdParentCatalogItem)
             throw new ResourceConflictException("La relacion geografica existente no puede cambiarse; crea otro valor.");
         if (request.Active != false) await ValidateParentAsync(request, cancellationToken, item.IdBusinessCatalogItem);
-        await EnsureCatalogCodeAvailableAsync(
+        await EnsureCatalogNameAvailableAsync(
             request.IdOrganization,
             profile.Type,
-            profile.Code,
+            profile.Name,
+            profile.IdParentCatalogItem,
             idCatalogItem,
             cancellationToken);
 
@@ -206,7 +208,7 @@ public sealed class CatalogService(
                 request.IdEmployee,
                 idEmployeeSkill,
                 cancellationToken)
-            ?? throw new ResourceNotFoundException("No se encontró la habilidad del empleado.");
+            ?? throw new ResourceNotFoundException("No se encontró la experiencia del empleado.");
         skill.UpdateProfile(
             ValidateEmployeeSkillProfile(request),
             actorContext.ActorId,
@@ -232,7 +234,7 @@ public sealed class CatalogService(
                 idEmployee,
                 idEmployeeSkill,
                 cancellationToken)
-            ?? throw new ResourceNotFoundException("No se encontró la habilidad del empleado.");
+            ?? throw new ResourceNotFoundException("No se encontró la experiencia del empleado.");
         skill.Deactivate(actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
         await unitOfWork.SaveChangesAsync(cancellationToken);
     }
@@ -257,6 +259,74 @@ public sealed class CatalogService(
             employee.FullName,
             reasons.All(reason => reason.Passed || !reason.IsBlocking),
             reasons);
+    }
+
+    /// <summary>
+    /// Elegibilidad de varias personas contra el mismo contexto.
+    ///
+    /// <para>El contexto —cliente, servicio y posición— se resuelve <b>una vez</b>: es la posición
+    /// la que pide los requisitos, y es la misma para toda la lista. Lo que sí se evalúa persona a
+    /// persona son sus documentos, su experiencia y sus evaluaciones, que es de lo que trata la
+    /// pregunta.</para>
+    ///
+    /// <para>Los identificadores repetidos se colapsan y el orden de la respuesta es el de la
+    /// petición, para que quien la pidió pueda emparejar sin buscar. Una persona que no exista en
+    /// la organización <b>se omite</b> en vez de tumbar la consulta entera: el selector prefiere
+    /// enseñar nueve candidatos comprobados a no enseñar ninguno porque el décimo se dio de baja
+    /// entre la carga de la pantalla y el clic.</para>
+    /// </summary>
+    public async Task<IReadOnlyList<EligibilityCheckResponse>> CheckEligibilityBatchAsync(
+        EligibilityBatchQuery query,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        // Sin fecha, el día operativo. La decide aquí y no el endpoint: qué día es «hoy» para la
+        // operación es una regla del sistema, no de la capa que recibe la petición.
+        var referenceDate = query.ReferenceDate ?? clock.Today;
+
+        var context = await ResolveEligibilityContextAsync(
+            new EligibilityCheckQuery(
+                query.IdOrganization,
+                Guid.Empty,
+                query.IdClient,
+                query.IdService,
+                query.IdPosition,
+                referenceDate),
+            cancellationToken);
+
+        var results = new List<EligibilityCheckResponse>();
+
+        foreach (var idEmployee in query.IdEmployees.Distinct())
+        {
+            Employee employee;
+
+            try
+            {
+                employee = await EnsureEmployeeAsync(query.IdOrganization, idEmployee, cancellationToken);
+            }
+            catch (ResourceNotFoundException)
+            {
+                continue;
+            }
+
+            var reasons = await EvaluateEligibilityAsync(
+                employee,
+                context.IdClient,
+                context.IdService,
+                context.IdPosition,
+                referenceDate,
+                cancellationToken);
+
+            results.Add(new EligibilityCheckResponse(
+                employee.IdEmployee,
+                employee.CodeEmployee,
+                employee.FullName,
+                reasons.All(reason => reason.Passed || !reason.IsBlocking),
+                reasons));
+        }
+
+        return results;
     }
 
     public async Task<IReadOnlyList<EligibilityReasonResponse>> EvaluateEligibilityAsync(
@@ -290,10 +360,32 @@ public sealed class CatalogService(
         var skills = await repository.ListEmployeeSkillsAsync(employee.IdOrganization, employee.IdEmployee, cancellationToken);
         var documents = await repository.ListEmployeeDocumentsAsync(employee.IdEmployee, cancellationToken);
         var evaluations = await repository.ListEmployeeEvaluationsAsync(employee.IdEmployee, cancellationToken);
+        var incidents = await repository.ListActiveAdministrativeIncidentsAsync(
+            employee.IdOrganization, employee.IdEmployee, cancellationToken);
 
         foreach (var requirement in requirements)
         {
             reasons.Add(EvaluateRequirement(requirement, skills, documents, evaluations, referenceDate));
+        }
+
+        // Las incidencias van aparte del bucle de reglas, y no es un detalle de organización del
+        // código: es que no son la misma clase de cosa.
+        //
+        // Una regla de elegibilidad pregunta «¿tiene esto?» y se cumple teniéndolo. Una incidencia
+        // administrativa no se cumple: es un hecho en contra, y no hay nada que la persona pueda
+        // «tener» para satisfacerla. Meterla como un quinto tipo de regla habría obligado a
+        // inventar una regla por cada incidencia registrada, y a que el administrador creara una
+        // regla para que su acta significara algo.
+        reasons.AddRange(incidents.Select(EvaluateIncident));
+
+        // El perfil que el cliente pidio para el puesto, comparado contra la persona. Va despues de
+        // las reglas y de las incidencias porque responde otra pregunta: aquellas dicen si la
+        // persona esta en regla, esto dice si encaja en el puesto. Un «no elegible» por documento
+        // vencido se corrige; un «no encaja» por escolaridad, casi nunca.
+        if (idPosition.HasValue)
+        {
+            reasons.AddRange(await EvaluatePositionProfileAsync(
+                employee, idPosition.Value, cancellationToken));
         }
 
         if (reasons.Count == 0)
@@ -303,10 +395,221 @@ public sealed class CatalogService(
                 "Reglas configuradas",
                 false,
                 true,
-                "No hay reglas configuradas que bloqueen al empleado."));
+                "No hay reglas configuradas ni incidencias activas que bloqueen al empleado."));
         }
 
         return reasons;
+    }
+
+    /// <summary>
+    /// El perfil que la posición pide, comparado contra la persona.
+    ///
+    /// <para><b>Ninguno de estos cuatro bloquea, y no es un descuido.</b> La matriz «Datos
+    /// necesarios para GestIA» marca con asterisco —el que define bloqueante e informativa— sólo
+    /// tres catálogos: experiencia requerida, tipo de documento y evaluación. Sexo, edad,
+    /// escolaridad y equipo no lo llevan. Así que el sistema los compara, los enseña, y no excluye
+    /// a nadie por ellos; con eso desaparece además el riesgo legal de excluir por sexo o por
+    /// edad, que era lo que tenía frenada esta pieza.</para>
+    ///
+    /// <para><b>Sólo la escolaridad se compara de verdad.</b> Es la única de las cuatro donde los
+    /// dos lados son identificadores del mismo catálogo, así que se pueden medir sin adivinar: la
+    /// persona cumple si su nivel es igual o superior al que la posición pide, y «superior» lo dice
+    /// el orden del catálogo.</para>
+    ///
+    /// <para><b>El sexo y el rango de edad se enseñan sin veredicto, a propósito.</b> El sexo de la
+    /// persona es texto libre y el de la posición un identificador de catálogo; compararlos exigiría
+    /// emparejar por nombre visible, que es justo lo que el principio 4 evita. Y un rango de edad
+    /// como «18 a 30 años» es un <b>nombre</b>, no dos números: el catálogo no guarda mínimo ni
+    /// máximo, y sacárselos al texto acierta hasta el día que alguien escriba «mayores de 18».
+    /// Enseñar lo que el cliente pidió es útil y es honesto; inventar la comparación no.</para>
+    /// </summary>
+    private async Task<IReadOnlyList<EligibilityReasonResponse>> EvaluatePositionProfileAsync(
+        Employee employee,
+        Guid idPosition,
+        CancellationToken cancellationToken)
+    {
+        var position = await repository.GetPositionAsync(
+            employee.IdOrganization, idPosition, cancellationToken);
+
+        if (position is null)
+        {
+            return [];
+        }
+
+        var motivos = new List<EligibilityReasonResponse>();
+
+        if (position.IdEducationLevelCatalogItem is { } idExigida)
+        {
+            motivos.Add(await EvaluateEducationAsync(employee, idExigida, cancellationToken));
+        }
+
+        if (position.IdSexCatalogItem is { } idSexo)
+        {
+            var pedido = await repository.GetCatalogItemAsync(
+                employee.IdOrganization, idSexo, cancellationToken);
+
+            if (pedido is not null)
+            {
+                motivos.Add(new EligibilityReasonResponse(
+                    "Perfil del puesto",
+                    "Sexo",
+                    false,
+                    true,
+                    $"El cliente pidió {pedido.Name} para esta posición. " +
+                    $"En el expediente: {employee.Sex ?? "sin capturar"}. No impide asignar."));
+            }
+        }
+
+        if (position.IdAgeRangeCatalogItem is { } idEdad)
+        {
+            var pedido = await repository.GetCatalogItemAsync(
+                employee.IdOrganization, idEdad, cancellationToken);
+
+            if (pedido is not null)
+            {
+                var edad = employee.BirthDate is { } nacimiento
+                    ? $"{Edad(nacimiento, clock.Today)} años"
+                    : "sin fecha de nacimiento";
+
+                motivos.Add(new EligibilityReasonResponse(
+                    "Perfil del puesto",
+                    "Rango de edad",
+                    false,
+                    true,
+                    $"El cliente pidió {pedido.Name} para esta posición. " +
+                    $"En el expediente: {edad}. No impide asignar."));
+            }
+        }
+
+        var equipo = position.RequiredEquipment.Where(item => item.Active).ToArray();
+
+        if (equipo.Length > 0)
+        {
+            var nombres = new List<string>();
+
+            foreach (var pieza in equipo)
+            {
+                var item = await repository.GetCatalogItemAsync(
+                    employee.IdOrganization, pieza.IdEquipmentCatalogItem, cancellationToken);
+
+                if (item is not null)
+                {
+                    nombres.Add(item.Name);
+                }
+            }
+
+            if (nombres.Count > 0)
+            {
+                // El equipo lo dota la empresa, no lo trae la persona: el expediente no tiene donde
+                // guardarlo y la matriz lo coloca del lado de la posicion. Se enseña para saber que
+                // hay que entregar, no para decidir si alguien puede.
+                motivos.Add(new EligibilityReasonResponse(
+                    "Perfil del puesto",
+                    "Equipo requerido",
+                    false,
+                    true,
+                    $"Esta posición requiere: {string.Join(", ", nombres)}. Lo dota la empresa; " +
+                    "no impide asignar."));
+            }
+        }
+
+        return motivos;
+    }
+
+    /// <summary>
+    /// La escolaridad, comparada por el <b>orden</b> del catálogo y no por su nombre.
+    ///
+    /// <para>La matriz pide «escolaridad mínima necesaria», así que la persona cumple con su nivel
+    /// o con uno más alto. Qué es «más alto» lo dice la columna de orden —Primaria, Secundaria,
+    /// Bachillerato, Carrera técnica, Licenciatura, Posgrado—, que es la razón por la que ese campo
+    /// existe y por la que el catálogo se sembró en ese orden.</para>
+    ///
+    /// <para>Un expediente sin escolaridad capturada <b>no incumple</b>: dice «no se sabe», que es
+    /// distinto de «no llega». Es el mismo criterio que rige en el puesto, y el que impide que el
+    /// día del despliegue toda la plantilla aparezca como que no encaja.</para>
+    /// </summary>
+    private async Task<EligibilityReasonResponse> EvaluateEducationAsync(
+        Employee employee,
+        Guid idRequerida,
+        CancellationToken cancellationToken)
+    {
+        var requerida = await repository.GetCatalogItemAsync(
+            employee.IdOrganization, idRequerida, cancellationToken);
+
+        var nombreRequerido = requerida?.Name ?? "la escolaridad configurada";
+
+        if (employee.IdEducationLevelCatalogItem is not { } idPersona)
+        {
+            return new EligibilityReasonResponse(
+                "Perfil del puesto",
+                "Escolaridad",
+                false,
+                true,
+                $"La posición pide {nombreRequerido} o más. El expediente no tiene escolaridad " +
+                "capturada, así que no se puede comparar. No impide asignar.");
+        }
+
+        var dePersona = await repository.GetCatalogItemAsync(
+            employee.IdOrganization, idPersona, cancellationToken);
+
+        if (requerida is null || dePersona is null)
+        {
+            return new EligibilityReasonResponse(
+                "Perfil del puesto", "Escolaridad", false, true,
+                "No se pudo comparar la escolaridad. No impide asignar.");
+        }
+
+        var alcanza = dePersona.Order >= requerida.Order;
+
+        return new EligibilityReasonResponse(
+            "Perfil del puesto",
+            "Escolaridad",
+            false,
+            true,
+            alcanza
+                ? $"La posición pide {requerida.Name} o más, y el expediente dice {dePersona.Name}."
+                : $"La posición pide {requerida.Name} o más, y el expediente dice {dePersona.Name}. " +
+                  "No alcanza el mínimo, pero no impide asignar.");
+    }
+
+    /// <summary>Los años cumplidos a una fecha. Se calcula, no se guarda: guardarlo lo dejaría viejo.</summary>
+    private static int Edad(DateOnly nacimiento, DateOnly hoy)
+    {
+        var anios = hoy.Year - nacimiento.Year;
+        return nacimiento > hoy.AddYears(-anios) ? anios - 1 : anios;
+    }
+
+    /// <summary>
+    /// Una incidencia administrativa activa, leída como motivo de elegibilidad.
+    ///
+    /// <para><b>Siempre sale con <c>Passed</c> en falso</b>, y eso es lo correcto aunque parezca
+    /// raro: el motivo no es «le falta algo», es «pasó algo». Lo que decide si además detiene la
+    /// operación es la marca de su tipo en el catálogo. Una informativa queda entonces como un
+    /// motivo no cumplido que no bloquea, que es exactamente lo que pide RN-PER-003: deja
+    /// constancia y no impide operar.</para>
+    ///
+    /// <para><b>Sin alcance, por decisión.</b> Una incidencia bloquea en todas partes: no distingue
+    /// cliente, servicio ni posición. Si alguien abandonó el puesto, no lo abandonó sólo para un
+    /// cliente. Acotarlo más tarde es agregar un filtro; desacotarlo más tarde sería quitar una
+    /// protección que ya estaba puesta, y por eso se empieza por el alcance amplio. Si negocio
+    /// decide lo contrario, lo que cambia es una columna de alcance en <c>AdministrativeIncident</c>
+    /// y esta comprobación.</para>
+    /// </summary>
+    private static EligibilityReasonResponse EvaluateIncident(AdministrativeIncident incident)
+    {
+        var tipo = incident.IncidentTypeCatalogItem?.Name ?? "Incidencia administrativa";
+        var bloquea = incident.IncidentTypeCatalogItem?.IsBlocking ?? false;
+
+        return new EligibilityReasonResponse(
+            "Expediente",
+            tipo,
+            bloquea,
+            false,
+            // El tipo y la fecha, no «tiene una incidencia». Quien lee esto tiene que poder ir al
+            // expediente y encontrar cuál es sin buscarla una por una.
+            bloquea
+                ? $"Incidencia administrativa activa: {tipo}, del {incident.OccurredDate:dd/MM/yyyy}. Impide asignar mientras no se retire."
+                : $"Incidencia administrativa activa: {tipo}, del {incident.OccurredDate:dd/MM/yyyy}. Queda constancia y no impide asignar.");
     }
 
     private static EligibilityReasonResponse EvaluateRequirement(
@@ -323,30 +626,61 @@ public sealed class CatalogService(
             EligibilityRequirementType.Restriction => new EligibilityReasonResponse(
                 ScopeLabel(requirement),
                 requirement.Name,
-                requirement.IsBlocking,
+                Severity(requirement),
                 false,
                 requirement.Description ?? "Restricción configurada para este alcance."),
-            _ => new EligibilityReasonResponse(ScopeLabel(requirement), requirement.Name, requirement.IsBlocking, false, "Tipo de regla no soportado.")
+            _ => new EligibilityReasonResponse(ScopeLabel(requirement), requirement.Name, Severity(requirement), false, "Tipo de regla no soportado.")
         };
+
+    /// <summary>
+    /// Si incumplir la regla bloquea. <b>Lo dice el catálogo, y sólo el catálogo.</b>
+    ///
+    /// <para>Hasta el 19 de septiembre de 2026 la regla podía afinar la marca del catálogo, y eso
+    /// permitía configurar el mismo requisito como bloqueante en un sitio e informativo en otro.
+    /// Nadie lo había hecho —ninguna entrada del catálogo tenía dos severidades entre sus reglas—,
+    /// pero el modelo lo consentía, y una contradicción que el sistema permite acaba ocurriendo.
+    /// RF-POS-010 pidió una sola fuente y ésta es: el catálogo dice <b>qué tan grave</b>, la regla
+    /// dice <b>a quién aplica</b>.</para>
+    ///
+    /// <para>La marca que las reglas tenían no se perdió: la migración de la retrocarga la copió a
+    /// su entrada del catálogo antes de que esto dejara de leerla, porque sin ese paso las trece
+    /// reglas que bloqueaban habrían pasado a informativas el día del despliegue.</para>
+    ///
+    /// <para>Cerrar en <c>false</c> cuando el catálogo calla sigue siendo deliberado: una entrada
+    /// sin marca todavía no se ha decidido, y estrenar impidiendo asignar a todo el mundo sería
+    /// peor que dejar constancia hasta que alguien la marque.</para>
+    ///
+    /// <para><b>La restricción fue una excepción durante unas horas, y dejó de hacer falta.</b>
+    /// El 19 de septiembre de 2026, por la tarde, se decidió que una regla de tipo
+    /// <c>Restriction</c> bloqueara por lo que es, porque no apunta a ningún catálogo del que
+    /// heredar la severidad. Esa misma noche el tipo se retiró entero —su efecto lo absorbieron las
+    /// incidencias administrativas, que dejan constancia con fecha, tipo y detalle—, así que la
+    /// excepción quedó sin objeto. No se revirtió por capricho: se retiró aquello de lo que era
+    /// excepción.</para>
+    /// </summary>
+    private static bool Severity(EligibilityRequirement requirement) =>
+        requirement.RequiredCatalogItem?.IsBlocking ?? false;
 
     private static EligibilityReasonResponse EvaluateSkill(
         EligibilityRequirement requirement,
         IReadOnlyList<EmployeeSkill> skills,
         DateOnly referenceDate)
     {
+        // Por identificador y no por texto: es exactamente la fila del catalogo que la regla
+        // exige, sin que dos valores parecidos puedan confundirse.
         var skill = skills.FirstOrDefault(item =>
             item.Active &&
-            item.SkillCatalogItem.Code.Equals(requirement.RequiredCode, StringComparison.OrdinalIgnoreCase) &&
+            item.IdSkillCatalogItem == requirement.IdRequiredCatalogItem &&
             (!item.ExpiresDate.HasValue || item.ExpiresDate.Value >= referenceDate));
 
         return new EligibilityReasonResponse(
             ScopeLabel(requirement),
             requirement.Name,
-            requirement.IsBlocking,
+            Severity(requirement),
             skill is not null,
             skill is not null
-                ? $"Cuenta con habilidad {skill.SkillCatalogItem.Name}."
-                : $"Falta habilidad requerida: {requirement.RequiredCode}.");
+                ? $"Cuenta con experiencia {skill.SkillCatalogItem.Name}."
+                : $"Falta experiencia requerida: {requirement.RequiredCatalogItem?.Name ?? requirement.Name}.");
     }
 
     private static EligibilityReasonResponse EvaluateDocument(
@@ -354,20 +688,25 @@ public sealed class CatalogService(
         IReadOnlyList<EmployeeDocument> documents,
         DateOnly referenceDate)
     {
+        // Por identificador del catálogo, igual que la experiencia. El enum sigue comparándose como
+        // respaldo para las filas que la conversión todavía no emparejó: sin él, un documento
+        // anterior dejaría de cubrir un requisito que sí cubre.
         var document = documents.FirstOrDefault(item =>
             item.Active &&
-            item.DocumentType.ToString().Equals(requirement.RequiredCode, StringComparison.OrdinalIgnoreCase) &&
+            (item.IdDocumentCategoryCatalogItem.HasValue
+                ? item.IdDocumentCategoryCatalogItem == requirement.IdRequiredCatalogItem
+                : item.DocumentType == requirement.RequiredDocumentType) &&
             (item.Status is EmployeeDocumentStatus.Validated or EmployeeDocumentStatus.Received) &&
             (!item.ExpiresDate.HasValue || item.ExpiresDate.Value >= referenceDate));
 
         return new EligibilityReasonResponse(
             ScopeLabel(requirement),
             requirement.Name,
-            requirement.IsBlocking,
+            Severity(requirement),
             document is not null,
             document is not null
-                ? $"Documento vigente: {document.DocumentType}."
-                : $"Falta documento vigente o validado: {requirement.RequiredCode}.");
+                ? $"Documento vigente: {requirement.RequiredCatalogItem?.Name ?? requirement.Name}."
+                : $"Falta documento vigente o validado: {requirement.RequiredCatalogItem?.Name ?? requirement.Name}.");
     }
 
     private static EligibilityReasonResponse EvaluateEvaluation(
@@ -377,18 +716,20 @@ public sealed class CatalogService(
     {
         var evaluation = evaluations.FirstOrDefault(item =>
             item.Active &&
-            item.EvaluationType.ToString().Equals(requirement.RequiredCode, StringComparison.OrdinalIgnoreCase) &&
+            (item.IdEvaluationCategoryCatalogItem.HasValue
+                ? item.IdEvaluationCategoryCatalogItem == requirement.IdRequiredCatalogItem
+                : item.EvaluationType == requirement.RequiredEvaluationType) &&
             (item.Result is EmployeeEvaluationResult.Approved or EmployeeEvaluationResult.ApprovedWithObservations) &&
             (!item.ExpiresDate.HasValue || item.ExpiresDate.Value >= referenceDate));
 
         return new EligibilityReasonResponse(
             ScopeLabel(requirement),
             requirement.Name,
-            requirement.IsBlocking,
+            Severity(requirement),
             evaluation is not null,
             evaluation is not null
-                ? $"Evaluación aprobada: {evaluation.EvaluationType}."
-                : $"Falta evaluación aprobada/vigente: {requirement.RequiredCode}.");
+                ? $"Evaluación aprobada: {requirement.RequiredCatalogItem?.Name ?? requirement.Name}."
+                : $"Falta evaluación aprobada/vigente: {requirement.RequiredCatalogItem?.Name ?? requirement.Name}.");
     }
 
     private async Task<(Guid? IdClient, Guid? IdService, Guid? IdPosition)> ResolveEligibilityContextAsync(
@@ -515,31 +856,43 @@ public sealed class CatalogService(
         CancellationToken cancellationToken)
     {
         var item = await repository.GetCatalogItemAsync(idOrganization, idSkillCatalogItem, cancellationToken)
-            ?? throw new ResourceNotFoundException("No se encontró la habilidad seleccionada.");
+            ?? throw new ResourceNotFoundException("No se encontró la experiencia seleccionada.");
 
         if (item.Type != BusinessCatalogItemType.Skill || !item.Active)
         {
-            throw new ResourceConflictException("El catálogo seleccionado no es una habilidad.");
+            throw new ResourceConflictException("El catálogo seleccionado no es una experiencia.");
         }
     }
 
-    private async Task EnsureCatalogCodeAvailableAsync(
+    /// <summary>
+    /// Que no haya ya un valor con el mismo nombre plegado bajo el mismo padre.
+    ///
+    /// <para><b>Quien de verdad lo impide es el indice unico de la base</b>, no esta comprobacion:
+    /// dos peticiones a la vez la esquivarian. Esto existe para responder con un mensaje que se
+    /// entiende, y el mensaje dice lo del borrado logico porque es la pregunta que sigue: aqui los
+    /// registros no se borran, asi que desactivar un valor no libera su nombre.</para>
+    /// </summary>
+    private async Task EnsureCatalogNameAvailableAsync(
         Guid idOrganization,
         BusinessCatalogItemType type,
-        string code,
+        string name,
+        Guid? idParentCatalogItem,
         Guid? excludedId,
         CancellationToken cancellationToken)
     {
-        if (await repository.CatalogCodeExistsAsync(idOrganization, type, code, excludedId, cancellationToken))
+        var plegado = CatalogName.Normalize(name);
+
+        if (await repository.CatalogNameExistsAsync(idOrganization, type, plegado, idParentCatalogItem, excludedId, cancellationToken))
         {
-            throw new ResourceConflictException("Ya existe un catálogo con esa clave para el mismo tipo.");
+            throw new ResourceConflictException(
+                $"Ya existe «{name.Trim()}» en este catálogo, aunque esté inactivo: aquí los " +
+                "registros no se borran, así que su nombre sigue ocupado.");
         }
     }
 
     private static BusinessCatalogItemProfile ValidateCatalogProfile(CatalogItemInput request, BusinessCatalogItem? existing = null)
     {
         var errors = new Dictionary<string, string[]>();
-        var code = InputValidation.Required(request.Code, nameof(request.Code), 80, errors);
         var name = InputValidation.Required(request.Name, nameof(request.Name), 160, errors);
         var description = InputValidation.Optional(request.Description, nameof(request.Description), 1000, errors);
         if (request.Type is BusinessCatalogItemType.State or BusinessCatalogItemType.City or BusinessCatalogItemType.JobPosition or BusinessCatalogItemType.CoverageReason && name.Length > 120)
@@ -547,36 +900,79 @@ public sealed class CatalogService(
         if (request.Type == BusinessCatalogItemType.Nationality && name.Length > 80)
             errors[nameof(request.Name)] = ["La nacionalidad admite hasta 80 caracteres."];
         if (!Enum.IsDefined(request.Type)) errors[nameof(request.Type)] = ["Selecciona un catalogo del sistema."];
-        var group = InputValidation.Required(request.Group ?? existing?.Group ?? CatalogDefinitions.DefaultGroup(request.Type), nameof(request.Group), 80, errors);
         var order = request.Order ?? existing?.Order ?? 1;
         if (order < 1 || order > 100000) errors[nameof(request.Order)] = ["El orden debe estar entre 1 y 100000."];
-        var synonyms = request.Synonyms ?? existing?.Synonyms ?? [];
-        if (synonyms.Length > 20 || synonyms.Any(value => string.IsNullOrWhiteSpace(value) || value.Trim().Length > 80))
-            errors[nameof(request.Synonyms)] = ["Usa hasta 20 sinonimos de 1 a 80 caracteres."];
+
+        // La marca de bloqueo sólo la admiten los cuatro catálogos de la elegibilidad. Se avisa aquí
+        // en vez de dejar que la entidad lance, porque desde aquí sale un 400 que nombra el campo y
+        // desde allá saldría un error de argumento.
+        var admiteMarca = BusinessCatalogItem.SupportsBlockingMark(request.Type);
+        if (request.IsBlocking.HasValue && !admiteMarca)
+        {
+            errors[nameof(request.IsBlocking)] =
+                ["Este catálogo no participa en la elegibilidad, así que no lleva marca de bloqueo."];
+        }
+
+        // Y donde la marca significa algo, es obligatoria al crear.
+        //
+        // Hasta el 21 de septiembre de 2026 podía nacer sin decidir, y ese tercer estado resultó
+        // ser una trampa: como «no te mando la marca» y «déjala sin decidir» viajan los dos como
+        // nulo, el servidor no podía distinguirlos y conservaba la que había. Quien elegía «Sin
+        // decidir» veía un guardado correcto y ningún cambio. La matriz pide dos estados —«impide
+        // asignar y publicar» o «sólo deja constancia»—, así que el tercero se retira en vez de
+        // arreglarse.
+        if (admiteMarca && existing is null && !request.IsBlocking.HasValue)
+        {
+            errors[nameof(request.IsBlocking)] =
+                ["Di si su falta impide asignar y publicar, o si sólo deja constancia."];
+        }
+
         InputValidation.ThrowIfInvalid(errors);
-        if (request.Type == BusinessCatalogItemType.Country && (code.Length != 2 || code.Any(character => !char.IsAsciiLetter(character))))
-            throw new RequestValidationException(new Dictionary<string, string[]> { [nameof(request.Code)] = ["Usa un codigo de pais de dos letras."] });
-        return new BusinessCatalogItemProfile(request.Type, code, name, description, group, order, synonyms, request.IdParentCatalogItem);
+
+        // Al editar sin mandar la marca se conserva la que tenía: una pantalla que sólo corrige el
+        // nombre no debería convertir en informativa una entrada bloqueante. Ya no puede engañar,
+        // porque después de la migración compensatoria ninguna entrada de estos cuatro catálogos
+        // está sin decidir, y ninguna puede volver a estarlo.
+        bool? isBlocking = admiteMarca ? request.IsBlocking ?? existing?.IsBlocking ?? false : null;
+        return new BusinessCatalogItemProfile(request.Type, name, description, order, request.IdParentCatalogItem, isBlocking);
     }
+
+    /// <summary>
+    /// De qué tipo tiene que ser el padre de cada catálogo, y si es obligatorio tenerlo.
+    ///
+    /// <para>La geografía lo exige: un estado sin país y un municipio sin estado no significan nada.
+    /// El grupo del tipo de documento <b>no</b>: agrupar es una comodidad, y obligar a crear
+    /// «Identidad» antes de poder registrar «INE» invertiría el orden en que se trabaja.</para>
+    /// </summary>
+    private static readonly Dictionary<BusinessCatalogItemType, (BusinessCatalogItemType Parent, bool Required)> ParentRules =
+        new()
+        {
+            [BusinessCatalogItemType.State] = (BusinessCatalogItemType.Country, true),
+            [BusinessCatalogItemType.City] = (BusinessCatalogItemType.State, true),
+            [BusinessCatalogItemType.EmployeeDocumentCategory] = (BusinessCatalogItemType.EmployeeDocumentGroup, false)
+        };
 
     private async Task ValidateParentAsync(CatalogItemInput request, CancellationToken token, Guid? excludedId = null)
     {
-        BusinessCatalogItemType? expected = request.Type switch
-        {
-            BusinessCatalogItemType.State => BusinessCatalogItemType.Country,
-            BusinessCatalogItemType.City => BusinessCatalogItemType.State,
-            _ => null
-        };
+        var tieneRegla = ParentRules.TryGetValue(request.Type, out var rule);
+        BusinessCatalogItemType? expected = tieneRegla ? rule.Parent : null;
+        var required = tieneRegla && rule.Required;
+
         if (expected is null && request.IdParentCatalogItem is null) return;
-        if (expected is null || request.IdParentCatalogItem is null)
+        if (expected is null)
+            throw new ResourceConflictException("Este catalogo no cuelga de ningun otro.");
+        if (request.IdParentCatalogItem is null)
+        {
+            if (!required) return;
             throw new ResourceConflictException("Selecciona la relacion geografica correspondiente.");
+        }
         var parent = await repository.GetCatalogItemAsync(request.IdOrganization, request.IdParentCatalogItem.Value, token);
         if (parent is null || !parent.Active || parent.Type != expected)
-            throw new ResourceConflictException("El pais o estado debe estar activo y pertenecer a la misma organizacion.");
+            throw new ResourceConflictException("El valor del que cuelga debe estar activo y pertenecer a la misma organizacion.");
         var siblings = await repository.ListCatalogItemsAsync(request.IdOrganization, request.Type, token);
         if (siblings.Any(item => item.IdBusinessCatalogItem != excludedId && item.IdParentCatalogItem == request.IdParentCatalogItem &&
             string.Equals(item.Name, request.Name?.Trim(), StringComparison.OrdinalIgnoreCase)))
-            throw new ResourceConflictException("Ya existe ese nombre en el pais o estado seleccionado.");
+            throw new ResourceConflictException("Ya existe ese nombre dentro del valor seleccionado.");
         if (parent.IdParentCatalogItem is { } grandparentId)
         {
             var grandparent = await repository.GetCatalogItemAsync(request.IdOrganization, grandparentId, token);
@@ -587,8 +983,34 @@ public sealed class CatalogService(
     private static EligibilityRequirementProfile ValidateRequirementProfile(EligibilityRequirementInput request)
     {
         var errors = new Dictionary<string, string[]>();
-        var code = InputValidation.Required(request.RequiredCode, nameof(request.RequiredCode), 80, errors);
         var name = InputValidation.Required(request.Name, nameof(request.Name), 160, errors);
+
+        // La restriccion se retiro el 19 de septiembre de 2026. Se rechaza en el servidor y no solo
+        // quitandola del desplegable: el frontend no es donde se protegen las reglas, y una
+        // peticion armada a mano podria seguir creandolas.
+        if (request.RequirementType is EligibilityRequirementType.Restriction)
+        {
+            errors[nameof(request.RequirementType)] =
+                ["La restricción bloqueante se retiró. Registra una incidencia administrativa, que deja constancia con su fecha y su motivo."];
+        }
+
+        // Se dice aqui, con el nombre del campo que falta, para que el formulario pueda senalarlo.
+        // La entidad lo vuelve a comprobar y la base lo garantiza con una restriccion.
+        switch (request.RequirementType)
+        {
+            case EligibilityRequirementType.Skill when request.IdRequiredCatalogItem is null:
+                errors[nameof(request.IdRequiredCatalogItem)] = ["Elige la experiencia que la regla exige."];
+                break;
+            case EligibilityRequirementType.Document when request.RequiredDocumentType is null:
+                errors[nameof(request.RequiredDocumentType)] = ["Elige el tipo de documento que la regla exige."];
+                break;
+            case EligibilityRequirementType.Evaluation when request.RequiredEvaluationType is null:
+                errors[nameof(request.RequiredEvaluationType)] = ["Elige el tipo de evaluación que la regla exige."];
+                break;
+            default:
+                break;
+        }
+
         var description = InputValidation.Optional(request.Description, nameof(request.Description), 1000, errors);
         InputValidation.ThrowIfInvalid(errors);
         return new EligibilityRequirementProfile(
@@ -597,10 +1019,11 @@ public sealed class CatalogService(
             request.IdService,
             request.IdPosition,
             request.RequirementType,
-            code,
+            request.IdRequiredCatalogItem,
+            request.RequiredDocumentType,
+            request.RequiredEvaluationType,
             name,
-            description,
-            request.IsBlocking);
+            description);
     }
 
     private static EmployeeSkillProfile ValidateEmployeeSkillProfile(EmployeeSkillInput request)
@@ -610,7 +1033,7 @@ public sealed class CatalogService(
 
         if (request.IdSkillCatalogItem == Guid.Empty)
         {
-            errors[nameof(request.IdSkillCatalogItem)] = ["La habilidad es obligatoria."];
+            errors[nameof(request.IdSkillCatalogItem)] = ["La experiencia es obligatoria."];
         }
 
         if (request.ExpiresDate < request.AcquiredDate)
@@ -623,8 +1046,9 @@ public sealed class CatalogService(
     }
 
     private static CatalogItemResponse MapCatalogItem(BusinessCatalogItem item) =>
-        new(item.IdBusinessCatalogItem, item.IdOrganization, item.Type, item.Code, item.Name, item.Description, item.Active,
-            item.Group, item.Order, item.Synonyms, item.UpdatedAt ?? item.CreatedAt, item.IdParentCatalogItem);
+        new(item.IdBusinessCatalogItem, item.IdOrganization, item.Type, item.Name, item.Description, item.Active,
+            item.Order, item.UpdatedAt ?? item.CreatedAt, item.IdParentCatalogItem,
+            item.IsBlocking, BusinessCatalogItem.SupportsBlockingMark(item.Type));
 
     private static EligibilityRequirementResponse MapRequirement(EligibilityRequirement requirement) =>
         new(
@@ -638,10 +1062,13 @@ public sealed class CatalogService(
             requirement.IdPosition,
             requirement.Position?.Name,
             requirement.RequirementType,
-            requirement.RequiredCode,
+            requirement.IdRequiredCatalogItem,
+            requirement.RequiredCatalogItem?.Name,
+            requirement.RequiredDocumentType,
+            requirement.RequiredEvaluationType,
             requirement.Name,
             requirement.Description,
-            requirement.IsBlocking,
+            Severity(requirement),
             requirement.Active);
 
     private static EmployeeSkillResponse MapEmployeeSkill(EmployeeSkill skill) =>
@@ -649,7 +1076,6 @@ public sealed class CatalogService(
             skill.IdEmployeeSkill,
             skill.IdEmployee,
             skill.IdSkillCatalogItem,
-            skill.SkillCatalogItem.Code,
             skill.SkillCatalogItem.Name,
             skill.AcquiredDate,
             skill.ExpiresDate,

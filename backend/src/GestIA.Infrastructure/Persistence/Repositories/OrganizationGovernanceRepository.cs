@@ -20,7 +20,8 @@ public sealed class OrganizationGovernanceRepository(GestIaDbContext dbContext)
                     organization.CodeOrganization,
                     organization.LegalName,
                     organization.Rfc,
-                    organization.Active),
+                    organization.Active,
+                    organization.PayrollFrequency),
                 // Vista de plataforma: lista las organizaciones con sus clientes, así que cruza
                 // organizaciones a propósito. El endpoint exige PLATFORM.ADMIN.
                 Clients = dbContext.Clients

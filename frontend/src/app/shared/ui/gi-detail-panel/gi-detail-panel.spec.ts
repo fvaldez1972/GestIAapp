@@ -6,7 +6,7 @@ import { GiDetailPanel, GiTab, GiTabContent } from './gi-detail-panel';
 
 const PESTANAS: readonly GiTab[] = [
   { id: 'datos', label: 'Datos' },
-  { id: 'sedes', label: 'Sedes', count: 4 },
+  { id: 'zonas', label: 'Zonas', count: 4 },
   { id: 'contactos', label: 'Contactos', count: 0 },
   { id: 'documentos', label: 'Documentos', count: 12 },
 ];
@@ -23,9 +23,10 @@ const PESTANAS: readonly GiTab[] = [
       (close)="cierres.set(cierres() + 1)"
     >
       <ng-template giTab="datos">Razón social y RFC</ng-template>
-      <ng-template giTab="sedes">Peñón de los Baños</ng-template>
+      <ng-template giTab="zonas">Peñón de los Baños</ng-template>
       <ng-template giTab="contactos">Sin contactos registrados</ng-template>
       <ng-template giTab="documentos">Acta constitutiva</ng-template>
+      <button panelActions type="button">Editar</button>
       <button panelFooter type="button">Guardar cambios</button>
     </gi-detail-panel>
   `,
@@ -99,6 +100,27 @@ describe('GiDetailPanel', () => {
     expect(host.cierres()).toBe(1);
   });
 
+  /**
+   * La cabecera admite acciones sobre el registro abierto.
+   *
+   * <p>Antes sólo estaba la cruz y ese espacio quedaba vacío, así que la acción principal de una
+   * ficha —editarla— tenía que vivir en el menú de la fila del listado: otro sitio, y hay que
+   * cerrar la ficha para llegar.</p>
+   */
+  it('deja poner acciones en la cabecera, junto a la cruz', () => {
+    const { raiz } = montar();
+
+    const acciones = raiz.querySelector('.gi-panel__acciones');
+    expect(acciones).not.toBeNull();
+
+    const editar = Array.from(acciones!.querySelectorAll('button')).find(
+      (b) => b.textContent?.trim() === 'Editar',
+    );
+    expect(editar).toBeDefined();
+    // Y la cruz sigue ahí, en el mismo grupo.
+    expect(acciones!.querySelector('.gi-panel__close')).not.toBeNull();
+  });
+
   describe('con pestañas', () => {
     it('la primera está activa por omisión y su cuerpo es el que se ve', () => {
       const { tabs, cuerpo } = montar();
@@ -108,7 +130,7 @@ describe('GiDetailPanel', () => {
     });
 
     it('la activa se marca con aria-selected y con la clase, no sólo con color', () => {
-      const { tabs } = montar((host) => host.activa.set('sedes'));
+      const { tabs } = montar((host) => host.activa.set('zonas'));
 
       expect(tabs().map((t) => t.getAttribute('aria-selected'))).toEqual(['false', 'true', 'false', 'false']);
       expect(tabs()[1].classList.contains('is-active')).toBe(true);
@@ -154,7 +176,7 @@ describe('GiDetailPanel', () => {
       };
 
       teclear(tabs()[0], 'ArrowRight');
-      expect(host.activa()).toBe('sedes');
+      expect(host.activa()).toBe('zonas');
 
       teclear(tabs()[1], 'ArrowLeft');
       expect(host.activa()).toBe('datos');
@@ -194,7 +216,7 @@ describe('GiDetailPanel', () => {
         montar((host) =>
           host.pestanas.set([
             { id: 'ficha', label: 'Ficha' },
-            { id: 'sedes', label: 'Sedes' },
+            { id: 'zonas', label: 'Zonas' },
           ]),
         ),
       ).toThrowError(/debe llamarse "Datos"/);
@@ -205,5 +227,39 @@ describe('GiDetailPanel', () => {
       expect(() => montar((host) => host.pestanas.set([{ id: 'datos', label: 'Datos' }])))
         .toThrowError(/una sola pestaña no es una elección/i);
     });
+  });
+});
+
+/**
+ * El panel vacío.
+ *
+ * <p>Salió recorriendo el portal: en Asistencia e Incidencias el panel abría con su cabecera, su
+ * «×» y <b>nada dentro</b>. La causa era que esas pantallas usaban `<ng-template giTab="…">` sin
+ * importar `GiTabContent`, así que el atributo quedaba inerte y `contentChildren` no encontraba
+ * ninguna plantilla. Angular no protesta —un `ng-template` con un atributo desconocido es legal—,
+ * de modo que tres paneles quedaron inservibles sin un solo error en consola: registrar la
+ * asistencia, registrar una incidencia y cubrir un turno.</p>
+ */
+describe('GiDetailPanel · un panel sin contenido', () => {
+  afterEach(() => TestBed.resetTestingModule());
+
+  it('rompe en desarrollo en vez de dibujarse vacío', () => {
+    @Component({
+      // A propósito SIN `GiTabContent`: es exactamente el olvido que hay que detectar.
+      imports: [GiDetailPanel],
+      template: `
+        <gi-detail-panel title="Registrar una incidencia">
+          <ng-template giTab="datos"><p>El formulario</p></ng-template>
+        </gi-detail-panel>
+      `,
+    })
+    class SinLaDirectiva {}
+
+    TestBed.configureTestingModule({ imports: [SinLaDirectiva] });
+
+    expect(() => {
+      const fixture = TestBed.createComponent(SinLaDirectiva);
+      fixture.detectChanges();
+    }).toThrowError(/no tiene contenido/);
   });
 });

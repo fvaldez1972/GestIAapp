@@ -12,12 +12,15 @@ import { EmployeeForm, EmployeeFormValue } from './employee-form';
     <app-employee-form
       organizationId="o1"
       [jobPositions]="jobPositions()"
+      [canWrite]="true"
       [today]="hoy()"
+      (createJobPosition)="creados.set([...creados(), $event.name])"
       (save)="guardado.set($event)"
     />
   `,
 })
 class Anfitrion {
+  readonly creados = signal<string[]>([]);
   readonly jobPositions = signal<readonly EmployeeJobPositionOption[]>([
     { idCatalogItem: 'jp-1', name: 'Guardia intramuros' },
     { idCatalogItem: 'jp-2', name: 'Supervisor de zona' },
@@ -107,15 +110,27 @@ describe('El alta de una persona', () => {
   });
 
   /**
-   * Sin puestos en el catálogo no se pinta un selector vacío: se dice que falta un paso anterior y
-   * dónde se resuelve.
+   * <b>Esta prueba cambió de sentido el 7 de septiembre de 2026, y el cambio es el punto de la
+   * tanda.</b> Antes comprobaba que, sin puestos en el catálogo, el alta mandara a Catálogos: había
+   * que abandonar el formulario a medias, crear el puesto y volver a empezar. Ahora el catálogo
+   * vacío no es una pared: se escribe el puesto aquí y se ofrece agregarlo.
    */
-  it('sin puestos en el catálogo lo dice y manda a Catálogos', () => {
-    const { raiz } = montar((host) => host.jobPositions.set([]));
+  it('sin puestos en el catálogo ofrece crear el primero sin salir del alta', () => {
+    const { raiz, fixture } = montar((host) => host.jobPositions.set([]));
 
-    expect(raiz.querySelector('app-job-position-missing')).not.toBeNull();
-    expect(raiz.querySelector('gi-select')).toBeNull();
-    expect(raiz.textContent).toContain('no tiene puestos en su catálogo');
+    const input = raiz.querySelector<HTMLInputElement>('#empleado-puesto')!;
+    input.value = 'Jefe de turno';
+    input.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+
+    expect(raiz.textContent).toContain('No tienes «Jefe de turno» en el catálogo de puestos');
+
+    raiz.querySelector<HTMLButtonElement>('.pick__crear')!.click();
+    fixture.detectChanges();
+
+    // El formulario sólo dice qué se pidió: crearlo es escritura a otro módulo y la resuelve la
+    // pantalla, que además tiene que recargar el catálogo.
+    expect(fixture.componentInstance.creados()).toEqual(['Jefe de turno']);
   });
 
   /** Todo campo lleva su etiqueta ligada: sin `for` el rótulo no pertenece a nada. */

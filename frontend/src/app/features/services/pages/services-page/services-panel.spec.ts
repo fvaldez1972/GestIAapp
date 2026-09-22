@@ -14,8 +14,8 @@ const SERVICIO = {
   idService: 'srv-1',
   idClient: 'client-1',
   clientName: 'Corporativo Altavista',
-  idClientSite: 'site-1',
-  clientSiteName: 'Torre Altavista',
+  idClientZone: 'zone-1',
+  clientZoneName: 'Torre Altavista',
   idServiceContract: null,
   serviceContractCode: null,
   codeService: 'SRV-01',
@@ -47,7 +47,8 @@ const CONFIGURACION = {
   preparationLeadDays: 5,
   workScheduleDescription: 'Turnos de 07:00 a 19:00',
   specificInstructions: null,
-  monthlyPrice: 120000,
+  price: 120000,
+  priceFrequency: 'Monthly',
   currencyCode: 'MXN',
   isTaxIncluded: false,
   active: true,
@@ -112,12 +113,11 @@ describe('Servicios · ficha', () => {
     pagina()['openService'](SERVICIO);
 
     http.expectOne((r) => r.url === '/api/v1/clients/client-1').flush({ idClient: 'client-1', idOrganization: 'org-a', legalName: 'Corporativo Altavista', active: true });
-    http.expectOne((r) => r.url.endsWith('/sites')).flush([]);
+    http.expectOne((r) => r.url.endsWith('/zones')).flush([]);
     http.expectOne((r) => r.url.endsWith('/contracts')).flush([]);
     http.expectOne((r) => r.url.endsWith('/contacts')).flush([
-      { idClientContact: 'c-1', idClientSite: 'site-1', purpose: 'Operational', fullName: 'Adriana Quiñones', jobTitle: 'Jefa de seguridad', phone: '55 4821 9033', isPrimary: true, active: true },
+      { idClientContact: 'c-1', idClientZone: 'zone-1', purpose: 'Operational', fullName: 'Adriana Quiñones', jobTitle: 'Jefa de seguridad', phone: '55 4821 9033', isPrimary: true, active: true },
     ]);
-    http.expectOne((r) => r.url.endsWith('/configurations')).flush(configuraciones);
     http.expectOne((r) => r.url.endsWith('/positions')).flush([]);
     http.expectOne((r) => r.url.endsWith('/assignments')).flush([]);
     http.expectOne((r) => r.url.endsWith('/positions/vacancy')).flush(VACANTES);
@@ -142,7 +142,7 @@ describe('Servicios · ficha', () => {
     const antes = Array.from(raiz().querySelectorAll('gi-data-table thead th')).map((th) =>
       th.textContent?.trim(),
     );
-    expect(antes).toEqual(['Servicio', 'Cliente · Sede', 'Vigencia', 'Posiciones', 'Estado', '']);
+    expect(antes).toEqual(['Servicio', 'Cliente · Zona', 'Vigencia', 'Posiciones', 'Estado', '']);
 
     abrir();
 
@@ -158,133 +158,29 @@ describe('Servicios · ficha', () => {
       t.textContent?.trim(),
     );
 
-    expect(pestanas).toEqual(['Datos', 'Configuración', 'Posiciones', 'Asignaciones']);
+    // Documentos entró el 19 de septiembre de 2026 con la cédula de servicio. El modelo ya admitía
+    // documentos del servicio; lo que faltaba era dónde verlos.
+    expect(pestanas).toEqual(['Datos', 'Posiciones', 'Asignaciones', 'Documentos']);
   });
 
   /** El contador evita abrir la pestaña para descubrir si hay hueco. */
   it('Asignaciones lleva el número de vacantes en el tabulador', () => {
     abrir();
-    const asignaciones = Array.from(raiz().querySelectorAll('[role="tab"]')).at(-1)!;
+    // Por su rótulo y no por su posición: Asignaciones dejó de ser la última cuando entró
+    // Documentos, y una prueba que dice «la última» se rompe cada vez que se suma una pestaña.
+    const asignaciones = Array.from(raiz().querySelectorAll('[role="tab"]')).find((tab) =>
+      tab.textContent?.includes('Asignaciones'),
+    )!;
 
     // Una vacante en P-01 y ninguna en P-02.
     expect(asignaciones.querySelector('.gi-panel__count')?.textContent?.trim()).toBe('1');
   });
 
-  it('la pestaña Datos muestra el contacto operativo de la sede, en lectura', () => {
+  it('la pestaña Datos muestra el contacto operativo de la zona, en lectura', () => {
     abrir();
 
     expect(raiz().textContent).toContain('Adriana Quiñones');
     expect(raiz().textContent).toContain('Jefa de seguridad');
-  });
-
-  describe('el token de concurrencia', () => {
-    /**
-     * <b>Lo que F2 construyó y nadie usaba.</b> El contrato acepta el token nulo, así que hasta
-     * ahora la aplicación guardaba las configuraciones sin comprobación de concurrencia.
-     */
-    it('se devuelve igual al guardar', () => {
-      abrir();
-      pagina()['openEditConfiguration'](CONFIGURACION);
-      pagina()['saveConfiguration']();
-
-      const request = http.expectOne((r) => r.method === 'PUT' && r.url.includes('/configurations/'));
-      expect(request.request.body.rowVersion).toBe(TOKEN);
-      request.flush({ ...CONFIGURACION, rowVersion: 'AAAAAAAAB9I=' });
-
-      http.expectOne((r) => r.url.endsWith('/configurations')).flush([CONFIGURACION]);
-    });
-
-    /**
-     * El 409 de concurrencia dice **quién** corrigió el registro y **cuándo**, y su salida es
-     * volver a cargar: no se arregla reintentando.
-     */
-    it('el 409 de concurrencia dice quién fue y ofrece recargar', () => {
-      abrir();
-      pagina()['openEditConfiguration'](CONFIGURACION);
-      pagina()['saveConfiguration']();
-
-      http.expectOne((r) => r.method === 'PUT').flush(
-        {
-          title: 'Conflicto de concurrencia',
-          detail: 'Ana Ruiz, el 04 sep 2026 a las 10:05, corrigió este registro. Vuelve a cargarlo para no perder su corrección.',
-        },
-        { status: 409, statusText: 'Conflict' },
-      );
-      fixture.detectChanges();
-
-      expect(pagina()['conflict']()).toContain('Ana Ruiz');
-      expect(pagina()['error']()).toBe('');
-      expect(raiz().querySelector('.conflict')?.textContent).toContain('Volver a cargar');
-      // El editor se cierra: lo que hay dentro es la versión vieja, y además taparía el aviso.
-      expect(pagina()['configurationEditorOpen']()).toBe(false);
-    });
-
-    /**
-     * <b>No todo 409 es concurrencia.</b> Un código repetido también lo es, y ése sí se arregla
-     * en el formulario: va a la franja de errores, no a la de conflicto.
-     */
-    it('un 409 que no es de concurrencia no se confunde con uno que sí', () => {
-      abrir();
-      pagina()['openEditConfiguration'](CONFIGURACION);
-      pagina()['saveConfiguration']();
-
-      http.expectOne((r) => r.method === 'PUT').flush(
-        { title: 'Conflicto de datos', detail: 'Ya existe una configuración vigente en ese periodo.' },
-        { status: 409, statusText: 'Conflict' },
-      );
-      fixture.detectChanges();
-
-      expect(pagina()['conflict']()).toBe('');
-      expect(pagina()['error']()).toContain('Ya existe una configuración vigente');
-    });
-
-    it('volver a cargar cierra el editor y relee la configuración', () => {
-      abrir();
-      pagina()['openEditConfiguration'](CONFIGURACION);
-      pagina()['conflict'].set('Alguien la corrigió.');
-
-      pagina()['reloadAfterConflict']();
-
-      expect(pagina()['conflict']()).toBe('');
-      expect(pagina()['configurationEditorOpen']()).toBe(false);
-      http.expectOne((r) => r.url.endsWith('/configurations')).flush([CONFIGURACION]);
-    });
-  });
-
-  describe('el motivo de corrección', () => {
-    /** El campo aparece cuando el servidor lo exige, y **llega vacío**. */
-    it('se abre vacío cuando el servidor lo pide, y no se sugiere nada', () => {
-      abrir();
-      pagina()['openEditConfiguration'](CONFIGURACION);
-      pagina()['saveConfiguration']();
-
-      http.expectOne((r) => r.method === 'PUT').flush(
-        { title: 'Conflicto de datos', detail: 'Corregir una configuración vencida requiere motivo.' },
-        { status: 409, statusText: 'Conflict' },
-      );
-      fixture.detectChanges();
-
-      expect(pagina()['correctionReasonRequired']()).toBe(true);
-      expect(pagina()['correctionReason']()).toBe('');
-
-      const campo = raiz().querySelector<HTMLTextAreaElement>('textarea[minlength="10"]')!;
-      expect(campo.value).toBe('');
-      expect(campo.placeholder).toBe('');
-    });
-
-    it('el motivo viaja al servidor cuando se escribe', () => {
-      abrir();
-      pagina()['openEditConfiguration'](CONFIGURACION);
-      pagina()['correctionReason'].set('Se corrigió el precio pactado en el anexo firmado.');
-      pagina()['saveConfiguration']();
-
-      const request = http.expectOne((r) => r.method === 'PUT');
-      expect(request.request.body.correctionReason).toBe(
-        'Se corrigió el precio pactado en el anexo firmado.',
-      );
-      request.flush(CONFIGURACION);
-      http.expectOne((r) => r.url.endsWith('/configurations')).flush([CONFIGURACION]);
-    });
   });
 
   describe('la cobertura por posición', () => {

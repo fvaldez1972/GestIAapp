@@ -198,7 +198,11 @@ public sealed partial class WorkforceRepository(GestIaDbContext dbContext) : IWo
             employee.HomePhone,
             employee.EmergencyContactName,
             employee.EmergencyContactPhone,
+            employee.EmergencyContactRelationship,
             employee.Address,
+            employee.Street,
+            employee.StreetNumber,
+            employee.Neighborhood,
             employee.Municipality,
             employee.State,
             employee.PostalCode,
@@ -206,5 +210,8 @@ public sealed partial class WorkforceRepository(GestIaDbContext dbContext) : IWo
             employee.ResidenceSinceDate,
             employee.Active,
             employee.CreatedAt,
-            employee.UpdatedAt, employee.CountryCode);
+            employee.UpdatedAt,
+            employee.CountryCode,
+            employee.IdJobPositionCatalogItem,
+            employee.IdEducationLevelCatalogItem);
 }

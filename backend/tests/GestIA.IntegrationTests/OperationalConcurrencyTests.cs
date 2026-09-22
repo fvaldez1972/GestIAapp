@@ -70,7 +70,7 @@ public sealed class OperationalConcurrencyTests : IClassFixture<OperationalSqlDa
         var service = scope.ServiceProvider.GetRequiredService<IOperationalRequestService>();
         var input = ClientExecution(seed.OrganizationId) with
         {
-            ClientSite = new("SITE", "Site", "Street", null, null, null, "City", "State",
+            ClientZone = new("SITE", "Site", "Street", null, null, null, "City", "State",
                 "01000", "INVALID", null, null)
         };
         await Assert.ThrowsAsync<RequestValidationException>(() => service.ExecuteAsync(request, input, Token));
@@ -82,7 +82,7 @@ public sealed class OperationalConcurrencyTests : IClassFixture<OperationalSqlDa
                 (await context.OperationalRequests.SingleAsync(item => item.IdOperationalRequest == request)).Status);
         }
 
-        var result = await service.ExecuteAsync(request, input with { ClientSite = input.ClientSite! with { CountryCode = "MX" } }, Token);
+        var result = await service.ExecuteAsync(request, input with { ClientZone = input.ClientZone! with { CountryCode = "MX" } }, Token);
         Assert.Equal(OperationalRequestStatus.Completed, result.Request.Status);
         await Assert.ThrowsAsync<ResourceConflictException>(() => service.ExecuteAsync(request, input, Token));
     }
@@ -125,9 +125,20 @@ public sealed class OperationalConcurrencyTests : IClassFixture<OperationalSqlDa
 
         await using (var context = database.Context())
         {
+            // Una experiencia que la persona no tiene, con su marca de bloqueo en el catálogo.
+            // Antes esto era una regla de tipo Restriction, que bloqueaba por serlo; el tipo se
+            // retiró el 19 de septiembre de 2026 y la severidad sale ahora del catálogo.
+            var experiencia = BusinessCatalogItem.Create(
+                seed.OrganizationId,
+                new BusinessCatalogItemProfile(
+                    BusinessCatalogItemType.Skill, "Restricted", null, 1, null, IsBlocking: true),
+                Actor.ActorId, Actor.ActorName, Now);
+            context.BusinessCatalogItems.Add(experiencia);
+
             context.EligibilityRequirements.Add(EligibilityRequirement.Create(seed.OrganizationId,
                 new(EligibilityRequirementTargetType.Position, null, null, seed.PositionId,
-                    EligibilityRequirementType.Restriction, "BLOCK", "Restricted", null, true),
+                    EligibilityRequirementType.Skill, experiencia.IdBusinessCatalogItem,
+                    null, null, "Restricted", null),
                 Actor.ActorId, Actor.ActorName, Now));
             await context.SaveChangesAsync();
         }
@@ -233,7 +244,7 @@ public sealed class OperationalConcurrencyTests : IClassFixture<OperationalSqlDa
             var originalService = await context.Services.SingleAsync(item => item.IdService == seed.ServiceId);
             var otherService = Service.Create(seed.OrganizationId, seed.ClientId, originalService.IdClientSite, null, "OTHER",
                 "Other", "Other service", Day, Actor.ActorId, Actor.ActorName, Now);
-            var position = Position.Create(seed.OrganizationId, otherService.IdService, "P", new("Position", 1, null, null),
+            var position = Position.Create(seed.OrganizationId, otherService.IdService, "P", new("Position", 1, null, null, Day),
                 Actor.ActorId, Actor.ActorName, Now);
             var version = Version(seed.OrganizationId, otherService.IdService);
             version.Publish(Actor.ActorId, Actor.ActorName, Now);
@@ -489,18 +500,18 @@ public sealed class OperationalConcurrencyTests : IClassFixture<OperationalSqlDa
         var client = Client.Create(organization.IdOrganization, "CLIENT", "Client", "EXA010101AA1", Actor.ActorId, Actor.ActorName, Now);
         var site = ClientSite.Create(client.IdOrganization, client.IdClient, "SITE", "Site", "Street", "City", "State", "01000", Actor.ActorId, Actor.ActorName, Now);
         var service = Service.Create(organization.IdOrganization, client.IdClient, site.IdClientSite, null, "SERVICE", "Service", "Service", Day, Actor.ActorId, Actor.ActorName, Now);
-        var position = Position.Create(organization.IdOrganization, service.IdService, "POSITION", new("Position", 1, null, null), Actor.ActorId, Actor.ActorName, Now);
+        var position = Position.Create(organization.IdOrganization, service.IdService, "POSITION", new("Position", 1, null, null, Day), Actor.ActorId, Actor.ActorName, Now);
         var employee = Employee.Create(organization.IdOrganization, "EMPLOYEE", "Employee", null, Day, Actor.ActorId, Actor.ActorName, Now);
         var replacement = Employee.Create(organization.IdOrganization, "REPLACEMENT", "Replacement", null, Day, Actor.ActorId, Actor.ActorName, Now);
         var version = Version(organization.IdOrganization, service.IdService);
         version.Publish(Actor.ActorId, Actor.ActorName, Now);
         var shift = Shift(organization.IdOrganization, version.IdScheduleVersion, position.IdPosition, employee.IdEmployee);
         context.AddRange(organization, client, site, service, position, employee, replacement, version, shift);
-        var country = BusinessCatalogItem.Create(organization.IdOrganization, new(BusinessCatalogItemType.Country, "MX", "Mexico", null), Actor.ActorId, Actor.ActorName, Now);
-        var state = BusinessCatalogItem.Create(organization.IdOrganization, new(BusinessCatalogItemType.State, "STATE", "State", null, IdParentCatalogItem: country.IdBusinessCatalogItem), Actor.ActorId, Actor.ActorName, Now);
-        var city = BusinessCatalogItem.Create(organization.IdOrganization, new(BusinessCatalogItemType.City, "CITY", "City", null, IdParentCatalogItem: state.IdBusinessCatalogItem), Actor.ActorId, Actor.ActorName, Now);
+        var country = BusinessCatalogItem.Create(organization.IdOrganization, new(BusinessCatalogItemType.Country, "Mexico", null), Actor.ActorId, Actor.ActorName, Now);
+        var state = BusinessCatalogItem.Create(organization.IdOrganization, new(BusinessCatalogItemType.State, "State", null, IdParentCatalogItem: country.IdBusinessCatalogItem), Actor.ActorId, Actor.ActorName, Now);
+        var city = BusinessCatalogItem.Create(organization.IdOrganization, new(BusinessCatalogItemType.City, "City", null, IdParentCatalogItem: state.IdBusinessCatalogItem), Actor.ActorId, Actor.ActorName, Now);
         context.AddRange(country, state, city);
-        var reason = BusinessCatalogItem.Create(organization.IdOrganization, new(BusinessCatalogItemType.CoverageReason, "FALTA", "Falta", null), Actor.ActorId, Actor.ActorName, Now);
+        var reason = BusinessCatalogItem.Create(organization.IdOrganization, new(BusinessCatalogItemType.CoverageReason, "Falta", null), Actor.ActorId, Actor.ActorName, Now);
         context.Add(reason);
         await context.SaveChangesAsync();
         // El alta escribe sin filtro; a partir de aquí las lecturas van dentro de esta organización.

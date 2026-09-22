@@ -19,34 +19,41 @@
   } @else if (!canRead()) {
     <gi-empty-state variant="no-permission" />
   } @else {
-    @if (message()) {
-      <p class="clients__note" role="status">{{ message() }}</p>
+    @if (actionError()) {
+      <p class="gi-alert gi-alert--error" role="alert">{{ actionError() }}</p>
     }
 
     <!--
-      El aviso de la vista 5. Llega al volver al listado y **se va solo** en cuanto el cliente
-      tiene sede: no hay que cerrarlo, se resolvió.
+      Sin aviso de exito. Se retiro a peticion del usuario: aparecia tras cada guardado, empujaba la
+      pantalla hacia abajo y repetia lo que el propio resultado ya ensena —la ficha recargada, el
+      contador nuevo, la fila en la lista—. Los errores si se siguen diciendo: eso no se ve solo.
     -->
-    @if (savedWithoutSite(); as pending) {
+
+    <!--
+      El aviso de la vista 5. Llega al volver al listado y **se va solo** en cuanto el cliente
+      tiene zona: no hay que cerrarlo, se resolvió.
+    -->
+    @if (savedWithoutZone(); as pending) {
       <aside class="warning" role="status">
         <span class="warning__bar" aria-hidden="true"></span>
         <span class="warning__body">
-          <span class="warning__title">{{ name(pending) }} se guardó sin sede</span>
+          <span class="warning__title">{{ name(pending) }} se guardó sin zona</span>
           <span class="warning__detail">
             El expediente es válido, pero no permite crear servicios: el servicio se liga a una
-            sede. Se resuelve agregando la primera sede.
+            zona. Se resuelve agregando la primera zona.
           </span>
         </span>
-        <button class="button button--primary" type="button" (click)="addSite()">Agregar sede</button>
+        <button class="button button--primary" type="button" (click)="addZone()">Agregar zona</button>
       </aside>
     }
 
-    <div class="clients__workspace" [class.clients__workspace--split]="selected() || creating()">
+    <!-- El alta ya no parte el espacio: va en ventana, encima. Solo la ficha comprime la lista. -->
+    <div class="clients__workspace">
       <div class="clients__list">
         <gi-filter-bar
           [search]="search()"
           searchLabel="Buscar cliente"
-          searchPlaceholder="Cliente, RFC o sede"
+          searchPlaceholder="Cliente, RFC o zona"
           [groups]="filterGroups()"
           [resultCount]="total()"
           (searchChange)="onSearch($event)"
@@ -59,7 +66,7 @@
           [state]="tableState()"
           [selectedId]="selected()?.idClient ?? null"
           [errorMessage]="error()"
-          [compact]="!!selected() || creating()"
+          [compact]="!!selected()"
           [canWrite]="canWrite()"
           (open)="open($event)"
           (create)="startCreate()"
@@ -68,23 +75,25 @@
         />
       </div>
 
-      @if (creating()) {
-        <gi-detail-panel
-          title="Nuevo cliente"
-          subtitle="El código y la fecha de alta los pone el sistema"
-          (close)="creating.set(false)"
-        >
-          <ng-template giTab="">
-            <app-client-form
-              [saving]="saving()"
-              [problem]="formProblem()"
-              (cancel)="creating.set(false)"
-              (save)="saveNew($event)"
-            />
-          </ng-template>
-        </gi-detail-panel>
-      } @else if (selected(); as client) {
-        <gi-detail-panel
+    </div>
+  }
+</div>
+
+<!--
+  La ficha va en ventana emergente.
+
+  Antes vivia en una columna de 620 px al lado de la tabla, y por debajo de 80 rem el diseño la
+  bajaba a una sola columna: la ficha quedaba **debajo** del listado y en una pantalla chica no se
+  veia. Quien abria un cliente no notaba que algo habia pasado.
+
+  Lo que se pierde, y conviene tenerlo escrito: al lado se podia comparar la ficha con la fila del
+  listado sin cerrarla. En ventana no. Se acepto el cambio porque una ficha que no se ve es peor que
+  una que no se puede comparar.
+-->
+@if (selected(); as client) {
+  <div class="modal-backdrop" (click)="closePanel()">
+    <section class="modal modal--ficha" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+      <gi-detail-panel
           [title]="name(client)"
           [subtitle]="client.active ? 'Activo' : 'Inactivo'"
           [tabs]="panelTabs()"
@@ -92,33 +101,71 @@
           (tabChange)="activeTab.set($event)"
           (close)="closePanel()"
         >
+          <!--
+            La accion de cada apartado, en la cabecera. Editar el cliente estaba solo en el menu de
+            la fila del listado, y para llegar habia que cerrar la ficha que se estaba mirando.
+          -->
+          @if (canWrite()) {
+            <button class="panel-accion" type="button" panelActions (click)="runPanelAction(client)">
+              {{ panelActionLabel() }}
+            </button>
+          }
+
           <ng-template giTab="data">
-            <app-client-data [client]="client" [sites]="sites()" />
+            <app-client-data [client]="client" [zones]="zones()" />
           </ng-template>
 
-          <ng-template giTab="sites">
-            <app-client-sites
+          <ng-template giTab="zones">
+            <app-client-zones
               [organizationId]="organizationId()"
-              [sites]="sites()"
+              [zones]="zones()"
               [contacts]="contacts()"
               [canWrite]="canWrite()"
               [saving]="saving()"
-              [openAdd]="addingSite()"
-              (create)="createSite($event)"
-              (act)="onSiteAction($event)"
+              [openAdd]="addingZone()"
+              (closeAdd)="addingZone.set(false)"
+              [editing]="editingZone()"
+              (create)="createZone($event)"
+              (edit)="updateZone($event)"
+              (closeEdit)="editingZone.set(null)"
+              (act)="onZoneAction($event)"
             />
           </ng-template>
 
           <ng-template giTab="contacts">
-            <app-client-contacts [contacts]="contacts()" [canWrite]="canWrite()" />
+            <app-client-contacts
+              [contacts]="contacts()"
+              [zones]="zones()"
+              [jobPositions]="contactJobPositions()"
+              [purposes]="contactPurposes()"
+              [canWrite]="canWrite()"
+              [saving]="saving()"
+              [openAdd]="addingContact()"
+              (closeAdd)="addingContact.set(false)"
+              (create)="createContact($event)"
+              (edit)="updateContact($event)"
+              (createJobPosition)="createContactJobPosition($event)"
+              (createPurpose)="createContactPurpose($event)"
+            />
           </ng-template>
 
           <ng-template giTab="documents">
+            <!--
+              Variante simple: categoria y archivo. El titulo era un segundo nombre para lo mismo,
+              y emision, vencimiento y la marca de sensible no tienen aqui a quien le sirvan. En
+              Personal siguen, porque alli el vencimiento alimenta la vigencia documental.
+            -->
             <app-entity-documents
               [organizationId]="organizationId()"
               ownerType="Client"
               [ownerId]="client.idClient"
               [ownerLabel]="name(client)"
+              [simple]="true"
+              [categories]="documentCategories()"
+              [openAdd]="addingDocument()"
+              (totalChange)="documentCount.set($event)"
+              (closeAdd)="addingDocument.set(false)"
+              (createCategory)="createDocumentCategory($event)"
             />
           </ng-template>
 
@@ -131,7 +178,7 @@
               <span class="panel-footer__reason" id="motivo-bloqueo">{{ blockReason() }}</span>
             } @else {
               <span class="panel-footer__summary">
-                {{ client.siteCount }} {{ client.siteCount === 1 ? 'sede' : 'sedes' }} ·
+                {{ client.zoneCount }} {{ client.zoneCount === 1 ? 'zona' : 'zonas' }} ·
                 {{ client.contactCount }} {{ client.contactCount === 1 ? 'contacto' : 'contactos' }}
               </span>
             }
@@ -146,11 +193,10 @@
               Crear servicio de este cliente
             </button>
           </footer>
-        </gi-detail-panel>
-      }
-    </div>
-  }
-</div>
+      </gi-detail-panel>
+    </section>
+  </div>
+}
 
 @if (confirming(); as target) {
   <gi-confirm-dialog
@@ -162,4 +208,94 @@
     (confirm)="confirmDeactivate()"
     (cancel)="confirming.set(null)"
   />
+}
+
+<!--
+  El alta va en ventana emergente, no en el panel lateral. El panel comprime la tabla para que no se
+  pierda de vista donde estabas, y eso tiene sentido al abrir un registro que ya existe: se compara
+  con la lista. Un alta no se compara con nada, y ahi la lista comprimida solo quitaba sitio a un
+  formulario que lo necesita.
+-->
+@if (creating()) {
+  <div class="modal-backdrop" (click)="creating.set(false)">
+    <section
+      class="modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="alta-cliente-title"
+      (click)="$event.stopPropagation()"
+    >
+      <header class="modal__head">
+        <div>
+          <span class="eyebrow">Nuevo cliente</span>
+          <h2 id="alta-cliente-title">Alta de cliente</h2>
+          <!--
+            Se dice que el alta pide poco a proposito, y donde se captura el resto.
+
+            Los datos fiscales y de constitucion aparecen al editar y no aqui, y quien lo notaba
+            suponia que se le habia olvidado algo o que el formulario estaba incompleto. La decision
+            fue no sumarlos al alta: un formulario largo se abandona a la mitad, y un registro
+            abandonado no sirve para nada. Lo que se agrega es la frase que lo explica.
+          -->
+          <p>
+            El código y la fecha de alta los pone el sistema. El alta pide lo mínimo para poder
+            trabajar: los datos fiscales y de constitución se capturan después, en la ficha del
+            cliente, y no hacen falta para crearlo.
+          </p>
+        </div>
+        <button type="button" class="modal-close" [disabled]="saving()" aria-label="Cerrar" (click)="creating.set(false)">
+          ×
+        </button>
+      </header>
+
+      <!--
+        La organización va atada, y sin ella el alta no servía: los desplegables de Estado y
+        Municipio se quedaban vacíos porque `catalog-select` no pide las opciones sin saber de qué
+        organización son. Se notaba sólo al crear un cliente, porque en Agregar zona sí se pasaba.
+      -->
+      <app-client-form
+        [organizationId]="organizationId()"
+        [jobPositions]="jobPositions()"
+        [canWrite]="canWrite()"
+        [saving]="saving()"
+        [problem]="formProblem()"
+        (cancel)="creating.set(false)"
+        (save)="saveNew($event)"
+        (createJobPosition)="createJobPosition($event)"
+      />
+    </section>
+  </div>
+}
+
+<!-- Editar la ficha del cliente: ventana, como el alta. -->
+@if (editingClient(); as cliente) {
+  <div class="modal-backdrop" (click)="cancelEdit()">
+    <section
+      class="modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="editar-cliente-title"
+      (click)="$event.stopPropagation()"
+    >
+      <header class="modal__head">
+        <div>
+          <span class="eyebrow">Cliente</span>
+          <h2 id="editar-cliente-title">Editar datos del cliente</h2>
+          <p>{{ cliente.legalName }}</p>
+        </div>
+        <button type="button" class="modal-close" [disabled]="saving()" aria-label="Cerrar" (click)="cancelEdit()">
+          ×
+        </button>
+      </header>
+
+      <app-client-edit-form
+        [client]="cliente"
+        [nationalities]="nationalities()"
+        [saving]="saving()"
+        [problem]="formProblem()"
+        (cancel)="cancelEdit()"
+        (save)="saveEdit($event)"
+      />
+    </section>
+  </div>
 }

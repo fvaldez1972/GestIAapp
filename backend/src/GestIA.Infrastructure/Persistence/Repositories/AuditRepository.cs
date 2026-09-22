@@ -1,6 +1,7 @@
 using GestIA.Application.Audit;
 using GestIA.Application.Common;
 using GestIA.Application.Documents;
+using GestIA.Application.Security;
 using Microsoft.EntityFrameworkCore;
 using System.Globalization;
 
@@ -12,17 +13,16 @@ public sealed class AuditRepository(GestIaDbContext dbContext, IActorContext act
     [
         "Organizaciones",
         "Clientes",
-        "Sedes",
+        "Zonas",
         "Contactos",
         "Contratos",
         "Servicios",
-        "Configuraciones",
         "Personal",
         "Documentos",
         "Evaluaciones",
         "Catálogos",
         "Reglas de elegibilidad",
-        "Habilidades",
+        "Experiencia",
         "Posiciones",
         "Patrones",
         "Segmentos",
@@ -35,7 +35,9 @@ public sealed class AuditRepository(GestIaDbContext dbContext, IActorContext act
         "Autorizaciones",
         "Cierres diarios",
         "Solicitudes",
-        "Sesiones de soporte"
+        "Sesiones de soporte",
+        "Usuarios",
+        "Accesos"
     ];
 
     public async Task<AuditResult> SearchAsync(AuditQuery query, CancellationToken cancellationToken)
@@ -80,6 +82,59 @@ public sealed class AuditRepository(GestIaDbContext dbContext, IActorContext act
                 .ToArrayAsync(cancellationToken));
         }
 
+        // Usuarios y accesos.
+        //
+        // Faltaban, y la pantalla de Seguridad afirmaba lo contrario: «Toda accion sensible requiere
+        // motivo, confirmacion y queda registrada en Auditoria». Se creaba un acceso y no aparecia en
+        // ningun lado, porque esta lista no incluia ninguna entidad de seguridad. Ahora si.
+        if (Matches(entity, "Usuarios"))
+        {
+            AddRows(rows, await dbContext.Users
+                .IgnoreQueryFilters(["Active"])
+                .Where(item => dbContext.OrganizationMemberships.Any(membership =>
+                    membership.IdUser == item.IdUser &&
+                    membership.IdOrganization == query.IdOrganization))
+                .Select(item => new AuditableRecord(
+                    "Usuarios",
+                    item.DisplayName,
+                    item.IdUser,
+                    item.Active,
+                    item.CreatedByName,
+                    item.CreatedAt,
+                    item.UpdatedByName,
+                    item.UpdatedAt,
+                    item.Email))
+                .ToArrayAsync(cancellationToken));
+        }
+
+        // Un acceso es «esta persona con este rol en esta organizacion»: la fila de UserRole.
+        //
+        // Los roles con PLATFORM.ADMIN se omiten por la misma razon que el listado de usuarios los
+        // esconde: quien administra una organizacion no tiene por que saber quien administra la
+        // plataforma.
+        if (Matches(entity, "Accesos"))
+        {
+            AddRows(rows, await dbContext.UserRoles
+                .IgnoreQueryFilters(["Active"])
+                .Where(item =>
+                    item.OrganizationMembership != null &&
+                    item.OrganizationMembership.IdOrganization == query.IdOrganization &&
+                    !dbContext.RolePermissions.Any(rolePermission =>
+                        rolePermission.IdRole == item.IdRole &&
+                        rolePermission.Permission.CodePermission == SecurityPermissions.PlatformAdmin))
+                .Select(item => new AuditableRecord(
+                    "Accesos",
+                    item.User.DisplayName,
+                    item.IdUserRole,
+                    item.Active,
+                    item.CreatedByName,
+                    item.CreatedAt,
+                    item.UpdatedByName,
+                    item.UpdatedAt,
+                    item.Role.Name))
+                .ToArrayAsync(cancellationToken));
+        }
+
         if (Matches(entity, "Clientes"))
         {
             AddRows(rows, await dbContext.Clients
@@ -98,13 +153,13 @@ public sealed class AuditRepository(GestIaDbContext dbContext, IActorContext act
                 .ToArrayAsync(cancellationToken));
         }
 
-        if (Matches(entity, "Sedes"))
+        if (Matches(entity, "Zonas"))
         {
             AddRows(rows, await dbContext.ClientSites
                 .IgnoreQueryFilters(["Active"])
                 .Where(item => item.Client.IdOrganization == query.IdOrganization)
                 .Select(item => new AuditableRecord(
-                    "Sedes",
+                    "Zonas",
                     item.Name,
                     item.IdClientSite,
                     item.Active,
@@ -170,23 +225,6 @@ public sealed class AuditRepository(GestIaDbContext dbContext, IActorContext act
                 .ToArrayAsync(cancellationToken));
         }
 
-        if (Matches(entity, "Configuraciones"))
-        {
-            AddRows(rows, await dbContext.ServiceConfigurations
-                .IgnoreQueryFilters(["Active"])
-                .Where(item => item.IdOrganization == query.IdOrganization)
-                .Select(item => new AuditableRecord(
-                    "Configuraciones",
-                    item.Service.Name,
-                    item.IdServiceConfiguration,
-                    item.Active,
-                    item.CreatedByName,
-                    item.CreatedAt,
-                    item.UpdatedByName,
-                    item.UpdatedAt,
-                    item.WorkScheduleDescription))
-                .ToArrayAsync(cancellationToken));
-        }
 
         if (Matches(entity, "Personal"))
         {
@@ -282,7 +320,7 @@ public sealed class AuditRepository(GestIaDbContext dbContext, IActorContext act
                     item.CreatedAt,
                     item.UpdatedByName,
                     item.UpdatedAt,
-                    item.Type.ToString() + " · " + item.Code))
+                    item.Type.ToString() + " · " + item.Name))
                 .ToArrayAsync(cancellationToken));
         }
 
@@ -300,17 +338,17 @@ public sealed class AuditRepository(GestIaDbContext dbContext, IActorContext act
                     item.CreatedAt,
                     item.UpdatedByName,
                     item.UpdatedAt,
-                    item.TargetType.ToString() + " · " + item.RequirementType.ToString() + " · " + item.RequiredCode))
+                    item.TargetType.ToString() + " · " + item.RequirementType.ToString()))
                 .ToArrayAsync(cancellationToken));
         }
 
-        if (Matches(entity, "Habilidades"))
+        if (Matches(entity, "Experiencia"))
         {
             AddRows(rows, await dbContext.EmployeeSkills
                 .IgnoreQueryFilters(["Active"])
                 .Where(item => item.Employee.IdOrganization == query.IdOrganization)
                 .Select(item => new AuditableRecord(
-                    "Habilidades",
+                    "Experiencia",
                     item.Employee.FullName,
                     item.IdEmployeeSkill,
                     item.Active,
@@ -318,7 +356,7 @@ public sealed class AuditRepository(GestIaDbContext dbContext, IActorContext act
                     item.CreatedAt,
                     item.UpdatedByName,
                     item.UpdatedAt,
-                    item.SkillCatalogItem.Code + " · " + item.SkillCatalogItem.Name))
+                    item.SkillCatalogItem.Name))
                 .ToArrayAsync(cancellationToken));
         }
 

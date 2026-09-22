@@ -16,6 +16,30 @@ jobs:
     name: Backend (.NET 10)
     runs-on: ubuntu-latest
 
+    # SQL Server para las pruebas de integracion.
+    #
+    # Sin esta base, 121 pruebas se saltaban **en silencio**: las que llevan [OperationalSqlFact]
+    # necesitan un motor con permiso de CREATE DATABASE y, al no encontrar la variable, xUnit las
+    # marcaba como omitidas y el trabajo pasaba en verde. Entre ellas esta el aislamiento entre
+    # organizaciones, que es la invariante central del sistema, y los tokens de concurrencia.
+    #
+    # Un verde que no cubre el aislamiento multiempresa es peor que un rojo, porque nadie lo mira.
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2025-latest
+        env:
+          ACCEPT_EULA: "Y"
+          MSSQL_PID: Developer
+          MSSQL_SA_PASSWORD: Only_for_ci_integration_tests_2026!
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd="/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$MSSQL_SA_PASSWORD\" -C -Q 'SELECT 1' -b -o /dev/null"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-start-period=30s
+          --health-retries=12
+
     defaults:
       run:
         working-directory: backend
@@ -32,8 +56,24 @@ jobs:
       - name: Restore
         run: dotnet restore GestIA.sln
 
+      # Cada clase de prueba crea su propia base temporal y la borra al terminar, asi que apunta a
+      # `master` y no a una base concreta. Es el mismo contrato que usa pruebas-integracion.sh.
+      #
+      # Y se comprueba que **ninguna quede omitida**: si alguien quita el servicio de SQL o renombra
+      # la variable, las 121 pruebas de integracion volverian a saltarse en silencio y el trabajo
+      # seguiria en verde. Un verde que no cubre el aislamiento multiempresa es peor que un rojo,
+      # porque nadie lo mira.
       - name: Test
-        run: dotnet test GestIA.sln --configuration Release --no-restore
+        env:
+          GESTIA_OPERATIONAL_TEST_SQLSERVER: "Server=localhost,1433;Database=master;User Id=sa;Password=Only_for_ci_integration_tests_2026!;Encrypt=True;TrustServerCertificate=True"
+        run: |
+          dotnet test GestIA.sln --configuration Release --no-restore             --logger "trx;LogFileName=resultados.trx" --results-directory ./TestResults
+          omitidas=$(grep -o 'outcome="NotExecuted"' ./TestResults/resultados.trx | wc -l)
+          echo "Pruebas omitidas: $omitidas"
+          if [ "$omitidas" -ne 0 ]; then
+            echo "::error::Hay $omitidas pruebas omitidas. Sin SQL Server las de integracion se saltan en silencio y el verde no cubre el aislamiento entre organizaciones."
+            exit 1
+          fi
 
   frontend:
     name: Frontend (Angular 22)

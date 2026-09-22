@@ -73,14 +73,14 @@ public sealed class LegacyDocumentAuthorizationTests
         // documentos heredados. Los miembros nuevos del contrato se cumplen en vacío.
         public Task<(IReadOnlyList<EmployeeListItemResponse> Items, int TotalCount)> SearchEmployeesAsync(
             EmployeeSearchCriteria criteria,
-            IReadOnlyCollection<EmployeeDocumentType> requiredDocuments,
+            IReadOnlyCollection<Guid> requiredDocuments,
             CancellationToken cancellationToken) =>
             Task.FromResult(((IReadOnlyList<EmployeeListItemResponse>)[], 0));
 
-        public Task<IReadOnlyList<string>> ListRequiredDocumentCodesAsync(
+        public Task<IReadOnlyList<Guid>> ListRequiredDocumentTypesAsync(
             Guid idOrganization,
             CancellationToken cancellationToken) =>
-            Task.FromResult((IReadOnlyList<string>)[]);
+            Task.FromResult((IReadOnlyList<Guid>)[]);
 
         public Task<IReadOnlyList<(Guid Id, string Name)>> ListUsedJobPositionsAsync(
             Guid idOrganization,
@@ -108,7 +108,7 @@ public sealed class LegacyDocumentAuthorizationTests
             CollectionReads++;
             return Task.FromResult<IReadOnlyList<EmployeeDocument>>([EmployeeDocument.Create(Employee.IdOrganization, idEmployee,
                 new EmployeeDocumentProfile(EmployeeDocumentType.EmploymentApplication, EmployeeDocumentStatus.Pending,
-                    "secret-number", null, null, null, "business-documents/private.pdf", "private-notes"),
+                    null, "secret-number", null, null, null, "business-documents/private.pdf", "private-notes"),
                 Guid.NewGuid(), "Tester", DateTime.UtcNow)]);
         }
         public Task<IReadOnlyList<EmployeeEvaluation>> ListEvaluationsAsync(Guid idEmployee, CancellationToken cancellationToken)

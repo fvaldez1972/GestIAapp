@@ -46,16 +46,6 @@
   width: 2.55rem;
 }
 
-.profile-copy {
-  min-width: 0;
-}
-
-.profile-copy strong,
-.profile-copy small {
-  display: block;
-  white-space: nowrap;
-}
-
 .side-nav {
   flex: 1;
   overflow: auto;
@@ -168,13 +158,187 @@ a.menu-link:hover .menu-icon {
   white-space: nowrap;
 }
 
-.sidebar-foot {
+/* ── El submenú ─────────────────────────────────────────────────────────────────────────────── */
+
+/*
+  El renglón con hijos es un <button>, no un <a>, y tiene que verse idéntico a un enlace del menú:
+  para quien lo usa es un renglón más. `.menu-link` ya trae el alto, el color y el activo; aquí sólo
+  se le quita lo que un botón trae de fábrica y se le hace sitio al galón.
+
+  NO se llama `.menu-toggle`. Ese nombre ya lo ocupa el botón de hamburguesa de la barra superior,
+  en este mismo componente, y como su regla va después ganaba: el galón salía pintado de blanco
+  sobre el azul del menú, como una mancha. Dos reglas con el mismo nombre en la misma hoja no dan
+  error en ninguna parte; sólo gana la última.
+*/
+.menu-link--branch {
+  width: 100%;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.menu-link--branch .menu-text {
+  flex: 1 1 auto;
+}
+
+.menu-chevron {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  color: var(--gestia-cyan-soft);
+  opacity: 0.55;
+  transition: transform 150ms ease, opacity 150ms ease;
+}
+
+.menu-chevron svg {
+  width: 0.8rem;
+  height: 0.8rem;
+}
+
+.menu-chevron.is-open {
+  opacity: 1;
+  transform: rotate(90deg);
+}
+
+.menu-link--branch:hover .menu-chevron,
+.menu-link--branch.active .menu-chevron {
+  color: var(--gestia-cyan);
+  opacity: 1;
+}
+
+.submenu {
+  /* Alineado con el texto del padre, no con su icono: la sangría es lo que dice que cuelga de él. */
+  margin: 0.15rem 0 0.35rem 1.5rem;
+  padding-left: 0.55rem;
+  border-left: 1px solid var(--gestia-navy-soft);
+}
+
+/* El rótulo del bloque también despliega, así que es un botón y no un <h3>. Mantiene el aire de
+   rótulo —versalita, pequeño, apagado— para que no compita con las entradas que cuelgan de él. */
+.submenu-group {
   display: flex;
-  min-height: 4.25rem;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0.45rem 0 0.1rem;
+  padding: 0.25rem 0.5rem;
+  border: 0;
+  border-radius: 0.4rem;
+  background: none;
+  color: var(--gestia-cyan-soft);
+  cursor: pointer;
+  font: inherit;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  opacity: 0.75;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.submenu-group:first-child {
+  margin-top: 0.15rem;
+}
+
+.submenu-group:hover,
+.submenu-group.is-open {
+  color: var(--gestia-cyan);
+  opacity: 1;
+}
+
+.submenu-group:focus-visible,
+.menu-link--branch:focus-visible {
+  outline: 2px solid var(--gestia-cyan);
+  outline-offset: -2px;
+}
+
+.submenu-group .menu-chevron svg {
+  width: 0.7rem;
+  height: 0.7rem;
+}
+
+.submenu-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.submenu-link {
+  display: block;
+  padding: 0.38rem 0.5rem;
+  border-radius: 0.4rem;
+  color: inherit;
+  font-size: 12px;
+  text-decoration: none;
+  transition: color 150ms ease, background-color 150ms ease;
+}
+
+a.submenu-link:hover,
+.submenu-link.active {
+  color: var(--gestia-surface);
+  background: var(--gestia-navy-soft);
+}
+
+.submenu-link.active {
+  font-weight: 600;
+}
+
+a.submenu-link:focus-visible {
+  outline: 2px solid var(--gestia-cyan);
+  outline-offset: -2px;
+}
+
+.sidebar-foot {
+  position: relative;
+  padding: 0.6rem 0.75rem;
+  border-top: 1px solid var(--gestia-navy-soft);
+}
+
+/* Todo el pie es el disparador: un botón del ancho del bloque se acierta sin puntería, que es lo
+   que se espera de algo que se pulsa al final de una lista larga. */
+.sidebar-account {
+  display: flex;
+  width: 100%;
+  min-height: 3.1rem;
   align-items: center;
   gap: 0.65rem;
-  padding: 0.9rem 1.25rem;
-  border-top: 1px solid var(--gestia-navy-soft);
+  padding: 0.5rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  transition: background-color 150ms ease;
+}
+
+.sidebar-account:hover {
+  background: var(--gestia-navy-soft);
+}
+
+.sidebar-account:focus-visible {
+  outline: 2px solid var(--gestia-cyan);
+  outline-offset: -2px;
+}
+
+/* Pegado al nombre, no al borde. Llevaba `margin-left: auto` y se iba al extremo derecho del
+   bloque, de modo que entre el cargo y el galón quedaba un vacío que lo hacía parecer otra cosa en
+   vez de la parte que se abre. */
+.sidebar-account__chevron {
+  flex: 0 0 auto;
+  margin-left: -0.15rem;
+  color: var(--gestia-cyan-soft);
+  font-size: 11px;
+  opacity: 0.6;
+  transition: transform 150ms ease;
+}
+
+.sidebar-account__chevron.is-open {
+  opacity: 1;
+  transform: rotate(180deg);
 }
 
 .sidebar-avatar {
@@ -190,8 +354,11 @@ a.menu-link:hover .menu-icon {
   background: var(--gestia-navy-soft);
 }
 
+/* Ocupa lo que necesita y encoge si el nombre es largo, en vez de estirarse para llenar el bloque
+   y empujar el galón al otro extremo. */
 .sidebar-user {
   min-width: 0;
+  flex: 0 1 auto;
 }
 
 .sidebar-user strong,
@@ -236,14 +403,11 @@ a.menu-link:hover .menu-icon {
   backdrop-filter: blur(12px);
 }
 
-.topbar-start,
-.topbar-actions,
-.profile {
-  display: flex;
-  align-items: center;
-}
+
 
 .topbar-start {
+  display: flex;
+  align-items: center;
   gap: 0.9rem;
   min-width: 0;
 }
@@ -299,62 +463,126 @@ a.menu-link:hover .menu-icon {
   font-size: 0.87rem;
 }
 
-.topbar-actions {
-  gap: 1rem;
-  min-width: 0;
-}
+/* ── El cuadro de la cuenta ───────────────────────────────────────────────────────────────── */
 
-.profile {
-  gap: 0.55rem;
-  max-width: 18rem;
-  padding: 0.35rem 0.45rem;
-  border: 0;
-  border-radius: 0.75rem;
-  color: inherit;
-  background: transparent;
-  cursor: pointer;
-  transition: background-color 150ms ease, transform 150ms ease;
-}
-
-.profile:hover {
-  background: var(--gestia-canvas);
-  transform: translateY(-1px);
-}
-
-.profile-avatar {
+/*
+  Sube desde el pie, no baja: está pegado al borde inferior de la ventana y hacia abajo no hay
+  sitio. Se sale del ancho del menú a propósito —caben el correo y el nombre de la organización,
+  que no caben en la franja— y por eso el menú lateral no puede recortar lo que sobresale.
+*/
+.account-menu {
+  position: absolute;
+  z-index: 60;
+  bottom: calc(100% + 0.35rem);
+  left: 0.75rem;
   display: grid;
-  width: 2rem;
-  height: 2rem;
+  width: 17.5rem;
+  max-width: calc(100vw - 1.5rem);
+  padding: 0.85rem;
+  gap: 0.7rem;
+  border: 1px solid var(--gestia-border);
+  border-radius: var(--gestia-radius);
+  background: var(--gestia-surface);
+  color: var(--gestia-text);
+  box-shadow: var(--gestia-shadow-md);
+}
+
+.account-menu__who {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding-bottom: 0.7rem;
+  border-bottom: 1px solid var(--gestia-border);
+}
+
+.account-menu__avatar {
+  display: grid;
+  width: 2.35rem;
+  height: 2.35rem;
+  flex: 0 0 auto;
   place-items: center;
-  border-radius: 0.62rem;
+  border-radius: 0.6rem;
   color: var(--gestia-navy);
-  font-size: 0.68rem;
+  font-size: 11.5px;
   font-weight: 850;
   background: color-mix(in srgb, var(--gestia-cyan) 25%, white);
 }
 
-.profile-copy {
+.account-menu__id {
   min-width: 0;
+}
+
+.account-menu__id strong,
+.account-menu__id small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-menu__id strong {
+  color: var(--gestia-navy);
+  font-size: 12.5px;
+}
+
+.account-menu__id small {
+  color: var(--gestia-muted);
+  font-size: 11.5px;
+}
+
+.account-menu__block {
+  display: grid;
+  gap: 0.35rem;
+  padding-bottom: 0.7rem;
+  border-bottom: 1px solid var(--gestia-border);
+}
+
+.account-menu__label {
+  color: var(--gestia-muted);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.account-menu__org {
+  overflow: hidden;
+  color: var(--gestia-navy);
+  font-size: 12.5px;
+  text-overflow: ellipsis;
+}
+
+.account-menu__scope {
+  color: var(--gestia-muted);
+  font-size: 11px;
+}
+
+.account-menu__action {
+  width: 100%;
+  min-height: var(--gestia-control-height);
+  padding: 0 0.75rem;
+  border: 1px solid var(--gestia-border);
+  border-radius: var(--gestia-radius);
+  background: var(--gestia-surface);
+  color: var(--gestia-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
   text-align: left;
 }
 
-.profile-copy strong {
-  color: var(--gestia-navy);
-  font-size: 0.72rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.account-menu__action:hover {
+  border-color: var(--gestia-cyan-dark);
 }
 
-.profile-copy small {
-  margin-top: 0.1rem;
-  color: var(--gestia-muted);
-  font-size: 0.6rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.account-menu__action:focus-visible {
+  outline: 2px solid var(--gestia-cyan);
+  outline-offset: 2px;
 }
 
-.profile-chevron {
-  color: var(--gestia-muted);
+.account-menu__action--danger {
+  color: var(--gestia-danger);
+  font-weight: 600;
 }
 
 main {
@@ -442,11 +670,6 @@ main {
 @media (max-width: 640px) {
   .app-header {
     padding: 0 1rem;
-  }
-
-  .profile-copy,
-  .profile-chevron {
-    display: none;
   }
 
   main {

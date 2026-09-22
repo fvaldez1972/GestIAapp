@@ -38,15 +38,15 @@ public sealed class ClientSearchTests(OperationalSqlDatabase database)
         Assert.Equal(3, total);
 
         var completo = Assert.Single(items, item => item.CodeClient == "AGR-CLI-A");
-        Assert.Equal(2, completo.SiteCount);
+        Assert.Equal(2, completo.ZoneCount);
         Assert.Equal(1, completo.ContactCount);
         Assert.Equal(1, completo.ServiceCount);
-        Assert.Equal("Sede Norte", completo.MainSiteName);
-        Assert.Equal("Zapopan", completo.MainSiteMunicipality);
-        Assert.Equal("Jalisco", completo.MainSiteState);
+        Assert.Equal("Sede Norte", completo.MainZoneName);
+        Assert.Equal("Zapopan", completo.MainZoneMunicipality);
+        Assert.Equal("Jalisco", completo.MainZoneState);
 
         // Una de las dos sedes no tiene contacto, y la fila lo dice sin abrir la ficha.
-        Assert.Equal(1, completo.SitesWithoutContact);
+        Assert.Equal(1, completo.ZonesWithoutContact);
     }
 
     /// <summary>
@@ -62,10 +62,10 @@ public sealed class ClientSearchTests(OperationalSqlDatabase database)
         var (items, _) = await SearchAsync(Criterios(seed.OrganizationId));
 
         var sinSede = Assert.Single(items, item => item.CodeClient == "SIN-CLI-C");
-        Assert.Equal(0, sinSede.SiteCount);
+        Assert.Equal(0, sinSede.ZoneCount);
         Assert.Equal(0, sinSede.ServiceCount);
-        Assert.Null(sinSede.MainSiteName);
-        Assert.Null(sinSede.MainSiteMunicipality);
+        Assert.Null(sinSede.MainZoneName);
+        Assert.Null(sinSede.MainZoneMunicipality);
     }
 
     /// <summary>
@@ -85,10 +85,10 @@ public sealed class ClientSearchTests(OperationalSqlDatabase database)
         }
 
         var (items, _) = await SearchAsync(Criterios(seed.OrganizationId));
-        Assert.Equal(1, Assert.Single(items, item => item.CodeClient == "BAJ-CLI-A").SiteCount);
+        Assert.Equal(1, Assert.Single(items, item => item.CodeClient == "BAJ-CLI-A").ZoneCount);
 
         var (sinSede, _) = await SearchAsync(
-            Criterios(seed.OrganizationId) with { SitePresence = ClientSitePresenceFilter.WithoutSite });
+            Criterios(seed.OrganizationId) with { ZonePresence = ClientZonePresenceFilter.WithoutZone });
         Assert.DoesNotContain(sinSede, item => item.CodeClient == "BAJ-CLI-A");
     }
 
@@ -126,12 +126,56 @@ public sealed class ClientSearchTests(OperationalSqlDatabase database)
         var seed = await SeedAsync("SED");
 
         var (conSede, _) = await SearchAsync(
-            Criterios(seed.OrganizationId) with { SitePresence = ClientSitePresenceFilter.WithSite });
-        Assert.All(conSede, item => Assert.True(item.SiteCount > 0));
+            Criterios(seed.OrganizationId) with { ZonePresence = ClientZonePresenceFilter.WithZone });
+        Assert.All(conSede, item => Assert.True(item.ZoneCount > 0));
 
         var (sinSede, _) = await SearchAsync(
-            Criterios(seed.OrganizationId) with { SitePresence = ClientSitePresenceFilter.WithoutSite });
+            Criterios(seed.OrganizationId) with { ZonePresence = ClientZonePresenceFilter.WithoutZone });
         Assert.Equal("SED-CLI-C", Assert.Single(sinSede).CodeClient);
+    }
+
+    /// <summary>
+    /// Una sede dada de baja no es una sede, tampoco con el filtro de estado en «Todos».
+    ///
+    /// <para>El método lleva <c>IgnoreQueryFilters(["Active"])</c> cuando el estado pedido no es
+    /// «Activos», y ese operador vale para la <b>consulta entera</b>: las subconsultas que miran
+    /// las sedes se quedaban sin filtro. Un cliente cuya única sede estaba dada de baja salía como
+    /// «con sede» y no aparecía nunca en «sin sede», que es justo el filtro que tiene que
+    /// encontrarlo, porque sin sede activa no se le pueden crear servicios.</para>
+    ///
+    /// <para>El comentario del repositorio ya decía «sin ninguna <b>activa</b>»; lo que faltaba era
+    /// que el código lo hiciera.</para>
+    /// </summary>
+    [OperationalSqlFact]
+    public async Task ADeactivatedSiteDoesNotCountAsSiteEvenWhenTheListShowsEveryStatus()
+    {
+        var seed = await SeedAsync("BAJ");
+
+        await using (var context = database.Context())
+        {
+            foreach (var site in context.ClientSites.Where(item => item.IdClient == seed.CompleteClientId))
+            {
+                site.Deactivate(ActorId, ActorName, Now);
+            }
+
+            await context.SaveChangesAsync(Token);
+        }
+
+        var (sinSede, _) = await SearchAsync(Criterios(seed.OrganizationId) with
+        {
+            Status = ClientStatusFilter.All,
+            ZonePresence = ClientZonePresenceFilter.WithoutZone,
+        });
+
+        Assert.Contains(sinSede, item => item.IdClient == seed.CompleteClientId);
+
+        var (conSede, _) = await SearchAsync(Criterios(seed.OrganizationId) with
+        {
+            Status = ClientStatusFilter.All,
+            ZonePresence = ClientZonePresenceFilter.WithZone,
+        });
+
+        Assert.DoesNotContain(conSede, item => item.IdClient == seed.CompleteClientId);
     }
 
     [OperationalSqlFact]
@@ -227,7 +271,7 @@ public sealed class ClientSearchTests(OperationalSqlDatabase database)
         Guid organizationId,
         string? search = null,
         ClientStatusFilter status = ClientStatusFilter.Active,
-        ClientSitePresenceFilter sitePresence = ClientSitePresenceFilter.Any,
+        ClientZonePresenceFilter sitePresence = ClientZonePresenceFilter.Any,
         string? municipality = null) =>
         new(organizationId, search, status, sitePresence, municipality, 0, 50);
 

@@ -35,6 +35,7 @@ export class AuthService {
     return !!session && new Date(session.expiresAt).getTime() > Date.now();
   });
   readonly displayName = computed(() => this.sessionState()?.user.displayName ?? '');
+  readonly email = computed(() => this.sessionState()?.user.email ?? '');
   readonly organizations = computed(() => this.sessionState()?.organizations ?? []);
   readonly activeOrganizationId = this.activeOrganizationIdState.asReadonly();
   readonly platformOrganizations = this.platformOrganizationsState.asReadonly();

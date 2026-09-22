@@ -5,6 +5,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { forkJoin, of, switchMap } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { firstDayOfOperationalMonth } from '../../../../shared/util/operational-date';
+import { wholePercentage } from '../../../../shared/util/percentage';
 import { SystemInfoService } from '../../../../core/system/system-info.service';
 import { ClientApiService } from '../../../clients/data-access/client-api.service';
 import {
@@ -82,7 +83,7 @@ export class ReportsPage implements OnInit {
       return null;
     }
 
-    return Math.round((summary.presentAttendance / summary.attendanceRecords) * 100);
+    return wholePercentage(summary.presentAttendance, summary.attendanceRecords);
   });
 
   protected readonly absenceRate = computed(() => {
@@ -91,7 +92,7 @@ export class ReportsPage implements OnInit {
       return null;
     }
 
-    return Math.round((summary.absentAttendance / summary.attendanceRecords) * 100);
+    return wholePercentage(summary.absentAttendance, summary.attendanceRecords);
   });
 
   protected readonly tardinessRate = computed(() => {
@@ -100,12 +101,30 @@ export class ReportsPage implements OnInit {
       return null;
     }
 
-    return Math.round((summary.lateAttendance / summary.attendanceRecords) * 100);
+    return wholePercentage(summary.lateAttendance, summary.attendanceRecords);
   });
 
+  /**
+   * El denominador de las tres tasas de asistencia.
+   *
+   * <p>Cuenta <b>turnos con asistencia capturada</b>, que es lo que el servidor devuelve en
+   * <c>attendanceRecords</c>: un conteo de registros de asistencia del periodo. Durante un tiempo
+   * la pantalla lo llamó «turnos esperados» en diez lugares, incluido el panel de definiciones que
+   * publicaba la fórmula «Presentes / turnos esperados». No es lo mismo, y la diferencia no es
+   * cosmética: <b>los turnos planeados a los que nadie les capturó nada no entran en el
+   * denominador</b>, así que un servicio con cuarenta turnos planeados y treinta capturados, los
+   * treinta presentes, reportaba «Asistencia 100%» cuando diez turnos no tienen ni un registro.
+   * Nombrarlo por lo que cuenta es lo que deja ver ese hueco en vez de taparlo.</p>
+   *
+   * <p>El concepto «turnos esperados» sí existe —<c>ExpectedShifts</c>, en el cierre del día
+   * operativo— pero este reporte no lo consulta. Cambiar el denominador a ése es una decisión de
+   * definición, no una corrección, y no se toma desde aquí.</p>
+   */
   protected readonly hasTurnDenominator = computed(() => (this.summary()?.attendanceRecords ?? 0) > 0);
   protected readonly turnDenominatorLabel = computed(() =>
-    this.hasTurnDenominator() ? `${this.summary()?.attendanceRecords ?? 0} turnos esperados` : 'Sin turnos esperados',
+    this.hasTurnDenominator()
+      ? `${this.summary()?.attendanceRecords ?? 0} turnos con asistencia capturada`
+      : 'Sin asistencia capturada',
   );
   protected readonly coveredHours = computed(() =>
     Math.round(((this.summary()?.coveredMinutes ?? 0) / 60) * 10) / 10,
@@ -130,7 +149,7 @@ export class ReportsPage implements OnInit {
   protected readonly reportTypes: readonly { value: ReportType; label: string; description: string }[] = [
     { value: 'resumen', label: 'Resumen ejecutivo', description: 'Vista ejecutiva del periodo' },
     { value: 'servicios', label: 'Operación por servicio', description: 'Comparativo por cliente y servicio' },
-    { value: 'elegibilidad', label: 'Elegibilidad', description: 'Personal elegible y pendientes' },
+    { value: 'elegibilidad', label: 'Incumplimientos', description: 'Quién incumple qué, y por qué' },
     { value: 'alertas', label: 'Alertas y distribución', description: 'Riesgos y severidades del periodo' },
     { value: 'exportacion', label: 'Exportación operativa', description: 'Salida para dirección o administración' },
   ];
@@ -145,17 +164,17 @@ export class ReportsPage implements OnInit {
       {
         label: 'Asistencia',
         value: this.rateDisplay(this.attendanceRate()),
-        detail: this.hasTurnDenominator() ? `${summary?.presentAttendance ?? 0} presentes` : 'Sin turnos esperados',
+        detail: this.hasTurnDenominator() ? `${summary?.presentAttendance ?? 0} presentes` : 'Sin asistencia capturada',
       },
       {
         label: 'Ausentismo',
         value: this.rateDisplay(this.absenceRate()),
-        detail: this.hasTurnDenominator() ? `${summary?.absentAttendance ?? 0} faltas` : 'Sin turnos esperados',
+        detail: this.hasTurnDenominator() ? `${summary?.absentAttendance ?? 0} faltas` : 'Sin asistencia capturada',
       },
       {
         label: 'Retardos',
         value: this.rateDisplay(this.tardinessRate()),
-        detail: this.hasTurnDenominator() ? `${summary?.lateAttendance ?? 0} registros tarde` : 'Sin turnos esperados',
+        detail: this.hasTurnDenominator() ? `${summary?.lateAttendance ?? 0} registros tarde` : 'Sin asistencia capturada',
       },
       {
         label: 'Coberturas',
@@ -207,7 +226,7 @@ export class ReportsPage implements OnInit {
       { label: 'Justificadas', value: summary?.excusedAttendance ?? 0, className: 'is-info' },
     ].map((item) => ({
       ...item,
-      percentage: total === 0 ? null : Math.round((item.value / total) * 100),
+      percentage: wholePercentage(item.value, total),
     }));
   });
   protected readonly donutStyle = computed(() => {
@@ -234,27 +253,59 @@ export class ReportsPage implements OnInit {
       { label: 'Bajas', value: summary?.excusedAttendance ?? 0, detail: 'Sin impacto crítico', className: 'is-low' },
     ];
   });
+  /**
+   * Si la tabla enseña a todos o sólo a quien incumple.
+   *
+   * <p><b>Arranca enseñando sólo los incumplimientos, y por eso la pantalla se llama así.</b> Quien
+   * la abre viene a corregir, no a contemplar: con 271 personas, una lista donde la mayoría cumple
+   * obliga a buscar los pocos casos que importan. Los que cumplen siguen a un clic, porque a veces
+   * la pregunta es «¿por qué éste sí pasa?».</p>
+   */
+  protected readonly onlyNonCompliant = signal(true);
+
+  protected toggleOnlyNonCompliant(): void {
+    this.onlyNonCompliant.update((valor) => !valor);
+  }
+
+  /** Las filas que la tabla enseña, según el filtro. */
+  protected readonly complianceRows = computed(() =>
+    this.onlyNonCompliant()
+      ? this.eligibilityRows().filter((employee) => employee.status !== 'Elegible')
+      : this.eligibilityRows(),
+  );
+
   protected readonly eligibilityRows = computed(() =>
     this.workforceEligibility().map((employee) => {
       const reasons = employee.reasons.length ? employee.reasons : employee.isEligible ? ['Cumple requisitos actuales'] : ['Requiere revisión'];
-      const hasInsufficientRules = reasons.some((reason) => /regla|suficiente|configur/i.test(reason));
 
       return {
         ...employee,
-        status: hasInsufficientRules ? 'Sin reglas suficientes' : employee.isEligible ? 'Elegible' : 'No elegible',
+        // Lo dice el servidor, no una expresión regular sobre el texto del motivo. Cuando lo
+        // adivinaba aquí buscaba «regla» en los motivos, y el de quien cumple dice «Elegible con
+        // las reglas actuales»: toda persona elegible salía como «Sin reglas suficientes» y el
+        // filtro de incumplimientos las mostraba a todas.
+        status: employee.hasNoApplicableRules
+          ? 'Sin reglas suficientes'
+          : employee.isEligible ? 'Elegible' : 'No elegible',
         fileStatus: employee.rejectedDocuments || employee.expiredDocuments ? 'Incompleto' : 'Completo',
         documentStatus: employee.rejectedDocuments || employee.expiredDocuments ? 'Pendiente' : 'Completo',
-        skillStatus: reasons.some((reason) => /habilidad/i.test(reason)) ? 'Faltante' : 'Completo',
+        skillStatus: reasons.some((reason) => /experiencia/i.test(reason)) ? 'Faltante' : 'Completo',
         reasons,
       } satisfies EligibilityReportRow;
     }),
   );
   protected readonly metricDefinitions: readonly MetricDefinition[] = [
-    { label: 'Asistencia', formula: 'Presentes / turnos esperados' },
-    { label: 'Ausentismo', formula: 'Faltas / turnos esperados' },
-    { label: 'Retardos', formula: 'Registros de retardo / turnos esperados' },
+    { label: 'Asistencia', formula: 'Presentes / turnos con asistencia capturada' },
+    { label: 'Ausentismo', formula: 'Faltas / turnos con asistencia capturada' },
+    { label: 'Retardos', formula: 'Registros de retardo / turnos con asistencia capturada' },
     { label: 'Cobertura', formula: 'Turnos cubiertos / turnos requeridos' },
     { label: 'N/D', formula: 'No existe denominador suficiente para calcular la métrica' },
+    {
+      label: 'Turnos con asistencia capturada',
+      formula:
+        'Registros de asistencia del periodo. No incluye los turnos planeados a los que nadie les ' +
+        'capturó asistencia: ésos no entran en ninguna tasa.',
+    },
   ];
   protected readonly exportOptions: readonly string[] = [
     'Incluir alcance de filtros',
@@ -299,7 +350,7 @@ export class ReportsPage implements OnInit {
     const notes = [
       this.hasTurnDenominator()
         ? `Asistencia general del ${this.rateDisplay(this.attendanceRate())} entre ${this.fromDate()} y ${this.toDate()}.`
-        : 'No hay turnos esperados en el periodo seleccionado. Las métricas se muestran como N/D para evitar interpretaciones erróneas.',
+        : 'No hay asistencia capturada en el periodo seleccionado. Las métricas se muestran como N/D para evitar interpretaciones erróneas.',
       `${summary.openIncidents} incidencia(s) abierta(s), ${summary.criticalIncidents} crítica(s) y ${summary.pendingApprovals} autorización(es) pendiente(s).`,
       `${this.coveredHours()} hora(s) cubiertas en sustituciones registradas.`,
     ];
@@ -523,7 +574,7 @@ export class ReportsPage implements OnInit {
       return 'N/D';
     }
 
-    return `${Math.round((service.presentAttendance / service.attendanceRecords) * 100)}%`;
+    return `${wholePercentage(service.presentAttendance, service.attendanceRecords)}%`;
   }
 
   protected serviceAbsenceRate(service: OperationsServiceSummary) {
@@ -531,7 +582,7 @@ export class ReportsPage implements OnInit {
       return 'N/D';
     }
 
-    return `${Math.round((service.absentAttendance / service.attendanceRecords) * 100)}%`;
+    return `${wholePercentage(service.absentAttendance, service.attendanceRecords)}%`;
   }
 
   protected serviceTardinessRate(service: OperationsServiceSummary) {
@@ -539,7 +590,7 @@ export class ReportsPage implements OnInit {
       return 'N/D';
     }
 
-    return `${Math.round((service.lateAttendance / service.attendanceRecords) * 100)}%`;
+    return `${wholePercentage(service.lateAttendance, service.attendanceRecords)}%`;
   }
 
   protected serviceOperationalStatus(service: OperationsServiceSummary) {

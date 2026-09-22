@@ -230,7 +230,7 @@
     <span>{{ service.codeService }}</span>
     <strong>{{ service.name }}</strong>
     <small>
-      {{ service.clientSiteName || 'Sin sede asignada' }}
+      {{ service.clientZoneName || 'Sin zona asignada' }}
       @if (publishedVersion(); as version) {
         · Planeación publicada: {{ version.name }}
       } @else {
@@ -445,7 +445,10 @@
 
       <label>
         Tipo
-        <app-catalog-select formControlName="incidentType" [organizationId]="selectedOrganizationId()" type="IncidentReason" label="Tipo de incidencia" [useCode]="true" />
+        <!-- Por nombre: es lo que Incident.IncidentType guarda de verdad. Antes iba por codigo del
+             catalogo y coincidia de casualidad, porque la colacion de SQL Server ignora mayusculas
+             y los dos textos eran iguales salvo la caja. -->
+        <app-catalog-select formControlName="incidentType" [organizationId]="selectedOrganizationId()" type="IncidentReason" label="Tipo de incidencia" />
       </label>
     </div>
 
@@ -827,7 +830,7 @@
     <div class="context-chips">
       <span>{{ operationDateLabel() }}</span>
       <span>{{ selectedService()?.name || 'Sin servicio' }}</span>
-      <span>{{ selectedService()?.clientSiteName || 'Sin sede asignada' }}</span>
+      <span>{{ selectedService()?.clientZoneName || 'Sin zona asignada' }}</span>
     </div>
 
     <div class="table-wrap">
@@ -1071,13 +1074,13 @@
       </label>
     </div>
 
-    <label>
-      Archivo
-      <input type="file" (change)="onEvidenceFileSelected($event)" [disabled]="uploadingEvidenceFile() || !selectedDailyShift()" />
-      <small class="form-help">
-        {{ uploadingEvidenceFile() ? 'Cargando archivo…' : 'Opcional: al cargarlo se guardará la referencia del respaldo.' }}
-      </small>
-    </label>
+    <gi-file-input
+      label="Archivo"
+      [disabled]="uploadingEvidenceFile() || !selectedDailyShift()"
+      emptyLabel="Ningún archivo elegido"
+      [hint]="uploadingEvidenceFile() ? 'Cargando archivo…' : 'Opcional: al cargarlo se guardará la referencia del respaldo.'"
+      (fileSelected)="onEvidenceFileSelected($event)"
+    />
 
     <label>
       Referencia del respaldo

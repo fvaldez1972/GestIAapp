@@ -3,12 +3,18 @@
     <div>
       <span class="eyebrow">Configuración</span>
       <h1>Servicios</h1>
-      <p>La organización se hereda de la barra de contexto.</p>
+      <p>{{ serviceCountNote() }}</p>
     </div>
+    <!--
+      El botón ya no se apaga por no haber zona. Antes se deshabilitaba con `hasActiveZone()`, que
+      mira las zonas del cliente seleccionado, y sin cliente elegido eso es siempre falso: el botón
+      nacía apagado, sin decir por qué, y pulsarlo no hacía nada. Ahora se puede pulsar y es la
+      pantalla la que explica qué falta.
+    -->
     <button
       class="button button--primary"
       type="button"
-      [disabled]="!canWriteClients() || loading() || saving() || !hasActiveSite()"
+      [disabled]="!puedeCrearServicios() || loading() || saving()"
       (click)="openCreateService()"
     >
       Nuevo servicio
@@ -21,6 +27,7 @@
     </p>
   }
 
+  @if (aviso()) { <p class="gi-alert gi-alert--error" role="alert">{{ aviso() }}</p> }
   @if (message()) { <p class="gi-alert gi-alert--success" role="status">{{ message() }}</p> }
   @if (error()) { <p class="gi-alert gi-alert--error" role="alert">{{ error() }}</p> }
 
@@ -60,7 +67,7 @@
 
       <gi-filter-bar
         [search]="search()"
-        searchPlaceholder="Buscar servicio, cliente o sede"
+        searchPlaceholder="Buscar servicio, cliente o zona"
         [groups]="statusGroups()"
         [resultCount]="serviceList().totalCount"
         (searchChange)="onSearch($event)"
@@ -76,17 +83,21 @@
         [state]="tableState()"
         [selectedId]="selectedService()?.idService ?? null"
         [errorMessage]="error()"
-        [emptyTitle]="tableState() === 'empty' ? 'Todavía no hay servicios' : ''"
+        [emptyTitle]="tableState() === 'empty' ? 'Todavía no hay servicios' : 'Sin servicios con este filtro'"
         [emptyDescription]="
-          tableState() === 'empty' ? 'Registra el primero para empezar a planear su operación.' : ''
+          tableState() === 'empty'
+            ? 'Registra el primero para empezar a planear su operación.'
+            : 'Ningún servicio coincide con el filtro. Puedes quitarlo o crear uno nuevo.'
         "
-        [emptyActionLabel]="tableState() === 'empty' ? 'Nuevo servicio' : 'Quitar filtros'"
+        emptyActionLabel="Nuevo servicio"
+        [emptySecondaryActionLabel]="tableState() === 'empty-filtered' ? 'Quitar filtros' : ''"
         (rowSelect)="openService($event)"
         (retry)="loadServices(serviceList().page)"
-        (emptyAction)="tableState() === 'empty' ? openCreateService() : clearFilters()"
+        (emptyAction)="openCreateService()"
+        (emptySecondaryAction)="clearFilters()"
       >
-        <ng-template giCell="clientSite" let-row>
-          {{ row.clientName }}@if (row.clientSiteName) { · {{ row.clientSiteName }} }
+        <ng-template giCell="clientZone" let-row>
+          {{ row.clientName }}@if (row.clientZoneName) { · {{ row.clientZoneName }} }
         </ng-template>
 
         <ng-template giCell="term" let-row>{{ vigencia(row) }}</ng-template>
@@ -162,16 +173,24 @@
         (tabChange)="activeTab.set($event)"
         (close)="closePanel()"
       >
+        <!--
+          Editar vivia solo en el menu de tres puntos de la fila del listado: otro sitio, y habia
+          que cerrar la ficha que se estaba mirando para llegar. Aqui esta con las acciones de la
+          ficha, como en Clientes.
+        -->
+        @if (canWriteClients()) {
+          <button class="panel-accion" type="button" panelActions (click)="openEditService(service)">
+            Editar servicio
+          </button>
+        }
+
         <ng-template giTab="data">
           <dl class="ficha">
             <div><dt>Cliente</dt><dd>{{ selectedClient()?.legalName || '—' }}</dd></div>
-            <div><dt>Sede</dt><dd>{{ service.clientSiteName || '—' }}</dd></div>
+            <div><dt>Zona</dt><dd>{{ service.clientZoneName || '—' }}</dd></div>
             <div><dt>Vigencia</dt><dd>{{ vigencia(service) }}</dd></div>
             <div><dt>Estado</dt><dd>{{ estadoTexto(service) }}</dd></div>
             <div class="ficha__wide"><dt>Alcance</dt><dd>{{ service.description }}</dd></div>
-            @if (service.invoiceDescription) {
-              <div class="ficha__wide"><dt>Descripción para factura</dt><dd>{{ service.invoiceDescription }}</dd></div>
-            }
             <div>
               <dt>Contrato</dt>
               <dd>{{ service.serviceContractCode || 'Sin contrato' }}</dd>
@@ -180,11 +199,11 @@
 
           @if (contactoOperativo(); as contacto) {
             <!--
-              El contacto es del cliente y su sede: se muestra en lectura para no ir a Clientes
+              El contacto es del cliente y su zona: se muestra en lectura para no ir a Clientes
               durante la operación.
             -->
-            <section class="contacto" aria-label="Contacto operativo en la sede">
-              <h3>Contacto operativo en la sede</h3>
+            <section class="contacto" aria-label="Contacto operativo en la zona">
+              <h3>Contacto operativo en la zona</h3>
               <dl class="ficha">
                 <div><dt>Nombre</dt><dd>{{ contacto.fullName }}</dd></div>
                 <div><dt>Puesto</dt><dd>{{ contacto.jobTitle || '—' }}</dd></div>
@@ -194,100 +213,10 @@
           }
         </ng-template>
 
-        <ng-template giTab="configuration">
-        
-        <section class="detail-section" [hidden]="activeTab() !== 'configuration'">
-          <header>
-            <div>
-              <h3>Configuración del servicio</h3>
-              <span>{{ selectedServiceName() }}</span>
-            </div>
-            <button
-              class="button button--secondary"
-              type="button"
-              [disabled]="
-                !(canWriteClients() && selectedService()?.active) ||
-                saving() ||
-                loading() ||
-                !selectedService()
-              "
-              (click)="openCreateConfiguration()"
-            >
-              Nueva configuración
-            </button>
-          </header>
-
-          @if (!selectedService()) {
-            <div class="compact-state">
-              Selecciona un servicio para ver su configuración operativa y comercial.
-            </div>
-          } @else if (!configurations().length) {
-            <div class="compact-state">Sin configuraciones registradas para este servicio.</div>
-          } @else {
-            <div class="cards-list">
-              @for (configuration of configurations(); track configuration.idServiceConfiguration) {
-                <article class="mini-card">
-                  <div>
-                    <span class="pill"
-                      >{{ configuration.requiredWorkerCount }} elemento(s) ·
-                      {{ configuration.hoursPerDay }} h/día</span
-                    >
-                    <strong
-                      >{{
-                        money(configuration.monthlyPrice, configuration.currencyCode)
-                      }}
-                      mensual</strong
-                    >
-                    <small
-                      >{{ configuration.daysPerWeek }} días/semana ·
-                      {{ configuration.averageMonthlyHours }} h/mes ·
-                      {{ configuration.isTaxIncluded ? 'IVA incluido' : 'IVA no incluido' }}</small
-                    >
-                    <small>{{ configuration.workScheduleDescription }}</small>
-                    <small
-                      >Vigencia: {{ configuration.effectiveFromDate }} -
-                      {{ configuration.effectiveToDate || 'sin fecha de término' }}</small
-                    >
-                    <small
-                      >{{ configuration.active ? 'Activa' : 'Inactiva' }} · Preparación:
-                      {{ configuration.preparationLeadDays }} días</small
-                    >
-                    @if (configuration.specificInstructions) {
-                      <small>{{ configuration.specificInstructions }}</small>
-                    }
-                  </div>
-                  <small>{{ configuration.active ? 'Activo' : 'Inactivo' }}</small>
-                  <div class="mini-actions">
-                    <button
-                      [disabled]="
-                        !(canWriteClients() && selectedService()?.active) || saving() || loading()
-                      "
-                      type="button"
-                      (click)="openEditConfiguration(configuration)"
-                    >
-                      Editar
-                    </button>
-                    <button
-                      [disabled]="
-                        !(canWriteClients() && selectedService()?.active) ||
-                        saving() ||
-                        loading() ||
-                        !configuration.active
-                      "
-                      class="danger"
-                      type="button"
-                      (click)="deactivateConfiguration(configuration)"
-                    >
-                      Desactivar
-                    </button>
-                  </div>
-                </article>
-              }
-            </div>
-          }
-        </section>
-        </ng-template>
-
+        <!--
+          La pestaña de configuracion se retiro: el precio, el personal requerido y el impuesto
+          viven ahora en el puesto, y el horario lo declara el patron de turnos.
+        -->
         <ng-template giTab="positions">
         <!--
           Sin cambios de contenido. Esta pestaña depende de tres decisiones de negocio que siguen
@@ -337,6 +266,15 @@
                           position.notes ||
                           'Sin perfil requerido capturado'
                       }}</small>
+                      <!--
+                        La marca de revisión. Se ve aquí y no sólo en la evidencia de la
+                        migración: una posición sin patrón del catálogo no se puede planear, y eso
+                        tiene que verse donde alguien mira las posiciones, no en un registro que
+                        nadie abre.
+                      -->
+                      @if (!position.idShiftPatternTemplate) {
+                        <small class="warn">Sin patrón del catálogo · requiere revisión</small>
+                      }
                     </button>
                     <small>{{ position.active ? 'Activo' : 'Inactivo' }}</small>
                     <div class="mini-actions">
@@ -368,132 +306,52 @@
           <section class="detail-section" [hidden]="activeTab() !== 'positions'">
             <header>
               <div>
-                <h3>Patrones de turno</h3>
+                <h3>Calendario del patrón</h3>
                 <span>{{ selectedPositionName() }}</span>
               </div>
-              <button
-                class="button button--secondary"
-                type="button"
-                [disabled]="
-                  !canWritePlanning() || saving() || loading() || !selectedPosition()?.active
-                "
-                (click)="openCreateShiftPattern()"
-              >
-                Nuevo patrón
-              </button>
             </header>
 
+            <!--
+              De sólo lectura, y es el cambio de fondo de esta pantalla: la posición ya no
+              configura su horario, lo consume. Antes tenía dos secciones editables —patrones
+              propios y segmentos semanales— que podían divergir del catálogo y de Planeación, que
+              es de donde salen los turnos de verdad. El horario se cambia ahora en Catálogos, una
+              vez, y todas las posiciones que usen ese patrón lo ven cambiado.
+            -->
             @if (!selectedPosition()) {
-              <div class="compact-state">Selecciona una posición para configurar sus patrones.</div>
-            } @else if (!shiftPatterns().length) {
-              <div class="compact-state">Sin patrones registrados para esta posición.</div>
-            } @else {
-              <div class="cards-list">
-                @for (pattern of shiftPatterns(); track pattern.idShiftPattern) {
-                  <article
-                    class="mini-card selectable"
-                    [class.is-active]="
-                      selectedShiftPattern()?.idShiftPattern === pattern.idShiftPattern
-                    "
-                  >
-                    <button
-                      [disabled]="saving()"
-                      class="mini-card__main"
-                      type="button"
-                      (click)="selectShiftPattern(pattern)"
-                    >
-                      <span class="code">{{ pattern.codeShiftPattern }}</span>
-                      <strong>{{ pattern.name }}</strong>
-                      <small
-                        >Vigencia: {{ pattern.effectiveFromDate }} -
-                        {{ pattern.effectiveToDate || 'sin fecha de término' }}</small
-                      >
-                      <small>{{ pattern.description || 'Sin descripción capturada' }}</small>
-                    </button>
-                    <small>{{ pattern.active ? 'Activo' : 'Inactivo' }}</small>
-                    <div class="mini-actions">
-                      <button
-                        [disabled]="!canWritePlanning() || saving() || loading()"
-                        type="button"
-                        (click)="openEditShiftPattern(pattern)"
-                      >
-                        Editar
-                      </button>
-                      <button
-                        [disabled]="!canWritePlanning() || saving() || loading() || !pattern.active"
-                        class="danger"
-                        type="button"
-                        (click)="deactivateShiftPattern(pattern)"
-                      >
-                        Desactivar
-                      </button>
-                    </div>
-                  </article>
-                }
+              <div class="compact-state">Selecciona una posición para ver su calendario.</div>
+            } @else if (!selectedPositionTemplate()) {
+              <div class="compact-state">
+                Esta posición no tiene patrón del catálogo, así que no se puede planear todavía.
+                Elígele uno al editarla.
               </div>
-            }
-          </section>
-        }
-        @if (canReadPlanning()) {
-          <section class="detail-section" [hidden]="activeTab() !== 'positions'">
-            <header>
-              <div>
-                <h3>Segmentos semanales</h3>
-                <span>{{ selectedShiftPatternName() }}</span>
-              </div>
-              <button
-                class="button button--secondary"
-                type="button"
-                [disabled]="
-                  !canWritePlanning() ||
-                  saving() ||
-                  loading() ||
-                  !selectedPosition()?.active ||
-                  !selectedShiftPattern()?.active
-                "
-                (click)="openCreateShiftSegment()"
-              >
-                Nuevo segmento
-              </button>
-            </header>
-
-            @if (!selectedShiftPattern()) {
-              <div class="compact-state">Selecciona un patrón para ver sus horarios.</div>
-            } @else if (!shiftSegments().length) {
-              <div class="compact-state">Sin segmentos registrados para este patrón.</div>
-            } @else {
+            } @else if (selectedPositionTemplate(); as plantilla) {
+              <!--
+                Dice «referencia» y no «horario», y la diferencia no es de estilo. Lo que se
+                trabaja cada semana lo decide la planeación: puede programarse un día que aquí
+                aparece como descanso, y puede no programarse uno que aquí aparece con horario.
+                Sin decirlo, este calendario se lee como una regla y no lo es.
+              -->
+              <p class="notice">
+                <strong>{{ plantilla.name }}</strong> · ciclo de {{ plantilla.cycleDays }} día(s) ·
+                {{ plantilla.weeklyHours }} h a la semana. Es la <strong>referencia</strong> del
+                patrón: la semana que de verdad se trabaja se decide al planear, y puede no
+                coincidir. Para cambiar la referencia, en Catálogos.
+              </p>
               <div class="schedule-grid">
-                @for (segment of shiftSegments(); track segment.idShiftSegment) {
+                @for (dia of plantilla.days; track dia.idShiftPatternTemplateDay) {
                   <article class="schedule-card">
                     <div>
-                      <span class="pill"
-                        >{{ dayLabel(segment.dayOfWeek)
-                        }}{{ segment.isOvernight ? ' · Nocturno' : '' }}</span
-                      >
-                      <strong>{{ segment.startTime }} - {{ segment.endTime }}</strong>
-                      <small
-                        >{{ durationLabel(segment.durationMinutes) }} ·
-                        {{ segment.requiredWorkerCount }} elemento(s)</small
-                      >
-                      <small>{{ segment.notes || 'Sin observaciones' }}</small>
-                    </div>
-                    <small>{{ segment.active ? 'Activo' : 'Inactivo' }}</small>
-                    <div class="mini-actions">
-                      <button
-                        [disabled]="!canWritePlanning() || saving() || loading()"
-                        type="button"
-                        (click)="openEditShiftSegment(segment)"
-                      >
-                        Editar
-                      </button>
-                      <button
-                        [disabled]="!canWritePlanning() || saving() || loading() || !segment.active"
-                        class="danger"
-                        type="button"
-                        (click)="deactivateShiftSegment(segment)"
-                      >
-                        Desactivar
-                      </button>
+                      <span class="pill">Día {{ dia.cycleDayNumber }}</span>
+                      @if (dia.isRest) {
+                        <strong>Descanso</strong>
+                      } @else {
+                        <strong
+                          >{{ dia.startTime }} - {{ dia.endTime
+                          }}{{ dia.isOvernight ? ' (cruza medianoche)' : '' }}</strong
+                        >
+                        <small>{{ durationLabel(dia.durationMinutes) }}</small>
+                      }
                     </div>
                   </article>
                 }
@@ -501,6 +359,29 @@
             }
           </section>
         }
+        </ng-template>
+
+        <ng-template giTab="documents">
+          @if (selectedService(); as servicio) {
+            <section class="detail-section" [hidden]="activeTab() !== 'documents'">
+              <header>
+                <div>
+                  <h3>Documentos del servicio</h3>
+                  <span>La cédula de servicio y lo que lo acompañe</span>
+                </div>
+              </header>
+              <app-entity-documents
+                [organizationId]="selectedOrganizationId()"
+                ownerType="Service"
+                [ownerId]="servicio.idService"
+                [ownerLabel]="servicio.name"
+                [simple]="true"
+                (totalChange)="serviceDocumentCount.set($event)"
+              />
+            </section>
+          } @else {
+            <div class="compact-state">Selecciona un servicio para ver sus documentos.</div>
+          }
         </ng-template>
 
         <ng-template giTab="assignments">
@@ -700,22 +581,24 @@
                 <span>Paso 1 de 3</span>
                 <h3 id="service-step-base">Base del servicio</h3>
               </div>
+              <!--
+                Sin campo de codigo: lo pone el servidor con la forma SRV-01, consecutivo por
+                cliente, igual que el de cliente y el de organizacion. Es un identificador de
+                conveniencia, no la clave del registro, y pedirselo a quien da de alta un servicio
+                le hacia inventar una convencion que el sistema ya tiene.
+              -->
               <div class="form-grid">
                 <label
-                  ><span>Código *</span
-                  ><input formControlName="codeService" [readOnly]="!!editingService()"
-                /></label>
-                <label
-                  ><span>Sede *</span
-                  ><select formControlName="idClientSite">
-                    @for (site of sites(); track site.idClientSite) {
+                  ><span>Zona *</span
+                  ><select formControlName="idClientZone">
+                    @for (zone of zones(); track zone.idClientZone) {
                       <option
                         [disabled]="
-                          !site.active && site.idClientSite !== editingService()?.idClientSite
+                          !zone.active && zone.idClientZone !== editingService()?.idClientZone
                         "
-                        [value]="site.idClientSite"
+                        [value]="zone.idClientZone"
                       >
-                        {{ site.name }}
+                        {{ zone.name }}
                       </option>
                     }
                   </select></label
@@ -751,9 +634,6 @@
                   ><span>Descripción *</span
                   ><textarea rows="4" formControlName="description"></textarea>
                 </label>
-                <label class="wide"
-                  ><span>Descripción para factura</span><input formControlName="invoiceDescription"
-                /></label>
               </div>
             </section>
           } @else {
@@ -815,124 +695,6 @@
   </div>
 }
 
-@if (configurationEditorOpen() && canRead()) {
-  <div class="modal-backdrop" (click)="closeEditors()">
-    <section
-      serviceDialog
-      (dismiss)="closeEditors()"
-      class="modal"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="configuration-editor-title"
-      (click)="$event.stopPropagation()"
-    >
-      <header>
-        <div>
-          <span class="eyebrow">Configuración operativa</span>
-          <h2 id="configuration-editor-title">
-            {{ editingConfiguration() ? 'Editar configuración' : 'Nueva configuración' }}
-          </h2>
-        </div>
-        <button type="button" [disabled]="saving()" aria-label="Cerrar" (click)="closeEditors()">
-          ×
-        </button>
-      </header>
-      <form [formGroup]="configurationForm" (ngSubmit)="saveConfiguration()">
-        @if (configurationForm.hasError('dateRange')) {
-          <p class="notice notice--error" role="alert">La fecha de fin debe ser igual o posterior al inicio.</p>
-        }
-        @if (error()) {
-          <p class="notice notice--error" role="alert">{{ error() }}</p>
-        }
-        <fieldset [disabled]="saving()">
-          <div class="form-grid">
-            <label
-              ><span>Inicio vigencia *</span><input type="date" formControlName="effectiveFromDate"
-            /></label>
-            <label
-              ><span>Fin vigencia</span><input type="date" formControlName="effectiveToDate"
-            /></label>
-            <label
-              ><span>Personas requeridas *</span
-              ><input type="number" formControlName="requiredWorkerCount" min="1"
-            /></label>
-            <label
-              ><span>Horas/día *</span
-              ><input type="number" formControlName="hoursPerDay" min="0.5" step="0.5"
-            /></label>
-            <label
-              ><span>Días/semana *</span
-              ><input type="number" formControlName="daysPerWeek" min="1" max="7"
-            /></label>
-            <label
-              ><span>Horas/mes *</span
-              ><input type="number" formControlName="averageMonthlyHours" min="1" step="0.5"
-            /></label>
-            <label
-              ><span>Días preparación *</span
-              ><input type="number" formControlName="preparationLeadDays" min="0"
-            /></label>
-            <label
-              ><span>Precio mensual *</span
-              ><input type="number" formControlName="monthlyPrice" min="0" step="0.01"
-            /></label>
-            <label
-              ><span>Moneda *</span><input formControlName="currencyCode" maxlength="3"
-            /></label>
-            <label class="check"
-              ><input type="checkbox" formControlName="isTaxIncluded" /><span
-                >IVA incluido</span
-              ></label
-            >
-            <label class="wide"
-              ><span>Horario / jornada *</span
-              ><textarea rows="3" formControlName="workScheduleDescription"></textarea>
-            </label>
-            <label class="wide"
-              ><span>Instrucciones específicas</span
-              ><textarea rows="3" formControlName="specificInstructions"></textarea>
-            </label>
-
-            <!--
-              El motivo aparece cuando el servidor dice que hace falta, y **llega vacío**: un
-              motivo prellenado deja de ser un motivo. La regla de cuándo se exige vive en el
-              servidor, no aquí.
-            -->
-            @if (correctionReasonRequired()) {
-              <label class="wide">
-                <span>Motivo de la corrección *</span>
-                <textarea
-                  rows="2"
-                  minlength="10"
-                  placeholder=""
-                  [value]="correctionReason()"
-                  (input)="correctionReason.set($any($event.target).value)"
-                ></textarea>
-                <small>Explica por qué se corrige una configuración cuya vigencia ya pasó.</small>
-              </label>
-            }
-          </div>
-          <footer>
-            <button class="button button--secondary" type="button" (click)="closeEditors()">
-              Cancelar
-            </button>
-            <button
-              class="button button--primary"
-              type="submit"
-              [disabled]="saving() || (correctionReasonRequired() && correctionReason().trim().length < 10)"
-            >
-              {{ saving() ? 'Guardando…' : 'Guardar configuración' }}
-            </button>
-            @if (correctionReasonRequired() && correctionReason().trim().length < 10) {
-              <!-- Un botón apagado sin explicación deja al usuario adivinando qué le falta. -->
-              <small class="razon">Escribe al menos diez caracteres de motivo.</small>
-            }
-          </footer>
-        </fieldset>
-      </form>
-    </section>
-  </div>
-}
 
 @if (positionEditorOpen() && canRead()) {
   <div class="modal-backdrop" (click)="closeEditors()">
@@ -961,19 +723,180 @@
           <p class="notice notice--error" role="alert">{{ error() }}</p>
         }
         <fieldset [disabled]="saving()">
+          <!-- Sin codigo: lo pone el servidor como P-01, consecutivo por servicio. -->
           <div class="form-grid">
-            <label
-              ><span>Código *</span
-              ><input formControlName="codePosition" [readOnly]="!!editingPosition()"
-            /></label>
             <label
               ><span>Personas requeridas *</span
               ><input type="number" formControlName="requiredWorkerCount" min="1"
             /></label>
             <label class="wide"><span>Nombre *</span><input formControlName="name" /></label>
+            <!--
+              El precio del puesto. Vive aqui desde que se retiro la configuracion del servicio:
+              en seguridad privada se cotiza por puesto, no por servicio, y un servicio con caseta,
+              rondin y monitorista tiene tres precios, no uno.
+            -->
+            <label
+              ><span>Precio *</span
+              ><input type="number" formControlName="price" min="0" step="0.01"
+            /></label>
+            <!--
+              El periodo va junto al importe porque un precio sin periodo no significa nada. Antes
+              el campo decia «Precio mensual» y el mes estaba metido en el rotulo: al guardia se le
+              cobra por semana y no habia forma de decirlo.
+            -->
+            <label
+              ><span>Periodo del precio *</span
+              ><select formControlName="priceFrequency">
+                @for (opcion of paymentFrequencies; track opcion.value) {
+                  <option [value]="opcion.value">{{ opcion.label }}</option>
+                }
+              </select>
+            </label>
+            <label class="check"
+              ><input type="checkbox" formControlName="isTaxIncluded" /><span>IVA incluido</span></label
+            >
+            <!--
+              La vigencia del puesto. No es la del servicio: un servicio vigente todo el año puede
+              tener un refuerzo de octubre a diciembre, y hasta hoy eso no se podia expresar.
+              Dejarlas vacias hereda la del servicio, que es lo que tenian las 69 posiciones
+              capturadas antes de que el campo existiera.
+            -->
+            <label
+              ><span>Vigente desde</span><input type="date" formControlName="startDate"
+            /></label>
+            <label
+              ><span>Vigente hasta</span><input type="date" formControlName="endDate"
+            /></label>
+            <!--
+              El patron de turno sale del catalogo. Antes se capturaba dentro de cada posicion y sus
+              dias se declaraban por dia de la semana, asi que un 24x48 —ciclo de tres dias— no
+              cabia, y habia que volver a teclear el mismo horario en cada puesto. El catalogo se
+              construye en Catalogos y aqui solo se elige.
+            -->
             <label class="wide"
-              ><span>Perfil requerido</span
-              ><textarea rows="3" formControlName="requiredSkillProfile"></textarea>
+              ><span>Patrón de turno</span
+              ><!--
+                Va con formControlName y no con [value]. Con [value] el patron guardado no se veia
+                al reabrir: las opciones llegan por HTTP despues del primer dibujado, un <select>
+                ignora un value que todavia no corresponde a ninguna opcion, y Angular no lo vuelve
+                a aplicar. El dato estaba bien guardado y la pantalla decia que no habia ninguno.
+              --><select
+                formControlName="idShiftPatternTemplate"
+                (change)="elegirPatronDeTurno($any($event.target).value)"
+              >
+                <!--
+                  Sigue existiendo porque retirarla dejaría sin planear a las 64 posiciones que
+                  hoy no tienen plantilla, y porque el catálogo sólo ofrece las plantillas
+                  completas: de diez activas, nueve tienen días del ciclo sin declarar. El rótulo
+                  dice lo que la opción significa de verdad, que es que queda pendiente.
+                -->
+                <option value="">Sin patrón del catálogo · queda pendiente de revisión</option>
+                @for (patron of shiftPatternTemplates(); track patron.idShiftPatternTemplate) {
+                  <option [value]="patron.idShiftPatternTemplate">{{ patronEtiqueta(patron) }}</option>
+                }
+              </select>
+              @if (selectedShiftPatternTemplate(); as patron) {
+                <small>
+                  El puesto sigue el ciclo de {{ patron.cycleDays }}
+                  {{ patron.cycleDays === 1 ? 'día' : 'días' }} de este patrón:
+                  un promedio de {{ patron.weeklyHours }} horas por semana.
+                  @if (patron.compliance === 'Exceeds') {
+                    Excede la jornada legal por {{ patron.excessHours }} horas; se guarda igual y
+                    queda registrado.
+                  }
+                </small>
+              } @else if (!shiftPatternTemplates().length) {
+                <small>
+                  Todavía no hay patrones completos en el catálogo. Se construyen en Catálogos ·
+                  Patrones de turno; mientras no haya ninguno, el puesto conserva el patrón que se le
+                  capturó por dentro.
+                </small>
+              } @else {
+                <small>
+                  Sin patrón del catálogo el puesto conserva el que se le capturó por dentro. Sólo
+                  se ofrecen los patrones con todos los días del ciclo declarados.
+                </small>
+              }
+            </label>
+            <!--
+              Lo que el cliente pide para el puesto. Es del PUESTO y no de la persona: describe lo
+              contratado, y por eso el catálogo de sexo admite «Indistinto», que no describiría a
+              nadie. Nada de esto se compara contra el expediente de quien se asigne; eso son las
+              reglas de elegibilidad, que viven en Catálogos.
+            -->
+            <label
+              ><span>Sexo requerido</span
+              ><select formControlName="idSexCatalogItem">
+                <option value="">Sin declarar</option>
+                @for (valor of sexCatalog(); track valor.idCatalogItem) {
+                  <option [value]="valor.idCatalogItem">{{ valor.name }}</option>
+                }
+              </select>
+            </label>
+            <label
+              ><span>Rango de edad</span
+              ><select formControlName="idAgeRangeCatalogItem">
+                <option value="">Sin declarar</option>
+                @for (valor of ageRangeCatalog(); track valor.idCatalogItem) {
+                  <option [value]="valor.idCatalogItem">{{ valor.name }}</option>
+                }
+              </select>
+            </label>
+            <label
+              ><span>Escolaridad mínima</span
+              ><select formControlName="idEducationLevelCatalogItem">
+                <option value="">Sin declarar</option>
+                @for (valor of educationCatalog(); track valor.idCatalogItem) {
+                  <option [value]="valor.idCatalogItem">{{ valor.name }}</option>
+                }
+              </select>
+            </label>
+
+            <div class="wide">
+              <span class="equipo__titulo">Equipo requerido</span>
+              @if (equipmentCatalog().length) {
+                <ul class="equipo">
+                  @for (equipo of equipmentCatalog(); track equipo.idCatalogItem) {
+                    <li>
+                      <label>
+                        <input
+                          type="checkbox"
+                          [checked]="selectedEquipment().includes(equipo.idCatalogItem)"
+                          [disabled]="!canWriteClients()"
+                          (change)="toggleEquipment(equipo.idCatalogItem)"
+                        />
+                        <span>{{ equipo.name }}</span>
+                      </label>
+                    </li>
+                  }
+                </ul>
+              } @else {
+                <small>
+                  El catálogo de equipo requerido está vacío. Se llena en Catálogos · Equipo
+                  requerido, y hasta entonces la posición se guarda sin equipo declarado.
+                </small>
+              }
+            </div>
+
+            <!--
+              El perfil deja de ser una descripción y pasa a ser una lista comprobable. El texto
+              libre se queda como nota, porque lo que alguien escribió no se borra, pero la pantalla
+              dice lo que es: algo que se lee, no algo que el sistema compare con nadie.
+            -->
+            <app-position-skills
+              [catalogSkills]="catalogSkills()"
+              [requirements]="positionSkillRequirements()"
+              [pending]="pendingPositionSkills()"
+              [canWrite]="canWriteClients()"
+              [saving]="saving()"
+              (add)="addPositionSkill($event)"
+              (remove)="removePositionSkill($event)"
+              (removePending)="removePendingPositionSkill($event)"
+              (createSkill)="createSkillForProfile($event)"
+            />
+            <label class="wide"
+              ><span>Perfil en palabras · nota, no se comprueba</span
+              ><textarea rows="2" formControlName="requiredSkillProfile"></textarea>
             </label>
             <label class="wide"
               ><span>Notas</span><textarea rows="3" formControlName="notes"></textarea>
@@ -1024,22 +947,21 @@
         }
         <fieldset [disabled]="saving()">
           <div class="form-grid">
-            <label class="wide">
-              <span>Empleado activo *</span>
-              <select formControlName="idEmployee">
-                @if (editingAssignment(); as assignment) {
+            @if (editingAssignment(); as assignment) {
+              <!-- Editando no se cambia de persona: eso es retirar una asignación y crear otra. -->
+              <label class="wide">
+                <span>Empleado</span>
+                <select formControlName="idEmployee">
                   <option [value]="assignment.idEmployee">{{ assignment.employeeName }}</option>
-                }
-                @for (employee of activeEmployees(); track employee.idEmployee) {
-                  <option [value]="employee.idEmployee">
-                    {{ employee.codeEmployee }} · {{ employee.fullName }}
-                  </option>
-                }
-              </select>
-            </label>
+                </select>
+              </label>
+            }
             <label class="wide">
               <span>Posición *</span>
-              <select formControlName="idPosition">
+              <select
+                formControlName="idPosition"
+                (change)="onCandidatePositionChange($any($event.target).value)"
+              >
                 @for (position of positions(); track position.idPosition) {
                   <option
                     [disabled]="
@@ -1059,18 +981,51 @@
                   <option [value]="type.value">{{ type.label }}</option>
                 }
               </select>
+              <small>Con qué calidad cubre <strong>esta posición</strong>.</small>
             </label>
             <label><span>Inicio *</span><input type="date" formControlName="startDate" /></label>
             <label><span>Fin</span><input type="date" formControlName="endDate" /></label>
+            <!--
+              El tipo y la asignación principal parecen lo mismo y responden preguntas distintas.
+              Sin decirlo, quien captura marca la casilla porque eligió «Titular» arriba, y las dos
+              dejan de significar algo: hoy hay 112 asignaciones marcadas principales y 38 con tipo
+              distinto de titular, así que en los datos ya son cosas separadas.
+            -->
             <label class="check"
               ><input type="checkbox" formControlName="isPrimary" /><span
                 >Asignación principal</span
               ></label
             >
+            <p class="hint wide">
+              <strong>Tipo</strong> dice con qué calidad cubre esta posición.
+              <strong>Asignación principal</strong> dice si éste es el puesto base
+              <strong>de la persona</strong>, cuando cubre varios. Alguien puede ser titular de una
+              posición y tener su puesto base en otra.
+            </p>
             <label class="wide"
               ><span>Notas</span><textarea rows="3" formControlName="notes"></textarea>
             </label>
           </div>
+
+          @if (!editingAssignment()) {
+            <!--
+              La lista de candidatos con el estado antes de guardar. Antes ofrecía a todos los
+              empleados activos sin distinguir y el rechazo llegaba al guardar, que es donde se
+              atoraba quien asignaba. «Ocupado» no impide elegir: alguien puede estar cubriendo sólo
+              los domingos y hacer falta un miércoles.
+            -->
+            <gi-candidate-picker
+              [candidates]="assignmentCandidates()"
+              [selectedId]="assignmentForm.controls.idEmployee.value"
+              title="CANDIDATOS PARA ESTA POSICIÓN"
+              [emptyTitle]="candidatesEmptyTitle()"
+              [emptyBody]="candidatesEmptyBody()"
+              emptyActionLabel="Ir a Personal"
+              (choose)="chooseCandidate($event)"
+              (resolveEmpty)="goToWorkforce()"
+            />
+          }
+
           <footer>
             <button class="button button--secondary" type="button" (click)="closeEditors()">
               Cancelar
@@ -1085,130 +1040,3 @@
   </div>
 }
 
-@if (shiftPatternEditorOpen() && canRead()) {
-  <div class="modal-backdrop" (click)="closeEditors()">
-    <section
-      serviceDialog
-      (dismiss)="closeEditors()"
-      class="modal"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="shift-pattern-editor-title"
-      (click)="$event.stopPropagation()"
-    >
-      <header>
-        <div>
-          <span class="eyebrow">Patrón de turno</span>
-          <h2 id="shift-pattern-editor-title">
-            {{ editingShiftPattern() ? 'Editar patrón' : 'Nuevo patrón' }}
-          </h2>
-        </div>
-        <button type="button" [disabled]="saving()" aria-label="Cerrar" (click)="closeEditors()">
-          ×
-        </button>
-      </header>
-      <form [formGroup]="shiftPatternForm" (ngSubmit)="saveShiftPattern()">
-        @if (shiftPatternForm.hasError('dateRange')) {
-          <p class="notice notice--error" role="alert">La fecha de fin debe ser igual o posterior al inicio.</p>
-        }
-        @if (error()) {
-          <p class="notice notice--error" role="alert">{{ error() }}</p>
-        }
-        <fieldset [disabled]="saving()">
-          <div class="form-grid">
-            <label
-              ><span>Código *</span
-              ><input formControlName="codeShiftPattern" [readOnly]="!!editingShiftPattern()"
-            /></label>
-            <label
-              ><span>Inicio vigencia *</span><input type="date" formControlName="effectiveFromDate"
-            /></label>
-            <label
-              ><span>Fin vigencia</span><input type="date" formControlName="effectiveToDate"
-            /></label>
-            <label class="wide"><span>Nombre *</span><input formControlName="name" /></label>
-            <label class="wide"
-              ><span>Descripción</span><textarea rows="3" formControlName="description"></textarea>
-            </label>
-          </div>
-          <footer>
-            <button class="button button--secondary" type="button" (click)="closeEditors()">
-              Cancelar
-            </button>
-            <button class="button button--primary" type="submit" [disabled]="saving()">
-              {{ saving() ? 'Guardando…' : 'Guardar patrón' }}
-            </button>
-          </footer>
-        </fieldset>
-      </form>
-    </section>
-  </div>
-}
-
-@if (shiftSegmentEditorOpen() && canRead()) {
-  <div class="modal-backdrop" (click)="closeEditors()">
-    <section
-      serviceDialog
-      (dismiss)="closeEditors()"
-      class="modal modal--small"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="shift-segment-editor-title"
-      (click)="$event.stopPropagation()"
-    >
-      <header>
-        <div>
-          <span class="eyebrow">Segmento semanal</span>
-          <h2 id="shift-segment-editor-title">
-            {{ editingShiftSegment() ? 'Editar segmento' : 'Nuevo segmento' }}
-          </h2>
-        </div>
-        <button type="button" [disabled]="saving()" aria-label="Cerrar" (click)="closeEditors()">
-          ×
-        </button>
-      </header>
-      <form [formGroup]="shiftSegmentForm" (ngSubmit)="saveShiftSegment()">
-        @if (shiftSegmentForm.hasError('shiftInterval')) {
-          <p class="notice notice--error" role="alert">Revisa los horarios y si el turno cruza medianoche. La duración debe ser mayor a cero y no superar 24 horas.</p>
-        }
-        @if (error()) {
-          <p class="notice notice--error" role="alert">{{ error() }}</p>
-        }
-        <fieldset [disabled]="saving()">
-          <div class="form-grid">
-            <label
-              ><span>Día *</span
-              ><select formControlName="dayOfWeek">
-                @for (day of weekDays; track day.value) {
-                  <option [value]="day.value">{{ day.label }}</option>
-                }
-              </select></label
-            >
-            <label
-              ><span>Personas requeridas *</span
-              ><input type="number" formControlName="requiredWorkerCount" min="1"
-            /></label>
-            <label><span>Inicio *</span><input type="time" formControlName="startTime" /></label>
-            <label><span>Fin *</span><input type="time" formControlName="endTime" /></label>
-            <label class="check"
-              ><input type="checkbox" formControlName="isOvernight" /><span
-                >Cruza medianoche</span
-              ></label
-            >
-            <label class="wide"
-              ><span>Notas</span><textarea rows="3" formControlName="notes"></textarea>
-            </label>
-          </div>
-          <footer>
-            <button class="button button--secondary" type="button" (click)="closeEditors()">
-              Cancelar
-            </button>
-            <button class="button button--primary" type="submit" [disabled]="saving()">
-              {{ saving() ? 'Guardando…' : 'Guardar segmento' }}
-            </button>
-          </footer>
-        </fieldset>
-      </form>
-    </section>
-  </div>
-}

@@ -26,6 +26,12 @@ public interface IPlanningRepository
         Guid idPosition,
         CancellationToken cancellationToken);
 
+    /// <summary>El numero mas alto ya usado en los codigos <c>P-NN</c> de ese servicio.</summary>
+    Task<int> HighestPositionCodeNumberAsync(Guid idService, CancellationToken cancellationToken);
+
+    /// <summary>El numero mas alto ya usado en los codigos <c>PAT-NN</c> de esa posicion.</summary>
+    Task<int> HighestShiftPatternCodeNumberAsync(Guid idPosition, CancellationToken cancellationToken);
+
     Task<bool> IsPositionCodeInUseAsync(
         Guid idService,
         string codePosition,
@@ -33,6 +39,19 @@ public interface IPlanningRepository
         CancellationToken cancellationToken);
 
     Task AddPositionAsync(Position position, CancellationToken cancellationToken);
+
+    /// <summary>El equipo que una posicion ya tiene registrado, activo o no.</summary>
+    Task<IReadOnlyList<PositionRequiredEquipment>> ListPositionEquipmentAsync(
+        Guid idPosition,
+        CancellationToken cancellationToken);
+
+    Task AddPositionEquipmentAsync(PositionRequiredEquipment equipment, CancellationToken cancellationToken);
+
+    /// <summary>Que las piezas elegidas existan, esten activas y sean del catalogo de equipo.</summary>
+    Task<bool> AreEquipmentCatalogItemsUsableAsync(
+        Guid idOrganization,
+        IReadOnlyCollection<Guid> idCatalogItems,
+        CancellationToken cancellationToken);
 
     Task<IReadOnlyList<ShiftPattern>> ListShiftPatternsAsync(Guid idPosition, CancellationToken cancellationToken);
 

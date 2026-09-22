@@ -1,9 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CatalogSelect } from '../../../shared/ui/catalog-select/catalog-select';
-import { GiSelect, GiSelectOption } from '../../../shared/ui/gi-ui';
+import { GiCatalogCreation, GiCatalogPicker } from '../../../shared/ui/gi-ui';
 import { EmployeeJobPositionOption } from '../data-access/employee-list.models';
-import { JobPositionMissing } from './job-position-missing';
 
 /** Lo que el formulario devuelve. El puesto viaja por identificador y por nombre. */
 export type EmployeeFormValue = {
@@ -32,7 +31,7 @@ export type EmployeeFormValue = {
 @Component({
   selector: 'app-employee-form',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CatalogSelect, FormsModule, GiSelect, JobPositionMissing],
+  imports: [CatalogSelect, FormsModule, GiCatalogPicker],
   template: `
     <form class="form" (ngSubmit)="$event.preventDefault()">
       <section class="form__block">
@@ -85,21 +84,25 @@ export type EmployeeFormValue = {
           <span class="form__warning">Sin puesto no se puede comprobar el perfil</span>
         </h3>
 
-        @if (jobPositions().length === 0) {
-          <app-job-position-missing />
-        } @else {
-          <gi-select
-            label="Puesto del catálogo"
-            placeholder="Elige un puesto"
-            [options]="jobOptions()"
-            [value]="idJobPositionCatalogItem()"
-            (valueChange)="idJobPositionCatalogItem.set($event)"
-          />
-          <p class="form__hint">
-            Los puestos salen del catálogo de esta organización. La elegibilidad se compara por
-            identificador, así que un puesto escrito a mano no sirve para comprobarla.
-          </p>
-        }
+        <!--
+          El catálogo vacío ya no es una pared: se escribe el puesto y se ofrece agregarlo. Antes
+          aquí salía un estado vacío que mandaba a Catálogos, y había que abandonar el alta a medias,
+          crear el puesto y volver a empezar.
+        -->
+        <gi-catalog-picker
+          label="Puesto del catálogo"
+          catalogLabel="el catálogo de puestos"
+          inputId="empleado-puesto"
+          [options]="jobPositions()"
+          [value]="idJobPositionCatalogItem()"
+          [canWrite]="canWrite()"
+          (valueChange)="idJobPositionCatalogItem.set($event)"
+          (create)="createJobPosition.emit($event)"
+        />
+        <p class="form__hint">
+          Los puestos salen del catálogo de esta organización. La elegibilidad se compara por
+          identificador, así que un puesto escrito a mano no sirve para comprobarla.
+        </p>
       </section>
 
       <section class="form__block">
@@ -317,6 +320,9 @@ export type EmployeeFormValue = {
 export class EmployeeForm {
   readonly organizationId = input('');
   readonly jobPositions = input.required<readonly EmployeeJobPositionOption[]>();
+
+  /** Sin esto, el alta al vuelo ofrecería crear algo que el servidor va a rechazar con 403. */
+  readonly canWrite = input(false);
   /** El día operativo del servidor, para proponer el ingreso de hoy. */
   readonly today = input('');
   readonly saving = input(false);
@@ -324,6 +330,15 @@ export class EmployeeForm {
 
   readonly cancel = output<void>();
   readonly save = output<EmployeeFormValue>();
+
+  /**
+   * El puesto que hay que crear en el catálogo antes de poder elegirlo.
+   *
+   * <p>Lo resuelve la pantalla y no este formulario: crear un valor de catálogo es una escritura a
+   * otro módulo, y quien la hace tiene que poder recargar la lista y contarlo. El formulario sólo
+   * dice qué se pidió.</p>
+   */
+  readonly createJobPosition = output<GiCatalogCreation>();
 
   /** Un objeto estable: creado en la plantilla se recrearía en cada ciclo de detección. */
   protected readonly sueltos = { standalone: true };
@@ -336,10 +351,6 @@ export class EmployeeForm {
   protected readonly municipality = signal('');
   protected readonly mobilePhone = signal('');
   protected readonly email = signal('');
-
-  protected readonly jobOptions = computed<readonly GiSelectOption[]>(() =>
-    this.jobPositions().map((option) => ({ value: option.idCatalogItem, label: option.name })),
-  );
 
   protected readonly personReady = computed(
     () => !!this.fullName().trim() && !!this.effectiveHireDate(),

@@ -1,0 +1,130 @@
+/* Sin `max-width`: es la convención de las pantallas rehechas —Clientes, Servicios, Personal— y
+   ponerle un tope dejaba una franja muerta a la derecha en cuanto la ventana pasaba de 1216 px. */
+:host {
+  display: block;
+  min-width: 0;
+}
+
+/* ── Cabecera ─────────────────────────────────────────────────────────────────────────────── */
+
+/* Sin la ilustración de la referencia: es decoración y empuja la tabla fuera de la primera
+   pantalla, que es justo donde está lo que la gente viene a ver. */
+.cat-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+  gap: 1rem;
+}
+
+.cat-head h1 {
+  margin: 0;
+}
+
+/* ── Paginación ───────────────────────────────────────────────────────────────────────────── */
+
+.cat-pages {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 0.85rem;
+  gap: 0.75rem;
+}
+
+.cat-pages__size {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--gestia-muted);
+  font-size: 12px;
+}
+
+.cat-pages__size gi-select {
+  width: 5.5rem;
+}
+
+.cat-pages__nav {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.cat-pages__count {
+  color: var(--gestia-muted);
+  font-size: 12px;
+}
+
+/* ── Editor ───────────────────────────────────────────────────────────────────────────────── */
+
+.cat-dialog {
+  width: min(32rem, calc(100vw - 2rem));
+  padding: 0;
+  border: 1px solid var(--gestia-border);
+  border-radius: var(--gestia-radius);
+  background: var(--gestia-surface);
+  color: var(--gestia-text);
+  box-shadow: var(--gestia-shadow-md);
+}
+
+.cat-dialog::backdrop {
+  background: var(--gestia-dialog-veil);
+}
+
+/* Cabecera y pie con su propia línea: separan lo que se lee de lo que se rellena y de lo que se
+   decide, y dejan el cuerpo como el único bloque con el que se interactúa. */
+.cat-dialog__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 1.1rem 1.25rem 0.9rem;
+  border-bottom: 1px solid var(--gestia-border);
+  gap: 1rem;
+}
+
+.cat-dialog__head h2 {
+  margin: 0.1rem 0 0;
+}
+
+.cat-dialog__body {
+  display: grid;
+  padding: 1.1rem 1.25rem;
+  gap: 1rem;
+}
+
+.cat-dialog__body textarea {
+  resize: vertical;
+}
+
+.cat-dialog__foot {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0.9rem 1.25rem 1.1rem;
+  border-top: 1px solid var(--gestia-border);
+  gap: 0.6rem;
+}
+
+.cat-dialog .gi-alert {
+  margin: 1rem 1.25rem 0;
+}
+
+/* ── Dirección que no corresponde a ningún catálogo ───────────────────────────────────────── */
+
+.cat-missing h1 {
+  margin: 0 0 0.35rem;
+}
+
+.cat-missing p {
+  margin: 0;
+  color: var(--gestia-muted);
+}
+
+@media (width <= 48rem) {
+  .cat-head {
+    flex-direction: column;
+  }
+
+  .cat-pages {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

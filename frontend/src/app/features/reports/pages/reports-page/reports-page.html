@@ -57,7 +57,7 @@
 
   @if (!hasTurnDenominator()) {
     <article class="gi-card no-data-note">
-      <strong>No hay turnos esperados en el periodo seleccionado.</strong>
+      <strong>No hay asistencia capturada en el periodo seleccionado.</strong>
       <span>Las métricas de asistencia, ausentismo y retardos se muestran como N/D para evitar interpretaciones erróneas.</span>
       <div>
         <button class="gi-button gi-button--secondary" type="button" (click)="refresh()">Ajustar filtros</button>
@@ -113,7 +113,7 @@
         <small>Rendimiento detallado</small>
       </button>
       <button class="quick-link" type="button" (click)="selectReportType('elegibilidad')">
-        <span>Ver elegibilidad</span>
+        <span>Ver incumplimientos</span>
         <small>Estado del personal</small>
       </button>
       <button class="quick-link" type="button" (click)="selectReportType('alertas')">
@@ -131,7 +131,7 @@
     <article class="gi-card report-panel">
       <span class="eyebrow">Operación por servicio</span>
       <h2>Comparativo por servicio</h2>
-      <p class="panel-copy">Cada fila compara operación real del periodo. Las tasas usan N/D si no hay turnos esperados.</p>
+      <p class="panel-copy">Cada fila compara operación real del periodo. Las tasas usan N/D si no hay asistencia capturada.</p>
 
       <div class="table-wrap">
         <table class="gi-table">
@@ -206,7 +206,23 @@
 
     <article class="gi-card report-panel">
       <span class="eyebrow">Elegibilidad</span>
-      <h2>Reporte de elegibilidad</h2>
+      <h2>Incumplimientos</h2>
+      <p class="report-note">
+        Qué impide hoy que una persona sea asignada. Se evalúan las reglas de <b>toda la
+        organización</b>; las que aplican sólo a un cliente, un servicio o una posición se
+        comprueban al asignar y al publicar la planeación, porque dependen de a dónde se va a
+        asignar.
+      </p>
+      <p class="report-filter">
+        <button class="gi-button gi-button--secondary" type="button" (click)="toggleOnlyNonCompliant()">
+          {{ onlyNonCompliant() ? 'Ver también a quienes cumplen' : 'Ver sólo incumplimientos' }}
+        </button>
+        <small>
+          {{ onlyNonCompliant()
+              ? complianceRows().length + ' de ' + eligibilityRows().length + ' personas incumplen algo'
+              : 'Mostrando las ' + eligibilityRows().length + ' personas' }}
+        </small>
+      </p>
       <div class="table-wrap">
         <table class="gi-table">
           <thead>
@@ -216,13 +232,14 @@
               <th>Estado laboral</th>
               <th>Expediente</th>
               <th>Documentos</th>
-              <th>Habilidades</th>
+              <th>Experiencia</th>
               <th>Elegibilidad</th>
+              <th>Impacto</th>
               <th>Motivos</th>
             </tr>
           </thead>
           <tbody>
-            @for (employee of eligibilityRows(); track employee.idEmployee) {
+            @for (employee of complianceRows(); track employee.idEmployee) {
               <tr [class.row-warning]="employee.status !== 'Elegible'">
                 <td>
                   <strong>{{ employee.fullName }}</strong>
@@ -234,6 +251,17 @@
                 <td><span class="soft-status" [class.warning]="employee.documentStatus !== 'Completo'" [class.ok]="employee.documentStatus === 'Completo'">{{ employee.documentStatus }}</span></td>
                 <td><span class="soft-status" [class.warning]="employee.skillStatus !== 'Completo'" [class.ok]="employee.skillStatus === 'Completo'">{{ employee.skillStatus }}</span></td>
                 <td><span class="soft-status" [class]="eligibilityStatusClass(employee.status)">{{ employee.status }}</span></td>
+                <!--
+                  Los motivos que llegan aquí son los que impiden asignar: el servidor sólo suma a
+                  esta lista las reglas bloqueantes incumplidas y las incidencias activas de motivo
+                  bloqueante. Una informativa no aparece porque no impide nada, y mezclarlas haría
+                  que la pantalla dijera «incumple» de algo que no detiene la operación.
+                -->
+                <td>
+                  <span class="soft-status" [class.warning]="employee.status !== 'Elegible'">
+                    {{ employee.status === 'Elegible' ? 'Ninguno' : 'Bloqueante' }}
+                  </span>
+                </td>
                 <td>{{ employee.reasons.join(' · ') }}</td>
               </tr>
             } @empty {
@@ -290,7 +318,7 @@
         } @else {
           <div class="gi-empty-state">
             <h3>Datos insuficientes para graficar</h3>
-            <p>No hay turnos esperados para calcular distribución de asistencia, ausentismo o retardos.</p>
+            <p>No hay asistencia capturada para calcular distribución de asistencia, ausentismo o retardos.</p>
           </div>
         }
       </article>
@@ -378,7 +406,7 @@
           <div><dt>Periodo</dt><dd>{{ periodLabel() }}</dd></div>
           <div><dt>Generado por</dt><dd>Administrador GestIA</dd></div>
           <div><dt>Zona horaria</dt><dd>{{ timezoneLabel() }}</dd></div>
-          <div><dt>Datos N/D</dt><dd>{{ hasTurnDenominator() ? 'No aplica' : 'Incluye explicación por falta de turnos esperados' }}</dd></div>
+          <div><dt>Datos N/D</dt><dd>{{ hasTurnDenominator() ? 'No aplica' : 'Incluye explicación por falta de asistencia capturada' }}</dd></div>
         </dl>
       </article>
     </section>
@@ -397,7 +425,7 @@
           </article>
         }
       </div>
-      <p class="soft-alert">N/D no es cero: significa que falta un denominador suficiente, por ejemplo turnos esperados.</p>
+      <p class="soft-alert">N/D no es cero: significa que falta un denominador suficiente, por ejemplo asistencia capturada.</p>
     </aside>
   }
 </section>

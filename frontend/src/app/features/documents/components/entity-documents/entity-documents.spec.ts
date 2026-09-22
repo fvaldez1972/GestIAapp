@@ -4,6 +4,9 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ElementRef, Input, ViewChild, signal, ɵresolveComponentResources as resolveComponentResources } from '@angular/core';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { AppIcon } from '../../../../shared/ui/app-icon/app-icon';
+import { GiCatalogPicker } from '../../../../shared/ui/gi-catalog-picker/gi-catalog-picker';
+import { GiFileInput } from '../../../../shared/ui/gi-file-input/gi-file-input';
+import { GiSelect } from '../../../../shared/ui/gi-select/gi-select';
 import { BusinessDocument } from '../../data-access/document.models';
 import { EntityDocuments } from './entity-documents';
 
@@ -24,7 +27,27 @@ describe('EntityDocuments', () => {
       for (const name of ['organizationId', 'ownerType', 'ownerId', 'ownerLabel']) {
         Input(signalInput)(EntityDocuments.prototype, name);
       }
+      // Opcionales: el mismo descriptor, sin `required`.
+      for (const name of ['simple', 'categories', 'documentTypes', 'openAdd', 'presetDocumentType']) {
+        Input({ isSignal: true, required: false } as never)(EntityDocuments.prototype, name);
+      }
       Input(signalInput)(AppIcon.prototype, 'name');
+      // Las piezas hijas del formulario: se registran porque las pruebas del desplegable son las
+      // primeras que dibujan el editor, y hasta ahora nadie habia pasado por sus entradas.
+      for (const name of ['label', 'options']) {
+        Input(signalInput)(GiSelect.prototype, name);
+      }
+      for (const name of ['value', 'placeholder', 'disabled']) {
+        Input({ isSignal: true, required: false } as never)(GiSelect.prototype, name);
+      }
+      Input(signalInput)(GiCatalogPicker.prototype, 'options');
+      for (const name of ['value', 'label', 'catalogLabel', 'canWrite', 'disabled', 'inputId']) {
+        Input({ isSignal: true, required: false } as never)(GiCatalogPicker.prototype, name);
+      }
+      Input(signalInput)(GiFileInput.prototype, 'label');
+      for (const name of ['accept', 'disabled', 'hint', 'emptyLabel']) {
+        Input({ isSignal: true, required: false } as never)(GiFileInput.prototype, name);
+      }
       const signalQuery = { isSignal: true, read: ElementRef };
       ViewChild('historyDialog', signalQuery)(EntityDocuments.prototype, 'historyDialog');
     }
@@ -58,13 +81,19 @@ describe('EntityDocuments', () => {
   const page = (items: readonly BusinessDocument[] = [document], totalCount = items.length) => ({
     items, totalCount, page: 1, pageSize: 10, totalPages: Math.ceil(totalCount / 10),
   });
+  const botones = () =>
+    Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('button')).map(
+      (b) => b.textContent!.replace(/\s+/g, ' ').trim(),
+    );
+
   const listRequest = () => http.expectOne(request => request.url === '/api/v1/documents' && request.method === 'GET');
   const flushList = (items: readonly BusinessDocument[] = [document], totalCount = items.length) => {
     listRequest().flush(page(items, totalCount));
     fixture.detectChanges();
   };
   const chooseFile = (file = new File(['pdf'], 'contract.pdf', { type: 'application/pdf' })) => {
-    component['selectFile']({ target: { files: [file], value: '' } } as unknown as Event);
+    // Ahora el control entrega el archivo, no el evento: el nativo queda dentro de gi-file-input.
+    component['selectFile'](file);
   };
   const createForm = () => {
     component['openEditor']('create');
@@ -111,7 +140,9 @@ describe('EntityDocuments', () => {
     expect(request.request.params.get('organizationId')).toBe('org-1');
     expect(request.request.params.get('ownerType')).toBe('Client');
     expect(request.request.params.get('ownerId')).toBe('client-1');
-    expect(request.request.params.get('pageSize')).toBe('10');
+    // Cinco, no diez: esto vive en un panel de detalle y con diez la lista crecia hasta empujar
+    // el navegador de paginas fuera de la vista.
+    expect(request.request.params.get('pageSize')).toBe('5');
     request.flush(page([document, { ...document, ownerId: 'other', title: 'Other owner' }], 11));
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).not.toContain('Other owner');
@@ -385,5 +416,275 @@ describe('EntityDocuments', () => {
     expect(component['mode']()).toBeNull();
     expect(component['busy']()).toBe(false);
     http.expectNone(request => request.method === 'POST');
+  });
+
+  /**
+   * El expediente del <b>cliente</b> pide menos que el del personal.
+   *
+   * <p>Historial, Revisar y Archivar existen para el expediente del personal, donde un documento se
+   * valida o se rechaza y esa decisión manda sobre la elegibilidad para cubrir un turno. En el del
+   * cliente no hay a quién le sirvan.</p>
+   */
+  it('en la variante simple solo deja descargar y editar', () => {
+    fixture.componentRef.setInput('simple', true);
+    fixture.detectChanges();
+    flushList();
+
+    const texto = botones().join(' | ');
+    expect(texto).toContain('Descargar');
+    expect(texto).toContain('Editar');
+    expect(texto).not.toContain('Historial');
+    expect(texto).not.toContain('Revisar');
+    expect(texto).not.toContain('Archivar');
+  });
+
+  /** Y no repite «Agregar documento»: la ficha del cliente ya lo tiene en su cabecera. */
+  it('en la variante simple no pone su propio «Agregar documento»', () => {
+    fixture.componentRef.setInput('simple', true);
+    fixture.detectChanges();
+    flushList();
+
+    expect(botones().some((b) => b.includes('Agregar documento'))).toBe(false);
+  });
+
+  /** En Personal siguen las cinco: ahi el componente vive solo y la revision sostiene la vigencia. */
+  it('sin la variante simple conserva historial, revisar y archivar', () => {
+    flushList();
+
+    const texto = botones().join(' | ');
+    expect(texto).toContain('Historial');
+    expect(texto).toContain('Revisar');
+    expect(texto).toContain('Archivar');
+    expect(texto).toContain('Agregar documento');
+  });
+
+  // ── Los tipos de documento, cuando el expediente los declara ──────────────────────────────
+
+  const tipos = [
+    { code: 'CriminalRecordCertificate', label: 'Antecedentes no penales', isRequired: true },
+    { code: 'ProofOfAddress', label: 'Comprobante de domicilio', isRequired: false },
+  ];
+  const conTipos = () => {
+    fixture.componentRef.setInput('documentTypes', tipos);
+    fixture.detectChanges();
+  };
+
+  /**
+   * La categoria dejaba escribir cualquier cosa, y una escrita a mano no cumple ningun requisito:
+   * las reglas de elegibilidad apuntan al tipo del sistema, no a un texto.
+   */
+  it('con tipos declarados cambia el texto libre por un selector', () => {
+    conTipos();
+    flushList();
+    component['openEditor']('create');
+    fixture.detectChanges();
+
+    const raiz = fixture.nativeElement as HTMLElement;
+    expect(raiz.querySelector('gi-select')).not.toBeNull();
+    expect(raiz.querySelector('input[formcontrolname="category"]')).toBeNull();
+  });
+
+  /** Y dice cuales exige la organizacion, que son los que destraban una asignacion. */
+  it('marca en el selector los tipos que la organizacion exige', () => {
+    conTipos();
+    flushList();
+    component['openEditor']('create');
+    fixture.detectChanges();
+
+    const opciones = component['typeOptions']();
+    expect(opciones[0]).toMatchObject({ value: 'CriminalRecordCertificate', hint: 'Lo exige esta organizacion' });
+    expect(opciones[1].hint).toBeUndefined();
+  });
+
+  /** El tipo manda la categoria: la columna que ya existe se sigue llenando con la etiqueta. */
+  it('al elegir el tipo llena la categoria con su etiqueta', () => {
+    conTipos();
+    flushList();
+    component['openEditor']('create');
+    component['elegirTipo']('ProofOfAddress');
+
+    expect(component['form'].controls.category.value).toBe('Comprobante de domicilio');
+    expect(component['form'].controls.documentType.value).toBe('ProofOfAddress');
+  });
+
+  /**
+   * El titulo sigue a la categoria mientras siga siendo la propuesta.
+   *
+   * <p>La primera version solo proponia el titulo si estaba vacio, asi que al cambiar de categoria
+   * se quedaba el nombre de la anterior y el documento se guardaba mal nombrado. QA lo reporto el
+   * 17 de septiembre de 2026.</p>
+   */
+  it('al cambiar de tipo el titulo propuesto se actualiza', () => {
+    conTipos();
+    flushList();
+    component['openEditor']('create');
+
+    component['elegirTipo']('ProofOfAddress');
+    expect(component['form'].controls.title.value).toBe('Comprobante de domicilio');
+
+    component['elegirTipo']('CriminalRecordCertificate');
+    expect(component['form'].controls.title.value).toBe('Antecedentes no penales');
+  });
+
+  /** Pero lo que alguien escribio no se pisa: por eso se distingue la propuesta del texto propio. */
+  it('respeta el titulo que se escribio a mano al cambiar de tipo', () => {
+    conTipos();
+    flushList();
+    component['openEditor']('create');
+
+    component['elegirTipo']('ProofOfAddress');
+    component['form'].controls.title.setValue('Recibo de luz de agosto');
+    component['elegirTipo']('CriminalRecordCertificate');
+
+    expect(component['form'].controls.title.value).toBe('Recibo de luz de agosto');
+  });
+
+  /** Sin tipo no se guarda: sin el, la fila del requisito no se podria escribir. */
+  it('no guarda si falta el tipo aunque haya archivo', () => {
+    conTipos();
+    flushList();
+    component['openEditor']('create');
+    component['form'].patchValue({ title: 'Comprobante', category: 'Comprobante' });
+    chooseFile();
+    component['save']();
+
+    expect(component['actionError']()).toBe('Elige el tipo de documento.');
+  });
+
+  /**
+   * El aviso hacia fuera es lo que mueve la bandera de vigencia: el archivo va a
+   * `BusinessDocument` y la vigencia se calcula sobre `EmployeeDocument`, que es otra tabla.
+   */
+  it('avisa del tipo guardado para que el expediente registre el requisito', () => {
+    conTipos();
+    flushList();
+    const avisos: unknown[] = [];
+    component.documentSaved.subscribe((evento) => avisos.push(evento));
+
+    component['openEditor']('create');
+    component['elegirTipo']('CriminalRecordCertificate');
+    component['form'].patchValue({ title: 'Carta', issuedDate: '2026-09-01', expiresDate: '2027-09-01' });
+    chooseFile();
+    component['save']();
+
+    http.expectOne(request => request.url === '/api/v1/documents/upload')
+      .flush({ storageReference: 'business-documents/new.pdf' });
+    http.expectOne('/api/v1/documents').flush(document);
+    flushList();
+
+    // Y lleva el identificador del archivo que el servidor acaba de devolver: es lo que permite
+    // ligar el requisito con el documento, en lugar de dejar las dos filas sin relacion.
+    expect(avisos).toEqual([{
+      documentType: 'CriminalRecordCertificate',
+      issuedDate: '2026-09-01',
+      expiresDate: '2027-09-01',
+      idBusinessDocument: 'document-1',
+    }]);
+  });
+
+  /** Y no avisa cuando el expediente no declara tipos: Clientes no tiene requisitos que mover. */
+  it('sin tipos declarados no emite el aviso', () => {
+    flushList();
+    const avisos: unknown[] = [];
+    component.documentSaved.subscribe((evento) => avisos.push(evento));
+
+    createForm();
+    component['save']();
+    http.expectOne(request => request.url === '/api/v1/documents/upload')
+      .flush({ storageReference: 'business-documents/new.pdf' });
+    http.expectOne('/api/v1/documents').flush(document);
+    flushList();
+
+    expect(avisos).toEqual([]);
+  });
+
+  // ── La entrada que nadie ataba ────────────────────────────────────────────────────────────
+
+  /**
+   * El defecto de «Agregar documento» en Clientes: la pantalla ponía su señal en true y este
+   * componente no tenía forma de enterarse, así que el botón no hacía nada. La variante simple no
+   * dibuja su propio botón —la ficha del cliente ya lo tiene arriba—, de modo que sin esta entrada
+   * no había ninguna manera de abrir el alta.
+   */
+  it('la variante simple abre el alta cuando la pantalla lo pide', () => {
+    flushList();
+    fixture.componentRef.setInput('simple', true);
+    fixture.componentRef.setInput('categories', [{ idCatalogItem: 'c1', name: 'Contrato' }]);
+    fixture.detectChanges();
+
+    expect(component['mode']()).toBeNull();
+
+    fixture.componentRef.setInput('openAdd', true);
+    fixture.detectChanges();
+
+    expect(component['mode']()).toBe('create');
+  });
+
+  /** Y avisa al cerrarse, para que quien abrió pueda bajar su bandera. */
+  it('avisa al cerrar el alta que abrió la pantalla', () => {
+    const cierres: unknown[] = [];
+    component.closeAdd.subscribe(() => cierres.push(true));
+
+    flushList();
+    fixture.componentRef.setInput('simple', true);
+    fixture.componentRef.setInput('categories', [{ idCatalogItem: 'c1', name: 'Contrato' }]);
+    fixture.componentRef.setInput('openAdd', true);
+    fixture.detectChanges();
+
+    component['closeEditor']();
+
+    expect(cierres).toHaveLength(1);
+    expect(component['mode']()).toBeNull();
+  });
+
+  /** Una entrada desde fuera no puede tener menos guardas que el botón de dentro. */
+  it('no abre el alta sin permiso de escritura', () => {
+    flushList();
+    permissions.set(['DOCUMENTS.READ']);
+    fixture.detectChanges();
+    flushList();
+    fixture.componentRef.setInput('simple', true);
+    fixture.componentRef.setInput('openAdd', true);
+    fixture.detectChanges();
+
+    expect(component['mode']()).toBeNull();
+  });
+
+  /**
+   * El alta abierta desde la fila del requisito llega con el tipo puesto y el titulo propuesto.
+   *
+   * <p>La fila ya nombra el tipo: volver a pedirlo seria pedir dos veces el mismo dato, y teclear
+   * el titulo a mano era escribir lo que la pantalla ya sabia.</p>
+   */
+  it('abre con el tipo preseleccionado y propone el titulo', () => {
+    const tipos = [
+      { code: 'Curp', label: 'CURP', isRequired: true },
+      { code: 'ProofOfAddress', label: 'Comprobante de domicilio', isRequired: true },
+    ];
+
+    flushList();
+    fixture.componentRef.setInput('documentTypes', tipos);
+    fixture.componentRef.setInput('presetDocumentType', 'ProofOfAddress');
+    fixture.componentRef.setInput('openAdd', true);
+    fixture.detectChanges();
+
+    expect(component['mode']()).toBe('create');
+    expect(component['form'].controls.documentType.value).toBe('ProofOfAddress');
+    expect(component['form'].controls.category.value).toBe('Comprobante de domicilio');
+    expect(component['form'].controls.title.value).toBe('Comprobante de domicilio');
+  });
+
+  /** Un titulo ya escrito no se pisa: lo propuesto es una ayuda, no una imposicion. */
+  it('no pisa un titulo que alguien ya escribio', () => {
+    flushList();
+    fixture.componentRef.setInput('documentTypes', [{ code: 'Curp', label: 'CURP', isRequired: true }]);
+    fixture.detectChanges();
+
+    component['openEditor']('create');
+    component['form'].controls.title.setValue('CURP de Renata, reposicion');
+    component['elegirTipo']('Curp');
+
+    expect(component['form'].controls.title.value).toBe('CURP de Renata, reposicion');
+    expect(component['form'].controls.category.value).toBe('CURP');
   });
 });

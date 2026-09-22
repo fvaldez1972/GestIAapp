@@ -22,14 +22,19 @@ public sealed record EmployeeProfile(
     string? HomePhone,
     string? EmergencyContactName,
     string? EmergencyContactPhone,
+    string? EmergencyContactRelationship,
     string? Address,
+    string? Street,
+    string? StreetNumber,
+    string? Neighborhood,
     string? Municipality,
     string? State,
     string? PostalCode,
     string? HousingType,
     DateOnly? ResidenceSinceDate,
     string? CountryCode = null,
-    Guid? IdJobPositionCatalogItem = null);
+    Guid? IdJobPositionCatalogItem = null,
+    Guid? IdEducationLevelCatalogItem = null);
 
 public sealed class Employee : AuditableEntity, IOrganizationScopedEntity
 {
@@ -84,6 +89,17 @@ public sealed class Employee : AuditableEntity, IOrganizationScopedEntity
     /// </summary>
     public Guid? IdJobPositionCatalogItem { get; private set; }
 
+    /// <summary>
+    /// Hasta dónde estudió, contra el catálogo <c>EducationLevel</c>.
+    ///
+    /// <para><b>El mismo criterio que el puesto, y por la misma razón.</b> Es identificador y no
+    /// texto para que se pueda comparar contra lo que pide la posición, que también lo guarda así.
+    /// Y un nulo dice «no se sabe», no «no cumple»: de 271 expedientes, ninguno tenía escolaridad
+    /// registrada antes del 19 de septiembre de 2026, porque la columna no existía. Bloquear por un
+    /// nulo dejaría fuera a toda la plantilla el día del despliegue.</para>
+    /// </summary>
+    public Guid? IdEducationLevelCatalogItem { get; private set; }
+
     public string? JobTitle { get; private set; }
     public DateOnly HireDate { get; private set; }
     public DateOnly? BirthDate { get; private set; }
@@ -101,7 +117,42 @@ public sealed class Employee : AuditableEntity, IOrganizationScopedEntity
     public string? HomePhone { get; private set; }
     public string? EmergencyContactName { get; private set; }
     public string? EmergencyContactPhone { get; private set; }
+
+    /// <summary>
+    /// Qué es de la persona quien figura como contacto de emergencia: madre, cónyuge, hermano.
+    ///
+    /// <para>Es texto libre y no catálogo. Quien llama en una emergencia necesita saber con quién
+    /// habla, y una lista cerrada de parentescos obligaría a elegir mal en los casos que no
+    /// contempla.</para>
+    /// </summary>
+    public string? EmergencyContactRelationship { get; private set; }
+
+    /// <summary>
+    /// El domicilio en un solo campo. <b>Rastro heredado desde el 19 de septiembre de 2026.</b>
+    ///
+    /// <para>La calle y el número viven ahora en <see cref="Street"/> y
+    /// <see cref="StreetNumber"/>. Esta columna se conserva llena con lo que hubiera, y su contenido
+    /// se copió tal cual a la calle: <b>no se intentó partirlo</b>. Adivinar dónde acaba el nombre
+    /// de la vialidad y empieza el número acierta en «Juárez 123» y falla en «Calzada de los 100
+    /// Metros 45», y un domicilio partido mal es peor que uno sin partir, porque parece correcto.
+    /// Se retira cuando alguien haya repasado los expedientes.</para>
+    /// </summary>
     public string? Address { get; private set; }
+
+    /// <summary>El nombre de la vialidad, sin el número.</summary>
+    public string? Street { get; private set; }
+
+    /// <summary>
+    /// El número, <b>alfanumérico</b>.
+    ///
+    /// <para>No es un entero, y la diferencia importa: un domicilio real dice «45-A», «S/N» o
+    /// «123 int. 4». Guardarlo como número obligaría a tirar el interior, que es justo lo que hace
+    /// falta para encontrar a alguien.</para>
+    /// </summary>
+    public string? StreetNumber { get; private set; }
+
+    /// <summary>La colonia del domicilio. Texto libre por la decisión D-05.</summary>
+    public string? Neighborhood { get; private set; }
     public string? Municipality { get; private set; }
     public string? State { get; private set; }
     public string? CountryCode { get; private set; }
@@ -189,6 +240,7 @@ public sealed class Employee : AuditableEntity, IOrganizationScopedEntity
 
         FullName = profile.FullName.Trim();
         IdJobPositionCatalogItem = profile.IdJobPositionCatalogItem;
+        IdEducationLevelCatalogItem = profile.IdEducationLevelCatalogItem;
         JobTitle = Normalize(profile.JobTitle);
         HireDate = profile.HireDate;
         BirthDate = profile.BirthDate;
@@ -206,7 +258,11 @@ public sealed class Employee : AuditableEntity, IOrganizationScopedEntity
         HomePhone = Normalize(profile.HomePhone);
         EmergencyContactName = Normalize(profile.EmergencyContactName);
         EmergencyContactPhone = Normalize(profile.EmergencyContactPhone);
+        EmergencyContactRelationship = Normalize(profile.EmergencyContactRelationship);
         Address = Normalize(profile.Address);
+        Street = Normalize(profile.Street);
+        StreetNumber = Normalize(profile.StreetNumber);
+        Neighborhood = Normalize(profile.Neighborhood);
         Municipality = Normalize(profile.Municipality);
         State = Normalize(profile.State);
         CountryCode = Normalize(profile.CountryCode)?.ToUpperInvariant();

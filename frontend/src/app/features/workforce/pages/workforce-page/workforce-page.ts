@@ -51,6 +51,7 @@ import {
   EmployeeAdministrativeIncidents,
   NewAdministrativeIncident,
 } from '../../ui/employee-administrative-incidents';
+import { EmployeeAddressValue } from '../../ui/employee-address';
 import { EmployeeAssignments } from '../../ui/employee-assignments';
 import { EmployeeData } from '../../ui/employee-data';
 import { EmployeeDocuments } from '../../ui/employee-documents';
@@ -225,6 +226,9 @@ export class WorkforcePage {
   protected readonly editingJobPosition = signal(false);
   protected readonly savingJobPosition = signal(false);
   protected readonly jobPositionProblem = signal('');
+  protected readonly editingAddress = signal(false);
+  protected readonly savingAddress = signal(false);
+  protected readonly addressProblem = signal('');
 
   protected readonly confirming = signal<PendingAction | null>(null);
 
@@ -547,6 +551,8 @@ export class WorkforcePage {
     this.creating.set(false);
     this.editingJobPosition.set(false);
     this.jobPositionProblem.set('');
+    this.editingAddress.set(false);
+    this.addressProblem.set('');
     this.selected.set(employee);
     this.activeTab.set(tab);
     this.detail.set(null);
@@ -1008,6 +1014,12 @@ export class WorkforcePage {
 
   // ── El puesto del catálogo, que es la salida de la franja ─────────────────────────────────
 
+  protected startAddressEdit(): void {
+    this.addressProblem.set('');
+    this.editingAddress.set(true);
+    this.activeTab.set('data');
+  }
+
   protected startJobPositionEdit(): void {
     this.jobPositionProblem.set('');
     this.editingJobPosition.set(true);
@@ -1150,6 +1162,54 @@ export class WorkforcePage {
       housingType: employee.housingType,
       residenceSinceDate: employee.residenceSinceDate,
     };
+  }
+
+  /**
+   * El domicilio del expediente, que hasta hoy sólo se podía mirar.
+   *
+   * <p>Va por el mismo camino que el puesto y la escolaridad: la edición del personal es un solo
+   * reemplazo de perfil, así que se manda el perfil entero con el domicilio encima. Vacío se
+   * guarda como nulo, que significa «no se sabe» y no bloquea nada.</p>
+   *
+   * <p>El país sólo viaja cuando hay estado. Mandarlo suelto dejaría expedientes que dicen «México»
+   * sin nada debajo, que es más ruido que dato.</p>
+   */
+  protected saveAddress(valor: EmployeeAddressValue): void {
+    const organizationId = this.organizationId();
+    const employee = this.detail();
+
+    if (!organizationId || !employee || !this.canWrite()) {
+      return;
+    }
+
+    this.savingAddress.set(true);
+    this.addressProblem.set('');
+
+    this.workforceApi
+      .updateEmployee(employee.idEmployee, {
+        ...this.perfilDe(employee, organizationId),
+        street: valor.street || null,
+        streetNumber: valor.streetNumber || null,
+        neighborhood: valor.neighborhood || null,
+        postalCode: valor.postalCode || null,
+        state: valor.state || null,
+        municipality: valor.municipality || null,
+        countryCode: valor.state ? valor.countryCode || 'MX' : null,
+      })
+      .subscribe({
+        next: () => {
+          this.savingAddress.set(false);
+          this.editingAddress.set(false);
+          this.message.set(`Se guardó el domicilio de ${employee.fullName}.`);
+          this.load();
+          this.loadDetail(employee.idEmployee);
+        },
+        error: (problema) => {
+          this.savingAddress.set(false);
+          this.addressProblem.set(
+            readServerProblem(problema, 'No se pudo guardar el domicilio.').message);
+        },
+      });
   }
 
   protected saveJobPosition(idCatalogItem: string): void {

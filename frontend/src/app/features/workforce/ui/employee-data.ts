@@ -8,6 +8,7 @@ import {
   employeeStatusLabel,
   employeeStatusTone,
 } from '../data-access/employee-list.models';
+import { EmployeeAddress, EmployeeAddressValue } from './employee-address';
 import { EmployeeEligibilityBand } from './employee-eligibility';
 import { EmployeeJobPosition } from './employee-job-position';
 
@@ -24,7 +25,7 @@ import { EmployeeJobPosition } from './employee-job-position';
 @Component({
   selector: 'app-employee-data',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [EmployeeEligibilityBand, EmployeeJobPosition, GiSelect],
+  imports: [EmployeeAddress, EmployeeEligibilityBand, EmployeeJobPosition, GiSelect],
   template: `
     <div class="data">
       <app-employee-eligibility
@@ -135,7 +136,32 @@ import { EmployeeJobPosition } from './employee-job-position';
       </section>
 
       <section class="data__block">
-        <h3 class="data__kicker">UBICACIÓN Y CONTACTO</h3>
+        <h3 class="data__kicker">
+          UBICACIÓN Y CONTACTO
+          @if (canWrite() && !editingAddress()) {
+            <button class="data__editar" type="button" (click)="editAddress.emit()">
+              {{ domicilioVacio() ? 'Capturar domicilio' : 'Editar domicilio' }}
+            </button>
+          }
+        </h3>
+
+        <!--
+          El domicilio se podía ver y no se podía escribir. Las columnas existían en la base desde
+          antes, la ficha las pintaba con «Sin colonia registrada», y no había ninguna pantalla
+          donde capturarlas: 0 de 271 expedientes tenían colonia. El editor va aquí por lo mismo
+          que el del puesto, un bloque más arriba: decir que falta algo sin ofrecer dónde
+          completarlo obliga a buscar, y quien busca casi siempre lo deja así.
+        -->
+        @if (editingAddress()) {
+          <app-employee-address
+            [organizationId]="organizationId()"
+            [employee]="employee()"
+            [saving]="savingAddress()"
+            [problem]="addressProblem()"
+            (guardar)="saveAddress.emit($event)"
+            (cancelar)="cancelAddress.emit()"
+          />
+        } @else {
         <dl class="data__grid data__grid--two">
           <!--
             Calle y número aparte desde el 19 de septiembre de 2026. Los expedientes anteriores
@@ -180,6 +206,7 @@ import { EmployeeJobPosition } from './employee-job-position';
             <dd>{{ emergency() }}</dd>
           </div>
         </dl>
+        }
       </section>
 
       <section class="data__block">
@@ -249,6 +276,22 @@ import { EmployeeJobPosition } from './employee-job-position';
 
     .data__note { margin: 0; color: var(--gestia-muted); font-size: 11.5px; }
 
+    .data__editar {
+      margin-left: 0.6rem;
+      padding: 0.1rem 0.5rem;
+      border: 1px solid var(--gestia-border);
+      border-radius: var(--gestia-radius);
+      background: var(--gestia-surface);
+      color: var(--gestia-text);
+      font: inherit;
+      font-size: 11px;
+      letter-spacing: normal;
+      text-transform: none;
+      cursor: pointer;
+    }
+
+    .data__editar:focus-visible { outline: 2px solid var(--gestia-cyan); outline-offset: 1px; }
+
     @media (width < 45rem) {
       .data__grid { grid-template-columns: minmax(0, 1fr); }
     }
@@ -269,6 +312,27 @@ export class EmployeeData {
   readonly educationLevels = input<readonly EmployeeJobPositionOption[]>([]);
   readonly savingEducation = input(false);
   readonly canWrite = input(false);
+  /** La organización que pide el desplegable de catálogo; la geografía ya no la usa. */
+  readonly organizationId = input('');
+  readonly editingAddress = input(false);
+  readonly savingAddress = input(false);
+  readonly addressProblem = input('');
+
+  readonly editAddress = output<void>();
+  readonly cancelAddress = output<void>();
+  readonly saveAddress = output<EmployeeAddressValue>();
+
+  /**
+   * Si el domicilio está en blanco, para que el botón diga capturar en vez de editar.
+   *
+   * <p>No mira la calle sola: un expediente traído de antes puede tener la dirección en una línea
+   * y nada más, y eso ya es algo capturado.</p>
+   */
+  protected domicilioVacio(): boolean {
+    const expediente = this.employee();
+    return !expediente?.street && !expediente?.neighborhood && !expediente?.postalCode
+      && !this.row().state && !this.row().municipality;
+  }
 
   /** La escolaridad elegida, resuelta a nombre. Vacía cuando no se ha registrado. */
   readonly saveEducation = output<string | null>();

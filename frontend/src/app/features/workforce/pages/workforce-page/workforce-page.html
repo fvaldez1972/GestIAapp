@@ -98,6 +98,13 @@
               (cancelJobPosition)="editingJobPosition.set(false)"
               (saveJobPosition)="saveJobPosition($event)"
               (createJobPosition)="createJobPosition($event)"
+              [organizationId]="organizationId() ?? ''"
+              [editingAddress]="editingAddress() && canWrite()"
+              [savingAddress]="savingAddress()"
+              [addressProblem]="addressProblem()"
+              (editAddress)="startAddressEdit()"
+              (cancelAddress)="editingAddress.set(false)"
+              (saveAddress)="saveAddress($event)"
             />
           </ng-template>
 

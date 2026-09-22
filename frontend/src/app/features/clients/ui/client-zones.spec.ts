@@ -148,12 +148,24 @@ function escribirCp(raiz: HTMLElement, fixture: { detectChanges(): void }, codig
   surtirGeografia(TestBed.inject(HttpTestingController), fixture);
 }
 
-/** El componente de la pestaña, para leer lo que el código postal dejó en sus señales. */
-function obtenerPestana(fixture: { debugElement: { children: { componentInstance: unknown }[] } }) {
-  return fixture.debugElement.children[0].componentInstance as {
-    state(): string;
-    municipality(): string;
-  };
+/**
+ * El domicilio de la pestaña, para leer lo que el código postal dejó en él.
+ *
+ * <p>Vive en un servicio provisto por el componente y no en el componente: el mismo comportamiento
+ * lo usa el expediente de personal, y duplicarlo habría garantizado que las dos pantallas se
+ * separaran.</p>
+ */
+function obtenerDireccion(fixture: { debugElement: { children: { componentInstance: unknown }[] } }) {
+  return (
+    fixture.debugElement.children[0].componentInstance as {
+      direccion: {
+        countryCode(): string;
+        state: { (): string; set(v: string): void };
+        municipality: { (): string; set(v: string): void };
+        onCountry(v: string): void;
+      };
+    }
+  ).direccion;
 }
 
 describe('La pestaña de Zonas', () => {
@@ -251,9 +263,9 @@ describe('La pestaña de Zonas', () => {
 
     escribirCp(raiz, fixture, '64000');
 
-    const pestana = obtenerPestana(fixture);
-    expect(pestana.state()).toBe('Nuevo León');
-    expect(pestana.municipality()).toBe('Monterrey');
+    const direccion = obtenerDireccion(fixture);
+    expect(direccion.state()).toBe('Nuevo León');
+    expect(direccion.municipality()).toBe('Monterrey');
 
     raiz.querySelector<HTMLButtonElement>('#ns-colonia button[role="combobox"]')!.click();
     fixture.detectChanges();
@@ -279,9 +291,9 @@ describe('La pestaña de Zonas', () => {
     escribirCp(raiz, fixture, '64000');
     escribirCp(raiz, fixture, '99999');
 
-    const pestana = obtenerPestana(fixture);
-    expect(pestana.state()).toBe('Nuevo León');
-    expect(pestana.municipality()).toBe('Monterrey');
+    const direccion = obtenerDireccion(fixture);
+    expect(direccion.state()).toBe('Nuevo León');
+    expect(direccion.municipality()).toBe('Monterrey');
     expect(raiz.textContent).toContain('No está en el padrón');
 
     // Y la colonia vuelve a ser texto libre, porque no hay lista que ofrecer.
@@ -562,12 +574,7 @@ describe('La pestaña de Zonas · editar', () => {
    */
   it('cambiar de país vacía el estado y el municipio', () => {
     const { fixture } = montar();
-    const pestana = fixture.debugElement.children[0].componentInstance as unknown as {
-      countryCode(): string;
-      state: { (): string; set(v: string): void };
-      municipality: { (): string; set(v: string): void };
-      onCountry(v: string): void;
-    };
+    const pestana = obtenerDireccion(fixture);
 
     pestana.state.set('Nuevo León');
     pestana.municipality.set('San Nicolás de los Garza');

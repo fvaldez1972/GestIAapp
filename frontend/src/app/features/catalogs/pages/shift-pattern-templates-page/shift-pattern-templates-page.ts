@@ -37,7 +37,7 @@ import { ShiftPatternTemplates } from '../../ui/shift-pattern-templates/shift-pa
     }
   `,
   styles: `
-    :host { display: block; max-width: 76rem; }
+    :host { display: block; min-width: 0; }
 
     .pat-head { margin-bottom: 1rem; }
     .pat-head h1 { margin: 0.15rem 0 0; }

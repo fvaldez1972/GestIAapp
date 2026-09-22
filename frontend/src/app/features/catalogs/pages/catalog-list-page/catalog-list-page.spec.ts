@@ -60,6 +60,11 @@ describe('Página de un catálogo', () => {
     filtradas(): readonly CatalogItem[];
     paginadas(): readonly CatalogItem[];
     totalPaginas(): number;
+    rango(): string;
+    pageSize(): number;
+    currentPage(): number;
+    setPageSize(value: string): void;
+    pageSizeOptions: readonly { value: string; label: string }[];
     search: { set(v: string): void };
     natureFilter: { set(v: '' | 'blocking' | 'informative'): void };
     goToPage(n: number): void;
@@ -148,21 +153,58 @@ describe('Página de un catálogo', () => {
       .toEqual(['Editar', 'Activar']);
   });
 
-  it('pagina de quince en quince sin pedirle más al servidor', () => {
+  it('pagina de diez en diez sin pedirle más al servidor', () => {
     const { pagina } = montar('tipos-de-evaluacion');
     const muchos = Array.from({ length: 32 }, (_, i) =>
       valor({ idCatalogItem: `v${i}`, name: `Valor ${i}`, order: i + 1 }),
     );
     responder(muchos);
 
-    expect(pagina.totalPaginas()).toBe(3);
-    expect(pagina.paginadas().length).toBe(15);
+    expect(pagina.totalPaginas()).toBe(4);
+    expect(pagina.paginadas().length).toBe(10);
+    expect(pagina.rango()).toBe('1 a 10 de 32');
 
-    pagina.goToPage(3);
+    pagina.goToPage(4);
     expect(pagina.paginadas().length, 'la última página lleva el resto').toBe(2);
+    expect(pagina.rango()).toBe('31 a 32 de 32');
 
     // Y no hay una segunda petición: la lista vino entera y se corta aquí.
     http.expectNone(() => true);
+  });
+
+  /**
+   * Los cuatro tamaños que se ofrecen, y que cambiarlos devuelve a la primera página.
+   *
+   * <p>Sin lo segundo, quien está en la página 4 de 5 y pasa de 10 a 100 se queda en una página que
+   * ya no existe y ve una tabla vacía sin entender por qué.</p>
+   */
+  it('ofrece 5, 10, 50 y 100 por página, y cambiarlo vuelve a la primera', () => {
+    const { pagina } = montar('tipos-de-evaluacion');
+    responder(Array.from({ length: 32 }, (_, i) =>
+      valor({ idCatalogItem: `v${i}`, name: `Valor ${i}`, order: i + 1 }),
+    ));
+
+    expect(pagina.pageSizeOptions.map((opcion) => opcion.value)).toEqual(['5', '10', '50', '100']);
+
+    pagina.goToPage(4);
+    expect(pagina.currentPage()).toBe(4);
+
+    pagina.setPageSize('100');
+
+    expect(pagina.pageSize()).toBe(100);
+    expect(pagina.currentPage(), 'vuelve a la primera').toBe(1);
+    expect(pagina.paginadas().length, 'y caben las treinta y dos').toBe(32);
+    expect(pagina.totalPaginas()).toBe(1);
+  });
+
+  /** Un tamaño que no está en la lista se ignora: sólo se ofrecen cuatro y sólo valen ésos. */
+  it('ignora un tamaño que no se ofrece', () => {
+    const { pagina } = montar('tipos-de-evaluacion');
+    responder([]);
+
+    pagina.setPageSize('37');
+
+    expect(pagina.pageSize()).toBe(10);
   });
 
   it('el buscador mira el nombre y la descripción', () => {

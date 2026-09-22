@@ -24,8 +24,16 @@ import { CatalogApiService } from '../../data-access/catalog-api.service';
 import { CatalogItem } from '../../data-access/catalog.models';
 import { CatalogPage, catalogPageBySlug } from '../../data-access/catalog-pages';
 
-/** Cuántas filas por página. Ver `paginadas` para por qué se pagina en el navegador. */
-const POR_PAGINA = 15;
+/**
+ * Los tamaños de página que se ofrecen.
+ *
+ * <p>Empieza en <b>10</b> y no en «todos» a propósito: la razón de paginar aquí no es que hoy
+ * sobren registros —hoy no sobran— sino que mañana sí, y una lista que crece sin tope acaba siendo
+ * una barra de desplazamiento dentro de otra. Con el tope puesto desde el principio, un catálogo
+ * que pase de ocho a ochenta valores no cambia de comportamiento.</p>
+ */
+const TAMANOS_DE_PAGINA = [5, 10, 50, 100] as const;
+const TAMANO_POR_OMISION = 10;
 
 /**
  * La página de un catálogo. **Una sola, para los dieciséis.**
@@ -89,6 +97,7 @@ export class CatalogListPage {
   protected readonly stateFilter = signal<'' | 'active' | 'inactive'>('');
   protected readonly natureFilter = signal<'' | 'blocking' | 'informative'>('');
   protected readonly currentPage = signal(1);
+  protected readonly pageSize = signal<number>(TAMANO_POR_OMISION);
 
   protected readonly form = this.formBuilder.nonNullable.group({
     name: ['', [Validators.required, Validators.maxLength(160)]],
@@ -189,13 +198,30 @@ export class CatalogListPage {
    * ahorrar unos kilobytes. Si alguno crece de verdad, esto es lo que hay que mover.</p>
    */
   protected readonly paginadas = computed(() => {
-    const desde = (this.currentPage() - 1) * POR_PAGINA;
-    return this.filtradas().slice(desde, desde + POR_PAGINA);
+    const desde = (this.currentPage() - 1) * this.pageSize();
+    return this.filtradas().slice(desde, desde + this.pageSize());
   });
 
   protected readonly totalPaginas = computed(() =>
-    Math.max(1, Math.ceil(this.filtradas().length / POR_PAGINA)),
+    Math.max(1, Math.ceil(this.filtradas().length / this.pageSize())),
   );
+
+  /** «1 a 10 de 34», para que el selector de tamaño diga algo. */
+  protected readonly rango = computed(() => {
+    const total = this.filtradas().length;
+
+    if (total === 0) {
+      return '';
+    }
+
+    const desde = (this.currentPage() - 1) * this.pageSize() + 1;
+    return `${desde} a ${Math.min(desde + this.pageSize() - 1, total)} de ${total}`;
+  });
+
+  protected readonly pageSizeOptions: readonly GiSelectOption[] = TAMANOS_DE_PAGINA.map((tamano) => ({
+    value: String(tamano),
+    label: String(tamano),
+  }));
 
   protected readonly tableState = computed<GiTableState>(() => {
     if (this.loading()) return 'loading';
@@ -275,6 +301,21 @@ export class CatalogListPage {
 
   protected goToPage(page: number): void {
     this.currentPage.set(Math.min(Math.max(1, page), this.totalPaginas()));
+  }
+
+  /**
+   * Cambiar el tamaño devuelve a la primera página.
+   *
+   * <p>Sin esto, quien está en la página 4 de 5 y pasa de 10 a 100 por página se queda en una
+   * página que ya no existe y ve una tabla vacía.</p>
+   */
+  protected setPageSize(value: string): void {
+    const tamano = Number(value);
+
+    if (TAMANOS_DE_PAGINA.includes(tamano as (typeof TAMANOS_DE_PAGINA)[number])) {
+      this.pageSize.set(tamano);
+      this.currentPage.set(1);
+    }
   }
 
   // ── Alta y edición ──────────────────────────────────────────────────────────────────────────

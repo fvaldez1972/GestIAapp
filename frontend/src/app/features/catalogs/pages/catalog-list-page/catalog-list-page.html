@@ -79,23 +79,47 @@
     </ng-template>
   </gi-data-table>
 
-  @if (totalPaginas() > 1) {
+  <!--
+    La paginación se dibuja SIEMPRE que haya filas, aunque quepan todas en una página. El selector
+    de tamaño es lo que evita que un catálogo que crece se convierta en una barra de desplazamiento
+    dentro de otra, y esconderlo mientras «todavía caben» es justo esconderlo cuando sirve para
+    decidir. Los botones de mover página se inhabilitan; no desaparecen.
+  -->
+  @if (filtradas().length) {
     <nav class="cat-pages" aria-label="Páginas de la lista">
-      <button
-        type="button"
-        class="gi-button gi-button--ghost"
-        [disabled]="currentPage() === 1"
-        (click)="goToPage(currentPage() - 1)"
-      >Anterior</button>
+      <!--
+        No va envuelto en un <label>: `gi-select` no es un control nativo y se nombra a sí mismo con
+        `aria-label`, así que un <label> alrededor no lo ataría a nada y sí añadiría un elemento que
+        el lector de pantalla anuncia de más.
+      -->
+      <div class="cat-pages__size">
+        <span>Mostrar</span>
+        <gi-select
+          label="Registros por página"
+          [options]="pageSizeOptions"
+          [value]="pageSize().toString()"
+          (valueChange)="setPageSize($any($event))"
+        />
+        <span>de {{ rango() }}</span>
+      </div>
 
-      <span class="cat-pages__count">Página {{ currentPage() }} de {{ totalPaginas() }}</span>
+      <div class="cat-pages__nav">
+        <button
+          type="button"
+          class="gi-button gi-button--ghost"
+          [disabled]="currentPage() === 1"
+          (click)="goToPage(currentPage() - 1)"
+        >Anterior</button>
 
-      <button
-        type="button"
-        class="gi-button gi-button--ghost"
-        [disabled]="currentPage() === totalPaginas()"
-        (click)="goToPage(currentPage() + 1)"
-      >Siguiente</button>
+        <span class="cat-pages__count">Página {{ currentPage() }} de {{ totalPaginas() }}</span>
+
+        <button
+          type="button"
+          class="gi-button gi-button--ghost"
+          [disabled]="currentPage() === totalPaginas()"
+          (click)="goToPage(currentPage() + 1)"
+        >Siguiente</button>
+      </div>
     </nav>
   }
 

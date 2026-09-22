@@ -223,6 +223,10 @@ describe('El constructor de patrones de turno', () => {
     const pantalla = montar();
     pantalla.abrirNuevo();
 
+    // Se baja a 2 a propósito: lo que se comprueba es que las filas SIGUEN al ciclo, no con cuántas
+    // arranca. El valor inicial lo fija su propia prueba.
+    pantalla.escribir('input[type="number"]', '2');
+
     expect(pantalla.dias()).toHaveLength(2);
 
     // La hora se elige en el selector propio, no en el input nativo del navegador: su desplegable
@@ -239,6 +243,7 @@ describe('El constructor de patrones de turno', () => {
     pantalla.abrirNuevo();
 
     pantalla.escribir('input[type="text"]', '12x12 diurno');
+    pantalla.escribir('input[type="number"]', '2');
 
     // El segundo día descansa: se marca la casilla y su horario deja de existir, no se queda vacío.
     const descanso = pantalla
@@ -276,6 +281,7 @@ describe('El constructor de patrones de turno', () => {
     pantalla.abrirNuevo();
 
     // Ciclo de dos dias: un turno de 12 h y un descanso. 12 h en el ciclo, 42 por semana.
+    pantalla.escribir('input[type="number"]', '2');
     const descanso = pantalla
       .dias()[1]
       .querySelector<HTMLInputElement>('input[type="checkbox"]')!;
@@ -290,6 +296,30 @@ describe('El constructor de patrones de turno', () => {
     // semana, así que 42 no son las horas de ninguna semana concreta. El nombre era la queja.
     expect(previa).toContain('promedio semanal de 42 h');
     expect(previa).toContain('12 h ÷ 2 días × 7 días = 42 h');
+  });
+
+  /**
+   * Un patrón nuevo nace semanal.
+   *
+   * <p>Arrancaba en dos días, y eso obligaba a corregir el ciclo antes de capturar nada: diez de
+   * las doce plantillas del catálogo son semanales. Mientras el ciclo no era siete, además, los
+   * días se llamaban «Día 1» en vez de «Lunes», que es lo que la pantalla venía a arreglar.</p>
+   *
+   * <p>Y el bloque del ciclo llega <b>plegado</b>. Se abría solo en todos los patrones semanales
+   * porque el campo de tipo número entrega su valor como texto y la comparación era contra el
+   * número: <c>'7' !== 7</c> es cierto.</p>
+   */
+  it('un patrón nuevo nace semanal y con el ciclo plegado', () => {
+    const pantalla = montar();
+    pantalla.abrirNuevo();
+
+    expect(pantalla.dias()).toHaveLength(7);
+    expect(pantalla.dias()[0].textContent).toContain('Lunes');
+    expect(pantalla.dias()[6].textContent).toContain('Domingo');
+
+    const plegado = pantalla.raiz.querySelector<HTMLDetailsElement>('.pat__ciclo')!;
+
+    expect(plegado.open, 'el ciclo no se enseña cuando es el de siempre').toBe(false);
   });
 
   it('sin permiso de escritura no se puede abrir el constructor', () => {

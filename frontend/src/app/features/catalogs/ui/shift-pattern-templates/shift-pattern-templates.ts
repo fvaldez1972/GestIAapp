@@ -222,7 +222,12 @@ type DiaGrupo = FormGroup<{
             para que escriba 7 es pedir un dato que ya se sabe. Pero se deja configurable: un 24x48
             es un ciclo de tres días y no hay forma de expresarlo con la semana fija.
           -->
-          <details class="pat__ciclo" [open]="form.controls.cycleDays.value !== 7">
+          <!--
+            El atributo open se compara con Number: el input de tipo número entrega el valor como TEXTO, y
+            '7' !== 7 es cierto, así que el bloque se abría solo en todos los patrones semanales
+            —justo los que no tenían por qué verlo—.
+          -->
+          <details class="pat__ciclo" [open]="noEsSemanal()">
             <summary>El patrón no se repite cada semana</summary>
             <label class="gi-field">
               <span>Cada cuántos días se repite</span>
@@ -363,9 +368,25 @@ type DiaGrupo = FormGroup<{
 
     /* Más angosto que antes —58 rem daban un cuadro casi tan ancho como la pantalla— y sin relleno
        propio: lo ponen la cabecera, el cuerpo y el pie, que es lo que les da sus líneas. */
-    .pat__dialogo { width: min(44rem, calc(100vw - 2rem)); padding: 0; }
+    /*
+      Alto acotado y UNA sola barra de desplazamiento, la del cuerpo.
+      Antes el cuadro crecía con los días —siete filas lo hacían más alto que la ventana— y además
+      la lista de días tenía su propio overflow, así que salían dos barras, una dentro de la otra:
+      la de fuera movía el cuadro entero y la de dentro los días, y ninguna de las dos llegaba a
+      donde uno quería. Con la cabecera y el pie quietos, «Guardar» está siempre a la vista.
+    */
+    .pat__dialogo {
+      width: min(44rem, calc(100vw - 2rem));
+      max-height: min(46rem, calc(100vh - 3rem));
+      padding: 0;
+      overflow: hidden;
+    }
 
-    .pat__dialogo form { display: block; }
+    .pat__dialogo form {
+      display: grid;
+      max-height: inherit;
+      grid-template-rows: auto 1fr auto;
+    }
 
     .pat__dialogo-cabecera {
       display: flex;
@@ -390,7 +411,9 @@ type DiaGrupo = FormGroup<{
        anchos distintos, y los campos no se alineaban entre una fila y la siguiente. */
     .pat__cuerpo {
       display: grid;
+      align-content: start;
       padding: 1.1rem 1.25rem;
+      overflow-y: auto;
       gap: 0.9rem;
     }
 
@@ -419,6 +442,7 @@ type DiaGrupo = FormGroup<{
       .pat__fila--dos { grid-template-columns: 1fr; }
     }
 
+    /* Sin desplazamiento propio: lo lleva el cuerpo. Ver el comentario de .pat__dialogo. */
     .pat__dias {
       display: flex;
       flex-direction: column;
@@ -426,8 +450,6 @@ type DiaGrupo = FormGroup<{
       border: 1px solid var(--gestia-border);
       border-radius: var(--gestia-radius);
       padding: 0.65rem;
-      max-height: 22rem;
-      overflow-y: auto;
     }
 
     .pat__dias legend { padding: 0 0.35rem; color: var(--gestia-muted); font-size: 11px; }
@@ -595,7 +617,16 @@ export class ShiftPatternTemplates {
 
   /** Cómo se llama el día que se está capturando: lunes, martes… o «Día 3» fuera de la semana. */
   protected nombreDelDia(numero: number): string {
-    return cycleDayLabel(numero, Number(this.form.controls.cycleDays.value) || 0);
+    return cycleDayLabel(numero, this.cicloEnDias());
+  }
+
+  /** El ciclo capturado, como número: el campo lo entrega como texto. */
+  protected cicloEnDias(): number {
+    return Number(this.form.controls.cycleDays.value) || 0;
+  }
+
+  protected noEsSemanal(): boolean {
+    return this.cicloEnDias() !== 7;
   }
 
   /** Las horas de turno del patrón. Un rango cuando los días no duran lo mismo. */
@@ -637,11 +668,13 @@ export class ShiftPatternTemplates {
       name: '',
       description: '',
       daypart: 'Day',
-      cycleDays: 2,
+      // Semanal. Diez de las doce plantillas lo son, y arrancar en 2 obligaba a corregir el ciclo
+      // antes de capturar nada —y mientras tanto los días se llamaban «Día 1» en vez de «Lunes»—.
+      cycleDays: 7,
       effectiveFromDate: this.hoy(),
       effectiveToDate: '',
     });
-    this.ajustarDias(2);
+    this.ajustarDias(7);
     this.abrir();
   }
 

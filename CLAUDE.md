@@ -275,4 +275,5 @@ frontend/src/app/core              auth (guard, interceptor, servicio), layout (
 frontend/src/app/features          15 features; cada una con data-access/ y pages/
 frontend/src/app/shared            componentes de UI reutilizables
 docs/                              adr/, architecture/, database/, deployment/, design/, integrations/
+scripts/                           guiones de operacion que no son parte del despliegue
 ```

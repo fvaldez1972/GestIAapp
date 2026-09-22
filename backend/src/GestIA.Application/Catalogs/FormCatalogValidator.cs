@@ -1,9 +1,10 @@
 using GestIA.Application.Common;
+using GestIA.Application.Geography;
 using GestIA.Domain.Catalogs;
 
 namespace GestIA.Application.Catalogs;
 
-public sealed class FormCatalogValidator(ICatalogRepository repository)
+public sealed class FormCatalogValidator(ICatalogRepository repository, IGeographyService geography)
 {
     public async Task ValueAsync(Guid organization, BusinessCatalogItemType type, string? value, string? previous, CancellationToken token)
     {
@@ -13,33 +14,26 @@ public sealed class FormCatalogValidator(ICatalogRepository repository)
             throw new ResourceConflictException("Selecciona un valor activo del catalogo correspondiente.");
     }
 
-    public async Task AddressAsync(Guid organization, string? country, string? state, string? city,
+    /// <summary>
+    /// Que la direccion escrita corresponda a la geografia conocida.
+    ///
+    /// <para><b>No recibe organizacion, y ese es el cambio.</b> Pais, estado y municipio salen
+    /// ahora de las tablas compartidas, iguales para todas las empresas, asi que preguntar «de
+    /// quien» dejo de tener sentido. Antes vivian en <c>BusinessCatalogItems</c> por organizacion
+    /// y habia que resolver el arbol a mano; ese codigo se fue con la tabla.</para>
+    ///
+    /// <para><b>Sigue sin validar lo que no cambio.</b> Una direccion capturada hace meses puede
+    /// nombrar un municipio que despues se desactivo; reescribir el telefono de esa ficha no puede
+    /// exigir que se corrija la direccion.</para>
+    /// </summary>
+    public async Task AddressAsync(string? country, string? state, string? city,
         string? oldCountry, string? oldState, string? oldCity, CancellationToken token)
     {
         if (Same(country, oldCountry) && Same(state, oldState) && Same(city, oldCity)) return;
-        if (string.IsNullOrWhiteSpace(country) && string.IsNullOrWhiteSpace(state) && string.IsNullOrWhiteSpace(city)) return;
-        var values = await repository.ListCatalogItemsAsync(organization, null, token);
-        // El pais se resuelve por nombre plegado, como el estado y el municipio, ahora que el
-        // catalogo no lleva codigo. Lo que ClientSite y Employee guardan en CountryCode es un codigo
-        // ISO de dos letras, que es un estandar externo y no una clave de este catalogo; por eso
-        // aqui se acepta tanto el codigo como el nombre mientras la geografia siga en esta tabla.
-        // En la tanda de geografia las tres columnas pasan a ser claves foraneas y esto desaparece.
-        var selectedCountry = values.FirstOrDefault(item => item.Active && item.Type == BusinessCatalogItemType.Country &&
-            (Same(item.Name, country) || EsMexico(country) && Same(item.Name, "Mexico")));
-        if (selectedCountry is null) throw new ResourceConflictException("Selecciona un pais activo.");
-        if (string.IsNullOrWhiteSpace(state) && string.IsNullOrWhiteSpace(city)) return;
-        var selectedState = values.FirstOrDefault(item => item.Active && item.Type == BusinessCatalogItemType.State &&
-            item.IdParentCatalogItem == selectedCountry.IdBusinessCatalogItem && Same(item.Name, state));
-        if (selectedState is null) throw new ResourceConflictException("Selecciona un estado activo del pais.");
-        if (string.IsNullOrWhiteSpace(city)) return;
-        if (!values.Any(item => item.Active && item.Type == BusinessCatalogItemType.City &&
-            item.IdParentCatalogItem == selectedState.IdBusinessCatalogItem && Same(item.Name, city)))
-            throw new ResourceConflictException("Selecciona una ciudad o municipio activo del estado.");
+        var problema = await geography.ValidateAddressAsync(country, state, city, token);
+        if (problema is not null) throw new ResourceConflictException(problema);
     }
 
     private static bool Same(string? left, string? right) =>
         CatalogName.Normalize(left) == CatalogName.Normalize(right);
-
-    /// <summary>El unico pais que el sistema siembra hoy, por su codigo ISO.</summary>
-    private static bool EsMexico(string? value) => string.Equals(value?.Trim(), "MX", StringComparison.OrdinalIgnoreCase);
 }

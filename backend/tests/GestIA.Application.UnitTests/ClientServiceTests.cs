@@ -128,7 +128,7 @@ public sealed class ClientServiceTests
             new FakeOrganizationRepository(),
             unitOfWork,
             new FakeActorContext(),
-            new FakeClock(), new GestIA.Application.Catalogs.FormCatalogValidator(null!));
+            new FakeClock(), new GestIA.Application.Catalogs.FormCatalogValidator(null!, null!));
 
     private static CreateClientRequest Request(string code, string legalName, string rfc) => new(
         OrganizationId,

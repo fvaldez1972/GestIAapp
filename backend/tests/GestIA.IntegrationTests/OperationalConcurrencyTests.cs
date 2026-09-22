@@ -7,6 +7,7 @@ using GestIA.Application.Requests;
 using GestIA.Application.Scheduling;
 using GestIA.Domain.Catalogs;
 using GestIA.Domain.Clients;
+using GestIA.Domain.Geography;
 using GestIA.Domain.Operations;
 using GestIA.Domain.Organizations;
 using GestIA.Domain.Planning;
@@ -507,10 +508,10 @@ public sealed class OperationalConcurrencyTests : IClassFixture<OperationalSqlDa
         version.Publish(Actor.ActorId, Actor.ActorName, Now);
         var shift = Shift(organization.IdOrganization, version.IdScheduleVersion, position.IdPosition, employee.IdEmployee);
         context.AddRange(organization, client, site, service, position, employee, replacement, version, shift);
-        var country = BusinessCatalogItem.Create(organization.IdOrganization, new(BusinessCatalogItemType.Country, "Mexico", null), Actor.ActorId, Actor.ActorName, Now);
-        var state = BusinessCatalogItem.Create(organization.IdOrganization, new(BusinessCatalogItemType.State, "State", null, IdParentCatalogItem: country.IdBusinessCatalogItem), Actor.ActorId, Actor.ActorName, Now);
-        var city = BusinessCatalogItem.Create(organization.IdOrganization, new(BusinessCatalogItemType.City, "City", null, IdParentCatalogItem: state.IdBusinessCatalogItem), Actor.ActorId, Actor.ActorName, Now);
-        context.AddRange(country, state, city);
+        // La geografía de la zona ya no sale del catálogo por organización: desde el 22 de
+        // septiembre de 2026 vive en las tablas compartidas, sin columna de organización. Se siembra
+        // una vez por base, no una por organización, que es justamente el cambio.
+        await SeedSharedGeographyAsync(context);
         var reason = BusinessCatalogItem.Create(organization.IdOrganization, new(BusinessCatalogItemType.CoverageReason, "Falta", null), Actor.ActorId, Actor.ActorName, Now);
         context.Add(reason);
         await context.SaveChangesAsync();
@@ -518,6 +519,28 @@ public sealed class OperationalConcurrencyTests : IClassFixture<OperationalSqlDa
         database.Organization.SetAuthorizedOrganization(organization.IdOrganization);
         return new(organization.IdOrganization, client.IdClient, service.IdService, position.IdPosition,
             employee.IdEmployee, replacement.IdEmployee, version.IdScheduleVersion, shift.IdScheduledShift, reason.IdBusinessCatalogItem);
+    }
+
+    /// <summary>
+    /// El país, estado y municipio que valida la dirección de la zona.
+    ///
+    /// <para>Compartidos por todas las organizaciones, así que se siembran una sola vez por base
+    /// aunque varias pruebas de esta clase llamen a <c>SeedAsync</c>. Los nombres son los que usa la
+    /// zona de la prueba —«State» y «City»—, no los reales: lo que se comprueba aquí es la
+    /// transacción, no la geografía.</para>
+    /// </summary>
+    private static async Task SeedSharedGeographyAsync(GestIaDbContext context)
+    {
+        if (await context.GeoCountries.AnyAsync())
+        {
+            return;
+        }
+
+        var idCountry = Guid.NewGuid();
+        var idState = Guid.NewGuid();
+        context.Add(new GeoCountry(idCountry, "MX", "Mexico"));
+        context.Add(new GeoState(idState, idCountry, "01", "State"));
+        context.Add(new GeoMunicipality(Guid.NewGuid(), idState, "01001", "City"));
     }
 
     private async Task<Guid> SeedRequestAsync(Guid organizationId)

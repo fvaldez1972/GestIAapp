@@ -1,6 +1,6 @@
-using System.Reflection;
 using GestIA.Application.Catalogs;
 using GestIA.Application.Common;
+using GestIA.Application.Geography;
 using GestIA.Domain.Catalogs;
 
 namespace GestIA.Application.UnitTests;
@@ -10,20 +10,36 @@ public sealed class FormCatalogValidatorTests
     private static readonly Guid Org = Guid.NewGuid();
     private static readonly CancellationToken Token = CancellationToken.None;
 
+    /// <summary>
+    /// La direccion se valida contra la geografia compartida, y <b>no se valida cuando no cambio</b>.
+    ///
+    /// <para>La segunda mitad es la que importa y la que se ha roto antes: una ficha capturada hace
+    /// meses puede nombrar un municipio que despues se desactivo. Si guardar un telefono revalidara
+    /// la direccion, esa ficha quedaria imposible de editar. Por eso el caso «no cambio» pregunta
+    /// con una geografia que rechaza todo: si el validador la consultara, fallaria.</para>
+    /// </summary>
     [Fact]
-    public async Task AddressRejectsWrongParentAndInactiveAncestorsButPreservesHistoricalData()
+    public async Task AddressDelegatesToSharedGeographyAndSkipsWhatDidNotChange()
     {
-        var country = Value(BusinessCatalogItemType.Country, "Mexico");
-        var state = Value(BusinessCatalogItemType.State, "Nuevo Leon", country.IdBusinessCatalogItem);
-        var city = Value(BusinessCatalogItemType.City, "Monterrey", state.IdBusinessCatalogItem);
-        var repo = DispatchProxy.Create<ICatalogRepository, Repository>();
-        ((Repository)(object)repo).Items = [country, state, city];
-        var validator = new FormCatalogValidator(repo);
-        await validator.AddressAsync(Org, "MX", "Nuevo Leon", "Monterrey", null, null, null, Token);
-        await Assert.ThrowsAsync<ResourceConflictException>(() => validator.AddressAsync(Org, "US", "Nuevo Leon", "Monterrey", null, null, null, Token));
-        country.Deactivate(Org, "Test", DateTime.UtcNow);
-        await Assert.ThrowsAsync<ResourceConflictException>(() => validator.AddressAsync(Org, "MX", "Nuevo Leon", "Monterrey", null, null, null, Token));
-        await validator.AddressAsync(Org, "MX", "Nuevo Leon", "Monterrey", "MX", "Nuevo Leon", "Monterrey", Token);
+        var geografia = new GeografiaFalsa();
+        var validator = new FormCatalogValidator(null!, geografia);
+
+        // Control: cuando la geografia no encuentra problema, no hay excepcion.
+        geografia.Problema = null;
+        await validator.AddressAsync("MX", "Nuevo Leon", "Monterrey", null, null, null, Token);
+        Assert.Equal(1, geografia.Consultas);
+        Assert.Equal(("MX", "Nuevo Leon", "Monterrey"), geografia.Ultima);
+
+        // El problema que reporta la geografia sale como conflicto, con su mismo texto.
+        geografia.Problema = "Selecciona un estado activo del pais.";
+        var error = await Assert.ThrowsAsync<ResourceConflictException>(
+            () => validator.AddressAsync("MX", "Nuevo Leon", "Monterrey", null, null, null, Token));
+        Assert.Equal("Selecciona un estado activo del pais.", error.Message);
+
+        // Y lo que no cambio no se consulta, aunque la geografia siga rechazando.
+        var consultas = geografia.Consultas;
+        await validator.AddressAsync("MX", "Nuevo Leon", "Monterrey", "MX", "NUEVO LEON", "Monterrey", Token);
+        Assert.Equal(consultas, geografia.Consultas);
     }
 
     [Fact]
@@ -37,13 +53,22 @@ public sealed class FormCatalogValidatorTests
         Assert.Empty(CatalogOptions.Active(values));
     }
 
-    private static BusinessCatalogItem Value(BusinessCatalogItemType type, string name, Guid? parent = null) =>
-        BusinessCatalogItem.Create(Org, new(type, name, null, IdParentCatalogItem: parent), Org, "Test", DateTime.UtcNow);
-
-    public class Repository : DispatchProxy
+    private sealed class GeografiaFalsa : IGeographyService
     {
-        public IReadOnlyList<BusinessCatalogItem> Items { get; set; } = [];
-        protected override object? Invoke(MethodInfo? targetMethod, object?[]? args) =>
-            targetMethod?.Name == nameof(ICatalogRepository.ListCatalogItemsAsync) ? Task.FromResult(Items) : throw new NotSupportedException();
+        public string? Problema { get; set; }
+        public int Consultas { get; private set; }
+        public (string? Country, string? State, string? Municipality) Ultima { get; private set; }
+
+        public Task<string?> ValidateAddressAsync(string? country, string? state, string? municipality, CancellationToken cancellationToken)
+        {
+            Consultas++;
+            Ultima = (country, state, municipality);
+            return Task.FromResult(Problema);
+        }
+
+        public Task<IReadOnlyList<GeoPlace>> ListCountriesAsync(CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<IReadOnlyList<GeoPlace>> ListStatesAsync(string country, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<IReadOnlyList<GeoPlace>> ListMunicipalitiesAsync(string country, string state, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<PostalCodeLookup?> LookupPostalCodeAsync(string postalCode, CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 }

@@ -853,6 +853,141 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                     b.ToTable("BusinessDocumentEvents", "dbo");
                 });
 
+            modelBuilder.Entity("GestIA.Domain.Geography.GeoCountry", b =>
+                {
+                    b.Property<Guid>("IdGeoCountry")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Active")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(2)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(2)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.HasKey("IdGeoCountry")
+                        .HasName("PK_GeoCountries");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasDatabaseName("UX_GeoCountries_Code");
+
+                    b.ToTable("GeoCountries", (string)null);
+                });
+
+            modelBuilder.Entity("GestIA.Domain.Geography.GeoMunicipality", b =>
+                {
+                    b.Property<Guid>("IdGeoMunicipality")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Active")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(5)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(5)");
+
+                    b.Property<Guid>("IdGeoState")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.HasKey("IdGeoMunicipality")
+                        .HasName("PK_GeoMunicipalities");
+
+                    b.HasIndex("IdGeoState", "Code")
+                        .IsUnique()
+                        .HasDatabaseName("UX_GeoMunicipalities_IdGeoState_Code");
+
+                    b.HasIndex("IdGeoState", "Name")
+                        .HasDatabaseName("IX_GeoMunicipalities_IdGeoState_Name");
+
+                    b.ToTable("GeoMunicipalities", (string)null);
+                });
+
+            modelBuilder.Entity("GestIA.Domain.Geography.GeoPostalCode", b =>
+                {
+                    b.Property<Guid>("IdGeoPostalCode")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Active")
+                        .HasColumnType("bit");
+
+                    b.Property<Guid>("IdGeoMunicipality")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Neighborhood")
+                        .IsRequired()
+                        .HasMaxLength(180)
+                        .HasColumnType("nvarchar(180)");
+
+                    b.Property<string>("PostalCode")
+                        .IsRequired()
+                        .HasMaxLength(5)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(5)");
+
+                    b.Property<string>("SettlementType")
+                        .HasMaxLength(60)
+                        .HasColumnType("nvarchar(60)");
+
+                    b.HasKey("IdGeoPostalCode")
+                        .HasName("PK_GeoPostalCodes");
+
+                    b.HasIndex("PostalCode")
+                        .HasDatabaseName("IX_GeoPostalCodes_PostalCode");
+
+                    b.HasIndex("IdGeoMunicipality", "PostalCode", "Neighborhood")
+                        .IsUnique()
+                        .HasDatabaseName("UX_GeoPostalCodes_IdGeoMunicipality_PostalCode_Neighborhood");
+
+                    b.ToTable("GeoPostalCodes", (string)null);
+                });
+
+            modelBuilder.Entity("GestIA.Domain.Geography.GeoState", b =>
+                {
+                    b.Property<Guid>("IdGeoState")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Active")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(3)");
+
+                    b.Property<Guid>("IdGeoCountry")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.HasKey("IdGeoState")
+                        .HasName("PK_GeoStates");
+
+                    b.HasIndex("IdGeoCountry", "Code")
+                        .IsUnique()
+                        .HasDatabaseName("UX_GeoStates_IdGeoCountry_Code");
+
+                    b.ToTable("GeoStates", (string)null);
+                });
+
             modelBuilder.Entity("GestIA.Domain.History.OperationalEvent", b =>
                 {
                     b.Property<Guid>("IdOperationalEvent")
@@ -3811,6 +3946,36 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("FK_BusinessDocumentEvents_BusinessDocuments_IdBusinessDocument");
+                });
+
+            modelBuilder.Entity("GestIA.Domain.Geography.GeoMunicipality", b =>
+                {
+                    b.HasOne("GestIA.Domain.Geography.GeoState", null)
+                        .WithMany()
+                        .HasForeignKey("IdGeoState")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_GeoMunicipalities_GeoStates_IdGeoState");
+                });
+
+            modelBuilder.Entity("GestIA.Domain.Geography.GeoPostalCode", b =>
+                {
+                    b.HasOne("GestIA.Domain.Geography.GeoMunicipality", null)
+                        .WithMany()
+                        .HasForeignKey("IdGeoMunicipality")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_GeoPostalCodes_GeoMunicipalities_IdGeoMunicipality");
+                });
+
+            modelBuilder.Entity("GestIA.Domain.Geography.GeoState", b =>
+                {
+                    b.HasOne("GestIA.Domain.Geography.GeoCountry", null)
+                        .WithMany()
+                        .HasForeignKey("IdGeoCountry")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_GeoStates_GeoCountries_IdGeoCountry");
                 });
 
             modelBuilder.Entity("GestIA.Domain.History.OperationalEvent", b =>

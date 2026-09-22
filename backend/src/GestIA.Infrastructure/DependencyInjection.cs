@@ -1,5 +1,6 @@
 using GestIA.Application.Audit;
 using GestIA.Application.Clients;
+using GestIA.Application.Geography;
 using GestIA.Application.Assignments;
 using GestIA.Application.Catalogs;
 using GestIA.Application.Common;
@@ -51,6 +52,9 @@ public static class DependencyInjection
         services.AddScoped<IOperationalHistoryRecorder, OperationalHistoryRecorder>();
         services.AddScoped<IOperationalHistoryRepository, OperationalHistoryRepository>();
         services.AddScoped<IUnitOfWork, EfUnitOfWork>();
+        // La geografia compartida. Vive en Infrastructure porque lee tablas, no porque tenga
+        // reglas: su unica regla --que nadie le pase una organizacion-- esta en el contrato.
+        services.AddScoped<IGeographyService, GeographyService>();
         services.AddScoped<IOrganizationRepository, OrganizationRepository>();
         services.AddScoped<IOrganizationGovernanceRepository, OrganizationGovernanceRepository>();
         services.AddScoped<IOrganizationAdminProvisioningRepository, OrganizationAdminProvisioningRepository>();

@@ -41,7 +41,7 @@ public sealed class ClientZoneService(
             throw new ResourceConflictException($"Ya existe una zona con el código '{code}'.");
         }
 
-        await catalogs.AddressAsync(request.IdOrganization, address.CountryCode, address.State, address.Municipality, null, null, null, cancellationToken);
+        await catalogs.AddressAsync(address.CountryCode, address.State, address.Municipality, null, null, null, cancellationToken);
         var site = ClientSite.Create(
             request.IdOrganization,
             request.IdClient,
@@ -66,7 +66,7 @@ public sealed class ClientZoneService(
         var site = await siteRepository.GetAsync(request.IdClient, idClientZone, cancellationToken)
             ?? throw new ResourceNotFoundException("No se encontró la zona solicitada.");
 
-        await catalogs.AddressAsync(request.IdOrganization, address.CountryCode, address.State, address.Municipality,
+        await catalogs.AddressAsync(address.CountryCode, address.State, address.Municipality,
             site.CountryCode, site.State, site.Municipality, cancellationToken);
         site.UpdateAddress(address, actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
         await unitOfWork.SaveChangesAsync(cancellationToken);

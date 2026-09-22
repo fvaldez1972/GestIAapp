@@ -64,7 +64,7 @@ public sealed class ClientZoneServiceTests
             new StubUnitOfWork(),
             new StubActorContext(),
             new StubClock(),
-            new GestIA.Application.Catalogs.FormCatalogValidator(null!));
+            new GestIA.Application.Catalogs.FormCatalogValidator(null!, null!));
 
         var request = new CreateClientContactRequest(
             OrganizationId,

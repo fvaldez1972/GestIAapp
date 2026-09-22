@@ -91,6 +91,7 @@ app.MapAuthEndpoints();
 app.MapOrganizationEndpoints();
 app.MapClientEndpoints();
 app.MapClientZoneEndpoints();
+app.MapGeographyEndpoints();
 app.MapClientContactEndpoints();
 app.MapServiceManagementEndpoints();
 app.MapWorkforceEndpoints();

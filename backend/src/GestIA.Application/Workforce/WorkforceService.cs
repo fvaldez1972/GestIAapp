@@ -60,7 +60,7 @@ public sealed class WorkforceService(
         var code = NormalizeCode(request.CodeEmployee, nameof(request.CodeEmployee));
         var profile = Validate(request);
         await catalogs.ValueAsync(request.IdOrganization, BusinessCatalogItemType.JobPosition, profile.JobTitle, null, cancellationToken);
-        await catalogs.AddressAsync(request.IdOrganization, profile.CountryCode, profile.State, profile.Municipality, null, null, null, cancellationToken);
+        await catalogs.AddressAsync(profile.CountryCode, profile.State, profile.Municipality, null, null, null, cancellationToken);
         await EnsureUniqueIdentifiersAsync(
             request.IdOrganization,
             code,
@@ -91,7 +91,7 @@ public sealed class WorkforceService(
         var employee = await EnsureEmployeeAsync(request.IdOrganization, idEmployee, cancellationToken);
         var profile = Validate(request);
         await catalogs.ValueAsync(request.IdOrganization, BusinessCatalogItemType.JobPosition, profile.JobTitle, employee.JobTitle, cancellationToken);
-        await catalogs.AddressAsync(request.IdOrganization, profile.CountryCode, profile.State, profile.Municipality,
+        await catalogs.AddressAsync(profile.CountryCode, profile.State, profile.Municipality,
             employee.CountryCode, employee.State, employee.Municipality, cancellationToken);
         await EnsureUniqueIdentifiersAsync(
             request.IdOrganization,

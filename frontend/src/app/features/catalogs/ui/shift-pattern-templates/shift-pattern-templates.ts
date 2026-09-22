@@ -65,16 +65,13 @@ type DiaGrupo = FormGroup<{
   imports: [ReactiveFormsModule, GiSelect],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <section class="pat" aria-labelledby="pat-titulo">
+    <section class="pat" aria-label="Patrones de turno">
+      <!--
+        Sin título ni nota aquí. El título lo pone la página que envuelve este bloque, y decirlo dos
+        veces seguidas hacía dudar de si eran dos cosas; la nota explicaba qué es un patrón de turno
+        a quien ya entró a la pantalla de patrones de turno.
+      -->
       <header class="pat__cabecera">
-        <div>
-          <h2 class="gi-section-heading" id="pat-titulo">Patrones de turno</h2>
-          <p class="pat__nota">
-            El ciclo de trabajo y descanso que sigue una posición. Se captura una vez con la longitud
-            de su ciclo —dos días en un 12x12, tres en un 24x48— y se elige desde la posición. Un
-            patrón que excede la jornada legal se guarda igual: la pantalla avisa por cuántas horas.
-          </p>
-        </div>
         <button
           class="gi-button gi-button--primary"
           type="button"
@@ -179,56 +176,61 @@ type DiaGrupo = FormGroup<{
           <button class="gi-button gi-button--ghost" type="button" (click)="cerrar()">Cerrar</button>
         </header>
 
-        <div class="pat__dialogo-fila">
-          <label class="gi-field">
-            Nombre del patrón
-            <input class="gi-input" type="text" formControlName="name" placeholder="Ej. 12x12 diurno" />
-          </label>
-          <gi-select
-            label="Jornada"
-            [options]="daypartOptions"
-            [value]="form.controls.daypart.value"
-            [disabled]="!canWrite()"
-            (valueChange)="form.controls.daypart.setValue($any($event))"
-          />
-        </div>
+        <!--
+          Los rótulos van en un <span> dentro del .gi-field, que es lo que les da el tamaño de
+          rótulo. Sueltos como texto del <label> salían del tamaño del cuerpo y competían con el
+          contenido; y el desplegable de jornada no tenía ninguno, porque gi-select se nombra con
+          aria-label y no lo dibuja: quedaba flotando arriba a la derecha sin decir de qué era.
+        -->
+        <div class="pat__cuerpo">
+          <div class="pat__fila pat__fila--nombre">
+            <label class="gi-field">
+              <span>Nombre del patrón</span>
+              <input class="gi-input" type="text" formControlName="name" placeholder="Ej. 12x12 diurno" />
+            </label>
+            <div class="gi-field">
+              <span>Jornada</span>
+              <gi-select
+                label="Jornada"
+                [options]="daypartOptions"
+                [value]="form.controls.daypart.value"
+                [disabled]="!canWrite()"
+                (valueChange)="form.controls.daypart.setValue($any($event))"
+              />
+            </div>
+          </div>
 
-        <div class="pat__dialogo-fila">
-          <label class="gi-field">
-            Días del ciclo
-            <input class="gi-input" type="number" min="1" max="366" formControlName="cycleDays" />
-            <small>
-              Cuántos días tarda el patrón en repetirse: 2 en un 12x12, 3 en un 24x48, 7 en un rol
-              semanal.
-            </small>
-          </label>
-          <label class="gi-field">
-            Vigente desde
-            <input class="gi-input" type="date" formControlName="effectiveFromDate" />
-          </label>
-          <label class="gi-field">
-            Vigente hasta
-            <input class="gi-input" type="date" formControlName="effectiveToDate" />
-            <small>Vacío si no tiene fin previsto.</small>
-          </label>
-        </div>
+          <div class="pat__fila pat__fila--tres">
+            <label class="gi-field">
+              <span>Días del ciclo</span>
+              <input class="gi-input" type="number" min="1" max="366" formControlName="cycleDays" />
+            </label>
+            <label class="gi-field">
+              <span>Vigente desde</span>
+              <input class="gi-input" type="date" formControlName="effectiveFromDate" />
+            </label>
+            <label class="gi-field">
+              <span>Vigente hasta</span>
+              <input class="gi-input" type="date" formControlName="effectiveToDate" />
+            </label>
+          </div>
 
-        <label class="gi-field">
-          Descripción
-          <textarea
-            class="gi-input"
-            rows="2"
-            formControlName="description"
-            placeholder="El nombre que le da el cliente y lo que lo distingue de otro parecido."
-          ></textarea>
-        </label>
+          <label class="gi-field">
+            <span>Descripción</span>
+            <textarea
+              class="gi-input"
+              rows="2"
+              formControlName="description"
+              placeholder="Opcional. Cómo lo llama el cliente, o qué lo distingue de otro parecido."
+            ></textarea>
+          </label>
 
         <!--
           Los días del ciclo. Cada uno es un turno con horario o un descanso declarado; el cruce de
           medianoche no se pregunta, se deduce del horario, porque pedirlo como casilla dejaba
           declarar un 19:00–07:00 sin marcarla y la duración salía negativa.
         -->
-        <fieldset class="pat__dias" formArrayName="days" [disabled]="!canWrite() || saving()">
+          <fieldset class="pat__dias" formArrayName="days" [disabled]="!canWrite() || saving()">
           <legend>Qué es cada día del ciclo</legend>
           @for (dia of dayControls(); track dia.numero; let i = $index) {
             <div class="pat__dia" [formGroupName]="i">
@@ -277,42 +279,28 @@ type DiaGrupo = FormGroup<{
               }
             </div>
           }
-        </fieldset>
+          </fieldset>
 
-        <!--
-          La previa. Las horas por semana son aritmética del ciclo y se pueden mostrar aquí; el
-          juicio contra la jornada legal lo hace el servidor, porque el límite cambia con la ley.
-        -->
-        <!--
-          Las dos cifras, no una. Antes sólo decía las horas por semana y quien sumaba los turnos a
-          mano obtenía otra cosa: cuatro días de 12 h en un ciclo de seis son 48 h de trabajo en el
-          ciclo y 56 por semana —48 x 7 / 6—. Los dos números eran correctos y la pantalla parecía
-          equivocada porque enseñaba el segundo sin el primero.
-        -->
-        <p class="pat__previa" role="status">
-          <strong>{{ previaHorasCiclo() }} h de turno</strong>
-          en el ciclo de {{ form.controls.cycleDays.value }}
-          {{ form.controls.cycleDays.value === 1 ? 'día' : 'días' }}
-          ({{ previaTurnos() }} de turno y {{ previaDescansos() }} de descanso) ·
-          <strong>promedio semanal de {{ previaHoras() }} h</strong>
           <!--
-            La operación escrita, no sólo el resultado.
-            Con las dos cifras sueltas seguía leyéndose como un error: quien suma 4 x 12 obtiene 48
-            y ve 56 al lado. El paso que falta es que el ciclo dura seis días y la semana siete, así
-            que el promedio semanal sube. Enseñar la división lo cierra sin discutir la definición.
+            Las dos cifras, no una. Sólo con las horas por semana, quien sumaba los turnos a mano
+            obtenía otra cosa: cuatro días de 12 h en un ciclo de seis son 48 h en el ciclo y 56 por
+            semana —48 × 7 ÷ 6—. Los dos números eran correctos y la pantalla parecía equivocada por
+            enseñar el segundo sin el primero. La división va escrita por lo mismo.
           -->
-          <small>
-            {{ previaHorasCiclo() }} h ÷ {{ form.controls.cycleDays.value }}
-            {{ form.controls.cycleDays.value === 1 ? 'día' : 'días' }} × 7 días =
-            {{ previaHoras() }} h. Es un <b>promedio</b>, no las horas de una semana concreta: un
-            ciclo que no dura siete días cae en días distintos cada semana, así que unas semanas se
-            trabajan más horas que otras y el promedio es lo único comparable con la jornada legal.
-          </small>
-          <small>
-            El servidor las vuelve a calcular y las juzga contra el límite vigente al guardar. Si
-            excede, el patrón se guarda igual y la tabla dice por cuántas horas.
-          </small>
-        </p>
+          <p class="pat__previa" role="status">
+            <strong>{{ previaHorasCiclo() }} h de turno</strong> en el ciclo de
+            {{ form.controls.cycleDays.value }}
+            {{ form.controls.cycleDays.value === 1 ? 'día' : 'días' }}
+            ({{ previaTurnos() }} de turno, {{ previaDescansos() }} de descanso) ·
+            <strong>promedio semanal de {{ previaHoras() }} h</strong>
+            <small>
+              {{ previaHorasCiclo() }} h ÷ {{ form.controls.cycleDays.value }}
+              {{ form.controls.cycleDays.value === 1 ? 'día' : 'días' }} × 7 días =
+              {{ previaHoras() }} h. Es un promedio: el servidor lo vuelve a calcular al guardar y,
+              si excede la jornada legal, el patrón se guarda igual y la tabla dice por cuánto.
+            </small>
+          </p>
+        </div>
 
         @if (error()) { <p class="gi-alert gi-alert--error" role="alert">{{ error() }}</p> }
 
@@ -336,9 +324,7 @@ type DiaGrupo = FormGroup<{
 
     .pat { display: flex; flex-direction: column; gap: 0.75rem; }
 
-    .pat__cabecera { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
-
-    .pat__nota { margin: 0.25rem 0 0; color: var(--gestia-muted); font-size: 11.5px; max-width: 70ch; }
+    .pat__cabecera { display: flex; align-items: center; justify-content: flex-end; gap: 1rem; }
 
     .pat__vacio { margin: 0; color: var(--gestia-muted); font-size: 12px; }
 
@@ -356,15 +342,49 @@ type DiaGrupo = FormGroup<{
 
     .pat__limite { display: block; color: var(--gestia-muted); font-size: 10.5px; }
 
-    .pat__dialogo { width: min(58rem, 94vw); }
+    /* Más angosto que antes —58 rem daban un cuadro casi tan ancho como la pantalla— y sin relleno
+       propio: lo ponen la cabecera, el cuerpo y el pie, que es lo que les da sus líneas. */
+    .pat__dialogo { width: min(44rem, calc(100vw - 2rem)); padding: 0; }
 
-    .pat__dialogo form { display: flex; flex-direction: column; gap: 0.75rem; }
+    .pat__dialogo form { display: block; }
 
-    .pat__dialogo-cabecera { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+    .pat__dialogo-cabecera {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      padding: 1.1rem 1.25rem 0.9rem;
+      border-bottom: 1px solid var(--gestia-border);
+      gap: 1rem;
+    }
 
-    .pat__dialogo-fila { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: 0.65rem; }
+    .pat__dialogo-cabecera h2 { margin: 0.1rem 0 0; }
 
-    .pat__dialogo-acciones { display: flex; justify-content: flex-end; gap: 0.5rem; }
+    .pat__dialogo-acciones {
+      display: flex;
+      justify-content: flex-end;
+      padding: 0.9rem 1.25rem 1.1rem;
+      border-top: 1px solid var(--gestia-border);
+      gap: 0.5rem;
+    }
+
+    /* El cuerpo en una rejilla, y cada fila con sus columnas. Antes eran filas flex sueltas con
+       anchos distintos, y los campos no se alineaban entre una fila y la siguiente. */
+    .pat__cuerpo {
+      display: grid;
+      padding: 1.1rem 1.25rem;
+      gap: 0.9rem;
+    }
+
+    .pat__fila { display: grid; gap: 0.9rem; }
+    .pat__fila--nombre { grid-template-columns: 1fr 12rem; }
+    .pat__fila--tres { grid-template-columns: 1fr 1fr 1fr; }
+
+    .pat__cuerpo textarea { resize: vertical; }
+
+    @media (max-width: 42rem) {
+      .pat__fila--nombre,
+      .pat__fila--tres { grid-template-columns: 1fr; }
+    }
 
     .pat__dias {
       display: flex;

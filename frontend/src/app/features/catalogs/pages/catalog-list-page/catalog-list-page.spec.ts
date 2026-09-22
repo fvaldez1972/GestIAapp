@@ -55,7 +55,8 @@ describe('Página de un catálogo', () => {
   type Pagina = {
     page(): { title: string; type: string } | undefined;
     columns(): readonly { key: string }[];
-    filterGroups(): readonly { id: string }[];
+    filterGroups(): readonly { id: string; options: readonly { label: string }[] }[];
+    natureOptions: readonly { value: string; label: string }[];
     items: { set(v: readonly CatalogItem[]): void };
     filtradas(): readonly CatalogItem[];
     paginadas(): readonly CatalogItem[];
@@ -150,6 +151,32 @@ describe('Página de un catálogo', () => {
 
     expect(pagina.columns().map((columna) => columna.key)).not.toContain('nature');
     expect(pagina.filterGroups().map((grupo) => grupo.id)).not.toContain('naturaleza');
+  });
+
+  /**
+   * La naturaleza se llama igual en el desplegable, en la columna y en el filtro.
+   *
+   * <p>Es lo que esta prueba sujeta: tres sitios que enseñan el mismo dato con tres textos
+   * distintos se leen como tres cosas distintas. Las opciones traían la explicación pegada, la
+   * columna no, y el filtro tampoco.</p>
+   */
+  it('la naturaleza se llama igual en el desplegable, la columna y el filtro', () => {
+    const { pagina } = montar('tipos-de-evaluacion');
+    responder([]);
+
+    const enElDesplegable = pagina.natureOptions.map((opcion) => opcion.label);
+    const enElFiltro = pagina
+      .filterGroups()
+      .find((grupo) => grupo.id === 'naturaleza')!
+      .options.map((opcion) => opcion.label);
+    const enLaColumna = [
+      pagina.natureLabel(valor({ isBlocking: true })),
+      pagina.natureLabel(valor({ isBlocking: false })),
+    ];
+
+    expect(enElDesplegable).toEqual(['Bloqueante', 'Informativa']);
+    expect(enElFiltro).toEqual(enElDesplegable);
+    expect(enLaColumna).toEqual(enElDesplegable);
   });
 
   /** Una entrada sin marca se lee «Informativa», que es lo que el servidor ya hace con el nulo. */

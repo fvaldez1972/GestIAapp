@@ -244,9 +244,18 @@ export class CatalogListPage {
       .map((item) => ({ value: item.idCatalogItem, label: item.name })),
   ]);
 
+  /**
+   * Las dos naturalezas, con el mismo nombre en todas partes.
+   *
+   * <p><b>Dicen «Bloqueante» e «Informativa» y nada más.</b> Traían la explicación pegada
+   * —«Bloqueante: impide asignar y publicar»— y eso hacía que el desplegable, la columna de la
+   * tabla y el filtro llamaran de tres maneras distintas a la misma cosa. Un valor se reconoce
+   * mejor cuando se llama igual en todos los sitios donde aparece que cuando cada sitio lo
+   * explica.</p>
+   */
   protected readonly natureOptions: readonly GiSelectOption[] = [
-    { value: 'blocking', label: 'Bloqueante: impide asignar y publicar' },
-    { value: 'informative', label: 'Informativa: sólo deja constancia' },
+    { value: 'blocking', label: 'Bloqueante' },
+    { value: 'informative', label: 'Informativa' },
   ];
 
   protected readonly statusOptions: readonly GiSelectOption[] = [

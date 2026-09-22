@@ -119,16 +119,22 @@ describe('Catálogos', () => {
     expect(texto).toContain('renombrar un motivo no cambia las incidencias ya registradas');
   });
 
-  /** La geografía sale de la vista principal: son doce mil filas que nadie configura. */
-  it('deja la geografía plegada y fuera de la lista principal', () => {
+  /**
+   * La geografía ya no se edita por organización, y la pantalla lo dice en vez de callarlo.
+   *
+   * <p>Antes estaba aquí, plegada. Desde el 22 de septiembre de 2026 vive en tablas compartidas,
+   * así que dejar la sección editable habría dejado crear países que ningún desplegable lee: el
+   * alta parecería funcionar y no tendría efecto en ningún domicilio.</p>
+   */
+  it('no ofrece editar la geografía, y explica por qué', () => {
     const { raiz } = montar();
 
     const plegado = Array.from(raiz.querySelectorAll('details')).find(
       (elemento) => elemento.querySelector('summary')?.textContent?.includes('Geografía'),
     );
 
-    expect(plegado).toBeTruthy();
-    expect(plegado?.open).toBe(false);
+    expect(plegado).toBeUndefined();
+    expect(raiz.textContent).toContain('ya no se configuran por organización');
   });
 
   /**

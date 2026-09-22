@@ -41,26 +41,40 @@ function montar() {
 }
 
 /**
- * El catálogo geográfico que el selector pide.
+ * La geografía que el selector pide.
  *
- * <p>Estado y municipio no son texto libre: el servidor los valida contra `State` y `City`, y la
- * ciudad cuelga del estado, que cuelga del país. La prueba monta esa jerarquía porque es la que
- * hace que el municipio aparezca sólo cuando su estado está elegido.</p>
+ * <p><b>Ya no viene con el catálogo de la organización.</b> Desde el 22 de septiembre de 2026 son
+ * tablas compartidas con sus propios endpoints, y la cascada —país, estado, municipio— la resuelve
+ * el servidor. Por eso este doble responde por dirección en vez de devolver un árbol entero para
+ * que el navegador lo recorra.</p>
  */
-const GEOGRAFIA = [
-  { idCatalogItem: 'mx', type: 'Country', name: 'México', active: true, idParentCatalogItem: null },
-  { idCatalogItem: 'jal', type: 'State', name: 'Jalisco', active: true, idParentCatalogItem: 'mx' },
-  { idCatalogItem: 'nl', type: 'State', name: 'Nuevo León', active: true, idParentCatalogItem: 'mx' },
-  { idCatalogItem: 'tlaq', type: 'City', name: 'Tlaquepaque', active: true, idParentCatalogItem: 'jal' },
-  { idCatalogItem: 'snic', type: 'City', name: 'San Nicolás de los Garza', active: true, idParentCatalogItem: 'nl' },
-];
+const PAISES = [{ code: 'MX', name: 'México' }];
+const ESTADOS = [{ code: '14', name: 'Jalisco' }, { code: '19', name: 'Nuevo León' }];
+const MUNICIPIOS: Record<string, readonly { code: string; name: string }[]> = {
+  Jalisco: [{ code: '14098', name: 'Tlaquepaque' }],
+  'Nuevo León': [{ code: '19046', name: 'San Nicolás de los Garza' }],
+};
 
-/** Responde la única petición del catálogo y deja los selectores con sus opciones. */
-function surtirCatalogo(http: HttpTestingController, fixture: { detectChanges(): void }) {
-  for (const peticion of http.match((r) => r.url.endsWith('/catalogs/options'))) {
-    peticion.flush(GEOGRAFIA);
+/** Responde lo que la geografía tenga pendiente, que cambia conforme se elige en la cascada. */
+function surtirGeografia(http: HttpTestingController, fixture: { detectChanges(): void }) {
+  for (const peticion of http.match((r) => r.url.includes('/geography/'))) {
+    if (peticion.request.url.endsWith('/countries')) {
+      peticion.flush(PAISES);
+    } else if (peticion.request.url.endsWith('/states')) {
+      peticion.flush(ESTADOS);
+    } else {
+      peticion.flush(MUNICIPIOS[peticion.request.params.get('state') ?? ''] ?? []);
+    }
   }
   fixture.detectChanges();
+}
+
+/** Responde la petición del catálogo de la organización y la de la geografía. */
+function surtirCatalogo(http: HttpTestingController, fixture: { detectChanges(): void }) {
+  for (const peticion of http.match((r) => r.url.endsWith('/catalogs/options'))) {
+    peticion.flush([]);
+  }
+  surtirGeografia(http, fixture);
 }
 
 /** Elige un valor en un `app-catalog-select`, que por dentro es el `<select>` de la excepción. */
@@ -72,6 +86,8 @@ function elegir(raiz: HTMLElement, id: string, valor: string, fixture: { detectC
   select.value = valor;
   select.dispatchEvent(new Event('change'));
   fixture.detectChanges();
+  // Elegir el estado hace que el municipio pida los suyos: la cascada ahora la resuelve el servidor.
+  surtirGeografia(TestBed.inject(HttpTestingController), fixture);
 }
 
 describe('El alta de cliente', () => {

@@ -270,43 +270,6 @@ export class CatalogsPage implements OnInit, AfterViewInit {
     },
   ];
 
-  /**
-   * La geografía, aparte y plegada.
-   *
-   * <p>Son más de doce mil filas por organización que en realidad son las mismas para todas. Se va
-   * a una tabla compartida en su propia tanda; hasta entonces sigue aquí, funcionando, pero fuera
-   * de la vista principal: ocupaba la mitad de la pantalla y no es algo que nadie configure.</p>
-   */
-  protected readonly geographyCatalogs: readonly CatalogCard[] = [
-    {
-      type: 'Country',
-      title: 'Países',
-      example: 'Ej. México',
-      purpose: 'Países disponibles para domicilios.',
-      usedBy: 'Clientes',
-      link: 'nombre',
-      linkDetail: 'El domicilio guarda el texto del país.',
-    },
-    {
-      type: 'State',
-      title: 'Estados',
-      example: 'Ej. Jalisco',
-      purpose: 'Estados por país.',
-      usedBy: 'Clientes',
-      link: 'nombre',
-      linkDetail: 'El domicilio guarda el texto del estado.',
-    },
-    {
-      type: 'City',
-      title: 'Ciudades y municipios',
-      example: 'Ej. Zapopan',
-      purpose: 'Localidades por estado.',
-      usedBy: 'Clientes',
-      link: 'nombre',
-      linkDetail: 'El domicilio guarda el texto de la ciudad.',
-    },
-  ];
-
   protected readonly targetTypes: readonly GiSelectOption[] = [
     { value: 'Organization', label: 'Toda la organización' },
     { value: 'Client', label: 'Un cliente' },
@@ -431,7 +394,7 @@ export class CatalogsPage implements OnInit, AfterViewInit {
     () => this.requirements().find((item) => item.idEligibilityRequirement === this.selectedRequirementId()) ?? null,
   );
   protected readonly openCatalog = computed(
-    () => [...this.organizationCatalogs, ...this.geographyCatalogs]
+    () => [...this.organizationCatalogs]
       .find((card) => card.type === this.openCatalogType()) ?? null,
   );
 
@@ -706,10 +669,6 @@ export class CatalogsPage implements OnInit, AfterViewInit {
     return this.items().filter((item) => item.type === type && item.active).length;
   }
 
-  protected geographyCount(): number {
-    return this.geographyCatalogs.reduce((total, card) => total + this.countCatalogItems(card.type), 0);
-  }
-
   /**
    * Cuántos registros usan este valor, contado por identificador.
    *
@@ -750,33 +709,24 @@ export class CatalogsPage implements OnInit, AfterViewInit {
   /**
    * Si el catálogo abierto cuelga de otro.
    *
-   * <p>La geografía lo exige y la categoría del documento no: agrupar es una comodidad, y obligar a
-   * crear «Identidad» antes de poder registrar «INE» invertiría el orden en que se trabaja. El
-   * servidor aplica la misma distinción; esto sólo decide si se dibuja el selector.</p>
+   * <p>Queda uno solo: la categoría del documento del personal. Estados y municipios colgaban del
+   * país, y eran el motivo original de este selector; salieron a la geografía compartida el 22 de
+   * septiembre de 2026 y con ellos se fueron sus ramas. Agrupar sigue siendo una comodidad y no un
+   * requisito: obligar a crear «Identidad» antes de poder registrar «INE» invertiría el orden en
+   * que se trabaja.</p>
    */
   protected needsParent(): boolean {
-    const type = this.openCatalogType();
-    return type === 'State' || type === 'City' || type === 'EmployeeDocumentCategory';
+    return this.openCatalogType() === 'EmployeeDocumentCategory';
   }
 
   /** El rótulo del selector de padre, según de qué cuelgue el catálogo abierto. */
   protected parentLabel(): string {
-    switch (this.openCatalogType()) {
-      case 'State': return 'País';
-      case 'City': return 'Estado';
-      case 'EmployeeDocumentCategory': return 'Categoría';
-      default: return 'Pertenece a';
-    }
+    return this.openCatalogType() === 'EmployeeDocumentCategory' ? 'Categoría' : 'Pertenece a';
   }
 
   /** De qué catálogo salen los padres del catálogo abierto. */
   protected parentType(): BusinessCatalogItemType | null {
-    switch (this.openCatalogType()) {
-      case 'State': return 'Country';
-      case 'City': return 'State';
-      case 'EmployeeDocumentCategory': return 'EmployeeDocumentGroup';
-      default: return null;
-    }
+    return this.openCatalogType() === 'EmployeeDocumentCategory' ? 'EmployeeDocumentGroup' : null;
   }
 
   // ── Zona 1: editor de un valor ──────────────────────────────────────────────────────────────

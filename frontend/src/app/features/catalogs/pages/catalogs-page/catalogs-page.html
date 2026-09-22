@@ -28,24 +28,14 @@
       </ul>
 
       <!--
-        La geografía se pliega. Son más de doce mil filas por organización que en realidad son las
-        mismas para todas, y ocupaban la mitad de la pantalla sin que nadie las configure.
+        La geografía ya no se edita aquí. Desde el 22 de septiembre de 2026 vive en tablas
+        compartidas por todas las organizaciones, así que no hay nada que configurar por empresa:
+        dejar la sección editable habría dejado crear países que ningún desplegable lee.
       -->
-      <details class="cat__plegado">
-        <summary>
-          <span>Geografía</span>
-          <small>Países, estados y ciudades · {{ geographyCount() }} valores activos</small>
-        </summary>
-        <p class="cat__nota">
-          Esta lista es la misma para todas las organizaciones y se va a un catálogo compartido en su
-          propia tanda. Hasta entonces sigue aquí, editable.
-        </p>
-        <ul class="cat__lista">
-          @for (catalogo of geographyCatalogs; track catalogo.type) {
-            <li><ng-container *ngTemplateOutlet="fila; context: { $implicit: catalogo }" /></li>
-          }
-        </ul>
-      </details>
+      <p class="cat__nota">
+        Países, estados y municipios ya no se configuran por organización: son los mismos para
+        todas y se leen de un catálogo compartido, que los domicilios usan directamente.
+      </p>
     }
   </section>
 

@@ -324,10 +324,14 @@ a.submenu-link:focus-visible {
   outline-offset: -2px;
 }
 
+/* Pegado al nombre, no al borde. Llevaba `margin-left: auto` y se iba al extremo derecho del
+   bloque, de modo que entre el cargo y el galón quedaba un vacío que lo hacía parecer otra cosa en
+   vez de la parte que se abre. */
 .sidebar-account__chevron {
   flex: 0 0 auto;
-  margin-left: auto;
+  margin-left: -0.15rem;
   color: var(--gestia-cyan-soft);
+  font-size: 11px;
   opacity: 0.6;
   transition: transform 150ms ease;
 }
@@ -350,9 +354,11 @@ a.submenu-link:focus-visible {
   background: var(--gestia-navy-soft);
 }
 
+/* Ocupa lo que necesita y encoge si el nombre es largo, en vez de estirarse para llenar el bloque
+   y empujar el galón al otro extremo. */
 .sidebar-user {
   min-width: 0;
-  flex: 1 1 auto;
+  flex: 0 1 auto;
 }
 
 .sidebar-user strong,

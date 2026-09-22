@@ -183,6 +183,7 @@ export const GESTIA_NAVIGATION: readonly NavigationGroup[] = [
               { label: 'Rangos de edad', route: '/catalogos/rangos-de-edad' },
               { label: 'Escolaridad', route: '/catalogos/escolaridad' },
               { label: 'Equipo requerido', route: '/catalogos/equipo-requerido' },
+              { label: 'Patrones de turno', route: '/catalogos/patrones-de-turno' },
             ],
           },
           {
@@ -200,6 +201,10 @@ export const GESTIA_NAVIGATION: readonly NavigationGroup[] = [
               { label: 'Propósitos de contacto', route: '/catalogos/propositos-de-contacto' },
               { label: 'Nacionalidades', route: '/catalogos/nacionalidades' },
             ],
+          },
+          {
+            label: 'Reglas',
+            items: [{ label: 'Reglas de elegibilidad', route: '/catalogos/reglas-de-elegibilidad' }],
           },
         ],
       },

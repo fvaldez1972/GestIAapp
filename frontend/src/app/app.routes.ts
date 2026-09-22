@@ -94,6 +94,30 @@ export const routes: Routes = [
           ),
       },
       {
+        // Patrones de turno y Reglas de elegibilidad van ANTES de la ruta con parámetro: el
+        // enrutador toma la primera que encaja, y `catalogos/:catalogo` encajaría con las dos.
+        path: 'catalogos/patrones-de-turno',
+        title: 'GestIA | Patrones de turno',
+        data: { permission: 'CATALOGS.READ' },
+        loadComponent: () =>
+          import('./features/catalogs/pages/shift-pattern-templates-page/shift-pattern-templates-page').then(
+            (component) => component.ShiftPatternTemplatesPage,
+          ),
+      },
+      {
+        // Las reglas siguen siendo la pantalla que ya existe, con la dirección nueva: `catalogTab`
+        // la lleva al bloque de reglas, que es el mismo mecanismo que ya usaba «Reglas
+        // documentales». No se reescriben aquí porque no hace falta: ámbito, tipo y requisito ya
+        // están construidos y probados, y lo que cambia es cómo se llega.
+        path: 'catalogos/reglas-de-elegibilidad',
+        title: 'GestIA | Reglas de elegibilidad',
+        data: { permission: 'CATALOGS.READ', catalogTab: 'eligibility' },
+        loadComponent: () =>
+          import('./features/catalogs/pages/catalogs-page/catalogs-page').then(
+            (component) => component.CatalogsPage,
+          ),
+      },
+      {
         // Una ruta con parámetro para los dieciséis catálogos simples, no dieciséis rutas iguales.
         // El `slug` es el que fija `CATALOG_PAGE_GROUPS`; uno que no exista cae en la propia página,
         // que lo dice, en vez de en el comodín que manda al inicio sin explicar nada.

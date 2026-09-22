@@ -210,6 +210,25 @@ describe('Menú lateral', () => {
   });
 
   /**
+   * Las dos pantallas propias van declaradas ANTES de la ruta con parámetro.
+   *
+   * <p>El enrutador toma la primera ruta que encaja, y `catalogos/:catalogo` encaja con
+   * `catalogos/patrones-de-turno`. Si alguien las reordena, esas dos entradas dejarían de abrir su
+   * pantalla y caerían en la página genérica, que diría «ese catálogo no existe» —y el menú y las
+   * rutas seguirían pareciendo correctos—.</p>
+   */
+  it('las pantallas propias ganan a la ruta con parámetro', () => {
+    const hijas = routes.flatMap((route) => route.children ?? []).map((route) => route.path ?? '');
+    const conParametro = hijas.indexOf('catalogos/:catalogo');
+
+    expect(conParametro, 'la ruta con parámetro tiene que existir').toBeGreaterThan(-1);
+
+    for (const propia of ['catalogos/patrones-de-turno', 'catalogos/reglas-de-elegibilidad']) {
+      expect(hijas.indexOf(propia), `${propia} tiene que ir antes`).toBeLessThan(conParametro);
+    }
+  });
+
+  /**
    * El submenú de Catálogos y las páginas de catálogo dicen lo mismo.
    *
    * <p>El menú vive en `core` y las páginas en `features`, y esa dirección no se invierte: el menú

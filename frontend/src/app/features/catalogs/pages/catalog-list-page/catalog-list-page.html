@@ -172,19 +172,20 @@
           </div>
         }
 
+        <!--
+          Se rotula «Naturaleza», que es como se llama la columna de la tabla. Antes decía «Si a una
+          persona le falta esto», que explicaba el concepto en el rótulo y obligaba a leer una frase
+          para encontrar un campo; y las dos opciones ya dicen qué hace cada una.
+        -->
         @if (catalogo.hasNature) {
           <div class="gi-field">
-            <span>Si a una persona le falta esto</span>
+            <span>Naturaleza</span>
             <gi-select
-              label="Si a una persona le falta esto"
+              label="Naturaleza"
               [options]="natureOptions"
               [value]="form.controls.blockingMark.value"
               (valueChange)="form.controls.blockingMark.setValue($any($event))"
             />
-            <small class="cat-dialog__hint">
-              Es el valor por omisión de toda la organización. Una regla de elegibilidad puede
-              afinarlo para un cliente, un servicio o una posición concreta.
-            </small>
           </div>
         }
 
@@ -196,9 +197,6 @@
             [value]="form.controls.status.value"
             (valueChange)="form.controls.status.setValue($any($event))"
           />
-          <small class="cat-dialog__hint">
-            Inactivo deja de ofrecerse en los formularios. Los registros que ya lo usan lo conservan.
-          </small>
         </div>
       </div>
 

@@ -23,6 +23,8 @@ class PantallaDeModulo implements OnDestroy {
 
 const ALFA = { idOrganization: 'org-a', codeOrganization: 'ALFA', legalName: 'Alfa Seguridad Privada' };
 const BETA = { idOrganization: 'org-b', codeOrganization: 'BETA', legalName: 'Beta Custodia' };
+/** La que llega DESPUÉS de montar el shell: es la que delata si la lista se pide una sola vez. */
+const GAMMA = { idOrganization: 'org-c', codeOrganization: 'GAMMA', legalName: 'Gamma Vigilancia' };
 
 /** Los permisos que el menú consulta. El rol real trae más; ninguno de los otros abre entradas. */
 const PERMISOS_QUE_EL_MENU_CONSULTA = [
@@ -103,7 +105,7 @@ describe('AppShell', () => {
 
     fixture.detectChanges();
 
-    return { fixture, raiz: fixture.nativeElement as HTMLElement };
+    return { fixture, raiz: fixture.nativeElement as HTMLElement, componente: fixture.componentInstance };
   }
 
   const entradas = (raiz: HTMLElement) =>
@@ -114,25 +116,28 @@ describe('AppShell', () => {
   const gruposDelMenu = (raiz: HTMLElement) =>
     Array.from(raiz.querySelectorAll('.side-nav .menu-group')).map((n) => n.textContent?.trim());
 
-  /**
-   * El contexto de organización se movió a la barra de contexto y el `<select>` nativo se fue con
-   * él. El requisito es explícito: selectores con estilo propio, nunca el nativo del sistema.
-   */
+  /** Selectores con estilo propio, nunca el nativo del sistema. El requisito es explícito. */
   it('no queda ningún select nativo en el shell', () => {
-    const { raiz } = montar(['PLATFORM.ADMIN'], [ALFA]);
+    const { raiz, componente } = montar(['PLATFORM.ADMIN'], [ALFA]);
+    (componente as unknown as { toggleProfile(): void }).toggleProfile();
 
     expect(raiz.querySelector('select')).toBeNull();
-    expect(raiz.querySelector('app-context-bar')).not.toBeNull();
   });
 
-  it('la barra de contexto va arriba de la topbar, no dentro de ella', () => {
+  /**
+   * La franja de organización se retiró el 21 de septiembre de 2026 y la cabecera quedó primera.
+   *
+   * <p>Eran dos renglones fijos en las quince pantallas para decir quién eres y en qué organización
+   * estás, que es algo que se consulta de vez en cuando. Se movió al menú de la cuenta.</p>
+   */
+  it('ya no hay franja de organización: la cabecera va primera', () => {
     const { raiz } = montar(['PLATFORM.ADMIN'], [ALFA]);
 
     const contenido = raiz.querySelector('.page-content')!;
     const hijos = Array.from(contenido.children).map((n) => n.tagName.toLowerCase());
 
-    expect(hijos[0]).toBe('app-context-bar');
-    expect(hijos[1]).toBe('header');
+    expect(raiz.querySelector('app-context-bar')).toBeNull();
+    expect(hijos[0]).toBe('header');
   });
 
   it('el menú lateral responde a los tres estados', () => {
@@ -203,16 +208,107 @@ describe('AppShell', () => {
     );
   });
 
-  it('la organización no se dice dos veces: sólo la barra de contexto la nombra', () => {
-    const { raiz } = montar(['PLATFORM.ADMIN'], [ALFA], 'org-a');
+  /**
+   * Con el menú cerrado, el cromo no nombra la organización; abierto, la nombra una vez.
+   *
+   * <p>La segunda mitad es la que importa: el dato no se perdió al quitar la franja, sólo cambió
+   * de sitio. Sin ella, «ya no aparece» sería indistinguible de haberlo borrado.</p>
+   */
+  it('la organización se dice una sola vez, y dentro del menú de la cuenta', () => {
+    const { raiz, fixture, componente } = montar(['PLATFORM.ADMIN'], [ALFA], 'org-a');
+    const nombra = () =>
+      Array.from(raiz.querySelectorAll('*')).filter(
+        (n) => n.children.length === 0 && n.textContent?.includes('Alfa Seguridad Privada'),
+      );
 
-    expect(raiz.querySelector('.workspace-context')).toBeNull();
+    expect(nombra(), 'con el menú cerrado, el cromo no la nombra').toHaveLength(0);
 
-    const menciones = Array.from(raiz.querySelectorAll('*')).filter(
-      (n) => n.children.length === 0 && n.textContent?.includes('Alfa Seguridad Privada'),
-    );
+    (componente as unknown as { toggleProfile(): void }).toggleProfile();
+    fixture.detectChanges();
 
-    expect(menciones).toHaveLength(1);
+    expect(nombra()).toHaveLength(1);
+    expect(raiz.querySelector('.profile-menu')?.textContent).toContain('admin@gestia.local');
+  });
+
+  /**
+   * Cambiar de organización sobrevivió al cambio de sitio.
+   *
+   * <p>La franja que se retiró era <b>el único lugar</b> donde un super admin podía cambiar de
+   * organización y salir de ella. Quitarla sin esto habría dejado la sesión encerrada en la
+   * organización activa, y nada en pantalla lo diría.</p>
+   */
+  it('desde el menú se puede cambiar de organización y salir de ella', () => {
+    const { raiz, fixture, componente } = montar(['PLATFORM.ADMIN'], [ALFA, BETA], 'org-a');
+    (componente as unknown as { toggleProfile(): void }).toggleProfile();
+    fixture.detectChanges();
+
+    const menu = raiz.querySelector('.profile-menu')!;
+
+    expect(menu.querySelector('gi-select'), 'el selector de organización').not.toBeNull();
+    expect(menu.textContent).toContain('Salir de la organización');
+    expect(menu.textContent).toContain('Cerrar sesión');
+  });
+
+  /**
+   * Al desplegar la lista de organizaciones se vuelve a pedir al servidor.
+   *
+   * <p>Portada de la barra de contexto, que se retiró. Sin esto, la lista del super admin se carga
+   * una sola vez al construir el shell, y una organización dada de alta después no aparece hasta
+   * recargar la página entera. Y nada lo delata: el desplegable se abre con normalidad y
+   * simplemente le falta una.</p>
+   */
+  it('al abrir el desplegable de organizaciones vuelve a pedir la lista', () => {
+    const { raiz, fixture, componente } = montar(['PLATFORM.ADMIN'], [ALFA], 'org-a');
+    (componente as unknown as { toggleProfile(): void }).toggleProfile();
+    fixture.detectChanges();
+
+    expect(raiz.textContent).not.toContain('Gamma Vigilancia');
+
+    raiz.querySelector<HTMLButtonElement>('.profile-menu gi-select button')!.click();
+    fixture.detectChanges();
+    http.expectOne('/api/v1/organizations').flush([ALFA, BETA, GAMMA]);
+    fixture.detectChanges();
+
+    expect(raiz.textContent).toContain('Gamma Vigilancia');
+  });
+
+  /**
+   * Y si ese refresco falla, no se vacía la lista.
+   *
+   * <p>Quien abrió el desplegable quería cambiar de organización; dejarlo sin opciones porque la
+   * petición no llegó es peor que enseñarle una lista que quizá no incluye la última.</p>
+   */
+  it('si el refresco de organizaciones falla, se queda con las que ya tenía', () => {
+    const { raiz, fixture, componente } = montar(['PLATFORM.ADMIN'], [ALFA], 'org-a');
+    (componente as unknown as { toggleProfile(): void }).toggleProfile();
+    fixture.detectChanges();
+
+    raiz.querySelector<HTMLButtonElement>('.profile-menu gi-select button')!.click();
+    fixture.detectChanges();
+    http.expectOne('/api/v1/organizations').error(new ProgressEvent('error'));
+    fixture.detectChanges();
+
+    expect(raiz.textContent).toContain('Alfa Seguridad Privada');
+    expect(raiz.textContent).toContain('Beta Custodia');
+  });
+
+  /**
+   * Con una sola organización se enseña el nombre y no se ofrece cambiarla.
+   *
+   * <p>Un selector de una opción es ruido, y además sugiere que se puede cambiar a algo. Salir
+   * tampoco se ofrece: un admin de organización que «saliera» volvería a caer en la suya.</p>
+   */
+  it('con una sola organización no ofrece cambiarla ni salir de ella', () => {
+    const { raiz, fixture, componente } = montar(['CLIENTS.READ'], [ALFA], 'org-a');
+    (componente as unknown as { toggleProfile(): void }).toggleProfile();
+    fixture.detectChanges();
+
+    const menu = raiz.querySelector('.profile-menu')!;
+
+    expect(menu.textContent).toContain('Alfa Seguridad Privada');
+    expect(menu.querySelector('gi-select')).toBeNull();
+    expect(menu.textContent).not.toContain('Salir de la organización');
+    expect(menu.textContent, 'cerrar sesión sí, siempre').toContain('Cerrar sesión');
   });
 
   /** Un botón sin texto visible tiene que decir qué hace por otro camino. */

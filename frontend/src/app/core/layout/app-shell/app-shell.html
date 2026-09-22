@@ -121,8 +121,6 @@
   }
 
   <div class="page-content">
-    <app-context-bar #contextBar />
-
     <header class="app-header" #appHeader>
       <div class="topbar-start">
         <button
@@ -145,13 +143,62 @@
         </div>
       </div>
 
-      <div class="topbar-actions">
-        <!-- El contexto de organización vive en la barra de contexto, y sólo ahí. -->
-        <button class="profile" type="button" aria-label="Cerrar sesión" (click)="askLogout()">
+      <!--
+        El contexto de organización vive aquí dentro desde el 21 de septiembre de 2026. Tenía una
+        franja propia encima de esta barra —dos renglones fijos en las quince pantallas— para decir
+        algo que se consulta de vez en cuando. Lo que esa franja hacía además de ocupar alto
+        —cambiar de organización y salir de ella— se conserva entero dentro del menú.
+      -->
+      <div class="topbar-actions" #profileMenu>
+        <button
+          class="profile"
+          type="button"
+          aria-haspopup="menu"
+          [attr.aria-expanded]="profileOpen()"
+          aria-controls="profile-menu"
+          [attr.aria-label]="'Cuenta de ' + (auth.displayName() || 'GestIA')"
+          (click)="toggleProfile()"
+        >
           <span class="profile-avatar">{{ userInitials() }}</span>
-          <span class="profile-copy"><strong>{{ auth.displayName() || 'GestIA' }}</strong><small>{{ userScope() }} · Salir</small></span>
-          <span class="profile-chevron" aria-hidden="true">⌄</span>
+          <span class="profile-name">{{ auth.displayName() || 'GestIA' }}</span>
+          <span class="profile-chevron" [class.is-open]="profileOpen()" aria-hidden="true">⌄</span>
         </button>
+
+        @if (profileOpen()) {
+          <div class="profile-menu" id="profile-menu" role="menu">
+            <div class="profile-menu__who">
+              <strong>{{ auth.displayName() || 'GestIA' }}</strong>
+              <small>{{ auth.email() }}</small>
+              <small>{{ userScope() }}</small>
+            </div>
+
+            <div class="profile-menu__org">
+              <span class="profile-menu__label">Organización</span>
+              @if (canSwitchOrganization()) {
+                <gi-select
+                  label="Cambiar de organización"
+                  [options]="organizationOptions()"
+                  [value]="auth.activeOrganizationId()"
+                  [placeholder]="emptyOrganizationLabel()"
+                  (opened)="refrescarOrganizaciones()"
+                  (valueChange)="auth.setActiveOrganization($event)"
+                />
+              } @else {
+                <strong class="profile-menu__org-name">{{ organizationName() }}</strong>
+              }
+
+              @if (canLeaveOrganization()) {
+                <button type="button" class="profile-menu__action" (click)="salirDeLaOrganizacion()">
+                  Salir de la organización
+                </button>
+              }
+            </div>
+
+            <button type="button" class="profile-menu__action profile-menu__action--danger" (click)="askLogout()">
+              Cerrar sesión
+            </button>
+          </div>
+        }
       </div>
     </header>
 

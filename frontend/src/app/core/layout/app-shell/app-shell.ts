@@ -14,12 +14,13 @@ import { AuthService } from '../../auth/auth.service';
 import { AppIcon } from '../../../shared/ui/app-icon/app-icon';
 import { LayoutService } from '../layout.service';
 import { visibleNavigation } from '../navigation';
-import { ContextBar } from '../context-bar/context-bar';
+import { GiSelect, GiSelectOption } from '../../../shared/ui/gi-select/gi-select';
 import { GiConfirmDialog } from '../../../shared/ui/gi-confirm-dialog/gi-confirm-dialog';
 
 @Component({
   selector: 'app-shell',
-  imports: [AppIcon, ContextBar, GiConfirmDialog, RouterLink, RouterLinkActive, RouterOutlet],
+  imports: [AppIcon, GiConfirmDialog, GiSelect, RouterLink, RouterLinkActive, RouterOutlet],
+  host: { '(document:click)': 'cerrarPerfilSiEsFuera($event)' },
   templateUrl: './app-shell.html',
   styleUrl: './app-shell.scss',
 })
@@ -34,8 +35,8 @@ export class AppShell {
    * sobre un componente devuelve <b>la instancia</b>, no el elemento, y entonces `nativeElement`
    * sería `undefined`: la medida caería al valor de reserva sin que nada fallara.</p>
    */
-  private readonly contextBar = viewChild('contextBar', { read: ElementRef<HTMLElement> });
   private readonly appHeader = viewChild<ElementRef<HTMLElement>>('appHeader');
+  private readonly profileMenu = viewChild<ElementRef<HTMLElement>>('profileMenu');
   protected readonly auth = inject(AuthService);
   protected readonly layout = inject(LayoutService);
   private readonly currentUrl = signal(this.router.url);
@@ -124,18 +125,17 @@ export class AppShell {
    * Publica en `--gestia-chrome-bottom` cuánto ocupa el cromo con la página en reposo.
    *
    * <p><b>Por qué hace falta.</b> Los paneles laterales de Planeación, Seguridad y Auditoría son
-   * `position: fixed` y se anclaban a `--gestia-topbar-height`, que son 72 px. Pero encima de la
-   * barra superior va la de organización, así que con la página sin rodar el cromo termina en
-   * 151 px, y esos 79 px de diferencia se comían la cabecera del panel. El botón de cerrar quedaba
-   * <b>debajo</b> de la barra: no sólo invisible —<code>elementFromPoint</code> devolvía el botón
-   * de perfil—, de modo que pulsar donde se veía «Cerrar» abría el diálogo de salir.</p>
+   * `position: fixed` y se anclaban a `--gestia-topbar-height`, un valor fijo de 72 px que no tiene
+   * por qué coincidir con lo que el cromo mide de verdad. Cuando no coincidía, el panel arrancaba
+   * por debajo del borde y su botón de cerrar quedaba <b>tapado</b> por la barra: no sólo
+   * invisible —<code>elementFromPoint</code> devolvía el botón de perfil—, de modo que pulsar donde
+   * se veía «Cerrar» abría el diálogo de salir.</p>
    *
-   * <p><b>Se mide en reposo a propósito.</b> La barra de organización rueda con la página, así que
-   * el borde real se mueve entre 151 y 72. Seguirlo obligaría a re-medir en cada desplazamiento, y
-   * bastaría con que una pantalla ruede en un contenedor propio para que el oyente se lo pierda y
-   * el panel volviera a esconder su botón. Anclarlo al máximo —la suma de las dos barras— es
-   * correcto siempre: nunca tapa. Lo que se paga es una franja vacía sobre el panel mientras la
-   * página está rodada, que es cosmética y no atrapa a nadie.</p>
+   * <p><b>Desde el 21 de septiembre de 2026 el cromo es una sola barra.</b> La franja de
+   * organización se retiró y su contenido se fue al menú de la cuenta, así que esto mide sólo la
+   * cabecera. Se sigue publicando como variable y no se sustituye por el valor fijo porque la
+   * cabecera puede crecer —un título largo en una ventana estrecha— y el valor fijo volvería a
+   * mentir.</p>
    */
   private publicarElBordeDelCromo(): void {
     afterNextRender(() => {
@@ -146,7 +146,7 @@ export class AppShell {
           return;
         }
 
-        const alto = (this.contextBar()?.nativeElement.offsetHeight ?? 0) + header.offsetHeight;
+        const alto = header.offsetHeight;
         document.documentElement.style.setProperty('--gestia-chrome-bottom', `${Math.round(alto)}px`);
       };
 
@@ -175,6 +175,95 @@ export class AppShell {
     return this.isPlatformAdmin() && !this.auth.activeOrganization() && scopedRoutes.some(route => path === route || path.startsWith(`${route}/`));
   });
 
+  /**
+   * El menú del usuario, abierto o cerrado.
+   *
+   * <p>Aquí vive ahora el contexto de organización. Estaba en una franja propia encima de la barra
+   * superior, y eran dos renglones fijos en las quince pantallas para decir algo que se consulta de
+   * vez en cuando: quién soy y en qué organización estoy. Dentro del menú se sigue pudiendo
+   * cambiar de organización y salir de ella, que era lo único que esa franja hacía además de
+   * ocupar alto.</p>
+   */
+  protected readonly profileOpen = signal(false);
+
+  protected toggleProfile(): void {
+    this.profileOpen.update((abierto) => !abierto);
+  }
+
+  /**
+   * Cierra al pulsar fuera.
+   *
+   * <p>Se comprueba contra el contenedor entero y no sólo contra el botón, porque dentro del menú
+   * hay un desplegable de organización: si cerrara con cualquier clic que no fuera el disparador,
+   * elegir una organización cerraría el menú antes de que el clic llegara a su opción.</p>
+   */
+  protected cerrarPerfilSiEsFuera(event: Event): void {
+    if (!this.profileOpen()) {
+      return;
+    }
+
+    const contenedor = this.profileMenu()?.nativeElement;
+    if (contenedor && !contenedor.contains(event.target as Node)) {
+      this.profileOpen.set(false);
+    }
+  }
+
+  // ── La organización, que antes vivía en la barra de contexto ────────────────────────────────
+
+  protected readonly organizationName = computed(
+    () => this.auth.activeOrganization()?.legalName ?? 'Sin organización',
+  );
+
+  protected readonly organizationOptions = computed<readonly GiSelectOption[]>(() =>
+    this.auth.availableOrganizations().map((organization) => ({
+      value: organization.idOrganization,
+      label: organization.legalName,
+      hint: organization.codeOrganization,
+    })),
+  );
+
+  /**
+   * Con un solo destino posible no hay nada que elegir, y un selector de una opción es ruido que
+   * además sugiere que se puede cambiar a algo. El super admin siempre lo ve: para él, estar fuera
+   * de toda organización es un estado válido al que tiene que poder volver.
+   */
+  protected readonly canSwitchOrganization = computed(
+    () => this.auth.isPlatformAdmin() || this.auth.availableOrganizations().length > 1,
+  );
+
+  /**
+   * Salir de la organización sin cerrar sesión sólo tiene sentido para el super admin. Un admin de
+   * organización que «saliera» volvería a caer en la suya, así que el botón le prometería algo que
+   * no puede cumplir.
+   */
+  protected readonly canLeaveOrganization = computed(
+    () => this.auth.isPlatformAdmin() && !!this.auth.activeOrganization(),
+  );
+
+  protected readonly emptyOrganizationLabel = computed(() =>
+    this.auth.availableOrganizations().length ? 'Sin organización' : 'Sin organizaciones',
+  );
+
+  /**
+   * Vuelve a pedir la lista al desplegarla.
+   *
+   * <p>La lista del super admin se cargaba una sola vez, al construir el shell, así que una
+   * organización dada de alta después no aparecía hasta recargar la página entera; y nada lo
+   * delataba, porque el desplegable se abría con normalidad y simplemente le faltaba una.</p>
+   */
+  protected refrescarOrganizaciones(): void {
+    if (!this.auth.isPlatformAdmin()) {
+      return;
+    }
+
+    this.auth.loadPlatformOrganizations().subscribe({ error: () => undefined });
+  }
+
+  protected salirDeLaOrganizacion(): void {
+    this.auth.clearActiveOrganization();
+    this.profileOpen.set(false);
+  }
+
   protected readonly userScope = computed(() =>
     this.isPlatformAdmin() ? 'Super Admin BKT' : 'Admin de organización',
   );
@@ -201,6 +290,7 @@ export class AppShell {
 
   /** Pregunta antes. Un clic en el nombre no puede tirar la sesión sin decir nada. */
   protected askLogout() {
+    this.profileOpen.set(false);
     this.confirmingLogout.set(true);
   }
 

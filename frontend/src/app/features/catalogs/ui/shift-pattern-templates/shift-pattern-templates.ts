@@ -30,6 +30,7 @@ import {
   ShiftPatternTemplate,
   ShiftPatternTemplateInput,
   crossesMidnight,
+  cycleDayLabel,
   formatHours,
   shiftDaypartLabel,
   shiftDurationMinutes,
@@ -99,12 +100,16 @@ type DiaGrupo = FormGroup<{
           <table class="gi-table">
             <thead>
               <tr>
+                <!--
+                  Sin «Promedio semanal» ni una columna para la jornada legal. El promedio es
+                  aritmética del ciclo y se ve al abrir el patrón; y una columna que dice «Conforme»
+                  en casi todas las filas gasta ancho para no decir nada. Lo que sí importa —que un
+                  patrón se pase del límite— va como marca junto al nombre, donde se ve sin buscar.
+                -->
                 <th scope="col">Patrón</th>
                 <th scope="col">Jornada</th>
                 <th scope="col">Ciclo</th>
                 <th scope="col">Horas turno</th>
-                <th scope="col">Promedio semanal</th>
-                <th scope="col">Jornada 48 h</th>
                 <th scope="col">Descanso</th>
                 <th scope="col">Vigencia</th>
                 <th scope="col"><span class="pat__oculto">Acciones</span></th>
@@ -121,21 +126,21 @@ type DiaGrupo = FormGroup<{
                     @if (!patron.active) {
                       <span class="gi-badge gi-badge--muted">Retirado</span>
                     }
+                    <!--
+                      El aviso de jornada legal, sólo cuando hay algo que avisar. Dice contra qué
+                      límite juzga porque el límite cambia con la ley: sin eso, «excede por 24 h»
+                      obliga a saberse el número de memoria.
+                    -->
+                    @if (patron.compliance === 'Exceeds') {
+                      <span class="gi-badge gi-badge--warning"
+                        >Excede la jornada de {{ patron.weeklyLimit }} h por
+                        {{ patron.excessHours }} h</span
+                      >
+                    }
                   </th>
                   <td>{{ daypartLabel(patron.daypart) }}</td>
                   <td>{{ cicloTexto(patron) }}</td>
                   <td>{{ horasTurno(patron) }}</td>
-                  <td>{{ patron.weeklyHours }} h</td>
-                  <td>
-                    @if (patron.compliance === 'Exceeds') {
-                      <span class="gi-badge gi-badge--warning"
-                        >Excede por {{ patron.excessHours }} h</span
-                      >
-                    } @else {
-                      <span class="gi-badge gi-badge--success">Conforme</span>
-                    }
-                    <small class="pat__limite">Límite {{ patron.weeklyLimit }} h</small>
-                  </td>
                   <td>{{ patron.restDescription }}</td>
                   <td>{{ vigencia(patron) }}</td>
                   <td class="pat__acciones">
@@ -200,11 +205,7 @@ type DiaGrupo = FormGroup<{
             </div>
           </div>
 
-          <div class="pat__fila pat__fila--tres">
-            <label class="gi-field">
-              <span>Días del ciclo</span>
-              <input class="gi-input" type="number" min="1" max="366" formControlName="cycleDays" />
-            </label>
+          <div class="pat__fila pat__fila--dos">
             <label class="gi-field">
               <span>Vigente desde</span>
               <input class="gi-input" type="date" formControlName="effectiveFromDate" />
@@ -214,6 +215,24 @@ type DiaGrupo = FormGroup<{
               <input class="gi-input" type="date" formControlName="effectiveToDate" />
             </label>
           </div>
+
+          <!--
+            El ciclo, fuera de la vista pero no fuera del alcance. Un patrón es una semana casi
+            siempre —diez de las doce del catálogo lo son— y preguntar su longitud a todo el mundo
+            para que escriba 7 es pedir un dato que ya se sabe. Pero se deja configurable: un 24x48
+            es un ciclo de tres días y no hay forma de expresarlo con la semana fija.
+          -->
+          <details class="pat__ciclo" [open]="form.controls.cycleDays.value !== 7">
+            <summary>El patrón no se repite cada semana</summary>
+            <label class="gi-field">
+              <span>Cada cuántos días se repite</span>
+              <input class="gi-input" type="number" min="1" max="366" formControlName="cycleDays" />
+              <small>
+                7 es una semana. Un 24x48 son 3 días. Fuera de la semana, los días se numeran en vez
+                de nombrarse, porque caen en días distintos cada semana.
+              </small>
+            </label>
+          </details>
 
           <label class="gi-field">
             <span>Descripción</span>
@@ -234,7 +253,7 @@ type DiaGrupo = FormGroup<{
           <legend>Qué es cada día del ciclo</legend>
           @for (dia of dayControls(); track dia.numero; let i = $index) {
             <div class="pat__dia" [formGroupName]="i">
-              <span class="pat__dia-numero">Día {{ dia.numero }}</span>
+              <span class="pat__dia-numero">{{ nombreDelDia(dia.numero) }}</span>
               <label class="pat__casilla">
                 <input type="checkbox" formControlName="isRest" />
                 <span>Descanso</span>
@@ -251,7 +270,7 @@ type DiaGrupo = FormGroup<{
                 <span class="pat__hora">
                   <span>Entra</span>
                   <gi-select
-                    label="Hora de entrada del día {{ dia.numero }}"
+                    label="Hora de entrada de {{ nombreDelDia(dia.numero) }}"
                     [options]="timeOptions"
                     [value]="dia.grupo.controls.startTime.value"
                     [disabled]="!canWrite() || saving()"
@@ -261,7 +280,7 @@ type DiaGrupo = FormGroup<{
                 <span class="pat__hora">
                   <span>Sale</span>
                   <gi-select
-                    label="Hora de salida del día {{ dia.numero }}"
+                    label="Hora de salida de {{ nombreDelDia(dia.numero) }}"
                     [options]="timeOptions"
                     [value]="dia.grupo.controls.endTime.value"
                     [disabled]="!canWrite() || saving()"
@@ -377,13 +396,27 @@ type DiaGrupo = FormGroup<{
 
     .pat__fila { display: grid; gap: 0.9rem; }
     .pat__fila--nombre { grid-template-columns: 1fr 12rem; }
-    .pat__fila--tres { grid-template-columns: 1fr 1fr 1fr; }
+    .pat__fila--dos { grid-template-columns: 1fr 1fr; }
+
+    /* El ciclo, plegado. Cerrado es un renglón de texto; abierto, un campo más. */
+    .pat__ciclo > summary {
+      color: var(--gestia-navy);
+      cursor: pointer;
+      font-size: 12px;
+      list-style: none;
+    }
+
+    .pat__ciclo > summary::before { content: '▸ '; }
+    .pat__ciclo[open] > summary::before { content: '▾ '; }
+    .pat__ciclo > summary:focus-visible { outline: 2px solid var(--gestia-cyan); outline-offset: 2px; }
+    .pat__ciclo .gi-field { margin-top: 0.5rem; }
+    .pat__ciclo small { color: var(--gestia-muted); font-size: 11px; }
 
     .pat__cuerpo textarea { resize: vertical; }
 
     @media (max-width: 42rem) {
       .pat__fila--nombre,
-      .pat__fila--tres { grid-template-columns: 1fr; }
+      .pat__fila--dos { grid-template-columns: 1fr; }
     }
 
     .pat__dias {
@@ -553,7 +586,16 @@ export class ShiftPatternTemplates {
   protected daypartLabel = shiftDaypartLabel;
 
   protected cicloTexto(patron: ShiftPatternTemplate): string {
+    if (patron.cycleDays === 7) {
+      return 'Semanal';
+    }
+
     return patron.cycleDays === 1 ? '1 día' : `${patron.cycleDays} días`;
+  }
+
+  /** Cómo se llama el día que se está capturando: lunes, martes… o «Día 3» fuera de la semana. */
+  protected nombreDelDia(numero: number): string {
+    return cycleDayLabel(numero, Number(this.form.controls.cycleDays.value) || 0);
   }
 
   /** Las horas de turno del patrón. Un rango cuando los días no duran lo mismo. */

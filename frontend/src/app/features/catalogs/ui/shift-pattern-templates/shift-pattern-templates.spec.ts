@@ -152,12 +152,65 @@ describe('El constructor de patrones de turno', () => {
     };
   }
 
+  /**
+   * La tabla repite el veredicto del servidor en lugar de volver a juzgar el patrón.
+   *
+   * <p>El límite cambia con la ley, así que la pantalla no puede calcularlo: lo dice el servidor y
+   * aquí sólo se enseña. Por eso la prueba da un exceso que <b>no</b> cuadra con la aritmética de
+   * las horas del propio patrón: si la pantalla lo recalculara, saldría otro número.</p>
+   *
+   * <p>Desde el 21 de septiembre de 2026 el aviso sale <b>sólo cuando excede</b> y lleva el límite
+   * dentro: una columna que decía «Conforme» en casi todas las filas gastaba ancho para no decir
+   * nada, y «excede por 36 h» sin el límite obliga a saberse el número de memoria.</p>
+   */
   it('repite el veredicto del servidor en lugar de volver a juzgar el patrón', () => {
     const pantalla = montar();
 
-    expect(pantalla.texto()).toContain('Excede por 36 h');
-    expect(pantalla.texto()).toContain('Límite 48 h');
-    expect(pantalla.texto()).toContain('84 h');
+    expect(pantalla.texto()).toContain('Excede la jornada de 48 h por 36 h');
+  });
+
+  /**
+   * Y el control: el patrón que no excede no dice nada.
+   *
+   * <p>Sin esta mitad, «avisa cuando excede» no se distinguiría de avisar siempre, que es de donde
+   * venimos.</p>
+   */
+  it('el patrón que no excede no lleva ningún aviso de jornada', () => {
+    const pantalla = montar([
+      patronFixture({ compliance: 'Compliant', excessHours: 0, weeklyHours: 40 }),
+    ]);
+
+    expect(pantalla.texto()).not.toContain('Excede');
+    expect(pantalla.texto()).not.toContain('Conforme');
+  });
+
+  /**
+   * En una semana los días se llaman por su nombre; fuera de ella se numeran.
+   *
+   * <p>«Día 1… Día 7» obligaba a traducir mentalmente para saber qué se captura. El día 1 es lunes,
+   * que es lo que dicen los nombres de las plantillas —«Rol diurno lunes a sábado»— y el ancla que
+   * usó la migración que enlazó las posiciones.</p>
+   *
+   * <p>La segunda mitad es el control: un ciclo de seis cae en días distintos cada semana, así que
+   * no hay ningún martes que nombrar y numerarlos es la única respuesta cierta.</p>
+   */
+  it('en un ciclo semanal los días se llaman lunes, martes… y fuera de él se numeran', () => {
+    const semanal = montar([patronFixture({ cycleDays: 7 })]);
+    const pagina = semanal.fixture.debugElement.children[0].componentInstance as unknown as {
+      nombreDelDia(n: number): string;
+      form: { controls: { cycleDays: { setValue(v: number): void } } };
+    };
+
+    // El nombre sale del ciclo que se está capturando, no del patrón de la fila: el cuadro es el
+    // único sitio donde se declaran los días, y su ciclo puede cambiarse ahí mismo.
+    pagina.form.controls.cycleDays.setValue(7);
+
+    expect(pagina.nombreDelDia(1)).toBe('Lunes');
+    expect(pagina.nombreDelDia(7)).toBe('Domingo');
+
+    pagina.form.controls.cycleDays.setValue(6);
+
+    expect(pagina.nombreDelDia(1), 'sin semana no hay día que nombrar').toBe('Día 1');
   });
 
   it('marca el patrón al que le faltan días por declarar, que es distinto de tener descanso', () => {

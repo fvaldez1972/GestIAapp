@@ -273,6 +273,10 @@ public sealed class ShiftPatternTemplateService(
             evaluacion.Limit,
             evaluacion.Compliance,
             evaluacion.ExcessHours,
-            WeeklyHoursRules.DescribeRest(descansos, plantilla.CycleDays));
+            WeeklyHoursRules.DescribeRest(
+                descansos,
+                plantilla.CycleDays,
+                // Qué días son de descanso, no sólo cuántos: es lo que permite nombrarlos.
+                [.. plantilla.Days.Where(day => day.Active && day.IsRest).Select(day => day.CycleDayNumber)]));
     }
 }

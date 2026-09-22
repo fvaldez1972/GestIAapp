@@ -46,16 +46,6 @@
   width: 2.55rem;
 }
 
-.profile-copy {
-  min-width: 0;
-}
-
-.profile-copy strong,
-.profile-copy small {
-  display: block;
-  white-space: nowrap;
-}
-
 .side-nav {
   flex: 1;
   overflow: auto;
@@ -301,12 +291,50 @@ a.submenu-link:focus-visible {
 }
 
 .sidebar-foot {
+  position: relative;
+  padding: 0.6rem 0.75rem;
+  border-top: 1px solid var(--gestia-navy-soft);
+}
+
+/* Todo el pie es el disparador: un botón del ancho del bloque se acierta sin puntería, que es lo
+   que se espera de algo que se pulsa al final de una lista larga. */
+.sidebar-account {
   display: flex;
-  min-height: 4.25rem;
+  width: 100%;
+  min-height: 3.1rem;
   align-items: center;
   gap: 0.65rem;
-  padding: 0.9rem 1.25rem;
-  border-top: 1px solid var(--gestia-navy-soft);
+  padding: 0.5rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  transition: background-color 150ms ease;
+}
+
+.sidebar-account:hover {
+  background: var(--gestia-navy-soft);
+}
+
+.sidebar-account:focus-visible {
+  outline: 2px solid var(--gestia-cyan);
+  outline-offset: -2px;
+}
+
+.sidebar-account__chevron {
+  flex: 0 0 auto;
+  margin-left: auto;
+  color: var(--gestia-cyan-soft);
+  opacity: 0.6;
+  transition: transform 150ms ease;
+}
+
+.sidebar-account__chevron.is-open {
+  opacity: 1;
+  transform: rotate(180deg);
 }
 
 .sidebar-avatar {
@@ -324,6 +352,7 @@ a.submenu-link:focus-visible {
 
 .sidebar-user {
   min-width: 0;
+  flex: 1 1 auto;
 }
 
 .sidebar-user strong,
@@ -368,14 +397,11 @@ a.submenu-link:focus-visible {
   backdrop-filter: blur(12px);
 }
 
-.topbar-start,
-.topbar-actions,
-.profile {
-  display: flex;
-  align-items: center;
-}
+
 
 .topbar-start {
+  display: flex;
+  align-items: center;
   gap: 0.9rem;
   min-width: 0;
 }
@@ -431,109 +457,81 @@ a.submenu-link:focus-visible {
   font-size: 0.87rem;
 }
 
-.topbar-actions {
-  gap: 1rem;
-  min-width: 0;
-}
+/* ── El cuadro de la cuenta ───────────────────────────────────────────────────────────────── */
 
-.profile {
-  gap: 0.55rem;
-  max-width: 18rem;
-  padding: 0.35rem 0.45rem;
-  border: 0;
-  border-radius: 0.75rem;
-  color: inherit;
-  background: transparent;
-  cursor: pointer;
-  transition: background-color 150ms ease, transform 150ms ease;
-}
-
-.profile:hover {
-  background: var(--gestia-canvas);
-  transform: translateY(-1px);
-}
-
-.profile-avatar {
-  display: grid;
-  width: 2rem;
-  height: 2rem;
-  place-items: center;
-  border-radius: 0.62rem;
-  color: var(--gestia-navy);
-  font-size: 0.68rem;
-  font-weight: 850;
-  background: color-mix(in srgb, var(--gestia-cyan) 25%, white);
-}
-
-/* Un solo renglón: el nombre. El cargo y el «Salir» que iban debajo se movieron al menú, que es
-   donde se consultan; en la barra ocupaban un segundo renglón permanente para decir algo que no
-   cambia nunca. */
-.profile-name {
-  overflow: hidden;
-  color: var(--gestia-navy);
-  font-size: 12.5px;
-  font-weight: 600;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.profile-chevron {
-  color: var(--gestia-muted);
-  transition: transform 150ms ease;
-}
-
-.profile-chevron.is-open {
-  transform: rotate(180deg);
-}
-
-/* ── El menú de la cuenta ─────────────────────────────────────────────────────────────────── */
-
-.topbar-actions {
-  position: relative;
-}
-
-.profile-menu {
+/*
+  Sube desde el pie, no baja: está pegado al borde inferior de la ventana y hacia abajo no hay
+  sitio. Se sale del ancho del menú a propósito —caben el correo y el nombre de la organización,
+  que no caben en la franja— y por eso el menú lateral no puede recortar lo que sobresale.
+*/
+.account-menu {
   position: absolute;
   z-index: 60;
-  top: calc(100% + 0.35rem);
-  right: 0;
+  bottom: calc(100% + 0.35rem);
+  left: 0.75rem;
   display: grid;
-  width: min(20rem, calc(100vw - 2rem));
+  width: 17.5rem;
+  max-width: calc(100vw - 1.5rem);
   padding: 0.85rem;
-  gap: 0.75rem;
+  gap: 0.7rem;
   border: 1px solid var(--gestia-border);
   border-radius: var(--gestia-radius);
   background: var(--gestia-surface);
+  color: var(--gestia-text);
   box-shadow: var(--gestia-shadow-md);
 }
 
-.profile-menu__who {
-  display: grid;
-  gap: 0.15rem;
+.account-menu__who {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
   padding-bottom: 0.7rem;
   border-bottom: 1px solid var(--gestia-border);
 }
 
-.profile-menu__who strong {
+.account-menu__avatar {
+  display: grid;
+  width: 2.35rem;
+  height: 2.35rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 0.6rem;
+  color: var(--gestia-navy);
+  font-size: 11.5px;
+  font-weight: 850;
+  background: color-mix(in srgb, var(--gestia-cyan) 25%, white);
+}
+
+.account-menu__id {
+  min-width: 0;
+}
+
+.account-menu__id strong,
+.account-menu__id small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-menu__id strong {
   color: var(--gestia-navy);
   font-size: 12.5px;
 }
 
-.profile-menu__who small {
-  overflow: hidden;
+.account-menu__id small {
   color: var(--gestia-muted);
   font-size: 11.5px;
-  text-overflow: ellipsis;
 }
 
-.profile-menu__org {
+.account-menu__block {
   display: grid;
-  gap: 0.4rem;
-  padding-bottom: 0.75rem;
+  gap: 0.35rem;
+  padding-bottom: 0.7rem;
   border-bottom: 1px solid var(--gestia-border);
 }
 
-.profile-menu__label {
+.account-menu__label {
   color: var(--gestia-muted);
   font-size: 10.5px;
   font-weight: 600;
@@ -541,12 +539,19 @@ a.submenu-link:focus-visible {
   text-transform: uppercase;
 }
 
-.profile-menu__org-name {
+.account-menu__org {
+  overflow: hidden;
   color: var(--gestia-navy);
   font-size: 12.5px;
+  text-overflow: ellipsis;
 }
 
-.profile-menu__action {
+.account-menu__scope {
+  color: var(--gestia-muted);
+  font-size: 11px;
+}
+
+.account-menu__action {
   width: 100%;
   min-height: var(--gestia-control-height);
   padding: 0 0.75rem;
@@ -560,16 +565,16 @@ a.submenu-link:focus-visible {
   text-align: left;
 }
 
-.profile-menu__action:hover {
+.account-menu__action:hover {
   border-color: var(--gestia-cyan-dark);
 }
 
-.profile-menu__action:focus-visible {
+.account-menu__action:focus-visible {
   outline: 2px solid var(--gestia-cyan);
   outline-offset: 2px;
 }
 
-.profile-menu__action--danger {
+.account-menu__action--danger {
   color: var(--gestia-danger);
   font-weight: 600;
 }
@@ -659,11 +664,6 @@ main {
 @media (max-width: 640px) {
   .app-header {
     padding: 0 1rem;
-  }
-
-  .profile-copy,
-  .profile-chevron {
-    display: none;
   }
 
   main {

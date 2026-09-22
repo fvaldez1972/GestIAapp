@@ -227,7 +227,7 @@ describe('AppShell', () => {
     fixture.detectChanges();
 
     expect(nombra()).toHaveLength(1);
-    expect(raiz.querySelector('.profile-menu')?.textContent).toContain('admin@gestia.local');
+    expect(raiz.querySelector('.account-menu')?.textContent).toContain('admin@gestia.local');
   });
 
   /**
@@ -242,7 +242,7 @@ describe('AppShell', () => {
     (componente as unknown as { toggleProfile(): void }).toggleProfile();
     fixture.detectChanges();
 
-    const menu = raiz.querySelector('.profile-menu')!;
+    const menu = raiz.querySelector('.account-menu')!;
 
     expect(menu.querySelector('gi-select'), 'el selector de organización').not.toBeNull();
     expect(menu.textContent).toContain('Salir de la organización');
@@ -264,7 +264,7 @@ describe('AppShell', () => {
 
     expect(raiz.textContent).not.toContain('Gamma Vigilancia');
 
-    raiz.querySelector<HTMLButtonElement>('.profile-menu gi-select button')!.click();
+    raiz.querySelector<HTMLButtonElement>('.account-menu gi-select button')!.click();
     fixture.detectChanges();
     http.expectOne('/api/v1/organizations').flush([ALFA, BETA, GAMMA]);
     fixture.detectChanges();
@@ -283,7 +283,7 @@ describe('AppShell', () => {
     (componente as unknown as { toggleProfile(): void }).toggleProfile();
     fixture.detectChanges();
 
-    raiz.querySelector<HTMLButtonElement>('.profile-menu gi-select button')!.click();
+    raiz.querySelector<HTMLButtonElement>('.account-menu gi-select button')!.click();
     fixture.detectChanges();
     http.expectOne('/api/v1/organizations').error(new ProgressEvent('error'));
     fixture.detectChanges();
@@ -303,12 +303,28 @@ describe('AppShell', () => {
     (componente as unknown as { toggleProfile(): void }).toggleProfile();
     fixture.detectChanges();
 
-    const menu = raiz.querySelector('.profile-menu')!;
+    const menu = raiz.querySelector('.account-menu')!;
 
     expect(menu.textContent).toContain('Alfa Seguridad Privada');
     expect(menu.querySelector('gi-select')).toBeNull();
     expect(menu.textContent).not.toContain('Salir de la organización');
     expect(menu.textContent, 'cerrar sesión sí, siempre').toContain('Cerrar sesión');
+  });
+
+  /**
+   * La cuenta está abajo a la izquierda, al pie del menú, y no arriba a la derecha.
+   *
+   * <p>Estuvo unas horas en la barra superior y el sitio no era el bueno: el nombre de quien está
+   * dentro no es una acción de la página, es el ancla de la sesión, y donde se busca es al final de
+   * la navegación. Esta prueba fija las dos mitades —que está en el pie y que NO está en la barra—
+   * porque moverlo sin quitarlo del sitio anterior lo dejaría dos veces.</p>
+   */
+  it('la cuenta va al pie del menú lateral, no en la barra superior', () => {
+    const { raiz } = montar(PERMISOS_QUE_EL_MENU_CONSULTA, [ALFA], 'org-a');
+
+    expect(raiz.querySelector('.sidebar-foot .sidebar-account')).not.toBeNull();
+    expect(raiz.querySelector('.app-header .sidebar-account')).toBeNull();
+    expect(raiz.querySelector('.app-header .profile')).toBeNull();
   });
 
   /** Un botón sin texto visible tiene que decir qué hace por otro camino. */

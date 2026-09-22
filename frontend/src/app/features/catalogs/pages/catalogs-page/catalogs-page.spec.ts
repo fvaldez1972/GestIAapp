@@ -258,9 +258,22 @@ describe('Catálogos', () => {
     };
 
     // jsdom no implementa <dialog>.showModal(); abrir el editor es incidental para esta prueba.
+    //
+    // Se pone en el prototipo y SE QUITA AL TERMINAR. Dejarlo puesto se lo lleva puesto cualquier
+    // otra prueba que corra después en el mismo entorno —la del diálogo de confirmación comprueba
+    // justo que `showModal` abre de verdad—, y como el reparto de archivos entre procesos cambia,
+    // el fallo aparece y desaparece sin que nadie haya tocado nada.
+    const original = Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, 'showModal');
     Object.defineProperty(HTMLDialogElement.prototype, 'showModal', {
       configurable: true,
       value: function (this: HTMLDialogElement) { this.open = true; },
+    });
+    onTestFinished(() => {
+      if (original) {
+        Object.defineProperty(HTMLDialogElement.prototype, 'showModal', original);
+      } else {
+        delete (HTMLDialogElement.prototype as Partial<HTMLDialogElement>).showModal;
+      }
     });
 
     pagina.openCatalogType.set('EmployeeEvaluationCategory');

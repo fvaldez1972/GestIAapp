@@ -11,21 +11,14 @@
    pantalla, que es justo donde está lo que la gente viene a ver. */
 .cat-head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   margin-bottom: 1rem;
   gap: 1rem;
 }
 
-.cat-head__text h1 {
-  margin: 0.15rem 0 0;
-}
-
-.cat-head__lead {
-  max-width: 52rem;
-  margin: 0.35rem 0 0;
-  color: var(--gestia-muted);
-  font-size: 12.5px;
+.cat-head h1 {
+  margin: 0;
 }
 
 /* ── Paginación ───────────────────────────────────────────────────────────────────────────── */

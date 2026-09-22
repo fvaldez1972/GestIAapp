@@ -54,8 +54,9 @@ describe('Página de un catálogo', () => {
 
   type Pagina = {
     page(): { title: string; type: string } | undefined;
-    columns(): readonly { key: string }[];
-    filterGroups(): readonly { id: string; options: readonly { label: string }[] }[];
+    columns(): readonly { key: string; label: string }[];
+    naturalezaLabel: string;
+    filterGroups(): readonly { id: string; label: string; options: readonly { label: string }[] }[];
     natureOptions: readonly { value: string; label: string }[];
     items: { set(v: readonly CatalogItem[]): void };
     filtradas(): readonly CatalogItem[];
@@ -164,19 +165,25 @@ describe('Página de un catálogo', () => {
     const { pagina } = montar('tipos-de-evaluacion');
     responder([]);
 
+    // Los dos valores, con el mismo nombre en los tres sitios.
     const enElDesplegable = pagina.natureOptions.map((opcion) => opcion.label);
-    const enElFiltro = pagina
-      .filterGroups()
-      .find((grupo) => grupo.id === 'naturaleza')!
-      .options.map((opcion) => opcion.label);
+    const filtro = pagina.filterGroups().find((grupo) => grupo.id === 'naturaleza')!;
     const enLaColumna = [
       pagina.natureLabel(valor({ isBlocking: true })),
       pagina.natureLabel(valor({ isBlocking: false })),
     ];
 
     expect(enElDesplegable).toEqual(['Bloqueante', 'Informativa']);
-    expect(enElFiltro).toEqual(enElDesplegable);
+    expect(filtro.options.map((opcion) => opcion.label)).toEqual(enElDesplegable);
     expect(enLaColumna).toEqual(enElDesplegable);
+
+    // Y el rótulo del campo, el de la columna y el del filtro, también el mismo. Es la mitad que se
+    // me pasó la primera vez: cambié los valores y dejé la columna llamándose de otra manera.
+    const columna = pagina.columns().find((c) => c.key === 'nature')!;
+
+    expect(columna.label).toBe('Informativa/Bloqueante');
+    expect(filtro.label).toBe(columna.label);
+    expect(pagina.naturalezaLabel).toBe(columna.label);
   });
 
   /** Una entrada sin marca se lee «Informativa», que es lo que el servidor ya hace con el nulo. */

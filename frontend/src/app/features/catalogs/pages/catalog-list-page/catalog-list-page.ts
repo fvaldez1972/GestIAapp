@@ -36,6 +36,18 @@ const TAMANOS_DE_PAGINA = [5, 10, 50, 100] as const;
 const TAMANO_POR_OMISION = 10;
 
 /**
+ * Cómo se llama la marca de bloqueo en la columna, en el filtro y en el campo.
+ *
+ * <p>Está en una constante y no escrito tres veces porque tres sitios que enseñan el mismo dato con
+ * tres textos distintos se leen como tres cosas distintas. Ya pasó: la columna decía «Naturaleza»,
+ * el campo «Si a una persona le falta esto» y las opciones traían la explicación pegada.</p>
+ *
+ * <p>Se nombra por sus dos valores en vez de con una palabra que los agrupe: «Naturaleza» hay que
+ * aprenderla, «Informativa/Bloqueante» dice lo que uno va a encontrar en la columna.</p>
+ */
+const NATURALEZA = 'Informativa/Bloqueante';
+
+/**
  * La página de un catálogo. **Una sola, para los dieciséis.**
  *
  * <p><b>Por qué una y no dieciséis.</b> Todos los catálogos simples son la misma pantalla: una
@@ -139,7 +151,7 @@ export class CatalogListPage {
       { key: 'name', label: 'Nombre', width: '220px', kind: 'name' as const },
       ...(page?.parentType ? [{ key: 'parent', label: 'Categoría', width: '170px' }] : []),
       { key: 'description', label: 'Descripción' },
-      ...(page?.hasNature ? [{ key: 'nature', label: 'Naturaleza', width: '150px' }] : []),
+      ...(page?.hasNature ? [{ key: 'nature', label: NATURALEZA, width: '170px' }] : []),
       { key: 'state', label: 'Estatus', width: '120px' },
       { key: 'updatedAt', label: 'Última edición', width: '150px', kind: 'meta' as const },
       { key: 'actions', label: '', width: '90px', align: 'end' as const },
@@ -164,7 +176,7 @@ export class CatalogListPage {
     if (this.page()?.hasNature) {
       grupos.push({
         id: 'naturaleza',
-        label: 'Naturaleza',
+        label: NATURALEZA,
         value: this.natureFilter(),
         allLabel: 'Toda naturaleza',
         options: [
@@ -253,6 +265,9 @@ export class CatalogListPage {
    * mejor cuando se llama igual en todos los sitios donde aparece que cuando cada sitio lo
    * explica.</p>
    */
+  /** El mismo rótulo para la columna, el filtro y el campo. */
+  protected readonly naturalezaLabel = NATURALEZA;
+
   protected readonly natureOptions: readonly GiSelectOption[] = [
     { value: 'blocking', label: 'Bloqueante' },
     { value: 'informative', label: 'Informativa' },

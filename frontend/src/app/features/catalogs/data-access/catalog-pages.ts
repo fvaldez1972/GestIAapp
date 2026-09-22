@@ -16,8 +16,6 @@ export type CatalogPage = {
   readonly title: string;
   /** Cómo se nombra un valor suelto, para el botón: «Agregar tipo de evaluación». */
   readonly singular: string;
-  /** La línea que explica qué es, debajo del título. */
-  readonly lead: string;
   /** Un valor de ejemplo, para el estado vacío. */
   readonly example: string;
   /** Si sus valores llevan naturaleza: bloqueante o informativa. */
@@ -73,7 +71,6 @@ export const CATALOG_PAGE_GROUPS: readonly CatalogPageGroup[] = [
         type: 'JobPosition',
         title: 'Puestos',
         singular: 'puesto',
-        lead: 'Qué puesto ocupa una persona y qué puesto pide una posición del servicio.',
         example: 'Ej. Guardia de seguridad',
       },
       {
@@ -81,7 +78,6 @@ export const CATALOG_PAGE_GROUPS: readonly CatalogPageGroup[] = [
         type: 'Skill',
         title: 'Experiencia requerida',
         singular: 'experiencia',
-        lead: 'Competencias que una regla de elegibilidad puede exigir.',
         example: 'Ej. Manejo de arma corta',
         hasNature: true,
       },
@@ -90,7 +86,6 @@ export const CATALOG_PAGE_GROUPS: readonly CatalogPageGroup[] = [
         type: 'EmployeeDocumentCategory',
         title: 'Tipos de documento del personal',
         singular: 'tipo de documento',
-        lead: 'De qué es cada papel del expediente de una persona.',
         example: 'Ej. INE',
         hasNature: true,
       },
@@ -99,7 +94,6 @@ export const CATALOG_PAGE_GROUPS: readonly CatalogPageGroup[] = [
         type: 'EmployeeEvaluationCategory',
         title: 'Tipos de evaluación',
         singular: 'tipo de evaluación',
-        lead: 'Qué evaluaciones se le practican al personal.',
         example: 'Ej. Polígrafo',
         hasNature: true,
       },
@@ -114,7 +108,6 @@ export const CATALOG_PAGE_GROUPS: readonly CatalogPageGroup[] = [
         type: 'Sex',
         title: 'Sexo requerido',
         singular: 'valor',
-        lead: 'Se muestra al comparar el perfil de una posición con una persona. Nunca bloquea.',
         example: 'Ej. Indistinto',
       },
       {
@@ -122,7 +115,6 @@ export const CATALOG_PAGE_GROUPS: readonly CatalogPageGroup[] = [
         type: 'AgeRange',
         title: 'Rangos de edad',
         singular: 'rango',
-        lead: 'Se muestra al comparar el perfil de una posición con una persona. Nunca bloquea.',
         example: 'Ej. 25 a 40 años',
       },
       {
@@ -130,7 +122,6 @@ export const CATALOG_PAGE_GROUPS: readonly CatalogPageGroup[] = [
         type: 'EducationLevel',
         title: 'Escolaridad',
         singular: 'nivel',
-        lead: 'El orden importa: es lo que permite comparar si una escolaridad alcanza a otra.',
         example: 'Ej. Preparatoria',
       },
       {
@@ -138,7 +129,6 @@ export const CATALOG_PAGE_GROUPS: readonly CatalogPageGroup[] = [
         type: 'RequiredEquipment',
         title: 'Equipo requerido',
         singular: 'equipo',
-        lead: 'Qué equipo pide una posición para poder cubrirse.',
         example: 'Ej. Radio portátil',
       },
     ],
@@ -152,7 +142,6 @@ export const CATALOG_PAGE_GROUPS: readonly CatalogPageGroup[] = [
         type: 'IncidentReason',
         title: 'Motivos de incidencia',
         singular: 'motivo',
-        lead: 'Cómo se clasifica una excepción de la operación diaria.',
         example: 'Ej. Retardo mayor a 30 minutos',
       },
       {
@@ -160,7 +149,6 @@ export const CATALOG_PAGE_GROUPS: readonly CatalogPageGroup[] = [
         type: 'CoverageReason',
         title: 'Motivos de cobertura',
         singular: 'motivo',
-        lead: 'Por qué se cubre o se sustituye un turno.',
         example: 'Ej. Incapacidad médica',
       },
     ],
@@ -174,7 +162,6 @@ export const CATALOG_PAGE_GROUPS: readonly CatalogPageGroup[] = [
         type: 'ClientDocumentCategory',
         title: 'Categorías de documento del cliente',
         singular: 'categoría',
-        lead: 'De qué es cada documento del expediente de un cliente.',
         example: 'Ej. Acta constitutiva',
       },
       {
@@ -182,7 +169,6 @@ export const CATALOG_PAGE_GROUPS: readonly CatalogPageGroup[] = [
         type: 'ContactJobPosition',
         title: 'Puestos de contacto',
         singular: 'puesto',
-        lead: 'Qué puesto ocupa la persona con la que se trata en el cliente.',
         example: 'Ej. Gerente de compras',
       },
       {
@@ -190,7 +176,6 @@ export const CATALOG_PAGE_GROUPS: readonly CatalogPageGroup[] = [
         type: 'ContactPurpose',
         title: 'Propósitos de contacto',
         singular: 'propósito',
-        lead: 'Para qué sirve ese contacto: a quién se le llama y para qué.',
         example: 'Ej. Facturación',
       },
       {
@@ -198,7 +183,6 @@ export const CATALOG_PAGE_GROUPS: readonly CatalogPageGroup[] = [
         type: 'Nationality',
         title: 'Nacionalidades',
         singular: 'nacionalidad',
-        lead: 'Nacionalidad de un cliente persona física.',
         example: 'Ej. Mexicana',
       },
     ],

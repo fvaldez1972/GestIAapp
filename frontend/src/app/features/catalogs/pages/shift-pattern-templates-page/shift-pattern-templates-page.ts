@@ -21,13 +21,7 @@ import { ShiftPatternTemplates } from '../../ui/shift-pattern-templates/shift-pa
   imports: [ShiftPatternTemplates],
   template: `
     <header class="pat-head gi-card">
-      <span class="eyebrow">Catálogos</span>
       <h1>Patrones de turno</h1>
-      <p class="pat-head__lead">
-        La forma de la semana que una posición propone: qué días se trabaja, a qué hora y cuáles se
-        descansan. Es la referencia del patrón, no la semana que se trabaja de verdad: eso se decide
-        al planear.
-      </p>
     </header>
 
     @if (organizationId(); as organizacion) {
@@ -40,14 +34,7 @@ import { ShiftPatternTemplates } from '../../ui/shift-pattern-templates/shift-pa
     :host { display: block; min-width: 0; }
 
     .pat-head { margin-bottom: 1rem; }
-    .pat-head h1 { margin: 0.15rem 0 0; }
-
-    .pat-head__lead {
-      max-width: 52rem;
-      margin: 0.35rem 0 0;
-      color: var(--gestia-muted);
-      font-size: 12.5px;
-    }
+    .pat-head h1 { margin: 0; }
 
     .pat-empty { color: var(--gestia-muted); font-size: 12.5px; }
   `,

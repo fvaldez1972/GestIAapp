@@ -1,10 +1,11 @@
 @if (page(); as catalogo) {
   <header class="cat-head gi-card">
-    <div class="cat-head__text">
-      <span class="eyebrow">Catálogos</span>
-      <h1>{{ catalogo.title }}</h1>
-      <p class="cat-head__lead">{{ catalogo.lead }}</p>
-    </div>
+    <!--
+      Sólo el nombre. Llevaba encima un «CATÁLOGOS» que las migas ya dicen dos renglones más
+      arriba, y debajo una frase explicando el catálogo que ocupaba el mismo alto que el título y
+      se leía una vez: quien entra a Puestos sabe lo que es un puesto.
+    -->
+    <h1>{{ catalogo.title }}</h1>
 
     @if (canWrite()) {
       <button type="button" class="gi-button gi-button--primary" (click)="newItem()">
@@ -179,9 +180,9 @@
         -->
         @if (catalogo.hasNature) {
           <div class="gi-field">
-            <span>Naturaleza</span>
+            <span>{{ naturalezaLabel }}</span>
             <gi-select
-              label="Naturaleza"
+              [label]="naturalezaLabel"
               [options]="natureOptions"
               [value]="form.controls.blockingMark.value"
               (valueChange)="form.controls.blockingMark.setValue($any($event))"

@@ -15,17 +15,18 @@ Esto mide lo que queda **contra el código de ahora**, no contra lo que los docu
 | | Cuántos |
 |---|---|
 | Requerimientos identificados en los tres documentos con clave | **82** |
-| Satisfechos | **71** |
-| **Pendientes** | **11** |
+| Satisfechos | **73** |
+| **Pendientes** | **9** |
 
-De esos once, **uno solo se puede construir hoy sin esperar a nadie.** Los otros diez esperan una
-decisión: seis de negocio, dos de cumplimiento legal y dos de datos que llena operación.
+De esos nueve, **uno solo se puede construir hoy sin esperar a nadie.** Los otros ocho esperan una
+decisión: seis de negocio y dos de datos que llena operación. **Ninguno espera revisión legal**: eso
+era un error de este documento, corregido el 21 de septiembre.
 
 **No es un problema de capacidad de construcción. Es una cola de decisiones.**
 
 ---
 
-## Los once, y quién los desbloquea
+## Los nueve, y quién los desbloquea
 
 ### Se puede hacer ya — 1
 
@@ -60,15 +61,21 @@ usar el catálogo.
 | **RF-ASG-003** · Asignación principal | Posiciones §25 | PD-02: ¿hace falta, si el tipo ya lo dice? | Chico. Hoy existe y se usa en 112 asignaciones |
 | **RF-INC-ADM-003** · Evidencia obligatoria en incidencias | Personal §2.6 | PD-PER-004: ¿en todas, sólo bloqueantes, o según el motivo? | Medio |
 
-### Espera revisión de cumplimiento, no de negocio — 2
+### Resueltos, y este documento los tenía mal — 2
 
-| Qué | De dónde | Pendiente |
+**Corregido el 21 de septiembre de 2026 por instrucción del usuario.** Aquí decía que la edad y el
+sexo como criterio de bloqueo esperaban una revisión de cumplimiento. **No esperan nada.**
+
+| Qué | De dónde | Estado real |
 |---|---|---|
-| **RF-MAT-005** · Edad como criterio de bloqueo | Posiciones §22 | PD-POS-002 |
-| **RF-MAT-006** · Sexo como criterio de bloqueo | Posiciones §23 | PD-POS-001 |
+| **RF-MAT-005** · Edad | Posiciones §22 | **Descriptiva. Nunca bloquea** |
+| **RF-MAT-006** · Sexo | Posiciones §23 | **Descriptivo. Nunca bloquea** |
 
-Los campos existen y se capturan; lo que no se construyó es que **bloqueen automáticamente**. El
-propio documento pide aprobación formal antes, y esa aprobación no la puede dar el equipo técnico.
+Lo zanja la propia matriz: la marca de bloqueo lleva asterisco **sólo** en experiencia, documento y
+evaluación. Sexo y edad se muestran y no dictan veredicto, que es exactamente lo que el código ya
+hace. No hay nada que construir ni nadie a quien preguntar.
+
+Con esto los pendientes bajan de **11 a 9**, y ninguno de los que quedan espera revisión legal.
 
 ---
 

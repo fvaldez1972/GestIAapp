@@ -1,8 +1,17 @@
-import { ChangeDetectionStrategy, Component, computed, effect, input, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, input, output, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
+import { Subscription } from 'rxjs';
+import {
+  GeographyApiService,
+  PostalCodeNeighborhood,
+} from '../../catalogs/data-access/geography-api.service';
 import { CatalogSelect } from '../../../shared/ui/catalog-select/catalog-select';
-import { GiEmptyState } from '../../../shared/ui/gi-ui';
+import { GiEmptyState, GiSelect, GiSelectOption } from '../../../shared/ui/gi-ui';
 import { ClientContact, ClientZone } from '../data-access/client.models';
+
+/** El valor con el que el desplegable de colonia dice «ninguna de éstas»: no es una colonia. */
+const OTRA_COLONIA = '__otra__';
 
 /** Lo que hace falta para dar de alta una zona. Nada más: el código lo pone el sistema. */
 export type NewZone = {
@@ -29,7 +38,7 @@ export type NewZone = {
 @Component({
   selector: 'app-client-zones',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CatalogSelect, FormsModule, GiEmptyState],
+  imports: [CatalogSelect, FormsModule, GiEmptyState, GiSelect],
   template: `
     <section class="zones">
       @if (adding()) {
@@ -48,7 +57,12 @@ export type NewZone = {
             </label>
             <label class="field" for="ns-cp">
               <span class="field__label">CÓDIGO POSTAL</span>
-              <input id="ns-cp" name="postalCode" type="text" [ngModel]="postalCode()" (ngModelChange)="postalCode.set($event)" [ngModelOptions]="sueltos" autocomplete="off" />
+              <input id="ns-cp" name="postalCode" type="text" inputmode="numeric" maxlength="5" [ngModel]="postalCode()" (ngModelChange)="onPostalCode($event)" [ngModelOptions]="sueltos" autocomplete="off" />
+              @if (cpBuscando()) {
+                <small class="field__nota">Buscando…</small>
+              } @else if (cpSinPadron()) {
+                <small class="field__nota" role="status">No está en el padrón. Elige el estado y el municipio abajo.</small>
+              }
             </label>
           </div>
 
@@ -71,9 +85,25 @@ export type NewZone = {
                 [ngModelOptions]="sueltos"
               />
             </label>
+            <!--
+              La colonia es desplegable cuando el código postal la resolvió, y texto libre cuando
+              no. «Otra» está siempre: el padrón se publica cada tanto y los fraccionamientos
+              nuevos tardan en entrar, así que no puede impedir la captura.
+            -->
             <label class="field" for="ns-colonia">
               <span class="field__label">COLONIA</span>
-              <input id="ns-colonia" name="neighborhood" type="text" [ngModel]="neighborhood()" (ngModelChange)="neighborhood.set($event)" [ngModelOptions]="sueltos" autocomplete="off" />
+              @if (opcionesDeColonia().length && !coloniaLibre()) {
+                <gi-select
+                  id="ns-colonia"
+                  label="Colonia"
+                  placeholder="Selecciona la colonia"
+                  [options]="opcionesDeColonia()"
+                  [value]="neighborhood()"
+                  (valueChange)="onColonia($event)"
+                />
+              } @else {
+                <input id="ns-colonia" name="neighborhood" type="text" [ngModel]="neighborhood()" (ngModelChange)="neighborhood.set($event)" [ngModelOptions]="sueltos" autocomplete="off" />
+              }
             </label>
             <label class="field" for="ns-estado">
               <span class="field__label">ESTADO</span>
@@ -352,6 +382,8 @@ export type NewZone = {
 
     .field input:focus-visible { outline: 2px solid var(--gestia-cyan); outline-offset: 1px; }
 
+    .field__nota { color: var(--gestia-muted); font-size: 11px; }
+
     .new__footer { display: flex; justify-content: flex-end; gap: 0.55rem; margin: 0; }
 
     .new__reason { margin: 0; color: var(--gestia-muted); font-size: 11.5px; }
@@ -471,6 +503,33 @@ export class ClientZones {
   protected readonly state = signal('');
   protected readonly postalCode = signal('');
 
+  /** Las colonias del código postal escrito. Vacío mientras no haya un código que resuelva. */
+  protected readonly colonias = signal<readonly PostalCodeNeighborhood[]>([]);
+  protected readonly cpBuscando = signal(false);
+  protected readonly cpSinPadron = signal(false);
+  /** El escape del desplegable: la colonia que el padrón no trae se escribe. */
+  protected readonly coloniaLibre = signal(false);
+
+  /**
+   * Las colonias del código postal, con la salida al final.
+   *
+   * <p>«Otra» va siempre, y no es una colonia: el padrón se publica cada tanto y los
+   * fraccionamientos nuevos tardan en entrar, así que el desplegable no puede ser la única
+   * forma de contestar.</p>
+   */
+  protected readonly opcionesDeColonia = computed<readonly GiSelectOption[]>(() => {
+    const colonias = this.colonias();
+    if (!colonias.length) return [];
+    return [
+      ...colonias.map((colonia) => ({ value: colonia.name, label: colonia.name })),
+      { value: OTRA_COLONIA, label: 'Otra: escribirla' },
+    ];
+  });
+
+  private readonly geography = inject(GeographyApiService);
+  private readonly destroyRef = inject(DestroyRef);
+  private consultaCp?: Subscription;
+
   /** Lo mínimo para que la zona sea una dirección y no un nombre suelto. */
   protected readonly ready = computed(
     () =>
@@ -496,6 +555,79 @@ export class ClientZones {
     this.municipality.set('');
   }
 
+  /**
+   * El código postal manda en la dirección.
+   *
+   * <p>Se escriben cinco dígitos y se resuelven estado, municipio y la lista de colonias, que es
+   * como funciona cualquier formulario mexicano. Los desplegables no desaparecen: siguen ahí como
+   * respaldo para cuando el código no esté en el padrón --se publica cada tanto y los
+   * fraccionamientos nuevos tardan en entrar-- y para el día que haya un país que no sea México.</p>
+   *
+   * <p><b>Lo que no encuentra no se borra.</b> Un código que no resuelve deja el estado y el
+   * municipio como estaban: quien está corrigiendo el teléfono de una zona vieja no puede perder su
+   * dirección por teclear mal un dígito.</p>
+   */
+  protected onPostalCode(valor: string): void {
+    const codigo = (valor ?? '').replace(/\D/g, '').slice(0, 5);
+    this.postalCode.set(codigo);
+    this.consultaCp?.unsubscribe();
+    this.cpSinPadron.set(false);
+
+    if (codigo.length !== 5) {
+      this.cpBuscando.set(false);
+      return;
+    }
+
+    this.cpBuscando.set(true);
+    this.consultaCp = this.geography
+      .lookupPostalCode(codigo)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (resuelto) => {
+          this.cpBuscando.set(false);
+          this.countryCode.set(resuelto.countryCode);
+          this.state.set(resuelto.state.name);
+          this.municipality.set(resuelto.municipality.name);
+          this.colonias.set(resuelto.neighborhoods);
+
+          // La colonia ya escrita se conserva si es una de las del código; si no, se limpia para
+          // que se elija. Conservar una colonia de otro código postal sería peor que vaciar.
+          const escrita = this.plegado(this.neighborhood());
+          const coincide = resuelto.neighborhoods.some((c) => this.plegado(c.name) === escrita);
+          this.coloniaLibre.set(false);
+          if (!coincide) {
+            this.neighborhood.set('');
+          }
+        },
+        error: () => {
+          this.cpBuscando.set(false);
+          this.cpSinPadron.set(true);
+          this.colonias.set([]);
+          this.coloniaLibre.set(false);
+        },
+      });
+  }
+
+  /** «Otra» no es una colonia: es la salida al campo de texto. */
+  protected onColonia(valor: string): void {
+    if (valor === OTRA_COLONIA) {
+      this.coloniaLibre.set(true);
+      this.neighborhood.set('');
+      return;
+    }
+    this.neighborhood.set(valor);
+  }
+
+  /** Sin acentos, sin espacios de sobra y en mayúsculas, sólo para comparar. */
+  private plegado(valor: string): string {
+    return valor
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toUpperCase();
+  }
+
   /** Y cambiar de país invalida los dos de abajo, por la misma razón. */
   protected onCountry(valor: string): void {
     this.countryCode.set(valor);
@@ -519,6 +651,11 @@ export class ClientZones {
     this.municipality.set(zone.municipality ?? '');
     this.state.set(zone.state ?? '');
     this.postalCode.set(zone.postalCode ?? '');
+
+    // Abrir para editar NO consulta el código postal. La zona ya tiene su dirección guardada y
+    // resolverla otra vez podría reescribirla sola, sin que nadie lo pidiera; la consulta sale
+    // cuando alguien escribe el código, que es cuando hay una intención detrás.
+    this.olvidarCodigoPostal();
   }
 
   protected cancelAdd(): void {
@@ -582,6 +719,21 @@ export class ClientZones {
     this.municipality.set('');
     this.state.set('');
     this.postalCode.set('');
+    this.olvidarCodigoPostal();
+  }
+
+  /**
+   * Lo que el código postal había resuelto deja de valer al abrir otra zona.
+   *
+   * <p>Sin esto, las colonias del código anterior seguirían en el desplegable de la siguiente, que
+   * es una lista de colonias de otro municipio ofrecida como si fuera la buena.</p>
+   */
+  private olvidarCodigoPostal(): void {
+    this.consultaCp?.unsubscribe();
+    this.colonias.set([]);
+    this.cpBuscando.set(false);
+    this.cpSinPadron.set(false);
+    this.coloniaLibre.set(false);
   }
 
   /** El primer contacto de la zona. La marca de principal no siempre está puesta. */

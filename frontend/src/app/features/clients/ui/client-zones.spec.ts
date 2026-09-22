@@ -52,6 +52,9 @@ function montar(configurar: (host: Anfitrion) => void = () => {}) {
       campo.value = valor;
       campo.dispatchEvent(new Event('input'));
       fixture.detectChanges();
+      // Escribir el código postal sale a preguntar por él. Se contesta aquí para que ninguna
+      // prueba deje una petición colgando, que es como aparecen los «Unhandled Error».
+      surtirGeografia(TestBed.inject(HttpTestingController), fixture);
     },
   };
 }
@@ -72,13 +75,42 @@ const MUNICIPIOS: Record<string, readonly { code: string; name: string }[]> = {
   'Nuevo León': [{ code: '19046', name: 'San Nicolás de los Garza' }],
 };
 
+/**
+ * El padrón de códigos postales, del que la prueba sólo necesita uno.
+ *
+ * <p>Los demás responden 404, que es lo que responde el servidor cuando el código no está en el
+ * padrón. No es un atajo de la prueba: es el caso que mantiene vivos los tres desplegables.</p>
+ */
+const CODIGOS: Record<string, unknown> = {
+  '64000': {
+    postalCode: '64000',
+    countryCode: 'MX',
+    state: { code: '19', name: 'Nuevo León' },
+    municipality: { code: '19039', name: 'Monterrey' },
+    neighborhoods: [
+      { name: 'Monterrey Centro', settlementType: 'Colonia' },
+      { name: 'La Finca', settlementType: 'Colonia' },
+    ],
+  },
+};
+
 /** Responde lo que la geografía tenga pendiente, que cambia conforme se elige en la cascada. */
 function surtirGeografia(http: HttpTestingController, fixture: { detectChanges(): void }) {
   for (const peticion of http.match((r) => r.url.includes('/geography/'))) {
-    if (peticion.request.url.endsWith('/countries')) {
+    const url = peticion.request.url;
+
+    if (url.endsWith('/countries')) {
       peticion.flush(PAISES);
-    } else if (peticion.request.url.endsWith('/states')) {
+    } else if (url.endsWith('/states')) {
       peticion.flush(ESTADOS);
+    } else if (url.includes('/postal-codes/')) {
+      const codigo = url.split('/').pop() ?? '';
+      const encontrado = CODIGOS[codigo];
+      if (encontrado) {
+        peticion.flush(encontrado);
+      } else {
+        peticion.flush(null, { status: 404, statusText: 'Not Found' });
+      }
     } else {
       peticion.flush(MUNICIPIOS[peticion.request.params.get('state') ?? ''] ?? []);
     }
@@ -105,6 +137,23 @@ function elegir(raiz: HTMLElement, id: string, valor: string, fixture: { detectC
   fixture.detectChanges();
   // Elegir el estado hace que el municipio pida los suyos: la cascada ahora la resuelve el servidor.
   surtirGeografia(TestBed.inject(HttpTestingController), fixture);
+}
+
+/** Escribe el código postal y contesta la consulta que dispara. */
+function escribirCp(raiz: HTMLElement, fixture: { detectChanges(): void }, codigo: string) {
+  const campo = raiz.querySelector<HTMLInputElement>('#ns-cp')!;
+  campo.value = codigo;
+  campo.dispatchEvent(new Event('input'));
+  fixture.detectChanges();
+  surtirGeografia(TestBed.inject(HttpTestingController), fixture);
+}
+
+/** El componente de la pestaña, para leer lo que el código postal dejó en sus señales. */
+function obtenerPestana(fixture: { debugElement: { children: { componentInstance: unknown }[] } }) {
+  return fixture.debugElement.children[0].componentInstance as {
+    state(): string;
+    municipality(): string;
+  };
 }
 
 describe('La pestaña de Zonas', () => {
@@ -191,6 +240,74 @@ describe('La pestaña de Zonas', () => {
   });
 
   /** Una zona sin contacto funciona, pero nadie responde por ella, y eso se dice. */
+  /**
+   * El código postal manda en la dirección: cinco dígitos y se resuelve el resto.
+   *
+   * <p>Es la forma en que se escribe una dirección en México, y es lo que evita encadenar cuatro
+   * desplegables para capturar una zona.</p>
+   */
+  it('el código postal resuelve el estado, el municipio y la lista de colonias', () => {
+    const { raiz, fixture } = montar((anfitrion) => anfitrion.openAdd.set(true));
+
+    escribirCp(raiz, fixture, '64000');
+
+    const pestana = obtenerPestana(fixture);
+    expect(pestana.state()).toBe('Nuevo León');
+    expect(pestana.municipality()).toBe('Monterrey');
+
+    raiz.querySelector<HTMLButtonElement>('#ns-colonia button[role="combobox"]')!.click();
+    fixture.detectChanges();
+
+    const opciones = Array.from(raiz.querySelectorAll('#ns-colonia .gi-select__option'))
+      .map((opcion) => opcion.textContent?.trim());
+
+    expect(opciones).toContain('Monterrey Centro');
+    expect(opciones).toContain('La Finca');
+    // La salida va siempre: el padrón no trae los fraccionamientos nuevos.
+    expect(opciones).toContain('Otra: escribirla');
+  });
+
+  /**
+   * El control de la prueba anterior, y el que justifica que los desplegables se queden.
+   *
+   * <p>Un código que no está en el padrón no puede dejar la pantalla sin forma de contestar, y
+   * tampoco puede borrar lo que alguien ya había elegido por teclear mal un dígito.</p>
+   */
+  it('un código fuera del padrón conserva la dirección y deja los desplegables', () => {
+    const { raiz, fixture } = montar((anfitrion) => anfitrion.openAdd.set(true));
+
+    escribirCp(raiz, fixture, '64000');
+    escribirCp(raiz, fixture, '99999');
+
+    const pestana = obtenerPestana(fixture);
+    expect(pestana.state()).toBe('Nuevo León');
+    expect(pestana.municipality()).toBe('Monterrey');
+    expect(raiz.textContent).toContain('No está en el padrón');
+
+    // Y la colonia vuelve a ser texto libre, porque no hay lista que ofrecer.
+    expect(raiz.querySelector('#ns-colonia button[role="combobox"]')).toBeNull();
+    expect(raiz.querySelector('input#ns-colonia')).not.toBeNull();
+  });
+
+  /** «Otra» no elige una colonia: devuelve el campo de texto. */
+  it('«Otra» devuelve el campo de texto de la colonia', () => {
+    const { raiz, fixture } = montar((anfitrion) => anfitrion.openAdd.set(true));
+
+    escribirCp(raiz, fixture, '64000');
+    expect(raiz.querySelector('input#ns-colonia')).toBeNull();
+
+    raiz.querySelector<HTMLButtonElement>('#ns-colonia button[role="combobox"]')!.click();
+    fixture.detectChanges();
+    Array.from(raiz.querySelectorAll<HTMLElement>('#ns-colonia .gi-select__option'))
+      .find((opcion) => opcion.textContent?.includes('Otra'))!
+      .click();
+    fixture.detectChanges();
+
+    const campo = raiz.querySelector<HTMLInputElement>('input#ns-colonia');
+    expect(campo).not.toBeNull();
+    expect(campo!.value).toBe('');
+  });
+
   it('una zona sin contacto lo dice, con palabras y no sólo con color', () => {
     const { raiz } = montar((host) => host.lista.set([zona()]));
 

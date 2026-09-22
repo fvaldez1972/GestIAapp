@@ -92,8 +92,8 @@ filtro hoy haría fallar la reconstrucción del índice. Se irá el día que las
 **4 · El código postal manda en la dirección. Hecho y desplegado.** En el formulario de zonas se
 escriben cinco dígitos y se resuelven país, estado, municipio y la lista de colonias, que es como se
 escribe una dirección en México. La colonia pasa a elegirse de las del código, con «Otra: escribirla»
-siempre al final. **El formulario de personal no tiene campo de código postal**, así que no entra:
-ahí la dirección sigue siendo estado y municipio, como estaba.
+siempre al final. La colonia pasa a elegirse de las del código, con «Otra: escribirla»
+siempre al final.
 
 Los tres desplegables **se quedan**, y no de adorno: un código fuera del padrón los deja funcionando
 y **no borra lo que ya había**. Quien está corrigiendo el teléfono de una zona vieja no puede perder
@@ -126,6 +126,35 @@ SHA-256 y el aviso copiado tal cual. El guion `scripts/cargar-codigos-postales.p
 **exige** ese archivo de procedencia y comprueba el SHA-256 antes de escribir nada: un archivo
 cambiado en silencio es justo lo que no se quiere descubrir después, con las colonias ya en la base.
 El guion es idempotente —correrlo dos veces inserta cero— y las dos cosas se comprobaron.
+
+---
+
+## El domicilio del personal, que no era lo que parecía
+
+Dije que el formulario de personal no tenía campo de código postal, y eso era cierto pero se
+quedaba corto. Al verificarlo apareció algo peor y más fácil de arreglar:
+
+**Las columnas existen desde antes** —`Street`, `StreetNumber`, `Neighborhood`, `PostalCode`,
+`State`, `Municipality`, `CountryCode`— y **toda la cadena del backend ya las llevaba**: los
+contratos de alta, de edición y de respuesta, y el servicio que las guarda. **No hace falta
+migración.**
+
+**Lo que no existía era dónde escribirlas.** La ficha de la persona las mostraba —«Sin colonia
+registrada», «Sin código postal»— y ninguna pantalla las capturaba. En `db-gestia-dev` se ve el
+resultado: de 271 expedientes, **241 tienen código postal** (lo puso el sembrador demo) y **cero
+tienen colonia**. Se veía lo que faltaba y no había forma de completarlo.
+
+Ahora el bloque de UBICACIÓN de la ficha tiene su editor, con el mismo flujo del código postal que
+las zonas y la misma pieza compartida detrás. Va ahí por lo mismo que el editor del puesto un
+bloque más arriba: decir que falta algo sin ofrecer dónde completarlo obliga a buscar, y quien busca
+casi siempre lo deja así. **El alta sigue mínima**, que es la regla del proyecto; lo que se agregó
+es el después.
+
+**Todo el domicilio quedó opcional.** Vacío se guarda como nulo, que significa «no se sabe» y no
+bloquea. La matriz lo pide obligatorio, y eso es una decisión aparte: obligarlo en el alta
+contradice la regla de altas mínimas, así que lo natural sería exigirlo como parte del expediente
+completo —igual que ya se señala la falta del puesto— y no como un campo que impide dar de alta a
+alguien. Queda pendiente de decidir.
 
 ---
 

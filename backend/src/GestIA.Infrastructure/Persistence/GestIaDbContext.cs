@@ -1,5 +1,6 @@
 using GestIA.Application.Common;
 using GestIA.Domain.Catalogs;
+using GestIA.Domain.Geography;
 using GestIA.Domain.Clients;
 using GestIA.Domain.Documents;
 using GestIA.Domain.History;
@@ -61,6 +62,12 @@ public sealed class GestIaDbContext(
     public DbSet<BusinessDocument> BusinessDocuments => Set<BusinessDocument>();
     public DbSet<BusinessDocumentEvent> BusinessDocumentEvents => Set<BusinessDocumentEvent>();
     public DbSet<BusinessCatalogItem> BusinessCatalogItems => Set<BusinessCatalogItem>();
+
+    // La geografía compartida. No llevan IdOrganization a propósito: ver GeographyConfiguration.
+    public DbSet<GeoCountry> GeoCountries => Set<GeoCountry>();
+    public DbSet<GeoState> GeoStates => Set<GeoState>();
+    public DbSet<GeoMunicipality> GeoMunicipalities => Set<GeoMunicipality>();
+    public DbSet<GeoPostalCode> GeoPostalCodes => Set<GeoPostalCode>();
     public DbSet<EligibilityRequirement> EligibilityRequirements => Set<EligibilityRequirement>();
     public DbSet<EmployeeSkill> EmployeeSkills => Set<EmployeeSkill>();
     public DbSet<User> Users => Set<User>();

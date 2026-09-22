@@ -1,4 +1,5 @@
 using GestIA.Domain.Common;
+using GestIA.Domain.Geography;
 using GestIA.Domain.Organizations;
 using GestIA.Domain.Security;
 using GestIA.Infrastructure.Persistence;
@@ -116,6 +117,33 @@ public sealed class OrganizationFilterModelTests
         // denormalizada como el resto de las entidades de detalle, porque el filtro de un hijo no
         // puede depender del filtro de su padre.
         Assert.Equal(32, ScopedEntityTypes(context).Count());
+    }
+
+    /// <summary>
+    /// La geografía compartida <b>no lleva organización, y no debe llevarla</b>.
+    ///
+    /// <para>Es la decisión del 22 de septiembre de 2026: países, estados, municipios y códigos
+    /// postales son los mismos para todas las organizaciones. Tenerlos por organización costaba
+    /// ocho copias de 2 478 municipios, y con las colonias habría costado medio giga y un alta de
+    /// organización que inserta 147 000 filas.</para>
+    ///
+    /// <para><b>Esta prueba existe porque el arreglo se ve como un descuido.</b> Cuatro tablas sin
+    /// la columna que llevan las otras treinta y dos parecen un olvido, y agregársela «para que
+    /// sean consistentes» devolvería el problema entero sin que nada más se queje.</para>
+    /// </summary>
+    [Theory]
+    [InlineData(typeof(GeoCountry))]
+    [InlineData(typeof(GeoState))]
+    [InlineData(typeof(GeoMunicipality))]
+    [InlineData(typeof(GeoPostalCode))]
+    public void SharedGeographyCarriesNoOrganization(Type clrType)
+    {
+        using var context = CreateContext();
+        var entityType = context.Model.FindEntityType(clrType)!;
+
+        Assert.Null(entityType.FindProperty("IdOrganization"));
+        Assert.Null(entityType.FindDeclaredQueryFilter(OrganizationFilter));
+        Assert.False(typeof(IOrganizationScopedEntity).IsAssignableFrom(clrType));
     }
 
     [Theory]

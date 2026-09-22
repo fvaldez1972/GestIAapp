@@ -1743,7 +1743,14 @@ export class ServicesPage implements OnInit, OnDestroy {
     }
 
     this.catalogApi
-      .createItem({ idOrganization: org, type: 'Skill', name: creation.name, description: null })
+      .createItem({
+        idOrganization: org,
+        type: 'Skill',
+        name: creation.name,
+        description: null,
+        // Informativa: el alta al vuelo no puede preguntar si bloquea, y ese es el valor seguro.
+        isBlocking: false,
+      })
       .pipe(this.withScope(2))
       .subscribe({
         next: (creado) => {

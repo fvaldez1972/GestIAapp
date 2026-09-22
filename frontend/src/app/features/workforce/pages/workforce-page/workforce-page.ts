@@ -690,12 +690,17 @@ export class WorkforcePage {
       return;
     }
 
+    // Nace informativa. Los cuatro catálogos de la elegibilidad exigen decir si la falta bloquea,
+    // y un alta al vuelo no puede preguntarlo: ocurre en medio de otro formulario y quien la usa no
+    // vino a administrar el catálogo. Informativa es el valor seguro —«sólo deja constancia»— y
+    // quien administre el catálogo la promueve después. Sin esto el servidor responde 400.
     this.catalogApi
       .createItem({
         idOrganization: organizationId,
         type: 'AdministrativeIncidentType',
         name: creation.name,
         description: null,
+        isBlocking: false,
       })
       .subscribe({
         next: (creado) =>
@@ -981,7 +986,14 @@ export class WorkforcePage {
     }
 
     this.catalogApi
-      .createItem({ idOrganization: organizationId, type: 'Skill', name: creation.name, description: null })
+      .createItem({
+        idOrganization: organizationId,
+        type: 'Skill',
+        name: creation.name,
+        description: null,
+        // Informativa: ver la nota del alta al vuelo de incidencias administrativas.
+        isBlocking: false,
+      })
       .subscribe({
         next: (creado) => {
           this.catalogSkills.update((valores) => [

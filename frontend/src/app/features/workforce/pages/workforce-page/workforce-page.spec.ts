@@ -199,4 +199,61 @@ describe('Personal · carga', () => {
     responder();
     responderLoDemas();
   });
+
+  /**
+   * El alta al vuelo declara la naturaleza del valor que crea.
+   *
+   * <p><b>Esto se rompió y nadie lo vio.</b> El 21 de septiembre de 2026 los cuatro catálogos de la
+   * elegibilidad pasaron a exigir la marca al crear, y las altas al vuelo de Personal y de
+   * Servicios seguían mandando el alta sin ella: el servidor respondía 400 y la experiencia nunca
+   * se creaba. Las 840 pruebas de entonces pasaron porque ninguna miraba lo que ese alta manda.</p>
+   *
+   * <p>Nace <b>informativa</b> porque el alta al vuelo no puede preguntar si bloquea: ocurre en
+   * medio de otro formulario. Quien administre el catálogo la promueve después.</p>
+   */
+  it('el alta al vuelo de una experiencia declara que es informativa', () => {
+    const { fixture, http, responder, responderLoDemas } = montar();
+    responder();
+    responderLoDemas();
+    fixture.detectChanges();
+
+    const pagina = fixture.componentInstance as unknown as {
+      createSkillCatalogItem(creation: { name: string }): void;
+    };
+    pagina.createSkillCatalogItem({ name: 'Manejo de CCTV' });
+
+    const alta = http.expectOne(
+      (peticion) => peticion.method === 'POST' && peticion.url === '/api/v1/catalogs/items',
+    );
+
+    expect(alta.request.body.type).toBe('Skill');
+    expect(alta.request.body.isBlocking, 'sin esto el servidor responde 400').toBe(false);
+    alta.flush({ idCatalogItem: 'x', name: 'Manejo de CCTV', type: 'Skill', active: true });
+  });
+
+  /**
+   * Y lo mismo con el tipo de incidencia administrativa, que es el otro que exige la marca.
+   *
+   * <p>Es el control de la anterior: dos altas al vuelo distintas, a dos catálogos distintos, y las
+   * dos tenían el mismo defecto. Comprobar sólo una habría dejado la otra rota.</p>
+   */
+  it('y el alta al vuelo de un tipo de incidencia administrativa también', () => {
+    const { fixture, http, responder, responderLoDemas } = montar();
+    responder();
+    responderLoDemas();
+    fixture.detectChanges();
+
+    const pagina = fixture.componentInstance as unknown as {
+      createIncidentType(creation: { name: string }): void;
+    };
+    pagina.createIncidentType({ name: 'Acta administrativa' });
+
+    const alta = http.expectOne(
+      (peticion) => peticion.method === 'POST' && peticion.url === '/api/v1/catalogs/items',
+    );
+
+    expect(alta.request.body.type).toBe('AdministrativeIncidentType');
+    expect(alta.request.body.isBlocking).toBe(false);
+    alta.flush({ idCatalogItem: 'y', name: 'Acta administrativa', type: 'AdministrativeIncidentType', active: true });
+  });
 });

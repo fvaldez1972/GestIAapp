@@ -5,7 +5,6 @@ namespace GestIA.Domain.Services;
 
 public sealed class Service : AuditableEntity, IOrganizationScopedEntity
 {
-    private readonly List<ServiceConfiguration> configurations = [];
 
     private Service()
     {
@@ -47,7 +46,6 @@ public sealed class Service : AuditableEntity, IOrganizationScopedEntity
     public Client Client { get; private set; } = null!;
     public ClientSite ClientSite { get; private set; } = null!;
     public ServiceContract? ServiceContract { get; private set; }
-    public IReadOnlyCollection<ServiceConfiguration> Configurations => configurations;
 
     public static Service Create(
         Guid idOrganization,

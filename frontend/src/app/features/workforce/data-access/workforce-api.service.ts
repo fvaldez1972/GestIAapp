@@ -1,6 +1,7 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { activeOptions } from '../../../shared/data-access/active-options';
+import { AdministrativeIncident, AdministrativeIncidentInput } from './administrative-incident.models';
 import {
   CreateEmployee,
   Employee,
@@ -94,5 +95,49 @@ export class WorkforceApiService {
   deactivateEvaluation(organizationId: string, idEmployee: string, idEmployeeEvaluation: string) {
     const params = new HttpParams().set('organizationId', organizationId);
     return this.http.delete<void>(`${this.baseUrl}/${idEmployee}/evaluations/${idEmployeeEvaluation}`, { params });
+  }
+
+  // ── Incidencias administrativas ──────────────────────────────────────────────────────────
+  //
+  // Ruta propia y no colgada de las incidencias de la operacion: son dos cosas distintas que se
+  // consultan, se filtran y se autorizan distinto, y compartir ruta habria hecho que un filtro por
+  // servicio arrastrara actas administrativas.
+
+  listAdministrativeIncidents(organizationId: string, idEmployee: string) {
+    const params = new HttpParams().set('organizationId', organizationId);
+    return this.http.get<readonly AdministrativeIncident[]>(
+      `${this.baseUrl}/${idEmployee}/administrative-incidents`,
+      { params },
+    );
+  }
+
+  createAdministrativeIncident(idEmployee: string, request: AdministrativeIncidentInput) {
+    return this.http.post<AdministrativeIncident>(
+      `${this.baseUrl}/${idEmployee}/administrative-incidents`,
+      request,
+    );
+  }
+
+  updateAdministrativeIncident(
+    idEmployee: string,
+    idAdministrativeIncident: string,
+    request: AdministrativeIncidentInput,
+  ) {
+    return this.http.put<AdministrativeIncident>(
+      `${this.baseUrl}/${idEmployee}/administrative-incidents/${idAdministrativeIncident}`,
+      request,
+    );
+  }
+
+  deactivateAdministrativeIncident(
+    organizationId: string,
+    idEmployee: string,
+    idAdministrativeIncident: string,
+  ) {
+    const params = new HttpParams().set('organizationId', organizationId);
+    return this.http.delete<void>(
+      `${this.baseUrl}/${idEmployee}/administrative-incidents/${idAdministrativeIncident}`,
+      { params },
+    );
   }
 }

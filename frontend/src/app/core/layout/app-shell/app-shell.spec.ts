@@ -23,6 +23,8 @@ class PantallaDeModulo implements OnDestroy {
 
 const ALFA = { idOrganization: 'org-a', codeOrganization: 'ALFA', legalName: 'Alfa Seguridad Privada' };
 const BETA = { idOrganization: 'org-b', codeOrganization: 'BETA', legalName: 'Beta Custodia' };
+/** La que llega DESPUÉS de montar el shell: es la que delata si la lista se pide una sola vez. */
+const GAMMA = { idOrganization: 'org-c', codeOrganization: 'GAMMA', legalName: 'Gamma Vigilancia' };
 
 /** Los permisos que el menú consulta. El rol real trae más; ninguno de los otros abre entradas. */
 const PERMISOS_QUE_EL_MENU_CONSULTA = [
@@ -77,7 +79,12 @@ describe('AppShell', () => {
 
     TestBed.configureTestingModule({
       providers: [
-        provideRouter([{ path: '', component: PantallaDeModulo }]),
+        provideRouter([
+          { path: '', component: PantallaDeModulo },
+          // Una ruta hija de verdad: sin ella el enrutador no navega y `currentUrl` se queda en la
+          // raíz, de modo que la prueba del submenú pasaría por la razón equivocada.
+          { path: 'catalogos/puestos', component: PantallaDeModulo },
+        ]),
         provideHttpClient(),
         provideHttpClientTesting(),
       ],
@@ -98,7 +105,7 @@ describe('AppShell', () => {
 
     fixture.detectChanges();
 
-    return { fixture, raiz: fixture.nativeElement as HTMLElement };
+    return { fixture, raiz: fixture.nativeElement as HTMLElement, componente: fixture.componentInstance };
   }
 
   const entradas = (raiz: HTMLElement) =>
@@ -109,25 +116,28 @@ describe('AppShell', () => {
   const gruposDelMenu = (raiz: HTMLElement) =>
     Array.from(raiz.querySelectorAll('.side-nav .menu-group')).map((n) => n.textContent?.trim());
 
-  /**
-   * El contexto de organización se movió a la barra de contexto y el `<select>` nativo se fue con
-   * él. El requisito es explícito: selectores con estilo propio, nunca el nativo del sistema.
-   */
+  /** Selectores con estilo propio, nunca el nativo del sistema. El requisito es explícito. */
   it('no queda ningún select nativo en el shell', () => {
-    const { raiz } = montar(['PLATFORM.ADMIN'], [ALFA]);
+    const { raiz, componente } = montar(['PLATFORM.ADMIN'], [ALFA]);
+    (componente as unknown as { toggleProfile(): void }).toggleProfile();
 
     expect(raiz.querySelector('select')).toBeNull();
-    expect(raiz.querySelector('app-context-bar')).not.toBeNull();
   });
 
-  it('la barra de contexto va arriba de la topbar, no dentro de ella', () => {
+  /**
+   * La franja de organización se retiró el 21 de septiembre de 2026 y la cabecera quedó primera.
+   *
+   * <p>Eran dos renglones fijos en las quince pantallas para decir quién eres y en qué organización
+   * estás, que es algo que se consulta de vez en cuando. Se movió al menú de la cuenta.</p>
+   */
+  it('ya no hay franja de organización: la cabecera va primera', () => {
     const { raiz } = montar(['PLATFORM.ADMIN'], [ALFA]);
 
     const contenido = raiz.querySelector('.page-content')!;
     const hijos = Array.from(contenido.children).map((n) => n.tagName.toLowerCase());
 
-    expect(hijos[0]).toBe('app-context-bar');
-    expect(hijos[1]).toBe('header');
+    expect(raiz.querySelector('app-context-bar')).toBeNull();
+    expect(hijos[0]).toBe('header');
   });
 
   it('el menú lateral responde a los tres estados', () => {
@@ -198,16 +208,123 @@ describe('AppShell', () => {
     );
   });
 
-  it('la organización no se dice dos veces: sólo la barra de contexto la nombra', () => {
-    const { raiz } = montar(['PLATFORM.ADMIN'], [ALFA], 'org-a');
+  /**
+   * Con el menú cerrado, el cromo no nombra la organización; abierto, la nombra una vez.
+   *
+   * <p>La segunda mitad es la que importa: el dato no se perdió al quitar la franja, sólo cambió
+   * de sitio. Sin ella, «ya no aparece» sería indistinguible de haberlo borrado.</p>
+   */
+  it('la organización se dice una sola vez, y dentro del menú de la cuenta', () => {
+    const { raiz, fixture, componente } = montar(['PLATFORM.ADMIN'], [ALFA], 'org-a');
+    const nombra = () =>
+      Array.from(raiz.querySelectorAll('*')).filter(
+        (n) => n.children.length === 0 && n.textContent?.includes('Alfa Seguridad Privada'),
+      );
 
-    expect(raiz.querySelector('.workspace-context')).toBeNull();
+    expect(nombra(), 'con el menú cerrado, el cromo no la nombra').toHaveLength(0);
 
-    const menciones = Array.from(raiz.querySelectorAll('*')).filter(
-      (n) => n.children.length === 0 && n.textContent?.includes('Alfa Seguridad Privada'),
-    );
+    (componente as unknown as { toggleProfile(): void }).toggleProfile();
+    fixture.detectChanges();
 
-    expect(menciones).toHaveLength(1);
+    expect(nombra()).toHaveLength(1);
+    expect(raiz.querySelector('.account-menu')?.textContent).toContain('admin@gestia.local');
+  });
+
+  /**
+   * Cambiar de organización sobrevivió al cambio de sitio.
+   *
+   * <p>La franja que se retiró era <b>el único lugar</b> donde un super admin podía cambiar de
+   * organización y salir de ella. Quitarla sin esto habría dejado la sesión encerrada en la
+   * organización activa, y nada en pantalla lo diría.</p>
+   */
+  it('desde el menú se puede cambiar de organización y salir de ella', () => {
+    const { raiz, fixture, componente } = montar(['PLATFORM.ADMIN'], [ALFA, BETA], 'org-a');
+    (componente as unknown as { toggleProfile(): void }).toggleProfile();
+    fixture.detectChanges();
+
+    const menu = raiz.querySelector('.account-menu')!;
+
+    expect(menu.querySelector('gi-select'), 'el selector de organización').not.toBeNull();
+    expect(menu.textContent).toContain('Salir de la organización');
+    expect(menu.textContent).toContain('Cerrar sesión');
+  });
+
+  /**
+   * Al desplegar la lista de organizaciones se vuelve a pedir al servidor.
+   *
+   * <p>Portada de la barra de contexto, que se retiró. Sin esto, la lista del super admin se carga
+   * una sola vez al construir el shell, y una organización dada de alta después no aparece hasta
+   * recargar la página entera. Y nada lo delata: el desplegable se abre con normalidad y
+   * simplemente le falta una.</p>
+   */
+  it('al abrir el desplegable de organizaciones vuelve a pedir la lista', () => {
+    const { raiz, fixture, componente } = montar(['PLATFORM.ADMIN'], [ALFA], 'org-a');
+    (componente as unknown as { toggleProfile(): void }).toggleProfile();
+    fixture.detectChanges();
+
+    expect(raiz.textContent).not.toContain('Gamma Vigilancia');
+
+    raiz.querySelector<HTMLButtonElement>('.account-menu gi-select button')!.click();
+    fixture.detectChanges();
+    http.expectOne('/api/v1/organizations').flush([ALFA, BETA, GAMMA]);
+    fixture.detectChanges();
+
+    expect(raiz.textContent).toContain('Gamma Vigilancia');
+  });
+
+  /**
+   * Y si ese refresco falla, no se vacía la lista.
+   *
+   * <p>Quien abrió el desplegable quería cambiar de organización; dejarlo sin opciones porque la
+   * petición no llegó es peor que enseñarle una lista que quizá no incluye la última.</p>
+   */
+  it('si el refresco de organizaciones falla, se queda con las que ya tenía', () => {
+    const { raiz, fixture, componente } = montar(['PLATFORM.ADMIN'], [ALFA], 'org-a');
+    (componente as unknown as { toggleProfile(): void }).toggleProfile();
+    fixture.detectChanges();
+
+    raiz.querySelector<HTMLButtonElement>('.account-menu gi-select button')!.click();
+    fixture.detectChanges();
+    http.expectOne('/api/v1/organizations').error(new ProgressEvent('error'));
+    fixture.detectChanges();
+
+    expect(raiz.textContent).toContain('Alfa Seguridad Privada');
+    expect(raiz.textContent).toContain('Beta Custodia');
+  });
+
+  /**
+   * Con una sola organización se enseña el nombre y no se ofrece cambiarla.
+   *
+   * <p>Un selector de una opción es ruido, y además sugiere que se puede cambiar a algo. Salir
+   * tampoco se ofrece: un admin de organización que «saliera» volvería a caer en la suya.</p>
+   */
+  it('con una sola organización no ofrece cambiarla ni salir de ella', () => {
+    const { raiz, fixture, componente } = montar(['CLIENTS.READ'], [ALFA], 'org-a');
+    (componente as unknown as { toggleProfile(): void }).toggleProfile();
+    fixture.detectChanges();
+
+    const menu = raiz.querySelector('.account-menu')!;
+
+    expect(menu.textContent).toContain('Alfa Seguridad Privada');
+    expect(menu.querySelector('gi-select')).toBeNull();
+    expect(menu.textContent).not.toContain('Salir de la organización');
+    expect(menu.textContent, 'cerrar sesión sí, siempre').toContain('Cerrar sesión');
+  });
+
+  /**
+   * La cuenta está abajo a la izquierda, al pie del menú, y no arriba a la derecha.
+   *
+   * <p>Estuvo unas horas en la barra superior y el sitio no era el bueno: el nombre de quien está
+   * dentro no es una acción de la página, es el ancla de la sesión, y donde se busca es al final de
+   * la navegación. Esta prueba fija las dos mitades —que está en el pie y que NO está en la barra—
+   * porque moverlo sin quitarlo del sitio anterior lo dejaría dos veces.</p>
+   */
+  it('la cuenta va al pie del menú lateral, no en la barra superior', () => {
+    const { raiz } = montar(PERMISOS_QUE_EL_MENU_CONSULTA, [ALFA], 'org-a');
+
+    expect(raiz.querySelector('.sidebar-foot .sidebar-account')).not.toBeNull();
+    expect(raiz.querySelector('.app-header .sidebar-account')).toBeNull();
+    expect(raiz.querySelector('.app-header .profile')).toBeNull();
   });
 
   /** Un botón sin texto visible tiene que decir qué hace por otro camino. */
@@ -221,13 +338,40 @@ describe('AppShell', () => {
     }
   });
 
-  it('todo enlace del menú lleva su texto', () => {
+  it('todo enlace del menú lleva su texto y su dirección', () => {
     const { raiz } = montar(['PLATFORM.ADMIN'], [ALFA], 'org-a');
 
-    for (const enlace of Array.from(raiz.querySelectorAll('.side-nav .menu-link'))) {
+    // Los renglones que despliegan no son enlaces y no llevan dirección: se excluyen aquí y se
+    // comprueban en la prueba siguiente, que es donde se dice qué sí tienen que tener.
+    const enlaces = Array.from(raiz.querySelectorAll('.side-nav .menu-link:not(.menu-link--branch)'));
+
+    expect(enlaces.length, 'tiene que quedar algún enlace de verdad que comprobar').toBeGreaterThan(0);
+
+    for (const enlace of enlaces) {
       expect(enlace.querySelector('.menu-text')?.textContent?.trim()).toBeTruthy();
       expect(enlace.getAttribute('href')).toBeTruthy();
     }
+  });
+
+  /**
+   * Una entrada con hijos despliega y **no navega**.
+   *
+   * <p>Hasta el 21 de septiembre de 2026 «Catálogos» era un enlace con un botón de galón al lado, y
+   * se sentía como una trampa: quien lo pulsaba para ver la lista acababa en otra pantalla. Ahora
+   * el renglón entero es el interruptor, así que es un <c>&lt;button&gt;</c> sin dirección y con
+   * <c>aria-expanded</c>, que es lo que anuncia a un lector de pantalla que ahí hay algo que
+   * abrir.</p>
+   */
+  it('la entrada con hijos despliega en vez de navegar', () => {
+    const { raiz } = montar(PERMISOS_QUE_EL_MENU_CONSULTA, [ALFA], 'org-a');
+
+    const rama = raiz.querySelector('.side-nav .menu-link--branch');
+
+    expect(rama, 'Catálogos tiene hijos, así que tiene que ser una rama').toBeTruthy();
+    expect(rama?.tagName).toBe('BUTTON');
+    expect(rama?.getAttribute('href'), 'una rama no lleva a ninguna parte').toBeNull();
+    expect(rama?.getAttribute('aria-expanded')).toBe('false');
+    expect(rama?.querySelector('.menu-text')?.textContent?.trim()).toBe('Catálogos');
   });
 
   it('la navegación principal está anunciada como tal', () => {
@@ -268,5 +412,87 @@ describe('AppShell', () => {
 
     expect(PantallaDeModulo.montajes).toBe(despuesDeAbrir + 1);
     expect(PantallaDeModulo.destrucciones).toBe(1);
+  });
+
+  /**
+   * El submenú se abre solo cuando la página abierta cuelga de esa entrada.
+   *
+   * <p>Es lo que hace que el menú te enseñe dónde estás al llegar por un enlace o al recargar, sin
+   * que nadie haya pulsado nada.</p>
+   */
+  it('despliega el submenú de la entrada dentro de la que estás', async () => {
+    const { fixture } = montar(PERMISOS_QUE_EL_MENU_CONSULTA, [ALFA], 'org-a');
+    const shell = fixture.componentInstance as unknown as {
+      isSubmenuOpen(route: string): boolean;
+      toggleSubmenu(route: string): void;
+    };
+
+    expect(shell.isSubmenuOpen('/catalogos'), 'en la raíz, cerrado').toBe(false);
+
+    await TestBed.inject(Router).navigateByUrl('/catalogos/puestos');
+    fixture.detectChanges();
+
+    expect(shell.isSubmenuOpen('/catalogos'), 'dentro de un catálogo, abierto').toBe(true);
+  });
+
+  /**
+   * Los bloques del submenú empiezan cerrados, salvo el de la página en la que estás.
+   *
+   * <p>Con dieciocho entradas, abrir los cinco bloques devuelve la lista larga que el submenú venía
+   * a evitar. Cerrados, los cinco rótulos son un índice que cabe de un vistazo.</p>
+   */
+  it('los bloques del submenú empiezan cerrados, menos el de donde estás', async () => {
+    const { fixture } = montar(PERMISOS_QUE_EL_MENU_CONSULTA, [ALFA], 'org-a');
+    const shell = fixture.componentInstance as unknown as {
+      isGroupOpen(route: string, group: string): boolean;
+      toggleGroup(route: string, group: string): void;
+    };
+
+    expect(shell.isGroupOpen('/catalogos', 'Personal')).toBe(false);
+    expect(shell.isGroupOpen('/catalogos', 'Clientes')).toBe(false);
+
+    await TestBed.inject(Router).navigateByUrl('/catalogos/puestos');
+    fixture.detectChanges();
+
+    expect(shell.isGroupOpen('/catalogos', 'Personal'), 'Puestos vive en Personal').toBe(true);
+    expect(shell.isGroupOpen('/catalogos', 'Clientes'), 'y sólo ése').toBe(false);
+  });
+
+  /** Y cada bloque se abre y se cierra por su cuenta, sin arrastrar a los demás. */
+  it('un bloque se abre sin abrir los otros', () => {
+    const { fixture } = montar(PERMISOS_QUE_EL_MENU_CONSULTA, [ALFA], 'org-a');
+    const shell = fixture.componentInstance as unknown as {
+      isGroupOpen(route: string, group: string): boolean;
+      toggleGroup(route: string, group: string): void;
+    };
+
+    shell.toggleGroup('/catalogos', 'Operación');
+    fixture.detectChanges();
+
+    expect(shell.isGroupOpen('/catalogos', 'Operación')).toBe(true);
+    expect(shell.isGroupOpen('/catalogos', 'Personal')).toBe(false);
+  });
+
+  /**
+   * Y el control: lo que el usuario decide gana a dónde está.
+   *
+   * <p>Sin esto, «se abre cuando estás dentro» sería indistinguible de «se abre y no se puede
+   * cerrar», que es el defecto que este estado de tres valores existe para evitar.</p>
+   */
+  it('si el usuario lo cierra, se queda cerrado aunque esté dentro', async () => {
+    const { fixture } = montar(PERMISOS_QUE_EL_MENU_CONSULTA, [ALFA], 'org-a');
+    const shell = fixture.componentInstance as unknown as {
+      isSubmenuOpen(route: string): boolean;
+      toggleSubmenu(route: string): void;
+    };
+
+    await TestBed.inject(Router).navigateByUrl('/catalogos/puestos');
+    fixture.detectChanges();
+    expect(shell.isSubmenuOpen('/catalogos')).toBe(true);
+
+    shell.toggleSubmenu('/catalogos');
+    fixture.detectChanges();
+
+    expect(shell.isSubmenuOpen('/catalogos')).toBe(false);
   });
 });

@@ -1,4 +1,5 @@
 import { Component, signal } from '@angular/core';
+import { ServerProblem } from '../../../shared/util/server-problem';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
@@ -6,10 +7,13 @@ import { ClientForm, ClientFormValue } from './client-form';
 
 @Component({
   imports: [ClientForm],
-  template: `<app-client-form organizationId="org-a" (save)="guardado.set($event)" />`,
+  template: `
+    <app-client-form organizationId="org-a" [problem]="problema()" (save)="guardado.set($event)" />
+  `,
 })
 class Anfitrion {
-  readonly guardado = signal<{ value: ClientFormValue; withSite: boolean } | null>(null);
+  readonly guardado = signal<{ value: ClientFormValue; withZone: boolean } | null>(null);
+  readonly problema = signal<ServerProblem | null>(null);
 }
 
 function montar() {
@@ -44,11 +48,11 @@ function montar() {
  * hace que el municipio aparezca sólo cuando su estado está elegido.</p>
  */
 const GEOGRAFIA = [
-  { idCatalogItem: 'mx', type: 'Country', code: 'MX', name: 'México', active: true, idParentCatalogItem: null },
-  { idCatalogItem: 'jal', type: 'State', code: 'JAL', name: 'Jalisco', active: true, idParentCatalogItem: 'mx' },
-  { idCatalogItem: 'nl', type: 'State', code: 'NL', name: 'Nuevo León', active: true, idParentCatalogItem: 'mx' },
-  { idCatalogItem: 'tlaq', type: 'City', code: 'TLAQ', name: 'Tlaquepaque', active: true, idParentCatalogItem: 'jal' },
-  { idCatalogItem: 'snic', type: 'City', code: 'SNIC', name: 'San Nicolás de los Garza', active: true, idParentCatalogItem: 'nl' },
+  { idCatalogItem: 'mx', type: 'Country', name: 'México', active: true, idParentCatalogItem: null },
+  { idCatalogItem: 'jal', type: 'State', name: 'Jalisco', active: true, idParentCatalogItem: 'mx' },
+  { idCatalogItem: 'nl', type: 'State', name: 'Nuevo León', active: true, idParentCatalogItem: 'mx' },
+  { idCatalogItem: 'tlaq', type: 'City', name: 'Tlaquepaque', active: true, idParentCatalogItem: 'jal' },
+  { idCatalogItem: 'snic', type: 'City', name: 'San Nicolás de los Garza', active: true, idParentCatalogItem: 'nl' },
 ];
 
 /** Responde la única petición del catálogo y deja los selectores con sus opciones. */
@@ -79,62 +83,62 @@ describe('El alta de cliente', () => {
   afterEach(() => TestBed.resetTestingModule());
 
   /**
-   * Lo que la pantalla existe para hacer: <b>decir que la sede es obligatoria antes de guardar</b>,
+   * Lo que la pantalla existe para hacer: <b>decir que la zona es obligatoria antes de guardar</b>,
    * no al fallar el alta del servicio dos pantallas después.
    */
-  it('el bloque de sede dice para qué es, antes de guardar', () => {
+  it('el bloque de zona dice para qué es, antes de guardar', () => {
     const { raiz } = montar();
 
-    expect(raiz.textContent).toContain('SEDE · OBLIGATORIA PARA CREAR SERVICIOS');
-    expect(raiz.textContent).toContain('Sin sede el cliente queda como expediente');
+    expect(raiz.textContent).toContain('ZONA · OBLIGATORIA PARA CREAR SERVICIOS');
+    expect(raiz.textContent).toContain('Sin zona el cliente queda como expediente');
   });
 
   it('son dos salidas y cada una dice exactamente qué hace', () => {
     const { boton } = montar();
 
-    expect(boton('Guardar sin sede')).toBeDefined();
-    expect(boton('Guardar cliente y sede')).toBeDefined();
+    expect(boton('Guardar sin zona')).toBeDefined();
+    expect(boton('Guardar cliente y zona')).toBeDefined();
   });
 
-  /** El expediente sin sede es válido: sólo pide lo del cliente. */
-  it('guardar sin sede no exige los campos de sede', () => {
+  /** El expediente sin zona es válido: sólo pide lo del cliente. */
+  it('guardar sin zona no exige los campos de zona', () => {
     const { boton, escribir, fixture, host } = montar();
 
     escribir('cf-razon', 'Textiles La Concepción, S.A. de C.V.');
     escribir('cf-rfc', 'TLC180423K72');
     fixture.detectChanges();
 
-    expect(boton('Guardar sin sede').disabled).toBe(false);
-    expect(boton('Guardar cliente y sede').disabled).toBe(true);
+    expect(boton('Guardar sin zona').disabled).toBe(false);
+    expect(boton('Guardar cliente y zona').disabled).toBe(true);
 
-    boton('Guardar sin sede').click();
+    boton('Guardar sin zona').click();
     fixture.detectChanges();
 
-    expect(host.guardado()?.withSite).toBe(false);
+    expect(host.guardado()?.withZone).toBe(false);
     expect(host.guardado()?.value.legalName).toBe('Textiles La Concepción, S.A. de C.V.');
   });
 
-  it('guardar con sede exige la dirección completa, y dice cuál falta', () => {
+  it('guardar con zona exige la dirección completa, y dice cuál falta', () => {
     const { raiz, boton, escribir } = montar();
 
     escribir('cf-razon', 'Distribuidora Peñasco del Norte, S.A. de C.V.');
     escribir('cf-rfc', 'DPN180423K72');
-    escribir('cf-sede', 'Planta San Nicolás');
+    escribir('cf-zona', 'Planta San Nicolás');
 
-    const guardar = boton('Guardar cliente y sede');
+    const guardar = boton('Guardar cliente y zona');
     expect(guardar.disabled).toBe(true);
 
     const razon = raiz.querySelector(`#${guardar.getAttribute('aria-describedby')}`)!;
     expect(razon.textContent).toContain('su nombre, calle, municipio, estado y código postal');
   });
 
-  it('con todo completo emite el cliente, la sede y el contacto', () => {
+  it('con todo completo emite el cliente, la zona y el contacto', () => {
     const { boton, escribir, fixture, host, raiz } = montar();
 
     escribir('cf-razon', 'Distribuidora Peñasco del Norte, S.A. de C.V.');
     escribir('cf-corto', 'Peñasco');
     escribir('cf-rfc', 'dpn180423k72');
-    escribir('cf-sede', 'Planta San Nicolás');
+    escribir('cf-zona', 'Planta San Nicolás');
     escribir('cf-calle', 'Av. Universidad 2340');
     escribir('cf-cp', '66450');
 
@@ -147,15 +151,15 @@ describe('El alta de cliente', () => {
     escribir('cf-ctel', '81 2264 7710');
     fixture.detectChanges();
 
-    boton('Guardar cliente y sede').click();
+    boton('Guardar cliente y zona').click();
     fixture.detectChanges();
 
     const guardado = host.guardado()!;
-    expect(guardado.withSite).toBe(true);
+    expect(guardado.withZone).toBe(true);
     // El RFC se normaliza: se compara en mayúsculas para la unicidad del servidor.
     expect(guardado.value.rfc).toBe('DPN180423K72');
-    expect(guardado.value.site.state).toBe('Nuevo León');
-    expect(guardado.value.site.municipality).toBe('San Nicolás de los Garza');
+    expect(guardado.value.zone.state).toBe('Nuevo León');
+    expect(guardado.value.zone.municipality).toBe('San Nicolás de los Garza');
     expect(guardado.value.contact.fullName).toBe('Aurora Ibáñez Zúñiga');
   });
 
@@ -168,7 +172,7 @@ describe('El alta de cliente', () => {
 
     escribir('cf-razon', 'Sólo razón social');
 
-    expect(boton('Guardar sin sede').disabled).toBe(true);
+    expect(boton('Guardar sin zona').disabled).toBe(true);
   });
 
   /** El código y la fecha los pone el sistema: pedirlos sería pedirle al usuario que los invente. */
@@ -204,5 +208,33 @@ describe('El alta de cliente', () => {
 
     const municipio = raiz.querySelector<HTMLSelectElement>('#cf-municipio select')!;
     expect(municipio.value).toBe('');
+  });
+});
+
+describe('El rechazo del servidor, en el campo que falló', () => {
+  /**
+   * Antes el alta decía «La solicitud contiene datos inválidos» arriba y nada más. El servidor
+   * mandaba el detalle por campo y el frontend lo tiraba: el usuario veía un rechazo sin saber
+   * qué corregir.
+   */
+  it('pinta el mensaje junto al campo, no sólo arriba', () => {
+    const fixture = TestBed.createComponent(Anfitrion);
+    fixture.detectChanges();
+
+    fixture.componentInstance.problema.set({
+      message: 'El RFC no tiene el formato del SAT.',
+      fieldErrors: { Rfc: 'El RFC no tiene el formato del SAT.' },
+    });
+    fixture.detectChanges();
+
+    const raiz = fixture.nativeElement as HTMLElement;
+    const rfc = raiz.querySelector<HTMLInputElement>('#cf-rfc')!;
+
+    expect(rfc.classList).toContain('is-invalid');
+    expect(rfc.getAttribute('aria-invalid')).toBe('true');
+    expect(raiz.querySelector('.field__error')?.textContent).toContain('formato del SAT');
+
+    // Y el campo que no falló no se marca.
+    expect(raiz.querySelector<HTMLInputElement>('#cf-razon')!.classList).not.toContain('is-invalid');
   });
 });

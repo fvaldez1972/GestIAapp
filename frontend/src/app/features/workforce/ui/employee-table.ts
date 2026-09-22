@@ -67,7 +67,7 @@ import {
       <ng-template giCell="actions" let-employee>
         <span class="cell__actions" (click)="$event.stopPropagation()">
           <gi-row-actions
-            [actions]="actions()"
+            [actions]="actions(employee)"
             [label]="'Acciones de ' + employee.fullName + ', ' + employee.codeEmployee"
             (select)="action.emit({ id: $event.id, employee })"
           />
@@ -160,20 +160,39 @@ export class EmployeeTable {
    * elegir entre opciones que no se distinguen, que es el par duplicado que esta pantalla
    * venía arrastrando.</p>
    */
-  protected readonly actions = computed<readonly GiRowAction[]>(() => [
-    { id: 'assign', label: 'Asignar a una posición' },
-    {
-      id: 'leave',
-      label: 'Registrar permiso',
+  /**
+   * <b>Y dependen de la fila.</b> El menú era idéntico para todos, y eso ofrecía dos cosas que no
+   * podían pasar. A quien ya estaba en permiso se le seguía proponiendo «Registrar permiso», que no
+   * hace nada, y <b>a nadie se le ofrecía volver</b> —aunque el diálogo de permiso promete que «se
+   * puede reactivar» y el servidor sabe hacerlo desde siempre—. A quien ya estaba dada de baja se le
+   * ofrecían las tres, y las tres sobraban.
+   */
+  protected actions(employee: EmployeeListItem): readonly GiRowAction[] {
+    const sinPermiso = {
       disabled: !this.canWrite(),
       disabledReason: 'Necesitas permiso de escritura sobre personal',
-    },
-    {
-      id: 'terminate',
-      label: 'Dar de baja',
-      destructive: true,
-      disabled: !this.canWrite(),
-      disabledReason: 'Necesitas permiso de escritura sobre personal',
-    },
-  ]);
+    };
+    const deBaja = employee.status === 'Terminated' || employee.status === 'Inactive';
+
+    if (deBaja) {
+      // Ninguna de las tres cabe sobre alguien que ya no está. Se enseñan apagadas y con el
+      // motivo, en vez de esconderlas: un menú que cambia de tamaño según la fila deja a quien
+      // busca una acción sin saber si no la tiene o si se equivocó de renglón.
+      const motivo = 'Ya está dada de baja';
+
+      return [
+        { id: 'assign', label: 'Asignar a una posición', disabled: true, disabledReason: motivo },
+        { id: 'leave', label: 'Registrar permiso', disabled: true, disabledReason: motivo },
+        { id: 'terminate', label: 'Dar de baja', disabled: true, disabledReason: motivo },
+      ];
+    }
+
+    return [
+      { id: 'assign', label: 'Asignar a una posición' },
+      employee.status === 'OnLeave'
+        ? { id: 'reinstate', label: 'Reincorporar', ...sinPermiso }
+        : { id: 'leave', label: 'Registrar permiso', ...sinPermiso },
+      { id: 'terminate', label: 'Dar de baja', destructive: true, ...sinPermiso },
+    ];
+  }
 }

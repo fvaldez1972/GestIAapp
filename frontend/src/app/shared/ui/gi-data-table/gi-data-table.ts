@@ -20,7 +20,7 @@ import { GiEmptyState } from '../gi-empty-state/gi-empty-state';
 export type GiColumn = {
   readonly key: string;
   readonly label: string;
-  /** `220px` nombre de entidad · `190px` cliente o sede · `150px` vigencia · `130px` conteos. */
+  /** `220px` nombre de entidad · `190px` cliente o zona · `150px` vigencia · `130px` conteos. */
   readonly width?: string;
   readonly align?: 'start' | 'end';
   /** `name` 13/600 · `data` 12.5/400 · `meta` 11.5/400. Por omisión, `data`. */
@@ -129,7 +129,9 @@ export class GiCell {
           [title]="emptyTitle()"
           [description]="emptyDescription()"
           [actionLabel]="emptyActionLabel()"
+          [secondaryActionLabel]="emptySecondaryActionLabel()"
           (action)="emptyAction.emit()"
+          (secondaryAction)="emptySecondaryAction.emit()"
         />
       }
 
@@ -269,12 +271,14 @@ export class GiDataTable<TRow> {
   readonly emptyTitle = input('');
   readonly emptyDescription = input('');
   readonly emptyActionLabel = input('');
+  readonly emptySecondaryActionLabel = input('');
   /** Nombre accesible de la tabla. Una tabla sin nombre se anuncia como «tabla». */
   readonly label = input('');
 
   readonly rowSelect = output<TRow>();
   readonly retry = output<void>();
   readonly emptyAction = output<void>();
+  readonly emptySecondaryAction = output<void>();
 
   private readonly celdas = contentChildren(GiCell);
 

@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
+import { GiCatalogCreation, GiSelect, GiSelectOption } from '../../../shared/ui/gi-ui';
 import { formatOperationalDate } from '../../../shared/util/operational-date';
 import { Employee } from '../data-access/workforce.models';
 import {
@@ -23,7 +24,7 @@ import { EmployeeJobPosition } from './employee-job-position';
 @Component({
   selector: 'app-employee-data',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [EmployeeEligibilityBand, EmployeeJobPosition],
+  imports: [EmployeeEligibilityBand, EmployeeJobPosition, GiSelect],
   template: `
     <div class="data">
       <app-employee-eligibility
@@ -39,8 +40,10 @@ import { EmployeeJobPosition } from './employee-job-position';
           [current]="row().idJobPositionCatalogItem ?? ''"
           [saving]="savingJobPosition()"
           [problem]="jobPositionProblem()"
+          [canWrite]="canWrite()"
           (cancel)="cancelJobPosition.emit()"
           (save)="saveJobPosition.emit($event)"
+          (createJobPosition)="createJobPosition.emit($event)"
         />
       }
 
@@ -68,7 +71,29 @@ import { EmployeeJobPosition } from './employee-job-position';
           </div>
           <div class="data__field">
             <dt>RFC</dt>
-            <dd>{{ masked(employee()?.rfc ?? null) }}</dd>
+            <dd>{{ delDetalle(masked(employee()?.rfc ?? null)) }}</dd>
+          </div>
+          <!--
+            La escolaridad. Se compara contra la que pide la posicion, asi que se guarda por
+            identificador del catalogo y no como texto. Vacia significa «no se sabe», no «no
+            cumple»: la columna nacio el 19 de septiembre de 2026 y ningun expediente la traia.
+          -->
+          <div class="data__field">
+            <dt>ESCOLARIDAD</dt>
+            <dd>
+              @if (canWrite()) {
+                <gi-select
+                  label="Escolaridad"
+                  placeholder="Sin registrar"
+                  [options]="educationLevelOptions()"
+                  [value]="employee()?.idEducationLevelCatalogItem ?? ''"
+                  [disabled]="savingEducation()"
+                  (valueChange)="saveEducation.emit($event || null)"
+                />
+              } @else {
+                {{ delDetalle(educationLevelName()) }}
+              }
+            </dd>
           </div>
         </dl>
         @if (!canViewSensitive()) {
@@ -86,6 +111,14 @@ import { EmployeeJobPosition } from './employee-job-position';
             <dt>PUESTO DEL CATÁLOGO</dt>
             <dd [class.data__warning]="!row().jobPositionName">
               {{ row().jobPositionName || 'Sin puesto del catálogo' }}
+              <!--
+                El puesto se conserva aunque el valor se desactive, porque es historia: la persona
+                lo tuvo. Pero verlo igual que uno vigente engaña, y sobre todo esconde que ya no se
+                puede elegir para nadie más.
+              -->
+              @if (puestoInactivo()) {
+                <small class="data__inactivo">Este puesto está desactivado en el catálogo</small>
+              }
             </dd>
           </div>
           <div class="data__field">
@@ -104,6 +137,28 @@ import { EmployeeJobPosition } from './employee-job-position';
       <section class="data__block">
         <h3 class="data__kicker">UBICACIÓN Y CONTACTO</h3>
         <dl class="data__grid data__grid--two">
+          <!--
+            Calle y número aparte desde el 19 de septiembre de 2026. Los expedientes anteriores
+            traen la dirección en una sola línea, que se copió a la calle sin partirla: por eso el
+            número puede estar vacío en un domicilio que sí está capturado, y la pantalla lo dice
+            así en vez de fingir que falta el domicilio entero.
+          -->
+          <div class="data__field">
+            <dt>CALLE</dt>
+            <dd>{{ delDetalle(employee()?.street || 'Sin calle registrada') }}</dd>
+          </div>
+          <div class="data__field">
+            <dt>NÚMERO</dt>
+            <dd>{{ delDetalle(employee()?.streetNumber || 'Sin número registrado') }}</dd>
+          </div>
+          <div class="data__field">
+            <dt>COLONIA</dt>
+            <dd>{{ delDetalle(employee()?.neighborhood || 'Sin colonia registrada') }}</dd>
+          </div>
+          <div class="data__field">
+            <dt>CÓDIGO POSTAL</dt>
+            <dd>{{ delDetalle(employee()?.postalCode || 'Sin código postal') }}</dd>
+          </div>
           <div class="data__field">
             <dt>ESTADO</dt>
             <dd>{{ row().state || 'Sin estado registrado' }}</dd>
@@ -114,11 +169,11 @@ import { EmployeeJobPosition } from './employee-job-position';
           </div>
           <div class="data__field">
             <dt>TELÉFONO</dt>
-            <dd>{{ employee()?.mobilePhone || employee()?.homePhone || 'Sin teléfono' }}</dd>
+            <dd>{{ delDetalle(employee()?.mobilePhone || employee()?.homePhone || 'Sin teléfono') }}</dd>
           </div>
           <div class="data__field">
             <dt>CORREO</dt>
-            <dd>{{ employee()?.email || 'Sin correo' }}</dd>
+            <dd>{{ delDetalle(employee()?.email || 'Sin correo') }}</dd>
           </div>
           <div class="data__field data__field--wide">
             <dt>CONTACTO DE EMERGENCIA</dt>
@@ -190,6 +245,8 @@ import { EmployeeJobPosition } from './employee-job-position';
 
     .data__warning { color: var(--gestia-warning); }
 
+    .data__inactivo { display: block; color: var(--gestia-warning); font-size: 11px; }
+
     .data__note { margin: 0; color: var(--gestia-muted); font-size: 11.5px; }
 
     @media (width < 45rem) {
@@ -208,11 +265,63 @@ export class EmployeeData {
   readonly editingJobPosition = input(false);
   readonly savingJobPosition = input(false);
   readonly jobPositionProblem = input('');
+  /** Los niveles de escolaridad del catálogo, para ver y capturar hasta dónde estudió. */
+  readonly educationLevels = input<readonly EmployeeJobPositionOption[]>([]);
+  readonly savingEducation = input(false);
+  readonly canWrite = input(false);
+
+  /** La escolaridad elegida, resuelta a nombre. Vacía cuando no se ha registrado. */
+  readonly saveEducation = output<string | null>();
+
+  protected readonly educationLevelOptions = computed<readonly GiSelectOption[]>(() =>
+    this.educationLevels().map((nivel) => ({ value: nivel.idCatalogItem, label: nivel.name })),
+  );
+
+  protected educationLevelName(): string {
+    const id = this.employee()?.idEducationLevelCatalogItem;
+    if (!id) return 'Sin escolaridad registrada';
+    return this.educationLevels().find((nivel) => nivel.idCatalogItem === id)?.name
+      ?? 'Sin escolaridad registrada';
+  }
+
+  /** Si el expediente completo todavía viene en camino. */
+  readonly loading = input(false);
+
+  /**
+   * Un campo que sólo existe en el expediente completo.
+   *
+   * <p>La ficha se dibuja con la fila del listado, que llega de inmediato, mientras el expediente
+   * viaja aparte. Sin esto, teléfono y correo se pintaban como «Sin teléfono» y «Sin correo»
+   * durante ese hueco y luego cambiaban solos: parecía que el dato no estaba y aparecía después.
+   * Decir que se está cargando es distinto de decir que no hay.</p>
+   *
+   * <p>Basta con que esté cargando: el primer intento sólo cubría el caso sin detalle todavía, y
+   * al volver a pulsar una persona ya abierta el detalle anterior seguía en memoria, así que el
+   * parpadeo volvía. Mientras se recarga no se afirma nada, ni siquiera lo que ya se sabía.</p>
+   */
+  /**
+   * Si el puesto que la persona tiene ya no está activo en el catálogo.
+   *
+   * <p>Se deduce de la lista de puestos activos, que la pantalla ya carga: si la persona apunta a
+   * uno que no está ahí, es que se desactivó. No hace falta pedirle nada más al servidor.</p>
+   */
+  protected readonly puestoInactivo = computed(() => {
+    const id = this.row().idJobPositionCatalogItem;
+    const opciones = this.jobPositions();
+
+    return !!id && !!this.row().jobPositionName && opciones.length > 0
+      && !opciones.some((opcion) => opcion.idCatalogItem === id);
+  });
+
+  protected delDetalle(valor: string): string {
+    return this.loading() ? '…' : valor;
+  }
 
   readonly editJobPosition = output<void>();
   readonly openCatalog = output<void>();
   readonly cancelJobPosition = output<void>();
   readonly saveJobPosition = output<string>();
+  readonly createJobPosition = output<GiCatalogCreation>();
 
   protected readonly statusLabel = computed(() => employeeStatusLabel(this.row().status));
   protected readonly statusTone = computed(() => employeeStatusTone(this.row().status));
@@ -225,9 +334,14 @@ export class EmployeeData {
       return 'Sin contacto de emergencia registrado';
     }
 
+    // El parentesco entra si está: quien llama en una emergencia necesita saber con quién habla.
+    const parentesco = employee.emergencyContactRelationship
+      ? ` (${employee.emergencyContactRelationship})`
+      : '';
+
     return employee.emergencyContactPhone
-      ? `${employee.emergencyContactName} · ${employee.emergencyContactPhone}`
-      : `${employee.emergencyContactName} · sin teléfono`;
+      ? `${employee.emergencyContactName}${parentesco} · ${employee.emergencyContactPhone}`
+      : `${employee.emergencyContactName}${parentesco} · sin teléfono`;
   });
 
   /**

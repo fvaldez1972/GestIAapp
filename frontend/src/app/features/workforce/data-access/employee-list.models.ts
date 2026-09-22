@@ -16,7 +16,7 @@ export type EmployeeStatus = 'Candidate' | 'Active' | 'OnLeave' | 'Inactive' | '
  * <p><b>«Sin cargar» no es «al día»</b>: un requisito sin documento es un hueco, no un expediente
  * en orden. Es la distinción que da sentido a la píldora del listado.</p>
  */
-export type EmployeeDocumentHealth = 'UpToDate' | 'Missing' | 'Expiring' | 'Expired';
+export type EmployeeDocumentHealth = 'UpToDate' | 'Missing' | 'NotValid' | 'Expiring' | 'Expired';
 
 export type EmployeeDocumentFilter = 'Any' | 'Expired' | 'Expiring' | 'Missing' | 'UpToDate';
 
@@ -37,7 +37,16 @@ export type EmployeeListItem = {
   readonly expiredDocuments: number;
   readonly expiringDocuments: number;
   readonly missingDocuments: number;
+  /** Requisitos con documento que no cuenta: rechazado, sin validar o no aplicable. */
+  readonly notValidDocuments: number;
   readonly assignmentCount: number;
+  /**
+   * Cuántos documentos tiene el expediente. Lo dice el servidor, con la lista.
+   *
+   * <p>No es `requiredDocuments`: aquéllos son los tipos que la organización exige, éste son los
+   * archivos que de verdad hay. Una organización sin requisitos puede tener cinco archivos.</p>
+   */
+  readonly documentCount: number;
   readonly documentHealth: EmployeeDocumentHealth;
 };
 
@@ -61,6 +70,8 @@ export type EmployeeAssignment = {
   readonly idService: string;
   readonly serviceName: string;
   readonly clientName: string;
+  /** La zona del cliente donde se prestó el servicio, leída hoy. */
+  readonly zoneName: string;
   readonly idPosition: string | null;
   readonly positionName: string | null;
   readonly assignmentType: 'Primary' | 'Support' | 'Relief' | 'TemporaryReplacement';
@@ -114,6 +125,18 @@ export function employeeDocumentBadge(employee: EmployeeListItem): EmployeeDocum
   if (employee.expiredDocuments > 0) {
     return {
       label: employee.expiredDocuments === 1 ? '1 vencido' : `${employee.expiredDocuments} vencidos`,
+      tone: 'danger',
+    };
+  }
+
+  // Antes de «sin cargar»: un documento rechazado está más cerca de bloquear que uno que falta, y
+  // decir «sin cargar» de un archivo que sí está manda a subirlo otra vez en lugar de a revisarlo.
+  if (employee.notValidDocuments > 0) {
+    return {
+      label:
+        employee.notValidDocuments === 1
+          ? '1 sin validar'
+          : `${employee.notValidDocuments} sin validar`,
       tone: 'danger',
     };
   }
@@ -198,6 +221,15 @@ export function eligibilityTitle(eligibility: EmployeeEligibility): string {
   }
 }
 
+/**
+ * Un nombre que puede faltar, dicho de forma que se pueda leer.
+ *
+ * <p>Interpolar un nulo en una plantilla de cadena escribe la palabra «null» en la pantalla. En
+ * una plantilla de Angular no pasa —pinta vacío—, y por eso es fácil no verlo venir: el mismo dato
+ * es inofensivo en un sitio y aparece en crudo en el otro.</p>
+ */
+const nombreOFalta = (valor: string | null, falta: string) => valor?.trim() || falta;
+
 export function eligibilityDetail(
   eligibility: EmployeeEligibility,
   employeeJobPosition: string | null,
@@ -206,9 +238,9 @@ export function eligibilityDetail(
   switch (eligibility) {
     case 'blocked':
       return (
-        `El puesto de la persona es «${employeeJobPosition}» y la posición pide ` +
-        `«${positionJobPosition}». Se comparan por identificador de catálogo, así que son puestos ` +
-        'distintos, no una diferencia de redacción.'
+        `El puesto de la persona es «${nombreOFalta(employeeJobPosition, 'sin puesto')}» y la `
+        + `posición pide «${nombreOFalta(positionJobPosition, 'sin puesto')}». Se comparan por `
+        + 'identificador de catálogo, así que son puestos distintos, no una diferencia de redacción.'
       );
     case 'incomplete':
       return (
@@ -219,7 +251,8 @@ export function eligibilityDetail(
         'expediente queda incompleto y nadie puede comprobar que corresponde.'
       );
     case 'eligible':
-      return `El puesto de la persona corresponde con el que la posición pide: «${employeeJobPosition}».`;
+      return 'El puesto de la persona corresponde con el que la posición pide: '
+        + `«${nombreOFalta(employeeJobPosition, 'sin puesto')}».`;
   }
 }
 
@@ -269,6 +302,67 @@ const TIPOS_DE_DOCUMENTO: Record<string, string> = {
 
 export const documentTypeLabel = (type: string): string => TIPOS_DE_DOCUMENTO[type] ?? type;
 
+/** Un tipo de documento como se ofrece al capturar, con la marca de si la organización lo exige. */
+export type EmployeeDocumentTypeOption = {
+  readonly code: string;
+  readonly label: string;
+  readonly isRequired: boolean;
+};
+
+/**
+ * Los tipos que se ofrecen al subir un documento, con los exigidos primero.
+ *
+ * <p><b>La lista y la marca son las dos de la organización desde el 19 de septiembre de 2026.</b>
+ * Hasta entonces los catorce tipos salían de un enum del servidor y lo único que la organización
+ * elegía era cuáles exigir; ahora la lista es un catálogo que se puede ampliar, y `code` es el
+ * identificador de la fila, no el nombre de un miembro del enum.</p>
+ *
+ * <p>Los obligatorios van al principio porque son los que destraban una asignación. Dentro de cada
+ * grupo se conserva el orden del catálogo, que es el que la organización decidió, y no el
+ * alfabético: así la lista se lee en el mismo orden en que se arma una carpeta.</p>
+ */
+export function employeeDocumentTypeOptions(
+  required: readonly {
+    readonly idRequiredCatalogItem: string | null;
+    readonly isBlockingEffective: boolean;
+  }[],
+  categories: readonly { readonly idCatalogItem: string; readonly name: string }[],
+): readonly EmployeeDocumentTypeOption[] {
+  const exigidos = new Set(
+    required
+      .filter((regla) => regla.isBlockingEffective && regla.idRequiredCatalogItem)
+      .map((regla) => regla.idRequiredCatalogItem!),
+  );
+
+  const tipos = categories.map((categoria) => ({
+    code: categoria.idCatalogItem,
+    label: categoria.name,
+    isRequired: exigidos.has(categoria.idCatalogItem),
+  }));
+
+  return [...tipos.filter((tipo) => tipo.isRequired), ...tipos.filter((tipo) => !tipo.isRequired)];
+}
+
+/**
+ * En qué estado está un requisito para esta persona.
+ *
+ * <p><b>No se deriva del estado de la insignia del listado, y es deliberado.</b> La insignia habla
+ * de una persona —«2 sin cargar»— y esto habla de un requisito; son dos vocabularios y atarlos hizo
+ * que agregar un estado a uno rompiera al otro. Se parecen y no son lo mismo.</p>
+ *
+ * <p>Son dos más que los de la insignia del listado, y la diferencia importa: un documento
+ * <b>rechazado</b> o <b>sin validar</b> está cargado y no cubre nada. El servidor sólo cuenta como
+ * cubierto lo que está en <c>Received</c> o <c>Validated</c>, así que pintarlo «Al día» decía lo
+ * contrario de lo que el servidor iba a responder al asignar.</p>
+ */
+export type EmployeeRequirementState =
+  | 'UpToDate'
+  | 'Expiring'
+  | 'Missing'
+  | 'Expired'
+  | 'Rejected'
+  | 'Unvalidated';
+
 /** Un requisito de la organización y cómo lo cubre esta persona. */
 export type EmployeeRequirementRow = {
   /** El tipo del sistema, tal como lo exige la organización. */
@@ -276,9 +370,11 @@ export type EmployeeRequirementRow = {
   readonly label: string;
   /** Un requisito que no bloquea se pide igual, pero no impide asignar. Se dice cuál es cuál. */
   readonly isBlocking: boolean;
-  readonly state: EmployeeDocumentHealth;
+  readonly state: EmployeeRequirementState;
   readonly expiresDate: string | null;
   readonly documentNumber: string | null;
+  /** El estado del documento cargado, para poder decir por qué no cuenta. Nulo si no hay ninguno. */
+  readonly documentStatus: string | null;
 };
 
 /**
@@ -293,9 +389,17 @@ export type EmployeeRequirementRow = {
  * detalle, del mismo modo que la franja de elegibilidad.</p>
  */
 export function employeeRequirementRows(
-  required: readonly { readonly requiredCode: string; readonly name: string; readonly isBlocking: boolean }[],
+  required: readonly {
+    /** La categoría de documento que la regla exige, por identificador del catálogo. */
+    readonly idRequiredCatalogItem: string | null;
+    readonly requiredCatalogItemName: string | null;
+    readonly name: string;
+    readonly isBlockingEffective: boolean;
+  }[],
   documents: readonly {
+    readonly idDocumentCategoryCatalogItem: string | null;
     readonly documentType: string;
+    readonly status: string;
     readonly expiresDate: string | null;
     readonly documentNumber: string | null;
     readonly active: boolean;
@@ -306,35 +410,272 @@ export function employeeRequirementRows(
   const limite = shiftOperationalDate(today, expiringWithinDays);
 
   return required.map((requisito) => {
+    // Por identificador, que es como los compara el servidor. Un documento anterior a la conversión
+    // del catálogo todavía puede no tenerlo; ése no cubre el requisito, y es correcto que no lo
+    // cubra, porque tampoco lo cubre para el servidor.
     const documento = documents.find(
-      (item) => item.active && item.documentType.toLowerCase() === requisito.requiredCode.toLowerCase(),
+      (item) => item.active &&
+        !!item.idDocumentCategoryCatalogItem &&
+        item.idDocumentCategoryCatalogItem === requisito.idRequiredCatalogItem,
     );
 
-    const state: EmployeeDocumentHealth = !documento
+    // El mismo orden que usa el servidor para decidir si el requisito está cubierto: primero el
+    // estado del documento, y sólo después las fechas. Al revés, un rechazado con vencimiento
+    // futuro se leía «Al día» mientras el servidor lo rechazaba al asignar.
+    const state: EmployeeRequirementState = !documento
       ? 'Missing'
-      : documento.expiresDate && documento.expiresDate < today
-        ? 'Expired'
-        : documento.expiresDate && documento.expiresDate <= limite
-          ? 'Expiring'
-          : 'UpToDate';
+      : documento.status === 'Rejected'
+        ? 'Rejected'
+        : documento.status === 'Expired'
+          ? 'Expired'
+          : documento.status !== 'Received' && documento.status !== 'Validated'
+            ? 'Unvalidated'
+            : documento.expiresDate && documento.expiresDate < today
+              ? 'Expired'
+              : documento.expiresDate && documento.expiresDate <= limite
+                ? 'Expiring'
+                : 'UpToDate';
 
     return {
-      code: requisito.requiredCode,
-      label: requisito.name || documentTypeLabel(requisito.requiredCode),
-      isBlocking: requisito.isBlocking,
+      code: requisito.idRequiredCatalogItem ?? '',
+      label: requisito.name || requisito.requiredCatalogItemName || 'Requisito sin nombre',
+      isBlocking: requisito.isBlockingEffective,
       state,
       expiresDate: documento?.expiresDate ?? null,
       documentNumber: documento?.documentNumber ?? null,
+      documentStatus: documento?.status ?? null,
     };
   });
 }
 
-const ESTADO_DEL_REQUISITO: Record<EmployeeDocumentHealth, { readonly label: string; readonly tone: string }> = {
+const ESTADO_DEL_REQUISITO: Record<EmployeeRequirementState, { readonly label: string; readonly tone: string }> = {
   UpToDate: { label: 'Al día', tone: 'success' },
   Expiring: { label: 'Por vencer', tone: 'warning' },
   Missing: { label: 'Sin cargar', tone: 'warning' },
   Expired: { label: 'Vencido', tone: 'danger' },
+  // Los dos que faltaban. Un documento cargado que no cuenta necesita decir por qué no cuenta:
+  // «Sin cargar» sería falso —el archivo está— y «Al día» sería lo contrario de la verdad.
+  Rejected: { label: 'Rechazado', tone: 'danger' },
+  Unvalidated: { label: 'Sin validar', tone: 'warning' },
 };
 
-export const requirementStateLabel = (state: EmployeeDocumentHealth) => ESTADO_DEL_REQUISITO[state].label;
-export const requirementStateTone = (state: EmployeeDocumentHealth) => ESTADO_DEL_REQUISITO[state].tone;
+export const requirementStateLabel = (state: EmployeeRequirementState) => ESTADO_DEL_REQUISITO[state].label;
+export const requirementStateTone = (state: EmployeeRequirementState) => ESTADO_DEL_REQUISITO[state].tone;
+
+// ── Las evaluaciones, con la misma forma que los documentos ───────────────────────────────────
+
+/**
+ * El nombre visible de cada tipo de evaluación.
+ *
+ * <p>Vive aquí por la misma razón que el de los documentos: el vocabulario es del servidor —las
+ * reglas de elegibilidad apuntan al enum— y lo que la organización elige es cuáles exige.</p>
+ */
+const TIPOS_DE_EVALUACION: Record<string, string> = {
+  Polygraph: 'Polígrafo',
+  SocioeconomicStudy: 'Estudio socioeconómico',
+  CriminalRecordReview: 'Revisión de antecedentes',
+  DrugTest: 'Antidoping',
+  Other: 'Otra evaluación',
+};
+
+export const evaluationTypeLabel = (type: string): string => TIPOS_DE_EVALUACION[type] ?? type;
+
+const RESULTADOS_DE_EVALUACION: Record<string, string> = {
+  Pending: 'Pendiente',
+  Approved: 'Aprobada',
+  ApprovedWithObservations: 'Aprobada con observaciones',
+  NotApproved: 'No aprobada',
+  Inconclusive: 'No concluyente',
+};
+
+export const evaluationResultLabel = (result: string): string =>
+  RESULTADOS_DE_EVALUACION[result] ?? result;
+
+/** Los tipos que se ofrecen al registrar, con los que la organización exige al principio. */
+export function evaluationTypeOptions(
+  required: readonly {
+    readonly idRequiredCatalogItem: string | null;
+    readonly isBlockingEffective: boolean;
+  }[],
+  categories: readonly { readonly idCatalogItem: string; readonly name: string }[],
+): readonly EmployeeDocumentTypeOption[] {
+  const exigidos = new Set(
+    required
+      .filter((regla) => regla.isBlockingEffective && regla.idRequiredCatalogItem)
+      .map((regla) => regla.idRequiredCatalogItem!),
+  );
+
+  const tipos = categories.map((categoria) => ({
+    code: categoria.idCatalogItem,
+    label: categoria.name,
+    isRequired: exigidos.has(categoria.idCatalogItem),
+  }));
+
+  return [...tipos.filter((tipo) => tipo.isRequired), ...tipos.filter((tipo) => !tipo.isRequired)];
+}
+
+/** Un requisito de evaluación de la organización y cómo lo cubre esta persona. */
+export type EmployeeEvaluationRequirementRow = {
+  readonly code: string;
+  readonly label: string;
+  readonly isBlocking: boolean;
+  readonly state: EmployeeRequirementState;
+  readonly expiresDate: string | null;
+  /** El resultado de la evaluación registrada, para poder decir por qué no cuenta. */
+  readonly result: string | null;
+};
+
+/**
+ * Cruza las evaluaciones que la organización exige contra las que la persona tiene.
+ *
+ * <p><b>El resultado manda sobre la fecha</b>, igual que el estado en los documentos. El servidor
+ * sólo cuenta como cubierta una evaluación <c>Approved</c> o <c>ApprovedWithObservations</c> y
+ * vigente; una pendiente o no aprobada con vencimiento futuro no cubre nada, y decir «Al día»
+ * sería lo contrario de lo que el servidor responde al asignar.</p>
+ *
+ * <p>Se recorren los requisitos y no las evaluaciones: al revés, el requisito que nadie cubrió no
+ * tendría fila que lo represente, y ése es justo el caso que hay que ver.</p>
+ */
+export function employeeEvaluationRequirementRows(
+  required: readonly {
+    readonly idRequiredCatalogItem: string | null;
+    readonly requiredCatalogItemName: string | null;
+    readonly name: string;
+    readonly isBlockingEffective: boolean;
+  }[],
+  evaluations: readonly {
+    readonly idEvaluationCategoryCatalogItem: string | null;
+    readonly evaluationType: string;
+    readonly result: string;
+    readonly expiresDate: string | null;
+    readonly active: boolean;
+  }[],
+  today: string,
+  expiringWithinDays: number,
+): readonly EmployeeEvaluationRequirementRow[] {
+  const limite = shiftOperationalDate(today, expiringWithinDays);
+
+  return required.map((requisito) => {
+    const evaluacion = evaluations.find(
+      (item) =>
+        item.active &&
+        !!item.idEvaluationCategoryCatalogItem &&
+        item.idEvaluationCategoryCatalogItem === requisito.idRequiredCatalogItem,
+    );
+
+    const state: EmployeeRequirementState = !evaluacion
+      ? 'Missing'
+      : evaluacion.result === 'NotApproved'
+        ? 'Rejected'
+        : evaluacion.result !== 'Approved' && evaluacion.result !== 'ApprovedWithObservations'
+          ? 'Unvalidated'
+          : evaluacion.expiresDate && evaluacion.expiresDate < today
+            ? 'Expired'
+            : evaluacion.expiresDate && evaluacion.expiresDate <= limite
+              ? 'Expiring'
+              : 'UpToDate';
+
+    return {
+      code: requisito.idRequiredCatalogItem ?? '',
+      label: requisito.name || requisito.requiredCatalogItemName || 'Requisito sin nombre',
+      isBlocking: requisito.isBlockingEffective,
+      state,
+      expiresDate: evaluacion?.expiresDate ?? null,
+      result: evaluacion?.result ?? null,
+    };
+  });
+}
+
+/**
+ * Las mismas situaciones que en documentos, dichas en femenino y con el vocabulario de evaluación.
+ *
+ * <p>Un mapa aparte y no el de documentos: «Sin cargar» y «Rechazado» no son lo que se dice de una
+ * evaluación, y reutilizar las etiquetas por ahorrar un mapa haría que la pantalla hablara de
+ * archivos donde no hay archivos.</p>
+ */
+const ESTADO_DE_LA_EVALUACION: Record<EmployeeRequirementState, { readonly label: string; readonly tone: string }> = {
+  UpToDate: { label: 'Al día', tone: 'success' },
+  Expiring: { label: 'Por vencer', tone: 'warning' },
+  Missing: { label: 'Sin registrar', tone: 'warning' },
+  Expired: { label: 'Vencida', tone: 'danger' },
+  Rejected: { label: 'No aprobada', tone: 'danger' },
+  Unvalidated: { label: 'Sin resolver', tone: 'warning' },
+};
+
+export const evaluationStateLabel = (state: EmployeeRequirementState) => ESTADO_DE_LA_EVALUACION[state].label;
+export const evaluationStateTone = (state: EmployeeRequirementState) => ESTADO_DE_LA_EVALUACION[state].tone;
+
+// ── Las experiencias ───────────────────────────────────────────────────────────────────────────
+
+/** Un requisito de experiencia de la organización y cómo lo cubre esta persona. */
+export type EmployeeSkillRequirementRow = {
+  /** El identificador del valor de catálogo que la regla exige. */
+  readonly code: string;
+  readonly label: string;
+  readonly isBlocking: boolean;
+  readonly state: EmployeeRequirementState;
+  readonly expiresDate: string | null;
+};
+
+/**
+ * Cruza las experiencias que la organización exige contra las que la persona tiene.
+ *
+ * <p><b>Por identificador y no por nombre</b>, igual que el servidor: la regla apunta a una fila
+ * del catálogo, y comparar textos aceptaría «Manejo de CCTV» y «manejo de cctv» como dos
+ * experiencias distintas. Una experiencia no tiene estado ni resultado, así que sólo hay hueco,
+ * vigente, por vencer y vencida.</p>
+ */
+export function employeeSkillRequirementRows(
+  required: readonly {
+    readonly idRequiredCatalogItem: string | null;
+    readonly requiredCatalogItemName: string | null;
+    readonly name: string;
+    readonly isBlockingEffective: boolean;
+  }[],
+  skills: readonly {
+    readonly idSkillCatalogItem: string;
+    readonly expiresDate: string | null;
+    readonly active: boolean;
+  }[],
+  today: string,
+  expiringWithinDays: number,
+): readonly EmployeeSkillRequirementRow[] {
+  const limite = shiftOperationalDate(today, expiringWithinDays);
+
+  return required.map((requisito) => {
+    const experiencia = skills.find(
+      (item) => item.active && item.idSkillCatalogItem === requisito.idRequiredCatalogItem,
+    );
+
+    const state: EmployeeRequirementState = !experiencia
+      ? 'Missing'
+      : experiencia.expiresDate && experiencia.expiresDate < today
+        ? 'Expired'
+        : experiencia.expiresDate && experiencia.expiresDate <= limite
+          ? 'Expiring'
+          : 'UpToDate';
+
+    return {
+      code: requisito.idRequiredCatalogItem ?? '',
+      label: requisito.requiredCatalogItemName || requisito.name,
+      isBlocking: requisito.isBlockingEffective,
+      state,
+      expiresDate: experiencia?.expiresDate ?? null,
+    };
+  });
+}
+
+/** Las mismas situaciones, dichas de una experiencia. */
+const ESTADO_DE_LA_EXPERIENCIA: Record<EmployeeRequirementState, { readonly label: string; readonly tone: string }> = {
+  UpToDate: { label: 'Acreditada', tone: 'success' },
+  Expiring: { label: 'Por vencer', tone: 'warning' },
+  Missing: { label: 'Sin acreditar', tone: 'warning' },
+  Expired: { label: 'Vencida', tone: 'danger' },
+  // No le llegan a una experiencia, que no tiene estado ni resultado. Se declaran porque el tipo es
+  // compartido, y si algún día le llegaran, sería mejor verlas que perderlas.
+  Rejected: { label: 'No acreditada', tone: 'danger' },
+  Unvalidated: { label: 'Sin resolver', tone: 'warning' },
+};
+
+export const skillStateLabel = (state: EmployeeRequirementState) => ESTADO_DE_LA_EXPERIENCIA[state].label;
+export const skillStateTone = (state: EmployeeRequirementState) => ESTADO_DE_LA_EXPERIENCIA[state].tone;

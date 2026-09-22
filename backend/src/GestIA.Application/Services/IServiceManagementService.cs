@@ -10,7 +10,7 @@ public interface IServiceManagementService
     Task DeactivateContractAsync(Guid idOrganization, Guid idClient, Guid idServiceContract, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Lista los servicios de una organización sin pasar por el cliente. El cliente, la sede y el
+    /// Lista los servicios de una organización sin pasar por el cliente. El cliente, la zona y el
     /// contrato quedan como filtros opcionales.
     /// </summary>
     Task<PagedResult<ServiceListItemResponse>> SearchServicesAsync(ServiceListQuery query, CancellationToken cancellationToken);
@@ -20,8 +20,4 @@ public interface IServiceManagementService
     Task<ServiceResponse> UpdateServiceAsync(Guid idService, UpdateServiceRequest request, CancellationToken cancellationToken);
     Task DeactivateServiceAsync(Guid idOrganization, Guid idClient, Guid idService, CancellationToken cancellationToken);
 
-    Task<IReadOnlyList<ServiceConfigurationResponse>> ListConfigurationsAsync(Guid idOrganization, Guid idClient, Guid idService, CancellationToken cancellationToken);
-    Task<ServiceConfigurationResponse> CreateConfigurationAsync(CreateServiceConfigurationRequest request, CancellationToken cancellationToken);
-    Task<ServiceConfigurationResponse> UpdateConfigurationAsync(Guid idServiceConfiguration, UpdateServiceConfigurationRequest request, CancellationToken cancellationToken);
-    Task DeactivateConfigurationAsync(Guid idOrganization, Guid idClient, Guid idService, Guid idServiceConfiguration, byte[] rowVersion, CancellationToken cancellationToken);
 }

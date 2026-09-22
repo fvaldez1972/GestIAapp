@@ -92,16 +92,30 @@ export class AttendanceSummary {
       : `${this.pendingCount()} ${this.pendingCount() === 1 ? 'sigue' : 'siguen'} sin capturar.`,
   );
 
-  /** La píldora que acompaña al número. El color nunca va solo: la palabra va dentro. */
-  protected readonly excepcionesPildora = computed(() =>
-    this.exceptionCount() === 0 ? 'Cero real' : 'Cambian cobertura',
-  );
+  /**
+   * La píldora que acompaña al número. El color nunca va solo: la palabra va dentro.
+   *
+   * <p><b>«Cero real» exige que el día esté capturado entero.</b> Con turnos pendientes, cero
+   * excepciones no significa que no las hubiera: significa que todavía no se sabe. Se reportó
+   * viendo la pantalla decir «El día salió como se planeó» con la mitad del día sin capturar.</p>
+   */
+  protected readonly excepcionesPildora = computed(() => {
+    if (this.exceptionCount() > 0) {
+      return 'Cambian cobertura';
+    }
 
-  protected readonly excepcionesApoyo = computed(() =>
-    this.exceptionCount() === 0
+    return this.pendingCount() === 0 ? 'Cero real' : 'Todavía no se sabe';
+  });
+
+  protected readonly excepcionesApoyo = computed(() => {
+    if (this.exceptionCount() > 0) {
+      return 'Faltas y retardos. Cada una trae su acción.';
+    }
+
+    return this.pendingCount() === 0
       ? 'El día salió como se planeó. Es información, no ausencia de datos.'
-      : 'Faltas y retardos. Cada una trae su acción.',
-  );
+      : `Faltan ${this.pendingCount()} turnos por capturar: hasta entonces, el cero no dice que no hubo excepciones.`;
+  });
 
   protected readonly coberturaValor = computed(() => {
     const cubiertos = this.shiftCount() - this.missingWorkers();

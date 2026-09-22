@@ -6,7 +6,7 @@ import { EmployeeAssignment } from '../data-access/employee-list.models';
 const TIPOS: Record<EmployeeAssignment['assignmentType'], string> = {
   Primary: 'Titular',
   Support: 'Apoyo',
-  Relief: 'Relevo',
+  Relief: 'Cubre-descansos',
   TemporaryReplacement: 'Suplencia temporal',
 };
 
@@ -57,7 +57,15 @@ const TIPOS: Record<EmployeeAssignment['assignmentType'], string> = {
                     <span class="row__pill">Titular</span>
                   }
                 </span>
-                <span class="row__where">{{ item.clientName }} · {{ item.serviceName }}</span>
+                <!--
+                  Cliente, zona y servicio, en ese orden: es como se baja por la estructura para
+                  llegar al puesto, y es el orden en que alguien reconstruye dónde trabajó una
+                  persona. La zona faltaba, y sin ella dos servicios homónimos de clientes grandes
+                  no se distinguen.
+                -->
+                <span class="row__where"
+                  >{{ item.clientName }} · {{ item.zoneName }} · {{ item.serviceName }}</span
+                >
                 <span class="row__when">{{ period(item) }} · {{ type(item.assignmentType) }}</span>
               </span>
               <span class="row__state" [class]="'row__state--' + tone(item)">{{ state(item) }}</span>

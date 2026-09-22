@@ -3,7 +3,7 @@ import { inject, Injectable } from '@angular/core';
 import { activeOptions } from '../../../shared/data-access/active-options';
 import {
   ClientListItem,
-  ClientSitePresenceFilter,
+  ClientZonePresenceFilter,
   ClientStatusFilter,
   AttendanceRecord,
   ApprovalRequest,
@@ -15,10 +15,10 @@ import {
   ClientContact,
   ClientContactInput,
   ClientInput,
-  ClientSite,
-  ClientSiteInput,
+  ClientZone,
+  ClientZoneInput,
   CreateClient,
-  CreateClientSite,
+  CreateClientZone,
   CreateApprovalRequest,
   CreateManagedService,
   CreateServiceContract,
@@ -53,9 +53,6 @@ import {
   ScheduledShiftInput,
   ScheduleVersion,
   ScheduleVersionInput,
-  ServiceConfiguration,
-  ServiceConfigurationCorrectionInput,
-  ServiceConfigurationInput,
   ServiceContract,
   ServiceContractInput,
   ServicePosition,
@@ -112,7 +109,7 @@ export class ClientApiService {
     organizationId: string;
     search?: string;
     status?: ClientStatusFilter;
-    sitePresence?: ClientSitePresenceFilter;
+    zonePresence?: ClientZonePresenceFilter;
     municipality?: string;
     page?: number;
     pageSize?: number;
@@ -130,8 +127,8 @@ export class ClientApiService {
       params = params.set('status', options.status);
     }
 
-    if (options.sitePresence && options.sitePresence !== 'Any') {
-      params = params.set('sitePresence', options.sitePresence);
+    if (options.zonePresence && options.zonePresence !== 'Any') {
+      params = params.set('zonePresence', options.zonePresence);
     }
 
     if (options.municipality) {
@@ -141,7 +138,7 @@ export class ClientApiService {
     return this.http.get<PagedResult<ClientListItem>>(`${this.baseUrl}/clients`, { params });
   }
 
-  /** Las opciones reales del filtro de municipio, de todas las sedes y no sólo de la página. */
+  /** Las opciones reales del filtro de municipio, de todas las zonas y no sólo de la página. */
   listClientMunicipalities(organizationId: string) {
     return this.http.get<readonly string[]>(`${this.baseUrl}/clients/municipalities`, {
       params: new HttpParams().set('organizationId', organizationId),
@@ -169,6 +166,18 @@ export class ClientApiService {
     return this.http.post<Client>(`${this.baseUrl}/clients`, request);
   }
 
+  /**
+   * La ficha completa de un cliente.
+   *
+   * <p>La del listado no trae los campos fiscales, y el <c>PUT</c> reemplaza el perfil entero: un
+   * formulario que se prellenara con la fila del listado los mandaria vacios y los borraria en
+   * silencio. Editar empieza por traer lo que hay.</p>
+   */
+  getClient(organizationId: string, idClient: string) {
+    const params = new HttpParams().set('organizationId', organizationId);
+    return this.http.get<Client>(`${this.baseUrl}/clients/${idClient}`, { params });
+  }
+
   updateClient(idClient: string, request: ClientInput) {
     return this.http.put<Client>(`${this.baseUrl}/clients/${idClient}`, request);
   }
@@ -178,22 +187,28 @@ export class ClientApiService {
     return this.http.delete<void>(`${this.baseUrl}/clients/${idClient}`, { params });
   }
 
-  listSites(organizationId: string, idClient: string) {
+  /** Deshace la desactivación. PATCH, como la de organizaciones, usuarios y roles. */
+  activateClient(organizationId: string, idClient: string) {
     const params = new HttpParams().set('organizationId', organizationId);
-    return this.http.get<readonly ClientSite[]>(`${this.baseUrl}/clients/${idClient}/sites`, { params });
+    return this.http.patch<Client>(`${this.baseUrl}/clients/${idClient}/activate`, {}, { params });
   }
 
-  createSite(idClient: string, request: CreateClientSite) {
-    return this.http.post<ClientSite>(`${this.baseUrl}/clients/${idClient}/sites`, request);
-  }
-
-  updateSite(idClient: string, idClientSite: string, request: ClientSiteInput) {
-    return this.http.put<ClientSite>(`${this.baseUrl}/clients/${idClient}/sites/${idClientSite}`, request);
-  }
-
-  deactivateSite(organizationId: string, idClient: string, idClientSite: string) {
+  listZones(organizationId: string, idClient: string) {
     const params = new HttpParams().set('organizationId', organizationId);
-    return this.http.delete<void>(`${this.baseUrl}/clients/${idClient}/sites/${idClientSite}`, { params });
+    return this.http.get<readonly ClientZone[]>(`${this.baseUrl}/clients/${idClient}/zones`, { params });
+  }
+
+  createZone(idClient: string, request: CreateClientZone) {
+    return this.http.post<ClientZone>(`${this.baseUrl}/clients/${idClient}/zones`, request);
+  }
+
+  updateZone(idClient: string, idClientZone: string, request: ClientZoneInput) {
+    return this.http.put<ClientZone>(`${this.baseUrl}/clients/${idClient}/zones/${idClientZone}`, request);
+  }
+
+  deactivateZone(organizationId: string, idClient: string, idClientZone: string) {
+    const params = new HttpParams().set('organizationId', organizationId);
+    return this.http.delete<void>(`${this.baseUrl}/clients/${idClient}/zones/${idClientZone}`, { params });
   }
 
   listContacts(organizationId: string, idClient: string) {
@@ -248,47 +263,6 @@ export class ClientApiService {
   deactivateService(organizationId: string, idClient: string, idService: string) {
     const params = new HttpParams().set('organizationId', organizationId);
     return this.http.delete<void>(`${this.baseUrl}/clients/${idClient}/services/${idService}`, { params });
-  }
-
-  listServiceConfigurations(organizationId: string, idClient: string, idService: string) {
-    const params = new HttpParams().set('organizationId', organizationId);
-    return this.http.get<readonly ServiceConfiguration[]>(
-      `${this.baseUrl}/clients/${idClient}/services/${idService}/configurations`,
-      { params },
-    );
-  }
-
-  createServiceConfiguration(idClient: string, idService: string, request: ServiceConfigurationInput) {
-    return this.http.post<ServiceConfiguration>(
-      `${this.baseUrl}/clients/${idClient}/services/${idService}/configurations`,
-      request,
-    );
-  }
-
-  updateServiceConfiguration(
-    idClient: string,
-    idService: string,
-    idServiceConfiguration: string,
-    request: ServiceConfigurationCorrectionInput,
-  ) {
-    return this.http.put<ServiceConfiguration>(
-      `${this.baseUrl}/clients/${idClient}/services/${idService}/configurations/${idServiceConfiguration}`,
-      request,
-    );
-  }
-
-  deactivateServiceConfiguration(
-    organizationId: string,
-    idClient: string,
-    idService: string,
-    idServiceConfiguration: string,
-    rowVersion: string,
-  ) {
-    const params = new HttpParams().set('organizationId', organizationId).set('rowVersion', rowVersion);
-    return this.http.delete<void>(
-      `${this.baseUrl}/clients/${idClient}/services/${idService}/configurations/${idServiceConfiguration}`,
-      { params },
-    );
   }
 
   listPositions(organizationId: string, idClient: string, idService: string) {

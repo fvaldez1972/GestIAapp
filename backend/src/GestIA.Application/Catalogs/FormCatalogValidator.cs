@@ -19,7 +19,13 @@ public sealed class FormCatalogValidator(ICatalogRepository repository)
         if (Same(country, oldCountry) && Same(state, oldState) && Same(city, oldCity)) return;
         if (string.IsNullOrWhiteSpace(country) && string.IsNullOrWhiteSpace(state) && string.IsNullOrWhiteSpace(city)) return;
         var values = await repository.ListCatalogItemsAsync(organization, null, token);
-        var selectedCountry = values.SingleOrDefault(item => item.Active && item.Type == BusinessCatalogItemType.Country && Same(item.Code, country));
+        // El pais se resuelve por nombre plegado, como el estado y el municipio, ahora que el
+        // catalogo no lleva codigo. Lo que ClientSite y Employee guardan en CountryCode es un codigo
+        // ISO de dos letras, que es un estandar externo y no una clave de este catalogo; por eso
+        // aqui se acepta tanto el codigo como el nombre mientras la geografia siga en esta tabla.
+        // En la tanda de geografia las tres columnas pasan a ser claves foraneas y esto desaparece.
+        var selectedCountry = values.FirstOrDefault(item => item.Active && item.Type == BusinessCatalogItemType.Country &&
+            (Same(item.Name, country) || EsMexico(country) && Same(item.Name, "Mexico")));
         if (selectedCountry is null) throw new ResourceConflictException("Selecciona un pais activo.");
         if (string.IsNullOrWhiteSpace(state) && string.IsNullOrWhiteSpace(city)) return;
         var selectedState = values.FirstOrDefault(item => item.Active && item.Type == BusinessCatalogItemType.State &&
@@ -31,5 +37,9 @@ public sealed class FormCatalogValidator(ICatalogRepository repository)
             throw new ResourceConflictException("Selecciona una ciudad o municipio activo del estado.");
     }
 
-    private static bool Same(string? left, string? right) => string.Equals(left?.Trim() ?? "", right?.Trim() ?? "", StringComparison.OrdinalIgnoreCase);
+    private static bool Same(string? left, string? right) =>
+        CatalogName.Normalize(left) == CatalogName.Normalize(right);
+
+    /// <summary>El unico pais que el sistema siembra hoy, por su codigo ISO.</summary>
+    private static bool EsMexico(string? value) => string.Equals(value?.Trim(), "MX", StringComparison.OrdinalIgnoreCase);
 }

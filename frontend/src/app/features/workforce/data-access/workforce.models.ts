@@ -57,7 +57,33 @@ export type Employee = {
   readonly homePhone: string | null;
   readonly emergencyContactName: string | null;
   readonly emergencyContactPhone: string | null;
+  /** Qué es de la persona quien figura como contacto de emergencia. Texto libre. */
+  readonly emergencyContactRelationship: string | null;
+  /**
+   * El domicilio en una sola línea. <b>Rastro heredado.</b>
+   *
+   * <p>La calle y el número viven ahora aparte. Esto se conserva con lo que hubiera, y su contenido
+   * se copió tal cual a la calle sin intentar partirlo: adivinar dónde acaba la vialidad y empieza
+   * el número acierta en «Juárez 123» y falla en «Calzada de los 100 Metros 45».</p>
+   */
   readonly address: string | null;
+
+  /** La vialidad, sin el número. */
+  readonly street: string | null;
+
+  /** El número, alfanumérico: admite «45-A» o «123 int. 4». */
+  readonly streetNumber: string | null;
+  /**
+   * Hasta dónde estudió, del catálogo de escolaridad.
+   *
+   * <p>Por identificador y no texto, para que se pueda comparar contra lo que pide la posición, que
+   * lo guarda igual. Nulo dice «no se sabe», no «no cumple»: la columna nació el 19 de septiembre
+   * de 2026 y ningún expediente la traía.</p>
+   */
+  readonly idEducationLevelCatalogItem: string | null;
+
+  /** La colonia del domicilio. Texto libre por la decisión D-05. */
+  readonly neighborhood: string | null;
   readonly municipality: string | null;
   readonly state: string | null;
   readonly countryCode?: string | null;
@@ -81,7 +107,29 @@ export type CreateEmployee = EmployeeInput & {
 export type EmployeeDocument = {
   readonly idEmployeeDocument: string;
   readonly idEmployee: string;
+
+  /**
+   * De qué es el documento, como enum. <b>Rastro heredado.</b>
+   *
+   * <p>La categoría de verdad es `idDocumentCategoryCatalogItem`. Esta columna se conserva llena
+   * mientras queden expedientes anteriores a la conversión del 19 de septiembre de 2026, y nada
+   * decide por ella.</p>
+   */
   readonly documentType: EmployeeDocumentType;
+
+  /** La categoría, contra el catálogo que la organización edita. */
+  readonly idDocumentCategoryCatalogItem: string | null;
+  readonly documentCategoryName: string | null;
+
+  /**
+   * Si el documento lleva datos personales que piden trato especial.
+   *
+   * <p><b>Hoy es una clasificación, no un permiso.</b> Marca el papel para que quien administra la
+   * organización sepa qué está guardando; convertirla en una restricción de acceso es una decisión
+   * aparte, con su comprobación en el servidor. La pantalla lo dice así para que marcar la casilla
+   * no haga creer que esa restricción ya existe.</p>
+   */
+  readonly isSensitive: boolean;
   readonly status: EmployeeDocumentStatus;
   readonly documentNumber: string | null;
   readonly receivedDate: string | null;
@@ -90,16 +138,29 @@ export type EmployeeDocument = {
   readonly storageReference: string | null;
   readonly notes: string | null;
   readonly active: boolean;
+  /**
+   * El archivo que cubre este requisito.
+   *
+   * <p>Nulo significa que el requisito se registro sin pasar por la carga de un archivo, que es el
+   * caso de todo lo que existia antes de que hubiera pantalla para subirlo.</p>
+   */
+  readonly idBusinessDocument: string | null;
 };
 
-export type EmployeeDocumentInput = Omit<EmployeeDocument, 'idEmployeeDocument' | 'active'> & {
+export type EmployeeDocumentInput = Omit<EmployeeDocument, 'idEmployeeDocument' | 'active' | 'documentCategoryName'> & {
   readonly idOrganization: string;
 };
 
 export type EmployeeEvaluation = {
   readonly idEmployeeEvaluation: string;
   readonly idEmployee: string;
+
+  /** Qué evaluación es, como enum. <b>Rastro heredado</b>, igual que en el documento. */
   readonly evaluationType: EmployeeEvaluationType;
+
+  /** La categoría, contra el catálogo que la organización edita. */
+  readonly idEvaluationCategoryCatalogItem: string | null;
+  readonly evaluationCategoryName: string | null;
   readonly result: EmployeeEvaluationResult;
   readonly evaluatedDate: string;
   readonly expiresDate: string | null;
@@ -109,7 +170,7 @@ export type EmployeeEvaluation = {
   readonly active: boolean;
 };
 
-export type EmployeeEvaluationInput = Omit<EmployeeEvaluation, 'idEmployeeEvaluation' | 'active'> & {
+export type EmployeeEvaluationInput = Omit<EmployeeEvaluation, 'idEmployeeEvaluation' | 'active' | 'evaluationCategoryName'> & {
   readonly idOrganization: string;
 };
 

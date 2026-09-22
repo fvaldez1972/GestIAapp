@@ -38,13 +38,16 @@ public sealed class GestIaDbContext(
     public DbSet<ClientContact> ClientContacts => Set<ClientContact>();
     public DbSet<ServiceContract> ServiceContracts => Set<ServiceContract>();
     public DbSet<Service> Services => Set<Service>();
-    public DbSet<ServiceConfiguration> ServiceConfigurations => Set<ServiceConfiguration>();
     public DbSet<Employee> Employees => Set<Employee>();
     public DbSet<EmployeeDocument> EmployeeDocuments => Set<EmployeeDocument>();
     public DbSet<EmployeeEvaluation> EmployeeEvaluations => Set<EmployeeEvaluation>();
+    public DbSet<AdministrativeIncident> AdministrativeIncidents => Set<AdministrativeIncident>();
     public DbSet<ServiceAssignment> ServiceAssignments => Set<ServiceAssignment>();
     public DbSet<Position> Positions => Set<Position>();
+    public DbSet<PositionRequiredEquipment> PositionRequiredEquipments => Set<PositionRequiredEquipment>();
     public DbSet<ShiftPattern> ShiftPatterns => Set<ShiftPattern>();
+    public DbSet<ShiftPatternTemplate> ShiftPatternTemplates => Set<ShiftPatternTemplate>();
+    public DbSet<ShiftPatternTemplateDay> ShiftPatternTemplateDays => Set<ShiftPatternTemplateDay>();
     public DbSet<ShiftSegment> ShiftSegments => Set<ShiftSegment>();
     public DbSet<ScheduleVersion> ScheduleVersions => Set<ScheduleVersion>();
     public DbSet<ScheduledShift> ScheduledShifts => Set<ScheduledShift>();
@@ -125,6 +128,21 @@ public sealed class GestIaDbContext(
         {
             OperationalEvents.AddRange(events);
         }
+    }
+
+    /// <summary>
+    /// Todo instante vuelve de la base marcado como UTC.
+    ///
+    /// <para>Va por convenio y no configuración por configuración a propósito: una columna nueva
+    /// <c>At</c> queda cubierta el día que se agrega, sin que nadie tenga que acordarse. Ver
+    /// <see cref="UtcInstantConverter"/> para el defecto que cierra.</para>
+    /// </summary>
+    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+    {
+        base.ConfigureConventions(configurationBuilder);
+
+        configurationBuilder.Properties<DateTime>().HaveConversion<UtcInstantConverter>();
+        configurationBuilder.Properties<DateTime?>().HaveConversion<UtcInstantConverter>();
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

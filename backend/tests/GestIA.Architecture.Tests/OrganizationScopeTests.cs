@@ -31,7 +31,6 @@ public sealed class OrganizationScopeTests
     [
         typeof(Service),
         typeof(ServiceContract),
-        typeof(ServiceConfiguration),
         typeof(Position),
         typeof(ShiftPattern),
         typeof(ShiftSegment),

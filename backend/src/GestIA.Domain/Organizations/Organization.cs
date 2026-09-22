@@ -29,6 +29,30 @@ public sealed class Organization : AuditableEntity
     public string LegalName { get; private set; } = string.Empty;
     public string? Rfc { get; private set; }
 
+    /// <summary>
+    /// Cada cuándo se le paga al personal de esta organización.
+    ///
+    /// <para><b>Es de la organización, y no de la persona, del cliente ni de la zona.</b> Fue una
+    /// decisión explícita: una empresa de seguridad paga semanal y una de limpieza puede pagar
+    /// quincenal, pero dentro de una misma empresa no cambia de una persona a otra.</para>
+    ///
+    /// <para><b>Nulo significa que nadie lo ha declarado</b>, y no se rellena con una suposición.
+    /// Poner «semanal» por omisión a las organizaciones que ya existen habría afirmado en su nombre
+    /// algo que nadie capturó; la pantalla dice «sin declarar» hasta que alguien lo decida.</para>
+    /// </summary>
+    public PaymentFrequency? PayrollFrequency { get; private set; }
+
+    /// <summary>Fija la periodicidad de pago. Nulo la deja sin declarar, que es un estado válido.</summary>
+    public void SetPayrollFrequency(
+        PaymentFrequency? payrollFrequency,
+        Guid actorId,
+        string actorName,
+        DateTime occurredAt)
+    {
+        PayrollFrequency = payrollFrequency;
+        RegisterUpdate(actorId, actorName, occurredAt);
+    }
+
     public static Organization Create(
         string codeOrganization,
         string legalName,

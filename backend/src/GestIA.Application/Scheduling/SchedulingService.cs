@@ -76,6 +76,77 @@ public sealed class SchedulingService(
         CancellationToken cancellationToken) =>
         repository.ExecuteAtomicAsync(token => PublishScheduleVersionCoreAsync(idOrganization, idClient, idService, idScheduleVersion, token), cancellationToken);
 
+    /// <summary>
+    /// Que todas las personas de la planeación cumplan las reglas bloqueantes, y decirlo de todas.
+    ///
+    /// <para><b>Acumula en vez de detenerse en la primera.</b> Antes lanzaba dentro del bucle de
+    /// turnos, así que una planeación con cinco personas incumplidas costaba cinco intentos de
+    /// publicación para enterarse de las cinco: se corregía una, se volvía a publicar, y aparecía la
+    /// siguiente. Con veinte personas eso deja de ser un flujo y es un castigo.</para>
+    ///
+    /// <para><b>Se comprueba una vez por persona y posición, no una por turno.</b> La elegibilidad
+    /// no depende del turno: depende de quién es, qué posición cubre y en qué contexto. Alguien con
+    /// treinta turnos en la quincena costaba treinta comprobaciones idénticas, cada una con sus
+    /// cuatro consultas al expediente.</para>
+    ///
+    /// <para>La fecha con la que se comprueba es la <b>primera</b> en que esa persona cubre esa
+    /// posición. Es la más exigente de las suyas: un documento que vence a mitad del periodo ya
+    /// estaba vigente al principio, y el turno del principio es el que sí se va a trabajar. Tomar la
+    /// última dejaría pasar a quien no puede empezar.</para>
+    /// </summary>
+    private async Task EnsureEveryoneIsEligibleAsync(
+        Guid idOrganization,
+        Guid idClient,
+        Guid idService,
+        IReadOnlyList<ScheduledShift> shifts,
+        CancellationToken cancellationToken)
+    {
+        var porPersonaYPosicion = shifts
+            .GroupBy(shift => new { shift.IdEmployee, shift.IdPosition })
+            .Select(grupo => new
+            {
+                grupo.Key.IdEmployee,
+                grupo.Key.IdPosition,
+                PrimeraFecha = grupo.Min(shift => shift.ShiftDate)
+            })
+            .ToArray();
+
+        var incumplimientos = new List<string>();
+
+        foreach (var caso in porPersonaYPosicion)
+        {
+            var eligibility = await catalogService.CheckEligibilityAsync(
+                new EligibilityCheckQuery(
+                    idOrganization, caso.IdEmployee, idClient, idService, caso.IdPosition, caso.PrimeraFecha),
+                cancellationToken);
+
+            if (eligibility.IsEligible)
+            {
+                continue;
+            }
+
+            var motivos = eligibility.Reasons
+                .Where(reason => reason.IsBlocking && !reason.Passed)
+                .Select(reason => reason.Message)
+                .Distinct()
+                .ToArray();
+
+            // Una persona puede aparecer en dos posiciones y fallar por lo mismo en las dos. Se
+            // agrupa por persona para no repetirle los motivos, que es lo que el usuario lee.
+            incumplimientos.Add($"{eligibility.EmployeeName}: {string.Join(" ", motivos)}");
+        }
+
+        if (incumplimientos.Count == 0)
+        {
+            return;
+        }
+
+        throw new ResourceConflictException(
+            "No es posible publicar la planeación. " +
+            $"{incumplimientos.Count} {(incumplimientos.Count == 1 ? "persona incumple" : "personas incumplen")} " +
+            $"reglas bloqueantes. {string.Join(" ", incumplimientos.Distinct())}");
+    }
+
     private async Task<ScheduleVersionResponse> PublishScheduleVersionCoreAsync(
         Guid idOrganization,
         Guid idClient,
@@ -112,16 +183,10 @@ public sealed class SchedulingService(
             {
                 throw new ResourceConflictException("Hay turnos fuera del periodo de la planeación.");
             }
-
-            var eligibility = await catalogService.CheckEligibilityAsync(
-                new EligibilityCheckQuery(idOrganization, shift.IdEmployee, idClient, idService, shift.IdPosition, shift.ShiftDate),
-                cancellationToken);
-            if (!eligibility.IsEligible)
-            {
-                var reasons = eligibility.Reasons.Where(reason => reason.IsBlocking && !reason.Passed).Select(reason => reason.Message);
-                throw new ResourceConflictException($"No se puede publicar: {eligibility.EmployeeName}. {string.Join(" ", reasons)}");
-            }
         }
+
+        await EnsureEveryoneIsEligibleAsync(
+            idOrganization, idClient, idService, shifts, cancellationToken);
 
         var overlappingPublishedVersions = await repository.ListOverlappingPublishedVersionsAsync(
             idService,

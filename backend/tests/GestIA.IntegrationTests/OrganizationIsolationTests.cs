@@ -18,9 +18,10 @@ namespace GestIA.IntegrationTests;
 /// organizaciones sembradas con los mismos datos. Es la diferencia entre afirmar que el filtro
 /// existe y demostrar que separa.
 ///
-/// <para><b>Cobertura.</b> Se siembran 26 de las 29 entidades con alcance de organización. Las
-/// tres que faltan —<c>ApprovalRequest</c>, <c>OperationDayClosure</c> y <c>SupportSession</c>—
-/// se consultan igual: el filtro lo aplica una sola convención a las 29 por igual, y
+/// <para><b>Cobertura.</b> Se siembran 26 de las 30 entidades con alcance de organización. Las
+/// cuatro que faltan —<c>ApprovalRequest</c>, <c>OperationDayClosure</c>, <c>SupportSession</c> y
+/// los días de la plantilla de turno— se consultan igual: el filtro lo aplica una sola convención a
+/// las 30 por igual, y
 /// <see cref="OrganizationFilterModelTests"/> ya comprueba que ninguna se quedó sin él en el
 /// modelo. Sembrar más grafos probaría constructores, no el filtro.</para>
 ///
@@ -146,7 +147,6 @@ public sealed class OrganizationIsolationTests(OperationalSqlDatabase database)
         await Check(context.Employees);
         await Check(context.Services);
         await Check(context.ServiceContracts);
-        await Check(context.ServiceConfigurations);
         await Check(context.Positions);
         await Check(context.ShiftPatterns);
         await Check(context.ShiftSegments);
@@ -178,7 +178,7 @@ public sealed class OrganizationIsolationTests(OperationalSqlDatabase database)
         {
             // Sin esto la prueba pasaría igual con la base vacía, que es la forma más fácil de
             // que una prueba de aislamiento deje de comprobar nada.
-            Assert.Equal(26, seeded);
+            Assert.Equal(25, seeded);
         }
     }
 
@@ -216,12 +216,8 @@ public sealed class OrganizationIsolationTests(OperationalSqlDatabase database)
             organizationId, client.IdClient, $"{prefix}-CON",
             new(ServiceContractStatus.Effective, null, Day, null, 30, 30, "MXN", null, null),
             ActorId, ActorName, Now);
-        var configuration = ServiceConfiguration.Create(
-            organizationId, service.IdService,
-            new(Day, null, 1, 8m, 5, 176m, 5, "Turno diurno", null, 10000m, "MXN", true),
-            ActorId, ActorName, Now);
         var position = Position.Create(
-            organizationId, service.IdService, $"{prefix}-PUE", new("Puesto", 1, null, null),
+            organizationId, service.IdService, $"{prefix}-PUE", new("Puesto", 1, null, null, Day),
             ActorId, ActorName, Now);
         var pattern = ShiftPattern.Create(
             organizationId, position.IdPosition, $"{prefix}-PAT",
@@ -265,12 +261,17 @@ public sealed class OrganizationIsolationTests(OperationalSqlDatabase database)
                 "Evidencia", $"operation-evidences/{prefix}.jpg", null),
             ActorId, ActorName, Now);
         var catalogItem = BusinessCatalogItem.Create(
-            organizationId, new(BusinessCatalogItemType.CoverageReason, $"{prefix}-FAL", "Falta", null),
+            organizationId, new(BusinessCatalogItemType.CoverageReason, $"Falta {prefix}", null),
+            ActorId, ActorName, Now);
+        var documentCategory = BusinessCatalogItem.Create(
+            organizationId,
+            new(BusinessCatalogItemType.EmployeeDocumentCategory, $"CURP {prefix}", null),
             ActorId, ActorName, Now);
         var requirement = EligibilityRequirement.Create(
             organizationId,
             new(EligibilityRequirementTargetType.Organization, null, null, null,
-                EligibilityRequirementType.Document, $"{prefix}-DOC", "Documento", null, true),
+                EligibilityRequirementType.Document, documentCategory.IdBusinessCatalogItem,
+                EmployeeDocumentType.Curp, null, "Documento", null),
             ActorId, ActorName, Now);
         var request = OperationalRequest.Create(
             organizationId, null, null, $"{prefix}-SOL", OperationalRequestType.NewClient,
@@ -288,19 +289,22 @@ public sealed class OrganizationIsolationTests(OperationalSqlDatabase database)
         // vacía: una prueba que recorre un conjunto sin filas no comprueba nada.
         var contact = ClientContact.Create(
             organizationId, client.IdClient, site.IdClientSite,
-            new(ClientContactPurpose.Operational, $"Contacto {prefix}", null, null, null, null, true),
+            // Con telefono: desde el 19 de septiembre de 2026 un contacto sin telefono ni correo
+            // no se puede guardar, y con alcance de zona tiene que decir de que zona es.
+            new(ClientContactPurpose.Operational, $"Contacto {prefix}", null, null, "5555555555", null, true,
+                ClientContactScope.Zone),
             ActorId, ActorName, Now);
         var employeeDocument = EmployeeDocument.Create(
             organizationId, employee.IdEmployee,
             new(EmployeeDocumentType.VoterId, EmployeeDocumentStatus.Validated,
-                null, null, null, null, $"employee-documents/{prefix}.pdf", null),
+                null, null, null, null, null, $"employee-documents/{prefix}.pdf", null),
             ActorId, ActorName, Now);
         var employeeEvaluation = EmployeeEvaluation.Create(
             organizationId, employee.IdEmployee,
-            new(EmployeeEvaluationType.Polygraph, EmployeeEvaluationResult.Approved, Day, null, null, null, null),
+            new(EmployeeEvaluationType.Polygraph, EmployeeEvaluationResult.Approved, null, Day, null, null, null, null),
             ActorId, ActorName, Now);
         var skillCatalogItem = BusinessCatalogItem.Create(
-            organizationId, new(BusinessCatalogItemType.Skill, $"{prefix}-HAB", "Habilidad", null),
+            organizationId, new(BusinessCatalogItemType.Skill, $"Experiencia {prefix}", null),
             ActorId, ActorName, Now);
         var employeeSkill = EmployeeSkill.Create(
             organizationId, employee.IdEmployee,
@@ -308,9 +312,9 @@ public sealed class OrganizationIsolationTests(OperationalSqlDatabase database)
             ActorId, ActorName, Now);
 
         context.AddRange(
-            organization, client, site, service, contract, configuration, position, pattern, segment,
+            organization, client, site, service, contract, position, pattern, segment,
             employee, replacement, version, shift, assignment, attendance, coverage, incident, evidence,
-            catalogItem, requirement, request, document, documentEvent,
+            catalogItem, documentCategory, requirement, request, document, documentEvent,
             contact, employeeDocument, employeeEvaluation, skillCatalogItem, employeeSkill);
 
         await context.SaveChangesAsync();

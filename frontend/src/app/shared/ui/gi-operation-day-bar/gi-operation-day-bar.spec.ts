@@ -16,7 +16,7 @@ const SERVICIOS: readonly GiSelectOption[] = [
       [operationalToday]="operationalToday()"
       [services]="services()"
       [idService]="idService()"
-      [siteLabel]="siteLabel()"
+      [zoneLabel]="zoneLabel()"
       [maxDate]="maxDate()"
       [publishedVersionLabel]="publishedVersionLabel()"
       (dateChange)="dias.set([...dias(), $event])"
@@ -32,7 +32,7 @@ class Anfitrion {
   readonly operationalToday = signal('2026-09-10');
   readonly services = signal<readonly GiSelectOption[]>(SERVICIOS);
   readonly idService = signal('srv-1');
-  readonly siteLabel = signal('Corporativo Altavista · Torre Altavista');
+  readonly zoneLabel = signal('Corporativo Altavista · Torre Altavista');
   readonly maxDate = signal('');
   readonly publishedVersionLabel = signal('versión 2, publicada 07 sep 2026');
   readonly dias = signal<string[]>([]);

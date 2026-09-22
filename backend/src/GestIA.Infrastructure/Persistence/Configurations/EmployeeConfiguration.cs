@@ -30,6 +30,11 @@ public sealed class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
         builder.Property(entity => entity.EmergencyContactName).HasMaxLength(200);
         builder.Property(entity => entity.EmergencyContactPhone).HasMaxLength(30).IsUnicode(false);
         builder.Property(entity => entity.Address).HasMaxLength(500);
+        builder.Property(entity => entity.Neighborhood).HasMaxLength(120);
+        builder.Property(entity => entity.Street).HasMaxLength(200);
+        // Texto y no numero: un domicilio real dice «45-A», «S/N» o «123 int. 4».
+        builder.Property(entity => entity.StreetNumber).HasMaxLength(30);
+        builder.Property(entity => entity.EmergencyContactRelationship).HasMaxLength(80);
         builder.Property(entity => entity.Municipality).HasMaxLength(120);
         builder.Property(entity => entity.State).HasMaxLength(120);
         builder.Property(entity => entity.CountryCode).HasMaxLength(2).IsUnicode(false);
@@ -47,6 +52,13 @@ public sealed class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasIndex(entity => new { entity.IdOrganization, entity.IdJobPositionCatalogItem });
+
+        // La escolaridad, con el mismo trato: opcional, por identificador, y sin borrado en
+        // cascada. Desactivar un nivel del catalogo no puede vaciar la escolaridad de nadie.
+        builder.HasOne<BusinessCatalogItem>()
+            .WithMany()
+            .HasForeignKey(entity => entity.IdEducationLevelCatalogItem)
+            .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasIndex(entity => new { entity.IdOrganization, entity.CodeEmployee }).IsUnique();
         builder.HasIndex(entity => new { entity.IdOrganization, entity.Rfc })

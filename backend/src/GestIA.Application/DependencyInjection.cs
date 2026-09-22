@@ -26,12 +26,14 @@ public static class DependencyInjection
         services.AddScoped<IOperationalHistoryService, OperationalHistoryService>();
         services.AddScoped<IOrganizationProvisioningService, OrganizationProvisioningService>();
         services.AddScoped<IClientService, ClientService>();
-        services.AddScoped<IClientSiteService, ClientSiteService>();
+        services.AddScoped<IClientZoneService, ClientZoneService>();
         services.AddScoped<IClientContactService, ClientContactService>();
         services.AddScoped<IBusinessDocumentService, BusinessDocumentService>();
         services.AddScoped<IServiceManagementService, ServiceManagementService>();
         services.AddScoped<IWorkforceService, WorkforceService>();
+        services.AddScoped<IAdministrativeIncidentService, AdministrativeIncidentService>();
         services.AddScoped<IPlanningService, PlanningService>();
+        services.AddScoped<IShiftPatternTemplateService, ShiftPatternTemplateService>();
         services.AddScoped<IAssignmentService, AssignmentService>();
         services.AddScoped<ICatalogService, CatalogService>();
         services.AddScoped<FormCatalogValidator>();

@@ -38,10 +38,10 @@ public sealed record ExecuteOperationalRequestRequest(
     Guid IdOrganization,
     string? ExecutionNotes,
     OperationalRequestClientInput? Client,
-    OperationalRequestClientSiteInput? ClientSite,
+    OperationalRequestClientZoneInput? ClientZone,
     OperationalRequestServiceContractInput? ServiceContract,
     OperationalRequestServiceInput? Service,
-    OperationalRequestServiceConfigurationInput? ServiceConfiguration,
+    IReadOnlyList<OperationalRequestPositionInput>? Positions,
     OperationalRequestStaffAssignmentInput? StaffAssignment,
     OperationalRequestCoverageInput? Coverage);
 
@@ -76,8 +76,8 @@ public sealed record OperationalRequestClientInput(
     string? IncorporationDeedNumber,
     string? LegalRepresentativeInstrumentNumber);
 
-public sealed record OperationalRequestClientSiteInput(
-    string CodeClientSite,
+public sealed record OperationalRequestClientZoneInput(
+    string CodeClientZone,
     string Name,
     string Street,
     string? ExteriorNumber,
@@ -103,7 +103,7 @@ public sealed record OperationalRequestServiceContractInput(
     string? Notes);
 
 public sealed record OperationalRequestServiceInput(
-    Guid? IdClientSite,
+    Guid? IdClientZone,
     Guid? IdServiceContract,
     string CodeService,
     string Name,
@@ -112,19 +112,28 @@ public sealed record OperationalRequestServiceInput(
     DateOnly StartDate,
     DateOnly? EndDate);
 
-public sealed record OperationalRequestServiceConfigurationInput(
-    DateOnly EffectiveFromDate,
-    DateOnly? EffectiveToDate,
-    short RequiredWorkerCount,
-    decimal HoursPerDay,
-    byte DaysPerWeek,
-    decimal AverageMonthlyHours,
-    short PreparationLeadDays,
-    string WorkScheduleDescription,
-    string? SpecificInstructions,
+/// <summary>
+/// Un puesto del servicio que la solicitud da de alta, con lo que se cobra por el.
+///
+/// <para>Sustituye al bloque comercial del servicio, que pactaba un solo precio para todo. En
+/// seguridad privada se cotiza <b>por puesto</b>: un servicio con caseta, rondin y monitorista
+/// tiene tres precios, no uno.</para>
+///
+/// <para>De paso la solicitud gana algo que no tenia: <b>antes no podia crear puestos</b>. Creaba
+/// el servicio y su bloque comercial, y los puestos los ponia alguien despues a mano; por eso el
+/// precio vivia en el servicio, que era el unico sitio donde cabia.</para>
+///
+/// <para>Lo que se fue con el bloque viejo no se pierde, se declara donde corresponde: las horas y
+/// los dias los dice el patron de turnos de cada puesto, y la vigencia la del propio servicio.</para>
+/// </summary>
+public sealed record OperationalRequestPositionInput(
+    string Name,
+    int RequiredWorkerCount,
     decimal MonthlyPrice,
     string? CurrencyCode,
-    bool IsTaxIncluded);
+    bool IsTaxIncluded,
+    string? Notes,
+    Guid? IdJobPositionCatalogItem);
 
 public sealed record OperationalRequestStaffAssignmentInput(
     Guid IdEmployee,

@@ -465,13 +465,30 @@ public static class OrganizationSecurityEndpoints
         return endpoints;
     }
 
-    private static IQueryable<SecurityUserResponse> QueryOrganizationUsers(GestIaDbContext dbContext, Guid organizationId) =>
+    /// <summary>
+    /// Los usuarios de una organizacion, opcionalmente uno solo.
+    ///
+    /// <para><b>El filtro por usuario va aqui, sobre la entidad, y no despues.</b> Antes quien
+    /// queria uno solo aplicaba <c>SingleOrDefaultAsync(u =&gt; u.IdUser == id)</c> sobre el
+    /// resultado ya proyectado, y ese predicado habla de una propiedad de
+    /// <c>SecurityUserResponse</c>, no de una columna: EF no puede traducirlo y lanza.</para>
+    ///
+    /// <para>La consecuencia era grave y silenciosa. Los cinco endpoints de escritura
+    /// —crear acceso, editar usuario, asignar acceso, quitarlo y activar— guardaban bien y
+    /// reventaban despues, al construir la respuesta. El usuario veia "ocurrio un error inesperado"
+    /// y el cambio si se habia hecho.</para>
+    /// </summary>
+    private static IQueryable<SecurityUserResponse> QueryOrganizationUsers(
+        GestIaDbContext dbContext,
+        Guid organizationId,
+        Guid? idUser = null) =>
         dbContext.Users
             .IgnoreQueryFilters(["Active"])
             .AsNoTracking()
             .Where(user => dbContext.OrganizationMemberships.Any(membership =>
                 membership.IdUser == user.IdUser &&
                 membership.IdOrganization == organizationId))
+            .Where(user => idUser == null || user.IdUser == idUser)
             .OrderBy(user => user.DisplayName)
             .Select(user => new SecurityUserResponse(
                 user.IdUser,
@@ -479,8 +496,19 @@ public static class OrganizationSecurityEndpoints
                 user.DisplayName,
                 user.LastLoginAt,
                 user.Active,
+                // El `Active` va escrito aqui, y no se hereda del filtro global.
+                //
+                // La consulta lleva `IgnoreQueryFilters(["Active"])` porque la pantalla de
+                // Seguridad muestra a proposito los usuarios dados de baja, con su etiqueta de
+                // «Inactivo». Pero ese operador es de la CONSULTA ENTERA, no de la parte donde se
+                // escribe: apaga el filtro tambien en estas subconsultas. El efecto era que quitar
+                // un acceso devolvia 200, dejaba la fila en `Active = 0`, y la pantalla seguia
+                // mostrando el rol como si nada.
                 dbContext.OrganizationMemberships
-                    .Where(membership => membership.IdUser == user.IdUser && membership.IdOrganization == organizationId)
+                    .Where(membership =>
+                        membership.Active &&
+                        membership.IdUser == user.IdUser &&
+                        membership.IdOrganization == organizationId)
                     .OrderBy(membership => membership.Organization.LegalName)
                     .Select(membership => new SecurityUserOrganizationResponse(
                         membership.IdOrganization,
@@ -490,8 +518,10 @@ public static class OrganizationSecurityEndpoints
                     .ToList(),
                 dbContext.UserRoles
                     .Where(userRole =>
+                        userRole.Active &&
                         userRole.IdUser == user.IdUser &&
                         userRole.OrganizationMembership != null &&
+                        userRole.OrganizationMembership.Active &&
                         userRole.OrganizationMembership.IdOrganization == organizationId &&
                         !dbContext.RolePermissions.Any(rolePermission =>
                             rolePermission.IdRole == userRole.IdRole &&
@@ -547,8 +577,8 @@ public static class OrganizationSecurityEndpoints
         Guid organizationId,
         Guid idUser,
         CancellationToken cancellationToken) =>
-        await QueryOrganizationUsers(dbContext, organizationId)
-            .SingleOrDefaultAsync(user => user.IdUser == idUser, cancellationToken);
+        await QueryOrganizationUsers(dbContext, organizationId, idUser)
+            .SingleOrDefaultAsync(cancellationToken);
 
     private static async Task<bool> UserBelongsToOrganizationAsync(
         GestIaDbContext dbContext,

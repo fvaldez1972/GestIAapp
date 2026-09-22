@@ -29,13 +29,31 @@ services:
         condition: service_healthy
     environment:
       MSSQL_SA_PASSWORD: "${GESTIA_SQL_PASSWORD:?Copy .env.example to .env and set GESTIA_SQL_PASSWORD}"
+      GESTIA_APP_SQL_PASSWORD: "${GESTIA_APP_SQL_PASSWORD:?Copy .env.example to .env and set GESTIA_APP_SQL_PASSWORD}"
     entrypoint:
       - /bin/bash
       - -c
     command:
-      - >-
-        /opt/mssql-tools18/bin/sqlcmd -S sqlserver -U sa -P "$${MSSQL_SA_PASSWORD}" -C -b
-        -Q "IF DB_ID(N'${GESTIA_SQL_DATABASE:-db-gestia-dev}') IS NULL EXEC(N'CREATE DATABASE [${GESTIA_SQL_DATABASE:-db-gestia-dev}]');"
+      - |
+        set -e
+        SQLCMD="/opt/mssql-tools18/bin/sqlcmd -S sqlserver -U sa -P $${MSSQL_SA_PASSWORD} -C -b"
+
+        # 1. La base, si no existe.
+        $$SQLCMD -Q "IF DB_ID(N'${GESTIA_SQL_DATABASE:-db-gestia-dev}') IS NULL EXEC(N'CREATE DATABASE [${GESTIA_SQL_DATABASE:-db-gestia-dev}]');"
+
+        # 2. El inicio de sesion con el que se conecta la aplicacion.
+        #
+        # El backend deja de usar sa, que es lo que el ADR prohibe en produccion. sa puede borrar
+        # la base, crear inicios de sesion y leer cualquier otra base del motor; la aplicacion solo
+        # necesita leer y escribir filas de la suya.
+        #
+        # Las migraciones SI siguen corriendo como sa, y a proposito: son un paso controlado que se
+        # ejecuta a mano y necesitan permisos de esquema que la aplicacion no debe tener. Esa
+        # separacion es el punto.
+        $$SQLCMD -Q "IF NOT EXISTS (SELECT 1 FROM sys.sql_logins WHERE name = N'gestia_app') CREATE LOGIN [gestia_app] WITH PASSWORD = N'$${GESTIA_APP_SQL_PASSWORD}', CHECK_POLICY = ON;"
+
+        # 3. El usuario dentro de la base, con lectura y escritura y nada mas.
+        $$SQLCMD -d "${GESTIA_SQL_DATABASE:-db-gestia-dev}" -Q "IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = N'gestia_app') CREATE USER [gestia_app] FOR LOGIN [gestia_app]; ALTER ROLE db_datareader ADD MEMBER [gestia_app]; ALTER ROLE db_datawriter ADD MEMBER [gestia_app];"
     restart: "no"
     security_opt:
       - no-new-privileges:true
@@ -51,7 +69,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
-      ConnectionStrings__GestIa: "Server=sqlserver,1433;Database=${GESTIA_SQL_DATABASE:-db-gestia-dev};User Id=sa;Password=${GESTIA_SQL_PASSWORD:?Copy .env.example to .env and set GESTIA_SQL_PASSWORD};Encrypt=True;TrustServerCertificate=True;MultipleActiveResultSets=True;ConnectRetryCount=5"
+      ConnectionStrings__GestIa: "Server=sqlserver,1433;Database=${GESTIA_SQL_DATABASE:-db-gestia-dev};User Id=gestia_app;Password=${GESTIA_APP_SQL_PASSWORD};Encrypt=True;TrustServerCertificate=True;MultipleActiveResultSets=True;ConnectRetryCount=5"
       Jwt__Issuer: GestIA
       Jwt__Audience: GestIA.Web
       Jwt__Secret: "${GESTIA_JWT_SECRET:?Copy .env.example to .env and set GESTIA_JWT_SECRET}"

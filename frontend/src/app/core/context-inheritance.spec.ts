@@ -124,7 +124,7 @@ describe('El día operativo lo dice el servidor', () => {
    * sin que nadie toque este código ni se entere.
    */
   it('ninguna pantalla lleva el huso operativo escrito a mano ni toma el del navegador', () => {
-    // Ojo con lo que **no** se busca: `timeZoneId:` a secas es un dato de la sede del cliente,
+    // Ojo con lo que **no** se busca: `timeZoneId:` a secas es un dato de la zona del cliente,
     // que sí tiene huso propio. Lo que no puede haber es el huso **operativo** decidido aquí.
     const culpables = [...conTexto('.ts'), ...conTexto('.html')]
       .filter(({ texto }) =>

@@ -1,3 +1,15 @@
+/*
+  El anclaje va al borde real del cromo, no a la altura de la barra superior.
+
+  Encima de esa barra va la de organizacion, que rueda con la pagina: con la pagina arriba del
+  todo el cromo termina en 151 px y no en 72, y esos 79 px se comian la cabecera del panel. El
+  boton de cerrar quedaba DEBAJO de la barra —`elementFromPoint` devolvia el boton de perfil—, asi
+  que pulsar donde se veia «Cerrar» abria el dialogo de salir.
+
+  `--gestia-chrome-bottom` la publica el armazon midiendo, y se vuelve a medir al rodar la pagina.
+  El valor de reserva es el de antes, por si el armazon no llegara a publicarla.
+*/
+
 .security-page {
   display: grid;
   gap: 1.25rem;
@@ -211,6 +223,20 @@
   font-size: .76rem;
   margin: .1rem .25rem .1rem 0;
   padding: .28rem .55rem;
+}
+
+/*
+  Las etiquetas de permiso del asistente. Se reporto que «los botones de Leer no funcionan»: no son
+  botones, son la lista de lo que concede el rol. Se dibujaban con `is-strong` —relleno solido y
+  negrita, el aspecto de un control— y por eso se pulsaban. Esta variante es plana y no se
+  selecciona con el cursor, para que se lea como lo que es.
+*/
+.mini-pill.is-readonly {
+  background: var(--gestia-surface-soft);
+  border-color: var(--gestia-border);
+  color: var(--gestia-muted);
+  cursor: default;
+  user-select: none;
 }
 
 .mini-pill.is-strong {
@@ -500,12 +526,13 @@
 
 .security-wizard {
   position: fixed;
-  top: var(--gestia-topbar-height);
+  top: var(--gestia-chrome-bottom, var(--gestia-topbar-height));
   right: 0;
   z-index: 34;
   display: grid;
   width: min(42rem, calc(100vw - 1rem));
-  max-height: calc(100vh - var(--gestia-topbar-height));
+  /* La altura sigue al mismo borde que el anclaje; si no, el panel se pasa por abajo. */
+  max-height: calc(100vh - var(--gestia-chrome-bottom, var(--gestia-topbar-height)));
   overflow-y: auto;
   gap: 1rem;
   border-left: 1px solid color-mix(in srgb, var(--gestia-border) 82%, white);
@@ -621,14 +648,40 @@
   padding-inline: .65rem;
 }
 
+/*
+  El velo que hay detras del cajon y del asistente.
+
+  Los dos son capas fijas: se quedan pegadas mientras la pagina rueda por debajo, y eso fue lo que
+  se reporto como «el scroll de la pantalla no te permite ver bien». Un velo da la salida evidente
+  —clic en cualquier lado— y ademas separa visualmente lo que esta encima de lo que esta debajo.
+  Es un boton porque se pulsa; se le quita el aspecto de boton, no el comportamiento.
+*/
+.drawer-scrim {
+  position: fixed;
+  inset: var(--gestia-chrome-bottom, var(--gestia-topbar-height)) 0 0 0;
+  z-index: 29;
+  display: block;
+  width: 100%;
+  border: 0;
+  padding: 0;
+  background: color-mix(in srgb, var(--gestia-navy) 22%, transparent);
+  cursor: pointer;
+}
+
+/* El asistente se abre por encima del cajon (34), asi que su velo va justo debajo de el. */
+.drawer-scrim--wizard {
+  z-index: 33;
+}
+
 .security-drawer {
   position: fixed;
-  top: var(--gestia-topbar-height);
+  top: var(--gestia-chrome-bottom, var(--gestia-topbar-height));
   right: 0;
   z-index: 30;
   display: grid;
   width: min(34rem, calc(100vw - 1rem));
-  max-height: calc(100vh - var(--gestia-topbar-height));
+  /* La altura sigue al mismo borde que el anclaje; si no, el panel se pasa por abajo. */
+  max-height: calc(100vh - var(--gestia-chrome-bottom, var(--gestia-topbar-height)));
   overflow-y: auto;
   gap: 1rem;
   border-left: 1px solid color-mix(in srgb, var(--gestia-border) 82%, white);

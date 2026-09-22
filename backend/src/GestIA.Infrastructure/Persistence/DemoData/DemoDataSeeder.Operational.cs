@@ -32,7 +32,9 @@ public sealed partial class DemoDataSeeder
     {
         var existing = await dbContext.Employees
             .IgnoreQueryFilters(["Active", "Organization"])
-            .AnyAsync(item => item.IdOrganization == organization.IdOrganization, cancellationToken);
+            .AnyAsync(
+                item => item.IdOrganization == organization.IdOrganization && item.CreatedBy == DemoActorId,
+                cancellationToken);
 
         if (existing)
         {
@@ -44,7 +46,7 @@ public sealed partial class DemoDataSeeder
                 .IgnoreQueryFilters(["Active", "Organization"])
                 .Where(item => item.IdOrganization == organization.IdOrganization &&
                     item.Type == BusinessCatalogItemType.Skill)
-                .OrderBy(item => item.Code)
+                .OrderBy(item => item.Name)
                 .ToListAsync(cancellationToken);
 
             var jobPositions = await JobPositionCatalogAsync(organization, cancellationToken);
@@ -99,7 +101,7 @@ public sealed partial class DemoDataSeeder
             $"EMP-{number:000}",
             new EmployeeProfile(
                 $"{first} {paternal} {maternal}",
-                job.Name,
+                job,
                 hireDate,
                 hireDate.AddYears(-Rng.Next(20, 45)),
                 place.Municipality,
@@ -116,7 +118,13 @@ public sealed partial class DemoDataSeeder
                 number % 3 == 0 ? $"55{Rng.Next(10000000, 99999999)}" : null,
                 $"{Pick(DemoCatalog.ContactFirstNames)} {Pick(DemoCatalog.ContactLastNames)}",
                 $"55{Rng.Next(10000000, 99999999)}",
+                number % 2 == 0 ? "Cónyuge" : "Madre",
                 $"{Pick(DemoCatalog.Streets)} {Rng.Next(10, 999)}",
+                // La calle y el numero ya separados, que es como se capturan desde el 19 de
+                // septiembre de 2026. El campo de arriba conserva la direccion en una sola linea.
+                Pick(DemoCatalog.Streets),
+                $"{Rng.Next(10, 999)}{(number % 4 == 0 ? "-A" : string.Empty)}",
+                Pick(DemoCatalog.Streets),
                 place.Municipality,
                 place.State,
                 place.PostalCode,
@@ -125,7 +133,7 @@ public sealed partial class DemoDataSeeder
                 "MX",
                 // El identificador, además del nombre. Sin él la persona queda con el puesto sólo
                 // como texto y nadie puede comprobar que corresponde al perfil de una posición.
-                ResolveJobPosition(jobPositions, job.Name)),
+                ResolveJobPosition(jobPositions, job)),
             DemoActorId,
             DemoActorName,
             OccurredAt);
@@ -209,6 +217,7 @@ public sealed partial class DemoDataSeeder
                 new EmployeeDocumentProfile(
                     types[index],
                     status,
+                    null,
                     $"DOC-{number:000}-{index + 1:00}",
                     status == EmployeeDocumentStatus.Pending ? null : issued.AddDays(Rng.Next(1, 20)),
                     status == EmployeeDocumentStatus.Pending ? null : issued,
@@ -260,6 +269,7 @@ public sealed partial class DemoDataSeeder
                 new EmployeeEvaluationProfile(
                     types[index],
                     result,
+                    null,
                     evaluatedDate,
                     result == EmployeeEvaluationResult.Pending ? null : evaluatedDate.AddYears(1),
                     result == EmployeeEvaluationResult.Pending ? null : $"CERT-{number:000}-{index + 1:00}",
@@ -324,7 +334,9 @@ public sealed partial class DemoDataSeeder
     {
         var existing = await dbContext.ServiceAssignments
             .IgnoreQueryFilters(["Active", "Organization"])
-            .AnyAsync(item => item.Employee.IdOrganization == organization.IdOrganization, cancellationToken);
+            .AnyAsync(
+                item => item.Employee.IdOrganization == organization.IdOrganization && item.CreatedBy == DemoActorId,
+                cancellationToken);
 
         if (existing)
         {
@@ -416,7 +428,7 @@ public sealed partial class DemoDataSeeder
         var existing = await dbContext.ScheduleVersions
             .IgnoreQueryFilters(["Active", "Organization"])
             .AnyAsync(
-                item => item.IdOrganization == organization.IdOrganization,
+                item => item.IdOrganization == organization.IdOrganization && item.CreatedBy == DemoActorId,
                 cancellationToken);
 
         if (existing)

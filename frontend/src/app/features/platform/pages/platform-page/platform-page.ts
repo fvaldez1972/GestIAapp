@@ -2,10 +2,17 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule, NgForm } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { forkJoin } from 'rxjs';
+import { forkJoin, of, switchMap } from 'rxjs';
+import { AuthService } from '../../../../core/auth/auth.service';
 import { ClientApiService } from '../../../clients/data-access/client-api.service';
-import { Organization, OrganizationClientSummary } from '../../../clients/data-access/client.models';
+import {
+  Organization,
+  OrganizationClientSummary,
+  PAYMENT_FREQUENCY_LABELS,
+  PaymentFrequency,
+} from '../../../clients/data-access/client.models';
 import { SecurityApiService } from '../../../security/data-access/security-api.service';
+import { ServerProblem, fieldError, readServerProblem } from '../../../../shared/util/server-problem';
 import { SecurityRole, SecurityUser } from '../../../security/data-access/security.models';
 
 type OrganizationPlatformSummary = {
@@ -25,11 +32,20 @@ type OrganizationPlatformSummary = {
 export class PlatformPage implements OnInit {
   private readonly clientApi = inject(ClientApiService);
   private readonly securityApi = inject(SecurityApiService);
+  private readonly auth = inject(AuthService);
 
   protected readonly loading = signal(false);
   protected readonly savingOrganization = signal(false);
   protected readonly savingAdmin = signal(false);
   protected readonly error = signal('');
+
+  /** El detalle por campo del último rechazo, para pintarlo junto al campo que falló. */
+  protected readonly problem = signal<ServerProblem | null>(null);
+
+  protected errorDe(campo: string): string {
+    const problema = this.problem();
+    return problema ? fieldError(problema, campo) : '';
+  }
   protected readonly success = signal('');
   protected readonly organizations = signal<readonly Organization[]>([]);
   protected readonly users = signal<readonly SecurityUser[]>([]);
@@ -43,7 +59,15 @@ export class PlatformPage implements OnInit {
    */
   protected readonly selectedOrganizationRowId = signal('');
 
-  protected readonly newOrganizationCode = signal('');
+  /**
+   * Si el alta esta abierta.
+   *
+   * <p>El formulario ocupaba media pantalla siempre, abierto sobre el directorio, y competia por
+   * la atencion con la organizacion que se estaba revisando. Dar de alta una empresa es algo que
+   * pasa de vez en cuando; leer el directorio es a lo que se entra.</p>
+   */
+  protected readonly creatingOrganization = signal(false);
+
   protected readonly newOrganizationLegalName = signal('');
   protected readonly newOrganizationRfc = signal('');
   protected readonly initialAdminName = signal('');
@@ -52,33 +76,103 @@ export class PlatformPage implements OnInit {
   protected readonly organizationStep = signal(1);
   protected readonly organizationStepError = signal('');
 
+  /**
+   * Que se esta mirando de la organizacion elegida.
+   *
+   * <p>La ficha apilaba cinco bloques en una columna: los datos editables, el alta de un admin, la
+   * lista de admins, la lista de clientes y una nota. Lo que se <b>crea</b> y lo que se
+   * <b>consulta</b> quedaban mezclados en el mismo desplazamiento, y para leer quien es el
+   * responsable habia que pasar por encima de un formulario vacio.</p>
+   *
+   * <p>Hubo una tercera, «Datos», que enseñaba el nombre y el RFC: los mismos dos datos que el
+   * titulo y el subtitulo de la ficha ya dicen, a dos centimetros. Editarlos se pide desde la
+   * cabecera, junto a las demas acciones.</p>
+   */
+  protected readonly detailTab = signal<'responsables' | 'clientes'>('responsables');
+
+  /** Lo que se escribe en el buscador del directorio. */
+  protected readonly organizationSearch = signal('');
+
+  /**
+   * Las organizaciones que coinciden con la busqueda, por nombre o por RFC.
+   *
+   * <p>Se comparan sin acentos y sin distinguir mayusculas: quien busca «TRANSNACIONAL» escribe
+   * «transnacional», y quien busca una empresa con acento no deberia tener que acertarlo. Es la
+   * misma normalizacion que usa el resto de las busquedas de la aplicacion.</p>
+   *
+   * <p>El RFC entra en la comparacion porque es lo unico que distingue a dos organizaciones con
+   * nombres parecidos, y es el dato con el que llega una factura o un contrato.</p>
+   */
+  protected readonly filteredSummaries = computed(() => {
+    const termino = this.normalizar(this.organizationSearch());
+
+    if (!termino) {
+      return this.summaries();
+    }
+
+    return this.summaries().filter((summary) => {
+      const nombre = this.normalizar(summary.organization.legalName);
+      const rfc = this.normalizar(summary.organization.rfc ?? '');
+
+      return nombre.includes(termino) || rfc.includes(termino);
+    });
+  });
+
+  /** Sin acentos, sin mayusculas y sin espacios de sobra. */
+  private normalizar(valor: string) {
+    return valor
+      .normalize('NFD')
+      .replace(/\p{Diacritic}/gu, '')
+      .toLowerCase()
+      .trim();
+  }
+
+  /** Si el alta de admin esta abierta. Cerrada por omision, como la de organizacion. */
+  protected readonly creatingAdmin = signal(false);
+
+  /**
+   * Si la edicion de la organizacion esta abierta.
+   *
+   * <p>La pestaña Datos <b>enseña</b>; editar es otra cosa y se pide aparte. Antes los tres campos
+   * eran cajas de texto siempre listas para escribir, asi que consultar el RFC de una organizacion
+   * y cambiarlo se veian igual, y no habia forma de leer sin tener el cursor a un clic de
+   * modificar.</p>
+   *
+   * <p>Se abre en ventana, como las dos altas: en esta pantalla los formularios no se incrustan.</p>
+   */
+  protected readonly editingOrganization = signal(false);
+
+  /**
+   * Si al guardar la organizacion debe quedar desactivada.
+   *
+   * <p>La baja era un boton suelto que se aplicaba solo, al margen del formulario. Dentro del
+   * formulario se ve en que estado va a quedar antes de confirmar, y se deshace cerrando sin
+   * guardar, que es lo que un boton suelto no permitia.</p>
+   */
+  protected readonly editOrganizationInactive = signal(false);
+
   protected readonly selectedAdminName = signal('');
   protected readonly selectedAdminEmail = signal('');
   protected readonly selectedAdminPassword = signal('');
-  protected readonly editOrganizationCode = signal('');
   protected readonly editOrganizationLegalName = signal('');
   protected readonly editOrganizationRfc = signal('');
 
+  /**
+   * La periodicidad de pago del personal. Vacio es «sin declarar».
+   *
+   * <p>No se captura en el alta a proposito: el alta se queda minima y esto se decide despues,
+   * probablemente en el onboarding. Obligar a capturarlo de entrada es lo que hace que la gente
+   * abandone el formulario a la mitad.</p>
+   */
+  protected readonly editOrganizationPayrollFrequency = signal<PaymentFrequency | ''>('');
+
+  /** Los cuatro periodos, mas la opcion de dejarlo sin declarar. */
+  protected readonly payrollFrequencies = (
+    Object.keys(PAYMENT_FREQUENCY_LABELS) as PaymentFrequency[]
+  ).map((value) => ({ value, label: PAYMENT_FREQUENCY_LABELS[value] }));
+
   protected readonly selectedSummary = computed(
     () => this.summaries().find((summary) => summary.organization.idOrganization === this.selectedOrganizationRowId()) ?? this.summaries()[0] ?? null,
-  );
-  protected readonly activeOrganizationsCount = computed(() =>
-    this.summaries().filter((summary) => summary.organization.active).length,
-  );
-  protected readonly inactiveOrganizationsCount = computed(() =>
-    this.summaries().filter((summary) => !summary.organization.active).length,
-  );
-  protected readonly activeClientsCount = computed(() =>
-    this.summaries().reduce((total, summary) => total + summary.clients.filter((client) => client.active).length, 0),
-  );
-  protected readonly inactiveClientsCount = computed(() =>
-    this.summaries().reduce((total, summary) => total + summary.clients.filter((client) => !client.active).length, 0),
-  );
-  protected readonly organizationAdminsCount = computed(() =>
-    this.summaries().reduce((total, summary) => total + summary.adminsCount, 0),
-  );
-  protected readonly totalClientsCount = computed(() =>
-    this.summaries().reduce((total, summary) => total + summary.clients.length, 0),
   );
   protected readonly adminRole = computed(
     () =>
@@ -96,7 +190,6 @@ export class PlatformPage implements OnInit {
   protected readonly canCreateOrganization = computed(() =>
     Boolean(
       !this.savingOrganization() &&
-        this.newOrganizationCode().trim() &&
         this.newOrganizationLegalName().trim() &&
         this.initialAdminReady(),
     ),
@@ -115,7 +208,6 @@ export class PlatformPage implements OnInit {
     Boolean(
       !this.savingOrganization() &&
         this.selectedSummary() &&
-        this.editOrganizationCode().trim() &&
         this.editOrganizationLegalName().trim(),
     ),
   );
@@ -166,7 +258,9 @@ export class PlatformPage implements OnInit {
 
     this.clientApi
       .createOrganizationWithAdmin({
-        codeOrganization: this.newOrganizationCode().trim(),
+        // Sin codigo a proposito: lo genera el servidor con la forma ORG-01. Mandar cadena vacia
+        // no seria lo mismo —el servidor la validaria como capturada y la rechazaria—, asi que se
+        // omite el campo entero.
         legalName: this.newOrganizationLegalName().trim(),
         rfc: this.normalizeOptional(this.newOrganizationRfc()),
         admin: {
@@ -180,8 +274,12 @@ export class PlatformPage implements OnInit {
           this.selectedOrganizationRowId.set(result.organization.idOrganization);
           this.clearOrganizationForm();
           this.organizationStep.set(1);
+          this.creatingOrganization.set(false);
           this.success.set('Organización creada con su admin inicial.');
           this.loadPlatform();
+          // El selector de la barra superior carga su lista al arrancar el shell, asi que sin esto
+          // la organizacion recien creada no aparecia ahi hasta recargar la pagina entera.
+          this.auth.loadPlatformOrganizations().subscribe({ error: () => undefined });
         },
         error: (error: HttpErrorResponse) => {
           this.error.set(this.extractError(error));
@@ -194,7 +292,7 @@ export class PlatformPage implements OnInit {
     this.organizationStepError.set('');
     if (this.organizationStep() < 3) {
       form.control.markAllAsTouched();
-      if (form.invalid || (this.organizationStep() === 1 && (!this.newOrganizationCode().trim() || !this.newOrganizationLegalName().trim())) ||
+      if (form.invalid || (this.organizationStep() === 1 && !this.newOrganizationLegalName().trim()) ||
         (this.organizationStep() === 2 && !this.initialAdminReady())) {
         this.organizationStepError.set('Revisa los campos obligatorios y su formato antes de continuar.');
         return;
@@ -205,11 +303,50 @@ export class PlatformPage implements OnInit {
     this.createOrganizationWithAdmin();
   }
 
+  /** Abre la edicion con los valores que hay hoy, no con lo que quedo de un intento anterior. */
+  protected startOrganizationEdit() {
+    const summary = this.selectedSummary();
+
+    if (!summary) {
+      return;
+    }
+
+    this.syncOrganizationEditor(summary.organization);
+    this.editOrganizationInactive.set(!summary.organization.active);
+    this.editingOrganization.set(true);
+  }
+
+  protected cancelOrganizationEdit() {
+    if (this.savingOrganization()) { return; }
+    this.editingOrganization.set(false);
+  }
+
+  /** Abre el alta de admin de la organizacion elegida, sin arrastrar un intento anterior. */
+  protected startAdminCreation() {
+    this.clearSelectedAdminForm();
+    this.creatingAdmin.set(true);
+  }
+
+  protected cancelAdminCreation() {
+    if (this.savingAdmin()) { return; }
+    this.clearSelectedAdminForm();
+    this.creatingAdmin.set(false);
+  }
+
+  /** Abre el alta en el primer paso y sin arrastrar lo que quedo de un intento anterior. */
+  protected startOrganizationCreation() {
+    this.clearOrganizationForm();
+    this.organizationStep.set(1);
+    this.organizationStepError.set('');
+    this.creatingOrganization.set(true);
+  }
+
   protected cancelOrganizationCreation() {
     if (this.savingOrganization()) { return; }
     this.clearOrganizationForm();
     this.organizationStep.set(1);
     this.organizationStepError.set('');
+    this.creatingOrganization.set(false);
   }
 
   protected createAdminForSelected() {
@@ -236,6 +373,7 @@ export class PlatformPage implements OnInit {
       .subscribe({
         next: () => {
           this.clearSelectedAdminForm();
+          this.creatingAdmin.set(false);
           this.success.set(`Admin creado para ${summary.organization.legalName}.`);
           this.loadPlatform();
         },
@@ -256,16 +394,43 @@ export class PlatformPage implements OnInit {
     this.error.set('');
     this.success.set('');
 
+    const idOrganization = summary.organization.idOrganization;
+    const debeQuedarActiva = !this.editOrganizationInactive();
+    const cambiaElEstado = debeQuedarActiva !== summary.organization.active;
+
     this.clientApi
-      .updateOrganization(summary.organization.idOrganization, {
-        codeOrganization: this.editOrganizationCode().trim(),
+      .updateOrganization(idOrganization, {
+        // Sin codigo: el servidor conserva el que ya tiene. No se captura ni se corrige desde
+        // aqui, asi que mandarlo solo abriria la puerta a cambiarlo sin querer al guardar.
         legalName: this.editOrganizationLegalName().trim(),
         rfc: this.normalizeOptional(this.editOrganizationRfc()),
+        // Vacio significa «sin declarar», y se manda como nulo: no se le inventa una periodicidad
+        // a una organizacion que no la ha decidido.
+        payrollFrequency: this.editOrganizationPayrollFrequency() || null,
       })
+      .pipe(
+        // El estado va en la misma peticion de guardar sólo si cambio. El alta y la baja son
+        // endpoints aparte, asi que se encadenan; mandarlos siempre dejaria en la auditoria un
+        // cambio de estado cada vez que alguien corrige una letra del nombre.
+        switchMap(() =>
+          cambiaElEstado
+            ? debeQuedarActiva
+              ? this.clientApi.activateOrganization(idOrganization)
+              : this.clientApi.deactivateOrganization(idOrganization)
+            : of(null),
+        ),
+      )
       .subscribe({
-        next: (organization) => {
-          this.selectedOrganizationRowId.set(organization.idOrganization);
-          this.success.set('Organización actualizada correctamente.');
+        next: () => {
+          this.selectedOrganizationRowId.set(idOrganization);
+          this.editingOrganization.set(false);
+          this.success.set(
+            cambiaElEstado
+              ? debeQuedarActiva
+                ? 'Organización actualizada y reactivada.'
+                : 'Organización actualizada y desactivada.'
+              : 'Organización actualizada correctamente.',
+          );
           this.loadPlatform();
         },
         error: (error: HttpErrorResponse) => {
@@ -273,41 +438,6 @@ export class PlatformPage implements OnInit {
           this.savingOrganization.set(false);
         },
       });
-  }
-
-  protected toggleSelectedOrganizationStatus() {
-    const summary = this.selectedSummary();
-    if (!summary) {
-      return;
-    }
-
-    this.savingOrganization.set(true);
-    this.error.set('');
-    this.success.set('');
-
-    const onSuccess = () => {
-      this.success.set(summary.organization.active ? 'Organización desactivada.' : 'Organización reactivada.');
-      this.loadPlatform();
-    };
-    const onError = (error: HttpErrorResponse) => {
-      this.error.set(this.extractError(error));
-      this.savingOrganization.set(false);
-    };
-
-    if (summary.organization.active) {
-      this.clientApi.deactivateOrganization(summary.organization.idOrganization).subscribe({
-        next: onSuccess,
-        error: onError,
-      });
-      return;
-    }
-
-    this.clientApi.activateOrganization(summary.organization.idOrganization).subscribe({
-      next: () => {
-        onSuccess();
-      },
-      error: onError,
-    });
   }
 
   private loadPlatform() {
@@ -344,7 +474,6 @@ export class PlatformPage implements OnInit {
   }
 
   private clearOrganizationForm() {
-    this.newOrganizationCode.set('');
     this.newOrganizationLegalName.set('');
     this.newOrganizationRfc.set('');
     this.initialAdminName.set('');
@@ -359,9 +488,9 @@ export class PlatformPage implements OnInit {
   }
 
   private syncOrganizationEditor(organization: Organization) {
-    this.editOrganizationCode.set(organization.codeOrganization);
     this.editOrganizationLegalName.set(organization.legalName);
     this.editOrganizationRfc.set(organization.rfc ?? '');
+    this.editOrganizationPayrollFrequency.set(organization.payrollFrequency ?? '');
   }
 
   private normalizeOptional(value: string) {
@@ -369,23 +498,18 @@ export class PlatformPage implements OnInit {
     return normalized ? normalized : null;
   }
 
+  /**
+   * Lo que el servidor dijo, leído en el orden correcto.
+   *
+   * <p>Esta pantalla ya tenía el código para leer el detalle por campo, pero <b>detrás</b> de
+   * `detail`. Como en una validación `detail` siempre trae «La solicitud contiene datos
+   * inválidos.», la rama buena no se alcanzaba nunca: no faltaba código, sobraba una comprobación
+   * por delante. El extractor compartido pone lo específico primero.</p>
+   */
   private extractError(error: HttpErrorResponse) {
-    if (error.error?.message) {
-      return error.error.message;
-    }
-
-    if (error.error?.detail) {
-      return error.error.detail;
-    }
-
-    if (error.error?.errors) {
-      const first = Object.values(error.error.errors).flat().find(Boolean);
-      if (typeof first === 'string') {
-        return first;
-      }
-    }
-
-    return 'No se pudo completar la acción.';
+    const problema = readServerProblem(error, 'No se pudo completar la acción.');
+    this.problem.set(problema);
+    return problema.message;
   }
 
   private isAdminRole(codeRole: string, name: string) {

@@ -8,7 +8,24 @@
       </p>
     </div>
 
+    <!--
+      El alta vive aqui arriba, con las demas acciones de la pantalla. Estaba dentro de la tarjeta
+      del alta, y ahi el boton quedaba a media pagina: para darla de alta habia que bajar hasta la
+      tarjeta, y quien entraba a la pantalla no veia que se pudiera.
+
+      Se apaga mientras el alta esta abierta en vez de esconderse. Que desaparezca el boton que
+      acabas de pulsar deja dudando si se pulso o si algo fallo; apagado se ve que es el que esta
+      en curso.
+    -->
     <div class="hero-actions">
+      <button
+        class="gi-button gi-button--secondary"
+        type="button"
+        [disabled]="creatingOrganization()"
+        (click)="startOrganizationCreation()"
+      >
+        Nueva organización
+      </button>
       <a class="gi-button gi-button--secondary" routerLink="/seguridad">Ver seguridad</a>
       <a class="gi-button gi-button--primary" routerLink="/clientes">Entrar a vista admin</a>
     </div>
@@ -22,37 +39,228 @@
     <p class="gi-alert gi-alert--success" role="status">{{ success() }}</p>
   }
 
-  <section class="platform-kpis" aria-label="Resumen de organizaciones">
-    <article>
-      <span>Organizaciones</span>
-      <strong>{{ organizations().length }}</strong>
-      <small>{{ activeOrganizationsCount() }} activas · {{ inactiveOrganizationsCount() }} inactivas</small>
-    </article>
-    <article>
-      <span>Admins org.</span>
-      <strong>{{ organizationAdminsCount() }}</strong>
-      <small>usuarios responsables por organización</small>
-    </article>
-    <article>
-      <span>Clientes operativos</span>
-      <strong>{{ totalClientsCount() }}</strong>
-      <small>{{ activeClientsCount() }} activos · {{ inactiveClientsCount() }} inactivos</small>
-    </article>
-    <article>
-      <span>Rol para alta</span>
-      <strong>{{ adminRole()?.name || 'Pendiente' }}</strong>
-      <small>{{ adminRole()?.codeRole || 'configura un rol admin' }}</small>
-    </article>
-  </section>
 
   <section class="platform-layout">
     <article class="platform-registry gi-card">
+      <section class="organization-directory">
+        <header class="section-heading">
+          <div>
+            <span class="eyebrow">Directorio</span>
+            <h2>Organizaciones registradas</h2>
+            <p>Selecciona una organización para revisar admins, usuarios y clientes operativos asociados.</p>
+          </div>
+        </header>
+
+        <!--
+          Busca por nombre o por RFC. El RFC entra porque es lo unico que distingue a dos
+          organizaciones con nombres parecidos, y es el dato con el que llega una factura o un
+          contrato. La comparacion ignora acentos y mayusculas.
+        -->
+        <label class="search-field">
+          <span class="visually-hidden">Buscar organización por nombre o RFC</span>
+          <input
+            type="search"
+            name="organizationSearch"
+            autocomplete="off"
+            placeholder="Buscar por nombre o RFC"
+            [ngModel]="organizationSearch()"
+            (ngModelChange)="organizationSearch.set($event)"
+          />
+        </label>
+
+        @if (loading()) {
+          <div class="platform-skeleton" aria-label="Cargando organizaciones">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+        } @else {
+          <div class="organization-list">
+            @for (summary of filteredSummaries(); track summary.organization.idOrganization) {
+              <button
+                class="organization-row"
+                type="button"
+                [class.is-active]="selectedSummary()?.organization.idOrganization === summary.organization.idOrganization"
+                (click)="selectOrganization(summary.organization.idOrganization)"
+              >
+                <span>
+                  <strong>{{ summary.organization.legalName }}</strong>
+                  <small>{{ summary.organization.rfc || 'RFC no capturado' }}</small>
+                </span>
+                <em [class.is-muted]="!summary.organization.active">{{ activeLabel(summary.organization.active) }}</em>
+              </button>
+            } @empty {
+              <!--
+                Una lista vacia por la busqueda no es una lista vacia: decir «sin organizaciones
+                registradas» a quien acaba de escribir tres letras le diria que no hay ninguna
+                cuando lo que pasa es que ninguna coincide.
+              -->
+              @if (organizationSearch().trim()) {
+                <div class="empty-state">
+                  <strong>Ninguna organización coincide</strong>
+                  <span>No hay coincidencias por nombre ni por RFC con «{{ organizationSearch().trim() }}».</span>
+                </div>
+              } @else {
+                <div class="empty-state">
+                  <strong>Sin organizaciones registradas</strong>
+                  <span>Crea la primera con «Nueva organización», arriba.</span>
+                </div>
+              }
+            }
+          </div>
+        }
+      </section>
+    </article>
+
+    <article class="platform-detail gi-card">
+      @if (selectedSummary(); as summary) {
+        <header class="section-heading">
+          <div>
+            <span class="eyebrow">Vista Super Admin</span>
+            <h2>{{ summary.organization.legalName }}</h2>
+            <p>{{ summary.organization.rfc || 'RFC pendiente' }}</p>
+          </div>
+          <div class="detail-actions">
+            <button class="gi-button gi-button--secondary" type="button" (click)="startOrganizationEdit()">
+              Editar
+            </button>
+            <a class="gi-button gi-button--secondary" routerLink="/seguridad">Gestionar accesos</a>
+          </div>
+        </header>
+
+        <section class="detail-metrics">
+          <article>
+            <span>Clientes operativos</span>
+            <strong>{{ summary.clients.length }}</strong>
+          </article>
+          <article>
+            <span>Usuarios</span>
+            <strong>{{ summary.usersCount }}</strong>
+          </article>
+          <article>
+            <span>Admins org.</span>
+            <strong>{{ summary.adminsCount }}</strong>
+          </article>
+        </section>
+
+        <!--
+          Dos pestañas, y ninguna repite la cabecera. Hubo una tercera, «Datos», que enseñaba el
+          nombre y el RFC de la organizacion: los mismos dos datos que el titulo y el subtitulo de
+          arriba ya dicen, a dos centimetros. Editarlos se pide desde la cabecera, junto a las
+          demas acciones de la ficha.
+
+          Sin contadores en las pestañas a proposito: las tres cifras estan justo arriba, y
+          repetirlas aqui seria el mismo numero dicho dos veces.
+        -->
+        <div class="detail-tabs" role="tablist" aria-label="Detalle de la organización">
+          <button type="button" role="tab"
+            [attr.aria-selected]="detailTab() === 'responsables'"
+            [class.is-active]="detailTab() === 'responsables'"
+            (click)="detailTab.set('responsables')">Responsables</button>
+          <button type="button" role="tab"
+            [attr.aria-selected]="detailTab() === 'clientes'"
+            [class.is-active]="detailTab() === 'clientes'"
+            (click)="detailTab.set('clientes')">Clientes</button>
+        </div>
+
+        @if (detailTab() === 'responsables') {
+        <section class="detail-section">
+          <header>
+            <div>
+              <span class="eyebrow">Admins actuales</span>
+              <h3>Responsables de la organización</h3>
+            </div>
+            <button class="gi-button gi-button--secondary" type="button" (click)="startAdminCreation()">
+              Crear admin
+            </button>
+          </header>
+          <div class="mini-list">
+            @for (admin of organizationAdmins(summary); track admin.idUser) {
+              <article>
+                <span>
+                  <strong>{{ admin.displayName }}</strong>
+                  <small>{{ admin.email }}</small>
+                </span>
+                <em [class.is-muted]="!admin.active">{{ admin.active ? 'Activo' : 'Inactivo' }}</em>
+              </article>
+            } @empty {
+              <article>
+                <span>
+                  <strong>Sin admin detectado</strong>
+                  <small>Créalo con «Crear admin», aquí arriba.</small>
+                </span>
+                <em class="is-warning">Pendiente</em>
+              </article>
+            }
+          </div>
+        </section>
+        }
+
+        @if (detailTab() === 'clientes') {
+        <section class="detail-section">
+          <header>
+            <div>
+              <span class="eyebrow">Clientes operativos</span>
+              <h3>Clientes dentro de la organización</h3>
+            </div>
+            <a routerLink="/clientes">Abrir cartera</a>
+          </header>
+          <div class="mini-list">
+            @for (client of topClients(summary); track client.idClient) {
+              <article>
+                <span>
+                  <strong>{{ client.tradeName || client.legalName }}</strong>
+                  <small>{{ client.codeClient }} · {{ client.rfc }}</small>
+                </span>
+                <em [class.is-muted]="!client.active">{{ activeLabel(client.active) }}</em>
+              </article>
+            } @empty {
+              <article>
+                <span>
+                  <strong>Sin clientes operativos</strong>
+                  <small>El admin de organización los creará desde Configuración / Clientes.</small>
+                </span>
+                <em class="is-muted">Vacío</em>
+              </article>
+            }
+          </div>
+        </section>
+        }
+
+      } @else {
+        <div class="empty-state empty-state--large">
+          <strong>Selecciona una organización</strong>
+          <span>El detalle de gobierno aparecerá aquí.</span>
+        </div>
+      }
+    </article>
+  </section>
+</section>
+
+<!--
+  El alta va en ventana emergente, no incrustada en la columna.
+  Desplegarla donde antes vivia dejaba el alta empujando el directorio y la ficha de la
+  organizacion elegida: se quitaba el desorden de tenerla siempre abierta, pero el formulario
+  seguia disputandole el sitio a lo que se estaba consultando.
+-->
+@if (creatingOrganization()) {
+  <div class="modal-backdrop" (click)="cancelOrganizationCreation()">
+    <section
+      class="modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="alta-organizacion-title"
+      (click)="$event.stopPropagation()"
+    >
       <header class="section-heading">
         <div>
           <span class="eyebrow">Nueva organización</span>
-          <h2>Alta de organización</h2>
+          <h2 id="alta-organizacion-title">Alta de organización</h2>
           <p>Crea la empresa que usará GestIA junto con su administrador inicial. Ambos registros se guardan en una sola operación.</p>
         </div>
+        <button type="button" class="modal-close" [disabled]="savingOrganization()" aria-label="Cerrar" (click)="cancelOrganizationCreation()">
+          ×
+        </button>
       </header>
 
       <form class="creation-form" #organizationForm="ngForm" (ngSubmit)="submitOrganizationStep(organizationForm)">
@@ -62,35 +270,14 @@
           <li [attr.aria-current]="organizationStep() === 3 ? 'step' : null">3. Revisión</li>
         </ol>
         @if (organizationStep() === 1) {
-        <div class="form-grid form-grid--two">
-          <label>
-            <span>Código</span>
-            <input
-              type="text"
-              name="newOrganizationCode"
-              required maxlength="30"
-              autocomplete="off"
-              placeholder="BKT"
-              [ngModel]="newOrganizationCode()"
-              (ngModelChange)="newOrganizationCode.set($event)"
-            />
-          </label>
-          <label>
-            <span>RFC</span>
-            <input
-              type="text"
-              name="newOrganizationRfc"
-              maxlength="13"
-              autocomplete="off"
-              placeholder="Opcional"
-              [ngModel]="newOrganizationRfc()"
-              (ngModelChange)="newOrganizationRfc.set($event)"
-            />
-          </label>
-        </div>
-
+        <!--
+          El nombre va primero porque es lo que identifica a la empresa y lo unico obligatorio.
+          El codigo ya no se pide: lo genera el servidor con la forma ORG-01, igual que el de
+          cliente. Pedirselo a quien da de alta una empresa le hacia inventar una convencion que
+          el sistema ya tiene, y no es la clave del registro sino un identificador de conveniencia.
+        -->
         <label>
-          <span>Nombre legal</span>
+          <span>Nombre de la organización</span>
           <input
             type="text"
             name="newOrganizationLegalName"
@@ -99,13 +286,39 @@
             placeholder="Nombre de la organización"
             [ngModel]="newOrganizationLegalName()"
             (ngModelChange)="newOrganizationLegalName.set($event)"
+            [class.is-invalid]="errorDe('legalName')"
+            [attr.aria-invalid]="errorDe('legalName') ? 'true' : null"
           />
+          @if (errorDe('legalName'); as falla) {
+            <small class="campo-error" role="alert">{{ falla }}</small>
+          }
+        </label>
+
+        <label>
+          <span>RFC</span>
+          <input
+            type="text"
+            name="newOrganizationRfc"
+            maxlength="13"
+            autocomplete="off"
+            placeholder="Opcional"
+            [ngModel]="newOrganizationRfc()"
+            (ngModelChange)="newOrganizationRfc.set($event)"
+            [class.is-invalid]="errorDe('rfc')"
+            [attr.aria-invalid]="errorDe('rfc') ? 'true' : null"
+          />
+          @if (errorDe('rfc'); as falla) {
+            <small class="campo-error" role="alert">{{ falla }}</small>
+          }
         </label>
 
         }
         @if (organizationStep() === 2) {
+        <!--
+          Sin titulo dentro del paso: el propio paso ya se llama «2. Administrador» en la lista de
+          arriba, y repetirlo justo debajo solo gastaba una linea diciendo lo mismo.
+        -->
         <fieldset>
-          <legend>Admin inicial</legend>
           <div class="form-grid form-grid--two">
             <label>
               <span>Nombre</span>
@@ -133,7 +346,7 @@
             </label>
           </div>
           <label>
-            <span>Contraseña temporal</span>
+            <span>Contraseña</span>
             <input
               type="password"
               name="initialAdminPassword"
@@ -147,9 +360,13 @@
         </fieldset>
         }
         @if (organizationStep() === 3) {
+          <!--
+            La revision enseña lo que se capturo, y nada mas. El codigo no aparece porque todavia
+            no existe: lo asigna el servidor al guardar, y enseñarlo aqui obligaria a inventar un
+            valor que podria no ser el que quede.
+          -->
           <dl class="organization-review">
             <dt>Organización</dt><dd>{{ newOrganizationLegalName() }}</dd>
-            <dt>Código</dt><dd>{{ newOrganizationCode() }}</dd>
             <dt>RFC</dt><dd>{{ newOrganizationRfc() || 'No capturado' }}</dd>
             <dt>Administrador</dt><dd>{{ initialAdminName() }}</dd>
             <dt>Correo</dt><dd>{{ initialAdminEmail() }}</dd>
@@ -167,134 +384,30 @@
           </button>
         </div>
       </form>
+    </section>
+  </div>
+}
 
-      <section class="organization-directory">
-        <header class="section-heading">
-          <div>
-            <span class="eyebrow">Directorio</span>
-            <h2>Organizaciones registradas</h2>
-            <p>Selecciona una organización para revisar admins, usuarios y clientes operativos asociados.</p>
-          </div>
-        </header>
-
-        @if (loading()) {
-          <div class="platform-skeleton" aria-label="Cargando organizaciones">
-            <span></span>
-            <span></span>
-            <span></span>
-          </div>
-        } @else {
-          <div class="organization-list">
-            @for (summary of summaries(); track summary.organization.idOrganization) {
-              <button
-                class="organization-row"
-                type="button"
-                [class.is-active]="selectedSummary()?.organization.idOrganization === summary.organization.idOrganization"
-                (click)="selectOrganization(summary.organization.idOrganization)"
-              >
-                <span>
-                  <strong>{{ summary.organization.legalName }}</strong>
-                  <small>{{ summary.organization.codeOrganization }} · {{ summary.organization.rfc || 'RFC no capturado' }}</small>
-                </span>
-                <em [class.is-muted]="!summary.organization.active">{{ activeLabel(summary.organization.active) }}</em>
-              </button>
-            } @empty {
-              <div class="empty-state">
-                <strong>Sin organizaciones registradas</strong>
-                <span>Crea la primera organización con el formulario superior.</span>
-              </div>
-            }
-          </div>
-        }
-      </section>
-    </article>
-
-    <article class="platform-detail gi-card">
-      @if (selectedSummary(); as summary) {
-        <header class="section-heading">
-          <div>
-            <span class="eyebrow">Vista Super Admin</span>
-            <h2>{{ summary.organization.legalName }}</h2>
-            <p>{{ summary.organization.codeOrganization }} · {{ summary.organization.rfc || 'RFC pendiente' }}</p>
-          </div>
-          <a class="gi-button gi-button--secondary" routerLink="/seguridad">Gestionar accesos</a>
-        </header>
-
-        <section class="detail-metrics">
-          <article>
-            <span>Clientes operativos</span>
-            <strong>{{ summary.clients.length }}</strong>
-          </article>
-          <article>
-            <span>Usuarios</span>
-            <strong>{{ summary.usersCount }}</strong>
-          </article>
-          <article>
-            <span>Admins org.</span>
-            <strong>{{ summary.adminsCount }}</strong>
-          </article>
-        </section>
-
-        <section class="detail-section">
-          <header>
-            <div>
-              <span class="eyebrow">Soporte BKT</span>
-              <h3>Datos de la organización</h3>
-            </div>
-          </header>
-
-          <form class="creation-form creation-form--compact" (ngSubmit)="updateSelectedOrganization()">
-            <div class="form-grid form-grid--two">
-              <label>
-                <span>Código</span>
-                <input
-                  type="text"
-                  name="editOrganizationCode"
-                  autocomplete="off"
-                  [ngModel]="editOrganizationCode()"
-                  (ngModelChange)="editOrganizationCode.set($event)"
-                />
-              </label>
-              <label>
-                <span>RFC</span>
-                <input
-                  type="text"
-                  name="editOrganizationRfc"
-                  autocomplete="off"
-                  placeholder="Opcional"
-                  [ngModel]="editOrganizationRfc()"
-                  (ngModelChange)="editOrganizationRfc.set($event)"
-                />
-              </label>
-            </div>
-            <label>
-              <span>Nombre legal</span>
-              <input
-                type="text"
-                name="editOrganizationLegalName"
-                autocomplete="organization"
-                [ngModel]="editOrganizationLegalName()"
-                (ngModelChange)="editOrganizationLegalName.set($event)"
-              />
-            </label>
-            <div class="form-actions">
-              <button class="gi-button gi-button--secondary" type="button" [disabled]="savingOrganization()" (click)="toggleSelectedOrganizationStatus()">
-                {{ summary.organization.active ? 'Desactivar' : 'Reactivar' }}
-              </button>
-              <button class="gi-button gi-button--primary" type="submit" [disabled]="!canUpdateSelectedOrganization()">
-                {{ savingOrganization() ? 'Guardando...' : 'Guardar cambios' }}
-              </button>
-            </div>
-          </form>
-        </section>
-
-        <section class="detail-section">
-          <header>
-            <div>
-              <span class="eyebrow">Admin de organización</span>
-              <h3>Crear admin para esta organización</h3>
-            </div>
-          </header>
+<!-- El alta de admin, en ventana como la de organizacion: misma regla para los dos formularios. -->
+@if (creatingAdmin() && selectedSummary(); as summary) {
+  <div class="modal-backdrop" (click)="cancelAdminCreation()">
+    <section
+      class="modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="alta-admin-title"
+      (click)="$event.stopPropagation()"
+    >
+      <header class="section-heading">
+        <div>
+          <span class="eyebrow">Admin de organización</span>
+          <h2 id="alta-admin-title">Crear admin para esta organización</h2>
+          <p>{{ summary.organization.legalName }}</p>
+        </div>
+        <button type="button" class="modal-close" [disabled]="savingAdmin()" aria-label="Cerrar" (click)="cancelAdminCreation()">
+          ×
+        </button>
+      </header>
 
           <form class="creation-form creation-form--compact" (ngSubmit)="createAdminForSelected()">
             <div class="form-grid form-grid--two">
@@ -336,75 +449,105 @@
               {{ savingAdmin() ? 'Creando admin...' : 'Crear admin' }}
             </button>
           </form>
-        </section>
+        
+    </section>
+  </div>
+}
 
-        <section class="detail-section">
-          <header>
-            <div>
-              <span class="eyebrow">Admins actuales</span>
-              <h3>Responsables de la organización</h3>
-            </div>
-          </header>
-          <div class="mini-list">
-            @for (admin of organizationAdmins(summary); track admin.idUser) {
-              <article>
-                <span>
-                  <strong>{{ admin.displayName }}</strong>
-                  <small>{{ admin.email }}</small>
-                </span>
-                <em [class.is-muted]="!admin.active">{{ admin.active ? 'Activo' : 'Inactivo' }}</em>
-              </article>
-            } @empty {
-              <article>
-                <span>
-                  <strong>Sin admin detectado</strong>
-                  <small>Crea el admin de la organización desde el formulario superior.</small>
-                </span>
-                <em class="is-warning">Pendiente</em>
-              </article>
-            }
-          </div>
-        </section>
-
-        <section class="detail-section">
-          <header>
-            <div>
-              <span class="eyebrow">Clientes operativos</span>
-              <h3>Clientes dentro de la organización</h3>
-            </div>
-            <a routerLink="/clientes">Abrir cartera</a>
-          </header>
-          <div class="mini-list">
-            @for (client of topClients(summary); track client.idClient) {
-              <article>
-                <span>
-                  <strong>{{ client.tradeName || client.legalName }}</strong>
-                  <small>{{ client.codeClient }} · {{ client.rfc }}</small>
-                </span>
-                <em [class.is-muted]="!client.active">{{ activeLabel(client.active) }}</em>
-              </article>
-            } @empty {
-              <article>
-                <span>
-                  <strong>Sin clientes operativos</strong>
-                  <small>El admin de organización los creará desde Configuración / Clientes.</small>
-                </span>
-                <em class="is-muted">Vacío</em>
-              </article>
-            }
-          </div>
-        </section>
-
-        <section class="platform-note">
-          <strong>Separación de niveles</strong>
-          <span>Super Admin solo da de alta organizaciones y admins. La configuración operativa vive dentro de la organización, en la vista admin.</span>
-        </section>
-      } @else {
-        <div class="empty-state empty-state--large">
-          <strong>Selecciona una organización</strong>
-          <span>El detalle de gobierno aparecerá aquí.</span>
+<!-- Editar los datos: ventana, como las dos altas. En esta pantalla los formularios no se incrustan. -->
+@if (editingOrganization() && selectedSummary(); as summary) {
+  <div class="modal-backdrop" (click)="cancelOrganizationEdit()">
+    <section
+      class="modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="editar-organizacion-title"
+      (click)="$event.stopPropagation()"
+    >
+      <header class="section-heading">
+        <div>
+          <span class="eyebrow">Soporte BKT</span>
+          <h2 id="editar-organizacion-title">Editar datos de la organización</h2>
+          <p>{{ summary.organization.legalName }}</p>
         </div>
-      }
-    </article>
-  </section>
-</section>
+        <button type="button" class="modal-close" [disabled]="savingOrganization()" aria-label="Cerrar" (click)="cancelOrganizationEdit()">
+          ×
+        </button>
+      </header>
+
+          <!-- Los mismos campos y el mismo orden que el alta: nombre y luego RFC. -->
+          <form class="creation-form creation-form--compact" (ngSubmit)="updateSelectedOrganization()">
+            <label>
+              <span>Nombre de la organización</span>
+              <input
+                type="text"
+                name="editOrganizationLegalName"
+                autocomplete="organization"
+                [ngModel]="editOrganizationLegalName()"
+                (ngModelChange)="editOrganizationLegalName.set($event)"
+              />
+            </label>
+            <label>
+              <span>RFC</span>
+              <input
+                type="text"
+                name="editOrganizationRfc"
+                autocomplete="off"
+                placeholder="Opcional"
+                [ngModel]="editOrganizationRfc()"
+                (ngModelChange)="editOrganizationRfc.set($event)"
+              />
+            </label>
+            <!--
+              La periodicidad de pago del personal. Es de la organizacion y no de la persona: una
+              empresa de seguridad paga semanal y una de limpieza puede pagar quincenal, pero dentro
+              de la misma empresa no cambia de una persona a otra.
+
+              No se pide en el alta: el alta se queda minima y esto se decide despues.
+            -->
+            <label>
+              <span>Periodicidad de pago al personal</span>
+              <select
+                name="editOrganizationPayrollFrequency"
+                [ngModel]="editOrganizationPayrollFrequency()"
+                (ngModelChange)="editOrganizationPayrollFrequency.set($event)"
+              >
+                <option value="">Sin declarar</option>
+                @for (opcion of payrollFrequencies; track opcion.value) {
+                  <option [value]="opcion.value">{{ opcion.label }}</option>
+                }
+              </select>
+            </label>
+            <!--
+              La baja vive aqui, con los demas cambios de la organizacion, en vez de en un boton
+              suelto. Asi se ve en que estado queda antes de guardar, y no hay una accion que se
+              aplica sola mientras el resto del formulario espera.
+            -->
+            <label class="check-row">
+              <input
+                type="checkbox"
+                name="editOrganizationInactive"
+                [ngModel]="editOrganizationInactive()"
+                (ngModelChange)="editOrganizationInactive.set($event)"
+              />
+              <span>
+                <strong>Desactivar la organización</strong>
+                <small>
+                  Dejará de aparecer en las listas y nadie podrá trabajar dentro de ella. Sus
+                  registros se conservan y se puede volver a activar desde aquí.
+                </small>
+              </span>
+            </label>
+
+            <div class="form-actions">
+              <button class="gi-button gi-button--secondary" type="button" [disabled]="savingOrganization()" (click)="cancelOrganizationEdit()">
+                Cancelar
+              </button>
+              <button class="gi-button gi-button--primary" type="submit" [disabled]="!canUpdateSelectedOrganization()">
+                {{ savingOrganization() ? 'Guardando...' : 'Guardar cambios' }}
+              </button>
+            </div>
+          </form>
+    </section>
+  </div>
+}

@@ -1,6 +1,6 @@
 import { EligibilityRequirement } from '../../catalogs/data-access/catalog.models';
 import { EmployeeAssignment, EmployeeListItem } from '../data-access/employee-list.models';
-import { EmployeeDocument } from '../data-access/workforce.models';
+import { EmployeeDocument, EmployeeEvaluation } from '../data-access/workforce.models';
 
 /**
  * Personas de prueba, con nombres inventados.
@@ -26,7 +26,9 @@ export function employeeFixture(overrides: Partial<EmployeeListItem> = {}): Empl
     expiredDocuments: 0,
     expiringDocuments: 0,
     missingDocuments: 0,
+    notValidDocuments: 0,
     assignmentCount: 1,
+    documentCount: 0,
     documentHealth: 'UpToDate',
     ...overrides,
   };
@@ -46,10 +48,13 @@ export function requirementFixture(
     idPosition: null,
     positionName: null,
     requirementType: 'Document',
-    requiredCode: 'Curp',
+    requiredCatalogItemName: 'CURP',
+    requiredDocumentType: 'Curp',
+    requiredEvaluationType: null,
     name: 'CURP',
     description: null,
-    isBlocking: true,
+    idRequiredCatalogItem: 'cat-curp',
+    isBlockingEffective: true,
     active: true,
     ...overrides,
   };
@@ -60,12 +65,16 @@ export function documentFixture(overrides: Partial<EmployeeDocument> = {}): Empl
     idEmployeeDocument: 'd1',
     idEmployee: 'e1',
     documentType: 'Curp',
+    idDocumentCategoryCatalogItem: 'cat-curp',
+    documentCategoryName: 'CURP',
+    isSensitive: false,
     status: 'Validated',
     documentNumber: 'VICR900101MJCLRN03',
     receivedDate: '2026-03-02',
     issuedDate: '2026-03-01',
     expiresDate: null,
     storageReference: null,
+    idBusinessDocument: null,
     notes: null,
     active: true,
     ...overrides,
@@ -78,6 +87,7 @@ export function assignmentFixture(overrides: Partial<EmployeeAssignment> = {}): 
     idService: 's1',
     serviceName: 'Vigilancia nocturna',
     clientName: 'Corporativo Altavista',
+    zoneName: 'Matriz',
     idPosition: 'p1',
     positionName: 'Caseta poniente · nocturno',
     assignmentType: 'Primary',
@@ -87,6 +97,24 @@ export function assignmentFixture(overrides: Partial<EmployeeAssignment> = {}): 
     inForce: true,
     hasShiftInProgress: false,
     shiftInProgressDate: null,
+    ...overrides,
+  };
+}
+
+export function evaluationFixture(overrides: Partial<EmployeeEvaluation> = {}): EmployeeEvaluation {
+  return {
+    idEmployeeEvaluation: 'v1',
+    idEmployee: 'e1',
+    evaluationType: 'Polygraph',
+    idEvaluationCategoryCatalogItem: 'cat-poligrafo',
+    evaluationCategoryName: 'Polígrafo',
+    result: 'Approved',
+    evaluatedDate: '2026-08-10',
+    expiresDate: null,
+    certificateNumber: 'POL-0099',
+    storageReference: null,
+    notes: null,
+    active: true,
     ...overrides,
   };
 }

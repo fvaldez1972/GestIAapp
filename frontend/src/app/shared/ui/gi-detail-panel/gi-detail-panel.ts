@@ -55,9 +55,17 @@ export class GiTabContent {
             <p class="gi-panel__subtitle">{{ subtitle() }}</p>
           }
         </div>
-        <button class="gi-panel__close" type="button" aria-label="Cerrar el detalle" (click)="close.emit()">
-          <span aria-hidden="true">×</span>
-        </button>
+        <!--
+          Acciones sobre el registro abierto, junto al titulo. Antes solo estaba la cruz y ese
+          espacio quedaba vacio: la accion principal de la ficha —editarla— vivia escondida en el
+          menu de la fila del listado, que es otro sitio y hay que cerrarla para llegar.
+        -->
+        <div class="gi-panel__acciones">
+          <ng-content select="[panelActions]" />
+          <button class="gi-panel__close" type="button" aria-label="Cerrar el detalle" (click)="close.emit()">
+            <span aria-hidden="true">×</span>
+          </button>
+        </div>
       </header>
 
       @if (tabs().length) {
@@ -142,6 +150,8 @@ export class GiTabContent {
       font-size: 11.5px;
       font-weight: 400;
     }
+
+    .gi-panel__acciones { display: flex; align-items: center; gap: 0.5rem; }
 
     .gi-panel__close {
       flex: none;
@@ -246,6 +256,23 @@ export class GiDetailPanel implements OnInit {
 
   ngOnInit(): void {
     const primera = this.tabs()[0];
+
+    // Un panel sin contenido es un panel roto, y hasta hoy se dibujaba en silencio.
+    //
+    // `<ng-template giTab="…">` sólo es una plantilla del panel si la pantalla importa
+    // `GiTabContent`. Sin ese import el atributo queda inerte, `contentChildren` no encuentra
+    // nada, y el panel se pinta con su cabecera y su «×» y **nada dentro**. Angular no protesta:
+    // un `ng-template` con un atributo desconocido es legal.
+    //
+    // Pasó en Asistencia y en Incidencias: tres paneles —registrar asistencia, registrar
+    // incidencia y cubrir un turno— abrían vacíos, y con ellos toda la captura del día operativo
+    // era imposible. No lo delató ningún error: sólo una caja de 96 px de alto.
+    devAssert(
+      this.contenidos().length > 0,
+      'gi-detail-panel: el panel no tiene contenido. Cada `<ng-template giTab="…">` necesita que ' +
+        'la pantalla importe `GiTabContent`; sin eso el atributo no hace nada y el panel se dibuja ' +
+        'vacío sin que Angular avise.',
+    );
 
     devAssert(
       !primera || primera.label === 'Datos',

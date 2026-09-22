@@ -60,11 +60,13 @@
             <app-employee-form
               [organizationId]="organizationId()"
               [jobPositions]="catalogJobPositions()"
+              [canWrite]="canWrite()"
               [today]="today()"
               [saving]="saving()"
               [problem]="formProblem()"
               (cancel)="creating.set(false)"
               (save)="saveNew($event)"
+              (createJobPosition)="createJobPosition($event)"
             />
           </ng-template>
         </gi-detail-panel>
@@ -81,8 +83,13 @@
             <app-employee-data
               [row]="employee"
               [employee]="detail()"
+              [loading]="detailLoading()"
               [canViewSensitive]="canViewSensitive()"
               [jobPositions]="catalogJobPositions()"
+              [educationLevels]="catalogEducationLevels()"
+              [savingEducation]="savingEducation()"
+              (saveEducation)="saveEducation($event)"
+              [canWrite]="canWrite()"
               [editingJobPosition]="editingJobPosition() && canWrite()"
               [savingJobPosition]="savingJobPosition()"
               [jobPositionProblem]="jobPositionProblem()"
@@ -90,6 +97,7 @@
               (openCatalog)="goToCatalogs()"
               (cancelJobPosition)="editingJobPosition.set(false)"
               (saveJobPosition)="saveJobPosition($event)"
+              (createJobPosition)="createJobPosition($event)"
             />
           </ng-template>
 
@@ -97,8 +105,11 @@
             <app-employee-documents
               [requirements]="requirements()"
               [documents]="documents()"
+              [categories]="catalogDocumentCategories()"
               [today]="today()"
               [expiringWithinDays]="expiringWithinDays()"
+              [canWrite]="canWrite()"
+              (cargar)="cargarRequisito($event)"
             />
 
             <!--
@@ -111,6 +122,70 @@
               ownerType="Employee"
               [ownerId]="employee.idEmployee"
               [ownerLabel]="employee.fullName"
+              [documentTypes]="documentTypeOptions()"
+              [openAdd]="cargandoRequisito() !== ''"
+              [presetDocumentType]="cargandoRequisito()"
+              (closeAdd)="cargandoRequisito.set('')"
+              (documentSaved)="registerEmployeeDocument($event)"
+              (totalChange)="documentCount.set($event)"
+            />
+          </ng-template>
+
+          <ng-template giTab="evaluations">
+            <!--
+              Arriba lo que la organización exige, abajo lo que la persona tiene. Igual que en
+              Documentos, porque el caso que importa —el requisito que nadie cubrió— no tiene
+              registro que lo represente y sólo se ve recorriendo los requisitos.
+            -->
+            <app-employee-evaluations
+              [requirements]="evaluationRequirements()"
+              [evaluations]="evaluations()"
+              [categories]="catalogEvaluationCategories()"
+              [today]="today()"
+              [expiringWithinDays]="expiringWithinDays()"
+              [canWrite]="canWrite()"
+              [saving]="saving()"
+              (save)="saveEvaluation($event)"
+              (deactivate)="deactivateEvaluation($event)"
+            />
+          </ng-template>
+
+          <ng-template giTab="administrative-incidents">
+            <!--
+              No son las incidencias de la operación diaria. Aquéllas describen lo que pasó en un
+              turno y viven atadas a un servicio; éstas describen un hecho de la relación laboral y
+              siguen en el expediente aunque la persona cambie de servicio.
+            -->
+            <app-employee-administrative-incidents
+              [incidents]="administrativeIncidents()"
+              [types]="catalogIncidentTypes()"
+              [today]="today()"
+              [canWrite]="canWrite()"
+              [saving]="saving()"
+              (create)="createAdministrativeIncident($event)"
+              (edit)="updateAdministrativeIncident($event)"
+              (retire)="retireAdministrativeIncident($event)"
+              (createType)="createIncidentType($event)"
+            />
+          </ng-template>
+
+          <ng-template giTab="skills">
+            <!--
+              Cierra la trampa: hasta ahora se podía exigir una experiencia que nadie podía otorgar.
+              El selector permite crearla al vuelo, porque quien acredita a una persona no tiene por
+              qué irse a Catálogos a medias.
+            -->
+            <app-employee-skills
+              [requirements]="skillRequirements()"
+              [skills]="skills()"
+              [catalogSkills]="catalogSkills()"
+              [today]="today()"
+              [expiringWithinDays]="expiringWithinDays()"
+              [canWrite]="canWrite()"
+              [saving]="saving()"
+              (save)="saveSkill($event)"
+              (deactivate)="deactivateSkill($event)"
+              (createSkill)="createSkillCatalogItem($event)"
             />
           </ng-template>
 

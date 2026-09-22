@@ -17,5 +17,19 @@ public enum OperationalEntityType
     ServiceConfiguration,
     Incident,
     CoverageRecord,
-    ServiceAssignment
+    ServiceAssignment,
+
+    /// <summary>
+    /// Una entrada de catálogo, por su marca de bloqueante o informativa.
+    ///
+    /// <para><b>Entró el 19 de septiembre de 2026 y es la primera que no es un registro operativo.</b>
+    /// La razón es que desde la conversión de los catálogos, esa marca decide si una persona puede
+    /// trabajar: cambiarla de informativa a bloqueante deja fuera, en la siguiente validación, a
+    /// todo el que no cumpla. Un campo con esa consecuencia necesita decir de qué a qué cambió y
+    /// por qué, y no sólo quién lo tocó.</para>
+    ///
+    /// <para>Va al final del enum, como manda el comentario de arriba: se guarda como texto, así
+    /// que agregar aquí no reinterpreta ninguna fila ya escrita.</para>
+    /// </summary>
+    BusinessCatalogItem
 }

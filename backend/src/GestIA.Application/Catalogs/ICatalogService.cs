@@ -27,4 +27,9 @@ public interface ICatalogService
     Task DeactivateEmployeeSkillAsync(Guid idOrganization, Guid idEmployee, Guid idEmployeeSkill, CancellationToken cancellationToken);
 
     Task<EligibilityCheckResponse> CheckEligibilityAsync(EligibilityCheckQuery query, CancellationToken cancellationToken);
+
+    /// <summary>La comprobación de elegibilidad de varias personas contra un mismo contexto.</summary>
+    Task<IReadOnlyList<EligibilityCheckResponse>> CheckEligibilityBatchAsync(
+        EligibilityBatchQuery query,
+        CancellationToken cancellationToken);
 }

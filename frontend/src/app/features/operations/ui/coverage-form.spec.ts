@@ -42,6 +42,7 @@ const MOTIVOS: readonly GiSelectOption[] = [
       [target]="target()"
       [candidates]="candidates()"
       [reasons]="reasons()"
+      [canWrite]="true"
       [isCorrection]="isCorrection()"
       [dayClosed]="dayClosed()"
       [saving]="saving()"
@@ -81,11 +82,14 @@ function montar(configurar: (host: Anfitrion) => void = () => {}) {
       raiz.querySelectorAll<HTMLButtonElement>('.gi-cand__choose')[indice].click();
       fixture.detectChanges();
     },
+    // El motivo salio del gi-select y pasa por el buscador del catalogo: se escribe y se elige,
+    // que es lo mismo que hace el supervisor.
     elegirMotivo: (texto: string) => {
-      raiz.querySelectorAll<HTMLButtonElement>('gi-select button')[0].click();
+      const campo = raiz.querySelector<HTMLInputElement>('#cob-motivo')!;
+      campo.value = texto;
+      campo.dispatchEvent(new Event('input'));
       fixture.detectChanges();
-      const opciones = Array.from(raiz.querySelectorAll<HTMLElement>('[role="option"]'));
-      opciones.find((o) => o.textContent?.includes(texto))!.click();
+      raiz.querySelector<HTMLButtonElement>('.pick__elegir')!.click();
       fixture.detectChanges();
     },
     escribirHora: (indice: number, valor: string) => {
@@ -257,5 +261,31 @@ describe('CoverageForm', () => {
 
     expect(f.host.cancelaciones()).toBe(1);
     expect(f.host.guardados()).toEqual([]);
+  });
+});
+
+/**
+ * Una cobertura nace solicitada.
+ *
+ * <p>Salió cubriendo un turno en el recorrido del portal. El servidor lo exige —«La cobertura debe
+ * crearse en estado solicitado»— y el formulario venía con «Confirmada» puesta por omisión, así que
+ * <b>cada alta chocaba con un 409 antes de escribir nada</b>. Encima el aviso no llegaba, porque la
+ * pantalla soltaba el `saving` en el `complete` de la suscripción y RxJS no lo llama cuando falla:
+ * el botón quedaba apagado para siempre y no había forma de reintentar.</p>
+ */
+describe('CoverageForm · el estado con el que nace', () => {
+  afterEach(() => TestBed.resetTestingModule());
+
+  it('al crear no ofrece elegir estado, y guarda como solicitada', () => {
+    const f = montar();
+
+    // Se dice cuál es, y no se ofrece cambiarlo: el servidor sólo admite que nazca solicitada.
+    expect(f.raiz.textContent).toContain('Solicitada');
+    expect(f.raiz.textContent).not.toContain('Confirmada');
+
+    completar(f, 0);
+    f.guardar().click();
+
+    expect(f.host.guardados()[0].status).toBe('Requested');
   });
 });

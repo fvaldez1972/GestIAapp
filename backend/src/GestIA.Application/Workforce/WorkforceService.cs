@@ -402,13 +402,18 @@ public sealed class WorkforceService(
             request.HomePhone,
             request.EmergencyContactName,
             request.EmergencyContactPhone,
+            request.EmergencyContactRelationship,
             request.Address,
+            request.Street,
+            request.StreetNumber,
+            request.Neighborhood,
             request.Municipality,
             request.State,
             request.PostalCode,
             request.HousingType,
             request.ResidenceSinceDate, request.CountryCode,
-            request.IdJobPositionCatalogItem);
+            request.IdJobPositionCatalogItem,
+            request.IdEducationLevelCatalogItem);
 
     private static EmployeeProfile Validate(UpdateEmployeeRequest request) =>
         ValidateProfile(
@@ -430,13 +435,18 @@ public sealed class WorkforceService(
             request.HomePhone,
             request.EmergencyContactName,
             request.EmergencyContactPhone,
+            request.EmergencyContactRelationship,
             request.Address,
+            request.Street,
+            request.StreetNumber,
+            request.Neighborhood,
             request.Municipality,
             request.State,
             request.PostalCode,
             request.HousingType,
             request.ResidenceSinceDate, request.CountryCode,
-            request.IdJobPositionCatalogItem);
+            request.IdJobPositionCatalogItem,
+            request.IdEducationLevelCatalogItem);
 
     private static EmployeeProfile ValidateProfile(
         string fullName,
@@ -457,13 +467,18 @@ public sealed class WorkforceService(
         string? homePhone,
         string? emergencyContactName,
         string? emergencyContactPhone,
+        string? emergencyContactRelationship,
         string? address,
+        string? street,
+        string? streetNumber,
+        string? neighborhood,
         string? municipality,
         string? state,
         string? postalCode,
         string? housingType,
         DateOnly? residenceSinceDate, string? countryCode,
-        Guid? idJobPositionCatalogItem)
+        Guid? idJobPositionCatalogItem,
+        Guid? idEducationLevelCatalogItem)
     {
         var errors = new Dictionary<string, string[]>();
         Required(fullName, nameof(fullName), 200, errors);
@@ -482,7 +497,11 @@ public sealed class WorkforceService(
         MaxLength(homePhone, nameof(homePhone), 30, errors);
         MaxLength(emergencyContactName, nameof(emergencyContactName), 200, errors);
         MaxLength(emergencyContactPhone, nameof(emergencyContactPhone), 30, errors);
+        MaxLength(emergencyContactRelationship, nameof(emergencyContactRelationship), 80, errors);
         MaxLength(address, nameof(address), 500, errors);
+        MaxLength(neighborhood, nameof(neighborhood), 120, errors);
+        MaxLength(street, nameof(street), 200, errors);
+        MaxLength(streetNumber, nameof(streetNumber), 30, errors);
         MaxLength(municipality, nameof(municipality), 120, errors);
         MaxLength(state, nameof(state), 120, errors);
         MaxLength(countryCode, nameof(countryCode), 2, errors);
@@ -509,12 +528,17 @@ public sealed class WorkforceService(
             homePhone,
             emergencyContactName,
             emergencyContactPhone,
+            emergencyContactRelationship,
             address,
+            street,
+            streetNumber,
+            neighborhood,
             municipality,
             state,
             postalCode,
             housingType,
-            residenceSinceDate, countryCode, idJobPositionCatalogItem);
+            residenceSinceDate, countryCode, idJobPositionCatalogItem,
+            idEducationLevelCatalogItem);
     }
 
     /// <summary>
@@ -535,33 +559,39 @@ public sealed class WorkforceService(
         ValidateDocumentProfile(
             request.DocumentType,
             request.Status,
+            request.IdDocumentCategoryCatalogItem,
             request.DocumentNumber,
             request.ReceivedDate,
             request.IssuedDate,
             request.ExpiresDate,
             request.StorageReference,
-            request.Notes);
+            request.Notes,
+            request.IdBusinessDocument);
 
     private static EmployeeDocumentProfile Validate(UpdateEmployeeDocumentRequest request) =>
         ValidateDocumentProfile(
             request.DocumentType,
             request.Status,
+            request.IdDocumentCategoryCatalogItem,
             request.DocumentNumber,
             request.ReceivedDate,
             request.IssuedDate,
             request.ExpiresDate,
             request.StorageReference,
-            request.Notes);
+            request.Notes,
+            request.IdBusinessDocument);
 
     private static EmployeeDocumentProfile ValidateDocumentProfile(
         EmployeeDocumentType documentType,
         EmployeeDocumentStatus status,
+        Guid? idDocumentCategoryCatalogItem,
         string? documentNumber,
         DateOnly? receivedDate,
         DateOnly? issuedDate,
         DateOnly? expiresDate,
         string? storageReference,
-        string? notes)
+        string? notes,
+        Guid? idBusinessDocument)
     {
         var errors = new Dictionary<string, string[]>();
         MaxLength(documentNumber, nameof(documentNumber), 80, errors);
@@ -576,18 +606,21 @@ public sealed class WorkforceService(
         return new EmployeeDocumentProfile(
             documentType,
             status,
+            idDocumentCategoryCatalogItem,
             documentNumber,
             receivedDate,
             issuedDate,
             expiresDate,
             storageReference,
-            notes);
+            notes,
+            idBusinessDocument);
     }
 
     private static EmployeeEvaluationProfile Validate(CreateEmployeeEvaluationRequest request) =>
         ValidateEvaluationProfile(
             request.EvaluationType,
             request.Result,
+            request.IdEvaluationCategoryCatalogItem,
             request.EvaluatedDate,
             request.ExpiresDate,
             request.CertificateNumber,
@@ -598,6 +631,7 @@ public sealed class WorkforceService(
         ValidateEvaluationProfile(
             request.EvaluationType,
             request.Result,
+            request.IdEvaluationCategoryCatalogItem,
             request.EvaluatedDate,
             request.ExpiresDate,
             request.CertificateNumber,
@@ -607,6 +641,7 @@ public sealed class WorkforceService(
     private static EmployeeEvaluationProfile ValidateEvaluationProfile(
         EmployeeEvaluationType evaluationType,
         EmployeeEvaluationResult result,
+        Guid? idEvaluationCategoryCatalogItem,
         DateOnly evaluatedDate,
         DateOnly? expiresDate,
         string? certificateNumber,
@@ -626,6 +661,7 @@ public sealed class WorkforceService(
         return new EmployeeEvaluationProfile(
             evaluationType,
             result,
+            idEvaluationCategoryCatalogItem,
             evaluatedDate,
             expiresDate,
             certificateNumber,
@@ -709,7 +745,11 @@ public sealed class WorkforceService(
             employee.HomePhone,
             employee.EmergencyContactName,
             employee.EmergencyContactPhone,
+            employee.EmergencyContactRelationship,
             employee.Address,
+            employee.Street,
+            employee.StreetNumber,
+            employee.Neighborhood,
             employee.Municipality,
             employee.State,
             employee.PostalCode,
@@ -717,13 +757,18 @@ public sealed class WorkforceService(
             employee.ResidenceSinceDate,
             employee.Active,
             employee.CreatedAt,
-            employee.UpdatedAt, employee.CountryCode);
+            employee.UpdatedAt,
+            employee.CountryCode,
+            employee.IdJobPositionCatalogItem,
+            employee.IdEducationLevelCatalogItem);
 
     private static EmployeeDocumentResponse Map(EmployeeDocument document) =>
         new(
             document.IdEmployeeDocument,
             document.IdEmployee,
             document.DocumentType,
+            document.IdDocumentCategoryCatalogItem,
+            document.DocumentCategoryCatalogItem?.Name,
             document.Status,
             document.DocumentNumber,
             document.ReceivedDate,
@@ -731,13 +776,16 @@ public sealed class WorkforceService(
             document.ExpiresDate,
             document.StorageReference,
             document.Notes,
-            document.Active);
+            document.Active,
+            document.IdBusinessDocument);
 
     private static EmployeeEvaluationResponse Map(EmployeeEvaluation evaluation) =>
         new(
             evaluation.IdEmployeeEvaluation,
             evaluation.IdEmployee,
             evaluation.EvaluationType,
+            evaluation.IdEvaluationCategoryCatalogItem,
+            evaluation.EvaluationCategoryCatalogItem?.Name,
             evaluation.Result,
             evaluation.EvaluatedDate,
             evaluation.ExpiresDate,

@@ -12,35 +12,74 @@ public sealed class OrganizationCatalogDefaults(ICatalogRepository repository, I
     // Stage defaults in the same unit of work as the organization and its initial admin.
     public async Task StageAsync(Guid organization, CancellationToken token)
     {
-        var country = await Add(BusinessCatalogItemType.Country, "MX", "México", null);
-        await Add(BusinessCatalogItemType.Nationality, "NAT-MX", "Mexicana", null);
+        var country = await Add(BusinessCatalogItemType.Country, "México", null);
+        await Add(BusinessCatalogItemType.Nationality, "Mexicana", null);
         foreach (var state in Geography.States)
         {
-            var parent = await Add(BusinessCatalogItemType.State, $"MX-{state.Code}", state.Name, country);
+            var parent = await Add(BusinessCatalogItemType.State, state.Name, country);
             foreach (var city in state.Cities)
-                await Add(BusinessCatalogItemType.City, $"MX-{city.Code}", city.Name, parent);
+                await Add(BusinessCatalogItemType.City, city.Name, parent);
         }
-        foreach (var (code, name) in IncidentReasons)
-            await Add(BusinessCatalogItemType.IncidentReason, code, name, null);
-        foreach (var (code, name) in CoverageReasons)
-            await Add(BusinessCatalogItemType.CoverageReason, code, name, null);
+        // Los motivos ya no se siembran: se crean al vuelo desde Incidencias y desde Cobertura, que
+        // es donde se necesitan. Sembrar once motivos que casi nadie usa obligaba a revisarlos y
+        // desactivar los que sobraban antes de poder confiar en el catalogo.
+        //
+        // Puestos, experiencia y zonas tampoco: los dos primeros se crean al vuelo desde Personal, y
+        // el catalogo de zonas se retiro por completo.
+        //
+        // Lo unico que sigue viniendo cargado es la geografia, porque no se captura: se elige. Sale
+        // de esta clase en su propia tanda, a una tabla compartida entre organizaciones.
+        //
+        // Y desde el 19 de septiembre de 2026, tambien las categorias de documento, las de
+        // evaluacion y los propositos de contacto. Esas tres eran listas fijas del sistema que toda
+        // organizacion tenia desde el primer minuto; al volverse editables habria que sembrarlas o
+        // una organizacion nueva no podria registrar ni un documento. Se conserva lo que ya habia;
+        // lo nuevo es que se pueden cambiar.
+        // Los grupos primero, porque las categorias de documento cuelgan de ellos. Sin este orden
+        // la categoria no tendria a que apuntar y naceria suelta, que es valido pero deja a una
+        // organizacion nueva con un catalogo distinto del de las que ya existian.
+        var grupos = new Dictionary<string, Guid>(StringComparer.Ordinal);
 
-        async Task<Guid> Add(BusinessCatalogItemType type, string code, string name, Guid? parent)
+        foreach (var grupo in EligibilityCatalogSeed.DocumentGroups)
         {
             var item = BusinessCatalogItem.Create(organization,
-                new(type, code, name, null, IdParentCatalogItem: parent), actor.ActorId, actor.ActorName, clock.UtcNow);
+                new(BusinessCatalogItemType.EmployeeDocumentGroup, grupo.Name, null, grupo.Order),
+                actor.ActorId, actor.ActorName, clock.UtcNow);
+            grupos[grupo.Name] = item.IdBusinessCatalogItem;
+            await repository.AddCatalogItemAsync(item, token);
+        }
+
+        foreach (var value in EligibilityCatalogSeed.All)
+        {
+            var padre = value.Group is not null && grupos.TryGetValue(value.Group, out var idGrupo)
+                ? idGrupo
+                : (Guid?)null;
+
+            var item = BusinessCatalogItem.Create(organization,
+                new(value.Type, value.Name, null, value.Order, padre),
+                actor.ActorId, actor.ActorName, clock.UtcNow);
+            await repository.AddCatalogItemAsync(item, token);
+        }
+
+        // Y los cinco catalogos de perfil, por la misma razon y con un motivo mas concreto: sexo,
+        // rango de edad, escolaridad, equipo requerido y motivos de incidencia se construyeron
+        // vacios, y un selector vacio no deja capturar el perfil que despues hay que comparar.
+        foreach (var value in ProfileCatalogSeed.All)
+        {
+            var item = BusinessCatalogItem.Create(organization,
+                new(value.Type, value.Name, null, value.Order, null, value.IsBlocking),
+                actor.ActorId, actor.ActorName, clock.UtcNow);
+            await repository.AddCatalogItemAsync(item, token);
+        }
+
+        async Task<Guid> Add(BusinessCatalogItemType type, string name, Guid? parent)
+        {
+            var item = BusinessCatalogItem.Create(organization,
+                new(type, name, null, IdParentCatalogItem: parent), actor.ActorId, actor.ActorName, clock.UtcNow);
             await repository.AddCatalogItemAsync(item, token);
             return item.IdBusinessCatalogItem;
         }
     }
-
-    public static readonly (string Code, string Name)[] IncidentReasons =
-        [("RETARDO", "Retardo"), ("AUSENCIA", "Ausencia"), ("UNIFORME", "Incumplimiento de uniforme"),
-         ("OPERATIVA", "Incidente operativo"), ("OTRO_AUTORIZADO", "Otro autorizado")];
-    public static readonly (string Code, string Name)[] CoverageReasons =
-        [("INCIDENCIA", "Incidencia del empleado"), ("FALTA", "Falta del empleado"),
-         ("RETARDO", "Retardo fuera de tolerancia"), ("CLIENTE", "Solicitud del cliente"),
-         ("REFUERZO", "Refuerzo operativo"), ("OTRO", "Otro motivo documentado")];
 
     private static string ReadGeography()
     {

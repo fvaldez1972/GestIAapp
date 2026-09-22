@@ -4,17 +4,46 @@ export type Organization = {
   readonly legalName: string;
   readonly rfc: string | null;
   readonly active: boolean;
+  /**
+   * Cada cuando se le paga al personal de esta organizacion.
+   *
+   * <p>Nulo es «sin declarar», no un valor faltante: es de la organizacion y nadie decide por ella.
+   * En seguridad se paga semanal y en limpieza puede ser quincenal, pero dentro de una misma
+   * empresa no cambia de una persona a otra.</p>
+   */
+  readonly payrollFrequency: PaymentFrequency | null;
 };
 
 export type CreateOrganization = {
-  readonly codeOrganization: string;
+  /**
+   * Opcional: sin el, lo pone el servidor con la forma `ORG-01`. No se captura desde ninguna
+   * pantalla, y al editar una organizacion omitirlo conserva el que ya tiene.
+   */
+  readonly codeOrganization?: string | null;
   readonly legalName: string;
   readonly rfc: string | null;
 };
 
-export type UpdateOrganization = CreateOrganization;
+/**
+ * La edicion de una organizacion.
+ *
+ * <p>Lleva la periodicidad de pago, que el alta no pide: el alta se queda minima y esto se decide
+ * despues. Nulo la deja «sin declarar», que es un estado valido.</p>
+ */
+export type UpdateOrganization = CreateOrganization & {
+  readonly payrollFrequency?: PaymentFrequency | null;
+};
 
-export type CreateOrganizationWithAdmin = CreateOrganization & {
+/**
+ * El alta de una organizacion junto con su administrador inicial.
+ *
+ * <p>El codigo va aparte de <c>CreateOrganization</c> porque aqui es <b>opcional</b>: cuando no se
+ * manda, lo pone el servidor con la forma <c>ORG-01</c>. Pedirselo a quien da de alta una empresa
+ * le hace inventar una convencion que el sistema ya tiene, y el codigo no es la clave del
+ * registro sino un identificador de conveniencia.</p>
+ */
+export type CreateOrganizationWithAdmin = Omit<CreateOrganization, 'codeOrganization'> & {
+  readonly codeOrganization?: string | null;
   readonly admin: {
     readonly displayName: string;
     readonly email: string;
@@ -94,10 +123,10 @@ export type CreateClient = ClientInput & {
   readonly codeClient?: string;
 };
 
-export type ClientSite = {
-  readonly idClientSite: string;
+export type ClientZone = {
+  readonly idClientZone: string;
   readonly idClient: string;
-  readonly codeClientSite: string;
+  readonly codeClientZone: string;
   readonly name: string;
   readonly street: string;
   readonly exteriorNumber: string | null;
@@ -112,7 +141,7 @@ export type ClientSite = {
   readonly active: boolean;
 };
 
-export type ClientSiteInput = {
+export type ClientZoneInput = {
   readonly idOrganization: string;
   readonly idClient: string;
   readonly name: string;
@@ -128,8 +157,8 @@ export type ClientSiteInput = {
   readonly timeZoneId: string | null;
 };
 
-export type CreateClientSite = ClientSiteInput & {
-  readonly codeClientSite: string;
+export type CreateClientZone = ClientZoneInput & {
+  readonly codeClientZone: string;
 };
 
 export type ClientContactPurpose =
@@ -142,11 +171,26 @@ export type ClientContactPurpose =
   | 'Purchasing'
   | 'InternalSecurity';
 
+/**
+ * A quién cubre un contacto.
+ *
+ * <p>Se podía deducir de si tiene zona, y aun así viaja: un contacto sin zona porque nadie se la
+ * puso no es lo mismo que uno que vale para todo el cliente a propósito, y la decisión D-02 —un
+ * contacto principal por alcance— necesita contar de cada clase.</p>
+ */
+export type ClientContactScope = 'General' | 'Zone';
+
 export type ClientContact = {
   readonly idClientContact: string;
   readonly idClient: string;
-  readonly idClientSite: string | null;
-  readonly clientSiteName: string | null;
+  readonly idClientZone: string | null;
+  readonly scope: ClientContactScope;
+  readonly idPurposeCatalogItem: string | null;
+  readonly idContactJobPositionCatalogItem: string | null;
+  readonly clientZoneName: string | null;
+  readonly purposeName: string | null;
+  readonly contactJobPositionName: string | null;
+  /** Para qué se le llama, como enum. <b>Rastro heredado</b> de antes de la conversión a catálogo. */
   readonly purpose: ClientContactPurpose;
   readonly fullName: string;
   readonly jobTitle: string | null;
@@ -160,7 +204,10 @@ export type ClientContact = {
 export type ClientContactInput = {
   readonly idOrganization: string;
   readonly idClient: string;
-  readonly idClientSite: string | null;
+  readonly idClientZone: string | null;
+  readonly scope: ClientContactScope;
+  readonly idPurposeCatalogItem: string | null;
+  readonly idContactJobPositionCatalogItem: string | null;
   readonly purpose: ClientContactPurpose;
   readonly fullName: string;
   readonly jobTitle: string | null;
@@ -215,8 +262,8 @@ export type CreateServiceContract = ServiceContractInput & {
 export type ManagedService = {
   readonly idService: string;
   readonly idClient: string;
-  readonly idClientSite: string;
-  readonly clientSiteName: string | null;
+  readonly idClientZone: string;
+  readonly clientZoneName: string | null;
   readonly idServiceContract: string | null;
   readonly serviceContractCode: string | null;
   readonly codeService: string;
@@ -231,7 +278,7 @@ export type ManagedService = {
 export type ManagedServiceInput = {
   readonly idOrganization: string;
   readonly idClient: string;
-  readonly idClientSite: string;
+  readonly idClientZone: string;
   readonly idServiceContract: string | null;
   readonly name: string;
   readonly description: string;
@@ -240,59 +287,40 @@ export type ManagedServiceInput = {
   readonly endDate: string | null;
 };
 
+/**
+ * El alta de un servicio contratado.
+ *
+ * <p>El codigo es <b>opcional</b>: sin el, lo pone el servidor con la forma `SRV-01`, consecutivo
+ * por cliente. Es el mismo trato que el de cliente y el de organizacion, y por la misma razon: es
+ * un identificador de conveniencia, no la clave del registro.</p>
+ */
 export type CreateManagedService = ManagedServiceInput & {
-  readonly codeService: string;
+  readonly codeService?: string | null;
 };
 
-export type ServiceConfiguration = {
-  readonly idServiceConfiguration: string;
-  readonly idService: string;
-  readonly effectiveFromDate: string;
-  readonly effectiveToDate: string | null;
-  readonly requiredWorkerCount: number;
-  readonly hoursPerDay: number;
-  readonly daysPerWeek: number;
-  readonly averageWeeklyHours: number;
-  readonly averageMonthlyHours: number;
-  readonly preparationLeadDays: number;
-  readonly workScheduleDescription: string;
-  readonly specificInstructions: string | null;
-  readonly monthlyPrice: number;
-  readonly currencyCode: string;
-  readonly isTaxIncluded: boolean;
-  readonly active: boolean;
-  /**
-   * Token de concurrencia. Es `rowversion` en la base y viaja como **base64**: no se interpreta,
-   * no se compara y no se construye. Se lee al abrir y se devuelve igual al guardar; si alguien
-   * corrigió el registro entre una cosa y la otra, el servidor responde 409 y dice quién fue.
-   */
-  readonly rowVersion: string;
+/**
+ * Cada cuando se paga o se cobra algo.
+ *
+ * <p>Sirve para dos hechos distintos: cada cuando se le cobra al cliente el precio de un puesto, y
+ * cada cuando se le paga al personal, que es de la organizacion. En seguridad privada casi nunca
+ * coinciden.</p>
+ *
+ * <p><b>Quincenal y catorcenal no son lo mismo</b> y se confunden todo el tiempo: catorcenal son
+ * veintiseis pagos al año y cae siempre en el mismo dia de la semana; quincenal son veinticuatro y
+ * cae en fechas fijas. Entran las dos porque en Mexico conviven.</p>
+ */
+export type PaymentFrequency = 'Weekly' | 'Biweekly' | 'SemiMonthly' | 'Monthly';
+
+/** Como se dice cada periodo en pantalla. */
+export const PAYMENT_FREQUENCY_LABELS: Record<PaymentFrequency, string> = {
+  Weekly: 'Semanal',
+  Biweekly: 'Catorcenal',
+  SemiMonthly: 'Quincenal',
+  Monthly: 'Mensual',
 };
 
-export type ServiceConfigurationInput = {
-  readonly idOrganization: string;
-  readonly idClient: string;
-  readonly idService: string;
-  readonly effectiveFromDate: string;
-  readonly effectiveToDate: string | null;
-  readonly requiredWorkerCount: number;
-  readonly hoursPerDay: number;
-  readonly daysPerWeek: number;
-  readonly averageMonthlyHours: number;
-  readonly preparationLeadDays: number;
-  readonly workScheduleDescription: string;
-  readonly specificInstructions: string | null;
-  readonly monthlyPrice: number;
-  readonly currencyCode: string | null;
-  readonly isTaxIncluded: boolean;
-};
-
-/** La corrección de una configuración. Mismo criterio que `ServiceAssignmentCorrectionInput`. */
-export type ServiceConfigurationCorrectionInput = ServiceConfigurationInput & {
-  readonly rowVersion: string;
-  /** Por qué se corrige. Obligatorio cuando la regla del servidor lo exige. */
-  readonly correctionReason?: string;
-};
+export const paymentFrequencyLabel = (frequency: PaymentFrequency | null): string =>
+  frequency ? PAYMENT_FREQUENCY_LABELS[frequency] : 'Sin declarar';
 
 export type ServicePosition = {
   readonly idPosition: string;
@@ -303,6 +331,59 @@ export type ServicePosition = {
   readonly requiredSkillProfile: string | null;
   readonly notes: string | null;
   readonly active: boolean;
+  /**
+   * Lo que se cobra por este puesto, en el periodo que dice `priceFrequency`.
+   *
+   * <p>Se llamaba `monthlyPrice` y dejo de ser cierto: el precio se pacta por semana o por mes
+   * segun el cliente, y el importe se guarda tal como se pacto, sin convertirlo.</p>
+   */
+  readonly price: number;
+  readonly priceFrequency: PaymentFrequency;
+  readonly currencyCode: string;
+  readonly isTaxIncluded: boolean;
+  /**
+   * El patron del catalogo de turnos que sigue este puesto.
+   *
+   * <p>Nulo mientras la posicion conserve su patron propio, el que se le capturo por dentro antes
+   * de que existiera el catalogo. No es un dato faltante: es una posicion que todavia no se
+   * migro.</p>
+   */
+  readonly idShiftPatternTemplate: string | null;
+
+  /**
+   * Lo que el cliente pide para el puesto. <b>Es del puesto, no de la persona.</b>
+   *
+   * <p>Describe lo contratado, y por eso el catálogo de sexo admite «Indistinto», que no
+   * describiría a nadie. No se compara contra el expediente de quien se asigne: eso sería una regla
+   * de elegibilidad, y las reglas viven en su propia pantalla.</p>
+   *
+   * <p>Nulos en lo capturado antes de que existieran los campos. Un nulo dice «no se sabe», que es
+   * distinto de «no cumple».</p>
+   */
+  readonly idSexCatalogItem: string | null;
+  readonly idAgeRangeCatalogItem: string | null;
+  readonly idEducationLevelCatalogItem: string | null;
+
+  /**
+   * Desde cuándo hace falta el puesto.
+   *
+   * <p><b>Es del puesto, no del servicio.</b> Un servicio vigente todo el año puede tener un
+   * refuerzo que sólo va de octubre a diciembre. Las posiciones capturadas antes del 19 de
+   * septiembre de 2026 heredaron la del servicio, que es la que tenían implícitamente.</p>
+   */
+  readonly startDate: string;
+
+  /** Hasta cuándo. Nulo es puesto permanente, no «no se sabe». */
+  readonly endDate: string | null;
+
+  /** El equipo requerido, ya resuelto por el servidor con su nombre. */
+  readonly requiredEquipment: readonly PositionEquipment[];
+};
+
+/** Una pieza del equipo que una posición requiere. */
+export type PositionEquipment = {
+  readonly idCatalogItem: string;
+  readonly name: string;
 };
 
 export type ServicePositionInput = {
@@ -313,10 +394,37 @@ export type ServicePositionInput = {
   readonly requiredWorkerCount: number;
   readonly requiredSkillProfile: string | null;
   readonly notes: string | null;
+  readonly price: number;
+  readonly priceFrequency: PaymentFrequency;
+  readonly currencyCode: string;
+  readonly isTaxIncluded: boolean;
+  /** Opcional: una pantalla que no elige patron manda la posicion sin el campo y queda en nulo. */
+  readonly idShiftPatternTemplate?: string | null;
+  readonly idSexCatalogItem?: string | null;
+  readonly idAgeRangeCatalogItem?: string | null;
+  readonly idEducationLevelCatalogItem?: string | null;
+
+  /** Desde cuándo hace falta. Omitirla hereda el inicio del servicio. */
+  readonly startDate?: string | null;
+  /** Hasta cuándo. Omitirla hereda el fin del servicio, que puede no tenerlo. */
+  readonly endDate?: string | null;
+
+  /**
+   * El equipo requerido, por identificador.
+   *
+   * <p>Omitirlo deja el equipo como estaba; mandar una lista vacía lo retira entero. La diferencia
+   * importa: una pantalla que edita sólo el precio no manda el equipo, y tratarlo como «vacío» le
+   * borraría lo que no venía a tocar.</p>
+   */
+  readonly idRequiredEquipmentCatalogItems?: readonly string[];
 };
 
+/**
+ * El alta de una posicion. El codigo es **opcional**: sin el, lo pone el servidor con la forma
+ * `P-01`, consecutivo por servicio.
+ */
 export type CreateServicePosition = ServicePositionInput & {
-  readonly codePosition: string;
+  readonly codePosition?: string | null;
 };
 
 export type ShiftPattern = {
@@ -341,8 +449,12 @@ export type ShiftPatternInput = {
   readonly effectiveToDate: string | null;
 };
 
+/**
+ * El alta de un patron de turnos. El codigo es **opcional**: sin el, lo pone el servidor con la
+ * forma `PAT-01`, consecutivo por posicion.
+ */
 export type CreateShiftPattern = ShiftPatternInput & {
-  readonly codeShiftPattern: string;
+  readonly codeShiftPattern?: string | null;
 };
 
 export type ShiftSegment = {
@@ -389,7 +501,7 @@ export type ServiceAssignment = {
   readonly isPrimary: boolean;
   readonly notes: string | null;
   readonly active: boolean;
-  /** Token de concurrencia. Ver la nota de `ServiceConfiguration`. */
+  /** Token de concurrencia: detecta que otro guardo mientras esta pantalla tenia el dato. */
   readonly rowVersion: string;
 };
 
@@ -827,6 +939,15 @@ export type WorkforceEligibilityReport = {
   readonly fullName: string;
   readonly jobTitle: string | null;
   readonly isEligible: boolean;
+  /**
+   * Si no había ninguna regla activa que aplicara a esta persona.
+   *
+   * <p>Tercer estado, y lo resuelve el servidor. Antes la pantalla lo adivinaba buscando las
+   * palabras «regla», «suficiente» o «configur» en los motivos, y el motivo de quien sí cumple
+   * dice «Elegible con las reglas actuales»: contenía «reglas», así que <b>toda persona elegible
+   * se rotulaba «Sin reglas suficientes»</b> y aparecía en el filtro de incumplimientos.</p>
+   */
+  readonly hasNoApplicableRules: boolean;
   readonly reasons: readonly string[];
   readonly expiredDocuments: number;
   readonly rejectedDocuments: number;
@@ -844,8 +965,8 @@ export type PagedResult<T> = {
 /**
  * Un cliente en el listado.
  *
- * <p>Trae los conteos resueltos por el servidor. El que importa es <c>siteCount</c>: <b>la sede es
- * el prerrequisito para crear servicios</b>, porque el servicio se liga a una sede. Saberlo aquí
+ * <p>Trae los conteos resueltos por el servidor. El que importa es <c>zoneCount</c>: <b>la zona es
+ * el prerrequisito para crear servicios</b>, porque el servicio se liga a una zona. Saberlo aquí
  * es lo que permite decirlo en esta pantalla en vez de dejar que el usuario se estrelle en la
  * siguiente.</p>
  */
@@ -858,20 +979,20 @@ export type ClientListItem = {
   readonly rfc: string;
   readonly active: boolean;
   readonly createdAt: string;
-  readonly siteCount: number;
-  readonly sitesWithoutContact: number;
+  readonly zoneCount: number;
+  readonly zonesWithoutContact: number;
   readonly contactCount: number;
   readonly serviceCount: number;
-  readonly mainSiteName: string | null;
-  readonly mainSiteMunicipality: string | null;
-  readonly mainSiteState: string | null;
+  readonly mainZoneName: string | null;
+  readonly mainZoneMunicipality: string | null;
+  readonly mainZoneState: string | null;
 };
 
 /** Los tres modos del listado. Coincide con el enum del servidor. */
 export type ClientStatusFilter = 'Active' | 'Inactive' | 'All';
 
-/** Si el cliente tiene sede: el filtro que separa a los que pueden tener servicios. */
-export type ClientSitePresenceFilter = 'Any' | 'WithSite' | 'WithoutSite';
+/** Si el cliente tiene zona: el filtro que separa a los que pueden tener servicios. */
+export type ClientZonePresenceFilter = 'Any' | 'WithZone' | 'WithoutZone';
 
 /** El nombre que se muestra. El comercial manda; muchos clientes no lo tienen. */
 export const clientDisplayName = (client: {
@@ -880,48 +1001,48 @@ export const clientDisplayName = (client: {
 }) => client.tradeName ?? client.legalName;
 
 /**
- * Dónde está el cliente, según su sede principal.
+ * Dónde está el cliente, según su zona principal.
  *
  * <p>El bosquejo pedía «Zona · Municipio», y <b>la zona no existe en el modelo</b>: ni el cliente
- * ni la sede la tienen, y el catálogo <c>Zone</c> no lo referencia ninguna entidad. Lo que sí
- * existe, y es lo que se muestra, es el estado y el municipio de la sede.</p>
+ * ni la zona la tienen, y el catálogo <c>Zone</c> no lo referencia ninguna entidad. Lo que sí
+ * existe, y es lo que se muestra, es el estado y el municipio de la zona.</p>
  */
 export function clientLocation(client: ClientListItem): string {
-  if (!client.mainSiteMunicipality) {
-    return 'Sin ubicación: no tiene sede';
+  if (!client.mainZoneMunicipality) {
+    return 'Sin ubicación: no tiene zona';
   }
 
-  return client.mainSiteState
-    ? `${client.mainSiteState} · ${client.mainSiteMunicipality}`
-    : client.mainSiteMunicipality;
+  return client.mainZoneState
+    ? `${client.mainZoneState} · ${client.mainZoneMunicipality}`
+    : client.mainZoneMunicipality;
 }
 
 /**
- * Lo que dice la columna de sedes.
+ * Lo que dice la columna de zonas.
  *
- * <p><b>Cero sedes no se muestra como cero.</b> Un cero diría que está en orden, y lo que dice de
+ * <p><b>Cero zonas no se muestra como cero.</b> Un cero diría que está en orden, y lo que dice de
  * verdad es que a este cliente no se le puede crear un servicio. Va como raya más la palabra.</p>
  */
-export type ClientSiteBadge = {
+export type ClientZoneBadge = {
   readonly value: string;
   readonly pill: string;
   readonly tone: 'danger' | 'warning' | 'muted' | 'none';
 };
 
-export function clientSiteBadge(client: ClientListItem): ClientSiteBadge {
-  if (client.siteCount === 0) {
-    return { value: '—', pill: 'Sin sede', tone: 'warning' };
+export function clientZoneBadge(client: ClientListItem): ClientZoneBadge {
+  if (client.zoneCount === 0) {
+    return { value: '—', pill: 'Sin zona', tone: 'warning' };
   }
 
-  if (client.sitesWithoutContact > 0) {
+  if (client.zonesWithoutContact > 0) {
     return {
-      value: String(client.siteCount),
-      pill: client.sitesWithoutContact === 1 ? '1 sin contacto' : `${client.sitesWithoutContact} sin contacto`,
+      value: String(client.zoneCount),
+      pill: client.zonesWithoutContact === 1 ? '1 sin contacto' : `${client.zonesWithoutContact} sin contacto`,
       tone: 'muted',
     };
   }
 
-  return { value: String(client.siteCount), pill: '', tone: 'none' };
+  return { value: String(client.zoneCount), pill: '', tone: 'none' };
 }
 
 /**
@@ -930,5 +1051,5 @@ export function clientSiteBadge(client: ClientListItem): ClientSiteBadge {
  * <p>La razón se escribe al lado del botón bloqueado. Un botón gris sin explicación obliga a
  * adivinar, y quien adivina mal se va a Servicios a intentarlo de todos modos.</p>
  */
-export const clientServiceBlockReason = (client: { readonly siteCount: number }) =>
-  client.siteCount === 0 ? 'No se puede crear el servicio: falta la sede a la que se ligaría.' : '';
+export const clientServiceBlockReason = (client: { readonly zoneCount: number }) =>
+  client.zoneCount === 0 ? 'No se puede crear el servicio: falta la zona a la que se ligaría.' : '';

@@ -58,6 +58,25 @@ describe('GiRowActions', () => {
     expect(disparador().getAttribute('aria-expanded')).toBe('true');
   });
 
+  /**
+   * El menú se dibujaba por debajo de la fila en Clientes, Personal y Servicios.
+   *
+   * <p>No era el z-index: el menú ya iba por encima. Era el recorte. La tabla vive en un contenedor
+   * con «overflow-x: auto», y en CSS eso obliga al eje vertical a «auto» también, así que el menú
+   * quedaba cortado por el borde de la tabla. Ir a la capa superior del navegador es lo que lo saca
+   * de cualquier contenedor que recorte, sin depender de que nadie recuerde no poner overflow.</p>
+   */
+  it('el menú va en la capa superior, fuera del alcance de un contenedor que recorte', () => {
+    const { raiz, disparador, fixture } = montar();
+
+    disparador().click();
+    fixture.detectChanges();
+
+    const menu = raiz.querySelector('[role="menu"]')!;
+    expect(menu.getAttribute('popover')).toBe('manual');
+    expect(getComputedStyle(menu).position).not.toBe('absolute');
+  });
+
   it('el botón de sólo icono tiene nombre accesible, y el menú también', () => {
     const { raiz, disparador, fixture } = montar();
 

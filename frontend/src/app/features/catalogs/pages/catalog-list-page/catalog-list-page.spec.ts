@@ -97,16 +97,29 @@ describe('Página de un catálogo', () => {
    * sin que nadie haya tocado nada. Ya pasó una vez.</p>
    */
   function fingirDialogo() {
-    const original = Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, 'showModal');
+    // `showModal` y `close`: guardar sin el segundo lanzaba al cerrar el editor, y como saltaba
+    // fuera de la aserción se veía como «Unhandled Error» y no como una prueba en rojo.
+    const originales = (['showModal', 'close'] as const).map((metodo) => ({
+      metodo,
+      descriptor: Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, metodo),
+    }));
+
     Object.defineProperty(HTMLDialogElement.prototype, 'showModal', {
       configurable: true,
       value: function (this: HTMLDialogElement) { this.open = true; },
     });
+    Object.defineProperty(HTMLDialogElement.prototype, 'close', {
+      configurable: true,
+      value: function (this: HTMLDialogElement) { this.open = false; },
+    });
+
     onTestFinished(() => {
-      if (original) {
-        Object.defineProperty(HTMLDialogElement.prototype, 'showModal', original);
-      } else {
-        delete (HTMLDialogElement.prototype as Partial<HTMLDialogElement>).showModal;
+      for (const { metodo, descriptor } of originales) {
+        if (descriptor) {
+          Object.defineProperty(HTMLDialogElement.prototype, metodo, descriptor);
+        } else {
+          delete (HTMLDialogElement.prototype as Partial<HTMLDialogElement>)[metodo];
+        }
       }
     });
   }

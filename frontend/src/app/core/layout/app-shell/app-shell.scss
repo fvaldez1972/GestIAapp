@@ -170,56 +170,52 @@ a.menu-link:hover .menu-icon {
 
 /* ── El submenú ─────────────────────────────────────────────────────────────────────────────── */
 
-/* El enlace se queda con todo el ancho que sobre; el galón ocupa lo suyo y no se encoge. */
-.menu-row {
-  display: flex;
-  align-items: center;
-}
+/*
+  El renglón con hijos es un <button>, no un <a>, y tiene que verse idéntico a un enlace del menú:
+  para quien lo usa es un renglón más. `.menu-link` ya trae el alto, el color y el activo; aquí sólo
+  se le quita lo que un botón trae de fábrica y se le hace sitio al galón.
 
-.menu-row .menu-link {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.menu-toggle {
-  display: inline-flex;
-  width: 1.85rem;
-  height: 1.85rem;
-  flex: 0 0 1.85rem;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
+  NO se llama `.menu-toggle`. Ese nombre ya lo ocupa el botón de hamburguesa de la barra superior,
+  en este mismo componente, y como su regla va después ganaba: el galón salía pintado de blanco
+  sobre el azul del menú, como una mancha. Dos reglas con el mismo nombre en la misma hoja no dan
+  error en ninguna parte; sólo gana la última.
+*/
+.menu-link--branch {
+  width: 100%;
   border: 0;
-  border-radius: 0.4rem;
   background: none;
-  color: var(--gestia-cyan-soft);
   cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.menu-link--branch .menu-text {
+  flex: 1 1 auto;
+}
+
+.menu-chevron {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  color: var(--gestia-cyan-soft);
   opacity: 0.55;
-  transition: opacity 150ms ease, transform 150ms ease, background-color 150ms ease;
+  transition: transform 150ms ease, opacity 150ms ease;
 }
 
-.menu-toggle svg {
-  width: 0.85rem;
-  height: 0.85rem;
+.menu-chevron svg {
+  width: 0.8rem;
+  height: 0.8rem;
 }
 
-.menu-toggle:hover {
-  background: var(--gestia-navy-soft);
-  opacity: 1;
-}
-
-.menu-toggle:focus-visible {
-  outline: 2px solid var(--gestia-cyan);
-  outline-offset: -2px;
-  opacity: 1;
-}
-
-/* Abierto, el galón apunta hacia abajo. Es la única señal de estado que queda cuando el submenú
-   se sale de la vista al rodar el menú. */
-.menu-toggle.is-open {
-  color: var(--gestia-cyan);
+.menu-chevron.is-open {
   opacity: 1;
   transform: rotate(90deg);
+}
+
+.menu-link--branch:hover .menu-chevron,
+.menu-link--branch.active .menu-chevron {
+  color: var(--gestia-cyan);
+  opacity: 1;
 }
 
 .submenu {
@@ -229,19 +225,48 @@ a.menu-link:hover .menu-icon {
   border-left: 1px solid var(--gestia-navy-soft);
 }
 
+/* El rótulo del bloque también despliega, así que es un botón y no un <h3>. Mantiene el aire de
+   rótulo —versalita, pequeño, apagado— para que no compita con las entradas que cuelgan de él. */
 .submenu-group {
-  margin: 0.55rem 0 0.15rem;
-  padding: 0 0.5rem;
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0.45rem 0 0.1rem;
+  padding: 0.25rem 0.5rem;
+  border: 0;
+  border-radius: 0.4rem;
+  background: none;
   color: var(--gestia-cyan-soft);
-  font-size: 0.64rem;
+  cursor: pointer;
+  font: inherit;
+  font-size: 10.5px;
   font-weight: 600;
   letter-spacing: 0.08em;
   opacity: 0.75;
+  text-align: left;
   text-transform: uppercase;
 }
 
 .submenu-group:first-child {
   margin-top: 0.15rem;
+}
+
+.submenu-group:hover,
+.submenu-group.is-open {
+  color: var(--gestia-cyan);
+  opacity: 1;
+}
+
+.submenu-group:focus-visible,
+.menu-link--branch:focus-visible {
+  outline: 2px solid var(--gestia-cyan);
+  outline-offset: -2px;
+}
+
+.submenu-group .menu-chevron svg {
+  width: 0.7rem;
+  height: 0.7rem;
 }
 
 .submenu-list {
@@ -255,7 +280,7 @@ a.menu-link:hover .menu-icon {
   padding: 0.38rem 0.5rem;
   border-radius: 0.4rem;
   color: inherit;
-  font-size: 0.78rem;
+  font-size: 12px;
   text-decoration: none;
   transition: color 150ms ease, background-color 150ms ease;
 }

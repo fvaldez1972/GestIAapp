@@ -17,13 +17,31 @@
         <ul class="menu-list" [attr.aria-labelledby]="'menu-group-' + $index">
           @for (item of group.items; track item.route) {
             <li>
-              <!--
-                La entrada y su interruptor son dos controles, no uno. Un padre que navega y
-                despliega a la vez obliga a adivinar cuál de las dos cosas va a pasar, y en una
-                pantalla táctil no hay forma de pedir la otra. Así, el nombre lleva a la página y
-                el galón abre la lista.
-              -->
-              <div class="menu-row">
+              @if (item.children?.length && !layout.isCondensed()) {
+                <!--
+                  Con hijos, la entrada ES el interruptor: todo el renglón despliega y no navega.
+                  Antes llevaba a su página y el galón era un botón aparte, y se sentía como una
+                  trampa: quien pulsaba «Catálogos» para ver la lista se encontraba en otra pantalla.
+                  Se dibuja como un enlace del menú —misma altura, mismo icono, mismo activo— porque
+                  para quien lo usa es un renglón del menú, no un control distinto.
+                -->
+                <button
+                  type="button"
+                  class="menu-link menu-link--branch"
+                  [class.active]="isInside(item.route)"
+                  [attr.aria-expanded]="isSubmenuOpen(item.route)"
+                  [attr.aria-controls]="'submenu-' + $index"
+                  (click)="toggleSubmenu(item.route)"
+                >
+                  <span class="menu-icon"><app-icon [name]="item.icon" /></span>
+                  <span class="menu-text">{{ item.label }}</span>
+                  <span class="menu-chevron" [class.is-open]="isSubmenuOpen(item.route)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="m9 6 6 6-6 6" />
+                    </svg>
+                  </span>
+                </button>
+              } @else {
                 <a
                   class="menu-link"
                   [routerLink]="item.route"
@@ -35,45 +53,51 @@
                   <span class="menu-icon"><app-icon [name]="item.icon" /></span>
                   <span class="menu-text">{{ item.label }}</span>
                 </a>
-
-                @if (item.children?.length && !layout.isCondensed()) {
-                  <button
-                    type="button"
-                    class="menu-toggle"
-                    [class.is-open]="isSubmenuOpen(item.route)"
-                    [attr.aria-expanded]="isSubmenuOpen(item.route)"
-                    [attr.aria-controls]="'submenu-' + $index"
-                    [attr.aria-label]="(isSubmenuOpen(item.route) ? 'Ocultar' : 'Mostrar') + ' los apartados de ' + item.label"
-                    (click)="toggleSubmenu(item.route)"
-                  >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                      <path d="m9 6 6 6-6 6" />
-                    </svg>
-                  </button>
-                }
-              </div>
+              }
 
               <!--
                 Condensado no se dibuja: no caben dieciocho nombres en la franja de iconos, y un
-                submenú flotante sería otro componente con su propio comportamiento de teclado. El
-                padre sigue llevando a su página, que es de donde se llega a todo.
+                submenú flotante sería otro componente con su propio comportamiento de teclado.
               -->
               @if (item.children?.length && !layout.isCondensed() && isSubmenuOpen(item.route)) {
                 <div class="submenu" [id]="'submenu-' + $index">
                   @for (bloque of item.children; track bloque.label) {
-                    <h3 class="submenu-group" [id]="'submenu-' + $index + '-' + $count">{{ bloque.label }}</h3>
-                    <ul class="submenu-list" [attr.aria-labelledby]="'submenu-' + $index + '-' + $count">
-                      @for (hijo of bloque.items; track hijo.route) {
-                        <li>
-                          <a
-                            class="submenu-link"
-                            [routerLink]="hijo.route"
-                            routerLinkActive="active"
-                            (click)="layout.closeMobileNavigation()"
-                          >{{ hijo.label }}</a>
-                        </li>
-                      }
-                    </ul>
+                    <!--
+                      Cada bloque despliega por su cuenta. Con dieciocho entradas, abrirlos todos
+                      devuelve la lista larga que el submenú venía a evitar; cerrados, los cinco
+                      rótulos son un índice que cabe de un vistazo. El del apartado en el que estás
+                      se abre solo.
+                    -->
+                    <button
+                      type="button"
+                      class="submenu-group"
+                      [class.is-open]="isGroupOpen(item.route, bloque.label)"
+                      [attr.aria-expanded]="isGroupOpen(item.route, bloque.label)"
+                      [attr.aria-controls]="'submenu-' + $index + '-' + $count"
+                      (click)="toggleGroup(item.route, bloque.label)"
+                    >
+                      <span class="submenu-group__text">{{ bloque.label }}</span>
+                      <span class="menu-chevron" [class.is-open]="isGroupOpen(item.route, bloque.label)">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                          <path d="m9 6 6 6-6 6" />
+                        </svg>
+                      </span>
+                    </button>
+
+                    @if (isGroupOpen(item.route, bloque.label)) {
+                      <ul class="submenu-list" [id]="'submenu-' + $index + '-' + $count">
+                        @for (hijo of bloque.items; track hijo.route) {
+                          <li>
+                            <a
+                              class="submenu-link"
+                              [routerLink]="hijo.route"
+                              routerLinkActive="active"
+                              (click)="layout.closeMobileNavigation()"
+                            >{{ hijo.label }}</a>
+                          </li>
+                        }
+                      </ul>
+                    }
                   }
                 </div>
               }

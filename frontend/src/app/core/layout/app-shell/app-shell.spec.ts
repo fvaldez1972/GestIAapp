@@ -226,13 +226,40 @@ describe('AppShell', () => {
     }
   });
 
-  it('todo enlace del menú lleva su texto', () => {
+  it('todo enlace del menú lleva su texto y su dirección', () => {
     const { raiz } = montar(['PLATFORM.ADMIN'], [ALFA], 'org-a');
 
-    for (const enlace of Array.from(raiz.querySelectorAll('.side-nav .menu-link'))) {
+    // Los renglones que despliegan no son enlaces y no llevan dirección: se excluyen aquí y se
+    // comprueban en la prueba siguiente, que es donde se dice qué sí tienen que tener.
+    const enlaces = Array.from(raiz.querySelectorAll('.side-nav .menu-link:not(.menu-link--branch)'));
+
+    expect(enlaces.length, 'tiene que quedar algún enlace de verdad que comprobar').toBeGreaterThan(0);
+
+    for (const enlace of enlaces) {
       expect(enlace.querySelector('.menu-text')?.textContent?.trim()).toBeTruthy();
       expect(enlace.getAttribute('href')).toBeTruthy();
     }
+  });
+
+  /**
+   * Una entrada con hijos despliega y **no navega**.
+   *
+   * <p>Hasta el 21 de septiembre de 2026 «Catálogos» era un enlace con un botón de galón al lado, y
+   * se sentía como una trampa: quien lo pulsaba para ver la lista acababa en otra pantalla. Ahora
+   * el renglón entero es el interruptor, así que es un <c>&lt;button&gt;</c> sin dirección y con
+   * <c>aria-expanded</c>, que es lo que anuncia a un lector de pantalla que ahí hay algo que
+   * abrir.</p>
+   */
+  it('la entrada con hijos despliega en vez de navegar', () => {
+    const { raiz } = montar(PERMISOS_QUE_EL_MENU_CONSULTA, [ALFA], 'org-a');
+
+    const rama = raiz.querySelector('.side-nav .menu-link--branch');
+
+    expect(rama, 'Catálogos tiene hijos, así que tiene que ser una rama').toBeTruthy();
+    expect(rama?.tagName).toBe('BUTTON');
+    expect(rama?.getAttribute('href'), 'una rama no lleva a ninguna parte').toBeNull();
+    expect(rama?.getAttribute('aria-expanded')).toBe('false');
+    expect(rama?.querySelector('.menu-text')?.textContent?.trim()).toBe('Catálogos');
   });
 
   it('la navegación principal está anunciada como tal', () => {
@@ -294,6 +321,44 @@ describe('AppShell', () => {
     fixture.detectChanges();
 
     expect(shell.isSubmenuOpen('/catalogos'), 'dentro de un catálogo, abierto').toBe(true);
+  });
+
+  /**
+   * Los bloques del submenú empiezan cerrados, salvo el de la página en la que estás.
+   *
+   * <p>Con dieciocho entradas, abrir los cinco bloques devuelve la lista larga que el submenú venía
+   * a evitar. Cerrados, los cinco rótulos son un índice que cabe de un vistazo.</p>
+   */
+  it('los bloques del submenú empiezan cerrados, menos el de donde estás', async () => {
+    const { fixture } = montar(PERMISOS_QUE_EL_MENU_CONSULTA, [ALFA], 'org-a');
+    const shell = fixture.componentInstance as unknown as {
+      isGroupOpen(route: string, group: string): boolean;
+      toggleGroup(route: string, group: string): void;
+    };
+
+    expect(shell.isGroupOpen('/catalogos', 'Personal')).toBe(false);
+    expect(shell.isGroupOpen('/catalogos', 'Clientes')).toBe(false);
+
+    await TestBed.inject(Router).navigateByUrl('/catalogos/puestos');
+    fixture.detectChanges();
+
+    expect(shell.isGroupOpen('/catalogos', 'Personal'), 'Puestos vive en Personal').toBe(true);
+    expect(shell.isGroupOpen('/catalogos', 'Clientes'), 'y sólo ése').toBe(false);
+  });
+
+  /** Y cada bloque se abre y se cierra por su cuenta, sin arrastrar a los demás. */
+  it('un bloque se abre sin abrir los otros', () => {
+    const { fixture } = montar(PERMISOS_QUE_EL_MENU_CONSULTA, [ALFA], 'org-a');
+    const shell = fixture.componentInstance as unknown as {
+      isGroupOpen(route: string, group: string): boolean;
+      toggleGroup(route: string, group: string): void;
+    };
+
+    shell.toggleGroup('/catalogos', 'Operación');
+    fixture.detectChanges();
+
+    expect(shell.isGroupOpen('/catalogos', 'Operación')).toBe(true);
+    expect(shell.isGroupOpen('/catalogos', 'Personal')).toBe(false);
   });
 
   /**

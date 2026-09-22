@@ -50,7 +50,9 @@ export class AppShell {
   protected readonly breadcrumbs = computed(() => this.resolveBreadcrumbs(this.currentUrl()));
 
   /**
-   * Qué submenús ha abierto o cerrado el usuario a mano, por la ruta del padre.
+   * Qué submenús y bloques ha abierto o cerrado el usuario a mano.
+   *
+   * <p>La llave es la ruta del padre para el submenú entero, y `ruta#bloque` para cada bloque.</p>
    *
    * <p><b>Guarda la decisión, no el estado.</b> Una entrada que no está aquí no es «cerrada»: es
    * «nadie ha dicho nada», y entonces manda dónde estás —ver `isSubmenuOpen`—. Con un booleano
@@ -73,9 +75,48 @@ export class AppShell {
   }
 
   protected toggleSubmenu(route: string): void {
-    const abierto = this.isSubmenuOpen(route);
+    this.recordChoice(route, !this.isSubmenuOpen(route));
+  }
+
+  /**
+   * Si la página abierta cuelga de esa entrada.
+   *
+   * <p>Es lo que pinta activo el renglón padre. No puede usar `routerLinkActive` porque el padre ya
+   * no es un enlace: despliega y no navega.</p>
+   */
+  protected isInside(route: string): boolean {
+    return this.currentUrl().startsWith(`${route}/`);
+  }
+
+  /**
+   * Si un bloque del submenú está desplegado.
+   *
+   * <p>Mismo criterio de tres valores que el padre —manda lo que el usuario dijo, y si no ha dicho
+   * nada manda dónde estás—, sólo que aquí el valor por omisión es <b>cerrado</b>: con dieciocho
+   * entradas, abrir los cinco bloques devuelve la lista larga que el submenú venía a evitar.</p>
+   */
+  protected isGroupOpen(route: string, group: string): boolean {
+    const choice = this.submenuChoices().get(`${route}#${group}`);
+    return choice ?? this.groupHasCurrentPage(route, group);
+  }
+
+  protected toggleGroup(route: string, group: string): void {
+    this.recordChoice(`${route}#${group}`, !this.isGroupOpen(route, group));
+  }
+
+  private groupHasCurrentPage(route: string, group: string): boolean {
+    const item = this.navigation()
+      .flatMap((grupo) => grupo.items)
+      .find((entrada) => entrada.route === route);
+
+    return (item?.children ?? [])
+      .find((bloque) => bloque.label === group)
+      ?.items.some((hijo) => this.currentUrl() === hijo.route) ?? false;
+  }
+
+  private recordChoice(key: string, open: boolean): void {
     const choices = new Map(this.submenuChoices());
-    choices.set(route, !abierto);
+    choices.set(key, open);
     this.submenuChoices.set(choices);
   }
 

@@ -77,7 +77,12 @@ describe('AppShell', () => {
 
     TestBed.configureTestingModule({
       providers: [
-        provideRouter([{ path: '', component: PantallaDeModulo }]),
+        provideRouter([
+          { path: '', component: PantallaDeModulo },
+          // Una ruta hija de verdad: sin ella el enrutador no navega y `currentUrl` se queda en la
+          // raíz, de modo que la prueba del submenú pasaría por la razón equivocada.
+          { path: 'catalogos/puestos', component: PantallaDeModulo },
+        ]),
         provideHttpClient(),
         provideHttpClientTesting(),
       ],
@@ -268,5 +273,49 @@ describe('AppShell', () => {
 
     expect(PantallaDeModulo.montajes).toBe(despuesDeAbrir + 1);
     expect(PantallaDeModulo.destrucciones).toBe(1);
+  });
+
+  /**
+   * El submenú se abre solo cuando la página abierta cuelga de esa entrada.
+   *
+   * <p>Es lo que hace que el menú te enseñe dónde estás al llegar por un enlace o al recargar, sin
+   * que nadie haya pulsado nada.</p>
+   */
+  it('despliega el submenú de la entrada dentro de la que estás', async () => {
+    const { fixture } = montar(PERMISOS_QUE_EL_MENU_CONSULTA, [ALFA], 'org-a');
+    const shell = fixture.componentInstance as unknown as {
+      isSubmenuOpen(route: string): boolean;
+      toggleSubmenu(route: string): void;
+    };
+
+    expect(shell.isSubmenuOpen('/catalogos'), 'en la raíz, cerrado').toBe(false);
+
+    await TestBed.inject(Router).navigateByUrl('/catalogos/puestos');
+    fixture.detectChanges();
+
+    expect(shell.isSubmenuOpen('/catalogos'), 'dentro de un catálogo, abierto').toBe(true);
+  });
+
+  /**
+   * Y el control: lo que el usuario decide gana a dónde está.
+   *
+   * <p>Sin esto, «se abre cuando estás dentro» sería indistinguible de «se abre y no se puede
+   * cerrar», que es el defecto que este estado de tres valores existe para evitar.</p>
+   */
+  it('si el usuario lo cierra, se queda cerrado aunque esté dentro', async () => {
+    const { fixture } = montar(PERMISOS_QUE_EL_MENU_CONSULTA, [ALFA], 'org-a');
+    const shell = fixture.componentInstance as unknown as {
+      isSubmenuOpen(route: string): boolean;
+      toggleSubmenu(route: string): void;
+    };
+
+    await TestBed.inject(Router).navigateByUrl('/catalogos/puestos');
+    fixture.detectChanges();
+    expect(shell.isSubmenuOpen('/catalogos')).toBe(true);
+
+    shell.toggleSubmenu('/catalogos');
+    fixture.detectChanges();
+
+    expect(shell.isSubmenuOpen('/catalogos')).toBe(false);
   });
 });

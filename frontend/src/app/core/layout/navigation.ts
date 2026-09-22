@@ -13,6 +13,30 @@ export type NavigationIcon =
   | 'audit'
   | 'security';
 
+/**
+ * Una entrada de segundo nivel: cuelga de otra y no tiene icono propio.
+ *
+ * <p>No lo tiene a propósito. Un icono por hijo convertiría el submenú en una segunda lista de
+ * iconos compitiendo con la primera, y el hijo se lee por su sangría y por el padre bajo el que
+ * está, no por un símbolo que habría que inventar para «Rangos de edad».</p>
+ */
+export type NavigationChild = {
+  readonly label: string;
+  readonly route: string;
+  readonly permission?: string;
+};
+
+/**
+ * Un bloque del submenú con su rotulito.
+ *
+ * <p>Existe porque el submenú de Catálogos tiene dieciocho entradas, y dieciocho renglones seguidos
+ * se leen uno por uno. Agrupados por el módulo que los usa se encuentran por eliminación.</p>
+ */
+export type NavigationChildGroup = {
+  readonly label: string;
+  readonly items: readonly NavigationChild[];
+};
+
 export type NavigationItem = {
   readonly label: string;
   readonly icon: NavigationIcon;
@@ -45,6 +69,18 @@ export type NavigationItem = {
    * mostrarlas es quitar esta marca, y hay una prueba que comprueba que las rutas siguen ahí.
    */
   readonly phase?: 1 | 2;
+
+  /**
+   * Las entradas que cuelgan de ésta, agrupadas.
+   *
+   * <p><b>Una entrada con hijos sigue teniendo ruta propia</b>, y no es redundante: es a dónde va
+   * quien pulsa el padre. Lo que cambia es que además se puede desplegar.</p>
+   *
+   * <p>Los hijos se filtran con las mismas reglas que las entradas de primer nivel, y un padre
+   * cuyos hijos desaparezcan todos <b>no desaparece</b>: sigue siendo una entrada normal con su
+   * ruta. Es la diferencia con un grupo, que sí se esconde cuando se queda vacío.</p>
+   */
+  readonly children?: readonly NavigationChildGroup[];
 };
 
 /**
@@ -152,7 +188,12 @@ export function visibleNavigation(
   groups: readonly NavigationGroup[] = GESTIA_NAVIGATION,
 ): readonly NavigationGroup[] {
   return groups
-    .map((group) => ({ ...group, items: group.items.filter((item) => isVisible(item, audience)) }))
+    .map((group) => ({
+      ...group,
+      items: group.items
+        .filter((item) => isVisible(item, audience))
+        .map((item) => (item.children ? { ...item, children: visibleChildren(item, audience) } : item)),
+    }))
     .filter((group) => group.items.length > 0);
 }
 
@@ -162,6 +203,27 @@ export function visibleNavigationItems(
   groups: readonly NavigationGroup[] = GESTIA_NAVIGATION,
 ): readonly NavigationItem[] {
   return visibleNavigation(audience, groups).flatMap((group) => group.items);
+}
+
+/**
+ * Los bloques de hijos que le quedan a una entrada, ya sin los que el usuario no puede ver.
+ *
+ * <p>Un bloque sin hijos visibles se retira entero, por la misma razón que un grupo vacío: su
+ * rotulito prometería una sección que no está.</p>
+ *
+ * <p>Un hijo no hereda `needsOrganization` ni `onlyFor` del padre porque no le hacen falta: si el
+ * padre no se ve, no hay submenú que abrir. Lo único propio del hijo es su permiso.</p>
+ */
+function visibleChildren(
+  item: NavigationItem,
+  audience: NavigationAudience,
+): readonly NavigationChildGroup[] {
+  return (item.children ?? [])
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((child) => !child.permission || audience.hasPermission(child.permission)),
+    }))
+    .filter((group) => group.items.length > 0);
 }
 
 function isVisible(item: NavigationItem, audience: NavigationAudience): boolean {

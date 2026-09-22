@@ -241,4 +241,79 @@ describe('Menú lateral', () => {
 
     expect(new Set(rutas).size).toBe(rutas.length);
   });
+
+  /**
+   * Los hijos de una entrada se filtran por permiso igual que las entradas de primer nivel.
+   *
+   * <p>Es la razón de ser del submenú como concepto del modelo y no como adorno de la plantilla:
+   * si los hijos no pasaran por el mismo filtro, el menú ofrecería puertas cerradas.</p>
+   */
+  it('poda los hijos que el usuario no puede ver, y el bloque que se queda sin ninguno', () => {
+    const conHijos = [
+      {
+        label: 'Configuración',
+        items: [
+          {
+            label: 'Catálogos',
+            icon: 'catalog' as const,
+            route: '/catalogos',
+            permission: 'CATALOGS.READ',
+            children: [
+              {
+                label: 'Personal',
+                items: [
+                  { label: 'Puestos', route: '/catalogos/puestos' },
+                  { label: 'Reservado', route: '/catalogos/reservado', permission: 'PLATFORM.ADMIN' },
+                ],
+              },
+              {
+                label: 'Sólo plataforma',
+                items: [{ label: 'Otro', route: '/catalogos/otro', permission: 'PLATFORM.ADMIN' }],
+              },
+            ],
+          },
+        ],
+      },
+    ];
+
+    const [configuracion] = visibleNavigation(adminDeOrganizacion, conHijos);
+    const catalogos = configuracion.items[0];
+
+    expect(catalogos.children?.map((bloque) => bloque.label)).toEqual(['Personal']);
+    expect(catalogos.children?.[0].items.map((hijo) => hijo.label)).toEqual(['Puestos']);
+  });
+
+  /**
+   * El control de la anterior: un padre que se queda sin hijos visibles <b>no desaparece</b>.
+   *
+   * <p>Sin esta prueba, podar hijos y podar grupos vacíos se parecen tanto que es fácil aplicar la
+   * segunda regla al padre y dejar sin Catálogos a quien sí puede entrar. Un padre tiene ruta
+   * propia; un grupo no.
+   */
+  it('un padre sin hijos visibles sigue estando, porque tiene ruta propia', () => {
+    const conHijos = [
+      {
+        label: 'Configuración',
+        items: [
+          {
+            label: 'Catálogos',
+            icon: 'catalog' as const,
+            route: '/catalogos',
+            permission: 'CATALOGS.READ',
+            children: [
+              {
+                label: 'Sólo plataforma',
+                items: [{ label: 'Otro', route: '/catalogos/otro', permission: 'PLATFORM.ADMIN' }],
+              },
+            ],
+          },
+        ],
+      },
+    ];
+
+    const [configuracion] = visibleNavigation(adminDeOrganizacion, conHijos);
+
+    expect(configuracion.items.map((item) => item.label)).toEqual(['Catálogos']);
+    expect(configuracion.items[0].children).toEqual([]);
+  });
 });

@@ -168,6 +168,113 @@ a.menu-link:hover .menu-icon {
   white-space: nowrap;
 }
 
+/* ── El submenú ─────────────────────────────────────────────────────────────────────────────── */
+
+/* El enlace se queda con todo el ancho que sobre; el galón ocupa lo suyo y no se encoge. */
+.menu-row {
+  display: flex;
+  align-items: center;
+}
+
+.menu-row .menu-link {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.menu-toggle {
+  display: inline-flex;
+  width: 1.85rem;
+  height: 1.85rem;
+  flex: 0 0 1.85rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 0.4rem;
+  background: none;
+  color: var(--gestia-cyan-soft);
+  cursor: pointer;
+  opacity: 0.55;
+  transition: opacity 150ms ease, transform 150ms ease, background-color 150ms ease;
+}
+
+.menu-toggle svg {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+
+.menu-toggle:hover {
+  background: var(--gestia-navy-soft);
+  opacity: 1;
+}
+
+.menu-toggle:focus-visible {
+  outline: 2px solid var(--gestia-cyan);
+  outline-offset: -2px;
+  opacity: 1;
+}
+
+/* Abierto, el galón apunta hacia abajo. Es la única señal de estado que queda cuando el submenú
+   se sale de la vista al rodar el menú. */
+.menu-toggle.is-open {
+  color: var(--gestia-cyan);
+  opacity: 1;
+  transform: rotate(90deg);
+}
+
+.submenu {
+  /* Alineado con el texto del padre, no con su icono: la sangría es lo que dice que cuelga de él. */
+  margin: 0.15rem 0 0.35rem 1.5rem;
+  padding-left: 0.55rem;
+  border-left: 1px solid var(--gestia-navy-soft);
+}
+
+.submenu-group {
+  margin: 0.55rem 0 0.15rem;
+  padding: 0 0.5rem;
+  color: var(--gestia-cyan-soft);
+  font-size: 0.64rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  opacity: 0.75;
+  text-transform: uppercase;
+}
+
+.submenu-group:first-child {
+  margin-top: 0.15rem;
+}
+
+.submenu-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.submenu-link {
+  display: block;
+  padding: 0.38rem 0.5rem;
+  border-radius: 0.4rem;
+  color: inherit;
+  font-size: 0.78rem;
+  text-decoration: none;
+  transition: color 150ms ease, background-color 150ms ease;
+}
+
+a.submenu-link:hover,
+.submenu-link.active {
+  color: var(--gestia-surface);
+  background: var(--gestia-navy-soft);
+}
+
+.submenu-link.active {
+  font-weight: 600;
+}
+
+a.submenu-link:focus-visible {
+  outline: 2px solid var(--gestia-cyan);
+  outline-offset: -2px;
+}
+
 .sidebar-foot {
   display: flex;
   min-height: 4.25rem;

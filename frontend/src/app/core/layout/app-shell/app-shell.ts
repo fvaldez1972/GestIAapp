@@ -50,6 +50,36 @@ export class AppShell {
   protected readonly breadcrumbs = computed(() => this.resolveBreadcrumbs(this.currentUrl()));
 
   /**
+   * Qué submenús ha abierto o cerrado el usuario a mano, por la ruta del padre.
+   *
+   * <p><b>Guarda la decisión, no el estado.</b> Una entrada que no está aquí no es «cerrada»: es
+   * «nadie ha dicho nada», y entonces manda dónde estás —ver `isSubmenuOpen`—. Con un booleano
+   * suelto habría que elegir entre dos comportamientos malos: o el submenú se abre solo cada vez
+   * que navegas dentro y no puedes cerrarlo, o lo cierras y al entrar a un catálogo no se abre y
+   * parece que el menú no sabe dónde estás.</p>
+   */
+  private readonly submenuChoices = signal<ReadonlyMap<string, boolean>>(new Map());
+
+  /**
+   * Si el submenú de una entrada está desplegado.
+   *
+   * <p>Manda lo que el usuario haya dicho. Si no ha dicho nada, se abre cuando la página abierta
+   * cuelga de esa entrada, que es lo que hace que el menú te enseñe dónde estás al llegar por un
+   * enlace o recargando.</p>
+   */
+  protected isSubmenuOpen(route: string): boolean {
+    const choice = this.submenuChoices().get(route);
+    return choice ?? this.currentUrl().startsWith(`${route}/`);
+  }
+
+  protected toggleSubmenu(route: string): void {
+    const abierto = this.isSubmenuOpen(route);
+    const choices = new Map(this.submenuChoices());
+    choices.set(route, !abierto);
+    this.submenuChoices.set(choices);
+  }
+
+  /**
    * Publica en `--gestia-chrome-bottom` cuánto ocupa el cromo con la página en reposo.
    *
    * <p><b>Por qué hace falta.</b> Los paneles laterales de Planeación, Seguridad y Auditoría son

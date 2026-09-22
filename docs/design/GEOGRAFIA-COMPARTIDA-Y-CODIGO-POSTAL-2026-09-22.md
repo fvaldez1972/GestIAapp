@@ -89,10 +89,22 @@ de un índice filtrado por `Type`, y el catálogo del INEGI tiene municipios hom
 mismo estado —Oaxaca tiene dos San Juan Mixtepec, distinguidos por distrito—, así que quitar el
 filtro hoy haría fallar la reconstrucción del índice. Se irá el día que las filas se vayan, si se van.
 
-**4 · El código postal manda en la dirección. Pendiente de una decisión.** Escribes el CP y se
-resuelven estado y municipio, y se ofrece la lista de colonias de ese CP. Los tres desplegables se
-quedan como respaldo para cuando el CP no aparezca —los hay recientes que el catálogo no trae— y para
-el día que haya un país que no sea México. Depende de la sección siguiente.
+**4 · El código postal manda en la dirección. Hecho y desplegado.** En el formulario de zonas se
+escriben cinco dígitos y se resuelven país, estado, municipio y la lista de colonias, que es como se
+escribe una dirección en México. La colonia pasa a elegirse de las del código, con «Otra: escribirla»
+siempre al final. **El formulario de personal no tiene campo de código postal**, así que no entra:
+ahí la dirección sigue siendo estado y municipio, como estaba.
+
+Los tres desplegables **se quedan**, y no de adorno: un código fuera del padrón los deja funcionando
+y **no borra lo que ya había**. Quien está corrigiendo el teléfono de una zona vieja no puede perder
+su dirección por teclear mal un dígito. Abrir una zona para editarla tampoco consulta el código:
+resolverlo otra vez podría reescribir sola una dirección que nadie pidió cambiar.
+
+Los datos son de SEPOMEX y están cargados **sólo en `db-gestia-dev`**: 144 242 colonias, 32 292
+códigos postales, 2 458 municipios. La clave del INEGI cruzó el 100 % del archivo, sin un solo
+renglón huérfano. `db-gestia-local` se quedó vacía a propósito, y ahí se puede ver el respaldo
+funcionando: el mismo código postal responde 200 en dev y 404 en local, y en local el formulario
+ofrece los desplegables.
 
 Cada paso es un commit, y la migración va sola como siempre.
 
@@ -123,3 +135,28 @@ tiene la costumbre de anotar de dónde salió cada dato en vez de improvisar.
 
 Mientras no se decida, el paso 4 se queda donde está: la tabla de códigos postales existe y está
 vacía, y la colonia sigue siendo texto libre, que es lo que es hoy.
+
+---
+
+## El siguiente paso natural, para otro día
+
+**Que las direcciones guarden el identificador del estado y del municipio, no el nombre.**
+
+Es lo que ya decía la nota vieja de `FormCatalogValidator` —*«en la tanda de geografia las tres
+columnas pasan a ser claves foraneas y esto desaparece»*— y es la raíz de lo que apareció en el
+paso 2: **la intercalación sin acentos existe sólo porque se compara por nombre.** Sin nombres que
+comparar no hay acento que se pierda, ni «Nuevo Leon» que no encuentre su estado, ni un municipio
+renombrado que deje huérfanas las direcciones capturadas antes.
+
+**No ahora.** Es una migración sobre domicilios vivos —`ClientSites` y `Employees`—, con su propio
+plan: hay que decidir qué pasa con las direcciones cuyo texto no case con ningún municipio, y eso se
+mide antes de escribir nada.
+
+## La pregunta abierta, que no es técnica
+
+El archivo de SEPOMEX está cargado **sólo en desarrollo**. Antes de que lo use un cliente de pago
+hay que resolver si mostrar este catálogo dentro de un producto que se vende cuenta como
+«comercialización» en el sentido de su aviso. **Eso lo resuelve BKT, no el equipo técnico.**
+
+El guion de carga lo tiene puesto como candado: apuntar a una base que no sea `db-gestia-dev` exige
+pasar `--si-se-que-no-es-dev` y explica por qué en el propio mensaje de rechazo.

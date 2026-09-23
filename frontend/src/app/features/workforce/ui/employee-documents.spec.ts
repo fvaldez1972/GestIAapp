@@ -160,13 +160,41 @@ describe('La pestaña de documentos', () => {
     expect(extra.textContent).toContain('No cuentan para la vigencia');
   });
 
-  /** Un requisito que no bloquea se pide igual; decirlo evita que se lea como opcional. */
-  it('marca el requisito que no bloquea', () => {
+  /**
+   * Los obligatorios arriba y los informativos abajo, cada uno con su rótulo.
+   *
+   * <p>Iban en una sola lista y se distinguían por una etiqueta pequeña que decía «no bloquea»: con
+   * doce requisitos había que leer fila por fila para saber cuáles impiden asignar a la persona.
+   * Ahora el orden lo dice sin leer, y cada bloque explica qué pasa si falta.</p>
+   */
+  it('separa los obligatorios de los informativos, y dice qué pasa con cada uno', () => {
     const { raiz } = montar((host) =>
-      host.requirements.set([requirementFixture({ isRequiredEffective: false })]),
+      host.requirements.set([
+        requirementFixture({ requiredDocumentType: 'VoterId', isRequiredEffective: true }),
+        requirementFixture({ requiredDocumentType: 'Curp', isRequiredEffective: false }),
+      ]),
     );
 
-    expect(raiz.querySelector('.req__soft')?.textContent?.trim()).toBe('no bloquea');
+    const rotulos = Array.from(raiz.querySelectorAll('.docs__kicker')).map((e) => e.textContent?.trim());
+    expect(rotulos).toContain('OBLIGATORIOS');
+    expect(rotulos).toContain('INFORMATIVOS');
+
+    // Y el orden: lo que impide trabajar va primero.
+    expect(rotulos.indexOf('OBLIGATORIOS')).toBeLessThan(rotulos.indexOf('INFORMATIVOS'));
+
+    expect(raiz.textContent).toContain('no se puede asignar a esta persona');
+    expect(raiz.textContent).toContain('su falta no impide asignar ni publicar');
+  });
+
+  /** El control: con sólo obligatorios no se dibuja el rótulo del otro bloque. */
+  it('no dibuja el bloque informativo cuando no hay ninguno', () => {
+    const { raiz } = montar((host) =>
+      host.requirements.set([requirementFixture({ isRequiredEffective: true })]),
+    );
+
+    const rotulos = Array.from(raiz.querySelectorAll('.docs__kicker')).map((e) => e.textContent?.trim());
+    expect(rotulos).toContain('OBLIGATORIOS');
+    expect(rotulos).not.toContain('INFORMATIVOS');
   });
 
   // ── La salida de cada requisito ──────────────────────────────────────────────────────────

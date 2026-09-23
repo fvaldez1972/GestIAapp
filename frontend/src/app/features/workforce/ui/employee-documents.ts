@@ -52,16 +52,16 @@ import {
           vencer» lo que caduca en {{ expiringWithinDays() }} días o menos.
         </p>
 
+        @if (obligatorios().length) {
+          <h3 class="docs__kicker">OBLIGATORIOS</h3>
+          <p class="docs__note">Si falta uno, no se puede asignar a esta persona ni publicar la planeación.</p>
+        }
+
         <ul class="docs__list">
-          @for (row of rows(); track row.code) {
+          @for (row of obligatorios(); track row.code) {
             <li class="req" [class]="'req--' + tone(row.state)">
               <span class="req__body">
-                <span class="req__name">
-                  {{ row.label }}
-                  @if (!row.isRequired) {
-                    <span class="req__soft">no bloquea</span>
-                  }
-                </span>
+                <span class="req__name">{{ row.label }}</span>
                 <span class="req__detail">{{ detail(row.state, row.expiresDate, row.documentStatus) }}</span>
               </span>
               <span class="req__side">
@@ -85,6 +85,34 @@ import {
             </li>
           }
         </ul>
+
+        <!--
+          Los informativos van debajo y con su propio rótulo. Antes compartían lista con los
+          obligatorios y se distinguían por una etiqueta pequeña que había que leer fila por fila.
+        -->
+        @if (informativos().length) {
+          <h3 class="docs__kicker">INFORMATIVOS</h3>
+          <p class="docs__note">Se piden igual, pero su falta no impide asignar ni publicar.</p>
+
+          <ul class="docs__list">
+            @for (row of informativos(); track row.code) {
+              <li class="req" [class]="'req--' + tone(row.state)">
+                <span class="req__body">
+                  <span class="req__name">{{ row.label }}</span>
+                  <span class="req__detail">{{ detail(row.state, row.expiresDate, row.documentStatus) }}</span>
+                </span>
+                <span class="req__side">
+                  <span class="req__state">{{ stateLabel(row.state) }}</span>
+                  @if (canWrite() && row.state !== 'UpToDate') {
+                    <button class="req__accion" type="button" (click)="cargar.emit(row.code)">
+                      {{ row.state === 'Missing' ? 'Cargar' : 'Reemplazar' }}
+                    </button>
+                  }
+                </span>
+              </li>
+            }
+          </ul>
+        }
 
         @if (extras().length) {
           <div class="docs__extra">
@@ -250,6 +278,17 @@ export class EmployeeDocuments {
       this.expiringWithinDays(),
     ),
   );
+
+  /**
+   * Los requisitos, separados por lo que pasa si faltan.
+   *
+   * <p>Iban en una sola lista, distinguidos por una etiqueta pequeña que decía «no bloquea». Con
+   * doce requisitos había que leer fila por fila para saber cuáles impiden asignar a la persona y
+   * cuáles sólo dejan constancia, que es lo primero que uno quiere saber al abrir un expediente.
+   * Ahora son dos bloques y el orden lo dice sin leer: primero lo que impide trabajar.</p>
+   */
+  protected readonly obligatorios = computed(() => this.rows().filter((fila) => fila.isRequired));
+  protected readonly informativos = computed(() => this.rows().filter((fila) => !fila.isRequired));
 
   /** Lo cargado que nadie exige. Se muestra aparte para que no se confunda con un requisito. */
   protected readonly extras = computed(() => {

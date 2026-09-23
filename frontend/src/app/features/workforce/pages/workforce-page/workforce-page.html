@@ -48,6 +48,44 @@
           (retry)="load()"
           (action)="onRowAction($event)"
         />
+
+        <!--
+          El paginado. La lista traia 25 y no ofrecia pasar a la siguiente: con 128 personas, las
+          103 restantes no existian para esta pantalla.
+        -->
+        @if (total() > 0) {
+          <nav class="pers-pages" aria-label="Páginas de la lista">
+            <div class="pers-pages__size">
+              <span>Mostrar</span>
+              <gi-select
+                label="Personas por página"
+                [openDown]="true"
+                [options]="pageSizeOptions"
+                [value]="pageSize().toString()"
+                (valueChange)="setPageSize($any($event))"
+              />
+              <span>de {{ rango() }}</span>
+            </div>
+
+            <div class="pers-pages__nav">
+              <button
+                type="button"
+                class="gi-button gi-button--ghost"
+                [disabled]="currentPage() === 1"
+                (click)="goToPage(currentPage() - 1)"
+              >Anterior</button>
+
+              <span class="pers-pages__count">Página {{ currentPage() }} de {{ totalPaginas() }}</span>
+
+              <button
+                type="button"
+                class="gi-button gi-button--ghost"
+                [disabled]="currentPage() === totalPaginas()"
+                (click)="goToPage(currentPage() + 1)"
+              >Siguiente</button>
+            </div>
+          </nav>
+        }
       </div>
 
       @if (creating()) {
@@ -131,6 +169,7 @@
               ownerType="Employee"
               [ownerId]="employee.idEmployee"
               [ownerLabel]="employee.fullName"
+              [showHeading]="false"
               [documentTypes]="documentTypeOptions()"
               [openAdd]="cargandoRequisito() !== ''"
               [presetDocumentType]="cargandoRequisito()"

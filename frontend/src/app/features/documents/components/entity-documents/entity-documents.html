@@ -1,4 +1,10 @@
 <section class="entity-documents" aria-label="Documentos de la entidad">
+  <!--
+    En Personal el encabezado sobra: la pestaña ya se llama Documentos, el panel ya lleva el nombre
+    de la persona arriba, y encima del componente hay otro apartado con su propio titulo. Eran tres
+    encabezados para una cosa.
+  -->
+  @if (showHeading()) {
   <header class="entity-heading">
     <div><h3><app-icon name="document" /> Documentos</h3><p>{{ ownerLabel() }}</p></div>
     <!--
@@ -12,6 +18,13 @@
       </button>
     }
   </header>
+  } @else if (canWrite() && validContext() && !simple()) {
+    <p class="entity-soloAccion">
+      <button class="gi-button gi-button--primary" type="button" [disabled]="busy()" (click)="openEditor('create')">
+        <app-icon name="document" /> Agregar documento
+      </button>
+    </p>
+  }
 
   @if (!canRead()) {
     <p class="gi-empty-state" role="status">No tienes permiso para consultar documentos.</p>

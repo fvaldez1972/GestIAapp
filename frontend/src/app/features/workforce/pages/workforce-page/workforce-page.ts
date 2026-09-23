@@ -12,6 +12,8 @@ import {
   GiEmptyState,
   GiFilterBar,
   GiFilterGroup,
+  GiSelect,
+  GiSelectOption,
   GiTab,
   GiTabContent,
   GiTableState,
@@ -95,6 +97,7 @@ type PendingAction = { readonly employee: EmployeeListItem; readonly kind: 'leav
     GiDetailPanel,
     GiEmptyState,
     GiFilterBar,
+    GiSelect,
     GiTabContent,
   ],
   templateUrl: './workforce-page.html',
@@ -123,6 +126,58 @@ export class WorkforcePage {
   protected readonly error = signal('');
   protected readonly message = signal('');
   protected readonly expiringWithinDays = signal(30);
+
+  /**
+   * El paginado del listado.
+   *
+   * <p>Traía 25 y no ofrecía pasar a la siguiente: con 128 personas, las 103 restantes no existían
+   * para esta pantalla. Ahora pagina de verdad, y lo hace <b>en el servidor</b> —la consulta ya
+   * aceptaba página y tamaño—, así que no se traen 128 fichas para enseñar diez.</p>
+   */
+  protected readonly currentPage = signal(1);
+  protected readonly pageSize = signal(25);
+
+  protected readonly pageSizeOptions: readonly GiSelectOption[] = [10, 25, 50, 100].map((tamano) => ({
+    value: String(tamano),
+    label: String(tamano),
+  }));
+
+  protected readonly totalPaginas = computed(() =>
+    Math.max(1, Math.ceil(this.total() / this.pageSize())),
+  );
+
+  /** Qué se está viendo de cuántos. Sin esto, «Página 2 de 6» no dice cuántas personas hay. */
+  protected readonly rango = computed(() => {
+    const total = this.total();
+    if (total === 0) return '0';
+
+    const desde = (this.currentPage() - 1) * this.pageSize() + 1;
+    const hasta = Math.min(total, this.currentPage() * this.pageSize());
+    return `${desde}–${hasta} de ${total}`;
+  });
+
+  protected goToPage(page: number): void {
+    const destino = Math.min(Math.max(1, page), this.totalPaginas());
+
+    if (destino !== this.currentPage()) {
+      this.currentPage.set(destino);
+      this.load();
+    }
+  }
+
+  protected setPageSize(tamano: string): void {
+    const valor = Number(tamano);
+
+    if (!Number.isFinite(valor) || valor === this.pageSize()) {
+      return;
+    }
+
+    // Cambiar el tamaño vuelve a la primera: quedarse en la página 6 con 100 por página dejaría la
+    // lista vacía y pareceria que se perdieron las personas.
+    this.pageSize.set(valor);
+    this.currentPage.set(1);
+    this.load();
+  }
   protected readonly requiredDocuments = signal(0);
 
   /**
@@ -459,7 +514,8 @@ export class WorkforcePage {
         idJobPositionCatalogItem: this.jobPosition(),
         documents: this.documentFilter(),
         municipality: this.municipality(),
-        pageSize: 25,
+        page: this.currentPage(),
+        pageSize: this.pageSize(),
       })
       .subscribe({
         next: (result) => {

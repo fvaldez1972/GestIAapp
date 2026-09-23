@@ -89,6 +89,8 @@ describe('La pestaña de documentos', () => {
 
     expect(nota).toContain('2 requisitos definidos por esta organización');
     expect(nota).toContain('30 días o menos');
+    // La línea se acortó el 23 de septiembre de 2026 por densidad: lo que no puede perderse es el
+    // umbral, porque sin él «Por vencer» es una etiqueta que nadie sabe medir.
   });
 
   /** La vigencia se mide contra el día operativo del servidor, no contra el reloj del navegador. */
@@ -162,10 +164,14 @@ describe('La pestaña de documentos', () => {
       ]),
     );
 
-    const extra = raiz.querySelector('.docs__extra')!;
+    // Van plegados desde el 23 de septiembre de 2026: son archivos que la organización no exige,
+    // así que no compiten por la atención con los que sí. Lo que se defiende no cambió: que estén
+    // aparte y que se diga que no cuentan para la vigencia.
+    const extra = raiz.querySelector('.otros')!;
 
     expect(extra.textContent).toContain('Licencia de conducir');
     expect(extra.textContent).toContain('No cuentan para la vigencia');
+    expect(extra.querySelector('summary')?.textContent).toContain('Otros documentos');
   });
 
   /**

@@ -131,3 +131,28 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Paginado del listado, con la misma forma que el de Catalogos. */
+.pers-pages {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.85rem;
+}
+
+.pers-pages__size,
+.pers-pages__nav {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--gestia-muted);
+  font-size: 12px;
+}
+
+.pers-pages__size gi-select { width: 5.5rem; }
+.pers-pages__count { white-space: nowrap; }
+
+@media (width < 45rem) {
+  .pers-pages { flex-direction: column; align-items: stretch; }
+}

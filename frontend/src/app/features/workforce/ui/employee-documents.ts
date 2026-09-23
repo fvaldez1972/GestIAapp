@@ -45,11 +45,16 @@ import {
           actionLabel="Ir a Catálogos"
         />
       } @else {
+
+        <!--
+          El umbral va escrito, no implicito en un color: sin el, «por vencer» es una etiqueta que
+          nadie sabe medir. Antes ocupaba un parrafo de tres renglones con cosas que los tres
+          numeros de abajo ya dicen; ahora es una linea.
+        -->
         <p class="docs__note">
           {{ requirements().length }}
           {{ requirements().length === 1 ? 'requisito definido' : 'requisitos definidos' }} por esta
-          organización, sobre los tipos de documento que el sistema reconoce. Se considera «por
-          vencer» lo que caduca en {{ expiringWithinDays() }} días o menos.
+          organización · «Por vencer» es lo que caduca en {{ expiringWithinDays() }} días o menos.
         </p>
 
         <!-- Tres numeros que contestan «que tengo que hacer aqui» sin recorrer las listas. -->
@@ -144,19 +149,28 @@ import {
           </section>
         }
 
+        <!--
+          Plegado: son archivos que esta organizacion no exige, asi que no compiten por la atencion
+          con los que si. Iban abiertos, con su rotulo y su parrafo, encima de otro encabezado que
+          decia «Documentos» otra vez.
+        -->
         @if (extras().length) {
-          <div class="docs__extra">
-            <h3 class="docs__kicker">OTROS DOCUMENTOS CARGADOS</h3>
-            <p class="docs__note">
-              Están en el expediente pero esta organización no los exige. No cuentan para la
-              vigencia.
+          <details class="otros">
+            <summary>
+              Otros documentos
+              <span class="otros__cuenta">
+                {{ extras().length }} {{ extras().length === 1 ? 'documento' : 'documentos' }}
+              </span>
+            </summary>
+            <p class="bloque__nota">
+              Están en el expediente pero esta organización no los exige. No cuentan para la vigencia.
             </p>
             <ul class="docs__plain">
               @for (extra of extras(); track extra.idEmployeeDocument) {
                 <li>{{ categoryLabel(extra) }} · {{ expiry(extra.expiresDate) }}</li>
               }
             </ul>
-          </div>
+          </details>
         }
       }
 
@@ -221,6 +235,26 @@ import {
     .bloque__nota { margin: 0.2rem 0 0.6rem; color: var(--gestia-muted); font-size: 11.5px; }
 
     .req__vigencia { flex: none; color: var(--gestia-muted); font-size: 11px; white-space: nowrap; }
+
+    .otros {
+      border: 1px solid var(--gestia-border);
+      border-radius: var(--gestia-radius);
+      padding: 0.5rem 0.75rem;
+      background: var(--gestia-surface);
+    }
+
+    .otros > summary {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: var(--gestia-text);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .otros__cuenta { color: var(--gestia-muted); font-weight: 400; font-size: 11px; }
+    .otros > summary:focus-visible { outline: 2px solid var(--gestia-cyan); outline-offset: 2px; }
 
     @media (width < 52rem) {
       .resumen { grid-template-columns: minmax(0, 1fr); }

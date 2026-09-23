@@ -52,3 +52,6 @@ h4 { font-size: .9rem; }
   .entity-actions { gap: .4rem; }
   .entity-history { padding: 1rem; }
 }
+
+/* Cuando el encabezado esta apagado, la accion se queda sola y alineada a la derecha. */
+.entity-soloAccion { display: flex; justify-content: flex-end; margin: 0 0 .75rem; }

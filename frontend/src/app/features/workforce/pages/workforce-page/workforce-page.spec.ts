@@ -256,4 +256,42 @@ describe('Personal · carga', () => {
     expect(alta.request.body.isRequired).toBe(false);
     alta.flush({ idCatalogItem: 'y', name: 'Acta administrativa', type: 'AdministrativeIncidentType', active: true });
   });
+
+  /**
+   * El listado pagina, y pagina en el servidor.
+   *
+   * <p>Traía 25 personas y no ofrecía pasar a la siguiente: con 128, las 103 restantes no existían
+   * para esta pantalla. La consulta ya aceptaba página y tamaño, así que no hace falta traerse las
+   * 128 fichas para enseñar veinticinco.</p>
+   */
+  it('pide la página siguiente al servidor, y no se trae la lista entera', () => {
+    const pagina = TestBed.runInInjectionContext(() => new WorkforcePage()) as unknown as {
+      total: { set(v: number): void };
+      currentPage(): number;
+      totalPaginas(): number;
+      rango(): string;
+      goToPage(p: number): void;
+      setPageSize(t: string): void;
+      pageSize(): number;
+    };
+
+    pagina.total.set(128);
+    expect(pagina.totalPaginas()).toBe(6);
+    expect(pagina.rango()).toBe('1–25 de 128');
+
+    pagina.goToPage(2);
+    expect(pagina.currentPage()).toBe(2);
+    expect(pagina.rango()).toBe('26–50 de 128');
+
+    // No se puede pasar del final: pedir la 99 deja la última, no una página vacía.
+    pagina.goToPage(99);
+    expect(pagina.currentPage()).toBe(6);
+
+    // Y cambiar el tamaño vuelve a la primera: quedarse en la 6 con 100 por página dejaría la
+    // lista vacía y parecería que se perdieron las personas.
+    pagina.setPageSize('100');
+    expect(pagina.pageSize()).toBe(100);
+    expect(pagina.currentPage()).toBe(1);
+  });
+
 });

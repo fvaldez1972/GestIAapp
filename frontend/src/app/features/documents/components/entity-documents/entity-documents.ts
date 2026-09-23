@@ -74,6 +74,15 @@ export class EntityDocuments implements OnDestroy {
    */
   readonly simple = input(false);
 
+  /**
+   * Si el componente dibuja su propio encabezado.
+   *
+   * <p>Se apaga donde ya hay uno encima. En Personal la pestaña se llama Documentos, el panel lleva
+   * el nombre de la persona y el apartado de requisitos tiene su propio título: el encabezado del
+   * componente era el tercero para lo mismo. El botón de agregar se queda.</p>
+   */
+  readonly showHeading = input(true);
+
   /** Las categorias del catalogo, cuando la variante simple las usa en vez de texto libre. */
   readonly categories = input<readonly GiCatalogOption[]>([]);
   readonly createCategory = output<GiCatalogCreation>();

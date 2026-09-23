@@ -207,6 +207,18 @@ export class GiSelect {
   readonly value = input('');
   readonly placeholder = input('Selecciona una opción');
   readonly disabled = input(false);
+
+  /**
+   * Abrir siempre hacia abajo, aunque parezca que no cabe.
+   *
+   * <p>La decisión de abrir hacia arriba mide contra la ventana del navegador, y <b>dentro de una
+   * ventana emergente con desplazamiento eso se equivoca</b>: cree que no hay sitio y dibuja la
+   * lista encima, tapando los campos de los que uno acaba de venir. Con esto la lista se queda
+   * debajo y se recorre con su propio desplazamiento, que es lo que ya hace su altura máxima.</p>
+   *
+   * <p>Por omisión <b>false</b>, que conserva el comportamiento de las pantallas que no lo piden.</p>
+   */
+  readonly openDown = input(false);
   readonly valueChange = output<string>();
 
   /**
@@ -241,7 +253,7 @@ export class GiSelect {
 
     const current = this.options().findIndex((option) => option.value === this.value());
     this.activeIndex.set(current >= 0 ? current : 0);
-    this.abreHaciaArriba.set(this.noCabeAbajo());
+    this.abreHaciaArriba.set(!this.openDown() && this.noCabeAbajo());
     this.open.set(true);
     this.opened.emit();
   }

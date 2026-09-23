@@ -76,6 +76,7 @@ export type EmployeeAddressValue = {
               id="ea-colonia"
               label="Colonia"
               placeholder="Selecciona la colonia"
+              [openDown]="true"
               [options]="direccion.opcionesDeColonia()"
               [value]="direccion.neighborhood()"
               (valueChange)="direccion.onColonia($event)"

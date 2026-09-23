@@ -54,7 +54,7 @@ export type ClientFormValue = {
         <p class="form__paso"><span class="form__num">1</span> Identificación</p>
 
         <label class="field field--wide" for="cf-razon">
-          <span class="field__label">RAZÓN SOCIAL</span>
+          <span class="field__label">RAZÓN SOCIAL<span class="field__req" aria-hidden="true">*</span></span>
           <input id="cf-razon" name="legalName" type="text" [ngModel]="legalName()" (ngModelChange)="legalName.set($event)" [ngModelOptions]="sueltos" autocomplete="off"
             [class.is-invalid]="errorDe('legalName')" [attr.aria-invalid]="errorDe('legalName') ? 'true' : null" />
           @if (errorDe('legalName'); as falla) {
@@ -70,7 +70,7 @@ export type ClientFormValue = {
           <label class="field" for="cf-rfc">
             <!-- El bosquejo lo marcaba opcional. No lo es: el servidor lo usa para la unicidad
                  del cliente junto con el código. -->
-            <span class="field__label">RFC</span>
+            <span class="field__label">RFC<span class="field__req" aria-hidden="true">*</span></span>
             <input id="cf-rfc" name="rfc" type="text" [ngModel]="rfc()" (ngModelChange)="rfc.set($event)" [ngModelOptions]="sueltos" placeholder="Trece caracteres" autocomplete="off"
               [class.is-invalid]="errorDe('rfc')" [attr.aria-invalid]="errorDe('rfc') ? 'true' : null" />
             @if (errorDe('rfc'); as falla) {
@@ -89,17 +89,17 @@ export type ClientFormValue = {
         <p class="form__paso"><span class="form__num">2</span> Zona</p>
 
         <label class="field field--wide" for="cf-zona">
-          <span class="field__label">NOMBRE DE LA ZONA</span>
+          <span class="field__label">NOMBRE DE LA ZONA<span class="field__req" aria-hidden="true">*</span></span>
           <input id="cf-zona" name="zoneName" type="text" [ngModel]="zoneName()" (ngModelChange)="zoneName.set($event)" [ngModelOptions]="sueltos" autocomplete="off" />
         </label>
 
         <div class="form__row form__row--calle">
           <label class="field" for="cf-calle">
-            <span class="field__label">CALLE Y NÚMERO</span>
+            <span class="field__label">CALLE Y NÚMERO<span class="field__req" aria-hidden="true">*</span></span>
             <input id="cf-calle" name="street" type="text" [ngModel]="street()" (ngModelChange)="street.set($event)" [ngModelOptions]="sueltos" autocomplete="off" />
           </label>
           <label class="field" for="cf-cp">
-            <span class="field__label">CÓDIGO POSTAL</span>
+            <span class="field__label">CÓDIGO POSTAL<span class="field__req" aria-hidden="true">*</span></span>
             <input id="cf-cp" name="postalCode" type="text" inputmode="numeric" maxlength="5" [ngModel]="direccion.postalCode()" (ngModelChange)="direccion.onPostalCode($event)" [ngModelOptions]="sueltos" autocomplete="off" />
             @if (direccion.buscando()) {
               <small class="field__nota">Buscando…</small>
@@ -117,6 +117,7 @@ export type ClientFormValue = {
                 id="cf-colonia"
                 label="Colonia"
                 placeholder="Selecciona la colonia"
+                [openDown]="true"
                 [options]="direccion.opcionesDeColonia()"
                 [value]="direccion.neighborhood()"
                 (valueChange)="direccion.onColonia($event)"
@@ -126,7 +127,7 @@ export type ClientFormValue = {
             }
           </label>
           <label class="field" for="cf-estado">
-            <span class="field__label">ESTADO</span>
+            <span class="field__label">ESTADO<span class="field__req" aria-hidden="true">*</span></span>
             <app-catalog-select
               id="cf-estado"
               type="State"
@@ -139,7 +140,7 @@ export type ClientFormValue = {
             />
           </label>
           <label class="field" for="cf-municipio">
-            <span class="field__label">MUNICIPIO</span>
+            <span class="field__label">MUNICIPIO<span class="field__req" aria-hidden="true">*</span></span>
             <app-catalog-select
               id="cf-municipio"
               type="City"
@@ -169,9 +170,8 @@ export type ClientFormValue = {
               guardaba el cliente y la zona, se tragaba el rechazo del contacto y la zona acababa
               diciendo «sin contacto» sin que nadie supiera por qué.
             -->
-            <span class="field__label">PUESTO</span>
             <gi-catalog-picker
-              label="Puesto del contacto"
+              label="PUESTO"
               catalogLabel="el catálogo de puestos"
               inputId="cf-cpuesto"
               [showInvitation]="false"
@@ -187,7 +187,7 @@ export type ClientFormValue = {
             <input id="cf-ctel" name="contactPhone" type="text" [ngModel]="contactPhone()" (ngModelChange)="contactPhone.set($event)" [ngModelOptions]="sueltos" autocomplete="off" />
           </label>
           <label class="field" for="cf-ccorreo">
-            <span class="field__label">CORREO · OPCIONAL</span>
+            <span class="field__label">CORREO</span>
             <input id="cf-ccorreo" name="contactEmail" type="text" [ngModel]="contactEmail()" (ngModelChange)="contactEmail.set($event)" [ngModelOptions]="sueltos" autocomplete="off" />
           </label>
         </div>
@@ -296,6 +296,10 @@ export type ClientFormValue = {
     .form__row--calle { grid-template-columns: 2fr 1fr; }
 
     .field { display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; }
+
+    /* Rojo y sólo en lo obligatorio. Lo que no lo lleva no dice nada: poner «opcional» al lado de
+       cada campo suelto llenaba la ventana de una palabra que no hacía falta leer. */
+    .field__req { margin-left: 0.2rem; color: var(--gestia-danger); font-weight: 700; }
 
     .field__label {
       color: var(--gestia-muted);

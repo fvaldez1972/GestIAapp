@@ -96,7 +96,8 @@ export type NewContact = {
               selector que usa Personal, con alta al vuelo para no obligar a salir a Catalogos.
             -->
             <gi-catalog-picker
-              label="Puesto"
+              label="PUESTO"
+              [showInvitation]="false"
               catalogLabel="el catálogo de puestos de contacto"
               inputId="nc-puesto"
               [options]="jobPositions()"
@@ -109,7 +110,8 @@ export type NewContact = {
 
           <div class="new__row new__row--two">
             <gi-catalog-picker
-              label="Para qué se le llama"
+              label="PARA QUÉ SE LE LLAMA"
+              [showInvitation]="false"
               catalogLabel="el catálogo de propósitos de contacto"
               inputId="nc-proposito"
               [options]="purposeOptions()"
@@ -122,23 +124,36 @@ export type NewContact = {
               Sin zona es una opción legítima y va primero: un contacto comercial vale para todo el
               cliente, y obligar a elegir una zona lo obligaría a mentir.
             -->
-            <gi-select
-              label="A quién cubre"
-              [options]="scopeOptions"
-              [value]="scope()"
-              (valueChange)="scope.set($any($event))"
-            />
+            <!--
+              El rótulo va escrito: gi-select usa su «label» como aria-label y no lo dibuja. Sin
+              esto el control quedaba sin nombre visible y, peor, sin la línea del rótulo la fila
+              se veía torcida: el campo de al lado empieza debajo de su etiqueta y éste no.
+            -->
+            <div class="field">
+              <span class="field__label">A QUIÉN CUBRE</span>
+              <gi-select
+                label="A quién cubre"
+                [openDown]="true"
+                [options]="scopeOptions"
+                [value]="scope()"
+                (valueChange)="scope.set($any($event))"
+              />
+            </div>
           </div>
 
           @if (scope() === 'Zone') {
             <div class="new__row">
-              <gi-select
-                label="Zona a la que pertenece"
-                placeholder="Elige la zona"
-                [options]="zoneOptions()"
-                [value]="idClientZone()"
-                (valueChange)="idClientZone.set($event)"
-              />
+              <div class="field">
+                <span class="field__label">ZONA A LA QUE PERTENECE</span>
+                <gi-select
+                  label="Zona a la que pertenece"
+                  placeholder="Elige la zona"
+                  [openDown]="true"
+                  [options]="zoneOptions()"
+                  [value]="idClientZone()"
+                  (valueChange)="idClientZone.set($event)"
+                />
+              </div>
             </div>
           }
 

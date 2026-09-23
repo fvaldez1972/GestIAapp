@@ -213,4 +213,22 @@ describe('Contactos del cliente', () => {
     expect(host.creado()?.jobTitle).toBe('Jefa de seguridad');
     expect(raiz).toBeTruthy();
   });
+
+  /**
+   * La fila de «Para qué se le llama» y «A quién cubre» va alineada.
+   *
+   * <p>El desplegable quedaba medio campo más arriba que el de al lado, y la causa no era el
+   * margen: <c>gi-select</c> usa su «label» como aria-label y <b>no lo dibuja</b>, así que el campo
+   * de la izquierda empezaba debajo de su rótulo y el de la derecha no tenía ninguno. Sin rótulo
+   * visible tampoco se sabía qué se estaba eligiendo.</p>
+   */
+  it('los desplegables de la edición llevan su rótulo visible', () => {
+    const { raiz, abrir } = montar();
+    abrir();
+
+    const rotulos = Array.from(raiz.querySelectorAll('.field__label')).map((e) => e.textContent?.trim());
+
+    expect(rotulos).toContain('A QUIÉN CUBRE');
+  });
+
 });

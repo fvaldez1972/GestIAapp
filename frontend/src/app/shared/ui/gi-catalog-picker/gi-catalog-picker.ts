@@ -147,7 +147,15 @@ export type GiCatalogCreation = {
 
     .pick { position: relative; display: flex; flex-direction: column; gap: 0.25rem; }
 
-    .pick__label { color: var(--gestia-muted); font-size: 11.5px; font-weight: 600; }
+    /* El mismo rótulo que .field__label de las pantallas: 11 px y 0.06em. Con 11.5 px y sin
+       espaciado, un selector de catálogo al lado de un campo normal se veía medio punto más grande
+       y la fila parecía torcida aunque estuviera alineada. */
+    .pick__label {
+      color: var(--gestia-muted);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+    }
 
     .pick__input {
       width: 100%;

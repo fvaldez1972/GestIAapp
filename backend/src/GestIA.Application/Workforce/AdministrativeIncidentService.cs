@@ -182,7 +182,7 @@ public sealed class AdministrativeIncidentService(
             // Sin marca decidida, informativa: es el mismo cierre que usa la elegibilidad, y por la
             // misma razón. Estrenar el catálogo impidiendo asignar a quien tenga cualquier
             // incidencia sería peor que dejar constancia hasta que alguien la marque.
-            catalogo?.IsBlocking ?? false,
+            catalogo?.IsRequired ?? false,
             incident.OccurredDate,
             incident.Details,
             incident.Active);

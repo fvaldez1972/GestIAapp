@@ -77,7 +77,7 @@ public sealed class SchedulingService(
         repository.ExecuteAtomicAsync(token => PublishScheduleVersionCoreAsync(idOrganization, idClient, idService, idScheduleVersion, token), cancellationToken);
 
     /// <summary>
-    /// Que todas las personas de la planeación cumplan las reglas bloqueantes, y decirlo de todas.
+    /// Que todas las personas de la planeación cumplan las reglas obligatorias, y decirlo de todas.
     ///
     /// <para><b>Acumula en vez de detenerse en la primera.</b> Antes lanzaba dentro del bucle de
     /// turnos, así que una planeación con cinco personas incumplidas costaba cinco intentos de
@@ -126,7 +126,7 @@ public sealed class SchedulingService(
             }
 
             var motivos = eligibility.Reasons
-                .Where(reason => reason.IsBlocking && !reason.Passed)
+                .Where(reason => reason.IsRequired && !reason.Passed)
                 .Select(reason => reason.Message)
                 .Distinct()
                 .ToArray();

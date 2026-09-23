@@ -14,14 +14,14 @@ namespace GestIA.IntegrationTests;
 ///
 /// <para><b>Por qué existe este archivo.</b> Hasta el 21 de septiembre de 2026 la marca tenía un
 /// tercer estado, «sin decidir», que <b>no se podía guardar</b>: el servicio resolvía la marca con
-/// <c>request.IsBlocking ?? existing?.IsBlocking</c>, así que un nulo entrante —que es como viaja
+/// <c>request.IsRequired ?? existing?.IsRequired</c>, así que un nulo entrante —que es como viaja
 /// «sin decidir»— conservaba la marca anterior en vez de borrarla. Quien la elegía veía un guardado
 /// correcto y ningún cambio. No lo detectó ninguna prueba porque no había ninguna que guardara una
 /// marca y volviera a leerla.</para>
 ///
 /// <para>Contra una base temporal propia. Nunca toca <c>db-gestia-dev</c>.</para>
 /// </summary>
-public sealed class BlockingMarkTests(OperationalSqlDatabase database)
+public sealed class RequiredMarkTests(OperationalSqlDatabase database)
     : IClassFixture<OperationalSqlDatabase>
 {
     private static readonly CancellationToken Token = CancellationToken.None;
@@ -41,13 +41,13 @@ public sealed class BlockingMarkTests(OperationalSqlDatabase database)
 
         var creada = await CatalogsAsync(idOrganization, catalogs => catalogs.CreateCatalogItemAsync(
             Entrada(idOrganization, "Polígrafo", isBlocking: true), Token));
-        Assert.True(creada.IsBlocking);
+        Assert.True(creada.IsRequired);
 
         await CatalogsAsync(idOrganization, catalogs => catalogs.UpdateCatalogItemAsync(
             creada.IdCatalogItem, Entrada(idOrganization, "Polígrafo", isBlocking: false), Token));
 
         var releida = await LeerAsync(idOrganization, creada.IdCatalogItem);
-        Assert.False(releida.IsBlocking);
+        Assert.False(releida.IsRequired);
     }
 
     /// <summary>
@@ -64,13 +64,13 @@ public sealed class BlockingMarkTests(OperationalSqlDatabase database)
 
         var creada = await CatalogsAsync(idOrganization, catalogs => catalogs.CreateCatalogItemAsync(
             Entrada(idOrganization, "Examen toxicológico", isBlocking: false), Token));
-        Assert.False(creada.IsBlocking);
+        Assert.False(creada.IsRequired);
 
         await CatalogsAsync(idOrganization, catalogs => catalogs.UpdateCatalogItemAsync(
             creada.IdCatalogItem, Entrada(idOrganization, "Examen toxicológico", isBlocking: true), Token));
 
         var releida = await LeerAsync(idOrganization, creada.IdCatalogItem);
-        Assert.True(releida.IsBlocking);
+        Assert.True(releida.IsRequired);
     }
 
     /// <summary>
@@ -111,13 +111,13 @@ public sealed class BlockingMarkTests(OperationalSqlDatabase database)
                 idOrganization, BusinessCatalogItemType.CoverageReason, "Incapacidad médica", null),
             Token));
 
-        Assert.Null(creada.IsBlocking);
-        Assert.False(creada.SupportsBlockingMark);
+        Assert.Null(creada.IsRequired);
+        Assert.False(creada.SupportsRequiredMark);
     }
 
     private static CatalogItemInput Entrada(Guid idOrganization, string name, bool? isBlocking) =>
         new(idOrganization, BusinessCatalogItemType.EmployeeEvaluationCategory, name, null,
-            Order: 1, Active: true, IdParentCatalogItem: null, IsBlocking: isBlocking);
+            Order: 1, Active: true, IdParentCatalogItem: null, IsRequired: isBlocking);
 
     private async Task<CatalogItemResponse> LeerAsync(Guid idOrganization, Guid idCatalogItem)
     {
@@ -160,7 +160,7 @@ public sealed class BlockingMarkTests(OperationalSqlDatabase database)
     private sealed class Actor : IActorContext
     {
         public Guid ActorId { get; } = Guid.NewGuid();
-        public string ActorName => "Pruebas de la marca de bloqueo";
+        public string ActorName => "Pruebas de la marca de obligatorio";
     }
 
     private sealed class Clock : IClock

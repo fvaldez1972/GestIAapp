@@ -286,7 +286,7 @@ public sealed class AssignmentService(
         if (!eligibility.IsEligible)
         {
             var blockingReasons = eligibility.Reasons
-                .Where(reason => reason.IsBlocking && !reason.Passed)
+                .Where(reason => reason.IsRequired && !reason.Passed)
                 .Select(reason => reason.Message)
                 .Distinct()
                 .ToArray();

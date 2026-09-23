@@ -965,7 +965,7 @@ export class ServicesPage implements OnInit, OnDestroy {
                 {
                   isEligible: check.isEligible,
                   blockingReasons: check.reasons
-                    .filter((reason) => reason.isBlocking && !reason.passed)
+                    .filter((reason) => reason.isRequired && !reason.passed)
                     .map((reason) => reason.message),
                 },
               ]),
@@ -1764,7 +1764,7 @@ export class ServicesPage implements OnInit, OnDestroy {
         name: creation.name,
         description: null,
         // Informativa: el alta al vuelo no puede preguntar si bloquea, y ese es el valor seguro.
-        isBlocking: false,
+        isRequired: false,
       })
       .pipe(this.withScope(2))
       .subscribe({

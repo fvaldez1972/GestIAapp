@@ -10,11 +10,9 @@
  * —`EmployeeDocumentCategory`, `EmployeeEvaluationCategory` y `ContactPurpose`—, y siete son nuevos.
  * Los cuatro que participan en la elegibilidad llevan además marca de obligatorio o informativa.</p>
  *
- * <p><b>Nota de vocabulario.</b> En pantalla esa marca se lee «Obligatorio» e «Informativa» desde el
- * 22 de septiembre de 2026. En el modelo sigue llamándose `isBlocking`, y la columna de la base
- * `IsBlocking`: lo que cambió es cómo se dice, no lo que hace. Los comentarios del código que hablan
- * de «bloqueante» describen ese comportamiento —impedir asignar y publicar— y siguen siendo
- * correctos.</p>
+ * <p>La marca se llamó `isBlocking` hasta el 23 de septiembre de 2026, cuando el rótulo de pantalla
+ * pasó a «Informativa/Obligatorio» y el modelo lo siguió, de punta a punta: propiedad, contrato de
+ * la API y columna de la base.</p>
  */
 export type BusinessCatalogItemType =
   | 'Skill'
@@ -63,11 +61,11 @@ export type CatalogItem = {
    * Si faltar esta entrada impide asignar y publicar, o sólo deja constancia.
    *
    * <p>Nulo no es «informativa»: es «este catálogo no tiene severidad», que es el caso de la
-   * geografía y los puestos. La pantalla decide si dibuja la marca con `supportsBlockingMark`, no
+   * geografía y los puestos. La pantalla decide si dibuja la marca con `supportsRequiredMark`, no
    * mirando si el valor viene nulo.</p>
    */
-  readonly isBlocking?: boolean | null;
-  readonly supportsBlockingMark?: boolean;
+  readonly isRequired?: boolean | null;
+  readonly supportsRequiredMark?: boolean;
 };
 
 export type CatalogItemInput = Omit<CatalogItem, 'idCatalogItem' | 'active' | 'updatedAt'> & { readonly active?: boolean };
@@ -113,10 +111,10 @@ export type EligibilityRequirement = {
    * La severidad, resuelta por el servidor a partir de la entrada del catálogo que la regla exige.
    *
    * <p>La regla <b>ya no la afina</b>. Hasta el 19 de septiembre de 2026 podía, y eso permitía
-   * configurar el mismo requisito como bloqueante en un sitio e informativo en otro; RF-POS-010
+   * configurar el mismo requisito como obligatorio en un sitio e informativo en otro; RF-POS-010
    * pidió una sola fuente. El catálogo dice qué tan grave es, la regla dice a quién aplica.</p>
    */
-  readonly isBlockingEffective: boolean;
+  readonly isRequiredEffective: boolean;
   readonly active: boolean;
 };
 
@@ -127,7 +125,7 @@ export type EligibilityRequirementInput = Omit<
   | 'serviceName'
   | 'positionName'
   | 'requiredCatalogItemName'
-  | 'isBlockingEffective'
+  | 'isRequiredEffective'
   | 'active'
 >;
 
@@ -149,7 +147,7 @@ export type EmployeeSkillInput = Omit<EmployeeSkill, 'idEmployeeSkill' | 'skillN
 export type EligibilityReason = {
   readonly scope: string;
   readonly requirement: string;
-  readonly isBlocking: boolean;
+  readonly isRequired: boolean;
   readonly passed: boolean;
   readonly message: string;
 };

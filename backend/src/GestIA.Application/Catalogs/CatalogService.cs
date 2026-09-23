@@ -257,7 +257,7 @@ public sealed class CatalogService(
             employee.IdEmployee,
             employee.CodeEmployee,
             employee.FullName,
-            reasons.All(reason => reason.Passed || !reason.IsBlocking),
+            reasons.All(reason => reason.Passed || !reason.IsRequired),
             reasons);
     }
 
@@ -322,7 +322,7 @@ public sealed class CatalogService(
                 employee.IdEmployee,
                 employee.CodeEmployee,
                 employee.FullName,
-                reasons.All(reason => reason.Passed || !reason.IsBlocking),
+                reasons.All(reason => reason.Passed || !reason.IsRequired),
                 reasons));
         }
 
@@ -405,7 +405,7 @@ public sealed class CatalogService(
     /// El perfil que la posición pide, comparado contra la persona.
     ///
     /// <para><b>Ninguno de estos cuatro bloquea, y no es un descuido.</b> La matriz «Datos
-    /// necesarios para GestIA» marca con asterisco —el que define bloqueante e informativa— sólo
+    /// necesarios para GestIA» marca con asterisco —el que define obligatorio e informativa— sólo
     /// tres catálogos: experiencia requerida, tipo de documento y evaluación. Sexo, edad,
     /// escolaridad y equipo no lo llevan. Así que el sistema los compara, los enseña, y no excluye
     /// a nadie por ellos; con eso desaparece además el riesgo legal de excluir por sexo o por
@@ -598,7 +598,7 @@ public sealed class CatalogService(
     private static EligibilityReasonResponse EvaluateIncident(AdministrativeIncident incident)
     {
         var tipo = incident.IncidentTypeCatalogItem?.Name ?? "Incidencia administrativa";
-        var bloquea = incident.IncidentTypeCatalogItem?.IsBlocking ?? false;
+        var bloquea = incident.IncidentTypeCatalogItem?.IsRequired ?? false;
 
         return new EligibilityReasonResponse(
             "Expediente",
@@ -636,7 +636,7 @@ public sealed class CatalogService(
     /// Si incumplir la regla bloquea. <b>Lo dice el catálogo, y sólo el catálogo.</b>
     ///
     /// <para>Hasta el 19 de septiembre de 2026 la regla podía afinar la marca del catálogo, y eso
-    /// permitía configurar el mismo requisito como bloqueante en un sitio e informativo en otro.
+    /// permitía configurar el mismo requisito como obligatorio en un sitio e informativo en otro.
     /// Nadie lo había hecho —ninguna entrada del catálogo tenía dos severidades entre sus reglas—,
     /// pero el modelo lo consentía, y una contradicción que el sistema permite acaba ocurriendo.
     /// RF-POS-010 pidió una sola fuente y ésta es: el catálogo dice <b>qué tan grave</b>, la regla
@@ -659,7 +659,7 @@ public sealed class CatalogService(
     /// excepción.</para>
     /// </summary>
     private static bool Severity(EligibilityRequirement requirement) =>
-        requirement.RequiredCatalogItem?.IsBlocking ?? false;
+        requirement.RequiredCatalogItem?.IsRequired ?? false;
 
     private static EligibilityReasonResponse EvaluateSkill(
         EligibilityRequirement requirement,
@@ -906,10 +906,10 @@ public sealed class CatalogService(
         // La marca de bloqueo sólo la admiten los cuatro catálogos de la elegibilidad. Se avisa aquí
         // en vez de dejar que la entidad lance, porque desde aquí sale un 400 que nombra el campo y
         // desde allá saldría un error de argumento.
-        var admiteMarca = BusinessCatalogItem.SupportsBlockingMark(request.Type);
-        if (request.IsBlocking.HasValue && !admiteMarca)
+        var admiteMarca = BusinessCatalogItem.SupportsRequiredMark(request.Type);
+        if (request.IsRequired.HasValue && !admiteMarca)
         {
-            errors[nameof(request.IsBlocking)] =
+            errors[nameof(request.IsRequired)] =
                 ["Este catálogo no participa en la elegibilidad, así que no lleva marca de bloqueo."];
         }
 
@@ -921,19 +921,19 @@ public sealed class CatalogService(
         // decidir» veía un guardado correcto y ningún cambio. La matriz pide dos estados —«impide
         // asignar y publicar» o «sólo deja constancia»—, así que el tercero se retira en vez de
         // arreglarse.
-        if (admiteMarca && existing is null && !request.IsBlocking.HasValue)
+        if (admiteMarca && existing is null && !request.IsRequired.HasValue)
         {
-            errors[nameof(request.IsBlocking)] =
+            errors[nameof(request.IsRequired)] =
                 ["Di si su falta impide asignar y publicar, o si sólo deja constancia."];
         }
 
         InputValidation.ThrowIfInvalid(errors);
 
         // Al editar sin mandar la marca se conserva la que tenía: una pantalla que sólo corrige el
-        // nombre no debería convertir en informativa una entrada bloqueante. Ya no puede engañar,
+        // nombre no debería convertir en informativa una entrada obligatoria. Ya no puede engañar,
         // porque después de la migración compensatoria ninguna entrada de estos cuatro catálogos
         // está sin decidir, y ninguna puede volver a estarlo.
-        bool? isBlocking = admiteMarca ? request.IsBlocking ?? existing?.IsBlocking ?? false : null;
+        bool? isBlocking = admiteMarca ? request.IsRequired ?? existing?.IsRequired ?? false : null;
         return new BusinessCatalogItemProfile(request.Type, name, description, order, request.IdParentCatalogItem, isBlocking);
     }
 
@@ -1048,7 +1048,7 @@ public sealed class CatalogService(
     private static CatalogItemResponse MapCatalogItem(BusinessCatalogItem item) =>
         new(item.IdBusinessCatalogItem, item.IdOrganization, item.Type, item.Name, item.Description, item.Active,
             item.Order, item.UpdatedAt ?? item.CreatedAt, item.IdParentCatalogItem,
-            item.IsBlocking, BusinessCatalogItem.SupportsBlockingMark(item.Type));
+            item.IsRequired, BusinessCatalogItem.SupportsRequiredMark(item.Type));
 
     private static EligibilityRequirementResponse MapRequirement(EligibilityRequirement requirement) =>
         new(

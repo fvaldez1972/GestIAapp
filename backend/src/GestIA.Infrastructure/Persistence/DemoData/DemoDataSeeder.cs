@@ -252,7 +252,7 @@ public sealed partial class DemoDataSeeder(
             .IgnoreQueryFilters(["Active", "Organization"])
             .FirstOrDefaultAsync(entry => entry.IdBusinessCatalogItem == id, cancellationToken);
 
-        if (item is null || item.IsBlocking.HasValue || !BusinessCatalogItem.SupportsBlockingMark(item.Type))
+        if (item is null || item.IsRequired.HasValue || !BusinessCatalogItem.SupportsRequiredMark(item.Type))
         {
             return;
         }
@@ -383,7 +383,7 @@ public sealed partial class DemoDataSeeder(
 
                 // La severidad se marca en el catalogo, que desde el 19 de septiembre de 2026 es
                 // su unica fuente. Marcarla en la regla ya no haria nada: nadie la lee.
-                await MarcarSeveridadAsync(idCatalogo, rule.IsBlocking, cancellationToken);
+                await MarcarSeveridadAsync(idCatalogo, rule.IsRequired, cancellationToken);
 
                 var requirement = EligibilityRequirement.Create(
                     organization.IdOrganization,

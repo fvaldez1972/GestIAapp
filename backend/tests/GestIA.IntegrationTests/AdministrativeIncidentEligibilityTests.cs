@@ -56,7 +56,7 @@ public sealed class AdministrativeIncidentEligibilityTests(OperationalSqlDatabas
         Assert.False(check.IsEligible);
 
         var motivo = Assert.Single(check.Reasons, reason => reason.Requirement == "Abandono de puesto");
-        Assert.True(motivo.IsBlocking);
+        Assert.True(motivo.IsRequired);
         Assert.False(motivo.Passed);
 
         // El mensaje nombra el tipo y la fecha. «Tiene una incidencia» obligaría a abrir el
@@ -76,7 +76,7 @@ public sealed class AdministrativeIncidentEligibilityTests(OperationalSqlDatabas
 
         // Aparece igual: RN-PER-003 pide que deje constancia, no que desaparezca.
         var motivo = Assert.Single(check.Reasons, reason => reason.Requirement == "Abandono de puesto");
-        Assert.False(motivo.IsBlocking);
+        Assert.False(motivo.IsRequired);
         Assert.Contains("no impide asignar", motivo.Message, StringComparison.Ordinal);
     }
 
@@ -125,7 +125,7 @@ public sealed class AdministrativeIncidentEligibilityTests(OperationalSqlDatabas
             tipo!.UpdateProfile(
                 new BusinessCatalogItemProfile(
                     BusinessCatalogItemType.AdministrativeIncidentType, tipo.Name, null, tipo.Order,
-                    null, IsBlocking: true),
+                    null, IsRequired: true),
                 TestActor.ActorId, TestActor.ActorName, Now);
             await context.SaveChangesAsync(Token);
         }

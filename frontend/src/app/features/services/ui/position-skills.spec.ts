@@ -24,7 +24,7 @@ const regla = (overrides: Partial<EligibilityRequirement> = {}): EligibilityRequ
   requiredEvaluationType: null,
   name: 'Experiencia de CCTV',
   description: null,
-  isBlockingEffective: true,
+  isRequiredEffective: true,
   active: true,
   ...overrides,
 });
@@ -106,7 +106,7 @@ describe('El perfil requerido de una posición', () => {
 
   /** La distinción entre bloquear y dejar constancia se dice, porque el sistema la respeta. */
   it('una experiencia informativa dice que sólo deja constancia', () => {
-    const { filas } = montar((host) => host.requirements.set([regla({ isBlockingEffective: false })]));
+    const { filas } = montar((host) => host.requirements.set([regla({ isRequiredEffective: false })]));
 
     expect(filas()[0].textContent).toContain('Sólo deja constancia');
   });
@@ -125,7 +125,7 @@ describe('El perfil requerido de una posición', () => {
    * La pantalla de la posición no decide la severidad, y tiene que verse que no la decide.
    *
    * <p>Hasta el 19 de septiembre de 2026 había aquí una casilla «Que la nueva impida asignar si no
-   * la tiene», y con ella el mismo requisito podía quedar bloqueante en una posición e informativo
+   * la tiene», y con ella el mismo requisito podía quedar obligatorio en una posición e informativo
    * en otra. RF-POS-010 pidió una sola fuente: el catálogo dice qué tan grave es, la posición dice
    * cuáles pide. Esta prueba sujeta esa decisión donde se puede romper sin darse cuenta.</p>
    */

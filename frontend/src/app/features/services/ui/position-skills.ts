@@ -11,7 +11,7 @@ import { EligibilityRequirement } from '../../catalogs/data-access/catalog.model
  *
  * <p><b>Sin severidad, desde el 19 de septiembre de 2026.</b> Qué tan grave es que falte lo dice la
  * entrada del catálogo, no la posición: RF-POS-010 pidió una sola fuente, porque con dos el mismo
- * requisito podía quedar bloqueante en un sitio e informativo en otro.</p>
+ * requisito podía quedar obligatorio en un sitio e informativo en otro.</p>
  */
 export type PositionSkillRequest = {
   readonly idSkillCatalogItem: string;
@@ -63,7 +63,7 @@ export type PositionSkillRequest = {
                   @if (row.pending) {
                     Se guarda al guardar la posición
                   } @else {
-                    {{ row.isBlocking ? 'Impide asignar a quien no la tenga' : 'Sólo deja constancia' }}
+                    {{ row.isRequired ? 'Impide asignar a quien no la tenga' : 'Sólo deja constancia' }}
                     · lo decide el catálogo
                   }
                 </span>
@@ -183,7 +183,7 @@ export class PositionSkills {
       key: requirement.idEligibilityRequirement,
       idSkillCatalogItem: requirement.idRequiredCatalogItem ?? '',
       name: requirement.requiredCatalogItemName || requirement.name,
-      isBlocking: requirement.isBlockingEffective,
+      isRequired: requirement.isRequiredEffective,
       pending: false,
     })),
     ...this.pending().map((item) => ({
@@ -192,7 +192,7 @@ export class PositionSkills {
       name: item.name,
       // Todavia no hay regla, asi que no hay severidad resuelta que ensenar. La fila lo dice con
       // «se guarda al guardar la posicion» en vez de afirmar algo que no sabe.
-      isBlocking: false,
+      isRequired: false,
       pending: true,
     })),
   ]);

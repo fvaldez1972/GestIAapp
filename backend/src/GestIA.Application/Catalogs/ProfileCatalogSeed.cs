@@ -8,7 +8,7 @@ namespace GestIA.Application.Catalogs;
 /// <param name="Type">El catálogo al que pertenece.</param>
 /// <param name="Name">El nombre visible.</param>
 /// <param name="Order">El orden en que se enseña.</param>
-/// <param name="IsBlocking">
+/// <param name="IsRequired">
 /// La marca de bloqueo, sólo para los catálogos que la admiten. Nula en los demás, y nula también
 /// en los que la admiten pero cuya severidad no le toca decidir al sistema.
 /// </param>
@@ -16,7 +16,7 @@ public sealed record ProfileCatalogSeedValue(
     BusinessCatalogItemType Type,
     string Name,
     int Order,
-    bool? IsBlocking = null);
+    bool? IsRequired = null);
 
 /// <summary>
 /// Los valores con los que nacen los cinco catálogos de perfil.
@@ -87,13 +87,13 @@ public static class ProfileCatalogSeed
         // motivo para que nadie pueda cubrir un turno. Quien responda por la operación puede
         // cambiar cualquiera de las dos marcas, y el cambio aplica a la validación siguiente sin
         // tocar ningún expediente.
-        new(BusinessCatalogItemType.AdministrativeIncidentType, "Abandono de puesto", 1, IsBlocking: true),
-        new(BusinessCatalogItemType.AdministrativeIncidentType, "Suspensión vigente", 2, IsBlocking: true),
-        new(BusinessCatalogItemType.AdministrativeIncidentType, "Falta injustificada", 3, IsBlocking: false),
-        new(BusinessCatalogItemType.AdministrativeIncidentType, "Retardo", 4, IsBlocking: false),
-        new(BusinessCatalogItemType.AdministrativeIncidentType, "Incumplimiento del reglamento", 5, IsBlocking: false),
-        new(BusinessCatalogItemType.AdministrativeIncidentType, "Queja del cliente", 6, IsBlocking: false),
-        new(BusinessCatalogItemType.AdministrativeIncidentType, "Extravío de equipo", 7, IsBlocking: false),
-        new(BusinessCatalogItemType.AdministrativeIncidentType, "Acta administrativa", 8, IsBlocking: false),
+        new(BusinessCatalogItemType.AdministrativeIncidentType, "Abandono de puesto", 1, IsRequired: true),
+        new(BusinessCatalogItemType.AdministrativeIncidentType, "Suspensión vigente", 2, IsRequired: true),
+        new(BusinessCatalogItemType.AdministrativeIncidentType, "Falta injustificada", 3, IsRequired: false),
+        new(BusinessCatalogItemType.AdministrativeIncidentType, "Retardo", 4, IsRequired: false),
+        new(BusinessCatalogItemType.AdministrativeIncidentType, "Incumplimiento del reglamento", 5, IsRequired: false),
+        new(BusinessCatalogItemType.AdministrativeIncidentType, "Queja del cliente", 6, IsRequired: false),
+        new(BusinessCatalogItemType.AdministrativeIncidentType, "Extravío de equipo", 7, IsRequired: false),
+        new(BusinessCatalogItemType.AdministrativeIncidentType, "Acta administrativa", 8, IsRequired: false),
     ];
 }

@@ -44,8 +44,8 @@ export type NewAdministrativeIncident = {
                 <span class="inc__type">{{ incidencia.incidentTypeName }}</span>
                 <span
                   class="inc__pill"
-                  [class.inc__pill--blocking]="incidencia.isBlocking"
-                >{{ incidencia.isBlocking ? 'Impide asignar' : 'Deja constancia' }}</span>
+                  [class.inc__pill--blocking]="incidencia.isRequired"
+                >{{ incidencia.isRequired ? 'Impide asignar' : 'Deja constancia' }}</span>
                 @if (!incidencia.active) { <span class="inc__pill">Retirada</span> }
               </p>
               <p class="inc__when">Ocurrió el {{ fecha(incidencia.occurredDate) }}</p>

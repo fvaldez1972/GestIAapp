@@ -9,7 +9,7 @@ public sealed record BusinessCatalogItemProfile(
     string? Description,
     int Order = 1,
     Guid? IdParentCatalogItem = null,
-    bool? IsBlocking = null);
+    bool? IsRequired = null);
 
 public sealed class BusinessCatalogItem : AuditableEntity, IOrganizationScopedEntity
 {
@@ -59,7 +59,7 @@ public sealed class BusinessCatalogItem : AuditableEntity, IOrganizationScopedEn
     /// <para><b>Es el valor por omisión de la organización, no la única fuente.</b> La marca dice
     /// qué tan grave es que falte; quién lo exige —toda la organización, un cliente, un servicio o
     /// una posición— lo dice <c>EligibilityRequirement</c>, que puede afinarla. Los dos hechos se
-    /// parecen y no son el mismo: la propia matriz los separa cuando dice que una bloqueante
+    /// parecen y no son el mismo: la propia matriz los separa cuando dice que una obligatoria
     /// «impide asignar al personal a un servicio <b>que lo requiera</b>».</para>
     ///
     /// <para><b>Nulo significa que este catálogo no tiene severidad</b>, y es el caso de la mayoría:
@@ -67,13 +67,13 @@ public sealed class BusinessCatalogItem : AuditableEntity, IOrganizationScopedEn
     /// cuatro catálogos que participan en la elegibilidad: experiencia, categoría de documento,
     /// categoría de evaluación e incidencia administrativa.</para>
     ///
-    /// <para><b>Nota de vocabulario.</b> En pantalla esta marca se lee «Obligatorio» e «Informativa»
-    /// desde el 22 de septiembre de 2026. La propiedad y la columna siguen llamándose
-    /// <c>IsBlocking</c>: cambió cómo se dice, no lo que hace, y renombrar la columna habría sido
-    /// una migración sobre datos vivos sin ninguna ganancia. Los comentarios que hablan de
-    /// «bloqueante» describen el comportamiento —impedir asignar y publicar— y siguen valiendo.</para>
+    /// <para><b>Se llamó <c>IsBlocking</c> hasta el 23 de septiembre de 2026</b>, y la columna
+    /// también. El rótulo de pantalla pasó a «Informativa/Obligatorio» y el modelo lo siguió, para
+    /// no dejar al proyecto con dos vocabularios para la misma marca. El renombre de la columna va
+    /// en <c>RenameBlockingMarkToRequired</c>; los eventos de bitácora anteriores conservan
+    /// <c>"IsBlocking"</c> dentro de su JSON, porque un historial no se reescribe.</para>
     /// </summary>
-    public bool? IsBlocking { get; private set; }
+    public bool? IsRequired { get; private set; }
 
     public Organization Organization { get; private set; } = null!;
 
@@ -102,10 +102,10 @@ public sealed class BusinessCatalogItem : AuditableEntity, IOrganizationScopedEn
         if (!Enum.IsDefined(profile.Type)) throw new ArgumentException("Unknown catalog type.");
         if (profile.Order < 1) throw new ArgumentOutOfRangeException(nameof(profile), "Order must be positive.");
 
-        // Marcar como bloqueante un municipio o una nacionalidad no querría decir nada, y guardarlo
+        // Marcar como obligatorio un municipio o una nacionalidad no querría decir nada, y guardarlo
         // dejaría un dato que alguien leería como si significara algo. Se descarta en la entidad y
         // no en la pantalla, para que no dependa de por dónde entre la fila.
-        if (profile.IsBlocking.HasValue && !SupportsBlockingMark(profile.Type))
+        if (profile.IsRequired.HasValue && !SupportsRequiredMark(profile.Type))
         {
             throw new ArgumentOutOfRangeException(
                 nameof(profile),
@@ -113,7 +113,7 @@ public sealed class BusinessCatalogItem : AuditableEntity, IOrganizationScopedEn
         }
 
         Type = profile.Type;
-        IsBlocking = profile.IsBlocking;
+        IsRequired = profile.IsRequired;
         Name = profile.Name.Trim();
         Description = string.IsNullOrWhiteSpace(profile.Description) ? null : profile.Description.Trim();
         IdParentCatalogItem = profile.IdParentCatalogItem;
@@ -127,7 +127,7 @@ public sealed class BusinessCatalogItem : AuditableEntity, IOrganizationScopedEn
     /// <para>Está aquí y no en una tabla de configuración porque no es una preferencia: es la lista
     /// de cosas que una regla de elegibilidad sabe comprobar. Crece cuando crece esa lista.</para>
     /// </summary>
-    public static bool SupportsBlockingMark(BusinessCatalogItemType type) => type is
+    public static bool SupportsRequiredMark(BusinessCatalogItemType type) => type is
         BusinessCatalogItemType.Skill or
         BusinessCatalogItemType.EmployeeDocumentCategory or
         BusinessCatalogItemType.EmployeeEvaluationCategory or

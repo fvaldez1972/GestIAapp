@@ -106,7 +106,7 @@
               <td>{{ requirementTypeLabel(regla.requirementType) }}</td>
               <td>{{ requirementScopeLabel(regla) }}</td>
               <td>
-                <span class="gi-badge" [class.gi-badge--warning]="regla.isBlockingEffective" [class.gi-badge--muted]="!regla.isBlockingEffective">
+                <span class="gi-badge" [class.gi-badge--warning]="regla.isRequiredEffective" [class.gi-badge--muted]="!regla.isRequiredEffective">
                   {{ requirementSeverityLabel(regla) }}
                 </span>
               </td>
@@ -236,9 +236,9 @@
                         -->
                         <span
                           class="gi-badge"
-                          [class.gi-badge--warning]="valor.isBlocking === true"
-                          [class.gi-badge--muted]="valor.isBlocking !== true"
-                        >{{ blockingMarkLabel(valor.isBlocking) }}</span>
+                          [class.gi-badge--warning]="valor.isRequired === true"
+                          [class.gi-badge--muted]="valor.isRequired !== true"
+                        >{{ blockingMarkLabel(valor.isRequired) }}</span>
                       </td>
                     }
                     <td>

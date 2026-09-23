@@ -14,7 +14,7 @@ public sealed record CatalogItemInput(
     /// <summary>
     /// Sólo la aceptan los cuatro catálogos que participan en la elegibilidad; en los demás va nula.
     /// </summary>
-    bool? IsBlocking = null);
+    bool? IsRequired = null);
 
 public sealed record CatalogItemResponse(
     Guid IdCatalogItem,
@@ -27,9 +27,9 @@ public sealed record CatalogItemResponse(
     DateTime? UpdatedAt = null,
     Guid? IdParentCatalogItem = null,
     /// <summary>Nula en los catálogos que no participan en la elegibilidad.</summary>
-    bool? IsBlocking = null,
+    bool? IsRequired = null,
     /// <summary>Si este catálogo admite la marca. La pantalla decide con esto si la dibuja.</summary>
-    bool SupportsBlockingMark = false);
+    bool SupportsRequiredMark = false);
 
 public sealed record EligibilityRequirementInput(
     Guid IdOrganization,
@@ -65,7 +65,7 @@ public sealed record EligibilityRequirementResponse(
     /// La severidad, que sale de la entrada del catálogo que la regla exige. La regla ya no la
     /// afina: desde el 19 de septiembre de 2026 hay una sola fuente, que es RF-POS-010.
     /// </summary>
-    bool IsBlockingEffective,
+    bool IsRequiredEffective,
     bool Active);
 
 public sealed record EmployeeSkillInput(
@@ -120,6 +120,6 @@ public sealed record EligibilityCheckResponse(
 public sealed record EligibilityReasonResponse(
     string Scope,
     string Requirement,
-    bool IsBlocking,
+    bool IsRequired,
     bool Passed,
     string Message);

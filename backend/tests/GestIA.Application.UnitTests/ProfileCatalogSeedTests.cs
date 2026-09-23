@@ -17,12 +17,12 @@ public sealed class ProfileCatalogSeedTests
     public void EverySeededValueInAMarkBearingCatalogDeclaresItsMark()
     {
         var conMarca = ProfileCatalogSeed.All
-            .Where(valor => BusinessCatalogItem.SupportsBlockingMark(valor.Type))
+            .Where(valor => BusinessCatalogItem.SupportsRequiredMark(valor.Type))
             .ToArray();
 
         Assert.NotEmpty(conMarca);
         Assert.All(conMarca, valor => Assert.True(
-            valor.IsBlocking.HasValue,
+            valor.IsRequired.HasValue,
             $"«{valor.Name}» se siembra en {valor.Type} sin decir si bloquea."));
     }
 
@@ -36,12 +36,12 @@ public sealed class ProfileCatalogSeedTests
     public void AndValuesOutsideThoseCatalogsCarryNoMark()
     {
         var sinMarca = ProfileCatalogSeed.All
-            .Where(valor => !BusinessCatalogItem.SupportsBlockingMark(valor.Type))
+            .Where(valor => !BusinessCatalogItem.SupportsRequiredMark(valor.Type))
             .ToArray();
 
         Assert.NotEmpty(sinMarca);
         Assert.All(sinMarca, valor => Assert.False(
-            valor.IsBlocking.HasValue,
+            valor.IsRequired.HasValue,
             $"«{valor.Name}» lleva marca y {valor.Type} no la admite."));
     }
 }

@@ -18,7 +18,7 @@ export type CatalogPage = {
   readonly singular: string;
   /** Un valor de ejemplo, para el estado vacío. */
   readonly example: string;
-  /** Si sus valores llevan naturaleza: bloqueante o informativa. */
+  /** Si sus valores llevan naturaleza: obligatorio o informativa. */
   readonly hasNature?: boolean;
   /** De qué catálogo cuelgan sus valores, cuando cuelgan de alguno. */
   readonly parentType?: BusinessCatalogItemType;

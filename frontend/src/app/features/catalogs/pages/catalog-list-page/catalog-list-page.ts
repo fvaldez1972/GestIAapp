@@ -197,8 +197,8 @@ export class CatalogListPage {
     return this.items().filter((item) => {
       if (estado === 'active' && !item.active) return false;
       if (estado === 'inactive' && item.active) return false;
-      if (naturaleza === 'blocking' && item.isBlocking !== true) return false;
-      if (naturaleza === 'informative' && item.isBlocking === true) return false;
+      if (naturaleza === 'blocking' && item.isRequired !== true) return false;
+      if (naturaleza === 'informative' && item.isRequired === true) return false;
 
       if (!texto) return true;
 
@@ -301,7 +301,7 @@ export class CatalogListPage {
   }
 
   protected natureLabel(item: CatalogItem): string {
-    return item.isBlocking === true ? 'Obligatorio' : 'Informativa';
+    return item.isRequired === true ? 'Obligatorio' : 'Informativa';
   }
 
   protected rowNumber(item: CatalogItem): number {
@@ -383,7 +383,7 @@ export class CatalogListPage {
       idParentCatalogItem: item.idParentCatalogItem ?? '',
       // Una entrada sin marca se dibuja informativa, que es lo que ya hace: los dos lugares que
       // consultan la marca resuelven el nulo como «no bloquea».
-      blockingMark: item.isBlocking === true ? 'blocking' : 'informative',
+      blockingMark: item.isRequired === true ? 'blocking' : 'informative',
     });
     this.editor()?.nativeElement.showModal();
   }
@@ -417,7 +417,7 @@ export class CatalogListPage {
       order: selectedItem?.order ?? this.siguienteOrden(),
       active: value.status === 'active',
       // Sólo viaja donde significa algo. En los demás catálogos el servidor la rechaza.
-      isBlocking: page.hasNature ? value.blockingMark === 'blocking' : null,
+      isRequired: page.hasNature ? value.blockingMark === 'blocking' : null,
     };
 
     const selected = this.selectedItemId();
@@ -469,7 +469,7 @@ export class CatalogListPage {
         idParentCatalogItem: item.idParentCatalogItem ?? null,
         order: item.order,
         active: true,
-        isBlocking: page?.hasNature ? item.isBlocking === true : null,
+        isRequired: page?.hasNature ? item.isRequired === true : null,
       })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({

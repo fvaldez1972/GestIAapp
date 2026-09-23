@@ -55,7 +55,7 @@ public sealed class PositionProfileMatchingTests(OperationalSqlDatabase database
         var motivo = await EducationReasonAsync(seed);
 
         Assert.Contains("No alcanza el mínimo", motivo.Message, StringComparison.Ordinal);
-        Assert.False(motivo.IsBlocking);
+        Assert.False(motivo.IsRequired);
         Assert.True((await CheckAsync(seed)).IsEligible);
     }
 
@@ -94,7 +94,7 @@ public sealed class PositionProfileMatchingTests(OperationalSqlDatabase database
         var perfil = check.Reasons.Where(reason => reason.Scope == "Perfil del puesto").ToArray();
 
         Assert.Equal(4, perfil.Length);
-        Assert.All(perfil, reason => Assert.False(reason.IsBlocking));
+        Assert.All(perfil, reason => Assert.False(reason.IsRequired));
         Assert.True(check.IsEligible);
     }
 

@@ -60,7 +60,7 @@
     <ng-template giCell="description" let-row>{{ row.description || '—' }}</ng-template>
 
     <ng-template giCell="nature" let-row>
-      <span class="gi-badge" [class.gi-badge--warning]="row.isBlocking === true" [class.gi-badge--muted]="row.isBlocking !== true">{{ natureLabel(row) }}</span>
+      <span class="gi-badge" [class.gi-badge--warning]="row.isRequired === true" [class.gi-badge--muted]="row.isRequired !== true">{{ natureLabel(row) }}</span>
     </ng-template>
 
     <ng-template giCell="state" let-row>

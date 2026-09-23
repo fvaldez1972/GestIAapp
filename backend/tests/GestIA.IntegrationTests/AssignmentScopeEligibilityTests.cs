@@ -170,7 +170,7 @@ public sealed class AssignmentScopeEligibilityTests(OperationalSqlDatabase datab
             var experiencia = BusinessCatalogItem.Create(
                 organization.IdOrganization,
                 new BusinessCatalogItemProfile(
-                    BusinessCatalogItemType.Skill, "Manejo de CCTV", null, 1, null, IsBlocking: true),
+                    BusinessCatalogItemType.Skill, "Manejo de CCTV", null, 1, null, IsRequired: true),
                 TestActor.ActorId, TestActor.ActorName, Now);
             context.Add(experiencia);
 

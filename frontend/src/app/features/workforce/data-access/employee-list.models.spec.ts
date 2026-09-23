@@ -76,8 +76,8 @@ describe('Los tipos de documento que se ofrecen al capturar', () => {
   /** Los exigidos van primero, porque son los que destraban una asignacion. */
   it('marca los exigidos y los pone al principio', () => {
     const tipos = employeeDocumentTypeOptions([
-      { idRequiredCatalogItem: 'c-domicilio', isBlockingEffective: true },
-      { idRequiredCatalogItem: 'c-curp', isBlockingEffective: true },
+      { idRequiredCatalogItem: 'c-domicilio', isRequiredEffective: true },
+      { idRequiredCatalogItem: 'c-curp', isRequiredEffective: true },
     ], categorias);
 
     expect(tipos.slice(0, 2).map((tipo) => tipo.code)).toEqual(['c-curp', 'c-domicilio']);
@@ -93,7 +93,7 @@ describe('Los tipos de documento que se ofrecen al capturar', () => {
    */
   it('no marca como obligatoria una regla informativa', () => {
     const tipos = employeeDocumentTypeOptions([
-      { idRequiredCatalogItem: 'c-licencia', isBlockingEffective: false },
+      { idRequiredCatalogItem: 'c-licencia', isRequiredEffective: false },
     ], categorias);
 
     expect(tipos.find((tipo) => tipo.code === 'c-licencia')?.isRequired).toBe(false);
@@ -101,7 +101,7 @@ describe('Los tipos de documento que se ofrecen al capturar', () => {
 
   /** Y una regla que no exige nada del catálogo —una restricción— no debe marcar nada. */
   it('ignora las reglas sin entrada de catalogo', () => {
-    const tipos = employeeDocumentTypeOptions([{ idRequiredCatalogItem: null, isBlockingEffective: true }], categorias);
+    const tipos = employeeDocumentTypeOptions([{ idRequiredCatalogItem: null, isRequiredEffective: true }], categorias);
 
     expect(tipos.every((tipo) => !tipo.isRequired)).toBe(true);
   });
@@ -112,7 +112,7 @@ describe('Un documento cargado que no cuenta no puede leerse «Al día»', () =>
     idRequiredCatalogItem: 'c-antecedentes',
     requiredCatalogItemName: 'Antecedentes no penales',
     name: 'Carta de no antecedentes',
-    isBlockingEffective: true,
+    isRequiredEffective: true,
   }];
   const documento = (extra: Record<string, unknown>) => [{
     idDocumentCategoryCatalogItem: 'c-antecedentes',

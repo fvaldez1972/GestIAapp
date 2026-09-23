@@ -132,7 +132,7 @@ public sealed class OperationalConcurrencyTests : IClassFixture<OperationalSqlDa
             var experiencia = BusinessCatalogItem.Create(
                 seed.OrganizationId,
                 new BusinessCatalogItemProfile(
-                    BusinessCatalogItemType.Skill, "Restricted", null, 1, null, IsBlocking: true),
+                    BusinessCatalogItemType.Skill, "Restricted", null, 1, null, IsRequired: true),
                 Actor.ActorId, Actor.ActorName, Now);
             context.BusinessCatalogItems.Add(experiencia);
 

@@ -324,13 +324,13 @@ export type EmployeeDocumentTypeOption = {
 export function employeeDocumentTypeOptions(
   required: readonly {
     readonly idRequiredCatalogItem: string | null;
-    readonly isBlockingEffective: boolean;
+    readonly isRequiredEffective: boolean;
   }[],
   categories: readonly { readonly idCatalogItem: string; readonly name: string }[],
 ): readonly EmployeeDocumentTypeOption[] {
   const exigidos = new Set(
     required
-      .filter((regla) => regla.isBlockingEffective && regla.idRequiredCatalogItem)
+      .filter((regla) => regla.isRequiredEffective && regla.idRequiredCatalogItem)
       .map((regla) => regla.idRequiredCatalogItem!),
   );
 
@@ -369,7 +369,7 @@ export type EmployeeRequirementRow = {
   readonly code: string;
   readonly label: string;
   /** Un requisito que no bloquea se pide igual, pero no impide asignar. Se dice cuál es cuál. */
-  readonly isBlocking: boolean;
+  readonly isRequired: boolean;
   readonly state: EmployeeRequirementState;
   readonly expiresDate: string | null;
   readonly documentNumber: string | null;
@@ -394,7 +394,7 @@ export function employeeRequirementRows(
     readonly idRequiredCatalogItem: string | null;
     readonly requiredCatalogItemName: string | null;
     readonly name: string;
-    readonly isBlockingEffective: boolean;
+    readonly isRequiredEffective: boolean;
   }[],
   documents: readonly {
     readonly idDocumentCategoryCatalogItem: string | null;
@@ -439,7 +439,7 @@ export function employeeRequirementRows(
     return {
       code: requisito.idRequiredCatalogItem ?? '',
       label: requisito.name || requisito.requiredCatalogItemName || 'Requisito sin nombre',
-      isBlocking: requisito.isBlockingEffective,
+      isRequired: requisito.isRequiredEffective,
       state,
       expiresDate: documento?.expiresDate ?? null,
       documentNumber: documento?.documentNumber ?? null,
@@ -495,13 +495,13 @@ export const evaluationResultLabel = (result: string): string =>
 export function evaluationTypeOptions(
   required: readonly {
     readonly idRequiredCatalogItem: string | null;
-    readonly isBlockingEffective: boolean;
+    readonly isRequiredEffective: boolean;
   }[],
   categories: readonly { readonly idCatalogItem: string; readonly name: string }[],
 ): readonly EmployeeDocumentTypeOption[] {
   const exigidos = new Set(
     required
-      .filter((regla) => regla.isBlockingEffective && regla.idRequiredCatalogItem)
+      .filter((regla) => regla.isRequiredEffective && regla.idRequiredCatalogItem)
       .map((regla) => regla.idRequiredCatalogItem!),
   );
 
@@ -518,7 +518,7 @@ export function evaluationTypeOptions(
 export type EmployeeEvaluationRequirementRow = {
   readonly code: string;
   readonly label: string;
-  readonly isBlocking: boolean;
+  readonly isRequired: boolean;
   readonly state: EmployeeRequirementState;
   readonly expiresDate: string | null;
   /** El resultado de la evaluación registrada, para poder decir por qué no cuenta. */
@@ -541,7 +541,7 @@ export function employeeEvaluationRequirementRows(
     readonly idRequiredCatalogItem: string | null;
     readonly requiredCatalogItemName: string | null;
     readonly name: string;
-    readonly isBlockingEffective: boolean;
+    readonly isRequiredEffective: boolean;
   }[],
   evaluations: readonly {
     readonly idEvaluationCategoryCatalogItem: string | null;
@@ -578,7 +578,7 @@ export function employeeEvaluationRequirementRows(
     return {
       code: requisito.idRequiredCatalogItem ?? '',
       label: requisito.name || requisito.requiredCatalogItemName || 'Requisito sin nombre',
-      isBlocking: requisito.isBlockingEffective,
+      isRequired: requisito.isRequiredEffective,
       state,
       expiresDate: evaluacion?.expiresDate ?? null,
       result: evaluacion?.result ?? null,
@@ -612,7 +612,7 @@ export type EmployeeSkillRequirementRow = {
   /** El identificador del valor de catálogo que la regla exige. */
   readonly code: string;
   readonly label: string;
-  readonly isBlocking: boolean;
+  readonly isRequired: boolean;
   readonly state: EmployeeRequirementState;
   readonly expiresDate: string | null;
 };
@@ -630,7 +630,7 @@ export function employeeSkillRequirementRows(
     readonly idRequiredCatalogItem: string | null;
     readonly requiredCatalogItemName: string | null;
     readonly name: string;
-    readonly isBlockingEffective: boolean;
+    readonly isRequiredEffective: boolean;
   }[],
   skills: readonly {
     readonly idSkillCatalogItem: string;
@@ -658,7 +658,7 @@ export function employeeSkillRequirementRows(
     return {
       code: requisito.idRequiredCatalogItem ?? '',
       label: requisito.requiredCatalogItemName || requisito.name,
-      isBlocking: requisito.isBlockingEffective,
+      isRequired: requisito.isRequiredEffective,
       state,
       expiresDate: experiencia?.expiresDate ?? null,
     };

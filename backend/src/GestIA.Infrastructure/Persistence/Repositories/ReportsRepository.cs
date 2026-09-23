@@ -443,15 +443,15 @@ public sealed class ReportsRepository(GestIaDbContext dbContext) : IReportsRepos
                 // Misma resolución que en la elegibilidad, y tiene que seguir siéndolo: la marca sale
                 // de la entrada del catálogo. Cuando estas dos resoluciones se separaron, el reporte
                 // y el motor dijeron cosas distintas sobre la misma persona durante un día.
-                if (!passed && (requirement.RequiredCatalogItem?.IsBlocking ?? false))
+                if (!passed && (requirement.RequiredCatalogItem?.IsRequired ?? false))
                 {
                     reasons.Add($"Regla obligatoria no cumplida: {requirement.Name}.");
                 }
             }
 
             // Las incidencias activas, con el mismo criterio que el motor: bloquea la que tenga el
-            // tipo marcado bloqueante en el catalogo, y deja de bloquear al retirarse.
-            foreach (var incident in employeeIncidents.Where(item => item.IncidentTypeCatalogItem?.IsBlocking == true))
+            // tipo marcado obligatorio en el catalogo, y deja de bloquear al retirarse.
+            foreach (var incident in employeeIncidents.Where(item => item.IncidentTypeCatalogItem?.IsRequired == true))
             {
                 reasons.Add(
                     $"Incidencia administrativa activa: {incident.IncidentTypeCatalogItem!.Name}, " +

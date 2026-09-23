@@ -32,7 +32,7 @@ const RESULTADOS = ['Approved', 'ApprovedWithObservations', 'Pending', 'Inconclu
  * <p><b>Por qué existe, y por qué faltaba.</b> El servidor exige evaluaciones aprobadas para
  * asignar a alguien a una posición, y las cuatro rutas del expediente existían desde el principio
  * —con sus métodos en el cliente Angular— sin que ninguna pantalla las llamara. El resultado era
- * que una organización con una regla de evaluación bloqueante no podía asignar a nadie, y no había
+ * que una organización con una regla de evaluación obligatoria no podía asignar a nadie, y no había
  * forma de arreglarlo desde el portal. En los datos de la base viva eso dejaba a 100 de 156
  * personas sin poder cubrir un turno.</p>
  *
@@ -72,7 +72,7 @@ const RESULTADOS = ['Approved', 'ApprovedWithObservations', 'Pending', 'Inconclu
               <span class="req__body">
                 <span class="req__name">
                   {{ row.label }}
-                  @if (!row.isBlocking) {
+                  @if (!row.isRequired) {
                     <span class="req__soft">no bloquea</span>
                   }
                 </span>

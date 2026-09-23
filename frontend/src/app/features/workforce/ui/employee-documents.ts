@@ -58,7 +58,7 @@ import {
               <span class="req__body">
                 <span class="req__name">
                   {{ row.label }}
-                  @if (!row.isBlocking) {
+                  @if (!row.isRequired) {
                     <span class="req__soft">no bloquea</span>
                   }
                 </span>

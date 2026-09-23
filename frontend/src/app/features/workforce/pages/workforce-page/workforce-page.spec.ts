@@ -227,7 +227,7 @@ describe('Personal · carga', () => {
     );
 
     expect(alta.request.body.type).toBe('Skill');
-    expect(alta.request.body.isBlocking, 'sin esto el servidor responde 400').toBe(false);
+    expect(alta.request.body.isRequired, 'sin esto el servidor responde 400').toBe(false);
     alta.flush({ idCatalogItem: 'x', name: 'Manejo de CCTV', type: 'Skill', active: true });
   });
 
@@ -253,7 +253,7 @@ describe('Personal · carga', () => {
     );
 
     expect(alta.request.body.type).toBe('AdministrativeIncidentType');
-    expect(alta.request.body.isBlocking).toBe(false);
+    expect(alta.request.body.isRequired).toBe(false);
     alta.flush({ idCatalogItem: 'y', name: 'Acta administrativa', type: 'AdministrativeIncidentType', active: true });
   });
 });

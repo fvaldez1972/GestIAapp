@@ -19,7 +19,7 @@ export type AdministrativeIncident = {
    * <p>Lo resuelve el servidor con la marca de la entrada del catálogo. Viene resuelto para que la
    * pantalla no tenga que cargar el catálogo entero sólo para pintar una píldora.</p>
    */
-  readonly isBlocking: boolean;
+  readonly isRequired: boolean;
 
   readonly occurredDate: string;
   readonly details: string;

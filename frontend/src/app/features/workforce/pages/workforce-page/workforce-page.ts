@@ -706,7 +706,7 @@ export class WorkforcePage {
         type: 'AdministrativeIncidentType',
         name: creation.name,
         description: null,
-        isBlocking: false,
+        isRequired: false,
       })
       .subscribe({
         next: (creado) =>
@@ -810,7 +810,7 @@ export class WorkforcePage {
    *
    * <p><b>Por qué esta pantalla no existía.</b> Las cuatro rutas y los tres métodos del cliente
    * llevaban semanas escritos sin que nadie los llamara, y mientras tanto una organización con una
-   * regla de evaluación bloqueante no podía asignar a nadie desde el portal. Era el mismo patrón de
+   * regla de evaluación obligatoria no podía asignar a nadie desde el portal. Era el mismo patrón de
    * los documentos y de las experiencias: el servidor listo y la interfaz sin conectar.</p>
    *
    * <p><b>El resultado no se toca aquí.</b> Se guarda tal como lo capturó quien evaluó, y es el
@@ -998,7 +998,7 @@ export class WorkforcePage {
         name: creation.name,
         description: null,
         // Informativa: ver la nota del alta al vuelo de incidencias administrativas.
-        isBlocking: false,
+        isRequired: false,
       })
       .subscribe({
         next: (creado) => {

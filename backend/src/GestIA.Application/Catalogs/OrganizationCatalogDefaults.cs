@@ -68,7 +68,7 @@ public sealed class OrganizationCatalogDefaults(ICatalogRepository repository, I
         foreach (var value in ProfileCatalogSeed.All)
         {
             var item = BusinessCatalogItem.Create(organization,
-                new(value.Type, value.Name, null, value.Order, null, value.IsBlocking),
+                new(value.Type, value.Name, null, value.Order, null, value.IsRequired),
                 actor.ActorId, actor.ActorName, clock.UtcNow);
             await repository.AddCatalogItemAsync(item, token);
         }

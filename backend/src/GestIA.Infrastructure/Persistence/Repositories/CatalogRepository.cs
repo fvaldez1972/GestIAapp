@@ -197,7 +197,7 @@ public sealed class CatalogRepository(GestIaDbContext dbContext) : ICatalogRepos
         await dbContext.AdministrativeIncidents
             .AsNoTracking()
             // El tipo viene resuelto porque de el sale la marca de bloqueo y el nombre que va en el
-            // mensaje. Sin este Include, una incidencia bloqueante se evaluaria como informativa
+            // mensaje. Sin este Include, una incidencia obligatoria se evaluaria como informativa
             // por no haber cargado la fila que lo dice.
             .Include(incident => incident.IncidentTypeCatalogItem)
             .Where(incident =>

@@ -43,7 +43,7 @@ internal static class DemoCatalog
         EmployeeEvaluationType? RequiredEvaluationType,
         string Name,
         string? Description,
-        bool IsBlocking,
+        bool IsRequired,
         string? RequiredSkillName = null);
 
     public static readonly EligibilityRule[] EligibilityRules =

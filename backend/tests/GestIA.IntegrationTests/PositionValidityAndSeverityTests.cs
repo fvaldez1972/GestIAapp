@@ -109,12 +109,12 @@ public sealed class PositionValidityAndSeverityTests(OperationalSqlDatabase data
     [OperationalSqlFact]
     public async Task TheCatalogMarkDecidesTheSeverity()
     {
-        var seed = await SeedAsync("CAT", Day, null, catalogIsBlocking: true);
+        var seed = await SeedAsync("CAT", Day, null, catalogIsRequired: true);
 
         var check = await CheckEligibilityAsync(seed);
 
         var motivo = Assert.Single(check.Reasons, reason => reason.Requirement == "Manejo de CCTV");
-        Assert.True(motivo.IsBlocking);
+        Assert.True(motivo.IsRequired);
         Assert.False(check.IsEligible);
     }
 
@@ -130,12 +130,12 @@ public sealed class PositionValidityAndSeverityTests(OperationalSqlDatabase data
     [OperationalSqlFact]
     public async Task TheRuleOwnMarkNoLongerDecidesAnything()
     {
-        var seed = await SeedAsync("REG", Day, null, catalogIsBlocking: null, ruleIsBlocking: true);
+        var seed = await SeedAsync("REG", Day, null, catalogIsRequired: null, ruleIsRequired: true);
 
         var check = await CheckEligibilityAsync(seed);
 
         var motivo = Assert.Single(check.Reasons, reason => reason.Requirement == "Manejo de CCTV");
-        Assert.False(motivo.IsBlocking);
+        Assert.False(motivo.IsRequired);
         Assert.True(check.IsEligible);
     }
 
@@ -223,8 +223,8 @@ public sealed class PositionValidityAndSeverityTests(OperationalSqlDatabase data
         string prefix,
         DateOnly serviceStart,
         DateOnly? serviceEnd,
-        bool? catalogIsBlocking = null,
-        bool ruleIsBlocking = false)
+        bool? catalogIsRequired = null,
+        bool ruleIsRequired = false)
     {
         await using var context = database.Context();
         var sufijo = Guid.NewGuid().ToString("N")[..8].ToUpperInvariant();
@@ -267,12 +267,12 @@ public sealed class PositionValidityAndSeverityTests(OperationalSqlDatabase data
             TestActor.ActorId, TestActor.ActorName, Now);
         context.Add(plantilla);
 
-        if (catalogIsBlocking.HasValue || ruleIsBlocking)
+        if (catalogIsRequired.HasValue || ruleIsRequired)
         {
             var experiencia = BusinessCatalogItem.Create(
                 organization.IdOrganization,
                 new BusinessCatalogItemProfile(
-                    BusinessCatalogItemType.Skill, "Manejo de CCTV", null, 1, null, catalogIsBlocking),
+                    BusinessCatalogItemType.Skill, "Manejo de CCTV", null, 1, null, catalogIsRequired),
                 TestActor.ActorId, TestActor.ActorName, Now);
             context.Add(experiencia);
 
@@ -285,12 +285,12 @@ public sealed class PositionValidityAndSeverityTests(OperationalSqlDatabase data
                 TestActor.ActorId, TestActor.ActorName, Now);
             context.Add(regla);
 
-            if (ruleIsBlocking)
+            if (ruleIsRequired)
             {
                 // Se escribe por EF y no por el perfil, porque el perfil ya no la lleva. Es
                 // exactamente el caso que hay que cubrir: la columna sigue en la base, con datos de
                 // antes, y tiene que dar igual.
-                context.Entry(regla).Property(nameof(EligibilityRequirement.IsBlocking)).CurrentValue = true;
+                context.Entry(regla).Property(nameof(EligibilityRequirement.IsRequired)).CurrentValue = true;
             }
         }
 

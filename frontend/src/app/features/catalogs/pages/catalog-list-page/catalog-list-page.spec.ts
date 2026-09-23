@@ -182,8 +182,8 @@ describe('Página de un catálogo', () => {
     const enElDesplegable = pagina.natureOptions.map((opcion) => opcion.label);
     const filtro = pagina.filterGroups().find((grupo) => grupo.id === 'naturaleza')!;
     const enLaColumna = [
-      pagina.natureLabel(valor({ isBlocking: true })),
-      pagina.natureLabel(valor({ isBlocking: false })),
+      pagina.natureLabel(valor({ isRequired: true })),
+      pagina.natureLabel(valor({ isRequired: false })),
     ];
 
     expect(enElDesplegable).toEqual(['Obligatorio', 'Informativa']);
@@ -204,9 +204,9 @@ describe('Página de un catálogo', () => {
     const { pagina } = montar('tipos-de-evaluacion');
     responder([]);
 
-    expect(pagina.natureLabel(valor({ isBlocking: null }))).toBe('Informativa');
-    expect(pagina.natureLabel(valor({ isBlocking: false }))).toBe('Informativa');
-    expect(pagina.natureLabel(valor({ isBlocking: true }))).toBe('Obligatorio');
+    expect(pagina.natureLabel(valor({ isRequired: null }))).toBe('Informativa');
+    expect(pagina.natureLabel(valor({ isRequired: false }))).toBe('Informativa');
+    expect(pagina.natureLabel(valor({ isRequired: true }))).toBe('Obligatorio');
   });
 
   /**

@@ -23,7 +23,7 @@ export type EmployeeSkillFormValue = {
  *
  * <p><b>Cierra una trampa, no agrega una función.</b> Desde el 7 de septiembre de 2026 se podía
  * crear una regla de elegibilidad de tipo experiencia —que el servidor evalúa de verdad y que, si es
- * bloqueante, detiene la publicación de una semana entera— sin que existiera ninguna pantalla para
+ * obligatoria, detiene la publicación de una semana entera— sin que existiera ninguna pantalla para
  * otorgarle la experiencia a una persona. Quien caía en ella sólo podía salir desactivando la regla,
  * que es lo contrario de lo que quería al crearla, y lo descubría al publicar, cuando ya no hay
  * tiempo.</p>
@@ -60,7 +60,7 @@ export type EmployeeSkillFormValue = {
               <span class="req__body">
                 <span class="req__name">
                   {{ row.label }}
-                  @if (!row.isBlocking) {
+                  @if (!row.isRequired) {
                     <span class="req__soft">no bloquea</span>
                   }
                 </span>

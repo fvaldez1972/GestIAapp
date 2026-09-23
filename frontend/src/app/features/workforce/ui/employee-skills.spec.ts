@@ -92,7 +92,7 @@ describe('La pestaña de experiencias', () => {
   afterEach(() => TestBed.resetTestingModule());
 
   /**
-   * La trampa que esta pestaña cierra: una regla de experiencia bloqueante que nadie podía cumplir,
+   * La trampa que esta pestaña cierra: una regla de experiencia obligatoria que nadie podía cumplir,
    * porque ninguna pantalla otorgaba experiencias.
    */
   it('una experiencia exigida y no acreditada aparece como hueco', () => {

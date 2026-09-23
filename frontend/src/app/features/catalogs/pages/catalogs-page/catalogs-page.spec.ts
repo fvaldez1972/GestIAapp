@@ -37,7 +37,7 @@ const regla = (parcial: Partial<EligibilityRequirement>): EligibilityRequirement
   requiredEvaluationType: null,
   name: 'Requiere arma corta',
   description: null,
-  isBlockingEffective: true,
+  isRequiredEffective: true,
   active: true,
   ...parcial,
 });
@@ -189,18 +189,18 @@ describe('Catálogos', () => {
   });
 
   /**
-   * La trampa: una regla de experiencia bloqueante no se puede cumplir porque no hay pantalla para
+   * La trampa: una regla de experiencia obligatoria no se puede cumplir porque no hay pantalla para
    * otorgar experiencias. La pantalla lo dice donde se crean las reglas, no en un documento.
    */
-  it('avisa de las reglas de experiencia bloqueantes que hoy nadie puede cumplir', () => {
-    const { raiz } = montar({ requirements: [regla({ isBlockingEffective: true, requirementType: 'Skill' })] });
+  it('avisa de las reglas de experiencia obligatorias que hoy nadie puede cumplir', () => {
+    const { raiz } = montar({ requirements: [regla({ isRequiredEffective: true, requirementType: 'Skill' })] });
 
     expect(raiz.textContent).toContain('todavía no existe pantalla');
     expect(raiz.textContent).toContain('detiene la publicación de la planeación');
   });
 
   it('no avisa cuando la regla de experiencia es sólo informativa', () => {
-    const { raiz } = montar({ requirements: [regla({ isBlockingEffective: false })] });
+    const { raiz } = montar({ requirements: [regla({ isRequiredEffective: false })] });
 
     expect(raiz.textContent).not.toContain('todavía no existe pantalla');
   });
@@ -236,7 +236,7 @@ describe('Catálogos', () => {
    * La marca de bloqueo tiene dos opciones, no tres.
    *
    * <p>Hubo un «Sin decidir» y se retiró el 21 de septiembre de 2026: no lo pedía la matriz —que
-   * habla de bloqueante o informativa—, no se podía guardar, y en el servidor ya se comportaba
+   * habla de obligatorio o informativa—, no se podía guardar, y en el servidor ya se comportaba
    * igual que informativa. Esta prueba existe para que no vuelva.</p>
    */
   it('ofrece dos marcas de bloqueo y ninguna de ellas es «Sin decidir»', () => {
@@ -283,7 +283,7 @@ describe('Catálogos', () => {
     });
 
     pagina.openCatalogType.set('EmployeeEvaluationCategory');
-    pagina.editCatalogItem(valor({ idCatalogItem: 'z', name: 'Polígrafo', isBlocking: null }));
+    pagina.editCatalogItem(valor({ idCatalogItem: 'z', name: 'Polígrafo', isRequired: null }));
     fixture.detectChanges();
 
     expect(pagina.catalogForm.value.blockingMark).toBe('informative');

@@ -402,7 +402,7 @@ export class IncidentsPage {
               {
                 isEligible: respuesta.isEligible,
                 blockingReasons: respuesta.reasons
-                  .filter((reason) => reason.isBlocking && !reason.passed)
+                  .filter((reason) => reason.isRequired && !reason.passed)
                   .map((reason) => reason.message),
               },
             ]),

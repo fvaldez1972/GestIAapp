@@ -199,6 +199,42 @@ describe('Clientes · carga inicial', () => {
     expect(raiz.querySelector('app-client-edit-form')).toBeNull();
   });
 
+  /**
+   * Cambiar de pestaña cierra lo que quedó abierto a medias.
+   *
+   * <p>Editar una zona, irse a Contactos y volver dejaba el formulario puesto sobre la lista:
+   * parecía que la zona seguía en edición y no se veían las demás. Lo mismo al abrir otro cliente,
+   * donde además lo abierto era del anterior.</p>
+   */
+  it('cambiar de pestaña cierra el formulario que estaba abierto', () => {
+    const { fixture, http } = montar();
+
+    http.match((r) => r.url === '/api/v1/clients').forEach((r) =>
+      r.flush({ items: [fila()], totalCount: 1, page: 1, pageSize: 25, totalPages: 1 }));
+    http.match(() => true).forEach((r) => r.flush([]));
+    fixture.detectChanges();
+
+    const pagina = fixture.componentInstance as unknown as {
+      open(c: unknown): void;
+      onTabChange(tab: string): void;
+      editingZone: { (): unknown; set(v: unknown): void };
+      addingContact: { (): boolean; set(v: boolean): void };
+    };
+
+    pagina.open(fila());
+    fixture.detectChanges();
+
+    pagina.editingZone.set({ idClientZone: 'z1', name: 'Matriz' });
+    pagina.addingContact.set(true);
+
+    pagina.onTabChange('contacts');
+    http.match(() => true).forEach((r) => r.flush([]));
+    fixture.detectChanges();
+
+    expect(pagina.editingZone()).toBeNull();
+    expect(pagina.addingContact()).toBe(false);
+  });
+
   it('una organización sin puestos no deja la pantalla recargándose sin parar', () => {
     const { fixture, http } = montar();
 

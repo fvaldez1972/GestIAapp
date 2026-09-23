@@ -185,10 +185,14 @@ describe('Contactos del cliente', () => {
     });
     abrir();
 
-    // El campo existe, pero es el combobox del selector de catálogo, no una caja libre: por eso
-    // se comprueba el rol y no la mera presencia de un input.
-    expect(raiz.querySelector('gi-catalog-picker')).not.toBeNull();
-    expect(raiz.querySelector('#nc-puesto')?.getAttribute('role')).toBe('combobox');
+    // Es un desplegable desde el 23 de septiembre de 2026: antes era un selector con búsqueda que
+    // además ofrecía crear el valor, y su recuadro de sugerencias estorbaba. Lo que la prueba
+    // defiende no cambió: que NO haya una caja de texto donde escribir el puesto a mano.
+    expect(raiz.querySelector('gi-catalog-picker')).toBeNull();
+    expect(raiz.querySelector('input#nc-puesto')).toBeNull();
+
+    const desplegables = Array.from(raiz.querySelectorAll('gi-select button[role="combobox"]'));
+    expect(desplegables.length).toBeGreaterThan(0);
   });
 
   it('manda el nombre del puesto que corresponde al identificador elegido', () => {

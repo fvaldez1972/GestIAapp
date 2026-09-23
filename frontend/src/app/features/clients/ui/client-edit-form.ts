@@ -25,7 +25,6 @@ import { Client, ClientInput } from '../data-access/client.models';
     <form class="edit" (ngSubmit)="guardar()">
       <p class="edit__ref">
         <span>{{ client().codeClient }}</span>
-        <small>El código y la fecha de alta los pone el sistema.</small>
       </p>
 
       <fieldset class="edit__grupo">

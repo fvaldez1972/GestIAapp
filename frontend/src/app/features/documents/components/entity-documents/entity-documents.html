@@ -18,6 +18,7 @@
   } @else if (!validContext()) {
     <p class="gi-empty-state" role="status">Guarda la entidad para consultar sus documentos.</p>
   } @else {
+    @if (mode() !== 'create' && mode() !== 'edit') {
     <form class="entity-filters" [formGroup]="filters" (ngSubmit)="applyFilters()">
       <label class="gi-field"><span>Buscar</span><input class="gi-input" type="search" formControlName="search" maxlength="180" /></label>
       <label class="gi-field"><span>Estado</span>
@@ -29,6 +30,7 @@
       </label>
       <button class="gi-button gi-button--secondary" type="submit" [disabled]="loading() || busy()">Filtrar</button>
     </form>
+    }
 
     @if (message()) { <p class="gi-alert gi-alert--success" role="status">{{ message() }}</p> }
     @if (actionError()) { <p class="gi-alert gi-alert--error" role="alert">{{ actionError() }}</p> }
@@ -36,7 +38,6 @@
     @if (mode() === 'create' || mode() === 'edit') {
       <form class="entity-editor" [formGroup]="form" (ngSubmit)="save()" aria-label="Editar documento" [attr.aria-busy]="busy()">
         <h4>{{ mode() === 'create' ? 'Nuevo documento' : 'Editar documento' }}</h4>
-        <p class="entity-context">{{ ownerLabel() }}</p>
         <fieldset [disabled]="busy()" class="entity-fields">
           @if (simple()) {
             <!--
@@ -46,9 +47,8 @@
               documental y la elegibilidad para cubrir un turno.
             -->
             <div class="gi-field entity-wide">
-              <span>Categoria *</span>
               <gi-catalog-picker
-                label="Categoria del documento"
+                label="Categoría *"
                 catalogLabel="el catalogo de categorias de documento"
                 inputId="ed-categoria"
                 [options]="categories()"

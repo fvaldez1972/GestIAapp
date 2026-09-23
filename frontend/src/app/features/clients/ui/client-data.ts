@@ -96,7 +96,6 @@ import { ClientListItem, ClientZone } from '../data-access/client.models';
             </p>
           }
 
-          <p class="nota">Estado y municipio salen de la zona. No se administran aquí.</p>
         } @else {
           <p class="falta">
             No hay ubicación porque el cliente todavía no tiene zona. La zona es lo que permite
@@ -117,7 +116,6 @@ import { ClientListItem, ClientZone } from '../data-access/client.models';
             <dd>{{ client().codeClient }}</dd>
           </div>
         </dl>
-        <p class="nota">El código y la fecha de alta los pone el sistema.</p>
       </section>
     </div>
   `,

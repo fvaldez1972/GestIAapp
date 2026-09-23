@@ -182,7 +182,6 @@ export type NewZone = {
           existe para decir que falta la zona y como ponerla.
         -->
         <p class="zones__intro">
-          <span>Cada servicio se liga a una zona. Al crear el servicio se elige de esta lista.</span>
         </p>
 
         <ul class="zones__list">

@@ -333,6 +333,10 @@ export class ClientsPage {
 
   protected onTabChange(tab: string): void {
     this.activeTab.set(tab);
+    // Cambiar de pestaña cierra lo que estuviera abierto a medias en la anterior. Editar una zona,
+    // irse a Contactos y volver dejaba el formulario puesto sobre la lista: parecía que la zona
+    // seguía en edición y no se veían las demás.
+    this.cerrarEdiciones();
 
     const client = this.selected();
 
@@ -741,7 +745,17 @@ export class ClientsPage {
     this.documentsLoaded.set(false);
     this.clientServices.set([]);
     this.servicesLoaded = '';
+    // Y lo mismo al abrir otro cliente: lo que estaba a medias era del anterior.
+    this.cerrarEdiciones();
     this.loadDetail(client);
+  }
+
+  /** Cierra los formularios de las pestañas. No toca lo que ya se guardó. */
+  private cerrarEdiciones(): void {
+    this.editingZone.set(null);
+    this.addingZone.set(false);
+    this.addingContact.set(false);
+    this.addingDocument.set(false);
   }
 
   protected closePanel(): void {

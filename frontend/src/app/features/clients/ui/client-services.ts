@@ -41,9 +41,6 @@ import { ServiceListItem } from '../../services/data-access/service.models';
           </li>
         }
       </ul>
-      <p class="serv__nota">
-        Los servicios se configuran en su propia pantalla: aquí sólo se ven los de este cliente.
-      </p>
     }
   `,
   styles: `

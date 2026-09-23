@@ -95,31 +95,31 @@ export type NewContact = {
               el catalogo de puestos y devuelve 409 con cualquier cosa escrita a mano. Es el mismo
               selector que usa Personal, con alta al vuelo para no obligar a salir a Catalogos.
             -->
-            <gi-catalog-picker
-              label="PUESTO"
-              [showInvitation]="false"
-              catalogLabel="el catálogo de puestos de contacto"
-              inputId="nc-puesto"
-              [options]="jobPositions()"
-              [value]="idContactJobPosition()"
-              [canWrite]="canWrite()"
-              (valueChange)="idContactJobPosition.set($event)"
-              (create)="createJobPosition.emit($event)"
-            />
+            <div class="field">
+              <span class="field__label">PUESTO</span>
+              <gi-select
+                label="Puesto"
+                placeholder="Elige el puesto"
+                [openDown]="true"
+                [options]="opcionesDePuesto()"
+                [value]="idContactJobPosition()"
+                (valueChange)="idContactJobPosition.set($event)"
+              />
+            </div>
           </div>
 
           <div class="new__row new__row--two">
-            <gi-catalog-picker
-              label="PARA QUÉ SE LE LLAMA"
-              [showInvitation]="false"
-              catalogLabel="el catálogo de propósitos de contacto"
-              inputId="nc-proposito"
-              [options]="purposeOptions()"
-              [value]="idPurpose()"
-              [canWrite]="canWrite()"
-              (valueChange)="idPurpose.set($event)"
-              (create)="createPurpose.emit($event)"
-            />
+            <div class="field">
+              <span class="field__label">PARA QUÉ SE LE LLAMA</span>
+              <gi-select
+                label="Para qué se le llama"
+                placeholder="Elige el propósito"
+                [openDown]="true"
+                [options]="opcionesDeProposito()"
+                [value]="idPurpose()"
+                (valueChange)="idPurpose.set($event)"
+              />
+            </div>
             <!--
               Sin zona es una opción legítima y va primero: un contacto comercial vale para todo el
               cliente, y obligar a elegir una zona lo obligaría a mentir.
@@ -336,6 +336,25 @@ export class ClientContacts {
   ];
 
   protected readonly purposeOptions = computed(() => this.purposes());
+
+  /**
+   * Los dos catálogos, como desplegable.
+   *
+   * <p>Eran un selector con búsqueda que además ofrecía crear el valor ahí mismo. Se cambió el 23
+   * de septiembre de 2026 a petición expresa: el recuadro de sugerencias aparecía debajo y
+   * estorbaba más de lo que ayudaba en un formulario de seis campos.</p>
+   *
+   * <p><b>Lo que se pierde:</b> un puesto o un propósito que no esté en el catálogo ya no se puede
+   * agregar desde aquí; hay que crearlo en Catálogos. Los eventos de creación siguen declarados
+   * porque la pantalla que los recibe no cambió.</p>
+   */
+  protected readonly opcionesDePuesto = computed<readonly GiSelectOption[]>(() =>
+    this.jobPositions().map((puesto) => ({ value: puesto.idCatalogItem, label: puesto.name })),
+  );
+
+  protected readonly opcionesDeProposito = computed<readonly GiSelectOption[]>(() =>
+    this.purposes().map((proposito) => ({ value: proposito.idCatalogItem, label: proposito.name })),
+  );
 
   private readonly addingByHand = signal(false);
   protected readonly adding = computed(() => this.canWrite() && (this.addingByHand() || this.openAdd()));

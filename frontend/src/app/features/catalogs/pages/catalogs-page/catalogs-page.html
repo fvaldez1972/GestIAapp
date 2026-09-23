@@ -43,14 +43,14 @@
   <section class="cat__zona" #rulesSection aria-labelledby="cat-zona-reglas">
     <h2 class="gi-section-heading" id="cat-zona-reglas">Reglas de elegibilidad</h2>
     <p class="cat__nota">
-      Qué se exige para que una persona pueda cubrir un servicio. Una regla bloqueante impide la
+      Qué se exige para que una persona pueda cubrir un servicio. Una regla obligatoria impide la
       asignación y la publicación de la planeación; una informativa sólo deja constancia.
     </p>
 
     @if (unfulfillableSkillRules() > 0) {
       <div class="gi-alert gi-alert--error" role="alert">
         <strong>{{ unfulfillableSkillRules() }}</strong>
-        regla(s) de experiencia bloqueantes que hoy nadie puede cumplir: todavía no existe pantalla
+        regla(s) de experiencia obligatorias que hoy nadie puede cumplir: todavía no existe pantalla
         para otorgarle una experiencia a una persona. Mientras eso siga así, cada una de ellas detiene
         la publicación de la planeación de quien no la tenga.
       </div>
@@ -446,7 +446,7 @@
           />
           <p class="cat__error">
             Hoy no hay pantalla para otorgarle una experiencia a una persona. Si marcas esta regla como
-            bloqueante, detendrá la publicación de la planeación sin forma de desbloquearla.
+            obligatoria, detendrá la publicación de la planeación sin forma de desbloquearla.
           </p>
         }
         @case ('Document') {

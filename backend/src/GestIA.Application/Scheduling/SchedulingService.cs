@@ -144,7 +144,7 @@ public sealed class SchedulingService(
         throw new ResourceConflictException(
             "No es posible publicar la planeación. " +
             $"{incumplimientos.Count} {(incumplimientos.Count == 1 ? "persona incumple" : "personas incumplen")} " +
-            $"reglas bloqueantes. {string.Join(" ", incumplimientos.Distinct())}");
+            $"reglas obligatorias. {string.Join(" ", incumplimientos.Distinct())}");
     }
 
     private async Task<ScheduleVersionResponse> PublishScheduleVersionCoreAsync(

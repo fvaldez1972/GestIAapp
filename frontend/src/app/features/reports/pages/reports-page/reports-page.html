@@ -253,13 +253,13 @@
                 <td><span class="soft-status" [class]="eligibilityStatusClass(employee.status)">{{ employee.status }}</span></td>
                 <!--
                   Los motivos que llegan aquí son los que impiden asignar: el servidor sólo suma a
-                  esta lista las reglas bloqueantes incumplidas y las incidencias activas de motivo
-                  bloqueante. Una informativa no aparece porque no impide nada, y mezclarlas haría
+                  esta lista las reglas obligatorias incumplidas y las incidencias activas de motivo
+                  obligatorio. Una informativa no aparece porque no impide nada, y mezclarlas haría
                   que la pantalla dijera «incumple» de algo que no detiene la operación.
                 -->
                 <td>
                   <span class="soft-status" [class.warning]="employee.status !== 'Elegible'">
-                    {{ employee.status === 'Elegible' ? 'Ninguno' : 'Bloqueante' }}
+                    {{ employee.status === 'Elegible' ? 'Ninguno' : 'Obligatorio' }}
                   </span>
                 </td>
                 <td>{{ employee.reasons.join(' · ') }}</td>

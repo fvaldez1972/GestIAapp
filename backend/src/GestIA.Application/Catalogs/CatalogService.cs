@@ -991,7 +991,7 @@ public sealed class CatalogService(
         if (request.RequirementType is EligibilityRequirementType.Restriction)
         {
             errors[nameof(request.RequirementType)] =
-                ["La restricción bloqueante se retiró. Registra una incidencia administrativa, que deja constancia con su fecha y su motivo."];
+                ["La restricción obligatoria se retiró. Registra una incidencia administrativa, que deja constancia con su fecha y su motivo."];
         }
 
         // Se dice aqui, con el nombre del campo que falta, para que el formulario pueda senalarlo.

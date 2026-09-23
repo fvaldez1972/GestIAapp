@@ -43,9 +43,9 @@ const TAMANO_POR_OMISION = 10;
  * el campo «Si a una persona le falta esto» y las opciones traían la explicación pegada.</p>
  *
  * <p>Se nombra por sus dos valores en vez de con una palabra que los agrupe: «Naturaleza» hay que
- * aprenderla, «Informativa/Bloqueante» dice lo que uno va a encontrar en la columna.</p>
+ * aprenderla, «Informativa/Obligatorio» dice lo que uno va a encontrar en la columna.</p>
  */
-const NATURALEZA = 'Informativa/Bloqueante';
+const NATURALEZA = 'Informativa/Obligatorio';
 
 /**
  * La página de un catálogo. **Una sola, para los dieciséis.**
@@ -180,7 +180,7 @@ export class CatalogListPage {
         value: this.natureFilter(),
         allLabel: 'Toda naturaleza',
         options: [
-          { value: 'blocking', label: 'Bloqueante' },
+          { value: 'blocking', label: 'Obligatorio' },
           { value: 'informative', label: 'Informativa' },
         ],
       });
@@ -259,8 +259,8 @@ export class CatalogListPage {
   /**
    * Las dos naturalezas, con el mismo nombre en todas partes.
    *
-   * <p><b>Dicen «Bloqueante» e «Informativa» y nada más.</b> Traían la explicación pegada
-   * —«Bloqueante: impide asignar y publicar»— y eso hacía que el desplegable, la columna de la
+   * <p><b>Dicen «Obligatorio» e «Informativa» y nada más.</b> Traían la explicación pegada
+   * —«Obligatorio: impide asignar y publicar»— y eso hacía que el desplegable, la columna de la
    * tabla y el filtro llamaran de tres maneras distintas a la misma cosa. Un valor se reconoce
    * mejor cuando se llama igual en todos los sitios donde aparece que cuando cada sitio lo
    * explica.</p>
@@ -269,7 +269,7 @@ export class CatalogListPage {
   protected readonly naturalezaLabel = NATURALEZA;
 
   protected readonly natureOptions: readonly GiSelectOption[] = [
-    { value: 'blocking', label: 'Bloqueante' },
+    { value: 'blocking', label: 'Obligatorio' },
     { value: 'informative', label: 'Informativa' },
   ];
 
@@ -301,7 +301,7 @@ export class CatalogListPage {
   }
 
   protected natureLabel(item: CatalogItem): string {
-    return item.isBlocking === true ? 'Bloqueante' : 'Informativa';
+    return item.isBlocking === true ? 'Obligatorio' : 'Informativa';
   }
 
   protected rowNumber(item: CatalogItem): number {

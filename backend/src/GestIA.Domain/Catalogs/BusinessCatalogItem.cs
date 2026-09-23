@@ -66,6 +66,12 @@ public sealed class BusinessCatalogItem : AuditableEntity, IOrganizationScopedEn
     /// un país, un municipio o un puesto no son algo que se cumpla o se incumpla. Sólo la tienen los
     /// cuatro catálogos que participan en la elegibilidad: experiencia, categoría de documento,
     /// categoría de evaluación e incidencia administrativa.</para>
+    ///
+    /// <para><b>Nota de vocabulario.</b> En pantalla esta marca se lee «Obligatorio» e «Informativa»
+    /// desde el 22 de septiembre de 2026. La propiedad y la columna siguen llamándose
+    /// <c>IsBlocking</c>: cambió cómo se dice, no lo que hace, y renombrar la columna habría sido
+    /// una migración sobre datos vivos sin ninguna ganancia. Los comentarios que hablan de
+    /// «bloqueante» describen el comportamiento —impedir asignar y publicar— y siguen valiendo.</para>
     /// </summary>
     public bool? IsBlocking { get; private set; }
 

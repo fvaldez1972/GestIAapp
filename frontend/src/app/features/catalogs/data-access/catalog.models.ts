@@ -8,7 +8,13 @@
  *
  * <p>El 19 de septiembre de 2026 entraron diez. Tres vienen de enums que dejaron de ser fijos
  * —`EmployeeDocumentCategory`, `EmployeeEvaluationCategory` y `ContactPurpose`—, y siete son nuevos.
- * Los cuatro que participan en la elegibilidad llevan además marca de bloqueante o informativa.</p>
+ * Los cuatro que participan en la elegibilidad llevan además marca de obligatorio o informativa.</p>
+ *
+ * <p><b>Nota de vocabulario.</b> En pantalla esa marca se lee «Obligatorio» e «Informativa» desde el
+ * 22 de septiembre de 2026. En el modelo sigue llamándose `isBlocking`, y la columna de la base
+ * `IsBlocking`: lo que cambió es cómo se dice, no lo que hace. Los comentarios del código que hablan
+ * de «bloqueante» describen ese comportamiento —impedir asignar y publicar— y siguen siendo
+ * correctos.</p>
  */
 export type BusinessCatalogItemType =
   | 'Skill'

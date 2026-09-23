@@ -418,7 +418,7 @@ export class CatalogsPage implements OnInit, AfterViewInit {
   });
 
   protected readonly blockingMarks: readonly GiSelectOption[] = [
-    { value: 'blocking', label: 'Bloqueante: impide asignar y publicar' },
+    { value: 'blocking', label: 'Obligatorio: impide asignar y publicar' },
     { value: 'informative', label: 'Informativa: sólo deja constancia' },
   ];
 
@@ -445,7 +445,7 @@ export class CatalogsPage implements OnInit, AfterViewInit {
    * así que esta rama ya sólo cubre datos que no deberían existir.</p>
    */
   protected blockingMarkLabel(value: boolean | null | undefined): string {
-    return value === true ? 'Bloqueante' : 'Informativa';
+    return value === true ? 'Obligatorio' : 'Informativa';
   }
 
   /**
@@ -456,7 +456,7 @@ export class CatalogsPage implements OnInit, AfterViewInit {
    * porque todas lo heredan.</p>
    */
   protected requirementSeverityLabel(requirement: EligibilityRequirement): string {
-    return requirement.isBlockingEffective ? 'Bloqueante' : 'Informativa';
+    return requirement.isBlockingEffective ? 'Obligatorio' : 'Informativa';
   }
 
   protected readonly activeSkills = computed(() =>

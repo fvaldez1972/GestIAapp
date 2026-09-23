@@ -322,7 +322,7 @@ formulario del empleado, sin salir a Catálogos.
 Construye la semana: qué posición, qué día, qué turno, quién. Y la **publica**.
 
 Publicar no es guardar. Al publicar, cada turno pasa por la comprobación de elegibilidad, y **una
-regla bloqueante que no se cumple detiene la publicación entera** nombrando a la persona y el
+regla obligatoria que no se cumple detiene la publicación entera** nombrando a la persona y el
 motivo.
 
 ### 5.6 Operación
@@ -456,7 +456,7 @@ anteriores conservan el texto viejo y nada avisa.
 | `Restriction` | Nada concreto: prohíbe | — |
 
 Se aplican a toda la organización, a un cliente, a un servicio o a una posición. Una regla
-**bloqueante** impide la asignación y la publicación; una informativa deja constancia.
+**obligatoria** impide la asignación y la publicación; una informativa deja constancia.
 
 **Sin reglas activas, validar a una persona no concluye que cumple: concluye que no se comprobó
 nada.** El sistema no presenta la ausencia de reglas como cumplimiento.
@@ -488,7 +488,7 @@ graph TD
     K["11 · Cerrar el día"]
 
     A --> B --> C --> D --> E --> F --> G --> H --> I --> J --> K
-    H -.->|una regla bloqueante<br/>sin cumplir detiene aquí| G
+    H -.->|una regla obligatoria<br/>sin cumplir detiene aquí| G
 ```
 
 El paso 8 es el único que puede rechazar todo lo anterior, y lo hace nombrando a la persona y el
@@ -517,7 +517,7 @@ Esta sección existe porque un documento que sólo dice lo que funciona se lee c
 
 **Una regla de elegibilidad de tipo `Skill` se puede crear y no se puede cumplir.**
 
-La regla se evalúa de verdad, y si es bloqueante detiene la publicación de la planeación. Pero
+La regla se evalúa de verdad, y si es obligatoria detiene la publicación de la planeación. Pero
 **ninguna pantalla permite otorgarle la habilidad a un empleado**: los endpoints existen, los
 métodos del cliente Angular existen, y nadie los llama.
 

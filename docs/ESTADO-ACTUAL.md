@@ -235,8 +235,8 @@ Dos datos nuevos que cambian cómo leerla, y los dos salen de la base viva:
 
 - **Hay 478 habilidades de empleado registradas**, pero ninguna se capturó desde el portal: las puso
   el sembrador demo. Dos organizaciones concentran 472 de las 478.
-- **Hoy no hay ni una regla de habilidad bloqueante activa** en las ocho organizaciones. O sea: **la
-  trampa está armada y nadie la ha pisado todavía.** El día que alguien cree una regla bloqueante de
+- **Hoy no hay ni una regla de habilidad obligatoria activa** en las ocho organizaciones. O sea: **la
+  trampa está armada y nadie la ha pisado todavía.** El día que alguien cree una regla obligatoria de
   habilidad, se bloquea la publicación sin forma de desbloquearla, y hay tres organizaciones con
   empleados y cero habilidades donde eso pasaría de inmediato.
 

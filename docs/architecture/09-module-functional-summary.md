@@ -579,7 +579,7 @@ La elegibilidad evalúa si un empleado puede trabajar en un contexto específico
 - Documentos validados.
 - Evaluaciones aprobadas.
 - Habilidades requeridas.
-- Reglas bloqueantes y no bloqueantes.
+- Reglas obligatorias e informativas.
 - Alcance de la regla:
   - organización;
   - cliente;

@@ -304,7 +304,7 @@ Catorce tipos de catálogo: `Skill`, `JobPosition`, `DocumentRequirement`, `Eval
 
 Lo único que **de verdad hay que configurar aquí** en una organización nueva son los **puestos**.
 
-**Aquí vive el arma más peligrosa del sistema**: las reglas de elegibilidad. Una regla bloqueante de
+**Aquí vive el arma más peligrosa del sistema**: las reglas de elegibilidad. Una regla obligatoria de
 tipo `Skill` o `Evaluation` **no se puede satisfacer desde la interfaz** —no hay pantalla para dar de
 alta una habilidad ni una evaluación—, así que deja al empleado bloqueado para publicar y para
 cubrir, y la única salida es volver aquí y desactivar la regla. Está en el hallazgo 8.4 del mapa.

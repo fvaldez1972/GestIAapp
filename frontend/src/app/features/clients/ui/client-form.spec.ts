@@ -36,6 +36,9 @@ function montar() {
       campo.value = valor;
       campo.dispatchEvent(new Event('input'));
       fixture.detectChanges();
+      // Escribir el código postal sale a preguntar por él. Se contesta aquí para que ninguna
+      // prueba deje una petición colgando, que es como aparecen los «Unhandled Error».
+      surtirGeografia(TestBed.inject(HttpTestingController), fixture);
     },
   };
 }
@@ -55,13 +58,42 @@ const MUNICIPIOS: Record<string, readonly { code: string; name: string }[]> = {
   'Nuevo León': [{ code: '19046', name: 'San Nicolás de los Garza' }],
 };
 
+/**
+ * El padrón de códigos postales, del que la prueba sólo necesita uno.
+ *
+ * <p>Los demás responden 404, que es lo que responde el servidor cuando el código no está en el
+ * padrón. No es un atajo: es el caso que mantiene vivos los tres desplegables, y el que hay que
+ * comprobar de verdad.</p>
+ */
+const CODIGOS: Record<string, unknown> = {
+  '64000': {
+    postalCode: '64000',
+    countryCode: 'MX',
+    state: { code: '19', name: 'Nuevo León' },
+    municipality: { code: '19046', name: 'San Nicolás de los Garza' },
+    neighborhoods: [
+      { name: 'Centro', settlementType: 'Colonia' },
+      { name: 'La Finca', settlementType: 'Colonia' },
+    ],
+  },
+};
+
 /** Responde lo que la geografía tenga pendiente, que cambia conforme se elige en la cascada. */
 function surtirGeografia(http: HttpTestingController, fixture: { detectChanges(): void }) {
   for (const peticion of http.match((r) => r.url.includes('/geography/'))) {
-    if (peticion.request.url.endsWith('/countries')) {
+    const url = peticion.request.url;
+
+    if (url.endsWith('/countries')) {
       peticion.flush(PAISES);
-    } else if (peticion.request.url.endsWith('/states')) {
+    } else if (url.endsWith('/states')) {
       peticion.flush(ESTADOS);
+    } else if (url.includes('/postal-codes/')) {
+      const encontrado = CODIGOS[url.split('/').pop() ?? ''];
+      if (encontrado) {
+        peticion.flush(encontrado);
+      } else {
+        peticion.flush(null, { status: 404, statusText: 'Not Found' });
+      }
     } else {
       peticion.flush(MUNICIPIOS[peticion.request.params.get('state') ?? ''] ?? []);
     }
@@ -75,6 +107,15 @@ function surtirCatalogo(http: HttpTestingController, fixture: { detectChanges():
     peticion.flush([]);
   }
   surtirGeografia(http, fixture);
+}
+
+/** El domicilio del alta, para leer lo que el código postal dejó en él. */
+function obtenerDireccion(fixture: { debugElement: { children: { componentInstance: unknown }[] } }) {
+  return (
+    fixture.debugElement.children[0].componentInstance as {
+      direccion: { state(): string; municipality(): string };
+    }
+  ).direccion;
 }
 
 /** Elige un valor en un `app-catalog-select`, que por dentro es el `<select>` de la excepción. */
@@ -146,6 +187,54 @@ describe('El alta de cliente', () => {
 
     const razon = raiz.querySelector(`#${guardar.getAttribute('aria-describedby')}`)!;
     expect(razon.textContent).toContain('su nombre, calle, municipio, estado y código postal');
+  });
+
+  /** El código postal resuelve estado, municipio y colonias, igual que en las zonas. */
+  it('el código postal resuelve la dirección de la zona', () => {
+    const { raiz, fixture, escribir } = montar();
+
+    escribir('cf-cp', '64000');
+
+    const alta = obtenerDireccion(fixture);
+    expect(alta.state()).toBe('Nuevo León');
+    expect(alta.municipality()).toBe('San Nicolás de los Garza');
+
+    raiz.querySelector<HTMLButtonElement>('#cf-colonia button[role="combobox"]')!.click();
+    fixture.detectChanges();
+    const colonias = Array.from(raiz.querySelectorAll('#cf-colonia .gi-select__option'))
+      .map((o) => o.textContent?.trim());
+    expect(colonias).toContain('La Finca');
+    expect(colonias).toContain('Otra: escribirla');
+  });
+
+  /**
+   * <b>El caso que de verdad importa: un código que no está en el padrón.</b>
+   *
+   * <p>El padrón de SEPOMEX se publica cada tanto y los fraccionamientos nuevos tardan en entrar,
+   * así que esto no es raro. Lo que no puede pasar es que teclear un código desconocido borre la
+   * dirección que ya estaba escrita, ni que deje la pantalla sin forma de contestar.</p>
+   *
+   * <p>Es el comportamiento que costó pensarlo en la tanda de zonas y el que se pierde más fácil al
+   * reusar, así que se comprueba aquí también y no sólo allá.</p>
+   */
+  it('un código fuera del padrón no borra lo escrito y deja los desplegables', () => {
+    const { raiz, fixture, escribir } = montar();
+
+    escribir('cf-cp', '64000');
+    const alta = obtenerDireccion(fixture);
+    expect(alta.state()).toBe('Nuevo León');
+
+    escribir('cf-cp', '99999');
+
+    // Ni el estado ni el municipio se perdieron.
+    expect(alta.state()).toBe('Nuevo León');
+    expect(alta.municipality()).toBe('San Nicolás de los Garza');
+    expect(raiz.textContent).toContain('No está en el padrón');
+
+    // Los desplegables siguen ahí, y la colonia vuelve a ser texto libre porque no hay lista.
+    expect(raiz.querySelector('#cf-estado')).not.toBeNull();
+    expect(raiz.querySelector('#cf-municipio')).not.toBeNull();
+    expect(raiz.querySelector('input#cf-colonia')).not.toBeNull();
   });
 
   it('con todo completo emite el cliente, la zona y el contacto', () => {

@@ -1,7 +1,9 @@
-import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { DireccionPorCodigoPostal } from '../../../shared/data-access/direccion-por-codigo-postal';
 import { CatalogSelect } from '../../../shared/ui/catalog-select/catalog-select';
 import { GiCatalogPicker, GiCatalogOption, GiCatalogCreation } from '../../../shared/ui/gi-catalog-picker/gi-catalog-picker';
+import { GiSelect } from '../../../shared/ui/gi-select/gi-select';
 import { ServerProblem, fieldError } from '../../../shared/util/server-problem';
 
 /** Lo que el formulario devuelve. La zona y el contacto van aparte porque pueden no ir. */
@@ -39,7 +41,9 @@ export type ClientFormValue = {
 @Component({
   selector: 'app-client-form',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CatalogSelect, FormsModule, GiCatalogPicker],
+  imports: [CatalogSelect, FormsModule, GiCatalogPicker, GiSelect],
+  // Uno por formulario abierto: el domicilio a medio escribir es de esta alta, no de la aplicación.
+  providers: [DireccionPorCodigoPostal],
   template: `
     <form class="form" (ngSubmit)="$event.preventDefault()">
       <section class="form__block">
@@ -90,14 +94,30 @@ export type ClientFormValue = {
           </label>
           <label class="field" for="cf-cp">
             <span class="field__label">CÓDIGO POSTAL</span>
-            <input id="cf-cp" name="postalCode" type="text" [ngModel]="postalCode()" (ngModelChange)="postalCode.set($event)" [ngModelOptions]="sueltos" autocomplete="off" />
+            <input id="cf-cp" name="postalCode" type="text" inputmode="numeric" maxlength="5" [ngModel]="direccion.postalCode()" (ngModelChange)="direccion.onPostalCode($event)" [ngModelOptions]="sueltos" autocomplete="off" />
+            @if (direccion.buscando()) {
+              <small class="field__nota">Buscando…</small>
+            } @else if (direccion.sinPadron()) {
+              <small class="field__nota" role="status">No está en el padrón. Elige el estado y el municipio abajo.</small>
+            }
           </label>
         </div>
 
         <div class="form__row form__row--three">
           <label class="field" for="cf-colonia">
             <span class="field__label">COLONIA</span>
-            <input id="cf-colonia" name="neighborhood" type="text" [ngModel]="neighborhood()" (ngModelChange)="neighborhood.set($event)" [ngModelOptions]="sueltos" autocomplete="off" />
+            @if (direccion.coloniaEnLista()) {
+              <gi-select
+                id="cf-colonia"
+                label="Colonia"
+                placeholder="Selecciona la colonia"
+                [options]="direccion.opcionesDeColonia()"
+                [value]="direccion.neighborhood()"
+                (valueChange)="direccion.onColonia($event)"
+              />
+            } @else {
+              <input id="cf-colonia" name="neighborhood" type="text" [ngModel]="direccion.neighborhood()" (ngModelChange)="direccion.neighborhood.set($event)" [ngModelOptions]="sueltos" autocomplete="off" />
+            }
           </label>
           <label class="field" for="cf-estado">
             <span class="field__label">ESTADO</span>
@@ -105,10 +125,10 @@ export type ClientFormValue = {
               id="cf-estado"
               type="State"
               label="Estado"
-              country="MX"
+              [country]="direccion.countryCode()"
               [organizationId]="organizationId()"
-              [ngModel]="state()"
-              (ngModelChange)="onState($event)"
+              [ngModel]="direccion.state()"
+              (ngModelChange)="direccion.onState($event)"
               [ngModelOptions]="sueltos"
             />
           </label>
@@ -118,11 +138,11 @@ export type ClientFormValue = {
               id="cf-municipio"
               type="City"
               label="Municipio"
-              country="MX"
-              [state]="state()"
+              [country]="direccion.countryCode()"
+              [state]="direccion.state()"
               [organizationId]="organizationId()"
-              [ngModel]="municipality()"
-              (ngModelChange)="municipality.set($event)"
+              [ngModel]="direccion.municipality()"
+              (ngModelChange)="direccion.municipality.set($event)"
               [ngModelOptions]="sueltos"
             />
           </label>
@@ -345,10 +365,15 @@ export class ClientForm {
   protected readonly rfc = signal('');
   protected readonly zoneName = signal('');
   protected readonly street = signal('');
-  protected readonly neighborhood = signal('');
-  protected readonly municipality = signal('');
-  protected readonly state = signal('');
-  protected readonly postalCode = signal('');
+  /**
+   * El domicilio de la zona, con el código postal al mando.
+   *
+   * <p>La misma pieza compartida que usan las zonas de un cliente y el domicilio de una persona:
+   * cinco dígitos resuelven país, estado, municipio y colonias, los desplegables se quedan de
+   * respaldo, y un código fuera del padrón <b>no borra lo ya escrito</b>. Eso último costó pensarlo
+   * en la tanda de zonas y es lo que se pierde al reimplementar, así que aquí se reusa.</p>
+   */
+  protected readonly direccion = inject(DireccionPorCodigoPostal);
   protected readonly contactName = signal('');
   /** El puesto del contacto, por identificador de catálogo. */
   protected readonly idContactJobPosition = signal('');
@@ -364,23 +389,11 @@ export class ClientForm {
       this.clientReady() &&
       !!this.zoneName().trim() &&
       !!this.street().trim() &&
-      !!this.municipality().trim() &&
-      !!this.state().trim() &&
-      !!this.postalCode().trim(),
+      !!this.direccion.municipality().trim() &&
+      !!this.direccion.state().trim() &&
+      !!this.direccion.postalCode().trim(),
   );
 
-
-  /**
-   * El estado y el municipio salen del catálogo geográfico, no de texto libre.
-   *
-   * <p>El servidor los valida contra `State` y `City` y rechaza cualquier otra cosa con
-   * «Selecciona una ciudad o municipio activo del estado». Escribirlos a mano dejaba un formulario
-   * que se llenaba entero y fallaba al guardar, sin decir dónde.</p>
-   */
-  protected onState(valor: string): void {
-    this.state.set(valor);
-    this.municipality.set('');
-  }
 
   protected submit(withZone: boolean): void {
     this.save.emit({
@@ -392,10 +405,10 @@ export class ClientForm {
         zone: {
           name: this.zoneName().trim(),
           street: this.street().trim(),
-          neighborhood: this.neighborhood().trim(),
-          municipality: this.municipality().trim(),
-          state: this.state().trim(),
-          postalCode: this.postalCode().trim(),
+          neighborhood: this.direccion.neighborhood().trim(),
+          municipality: this.direccion.municipality().trim(),
+          state: this.direccion.state().trim(),
+          postalCode: this.direccion.postalCode().trim(),
         },
         contact: {
           fullName: this.contactName().trim(),

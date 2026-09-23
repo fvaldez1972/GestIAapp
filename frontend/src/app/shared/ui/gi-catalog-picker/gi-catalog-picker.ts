@@ -1,12 +1,14 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  ElementRef,
   computed,
   effect,
   input,
   output,
   signal,
   untracked,
+  viewChild,
 } from '@angular/core';
 import { catalogNameDistance, normalizeCatalogName } from '../../util/catalog-name';
 
@@ -69,12 +71,17 @@ export type GiCatalogCreation = {
     // siempre, obligando a elegir algo aunque uno se hubiera arrepentido.
     '(focusout)': 'alSalirElFoco($event)',
     '(keydown.escape)': 'abierto.set(false)',
+    // La lista flotante se dibuja donde estaba el campo al abrir. Si algo se desplaza debajo, el
+    // campo se mueve y la lista se quedaria colgada, asi que se cierra.
+    '(document:scroll)': 'alDesplazar()',
+    '(window:resize)': 'alDesplazar()',
   },
   template: `
     <div class="pick">
       <label class="pick__label" [attr.for]="inputId()">{{ label() }}</label>
 
       <input
+        #campo
         class="pick__input"
         type="text"
         role="combobox"
@@ -86,11 +93,18 @@ export type GiCatalogCreation = {
         [attr.aria-describedby]="inputId() + '-ayuda'"
         [placeholder]="placeholder()"
         (input)="escribir($any($event.target).value)"
-        (focus)="abierto.set(true)"
+        (focus)="abrir()"
       />
 
       @if (abierto()) {
-        <ul class="pick__lista" role="listbox">
+        <ul
+          class="pick__lista"
+          role="listbox"
+          [style.top.px]="sitio().top"
+          [style.left.px]="sitio().left"
+          [style.width.px]="sitio().width"
+          [style.max-height.px]="sitio().alto"
+        >
           @for (option of coincidencias(); track option.idCatalogItem) {
             <li class="pick__opcion" role="option" [attr.aria-selected]="option.idCatalogItem === value()">
               <button class="pick__elegir" type="button" (click)="elegir(option)">{{ option.name }}</button>
@@ -172,11 +186,16 @@ export type GiCatalogCreation = {
     .pick__input:focus-visible { outline: 2px solid var(--gestia-cyan); outline-offset: 1px; }
     .pick__input:disabled { background: var(--gestia-surface-soft); color: var(--gestia-muted); }
 
+    /*
+      Flotante y no pegada al campo: dentro de una ventana emergente con desplazamiento, una lista
+      posicionada respecto al campo la recorta el borde de la ventana, y hay que desplazar la
+      ventana para ver el resto mientras la lista tiene su propio desplazamiento. Dos
+      desplazamientos anidados para elegir un valor. Con posicion fija se dibuja sobre todo y su
+      alto sale de lo que queda hasta el pie de la pantalla.
+    */
     .pick__lista {
-      position: absolute;
-      top: 100%;
-      z-index: 20;
-      width: 100%;
+      position: fixed;
+      z-index: 40;
       max-height: 16rem;
       margin: 0.15rem 0 0;
       padding: 0;
@@ -340,6 +359,42 @@ export class GiCatalogPicker {
 
   /** Si se dibuja la invitación a crear el valor. Se apaga donde la ventana no da para más texto. */
   readonly showInvitation = input(true);
+
+  private readonly campo = viewChild.required<ElementRef<HTMLInputElement>>('campo');
+
+  /** Dónde se dibuja la lista flotante, medido al abrir. */
+  protected readonly sitio = signal({ top: 0, left: 0, width: 0, alto: 0 });
+
+  protected abrir(): void {
+    this.medirSitio();
+    this.abrir();
+  }
+
+  /**
+   * Dónde cae la lista y cuánto puede crecer.
+   *
+   * <p>Se mide al abrir. Una lista que se recoloca mientras está abierta salta bajo el cursor justo
+   * cuando alguien va a elegir, así que si algo se desplaza debajo se cierra en vez de perseguir al
+   * campo.</p>
+   */
+  private medirSitio(): void {
+    const caja = this.campo().nativeElement.getBoundingClientRect();
+    const margen = 8;
+    const disponible = window.innerHeight - caja.bottom - margen * 2;
+
+    this.sitio.set({
+      top: caja.bottom + 4,
+      left: caja.left,
+      width: caja.width,
+      alto: Math.max(120, Math.min(256, disponible)),
+    });
+  }
+
+  protected alDesplazar(): void {
+    if (this.abierto()) {
+      this.abierto.set(false);
+    }
+  }
 
   protected readonly puedeCrear = computed(() => !!normalizeCatalogName(this.escrito()) && !this.yaExiste());
 

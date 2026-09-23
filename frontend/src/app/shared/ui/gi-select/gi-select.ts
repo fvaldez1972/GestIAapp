@@ -43,6 +43,11 @@ let instances = 0;
   host: {
     '(keydown)': 'onKeydown($event)',
     '(focusout)': 'onFocusOut($event)',
+    // La lista flotante se dibuja donde estaba el campo cuando se abrio. Si algo se desplaza
+    // debajo, el campo se mueve y la lista se quedaria colgada en el aire, asi que se cierra.
+    // Va en captura para enterarse tambien del desplazamiento de la ventana emergente.
+    '(document:scroll)': 'alDesplazar()',
+    '(window:resize)': 'alDesplazar()',
   },
   template: `
     <button
@@ -66,6 +71,11 @@ let instances = 0;
       <ul
         class="gi-select__list"
         [class.gi-select__list--up]="abreHaciaArriba()"
+        [class.gi-select__list--flotante]="openDown()"
+        [style.top.px]="openDown() ? sitio().top : null"
+        [style.left.px]="openDown() ? sitio().left : null"
+        [style.width.px]="openDown() ? sitio().width : null"
+        [style.max-height.px]="openDown() ? sitio().alto : null"
         [id]="listId"
         role="listbox"
         [attr.aria-label]="label()"
@@ -166,6 +176,22 @@ let instances = 0;
     }
 
     /*
+      Flotante: la lista sale del recorte de su contenedor.
+
+      Dentro de una ventana emergente con desplazamiento, una lista posicionada respecto al campo la
+      recorta el borde de la ventana, y entonces hay que desplazar la ventana para ver el resto de
+      la lista mientras la lista tiene su propio desplazamiento. Dos desplazamientos anidados para
+      elegir un valor. Con posicion fija se dibuja sobre todo y su alto se calcula con lo que queda
+      hasta el pie de la pantalla, asi que se recorre una sola vez y sin mover nada de atras.
+    */
+    .gi-select__list--flotante {
+      position: fixed;
+      right: auto;
+      bottom: auto;
+      min-width: 0;
+    }
+
+    /*
       Hacia arriba cuando abajo no cabe. Sin esto, un desplegable al pie de una pantalla larga
       —el de registros por página de los catálogos— abre su lista fuera de la ventana: se ve el
       borde y nada más, y con el ratón no hay forma de elegir.
@@ -233,6 +259,9 @@ export class GiSelect {
 
   protected readonly open = signal(false);
   protected readonly abreHaciaArriba = signal(false);
+
+  /** Dónde se dibuja la lista flotante, medido al abrir. */
+  protected readonly sitio = signal({ top: 0, left: 0, width: 0, alto: 0 });
   protected readonly activeIndex = signal(0);
   protected readonly listId = `gi-select-list-${++instances}`;
   private readonly trigger = viewChild.required<ElementRef<HTMLButtonElement>>('trigger');
@@ -254,6 +283,10 @@ export class GiSelect {
     const current = this.options().findIndex((option) => option.value === this.value());
     this.activeIndex.set(current >= 0 ? current : 0);
     this.abreHaciaArriba.set(!this.openDown() && this.noCabeAbajo());
+
+    if (this.openDown()) {
+      this.medirSitio();
+    }
     this.open.set(true);
     this.opened.emit();
   }
@@ -270,6 +303,33 @@ export class GiSelect {
    * visible. Equivocarse por exceso sólo hace que una lista corta se dibuje arriba teniendo sitio
    * abajo, que es inofensivo; equivocarse por defecto la deja fuera de la ventana.</p>
    */
+  /**
+   * Dónde cae la lista flotante y cuánto puede crecer.
+   *
+   * <p>Se mide al abrir y no en cada dibujo, por lo mismo que la dirección: una lista que se
+   * recoloca mientras está abierta salta bajo el cursor justo cuando alguien va a elegir.</p>
+   */
+  private medirSitio(): void {
+    const boton = this.trigger().nativeElement.getBoundingClientRect();
+    const margen = 8;
+    const disponible = window.innerHeight - boton.bottom - margen * 2;
+
+    this.sitio.set({
+      top: boton.bottom + 4,
+      left: boton.left,
+      width: boton.width,
+      // Nunca más de 16rem, que es lo que ya tenía, ni más de lo que queda hasta el pie. El mínimo
+      // evita una lista de dos píxeles cuando el campo está pegado abajo: ahí vale más que asome.
+      alto: Math.max(120, Math.min(256, disponible)),
+    });
+  }
+
+  protected alDesplazar(): void {
+    if (this.open() && this.openDown()) {
+      this.open.set(false);
+    }
+  }
+
   private noCabeAbajo(): boolean {
     const boton = this.trigger().nativeElement.getBoundingClientRect();
     const alto = this.trigger().nativeElement.ownerDocument.defaultView?.innerHeight ?? 0;

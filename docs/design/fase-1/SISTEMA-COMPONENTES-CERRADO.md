@@ -227,6 +227,29 @@ Tres estados de la pantalla, una sola estructura: el camino ocupa todo cuando no
 se encoge cuando hay avance, y colapsa a una línea cuando está completo. **Se cierra, no se
 borra.**
 
+### Sección plegable
+
+Construida el 23 de septiembre de 2026 para la ficha de Personal, que tenía cuatro bloques
+abiertos a la vez y dejaba lo que se venía a ver debajo del pliegue.
+
+**Rótulo, contador opcional, resumen y píldora de estado.** El resumen es lo que la hace usable
+cerrada: una sección que sólo dice «Domicilio» obliga a abrirla para saber si hay algo dentro, y
+entonces plegar sólo ha añadido un clic. Diciendo «Domicilio · Mérida, Yucatán» se contesta sin
+abrir, que es lo que se gana al plegar.
+
+**El cuerpo se quita del árbol al cerrarse**, no se esconde con CSS. Un bloque escondido con
+opacidad o altura cero sigue en el orden de tabulación y se recorre sin verse.
+
+**Lo que el usuario decide manda sobre lo que pida la pantalla.** Una sección que se abre sola
+porque tiene algo urgente se tiene que poder cerrar, y no se reabre en el siguiente ciclo de
+detección de cambios.
+
+**Dónde se usa, y dónde no.** En la ficha de Personal: identificación siempre abierta, y relación
+laboral, domicilio y contacto plegados. En Evaluaciones y Experiencia, para el historial de lo
+registrado. **No envuelve nada que otra pantalla necesite montado**: el expediente de archivos
+estuvo dentro unas horas y hubo que sacarlo, porque al plegarse quitaba del árbol el componente al
+que «Cargar» le hablaba y el botón dejaba de hacer nada.
+
 ### Diálogo de confirmación destructiva
 
 Nombra qué se va a desactivar, explica la consecuencia, y confirma. Botón destructivo en
@@ -256,13 +279,14 @@ Construidos el 5 de septiembre de 2026 en `frontend/src/app/shared/ui/`, y expor
 | Estado vacío | `GiEmptyState` |
 | Diálogo de confirmación destructiva | `GiConfirmDialog` |
 | Tarjeta de indicador | `GiMetricCard` |
+| Sección plegable | `GiAccordion` |
 | Barra de contexto | `ContextBar`, en `core/layout` |
 
 `design-system.spec.ts` comprueba sobre esos archivos que no haya colores escritos a mano,
 tamaños fuera de la escala, radios fuera de los tres, ni selectores nativos.
 
 **Desde el 05 sep 2026 la comprobación también cubre las pantallas ya rehechas**, no sólo
-`shared/ui`: hoy `features/overview` completo, incluidos sus `.html` y `.scss`. El sistema no
+`shared/ui`: hoy `features/overview`, `clients`, `workforce`, `planning` y `operations/ui`. El sistema no
 sirve de nada si la pantalla que lo usa se inventa un color al lado. El resto de las features
 queda fuera **a propósito, porque hoy fallarían** —hay hex a mano en catorce hojas de estilo—, y
 convertirlas es su propia tanda. Esa lista crece con cada pantalla que se rehace.

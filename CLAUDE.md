@@ -75,7 +75,7 @@ esa forma cambia. Si agregas una `ProjectReference`, esa prueba te lo dirá.
 - **Domain y Application no referencian EF Core** ni tipos propios de SQL Server. Domain no
   tiene ninguna `PackageReference`; Application solo tiene las abstracciones de DI.
 - **La configuración física va con Fluent API en Infrastructure**, en
-  `Persistence/Configurations/*.cs` (hoy 36 clases `IEntityTypeConfiguration<T>`). No se usan
+  `Persistence/Configurations/*.cs` (hoy 43 clases `IEntityTypeConfiguration<T>`). No se usan
   atributos de mapeo en las entidades de Domain.
 - **Sin reglas de negocio protegibles en el frontend.** Ocultar una opción del menú no es
   autorización. Toda consulta multiempresa lleva el identificador de alcance autorizado desde
@@ -83,7 +83,7 @@ esa forma cambia. Si agregas una `ProjectReference`, esa prueba te lo dirá.
   al inicio de cada endpoint, más `.RequirePermission(...)`.
 - **El aislamiento entre organizaciones es un filtro global, no una condición que cada consulta
   repita.** El guard fija la organización autorizada en `IOrganizationContext` y un filtro con
-  nombre la aplica a las **29 entidades** que declaran `IOrganizationScopedEntity`. Falla
+  nombre la aplica a las **35 entidades** que declaran `IOrganizationScopedEntity`. Falla
   cerrado: sin organización fijada, la consulta devuelve **cero filas**, no todas. Apagarlo exige
   `IgnoreQueryFilters(["Organization"])`, que sólo pueden usar los archivos de la lista blanca de
   `OrganizationFilterBypassTests`; `IgnoreQueryFilters()` sin argumentos rompe el build.
@@ -210,13 +210,17 @@ dotnet tool run dotnet-ef database update --project .\src\GestIA.Infrastructure 
 (ADR 0003, sección "Consecuencias"; reiterado en las restricciones heredadas del alcance
 vigente.)
 
-Esto no es teórico aquí. Hay **24 migraciones** en
+Esto no es teórico aquí. Hay **45 migraciones** en
 `backend/src/GestIA.Infrastructure/Persistence/Migrations/`, y desde el 6 de septiembre de 2026
 **la única base viva está al día con todas**:
 
 | Base | Migraciones aplicadas | Hasta |
 |---|---|---|
-| `db-gestia-dev` | **24** | `20260905125754_AddConcurrencyTokens` |
+| `db-gestia-dev` | **todas** | `20260923011611_RenameBlockingMarkToRequired` |
+
+> El número exacto se comprueba contra `__EFMigrationsHistory`, no contra este documento: aquí
+> envejecía en silencio. Lo que sí se fija es la regla —la base viva está al día— y cuál es la
+> última migración del repositorio.
 
 `db-gestia-dev` es la base que sirve **`dev.gestia-demo.com`**, en el SQL Server del stack `gestia`
 (puerto 1433). Las cinco últimas migraciones —organización denormalizada, bitácora funcional,

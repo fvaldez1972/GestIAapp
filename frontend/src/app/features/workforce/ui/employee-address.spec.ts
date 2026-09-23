@@ -35,6 +35,12 @@ function surtirGeografia(fixture: { detectChanges(): void }): number {
   let consultasDeCodigo = 0;
 
   for (const peticion of http.match((r) => r.url.includes('/geography/'))) {
+    // Una consulta cancelada no se contesta: al escribir otro codigo se cancela la anterior, y
+    // responderle revienta con «Cannot flush a cancelled request».
+    if (peticion.cancelled) {
+      continue;
+    }
+
     const url = peticion.request.url;
 
     if (url.endsWith('/countries')) {
@@ -115,35 +121,52 @@ describe('El domicilio de una persona', () => {
   afterEach(() => TestBed.resetTestingModule());
 
   /**
-   * Abrir el editor <b>no</b> consulta el código postal.
+   * Abrir el editor trae las colonias del código guardado, <b>sin tocar ni un valor</b>.
    *
-   * <p>El domicilio ya está guardado; volver a resolverlo podría reescribirlo solo, sin que nadie
-   * lo pidiera. Es la misma regla que en las zonas de un cliente, y por eso la comparte la misma
-   * pieza. La prueba lo comprueba de la forma que no admite dudas: no hay ninguna petición de
-   * código postal pendiente después de abrir.</p>
+   * <p>Las dos mitades importan y son la regla entera. La lista se pide porque sin ella la colonia
+   * quedaba de texto libre al editar, y una zona guardada no se podía cambiar a otra colonia del
+   * mismo código: había que escribirla de memoria.</p>
+   *
+   * <p>Y no se toca nada porque resolver el código al abrir reescribiría un domicilio que nadie
+   * pidió cambiar. El estado y el municipio guardados pueden no coincidir con lo que el padrón dice
+   * hoy, y quien entró a corregir el número de la calle no puede encontrarse la dirección cambiada.
+   * Por eso el expediente de esta prueba tiene <b>a propósito</b> un municipio distinto del que
+   * devuelve el código 64000.</p>
    */
-  it('abre con lo guardado y sin salir a consultar el código postal', async () => {
-    const { raiz, fixture, consultasAlAbrir } = montar((host) =>
+  it('abre con lo guardado, trae las colonias y no cambia ningún valor', async () => {
+    const { raiz, fixture } = montar((host) =>
       host.expediente.set(expedienteCon({
         street: 'Av. Universidad',
         streetNumber: '2340',
         neighborhood: 'Del Valle',
-        postalCode: '66450',
-        state: 'Nuevo León',
-        municipality: 'San Nicolás de los Garza',
+        postalCode: '64000',
+        state: 'Coahuila de Zaragoza',
+        municipality: 'Saltillo',
       })));
 
-    expect(consultasAlAbrir, 'abrir el editor no consulta el código postal').toBe(0);
-
-    // ngModel escribe el valor inicial en un microtarea, no en la misma pasada de detección.
     await fixture.whenStable();
     fixture.detectChanges();
 
     expect(raiz.querySelector<HTMLInputElement>('#ea-calle')!.value).toBe('Av. Universidad');
     expect(raiz.querySelector<HTMLInputElement>('#ea-numero')!.value).toBe('2340');
-    expect(raiz.querySelector<HTMLInputElement>('#ea-cp')!.value).toBe('66450');
-    // La colonia es texto libre porque nadie ha resuelto un código: no hay lista que ofrecer.
-    expect(raiz.querySelector<HTMLInputElement>('input#ea-colonia')!.value).toBe('Del Valle');
+    expect(raiz.querySelector<HTMLInputElement>('#ea-cp')!.value).toBe('64000');
+
+    // El veredicto: el código 64000 resuelve Nuevo León y Monterrey, y NO se escribieron.
+    const direccion = (fixture.debugElement.children[0].componentInstance as {
+      direccion: { state(): string; municipality(): string; neighborhood(): string };
+    }).direccion;
+    expect(direccion.state()).toBe('Coahuila de Zaragoza');
+    expect(direccion.municipality()).toBe('Saltillo');
+    expect(direccion.neighborhood()).toBe('Del Valle');
+
+    // Y la colonia ya se puede elegir: hay lista, y «Del Valle» está en ella aunque el padrón no la
+    // traiga, para que el desplegable no aparezca en blanco sobre un dato que sí existe.
+    raiz.querySelector<HTMLButtonElement>('#ea-colonia button[role="combobox"]')!.click();
+    fixture.detectChanges();
+    const colonias = Array.from(raiz.querySelectorAll('#ea-colonia .gi-select__option'))
+      .map((o) => o.textContent?.trim());
+    expect(colonias).toContain('Del Valle');
+    expect(colonias).toContain('La Finca');
   });
 
   /** El código postal resuelve el resto, igual que en las zonas. */
@@ -186,7 +209,7 @@ describe('El domicilio de una persona', () => {
         state: 'Nuevo León',
         municipality: 'Monterrey',
         neighborhood: 'Centro',
-      })));
+      })));  // sin código postal guardado: nada que traer al abrir
 
     await fixture.whenStable();
     fixture.detectChanges();

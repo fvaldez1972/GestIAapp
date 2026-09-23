@@ -65,10 +65,18 @@ export class DireccionPorCodigoPostal {
   readonly opcionesDeColonia = computed<readonly GiSelectOption[]>(() => {
     const colonias = this.colonias();
     if (!colonias.length) return [];
-    return [
-      ...colonias.map((colonia) => ({ value: colonia.name, label: colonia.name })),
-      { value: OTRA_COLONIA, label: 'Otra: escribirla' },
-    ];
+
+    const opciones = colonias.map((colonia) => ({ value: colonia.name, label: colonia.name }));
+
+    // La colonia que ya estaba guardada entra a la lista aunque el padrón no la traiga. Sin esto,
+    // abrir una zona vieja para editarla enseñaría el desplegable en blanco: la colonia sigue
+    // escrita en la base y la pantalla diría que no hay ninguna elegida.
+    const guardada = this.neighborhood().trim();
+    if (guardada && !colonias.some((colonia) => this.plegado(colonia.name) === this.plegado(guardada))) {
+      opciones.unshift({ value: guardada, label: guardada });
+    }
+
+    return [...opciones, { value: OTRA_COLONIA, label: 'Otra: escribirla' }];
   });
 
   /** Si la colonia se elige de una lista o se escribe. */
@@ -160,11 +168,18 @@ export class DireccionPorCodigoPostal {
   }
 
   /**
-   * Carga un domicilio ya guardado, sin consultar el código postal.
+   * Carga un domicilio ya guardado y trae la lista de colonias de su código postal.
    *
-   * <p>Abrir algo para editarlo no resuelve el código: el domicilio ya está guardado y volver a
-   * resolverlo podría reescribirlo solo, sin que nadie lo pidiera. La consulta sale cuando alguien
-   * escribe el código, que es cuando hay una intención detrás.</p>
+   * <p><b>Pide las colonias pero no toca ni un valor.</b> Ésa es toda la diferencia con escribir el
+   * código a mano, y las dos mitades importan:</p>
+   *
+   * <p>Se piden porque sin lista la colonia quedaba de texto libre al editar, y entonces una zona
+   * guardada no se podía cambiar a otra colonia del mismo código: había que escribirla de memoria.
+   * Se veía en Zonas y en el domicilio de una persona.</p>
+   *
+   * <p>Y no se toca nada porque resolver el código al abrir reescribiría un domicilio que nadie
+   * pidió cambiar: el estado y el municipio guardados pueden no coincidir con lo que el padrón dice
+   * hoy, y quien entró a corregir el teléfono no puede encontrarse la dirección cambiada.</p>
    */
   cargar(direccion: {
     readonly countryCode?: string | null;
@@ -179,6 +194,32 @@ export class DireccionPorCodigoPostal {
     this.neighborhood.set(direccion.neighborhood ?? '');
     this.state.set(direccion.state ?? '');
     this.municipality.set(direccion.municipality ?? '');
+
+    // Se pasa el valor recibido y NO se lee la señal. `cargar` se llama desde un efecto, y leer
+    // aquí `postalCode()` hacía que el efecto pasara a depender de él: teclear el código lo
+    // despertaba, volvía a cargar el domicilio guardado y borraba lo que se estaba escribiendo.
+    this.traerColonias((direccion.postalCode ?? '').trim());
+  }
+
+  /**
+   * Las colonias de un código ya guardado, sólo para poder elegir otra.
+   *
+   * <p>No escribe nada más que la lista: ni el país, ni el estado, ni el municipio, ni la colonia.
+   * Un código que no esté en el padrón deja la lista vacía y la colonia sigue siendo texto libre,
+   * que es lo que era antes de esto.</p>
+   */
+  private traerColonias(codigo: string): void {
+    if (codigo.length !== 5 || !/^\d{5}$/.test(codigo)) {
+      return;
+    }
+
+    this.consulta = this.geography
+      .lookupPostalCode(codigo)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (resuelto) => this.colonias.set(resuelto.neighborhoods),
+        error: () => this.colonias.set([]),
+      });
   }
 
   limpiar(): void {

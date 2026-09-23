@@ -97,6 +97,12 @@ const CODIGOS: Record<string, unknown> = {
 /** Responde lo que la geografía tenga pendiente, que cambia conforme se elige en la cascada. */
 function surtirGeografia(http: HttpTestingController, fixture: { detectChanges(): void }) {
   for (const peticion of http.match((r) => r.url.includes('/geography/'))) {
+    // Una consulta cancelada no se contesta: al escribir otro codigo se cancela la anterior, y
+    // responderle revienta con «Cannot flush a cancelled request».
+    if (peticion.cancelled) {
+      continue;
+    }
+
     const url = peticion.request.url;
 
     if (url.endsWith('/countries')) {

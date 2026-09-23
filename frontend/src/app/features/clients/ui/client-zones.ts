@@ -142,8 +142,12 @@ export type NewZone = {
             >Guardar zona</button>
           </p>
 
-          <!-- La razón se escribe. Un botón gris sin explicación obliga a adivinar. -->
-          <p class="new__reason" id="ns-falta" [hidden]="ready()">
+          <!--
+            La razón sale de la vista pero no del documento: el botón desactivado la sigue nombrando
+            con aria-describedby, así que quien usa lector de pantalla sigue oyendo qué le falta.
+            Lo que se retira es el texto permanente, como en el alta.
+          -->
+          <p class="new__reason new__reason--oculta" id="ns-falta">
             Hacen falta el nombre, la calle, el municipio, el estado y el código postal.
           </p>
         </form>
@@ -382,6 +386,17 @@ export type NewZone = {
     .field__nota { color: var(--gestia-muted); font-size: 11px; }
 
     .new__footer { display: flex; justify-content: flex-end; gap: 0.55rem; margin: 0; }
+
+    .new__reason--oculta {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      margin: -1px;
+      padding: 0;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
 
     .new__reason { margin: 0; color: var(--gestia-muted); font-size: 11.5px; }
 

@@ -39,7 +39,7 @@ const GEOGRAFIA: readonly BusinessCatalogItemType[] = ['Country', 'State', 'City
       @for (option of options(); track option.value) { <option [value]="option.value" [selected]="option.value === value()">{{ option.label }}</option> }
     </select>
     @if (error()) { <small role="alert">No se pudieron cargar las opciones.</small><button type="button" (click)="load()">Reintentar</button> }
-    @else if (!loading() && !options().length) { <small>Sin opciones activas</small> }
+    @else if (!loading() && !options().length) { <small>{{ vacio() }}</small> }
   `,
   styles: [':host { display: block; min-width: 0; width: 100%; } select { width: 100%; } small { display: block; color: #65738a; font-size: .75rem; margin-top: .25rem; }'],
 })
@@ -81,6 +81,22 @@ export class CatalogSelect implements ControlValueAccessor, OnChanges {
   });
 
   readonly hasCurrent = computed(() => this.options().some(option => option.value === this.value()));
+
+  /**
+   * Qué decir cuando la lista está vacía.
+   *
+   * <p><b>«Sin opciones activas» era verdad y era la cosa equivocada.</b> En el municipio aparecía
+   * mientras no se hubiera elegido estado —que es el estado normal de una cascada recién abierta— y
+   * hacía creer que el sistema no tiene municipios. Se reportó como defecto crítico por eso.</p>
+   *
+   * <p>Ahora distingue las dos situaciones: falta elegir lo de arriba, o de verdad no hay nada.</p>
+   */
+  readonly vacio = computed(() => {
+    this.revision();
+    if (this.type === 'State' && !this.country) return 'Elige primero el país';
+    if (this.type === 'City' && !this.state) return 'Elige primero el estado';
+    return 'Sin opciones activas';
+  });
 
   private esGeografia(): boolean {
     return GEOGRAFIA.includes(this.type);

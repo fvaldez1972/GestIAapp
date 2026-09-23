@@ -154,6 +154,51 @@ describe('Clientes · carga inicial', () => {
     expect(ficha.querySelector('gi-detail-panel')).not.toBeNull();
   });
 
+  /**
+   * Una ventana a la vez: el editor no se abre encima de la ficha.
+   *
+   * <p>Las dos condiciones que las dibujan eran independientes, así que con la ficha abierta y el
+   * editor encima quedaban dos velos superpuestos y hacían falta dos cierres para volver a la
+   * lista. Ahora abrir el editor cierra la ficha, y cerrarlo devuelve a ella: sigue siendo un paso
+   * por pantalla, pero sin apilar.</p>
+   */
+  it('el editor no se abre encima de la ficha, y al cerrarlo se vuelve a ella', () => {
+    const { fixture, http } = montar();
+
+    http.match((r) => r.url === '/api/v1/clients').forEach((r) =>
+      r.flush({ items: [fila()], totalCount: 1, page: 1, pageSize: 25, totalPages: 1 }));
+    http.match(() => true).forEach((r) => r.flush([]));
+    fixture.detectChanges();
+
+    const pagina = fixture.componentInstance as unknown as {
+      open(c: unknown): void;
+      startEdit(c: unknown): void;
+      cancelEdit(): void;
+    };
+    const raiz = fixture.nativeElement as HTMLElement;
+
+    pagina.open(fila());
+    fixture.detectChanges();
+    expect(raiz.querySelectorAll('.modal-backdrop')).toHaveLength(1);
+
+    pagina.startEdit(fila());
+    http.match((r) => r.url.startsWith('/api/v1/clients/')).forEach((r) => r.flush(fila()));
+    fixture.detectChanges();
+
+    // El veredicto: un solo velo, y el que hay es el del editor.
+    expect(raiz.querySelectorAll('.modal-backdrop')).toHaveLength(1);
+    expect(raiz.querySelector('app-client-edit-form')).not.toBeNull();
+    expect(raiz.querySelector('gi-detail-panel')).toBeNull();
+
+    pagina.cancelEdit();
+    http.match(() => true).forEach((r) => r.flush([]));
+    fixture.detectChanges();
+
+    // Y cerrarlo devuelve a la ficha, que es de donde se venía.
+    expect(raiz.querySelector('gi-detail-panel')).not.toBeNull();
+    expect(raiz.querySelector('app-client-edit-form')).toBeNull();
+  });
+
   it('una organización sin puestos no deja la pantalla recargándose sin parar', () => {
     const { fixture, http } = montar();
 

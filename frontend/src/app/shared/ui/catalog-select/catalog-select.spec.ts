@@ -150,4 +150,31 @@ describe('CatalogSelect', () => {
     expect(geografia.listMunicipalities).not.toHaveBeenCalled();
     expect(component.options()).toEqual([]);
   });
+
+  /**
+   * El vacío dice cuál de los dos vacíos es.
+   *
+   * <p>«Sin opciones activas» salía en el municipio mientras no se hubiera elegido estado, que es
+   * el estado normal de una cascada recién abierta, y hacía creer que el sistema no tiene
+   * municipios. Se reportó como defecto crítico por eso.</p>
+   */
+  it('says what is missing instead of saying there is nothing', () => {
+    component.type = 'City';
+    component.country = 'MX';
+    component.state = '';
+    component.ngOnChanges();
+    expect(component.vacio()).toBe('Elige primero el estado');
+
+    component.type = 'State';
+    component.country = '';
+    component.ngOnChanges();
+    expect(component.vacio()).toBe('Elige primero el país');
+
+    // Y el control: con el de arriba elegido y la lista vacía de verdad, sí es que no hay nada.
+    geografia.listStates.mockReturnValue(of([]));
+    component.type = 'State';
+    component.country = 'MX';
+    component.ngOnChanges();
+    expect(component.vacio()).toBe('Sin opciones activas');
+  });
 });

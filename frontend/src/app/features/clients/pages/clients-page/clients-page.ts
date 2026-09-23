@@ -161,6 +161,15 @@ export class ClientsPage {
   protected readonly editingClient = signal<Client | null>(null);
   protected readonly loadingClient = signal(false);
 
+  /**
+   * La ficha desde la que se abrió el editor, para volver a ella al cerrarlo.
+   *
+   * <p>Antes el editor se abria ENCIMA de la ficha: dos velos superpuestos y dos cierres para
+   * volver a la lista. Ahora sólo hay una ventana a la vez, y cerrar el editor devuelve a donde se
+   * estaba: a la ficha si se entró desde ahí, y a la lista si se entró desde el menú de la fila.</p>
+   */
+  private readonly fichaDeDonde = signal<ClientListItem | null>(null);
+
   protected startEdit(client: ClientListItem): void {
     const organizationId = this.organizationId();
 
@@ -174,6 +183,9 @@ export class ClientsPage {
     this.api.getClient(organizationId, client.idClient).subscribe({
       next: (completo) => {
         this.loadingClient.set(false);
+        // Una ventana a la vez: la ficha se cierra y se recuerda para volver.
+        this.fichaDeDonde.set(this.selected());
+        this.selected.set(null);
         this.editingClient.set(completo);
       },
       error: (problem) => {
@@ -228,6 +240,17 @@ export class ClientsPage {
     if (this.saving()) { return; }
     this.editingClient.set(null);
     this.formProblem.set(null);
+    this.volverALaFicha();
+  }
+
+  /** Si el editor se abrió desde una ficha, cerrarlo devuelve a ella. Si no, a la lista. */
+  private volverALaFicha(): void {
+    const ficha = this.fichaDeDonde();
+    this.fichaDeDonde.set(null);
+
+    if (ficha) {
+      this.open(ficha);
+    }
   }
 
   protected saveEdit(datos: ClientInput): void {
@@ -245,6 +268,9 @@ export class ClientsPage {
         this.saving.set(false);
         this.editingClient.set(null);
         this.load();
+        // Vuelve a la ficha con lo que se acaba de guardar, no a la lista: quien edita casi
+        // siempre quiere comprobar el cambio donde lo estaba mirando.
+        this.volverALaFicha();
       },
       error: (problem) => {
         this.saving.set(false);

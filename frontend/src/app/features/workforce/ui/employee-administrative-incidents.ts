@@ -31,9 +31,9 @@ export type NewAdministrativeIncident = {
       @if (visibles().length === 0 && !adding()) {
         <gi-empty-state
           variant="no-data"
-          title="Sin incidencias administrativas"
+          title="Sin actas administrativas"
           description="Aquí se registran actas, llamadas de atención y suspensiones. No es lo mismo que una incidencia de la operación diaria, que se captura en el turno."
-          [actionLabel]="canWrite() ? 'Registrar incidencia' : ''"
+          [actionLabel]="canWrite() ? 'Registrar acta' : ''"
           (action)="startAdd()"
         />
       } @else {
@@ -63,7 +63,7 @@ export type NewAdministrativeIncident = {
         </ul>
 
         @if (vigentes().length === 0) {
-          <p class="inc__vacio">Ninguna incidencia vigente. Las retiradas siguen abajo.</p>
+          <p class="inc__vacio">Ninguna acta vigente. Las retiradas siguen abajo.</p>
         }
 
         <!--
@@ -73,7 +73,7 @@ export type NewAdministrativeIncident = {
         -->
         @if (retiradas().length) {
           <gi-accordion
-            label="Incidencias retiradas"
+            label="Actas retiradas"
             [count]="retiradas().length"
             summary="Siguen en el expediente; no cuentan para asignar"
           >
@@ -95,7 +95,7 @@ export type NewAdministrativeIncident = {
         @if (canWrite() && !adding()) {
           <p class="inc__add">
             <button class="button button--primary" type="button" (click)="startAdd()">
-              Registrar incidencia
+              Registrar acta
             </button>
           </p>
         }
@@ -103,10 +103,10 @@ export type NewAdministrativeIncident = {
 
       @if (adding()) {
         <form class="new" (ngSubmit)="$event.preventDefault()">
-          <p class="new__kicker">{{ editando() ? 'EDITAR INCIDENCIA' : 'NUEVA INCIDENCIA' }}</p>
+          <p class="new__kicker">{{ editando() ? 'EDITAR ACTA' : 'NUEVA ACTA' }}</p>
 
           <gi-catalog-picker
-            label="Tipo de incidencia"
+            label="Tipo de acta"
             catalogLabel="el catálogo de incidencias administrativas"
             inputId="ai-tipo"
             [options]="types()"
@@ -142,7 +142,7 @@ export type NewAdministrativeIncident = {
             <button class="button" type="button" (click)="cancelAdd()">Cancelar</button>
             <button class="button button--primary" type="button"
               [disabled]="saving() || !ready()" (click)="submit()">
-              {{ saving() ? 'Guardando…' : editando() ? 'Guardar cambios' : 'Guardar incidencia' }}
+              {{ saving() ? 'Guardando…' : editando() ? 'Guardar cambios' : 'Guardar acta' }}
             </button>
           </p>
         </form>

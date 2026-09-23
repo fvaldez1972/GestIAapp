@@ -65,22 +65,53 @@ const RESULTADOS = ['Approved', 'ApprovedWithObservations', 'Pending', 'Inconclu
           organización.
         </p>
 
-        <ul class="evals__list">
-          @for (row of rows(); track row.code) {
-            <li class="req" [class]="'req--' + tone(row.state)">
-              <span class="req__body">
-                <span class="req__name">
-                  {{ row.label }}
-                  @if (!row.isRequired) {
-                    <span class="req__soft">no bloquea</span>
-                  }
-                </span>
-                <span class="req__detail">{{ detail(row.state, row.expiresDate, row.result) }}</span>
-              </span>
-              <span class="req__state">{{ stateLabel(row.state) }}</span>
-            </li>
-          }
-        </ul>
+        <!--
+          Obligatorias arriba, informativas abajo, cada grupo con su rotulo y con la frase de que
+          pasa si falta.
+
+          Antes iban en una sola lista y se distinguian por una etiqueta pequeña —«no bloquea»—
+          pegada al nombre: con varias reglas habia que leer fila por fila para saber cuales
+          impiden asignar a la persona. Es la misma correccion que ya se hizo en Documentos.
+        -->
+        @if (obligatorias().length) {
+          <section class="grupo grupo--obligatorias">
+            <h3 class="grupo__titulo">Evaluaciones obligatorias</h3>
+            <p class="grupo__nota">
+              Si falta una o no la cubre el resultado, no se puede asignar a esta persona.
+            </p>
+            <ul class="evals__list">
+              @for (row of obligatorias(); track row.code) {
+                <li class="req" [class]="'req--' + tone(row.state)">
+                  <span class="req__body">
+                    <span class="req__name">{{ row.label }}</span>
+                    <span class="req__detail">{{ detail(row.state, row.expiresDate, row.result) }}</span>
+                  </span>
+                  <span class="req__state">{{ stateLabel(row.state) }}</span>
+                </li>
+              }
+            </ul>
+          </section>
+        }
+
+        @if (informativas().length) {
+          <section class="grupo grupo--informativas">
+            <h3 class="grupo__titulo">Evaluaciones informativas</h3>
+            <p class="grupo__nota">
+              No impiden asignar; sólo dejan constancia.
+            </p>
+            <ul class="evals__list">
+              @for (row of informativas(); track row.code) {
+                <li class="req" [class]="'req--' + tone(row.state)">
+                  <span class="req__body">
+                    <span class="req__name">{{ row.label }}</span>
+                    <span class="req__detail">{{ detail(row.state, row.expiresDate, row.result) }}</span>
+                  </span>
+                  <span class="req__state">{{ stateLabel(row.state) }}</span>
+                </li>
+              }
+            </ul>
+          </section>
+        }
       }
 
       <!--
@@ -210,6 +241,22 @@ const RESULTADOS = ['Approved', 'ApprovedWithObservations', 'Pending', 'Inconclu
   `,
   styles: `
     :host { display: block; }
+
+    /* El borde de la izquierda es lo que se ve sin leer: rojo, lo que impide trabajar; cian, lo
+       que solo deja constancia. Mismo lenguaje que los grupos de Documentos. */
+    .grupo {
+      margin: 0 0 0.6rem;
+      border: 1px solid var(--gestia-border);
+      border-radius: var(--gestia-radius);
+      padding: 0.6rem 0.75rem;
+      background: var(--gestia-surface);
+    }
+
+    .grupo--obligatorias { border-left: 3px solid var(--gestia-danger); }
+    .grupo--informativas { border-left: 3px solid var(--gestia-cyan); }
+
+    .grupo__titulo { margin: 0; color: var(--gestia-navy); font-size: 13px; font-weight: 700; }
+    .grupo__nota { margin: 0.15rem 0 0.5rem; color: var(--gestia-muted); font-size: 11.5px; }
 
     .evals { display: flex; flex-direction: column; gap: 0.85rem; }
 
@@ -391,6 +438,12 @@ export class EmployeeEvaluations {
     certificateNumber: ['', [Validators.maxLength(80)]],
     notes: ['', [Validators.maxLength(1000)]],
   });
+
+  /** Las que impiden asignar, arriba. */
+  protected readonly obligatorias = computed(() => this.rows().filter((row) => row.isRequired));
+
+  /** Las que sólo dejan constancia, abajo. */
+  protected readonly informativas = computed(() => this.rows().filter((row) => !row.isRequired));
 
   protected readonly rows = computed(() =>
     employeeEvaluationRequirementRows(

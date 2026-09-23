@@ -10,7 +10,6 @@ import {
   GiConfirmDialog,
   GiDetailPanel,
   GiEmptyState,
-  GiAccordion,
   GiFilterBar,
   GiFilterGroup,
   GiMetricCard,
@@ -103,7 +102,6 @@ const EMPTY_SUMMARY: EmployeeSummary = {
     EmployeeSkills,
     EmployeeTable,
     EntityDocuments,
-    GiAccordion,
     GiConfirmDialog,
     GiDetailPanel,
     GiEmptyState,
@@ -481,7 +479,7 @@ export class WorkforcePage {
       // retirada sigue en el expediente pero ya no cuenta para nada.
       {
         id: 'administrative-incidents',
-        label: 'Incidencias',
+        label: 'Actas administrativas',
         count: this.administrativeIncidents().filter((item) => item.active).length,
       },
     ];

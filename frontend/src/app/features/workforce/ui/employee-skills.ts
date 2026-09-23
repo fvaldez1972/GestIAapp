@@ -54,22 +54,50 @@ export type EmployeeSkillFormValue = {
           organización.
         </p>
 
-        <ul class="skills__list">
-          @for (row of rows(); track row.code) {
-            <li class="req" [class]="'req--' + tone(row.state)">
-              <span class="req__body">
-                <span class="req__name">
-                  {{ row.label }}
-                  @if (!row.isRequired) {
-                    <span class="req__soft">no bloquea</span>
-                  }
-                </span>
-                <span class="req__detail">{{ detail(row.state, row.expiresDate) }}</span>
-              </span>
-              <span class="req__state">{{ stateLabel(row.state) }}</span>
-            </li>
-          }
-        </ul>
+        <!--
+          Obligatorias arriba, informativas abajo. Antes compartian lista y se distinguian por una
+          etiqueta pequeña pegada al nombre, que habia que leer fila por fila. Es la misma
+          correccion que ya se hizo en Documentos y en Evaluaciones.
+        -->
+        @if (obligatorias().length) {
+          <section class="grupo grupo--obligatorias">
+            <h3 class="grupo__titulo">Experiencia obligatoria</h3>
+            <p class="grupo__nota">
+              Si falta una, no se puede asignar a esta persona a un servicio que la pida.
+            </p>
+            <ul class="skills__list">
+              @for (row of obligatorias(); track row.code) {
+                <li class="req" [class]="'req--' + tone(row.state)">
+                  <span class="req__body">
+                    <span class="req__name">{{ row.label }}</span>
+                    <span class="req__detail">{{ detail(row.state, row.expiresDate) }}</span>
+                  </span>
+                  <span class="req__state">{{ stateLabel(row.state) }}</span>
+                </li>
+              }
+            </ul>
+          </section>
+        }
+
+        @if (informativas().length) {
+          <section class="grupo grupo--informativas">
+            <h3 class="grupo__titulo">Experiencia informativa</h3>
+            <p class="grupo__nota">
+              No impide asignar; sirve para encontrar a quién puede cubrir un turno.
+            </p>
+            <ul class="skills__list">
+              @for (row of informativas(); track row.code) {
+                <li class="req" [class]="'req--' + tone(row.state)">
+                  <span class="req__body">
+                    <span class="req__name">{{ row.label }}</span>
+                    <span class="req__detail">{{ detail(row.state, row.expiresDate) }}</span>
+                  </span>
+                  <span class="req__state">{{ stateLabel(row.state) }}</span>
+                </li>
+              }
+            </ul>
+          </section>
+        }
       }
 
       <!--
@@ -178,6 +206,22 @@ export type EmployeeSkillFormValue = {
   `,
   styles: `
     :host { display: block; }
+
+    /* Mismo lenguaje que los grupos de Documentos y Evaluaciones: el borde izquierdo dice sin leer
+       si lo que falta impide trabajar o solo deja constancia. */
+    .grupo {
+      margin: 0 0 0.6rem;
+      border: 1px solid var(--gestia-border);
+      border-radius: var(--gestia-radius);
+      padding: 0.6rem 0.75rem;
+      background: var(--gestia-surface);
+    }
+
+    .grupo--obligatorias { border-left: 3px solid var(--gestia-danger); }
+    .grupo--informativas { border-left: 3px solid var(--gestia-cyan); }
+
+    .grupo__titulo { margin: 0; color: var(--gestia-navy); font-size: 13px; font-weight: 700; }
+    .grupo__nota { margin: 0.15rem 0 0.5rem; color: var(--gestia-muted); font-size: 11.5px; }
 
     .skills { display: flex; flex-direction: column; gap: 0.55rem; }
 
@@ -347,6 +391,12 @@ export class EmployeeSkills {
     expiresDate: [''],
     notes: ['', [Validators.maxLength(1000)]],
   });
+
+  /** Las que impiden asignar, arriba. */
+  protected readonly obligatorias = computed(() => this.rows().filter((row) => row.isRequired));
+
+  /** Las que sólo sirven para buscar, abajo. */
+  protected readonly informativas = computed(() => this.rows().filter((row) => !row.isRequired));
 
   protected readonly rows = computed(() =>
     employeeSkillRequirementRows(

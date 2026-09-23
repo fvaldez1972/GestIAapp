@@ -369,9 +369,53 @@ fieldset {
 .wide {
   grid-column: 1 / -1;
 }
+/* La casilla ocupa su propio renglon.
+   Compartiendo celda con los campos, «IVA incluido» empujaba «Vigente desde» a la columna derecha
+   y dejaba «Vigente hasta» sola en la izquierda del renglon siguiente: las dos fechas de un mismo
+   periodo quedaban en diagonal, que es lo que se veia descuadrado. Con el renglon propio, el par
+   de fechas vuelve a caer lado a lado. */
+.equipo__control { margin: 6px 0 10px; }
+.equipo__control gi-select { display: block; max-width: 28rem; }
+
+/* Lo elegido, en fichas. Es lo que se lee de un vistazo: la lista de doce casillas obligaba a
+   recorrerlas todas para ver cuales estaban marcadas. */
+.equipo__elegido {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.equipo__elegido li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border: 1px solid var(--gestia-border);
+  border-radius: var(--gestia-radius-pill);
+  background: var(--gestia-surface);
+  font-size: 12px;
+}
+
+.equipo__elegido button {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--gestia-muted);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.equipo__elegido button:hover { color: var(--gestia-danger); }
+.equipo__elegido button:focus-visible { outline: 2px solid var(--gestia-cyan); outline-offset: 2px; }
+
 .check {
   display: flex;
   align-items: center;
+  grid-column: 1 / -1;
 }
 .check input {
   width: 18px;

@@ -121,6 +121,9 @@ describe('ServicesPage organization-scoped workflows', () => {
   }
 
   function flushService() {
+    // Los días de los patrones viajan con las posiciones desde el 23 de septiembre de 2026: el
+    // calendario vive en esa misma pestaña y antes sólo se cargaban al abrir el editor.
+    http.expectOne(r => r.url === '/api/v1/catalogs/shift-pattern-templates').flush([]);
     http.expectOne(r => r.url.endsWith('/positions')).flush([]);
     http.expectOne(r => r.url.endsWith('/assignments')).flush([]);
     http.expectOne(r => r.url.endsWith('/positions/vacancy')).flush([]);

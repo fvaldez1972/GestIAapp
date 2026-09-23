@@ -36,6 +36,8 @@ import {
   GiRowActions,
   GiRowAction,
   GiConfirmDialog,
+  GiSelect,
+  GiSelectOption,
   GiTab,
   GiTableState,
 } from '../../../../shared/ui/gi-ui';
@@ -57,6 +59,7 @@ import { CatalogApiService } from '../../../catalogs/data-access/catalog-api.ser
 import {
   ShiftPatternTemplate,
   ShiftPatternTemplateOption,
+  cycleDayLabel,
   cycleLabel,
   cyclePhrase,
   shiftDaypartLabel,
@@ -117,6 +120,7 @@ import { dateRangeValidator, shiftIntervalValidator } from '../../ui/service-val
     GiTabContent,
     GiRowActions,
     GiConfirmDialog,
+    GiSelect,
     GiCandidatePicker,
     PositionSkills,
     EntityDocuments,
@@ -805,6 +809,11 @@ export class ServicesPage implements OnInit, OnDestroy {
 
   protected loadPositions(service = this.selectedService()): void {
     if (!service || !this.canReadPlanning()) return;
+
+    // El calendario de la posición vive en esta misma pestaña y se dibuja con estos días, así que
+    // viajan con las posiciones y no con el editor.
+    this.loadShiftPatternTemplateDetails();
+
     this.read(
       this.api.listPositions(this.selectedOrganizationId(), service.idClient, service.idService),
       2,
@@ -1113,6 +1122,32 @@ export class ServicesPage implements OnInit, OnDestroy {
   protected readonly sexCatalog = signal<readonly GiCatalogOption[]>([]);
   protected readonly ageRangeCatalog = signal<readonly GiCatalogOption[]>([]);
   protected readonly educationCatalog = signal<readonly GiCatalogOption[]>([]);
+
+  /**
+   * Lo que el desplegable ofrece: lo del catálogo que **todavía no** está elegido.
+   *
+   * <p>Dejar dentro lo ya elegido obligaría a distinguir a ojo entre lo que se puede agregar y lo
+   * que ya está, y elegirlo por descuido lo quitaría —porque el alta comparte método con la
+   * baja—, que es exactamente el clic que nadie entiende.</p>
+   */
+  protected readonly equipmentOptions = computed<readonly GiSelectOption[]>(() =>
+    this.equipmentCatalog()
+      .filter((equipo) => !this.selectedEquipment().includes(equipo.idCatalogItem))
+      .map((equipo) => ({ value: equipo.idCatalogItem, label: equipo.name })),
+  );
+
+  /** Lo elegido, resuelto a nombres para las fichas. En el orden en que se fue eligiendo. */
+  protected readonly selectedEquipmentItems = computed<readonly GiCatalogOption[]>(() =>
+    this.selectedEquipment()
+      .map((id) => this.equipmentCatalog().find((equipo) => equipo.idCatalogItem === id))
+      .filter((equipo): equipo is GiCatalogOption => !!equipo),
+  );
+
+  /** Agrega desde el desplegable. Vacío no hace nada: es el marcador de posición, no una opción. */
+  protected addEquipment(idCatalogItem: string): void {
+    if (!idCatalogItem || this.selectedEquipment().includes(idCatalogItem)) return;
+    this.selectedEquipment.update((actuales) => [...actuales, idCatalogItem]);
+  }
 
   /** Alterna una pieza de equipo. Elegir dos veces la misma la quita, que es lo que espera quien la pulsa. */
   protected toggleEquipment(idCatalogItem: string): void {
@@ -1633,8 +1668,29 @@ export class ServicesPage implements OnInit, OnDestroy {
     this.read(this.catalogApi.listShiftPatternTemplateOptions(org), 2, (opciones) =>
       this.shiftPatternTemplates.set(opciones),
     );
-    // Con las inactivas incluidas: una posición puede seguir apuntando a una plantilla retirada, y
-    // el calendario tiene que poder decir qué horario está siguiendo hoy.
+    this.loadShiftPatternTemplateDetails();
+  }
+
+  /**
+   * Los días de cada plantilla, que son los que pinta el calendario de la posición.
+   *
+   * <p><b>Se piden con las posiciones, no al abrir el editor.</b> Estaban dentro de
+   * <c>loadShiftPatternTemplates</c>, que sólo corre al abrir «Nueva posición» o «Editar»: entrar a
+   * la pestaña dejaba la lista vacía, así que <c>selectedPositionTemplate()</c> devolvía nulo y el
+   * calendario afirmaba «esta posición no tiene patrón del catálogo» sobre una que sí lo tenía.
+   * Había que entrar al editor y salir —o recargar— para que apareciera.</p>
+   *
+   * <p>El desplegable sigue siendo perezoso, y ahí el razonamiento original se mantiene: sale de
+   * <c>/options</c>, sólo lo mira quien abre el editor, y la mayoría de las visitas no lo abre.
+   * Estos días son otra cosa: se ven nada más entrar.</p>
+   *
+   * <p>Con las inactivas incluidas: una posición puede seguir apuntando a una plantilla retirada, y
+   * el calendario tiene que poder decir qué horario está siguiendo hoy.</p>
+   */
+  private loadShiftPatternTemplateDetails(): void {
+    const org = this.selectedOrganizationId();
+    if (!org) return;
+
     this.read(this.catalogApi.listShiftPatternTemplates(org, true), 2, (plantillas) =>
       this.shiftPatternTemplateDetails.set(plantillas),
     );
@@ -1652,6 +1708,23 @@ export class ServicesPage implements OnInit, OnDestroy {
    * <p>Salen de <c>cycleLabel</c> y <c>cyclePhrase</c>, compartidas con la pantalla de patrones.
    * Escritas aparte se separaron: allá decía «Semanal» y aquí «ciclo de 7 días».</p>
    */
+  /**
+   * Cómo se rotula cada día del calendario del patrón.
+   *
+   * <p><b>Con ciclo de siete días son los días de la semana; con cualquier otro, «Día N».</b> No es
+   * una concesión: un ciclo de seis días no encaja con la semana —el día 1 cae lunes una semana y
+   * domingo la siguiente—, así que llamarlo «lunes» afirmaría algo que el patrón no dice. Es la
+   * misma función que usa la pantalla de Catálogos, para que los dos sitios digan lo mismo.</p>
+   */
+  protected diaDelCiclo(dayNumber: number, cycleDays: number): string {
+    return cycleDayLabel(dayNumber, cycleDays);
+  }
+
+  /** Si el ciclo no cuadra con la semana, hay que decirlo donde se ven los días. */
+  protected cicloNoEsSemanal(cycleDays: number): boolean {
+    return cycleDays !== 7;
+  }
+
   protected cicloTexto(cycleDays: number): string {
     return cycleLabel(cycleDays);
   }

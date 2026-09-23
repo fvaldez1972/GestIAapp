@@ -338,11 +338,18 @@
                 patrón: la semana que de verdad se trabaja se decide al planear, y puede no
                 coincidir. Para cambiar la referencia, en Catálogos.
               </p>
+              @if (cicloNoEsSemanal(plantilla.cycleDays)) {
+                <p class="notice">
+                  El ciclo es de {{ plantilla.cycleDays }} días, así que no encaja con la semana: el
+                  día 1 no cae siempre en lunes. Por eso los días van numerados y no con nombre.
+                </p>
+              }
+
               <div class="schedule-grid">
                 @for (dia of plantilla.days; track dia.idShiftPatternTemplateDay) {
                   <article class="schedule-card">
                     <div>
-                      <span class="pill">Día {{ dia.cycleDayNumber }}</span>
+                      <span class="pill">{{ diaDelCiclo(dia.cycleDayNumber, plantilla.cycleDays) }}</span>
                       @if (dia.isRest) {
                         <strong>Descanso</strong>
                       } @else {
@@ -851,24 +858,50 @@
               </select>
             </label>
 
+            <!--
+              El equipo, en desplegable.
+
+              Eran doce casillas en rejilla de tres columnas: ocupaban un tercio del formulario
+              para declarar algo que casi siempre son dos o tres cosas, y obligaban a leer las doce
+              para ver cuales estaban marcadas. Ahora se elige de una lista y lo elegido queda a la
+              vista como fichas, que es donde se lee sin buscar.
+            -->
             <div class="wide">
               <span class="equipo__titulo">Equipo requerido</span>
               @if (equipmentCatalog().length) {
-                <ul class="equipo">
-                  @for (equipo of equipmentCatalog(); track equipo.idCatalogItem) {
-                    <li>
-                      <label>
-                        <input
-                          type="checkbox"
-                          [checked]="selectedEquipment().includes(equipo.idCatalogItem)"
-                          [disabled]="!canWriteClients()"
-                          (change)="toggleEquipment(equipo.idCatalogItem)"
-                        />
-                        <span>{{ equipo.name }}</span>
-                      </label>
-                    </li>
+                <div class="equipo__control">
+                  <gi-select
+                    label="Agregar equipo requerido"
+                    placeholder="Elige el equipo que la posición exige"
+                    [openDown]="true"
+                    [options]="equipmentOptions()"
+                    [disabled]="!canWriteClients() || !equipmentOptions().length"
+                    value=""
+                    (valueChange)="addEquipment($event)"
+                  />
+                  @if (!equipmentOptions().length) {
+                    <small>Ya está declarado todo el equipo del catálogo.</small>
                   }
-                </ul>
+                </div>
+
+                @if (selectedEquipment().length) {
+                  <ul class="equipo__elegido">
+                    @for (equipo of selectedEquipmentItems(); track equipo.idCatalogItem) {
+                      <li>
+                        <span>{{ equipo.name }}</span>
+                        @if (canWriteClients()) {
+                          <button
+                            type="button"
+                            [attr.aria-label]="'Quitar ' + equipo.name"
+                            (click)="toggleEquipment(equipo.idCatalogItem)"
+                          >&times;</button>
+                        }
+                      </li>
+                    }
+                  </ul>
+                } @else {
+                  <small>Sin equipo declarado. La posición se puede guardar así.</small>
+                }
               } @else {
                 <small>
                   El catálogo de equipo requerido está vacío. Se llena en Catálogos · Equipo

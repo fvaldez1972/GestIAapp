@@ -436,6 +436,47 @@ public sealed partial class WorkforceRepository
     /// Se mira también el día anterior porque un turno nocturno empieza un día y termina al
     /// siguiente, y mirando sólo hoy se leería como si nadie hubiera llegado.</para>
     /// </summary>
+    /// <summary>
+    /// Con qué clientes está ocupada cada persona hoy, en <b>una</b> consulta para toda la
+    /// organización.
+    ///
+    /// <para>Se agrupa en memoria y no en SQL a propósito: son pocas filas —sólo las asignaciones
+    /// vigentes— y agrupar aquí evita el <c>GROUP BY</c> con concatenación de cadenas, que cada
+    /// motor escribe distinto.</para>
+    ///
+    /// <para><b>Vigente es lo que ya empezó y todavía no termina.</b> Una asignación que arranca
+    /// mañana no ocupa a nadie hoy, y decir que sí dejaría fuera a gente que sí puede tomar el
+    /// turno.</para>
+    /// </summary>
+    public async Task<IReadOnlyList<EmployeeCurrentAssignmentsResponse>> ListCurrentAssignmentClientsAsync(
+        Guid idOrganization,
+        DateOnly today,
+        CancellationToken cancellationToken)
+    {
+        var filas = await dbContext.ServiceAssignments
+            .AsNoTracking()
+            .Where(assignment =>
+                assignment.IdOrganization == idOrganization &&
+                assignment.StartDate <= today &&
+                (assignment.EndDate == null || assignment.EndDate >= today))
+            .Select(assignment => new
+            {
+                assignment.IdEmployee,
+                ClientName = assignment.Service.Client.TradeName ?? assignment.Service.Client.LegalName,
+            })
+            .ToArrayAsync(cancellationToken);
+
+        return filas
+            .GroupBy(fila => fila.IdEmployee)
+            .Select(grupo => new EmployeeCurrentAssignmentsResponse(
+                grupo.Key,
+                grupo.Select(fila => fila.ClientName)
+                    .Distinct(StringComparer.Ordinal)
+                    .OrderBy(nombre => nombre, StringComparer.Ordinal)
+                    .ToArray()))
+            .ToArray();
+    }
+
     public async Task<IReadOnlyList<EmployeeAssignmentResponse>> ListAssignmentsAsync(
         Guid idOrganization,
         Guid idEmployee,

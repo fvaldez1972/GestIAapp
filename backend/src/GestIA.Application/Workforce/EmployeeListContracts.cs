@@ -190,6 +190,20 @@ public sealed record EmployeeSearchResponse(
     int RequiredDocuments,
     EmployeeSummaryResponse Summary);
 
+/// <summary>
+/// Con qué clientes está ocupada una persona hoy.
+///
+/// <para>Existe para la lista de candidatos de una asignación, que decía «Ocupado · con una
+/// asignación vigente» sin nombrar a nadie: para saber si esa persona puede tomar otro turno hay
+/// que saber dónde está, y averiguarlo obligaba a salir de la pantalla.</para>
+///
+/// <para><b>Sólo los nombres, y sólo de lo vigente.</b> No es el histórico de la persona —eso ya
+/// lo tiene su ficha— sino lo que compite con la asignación que se está creando.</para>
+/// </summary>
+public sealed record EmployeeCurrentAssignmentsResponse(
+    Guid IdEmployee,
+    IReadOnlyList<string> ClientNames);
+
 public sealed record EmployeeJobPositionOption(Guid IdCatalogItem, string Name);
 
 public sealed record EmployeeFilterOptionsResponse(

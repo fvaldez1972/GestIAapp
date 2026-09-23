@@ -179,6 +179,27 @@ public static class WorkforceEndpoints
             .RequirePermission(SecurityPermissions.WorkforceRead)
             .WithName("ListEmployeeFilterOptions");
 
+        // Con qué clientes está ocupada cada persona hoy. Lo pide la lista de candidatos de una
+        // asignación, que decía «Ocupado · con una asignación vigente» sin nombrar a nadie.
+        //
+        // De toda la organización y en una petición: preguntarlo por candidato serían tantas
+        // consultas como filas tenga la lista.
+        group.MapGet("/current-assignments", async (
+            HttpContext context,
+            Guid organizationId,
+            IEmployeeSearchService service,
+            CancellationToken cancellationToken) =>
+        {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
+            return Results.Ok(await service.ListCurrentAssignmentsAsync(organizationId, cancellationToken));
+        })
+            .RequirePermission(SecurityPermissions.WorkforceRead)
+            .WithName("ListEmployeeCurrentAssignments");
+
         // Las asignaciones de una persona. Antes sólo se alcanzaban por cliente y servicio, así que
         // la pestaña habría tenido que recorrer todos los servicios de la organización.
         group.MapGet("/{idEmployee:guid}/assignments", async (

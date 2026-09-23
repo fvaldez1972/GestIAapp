@@ -74,6 +74,12 @@ export type EmployeeSearchResult = {
   readonly summary: EmployeeSummary;
 };
 
+/** Con qué clientes está ocupada una persona hoy. Lo resuelve el servidor. */
+export type EmployeeCurrentAssignments = {
+  readonly idEmployee: string;
+  readonly clientNames: readonly string[];
+};
+
 export type EmployeeJobPositionOption = { readonly idCatalogItem: string; readonly name: string };
 
 export type EmployeeFilterOptions = {

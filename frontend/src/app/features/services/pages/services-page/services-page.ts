@@ -282,7 +282,18 @@ export class ServicesPage implements OnInit, OnDestroy {
       assignments: this.assignments(),
       idPosition: this.assignmentForm.controls.idPosition.value,
       eligibility: this.candidateEligibility(),
+      currentClients: this.candidateCurrentClients(),
     }),
+  );
+
+  /**
+   * Con qué clientes está ocupado cada candidato hoy, indexado por persona.
+   *
+   * <p>Se pide una vez por organización cuando se abre el alta de asignación: preguntarlo por
+   * candidato serían tantas consultas como filas tenga la lista.</p>
+   */
+  protected readonly candidateCurrentClients = signal<ReadonlyMap<string, readonly string[]>>(
+    new Map(),
   );
   /**
    * El listado de la organización. **Antes esto era la lista de clientes**, y no se veía un solo
@@ -916,6 +927,15 @@ export class ServicesPage implements OnInit, OnDestroy {
     this.candidatesLoaded.set(false);
     this.candidateRows.set([]);
     this.candidateEligibility.set(new Map());
+    this.candidateCurrentClients.set(new Map());
+
+    // Con qué clientes está ocupado cada quien. Va aparte del listado y sin bloquearlo: si falla,
+    // la fila cae al conteo de siempre en vez de dejar la lista sin candidatos.
+    this.read(this.employeeListApi.listCurrentAssignments(org), 2, (filas) =>
+      this.candidateCurrentClients.set(
+        new Map(filas.map((fila) => [fila.idEmployee, fila.clientNames])),
+      ),
+    );
 
     this.read(
       // Cien es el maximo del servidor. Con doscientos esta consulta contestaba 400, la lista de

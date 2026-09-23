@@ -8,6 +8,11 @@ public interface IEmployeeSearchService
         Guid idOrganization,
         CancellationToken cancellationToken);
 
+    /// <summary>Con qué clientes está ocupada cada persona hoy, para la lista de candidatos.</summary>
+    Task<IReadOnlyList<EmployeeCurrentAssignmentsResponse>> ListCurrentAssignmentsAsync(
+        Guid idOrganization,
+        CancellationToken cancellationToken);
+
     Task<IReadOnlyList<EmployeeAssignmentResponse>> ListAssignmentsAsync(
         Guid idOrganization,
         Guid idEmployee,

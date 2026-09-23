@@ -35,6 +35,13 @@ export function buildAssignmentCandidates(options: {
   readonly assignments: readonly ServiceAssignment[];
   readonly idPosition: string;
   readonly eligibility?: ReadonlyMap<string, CandidateEligibility>;
+  /**
+   * Con qué clientes está ocupada cada persona hoy, según el servidor.
+   *
+   * <p>Sin esto la fila decía «Ocupado · con una asignación vigente» sin nombrar a nadie, y para
+   * saber si esa persona podía tomar otro turno había que salir de la pantalla.</p>
+   */
+  readonly currentClients?: ReadonlyMap<string, readonly string[]>;
 }): readonly GiCandidate[] {
   const vigentes = options.assignments.filter((assignment) => assignment.active);
 
@@ -64,19 +71,39 @@ export function buildAssignmentCandidates(options: {
         role:
           employee.jobPositionName ??
           (employee.jobTitle ? `${employee.jobTitle} · sin catalogar` : 'Sin puesto registrado'),
-        availability: disponibilidad(employee, otra),
+        availability: disponibilidad(employee, otra, options.currentClients?.get(employee.idEmployee)),
         ...veredictoDelServidor(veredicto),
       };
     });
 }
 
+/**
+ * Qué dice la línea de disponibilidad.
+ *
+ * <p><b>Ocupado nombra al cliente.</b> Decir «con una asignación vigente» obligaba a salir de la
+ * pantalla para saber si esa persona podía tomar otro turno: con el cliente delante, quien asigna
+ * decide sin moverse.</p>
+ *
+ * <p>Los nombres los manda el servidor. Si no llegan —un backend anterior a este endpoint— se cae
+ * al conteo de siempre en lugar de dejar la línea vacía.</p>
+ */
 function disponibilidad(
   employee: AssignmentCandidateSource,
   otra: ServiceAssignment | undefined,
+  clientes: readonly string[] | undefined,
 ): string {
   if (otra) {
     const posicion = otra.positionName ?? otra.positionCode ?? 'otra posición';
     return `Ocupado · ya cubre ${posicion} en este servicio`;
+  }
+
+  if (clientes?.length) {
+    // Tres y «y N más»: con ocho clientes la línea se volvía más larga que la fila.
+    const visibles = clientes.slice(0, 3).join(', ');
+    const resto = clientes.length - 3;
+    return resto > 0
+      ? `Ocupado · con ${visibles} y ${resto} ${resto === 1 ? 'cliente' : 'clientes'} más`
+      : `Ocupado · con ${visibles}`;
   }
 
   if (employee.assignmentCount > 0) {

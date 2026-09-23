@@ -72,6 +72,11 @@ public sealed class EmployeeSearchService(
             municipios);
     }
 
+    public Task<IReadOnlyList<EmployeeCurrentAssignmentsResponse>> ListCurrentAssignmentsAsync(
+        Guid idOrganization,
+        CancellationToken cancellationToken) =>
+        repository.ListCurrentAssignmentClientsAsync(idOrganization, clock.Today, cancellationToken);
+
     public Task<IReadOnlyList<EmployeeAssignmentResponse>> ListAssignmentsAsync(
         Guid idOrganization,
         Guid idEmployee,

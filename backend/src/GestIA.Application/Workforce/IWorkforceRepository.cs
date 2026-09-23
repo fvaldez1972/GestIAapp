@@ -26,6 +26,17 @@ public interface IWorkforceRepository
         IReadOnlyCollection<Guid> requiredDocuments,
         CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Con qué clientes está ocupada cada persona hoy, para toda la organización y en una consulta.
+    ///
+    /// <para>Por organización y no por empleado: la lista de candidatos los pide todos a la vez, y
+    /// preguntarlo uno por uno serían tantas consultas como candidatos.</para>
+    /// </summary>
+    Task<IReadOnlyList<EmployeeCurrentAssignmentsResponse>> ListCurrentAssignmentClientsAsync(
+        Guid idOrganization,
+        DateOnly today,
+        CancellationToken cancellationToken);
+
     /// <summary>Los tipos de documento que esta organización exige, de EligibilityRequirement.</summary>
     Task<IReadOnlyList<Guid>> ListRequiredDocumentTypesAsync(
         Guid idOrganization,

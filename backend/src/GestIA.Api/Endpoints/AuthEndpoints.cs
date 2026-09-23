@@ -1,4 +1,6 @@
+using GestIA.Api.Security;
 using GestIA.Application.Security;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace GestIA.Api.Endpoints;
 
@@ -16,7 +18,10 @@ public static class AuthEndpoints
         {
             var session = await service.LoginAsync(request, cancellationToken);
             return Results.Ok(session);
-        }).WithName("Login");
+        })
+            // El unico endpoint anonimo del sistema, y el unico que lleva limitador. Ver Program.cs.
+            .RequireRateLimiting(RateLimitPolicies.Login)
+            .WithName("Login");
 
         group.MapGet("/me", (HttpContext context) =>
         {

@@ -48,83 +48,6 @@
     @if (message()) { <p class="gi-alert gi-alert--success" role="status">{{ message() }}</p> }
     @if (actionError()) { <p class="gi-alert gi-alert--error" role="alert">{{ actionError() }}</p> }
 
-    @if (mode() === 'create' || mode() === 'edit') {
-      <form class="entity-editor" [formGroup]="form" (ngSubmit)="save()" aria-label="Editar documento" [attr.aria-busy]="busy()">
-        <h4>{{ mode() === 'create' ? 'Nuevo documento' : 'Editar documento' }}</h4>
-        <fieldset [disabled]="busy()" class="entity-fields">
-          @if (simple()) {
-            <!--
-              El expediente del cliente pide menos: categoria y archivo. El titulo era un segundo
-              nombre para lo mismo, y emision, vencimiento y la marca de sensible no tienen aqui a
-              quien le sirvan. En Personal siguen, porque alli el vencimiento alimenta la vigencia
-              documental y la elegibilidad para cubrir un turno.
-            -->
-            <div class="gi-field entity-wide">
-              <gi-catalog-picker
-                label="Categoría *"
-                catalogLabel="el catalogo de categorias de documento"
-                inputId="ed-categoria"
-                [options]="categories()"
-                [value]="categoriaElegida()"
-                [canWrite]="canWrite()"
-                (valueChange)="elegirCategoria($event)"
-                (create)="createCategory.emit($event)"
-              />
-            </div>
-          } @else {
-            <label class="gi-field"><span>Titulo *</span><input class="gi-input" formControlName="title" maxlength="180" required />
-              @if (form.controls.title.touched && form.controls.title.invalid) { <small class="field-error">Titulo obligatorio, hasta 180 caracteres.</small> }
-            </label>
-            @if (typed()) {
-              <!--
-                En Personal la categoria no es una etiqueta libre: es el tipo contra el que la
-                organizacion declara sus requisitos documentales, y uno escrito a mano no cumple
-                ninguno. Los que esta organizacion exige salen marcados en el propio selector.
-              -->
-              <div class="gi-field">
-                <span>Categoria *</span>
-                <gi-select
-                  label="Tipo de documento"
-                  placeholder="Elige el tipo"
-                  [options]="typeOptions()"
-                  [value]="form.controls.documentType.value"
-                  [disabled]="busy() || !canWrite()"
-                  (valueChange)="elegirTipo($event)"
-                />
-                @if (form.controls.documentType.touched && !form.controls.documentType.value) {
-                  <small class="field-error">Elige el tipo de documento.</small>
-                }
-              </div>
-            } @else {
-              <label class="gi-field"><span>Categoria *</span><input class="gi-input" formControlName="category" maxlength="80" required />
-                @if (form.controls.category.touched && form.controls.category.invalid) { <small class="field-error">Categoria obligatoria, hasta 80 caracteres.</small> }
-              </label>
-            }
-            <label class="gi-field"><span>Emision</span><input class="gi-input" type="date" formControlName="issuedDate" /></label>
-            <label class="gi-field"><span>Vencimiento</span><input class="gi-input" type="date" formControlName="expiresDate" [min]="form.controls.issuedDate.value" /></label>
-          }
-          <gi-file-input
-            class="entity-wide"
-            [label]="mode() === 'create' ? 'Archivo *' : 'Reemplazar archivo (opcional)'"
-            [disabled]="busy() || !canWrite()"
-            emptyLabel="Ningún archivo elegido"
-            (fileSelected)="selectFile($event)"
-          />
-          @if (!simple()) {
-            @if (selected()?.isSensitive) {
-              <p class="entity-wide"><app-icon name="security" /> Documento sensible</p>
-            } @else if (canWriteSensitive()) {
-              <label class="entity-check entity-wide"><input type="checkbox" formControlName="isSensitive" /><span>Documento sensible</span></label>
-            }
-          }
-          <label class="gi-field entity-wide"><span>Notas</span><textarea class="gi-input" formControlName="notes" rows="2" maxlength="1000"></textarea></label>
-        </fieldset>
-        <footer class="entity-actions">
-          <button class="gi-button gi-button--secondary" type="button" [disabled]="busy()" (click)="closeEditor()">Cancelar</button>
-          <button class="gi-button gi-button--primary" type="submit" [disabled]="busy()">{{ busy() ? 'Guardando...' : 'Guardar' }}</button>
-        </footer>
-      </form>
-    }
 
     @if (mode() === 'review') {
       <form class="entity-editor" [formGroup]="reviewForm" (ngSubmit)="review()" aria-label="Revisar documento">
@@ -216,6 +139,97 @@
     </div>
   }
 </section>
+
+<!--
+  El alta y la edicion van en **ventana**, no debajo de la lista.
+
+  Antes el formulario se dibujaba al final del expediente: pulsar «Cargar» o «Reemplazar» en una
+  fila de requisito no movia nada de lo que el usuario tenia delante, asi que el boton parecia no
+  hacer nada y habia que descubrir por casualidad que la respuesta estaba mas abajo. Con el panel
+  ya largo, eso era practicamente invisible.
+
+  Se usa el mismo `<dialog>` nativo que el historial: trae el velo, el cierre con Escape y la
+  retencion del foco sin escribir nada de eso a mano.
+-->
+<dialog #editorDialog class="entity-editor-dialog" aria-label="Documento" (cancel)="closeEditor()">
+      <form class="entity-editor" [formGroup]="form" (ngSubmit)="save()" aria-label="Editar documento" [attr.aria-busy]="busy()">
+        <h4>{{ mode() === 'create' ? 'Nuevo documento' : 'Editar documento' }}</h4>
+        <fieldset [disabled]="busy()" class="entity-fields">
+          @if (simple()) {
+            <!--
+              El expediente del cliente pide menos: categoria y archivo. El titulo era un segundo
+              nombre para lo mismo, y emision, vencimiento y la marca de sensible no tienen aqui a
+              quien le sirvan. En Personal siguen, porque alli el vencimiento alimenta la vigencia
+              documental y la elegibilidad para cubrir un turno.
+            -->
+            <div class="gi-field entity-wide">
+              <gi-catalog-picker
+                label="Categoría *"
+                catalogLabel="el catalogo de categorias de documento"
+                inputId="ed-categoria"
+                [options]="categories()"
+                [value]="categoriaElegida()"
+                [canWrite]="canWrite()"
+                (valueChange)="elegirCategoria($event)"
+                (create)="createCategory.emit($event)"
+              />
+            </div>
+          } @else {
+            <label class="gi-field"><span>Titulo *</span><input class="gi-input" formControlName="title" maxlength="180" required />
+              @if (form.controls.title.touched && form.controls.title.invalid) { <small class="field-error">Titulo obligatorio, hasta 180 caracteres.</small> }
+            </label>
+            @if (typed()) {
+              <!--
+                En Personal la categoria no es una etiqueta libre: es el tipo contra el que la
+                organizacion declara sus requisitos documentales, y uno escrito a mano no cumple
+                ninguno. Los que esta organizacion exige salen marcados en el propio selector.
+              -->
+              <div class="gi-field">
+                <span>Categoria *</span>
+                <gi-select
+                  label="Tipo de documento"
+                  placeholder="Elige el tipo"
+                  [options]="typeOptions()"
+                  [value]="form.controls.documentType.value"
+                  [disabled]="busy() || !canWrite()"
+                  (valueChange)="elegirTipo($event)"
+                />
+                @if (form.controls.documentType.touched && !form.controls.documentType.value) {
+                  <small class="field-error">Elige el tipo de documento.</small>
+                }
+              </div>
+            } @else {
+              <label class="gi-field"><span>Categoria *</span><input class="gi-input" formControlName="category" maxlength="80" required />
+                @if (form.controls.category.touched && form.controls.category.invalid) { <small class="field-error">Categoria obligatoria, hasta 80 caracteres.</small> }
+              </label>
+            }
+            <label class="gi-field"><span>Emision</span><input class="gi-input" type="date" formControlName="issuedDate" /></label>
+            <label class="gi-field"><span>Vencimiento *</span><input class="gi-input" type="date" formControlName="expiresDate" [min]="form.controls.issuedDate.value" [max]="vencimientoMaximo()" />
+              <small class="gi-field__hint">Obligatorio. Tres meses como máximo: hasta el {{ vencimientoMaximo() }}.</small>
+            </label>
+          }
+          <gi-file-input
+            class="entity-wide"
+            [label]="mode() === 'create' ? 'Archivo *' : 'Reemplazar archivo (opcional)'"
+            [disabled]="busy() || !canWrite()"
+            emptyLabel="Ningún archivo elegido"
+            (fileSelected)="selectFile($event)"
+          />
+          @if (!simple()) {
+            @if (selected()?.isSensitive) {
+              <p class="entity-wide"><app-icon name="security" /> Documento sensible</p>
+            } @else if (canWriteSensitive()) {
+              <label class="entity-check entity-wide"><input type="checkbox" formControlName="isSensitive" /><span>Documento sensible</span></label>
+            }
+          }
+          <label class="gi-field entity-wide"><span>Notas</span><textarea class="gi-input" formControlName="notes" rows="2" maxlength="1000"></textarea></label>
+        </fieldset>
+        <footer class="entity-actions">
+          <button class="gi-button gi-button--secondary" type="button" [disabled]="busy()" (click)="closeEditor()">Cancelar</button>
+          <button class="gi-button gi-button--primary" type="submit" [disabled]="busy()">{{ busy() ? 'Guardando...' : 'Guardar' }}</button>
+        </footer>
+      </form>
+</dialog>
 
 <dialog #historyDialog class="entity-history" aria-label="Historial del documento" (cancel)="closeHistory()">
   <header class="entity-heading"><div><h3>Historial</h3><p>{{ historyDocument()?.title }}</p></div>

@@ -40,6 +40,27 @@ h4 { font-size: .9rem; }
 .entity-pagination .gi-button { width: 2.5rem; height: 2.5rem; padding: .4rem; }
 .entity-history { position: fixed; inset: 0 0 0 auto; margin: 0; width: min(30rem, 100%); max-width: 100%; height: 100dvh; max-height: 100dvh; padding: 1.25rem; border: 0; border-left: 1px solid var(--gestia-border); background: var(--gestia-surface); color: inherit; overflow-y: auto; }
 .entity-history::backdrop { background: rgb(0 0 0 / 32%); }
+
+/* La ventana del alta y la edicion. Centrada, no lateral como el historial: es donde se captura,
+   y a un formulario se entra —no se consulta de reojo mientras se mira la lista—.
+   El velo usa el unico valor derivado que el sistema autoriza: --gestia-navy al 28 %. */
+.entity-editor-dialog {
+  margin: auto;
+  width: min(44rem, calc(100vw - 2rem));
+  max-width: 100%;
+  max-height: calc(100dvh - 3rem);
+  padding: 0;
+  border: 1px solid var(--gestia-border);
+  border-radius: var(--gestia-radius);
+  background: var(--gestia-surface);
+  color: inherit;
+  overflow-y: auto;
+}
+
+.entity-editor-dialog::backdrop { background: rgb(16 16 78 / 28%); }
+
+/* Dentro de la ventana el formulario ya no necesita su propio marco: lo pone el dialogo. */
+.entity-editor-dialog .entity-editor { margin: 0; border: 0; border-radius: 0; }
 .entity-history .entity-heading { margin-bottom: 1rem; }
 .entity-history-list li { border-bottom: 1px solid var(--gestia-border); padding: 1rem 0; overflow-wrap: anywhere; }
 .entity-history-list p { margin-top: .4rem; font-size: .8rem; }

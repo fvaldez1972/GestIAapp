@@ -95,9 +95,24 @@ describe('EntityDocuments', () => {
     // Ahora el control entrega el archivo, no el evento: el nativo queda dentro de gi-file-input.
     component['selectFile'](file);
   };
+  /**
+   * El vencimiento entra en el molde desde el 23 de septiembre de 2026.
+   *
+   * <p>En el expediente de personal es obligatorio y no puede pasar de tres meses desde hoy, así
+   * que se calcula —y no se escribe una fecha fija— para que la prueba no empiece a fallar sola el
+   * día que el tope la deje atrás.</p>
+   */
+  const dentroDelTope = () => {
+    const tope = new Date();
+    tope.setMonth(tope.getMonth() + 1);
+    return `${tope.getFullYear()}-${String(tope.getMonth() + 1).padStart(2, '0')}-${String(tope.getDate()).padStart(2, '0')}`;
+  };
+
   const createForm = () => {
     component['openEditor']('create');
-    component['form'].patchValue({ title: ' New document ', category: ' Contract ' });
+    component['form'].patchValue({
+      title: ' New document ', category: ' Contract ', expiresDate: dentroDelTope(),
+    });
     chooseFile();
   };
 
@@ -310,7 +325,9 @@ describe('EntityDocuments', () => {
   it('edits metadata preserving the owner and file without a second upload', () => {
     flushList();
     component['openEditor']('edit', document);
-    component['form'].patchValue({ title: 'Changed' });
+    // El molde del documento no trae vencimiento, y desde el 23 de septiembre de 2026 es
+    // obligatorio en el expediente de personal: sin el, guardar se detiene antes de la peticion.
+    component['form'].patchValue({ title: 'Changed', expiresDate: dentroDelTope() });
     component['save']();
     const update = http.expectOne('/api/v1/documents/document-1');
     expect(update.request.method).toBe('PUT');
@@ -360,10 +377,15 @@ describe('EntityDocuments', () => {
       afterSnapshot: JSON.stringify({ Title: 'New title', StorageReference: 'private/new-path' }),
     }]);
     fixture.detectChanges();
-    expect(fixture.nativeElement.querySelector('dialog').textContent).toContain('Reviewer');
-    expect(fixture.nativeElement.querySelector('dialog table').textContent).toContain('Old title');
-    expect(fixture.nativeElement.querySelector('dialog table').textContent).toContain('New title');
-    expect(fixture.nativeElement.querySelector('dialog').textContent).not.toContain('private/');
+    // Por clase y no por etiqueta: desde el 23 de septiembre de 2026 hay **dos** dialogos en este
+    // componente —el alta/edicion y el historial—, y `querySelector('dialog')` devolvia el primero
+    // del arbol, que es el otro.
+    const historial = () => fixture.nativeElement.querySelector('dialog.entity-history');
+
+    expect(historial().textContent).toContain('Reviewer');
+    expect(historial().querySelector('table').textContent).toContain('Old title');
+    expect(historial().querySelector('table').textContent).toContain('New title');
+    expect(historial().textContent).not.toContain('private/');
     component['closeHistory']();
     expect(component['history']()).toEqual([]);
   });
@@ -563,7 +585,9 @@ describe('EntityDocuments', () => {
 
     component['openEditor']('create');
     component['elegirTipo']('CriminalRecordCertificate');
-    component['form'].patchValue({ title: 'Carta', issuedDate: '2026-09-01', expiresDate: '2027-09-01' });
+    // Un año se pasa del tope de tres meses, que es la regla nueva del expediente de personal.
+    const vencimiento = dentroDelTope();
+    component['form'].patchValue({ title: 'Carta', issuedDate: '2026-09-01', expiresDate: vencimiento });
     chooseFile();
     component['save']();
 
@@ -577,7 +601,7 @@ describe('EntityDocuments', () => {
     expect(avisos).toEqual([{
       documentType: 'CriminalRecordCertificate',
       issuedDate: '2026-09-01',
-      expiresDate: '2027-09-01',
+      expiresDate: vencimiento,
       idBusinessDocument: 'document-1',
     }]);
   });

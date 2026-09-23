@@ -192,22 +192,16 @@
             />
 
             <!--
-              El expediente de archivos, plegado.
+              El expediente de archivos, **siempre montado**.
 
-              La lista de arriba dice **que exige la organizacion**; esto es **el archivero**. Son
-              dos cosas distintas, y hasta hoy se apilaban: debajo de las dos pestañas aparecian
-              otro buscador, otro desplegable de estado, otro boton de filtrar y la lista de
-              archivos, que es lo que hacia la pestaña interminable.
+              Estuvo plegado unas horas del 23 de septiembre de 2026 y hubo que deshacerlo: el
+              acordeon quita su contenido del arbol al cerrarse, asi que «Cargar» y «Reemplazar»
+              —que abren el alta a traves de este componente— no tenian a quien avisar y el boton
+              de verdad no hacia nada. Era exactamente el defecto que se venia a corregir.
 
-              Sigue en la misma pestaña porque el archivo es la consecuencia del requisito, pero
-              cerrado: se abre cuando hay que subir algo o mirar el original.
+              Lo que descongestiona la pestaña ahora es que el formulario vive en una ventana, no
+              debajo de la lista. Lo que queda aqui es el buscador y los archivos, que es poco.
             -->
-            <gi-accordion
-              label="Expediente de archivos"
-              [count]="documentCount()"
-              summary="Los archivos cargados, con su historial de revisión"
-              [open]="cargandoRequisito() !== ''"
-            >
             <app-entity-documents
               [organizationId]="organizationId()"
               ownerType="Employee"
@@ -221,7 +215,6 @@
               (documentSaved)="registerEmployeeDocument($event)"
               (totalChange)="documentCount.set($event)"
             />
-            </gi-accordion>
           </ng-template>
 
           <ng-template giTab="evaluations">

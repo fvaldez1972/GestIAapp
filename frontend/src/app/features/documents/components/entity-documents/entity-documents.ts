@@ -140,6 +140,7 @@ export class EntityDocuments implements OnDestroy {
   private readonly auth = inject(AuthService);
   private readonly fb = inject(FormBuilder);
   private readonly historyDialog = viewChild<ElementRef<HTMLDialogElement>>('historyDialog');
+  private readonly editorDialog = viewChild<ElementRef<HTMLDialogElement>>('editorDialog');
   private readonly selectorDeArchivo = viewChild(GiFileInput);
   private requests = new Subscription();
   private listRequest?: Subscription;
@@ -197,6 +198,24 @@ export class EntityDocuments implements OnDestroy {
 
   /** Con tipos declarados la categoria se elige; sin ellos se escribe, como hasta ahora. */
   protected readonly typed = computed(() => this.documentTypes().length > 0);
+
+  /**
+   * El vencimiento más lejano que se acepta: hoy más tres meses.
+   *
+   * <p>Se cuenta desde hoy y no desde la emisión, por decisión del usuario. Sale del reloj del
+   * navegador y no del día operativo del servidor a propósito: es el tope de un campo de captura
+   * nativo, que también se dibuja con la zona horaria del equipo. Medirlo contra el servidor daría
+   * un tope que el propio control podría no dejar elegir.</p>
+   */
+  protected readonly vencimientoMaximo = computed(() => {
+    const hoy = new Date();
+    const tope = new Date(hoy.getFullYear(), hoy.getMonth() + 3, hoy.getDate());
+
+    // Sin `toISOString`, que pasa por UTC y en México adelanta o atrasa un día.
+    const mes = String(tope.getMonth() + 1).padStart(2, '0');
+    const dia = String(tope.getDate()).padStart(2, '0');
+    return `${tope.getFullYear()}-${mes}-${dia}`;
+  });
 
   /** El obligatorio se marca en el renglon secundario del selector, que ya existe para eso. */
   protected readonly typeOptions = computed<readonly GiSelectOption[]>(() =>
@@ -391,10 +410,20 @@ export class EntityDocuments implements OnDestroy {
         expiresDate: document.expiresDate ?? '', isSensitive: document.isSensitive, notes: document.notes ?? '',
       });
     }
+
+    // Sólo el alta y la edición viven en ventana. Revisar y archivar siguen en la lista: son dos
+    // botones y una confirmación, y encerrarlos en un diálogo costaría más de lo que resuelve.
+    if (mode === 'create' || mode === 'edit') {
+      this.editorDialog()?.nativeElement.showModal();
+    }
   }
 
   protected closeEditor() {
     if (this.busy()) return;
+    // Cerrar siempre, sin mirar el modo: `openEditor` empieza llamando aquí, y si el diálogo
+    // quedara abierto de una edición anterior el velo taparía la pantalla sin nada dentro.
+    const dialogo = this.editorDialog()?.nativeElement;
+    if (dialogo?.open) dialogo.close();
     if (this.abiertoDesdeFuera) {
       this.abiertoDesdeFuera = false;
       this.closeAdd.emit();
@@ -454,6 +483,26 @@ export class EntityDocuments implements OnDestroy {
     if (!selected && !this.file && !this.uploadedReference) {
       this.actionError.set('Selecciona un archivo.');
       return;
+    }
+    // Va al final de la cadena a propósito: es la regla más nueva y la menos específica, así que
+    // adelantarse a «falta el archivo» o «falta el tipo» cambiaría el mensaje que el usuario ve por
+    // uno que no nombra su problema real.
+    //
+    // El vencimiento es **obligatorio y trimestral** en el expediente de personal, por decisión del
+    // 23 de septiembre de 2026. En el expediente de cliente el campo ni siquiera se dibuja, así que
+    // la regla se limita a donde el campo existe.
+    if (!this.simple()) {
+      if (!value.expiresDate) {
+        this.actionError.set('Captura la fecha de vencimiento: es obligatoria.');
+        return;
+      }
+
+      if (value.expiresDate > this.vencimientoMaximo()) {
+        this.actionError.set(
+          `El vencimiento no puede pasar de ${this.vencimientoMaximo()}: se aceptan tres meses como máximo.`,
+        );
+        return;
+      }
     }
     const context = { ...this.editorContext! };
     const reference$ = this.file && !this.uploadedReference

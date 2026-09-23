@@ -138,7 +138,15 @@ public sealed record ClientListItemResponse(
     int ServiceCount,
     string? MainZoneName,
     string? MainZoneMunicipality,
-    string? MainZoneState);
+    string? MainZoneState,
+    /// <summary>
+    /// Cuántas ubicaciones distintas —estado más municipio— tienen las zonas activas del cliente.
+    ///
+    /// <para>Existe para que la lista deje de afirmar una. <c>MainZone*</c> es la primera zona por
+    /// nombre, no una zona destacada: el modelo no tiene jerarquía. Con dos ubicaciones distintas,
+    /// enseñar sólo la primera dice que el cliente está en Tijuana cuando también está en León.</para>
+    /// </summary>
+    int ZoneLocationCount);
 
 public sealed record ClientSearchResult(
     IReadOnlyList<ClientResponse> Items,

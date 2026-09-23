@@ -15,7 +15,7 @@ function fila(extra: Record<string, unknown> = {}) {
     legalName: 'Corporativo Altavista, S.A. de C.V.', tradeName: 'Corporativo Altavista',
     rfc: 'CAL180423K72', active: true, createdAt: '2026-02-12T15:00:00Z',
     zoneCount: 3, zonesWithoutContact: 0, contactCount: 4, documentCount: 0, serviceCount: 5,
-    mainZoneName: 'Torre Altavista', mainZoneMunicipality: 'Zapopan', mainZoneState: 'Jalisco',
+    mainZoneName: 'Torre Altavista', mainZoneMunicipality: 'Zapopan', mainZoneState: 'Jalisco', zoneLocationCount: 1,
     ...extra,
   };
 }

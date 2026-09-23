@@ -996,6 +996,8 @@ export type ClientListItem = {
   readonly mainZoneName: string | null;
   readonly mainZoneMunicipality: string | null;
   readonly mainZoneState: string | null;
+  /** Cuántas ubicaciones distintas tienen sus zonas activas. Con más de una, no se afirma ninguna. */
+  readonly zoneLocationCount: number;
 };
 
 /** Los tres modos del listado. Coincide con el enum del servidor. */
@@ -1011,15 +1013,23 @@ export const clientDisplayName = (client: {
 }) => client.tradeName ?? client.legalName;
 
 /**
- * Dónde está el cliente, según su zona principal.
+ * Dónde está el cliente.
  *
- * <p>El bosquejo pedía «Zona · Municipio», y <b>la zona no existe en el modelo</b>: ni el cliente
- * ni la zona la tienen, y el catálogo <c>Zone</c> no lo referencia ninguna entidad. Lo que sí
- * existe, y es lo que se muestra, es el estado y el municipio de la zona.</p>
+ * <p><b>Con varias ubicaciones no se afirma una.</b> `mainZone*` es la primera zona por nombre, no
+ * una zona destacada: el modelo no tiene jerarquía entre zonas. Almacenes Reforma tiene zonas en
+ * Tijuana y en León, y la columna decía «Baja California · Tijuana» a secas, como si el cliente
+ * estuviera sólo ahí. Elegir una en silencio es peor que decir cuántas hay.</p>
+ *
+ * <p>Con una sola ubicación sí se dice, que es el caso de la mayoría y el que sirve para ubicar la
+ * fila de un vistazo.</p>
  */
 export function clientLocation(client: ClientListItem): string {
   if (!client.mainZoneMunicipality) {
     return 'Sin ubicación: no tiene zona';
+  }
+
+  if (client.zoneLocationCount > 1) {
+    return `${client.zoneLocationCount} ubicaciones`;
   }
 
   return client.mainZoneState

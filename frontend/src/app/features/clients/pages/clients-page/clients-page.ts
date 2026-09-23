@@ -33,6 +33,9 @@ import { CatalogApiService } from '../../../catalogs/data-access/catalog-api.ser
 import { GiCatalogOption, GiCatalogCreation } from '../../../../shared/ui/gi-catalog-picker/gi-catalog-picker';
 import { ServerProblem, readServerProblem } from '../../../../shared/util/server-problem';
 import { ClientContacts, NewContact } from '../../ui/client-contacts';
+import { ServiceApiService } from '../../../services/data-access/service-api.service';
+import { ServiceListItem } from '../../../services/data-access/service.models';
+import { ClientServices } from '../../ui/client-services';
 import { ClientZones, NewZone } from '../../ui/client-zones';
 import { ClientTable } from '../../ui/client-table';
 
@@ -54,6 +57,7 @@ import { ClientTable } from '../../ui/client-table';
     ClientData,
     ClientEditForm,
     ClientForm,
+    ClientServices,
     ClientZones,
     ClientTable,
     EntityDocuments,
@@ -312,6 +316,56 @@ export class ClientsPage {
    */
   protected readonly documentsLoaded = signal(false);
 
+  /**
+   * Los servicios del cliente abierto.
+   *
+   * <p><b>Se piden al entrar a su pestaña, no al abrir la ficha.</b> Abrir una ficha ya cuesta dos
+   * peticiones —zonas y contactos— y hay una prueba de la frontera entre Clientes y Servicios que
+   * dice que la ficha pide sólo lo que sus pestañas muestran. El contador de la pestaña no depende
+   * de esto: sale de la fila, que es la lección que dejó el contador de Documentos.</p>
+   */
+  private readonly servicesApi = inject(ServiceApiService);
+  protected readonly clientServices = signal<readonly ServiceListItem[]>([]);
+  protected readonly servicesLoading = signal(false);
+
+  /** El cliente cuyos servicios ya se pidieron, para no repetir la consulta al volver a la pestaña. */
+  private servicesLoaded = '';
+
+  protected onTabChange(tab: string): void {
+    this.activeTab.set(tab);
+
+    const client = this.selected();
+
+    if (tab === 'services' && client && this.servicesLoaded !== client.idClient) {
+      this.cargarServicios(client);
+    }
+  }
+
+  private cargarServicios(client: ClientListItem): void {
+    const organizationId = this.organizationId();
+
+    if (!organizationId) {
+      return;
+    }
+
+    this.servicesLoaded = client.idClient;
+
+    this.servicesLoading.set(true);
+    this.servicesApi
+      .searchServices({ organizationId, clientId: client.idClient, pageSize: 50 })
+      .subscribe({
+        next: (respuesta) => {
+          this.clientServices.set(respuesta.items);
+          this.servicesLoading.set(false);
+        },
+        // El fallo de una pestaña no puede tumbar la ficha: se queda vacía y se dice al entrar.
+        error: () => {
+          this.clientServices.set([]);
+          this.servicesLoading.set(false);
+        },
+      });
+  }
+
   protected createDocumentCategory(creation: GiCatalogCreation): void {
     const organizationId = this.organizationId();
 
@@ -527,6 +581,10 @@ export class ClientsPage {
     const cargando = this.detailLoading();
 
     return [
+      // «Datos» y no «Resumen», que es lo que pedía la maqueta: gi-detail-panel comprueba en
+      // tiempo de ejecución que la primera pestaña se llame así, y lo llama decisión cerrada del
+      // sistema para que el mismo sitio se llame igual en todos los módulos. Cambiarlo es un
+      // acuerdo del sistema de diseño, no de esta pantalla.
       { id: 'data', label: 'Datos' },
       { id: 'zones', label: 'Zonas', count: cargando ? (client?.zoneCount ?? 0) : this.zones().length },
       { id: 'contacts', label: 'Contactos', count: cargando ? (client?.contactCount ?? 0) : this.contacts().length },
@@ -535,6 +593,7 @@ export class ClientsPage {
       // había que abrir la pestaña para saber si tenía algo.
       { id: 'documents', label: 'Documentos',
         count: this.documentsLoaded() ? this.documentCount() : (client?.documentCount ?? 0) },
+      { id: 'services', label: 'Servicios', count: client?.serviceCount ?? 0 },
     ];
   });
 
@@ -680,6 +739,8 @@ export class ClientsPage {
     // después uno sin ellos dejaba el número del primero puesto en el segundo.
     this.documentCount.set(0);
     this.documentsLoaded.set(false);
+    this.clientServices.set([]);
+    this.servicesLoaded = '';
     this.loadDetail(client);
   }
 

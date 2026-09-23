@@ -59,7 +59,19 @@ import { ClientListItem, ClientZone } from '../data-access/client.models';
       </section>
 
       <section class="tarjeta">
-        <h4 class="tarjeta__kicker">Ubicación de la zona principal</h4>
+        <!--
+          «Dónde opera», no «la zona principal». El modelo no tiene jerarquía entre zonas: lo que
+          se enseñaba como principal era la primera por nombre, y con dos zonas en sitios distintos
+          eso afirma una ubicación que el cliente sólo tiene a medias.
+        -->
+        <h4 class="tarjeta__kicker">Dónde opera</h4>
+
+        @if (client().zoneLocationCount > 1) {
+          <p class="nota">
+            Tiene {{ client().zoneCount }} zonas en {{ client().zoneLocationCount }} ubicaciones.
+            Abajo va la primera por nombre; están todas en la pestaña de Zonas.
+          </p>
+        }
 
         @if (client().mainZoneName) {
           <dl class="campos campos--tres">

@@ -278,10 +278,25 @@ mientras sólo las use una pantalla; suben a `shared/ui` cuando una segunda las 
 
 ## Reglas transversales
 
+> **Dos matices que hay que leer antes de reportar un defecto.**
+>
+> **El formato de fecha aplica a lo que se muestra, no a lo que se captura.** Un
+> `<input type="date">` enseña la fecha con el formato del **navegador y del sistema operativo**,
+> no con el de la página: el mismo código se ve `04/28/2016` en un equipo en inglés y `28/04/2016`
+> en uno en español, y no hay atributo, CSS ni configuración de Angular que lo cambie. Escrita como
+> un absoluto, esta regla era inalcanzable y se reportó como defecto el 23 de septiembre de 2026.
+> Los campos de captura seguirán con el formato del sistema **hasta que exista un `gi-date`**, que
+> es una tanda propia y no está hecha.
+>
+> **La excepción de `catalog-select` no es un defecto.** Es una decisión documentada, con una prueba
+> que la sostiene y otra que comprueba que la excepción sigue existiendo. Retirarla —que
+> `catalog-select` pase a `gi-select`— es una mejora pendiente que toca Clientes, Personal,
+> Operaciones y Solicitudes a la vez.
+
 | Regla | Detalle |
 |---|---|
-| Un solo formato de fecha | `04 sep 2026`. Sin excepciones |
-| Sin selectores nativos | Todo `<select>` lleva estilo propio |
+| Un solo formato de fecha **mostrada** | `04 sep 2026`, con `formatOperationalDate`. Aplica a toda fecha que se lee. **No aplica a los campos de captura nativos** —ver abajo— |
+| Sin selectores nativos | Todo `<select>` lleva estilo propio. **Excepción vigente**: `catalog-select`, con su prueba |
 | Español con acentos | Sin excepciones |
 | Nombre accesible en todo botón | Incluidos los de solo icono |
 | Etiqueta asociada a su campo | Hacer clic en la etiqueta enfoca el campo |

@@ -98,7 +98,7 @@
           [subtitle]="client.active ? 'Activo' : 'Inactivo'"
           [tabs]="panelTabs()"
           [activeTab]="activeTab()"
-          (tabChange)="activeTab.set($event)"
+          (tabChange)="onTabChange($event)"
           (close)="closePanel()"
         >
           <!--
@@ -166,6 +166,15 @@
               (totalChange)="documentCount.set($event); documentsLoaded.set(true)"
               (closeAdd)="addingDocument.set(false)"
               (createCategory)="createDocumentCategory($event)"
+            />
+          </ng-template>
+
+          <ng-template giTab="services">
+            <app-client-services
+              [services]="clientServices()"
+              [loading]="servicesLoading()"
+              [canCreate]="client.zoneCount > 0"
+              (create)="runPanelAction(client)"
             />
           </ng-template>
 

@@ -26,6 +26,7 @@ export function cliente(extra: Partial<ClientListItem> = {}): ClientListItem {
     mainZoneName: 'Torre Altavista',
     mainZoneMunicipality: 'Zapopan',
     mainZoneState: 'Jalisco',
+    zoneLocationCount: 1,
     ...extra,
   };
 }

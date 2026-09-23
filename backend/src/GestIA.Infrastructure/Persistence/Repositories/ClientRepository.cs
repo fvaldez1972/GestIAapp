@@ -135,7 +135,12 @@ public sealed class ClientRepository(GestIaDbContext dbContext) : IClientReposit
                     .Where(site => site.IdClient == client.IdClient && site.Active)
                     .OrderBy(site => site.Name)
                     .Select(site => site.State)
-                    .FirstOrDefault()))
+                    .FirstOrDefault(),
+                dbContext.ClientSites
+                    .Where(site => site.IdClient == client.IdClient && site.Active)
+                    .Select(site => site.State + "|" + site.Municipality)
+                    .Distinct()
+                    .Count()))
             .ToArrayAsync(cancellationToken);
 
         return (items, totalCount);

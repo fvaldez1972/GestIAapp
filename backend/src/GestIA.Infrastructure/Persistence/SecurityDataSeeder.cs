@@ -237,7 +237,23 @@ public sealed class SecurityDataSeeder(
         CancellationToken cancellationToken)
     {
         var email = configuration["BootstrapAdmin:Email"] ?? "admin@gestia.local";
-        var password = configuration["BootstrapAdmin:Password"] ?? "GestIA.Local.2026!";
+
+        // **Sin respaldo, y a propósito.**
+        //
+        // Aquí había una contraseña escrita en el código, la misma que publica `.env.example`.
+        // Quien encendiera el sembrador sin poner la variable obtenía un administrador con una
+        // credencial que está en el repositorio.
+        //
+        // Ahora falla, y falla igual que el secreto del JWT: en el arranque y diciendo qué falta.
+        // Un sembrador que no puede crear al administrador no debe crear uno cualquiera.
+        var password = configuration["BootstrapAdmin:Password"];
+
+        if (string.IsNullOrWhiteSpace(password))
+        {
+            throw new InvalidOperationException(
+                "SecuritySeed está encendido pero falta BootstrapAdmin__Password. Ponla, o apaga " +
+                "el sembrado con SecuritySeed__Enabled=false.");
+        }
         var normalizedEmail = User.NormalizeEmail(email);
         var user = await dbContext.Users
             .IgnoreQueryFilters(["Active"])

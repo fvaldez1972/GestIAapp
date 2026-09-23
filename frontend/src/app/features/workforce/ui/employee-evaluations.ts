@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { GiEmptyState, GiSelect, GiSelectOption } from '../../../shared/ui/gi-ui';
+import { GiAccordion, GiEmptyState, GiSelect, GiSelectOption } from '../../../shared/ui/gi-ui';
 import { formatOperationalDate } from '../../../shared/util/operational-date';
 import { EligibilityRequirement } from '../../catalogs/data-access/catalog.models';
 import { EmployeeEvaluation } from '../data-access/workforce.models';
@@ -47,7 +47,7 @@ const RESULTADOS = ['Approved', 'ApprovedWithObservations', 'Pending', 'Inconclu
 @Component({
   selector: 'app-employee-evaluations',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, GiEmptyState, GiSelect],
+  imports: [GiAccordion, ReactiveFormsModule, GiEmptyState, GiSelect],
   template: `
     <section class="evals">
       @if (requirements().length === 0) {
@@ -62,8 +62,7 @@ const RESULTADOS = ['Approved', 'ApprovedWithObservations', 'Pending', 'Inconclu
         <p class="evals__note">
           {{ requirements().length }}
           {{ requirements().length === 1 ? 'evaluación exigida' : 'evaluaciones exigidas' }} por esta
-          organización. Se considera «por vencer» lo que caduca en {{ expiringWithinDays() }} días o
-          menos.
+          organización.
         </p>
 
         <ul class="evals__list">
@@ -84,15 +83,27 @@ const RESULTADOS = ['Approved', 'ApprovedWithObservations', 'Pending', 'Inconclu
         </ul>
       }
 
-      <div class="evals__block">
-        <header class="evals__head">
-          <h3 class="evals__kicker">EVALUACIONES REGISTRADAS</h3>
-          @if (canWrite() && !editorOpen()) {
+      <!--
+        Lo registrado va plegado, y los requisitos de arriba no.
+
+        Son dos preguntas distintas: «¿puede trabajar esta persona?» la contestan los requisitos,
+        y «¿que se le ha practicado?» la contesta esta lista. La primera se mira siempre y la
+        segunda se consulta de vez en cuando, asi que abrir las dos a la vez hacia scroll por algo
+        que casi nadie estaba leyendo.
+      -->
+      <gi-accordion
+        label="Evaluaciones registradas"
+        [count]="activas().length"
+        [summary]="resumenRegistradas()"
+        [open]="editorOpen()"
+      >
+        @if (canWrite() && !editorOpen()) {
+          <p class="evals__acciones">
             <button class="gi-button" type="button" [disabled]="saving()" (click)="openCreate()">
               Registrar evaluación
             </button>
-          }
-        </header>
+          </p>
+        }
 
         @if (activas().length === 0) {
           <p class="evals__note">
@@ -107,8 +118,7 @@ const RESULTADOS = ['Approved', 'ApprovedWithObservations', 'Pending', 'Inconclu
                   <span class="row__name">{{ categoryLabel(item) }}</span>
                   <span class="row__detail">
                     {{ resultLabel(item.result) }} · evaluada el
-                    {{ formatDate(item.evaluatedDate) }} ·
-                    {{ item.expiresDate ? 'vence el ' + formatDate(item.expiresDate) : 'sin vencimiento' }}
+                    {{ formatDate(item.evaluatedDate) }}
                     @if (item.certificateNumber) {
                       · folio {{ item.certificateNumber }}
                     }
@@ -195,7 +205,7 @@ const RESULTADOS = ['Approved', 'ApprovedWithObservations', 'Pending', 'Inconclu
             </footer>
           </form>
         }
-      </div>
+      </gi-accordion>
     </section>
   `,
   styles: `
@@ -392,6 +402,18 @@ export class EmployeeEvaluations {
   );
 
   protected readonly activas = computed(() => this.evaluations().filter((item) => item.active));
+
+  /** Lo que la sección dice sin abrirse: la última practicada, que es lo que se suele buscar. */
+  protected readonly resumenRegistradas = computed(() => {
+    const items = this.activas();
+
+    if (items.length === 0) {
+      return 'Ninguna registrada';
+    }
+
+    const ultima = [...items].sort((a, b) => b.evaluatedDate.localeCompare(a.evaluatedDate))[0]!;
+    return `Última: ${this.categoryLabel(ultima)} · ${formatOperationalDate(ultima.evaluatedDate)}`;
+  });
 
   /** Los tipos, con los que esta organización exige al principio y marcados. */
   protected readonly typeOptions = computed<readonly GiSelectOption[]>(() =>

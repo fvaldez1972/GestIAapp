@@ -37,7 +37,15 @@ function montar(configurar: (host: Anfitrion) => void = () => {}) {
  * antes de que la persona deje de poder trabajar: el expediente no se rompe hoy, se rompe el día
  * que caduque. El aviso lo pone delante al abrir la ficha, que es donde se llega primero.</p>
  */
-describe('Los datos de una persona · aviso de vencimiento', () => {
+/**
+ * La ficha ya no avisa de vencimientos.
+ *
+ * <p>El 23 de septiembre de 2026 se retiró de la ficha todo lo que mostraba vigencias, incluido el
+ * aviso que encabezaba la pestaña de Datos. La prueba que había aquí comprobaba que ese aviso
+ * apareciera; ahora comprueba lo contrario, y con su control: <b>ni siquiera con documentos por
+ * vencer se dibuja</b>, que es lo que distingue haberlo quitado de que no se esté probando.</p>
+ */
+describe('Los datos de una persona · sin avisos de vencimiento', () => {
   beforeEach(() =>
     TestBed.configureTestingModule({
       providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
@@ -45,36 +53,15 @@ describe('Los datos de una persona · aviso de vencimiento', () => {
 
   afterEach(() => TestBed.resetTestingModule());
 
-  it('avisa de los documentos por vencer y lleva a la pestaña', () => {
-    const { raiz, host, fixture } = montar((anfitrion) =>
+  it('no dibuja aviso aunque haya documentos por vencer', () => {
+    const { raiz } = montar((anfitrion) =>
       anfitrion.fila.set(employeeFixture({ expiringDocuments: 2 })),
     );
 
-    const aviso = raiz.querySelector('.aviso')!;
-    expect(aviso).not.toBeNull();
-    expect(aviso.textContent).toContain('2 documentos');
-    expect(aviso.textContent).toContain('30 días');
-
-    // Y dice que la persona sigue trabajando: un aviso sobre un expediente correcto que no lo
-    // aclare se lee como si ya hubiera un problema.
-    expect(aviso.textContent).toContain('Puede seguir trabajando');
-
-    raiz.querySelector<HTMLButtonElement>('.aviso__accion')!.click();
-    fixture.detectChanges();
-    expect(host.aDocumentos()).toBe(1);
-  });
-
-  /**
-   * El control: sin documentos por vencer no hay aviso.
-   *
-   * <p>Sin esta mitad, «avisa» no distinguiría avisar cuando toca de avisar siempre, que llenaría
-   * de ruido las fichas que están bien —que son la mayoría—.</p>
-   */
-  it('no avisa cuando no hay ninguno por vencer', () => {
-    const { raiz } = montar((anfitrion) =>
-      anfitrion.fila.set(employeeFixture({ expiringDocuments: 0 })),
-    );
-
     expect(raiz.querySelector('.aviso')).toBeNull();
+    expect(raiz.textContent).not.toContain('próximos a vencer');
+
+    // El control de que la ficha sí se montó y la prueba está mirando algo: el nombre está.
+    expect(raiz.textContent).toContain('Identificación');
   });
 });

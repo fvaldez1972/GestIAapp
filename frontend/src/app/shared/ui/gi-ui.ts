@@ -5,6 +5,8 @@
  * que no está en esta lista no es una pieza del sistema, y una pantalla que necesite algo que no
  * esté aquí tiene que decir por qué antes de inventárselo.</p>
  */
+export { GiAccordion } from './gi-accordion/gi-accordion';
+
 export { GiCell, GiDataTable } from './gi-data-table/gi-data-table';
 export type { GiColumn, GiTableState } from './gi-data-table/gi-data-table';
 

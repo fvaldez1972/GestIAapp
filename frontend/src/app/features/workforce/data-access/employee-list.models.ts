@@ -50,12 +50,28 @@ export type EmployeeListItem = {
   readonly documentHealth: EmployeeDocumentHealth;
 };
 
+/**
+ * Los números del encabezado, de **toda la organización**.
+ *
+ * <p>Los manda el servidor ya resueltos. Antes se calculaban aquí sobre `employees()`, que es la
+ * página a la vista: «10 tienen algún documento vencido» con diez filas por página decía diez
+ * siempre, porque estaba contando la página y no la organización.</p>
+ */
+export type EmployeeSummary = {
+  readonly total: number;
+  readonly active: number;
+  readonly candidates: number;
+  readonly withExpiredDocuments: number;
+  readonly withExpiringDocuments: number;
+};
+
 export type EmployeeSearchResult = {
   readonly page: PagedResult<EmployeeListItem>;
   /** Cuántos días antes de caducar cuenta como «por vencer». Se escribe en la pantalla. */
   readonly expiringWithinDays: number;
   /** Cuántos requisitos documentales exige esta organización. */
   readonly requiredDocuments: number;
+  readonly summary: EmployeeSummary;
 };
 
 export type EmployeeJobPositionOption = { readonly idCatalogItem: string; readonly name: string };
@@ -122,46 +138,26 @@ export function employeeDocumentBadge(employee: EmployeeListItem): EmployeeDocum
     return { label: 'Sin requisitos', tone: 'muted' };
   }
 
-  if (employee.expiredDocuments > 0) {
-    return {
-      label: employee.expiredDocuments === 1 ? '1 vencido' : `${employee.expiredDocuments} vencidos`,
-      tone: 'danger',
-    };
-  }
+  // **Un vencido cuenta como sin cubrir, aunque la columna ya no diga por qué.**
+  //
+  // Es la trampa de haber retirado las fechas: si «vencido» sólo dejara de nombrarse, la persona
+  // con la CURP caducada saldría «Completo» mientras el servidor le niega la asignación por ese
+  // mismo documento. Lo que se quitó es la fecha, no el hecho de que el requisito no está cubierto.
+  const sinCubrir =
+    employee.expiredDocuments > 0 ||
+    employee.notValidDocuments > 0 ||
+    employee.missingDocuments > 0;
 
-  // Antes de «sin cargar»: un documento rechazado está más cerca de bloquear que uno que falta, y
-  // decir «sin cargar» de un archivo que sí está manda a subirlo otra vez en lugar de a revisarlo.
-  if (employee.notValidDocuments > 0) {
-    return {
-      label:
-        employee.notValidDocuments === 1
-          ? '1 sin validar'
-          : `${employee.notValidDocuments} sin validar`,
-      tone: 'danger',
-    };
-  }
-
-  if (employee.missingDocuments > 0) {
-    return {
-      label:
-        employee.missingDocuments === 1 ? '1 sin cargar' : `${employee.missingDocuments} sin cargar`,
-      tone: 'warning',
-    };
-  }
-
-  if (employee.expiringDocuments > 0) {
-    return {
-      label:
-        employee.expiringDocuments === 1 ? '1 por vencer' : `${employee.expiringDocuments} por vencer`,
-      tone: 'warning',
-    };
-  }
-
-  return { label: 'Al día', tone: 'success' };
+  // Sin número: los tres conteos miden cosas distintas —uno cuenta archivos y dos cuentan
+  // requisitos—, así que sumarlos daría una cifra que no corresponde a nada. Decir «Incompleto»
+  // es menos de lo que se decía antes, pero es cierto.
+  return sinCubrir
+    ? { label: 'Incompleto', tone: 'danger' }
+    : { label: 'Completo', tone: 'success' };
 }
 
 /** De dónde salen los requisitos, dicho con precisión. */
-export function documentRequirementsNote(requiredDocuments: number, expiringWithinDays: number): string {
+export function documentRequirementsNote(requiredDocuments: number): string {
   if (requiredDocuments === 0) {
     return 'Esta organización todavía no exige ningún documento. Los requisitos se definen en Catálogos.';
   }
@@ -172,7 +168,7 @@ export function documentRequirementsNote(requiredDocuments: number, expiringWith
   // Se dice completo a propósito: la organización elige **cuáles**, no inventa tipos nuevos.
   return (
     `${cuantos} definidos por esta organización, sobre los tipos de documento que el sistema ` +
-    `reconoce. Por vencer: ${expiringWithinDays} días o menos.`
+    'reconoce.'
   );
 }
 
@@ -419,22 +415,32 @@ export function employeeRequirementRows(
         item.idDocumentCategoryCatalogItem === requisito.idRequiredCatalogItem,
     );
 
-    // El mismo orden que usa el servidor para decidir si el requisito está cubierto: primero el
-    // estado del documento, y sólo después las fechas. Al revés, un rechazado con vencimiento
-    // futuro se leía «Al día» mientras el servidor lo rechazaba al asignar.
+    // El orden importa, y dos reglas lo fijan.
+    //
+    // 1. El rechazo manda sobre todo lo demás. Un rechazado con vencimiento futuro se leía
+    //    «Al día» mientras el servidor lo rechazaba al asignar.
+    //
+    // 2. **Haber caducado manda sobre estar sin validar.** La caducidad es un hecho del documento;
+    //    la validación es un hecho de la revisión. Un papel que caducó hace año y medio y además
+    //    está pendiente de validar se decía «Sin validar», que manda a pedir una revisión cuando
+    //    lo que hace falta es un documento nuevo.
+    //
+    //    Y había una consecuencia visible: el contador de la fila —que el servidor calcula como
+    //    «estado vencido **o** fecha pasada»— lo contaba como vencido mientras esta lista lo
+    //    llamaba otra cosa. La ficha decía «2 vencidos» y la pestaña enseñaba uno.
+    const caducado = !!documento?.expiresDate && documento.expiresDate < today;
+
     const state: EmployeeRequirementState = !documento
       ? 'Missing'
       : documento.status === 'Rejected'
         ? 'Rejected'
-        : documento.status === 'Expired'
+        : documento.status === 'Expired' || caducado
           ? 'Expired'
           : documento.status !== 'Received' && documento.status !== 'Validated'
             ? 'Unvalidated'
-            : documento.expiresDate && documento.expiresDate < today
-              ? 'Expired'
-              : documento.expiresDate && documento.expiresDate <= limite
-                ? 'Expiring'
-                : 'UpToDate';
+            : documento.expiresDate && documento.expiresDate <= limite
+              ? 'Expiring'
+              : 'UpToDate';
 
     return {
       code: requisito.idRequiredCatalogItem ?? '',

@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { GiAccordion } from '../../../shared/ui/gi-ui';
 import { GiCatalogCreation, GiCatalogOption, GiCatalogPicker } from '../../../shared/ui/gi-catalog-picker/gi-catalog-picker';
 import { formatOperationalDate } from '../../../shared/util/operational-date';
 import { EligibilityRequirement, EmployeeSkill } from '../../catalogs/data-access/catalog.models';
@@ -38,7 +39,7 @@ export type EmployeeSkillFormValue = {
 @Component({
   selector: 'app-employee-skills',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, GiCatalogPicker],
+  imports: [GiAccordion, ReactiveFormsModule, GiCatalogPicker],
   template: `
     <section class="skills">
       @if (requirements().length === 0) {
@@ -50,8 +51,7 @@ export type EmployeeSkillFormValue = {
         <p class="skills__note">
           {{ requirements().length }}
           {{ requirements().length === 1 ? 'experiencia exigida' : 'experiencias exigidas' }} por esta
-          organización. Se considera «por vencer» lo que caduca en {{ expiringWithinDays() }} días o
-          menos.
+          organización.
         </p>
 
         <ul class="skills__list">
@@ -72,15 +72,23 @@ export type EmployeeSkillFormValue = {
         </ul>
       }
 
-      <div class="skills__block">
-        <header class="skills__head">
-          <h3 class="skills__kicker">EXPERIENCIA ACREDITADAS</h3>
-          @if (canWrite() && !editorOpen()) {
+      <!--
+        Lo acreditado va plegado; los requisitos de arriba, no. Los requisitos dicen si la persona
+        puede trabajar, que es lo que se mira siempre; el historial se consulta de vez en cuando.
+      -->
+      <gi-accordion
+        label="Experiencia acreditada"
+        [count]="activas().length"
+        [summary]="resumenAcreditadas()"
+        [open]="editorOpen()"
+      >
+        @if (canWrite() && !editorOpen()) {
+          <p class="skills__acciones">
             <button class="gi-button" type="button" [disabled]="saving()" (click)="openCreate()">
               Acreditar experiencia
             </button>
-          }
-        </header>
+          </p>
+        }
 
         @if (activas().length === 0) {
           <p class="skills__note">
@@ -95,8 +103,6 @@ export type EmployeeSkillFormValue = {
                   <span class="row__name">{{ item.skillName }}</span>
                   <span class="row__detail">
                     {{ item.acquiredDate ? 'acreditada el ' + formatDate(item.acquiredDate) : 'sin fecha de acreditación' }}
-                    ·
-                    {{ item.expiresDate ? 'vence el ' + formatDate(item.expiresDate) : 'sin vencimiento' }}
                   </span>
                 </span>
                 @if (canWrite()) {
@@ -153,11 +159,6 @@ export type EmployeeSkillFormValue = {
               </label>
             </div>
 
-            <p class="skills__note">
-              Una experiencia vencida deja de cubrir su requisito el día siguiente al vencimiento. Sin
-              fecha, se considera que no caduca.
-            </p>
-
             @if (problem()) {
               <p class="form__problem" role="alert">{{ problem() }}</p>
             }
@@ -172,13 +173,15 @@ export type EmployeeSkillFormValue = {
             </footer>
           </form>
         }
-      </div>
+      </gi-accordion>
     </section>
   `,
   styles: `
     :host { display: block; }
 
-    .skills { display: flex; flex-direction: column; gap: 0.85rem; }
+    .skills { display: flex; flex-direction: column; gap: 0.55rem; }
+
+    .skills__acciones { margin: 0 0 0.6rem; }
 
     .skills__note { margin: 0; color: var(--gestia-muted); font-size: 11.5px; }
 
@@ -355,6 +358,25 @@ export class EmployeeSkills {
   );
 
   protected readonly activas = computed(() => this.skills().filter((item) => item.active));
+
+  /** Lo que la sección dice sin abrirse: cuántas y la más reciente. */
+  protected readonly resumenAcreditadas = computed(() => {
+    const items = this.activas();
+
+    if (items.length === 0) {
+      return 'Ninguna acreditada';
+    }
+
+    // Sin fecha de acreditación al final: una experiencia sin fecha no compite por ser «la última».
+    const conFecha = items.filter((item) => !!item.acquiredDate);
+
+    if (conFecha.length === 0) {
+      return `${items.length} sin fecha de acreditación`;
+    }
+
+    const ultima = [...conFecha].sort((a, b) => b.acquiredDate!.localeCompare(a.acquiredDate!))[0]!;
+    return `Última: ${ultima.skillName} · ${formatOperationalDate(ultima.acquiredDate!)}`;
+  });
 
   protected openCreate(): void {
     this.editing.set(null);

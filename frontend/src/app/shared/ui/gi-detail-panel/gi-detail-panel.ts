@@ -182,13 +182,17 @@ export class GiTabContent {
     .gi-panel__close:hover { border-color: var(--gestia-border); color: var(--gestia-text); }
     .gi-panel__close:focus-visible { outline: 2px solid var(--gestia-cyan); outline-offset: 2px; }
 
+    /* Las pestañas se parten en dos líneas; no se desplazan a lo ancho.
+       Con seis destinos —Personal los tiene— la fila no cabía en 620 px y aparecía una barra de
+       desplazamiento horizontal: las últimas pestañas quedaban fuera de la vista, y una pestaña
+       que no se ve es una pestaña que nadie abre. Partidas ocupan un renglón más y se ven todas. */
     .gi-panel__tabs {
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
       gap: 0.15rem;
       padding: 0 0.9rem;
       border-bottom: 1px solid var(--gestia-border);
-      overflow-x: auto;
     }
 
     /* Al final de la fila, pegada a la derecha, y sin encogerse cuando las pestañas no caben. */

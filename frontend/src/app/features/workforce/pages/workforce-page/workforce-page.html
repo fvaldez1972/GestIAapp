@@ -1,7 +1,6 @@
 <div class="staff">
   <header class="staff__heading">
     <div>
-      <p class="staff__eyebrow">PERSONAL</p>
       <h1 class="staff__title">Personal</h1>
       <p class="staff__subtitle">{{ subtitle() }}</p>
     </div>
@@ -9,6 +8,33 @@
       <button class="button button--primary" type="button" (click)="startCreate()">Nueva persona</button>
     }
   </header>
+
+  <!--
+    Las tarjetas sustituyen al parrafo que llevaba el subtitulo. Cada una es ademas el filtro que
+    la explica: tocar «Con algo vencido» es la forma corta de ver a quienes cuenta ese numero.
+  -->
+  @if (organizationId() && canRead()) {
+    <div class="staff__metrics">
+      @for (metric of metrics(); track metric.key) {
+        <button
+          type="button"
+          class="staff__metric"
+          [class.staff__metric--active]="activeMetric() === metric.key"
+          [attr.aria-pressed]="metric.filter ? activeMetric() === metric.key : null"
+          (click)="onMetric(metric)"
+        >
+          <gi-metric-card
+            [label]="metric.label"
+            [value]="metric.value"
+            [hint]="metric.hint"
+            [tone]="metric.tone"
+            [pillLabel]="metric.pillLabel"
+            [state]="loading() && total() === 0 ? 'loading' : 'ready'"
+          />
+        </button>
+      }
+    </div>
+  }
 
   @if (!organizationId()) {
     <gi-empty-state
@@ -46,7 +72,15 @@
         -->
         @if (totalPaginas() > 1) {
           <nav class="pers-pages" aria-label="Páginas de la lista">
-            <span class="pers-pages__rango">{{ rango() }}</span>
+            <!--
+              Una sola forma de decir donde estas. Antes convivian «1-10 de 128» y «1 / 13»: dos
+              maneras del mismo dato, una al lado de la otra, y la segunda obligaba a dividir para
+              entender la primera.
+            -->
+            <span class="pers-pages__rango">
+              {{ rango() }}
+              <span class="pers-pages__pagina">· página {{ currentPage() }} de {{ totalPaginas() }}</span>
+            </span>
 
             <div class="pers-pages__nav">
               <gi-select
@@ -62,7 +96,6 @@
                 [disabled]="currentPage() === 1"
                 (click)="goToPage(currentPage() - 1)"
               >Anterior</button>
-              <span class="pers-pages__count">{{ currentPage() }} / {{ totalPaginas() }}</span>
               <button
                 type="button"
                 class="gi-button gi-button--ghost"
@@ -159,10 +192,22 @@
             />
 
             <!--
-              El expediente de archivos, con la pieza compartida. La lista de arriba dice qué exige
-              la organización; ésta guarda el archivo. Son dos cosas distintas y por eso van juntas
-              en la misma pestaña, no en dos.
+              El expediente de archivos, plegado.
+
+              La lista de arriba dice **que exige la organizacion**; esto es **el archivero**. Son
+              dos cosas distintas, y hasta hoy se apilaban: debajo de las dos pestañas aparecian
+              otro buscador, otro desplegable de estado, otro boton de filtrar y la lista de
+              archivos, que es lo que hacia la pestaña interminable.
+
+              Sigue en la misma pestaña porque el archivo es la consecuencia del requisito, pero
+              cerrado: se abre cuando hay que subir algo o mirar el original.
             -->
+            <gi-accordion
+              label="Expediente de archivos"
+              [count]="documentCount()"
+              summary="Los archivos cargados, con su historial de revisión"
+              [open]="cargandoRequisito() !== ''"
+            >
             <app-entity-documents
               [organizationId]="organizationId()"
               ownerType="Employee"
@@ -176,6 +221,7 @@
               (documentSaved)="registerEmployeeDocument($event)"
               (totalChange)="documentCount.set($event)"
             />
+            </gi-accordion>
           </ng-template>
 
           <ng-template giTab="evaluations">
@@ -236,36 +282,6 @@
             />
           </ng-template>
 
-          <ng-template giTab="assignments">
-            <app-employee-assignments
-              [assignments]="assignments()"
-              [loading]="detailLoading()"
-              [canWrite]="canWrite()"
-              (assign)="goToPlanning()"
-            />
-          </ng-template>
-
-          <!--
-            El pie lleva al paso siguiente. No preselecciona a la persona porque Planeación no lee
-            ningún parámetro: un enlace que dijera que filtra sin filtrar es el defecto que ya se
-            corrigió entre Clientes y Servicios.
-          -->
-          <footer class="panel-footer" panelFooter>
-            @if (expiredNote()) {
-              <span class="panel-footer__reason">{{ expiredNote() }}</span>
-            } @else {
-              <span class="panel-footer__summary">
-                {{ requiredDocuments() }}
-                {{ requiredDocuments() === 1 ? 'requisito' : 'requisitos' }} ·
-                {{ employee.assignmentCount }}
-                {{ employee.assignmentCount === 1 ? 'asignación' : 'asignaciones' }}
-              </span>
-            }
-
-            <button class="button button--primary" type="button" (click)="goToPlanning()">
-              Asignar a una posición
-            </button>
-          </footer>
         </gi-detail-panel>
       }
     </div>

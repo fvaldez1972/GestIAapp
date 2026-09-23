@@ -84,6 +84,19 @@ function montar(configurar: (host: Anfitrion) => void = () => {}) {
     estados: () => Array.from(raiz.querySelectorAll('.req__state')).map((n) => n.textContent!.trim()),
     filas: () => Array.from(raiz.querySelectorAll<HTMLElement>('.req')),
     registros: () => Array.from(raiz.querySelectorAll<HTMLElement>('.row')),
+
+    /**
+     * Despliega «Experiencia acreditada».
+     *
+     * <p>Lo acreditado vive detrás de un acordeón desde el 23 de septiembre de 2026, y el cuerpo
+     * se quita del árbol al estar cerrado —no se esconde con CSS— para que no siga en el orden de
+     * tabulación. Así que una prueba que mire la lista tiene que abrirla primero, igual que un
+     * usuario.</p>
+     */
+    abrirAcreditadas: () => {
+      raiz.querySelector<HTMLButtonElement>('gi-accordion .acc__toggle')!.click();
+      fixture.detectChanges();
+    },
   };
 }
 
@@ -138,9 +151,14 @@ describe('La pestaña de experiencias', () => {
   });
 
   it('lista lo acreditado con su fecha', () => {
-    const { registros } = montar((host) =>
+    const { registros, abrirAcreditadas } = montar((host) =>
       host.skills.set([experiencia({ expiresDate: '2027-01-15' })]),
     );
+
+    // Plegado no hay lista: ése es el punto del acordeón, y lo comprueba el control de abajo.
+    expect(registros().length).toBe(0);
+
+    abrirAcreditadas();
 
     expect(registros().length).toBe(1);
     expect(registros()[0].textContent).toContain('Manejo de CCTV');
@@ -148,12 +166,19 @@ describe('La pestaña de experiencias', () => {
   });
 
   it('sin permiso de escritura no ofrece acreditar ni editar', () => {
-    const { raiz } = montar((host) => {
+    const { raiz, abrirAcreditadas } = montar((host) => {
       host.canWrite.set(false);
       host.skills.set([experiencia()]);
     });
 
-    expect(Array.from(raiz.querySelectorAll('button')).map((b) => b.textContent!.trim())).toEqual([]);
+    abrirAcreditadas();
+
+    // El único botón que queda es el del propio acordeón, que sólo abre y cierra: no escribe nada.
+    const botones = Array.from(raiz.querySelectorAll('button'))
+      .filter((boton) => !boton.classList.contains('acc__toggle'))
+      .map((boton) => boton.textContent!.trim());
+
+    expect(botones).toEqual([]);
   });
 
   it('el alta emite la experiencia por identificador y las fechas', () => {
@@ -225,7 +250,9 @@ describe('La pestaña de experiencias', () => {
   });
 
   it('retirar emite el identificador, no borra en la pantalla', () => {
-    const { raiz, host } = montar((h) => h.skills.set([experiencia()]));
+    const { raiz, host, abrirAcreditadas } = montar((h) => h.skills.set([experiencia()]));
+
+    abrirAcreditadas();
 
     Array.from(raiz.querySelectorAll('button'))
       .find((b) => b.textContent!.trim() === 'Quitar')!

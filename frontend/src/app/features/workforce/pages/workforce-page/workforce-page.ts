@@ -10,8 +10,10 @@ import {
   GiConfirmDialog,
   GiDetailPanel,
   GiEmptyState,
+  GiAccordion,
   GiFilterBar,
   GiFilterGroup,
+  GiMetricCard,
   GiSelect,
   GiSelectOption,
   GiTab,
@@ -30,6 +32,7 @@ import {
   EmployeeDocumentFilter,
   EmployeeJobPositionOption,
   EmployeeListItem,
+  EmployeeSummary,
   EMPLOYEE_STATUS_OPTIONS,
   documentRequirementsNote,
   employeeDocumentBadge,
@@ -54,7 +57,6 @@ import {
   NewAdministrativeIncident,
 } from '../../ui/employee-administrative-incidents';
 import { EmployeeAddressValue } from '../../ui/employee-address';
-import { EmployeeAssignments } from '../../ui/employee-assignments';
 import { EmployeeData } from '../../ui/employee-data';
 import { EmployeeDocuments } from '../../ui/employee-documents';
 import {
@@ -66,6 +68,15 @@ import { EmployeeSkillFormValue, EmployeeSkills } from '../../ui/employee-skills
 import { EmployeeTable } from '../../ui/employee-table';
 
 type PendingAction = { readonly employee: EmployeeListItem; readonly kind: 'leave' | 'terminate' };
+
+/** Los cinco ceros. Es el estado de partida y el de respaldo si el servidor no manda resumen. */
+const EMPTY_SUMMARY: EmployeeSummary = {
+  total: 0,
+  active: 0,
+  candidates: 0,
+  withExpiredDocuments: 0,
+  withExpiringDocuments: 0,
+};
 
 /**
  * Personal.
@@ -84,7 +95,6 @@ type PendingAction = { readonly employee: EmployeeListItem; readonly kind: 'leav
   selector: 'app-workforce-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    EmployeeAssignments,
     EmployeeData,
     EmployeeDocuments,
     EmployeeAdministrativeIncidents,
@@ -93,10 +103,12 @@ type PendingAction = { readonly employee: EmployeeListItem; readonly kind: 'leav
     EmployeeSkills,
     EmployeeTable,
     EntityDocuments,
+    GiAccordion,
     GiConfirmDialog,
     GiDetailPanel,
     GiEmptyState,
     GiFilterBar,
+    GiMetricCard,
     GiSelect,
     GiTabContent,
   ],
@@ -126,6 +138,13 @@ export class WorkforcePage {
   protected readonly error = signal('');
   protected readonly message = signal('');
   protected readonly expiringWithinDays = signal(30);
+
+  /**
+   * Los números del encabezado, tal como los manda el servidor.
+   *
+   * <p>No se derivan de `employees()`: ésa es la página a la vista. Ver `EmployeeSummary`.</p>
+   */
+  protected readonly summary = signal<EmployeeSummary>(EMPTY_SUMMARY);
 
   /**
    * El paginado del listado.
@@ -279,7 +298,6 @@ export class WorkforcePage {
   protected readonly documents = signal<readonly EmployeeDocument[]>([]);
   protected readonly evaluations = signal<readonly EmployeeEvaluation[]>([]);
   protected readonly skills = signal<readonly EmployeeSkill[]>([]);
-  protected readonly assignments = signal<readonly EmployeeAssignment[]>([]);
   protected readonly detailLoading = signal(false);
 
   protected readonly creating = signal(false);
@@ -305,31 +323,73 @@ export class WorkforcePage {
    * pantalla. Y se dice de quién son los requisitos, porque «4 requisitos» sin autor se lee como
    * una regla del sistema que nadie sabe dónde cambiar.</p>
    */
-  protected readonly subtitle = computed(() => {
-    const total = this.total();
-    const requisitos = this.requiredDocuments();
+  protected readonly subtitle = computed(() =>
+    documentRequirementsNote(this.requiredDocuments()),
+  );
 
-    if (!requisitos) {
-      return total
-        ? `${total} ${total === 1 ? 'persona' : 'personas'}. ` +
-            documentRequirementsNote(requisitos, this.expiringWithinDays())
-        : documentRequirementsNote(requisitos, this.expiringWithinDays());
+  /**
+   * Las cuatro tarjetas del encabezado.
+   *
+   * <p>Sustituyen al párrafo que llevaba el subtítulo, donde el total, la regla de vencimiento y
+   * cuánta gente tenía papeles caducados iban seguidos en una sola frase. Eran tres datos
+   * distintos escritos como prosa: para saber si la organización estaba bien había que leerla
+   * entera, y el último número además <b>estaba mal</b> —contaba las filas de la página—.</p>
+   *
+   * <p>Cada tarjeta lleva su filtro: tocarla es la forma corta de ver a quiénes cuenta. La de
+   * «Personas» limpia el filtro en vez de aplicar uno, porque el total no es un subconjunto.</p>
+   */
+  /**
+   * Las dos tarjetas del encabezado.
+   *
+   * <p>Eran cuatro. «Con algo vencido» y «Por vencer en 30 días» se retiraron el 23 de septiembre
+   * de 2026 con el resto de lo que mostraba vigencias: una pantalla que no dice fechas en ninguna
+   * ficha no puede encabezarse contando quién las tiene caducadas.</p>
+   *
+   * <p>Cada tarjeta lleva su filtro: tocarla es la forma corta de ver a quiénes cuenta. La de
+   * «Personas» limpia el filtro en vez de aplicar uno, porque el total no es un subconjunto.</p>
+   */
+  protected readonly metrics = computed(() => {
+    const resumen = this.summary();
+
+    return [
+      {
+        key: 'total' as const,
+        label: 'Personas',
+        value: resumen.total,
+        hint: 'Todo el personal registrado en esta organización.',
+        tone: 'neutral' as const,
+        pillLabel: '',
+        filter: null,
+      },
+      {
+        key: 'active' as const,
+        label: 'Activas',
+        value: resumen.active,
+        hint:
+          resumen.candidates > 0
+            ? `${resumen.candidates} ${resumen.candidates === 1 ? 'candidata o candidato' : 'candidatas o candidatos'} sin dar de alta.`
+            : 'Sin candidaturas pendientes de alta.',
+        tone: 'success' as const,
+        pillLabel: 'En plantilla',
+        filter: 'Active' as const,
+      },
+    ];
+  });
+
+  /** Aplica el filtro de una tarjeta, o lo quita cuando ya estaba puesto. */
+  protected onMetric(metric: { key: string; filter: 'Active' | null }): void {
+    if (metric.filter === null) {
+      this.clearFilters();
+      return;
     }
 
-    const base = `${total} ${total === 1 ? 'persona' : 'personas'}.`;
-    const regla =
-      `${requisitos} ${requisitos === 1 ? 'requisito documental definido' : 'requisitos documentales definidos'} ` +
-      `por esta organización; se considera «por vencer» lo que caduca en ${this.expiringWithinDays()} ` +
-      'días o menos.';
+    this.status.set(this.status() === 'Active' ? '' : 'Active');
+    this.currentPage.set(1);
+    this.load();
+  }
 
-    const conVencidos = this.employees().filter((employee) => employee.expiredDocuments > 0).length;
-    const vencidos =
-      conVencidos > 0
-        ? ` ${conVencidos} ${conVencidos === 1 ? 'tiene' : 'tienen'} algún documento vencido.`
-        : '';
-
-    return `${base} ${regla}${vencidos}`;
-  });
+  /** Qué tarjeta está mandando ahora, para marcarla. */
+  protected readonly activeMetric = computed(() => (this.status() === 'Active' ? 'active' : ''));
 
   protected readonly tableState = computed<GiTableState>(() => {
     if (this.error()) return 'error';
@@ -369,10 +429,10 @@ export class WorkforcePage {
         value: this.documentFilter() === 'Any' ? '' : this.documentFilter(),
         allLabel: 'Cualquiera',
         options: [
-          { value: 'Expired', label: 'Con algún vencido' },
-          { value: 'Expiring', label: `Por vencer en ${this.expiringWithinDays()} días` },
+          // Sin «Con algún vencido» ni «Por vencer»: la pantalla dejó de mostrar vigencias, y un
+          // filtro por un dato que no se ve en ninguna fila no se puede comprobar a ojo.
           { value: 'Missing', label: 'Con requisitos sin cargar' },
-          { value: 'UpToDate', label: 'Al día' },
+          { value: 'UpToDate', label: 'Con el expediente completo' },
         ],
       },
     ];
@@ -424,11 +484,17 @@ export class WorkforcePage {
         label: 'Incidencias',
         count: this.administrativeIncidents().filter((item) => item.active).length,
       },
-      { id: 'assignments', label: 'Asignaciones', count: employee?.assignmentCount ?? 0 },
     ];
   });
 
-  /** El aviso del pie: un hecho, no una promesa sobre lo que el servidor va a impedir. */
+  /**
+   * El aviso del pie: un hecho, no una promesa sobre lo que el servidor va a impedir.
+   *
+   * <p><b>Se redacta como la razón del botón y no como una nota sobre la persona.</b> El pie es el
+   * mismo en las seis pestañas, así que en Evaluaciones y en Experiencia se leía como un comentario
+   * suelto sobre documentos —un tema del que esas pestañas no hablan—. Diciendo primero qué queda
+   * bloqueado, la frase explica el botón que tiene al lado esté donde esté.</p>
+   */
   protected readonly expiredNote = computed(() => {
     const employee = this.selected();
 
@@ -436,9 +502,12 @@ export class WorkforcePage {
       return '';
     }
 
-    return employee.expiredDocuments === 1
-      ? 'Tiene un documento vencido de los que exige esta organización.'
-      : `Tiene ${employee.expiredDocuments} documentos vencidos de los que exige esta organización.`;
+    const cuantos =
+      employee.expiredDocuments === 1
+        ? 'un documento vencido'
+        : `${employee.expiredDocuments} documentos vencidos`;
+
+    return `No se le puede asignar todavía: tiene ${cuantos} de los que exige esta organización.`;
   });
 
   constructor() {
@@ -531,6 +600,10 @@ export class WorkforcePage {
           this.total.set(result.page.totalCount);
           this.expiringWithinDays.set(result.expiringWithinDays);
           this.requiredDocuments.set(result.requiredDocuments);
+          // El `??` no es adorno: durante un despliegue el navegador puede tener el paquete nuevo
+          // y estar hablando todavia con el backend viejo, que no manda `summary`. Sin esto las
+          // tarjetas tumbaban la pantalla entera por un campo que falta.
+          this.summary.set(result.summary ?? EMPTY_SUMMARY);
           this.loading.set(false);
           this.refreshSelection(result.page.items);
         },
@@ -625,7 +698,6 @@ export class WorkforcePage {
     this.skills.set([]);
     this.administrativeIncidents.set([]);
     this.documentCount.set(employee.documentCount);
-    this.assignments.set([]);
     this.loadDetail(employee.idEmployee);
   }
 
@@ -648,9 +720,6 @@ export class WorkforcePage {
       detail: this.workforceApi
         .getEmployee(organizationId, idEmployee)
         .pipe(catchError(() => of(null))),
-      assignments: this.api
-        .listAssignments(organizationId, idEmployee)
-        .pipe(catchError(() => of([] as readonly EmployeeAssignment[]))),
       // Las experiencias no vienen en el detalle del empleado: son del módulo de catálogos y se
       // piden aparte. Si fallan, la pestaña dice que no hay ninguna, no que no se pudieron leer.
       skills: this.catalogApi
@@ -667,7 +736,6 @@ export class WorkforcePage {
       this.evaluations.set(data.detail?.evaluations ?? []);
       this.skills.set(data.skills);
       this.administrativeIncidents.set(data.administrativeIncidents);
-      this.assignments.set(data.assignments);
       this.detailLoading.set(false);
     });
   }

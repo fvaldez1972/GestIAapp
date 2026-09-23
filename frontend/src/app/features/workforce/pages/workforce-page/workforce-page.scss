@@ -17,25 +17,58 @@
   gap: 1rem;
 }
 
-.staff__eyebrow {
-  margin: 0;
-  color: var(--gestia-muted);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-}
-
 .staff__title {
   margin: 0;
   color: var(--gestia-navy);
   font-size: 22px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .staff__subtitle {
   margin: 0.2rem 0 0;
   color: var(--gestia-muted);
-  font-size: 13px;
+  font-size: 12.5px;
+}
+
+/* Las cuatro tarjetas del encabezado.
+   `auto-fit` con un minimo real es lo que evita la fila apretada: cuando no caben cuatro, bajan a
+   dos y despues a una, en vez de encogerse hasta que el numero de 22 px no quepa. */
+.staff__metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13.5rem, 1fr));
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+/* La tarjeta entera es el boton. Se quita el cromo del `button` para que no aparezca un control
+   dentro de otro, y el foco se marca en el borde de la tarjeta. */
+.staff__metric {
+  display: block;
+  padding: 0;
+  border: 0;
+  border-radius: var(--gestia-radius);
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  min-width: 0;
+}
+
+.staff__metric gi-metric-card {
+  display: block;
+  border-radius: var(--gestia-radius);
+  transition: border-color 120ms ease;
+}
+
+.staff__metric:hover gi-metric-card,
+.staff__metric--active gi-metric-card {
+  box-shadow: inset 0 0 0 1px var(--gestia-cyan);
+}
+
+.staff__metric:focus-visible {
+  outline: 2px solid var(--gestia-cyan);
+  outline-offset: 2px;
 }
 
 .staff__note {
@@ -148,5 +181,7 @@
 
 .pers-pages__nav { display: flex; align-items: center; gap: 0.4rem; }
 .pers-pages__nav gi-select { width: 4.75rem; }
-.pers-pages__count { white-space: nowrap; }
-.pers-pages__rango { white-space: nowrap; }
+.pers-pages__rango { white-space: nowrap; color: var(--gestia-text); font-weight: 600; }
+
+/* El numero de pagina es apoyo del rango, no un dato al mismo nivel. */
+.pers-pages__pagina { color: var(--gestia-muted); font-weight: 400; }

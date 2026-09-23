@@ -65,15 +65,18 @@ describe('El listado de personal', () => {
   afterEach(() => TestBed.resetTestingModule());
 
   /**
-   * La píldora existe para <b>no abrir la ficha</b>. Si dijera sólo un número, habría que abrirla
-   * para saber de qué era.
+   * La píldora existe para <b>no abrir la ficha</b>: dice si el expediente está cubierto.
+   *
+   * <p>Desde el 23 de septiembre de 2026 no dice por qué no lo está —eso obligaba a nombrar
+   * vencimientos, que salieron de la pantalla— pero sigue distinguiendo las dos situaciones, que
+   * es lo que decide si a la persona se le puede asignar.</p>
    */
-  it('la vigencia documental dice cuántos y de qué, y gana el peor', () => {
+  it('la columna de documentos distingue el expediente cubierto del que no', () => {
     const { filas } = montar();
 
-    expect(filas()[0].querySelector('.pill')?.textContent?.trim()).toBe('Al día');
-    // Tiene un vencido y uno sin cargar: manda el vencido, que ya está bloqueando.
-    expect(filas()[1].querySelector('.pill')?.textContent?.trim()).toBe('1 vencido');
+    expect(filas()[0].querySelector('.pill')?.textContent?.trim()).toBe('Completo');
+    // La segunda tiene un vencido y uno sin cargar: sigue sin estar cubierta.
+    expect(filas()[1].querySelector('.pill')?.textContent?.trim()).toBe('Incompleto');
   });
 
   /** Un punto de color no se lee en escala de grises ni con un lector de pantalla. */
@@ -189,12 +192,34 @@ describe('El listado de personal', () => {
     expect(fila.textContent).toContain('Ya está dada de baja');
   });
 
-  /** Con la ficha abierta la tabla se comprime; lo que queda es lo que identifica y lo urgente. */
-  it('comprimida conserva el nombre y la vigencia documental', () => {
+  /**
+   * Con la ficha abierta la tabla se comprime, pero sigue siendo una tabla.
+   *
+   * <p>Antes bajaba de seis columnas a dos —nombre y documentos—, así que abrir una ficha borraba
+   * de la vista el puesto y el estado, que es justo lo que sirve para comparar a la persona
+   * abierta con las de al lado. Lo que se va es lo que ocupa ancho sin intervenir en esa
+   * comparación: la ubicación y la fecha de ingreso.</p>
+   */
+  it('comprimida conserva lo que sirve para comparar', () => {
     const { encabezados } = montar((host) => host.compact.set(true));
 
-    expect(encabezados()).toContain('Empleado');
+    expect(encabezados()).toContain('Persona');
     expect(encabezados()).toContain('Documentos');
-    expect(encabezados()).not.toContain('Estado · Municipio');
+    expect(encabezados()).toContain('Puesto');
+    expect(encabezados()).toContain('Estado');
+    expect(encabezados()).not.toContain('Ubicación');
+    expect(encabezados()).not.toContain('Ingreso');
+  });
+
+  /**
+   * La tabla tenía **dos** columnas encabezadas «Estado»: la geográfica y la laboral, una a cada
+   * lado de «Ingreso». La misma palabra nombraba dos cosas sin relación.
+   */
+  it('no repite la palabra Estado en dos encabezados', () => {
+    const { encabezados } = montar();
+    const estados = encabezados().filter((encabezado) => encabezado === 'Estado');
+
+    expect(estados).toHaveLength(1);
+    expect(encabezados()).toContain('Ubicación');
   });
 });

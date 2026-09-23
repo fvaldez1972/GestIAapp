@@ -165,17 +165,10 @@
                 <div class="entity-document">
                   <strong>{{ document.title }}</strong>
                   <div class="entity-meta"><span>{{ document.category }}</span>
-                    <span class="gi-badge" [class.gi-badge--success]="document.status === 'Validated'" [class.gi-badge--danger]="document.status === 'Rejected' || document.isExpired" [class.gi-badge--muted]="document.status === 'Archived'">{{ statusLabels[document.status] }}</span>
                     @if (document.isSensitive) { <span class="gi-badge gi-badge--warning"><app-icon name="security" /> Sensible</span> }
-                    @if (document.expiresDate) { <span>Vence: {{ formatDate(document.expiresDate) }}</span> }
+
                   </div>
                   @if (document.notes) { <p class="entity-notes">{{ document.notes }}</p> }
-                  @if (document.reviewNotes || document.reviewedByName) {
-                    <p class="entity-notes"><strong>Revision</strong>@if (document.reviewedByName) { : {{ document.reviewedByName }} }
-                      @if (document.reviewedAt) { <span> ({{ formatInstant(document.reviewedAt) }})</span> }
-                      @if (document.reviewNotes) { <span> - {{ document.reviewNotes }}</span> }
-                    </p>
-                  }
                 </div>
                 <div class="entity-actions" [attr.aria-label]="'Acciones de ' + document.title">
                   <!--

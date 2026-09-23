@@ -83,14 +83,19 @@ describe('La pestaña de documentos', () => {
   });
 
   /** El umbral se escribe en la pantalla; no se deja implícito en un color. */
-  it('dice de quién son los requisitos y cuántos días cuentan como «por vencer»', () => {
+  /**
+   * La nota dice la consecuencia, y ya no habla de fechas.
+   *
+   * <p>El 23 de septiembre de 2026 se retiró de la ficha todo lo que mostraba vigencias: el umbral,
+   * las fechas de vencimiento y las frases que las explicaban. Lo que queda es qué pasa si falta un
+   * obligatorio, que es la razón por la que la lista existe.</p>
+   */
+  it('dice qué pasa si falta un obligatorio, sin hablar de fechas', () => {
     const { raiz } = montar();
     const nota = raiz.querySelector('.docs__note')!.textContent!.replace(/\s+/g, ' ');
 
-    expect(nota).toContain('2 requisitos definidos por esta organización');
-    expect(nota).toContain('30 días o menos');
-    // La línea se acortó el 23 de septiembre de 2026 por densidad: lo que no puede perderse es el
-    // umbral, porque sin él «Por vencer» es una etiqueta que nadie sabe medir.
+    expect(nota).toContain('no se puede asignar a esta persona');
+    expect(nota).not.toContain('días');
   });
 
   /** La vigencia se mide contra el día operativo del servidor, no contra el reloj del navegador. */
@@ -118,14 +123,22 @@ describe('La pestaña de documentos', () => {
    * una columna propia: repetir la fecha en la oración hacía la fila larga y obligaba a leer un
    * texto para encontrar un dato que es una fecha. Lo que no puede pasar es que se pierda.</p>
    */
-  it('un documento caducado queda vencido y dice cuándo venció', () => {
+  /**
+   * Un documento caducado queda vencido, y el rótulo lo dice **sin la fecha**.
+   *
+   * <p>La ficha dejó de mostrar vigencias el 23 de septiembre de 2026. El estado se conserva
+   * —es lo que decide si la persona puede trabajar— pero ni la fecha ni la frase que la explicaba
+   * aparecen ya.</p>
+   */
+  it('un documento caducado queda vencido, sin enseñar la fecha', () => {
     const { estados, filas } = montar((host) =>
       host.documents.set([documentFixture({ expiresDate: '2026-08-31' })]),
     );
 
     expect(estados()[0]).toBe('Vencido');
-    expect(filas()[0].textContent).toContain('Vigencia: 31 ago 2026');
-    expect(filas()[0].textContent).toContain('El documento venció');
+    expect(filas()[0].textContent).not.toContain('31 ago 2026');
+    expect(filas()[0].textContent).not.toContain('Vigencia');
+    expect(filas()[0].textContent).not.toContain('venció');
   });
 
   /** Un documento dado de baja no cubre nada: aquí los registros no se borran, se desactivan. */
@@ -165,12 +178,13 @@ describe('La pestaña de documentos', () => {
     );
 
     // Van plegados desde el 23 de septiembre de 2026: son archivos que la organización no exige,
-    // así que no compiten por la atención con los que sí. Lo que se defiende no cambió: que estén
-    // aparte y que se diga que no cuentan para la vigencia.
+    // así que no compiten por la atención con los que sí. Lo que se defiende es que estén aparte
+    // y bajo su propio rótulo; la nota sobre vigencia se retiró con el resto de las fechas.
     const extra = raiz.querySelector('.otros')!;
 
     expect(extra.textContent).toContain('Licencia de conducir');
-    expect(extra.textContent).toContain('No cuentan para la vigencia');
+    expect(extra.textContent).not.toContain('vigencia');
+    expect(extra.textContent).not.toContain('vence');
     expect(extra.querySelector('summary')?.textContent).toContain('Otros documentos');
   });
 
@@ -181,34 +195,57 @@ describe('La pestaña de documentos', () => {
    * doce requisitos había que leer fila por fila para saber cuáles impiden asignar a la persona.
    * Ahora el orden lo dice sin leer, y cada bloque explica qué pasa si falta.</p>
    */
-  it('separa los obligatorios de los informativos, y dice qué pasa con cada uno', () => {
-    const { raiz } = montar((host) =>
+  /**
+   * Obligatorios e informativos son **dos pestañas**, no dos bloques apilados.
+   *
+   * <p>Lo eran hasta el 23 de septiembre de 2026, y con sus dos títulos y sus dos párrafos había
+   * que desplazar para llegar al segundo. No son la misma cosa —uno impide asignar y el otro sólo
+   * deja constancia—, y separarlos en pestañas dice esa diferencia con la estructura.</p>
+   */
+  it('separa los obligatorios de los informativos en dos pestañas', () => {
+    const { raiz, fixture } = montar((host) =>
       host.requirements.set([
         requirementFixture({ requiredDocumentType: 'VoterId', isRequiredEffective: true }),
         requirementFixture({ requiredDocumentType: 'Curp', isRequiredEffective: false }),
       ]),
     );
 
-    const rotulos = Array.from(raiz.querySelectorAll('.bloque__titulo')).map((e) => e.textContent?.trim());
-    expect(rotulos).toContain('Documentos obligatorios');
-    expect(rotulos).toContain('Documentos informativos');
+    const pestanas = Array.from(raiz.querySelectorAll<HTMLButtonElement>('.subtab'));
+    expect(pestanas.map((p) => p.textContent!.replace(/\s+/g, ' ').trim())).toEqual([
+      'Obligatorios 1',
+      'Informativos 1',
+    ]);
 
-    // Y el orden: lo que impide trabajar va primero.
-    expect(rotulos.indexOf('Documentos obligatorios')).toBeLessThan(rotulos.indexOf('Documentos informativos'));
-
+    // Arranca en obligatorios, que son los que impiden asignar.
+    expect(pestanas[0].classList).toContain('is-active');
     expect(raiz.textContent).toContain('no se puede asignar a esta persona');
-    expect(raiz.textContent).toContain('No son obligatorios para asignar');
+
+    pestanas[1].click();
+    fixture.detectChanges();
+
+    expect(raiz.textContent).toContain('sólo dejan constancia');
+    expect(raiz.textContent).not.toContain('no se puede asignar a esta persona');
   });
 
   /** El control: con sólo obligatorios no se dibuja el rótulo del otro bloque. */
-  it('no dibuja el bloque informativo cuando no hay ninguno', () => {
-    const { raiz } = montar((host) =>
+  /**
+   * Sin informativos la pestaña sigue, y dice que está vacía.
+   *
+   * <p>Esconderla haría que la pantalla cambiara de forma entre dos personas de la misma
+   * organización, y quien no la viera no sabría si es que no hay o es que no existe.</p>
+   */
+  it('con cero informativos la pestaña sigue, en cero y diciendo por qué', () => {
+    const { raiz, fixture } = montar((host) =>
       host.requirements.set([requirementFixture({ isRequiredEffective: true })]),
     );
 
-    const rotulos = Array.from(raiz.querySelectorAll('.bloque__titulo')).map((e) => e.textContent?.trim());
-    expect(rotulos).toContain('Documentos obligatorios');
-    expect(rotulos).not.toContain('Documentos informativos');
+    const pestanas = Array.from(raiz.querySelectorAll<HTMLButtonElement>('.subtab'));
+    expect(pestanas[1].textContent!.replace(/\s+/g, ' ').trim()).toBe('Informativos 0');
+
+    pestanas[1].click();
+    fixture.detectChanges();
+
+    expect(raiz.querySelector('.docs__vacio')!.textContent).toContain('no define ningún documento informativo');
   });
 
   // ── La salida de cada requisito ──────────────────────────────────────────────────────────

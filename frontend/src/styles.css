@@ -35,8 +35,12 @@
   --gestia-shadow-sm: none;
   --gestia-shadow-md: none;
   --gestia-shadow-action: none;
-  /* Ancho del panel de detalle. Escrito una sola vez para que nadie lo teclee otra vez. */
-  --gestia-panel-width: 620px;
+  /* Ancho del panel de detalle. Escrito una sola vez para que nadie lo teclee otra vez.
+     Subió de 620 px a 880 px el 23 de septiembre de 2026. En 620 los campos de la ficha de
+     Personal caían de dos en dos muy estrechos, las seis pestañas no cabían en una línea, y todo
+     lo que no fuera la identificación quedaba debajo del pliegue. El panel sigue siendo una
+     columna del contenido: la tabla se comprime a su lado, no se tapa. */
+  --gestia-panel-width: 880px;
   /* Fondo del esqueleto de carga. Antes era #eef3f9, un color que no salía de ningún token. */
   --gestia-skeleton: var(--gestia-surface-soft);
   /* El velo del diálogo: --gestia-navy al 28 %. Es el ÚNICO valor derivado de un token que el

@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { GiCatalogCreation, GiCatalogOption, GiCatalogPicker } from '../../../shared/ui/gi-catalog-picker/gi-catalog-picker';
-import { GiEmptyState } from '../../../shared/ui/gi-ui';
+import { GiAccordion, GiEmptyState } from '../../../shared/ui/gi-ui';
 import { AdministrativeIncident } from '../data-access/administrative-incident.models';
 
 /** Lo que hace falta para registrar una incidencia administrativa. */
@@ -25,7 +25,7 @@ export type NewAdministrativeIncident = {
 @Component({
   selector: 'app-employee-administrative-incidents',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, GiCatalogPicker, GiEmptyState],
+  imports: [GiAccordion, FormsModule, GiCatalogPicker, GiEmptyState],
   template: `
     <section class="inc">
       @if (visibles().length === 0 && !adding()) {
@@ -38,7 +38,7 @@ export type NewAdministrativeIncident = {
         />
       } @else {
         <ul class="inc__list">
-          @for (incidencia of visibles(); track incidencia.idAdministrativeIncident) {
+          @for (incidencia of vigentes(); track incidencia.idAdministrativeIncident) {
             <li class="inc__item" [class.inc__item--retirada]="!incidencia.active">
               <p class="inc__head">
                 <span class="inc__type">{{ incidencia.incidentTypeName }}</span>
@@ -61,6 +61,36 @@ export type NewAdministrativeIncident = {
             </li>
           }
         </ul>
+
+        @if (vigentes().length === 0) {
+          <p class="inc__vacio">Ninguna incidencia vigente. Las retiradas siguen abajo.</p>
+        }
+
+        <!--
+          Las retiradas siguen en el expediente —aqui los registros no se borran— pero plegadas:
+          mezcladas con las vigentes obligaban a leer el atenuado de cada fila para saber cuales
+          cuentan hoy, y la lista solo podia crecer.
+        -->
+        @if (retiradas().length) {
+          <gi-accordion
+            label="Incidencias retiradas"
+            [count]="retiradas().length"
+            summary="Siguen en el expediente; no cuentan para asignar"
+          >
+            <ul class="inc__list">
+              @for (incidencia of retiradas(); track incidencia.idAdministrativeIncident) {
+                <li class="inc__item inc__item--retirada">
+                  <p class="inc__head">
+                    <span class="inc__type">{{ incidencia.incidentTypeName }}</span>
+                    <span class="inc__pill">Retirada</span>
+                  </p>
+                  <p class="inc__when">Ocurrió el {{ fecha(incidencia.occurredDate) }}</p>
+                  <p class="inc__details">{{ incidencia.details }}</p>
+                </li>
+              }
+            </ul>
+          </gi-accordion>
+        }
 
         @if (canWrite() && !adding()) {
           <p class="inc__add">
@@ -136,6 +166,8 @@ export type NewAdministrativeIncident = {
     .inc__item--retirada { opacity: 0.6; }
 
     .inc__head { display: flex; align-items: center; gap: 0.45rem; margin: 0; }
+
+    .inc__vacio { margin: 0 0 0.6rem; color: var(--gestia-muted); font-size: 12px; }
     .inc__type { color: var(--gestia-text); font-size: 12.5px; font-weight: 600; }
 
     .inc__pill {
@@ -240,6 +272,18 @@ export class EmployeeAdministrativeIncidents {
    * atenúa y se dice que lo está, en vez de desaparecer como si nunca hubiera ocurrido.</p>
    */
   protected readonly visibles = computed(() => this.incidents());
+
+  /**
+   * Las que siguen en pie y las retiradas, por separado.
+   *
+   * <p>Aquí los registros no se borran, así que una incidencia retirada sigue en el expediente.
+   * Pero mezclarla con las vigentes hacía que la lista creciera para siempre y que hubiera que
+   * leer el atenuado de cada fila para saber cuáles cuentan hoy. Las retiradas se pliegan: siguen
+   * estando, y ya no compiten por la atención.</p>
+   */
+  protected readonly vigentes = computed(() => this.incidents().filter((item) => item.active));
+
+  protected readonly retiradas = computed(() => this.incidents().filter((item) => !item.active));
 
   protected readonly ready = computed(
     () => !!this.idType() && !!this.occurredDate() && this.details().trim().length > 0,

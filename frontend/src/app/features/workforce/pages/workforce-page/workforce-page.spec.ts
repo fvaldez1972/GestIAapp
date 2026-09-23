@@ -51,6 +51,7 @@ describe('Personal · carga', () => {
           page: { items: [], totalCount: 0, page: 1, pageSize: 25, totalPages: 0 },
           expiringWithinDays: 30,
           requiredDocuments: [],
+          summary: { total: 0, active: 0, candidates: 0, withExpiredDocuments: 0, withExpiringDocuments: 0 },
         }),
       );
 
@@ -82,6 +83,78 @@ describe('Personal · carga', () => {
     expect(empleados()).toHaveLength(1);
     responder();
     responderLoDemas();
+  });
+
+  /**
+   * Los números del encabezado son de la organización, no de la página.
+   *
+   * <p><b>Es la prueba del defecto que motivó el resumen.</b> El subtítulo decía «N tienen algún
+   * documento vencido» contando <c>employees()</c>, que son las filas a la vista: con diez por
+   * página el número era siempre diez o menos y coincidía con el tamaño de página en vez de con
+   * la realidad.</p>
+   *
+   * <p>Por eso el control importa: la página trae <b>una</b> fila y el resumen dice <b>40</b>. Si
+   * alguien volviera a derivar el número de la página, esta prueba cae, porque 40 no se puede
+   * sacar de una sola fila.</p>
+   */
+  it('las tarjetas cuentan la organización entera, no la página', () => {
+    const { fixture, http, empleados, responderLoDemas } = montar();
+
+    empleados().forEach((r) =>
+      r.flush({
+        page: {
+          items: [
+            {
+              idEmployee: 'emp-1',
+              idOrganization: 'org-a',
+              codeEmployee: 'EMP-001',
+              fullName: 'Laura Beltrán Ruiz',
+              status: 'Active',
+              hireDate: '2024-01-15',
+              curp: null,
+              idJobPositionCatalogItem: null,
+              jobPositionName: null,
+              jobTitle: null,
+              state: null,
+              municipality: null,
+              requiredDocuments: 4,
+              expiredDocuments: 0,
+              expiringDocuments: 0,
+              missingDocuments: 0,
+              notValidDocuments: 0,
+              assignmentCount: 0,
+              documentCount: 0,
+              documentHealth: 'UpToDate',
+            },
+          ],
+          totalCount: 128,
+          page: 1,
+          pageSize: 10,
+          totalPages: 13,
+        },
+        expiringWithinDays: 30,
+        requiredDocuments: 4,
+        summary: {
+          total: 128,
+          active: 96,
+          candidates: 7,
+          withExpiredDocuments: 40,
+          withExpiringDocuments: 12,
+        },
+      }),
+    );
+
+    responderLoDemas();
+    fixture.detectChanges();
+
+    const texto = (fixture.nativeElement as HTMLElement).textContent ?? '';
+
+    // El control: la página trae **una** fila y las tarjetas dicen 128, 96 y 7. Ninguno de esos
+    // tres números se puede sacar de una sola fila, así que si alguien volviera a derivarlos de
+    // `employees()` esta prueba caería.
+    expect(texto).toContain('128');
+    expect(texto).toContain('96');
+    expect(texto).toContain('7 candidatas o candidatos');
   });
 
   /**

@@ -45,6 +45,74 @@ public sealed class EmployeeSearchTests(OperationalSqlDatabase database)
     /// </summary>
     private readonly Dictionary<EmployeeDocumentType, Guid> categorias = [];
 
+    // ── Los números del encabezado ───────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// El resumen cuenta la organización entera, y lo hace <b>en SQL</b>.
+    ///
+    /// <para>Las dos mitades de la prueba importan por separado. La primera es que exista: el
+    /// resumen usa un <c>GroupBy</c> constante con subconsultas correlacionadas dentro, y eso o
+    /// traduce a SQL o revienta al ejecutarse —nunca al compilar—. Sin una prueba contra un motor
+    /// de verdad, el error aparecería al abrir la pantalla.</para>
+    ///
+    /// <para>La segunda es el control que le da sentido: se pide con <c>Take = 1</c>, así que la
+    /// página trae <b>una</b> fila mientras el resumen dice cuatro. Ése es exactamente el defecto
+    /// que el resumen vino a arreglar —el subtítulo contaba las filas a la vista—, y con una sola
+    /// fila en la página ninguno de estos números se puede sacar de ella.</para>
+    /// </summary>
+    [OperationalSqlFact]
+    public async Task TheSummaryCountsTheWholeOrganizationAndNotThePage()
+    {
+        var seed = await SeedAsync("SUM");
+
+        var unaSolaFila = Criterios(seed.OrganizationId) with { Take = 1 };
+        var (items, total) = await SearchAsync(unaSolaFila);
+        var resumen = await SummarizeAsync(unaSolaFila);
+
+        // El control: la página es de una, el conjunto es de cuatro.
+        Assert.Single(items);
+        Assert.Equal(4, total);
+
+        Assert.Equal(4, resumen.Total);
+
+        // Tres activas y una candidata —«Persona sin papeles», que el sembrado deja como
+        // candidatura—. Que los dos números difieran es lo que hace la prueba útil: con cuatro y
+        // cero, una implementación que contara todas las filas pasaría igual.
+        Assert.Equal(3, resumen.Active);
+        Assert.Equal(1, resumen.Candidates);
+
+        // Una con un documento vencido, y una que caduca dentro del umbral. Cuenta personas, no
+        // documentos: quien ya tiene algo vencido no vuelve a contarse en «por vencer».
+        Assert.Equal(1, resumen.WithExpiredDocuments);
+        Assert.Equal(1, resumen.WithExpiringDocuments);
+    }
+
+    /// <summary>
+    /// Una organización sin personal da cinco ceros, no una excepción.
+    ///
+    /// <para>El <c>GroupBy</c> no produce ningún grupo cuando no hay filas, así que
+    /// <c>FirstOrDefault</c> devuelve nulo. Una organización recién creada entra por ese camino la
+    /// primera vez que alguien abre Personal.</para>
+    /// </summary>
+    [OperationalSqlFact]
+    public async Task TheSummaryOfAnEmptyOrganizationIsZeroAndNotAnError()
+    {
+        var seed = await SeedAsync("VAC");
+        var otra = Guid.NewGuid();
+
+        var resumen = await SummarizeAsync(Criterios(otra));
+
+        Assert.Equal(0, resumen.Total);
+        Assert.Equal(0, resumen.Active);
+        Assert.Equal(0, resumen.Candidates);
+        Assert.Equal(0, resumen.WithExpiredDocuments);
+        Assert.Equal(0, resumen.WithExpiringDocuments);
+
+        // Y el control de que la prueba no está mirando al vacío por accidente: la organización
+        // sembrada, en el mismo motor y la misma corrida, sí tiene cuatro.
+        Assert.Equal(4, (await SummarizeAsync(Criterios(seed.OrganizationId))).Total);
+    }
+
     // ── El resumen documental ────────────────────────────────────────────────────────────────
 
     [OperationalSqlFact]
@@ -404,6 +472,14 @@ public sealed class EmployeeSearchTests(OperationalSqlDatabase database)
         database.Organization.SetAuthorizedOrganization(criteria.IdOrganization);
         await using var context = database.Context();
         return await new WorkforceRepository(context).SearchEmployeesAsync(
+            criteria, Requeridos.Select(tipo => categorias[tipo]).ToArray(), Token);
+    }
+
+    private async Task<EmployeeSummaryResponse> SummarizeAsync(EmployeeSearchCriteria criteria)
+    {
+        database.Organization.SetAuthorizedOrganization(criteria.IdOrganization);
+        await using var context = database.Context();
+        return await new WorkforceRepository(context).SummarizeEmployeesAsync(
             criteria, Requeridos.Select(tipo => categorias[tipo]).ToArray(), Token);
     }
 

@@ -15,6 +15,17 @@ public interface IWorkforceRepository
         IReadOnlyCollection<Guid> requiredDocuments,
         CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Los cinco números del encabezado del listado, en una sola consulta.
+    ///
+    /// <para>Toma la organización y los requisitos, y <b>no</b> el resto del criterio: el resumen
+    /// es de toda la organización a propósito. Ver <see cref="EmployeeSummaryResponse"/>.</para>
+    /// </summary>
+    Task<EmployeeSummaryResponse> SummarizeEmployeesAsync(
+        EmployeeSearchCriteria criteria,
+        IReadOnlyCollection<Guid> requiredDocuments,
+        CancellationToken cancellationToken);
+
     /// <summary>Los tipos de documento que esta organización exige, de EligibilityRequirement.</summary>
     Task<IReadOnlyList<Guid>> ListRequiredDocumentTypesAsync(
         Guid idOrganization,

@@ -77,6 +77,12 @@ public sealed class LegacyDocumentAuthorizationTests
             CancellationToken cancellationToken) =>
             Task.FromResult(((IReadOnlyList<EmployeeListItemResponse>)[], 0));
 
+        public Task<EmployeeSummaryResponse> SummarizeEmployeesAsync(
+            EmployeeSearchCriteria criteria,
+            IReadOnlyCollection<Guid> requiredDocuments,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(new EmployeeSummaryResponse(0, 0, 0, 0, 0));
+
         public Task<IReadOnlyList<Guid>> ListRequiredDocumentTypesAsync(
             Guid idOrganization,
             CancellationToken cancellationToken) =>

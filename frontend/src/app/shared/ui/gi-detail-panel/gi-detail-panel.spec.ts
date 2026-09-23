@@ -63,9 +63,14 @@ describe('GiDetailPanel', () => {
    * La decisión que separa este panel de un cajón: es una columna del contenido. La tabla se
    * comprime a su lado, no se tapa, así que no se pierde de vista dónde estabas.
    */
-  it('mide 620 px y es una columna, no una capa encima', () => {
+  it('mide 880 px y es una columna, no una capa encima', () => {
     // jsdom no resuelve variables CSS, así que la medida se comprueba donde está escrita: el
-    // componente toma el ancho del token y el token vale 620 px.
+    // componente toma el ancho del token y el token vale 880 px.
+    //
+    // Eran 620 hasta el 23 de septiembre de 2026. Lo que se fija aquí no es el número —ése se
+    // cambia cuando haga falta— sino que **el ancho salga del token**: escrito a mano en el
+    // componente, el panel y la columna que le deja sitio en cada pantalla se separarían y el
+    // panel quedaría desbordando o con un hueco al lado.
     const componente = readFileSync(
       resolve('src/app/shared/ui/gi-detail-panel/gi-detail-panel.ts'), 'utf8');
     const hoja = readFileSync(resolve('src/styles.css'), 'utf8');
@@ -73,7 +78,7 @@ describe('GiDetailPanel', () => {
     const host = componente.slice(componente.indexOf(':host {'), componente.indexOf('.gi-panel {'));
 
     expect(host).toContain('width: var(--gestia-panel-width)');
-    expect(hoja).toContain('--gestia-panel-width: 620px');
+    expect(hoja).toContain('--gestia-panel-width: 880px');
 
     // Y es columna: nada de posicionarlo encima de la tabla.
     expect(host).not.toMatch(/position:\s*(fixed|absolute)/);

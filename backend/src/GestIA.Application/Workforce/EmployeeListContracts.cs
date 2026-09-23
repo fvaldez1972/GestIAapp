@@ -164,10 +164,31 @@ public sealed record EmployeeSearchQuery(
 /// pantalla tiene que <b>escribirlos</b>: «por vencer: 30 días o menos» y «4 requisitos de esta
 /// organización». Sin ellos, la píldora sería un número sin regla a la vista.</para>
 /// </summary>
+/// <summary>
+/// Cómo está el personal de la organización, en números.
+///
+/// <para><b>Es de toda la organización, no de la página ni del filtro.</b> Existe porque el
+/// subtítulo del listado decía «N tienen algún documento vencido» contando las filas que tenía a
+/// la vista: con diez por página el número era siempre diez o menos, y coincidía con el tamaño de
+/// página en vez de con la realidad. Un número que se mueve al cambiar de página no es un
+/// indicador, es un accidente.</para>
+///
+/// <para>Que ignore el filtro también es decisión: estas tarjetas son el estado del personal, y si
+/// reaccionaran al filtro dejarían de responder «cómo estamos» para responder «cuántos hay de los
+/// que acabo de pedir», que es justo lo que ya dice el contador de resultados.</para>
+/// </summary>
+public sealed record EmployeeSummaryResponse(
+    int Total,
+    int Active,
+    int Candidates,
+    int WithExpiredDocuments,
+    int WithExpiringDocuments);
+
 public sealed record EmployeeSearchResponse(
     PagedResult<EmployeeListItemResponse> Page,
     int ExpiringWithinDays,
-    int RequiredDocuments);
+    int RequiredDocuments,
+    EmployeeSummaryResponse Summary);
 
 public sealed record EmployeeJobPositionOption(Guid IdCatalogItem, string Name);
 

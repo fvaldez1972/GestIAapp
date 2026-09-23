@@ -146,6 +146,22 @@ describe('Un documento cargado que no cuenta no puede leerse «Al día»', () =>
     expect(estado(documento({ status: 'NotApplicable' }))).toBe('Unvalidated');
   });
 
+  /**
+   * Haber caducado manda sobre estar sin validar.
+   *
+   * <p>El contador de la fila lo calcula el servidor como «estado vencido <b>o</b> fecha pasada»,
+   * sin mirar la validación. Mientras esta lista ponía el estado por delante de la fecha, un papel
+   * pendiente de validar y caducado se contaba como vencido arriba y se decía «Sin validar» abajo:
+   * la ficha ponía «2 vencidos» y la pestaña enseñaba uno.</p>
+   *
+   * <p>El control es el par: el <b>mismo</b> estado con fecha futura sigue diciendo «Sin validar»,
+   * así que lo que cambia el veredicto es la fecha y no otra cosa.</p>
+   */
+  it('un pendiente de validar que ya caducó se dice Vencido', () => {
+    expect(estado(documento({ status: 'Pending', expiresDate: '2025-03-28' }))).toBe('Expired');
+    expect(estado(documento({ status: 'Pending', expiresDate: '2028-05-21' }))).toBe('Unvalidated');
+  });
+
   /** El estado `Expired` conserva su etiqueta de siempre, aunque la fecha todavía no haya pasado. */
   it('el estado Expired manda sobre la fecha', () => {
     expect(estado(documento({ status: 'Expired', expiresDate: '2028-05-21' }))).toBe('Expired');
@@ -185,36 +201,47 @@ describe('La insignia del listado no puede contradecir a la ficha', () => {
     }) as EmployeeListItem;
 
   /**
-   * El defecto que se vio en los datos de la demo: la tabla decía «Al día» de alguien cuya ficha
-   * decía «Rechazado», porque el conteo del servidor no miraba el estado del documento.
+   * La píldora dice si el expediente está cubierto, y ya no por qué no lo está.
+   *
+   * <p>El 23 de septiembre de 2026 la pantalla dejó de mostrar vigencias, y con ellas se fueron los
+   * conteos —«1 vencido», «2 sin validar»—: dos de esos tres números cuentan requisitos y el otro
+   * cuenta archivos, así que fuera del contexto que los explicaba sumaban una cifra que no
+   * corresponde a nada.</p>
    */
-  it('un documento que no cuenta se dice «sin validar», no «al día»', () => {
-    expect(employeeDocumentBadge(listado({ notValidDocuments: 1 }))).toEqual({
-      label: '1 sin validar',
-      tone: 'danger',
-    });
-    expect(employeeDocumentBadge(listado({ notValidDocuments: 2 }))).toEqual({
-      label: '2 sin validar',
-      tone: 'danger',
-    });
-  });
-
-  /** Y no se dice «sin cargar»: el archivo está, y eso manda a revisarlo, no a subirlo otra vez. */
-  it('«sin validar» pesa más que «sin cargar»', () => {
-    expect(employeeDocumentBadge(listado({ notValidDocuments: 1, missingDocuments: 2 })).label).toBe(
-      '1 sin validar',
-    );
-  });
-
-  /** El vencido sigue mandando sobre todo lo demás: ya está bloqueando. */
-  it('un vencido pesa más que uno sin validar', () => {
-    expect(
-      employeeDocumentBadge(listado({ expiredDocuments: 1, notValidDocuments: 1 })).label,
-    ).toBe('1 vencido');
-  });
-
-  it('sin requisitos no se afirma nada, y con todo cubierto se dice al día', () => {
+  it('con todo cubierto dice Completo, y sin requisitos no afirma nada', () => {
+    expect(employeeDocumentBadge(listado({})).label).toBe('Completo');
+    expect(employeeDocumentBadge(listado({})).tone).toBe('success');
     expect(employeeDocumentBadge(listado({ requiredDocuments: 0 })).label).toBe('Sin requisitos');
-    expect(employeeDocumentBadge(listado({})).label).toBe('Al día');
+  });
+
+  /**
+   * <b>La trampa de haber quitado las fechas, y la razón de que esta prueba exista.</b>
+   *
+   * <p>Al retirar la vigencia de la pantalla era fácil retirar también el hecho: si «vencido»
+   * dejara de contar, la persona con la CURP caducada saldría <b>Completo</b> mientras el servidor
+   * le niega la asignación por ese mismo documento —y la lista estaría afirmando lo contrario de
+   * lo que va a pasar—. Lo que se quitó es la fecha, no el hecho.</p>
+   *
+   * <p>Las tres causas se comprueban por separado y cada una sola, para que ninguna se apoye en
+   * las otras.</p>
+   */
+  it('un vencido, un rechazado o un hueco dejan el expediente incompleto', () => {
+    expect(employeeDocumentBadge(listado({ expiredDocuments: 1 })).label).toBe('Incompleto');
+    expect(employeeDocumentBadge(listado({ notValidDocuments: 1 })).label).toBe('Incompleto');
+    expect(employeeDocumentBadge(listado({ missingDocuments: 1 })).label).toBe('Incompleto');
+
+    expect(employeeDocumentBadge(listado({ expiredDocuments: 1 })).tone).toBe('danger');
+  });
+
+  /**
+   * Lo que **no** deja el expediente incompleto: que algo esté por caducar.
+   *
+   * <p>Es el control que distingue haber quitado las fechas de haber quitado la regla. Un documento
+   * vigente que caduca pronto sigue cubriendo su requisito hoy, y el servidor sigue dejando asignar
+   * a esa persona: decir «Incompleto» la bloquearía en la pantalla sin que nada la bloquee de
+   * verdad.</p>
+   */
+  it('uno por vencer todavía cubre, así que el expediente sigue completo', () => {
+    expect(employeeDocumentBadge(listado({ expiringDocuments: 2 })).label).toBe('Completo');
   });
 });

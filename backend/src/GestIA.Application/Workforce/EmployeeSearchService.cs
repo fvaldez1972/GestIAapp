@@ -51,11 +51,13 @@ public sealed class EmployeeSearchService(
             query.PageSize);
 
         var (items, totalCount) = await repository.SearchEmployeesAsync(criteria, required, cancellationToken);
+        var resumen = await repository.SummarizeEmployeesAsync(criteria, required, cancellationToken);
 
         return new EmployeeSearchResponse(
             new PagedResult<EmployeeListItemResponse>(items, totalCount, query.Page, query.PageSize),
             ExpiringWithinDays,
-            required.Count);
+            required.Count,
+            resumen);
     }
 
     public async Task<EmployeeFilterOptionsResponse> GetFilterOptionsAsync(

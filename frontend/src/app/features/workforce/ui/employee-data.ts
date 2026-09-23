@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
-import { GiCatalogCreation, GiSelect, GiSelectOption } from '../../../shared/ui/gi-ui';
+import { GiAccordion, GiCatalogCreation, GiSelect, GiSelectOption } from '../../../shared/ui/gi-ui';
 import { formatOperationalDate } from '../../../shared/util/operational-date';
 import { Employee } from '../data-access/workforce.models';
 import {
@@ -25,32 +25,9 @@ import { EmployeeJobPosition } from './employee-job-position';
 @Component({
   selector: 'app-employee-data',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [EmployeeAddress, EmployeeEligibilityBand, EmployeeJobPosition, GiSelect],
+  imports: [EmployeeAddress, EmployeeEligibilityBand, EmployeeJobPosition, GiAccordion, GiSelect],
   template: `
     <div class="data">
-      <!--
-        El aviso de vencimiento, arriba del todo. Los documentos por vencer sólo se veían entrando a
-        su pestaña, y son justo lo que hay que resolver antes de que la persona deje de poder
-        trabajar: el expediente no se rompe hoy, se rompe el día que caduquen.
-
-        Dice que la persona sigue activa a propósito. Sin esa línea un aviso rojo sobre un
-        expediente correcto se lee como si ya hubiera un problema.
-      -->
-      @if (row().expiringDocuments > 0) {
-        <section class="aviso" role="status">
-          <div class="aviso__texto">
-            <p class="aviso__titulo">Documentos próximos a vencer</p>
-            <p class="aviso__linea">
-              Esta persona tiene {{ row().expiringDocuments }}
-              {{ row().expiringDocuments === 1 ? 'documento' : 'documentos' }} por vencer en los
-              próximos {{ expiringWithinDays() }} días o menos. Puede seguir trabajando, pero
-              conviene actualizarlos antes de que caduquen.
-            </p>
-          </div>
-          <button class="aviso__accion" type="button" (click)="openDocuments.emit()">Ver documentos</button>
-        </section>
-      }
-
       <app-employee-eligibility
         [employeeJobPositionId]="row().idJobPositionCatalogItem"
         [employeeJobPosition]="row().jobPositionName"
@@ -71,19 +48,23 @@ import { EmployeeJobPosition } from './employee-job-position';
         />
       }
 
-      <section class="data__block">
-        <h3 class="data__kicker">IDENTIFICACIÓN</h3>
+      <!--
+        Identificacion: la unica seccion que NO se pliega. Es lo que contesta «¿de quien es esta
+        ficha?», y plegarla obligaria a abrir algo para saber en que registro estas.
+      -->
+      <section class="data__block data__block--principal">
+        <h3 class="data__kicker">Identificación</h3>
         <dl class="data__grid data__grid--two">
           <div class="data__field data__field--wide">
-            <dt>NOMBRE</dt>
+            <dt>Nombre</dt>
             <dd>{{ row().fullName }}</dd>
           </div>
           <div class="data__field">
-            <dt>CÓDIGO</dt>
+            <dt>Código</dt>
             <dd>{{ row().codeEmployee }}</dd>
           </div>
           <div class="data__field">
-            <dt>ESTADO</dt>
+            <dt>Estado</dt>
             <dd class="data__status">
               <span class="data__dot" [class]="'data__dot--' + statusTone()" aria-hidden="true"></span>
               {{ statusLabel() }}
@@ -103,7 +84,7 @@ import { EmployeeJobPosition } from './employee-job-position';
             cumple»: la columna nacio el 19 de septiembre de 2026 y ningun expediente la traia.
           -->
           <div class="data__field">
-            <dt>ESCOLARIDAD</dt>
+            <dt>Escolaridad</dt>
             <dd>
               @if (canWrite()) {
                 <gi-select
@@ -128,11 +109,23 @@ import { EmployeeJobPosition } from './employee-job-position';
         }
       </section>
 
-      <section class="data__block">
-        <h3 class="data__kicker">PUESTO</h3>
+      <gi-accordion
+        label="Relación laboral"
+        [summary]="resumenLaboral()"
+        [tone]="row().jobPositionName ? 'neutral' : 'warning'"
+        [toneLabel]="row().jobPositionName ? '' : 'Sin puesto'"
+      >
         <dl class="data__grid data__grid--two">
           <div class="data__field">
-            <dt>PUESTO DEL CATÁLOGO</dt>
+            <dt>Ingreso</dt>
+            <dd>{{ hired() }}</dd>
+          </div>
+          <div class="data__field">
+            <dt>Asignaciones</dt>
+            <dd>{{ row().assignmentCount === 0 ? 'Ninguna' : row().assignmentCount }}</dd>
+          </div>
+          <div class="data__field">
+            <dt>Puesto</dt>
             <dd [class.data__warning]="!row().jobPositionName">
               {{ row().jobPositionName || 'Sin puesto del catálogo' }}
               <!--
@@ -145,10 +138,20 @@ import { EmployeeJobPosition } from './employee-job-position';
               }
             </dd>
           </div>
-          <div class="data__field">
-            <dt>PUESTO CAPTURADO ANTES</dt>
-            <dd>{{ row().jobTitle || 'Sin texto capturado' }}</dd>
-          </div>
+          <!--
+            El texto heredado sale de la vista cuando coincide con el puesto del catalogo.
+
+            Antes se enseñaban siempre los dos campos, uno al lado del otro. En la inmensa mayoria
+            de las fichas dicen exactamente lo mismo —«Auxiliar de intendencia» y «Auxiliar de
+            intendencia»—, asi que el usuario leia dos veces el mismo dato y tenia que decidir cual
+            de los dos era el bueno. Cuando difieren si importa, y entonces se muestra.
+          -->
+          @if (textoHeredadoDistinto()) {
+            <div class="data__field">
+              <dt>Texto capturado antes del catálogo</dt>
+              <dd>{{ row().jobTitle }}</dd>
+            </div>
+          }
         </dl>
         @if (row().jobTitle && !row().jobPositionName) {
           <p class="data__note">
@@ -156,17 +159,21 @@ import { EmployeeJobPosition } from './employee-job-position';
             contra el perfil de una posición, porque la comparación es por identificador.
           </p>
         }
-      </section>
+      </gi-accordion>
 
-      <section class="data__block">
-        <h3 class="data__kicker">
-          UBICACIÓN Y CONTACTO
-          @if (canWrite() && !editingAddress()) {
+      <gi-accordion
+        label="Domicilio"
+        [summary]="resumenDomicilio()"
+        [tone]="domicilioVacio() ? 'warning' : 'neutral'"
+        [toneLabel]="domicilioVacio() ? 'Sin capturar' : ''"
+      >
+        @if (canWrite() && !editingAddress()) {
+          <p class="data__acciones">
             <button class="data__editar" type="button" (click)="editAddress.emit()">
               {{ domicilioVacio() ? 'Capturar domicilio' : 'Editar domicilio' }}
             </button>
-          }
-        </h3>
+          </p>
+        }
 
         <!--
           El domicilio se podía ver y no se podía escribir. Las columnas existían en la base desde
@@ -193,93 +200,107 @@ import { EmployeeJobPosition } from './employee-job-position';
             así en vez de fingir que falta el domicilio entero.
           -->
           <div class="data__field">
-            <dt>CALLE</dt>
+            <dt>Calle</dt>
             <dd>{{ delDetalle(employee()?.street || 'Sin calle registrada') }}</dd>
           </div>
           <div class="data__field">
-            <dt>NÚMERO</dt>
+            <dt>Número</dt>
             <dd>{{ delDetalle(employee()?.streetNumber || 'Sin número registrado') }}</dd>
           </div>
           <div class="data__field">
-            <dt>COLONIA</dt>
+            <dt>Colonia</dt>
             <dd>{{ delDetalle(employee()?.neighborhood || 'Sin colonia registrada') }}</dd>
           </div>
           <div class="data__field">
-            <dt>CÓDIGO POSTAL</dt>
+            <dt>Código postal</dt>
             <dd>{{ delDetalle(employee()?.postalCode || 'Sin código postal') }}</dd>
           </div>
           <div class="data__field">
-            <dt>ESTADO</dt>
+            <dt>Estado</dt>
             <dd>{{ row().state || 'Sin estado registrado' }}</dd>
           </div>
           <div class="data__field">
-            <dt>MUNICIPIO</dt>
+            <dt>Municipio</dt>
             <dd>{{ row().municipality || 'Sin municipio registrado' }}</dd>
-          </div>
-          <div class="data__field">
-            <dt>TELÉFONO</dt>
-            <dd>{{ delDetalle(employee()?.mobilePhone || employee()?.homePhone || 'Sin teléfono') }}</dd>
-          </div>
-          <div class="data__field">
-            <dt>CORREO</dt>
-            <dd>{{ delDetalle(employee()?.email || 'Sin correo') }}</dd>
-          </div>
-          <div class="data__field data__field--wide">
-            <dt>CONTACTO DE EMERGENCIA</dt>
-            <dd>{{ emergency() }}</dd>
           </div>
         </dl>
         }
-      </section>
+      </gi-accordion>
 
-      <section class="data__block">
-        <h3 class="data__kicker">RELACIÓN LABORAL</h3>
+      <!--
+        Contacto va aparte del domicilio. Son dos cosas que se consultan en momentos distintos —una
+        para ubicar a la persona y otra para localizarla—, y juntas hacian un bloque de nueve
+        campos que era el mas largo de la ficha.
+      -->
+      <gi-accordion
+        label="Contacto"
+        [summary]="resumenContacto()"
+        [tone]="tieneContactoEmergencia() ? 'neutral' : 'warning'"
+        [toneLabel]="tieneContactoEmergencia() ? '' : 'Sin contacto de emergencia'"
+      >
         <dl class="data__grid data__grid--two">
           <div class="data__field">
-            <dt>INGRESO</dt>
-            <dd>{{ hired() }}</dd>
+            <dt>Teléfono</dt>
+            <dd>{{ delDetalle(employee()?.mobilePhone || employee()?.homePhone || 'Sin teléfono') }}</dd>
           </div>
           <div class="data__field">
-            <dt>ASIGNACIONES</dt>
-            <dd>{{ row().assignmentCount === 0 ? 'Ninguna' : row().assignmentCount }}</dd>
+            <dt>Correo</dt>
+            <dd>{{ delDetalle(employee()?.email || 'Sin correo') }}</dd>
+          </div>
+          <div class="data__field data__field--wide">
+            <dt>Contacto de emergencia</dt>
+            <dd>{{ emergency() }}</dd>
           </div>
         </dl>
-      </section>
+      </gi-accordion>
     </div>
   `,
   styles: `
     :host { display: block; }
 
-    .data { display: flex; flex-direction: column; gap: 1.1rem; }
+    .data { display: flex; flex-direction: column; gap: 0.55rem; }
 
     .data__block { display: flex; flex-direction: column; gap: 0.6rem; }
 
-    .data__block + .data__block { border-top: 1px solid var(--gestia-border); padding-top: 1.1rem; }
+    /* La identificacion ya no lleva separador superior: es la primera y la unica sin plegar, asi
+       que no hay nada de lo que separarla. Los acordeones traen su propio borde. */
+    .data__block--principal { gap: 0.5rem; }
 
+    .data__acciones { margin: 0 0 0.6rem; }
+
+    /* El rótulo de bloque va en cian y con una línea debajo: es lo que divide la ficha en partes,
+       y en gris quedaba al mismo peso visual que las etiquetas de campo que encabeza. */
     .data__kicker {
       margin: 0;
-      color: var(--gestia-muted);
+      padding-bottom: 0.35rem;
+      border-bottom: 1px solid var(--gestia-border);
+      color: var(--gestia-cyan-dark);
       font-size: 11px;
       font-weight: 600;
       letter-spacing: 0.08em;
     }
 
-    .data__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem 1rem; margin: 0; }
+    .data__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.85rem 1.25rem; margin: 0; }
 
-    .data__field { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
+    .data__field { display: flex; flex-direction: column; gap: 0.2rem; min-width: 0; }
     .data__field--wide { grid-column: 1 / -1; }
 
+    /* La etiqueta baja a 11.5 px sin mayúsculas forzadas y el valor sube a 13 px 600.
+       Antes la etiqueta iba en versalitas grises de 11 px y el valor en 12.5 px, tan cerca que
+       ninguno de los dos mandaba: la ficha se leía como una lista de pares del mismo peso en vez
+       de como datos con su rótulo. El dato es lo que se viene a leer, así que es lo que pesa. */
     .data__field dt {
       color: var(--gestia-muted);
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 0.06em;
+      font-size: 11.5px;
+      font-weight: 500;
+      letter-spacing: 0;
+      text-transform: none;
     }
 
     .data__field dd {
       margin: 0;
       color: var(--gestia-text);
-      font-size: 12.5px;
+      font-size: 13px;
       font-weight: 600;
       overflow-wrap: anywhere;
     }
@@ -432,6 +453,36 @@ export class EmployeeData {
       && !opciones.some((opcion) => opcion.idCatalogItem === id);
   });
 
+  /**
+   * Si el texto heredado dice algo que el puesto del catálogo no diga ya.
+   *
+   * <p>Se compara sin acentos ni mayúsculas porque la conversión al catálogo normalizó la
+   * escritura: «Auxiliar de Intendencia» y «Auxiliar de intendencia» son el mismo puesto escrito
+   * dos veces, y enseñarlos como campos distintos sugiere una diferencia que no existe.</p>
+   */
+  protected readonly textoHeredadoDistinto = computed(() => {
+    const heredado = this.row().jobTitle?.trim();
+
+    if (!heredado) {
+      return false;
+    }
+
+    const catalogo = this.row().jobPositionName?.trim();
+
+    if (!catalogo) {
+      // Sin puesto de catálogo el texto heredado es lo único que hay: se enseña siempre.
+      return true;
+    }
+
+    const normalizar = (valor: string) =>
+      valor
+        .normalize('NFD')
+        .replace(/[̀-ͯ]/g, '')
+        .toLocaleLowerCase('es');
+
+    return normalizar(heredado) !== normalizar(catalogo);
+  });
+
   protected delDetalle(valor: string): string {
     return this.loading() ? '…' : valor;
   }
@@ -451,6 +502,50 @@ export class EmployeeData {
   protected readonly statusLabel = computed(() => employeeStatusLabel(this.row().status));
   protected readonly statusTone = computed(() => employeeStatusTone(this.row().status));
   protected readonly hired = computed(() => formatOperationalDate(this.row().hireDate));
+
+  /**
+   * Lo que cada acordeón dice sin abrirse.
+   *
+   * <p>Es lo que hace que plegar no cueste nada: una sección cerrada que sólo dice «Domicilio»
+   * obliga a abrirla para saber si hay algo dentro, y entonces plegar sólo ha añadido un clic.</p>
+   */
+  protected readonly resumenLaboral = computed(() => {
+    const puesto = this.row().jobPositionName || 'Sin puesto del catálogo';
+    return `${puesto} · desde ${this.hired()}`;
+  });
+
+  protected readonly resumenDomicilio = computed(() => {
+    const employee = this.employee();
+
+    if (this.loading()) {
+      return '…';
+    }
+
+    // Municipio y estado primero: es lo que se pregunta de un domicilio cuando no se va a ir a él.
+    const lugar = [this.row().municipality, this.row().state].filter(Boolean).join(', ');
+    const calle = [employee?.street, employee?.streetNumber].filter(Boolean).join(' ');
+
+    if (!lugar && !calle) {
+      return 'Sin domicilio capturado';
+    }
+
+    return [lugar, calle].filter(Boolean).join(' · ');
+  });
+
+  protected readonly resumenContacto = computed(() => {
+    const employee = this.employee();
+
+    if (this.loading()) {
+      return '…';
+    }
+
+    const telefono = employee?.mobilePhone || employee?.homePhone;
+    return telefono || employee?.email || 'Sin datos de contacto';
+  });
+
+  protected readonly tieneContactoEmergencia = computed(
+    () => !!this.employee()?.emergencyContactName,
+  );
 
   protected readonly emergency = computed(() => {
     const employee = this.employee();

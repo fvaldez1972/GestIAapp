@@ -255,6 +255,76 @@ public sealed partial class WorkforceRepository
     }
 
     /// <summary>
+    /// Los cinco números del encabezado, en <b>una</b> consulta.
+    ///
+    /// <para>El <c>GroupBy</c> constante es lo que los junta: sin él serían cinco <c>COUNT</c>
+    /// sueltos y cinco viajes a la base para pintar una fila de tarjetas.</para>
+    ///
+    /// <para><b>Deliberadamente no aplica el filtro de la pantalla</b> —ni búsqueda, ni estado, ni
+    /// puesto, ni municipio, ni vigencia documental—. Sólo toma la organización del criterio. El
+    /// porqué está en <see cref="EmployeeSummaryResponse"/>.</para>
+    /// </summary>
+    public async Task<EmployeeSummaryResponse> SummarizeEmployeesAsync(
+        EmployeeSearchCriteria criteria,
+        IReadOnlyCollection<Guid> requiredDocuments,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(criteria);
+        ArgumentNullException.ThrowIfNull(requiredDocuments);
+
+        var required = requiredDocuments.Distinct().Select(item => (Guid?)item).ToArray();
+        var limite = criteria.Today.AddDays(criteria.ExpiringWithinDays);
+
+        var resumen = await dbContext.Employees
+            .AsNoTracking()
+            .Where(employee => employee.IdOrganization == criteria.IdOrganization)
+            .GroupBy(_ => 1)
+            .Select(grupo => new
+            {
+                Total = grupo.Count(),
+                Active = grupo.Count(employee => employee.Status == EmployeeStatus.Active),
+                Candidates = grupo.Count(employee => employee.Status == EmployeeStatus.Candidate),
+
+                // Personas con al menos un requisito vencido, no documentos vencidos: la tarjeta
+                // cuenta gente, y alguien con tres papeles caducados sigue siendo una persona.
+                WithExpired = grupo.Count(employee => dbContext.EmployeeDocuments.Any(document =>
+                    document.IdEmployee == employee.IdEmployee &&
+                    required.Contains(document.IdDocumentCategoryCatalogItem) &&
+                    (document.Status == EmployeeDocumentStatus.Expired ||
+                        (document.ExpiresDate != null && document.ExpiresDate < criteria.Today)))),
+
+                // «Por vencer» excluye a quien ya tiene algo vencido: esa persona ya está contada
+                // en la tarjeta roja, y sumarla a las dos haría que los números no cuadraran con
+                // el total. Lo urgente manda sobre lo próximo.
+                WithExpiring = grupo.Count(employee =>
+                    dbContext.EmployeeDocuments.Any(document =>
+                        document.IdEmployee == employee.IdEmployee &&
+                        required.Contains(document.IdDocumentCategoryCatalogItem) &&
+                        document.Status != EmployeeDocumentStatus.Expired &&
+                        document.ExpiresDate != null &&
+                        document.ExpiresDate >= criteria.Today &&
+                        document.ExpiresDate <= limite) &&
+                    !dbContext.EmployeeDocuments.Any(document =>
+                        document.IdEmployee == employee.IdEmployee &&
+                        required.Contains(document.IdDocumentCategoryCatalogItem) &&
+                        (document.Status == EmployeeDocumentStatus.Expired ||
+                            (document.ExpiresDate != null && document.ExpiresDate < criteria.Today)))),
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        // Sin personas no hay grupo, y `FirstOrDefault` devuelve nulo. Una organización recién
+        // creada tiene cinco ceros, no una excepción.
+        return resumen is null
+            ? new EmployeeSummaryResponse(0, 0, 0, 0, 0)
+            : new EmployeeSummaryResponse(
+                resumen.Total,
+                resumen.Active,
+                resumen.Candidates,
+                resumen.WithExpired,
+                resumen.WithExpiring);
+    }
+
+    /// <summary>
     /// El peor manda. Un vencido pesa más que un hueco, y un hueco más que algo por caducar: los
     /// tres son problemas, pero el primero ya está bloqueando.
     /// </summary>

@@ -1,6 +1,5 @@
-import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
 import { GiEmptyState } from '../../../shared/ui/gi-ui';
-import { formatOperationalDate } from '../../../shared/util/operational-date';
 import { EligibilityRequirement } from '../../catalogs/data-access/catalog.models';
 import { EmployeeDocument } from '../data-access/workforce.models';
 import {
@@ -47,96 +46,83 @@ import {
       } @else {
 
         <!--
-          El umbral va escrito, no implicito en un color: sin el, «por vencer» es una etiqueta que
-          nadie sabe medir. Antes ocupaba un parrafo de tres renglones con cosas que los tres
-          numeros de abajo ya dicen; ahora es una linea.
+          Dos pestanas, y nada mas.
+
+          Antes esto era una sola columna con: tres tarjetas de resumen, el bloque de obligatorios
+          con su titulo y su parrafo, el de informativos con los suyos, y «Otros documentos»
+          plegado al final. Cuatro encabezados apilados para dos listas, y habia que desplazar
+          para llegar a la segunda.
+
+          Obligatorios e informativos no se mezclan porque **no son la misma cosa**: uno impide
+          asignar a la persona y el otro solo deja constancia. Separarlos en pestanas dice esa
+          diferencia con la estructura, que es mas dificil de ignorar que una etiqueta pequena.
         -->
+        <div class="subtabs" role="tablist" aria-label="Tipos de documento">
+          <button
+            type="button"
+            role="tab"
+            class="subtab"
+            [class.is-active]="vista() === 'obligatorios'"
+            [attr.aria-selected]="vista() === 'obligatorios'"
+            (click)="vista.set('obligatorios')"
+          >
+            Obligatorios
+            <span class="subtab__count">{{ obligatorios().length }}</span>
+            @if (porAtender() > 0) {
+              <span class="subtab__alerta">{{ porAtender() }} por atender</span>
+            }
+          </button>
+
+          <button
+            type="button"
+            role="tab"
+            class="subtab"
+            [class.is-active]="vista() === 'informativos'"
+            [attr.aria-selected]="vista() === 'informativos'"
+            (click)="vista.set('informativos')"
+          >
+            Informativos
+            <span class="subtab__count">{{ informativos().length }}</span>
+          </button>
+        </div>
+
         <p class="docs__note">
-          {{ requirements().length }}
-          {{ requirements().length === 1 ? 'requisito definido' : 'requisitos definidos' }} por esta
-          organización · «Por vencer» es lo que caduca en {{ expiringWithinDays() }} días o menos.
+          @if (vista() === 'obligatorios') {
+            Si falta uno, está vencido o no es válido, no se puede asignar a esta persona ni
+            publicar la planeación.
+          } @else {
+            No impiden asignar; sólo dejan constancia. Aun así conviene mantenerlos al día.
+          }
         </p>
 
-        <!-- Tres numeros que contestan «que tengo que hacer aqui» sin recorrer las listas. -->
-        <ul class="resumen">
-          <li class="resumen__dato">
-            <strong>{{ obligatorios().length }}</strong>
-            <span>obligatorios</span>
-            <small>{{ conObservaciones() === 0 ? 'Todos al día' : conObservaciones() + ' con observaciones' }}</small>
-          </li>
-          <li class="resumen__dato">
-            <strong>{{ informativos().length }}</strong>
-            <span>informativos</span>
-            <small>{{ informativosAlDia() ? 'Todos al día' : 'Alguno sin cubrir' }}</small>
-          </li>
-          <li class="resumen__dato" [class.resumen__dato--alerta]="porAtender() > 0">
-            <strong>{{ porAtender() }}</strong>
-            <span>por atender</span>
-            <small>{{ porAtender() === 0 ? 'Nada pendiente' : 'Requieren tu acción' }}</small>
-          </li>
-        </ul>
+        @let filas = vista() === 'obligatorios' ? obligatorios() : informativos();
 
-        @if (obligatorios().length) {
-        <section class="bloque bloque--obligatorios">
-          <h3 class="bloque__titulo">Documentos obligatorios</h3>
-          <p class="bloque__nota">
-            Si falta uno, está vencido o no es válido, no se puede asignar a esta persona ni publicar
-            la planeación.
+        @if (filas.length === 0) {
+          <p class="docs__vacio">
+            @if (vista() === 'obligatorios') {
+              Esta organización no exige ningún documento obligatorio.
+            } @else {
+              Esta organización no define ningún documento informativo.
+            }
           </p>
-
-        <ul class="docs__list">
-          @for (row of obligatorios(); track row.code) {
-            <li class="req" [class]="'req--' + tone(row.state)">
-              <span class="req__body">
-                <span class="req__name">{{ row.label }}</span>
-                <span class="req__detail">{{ detail(row.state, row.expiresDate, row.documentStatus) }}</span>
-              </span>
-              <span class="req__side">
-                <span class="req__state">{{ stateLabel(row.state) }}</span>
-                <span class="req__vigencia">Vigencia: {{ vigencia(row.expiresDate) }}</span>
-                <!--
-                  La salida, en la propia fila.
-
-                  Antes «Sin cargar» era una etiqueta muerta: la pantalla decia que faltaba la carta
-                  de no antecedentes y no dejaba hacer nada con esa informacion. Habia que bajar al
-                  bloque del expediente, pulsar «Agregar documento» y volver a buscar a mano el tipo
-                  que aqui arriba ya estaba nombrado.
-
-                  En «Al día» no se ofrece nada, porque no hay nada que hacer.
-                -->
-                @if (canWrite() && row.state !== 'UpToDate') {
-                  <button class="req__accion" type="button" (click)="cargar.emit(row.code)">
-                    {{ row.state === 'Missing' ? 'Cargar' : 'Reemplazar' }}
-                  </button>
-                }
-              </span>
-            </li>
-          }
-        </ul>
-        </section>
-        }
-
-        <!--
-          Los informativos van debajo y con su propio bloque. Antes compartían lista con los
-          obligatorios y se distinguían por una etiqueta pequeña que había que leer fila por fila.
-        -->
-        @if (informativos().length) {
-          <section class="bloque bloque--informativos">
-          <h3 class="bloque__titulo">Documentos informativos</h3>
-          <p class="bloque__nota">
-            No son obligatorios para asignar, pero se recomienda mantenerlos actualizados.
-          </p>
-
+        } @else {
           <ul class="docs__list">
-            @for (row of informativos(); track row.code) {
+            @for (row of filas; track row.code) {
               <li class="req" [class]="'req--' + tone(row.state)">
                 <span class="req__body">
                   <span class="req__name">{{ row.label }}</span>
-                  <span class="req__detail">{{ detail(row.state, row.expiresDate, row.documentStatus) }}</span>
+                  @let detalle = detail(row.state, row.expiresDate, row.documentStatus);
+                  @if (detalle) {
+                    <span class="req__detail">{{ detalle }}</span>
+                  }
                 </span>
                 <span class="req__side">
                   <span class="req__state">{{ stateLabel(row.state) }}</span>
-                  <span class="req__vigencia">Vigencia: {{ vigencia(row.expiresDate) }}</span>
+                  <!--
+                    La salida, en la propia fila. «Sin cargar» sin accion era una etiqueta muerta:
+                    obligaba a bajar al expediente y buscar a mano el tipo que la fila ya nombra.
+                    En «Al dia» no se ofrece nada, porque no hay nada que hacer.
+                  -->
                   @if (canWrite() && row.state !== 'UpToDate') {
                     <button class="req__accion" type="button" (click)="cargar.emit(row.code)">
                       {{ row.state === 'Missing' ? 'Cargar' : 'Reemplazar' }}
@@ -146,13 +132,11 @@ import {
               </li>
             }
           </ul>
-          </section>
         }
 
         <!--
-          Plegado: son archivos que esta organizacion no exige, asi que no compiten por la atencion
-          con los que si. Iban abiertos, con su rotulo y su parrafo, encima de otro encabezado que
-          decia «Documentos» otra vez.
+          Los archivos que la organizacion no exige. Siguen plegados y al final: no cuentan para la
+          expediente, asi que no compiten con lo que si.
         -->
         @if (extras().length) {
           <details class="otros">
@@ -162,12 +146,9 @@ import {
                 {{ extras().length }} {{ extras().length === 1 ? 'documento' : 'documentos' }}
               </span>
             </summary>
-            <p class="bloque__nota">
-              Están en el expediente pero esta organización no los exige. No cuentan para la vigencia.
-            </p>
             <ul class="docs__plain">
               @for (extra of extras(); track extra.idEmployeeDocument) {
-                <li>{{ categoryLabel(extra) }} · {{ expiry(extra.expiresDate) }}</li>
+                <li>{{ categoryLabel(extra) }}</li>
               }
             </ul>
           </details>
@@ -191,50 +172,66 @@ import {
       letter-spacing: 0.08em;
     }
 
-    /* El resumen: tres numeros que contestan «que tengo que hacer aqui». */
-    .resumen {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 0.6rem;
-      margin: 0 0 0.9rem;
-      padding: 0;
-      list-style: none;
-    }
-
-    .resumen__dato {
+    /* Las sub-pestanas. Mismo lenguaje que las del panel —subrayado cian en la activa— pero mas
+       pequenas, porque estan un nivel por dentro y no deben competir con ellas. */
+    .subtabs {
       display: flex;
-      flex-direction: column;
-      gap: 0.1rem;
-      border: 1px solid var(--gestia-border);
-      border-radius: var(--gestia-radius);
-      padding: 0.6rem 0.75rem;
-      background: var(--gestia-surface);
+      gap: 0.15rem;
+      margin: 0 0 0.6rem;
+      border-bottom: 1px solid var(--gestia-border);
     }
 
-    .resumen__dato strong { color: var(--gestia-navy); font-size: 22px; line-height: 1.1; }
-    .resumen__dato span { color: var(--gestia-text); font-size: 12px; }
-    .resumen__dato small { color: var(--gestia-muted); font-size: 11px; }
-    .resumen__dato--alerta { border-color: var(--gestia-warning, var(--gestia-border)); }
-
-    /*
-      Cada grupo en su tarjeta, con el color de lo que pasa si falta uno. El borde de la izquierda
-      es lo que se ve sin leer: rojo, lo que impide trabajar; cian, lo que solo deja constancia.
-    */
-    .bloque {
-      margin: 0 0 0.9rem;
-      border: 1px solid var(--gestia-border);
-      border-radius: var(--gestia-radius);
-      padding: 0.75rem 0.85rem;
-      background: var(--gestia-surface);
+    .subtab {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.4rem 0.55rem;
+      border: 0;
+      border-bottom: 2px solid transparent;
+      background: none;
+      color: var(--gestia-muted);
+      font: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
     }
 
-    .bloque--obligatorios { border-left: 3px solid var(--gestia-danger); }
-    .bloque--informativos { border-left: 3px solid var(--gestia-cyan); }
+    .subtab:hover { color: var(--gestia-text); }
+    .subtab.is-active { border-bottom-color: var(--gestia-cyan); color: var(--gestia-text); }
+    .subtab:focus-visible { outline: 2px solid var(--gestia-cyan); outline-offset: -2px; }
 
-    .bloque__titulo { margin: 0; color: var(--gestia-navy); font-size: 13px; font-weight: 700; }
+    .subtab__count {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 1.15rem;
+      padding: 0 0.25rem;
+      border-radius: var(--gestia-radius-pill);
+      background: var(--gestia-surface-soft);
+      font-size: 10.5px;
+    }
+
+    /* Lo que hay que atender se dice con palabra, no solo con color. */
+    .subtab__alerta {
+      padding: 0.05rem 0.35rem;
+      border: 1px solid var(--gestia-danger);
+      border-radius: var(--gestia-radius-pill);
+      color: var(--gestia-danger);
+      font-size: 10.5px;
+    }
+
+    .docs__vacio {
+      margin: 0;
+      padding: 0.9rem;
+      border: 1px solid var(--gestia-border);
+      border-radius: var(--gestia-radius);
+      color: var(--gestia-muted);
+      font-size: 12px;
+    }
+
     .bloque__nota { margin: 0.2rem 0 0.6rem; color: var(--gestia-muted); font-size: 11.5px; }
 
-    .req__vigencia { flex: none; color: var(--gestia-muted); font-size: 11px; white-space: nowrap; }
 
     .otros {
       border: 1px solid var(--gestia-border);
@@ -257,8 +254,6 @@ import {
     .otros > summary:focus-visible { outline: 2px solid var(--gestia-cyan); outline-offset: 2px; }
 
     @media (width < 52rem) {
-      .resumen { grid-template-columns: minmax(0, 1fr); }
-      .req__vigencia { display: none; }
     }
 
     .docs__list, .docs__plain { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
@@ -342,6 +337,14 @@ import {
   `,
 })
 export class EmployeeDocuments {
+  /**
+   * Qué lista se está viendo.
+   *
+   * <p>Arranca en obligatorios porque son los que impiden asignar: quien abre esta pestaña casi
+   * siempre viene a ver si la persona puede trabajar, no a repasar lo informativo.</p>
+   */
+  protected readonly vista = signal<'obligatorios' | 'informativos'>('obligatorios');
+
   readonly requirements = input.required<readonly EligibilityRequirement[]>();
   readonly documents = input.required<readonly EmployeeDocument[]>();
   /** El día operativo del servidor. No se lee del reloj del navegador. */
@@ -417,10 +420,6 @@ export class EmployeeDocuments {
     );
   });
 
-  protected expiry(date: string | null): string {
-    return date ? `vence el ${formatOperationalDate(date)}` : 'sin fecha de vencimiento';
-  }
-
   /**
    * Por qué el requisito está como está.
    *
@@ -443,18 +442,10 @@ export class EmployeeDocuments {
         : 'El documento está cargado pero sin validar, así que todavía no cubre el requisito.';
     }
 
-    if (!expires) {
-      return 'Cargado, sin fecha de vencimiento.';
-    }
-
-    // La fecha ya no va en la frase: tiene su propia columna «Vigencia». Repetirla en las dos
-    // hacía la fila larga y obligaba a leer una oración para encontrar un dato que es una fecha.
-    return state === 'Expired' ? 'El documento venció.' : 'Documento vigente.';
-  }
-
-  /** La fecha de vigencia, en su columna. Un guion cuando el documento no vence. */
-  protected vigencia(date: string | null): string {
-    return date ? formatOperationalDate(date) : '—';
+    // Los estados por fecha —vencido y vigente— no llevan frase: el rótulo del lado ya lo dice, y
+    // repetirlo en prosa alargaba la fila sin añadir nada. Sólo se explican los estados que
+    // necesitan una acción distinta de «renovar», que son los de más arriba.
+    return '';
   }
 
   /**

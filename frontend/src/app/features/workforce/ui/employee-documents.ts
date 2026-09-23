@@ -52,10 +52,32 @@ import {
           vencer» lo que caduca en {{ expiringWithinDays() }} días o menos.
         </p>
 
+        <!-- Tres numeros que contestan «que tengo que hacer aqui» sin recorrer las listas. -->
+        <ul class="resumen">
+          <li class="resumen__dato">
+            <strong>{{ obligatorios().length }}</strong>
+            <span>obligatorios</span>
+            <small>{{ conObservaciones() === 0 ? 'Todos al día' : conObservaciones() + ' con observaciones' }}</small>
+          </li>
+          <li class="resumen__dato">
+            <strong>{{ informativos().length }}</strong>
+            <span>informativos</span>
+            <small>{{ informativosAlDia() ? 'Todos al día' : 'Alguno sin cubrir' }}</small>
+          </li>
+          <li class="resumen__dato" [class.resumen__dato--alerta]="porAtender() > 0">
+            <strong>{{ porAtender() }}</strong>
+            <span>por atender</span>
+            <small>{{ porAtender() === 0 ? 'Nada pendiente' : 'Requieren tu acción' }}</small>
+          </li>
+        </ul>
+
         @if (obligatorios().length) {
-          <h3 class="docs__kicker">OBLIGATORIOS</h3>
-          <p class="docs__note">Si falta uno, no se puede asignar a esta persona ni publicar la planeación.</p>
-        }
+        <section class="bloque bloque--obligatorios">
+          <h3 class="bloque__titulo">Documentos obligatorios</h3>
+          <p class="bloque__nota">
+            Si falta uno, está vencido o no es válido, no se puede asignar a esta persona ni publicar
+            la planeación.
+          </p>
 
         <ul class="docs__list">
           @for (row of obligatorios(); track row.code) {
@@ -66,6 +88,7 @@ import {
               </span>
               <span class="req__side">
                 <span class="req__state">{{ stateLabel(row.state) }}</span>
+                <span class="req__vigencia">Vigencia: {{ vigencia(row.expiresDate) }}</span>
                 <!--
                   La salida, en la propia fila.
 
@@ -85,14 +108,19 @@ import {
             </li>
           }
         </ul>
+        </section>
+        }
 
         <!--
-          Los informativos van debajo y con su propio rótulo. Antes compartían lista con los
+          Los informativos van debajo y con su propio bloque. Antes compartían lista con los
           obligatorios y se distinguían por una etiqueta pequeña que había que leer fila por fila.
         -->
         @if (informativos().length) {
-          <h3 class="docs__kicker">INFORMATIVOS</h3>
-          <p class="docs__note">Se piden igual, pero su falta no impide asignar ni publicar.</p>
+          <section class="bloque bloque--informativos">
+          <h3 class="bloque__titulo">Documentos informativos</h3>
+          <p class="bloque__nota">
+            No son obligatorios para asignar, pero se recomienda mantenerlos actualizados.
+          </p>
 
           <ul class="docs__list">
             @for (row of informativos(); track row.code) {
@@ -103,6 +131,7 @@ import {
                 </span>
                 <span class="req__side">
                   <span class="req__state">{{ stateLabel(row.state) }}</span>
+                  <span class="req__vigencia">Vigencia: {{ vigencia(row.expiresDate) }}</span>
                   @if (canWrite() && row.state !== 'UpToDate') {
                     <button class="req__accion" type="button" (click)="cargar.emit(row.code)">
                       {{ row.state === 'Missing' ? 'Cargar' : 'Reemplazar' }}
@@ -112,6 +141,7 @@ import {
               </li>
             }
           </ul>
+          </section>
         }
 
         @if (extras().length) {
@@ -145,6 +175,56 @@ import {
       font-size: 11px;
       font-weight: 600;
       letter-spacing: 0.08em;
+    }
+
+    /* El resumen: tres numeros que contestan «que tengo que hacer aqui». */
+    .resumen {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.6rem;
+      margin: 0 0 0.9rem;
+      padding: 0;
+      list-style: none;
+    }
+
+    .resumen__dato {
+      display: flex;
+      flex-direction: column;
+      gap: 0.1rem;
+      border: 1px solid var(--gestia-border);
+      border-radius: var(--gestia-radius);
+      padding: 0.6rem 0.75rem;
+      background: var(--gestia-surface);
+    }
+
+    .resumen__dato strong { color: var(--gestia-navy); font-size: 22px; line-height: 1.1; }
+    .resumen__dato span { color: var(--gestia-text); font-size: 12px; }
+    .resumen__dato small { color: var(--gestia-muted); font-size: 11px; }
+    .resumen__dato--alerta { border-color: var(--gestia-warning, var(--gestia-border)); }
+
+    /*
+      Cada grupo en su tarjeta, con el color de lo que pasa si falta uno. El borde de la izquierda
+      es lo que se ve sin leer: rojo, lo que impide trabajar; cian, lo que solo deja constancia.
+    */
+    .bloque {
+      margin: 0 0 0.9rem;
+      border: 1px solid var(--gestia-border);
+      border-radius: var(--gestia-radius);
+      padding: 0.75rem 0.85rem;
+      background: var(--gestia-surface);
+    }
+
+    .bloque--obligatorios { border-left: 3px solid var(--gestia-danger); }
+    .bloque--informativos { border-left: 3px solid var(--gestia-cyan); }
+
+    .bloque__titulo { margin: 0; color: var(--gestia-navy); font-size: 13px; font-weight: 700; }
+    .bloque__nota { margin: 0.2rem 0 0.6rem; color: var(--gestia-muted); font-size: 11.5px; }
+
+    .req__vigencia { flex: none; color: var(--gestia-muted); font-size: 11px; white-space: nowrap; }
+
+    @media (width < 52rem) {
+      .resumen { grid-template-columns: minmax(0, 1fr); }
+      .req__vigencia { display: none; }
     }
 
     .docs__list, .docs__plain { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
@@ -333,8 +413,31 @@ export class EmployeeDocuments {
       return 'Cargado, sin fecha de vencimiento.';
     }
 
-    return state === 'Expired'
-      ? `Venció el ${formatOperationalDate(expires)}.`
-      : `Vence el ${formatOperationalDate(expires)}.`;
+    // La fecha ya no va en la frase: tiene su propia columna «Vigencia». Repetirla en las dos
+    // hacía la fila larga y obligaba a leer una oración para encontrar un dato que es una fecha.
+    return state === 'Expired' ? 'El documento venció.' : 'Documento vigente.';
   }
+
+  /** La fecha de vigencia, en su columna. Un guion cuando el documento no vence. */
+  protected vigencia(date: string | null): string {
+    return date ? formatOperationalDate(date) : '—';
+  }
+
+  /**
+   * El resumen de arriba: tres números que contestan «¿qué tengo que hacer aquí?».
+   *
+   * <p>Sin ellos había que recorrer las dos listas para saber si algo requiere acción, que es lo
+   * primero que se pregunta quien abre un expediente.</p>
+   */
+  protected readonly conObservaciones = computed(
+    () => this.obligatorios().filter((fila) => fila.state !== 'UpToDate').length,
+  );
+
+  protected readonly informativosAlDia = computed(
+    () => this.informativos().every((fila) => fila.state === 'UpToDate'),
+  );
+
+  protected readonly porAtender = computed(
+    () => this.rows().filter((fila) => fila.state !== 'UpToDate').length,
+  );
 }

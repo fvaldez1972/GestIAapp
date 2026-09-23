@@ -84,6 +84,8 @@
               [row]="employee"
               [employee]="detail()"
               [loading]="detailLoading()"
+              [expiringWithinDays]="expiringWithinDays()"
+              (openDocuments)="activeTab.set('documents')"
               [canViewSensitive]="canViewSensitive()"
               [jobPositions]="catalogJobPositions()"
               [educationLevels]="catalogEducationLevels()"

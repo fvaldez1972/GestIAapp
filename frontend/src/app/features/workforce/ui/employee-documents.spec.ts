@@ -109,13 +109,21 @@ describe('La pestaña de documentos', () => {
     expect(estados()).toEqual(['Por vencer', 'Al día']);
   });
 
+  /**
+   * La fecha sigue estando, en su columna.
+   *
+   * <p>Iba dentro de la frase —«Venció el 31 ago 2026.»— y desde el 23 de septiembre de 2026 va en
+   * una columna propia: repetir la fecha en la oración hacía la fila larga y obligaba a leer un
+   * texto para encontrar un dato que es una fecha. Lo que no puede pasar es que se pierda.</p>
+   */
   it('un documento caducado queda vencido y dice cuándo venció', () => {
     const { estados, filas } = montar((host) =>
       host.documents.set([documentFixture({ expiresDate: '2026-08-31' })]),
     );
 
     expect(estados()[0]).toBe('Vencido');
-    expect(filas()[0].textContent).toContain('Venció el 31 ago 2026');
+    expect(filas()[0].textContent).toContain('Vigencia: 31 ago 2026');
+    expect(filas()[0].textContent).toContain('El documento venció');
   });
 
   /** Un documento dado de baja no cubre nada: aquí los registros no se borran, se desactivan. */
@@ -175,15 +183,15 @@ describe('La pestaña de documentos', () => {
       ]),
     );
 
-    const rotulos = Array.from(raiz.querySelectorAll('.docs__kicker')).map((e) => e.textContent?.trim());
-    expect(rotulos).toContain('OBLIGATORIOS');
-    expect(rotulos).toContain('INFORMATIVOS');
+    const rotulos = Array.from(raiz.querySelectorAll('.bloque__titulo')).map((e) => e.textContent?.trim());
+    expect(rotulos).toContain('Documentos obligatorios');
+    expect(rotulos).toContain('Documentos informativos');
 
     // Y el orden: lo que impide trabajar va primero.
-    expect(rotulos.indexOf('OBLIGATORIOS')).toBeLessThan(rotulos.indexOf('INFORMATIVOS'));
+    expect(rotulos.indexOf('Documentos obligatorios')).toBeLessThan(rotulos.indexOf('Documentos informativos'));
 
     expect(raiz.textContent).toContain('no se puede asignar a esta persona');
-    expect(raiz.textContent).toContain('su falta no impide asignar ni publicar');
+    expect(raiz.textContent).toContain('No son obligatorios para asignar');
   });
 
   /** El control: con sólo obligatorios no se dibuja el rótulo del otro bloque. */
@@ -192,9 +200,9 @@ describe('La pestaña de documentos', () => {
       host.requirements.set([requirementFixture({ isRequiredEffective: true })]),
     );
 
-    const rotulos = Array.from(raiz.querySelectorAll('.docs__kicker')).map((e) => e.textContent?.trim());
-    expect(rotulos).toContain('OBLIGATORIOS');
-    expect(rotulos).not.toContain('INFORMATIVOS');
+    const rotulos = Array.from(raiz.querySelectorAll('.bloque__titulo')).map((e) => e.textContent?.trim());
+    expect(rotulos).toContain('Documentos obligatorios');
+    expect(rotulos).not.toContain('Documentos informativos');
   });
 
   // ── La salida de cada requisito ──────────────────────────────────────────────────────────

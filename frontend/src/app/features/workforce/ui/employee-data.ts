@@ -28,6 +28,29 @@ import { EmployeeJobPosition } from './employee-job-position';
   imports: [EmployeeAddress, EmployeeEligibilityBand, EmployeeJobPosition, GiSelect],
   template: `
     <div class="data">
+      <!--
+        El aviso de vencimiento, arriba del todo. Los documentos por vencer sólo se veían entrando a
+        su pestaña, y son justo lo que hay que resolver antes de que la persona deje de poder
+        trabajar: el expediente no se rompe hoy, se rompe el día que caduquen.
+
+        Dice que la persona sigue activa a propósito. Sin esa línea un aviso rojo sobre un
+        expediente correcto se lee como si ya hubiera un problema.
+      -->
+      @if (row().expiringDocuments > 0) {
+        <section class="aviso" role="status">
+          <div class="aviso__texto">
+            <p class="aviso__titulo">Documentos próximos a vencer</p>
+            <p class="aviso__linea">
+              Esta persona tiene {{ row().expiringDocuments }}
+              {{ row().expiringDocuments === 1 ? 'documento' : 'documentos' }} por vencer en los
+              próximos {{ expiringWithinDays() }} días o menos. Puede seguir trabajando, pero
+              conviene actualizarlos antes de que caduquen.
+            </p>
+          </div>
+          <button class="aviso__accion" type="button" (click)="openDocuments.emit()">Ver documentos</button>
+        </section>
+      }
+
       <app-employee-eligibility
         [employeeJobPositionId]="row().idJobPositionCatalogItem"
         [employeeJobPosition]="row().jobPositionName"
@@ -276,6 +299,38 @@ import { EmployeeJobPosition } from './employee-job-position';
 
     .data__note { margin: 0; color: var(--gestia-muted); font-size: 11.5px; }
 
+    .aviso {
+      grid-column: 1 / -1;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.75rem;
+      border: 1px solid var(--gestia-border);
+      border-left: 3px solid var(--gestia-cyan);
+      border-radius: var(--gestia-radius);
+      padding: 0.7rem 0.85rem;
+      background: var(--gestia-surface-soft);
+    }
+
+    .aviso__texto { flex: 1; min-width: 0; }
+    .aviso__titulo { margin: 0; color: var(--gestia-navy); font-size: 12.5px; font-weight: 700; }
+    .aviso__linea { margin: 0.15rem 0 0; color: var(--gestia-text); font-size: 11.5px; }
+
+    .aviso__accion {
+      flex: none;
+      height: var(--gestia-control-height);
+      padding: 0 0.8rem;
+      border: 1px solid var(--gestia-border);
+      border-radius: var(--gestia-radius);
+      background: var(--gestia-surface);
+      color: var(--gestia-text);
+      font: inherit;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .aviso__accion:focus-visible { outline: 2px solid var(--gestia-cyan); outline-offset: 1px; }
+
     .data__editar {
       margin-left: 0.6rem;
       padding: 0.1rem 0.5rem;
@@ -383,6 +438,12 @@ export class EmployeeData {
 
   readonly editJobPosition = output<void>();
   readonly openCatalog = output<void>();
+
+  /** Cuántos días antes se considera «por vencer». Lo decide la organización. */
+  readonly expiringWithinDays = input(30);
+
+  /** Llevar a la pestaña de Documentos desde el aviso, sin buscarla. */
+  readonly openDocuments = output<void>();
   readonly cancelJobPosition = output<void>();
   readonly saveJobPosition = output<string>();
   readonly createJobPosition = output<GiCatalogCreation>();

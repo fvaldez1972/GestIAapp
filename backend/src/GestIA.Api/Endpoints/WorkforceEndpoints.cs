@@ -1,4 +1,5 @@
 using GestIA.Api.Security;
+using GestIA.Application.Common;
 using GestIA.Application.Documents;
 using GestIA.Application.Security;
 using GestIA.Application.Workforce;
@@ -29,7 +30,7 @@ public static class WorkforceEndpoints
             }
 
             var result = await service.ListEmployeesAsync(
-                new EmployeeQuery(organizationId, search, status, page <= 0 ? 1 : page, pageSize <= 0 ? 20 : pageSize),
+                new EmployeeQuery(organizationId, search, status, page <= 0 ? 1 : page, PageSize.Clamp(pageSize)),
                 cancellationToken);
             return Results.Ok(result);
         })
@@ -155,7 +156,7 @@ public static class WorkforceEndpoints
                     documents ?? EmployeeDocumentFilter.Any,
                     municipality,
                     page ?? 1,
-                    pageSize ?? 25),
+                    PageSize.Clamp(pageSize, 25)),
                 cancellationToken));
         })
             .RequirePermission(SecurityPermissions.WorkforceRead)

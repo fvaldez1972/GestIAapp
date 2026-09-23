@@ -1,4 +1,5 @@
 using GestIA.Api.Security;
+using GestIA.Application.Common;
 using GestIA.Application.Audit;
 using GestIA.Application.Security;
 using System.Text;
@@ -37,7 +38,7 @@ public static class AuditEndpoints
                     fromDate,
                     toDate,
                     page <= 0 ? 1 : page,
-                    pageSize <= 0 ? 20 : pageSize),
+                    PageSize.Clamp(pageSize)),
                 cancellationToken);
             return Results.Ok(result);
         })

@@ -46,7 +46,7 @@ public static class ServiceManagementEndpoints
                     idServiceContract,
                     status ?? ServiceStatusFilter.Active,
                     page ?? 1,
-                    pageSize ?? 20),
+                    PageSize.Clamp(pageSize)),
                 cancellationToken);
 
             return Results.Ok(result);

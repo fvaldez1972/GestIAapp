@@ -47,7 +47,12 @@ export type ClientFormValue = {
   template: `
     <form class="form" (ngSubmit)="$event.preventDefault()">
       <section class="form__block">
-        <h3 class="form__kicker">DATOS DEL CLIENTE</h3>
+        <!--
+          Secciones numeradas con su línea de qué hacen, como la maqueta. Sin los iconos
+          circulares: no dicen nada que el título no diga ya.
+        -->
+        <p class="form__paso"><span class="form__num">1</span> Identificación</p>
+        <p class="form__ayuda">Los datos básicos del cliente. El código y la fecha de alta los pone el sistema.</p>
 
         <label class="field field--wide" for="cf-razon">
           <span class="field__label">RAZÓN SOCIAL</span>
@@ -77,10 +82,19 @@ export type ClientFormValue = {
       </section>
 
       <section class="form__block">
-        <h3 class="form__kicker">
-          ZONA · OBLIGATORIA PARA CREAR SERVICIOS
-          <span class="form__warning">Sin zona el cliente queda como expediente</span>
-        </h3>
+        <!--
+          «Zona» a secas, no «Zona principal». El modelo no tiene jerarquía entre zonas —lo que la
+          lista llamaba principal era la primera por nombre— y ponerlo en el título del alta sería
+          inventar un concepto que no existe.
+        -->
+        <p class="form__paso"><span class="form__num">2</span> Zona</p>
+        <p class="form__ayuda">
+          Puedes crear el cliente con o sin zona. Escribe el código postal y se resuelven el estado,
+          el municipio y las colonias.
+        </p>
+        <p class="form__aviso" role="note">
+          El cliente puede crearse sin zona, pero necesitarás una para crear servicios después.
+        </p>
 
         <label class="field field--wide" for="cf-zona">
           <span class="field__label">NOMBRE DE LA ZONA</span>
@@ -150,7 +164,8 @@ export type ClientFormValue = {
       </section>
 
       <section class="form__block">
-        <h3 class="form__kicker">CONTACTO DE LA ZONA</h3>
+        <p class="form__paso"><span class="form__num">3</span> Contacto</p>
+        <p class="form__ayuda">Persona de referencia para este cliente. Puede quedar para después.</p>
         <div class="form__row form__row--two">
           <label class="field" for="cf-cnombre">
             <span class="field__label">NOMBRE</span>
@@ -227,6 +242,43 @@ export type ClientFormValue = {
     .form__block { display: flex; flex-direction: column; gap: 0.7rem; }
 
     .form__block + .form__block { border-top: 1px solid var(--gestia-border); padding-top: 1.1rem; }
+
+    .form__paso {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin: 0;
+      color: var(--gestia-navy);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .form__num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.35rem;
+      height: 1.35rem;
+      border-radius: var(--gestia-radius-pill);
+      background: var(--gestia-navy);
+      color: var(--gestia-surface);
+      font-size: 11px;
+    }
+
+    .form__ayuda { margin: -0.3rem 0 0.2rem; color: var(--gestia-muted); font-size: 11.5px; }
+
+    /* El aviso de la maqueta, con tokens de la pantalla. No se agrega una variante nueva al
+       sistema de diseño por un solo banner: eso sale de las tres pantallas de esta tanda. */
+    .form__aviso {
+      margin: 0 0 0.2rem;
+      border: 1px solid var(--gestia-border);
+      border-left: 3px solid var(--gestia-cyan);
+      border-radius: var(--gestia-radius);
+      padding: 0.55rem 0.75rem;
+      background: var(--gestia-surface-soft);
+      color: var(--gestia-text);
+      font-size: 11.5px;
+    }
 
     .form__kicker {
       display: flex;

@@ -143,11 +143,21 @@ describe('El alta de cliente', () => {
    * Lo que la pantalla existe para hacer: <b>decir que la zona es obligatoria antes de guardar</b>,
    * no al fallar el alta del servicio dos pantallas después.
    */
+  /**
+   * El bloque de zona dice para qué es, antes de guardar.
+   *
+   * <p>El rótulo cambió con el rediseño del 23 de septiembre de 2026 —secciones numeradas con su
+   * línea de qué hacen—, pero lo que la prueba defiende es lo mismo: que quien llega al bloque sepa
+   * que puede saltárselo y qué pierde si lo hace.</p>
+   *
+   * <p>Dice «Zona» y no «Zona principal» a propósito: el modelo no tiene jerarquía entre zonas.</p>
+   */
   it('el bloque de zona dice para qué es, antes de guardar', () => {
     const { raiz } = montar();
 
-    expect(raiz.textContent).toContain('ZONA · OBLIGATORIA PARA CREAR SERVICIOS');
-    expect(raiz.textContent).toContain('Sin zona el cliente queda como expediente');
+    expect(raiz.textContent).toContain('Zona');
+    expect(raiz.textContent).not.toContain('Zona principal');
+    expect(raiz.textContent).toContain('necesitarás una para crear servicios');
   });
 
   it('son dos salidas y cada una dice exactamente qué hace', () => {

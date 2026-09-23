@@ -52,7 +52,6 @@ export type ClientFormValue = {
           circulares: no dicen nada que el título no diga ya.
         -->
         <p class="form__paso"><span class="form__num">1</span> Identificación</p>
-        <p class="form__ayuda">Los datos básicos del cliente. El código y la fecha de alta los pone el sistema.</p>
 
         <label class="field field--wide" for="cf-razon">
           <span class="field__label">RAZÓN SOCIAL</span>
@@ -88,13 +87,6 @@ export type ClientFormValue = {
           inventar un concepto que no existe.
         -->
         <p class="form__paso"><span class="form__num">2</span> Zona</p>
-        <p class="form__ayuda">
-          Puedes crear el cliente con o sin zona. Escribe el código postal y se resuelven el estado,
-          el municipio y las colonias.
-        </p>
-        <p class="form__aviso" role="note">
-          El cliente puede crearse sin zona, pero necesitarás una para crear servicios después.
-        </p>
 
         <label class="field field--wide" for="cf-zona">
           <span class="field__label">NOMBRE DE LA ZONA</span>
@@ -165,7 +157,6 @@ export type ClientFormValue = {
 
       <section class="form__block">
         <p class="form__paso"><span class="form__num">3</span> Contacto</p>
-        <p class="form__ayuda">Persona de referencia para este cliente. Puede quedar para después.</p>
         <div class="form__row form__row--two">
           <label class="field" for="cf-cnombre">
             <span class="field__label">NOMBRE</span>
@@ -183,6 +174,7 @@ export type ClientFormValue = {
               label="Puesto del contacto"
               catalogLabel="el catálogo de puestos"
               inputId="cf-cpuesto"
+              [showInvitation]="false"
               [options]="jobPositions()"
               [value]="idContactJobPosition()"
               [canWrite]="canWrite()"
@@ -226,11 +218,16 @@ export type ClientFormValue = {
       </span>
     </div>
 
-    <!-- La razón del bloqueo se escribe, no sólo se pinta en gris. -->
-    <p class="form__reason" id="cf-razon-falta" [hidden]="clientReady()">
+    <!--
+      Las dos razones salen de la vista pero NO del documento. El botón desactivado las sigue
+      nombrando por aria-describedby, así que quien usa lector de pantalla sigue oyendo por qué no
+      puede guardar; lo que se retira es el texto permanente que ocupaba sitio en una ventana que ya
+      no cabía de una vez.
+    -->
+    <p class="form__reason form__reason--oculta" id="cf-razon-falta">
       Falta la razón social o el RFC del cliente.
     </p>
-    <p class="form__reason" id="cf-zona-falta" [hidden]="zoneReady()">
+    <p class="form__reason form__reason--oculta" id="cf-zona-falta">
       Para guardar con zona hacen falta su nombre, calle, municipio, estado y código postal.
     </p>
   `,
@@ -265,20 +262,19 @@ export type ClientFormValue = {
       font-size: 11px;
     }
 
-    .form__ayuda { margin: -0.3rem 0 0.2rem; color: var(--gestia-muted); font-size: 11.5px; }
+    .form__reason--oculta {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      margin: -1px;
+      padding: 0;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
 
     /* El aviso de la maqueta, con tokens de la pantalla. No se agrega una variante nueva al
        sistema de diseño por un solo banner: eso sale de las tres pantallas de esta tanda. */
-    .form__aviso {
-      margin: 0 0 0.2rem;
-      border: 1px solid var(--gestia-border);
-      border-left: 3px solid var(--gestia-cyan);
-      border-radius: var(--gestia-radius);
-      padding: 0.55rem 0.75rem;
-      background: var(--gestia-surface-soft);
-      color: var(--gestia-text);
-      font-size: 11.5px;
-    }
 
     .form__kicker {
       display: flex;

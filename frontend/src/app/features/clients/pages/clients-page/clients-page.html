@@ -237,20 +237,12 @@
       <header class="modal__head">
         <div>
           <span class="eyebrow">Nuevo cliente</span>
-          <h2 id="alta-cliente-title">Alta de cliente</h2>
           <!--
-            Se dice que el alta pide poco a proposito, y donde se captura el resto.
-
-            Los datos fiscales y de constitucion aparecen al editar y no aqui, y quien lo notaba
-            suponia que se le habia olvidado algo o que el formulario estaba incompleto. La decision
-            fue no sumarlos al alta: un formulario largo se abandona a la mitad, y un registro
-            abandonado no sirve para nada. Lo que se agrega es la frase que lo explica.
+            La frase que explicaba que el alta pide poco, y donde se captura el resto, se retiro
+            el 23 de septiembre de 2026: la ventana no cabia de una vez y el parrafo se leia una
+            sola vez. Lo que explica sigue siendo cierto y vive en el documento del modulo.
           -->
-          <p>
-            El código y la fecha de alta los pone el sistema. El alta pide lo mínimo para poder
-            trabajar: los datos fiscales y de constitución se capturan después, en la ficha del
-            cliente, y no hacen falta para crearlo.
-          </p>
+          <h2 id="alta-cliente-title">Alta de cliente</h2>
         </div>
         <button type="button" class="modal-close" [disabled]="saving()" aria-label="Cerrar" (click)="creating.set(false)">
           ×
@@ -280,7 +272,7 @@
 @if (editingClient(); as cliente) {
   <div class="modal-backdrop" (click)="cancelEdit()">
     <section
-      class="modal"
+      class="modal modal--edicion"
       role="dialog"
       aria-modal="true"
       aria-labelledby="editar-cliente-title"

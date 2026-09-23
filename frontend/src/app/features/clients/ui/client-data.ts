@@ -124,7 +124,17 @@ import { ClientListItem, ClientZone } from '../data-access/client.models';
   styles: `
     :host { display: block; }
 
-    .data { display: flex; flex-direction: column; gap: 0.9rem; }
+    /* Dos columnas cuando hay sitio. La ficha se abre en una ventana de 1040 px y las tarjetas
+       venian apiladas en una sola columna de 620 px, asi que sobraban 400 px de blanco a la derecha
+       y la ficha no cabia de alto. En pantalla angosta vuelven a apilarse. */
+    .data { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.9rem; align-content: start; }
+
+    /* La cabecera y las cifras cruzan las dos columnas: son el encabezado de la ficha. */
+    .hero, .cifras { grid-column: 1 / -1; }
+
+    @media (width < 60rem) {
+      .data { grid-template-columns: minmax(0, 1fr); }
+    }
 
     .hero {
       display: flex;

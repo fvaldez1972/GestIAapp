@@ -167,7 +167,15 @@ import { Client, ClientInput } from '../data-access/client.models';
   styles: `
     :host { display: block; }
 
-    .edit { display: grid; gap: 1rem; }
+    /* Dos columnas cuando hay sitio: las tres secciones apiladas no cabian de alto y obligaban a
+       desplazar para llegar al boton de guardar. */
+    .edit { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; align-content: start; }
+
+    .edit__ref, .edit__error { grid-column: 1 / -1; }
+
+    @media (width < 60rem) {
+      .edit { grid-template-columns: minmax(0, 1fr); }
+    }
 
     .edit__ref {
       display: flex;

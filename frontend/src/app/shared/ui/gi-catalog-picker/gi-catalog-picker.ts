@@ -137,7 +137,9 @@ export type GiCatalogCreation = {
         </ul>
       }
 
-      <small class="pick__ayuda" [id]="inputId() + '-ayuda'">{{ ayuda() }}</small>
+      @if (ayuda(); as texto) {
+        <small class="pick__ayuda" [id]="inputId() + '-ayuda'">{{ texto }}</small>
+      }
     </div>
   `,
   styles: `
@@ -328,9 +330,13 @@ export class GiCatalogPicker {
     );
   });
 
+  /** Si se dibuja la invitación a crear el valor. Se apaga donde la ventana no da para más texto. */
+  readonly showInvitation = input(true);
+
   protected readonly puedeCrear = computed(() => !!normalizeCatalogName(this.escrito()) && !this.yaExiste());
 
   protected readonly ayuda = computed(() => {
+    // Lo situacional se dice siempre: son respuestas a lo que se acaba de escribir.
     if (this.yaExiste()) {
       return 'Ya existe: selecciónalo en lugar de crear otro igual.';
     }
@@ -339,7 +345,10 @@ export class GiCatalogPicker {
       return 'Sólo puedes elegir de lo que ya está en el catálogo.';
     }
 
-    return 'Si no está, escríbelo y se agrega al catálogo para reutilizarlo.';
+    // La invitación es permanente y no responde a nada, así que una pantalla apretada puede
+    // apagarla. Se apaga por campo y no para todos: en una pantalla con sitio, decirle a alguien
+    // que puede crear el valor ahí mismo es la diferencia entre capturarlo y salir a Catálogos.
+    return this.showInvitation() ? 'Si no está, escríbelo y se agrega al catálogo para reutilizarlo.' : '';
   });
 
   protected elegir(option: GiCatalogOption): void {

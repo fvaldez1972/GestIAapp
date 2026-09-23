@@ -144,20 +144,22 @@ describe('El alta de cliente', () => {
    * no al fallar el alta del servicio dos pantallas después.
    */
   /**
-   * El bloque de zona dice para qué es, antes de guardar.
+   * El bloque se llama «Zona», no «Zona principal».
    *
-   * <p>El rótulo cambió con el rediseño del 23 de septiembre de 2026 —secciones numeradas con su
-   * línea de qué hacen—, pero lo que la prueba defiende es lo mismo: que quien llega al bloque sepa
-   * que puede saltárselo y qué pierde si lo hace.</p>
+   * <p>El modelo no tiene jerarquía entre zonas —lo que el listado llamaba principal es la primera
+   * por nombre—, así que ponerlo en el título del alta inventaría el concepto justo en la pantalla
+   * donde se captura.</p>
    *
-   * <p>Dice «Zona» y no «Zona principal» a propósito: el modelo no tiene jerarquía entre zonas.</p>
+   * <p><b>Lo que esta prueba defendía antes y ya no puede:</b> que el bloque dijera que puedes
+   * saltártelo y qué pierdes. Ese aviso se retiró el 23 de septiembre de 2026 por densidad, a
+   * petición expresa. Lo que queda diciéndolo son los dos botones —«Guardar sin zona» y «Guardar
+   * cliente y zona»—, que tienen su propia prueba.</p>
    */
-  it('el bloque de zona dice para qué es, antes de guardar', () => {
+  it('el bloque se llama Zona, sin inventar una jerarquía que no existe', () => {
     const { raiz } = montar();
 
     expect(raiz.textContent).toContain('Zona');
     expect(raiz.textContent).not.toContain('Zona principal');
-    expect(raiz.textContent).toContain('necesitarás una para crear servicios');
   });
 
   it('son dos salidas y cada una dice exactamente qué hace', () => {

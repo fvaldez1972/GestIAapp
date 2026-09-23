@@ -703,6 +703,64 @@
 }
 
 
+<!--
+  Quien quedo fuera del perfil al editar la posicion.
+
+  No deshace nada: enumera y lleva a Asignaciones, que es donde se resuelve. Quitarle la asignacion
+  a alguien por un cambio de perfil es decision de quien opera, no un efecto de guardar.
+-->
+@if (asignadosFuera().length) {
+  <div class="modal-backdrop" (click)="asignadosFuera.set([])">
+    <section
+      class="modal modal--aviso"
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="aviso-asignados-titulo"
+      (click)="$event.stopPropagation()"
+    >
+      <header>
+        <div>
+          <span class="eyebrow">Posición actualizada</span>
+          <h2 id="aviso-asignados-titulo">
+            {{ asignadosFuera().length === 1 ? 'Una persona asignada ya no cumple' : asignadosFuera().length + ' personas asignadas ya no cumplen' }}
+          </h2>
+        </div>
+      </header>
+
+      <p class="aviso__linea">
+        El cambio se guardó. Estas personas siguen asignadas a la posición, pero con el perfil
+        nuevo ya no la cubren:
+      </p>
+
+      <ul class="aviso__lista">
+        @for (persona of asignadosFuera(); track persona.nombre) {
+          <li>
+            <strong>{{ persona.nombre }}</strong>
+            <ul>
+              @for (motivo of persona.motivos; track motivo) {
+                <li>{{ motivo }}</li>
+              }
+            </ul>
+          </li>
+        }
+      </ul>
+
+      <footer>
+        <button class="gi-button gi-button--secondary" type="button" (click)="asignadosFuera.set([])">
+          Dejarlo así por ahora
+        </button>
+        <button
+          class="gi-button gi-button--primary"
+          type="button"
+          (click)="asignadosFuera.set([]); activeTab.set('assignments')"
+        >
+          Ver las asignaciones
+        </button>
+      </footer>
+    </section>
+  </div>
+}
+
 @if (positionEditorOpen() && canRead()) {
   <div class="modal-backdrop" (click)="closeEditors()">
     <section

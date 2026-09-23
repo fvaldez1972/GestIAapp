@@ -967,6 +967,64 @@ export class ServicesPage implements OnInit, OnDestroy {
    * consulta no impide asignar —el servidor vuelve a decidir al guardar—, y bloquear la pantalla
    * por no poder adelantar el veredicto sería peor que no adelantarlo.</p>
    */
+  /**
+   * Quien sigue asignado a esta posicion y ya no cumple, despues de editarla.
+   *
+   * <p><b>Por que va despues de guardar y no antes.</b> Lo que se edita en ese formulario y puede
+   * dejar a alguien fuera son <b>las experiencias que pide la posicion</b>, que son reglas de
+   * elegibilidad y se guardan como parte de la misma accion. El resto del perfil —escolaridad,
+   * sexo, rango de edad, equipo— el servidor lo devuelve siempre como informativo: dice «no impide
+   * asignar», asi que cambiarlo no puede descalificar a nadie. Preguntar antes de guardar habria
+   * obligado a evaluar un conjunto de reglas que todavia no existe.</p>
+   *
+   * <p>El aviso no deshace nada: enumera a quien quedo fuera y lleva a Asignaciones, que es donde
+   * se resuelve. Quitarle la asignacion a alguien por un cambio de perfil es una decision de quien
+   * opera, no un efecto colateral de guardar.</p>
+   */
+  private revisarAsignadosTrasEditar(idPosition: string): void {
+    const org = this.selectedOrganizationId();
+    const service = this.selectedService();
+
+    const asignados = this.assignments()
+      .filter((assignment) => assignment.active && assignment.idPosition === idPosition)
+      .map((assignment) => assignment.idEmployee);
+
+    if (!org || !service || asignados.length === 0) return;
+
+    this.catalogApi
+      .checkEligibilityBatch({
+        organizationId: org,
+        employeeIds: [...new Set(asignados)],
+        clientId: service.idClient,
+        serviceId: service.idService,
+        positionId: idPosition,
+        referenceDate: this.today(),
+      })
+      .pipe(takeUntil(this.destroyed))
+      .subscribe({
+        next: (checks) => {
+          const fuera = checks
+            .filter((check) => !check.isEligible)
+            .map((check) => ({
+              nombre: check.employeeName,
+              motivos: check.reasons
+                .filter((reason) => reason.isRequired && !reason.passed)
+                .map((reason) => reason.message),
+            }));
+
+          this.asignadosFuera.set(fuera);
+        },
+        // En silencio: el aviso es una cortesia, y no poder darlo no puede tapar el «posicion
+        // actualizada» que el usuario si necesita leer.
+        error: () => this.asignadosFuera.set([]),
+      });
+  }
+
+  /** Quien quedo fuera del perfil tras la ultima edicion. Vacio mientras no haya nada que avisar. */
+  protected readonly asignadosFuera = signal<
+    readonly { readonly nombre: string; readonly motivos: readonly string[] }[]
+  >([]);
+
   private loadCandidateEligibility(): void {
     const org = this.selectedOrganizationId();
     const service = this.selectedService();
@@ -1977,6 +2035,11 @@ export class ServicesPage implements OnInit, OnDestroy {
           );
           this.selectedPosition.set(position);
           this.savePendingPositionSkills(position.idPosition);
+
+          // Al editar, comprobar a quien ya esta asignado contra el perfil que acaba de quedar.
+          if (editing) {
+            this.revisarAsignadosTrasEditar(position.idPosition);
+          }
           // Ficha y listado, los dos.
           //
           // El panel se refrescaba solo, y de la lista salen los contadores de la fila —Posiciones,

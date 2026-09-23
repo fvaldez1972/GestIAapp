@@ -2,8 +2,8 @@ import { ChangeDetectionStrategy, Component, computed, inject, input, output, si
 import { FormsModule } from '@angular/forms';
 import { DireccionPorCodigoPostal } from '../../../shared/data-access/direccion-por-codigo-postal';
 import { CatalogSelect } from '../../../shared/ui/catalog-select/catalog-select';
-import { GiCatalogPicker, GiCatalogOption, GiCatalogCreation } from '../../../shared/ui/gi-catalog-picker/gi-catalog-picker';
-import { GiSelect } from '../../../shared/ui/gi-select/gi-select';
+import { GiCatalogOption, GiCatalogCreation } from '../../../shared/ui/gi-catalog-picker/gi-catalog-picker';
+import { GiSelect, GiSelectOption } from '../../../shared/ui/gi-select/gi-select';
 import { ServerProblem, fieldError } from '../../../shared/util/server-problem';
 
 /** Lo que el formulario devuelve. La zona y el contacto van aparte porque pueden no ir. */
@@ -41,7 +41,7 @@ export type ClientFormValue = {
 @Component({
   selector: 'app-client-form',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CatalogSelect, FormsModule, GiCatalogPicker, GiSelect],
+  imports: [CatalogSelect, FormsModule, GiSelect],
   // Uno por formulario abierto: el domicilio a medio escribir es de esta alta, no de la aplicación.
   providers: [DireccionPorCodigoPostal],
   template: `
@@ -163,25 +163,27 @@ export type ClientFormValue = {
             <span class="field__label">NOMBRE</span>
             <input id="cf-cnombre" name="contactName" type="text" [ngModel]="contactName()" (ngModelChange)="contactName.set($event)" [ngModelOptions]="sueltos" autocomplete="off" />
           </label>
-          <label class="field" for="cf-cpuesto">
+          <div class="field">
             <!--
               El puesto del contacto NO es texto libre: el servidor lo valida contra el catálogo de
               puestos y devuelve 409 con cualquier cosa escrita a mano. Cuando eso pasaba, el alta
               guardaba el cliente y la zona, se tragaba el rechazo del contacto y la zona acababa
               diciendo «sin contacto» sin que nadie supiera por qué.
+
+              Desplegable y no selector con búsqueda desde el 23 de septiembre de 2026, igual que en
+              la pestaña de Contactos. Lo que se pierde es crear el puesto aquí mismo: uno que no
+              esté en el catálogo hay que darlo de alta en Catálogos.
             -->
-            <gi-catalog-picker
-              label="PUESTO"
-              catalogLabel="el catálogo de puestos"
-              inputId="cf-cpuesto"
-              [showInvitation]="false"
-              [options]="jobPositions()"
+            <span class="field__label">PUESTO</span>
+            <gi-select
+              label="Puesto"
+              placeholder="Elige el puesto"
+              [openDown]="true"
+              [options]="opcionesDePuesto()"
               [value]="idContactJobPosition()"
-              [canWrite]="canWrite()"
               (valueChange)="idContactJobPosition.set($event)"
-              (create)="createJobPosition.emit($event)"
             />
-          </label>
+          </div>
           <label class="field" for="cf-ctel">
             <span class="field__label">TELÉFONO</span>
             <input id="cf-ctel" name="contactPhone" type="text" [ngModel]="contactPhone()" (ngModelChange)="contactPhone.set($event)" [ngModelOptions]="sueltos" autocomplete="off" />
@@ -426,6 +428,11 @@ export class ClientForm {
    * en la tanda de zonas y es lo que se pierde al reimplementar, así que aquí se reusa.</p>
    */
   protected readonly direccion = inject(DireccionPorCodigoPostal);
+
+  /** Los puestos del catálogo, como desplegable. */
+  protected readonly opcionesDePuesto = computed<readonly GiSelectOption[]>(() =>
+    this.jobPositions().map((puesto) => ({ value: puesto.idCatalogItem, label: puesto.name })),
+  );
   protected readonly contactName = signal('');
   /** El puesto del contacto, por identificador de catálogo. */
   protected readonly idContactJobPosition = signal('');

@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { GiEmptyState } from '../../../shared/ui/gi-ui';
-import { GiCatalogPicker, GiCatalogOption, GiCatalogCreation } from '../../../shared/ui/gi-catalog-picker/gi-catalog-picker';
+import { GiCatalogOption, GiCatalogCreation } from '../../../shared/ui/gi-catalog-picker/gi-catalog-picker';
 import { GiSelect, GiSelectOption } from '../../../shared/ui/gi-select/gi-select';
 import { ClientContact, ClientContactPurpose, ClientContactScope, ClientZone } from '../data-access/client.models';
 
@@ -36,7 +36,7 @@ export type NewContact = {
 @Component({
   selector: 'app-client-contacts',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, GiCatalogPicker, GiEmptyState, GiSelect],
+  imports: [FormsModule, GiEmptyState, GiSelect],
   template: `
     <section class="contacts">
       @if (contacts().length === 0 && !adding()) {

@@ -109,25 +109,12 @@ export type NewContact = {
           </div>
 
           <div class="new__row new__row--two">
-            <div class="field">
-              <span class="field__label">PARA QUÉ SE LE LLAMA</span>
-              <gi-select
-                label="Para qué se le llama"
-                placeholder="Elige el propósito"
-                [openDown]="true"
-                [options]="opcionesDeProposito()"
-                [value]="idPurpose()"
-                (valueChange)="idPurpose.set($event)"
-              />
-            </div>
             <!--
               Sin zona es una opción legítima y va primero: un contacto comercial vale para todo el
               cliente, y obligar a elegir una zona lo obligaría a mentir.
-            -->
-            <!--
-              El rótulo va escrito: gi-select usa su «label» como aria-label y no lo dibuja. Sin
-              esto el control quedaba sin nombre visible y, peor, sin la línea del rótulo la fila
-              se veía torcida: el campo de al lado empieza debajo de su etiqueta y éste no.
+
+              El rótulo va escrito: gi-select usa su «label» como aria-label y no lo dibuja, y sin
+              esa línea la fila se veía torcida contra el campo de al lado.
             -->
             <div class="field">
               <span class="field__label">A QUIÉN CUBRE</span>
@@ -365,6 +352,19 @@ export class ClientContacts {
   protected readonly email = signal('');
   protected readonly phone = signal('');
   protected readonly purpose = signal<ClientContactPurpose>('Operational');
+  /**
+   * El propósito del contacto, que ya no se captura pero <b>sí se conserva</b>.
+   *
+   * <p>El campo salió del formulario el 23 de septiembre de 2026: tenía su catálogo con ocho
+   * valores y 41 contactos con propósito guardado, y <b>nada decidía nada con él</b>. Se leía en un
+   * solo sitio —el renglón del contacto en esta misma lista— y no filtraba, ni agrupaba, ni elegía
+   * a quién avisar. Pedir un dato que nadie usa es pedirlo dos veces: al capturarlo y al
+   * revisarlo.</p>
+   *
+   * <p><b>La señal se queda</b> porque editar un contacto manda el perfil entero: sin ella, guardar
+   * un cambio de teléfono le borraría el propósito que ya tenía. Se carga de lo guardado y se
+   * devuelve igual. El catálogo sigue en Catálogos y el renglón lo sigue mostrando.</p>
+   */
   protected readonly idPurpose = signal('');
   protected readonly scope = signal<ClientContactScope>('General');
   protected readonly idClientZone = signal('');

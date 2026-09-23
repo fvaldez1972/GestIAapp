@@ -13,6 +13,7 @@ import { contacto, zona } from './client-fixtures';
       [jobPositions]="puestos()"
       [canWrite]="canWrite()"
       (create)="creado.set($event)"
+      (edit)="editado.set($event)"
     />
   `,
 })
@@ -22,6 +23,7 @@ class Anfitrion {
   readonly canWrite = signal(true);
   readonly puestos = signal<readonly { idCatalogItem: string; name: string }[]>([]);
   readonly creado = signal<NewContact | null>(null);
+  readonly editado = signal<{ contact: ClientContact; datos: NewContact } | null>(null);
 }
 
 function montar(configurar: (host: Anfitrion) => void = () => {}) {
@@ -193,6 +195,42 @@ describe('Contactos del cliente', () => {
 
     const desplegables = Array.from(raiz.querySelectorAll('gi-select button[role="combobox"]'));
     expect(desplegables.length).toBeGreaterThan(0);
+  });
+
+  /**
+   * Editar un contacto <b>no borra</b> el propósito que ya tenía.
+   *
+   * <p>El campo «para qué se le llama» salió del formulario el 23 de septiembre de 2026 porque
+   * nada decidía nada con él. Pero el guardado manda el perfil entero, así que si el formulario
+   * dejara de llevar el propósito, cambiar un teléfono se lo llevaría por delante: 41 contactos de
+   * la base viva tienen uno guardado.</p>
+   *
+   * <p>Es la única razón por la que la señal sigue existiendo sin campo que la pinte, y sin esta
+   * prueba nada lo diría: la pantalla se ve igual con el dato y sin él.</p>
+   */
+  it('editar un contacto conserva el propósito, aunque ya no se capture', () => {
+    const guardado = contacto({
+      idClientContact: 'c1',
+      fullName: 'Sergio Rivera',
+      idPurposeCatalogItem: 'prop-operativo',
+    });
+
+    const { raiz, fixture, host } = montar((anfitrion) => anfitrion.lista.set([guardado]));
+
+    Array.from(raiz.querySelectorAll<HTMLButtonElement>('button'))
+      .find((boton) => boton.textContent?.trim() === 'Editar')!
+      .click();
+    fixture.detectChanges();
+
+    // No hay campo que lo pinte: eso es justo lo que se retiró.
+    expect(raiz.textContent).not.toContain('PARA QUÉ SE LE LLAMA');
+
+    Array.from(raiz.querySelectorAll<HTMLButtonElement>('button'))
+      .find((boton) => boton.textContent?.includes('Guardar cambios'))!
+      .click();
+    fixture.detectChanges();
+
+    expect(host.editado()?.datos.idPurposeCatalogItem).toBe('prop-operativo');
   });
 
   it('manda el nombre del puesto que corresponde al identificador elegido', () => {

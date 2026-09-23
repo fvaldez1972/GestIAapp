@@ -163,7 +163,7 @@
               [simple]="true"
               [categories]="documentCategories()"
               [openAdd]="addingDocument()"
-              (totalChange)="documentCount.set($event)"
+              (totalChange)="documentCount.set($event); documentsLoaded.set(true)"
               (closeAdd)="addingDocument.set(false)"
               (createCategory)="createDocumentCategory($event)"
             />

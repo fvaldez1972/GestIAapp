@@ -127,6 +127,14 @@ public sealed record ClientListItemResponse(
     int ZoneCount,
     int ZonesWithoutContact,
     int ContactCount,
+    /// <summary>
+    /// Cuántos documentos activos tiene el cliente.
+    ///
+    /// <para>Viaja con la fila por la misma razón que las zonas y los contactos: la pestaña dibuja
+    /// su contador antes de que nadie la abra. Sin esto decía «Documentos» a secas hasta que se
+    /// entraba, que es justo lo que el contador venía a evitar.</para>
+    /// </summary>
+    int DocumentCount,
     int ServiceCount,
     string? MainZoneName,
     string? MainZoneMunicipality,

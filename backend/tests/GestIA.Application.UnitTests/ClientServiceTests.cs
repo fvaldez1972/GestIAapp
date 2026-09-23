@@ -220,7 +220,7 @@ public sealed class ClientServiceTests
                 .Select(client => new ClientListItemResponse(
                     client.IdClient, client.IdOrganization, client.CodeClient, client.LegalName,
                     client.TradeName, client.Rfc, client.Active, client.CreatedAt,
-                    0, 0, 0, 0, null, null, null))
+                    0, 0, 0, 0, 0, null, null, null))
                 .ToArray(), Items.Count));
 
         public Task<IReadOnlyList<string>> ListMunicipalitiesAsync(

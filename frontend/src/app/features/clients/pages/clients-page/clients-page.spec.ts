@@ -8,6 +8,18 @@ import { ClientsPage } from './clients-page';
 
 const ORGANIZACION = { idOrganization: 'org-a', codeOrganization: 'ORG-01', legalName: 'Empresa de prueba' };
 
+/** Una fila de la lista, con los conteos que el servidor resuelve. */
+function fila(extra: Record<string, unknown> = {}) {
+  return {
+    idClient: 'cli-1', idOrganization: 'org-a', codeClient: 'CLI-01',
+    legalName: 'Corporativo Altavista, S.A. de C.V.', tradeName: 'Corporativo Altavista',
+    rfc: 'CAL180423K72', active: true, createdAt: '2026-02-12T15:00:00Z',
+    zoneCount: 3, zonesWithoutContact: 0, contactCount: 4, documentCount: 0, serviceCount: 5,
+    mainZoneName: 'Torre Altavista', mainZoneMunicipality: 'Zapopan', mainZoneState: 'Jalisco',
+    ...extra,
+  };
+}
+
 /**
  * La pantalla de Clientes de una organización recién creada.
  *
@@ -76,6 +88,70 @@ describe('Clientes · carga inicial', () => {
     expect(ventana!.querySelector('app-client-form')).not.toBeNull();
     // Y no queda un panel lateral con el alta dentro.
     expect(raiz.querySelector('gi-detail-panel app-client-form')).toBeNull();
+  });
+
+  /**
+   * La pestaña de Documentos dice cuántos hay <b>antes</b> de abrirla.
+   *
+   * <p>El contador salía del propio componente de documentos, que sólo existe cuando la pestaña se
+   * dibuja: hasta entonces decía cero. O sea que había que abrir la pestaña para saber si tenía
+   * algo, que es exactamente lo que un contador viene a evitar. Ahora el número viaja con la fila,
+   * como los de Zonas y Contactos, y la pestaña sólo manda cuando ya se abrió.</p>
+   */
+  it('la pestaña de Documentos trae su número sin abrirla', () => {
+    const { fixture, http } = montar();
+
+    http.match((r) => r.url === '/api/v1/clients').forEach((r) =>
+      r.flush({
+        items: [fila({ documentCount: 2 })],
+        totalCount: 1, page: 1, pageSize: 25, totalPages: 1,
+      }));
+    http.match(() => true).forEach((r) => r.flush([]));
+    fixture.detectChanges();
+
+    const pagina = fixture.componentInstance as unknown as {
+      open(cliente: unknown): void;
+      panelTabs(): readonly { id: string; count?: number }[];
+    };
+    pagina.open(fila({ documentCount: 2 }));
+    fixture.detectChanges();
+
+    const documentos = pagina.panelTabs().find((pestana) => pestana.id === 'documents');
+    expect(documentos?.count, 'sin abrir la pestaña').toBe(2);
+
+    // Y el control: las otras dos pestañas siguen contando lo suyo, así que el 2 no es un número
+    // que se haya colado en todas.
+    expect(pagina.panelTabs().find((p) => p.id === 'zones')?.count).toBe(3);
+    expect(pagina.panelTabs().find((p) => p.id === 'contacts')?.count).toBe(4);
+  });
+
+  /**
+   * La ficha no lleva marco: el panel llega hasta el borde de la ventana.
+   *
+   * <p>La ventana emergente trae relleno porque los formularios lo necesitan, pero la ficha lleva
+   * dentro un <c>gi-detail-panel</c> que ya tiene su propio borde, su radio y su fondo. Con el
+   * relleno se veían dos bordes redondeados, uno dentro del otro, con un marco blanco de 1 rem en
+   * medio.</p>
+   *
+   * <p>Se mira el estilo calculado y no la clase: la clase se podía aplicar y que otra regla
+   * volviera a poner el relleno, que es un defecto que ya pasó una vez en este proyecto.</p>
+   */
+  it('la ficha del cliente no deja marco alrededor del panel', () => {
+    const { fixture, http } = montar();
+
+    http.match((r) => r.url === '/api/v1/clients').forEach((r) =>
+      r.flush({ items: [fila()], totalCount: 1, page: 1, pageSize: 25, totalPages: 1 }));
+    http.match(() => true).forEach((r) => r.flush([]));
+    fixture.detectChanges();
+
+    (fixture.componentInstance as unknown as { open(c: unknown): void }).open(fila());
+    fixture.detectChanges();
+
+    const raiz = fixture.nativeElement as HTMLElement;
+    const ficha = raiz.querySelector<HTMLElement>('.modal--ficha')!;
+    expect(ficha).not.toBeNull();
+    expect(getComputedStyle(ficha).padding).toBe('0px');
+    expect(ficha.querySelector('gi-detail-panel')).not.toBeNull();
   });
 
   it('una organización sin puestos no deja la pantalla recargándose sin parar', () => {

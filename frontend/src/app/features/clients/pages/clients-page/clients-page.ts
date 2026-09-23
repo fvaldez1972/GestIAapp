@@ -277,6 +277,15 @@ export class ClientsPage {
    */
   protected readonly documentCount = signal(0);
 
+  /**
+   * Si la pestaña de documentos ya publicó su propio conteo.
+   *
+   * <p>Sin esto no se podía distinguir «no hay documentos» de «todavía no he mirado»: los dos son
+   * cero. Con la pestaña abierta manda lo que ella cuenta, que incluye lo que se acaba de subir o
+   * retirar; con la pestaña cerrada manda lo que trajo la fila.</p>
+   */
+  protected readonly documentsLoaded = signal(false);
+
   protected createDocumentCategory(creation: GiCatalogCreation): void {
     const organizationId = this.organizationId();
 
@@ -495,7 +504,11 @@ export class ClientsPage {
       { id: 'data', label: 'Datos' },
       { id: 'zones', label: 'Zonas', count: cargando ? (client?.zoneCount ?? 0) : this.zones().length },
       { id: 'contacts', label: 'Contactos', count: cargando ? (client?.contactCount ?? 0) : this.contacts().length },
-      { id: 'documents', label: 'Documentos', count: this.documentCount() },
+      // El conteo sale de la fila hasta que la pestaña se abre y publica el suyo. Antes empezaba
+      // en cero y sólo se corregía al entrar, que era justo lo que el contador venía a evitar:
+      // había que abrir la pestaña para saber si tenía algo.
+      { id: 'documents', label: 'Documentos',
+        count: this.documentsLoaded() ? this.documentCount() : (client?.documentCount ?? 0) },
     ];
   });
 
@@ -637,6 +650,10 @@ export class ClientsPage {
     this.activeTab.set(tab);
     this.zones.set([]);
     this.contacts.set([]);
+    // El conteo de la pestaña anterior era de otro cliente. Sin esto, abrir uno con documentos y
+    // después uno sin ellos dejaba el número del primero puesto en el segundo.
+    this.documentCount.set(0);
+    this.documentsLoaded.set(false);
     this.loadDetail(client);
   }
 

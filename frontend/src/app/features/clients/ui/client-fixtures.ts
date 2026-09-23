@@ -21,6 +21,7 @@ export function cliente(extra: Partial<ClientListItem> = {}): ClientListItem {
     zoneCount: 3,
     zonesWithoutContact: 0,
     contactCount: 4,
+    documentCount: 2,
     serviceCount: 5,
     mainZoneName: 'Torre Altavista',
     mainZoneMunicipality: 'Zapopan',

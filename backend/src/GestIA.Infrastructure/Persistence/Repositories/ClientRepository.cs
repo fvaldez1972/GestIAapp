@@ -1,5 +1,6 @@
 using GestIA.Application.Clients;
 using GestIA.Domain.Clients;
+using GestIA.Domain.Documents;
 using Microsoft.EntityFrameworkCore;
 
 namespace GestIA.Infrastructure.Persistence.Repositories;
@@ -110,6 +111,13 @@ public sealed class ClientRepository(GestIaDbContext dbContext) : IClientReposit
                         && contact.IdClient == client.IdClient
                         && (contact.IdClientSite == site.IdClientSite || contact.IdClientSite == null))),
                 dbContext.ClientContacts.Count(contact => contact.IdClient == client.IdClient && contact.Active),
+                // El "Active" va escrito aqui tambien, por lo mismo que arriba: la subconsulta no
+                // hereda el filtro, y un documento retirado seguiria contando en una pestana que
+                // no lo muestra.
+                dbContext.BusinessDocuments.Count(document =>
+                    document.OwnerType == BusinessDocumentOwnerType.Client
+                    && document.OwnerId == client.IdClient
+                    && document.Active),
                 dbContext.Services.Count(service => service.IdClient == client.IdClient && service.Active),
                 // La zona principal es la primera por nombre. No hay marca de «principal» en el
                 // modelo, y elegir una al azar haría que la misma fila cambiara entre cargas.

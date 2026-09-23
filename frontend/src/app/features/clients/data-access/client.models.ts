@@ -990,6 +990,8 @@ export type ClientListItem = {
   readonly zoneCount: number;
   readonly zonesWithoutContact: number;
   readonly contactCount: number;
+  /** Documentos activos. Viaja con la fila para que la pestaña tenga contador sin abrirla. */
+  readonly documentCount: number;
   readonly serviceCount: number;
   readonly mainZoneName: string | null;
   readonly mainZoneMunicipality: string | null;

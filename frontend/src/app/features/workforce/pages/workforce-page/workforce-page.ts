@@ -135,7 +135,15 @@ export class WorkforcePage {
    * aceptaba página y tamaño—, así que no se traen 128 fichas para enseñar diez.</p>
    */
   protected readonly currentPage = signal(1);
-  protected readonly pageSize = signal(25);
+
+  /**
+   * Diez por página.
+   *
+   * <p>Eran 25, que es lo que hacía la vista larga: con el panel abierto había que desplazar la
+   * página entera para llegar al final de la lista. Diez caben de una vez en una pantalla normal,
+   * y quien quiera más lo sube en el propio paginado.</p>
+   */
+  protected readonly pageSize = signal(10);
 
   protected readonly pageSizeOptions: readonly GiSelectOption[] = [10, 25, 50, 100].map((tamano) => ({
     value: String(tamano),

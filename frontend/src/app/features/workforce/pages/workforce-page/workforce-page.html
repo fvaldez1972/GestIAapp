@@ -36,6 +36,43 @@
           (clearAll)="clearFilters()"
         />
 
+        <!--
+          El paginado va ARRIBA de la tabla, no debajo.
+
+          Debajo quedaba al final de veinticinco filas: para cambiar de pagina habia que recorrer la
+          lista entera, y con el panel abierto la fila se estrechaba y sus tres controles se
+          apretaban unos contra otros. Arriba esta siempre a la vista y comparte sitio con el
+          recuento, que es el dato con el que se lee.
+        -->
+        @if (totalPaginas() > 1) {
+          <nav class="pers-pages" aria-label="Páginas de la lista">
+            <span class="pers-pages__rango">{{ rango() }}</span>
+
+            <div class="pers-pages__nav">
+              <gi-select
+                label="Personas por página"
+                [openDown]="true"
+                [options]="pageSizeOptions"
+                [value]="pageSize().toString()"
+                (valueChange)="setPageSize($any($event))"
+              />
+              <button
+                type="button"
+                class="gi-button gi-button--ghost"
+                [disabled]="currentPage() === 1"
+                (click)="goToPage(currentPage() - 1)"
+              >Anterior</button>
+              <span class="pers-pages__count">{{ currentPage() }} / {{ totalPaginas() }}</span>
+              <button
+                type="button"
+                class="gi-button gi-button--ghost"
+                [disabled]="currentPage() === totalPaginas()"
+                (click)="goToPage(currentPage() + 1)"
+              >Siguiente</button>
+            </div>
+          </nav>
+        }
+
         <app-employee-table
           [employees]="employees()"
           [state]="tableState()"
@@ -48,44 +85,6 @@
           (retry)="load()"
           (action)="onRowAction($event)"
         />
-
-        <!--
-          El paginado. La lista traia 25 y no ofrecia pasar a la siguiente: con 128 personas, las
-          103 restantes no existian para esta pantalla.
-        -->
-        @if (total() > 0) {
-          <nav class="pers-pages" aria-label="Páginas de la lista">
-            <div class="pers-pages__size">
-              <span>Mostrar</span>
-              <gi-select
-                label="Personas por página"
-                [openDown]="true"
-                [options]="pageSizeOptions"
-                [value]="pageSize().toString()"
-                (valueChange)="setPageSize($any($event))"
-              />
-              <span>de {{ rango() }}</span>
-            </div>
-
-            <div class="pers-pages__nav">
-              <button
-                type="button"
-                class="gi-button gi-button--ghost"
-                [disabled]="currentPage() === 1"
-                (click)="goToPage(currentPage() - 1)"
-              >Anterior</button>
-
-              <span class="pers-pages__count">Página {{ currentPage() }} de {{ totalPaginas() }}</span>
-
-              <button
-                type="button"
-                class="gi-button gi-button--ghost"
-                [disabled]="currentPage() === totalPaginas()"
-                (click)="goToPage(currentPage() + 1)"
-              >Siguiente</button>
-            </div>
-          </nav>
-        }
       </div>
 
       @if (creating()) {

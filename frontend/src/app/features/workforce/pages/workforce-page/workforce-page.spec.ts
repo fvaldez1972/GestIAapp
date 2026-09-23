@@ -276,18 +276,18 @@ describe('Personal · carga', () => {
     };
 
     pagina.total.set(128);
-    expect(pagina.totalPaginas()).toBe(6);
-    expect(pagina.rango()).toBe('1–25 de 128');
+    expect(pagina.totalPaginas()).toBe(13);
+    expect(pagina.rango()).toBe('1–10 de 128');
 
     pagina.goToPage(2);
     expect(pagina.currentPage()).toBe(2);
-    expect(pagina.rango()).toBe('26–50 de 128');
+    expect(pagina.rango()).toBe('11–20 de 128');
 
     // No se puede pasar del final: pedir la 99 deja la última, no una página vacía.
     pagina.goToPage(99);
-    expect(pagina.currentPage()).toBe(6);
+    expect(pagina.currentPage()).toBe(13);
 
-    // Y cambiar el tamaño vuelve a la primera: quedarse en la 6 con 100 por página dejaría la
+    // Y cambiar el tamaño vuelve a la primera: quedarse en la 13 con 100 por página dejaría la
     // lista vacía y parecería que se perdieron las personas.
     pagina.setPageSize('100');
     expect(pagina.pageSize()).toBe(100);

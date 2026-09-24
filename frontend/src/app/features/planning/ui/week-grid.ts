@@ -28,12 +28,17 @@ const ABREVIATURA: Record<string, string> = {
   Sunday: 'DOM',
 };
 
-/** Cada estado con la palabra que lo nombra. El color va con la palabra, nunca solo. */
+/**
+ * Cada estado con la palabra que lo nombra. El color va con la palabra, nunca solo.
+ *
+ * <p><b>«Sin declarar» salio de la leyenda el 24 de septiembre de 2026, por peticion.</b> La celda
+ * sigue diciendolo y sigue teniendo su color: lo que se retira es el renglon que lo explicaba
+ * abajo. Si vuelve a hacer falta, es una linea.</p>
+ */
 const LEYENDA = [
   { kind: 'covered', texto: 'Turno cubierto', nota: '' },
   { kind: 'short', texto: 'Falta gente', nota: 'asignados < requeridos' },
   { kind: 'noShift', texto: 'Sin turno', nota: 'el patrón no declara segmento ese día' },
-  { kind: 'undeclared', texto: 'Sin declarar', nota: 'la posición no tiene ningún segmento' },
 ] as const;
 
 /**

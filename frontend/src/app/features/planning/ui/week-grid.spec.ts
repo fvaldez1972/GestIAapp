@@ -94,13 +94,16 @@ describe('WeekGrid', () => {
   });
 
   /**
-   * Los cuatro estados se distinguen sin color, y por eso la leyenda va dentro de la rejilla y no
-   * en un anexo que nadie abre.
+   * Los estados se distinguen sin color, y por eso la leyenda va dentro de la rejilla y no en un
+   * anexo que nadie abre.
    */
-  it('la leyenda nombra los cuatro estados con palabras', () => {
+  it('la leyenda nombra con palabras los estados que explica', () => {
     const { leyenda } = montar();
 
-    expect(leyenda()).toEqual(['Turno cubierto', 'Falta gente', 'Sin turno', 'Sin declarar']);
+    // «Sin declarar» salió de la leyenda el 24 de septiembre de 2026, por petición. La celda lo
+    // sigue diciendo —eso se comprueba abajo, en las pruebas de la celda— y lo que se retiró es
+    // el renglón que lo explicaba.
+    expect(leyenda()).toEqual(['Turno cubierto', 'Falta gente', 'Sin turno']);
   });
 
   /**

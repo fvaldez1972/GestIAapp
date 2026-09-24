@@ -30,12 +30,15 @@ const TIPOS: Record<EmployeeAssignment['assignmentType'], string> = {
       @if (loading()) {
         <p class="assign__note" role="status">Cargando las asignaciones…</p>
       } @else if (assignments().length === 0) {
+        <!--
+          Sin botón de asignar. Se retiró de Personal el 23 de septiembre de 2026 por petición, y
+          al volver esta pestaña el 24 no volvió con ella: lo que hacía falta era ver dónde ha
+          estado la persona. Asignar se hace desde Servicios, que es donde existe la posición.
+        -->
         <gi-empty-state
           variant="no-data"
           title="Esta persona no tiene asignaciones"
           description="Una asignación liga a la persona con una posición de un servicio. Sin ella no aparece en el rol ni en la cobertura."
-          [actionLabel]="canWrite() ? 'Asignar a una posición' : ''"
-          (action)="assign.emit()"
         />
       } @else {
         @if (inProgress(); as turno) {
@@ -156,9 +159,6 @@ const TIPOS: Record<EmployeeAssignment['assignmentType'], string> = {
 export class EmployeeAssignments {
   readonly assignments = input.required<readonly EmployeeAssignment[]>();
   readonly loading = input(false);
-  readonly canWrite = input(false);
-
-  readonly assign = output<void>();
 
   protected readonly inProgress = computed(() =>
     this.assignments().find((item) => item.hasShiftInProgress) ?? null,

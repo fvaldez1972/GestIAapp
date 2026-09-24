@@ -5,6 +5,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { WorkforcePage } from './workforce-page';
+import { assignmentFixture } from '../../ui/employee-fixtures';
 
 const ORGANIZACION = { idOrganization: 'org-a', codeOrganization: 'ORG-01', legalName: 'Empresa de prueba' };
 
@@ -65,6 +66,43 @@ describe('Personal · carga', () => {
 
     return { fixture, http, empleados, responder, responderLoDemas };
   }
+
+  /**
+   * El historial de asignaciones vuelve al panel el 24 de septiembre de 2026, por petición.
+   *
+   * <p>Se había retirado el 23 junto con lo de vigencias. Lo que se echó de menos no fue el botón
+   * de asignar —ése sigue fuera, y asignar se hace desde Servicios— sino poder ver dónde ha estado
+   * la persona.</p>
+   *
+   * <p>Las dos afirmaciones se necesitan. La petición sola no bastaría: la ficha podría pedir el
+   * historial y no tener dónde enseñarlo. Y la pestaña sola tampoco: estaría dibujando una pestaña
+   * vacía porque nadie pidió los datos.</p>
+   */
+  it('la ficha pide el historial de asignaciones y le da su pestaña', () => {
+    const { fixture, http, responder, responderLoDemas } = montar();
+    responder();
+    responderLoDemas();
+    fixture.detectChanges();
+
+    const pagina = fixture.componentInstance as unknown as {
+      open(employee: unknown, tab?: string): void;
+      panelTabs(): readonly { readonly id: string; readonly count?: number }[];
+      assignments(): readonly unknown[];
+    };
+
+    pagina.open({ idEmployee: 'emp-1', documentCount: 0 }, 'assignments');
+
+    http
+      .expectOne((r) => r.method === 'GET' && r.url === '/api/v1/employees/emp-1/assignments')
+      .flush([assignmentFixture()]);
+    // Lo demás del expediente, vacío pero con forma: `null` dejaría señales que la pantalla
+    // recorre, y el fallo parecería del historial cuando sería de la respuesta de al lado.
+    http.match(() => true).forEach((r) => r.flush([]));
+    fixture.detectChanges();
+
+    expect(pagina.assignments()).toHaveLength(1);
+    expect(pagina.panelTabs().find((t) => t.id === 'assignments')?.count).toBe(1);
+  });
 
   it('buscar pide la lista una sola vez, no dos por tecla', () => {
     const { fixture, http, empleados, responder, responderLoDemas } = montar();

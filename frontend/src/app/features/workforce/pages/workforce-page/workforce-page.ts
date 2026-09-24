@@ -62,6 +62,7 @@ import {
   EmployeeEvaluationFormValue,
   EmployeeEvaluations,
 } from '../../ui/employee-evaluations';
+import { EmployeeAssignments } from '../../ui/employee-assignments';
 import { EmployeeForm, EmployeeFormValue } from '../../ui/employee-form';
 import { EmployeeSkillFormValue, EmployeeSkills } from '../../ui/employee-skills';
 import { EmployeeTable } from '../../ui/employee-table';
@@ -94,6 +95,7 @@ const EMPTY_SUMMARY: EmployeeSummary = {
   selector: 'app-workforce-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    EmployeeAssignments,
     EmployeeData,
     EmployeeDocuments,
     EmployeeAdministrativeIncidents,
@@ -285,6 +287,8 @@ export class WorkforcePage {
   protected readonly catalogDocumentCategories = signal<readonly EmployeeJobPositionOption[]>([]);
   protected readonly catalogIncidentTypes = signal<readonly EmployeeJobPositionOption[]>([]);
   protected readonly administrativeIncidents = signal<readonly AdministrativeIncident[]>([]);
+  /** El historial de asignaciones de la persona abierta, con el turno en curso marcado. */
+  protected readonly assignments = signal<readonly EmployeeAssignment[]>([]);
   protected readonly catalogEvaluationCategories = signal<readonly EmployeeJobPositionOption[]>([]);
 
   /** Los niveles de escolaridad, para ver y capturar hasta dónde estudió cada persona. */
@@ -482,6 +486,10 @@ export class WorkforcePage {
         label: 'Actas administrativas',
         count: this.administrativeIncidents().filter((item) => item.active).length,
       },
+      // El historial de asignaciones vuelve al panel el 24 de septiembre de 2026, por petición.
+      // Se había retirado el 23 junto con lo de vigencias, y lo que se echó de menos no fue el
+      // botón de asignar —ése sigue fuera— sino poder ver dónde ha estado la persona.
+      { id: 'assignments', label: 'Asignaciones', count: this.assignments().length },
     ];
   });
 
@@ -695,6 +703,7 @@ export class WorkforcePage {
     this.evaluations.set([]);
     this.skills.set([]);
     this.administrativeIncidents.set([]);
+    this.assignments.set([]);
     this.documentCount.set(employee.documentCount);
     this.loadDetail(employee.idEmployee);
   }
@@ -728,12 +737,19 @@ export class WorkforcePage {
       administrativeIncidents: this.workforceApi
         .listAdministrativeIncidents(organizationId, idEmployee)
         .pipe(catchError(() => of([] as readonly AdministrativeIncident[]))),
+      // Y lo mismo con las asignaciones: viajan con el resto del expediente para que la pestaña
+      // no tenga que pedirlas al abrirse, y si fallan dicen que no hay ninguna en vez de dejar la
+      // ficha entera sin abrir.
+      assignments: this.api
+        .listAssignments(organizationId, idEmployee)
+        .pipe(catchError(() => of([] as readonly EmployeeAssignment[]))),
     }).subscribe((data) => {
       this.detail.set(data.detail?.employee ?? null);
       this.documents.set(data.detail?.documents ?? []);
       this.evaluations.set(data.detail?.evaluations ?? []);
       this.skills.set(data.skills);
       this.administrativeIncidents.set(data.administrativeIncidents);
+      this.assignments.set(data.assignments);
       this.detailLoading.set(false);
     });
   }

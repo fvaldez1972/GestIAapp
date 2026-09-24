@@ -14,6 +14,15 @@ Preguntado si alcanzaba al encabezado del listado, eligió **quitar las dos tarj
 vencido» y «Por vencer en 30 días»— y dejarlo en Personas y Activas. Sobre la pestaña de
 Asignaciones, eligió **quitarla** del panel.
 
+> **Corrección del 24 de septiembre de 2026.** La pestaña de Asignaciones **volvió**, a petición
+> del usuario: «Agregar el historial de asignaciones, porque no se ve». Volvió **sólo como
+> historial**: el botón «Asignar a una posición» sigue fuera, y asignar se hace desde Servicios,
+> que es donde existe la posición que se va a cubrir.
+>
+> Lo que esto enseña: la pestaña llevaba pegadas dos cosas distintas —una acción que molestaba y
+> una consulta que hacía falta—, y retirarla entera fue retirar de más. Cuando se manda quitar una
+> acción, conviene comprobar qué consulta se va con ella.
+
 ## Qué salió de la pantalla
 
 - Las fechas de vigencia y vencimiento de cada requisito, y las frases que las explicaban
@@ -23,7 +32,7 @@ Asignaciones, eligió **quitarla** del panel.
 - La nota de «no cuentan para la vigencia» de los otros documentos.
 - La píldora de estado y la línea de revisión del expediente —«lo de documento validado»—.
 - El aviso de documentos próximos a vencer que encabezaba la pestaña de Datos.
-- El pie con «Asignar a una posición», y la pestaña de Asignaciones.
+- El pie con «Asignar a una posición». (La pestaña de Asignaciones también salió, y volvió el 24; ver arriba.)
 - Los filtros «Con algún vencido» y «Por vencer en N días».
 
 ## La trampa que esto abre, y cómo queda cubierta

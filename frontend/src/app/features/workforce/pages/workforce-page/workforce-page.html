@@ -236,6 +236,18 @@
             />
           </ng-template>
 
+          <ng-template giTab="assignments">
+            <!--
+              Sólo historial. La acción de asignar a una posición se retiró de Personal el 23 de
+              septiembre de 2026 y sigue fuera: asignar se hace desde Servicios, que es donde
+              existe la posición que se va a cubrir.
+            -->
+            <app-employee-assignments
+              [assignments]="assignments()"
+              [loading]="detailLoading()"
+            />
+          </ng-template>
+
           <ng-template giTab="administrative-incidents">
             <!--
               No son las incidencias de la operación diaria. Aquéllas describen lo que pasó en un

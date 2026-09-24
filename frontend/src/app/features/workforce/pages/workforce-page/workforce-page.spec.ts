@@ -277,40 +277,20 @@ describe('Personal · carga', () => {
    * El alta al vuelo declara la naturaleza del valor que crea.
    *
    * <p><b>Esto se rompió y nadie lo vio.</b> El 21 de septiembre de 2026 los cuatro catálogos de la
-   * elegibilidad pasaron a exigir la marca al crear, y las altas al vuelo de Personal y de
-   * Servicios seguían mandando el alta sin ella: el servidor respondía 400 y la experiencia nunca
-   * se creaba. Las 840 pruebas de entonces pasaron porque ninguna miraba lo que ese alta manda.</p>
+   * elegibilidad pasaron a exigir la marca al crear, y las altas al vuelo seguían mandando el alta
+   * sin ella: el servidor respondía 400 y el valor nunca se creaba. Las 840 pruebas de entonces
+   * pasaron porque ninguna miraba lo que ese alta manda.</p>
    *
-   * <p>Nace <b>informativa</b> porque el alta al vuelo no puede preguntar si bloquea: ocurre en
-   * medio de otro formulario. Quien administre el catálogo la promueve después.</p>
-   */
-  it('el alta al vuelo de una experiencia declara que es informativa', () => {
-    const { fixture, http, responder, responderLoDemas } = montar();
-    responder();
-    responderLoDemas();
-    fixture.detectChanges();
-
-    const pagina = fixture.componentInstance as unknown as {
-      createSkillCatalogItem(creation: { name: string }): void;
-    };
-    pagina.createSkillCatalogItem({ name: 'Manejo de CCTV' });
-
-    const alta = http.expectOne(
-      (peticion) => peticion.method === 'POST' && peticion.url === '/api/v1/catalogs/items',
-    );
-
-    expect(alta.request.body.type).toBe('Skill');
-    expect(alta.request.body.isRequired, 'sin esto el servidor responde 400').toBe(false);
-    alta.flush({ idCatalogItem: 'x', name: 'Manejo de CCTV', type: 'Skill', active: true });
-  });
-
-  /**
-   * Y lo mismo con el tipo de incidencia administrativa, que es el otro que exige la marca.
+   * <p>Nace <b>informativo</b> porque el alta al vuelo no puede preguntar si bloquea: ocurre en
+   * medio de otro formulario. Quien administre el catálogo lo promueve después.</p>
    *
-   * <p>Es el control de la anterior: dos altas al vuelo distintas, a dos catálogos distintos, y las
-   * dos tenían el mismo defecto. Comprobar sólo una habría dejado la otra rota.</p>
+   * <p>Aquí había también el alta al vuelo de una experiencia, y se fue el 24 de septiembre de 2026
+   * al volverse desplegable el campo de Experiencia: un desplegable no puede ofrecer un nombre que
+   * no existe, así que ya no hay desde dónde dispararla. <b>El tipo de incidencia administrativa es
+   * ahora el único alta al vuelo que queda</b>, y por eso esta prueba pasa a llevar el motivo
+   * entero.</p>
    */
-  it('y el alta al vuelo de un tipo de incidencia administrativa también', () => {
+  it('el alta al vuelo de un tipo de incidencia administrativa declara que es informativo', () => {
     const { fixture, http, responder, responderLoDemas } = montar();
     responder();
     responderLoDemas();

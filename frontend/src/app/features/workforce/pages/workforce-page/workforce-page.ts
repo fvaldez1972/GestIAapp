@@ -1112,35 +1112,10 @@ export class WorkforcePage {
       });
   }
 
-  /** Alta al vuelo de una experiencia del catálogo, sin salir del expediente. */
-  protected createSkillCatalogItem(creation: GiCatalogCreation): void {
-    const organizationId = this.organizationId();
-
-    if (!organizationId || !this.auth.hasPermission('CATALOGS.WRITE')) {
-      this.error.set('No tienes permiso para crear valores de catálogo.');
-      return;
-    }
-
-    this.catalogApi
-      .createItem({
-        idOrganization: organizationId,
-        type: 'Skill',
-        name: creation.name,
-        description: null,
-        // Informativa: ver la nota del alta al vuelo de incidencias administrativas.
-        isRequired: false,
-      })
-      .subscribe({
-        next: (creado) => {
-          this.catalogSkills.update((valores) => [
-            ...valores,
-            { idCatalogItem: creado.idCatalogItem, name: creado.name },
-          ]);
-          this.message.set(`«${creado.name}» se agregó al catálogo de experiencias.`);
-        },
-        error: () => this.error.set('No se pudo crear la experiencia en el catálogo.'),
-      });
-  }
+  // El alta al vuelo de una experiencia del catálogo vivía aquí, y se retiró el 24 de septiembre
+  // de 2026 al volverse desplegable el campo de Experiencia: un desplegable no puede ofrecer un
+  // nombre que no existe, así que ya no había desde dónde dispararla. Dar de alta una experiencia
+  // es una decisión del catálogo, y Catálogos la sigue haciendo con su propia pantalla.
 
   // ── El puesto del catálogo, que es la salida de la franja ─────────────────────────────────
 

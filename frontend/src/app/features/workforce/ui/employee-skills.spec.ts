@@ -1,7 +1,7 @@
 import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { EligibilityRequirement, EmployeeSkill } from '../../catalogs/data-access/catalog.models';
-import { GiCatalogCreation, GiCatalogOption } from '../../../shared/ui/gi-catalog-picker/gi-catalog-picker';
+import { GiCatalogOption } from '../../../shared/ui/gi-catalog-picker/gi-catalog-picker';
 import { EmployeeSkillFormValue, EmployeeSkills } from './employee-skills';
 import { requirementFixture } from './employee-fixtures';
 
@@ -43,7 +43,6 @@ const experiencia = (overrides: Partial<EmployeeSkill> = {}): EmployeeSkill => (
       [saving]="saving()"
       (save)="guardadas.push($event)"
       (deactivate)="retiradas.push($event)"
-      (createSkill)="creadas.push($event)"
     />
   `,
 })
@@ -59,7 +58,6 @@ class Anfitrion {
   readonly saving = signal(false);
   readonly guardadas: EmployeeSkillFormValue[] = [];
   readonly retiradas: string[] = [];
-  readonly creadas: GiCatalogCreation[] = [];
 }
 
 function montar(configurar: (host: Anfitrion) => void = () => {}) {
@@ -232,6 +230,33 @@ describe('La pestaña de experiencias', () => {
     expect(componente.problem()).toContain('no puede ser anterior');
   });
 
+  /**
+   * <b>Un desplegable, no un campo donde escribir.</b>
+   *
+   * <p>El buscador pedía teclear el nombre de algo que ya existe y está en una lista corta, y de
+   * paso ofrecía darla de alta en el catálogo desde aquí. Las tres afirmaciones se necesitan: la
+   * primera dice que hay una lista cerrada, la segunda que la lista es el catálogo de verdad —sin
+   * ella, un desplegable vacío pasaría igual—, y la tercera que el alta al vuelo se fue con el
+   * buscador, que es lo que hace que no se pueda escribir un nombre que no existe.</p>
+   */
+  it('la experiencia se elige de una lista cerrada, y ya no se da de alta desde aquí', () => {
+    const { componente, fixture, raiz } = montar();
+
+    componente.openCreate();
+    fixture.detectChanges();
+
+    raiz.querySelector<HTMLButtonElement>('gi-select button[role="combobox"]')!.click();
+    fixture.detectChanges();
+
+    const opciones = Array.from(raiz.querySelectorAll('gi-select .gi-select__option-label')).map((o) =>
+      o.textContent!.trim(),
+    );
+
+    expect(opciones).toEqual(['Manejo de CCTV']);
+    expect(raiz.querySelector('gi-catalog-picker')).toBeNull();
+    expect(raiz.textContent).not.toContain('se agrega al catálogo');
+  });
+
   /** Al editar no se cambia cuál es la experiencia: eso convertiría su historial en el de otra. */
   it('editar conserva la experiencia y manda su identificador', () => {
     const { componente, host, fixture, raiz } = montar((h) => h.skills.set([experiencia()]));
@@ -240,7 +265,7 @@ describe('La pestaña de experiencias', () => {
     fixture.detectChanges();
 
     expect(raiz.querySelector('.field__fixed')!.textContent).toContain('Manejo de CCTV');
-    expect(raiz.querySelector('gi-catalog-picker')).toBeNull();
+    expect(raiz.querySelector('gi-select')).toBeNull();
 
     componente.form.patchValue({ expiresDate: '2028-01-01' });
     componente.submit();

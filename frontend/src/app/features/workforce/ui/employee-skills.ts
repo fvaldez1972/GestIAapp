@@ -1,7 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { GiAccordion } from '../../../shared/ui/gi-ui';
-import { GiCatalogCreation, GiCatalogOption, GiCatalogPicker } from '../../../shared/ui/gi-catalog-picker/gi-catalog-picker';
+import { GiCatalogOption } from '../../../shared/ui/gi-catalog-picker/gi-catalog-picker';
+import { GiSelect, GiSelectOption } from '../../../shared/ui/gi-select/gi-select';
 import { formatOperationalDate } from '../../../shared/util/operational-date';
 import { EligibilityRequirement, EmployeeSkill } from '../../catalogs/data-access/catalog.models';
 import {
@@ -39,7 +40,7 @@ export type EmployeeSkillFormValue = {
 @Component({
   selector: 'app-employee-skills',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [GiAccordion, ReactiveFormsModule, GiCatalogPicker],
+  imports: [GiAccordion, ReactiveFormsModule, GiSelect],
   template: `
     <section class="skills">
       @if (requirements().length === 0) {
@@ -160,16 +161,20 @@ export type EmployeeSkillFormValue = {
                 @if (editing()) {
                   <p class="field__fixed">{{ editing()!.skillName }}</p>
                 } @else {
-                  <gi-catalog-picker
+                  <!--
+                    Un desplegable, no un campo donde escribir.
+                    El buscador pedia teclear el nombre de algo que ya existe y esta en una lista
+                    corta, y de paso ofrecia darla de alta en el catalogo desde aqui. Elegir de una
+                    lista cerrada no deja escribir un nombre que no existe, que es lo que hacia
+                    falta: dar de alta una experiencia es una decision del catalogo, y ahi se hace.
+                  -->
+                  <gi-select
                     label="Experiencia"
-                    catalogLabel="el catálogo de experiencias"
-                    inputId="es-experiencia"
-                    [options]="catalogSkills()"
+                    placeholder="Elige la experiencia"
+                    [options]="opcionesExperiencia()"
                     [value]="form.controls.idSkillCatalogItem.value"
-                    [canWrite]="canWrite()"
                     [disabled]="saving()"
                     (valueChange)="form.controls.idSkillCatalogItem.setValue($event)"
-                    (create)="createSkill.emit($event)"
                   />
                 }
               </div>
@@ -367,6 +372,11 @@ export class EmployeeSkills {
   readonly skills = input.required<readonly EmployeeSkill[]>();
   /** Las experiencias activas del catálogo de la organización. */
   readonly catalogSkills = input.required<readonly GiCatalogOption[]>();
+
+  /** El catálogo de experiencias con la forma que pide `gi-select`. */
+  protected readonly opcionesExperiencia = computed<readonly GiSelectOption[]>(() =>
+    this.catalogSkills().map((opcion) => ({ value: opcion.idCatalogItem, label: opcion.name })),
+  );
   /** El día operativo del servidor. No se lee del reloj del navegador. */
   readonly today = input.required<string>();
   readonly expiringWithinDays = input(30);
@@ -375,7 +385,6 @@ export class EmployeeSkills {
 
   readonly save = output<EmployeeSkillFormValue>();
   readonly deactivate = output<string>();
-  readonly createSkill = output<GiCatalogCreation>();
 
   protected readonly stateLabel = skillStateLabel;
   protected readonly tone = skillStateTone;

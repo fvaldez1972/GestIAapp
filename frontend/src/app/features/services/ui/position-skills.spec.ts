@@ -74,9 +74,16 @@ function montar(configurar: (host: Anfitrion) => void = () => {}) {
       bloquea: { set(valor: boolean): void };
       available(): readonly GiCatalogOption[];
     },
-    boton: (texto: string) =>
-      Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('.skill button'))
-        .find((b) => b.textContent!.trim() === texto)!,
+    /**
+     * La tachita de una ficha, buscada por su nombre accesible.
+     *
+     * <p>Antes era un botón rotulado «Quitar» al otro extremo del renglón. Ahora es una equis
+     * pegada al nombre, y su nombre accesible es «Quitar {experiencia}»: buscarlo por ahí es lo
+     * que hace que esta prueba compruebe también que la equis no quedó muda para un lector.</p>
+     */
+    quitarDe: (experiencia: string) =>
+      Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('.skill__quitar'))
+        .find((b) => b.getAttribute('aria-label') === `Quitar ${experiencia}`)!,
     filas: () =>
       Array.from(
         (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('.skill'),
@@ -92,7 +99,9 @@ describe('El perfil requerido de una posición', () => {
   it('sin experiencias lo dice sin inventar un requisito', () => {
     const { raiz } = montar();
 
-    expect(raiz.textContent).toContain('Ninguna experiencia exigida');
+    // Ya no se explica el vacío: el propio desplegable de abajo es la invitación a llenarlo.
+    expect(raiz.querySelector('.skill')).toBeNull();
+    expect(raiz.textContent).toContain('AGREGAR UNA EXPERIENCIA');
   });
 
   it('lista las experiencias ya exigidas por su nombre de catálogo', () => {
@@ -204,7 +213,7 @@ describe('El perfil requerido de una posición', () => {
       host.pending.set([{ idSkillCatalogItem: CCTV, name: 'Manejo de CCTV' }]),
     );
 
-    expect(pendiente.filas()[0].textContent).toContain('Se guarda al guardar la posición');
+    expect(pendiente.filas()[0].textContent).toContain('sin guardar');
   });
 
   /** Lo ya pedido no se vuelve a ofrecer: dos reglas de lo mismo dirían lo mismo dos veces. */
@@ -227,25 +236,26 @@ describe('El perfil requerido de una posición', () => {
       host.pending.set([{ idSkillCatalogItem: CCTV, name: 'Manejo de CCTV' }]),
     );
 
-    expect(filas()[0].textContent).toContain('Se guarda al guardar la posición');
+    expect(filas()[0].textContent).toContain('sin guardar');
+    expect(filas()[0].classList).toContain('skill--pendiente');
     expect(raiz.textContent).toContain('1 se guardarán con la posición');
   });
 
   it('quitar una guardada emite el identificador de la regla', () => {
-    const { boton, host } = montar((h) => h.requirements.set([regla()]));
+    const { quitarDe, host } = montar((h) => h.requirements.set([regla()]));
 
-    boton('Quitar').click();
+    quitarDe('Manejo de CCTV').click();
 
     expect(host.quitadas).toEqual(['r1']);
     expect(host.quitadasPendientes).toEqual([]);
   });
 
   it('quitar una pendiente emite el identificador de catálogo', () => {
-    const { boton, host } = montar((h) =>
+    const { quitarDe, host } = montar((h) =>
       h.pending.set([{ idSkillCatalogItem: CCTV, name: 'Manejo de CCTV' }]),
     );
 
-    boton('Quitar').click();
+    quitarDe('Manejo de CCTV').click();
 
     expect(host.quitadasPendientes).toEqual([CCTV]);
     expect(host.quitadas).toEqual([]);

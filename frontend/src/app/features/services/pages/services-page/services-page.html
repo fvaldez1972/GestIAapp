@@ -875,16 +875,15 @@
                   <option [value]="patron.idShiftPatternTemplate">{{ patronEtiqueta(patron) }}</option>
                 }
               </select>
-              @if (selectedShiftPatternTemplate(); as patron) {
-                <small>
-                  El puesto sigue el ciclo {{ cicloEnFrase(patron.cycleDays) }} de este patrón:
-                  un promedio de {{ patron.weeklyHours }} horas por semana.
-                  @if (patron.compliance === 'Exceeds') {
-                    Excede la jornada legal por {{ patron.excessHours }} horas; se guarda igual y
-                    queda registrado.
-                  }
-                </small>
-              } @else if (!shiftPatternTemplates().length) {
+              <!--
+                Sin nota debajo del desplegable: repetia lo que la propia opcion ya dice.
+
+                `patronEtiqueta` escribe «de 12x12 · Nocturno · 6 dias · promedio 42 h/semana», y
+                cuando se pasa de la jornada legal añade «· excede por N h». La nota volvia a
+                contarlo en prosa dos renglones mas abajo, asi que el aviso de exceso no se pierde:
+                sigue en la etiqueta del patron elegido, que es donde se lee al elegirlo.
+              -->
+              @if (!shiftPatternTemplates().length) {
                 <small>
                   Todavía no hay patrones completos en el catálogo. Se construyen en Catálogos ·
                   Patrones de turno; mientras no haya ninguno, el puesto conserva el patrón que se le

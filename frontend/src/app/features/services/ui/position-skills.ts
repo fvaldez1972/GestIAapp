@@ -45,39 +45,30 @@ export type PositionSkillRequest = {
         }
       </header>
 
-      @if (rows().length === 0) {
-        <p class="perfil__note">
-          Ninguna experiencia exigida. La posición se puede cubrir con cualquier persona que cumpla
-          los requisitos de la organización.
-        </p>
-      } @else {
+      <!--
+        Sin experiencias no se dibuja nada. El parrafo que explicaba el vacio ocupaba tres
+        renglones para decir que no habia nada, justo encima del desplegable que sirve para
+        ponerlas: el propio desplegable ya es la invitacion.
+      -->
+      @if (rows().length > 0) {
         <ul class="perfil__list">
           @for (row of rows(); track row.key) {
-            <li class="skill">
-              <!--
-                Solo el nombre. La severidad —«impide asignar» o «solo deja constancia»— salio de
-                aqui: es del catalogo y vale para toda la organizacion, asi que repetirla en cada
-                fila de cada posicion llenaba la lista de un dato que no se decide aqui y que era
-                igual en todas.
+            <li class="skill" [class.skill--pendiente]="row.pending">
+              <span class="skill__name">{{ row.name }}</span>
 
-                Lo pendiente si se dice, porque eso SI depende de esta pantalla: es lo que
-                todavia no esta guardado.
-              -->
-              <span class="skill__body">
-                <span class="skill__name">{{ row.name }}</span>
-                @if (row.pending) {
-                  <span class="skill__detail">Se guarda al guardar la posición</span>
-                }
-              </span>
+              @if (row.pending) {
+                <span class="skill__marca" title="Se guarda al guardar la posición">sin guardar</span>
+              }
+
               @if (canWrite()) {
                 <button
-                  class="button button--secondary"
+                  class="skill__quitar"
                   type="button"
                   [disabled]="saving()"
+                  [attr.aria-label]="'Quitar ' + row.name"
+                  [title]="'Quitar ' + row.name"
                   (click)="quitar(row)"
-                >
-                  Quitar
-                </button>
+                >&times;</button>
               }
             </li>
           }
@@ -123,29 +114,58 @@ export type PositionSkillRequest = {
 
     .perfil__add gi-select { display: block; max-width: 28rem; }
 
-    /* Cada experiencia, en su propia ficha.
-       Eran renglones separados por una linea, con el nombre y debajo una frase gris que decia lo
-       mismo en todas. Sin esa frase el renglon quedaba en una sola linea de texto suelto, que no
-       se leia como «una cosa que la posicion pide» sino como prosa. Con marco y con el boton
-       dentro, cada una se ve como lo que es: un elemento que se puede quitar. */
-    .skill {
+    /* Cada experiencia, una ficha del tamano de su texto.
+       Ocupaban el ancho entero con un boton «Quitar» al otro extremo, asi que tres experiencias
+       eran tres barras y el ojo tenia que cruzar la caja para llegar a la accion. Como fichas en
+       linea ocupan lo que miden, se ven como una coleccion, y la equis va pegada al nombre que
+       quita. Es la misma forma que ya tiene «Equipo requerido» dos campos mas arriba. */
+    .perfil__list {
       display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 0.75rem;
-      padding: 0.4rem 0.6rem;
-      border: 1px solid var(--gestia-border);
-      border-radius: var(--gestia-radius);
-      background: var(--gestia-surface);
+      flex-wrap: wrap;
+      gap: 6px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
     }
 
-    .skill + .skill { margin-top: 0.35rem; }
+    .skill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 8px;
+      border: 1px solid var(--gestia-border);
+      border-radius: var(--gestia-radius-pill);
+      background: var(--gestia-surface);
+      max-width: 100%;
+    }
 
-    .skill__body { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
-    .skill__name { color: var(--gestia-text); font-size: 12.5px; font-weight: 600; }
+    /* Lo que todavia no se ha guardado se distingue por el borde, no solo por la palabra. */
+    .skill--pendiente { border-color: var(--gestia-warning); }
 
-    /* Lo pendiente se dice en ambar: es lo unico que distingue una fila de otra. */
-    .skill__detail { color: var(--gestia-warning); font-size: 11px; }
+    .skill__name {
+      color: var(--gestia-text);
+      font-size: 12px;
+      font-weight: 600;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .skill__marca { color: var(--gestia-warning); font-size: 10.5px; white-space: nowrap; }
+
+    .skill__quitar {
+      border: 0;
+      background: none;
+      padding: 0;
+      color: var(--gestia-muted);
+      font-size: 14px;
+      line-height: 1;
+      cursor: pointer;
+    }
+
+    .skill__quitar:hover { color: var(--gestia-danger); }
+    .skill__quitar:disabled { color: var(--gestia-border); cursor: default; }
+    .skill__quitar:focus-visible { outline: 2px solid var(--gestia-cyan); outline-offset: 2px; }
   `,
 })
 export class PositionSkills {

@@ -11,12 +11,16 @@ import { assignmentFixture } from './employee-fixtures';
     <app-employee-assignments
       [assignments]="assignments()"
       [loading]="loading()"
+      [canWrite]="canWrite()"
+      (assign)="asignaciones.set(asignaciones() + 1)"
     />
   `,
 })
 class Anfitrion {
   readonly assignments = signal<readonly EmployeeAssignment[]>([assignmentFixture()]);
   readonly loading = signal(false);
+  readonly canWrite = signal(true);
+  readonly asignaciones = signal(0);
 }
 
 function montar(configurar: (host: Anfitrion) => void = () => {}) {
@@ -28,6 +32,7 @@ function montar(configurar: (host: Anfitrion) => void = () => {}) {
 
   return {
     fixture,
+    host: fixture.componentInstance,
     raiz,
     filas: () => Array.from(raiz.querySelectorAll<HTMLElement>('.row')),
     estados: () =>
@@ -96,23 +101,35 @@ describe('La pestaña de asignaciones', () => {
     expect(filas()[0].textContent).toContain('01 ago 2026 a 31 ago 2026');
   });
 
-  /**
-   * Sin asignaciones se explica qué es una, y <b>no se ofrece asignar</b>.
-   *
-   * <p>Esta pestaña es historial. El botón de asignar se retiró de Personal el 23 de septiembre de
-   * 2026 por petición, y cuando la pestaña volvió el 24 no volvió con él: lo que hacía falta era
-   * ver dónde ha estado la persona. Asignar se hace desde Servicios, que es donde existe la
-   * posición que se va a cubrir.</p>
-   *
-   * <p>Las dos afirmaciones se necesitan: sin la primera, «no ofrece asignar» se cumpliría igual
-   * si el vacío hubiera dejado de dibujarse entero.</p>
-   */
-  it('sin asignaciones explica qué es una asignación, y no ofrece asignar', () => {
+  /** Sin asignaciones se explica qué es una y se ofrece la salida, no un hueco. */
+  it('sin asignaciones explica qué es una asignación y ofrece asignar', () => {
     const { raiz } = montar((host) => host.assignments.set([]));
 
     const vacio = raiz.querySelector('gi-empty-state')!;
 
     expect(vacio.textContent).toContain('no tiene asignaciones');
-    expect(vacio.textContent).not.toContain('Asignar a una posición');
+    expect(vacio.textContent).toContain('Asignar a una posición');
+  });
+
+  /**
+   * <b>La salida está puesta también cuando ya hay asignaciones.</b>
+   *
+   * <p>Volvió el 24 de septiembre de 2026, por petición, y va al pie y no sólo en el vacío: asignar
+   * a una segunda posición es lo normal en este negocio —titular en un servicio y apoyo en otro—,
+   * así que ofrecerlo sólo a quien no tiene ninguna dejaba fuera el caso frecuente.</p>
+   *
+   * <p>Las dos mitades se necesitan: sin la segunda, «está el botón» se cumpliría igual si
+   * estuviera puesto para quien no puede escribir, y el servidor le rechazaría lo que la pantalla
+   * le ofreció.</p>
+   */
+  it('con asignaciones ofrece asignar a otra, y sólo a quien puede escribir', () => {
+    const { raiz, host } = montar();
+
+    raiz.querySelector<HTMLButtonElement>('.assign__accion')!.click();
+    expect(host.asignaciones()).toBe(1);
+
+    const sinPermiso = montar((h) => h.canWrite.set(false));
+
+    expect(sinPermiso.raiz.querySelector('.assign__accion')).toBeNull();
   });
 });

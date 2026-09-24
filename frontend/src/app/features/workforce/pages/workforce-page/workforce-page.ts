@@ -1550,6 +1550,18 @@ export class WorkforcePage {
     void this.router.navigate(['/planeacion']);
   }
 
+  /**
+   * A Servicios, que es donde se asigna a una posición.
+   *
+   * <p><b>No a Planeación, aunque el botón viejo llevara ahí.</b> Lo que la pestaña de Asignaciones
+   * enumera son asignaciones de servicio, y ésas se crean en Servicios; en Planeación se cubre un
+   * turno concreto de una semana, que es otra cosa. Llevar a la rejilla semanal dejaba a quien
+   * pulsaba el botón a dos pantallas de lo que venía a hacer.</p>
+   */
+  protected goToServices(): void {
+    void this.router.navigate(['/servicios']);
+  }
+
   protected goToCatalogs(): void {
     void this.router.navigate(['/catalogos']);
   }

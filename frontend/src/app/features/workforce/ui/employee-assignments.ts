@@ -30,15 +30,12 @@ const TIPOS: Record<EmployeeAssignment['assignmentType'], string> = {
       @if (loading()) {
         <p class="assign__note" role="status">Cargando las asignaciones…</p>
       } @else if (assignments().length === 0) {
-        <!--
-          Sin botón de asignar. Se retiró de Personal el 23 de septiembre de 2026 por petición, y
-          al volver esta pestaña el 24 no volvió con ella: lo que hacía falta era ver dónde ha
-          estado la persona. Asignar se hace desde Servicios, que es donde existe la posición.
-        -->
         <gi-empty-state
           variant="no-data"
           title="Esta persona no tiene asignaciones"
           description="Una asignación liga a la persona con una posición de un servicio. Sin ella no aparece en el rol ni en la cobertura."
+          [actionLabel]="canWrite() ? 'Asignar a una posición' : ''"
+          (action)="assign.emit()"
         />
       } @else {
         @if (inProgress(); as turno) {
@@ -75,6 +72,21 @@ const TIPOS: Record<EmployeeAssignment['assignmentType'], string> = {
             </li>
           }
         </ul>
+      }
+
+      <!--
+        El pie con la salida, tenga o no asignaciones.
+        Vuelve el 24 de septiembre de 2026, por peticion. Se habia retirado el 23 con todo lo de
+        vigencias, y cuando la pestana volvio ese mismo dia se dejo fuera a proposito: fue retirar
+        de mas. Va tambien cuando la lista trae filas, no solo en el vacio, porque asignar a una
+        segunda posicion es lo normal en este negocio —titular en un servicio y apoyo en otro—.
+      -->
+      @if (canWrite() && !loading() && assignments().length > 0) {
+        <p class="assign__pie">
+          <button class="assign__accion" type="button" (click)="assign.emit()">
+            Asignar a una posición
+          </button>
+        </p>
       }
     </section>
   `,
@@ -153,12 +165,41 @@ const TIPOS: Record<EmployeeAssignment['assignmentType'], string> = {
     }
 
     .row__state--info { border-color: var(--gestia-info); color: var(--gestia-info); }
+
+    .assign__pie { display: flex; justify-content: flex-end; margin: 0.75rem 0 0; }
+
+    .assign__accion {
+      height: var(--gestia-control-height);
+      padding: 0 0.9rem;
+      border: 1px solid var(--gestia-navy);
+      border-radius: var(--gestia-radius);
+      background: var(--gestia-navy);
+      color: var(--gestia-surface);
+      font: inherit;
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .assign__accion:hover { background: var(--gestia-navy-soft); border-color: var(--gestia-navy-soft); }
+    .assign__accion:focus-visible { outline: 2px solid var(--gestia-cyan); outline-offset: 1px; }
     .row__state--success { border-color: var(--gestia-success); color: var(--gestia-success); }
   `,
 })
 export class EmployeeAssignments {
   readonly assignments = input.required<readonly EmployeeAssignment[]>();
   readonly loading = input(false);
+  readonly canWrite = input(false);
+
+  /**
+   * Llevar a donde se asigna, que es Servicios.
+   *
+   * <p><b>No es Planeación, aunque antes llevara ahí.</b> Lo que esta pestaña enumera son
+   * asignaciones de servicio —persona ligada a una posición de un servicio— y ésas se crean en
+   * Servicios. En Planeación se cubre un turno concreto de una semana, que es otra cosa: el botón
+   * viejo dejaba a quien lo pulsaba en la rejilla semanal, sin la posición delante.</p>
+   */
+  readonly assign = output<void>();
 
   protected readonly inProgress = computed(() =>
     this.assignments().find((item) => item.hasShiftInProgress) ?? null,

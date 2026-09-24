@@ -29,9 +29,17 @@ Asignaciones, eligió **quitarla** del panel.
 > historial**: el botón «Asignar a una posición» sigue fuera, y asignar se hace desde Servicios,
 > que es donde existe la posición que se va a cubrir.
 >
-> Lo que esto enseña: la pestaña llevaba pegadas dos cosas distintas —una acción que molestaba y
-> una consulta que hacía falta—, y retirarla entera fue retirar de más. Cuando se manda quitar una
-> acción, conviene comprobar qué consulta se va con ella.
+> **Y el botón también volvió**, unas horas después: «Necesito que vuelva el botón de asignar una
+> posición». Está al pie de la pestaña —no sólo en el vacío, porque asignar a una segunda posición
+> es lo normal: titular en un servicio y apoyo en otro— y lleva a **Servicios**, no a Planeación.
+> Lo que esta pestaña enumera son asignaciones de servicio, y ésas se crean en Servicios; en
+> Planeación se cubre un turno concreto de una semana, que es otra cosa. El botón original llevaba
+> a Planeación, y eso dejaba a quien lo pulsaba a dos pantallas de lo que venía a hacer.
+>
+> Lo que esto enseña: la petición del 23 parecía una sola y era un paquete. Al retirar «lo de
+> asignar posición» se fue con ello la consulta de dónde ha estado la persona, y al devolver la
+> consulta se dejó fuera la acción. Las dos veces fue retirar de más, y cada una costó una tanda.
+> Cuando se mande quitar algo de una pantalla, conviene enumerar antes qué se va con ello.
 
 ## Qué salió de la pantalla
 

@@ -596,7 +596,7 @@
         @if (selectedCoverage()) {
           Revisa estado, validación y confirmación de la cobertura seleccionada.
         } @else {
-          Flujo: detectar necesidad, elegir sustituto, validar bloqueos y confirmar de forma auditable.
+          Flujo: detectar necesidad, elegir sustituto, comprobar los requisitos y confirmar de forma auditable.
         }
       </p>
     </header>
@@ -727,9 +727,9 @@
         <header>
           <div>
             <span>Validación antes de guardar</span>
-            <h4>{{ coverageBlockingCount() ? 'Resuelve los bloqueos para continuar' : 'Requisitos cumplidos' }}</h4>
+            <h4>{{ coverageBlockingCount() ? 'Resuelve lo que impide continuar' : 'Requisitos cumplidos' }}</h4>
           </div>
-          <strong [class.is-danger]="coverageBlockingCount()">{{ coverageBlockingCount() }} bloqueo(s)</strong>
+          <strong [class.is-danger]="coverageBlockingCount()">{{ coverageBlockingCount() }} {{ coverageBlockingCount() === 1 ? 'requisito sin cubrir' : 'requisitos sin cubrir' }}</strong>
         </header>
 
         @for (item of coverageValidation(); track item.label) {

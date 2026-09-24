@@ -984,7 +984,7 @@ export class OperationsPage implements OnInit {
 
     const blockingItems = this.coverageValidation().filter((item) => !item.valid);
     if (blockingItems.length > 0) {
-      this.error.set('Resuelve los bloqueos para continuar.');
+      this.error.set('Resuelve lo que impide continuar: hay requisitos sin cubrir.');
       return;
     }
 

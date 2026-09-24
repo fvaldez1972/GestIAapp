@@ -377,6 +377,14 @@ export type EmployeeRequirementRow = {
   readonly documentNumber: string | null;
   /** El estado del documento cargado, para poder decir por qué no cuenta. Nulo si no hay ninguno. */
   readonly documentStatus: string | null;
+  /**
+   * El tipo está en el catálogo pero **nadie le creó su regla de elegibilidad**.
+   *
+   * <p>Importa porque la marca del catálogo <b>clasifica</b> y la regla es la que <b>bloquea</b>.
+   * Un tipo marcado obligatorio sin regla se pide igual, pero hoy no impide asignar a nadie, y la
+   * pantalla lo dice en vez de prometer un bloqueo que no existe.</p>
+   */
+  readonly withoutRule: boolean;
 };
 
 /**
@@ -408,17 +416,50 @@ export function employeeRequirementRows(
   }[],
   today: string,
   expiringWithinDays: number,
+  /**
+   * Los tipos de documento del catálogo de la organización, con su marca.
+   *
+   * <p><b>Es la lista que manda.</b> Antes se recorrían las reglas de elegibilidad, así que un
+   * catálogo de catorce tipos enseñaba cuatro filas y los otros diez no aparecían en ninguna
+   * pestaña: sus archivos sólo asomaban en el expediente de abajo, todos juntos. La marca de
+   * obligatorio o informativo ya venía del catálogo —el servidor la resuelve así desde el 19 de
+   * septiembre de 2026—; lo que faltaba era listar el catálogo entero.</p>
+   *
+   * <p>Vacío deja el comportamiento anterior, que es lo que usan las pruebas que sólo hablan de
+   * reglas.</p>
+   */
+  catalogTypes: readonly { readonly idCatalogItem: string; readonly name: string; readonly isRequired?: boolean | null }[] = [],
 ): readonly EmployeeRequirementRow[] {
   const limite = shiftOperationalDate(today, expiringWithinDays);
 
-  return required.map((requisito) => {
+  const reglaPorTipo = new Map(
+    required.filter((regla) => regla.idRequiredCatalogItem).map((regla) => [regla.idRequiredCatalogItem!, regla]),
+  );
+
+  // El catálogo manda cuando lo hay. Si no llega, se recorren las reglas como siempre.
+  const entradas = catalogTypes.length
+    ? catalogTypes.map((tipo) => ({
+        code: tipo.idCatalogItem,
+        nombre: tipo.name,
+        regla: reglaPorTipo.get(tipo.idCatalogItem) ?? null,
+        delCatalogo: tipo.isRequired === true,
+      }))
+    : required.map((regla) => ({
+        code: regla.idRequiredCatalogItem ?? '',
+        nombre: '',
+        regla,
+        delCatalogo: regla.isRequiredEffective,
+      }));
+
+  return entradas.map((entrada) => {
+    const requisito = entrada.regla;
     // Por identificador, que es como los compara el servidor. Un documento anterior a la conversión
     // del catálogo todavía puede no tenerlo; ése no cubre el requisito, y es correcto que no lo
     // cubra, porque tampoco lo cubre para el servidor.
     const documento = documents.find(
       (item) => item.active &&
         !!item.idDocumentCategoryCatalogItem &&
-        item.idDocumentCategoryCatalogItem === requisito.idRequiredCatalogItem,
+        item.idDocumentCategoryCatalogItem === entrada.code,
     );
 
     // El orden importa, y dos reglas lo fijan.
@@ -449,13 +490,20 @@ export function employeeRequirementRows(
               : 'UpToDate';
 
     return {
-      code: requisito.idRequiredCatalogItem ?? '',
-      label: requisito.name || requisito.requiredCatalogItemName || 'Requisito sin nombre',
-      isRequired: requisito.isRequiredEffective,
+      code: entrada.code,
+      label:
+        requisito?.name ||
+        requisito?.requiredCatalogItemName ||
+        entrada.nombre ||
+        'Requisito sin nombre',
+      // La severidad sale de la regla cuando la hay, porque ahí ya viene resuelta contra el
+      // catálogo; y del catálogo directamente cuando nadie creó la regla.
+      isRequired: requisito ? requisito.isRequiredEffective : entrada.delCatalogo,
       state,
       expiresDate: documento?.expiresDate ?? null,
       documentNumber: documento?.documentNumber ?? null,
       documentStatus: documento?.status ?? null,
+      withoutRule: !requisito,
     };
   });
 }

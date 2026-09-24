@@ -46,6 +46,20 @@
           <option value="Rejected">Rechazado</option><option value="Expired">Vencido</option><option value="Archived">Archivado</option>
         </select>
       </label>
+      <!--
+        El tipo va en su propio desplegable y no mezclado con el estado: son dos preguntas
+        distintas —si el documento sirve, y si el catalogo lo marca obligatorio— y juntarlas en
+        una sola lista obligaria a elegir una de las dos.
+      -->
+      @if (requiredCategories().length) {
+        <label class="gi-field"><span>Tipo</span>
+          <select class="gi-input" [value]="filtroDeTipo()" (change)="filtroDeTipo.set($any($event.target).value)">
+            <option value="">Todos</option>
+            <option value="required">Obligatorio</option>
+            <option value="informative">Informativo</option>
+          </select>
+        </label>
+      }
       <button class="gi-button gi-button--secondary" type="submit" [disabled]="loading() || busy()">Filtrar</button>
     </form>
     }
@@ -87,7 +101,7 @@
         <div class="gi-alert gi-alert--error" role="alert"><p>{{ listError() }}</p><button class="gi-button gi-button--secondary" type="button" (click)="load()">Reintentar</button></div>
       } @else {
         <ul class="entity-list">
-          @for (document of documents(); track document.idBusinessDocument) {
+          @for (document of visibles(); track document.idBusinessDocument) {
             <li class="entity-row">
               @if (canAccess(document)) {
                 <div class="entity-document">
@@ -169,7 +183,7 @@
             -->
             <div class="gi-field entity-wide">
               <gi-catalog-picker
-                label="Categoría *"
+                label="Tipo de documento *"
                 catalogLabel="el catalogo de categorias de documento"
                 inputId="ed-categoria"
                 [options]="categories()"
@@ -180,9 +194,12 @@
               />
             </div>
           } @else {
-            <label class="gi-field"><span>Titulo *</span><input class="gi-input" formControlName="title" maxlength="180" required />
-              @if (form.controls.title.touched && form.controls.title.invalid) { <small class="field-error">Titulo obligatorio, hasta 180 caracteres.</small> }
-            </label>
+            <!--
+              Sin campo de titulo. Estaba implicito en el tipo: la pantalla proponia el nombre del
+              tipo y quien cargaba el documento lo aceptaba tal cual, asi que era una captura que
+              solo servia para poder equivocarse. El titulo que se guarda es el nombre del tipo, y
+              el servidor lo sigue recibiendo igual.
+            -->
             @if (typed()) {
               <!--
                 En Personal la categoria no es una etiqueta libre: es el tipo contra el que la
@@ -190,7 +207,7 @@
                 ninguno. Los que esta organizacion exige salen marcados en el propio selector.
               -->
               <div class="gi-field">
-                <span>Categoria *</span>
+                <span>Tipo de documento *</span>
                 <gi-select
                   label="Tipo de documento"
                   placeholder="Elige el tipo"
@@ -204,8 +221,8 @@
                 }
               </div>
             } @else {
-              <label class="gi-field"><span>Categoria *</span><input class="gi-input" formControlName="category" maxlength="80" required />
-                @if (form.controls.category.touched && form.controls.category.invalid) { <small class="field-error">Categoria obligatoria, hasta 80 caracteres.</small> }
+              <label class="gi-field"><span>Tipo de documento *</span><input class="gi-input" formControlName="category" maxlength="80" required />
+                @if (form.controls.category.touched && form.controls.category.invalid) { <small class="field-error">El tipo de documento es obligatorio, hasta 80 caracteres.</small> }
               </label>
             }
             <label class="gi-field"><span>Emision</span><input class="gi-input" type="date" formControlName="issuedDate" /></label>

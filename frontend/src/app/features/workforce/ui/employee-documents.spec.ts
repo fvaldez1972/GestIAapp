@@ -17,6 +17,7 @@ const HOY = '2026-09-06';
       [today]="hoy()"
       [expiringWithinDays]="umbral()"
       [canWrite]="canWrite()"
+      [categories]="categorias()"
       (cargar)="pedidos.push($event)"
       (agregar)="agregados.set(agregados() + 1)"
     />
@@ -37,6 +38,9 @@ class Anfitrion {
   readonly hoy = signal(HOY);
   readonly umbral = signal(30);
   readonly canWrite = signal(true);
+  readonly categorias = signal<
+    readonly { readonly idCatalogItem: string; readonly name: string; readonly isRequired?: boolean | null }[]
+  >([]);
   readonly agregados = signal(0);
   readonly pedidos: string[] = [];
 }
@@ -92,6 +96,71 @@ describe('La pestaña de documentos', () => {
    * las fechas de vencimiento y las frases que las explicaban. Lo que queda es qué pasa si falta un
    * obligatorio, que es la razón por la que la lista existe.</p>
    */
+  /**
+   * <b>La lista sale del catálogo, no de las reglas de elegibilidad.</b>
+   *
+   * <p>Se recorrían las reglas, así que un catálogo de cinco tipos enseñaba dos filas y los otros
+   * tres no aparecían en ninguna pestaña: sus archivos sólo asomaban en el expediente de abajo,
+   * todos juntos. La marca de obligatorio o informativo ya venía del catálogo; lo que faltaba era
+   * listar el catálogo entero.</p>
+   *
+   * <p>Las dos mitades se necesitan: sin la segunda, «salen cinco» se cumpliría igual si todos
+   * cayeran en la misma pestaña, que es lo contrario de lo que se quiere.</p>
+   */
+  it('lista los tipos del catálogo, repartidos por la marca del catálogo', () => {
+    const { raiz, fixture } = montar((host) =>
+      host.categorias.set([
+        { idCatalogItem: 'cat-antecedentes', name: 'Constancia de antecedentes', isRequired: true },
+        { idCatalogItem: 'cat-domicilio', name: 'Comprobante de domicilio', isRequired: true },
+        { idCatalogItem: 'cat-ine', name: 'INE', isRequired: false },
+        { idCatalogItem: 'cat-rfc', name: 'RFC', isRequired: false },
+        { idCatalogItem: 'cat-nss', name: 'NSS', isRequired: false },
+      ]),
+    );
+
+    const pestanas = Array.from(raiz.querySelectorAll<HTMLButtonElement>('.subtab'));
+    expect(pestanas.map((p) => p.textContent!.replace(/\s+/g, ' ').trim())).toEqual([
+      'Obligatorios 2',
+      'Informativos 3',
+    ]);
+
+    // Los dos con regla salen en obligatorios; los tres que el catálogo no exige, en informativos.
+    expect(raiz.querySelectorAll('.req').length).toBe(2);
+
+    pestanas[1].click();
+    fixture.detectChanges();
+
+    expect(Array.from(raiz.querySelectorAll('.req__name')).map((n) => n.textContent!.trim().split(' ')[0])).toEqual([
+      'INE',
+      'RFC',
+      'NSS',
+    ]);
+  });
+
+  /**
+   * <b>La marca del catálogo clasifica; la regla de elegibilidad es la que bloquea.</b>
+   *
+   * <p>Un tipo marcado obligatorio al que nadie le creó su regla se pide igual, pero hoy no impide
+   * asignar a nadie. La fila lo dice en vez de prometer un bloqueo que no existe. La segunda
+   * afirmación es el control: el que sí tiene regla no lleva la marca.</p>
+   */
+  it('un obligatorio del catálogo sin regla de elegibilidad se señala', () => {
+    const { raiz } = montar((host) =>
+      host.categorias.set([
+        // Éste tiene regla: la fila por omisión del anfitrión lo exige.
+        { idCatalogItem: 'cat-domicilio', name: 'Comprobante de domicilio', isRequired: true },
+        // Y éste no: está en el catálogo marcado obligatorio y nadie le creó la regla.
+        { idCatalogItem: 'cat-militar', name: 'Cartilla militar', isRequired: true },
+      ]),
+    );
+
+    const filas = Array.from(raiz.querySelectorAll('.req'));
+    const conMarca = filas.filter((f) => f.textContent!.includes('sin regla'));
+
+    expect(conMarca).toHaveLength(1);
+    expect(conMarca[0].textContent).toContain('Cartilla militar');
+  });
+
   /**
    * <b>Sin banda de aviso.</b>
    *

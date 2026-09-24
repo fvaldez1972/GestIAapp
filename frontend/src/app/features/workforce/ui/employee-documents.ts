@@ -65,7 +65,7 @@ import {
             class="subtab"
             [class.is-active]="vista() === 'obligatorios'"
             [attr.aria-selected]="vista() === 'obligatorios'"
-            (click)="vista.set('obligatorios')"
+            (click)="elegirVista('obligatorios')"
           >
             Obligatorios
             <span class="subtab__count">{{ obligatorios().length }}</span>
@@ -77,7 +77,7 @@ import {
             class="subtab"
             [class.is-active]="vista() === 'informativos'"
             [attr.aria-selected]="vista() === 'informativos'"
-            (click)="vista.set('informativos')"
+            (click)="elegirVista('informativos')"
           >
             Informativos
             <span class="subtab__count">{{ informativos().length }}</span>
@@ -132,7 +132,20 @@ import {
                 <span class="req__icono" aria-hidden="true"><app-icon name="document" /></span>
 
                 <span class="req__body">
-                  <span class="req__name">{{ row.label }}</span>
+                  <span class="req__name">
+                    {{ row.label }}
+                    <!--
+                      La marca del catalogo CLASIFICA; la regla de elegibilidad es la que BLOQUEA.
+                      Un tipo marcado obligatorio al que nadie le creo su regla se pide igual, pero
+                      hoy no impide asignar a nadie. Decirlo aqui evita que la pantalla prometa un
+                      bloqueo que no existe, y de paso senala lo que falta configurar.
+                    -->
+                    @if (row.isRequired && row.withoutRule) {
+                      <span class="req__soft" title="Está marcado obligatorio en el catálogo, pero no tiene regla de elegibilidad, así que hoy no impide asignar.">
+                        sin regla
+                      </span>
+                    }
+                  </span>
                   @let detalle = detail(row.state, row.expiresDate, row.documentStatus);
                   @if (detalle) {
                     <span class="req__detail">{{ detalle }}</span>
@@ -433,6 +446,11 @@ export class EmployeeDocuments {
    */
   protected readonly vista = signal<'obligatorios' | 'informativos'>('obligatorios');
 
+  protected elegirVista(cual: 'obligatorios' | 'informativos'): void {
+    this.vista.set(cual);
+    this.vistaChange.emit(cual);
+  }
+
   readonly requirements = input.required<readonly EligibilityRequirement[]>();
   readonly documents = input.required<readonly EmployeeDocument[]>();
   /** El día operativo del servidor. No se lee del reloj del navegador. */
@@ -446,13 +464,24 @@ export class EmployeeDocuments {
    * <p>Entra como dato y no se descubre aquí porque la pantalla que la contiene ya las tiene
    * cargadas: pedirlas otra vez sería un viaje al servidor por cada pestaña que se abre.</p>
    */
-  readonly categories = input<readonly { readonly idCatalogItem: string; readonly name: string }[]>([]);
+  readonly categories = input<
+    readonly { readonly idCatalogItem: string; readonly name: string; readonly isRequired?: boolean | null }[]
+  >([]);
 
   /** El tipo de documento del requisito que hay que cubrir. La pantalla abre el alta con él puesto. */
   readonly cargar = output<string>();
 
   /** Sumar un documento que no corresponde a ningún requisito, desde el encabezado de la lista. */
   readonly agregar = output<void>();
+
+  /**
+   * Qué pestaña se está mirando.
+   *
+   * <p>Sale del componente porque el expediente de archivos vive debajo, fuera de él, y enseñaba
+   * los archivos de los dos tipos a la vez: en la pestaña de obligatorios aparecían los
+   * informativos, mezclados y sin decirlo.</p>
+   */
+  readonly vistaChange = output<'obligatorios' | 'informativos'>();
 
   protected readonly stateLabel = requirementStateLabel;
   protected readonly tone = requirementStateTone;
@@ -467,6 +496,9 @@ export class EmployeeDocuments {
       this.documents(),
       this.today(),
       this.expiringWithinDays(),
+      // El catálogo manda: es la lista completa de tipos, y cada uno trae del servidor si es
+      // obligatorio o informativo. Las reglas de elegibilidad aportan el estado de los que tienen.
+      this.categories(),
     ),
   );
 

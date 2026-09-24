@@ -110,9 +110,9 @@ describe('EntityDocuments', () => {
 
   const createForm = () => {
     component['openEditor']('create');
-    component['form'].patchValue({
-      title: ' New document ', category: ' Contract ', expiresDate: dentroDelTope(),
-    });
+    // Sin titulo: desde el 24 de septiembre de 2026 no se captura, y el que se guarda es el
+    // nombre del tipo.
+    component['form'].patchValue({ category: ' Contract ', expiresDate: dentroDelTope() });
     chooseFile();
   };
 
@@ -278,8 +278,10 @@ describe('EntityDocuments', () => {
     upload.flush({ storageReference: 'business-documents/new.pdf', originalFileName: 'contract.pdf', size: 3, contentType: 'application/pdf' });
     const create = http.expectOne('/api/v1/documents');
     expect(create.request.method).toBe('POST');
+    // El titulo es el nombre del tipo. Se comprueba junto a `category` a proposito: son el mismo
+    // dato, y que lo sean es justo lo que se decidio al dejar de capturarlo.
     expect(create.request.body).toMatchObject({
-      idOrganization: 'org-1', ownerType: 'Client', ownerId: 'client-1', title: 'New document', category: 'Contract',
+      idOrganization: 'org-1', ownerType: 'Client', ownerId: 'client-1', title: 'Contract', category: 'Contract',
       status: 'PendingReview', storageReference: 'business-documents/new.pdf',
     });
     create.flush(document);
@@ -491,6 +493,33 @@ describe('EntityDocuments', () => {
     fixture.detectChanges();
 
     expect(botones().some((b) => b.includes('Agregar documento'))).toBe(true);
+  });
+
+  /**
+   * <b>La lista se queda con los tipos que le digan.</b>
+   *
+   * <p>Personal la usa para que el expediente siga a la pestaña: enseñaba los archivos de los dos
+   * tipos a la vez, así que en obligatorios aparecían los informativos, mezclados y sin decirlo.
+   * El servidor no sabe filtrar por tipo, así que se resuelve aquí sobre lo cargado —y por eso
+   * Personal sube `pageSize`: filtrar sobre cinco filas habría callado documentos sin decirlo—.</p>
+   *
+   * <p>La segunda mitad es el control: sin lista, no se filtra nada.</p>
+   */
+  it('con onlyCategories se queda con esos tipos, y sin ella los enseña todos', () => {
+    flushList();
+
+    const todos = fixture.nativeElement.querySelectorAll('.entity-row').length;
+    expect(todos).toBeGreaterThan(0);
+
+    fixture.componentRef.setInput('onlyCategories', ['Otro tipo que no existe']);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelectorAll('.entity-row').length).toBe(0);
+
+    fixture.componentRef.setInput('onlyCategories', []);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelectorAll('.entity-row').length).toBe(todos);
   });
 
   /**

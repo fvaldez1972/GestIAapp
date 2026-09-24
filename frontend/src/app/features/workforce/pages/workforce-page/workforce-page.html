@@ -188,6 +188,7 @@
               [canWrite]="canWrite()"
               (cargar)="cargarRequisito($event)"
               (agregar)="agregandoDocumento.set(true)"
+              (vistaChange)="vistaDocumentos.set($event)"
             />
 
             <!--
@@ -210,6 +211,9 @@
               [documentTypes]="documentTypeOptions()"
               [showAdd]="false"
               [showReview]="false"
+              [onlyCategories]="tiposDeLaVista()"
+              [requiredCategories]="tiposObligatorios()"
+              [pageSize]="100"
               [openAdd]="cargandoRequisito() !== '' || agregandoDocumento()"
               [presetDocumentType]="cargandoRequisito()"
               (closeAdd)="cargandoRequisito.set(''); agregandoDocumento.set(false)"

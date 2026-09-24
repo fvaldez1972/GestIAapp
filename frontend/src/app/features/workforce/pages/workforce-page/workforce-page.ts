@@ -288,7 +288,16 @@ export class WorkforcePage {
   );
 
   /** Las categorias de documento y de evaluacion del catalogo de la organizacion. */
-  protected readonly catalogDocumentCategories = signal<readonly EmployeeJobPositionOption[]>([]);
+  /**
+   * Los tipos de documento del catálogo, **con su marca de obligatorio**.
+   *
+   * <p>La marca se descartaba al cargarlos, y era justo lo que hacía falta: el servidor ya la
+   * manda en cada entrada del catálogo, y sin ella la pestaña de Documentos sólo podía listar las
+   * reglas de elegibilidad —cuatro— en vez del catálogo entero.</p>
+   */
+  protected readonly catalogDocumentCategories = signal<
+    readonly { readonly idCatalogItem: string; readonly name: string; readonly isRequired?: boolean | null }[]
+  >([]);
   protected readonly catalogIncidentTypes = signal<readonly EmployeeJobPositionOption[]>([]);
   protected readonly administrativeIncidents = signal<readonly AdministrativeIncident[]>([]);
   /** El historial de asignaciones de la persona abierta, con el turno en curso marcado. */
@@ -304,6 +313,32 @@ export class WorkforcePage {
    * que la organización no exige.</p>
    */
   protected readonly agregandoDocumento = signal(false);
+
+  /** La pestaña de Documentos que se está mirando, para que el expediente de abajo la siga. */
+  protected readonly vistaDocumentos = signal<'obligatorios' | 'informativos'>('obligatorios');
+
+  /** Los nombres de tipo que el catálogo marca obligatorios. */
+  protected readonly tiposObligatorios = computed(() =>
+    this.catalogDocumentCategories()
+      .filter((tipo) => tipo.isRequired === true)
+      .map((tipo) => tipo.name),
+  );
+
+  /**
+   * Con qué tipos se queda el expediente de abajo, según la pestaña.
+   *
+   * <p>Enseñaba los archivos de los dos tipos a la vez: en obligatorios aparecían los informativos,
+   * mezclados y sin decirlo.</p>
+   */
+  protected readonly tiposDeLaVista = computed(() => {
+    const obligatorios = new Set(this.tiposObligatorios());
+
+    return this.vistaDocumentos() === 'obligatorios'
+      ? [...obligatorios]
+      : this.catalogDocumentCategories()
+          .map((tipo) => tipo.name)
+          .filter((nombre) => !obligatorios.has(nombre));
+  });
 
   protected readonly assigning = signal(false);
   protected readonly savingAssignment = signal(false);
@@ -683,7 +718,11 @@ export class WorkforcePage {
       this.catalogDocumentCategories.set(
         data.items
           .filter((item) => item.active && item.type === 'EmployeeDocumentCategory')
-          .map((item) => ({ idCatalogItem: item.idCatalogItem, name: item.name })),
+          .map((item) => ({
+            idCatalogItem: item.idCatalogItem,
+            name: item.name,
+            isRequired: item.isRequired ?? false,
+          })),
       );
       this.catalogIncidentTypes.set(
         data.items

@@ -102,6 +102,17 @@ export class EntityDocuments implements OnDestroy {
    */
   readonly showReview = input(true);
 
+  /**
+   * Con que tipos se queda la lista. Vacio no filtra nada.
+   *
+   * <p>Son nombres de categoria y no identificadores porque el documento guarda su categoria por
+   * nombre, que es la columna que ya existe.</p>
+   */
+  readonly onlyCategories = input<readonly string[]>([]);
+
+  /** Los tipos obligatorios y los informativos, para el filtro del desplegable. */
+  readonly requiredCategories = input<readonly string[]>([]);
+
   /** Las categorias del catalogo, cuando la variante simple las usa en vez de texto libre. */
   readonly categories = input<readonly GiCatalogOption[]>([]);
   readonly createCategory = output<GiCatalogCreation>();
@@ -180,6 +191,40 @@ export class EntityDocuments implements OnDestroy {
   protected readonly canWriteSensitive = computed(() => this.canWrite() && this.canAccessSensitive()
     && this.auth.hasPermission('DOCUMENTS.SENSITIVE.WRITE'));
   protected readonly documents = signal<readonly BusinessDocument[]>([]);
+
+  /**
+   * Lo que la lista enseña: lo cargado, pasado por el filtro de tipo.
+   *
+   * <p>Se resuelve aqui y no en el servidor porque el endpoint no sabe filtrar por categoria. Por
+   * eso Personal sube `pageSize`: filtrar sobre cinco filas habria callado documentos sin
+   * decirlo.</p>
+   */
+  protected readonly visibles = computed(() => {
+    const permitidas = new Set(this.onlyCategories().map((nombre) => nombre.toLowerCase()));
+    const porTipo = this.filtroDeTipo();
+    const obligatorias = new Set(this.requiredCategories().map((nombre) => nombre.toLowerCase()));
+
+    return this.documents().filter((documento) => {
+      const categoria = (documento.category ?? '').toLowerCase();
+
+      if (permitidas.size && !permitidas.has(categoria)) {
+        return false;
+      }
+
+      if (porTipo === 'required') {
+        return obligatorias.has(categoria);
+      }
+
+      if (porTipo === 'informative') {
+        return !obligatorias.has(categoria);
+      }
+
+      return true;
+    });
+  });
+
+  /** El filtro de obligatorio o informativo del desplegable. Vacio no filtra. */
+  protected readonly filtroDeTipo = signal<'' | 'required' | 'informative'>('');
   protected readonly loading = signal(false);
   protected readonly listError = signal('');
   protected readonly actionError = signal('');
@@ -195,7 +240,15 @@ export class EntityDocuments implements OnDestroy {
    * documento ocupa cuatro renglones y cinco botones, así que la lista crecía hasta empujar el
    * navegador de páginas fuera de la vista y parecía que los documentos se acumulaban sin fin.</p>
    */
-  protected readonly pageSize = 5;
+  /**
+   * Cuantos archivos se piden por pagina.
+   *
+   * <p>Personal sube este numero a proposito. Su lista se filtra ademas por tipo —obligatorios o
+   * informativos— y ese filtro se resuelve aqui, sobre lo cargado, porque el servidor no sabe
+   * filtrar por tipo: con cinco por pagina, «obligatorios» habria enseñado los que cayeran en la
+   * pagina que tocara y habria callado el resto sin decirlo.</p>
+   */
+  readonly pageSize = input(5);
 
   /** Cuántos documentos hay, para quien dibuje un contador fuera de este componente. */
   readonly totalChange = output<number>();
@@ -298,13 +351,19 @@ export class EntityDocuments implements OnDestroy {
     this.form.controls.category.setValue(nombre);
   }
 
+  /**
+   * El titulo, que ya no se captura.
+   *
+   * <p><b>Es el nombre del tipo, siempre.</b> Se pedia aparte y la pantalla lo proponia con el
+   * nombre del tipo, asi que en la practica era la misma captura dos veces: quien cargaba un
+   * documento aceptaba la propuesta y seguia. La columna sigue existiendo y sigue siendo lo que la
+   * lista enseña; lo que cambia es quien la llena.</p>
+   *
+   * <p>Al corregir un documento viejo que si tenga un titulo escrito a mano, ese titulo pasa a ser
+   * el del tipo. Es la consecuencia de dejar de capturarlo, y se prefiere a que la lista mezcle
+   * nombres de dos epocas.</p>
+   */
   protected tituloAGuardar(): string {
-    const titulo = this.form.controls.title.value.trim();
-
-    if (titulo) {
-      return titulo;
-    }
-
     return this.form.controls.category.value.trim();
   }
   protected readonly reviewForm = this.fb.nonNullable.group({
@@ -375,7 +434,7 @@ export class EntityDocuments implements OnDestroy {
     const filters = this.filters.getRawValue();
     this.listRequest = this.api.listDocuments(
       context.idOrganization, context.ownerType, context.ownerId,
-      filters.status, filters.search, this.page(), this.pageSize,
+      filters.status, filters.search, this.page(), this.pageSize(),
     ).pipe(finalize(() => this.loading.set(false))).subscribe({
       next: result => {
         const lastPage = Math.max(1, result.totalPages);

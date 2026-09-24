@@ -1,4 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
+import { ServerProblem, fieldError, readServerProblem } from '../../../../shared/util/server-problem';
 import { toSignal } from '@angular/core/rxjs-interop';
 import {
   ChangeDetectionStrategy,
@@ -310,6 +311,22 @@ export class ServicesPage implements OnInit, OnDestroy {
   protected readonly loading = computed(() => this.pending() > 0);
   protected readonly saving = signal(false);
   protected readonly error = signal('');
+
+  /**
+   * Lo que el servidor dijo del último guardado, **con el detalle por campo**.
+   *
+   * <p>Existe porque `setError` leía `detail`, que en una validación trae siempre la misma frase:
+   * «La solicitud contiene datos inválidos.». El servidor sí manda qué campo falló —va en
+   * `errors`— y esta pantalla lo estaba tirando. Quien lo veía tenía que adivinar cuál de los
+   * quince campos del formulario era.</p>
+   */
+  protected readonly problem = signal<ServerProblem | null>(null);
+
+  /** El mensaje del servidor para un campo, o vacío si ese campo no falló. */
+  protected errorDe(campo: string): string {
+    const problema = this.problem();
+    return problema ? fieldError(problema, campo) : '';
+  }
   protected readonly message = signal('');
   protected readonly search = signal('');
   protected readonly statusFilter = signal<ServiceStatusFilter>('Active');
@@ -479,6 +496,7 @@ export class ServicesPage implements OnInit, OnDestroy {
     if (!this.canRead()) return;
     this.listChanges.next();
     this.error.set('');
+    this.problem.set(null);
     this.read(
       this.serviceApi
         .searchServices({
@@ -813,6 +831,7 @@ export class ServicesPage implements OnInit, OnDestroy {
   protected refresh(): void {
     if (this.saving()) return;
     this.error.set('');
+    this.problem.set(null);
     const service = this.selectedService();
     if (service) this.loadServiceDetail(service);
     this.loadServices(this.serviceList().page);
@@ -1101,6 +1120,7 @@ export class ServicesPage implements OnInit, OnDestroy {
     this.positionEditorOpen.set(false);
     this.assignmentEditorOpen.set(false);
     this.error.set('');
+    this.problem.set(null);
   }
 
   private allowWrite(planning = false): boolean {
@@ -1342,6 +1362,7 @@ export class ServicesPage implements OnInit, OnDestroy {
     if (!this.allowWrite(false)) return;
     this.closeEditors();
     this.error.set('');
+    this.problem.set(null);
     this.editingService.set(service);
     this.serviceWizardStep.set(1);
     this.serviceForm.reset({
@@ -1380,6 +1401,7 @@ export class ServicesPage implements OnInit, OnDestroy {
   protected saveService(): void {
     if (!this.allowWrite(false)) return;
     this.error.set('');
+    this.problem.set(null);
     const client = this.selectedClient();
     if (!client || this.serviceForm.invalid) {
       this.serviceForm.markAllAsTouched();
@@ -1444,6 +1466,7 @@ export class ServicesPage implements OnInit, OnDestroy {
   protected deactivateService(service: ManagedService): void {
     if (!this.allowWrite(false)) return;
     this.error.set('');
+    this.problem.set(null);
     this.serviceToDeactivate.set(null);
     const client = this.selectedClient();
     if (!client) {
@@ -1476,6 +1499,7 @@ export class ServicesPage implements OnInit, OnDestroy {
     if (!this.allowWrite(true)) return;
     this.closeEditors();
     this.error.set('');
+    this.problem.set(null);
     if (!this.selectedClient() || !this.selectedService() || !this.positions().length) {
       return;
     }
@@ -1507,6 +1531,7 @@ export class ServicesPage implements OnInit, OnDestroy {
     if (!this.allowWrite(true)) return;
     this.closeEditors();
     this.error.set('');
+    this.problem.set(null);
     this.editingAssignment.set(assignment);
     this.assignmentForm.reset({
       idEmployee: assignment.idEmployee,
@@ -1524,6 +1549,7 @@ export class ServicesPage implements OnInit, OnDestroy {
   protected saveAssignment(): void {
     if (!this.allowWrite(true)) return;
     this.error.set('');
+    this.problem.set(null);
     const client = this.selectedClient();
     const service = this.selectedService();
     if (!client || !service || this.assignmentForm.invalid) {
@@ -1592,6 +1618,7 @@ export class ServicesPage implements OnInit, OnDestroy {
   protected deactivateAssignment(assignment: ServiceAssignment): void {
     if (!this.allowWrite(true)) return;
     this.error.set('');
+    this.problem.set(null);
     const client = this.selectedClient();
     const service = this.selectedService();
     if (
@@ -1635,6 +1662,7 @@ export class ServicesPage implements OnInit, OnDestroy {
     if (!this.allowWrite(true)) return;
     this.closeEditors();
     this.error.set('');
+    this.problem.set(null);
     if (!this.selectedClient() || !this.selectedService()) {
       return;
     }
@@ -1667,6 +1695,7 @@ export class ServicesPage implements OnInit, OnDestroy {
     if (!this.allowWrite(true)) return;
     this.closeEditors();
     this.error.set('');
+    this.problem.set(null);
     this.editingPosition.set(position);
     this.positionForm.reset({
       name: position.name,
@@ -1981,6 +2010,7 @@ export class ServicesPage implements OnInit, OnDestroy {
   protected savePosition(): void {
     if (!this.allowWrite(true)) return;
     this.error.set('');
+    this.problem.set(null);
     const client = this.selectedClient();
     const service = this.selectedService();
     if (!client || !service || this.positionForm.invalid) {
@@ -2055,6 +2085,7 @@ export class ServicesPage implements OnInit, OnDestroy {
   protected deactivatePosition(position: ServicePosition): void {
     if (!this.allowWrite(true)) return;
     this.error.set('');
+    this.problem.set(null);
     const client = this.selectedClient();
     const service = this.selectedService();
     if (
@@ -2148,15 +2179,16 @@ export class ServicesPage implements OnInit, OnDestroy {
    * vacío: un motivo prellenado deja de ser un motivo.</p>
    */
   private setError(error: HttpErrorResponse): void {
-    const detail =
-      typeof error.error === 'object' && error.error !== null
-        ? (error.error as Record<string, unknown>)['detail']
-        : null;
     const title =
       typeof error.error === 'object' && error.error !== null
         ? (error.error as Record<string, unknown>)['title']
         : null;
-    const mensaje = typeof detail === 'string' ? detail : 'No fue posible completar la operación.';
+
+    // `readServerProblem` pone lo específico por delante de lo genérico: si el servidor dijo qué
+    // campo falló, eso es lo que se lee arriba en vez de «La solicitud contiene datos inválidos».
+    const problema = readServerProblem(error, 'No fue posible completar la operación.');
+    this.problem.set(problema);
+    const mensaje = problema.message;
 
     // **No todo 409 es concurrencia.** Un código repetido también lo es, y se arregla cambiando el
     // código. El de concurrencia no se arregla reintentando, y el servidor lo distingue por el

@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { signal } from '@angular/core';
@@ -377,6 +378,72 @@ describe('ServicesPage organization-scoped workflows', () => {
 
     expect(page.serviceToDeactivate()).toBeNull();
     http.expectNone(r => r.method === 'DELETE');
+  });
+
+  /**
+   * Cuando el servidor rechaza un guardado, la pantalla dice **qué campo**.
+   *
+   * <p>El defecto: `setError` leía `detail`, que en una validación trae siempre la misma frase —«La
+   * solicitud contiene datos inválidos.»—. El servidor sí manda el detalle por campo, en `errors`,
+   * y esta pantalla lo tiraba: quien lo veía tenía que adivinar cuál de los quince campos del
+   * formulario de posición era el malo.</p>
+   *
+   * <p>El control es el par: se comprueba que <b>el campo que falló</b> tiene mensaje y que
+   * <b>otro campo</b> no lo tiene. Sin esa segunda mitad, una implementación que pusiera el mismo
+   * error debajo de todos los campos pasaría igual, y habría dejado la pantalla señalando quince
+   * culpables para un solo fallo.</p>
+   */
+  it('un guardado rechazado dice qué campo falló, y sólo ése', () => {
+    selectClient();
+
+    const pagina = page as unknown as {
+      setError(error: unknown): void;
+      errorDe(campo: string): string;
+      error(): string;
+    };
+
+    pagina.setError(
+      new HttpErrorResponse({
+        status: 400,
+        error: {
+          title: 'Datos inválidos',
+          detail: 'La solicitud contiene datos inválidos.',
+          errors: { endDate: ['La fecha de fin no puede ser anterior a la de inicio.'] },
+        },
+      }),
+    );
+
+    expect(pagina.errorDe('endDate')).toBe('La fecha de fin no puede ser anterior a la de inicio.');
+
+    // El control: los demás campos siguen limpios.
+    expect(pagina.errorDe('startDate')).toBe('');
+    expect(pagina.errorDe('name')).toBe('');
+
+    // Y arriba se lee lo específico, no la frase que no dice nada.
+    expect(pagina.error()).toBe('La fecha de fin no puede ser anterior a la de inicio.');
+    expect(pagina.error()).not.toContain('datos inválidos');
+  });
+
+  /**
+   * El servidor nombra los campos como su contrato y el formulario como sus controles.
+   *
+   * <p>Si mañana el servidor mandara `EndDate` en vez de `endDate`, comparar en crudo dejaría el
+   * mensaje en el aire justo cuando existe. `fieldError` compara sin distinguir mayúsculas, y esta
+   * prueba lo fija para que nadie lo «simplifique».</p>
+   */
+  it('el mensaje se encuentra aunque el servidor use otra caja', () => {
+    selectClient();
+
+    const pagina = page as unknown as { setError(error: unknown): void; errorDe(c: string): string };
+
+    pagina.setError(
+      new HttpErrorResponse({
+        status: 400,
+        error: { detail: 'La solicitud contiene datos inválidos.', errors: { EndDate: ['Mal.'] } },
+      }),
+    );
+
+    expect(pagina.errorDe('endDate')).toBe('Mal.');
   });
 
 });

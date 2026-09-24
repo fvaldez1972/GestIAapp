@@ -374,6 +374,21 @@ fieldset {
    y dejaba «Vigente hasta» sola en la izquierda del renglon siguiente: las dos fechas de un mismo
    periodo quedaban en diagonal, que es lo que se veia descuadrado. Con el renglon propio, el par
    de fechas vuelve a caer lado a lado. */
+/* El mensaje del servidor, pegado al campo que nombra.
+   Arriba se sigue leyendo la frase completa; aqui se dice cual de los quince campos es, que era
+   justo lo que «La solicitud contiene datos invalidos» no decia. */
+.campo__error {
+  display: block;
+  margin-top: 3px;
+  color: var(--gestia-danger);
+  font-size: 11.5px;
+}
+
+.form-grid input.is-invalid,
+.form-grid select.is-invalid {
+  border-color: var(--gestia-danger);
+}
+
 .modal--aviso { max-width: 34rem; }
 .aviso__linea { margin: 0 0 10px; font-size: 12.5px; }
 .aviso__lista { margin: 0 0 16px; padding-left: 18px; font-size: 12.5px; }

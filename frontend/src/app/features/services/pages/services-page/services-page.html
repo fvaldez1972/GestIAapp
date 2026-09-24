@@ -627,7 +627,10 @@
                     }
                   </select></label
                 >
-                <label class="wide"><span>Nombre *</span><input formControlName="name" /></label>
+                <label class="wide"
+              ><span>Nombre *</span><input formControlName="name" [class.is-invalid]="errorDe('name')" />
+              @if (errorDe('name')) { <small class="campo__error">{{ errorDe('name') }}</small> }
+            </label>
               </div>
             </section>
           } @else if (serviceWizardStep() === 2) {
@@ -793,7 +796,10 @@
             <label
               ><span>Personas requeridas *</span
               ><input type="number" formControlName="requiredWorkerCount" min="1"
-            /></label>
+              [class.is-invalid]="errorDe('requiredWorkerCount')"
+            />
+              @if (errorDe('requiredWorkerCount')) { <small class="campo__error">{{ errorDe('requiredWorkerCount') }}</small> }
+            </label>
             <label class="wide"><span>Nombre *</span><input formControlName="name" /></label>
             <!--
               El precio del puesto. Vive aqui desde que se retiro la configuracion del servicio:
@@ -803,7 +809,10 @@
             <label
               ><span>Precio *</span
               ><input type="number" formControlName="price" min="0" step="0.01"
-            /></label>
+              [class.is-invalid]="errorDe('price')"
+            />
+              @if (errorDe('price')) { <small class="campo__error">{{ errorDe('price') }}</small> }
+            </label>
             <!--
               El periodo va junto al importe porque un precio sin periodo no significa nada. Antes
               el campo decia «Precio mensual» y el mes estaba metido en el rotulo: al guardia se le
@@ -828,10 +837,16 @@
             -->
             <label
               ><span>Vigente desde</span><input type="date" formControlName="startDate"
-            /></label>
+              [class.is-invalid]="errorDe('startDate')"
+            />
+              @if (errorDe('startDate')) { <small class="campo__error">{{ errorDe('startDate') }}</small> }
+            </label>
             <label
               ><span>Vigente hasta</span><input type="date" formControlName="endDate"
-            /></label>
+              [class.is-invalid]="errorDe('endDate')"
+            />
+              @if (errorDe('endDate')) { <small class="campo__error">{{ errorDe('endDate') }}</small> }
+            </label>
             <!--
               El patron de turno sale del catalogo. Antes se capturaba dentro de cada posicion y sus
               dias se declaraban por dia de la semana, asi que un 24x48 —ciclo de tres dias— no

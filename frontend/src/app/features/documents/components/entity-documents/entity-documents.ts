@@ -83,6 +83,14 @@ export class EntityDocuments implements OnDestroy {
    */
   readonly showHeading = input(true);
 
+  /**
+   * Si este componente dibuja su propio «Agregar documento».
+   *
+   * <p>Personal lo apaga porque enseña el suyo arriba, junto al encabezado de la lista de
+   * requisitos. Las demás pantallas lo dejan encendido: ahí ésta es la única salida.</p>
+   */
+  readonly showAdd = input(true);
+
   /** Las categorias del catalogo, cuando la variante simple las usa en vez de texto libre. */
   readonly categories = input<readonly GiCatalogOption[]>([]);
   readonly createCategory = output<GiCatalogCreation>();

@@ -12,13 +12,18 @@
       cabecera, con las acciones de los demas apartados, y estaban los dos a la vez, uno encima del
       otro. En Personal se queda, porque alli el componente vive solo y esta es su unica salida.
     -->
-    @if (canWrite() && validContext() && !simple()) {
+    @if (canWrite() && validContext() && !simple() && showAdd()) {
       <button class="gi-button gi-button--primary" type="button" [disabled]="busy()" (click)="openEditor('create')">
         <app-icon name="document" /> Agregar documento
       </button>
     }
   </header>
-  } @else if (canWrite() && validContext() && !simple()) {
+  } @else if (canWrite() && validContext() && !simple() && showAdd()) {
+    <!--
+      `showAdd` en falso lo usa Personal, que dibuja su propio «Agregar documento» arriba, junto al
+      encabezado de la lista de requisitos. Sin esta guarda saldrian los dos, uno encima del otro,
+      que es el par duplicado que ya se quito una vez.
+    -->
     <p class="entity-soloAccion">
       <button class="gi-button gi-button--primary" type="button" [disabled]="busy()" (click)="openEditor('create')">
         <app-icon name="document" /> Agregar documento

@@ -469,6 +469,30 @@ describe('EntityDocuments', () => {
     expect(botones().some((b) => b.includes('Agregar documento'))).toBe(false);
   });
 
+  /**
+   * <b>Personal apaga este botón porque enseña el suyo arriba.</b>
+   *
+   * <p>Desde el 24 de septiembre de 2026 la lista de requisitos de Personal lleva su propio
+   * «Agregar documento» junto a su encabezado. Sin esta guarda saldrían los dos, uno encima del
+   * otro, que es el par duplicado que ya se quitó una vez.</p>
+   *
+   * <p>Las dos mitades se necesitan: sin la segunda, «no está el botón» se cumpliría igual si el
+   * componente hubiera dejado de ofrecerlo en todas partes, y Clientes, Servicios y Solicitudes
+   * se quedarían sin su única salida.</p>
+   */
+  it('con showAdd apagado no pone su «Agregar documento», y encendido sí', () => {
+    fixture.componentRef.setInput('showAdd', false);
+    fixture.detectChanges();
+    flushList();
+
+    expect(botones().some((b) => b.includes('Agregar documento'))).toBe(false);
+
+    fixture.componentRef.setInput('showAdd', true);
+    fixture.detectChanges();
+
+    expect(botones().some((b) => b.includes('Agregar documento'))).toBe(true);
+  });
+
   /** En Personal siguen las cinco: ahi el componente vive solo y la revision sostiene la vigencia. */
   it('sin la variante simple conserva historial, revisar y archivar', () => {
     flushList();

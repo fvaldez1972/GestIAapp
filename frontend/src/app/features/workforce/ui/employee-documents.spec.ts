@@ -18,6 +18,7 @@ const HOY = '2026-09-06';
       [expiringWithinDays]="umbral()"
       [canWrite]="canWrite()"
       (cargar)="pedidos.push($event)"
+      (agregar)="agregados.set(agregados() + 1)"
     />
   `,
 })
@@ -36,6 +37,7 @@ class Anfitrion {
   readonly hoy = signal(HOY);
   readonly umbral = signal(30);
   readonly canWrite = signal(true);
+  readonly agregados = signal(0);
   readonly pedidos: string[] = [];
 }
 
@@ -92,10 +94,10 @@ describe('La pestaña de documentos', () => {
    */
   it('dice qué pasa si falta un obligatorio, sin hablar de fechas', () => {
     const { raiz } = montar();
-    const nota = raiz.querySelector('.docs__note')!.textContent!.replace(/\s+/g, ' ');
+    const aviso = raiz.querySelector('.banda--obliga')!.textContent!.replace(/\s+/g, ' ');
 
-    expect(nota).toContain('no se puede asignar a esta persona');
-    expect(nota).not.toContain('días');
+    expect(aviso).toContain('no puede ser asignada ni programada');
+    expect(aviso).not.toContain('días');
   });
 
   /** La vigencia se mide contra el día operativo del servidor, no contra el reloj del navegador. */
@@ -218,13 +220,68 @@ describe('La pestaña de documentos', () => {
 
     // Arranca en obligatorios, que son los que impiden asignar.
     expect(pestanas[0].classList).toContain('is-active');
-    expect(raiz.textContent).toContain('no se puede asignar a esta persona');
+    expect(raiz.querySelector('.banda--obliga')).not.toBeNull();
+    expect(raiz.textContent).toContain('no puede ser asignada ni programada');
 
     pestanas[1].click();
     fixture.detectChanges();
 
+    // La misma forma, en gris: ahí la noticia no urge, y pintarla de rojo diría lo contrario de
+    // lo que el texto explica.
+    expect(raiz.querySelector('.banda--informa')).not.toBeNull();
+    expect(raiz.querySelector('.banda--obliga')).toBeNull();
     expect(raiz.textContent).toContain('sólo dejan constancia');
-    expect(raiz.textContent).not.toContain('no se puede asignar a esta persona');
+    expect(raiz.textContent).not.toContain('no puede ser asignada ni programada');
+  });
+
+  /**
+   * <b>La insignia «N por atender» salió de la pestaña el 24 de septiembre de 2026, por petición.</b>
+   *
+   * <p>Las dos afirmaciones se necesitan: sin la segunda, «no dice por atender» se cumpliría igual
+   * si la pestaña hubiera perdido también su cuenta, que es lo que dice cuántos requisitos hay.</p>
+   */
+  it('la pestaña cuenta sus requisitos y ya no avisa de cuántos faltan', () => {
+    const { raiz } = montar((host) =>
+      host.requirements.set([
+        requirementFixture({ requiredDocumentType: 'VoterId', isRequiredEffective: true }),
+        requirementFixture({ requiredDocumentType: 'Curp', isRequiredEffective: true }),
+      ]),
+    );
+
+    expect(raiz.textContent).not.toContain('por atender');
+    expect(raiz.querySelector('.subtab__count')!.textContent!.trim()).toBe('2');
+  });
+
+  /**
+   * El encabezado de la lista lleva la salida al lado, en las dos pestañas.
+   *
+   * <p>El botón vivía suelto más abajo, dentro del expediente de archivos, lejos de la lista a la
+   * que se le suma algo. La segunda mitad es la que importa: sin permiso de escritura no se ofrece
+   * una salida que el servidor rechazaría.</p>
+   */
+  it('cada pestaña encabeza su lista y ofrece agregar, sólo a quien puede escribir', () => {
+    const { raiz, fixture, host } = montar((h) =>
+      h.requirements.set([
+        requirementFixture({ requiredDocumentType: 'VoterId', isRequiredEffective: true }),
+        requirementFixture({ requiredDocumentType: 'Curp', isRequiredEffective: false }),
+      ]),
+    );
+
+    expect(raiz.querySelector('.seccion__titulo')!.textContent!.trim()).toBe('Documentos obligatorios');
+
+    raiz.querySelector<HTMLButtonElement>('.seccion__accion')!.click();
+    expect(host.agregados()).toBe(1);
+
+    Array.from(raiz.querySelectorAll<HTMLButtonElement>('.subtab'))[1].click();
+    fixture.detectChanges();
+
+    expect(raiz.querySelector('.seccion__titulo')!.textContent!.trim()).toBe('Documentos informativos');
+    expect(raiz.querySelector('.seccion__accion')).not.toBeNull();
+
+    host.canWrite.set(false);
+    fixture.detectChanges();
+
+    expect(raiz.querySelector('.seccion__accion')).toBeNull();
   });
 
   /** El control: con sólo obligatorios no se dibuja el rótulo del otro bloque. */

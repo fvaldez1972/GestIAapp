@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
+import { AppIcon } from '../../../shared/ui/app-icon/app-icon';
 import { GiEmptyState } from '../../../shared/ui/gi-ui';
 import { EligibilityRequirement } from '../../catalogs/data-access/catalog.models';
 import { EmployeeDocument } from '../data-access/workforce.models';
@@ -32,7 +33,7 @@ import {
 @Component({
   selector: 'app-employee-documents',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [GiEmptyState],
+  imports: [AppIcon, GiEmptyState],
   template: `
     <section class="docs">
       @if (requirements().length === 0) {
@@ -68,9 +69,6 @@ import {
           >
             Obligatorios
             <span class="subtab__count">{{ obligatorios().length }}</span>
-            @if (porAtender() > 0) {
-              <span class="subtab__alerta">{{ porAtender() }} por atender</span>
-            }
           </button>
 
           <button
@@ -86,14 +84,53 @@ import {
           </button>
         </div>
 
-        <p class="docs__note">
-          @if (vista() === 'obligatorios') {
-            Si falta uno, está vencido o no es válido, no se puede asignar a esta persona ni
-            publicar la planeación.
-          } @else {
-            No impiden asignar; sólo dejan constancia. Aun así conviene mantenerlos al día.
-          }
+        <!--
+          El aviso, en banda y con icono. Era un parrafo gris de 11.5 px debajo de las pestanas, y
+          a ese peso se lee como un pie de pagina: decia justo lo que impide trabajar a la persona.
+          La banda de informativos usa la misma forma en gris, porque ahi la noticia no urge —y
+          pintarla de rojo diria lo contrario de lo que el texto explica—.
+        -->
+        <p class="banda" [class]="'banda--' + (vista() === 'obligatorios' ? 'obliga' : 'informa')">
+          <span class="banda__icono" aria-hidden="true">{{ vista() === 'obligatorios' ? '!' : 'i' }}</span>
+          <span class="banda__texto">
+            <strong class="banda__titulo">
+              {{ vista() === 'obligatorios' ? 'Documentación obligatoria' : 'Documentación informativa' }}
+            </strong>
+            @if (vista() === 'obligatorios') {
+              Si falta algún documento, está vencido o no es válido, la persona no puede ser
+              asignada ni programada.
+            } @else {
+              No impiden asignar ni programar; sólo dejan constancia. Aun así conviene mantenerlos
+              al día.
+            }
+          </span>
         </p>
+
+        <!--
+          Encabezado de la lista, con la salida a la derecha.
+          El boton de «Agregar documento» vivia suelto mas abajo, dentro del expediente de
+          archivos, lejos de la lista a la que se le suma algo. Aqui esta donde se mira.
+        -->
+        <header class="seccion">
+          <span class="seccion__texto">
+            <h4 class="seccion__titulo">
+              {{ vista() === 'obligatorios' ? 'Documentos obligatorios' : 'Documentos informativos' }}
+            </h4>
+            <span class="seccion__nota">
+              {{
+                vista() === 'obligatorios'
+                  ? 'Gestiona los documentos requeridos para la operación de la persona.'
+                  : 'Gestiona los documentos que esta organización pide sólo para dejar constancia.'
+              }}
+            </span>
+          </span>
+
+          @if (canWrite()) {
+            <button class="seccion__accion" type="button" (click)="agregar.emit()">
+              <app-icon name="document" /> Agregar documento
+            </button>
+          }
+        </header>
 
         @let filas = vista() === 'obligatorios' ? obligatorios() : informativos();
 
@@ -109,6 +146,8 @@ import {
           <ul class="docs__list">
             @for (row of filas; track row.code) {
               <li class="req" [class]="'req--' + tone(row.state)">
+                <span class="req__icono" aria-hidden="true"><app-icon name="document" /></span>
+
                 <span class="req__body">
                   <span class="req__name">{{ row.label }}</span>
                   @let detalle = detail(row.state, row.expiresDate, row.documentStatus);
@@ -221,6 +260,83 @@ import {
       font-size: 10.5px;
     }
 
+    /* El aviso de cada pestana. Misma forma en las dos; el color dice cual urge. */
+    .banda {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.6rem;
+      margin: 0;
+      padding: 0.7rem 0.85rem;
+      border-radius: var(--gestia-radius-lg);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .banda--obliga { background: var(--gestia-danger-soft); color: var(--gestia-danger); }
+    .banda--informa { background: var(--gestia-surface-soft); color: var(--gestia-muted); }
+
+    .banda__icono {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex: none;
+      width: 1.25rem;
+      height: 1.25rem;
+      border-radius: 50%;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .banda--obliga .banda__icono { background: var(--gestia-danger); color: var(--gestia-surface); }
+    .banda--informa .banda__icono { background: var(--gestia-muted); color: var(--gestia-surface); }
+
+    .banda__texto { min-width: 0; }
+    .banda__titulo { display: block; font-size: 12.5px; }
+
+    .seccion {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+
+    .seccion__texto { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
+    .seccion__titulo { margin: 0; color: var(--gestia-navy); font-size: 14px; font-weight: 600; }
+    .seccion__nota { color: var(--gestia-muted); font-size: 11.5px; }
+
+    .seccion__accion {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      flex: none;
+      height: var(--gestia-control-height);
+      padding: 0 0.85rem;
+      border: 1px solid var(--gestia-navy);
+      border-radius: var(--gestia-radius);
+      background: var(--gestia-navy);
+      color: var(--gestia-surface);
+      font: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .seccion__accion:hover { background: var(--gestia-navy-soft); border-color: var(--gestia-navy-soft); }
+    .seccion__accion:focus-visible { outline: 2px solid var(--gestia-cyan); outline-offset: 1px; }
+
+    /* El icono de cada renglon. Sin el, la lista es una columna de texto suelto. */
+    .req__icono {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex: none;
+      width: 2rem;
+      height: 2rem;
+      border-radius: var(--gestia-radius);
+      background: var(--gestia-surface-soft);
+      color: var(--gestia-muted);
+    }
+
     .docs__vacio {
       margin: 0;
       padding: 0.9rem;
@@ -269,7 +385,9 @@ import {
 
     .req:last-child { border-bottom: 0; }
 
-    .req__body { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
+    /* El cuerpo crece, y por eso lleva flex uno: con el icono delante dejaba de ser el unico
+       elemento que crece, y el nombre se iba al centro del renglon. */
+    .req__body { display: flex; flex: 1; flex-direction: column; gap: 0.1rem; min-width: 0; }
 
     .req__name {
       display: flex;
@@ -362,6 +480,9 @@ export class EmployeeDocuments {
 
   /** El tipo de documento del requisito que hay que cubrir. La pantalla abre el alta con él puesto. */
   readonly cargar = output<string>();
+
+  /** Sumar un documento que no corresponde a ningún requisito, desde el encabezado de la lista. */
+  readonly agregar = output<void>();
 
   protected readonly stateLabel = requirementStateLabel;
   protected readonly tone = requirementStateTone;
@@ -462,7 +583,6 @@ export class EmployeeDocuments {
     () => this.informativos().every((fila) => fila.state === 'UpToDate'),
   );
 
-  protected readonly porAtender = computed(
-    () => this.rows().filter((fila) => fila.state !== 'UpToDate').length,
-  );
+  // `porAtender` vivia aqui y alimentaba la insignia «N por atender» de la pestana, que se retiro
+  // el 24 de septiembre de 2026 por peticion. Sin quien lo lea, el calculo sobra.
 }

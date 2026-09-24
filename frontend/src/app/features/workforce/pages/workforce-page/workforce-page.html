@@ -187,6 +187,7 @@
               [expiringWithinDays]="expiringWithinDays()"
               [canWrite]="canWrite()"
               (cargar)="cargarRequisito($event)"
+              (agregar)="agregandoDocumento.set(true)"
             />
 
             <!--
@@ -207,9 +208,10 @@
               [ownerLabel]="employee.fullName"
               [showHeading]="false"
               [documentTypes]="documentTypeOptions()"
-              [openAdd]="cargandoRequisito() !== ''"
+              [showAdd]="false"
+              [openAdd]="cargandoRequisito() !== '' || agregandoDocumento()"
               [presetDocumentType]="cargandoRequisito()"
-              (closeAdd)="cargandoRequisito.set('')"
+              (closeAdd)="cargandoRequisito.set(''); agregandoDocumento.set(false)"
               (documentSaved)="registerEmployeeDocument($event)"
               (totalChange)="documentCount.set($event)"
             />

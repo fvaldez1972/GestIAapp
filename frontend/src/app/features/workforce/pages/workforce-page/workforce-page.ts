@@ -296,6 +296,15 @@ export class WorkforcePage {
 
   // ── El alta de una asignación, sin salir del expediente ──────────────────────────────────
 
+  /**
+   * El alta de un documento pedida desde el encabezado de la lista, sin requisito detrás.
+   *
+   * <p>Va aparte de `cargandoRequisito` porque ésa lleva el tipo que hay que preseleccionar, y
+   * aquí no hay ninguno: se abre el formulario en blanco, que es lo que sirve para los documentos
+   * que la organización no exige.</p>
+   */
+  protected readonly agregandoDocumento = signal(false);
+
   protected readonly assigning = signal(false);
   protected readonly savingAssignment = signal(false);
   protected readonly assignProblem = signal('');

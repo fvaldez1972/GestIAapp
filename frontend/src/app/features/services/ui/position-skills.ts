@@ -1,8 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
-import {
-  GiCatalogCreation,
-  GiCatalogOption,
-} from '../../../shared/ui/gi-catalog-picker/gi-catalog-picker';
+import { GiCatalogOption } from '../../../shared/ui/gi-catalog-picker/gi-catalog-picker';
 import { GiSelect, GiSelectOption } from '../../../shared/ui/gi-select/gi-select';
 import { EligibilityRequirement } from '../../catalogs/data-access/catalog.models';
 
@@ -57,16 +54,20 @@ export type PositionSkillRequest = {
         <ul class="perfil__list">
           @for (row of rows(); track row.key) {
             <li class="skill">
+              <!--
+                Solo el nombre. La severidad —«impide asignar» o «solo deja constancia»— salio de
+                aqui: es del catalogo y vale para toda la organizacion, asi que repetirla en cada
+                fila de cada posicion llenaba la lista de un dato que no se decide aqui y que era
+                igual en todas.
+
+                Lo pendiente si se dice, porque eso SI depende de esta pantalla: es lo que
+                todavia no esta guardado.
+              -->
               <span class="skill__body">
                 <span class="skill__name">{{ row.name }}</span>
-                <span class="skill__detail">
-                  @if (row.pending) {
-                    Se guarda al guardar la posición
-                  } @else {
-                    {{ row.isRequired ? 'Impide asignar a quien no la tenga' : 'Sólo deja constancia' }}
-                    · lo decide el catálogo
-                  }
-                </span>
+                @if (row.pending) {
+                  <span class="skill__detail">Se guarda al guardar la posición</span>
+                }
               </span>
               @if (canWrite()) {
                 <button
@@ -112,53 +113,6 @@ export type PositionSkillRequest = {
           <p class="perfil__note">Ya están pedidas todas las experiencias del catálogo.</p>
         }
 
-        <!--
-          Crear una experiencia nueva sigue siendo posible, pero deja de ser el camino principal.
-
-          El buscador de antes mezclaba las dos cosas en un campo de texto: se escribia para
-          filtrar y, si no aparecia nada, lo escrito se convertia en entrada del catalogo. Para
-          elegir de una lista cerrada —que es lo que se hace casi siempre— eso pedia teclear donde
-          bastaba desplegar.
-
-          Aqui la creacion queda detras de un enlace: quien la necesita la encuentra, y quien no,
-          no tropieza con ella.
-        -->
-        @if (creando()) {
-          <div class="perfil__crear">
-            <label class="perfil__crearCampo">
-              <span>Nombre de la experiencia nueva</span>
-              <input
-                type="text"
-                maxlength="120"
-                [value]="nombreNuevo()"
-                [disabled]="saving()"
-                (input)="nombreNuevo.set($any($event.target).value)"
-              />
-            </label>
-            <button
-              class="button button--primary"
-              type="button"
-              [disabled]="saving() || !nombreNuevo().trim()"
-              (click)="crear()"
-            >
-              Agregar al catálogo
-            </button>
-            <button class="perfil__enlace" type="button" (click)="cancelarCreacion()">Cancelar</button>
-          </div>
-          <p class="perfil__note">
-            Queda en el catálogo de experiencias y vale para toda la organización, no sólo para
-            esta posición.
-          </p>
-        } @else {
-          <button class="perfil__enlace" type="button" [disabled]="saving()" (click)="creando.set(true)">
-            ¿No está en la lista? Agrégala al catálogo
-          </button>
-        }
-        <p class="perfil__note">
-          Si una experiencia impide asignar o sólo deja constancia lo decide el catálogo de
-          experiencias, y vale para toda la organización. La posición elige cuáles pide; para
-          cambiar qué tan grave es que falte, se cambia en Catálogos.
-        </p>
       }
     </section>
   `,
@@ -169,65 +123,29 @@ export type PositionSkillRequest = {
 
     .perfil__add gi-select { display: block; max-width: 28rem; }
 
-    /* Un enlace y no un boton con marco: la creacion es la salida rara, y con el mismo peso visual
-       que el desplegable competiria con el camino que casi siempre se toma. */
-    .perfil__enlace {
-      align-self: flex-start;
-      padding: 0;
-      border: 0;
-      background: none;
-      color: var(--gestia-cyan-dark);
-      font: inherit;
-      font-size: 11.5px;
-      text-decoration: underline;
-      cursor: pointer;
-    }
-
-    .perfil__enlace:disabled { color: var(--gestia-muted); cursor: default; }
-    .perfil__enlace:focus-visible { outline: 2px solid var(--gestia-cyan); outline-offset: 2px; }
-
-    .perfil__crear { display: flex; align-items: flex-end; gap: 0.5rem; flex-wrap: wrap; }
-    .perfil__crearCampo { display: flex; flex-direction: column; gap: 0.15rem; flex: 1 1 16rem; }
-    .perfil__crearCampo span { color: var(--gestia-muted); font-size: 11.5px; }
-
-    .perfil__head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem; }
-
-    .perfil__kicker {
-      margin: 0;
-      color: var(--gestia-muted);
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 0.08em;
-    }
-
-    .perfil__kicker--add {
-      margin-top: 0.35rem;
-      padding-top: 0.5rem;
-      border-top: 1px solid var(--gestia-border);
-    }
-
-    .perfil__pending { color: var(--gestia-muted); font-size: 10.5px; }
-
-    .perfil__note { margin: 0; color: var(--gestia-muted); font-size: 11.5px; }
-
-    .perfil__list { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
-
-    .perfil__add { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
-
+    /* Cada experiencia, en su propia ficha.
+       Eran renglones separados por una linea, con el nombre y debajo una frase gris que decia lo
+       mismo en todas. Sin esa frase el renglon quedaba en una sola linea de texto suelto, que no
+       se leia como «una cosa que la posicion pide» sino como prosa. Con marco y con el boton
+       dentro, cada una se ve como lo que es: un elemento que se puede quitar. */
     .skill {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 0.75rem;
-      padding: 0.45rem 0;
-      border-bottom: 1px solid var(--gestia-border);
+      padding: 0.4rem 0.6rem;
+      border: 1px solid var(--gestia-border);
+      border-radius: var(--gestia-radius);
+      background: var(--gestia-surface);
     }
 
-    .skill:last-child { border-bottom: 0; }
+    .skill + .skill { margin-top: 0.35rem; }
 
     .skill__body { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
     .skill__name { color: var(--gestia-text); font-size: 12.5px; font-weight: 600; }
-    .skill__detail { color: var(--gestia-muted); font-size: 11px; }
+
+    /* Lo pendiente se dice en ambar: es lo unico que distingue una fila de otra. */
+    .skill__detail { color: var(--gestia-warning); font-size: 11px; }
   `,
 })
 export class PositionSkills {
@@ -245,7 +163,6 @@ export class PositionSkills {
   readonly remove = output<string>();
   /** Quitar una que todavía no se guarda, por identificador de catálogo. */
   readonly removePending = output<string>();
-  readonly createSkill = output<GiCatalogCreation>();
 
 
   protected readonly rows = computed(() => [
@@ -292,28 +209,6 @@ export class PositionSkills {
   protected readonly opciones = computed<readonly GiSelectOption[]>(() =>
     this.available().map((opcion) => ({ value: opcion.idCatalogItem, label: opcion.name })),
   );
-
-  /** Si está abierta la creación de una experiencia nueva. Cerrada por omisión. */
-  protected readonly creando = signal(false);
-
-  protected readonly nombreNuevo = signal('');
-
-  /** Manda la experiencia nueva al catálogo. La pantalla la crea y vuelve con ella en la lista. */
-  protected crear(): void {
-    const nombre = this.nombreNuevo().trim();
-
-    if (!nombre) {
-      return;
-    }
-
-    this.createSkill.emit({ name: nombre });
-    this.cancelarCreacion();
-  }
-
-  protected cancelarCreacion(): void {
-    this.creando.set(false);
-    this.nombreNuevo.set('');
-  }
 
   protected agregar(idCatalogItem: string): void {
     const opcion = this.catalogSkills().find((item) => item.idCatalogItem === idCatalogItem);

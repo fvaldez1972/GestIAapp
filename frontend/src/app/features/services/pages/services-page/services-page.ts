@@ -1928,36 +1928,9 @@ export class ServicesPage implements OnInit, OnDestroy {
     );
   }
 
-  /** Alta al vuelo de una experiencia del catálogo, sin abandonar el alta de la posición. */
-  protected createSkillForProfile(creation: GiCatalogCreation): void {
-    const org = this.selectedOrganizationId();
-
-    if (!org || !this.auth.hasPermission('CATALOGS.WRITE')) {
-      this.error.set('No tienes permiso para crear valores de catálogo.');
-      return;
-    }
-
-    this.catalogApi
-      .createItem({
-        idOrganization: org,
-        type: 'Skill',
-        name: creation.name,
-        description: null,
-        // Informativa: el alta al vuelo no puede preguntar si bloquea, y ese es el valor seguro.
-        isRequired: false,
-      })
-      .pipe(this.withScope(2))
-      .subscribe({
-        next: (creado) => {
-          this.catalogSkills.update((valores) => [
-            ...valores,
-            { idCatalogItem: creado.idCatalogItem, name: creado.name },
-          ]);
-          this.message.set(`«${creado.name}» se agregó al catálogo de experiencias.`);
-        },
-        error: (error: HttpErrorResponse) => this.setError(error),
-      });
-  }
+  // `createSkillForProfile` se retiro el 24 de septiembre de 2026 con el enlace que lo llamaba.
+  // Crear una experiencia del catalogo se hace en Catalogos; aqui la posicion solo elige de lo que
+  // ya existe. El endpoint sigue estando, asi que devolverlo es volver a engancharlo.
 
   /**
    * Crea las reglas que quedaron esperando a que la posición existiera.

@@ -997,12 +997,17 @@
               (add)="addPositionSkill($event)"
               (remove)="removePositionSkill($event)"
               (removePending)="removePendingPositionSkill($event)"
-              (createSkill)="createSkillForProfile($event)"
             />
-            <label class="wide"
-              ><span>Perfil en palabras · nota, no se comprueba</span
-              ><textarea rows="2" formControlName="requiredSkillProfile"></textarea>
-            </label>
+            <!--
+              El «Perfil en palabras» sale de la vista el 24 de septiembre de 2026. Era una nota
+              que nadie comprobaba, al lado de la lista de experiencias que SI se comprueban.
+
+              **El control sigue en el formulario**, sin dibujarse. Quitarlo del grupo haria que al
+              guardar viajara vacio y borraria en silencio lo que ya hay escrito en las posiciones
+              que lo usaron; asi el texto viaja intacto y sigue leyendose en la tarjeta de la
+              posicion, que es donde se consulta.
+            -->
+
             <label class="wide"
               ><span>Notas</span><textarea rows="3" formControlName="notes"></textarea>
             </label>

@@ -2,8 +2,8 @@ import { ChangeDetectionStrategy, Component, computed, input, output, signal } f
 import {
   GiCatalogCreation,
   GiCatalogOption,
-  GiCatalogPicker,
 } from '../../../shared/ui/gi-catalog-picker/gi-catalog-picker';
+import { GiSelect, GiSelectOption } from '../../../shared/ui/gi-select/gi-select';
 import { EligibilityRequirement } from '../../catalogs/data-access/catalog.models';
 
 /**
@@ -38,7 +38,7 @@ export type PositionSkillRequest = {
 @Component({
   selector: 'app-position-skills',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [GiCatalogPicker],
+  imports: [GiSelect],
   template: `
     <section class="perfil">
       <header class="perfil__head">
@@ -97,18 +97,63 @@ export type PositionSkillRequest = {
           arriba, que es donde se mira lo que la posicion pide.
         -->
         <div class="perfil__add">
-          <gi-catalog-picker
+          <gi-select
             label="Experiencia"
-            catalogLabel="el catálogo de experiencias"
-            inputId="ps-experiencia"
-            [options]="available()"
+            placeholder="Elige la experiencia que la posición pide"
+            [openDown]="true"
+            [options]="opciones()"
+            [disabled]="saving() || !opciones().length"
             value=""
-            [canWrite]="canWrite()"
-            [disabled]="saving()"
             (valueChange)="agregar($event)"
-            (create)="createSkill.emit($event)"
           />
         </div>
+
+        @if (!opciones().length) {
+          <p class="perfil__note">Ya están pedidas todas las experiencias del catálogo.</p>
+        }
+
+        <!--
+          Crear una experiencia nueva sigue siendo posible, pero deja de ser el camino principal.
+
+          El buscador de antes mezclaba las dos cosas en un campo de texto: se escribia para
+          filtrar y, si no aparecia nada, lo escrito se convertia en entrada del catalogo. Para
+          elegir de una lista cerrada —que es lo que se hace casi siempre— eso pedia teclear donde
+          bastaba desplegar.
+
+          Aqui la creacion queda detras de un enlace: quien la necesita la encuentra, y quien no,
+          no tropieza con ella.
+        -->
+        @if (creando()) {
+          <div class="perfil__crear">
+            <label class="perfil__crearCampo">
+              <span>Nombre de la experiencia nueva</span>
+              <input
+                type="text"
+                maxlength="120"
+                [value]="nombreNuevo()"
+                [disabled]="saving()"
+                (input)="nombreNuevo.set($any($event.target).value)"
+              />
+            </label>
+            <button
+              class="button button--primary"
+              type="button"
+              [disabled]="saving() || !nombreNuevo().trim()"
+              (click)="crear()"
+            >
+              Agregar al catálogo
+            </button>
+            <button class="perfil__enlace" type="button" (click)="cancelarCreacion()">Cancelar</button>
+          </div>
+          <p class="perfil__note">
+            Queda en el catálogo de experiencias y vale para toda la organización, no sólo para
+            esta posición.
+          </p>
+        } @else {
+          <button class="perfil__enlace" type="button" [disabled]="saving()" (click)="creando.set(true)">
+            ¿No está en la lista? Agrégala al catálogo
+          </button>
+        }
         <p class="perfil__note">
           Si una experiencia impide asignar o sólo deja constancia lo decide el catálogo de
           experiencias, y vale para toda la organización. La posición elige cuáles pide; para
@@ -121,6 +166,29 @@ export type PositionSkillRequest = {
     :host { display: block; grid-column: 1 / -1; }
 
     .perfil { display: flex; flex-direction: column; gap: 0.5rem; }
+
+    .perfil__add gi-select { display: block; max-width: 28rem; }
+
+    /* Un enlace y no un boton con marco: la creacion es la salida rara, y con el mismo peso visual
+       que el desplegable competiria con el camino que casi siempre se toma. */
+    .perfil__enlace {
+      align-self: flex-start;
+      padding: 0;
+      border: 0;
+      background: none;
+      color: var(--gestia-cyan-dark);
+      font: inherit;
+      font-size: 11.5px;
+      text-decoration: underline;
+      cursor: pointer;
+    }
+
+    .perfil__enlace:disabled { color: var(--gestia-muted); cursor: default; }
+    .perfil__enlace:focus-visible { outline: 2px solid var(--gestia-cyan); outline-offset: 2px; }
+
+    .perfil__crear { display: flex; align-items: flex-end; gap: 0.5rem; flex-wrap: wrap; }
+    .perfil__crearCampo { display: flex; flex-direction: column; gap: 0.15rem; flex: 1 1 16rem; }
+    .perfil__crearCampo span { color: var(--gestia-muted); font-size: 11.5px; }
 
     .perfil__head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem; }
 
@@ -220,6 +288,33 @@ export class PositionSkills {
    * prueba no cambiaba de color con ella ni sin ella—, que es la señal de que el código no hacía
    * nada.</p>
    */
+  /** Lo que el desplegable ofrece, con la forma que pide `gi-select`. */
+  protected readonly opciones = computed<readonly GiSelectOption[]>(() =>
+    this.available().map((opcion) => ({ value: opcion.idCatalogItem, label: opcion.name })),
+  );
+
+  /** Si está abierta la creación de una experiencia nueva. Cerrada por omisión. */
+  protected readonly creando = signal(false);
+
+  protected readonly nombreNuevo = signal('');
+
+  /** Manda la experiencia nueva al catálogo. La pantalla la crea y vuelve con ella en la lista. */
+  protected crear(): void {
+    const nombre = this.nombreNuevo().trim();
+
+    if (!nombre) {
+      return;
+    }
+
+    this.createSkill.emit({ name: nombre });
+    this.cancelarCreacion();
+  }
+
+  protected cancelarCreacion(): void {
+    this.creando.set(false);
+    this.nombreNuevo.set('');
+  }
+
   protected agregar(idCatalogItem: string): void {
     const opcion = this.catalogSkills().find((item) => item.idCatalogItem === idCatalogItem);
 

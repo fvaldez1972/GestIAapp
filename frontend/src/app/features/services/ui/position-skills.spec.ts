@@ -41,6 +41,7 @@ const regla = (overrides: Partial<EligibilityRequirement> = {}): EligibilityRequ
       (add)="agregadas.push($event)"
       (remove)="quitadas.push($event)"
       (removePending)="quitadasPendientes.push($event)"
+      (createSkill)="creadas.push($event)"
     />
   `,
 })
@@ -56,6 +57,7 @@ class Anfitrion {
   readonly agregadas: PositionSkillRequest[] = [];
   readonly quitadas: string[] = [];
   readonly quitadasPendientes: string[] = [];
+  readonly creadas: { readonly name: string }[] = [];
 }
 
 function montar(configurar: (host: Anfitrion) => void = () => {}) {
@@ -71,6 +73,9 @@ function montar(configurar: (host: Anfitrion) => void = () => {}) {
     host: fixture.componentInstance,
     componente: componente as unknown as {
       agregar(idCatalogItem: string): void;
+      creando: { set(valor: boolean): void };
+      nombreNuevo: { set(valor: string): void };
+      crear(): void;
       bloquea: { set(valor: boolean): void };
       available(): readonly GiCatalogOption[];
     },
@@ -165,6 +170,49 @@ describe('El perfil requerido de una posición', () => {
     const botones = Array.from(raiz.querySelectorAll('button')).map((b) => b.textContent!.trim());
 
     expect(botones).not.toContain('Agregar');
+  });
+
+
+  /**
+   * La experiencia se elige de un **desplegable**, no de un campo donde haya que teclear.
+   *
+   * <p>Antes era un buscador que mezclaba dos cosas en el mismo control: se escribía para filtrar
+   * y, si no aparecía nada, lo escrito se convertía en una entrada del catálogo. Para elegir de
+   * una lista cerrada —que es lo que se hace casi siempre— eso pedía teclear donde bastaba
+   * desplegar.</p>
+   */
+  it('la experiencia se elige de un desplegable', () => {
+    const { raiz } = montar();
+
+    expect(raiz.querySelector('gi-select')).not.toBeNull();
+    expect(raiz.querySelector('gi-catalog-picker')).toBeNull();
+  });
+
+  /**
+   * <b>Crear una experiencia nueva sigue siendo posible.</b>
+   *
+   * <p>Es la mitad que el desplegable se podía llevar por delante sin que nadie lo notara: el
+   * buscador anterior creaba entradas de catálogo, y cambiarlo por una lista cerrada habría
+   * quitado esa salida en silencio. Queda detrás de un enlace, fuera del camino principal.</p>
+   *
+   * <p>El control es que <b>un nombre vacío no crea nada</b>: sin él, un manejador que emitiera
+   * siempre pasaría igual y metería entradas en blanco en el catálogo de toda la organización.</p>
+   */
+  it('todavía se puede crear una experiencia nueva, y un nombre vacío no crea nada', () => {
+    const { componente, host, fixture } = montar();
+
+    componente.creando.set(true);
+    fixture.detectChanges();
+
+    componente.nombreNuevo.set('   ');
+    componente.crear();
+    expect(host.creadas).toEqual([]);
+
+    componente.nombreNuevo.set('  Primeros auxilios  ');
+    componente.crear();
+
+    // Se manda sin los espacios de los extremos: el catálogo es de toda la organización.
+    expect(host.creadas).toEqual([{ name: 'Primeros auxilios' }]);
   });
 
   /** Lo ya pedido no se vuelve a ofrecer: dos reglas de lo mismo dirían lo mismo dos veces. */

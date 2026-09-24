@@ -200,6 +200,39 @@ public sealed class PositionValidityAndSeverityTests(OperationalSqlDatabase data
             Token);
     }
 
+
+    /// <summary>
+    /// Un rechazo de validación <b>nombra el campo</b>, no sólo dice que algo está mal.
+    ///
+    /// <para>Es la mitad del servidor de un defecto reportado el 23 de septiembre de 2026: al
+    /// guardar una posición con la vigencia invertida, la pantalla sólo leía «La solicitud contiene
+    /// datos inválidos» y quien lo veía tenía que adivinar cuál de los quince campos era. La
+    /// pantalla se arregló para leer el detalle; esta prueba fija que el detalle <b>exista</b> y
+    /// que su clave sea la que el formulario usa para su control.</para>
+    ///
+    /// <para>El nombre importa tanto como el mensaje: el frontend empareja por clave, así que
+    /// renombrar el parámetro del validador dejaría el texto en el aire justo cuando existe.</para>
+    /// </summary>
+    [OperationalSqlFact]
+    public async Task AnInvertedValidityIsRejectedNamingTheField()
+    {
+        var seed = await SeedAsync("INV", Day, Day.AddDays(365));
+
+        var excepcion = await Assert.ThrowsAsync<RequestValidationException>(() =>
+            CreatePositionAsync(seed, Day.AddDays(100), Day.AddDays(10)));
+
+        Assert.Equal("endDate", Assert.Single(excepcion.Errors).Key);
+        Assert.Contains("anterior a la de inicio", excepcion.Errors["endDate"][0]);
+
+        // El control: la misma vigencia en el orden correcto **no** se rechaza. Sin esta mitad, un
+        // validador que rechazara toda fecha pasaría igual, y habría impedido guardar cualquier
+        // posición con vigencia propia.
+        var valida = await CreatePositionAsync(seed, Day.AddDays(10), Day.AddDays(100));
+
+        Assert.Equal(Day.AddDays(10), valida.StartDate);
+        Assert.Equal(Day.AddDays(100), valida.EndDate);
+    }
+
     private async Task<EligibilityCheckResponse> CheckEligibilityAsync(Seed seed)
     {
         database.Organization.SetAuthorizedOrganization(seed.IdOrganization);

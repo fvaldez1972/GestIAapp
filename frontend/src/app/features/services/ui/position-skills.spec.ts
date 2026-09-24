@@ -70,9 +70,8 @@ function montar(configurar: (host: Anfitrion) => void = () => {}) {
     raiz: fixture.nativeElement as HTMLElement,
     host: fixture.componentInstance,
     componente: componente as unknown as {
-      agregar(): void;
+      agregar(idCatalogItem: string): void;
       bloquea: { set(valor: boolean): void };
-      elegida: { set(valor: string): void; (): string };
       available(): readonly GiCatalogOption[];
     },
     boton: (texto: string) =>
@@ -112,11 +111,10 @@ describe('El perfil requerido de una posición', () => {
   });
 
   /** Agregar emite por identificador, y sin severidad: la decide el catálogo. */
-  it('al agregar emite la experiencia por identificador', () => {
+  it('elegir la experiencia la agrega, por identificador', () => {
     const { componente, host } = montar();
 
-    componente.elegida.set(CCTV);
-    componente.agregar();
+    componente.agregar(CCTV);
 
     expect(host.agregadas).toEqual([{ idSkillCatalogItem: CCTV, name: 'Manejo de CCTV' }]);
   });
@@ -136,23 +134,37 @@ describe('El perfil requerido de una posición', () => {
     expect(raiz.textContent).toContain('lo decide el catálogo');
   });
 
-  /** Elegir del catálogo no crea nada por sí solo: hace falta el gesto de agregar. */
-  it('elegir la experiencia no la agrega todavía', () => {
+  /**
+   * **Un solo clic**, y ya no hay botón que confirmar.
+   *
+   * <p>Hasta el 24 de septiembre de 2026 elegir del catálogo no hacía nada: había que pulsar
+   * «Agregar». Ese segundo clic confirmaba algo que ya se había decidido con el primero, y su
+   * único efecto real era que alguien eligiera, se fuera, y la experiencia no quedara puesta.</p>
+   *
+   * <p>El control es la otra mitad: <b>sólo agrega lo que está en el catálogo</b>. El selector
+   * emite vacío al limpiarse, y eso no es una elección; un identificador que ya no existe tampoco.
+   * Sin esta comprobación, un manejador que agregara ante cualquier aviso pasaría igual y metería
+   * una fila fantasma cada vez que alguien borrara lo escrito.</p>
+   */
+  it('el vacío no agrega nada, y un identificador desconocido tampoco', () => {
     const { componente, host } = montar();
 
-    componente.elegida.set(CCTV);
+    componente.agregar('');
+    componente.agregar('no-existe-en-el-catalogo');
 
     expect(host.agregadas).toEqual([]);
+
+    // Y el control positivo: con un identificador real sí agrega.
+    componente.agregar(CCTV);
+    expect(host.agregadas).toHaveLength(1);
   });
 
-  /** El selector se limpia para poder sumar varias sin borrar a mano la anterior. */
-  it('el selector queda vacío después de agregar', () => {
-    const { componente } = montar();
+  /** Sin botón «Agregar»: el gesto es elegir. */
+  it('no dibuja un botón para confirmar la elección', () => {
+    const { raiz } = montar();
+    const botones = Array.from(raiz.querySelectorAll('button')).map((b) => b.textContent!.trim());
 
-    componente.elegida.set(CCTV);
-    componente.agregar();
-
-    expect(componente.elegida()).toBe('');
+    expect(botones).not.toContain('Agregar');
   });
 
   /** Lo ya pedido no se vuelve a ofrecer: dos reglas de lo mismo dirían lo mismo dos veces. */

@@ -85,26 +85,29 @@ export type PositionSkillRequest = {
 
       @if (canWrite()) {
         <p class="perfil__kicker perfil__kicker--add">AGREGAR UNA EXPERIENCIA</p>
+        <!--
+          Sin boton «Agregar»: elegir una experiencia la agrega.
+
+          El boton pedia un segundo clic para confirmar algo que ya se habia decidido con el
+          primero, y su unico efecto real era que alguien eligiera y se fuera creyendo que estaba
+          puesta. El selector es seguro para esto porque solo emite al elegir de una lista cerrada
+          —no mientras se teclea—, asi que no hay forma de agregar a medias.
+
+          La salida sigue existiendo: cada experiencia puesta lleva su «Quitar» en la lista de
+          arriba, que es donde se mira lo que la posicion pide.
+        -->
         <div class="perfil__add">
           <gi-catalog-picker
             label="Experiencia"
             catalogLabel="el catálogo de experiencias"
             inputId="ps-experiencia"
             [options]="available()"
-            [value]="elegida()"
+            value=""
             [canWrite]="canWrite()"
             [disabled]="saving()"
-            (valueChange)="elegida.set($event)"
+            (valueChange)="agregar($event)"
             (create)="createSkill.emit($event)"
           />
-          <button
-            class="button button--primary"
-            type="button"
-            [disabled]="saving() || !elegida()"
-            (click)="agregar()"
-          >
-            Agregar
-          </button>
         </div>
         <p class="perfil__note">
           Si una experiencia impide asignar o sólo deja constancia lo decide el catálogo de
@@ -176,7 +179,6 @@ export class PositionSkills {
   readonly removePending = output<string>();
   readonly createSkill = output<GiCatalogCreation>();
 
-  protected readonly elegida = signal('');
 
   protected readonly rows = computed(() => [
     ...this.requirements().map((requirement) => ({
@@ -205,12 +207,23 @@ export class PositionSkills {
     return this.catalogSkills().filter((option) => !puestas.has(option.idCatalogItem));
   });
 
-  /** Suma la experiencia elegida a las que la posición pide. */
-  protected agregar(): void {
-    const opcion = this.catalogSkills().find((item) => item.idCatalogItem === this.elegida());
+  /**
+   * Suma la experiencia recién elegida a las que la posición pide.
+   *
+   * <p>La llama el propio selector al elegir, no un botón: un segundo clic para confirmar lo que ya
+   * se decidió con el primero sólo servía para que alguien eligiera, se fuera, y la experiencia no
+   * quedara puesta.</p>
+   *
+   * <p><b>Lo que no está en el catálogo no se agrega</b>, y con eso basta para los dos casos que
+   * no son una elección: el vacío que el selector emite al limpiarse, y un identificador que ya no
+   * existe. Había aquí una guarda aparte para el vacío y se quitó al comprobar que sobraba —la
+   * prueba no cambiaba de color con ella ni sin ella—, que es la señal de que el código no hacía
+   * nada.</p>
+   */
+  protected agregar(idCatalogItem: string): void {
+    const opcion = this.catalogSkills().find((item) => item.idCatalogItem === idCatalogItem);
 
     if (!opcion) {
-      this.elegida.set('');
       return;
     }
 
@@ -218,9 +231,6 @@ export class PositionSkills {
       idSkillCatalogItem: opcion.idCatalogItem,
       name: opcion.name,
     });
-
-    // El selector se limpia para poder sumar otra sin borrar a mano lo anterior.
-    this.elegida.set('');
   }
 
   protected quitar(row: { readonly key: string; readonly idSkillCatalogItem: string; readonly pending: boolean }): void {

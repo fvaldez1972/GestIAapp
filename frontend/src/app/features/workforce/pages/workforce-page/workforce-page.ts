@@ -314,6 +314,22 @@ export class WorkforcePage {
    */
   protected readonly agregandoDocumento = signal(false);
 
+  /**
+   * La acción que una fila de requisito pidió sobre su papel.
+   *
+   * <p>Viaja al expediente de archivos, que es quien las implementa, y se limpia en cuanto él avisa
+   * de que la resolvió: dejarla puesta volvería a dispararla al siguiente cambio de la pantalla.</p>
+   */
+  protected readonly documentoADescargar = signal('');
+  protected readonly documentoAVerHistorial = signal('');
+  protected readonly documentoAEditar = signal('');
+
+  protected limpiarAccionDeDocumento(): void {
+    this.documentoADescargar.set('');
+    this.documentoAVerHistorial.set('');
+    this.documentoAEditar.set('');
+  }
+
   /** La pestaña de Documentos que se está mirando, para que el expediente de abajo la siga. */
   protected readonly vistaDocumentos = signal<'obligatorios' | 'informativos'>('obligatorios');
 

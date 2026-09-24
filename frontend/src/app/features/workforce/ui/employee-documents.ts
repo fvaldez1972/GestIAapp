@@ -185,14 +185,33 @@ import {
                 </span>
                 <span class="req__side">
                   <span class="req__state">{{ stateLabel(row.state) }}</span>
+
                   <!--
-                    La salida, en la propia fila. «Sin cargar» sin accion era una etiqueta muerta:
-                    obligaba a bajar al expediente y buscar a mano el tipo que la fila ya nombra.
-                    En «Al dia» no se ofrece nada, porque no hay nada que hacer.
+                    Las acciones del papel, en la propia fila.
+
+                    Con enlace al documento de negocio se ofrecen las tres que ya existen abajo
+                    —descargar, historial y corregir—, porque hay un archivo al que apuntar. Sin
+                    enlace no se ofrecen: no serian un boton apagado, serian un boton que promete
+                    un archivo que no existe. Y sin papel, adjuntarlo.
+
+                    Lo sembrado antes de que existiera la columna de enlace se queda en
+                    «Reemplazar» hasta que alguien lo vuelva a cargar desde aqui.
                   -->
-                  @if (canWrite() && row.state !== 'UpToDate') {
+                  @if (row.idBusinessDocument; as idDocumento) {
+                    <button class="req__accion" type="button" (click)="descargar.emit(idDocumento)">
+                      Descargar
+                    </button>
+                    <button class="req__accion" type="button" (click)="historial.emit(idDocumento)">
+                      Historial
+                    </button>
+                    @if (canWrite()) {
+                      <button class="req__accion" type="button" (click)="editar.emit(idDocumento)">
+                        Editar
+                      </button>
+                    }
+                  } @else if (canWrite() && row.state !== 'UpToDate') {
                     <button class="req__accion" type="button" (click)="cargar.emit(row.code)">
-                      {{ row.state === 'Missing' ? 'Cargar' : 'Reemplazar' }}
+                      {{ row.state === 'Missing' ? 'Adjuntar' : 'Reemplazar' }}
                     </button>
                   }
                 </span>
@@ -571,6 +590,17 @@ export class EmployeeDocuments {
    * informativos, mezclados y sin decirlo.</p>
    */
   readonly vistaChange = output<'obligatorios' | 'informativos'>();
+
+  /**
+   * Las tres acciones del papel, por identificador del documento de negocio.
+   *
+   * <p>No se resuelven aquí: las implementa el expediente de archivos, que es quien habla con el
+   * servidor y quien tiene las ventanas. Repetirlas sería tener dos códigos que descargan, y el
+   * día que uno cambie el otro se queda viejo.</p>
+   */
+  readonly descargar = output<string>();
+  readonly historial = output<string>();
+  readonly editar = output<string>();
 
   protected readonly stateLabel = requirementStateLabel;
   protected readonly tone = requirementStateTone;

@@ -496,6 +496,34 @@ describe('EntityDocuments', () => {
   });
 
   /**
+   * <b>Las acciones pedidas desde fuera.</b>
+   *
+   * <p>Personal las usa para que cada fila de requisito ofrezca el historial o la corrección del
+   * papel que la cubre, sin bajar a esta lista. No se copian allá: las implementa este componente,
+   * que es quien habla con el servidor y quien tiene las ventanas.</p>
+   *
+   * <p>La segunda mitad es el control: un identificador que no está en la lista <b>no abre nada</b>.
+   * Sin ella, «abre» se cumpliría igual si el componente abriera lo primero que encontrara.</p>
+   */
+  it('abre el historial del documento que le piden, y no el de uno que no tiene', () => {
+    flushList();
+
+    fixture.componentRef.setInput('openHistoryFor', document.idBusinessDocument);
+    fixture.detectChanges();
+
+    expect(component['historyDocument']()?.idBusinessDocument).toBe(document.idBusinessDocument);
+    // Abrir el historial lo pide al servidor; se contesta para que la prueba no deje peticiones
+    // sueltas, que es lo que comprueba el `verify` del final.
+    http.expectOne((r) => r.url.endsWith(`/documents/${document.idBusinessDocument}/history`)).flush([]);
+
+    component['closeHistory']();
+    fixture.componentRef.setInput('openHistoryFor', 'no-existe');
+    fixture.detectChanges();
+
+    expect(component['historyDocument']()).toBeNull();
+  });
+
+  /**
    * <b>Personal apaga esta barra porque la tiene arriba.</b>
    *
    * <p>Vivía entre las dos listas —debajo de los requisitos y encima de los archivos— y ahí no

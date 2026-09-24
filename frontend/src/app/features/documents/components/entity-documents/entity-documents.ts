@@ -113,6 +113,23 @@ export class EntityDocuments implements OnDestroy {
   /** Si dibuja su propia barra de buscar y filtrar. Personal la apaga: la tiene arriba. */
   readonly showFilters = input(true);
 
+  /**
+   * Abrir una accion sobre un documento desde fuera, por identificador.
+   *
+   * <p>Personal lo usa para que cada fila de requisito ofrezca descargar, ver el historial o
+   * corregir el papel que la cubre, sin bajar a esta lista. Las acciones no se copian alla: las
+   * implementa este componente, que es quien habla con el servidor y quien tiene las ventanas.</p>
+   *
+   * <p>Es el mismo camino que ya usaba el alta con <c>openAdd</c>, y con las mismas guardas: una
+   * entrada desde fuera no puede ser una puerta con menos comprobaciones que la de dentro.</p>
+   */
+  readonly openDownloadFor = input('');
+  readonly openHistoryFor = input('');
+  readonly openEditFor = input('');
+
+  /** Se avisa al resolverlas, para que quien las pidio limpie su señal. */
+  readonly externalActionDone = output<void>();
+
   /** Los tipos obligatorios y los informativos, para el filtro del desplegable. */
   readonly requiredCategories = input<readonly string[]>([]);
 
@@ -418,6 +435,50 @@ export class EntityDocuments implements OnDestroy {
           this.elegirTipo(preseleccionado);
         }
       }
+    });
+  });
+
+  /**
+   * Las tres acciones pedidas desde fuera.
+   *
+   * <p>Se resuelven contra la lista ya cargada: el documento tiene que estar a la vista para poder
+   * descargarlo, y quien lo pide —la fila del requisito— sabe su identificador porque la propia
+   * fila lo trae. Si no aparece, no se hace nada: es preferible a inventar una peticion suelta.</p>
+   */
+  private readonly accionesDesdeFuera = effect(() => {
+    const descargar = this.openDownloadFor();
+    const historial = this.openHistoryFor();
+    const editar = this.openEditFor();
+
+    untracked(() => {
+      if (!descargar && !historial && !editar) {
+        return;
+      }
+
+      const buscar = (id: string) => this.documents().find((d) => d.idBusinessDocument === id);
+
+      if (descargar) {
+        const documento = buscar(descargar);
+        if (documento && this.canAccess(documento)) {
+          this.download(documento);
+        }
+      }
+
+      if (historial) {
+        const documento = buscar(historial);
+        if (documento && this.canAccess(documento)) {
+          this.openHistory(documento);
+        }
+      }
+
+      if (editar) {
+        const documento = buscar(editar);
+        if (documento && this.canEdit(documento)) {
+          this.openEditor('edit', documento);
+        }
+      }
+
+      this.externalActionDone.emit();
     });
   });
 

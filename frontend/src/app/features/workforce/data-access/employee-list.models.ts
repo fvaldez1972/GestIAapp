@@ -385,6 +385,16 @@ export type EmployeeRequirementRow = {
    * pantalla lo dice en vez de prometer un bloqueo que no existe.</p>
    */
   readonly withoutRule: boolean;
+  /**
+   * El documento de negocio al que apunta el papel que cubre el requisito, si lo hay.
+   *
+   * <p>Es lo que permite descargarlo, ver su historial o corregirlo <b>desde la propia fila</b>.
+   * Los dos almacenes conviven: el expediente del empleado guarda el estado del requisito, y el
+   * documento de negocio guarda el archivo con sus acciones. La columna que los une se agregó
+   * justo para esto, y todo lo que se carga desde la pantalla queda enlazado; lo sembrado antes
+   * puede tenerla en nulo, y entonces desde la fila sólo se puede reemplazar.</p>
+   */
+  readonly idBusinessDocument: string | null;
 };
 
 /**
@@ -413,6 +423,7 @@ export function employeeRequirementRows(
     readonly expiresDate: string | null;
     readonly documentNumber: string | null;
     readonly active: boolean;
+    readonly idBusinessDocument?: string | null;
   }[],
   today: string,
   expiringWithinDays: number,
@@ -504,6 +515,7 @@ export function employeeRequirementRows(
       documentNumber: documento?.documentNumber ?? null,
       documentStatus: documento?.status ?? null,
       withoutRule: !requisito,
+      idBusinessDocument: documento?.idBusinessDocument ?? null,
     };
   });
 }

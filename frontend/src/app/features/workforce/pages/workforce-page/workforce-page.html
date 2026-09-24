@@ -189,6 +189,9 @@
               (cargar)="cargarRequisito($event)"
               (agregar)="agregandoDocumento.set(true)"
               (vistaChange)="vistaDocumentos.set($event)"
+              (descargar)="documentoADescargar.set($event)"
+              (historial)="documentoAVerHistorial.set($event)"
+              (editar)="documentoAEditar.set($event)"
             />
 
             <!--
@@ -214,6 +217,10 @@
               [onlyCategories]="tiposDeLaVista()"
               [showFilters]="false"
               [pageSize]="100"
+              [openDownloadFor]="documentoADescargar()"
+              [openHistoryFor]="documentoAVerHistorial()"
+              [openEditFor]="documentoAEditar()"
+              (externalActionDone)="limpiarAccionDeDocumento()"
               [openAdd]="cargandoRequisito() !== '' || agregandoDocumento()"
               [presetDocumentType]="cargandoRequisito()"
               (closeAdd)="cargandoRequisito.set(''); agregandoDocumento.set(false)"

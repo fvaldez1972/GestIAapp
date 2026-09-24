@@ -20,6 +20,9 @@ const HOY = '2026-09-06';
       [categories]="categorias()"
       (cargar)="pedidos.push($event)"
       (agregar)="agregados.set(agregados() + 1)"
+      (descargar)="descargados.push($event)"
+      (historial)="historiales.push($event)"
+      (editar)="editados.push($event)"
     />
   `,
 })
@@ -43,6 +46,9 @@ class Anfitrion {
   >([]);
   readonly agregados = signal(0);
   readonly pedidos: string[] = [];
+  readonly descargados: string[] = [];
+  readonly historiales: string[] = [];
+  readonly editados: string[] = [];
 }
 
 function montar(configurar: (host: Anfitrion) => void = () => {}) {
@@ -431,15 +437,51 @@ describe('La pestaña de documentos', () => {
    * El hueco que cerró esto: la pantalla decía «Sin cargar» y no dejaba hacer nada con esa
    * información. Había que bajar al bloque del expediente y volver a buscar el tipo a mano.
    */
-  it('un requisito sin cubrir ofrece cargarlo, y emite su tipo', () => {
+  it('un requisito sin cubrir ofrece adjuntarlo, y emite su tipo', () => {
     const { acciones, pulsar, host } = montar();
 
-    expect(acciones()).toEqual(['Cargar']);
+    // «Adjuntar» desde el 24 de septiembre de 2026: la fila con papel ofrece las acciones del
+    // papel, así que la palabra tenía que distinguir poner uno nuevo de tocar el que ya está.
+    expect(acciones()).toEqual(['Adjuntar']);
 
-    pulsar('Cargar');
+    pulsar('Adjuntar');
     // Lo que emite es el identificador de la categoría del catálogo, que es lo que el alta
     // necesita desde la conversión del 19 de septiembre de 2026.
     expect(host.pedidos).toEqual(['cat-domicilio']);
+  });
+
+  /**
+   * <b>La fila con archivo enlazado ofrece las acciones del archivo.</b>
+   *
+   * <p>Eran las tres del bloque de abajo —descargar, historial y corregir— y desde el requisito no
+   * se llegaba a ellas. La segunda mitad es el control, y es la que importa: <b>sin enlace no se
+   * ofrecen</b>, porque no serían un botón apagado sino uno que promete un archivo que no existe.
+   * Lo sembrado antes de que existiera la columna de enlace cae en ese caso.</p>
+   */
+  it('con documento enlazado ofrece descargar, historial y editar; sin enlace, no', () => {
+    // Un solo requisito, para que las acciones de la lista sean las de esa fila y nada más.
+    const { acciones, pulsar, host, fixture } = montar((anfitrion) => {
+      anfitrion.requirements.set([requirementFixture()]);
+      anfitrion.documents.set([documentFixture({ idBusinessDocument: 'bd-1' })]);
+    });
+
+    expect(acciones()).toEqual(['Descargar', 'Historial', 'Editar']);
+
+    pulsar('Descargar');
+    pulsar('Historial');
+    pulsar('Editar');
+
+    expect(host.descargados).toEqual(['bd-1']);
+    expect(host.historiales).toEqual(['bd-1']);
+    expect(host.editados).toEqual(['bd-1']);
+
+    // Sin enlace y con el papel rechazado: hay algo que hacer —reemplazarlo— pero no hay archivo
+    // al que apuntar, así que no se ofrecen las tres. Un requisito al día no ofrece nada, y por eso
+    // el control usa uno que sí pide acción.
+    host.documents.set([documentFixture({ idBusinessDocument: null, status: 'Rejected' })]);
+    fixture.detectChanges();
+
+    expect(acciones()).toEqual(['Reemplazar']);
   });
 
   /** Lo que ya está cubierto no ofrece nada: no hay nada que hacer con él. */

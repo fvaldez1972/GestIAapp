@@ -369,6 +369,35 @@ fieldset {
 .wide {
   grid-column: 1 / -1;
 }
+
+/* El editor de posicion, a tres columnas y mas ancho.
+   Tiene quince campos. Con dos columnas —y con la mitad de ellos ocupando el ancho entero— el
+   formulario medía mas de dos pantallas y habia que desplazar el modal para llegar a «Guardar».
+   Casi todos son cortos: un numero, una fecha, un desplegable de tres opciones. Ponerlos de tres
+   en tres cabe sin apretar y quita el desplazamiento. */
+.modal--posicion { width: min(1040px, 100%); }
+
+.modal--posicion .form-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px 16px;
+}
+
+/* Los que de verdad necesitan sitio: el nombre y los dos textos largos. */
+.modal--posicion .form-grid .span-2 { grid-column: span 2; }
+
+@media (max-width: 900px) {
+  .modal--posicion .form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .modal--posicion .form-grid .span-2 { grid-column: 1 / -1; }
+}
+
+@media (max-width: 620px) {
+  .modal--posicion .form-grid { grid-template-columns: minmax(0, 1fr); }
+}
+/* En el editor de posicion la casilla NO se lleva un renglon entero: con tres columnas cabe al
+   lado del precio y del periodo, que es de lo que habla. En los demas modales, que siguen a dos
+   columnas, se queda como estaba. */
+.modal--posicion .check--enLinea { grid-column: auto; align-self: end; padding-bottom: 6px; }
+
 /* La casilla ocupa su propio renglon.
    Compartiendo celda con los campos, «IVA incluido» empujaba «Vigente desde» a la columna derecha
    y dejaba «Vigente hasta» sola en la izquierda del renglon siguiente: las dos fechas de un mismo

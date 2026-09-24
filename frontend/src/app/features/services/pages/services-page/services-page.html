@@ -769,7 +769,7 @@
     <section
       serviceDialog
       (dismiss)="closeEditors()"
-      class="modal"
+      class="modal modal--posicion"
       role="dialog"
       aria-modal="true"
       aria-labelledby="position-editor-title"
@@ -826,7 +826,7 @@
                 }
               </select>
             </label>
-            <label class="check"
+            <label class="check check--enLinea"
               ><input type="checkbox" formControlName="isTaxIncluded" /><span>IVA incluido</span></label
             >
             <!--
@@ -853,7 +853,7 @@
               cabia, y habia que volver a teclear el mismo horario en cada puesto. El catalogo se
               construye en Catalogos y aqui solo se elige.
             -->
-            <label class="wide"
+            <label class="span-2"
               ><span>Patrón de turno</span
               ><!--
                 Va con formControlName y no con [value]. Con [value] el patron guardado no se veia
@@ -890,10 +890,6 @@
                   capturó por dentro.
                 </small>
               } @else {
-                <small>
-                  Sin patrón del catálogo el puesto conserva el que se le capturó por dentro. Sólo
-                  se ofrecen los patrones con todos los días del ciclo declarados.
-                </small>
               }
             </label>
             <!--
@@ -938,7 +934,7 @@
               para ver cuales estaban marcadas. Ahora se elige de una lista y lo elegido queda a la
               vista como fichas, que es donde se lee sin buscar.
             -->
-            <div class="wide">
+            <div class="span-2">
               <span class="equipo__titulo">Equipo requerido</span>
               @if (equipmentCatalog().length) {
                 <div class="equipo__control">
@@ -972,7 +968,6 @@
                     }
                   </ul>
                 } @else {
-                  <small>Sin equipo declarado. La posición se puede guardar así.</small>
                 }
               } @else {
                 <small>

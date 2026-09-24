@@ -493,6 +493,35 @@ describe('EntityDocuments', () => {
     expect(botones().some((b) => b.includes('Agregar documento'))).toBe(true);
   });
 
+  /**
+   * <b>Personal apaga «Revisar» y «Archivar».</b>
+   *
+   * <p>Salieron de esa pantalla el 24 de septiembre de 2026, por petición: ensuciaban la fila.
+   * Descargar, Historial y Editar se quedan, así que la guarda no puede ser la de la variante
+   * simple, que se lleva las tres.</p>
+   *
+   * <p>La segunda mitad es el control: sin ella, «no están» se cumpliría igual si el componente
+   * hubiera dejado de ofrecerlas en todas partes.</p>
+   */
+  it('con showReview apagado no pone Revisar ni Archivar, y conserva Historial y Editar', () => {
+    fixture.componentRef.setInput('showReview', false);
+    fixture.detectChanges();
+    flushList();
+
+    const apagado = botones().join(' | ');
+    expect(apagado).not.toContain('Revisar');
+    expect(apagado).not.toContain('Archivar');
+    expect(apagado).toContain('Historial');
+    expect(apagado).toContain('Editar');
+
+    fixture.componentRef.setInput('showReview', true);
+    fixture.detectChanges();
+
+    const encendido = botones().join(' | ');
+    expect(encendido).toContain('Revisar');
+    expect(encendido).toContain('Archivar');
+  });
+
   /** En Personal siguen las cinco: ahi el componente vive solo y la revision sostiene la vigencia. */
   it('sin la variante simple conserva historial, revisar y archivar', () => {
     flushList();

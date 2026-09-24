@@ -92,12 +92,19 @@ describe('La pestaña de documentos', () => {
    * las fechas de vencimiento y las frases que las explicaban. Lo que queda es qué pasa si falta un
    * obligatorio, que es la razón por la que la lista existe.</p>
    */
-  it('dice qué pasa si falta un obligatorio, sin hablar de fechas', () => {
+  /**
+   * <b>Sin banda de aviso.</b>
+   *
+   * <p>La llevó unas horas el 24 de septiembre de 2026 y salió por petición: ocupaba cuatro
+   * renglones encima de la lista para repetir lo que las propias pestañas ya separan. La segunda
+   * afirmación es la que hace valer la primera: sin ella, «no hay banda» se cumpliría igual si la
+   * pestaña entera hubiera dejado de dibujarse.</p>
+   */
+  it('la pestaña no pone una banda de aviso encima de la lista', () => {
     const { raiz } = montar();
-    const aviso = raiz.querySelector('.banda--obliga')!.textContent!.replace(/\s+/g, ' ');
 
-    expect(aviso).toContain('no puede ser asignada ni programada');
-    expect(aviso).not.toContain('días');
+    expect(raiz.querySelector('.banda')).toBeNull();
+    expect(raiz.querySelector('.seccion__titulo')!.textContent!.trim()).toBe('Documentos obligatorios');
   });
 
   /** La vigencia se mide contra el día operativo del servidor, no contra el reloj del navegador. */
@@ -165,8 +172,15 @@ describe('La pestaña de documentos', () => {
     expect(raiz.querySelectorAll('.req').length).toBe(0);
   });
 
-  /** Lo cargado que nadie exige no cuenta para la vigencia, y por eso va aparte. */
-  it('separa los documentos que la organización no exige', () => {
+  /**
+   * <b>Sin «Otros documentos».</b>
+   *
+   * <p>Era un plegado al final con los archivos que la organización no exige. Salió el 24 de
+   * septiembre de 2026, y el usuario dio la razón: «o son obligatorios o son informativos». Un
+   * tercer montón sin regla detrás sólo añadía un sitio más donde mirar; los archivos siguen
+   * enteros en el expediente de abajo, que es donde se consultan y se descargan.</p>
+   */
+  it('no arma un tercer montón con los documentos que nadie exige', () => {
     const { raiz } = montar((host) =>
       host.documents.set([
         documentFixture(),
@@ -179,15 +193,11 @@ describe('La pestaña de documentos', () => {
       ]),
     );
 
-    // Van plegados desde el 23 de septiembre de 2026: son archivos que la organización no exige,
-    // así que no compiten por la atención con los que sí. Lo que se defiende es que estén aparte
-    // y bajo su propio rótulo; la nota sobre vigencia se retiró con el resto de las fechas.
-    const extra = raiz.querySelector('.otros')!;
-
-    expect(extra.textContent).toContain('Licencia de conducir');
-    expect(extra.textContent).not.toContain('vigencia');
-    expect(extra.textContent).not.toContain('vence');
-    expect(extra.querySelector('summary')?.textContent).toContain('Otros documentos');
+    expect(raiz.querySelector('.otros')).toBeNull();
+    expect(raiz.textContent).not.toContain('Otros documentos');
+    // El control: la pestaña sí dibuja su lista de requisitos, así que la ausencia de arriba no
+    // es que el componente se haya quedado en blanco.
+    expect(raiz.querySelectorAll('.req').length).toBeGreaterThan(0);
   });
 
   /**
@@ -220,18 +230,12 @@ describe('La pestaña de documentos', () => {
 
     // Arranca en obligatorios, que son los que impiden asignar.
     expect(pestanas[0].classList).toContain('is-active');
-    expect(raiz.querySelector('.banda--obliga')).not.toBeNull();
-    expect(raiz.textContent).toContain('no puede ser asignada ni programada');
+    expect(raiz.querySelector('.seccion__titulo')!.textContent!.trim()).toBe('Documentos obligatorios');
 
     pestanas[1].click();
     fixture.detectChanges();
 
-    // La misma forma, en gris: ahí la noticia no urge, y pintarla de rojo diría lo contrario de
-    // lo que el texto explica.
-    expect(raiz.querySelector('.banda--informa')).not.toBeNull();
-    expect(raiz.querySelector('.banda--obliga')).toBeNull();
-    expect(raiz.textContent).toContain('sólo dejan constancia');
-    expect(raiz.textContent).not.toContain('no puede ser asignada ni programada');
+    expect(raiz.querySelector('.seccion__titulo')!.textContent!.trim()).toBe('Documentos informativos');
   });
 
   /**

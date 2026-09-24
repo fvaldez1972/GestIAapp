@@ -85,27 +85,10 @@ import {
         </div>
 
         <!--
-          El aviso, en banda y con icono. Era un parrafo gris de 11.5 px debajo de las pestanas, y
-          a ese peso se lee como un pie de pagina: decia justo lo que impide trabajar a la persona.
-          La banda de informativos usa la misma forma en gris, porque ahi la noticia no urge —y
-          pintarla de rojo diria lo contrario de lo que el texto explica—.
+          Sin banda de aviso. La llevo unas horas el 24 de septiembre de 2026 y salio por
+          peticion: ocupaba cuatro renglones encima de la lista para repetir lo que las propias
+          pestañas ya separan —lo que impide asignar de lo que solo deja constancia—.
         -->
-        <p class="banda" [class]="'banda--' + (vista() === 'obligatorios' ? 'obliga' : 'informa')">
-          <span class="banda__icono" aria-hidden="true">{{ vista() === 'obligatorios' ? '!' : 'i' }}</span>
-          <span class="banda__texto">
-            <strong class="banda__titulo">
-              {{ vista() === 'obligatorios' ? 'Documentación obligatoria' : 'Documentación informativa' }}
-            </strong>
-            @if (vista() === 'obligatorios') {
-              Si falta algún documento, está vencido o no es válido, la persona no puede ser
-              asignada ni programada.
-            } @else {
-              No impiden asignar ni programar; sólo dejan constancia. Aun así conviene mantenerlos
-              al día.
-            }
-          </span>
-        </p>
-
         <!--
           Encabezado de la lista, con la salida a la derecha.
           El boton de «Agregar documento» vivia suelto mas abajo, dentro del expediente de
@@ -174,24 +157,11 @@ import {
         }
 
         <!--
-          Los archivos que la organizacion no exige. Siguen plegados y al final: no cuentan para la
-          expediente, asi que no compiten con lo que si.
+          Sin «Otros documentos». Era un plegado al final con los archivos que la organizacion no
+          exige, y el usuario lo resumio: o son obligatorios o son informativos. Un tercer monton
+          sin regla detras solo anadia un sitio mas donde mirar. Los archivos siguen enteros en el
+          expediente de abajo, que es donde se consultan y se descargan.
         -->
-        @if (extras().length) {
-          <details class="otros">
-            <summary>
-              Otros documentos
-              <span class="otros__cuenta">
-                {{ extras().length }} {{ extras().length === 1 ? 'documento' : 'documentos' }}
-              </span>
-            </summary>
-            <ul class="docs__plain">
-              @for (extra of extras(); track extra.idEmployeeDocument) {
-                <li>{{ categoryLabel(extra) }}</li>
-              }
-            </ul>
-          </details>
-        }
       }
 
     </section>
@@ -488,25 +458,8 @@ export class EmployeeDocuments {
   protected readonly tone = requirementStateTone;
   protected readonly typeLabel = documentTypeLabel;
 
-  /**
-   * Cómo se nombra un documento en la lista.
-   *
-   * <p>Manda el nombre de la categoría del catálogo. El enum sólo se usa de respaldo, para los
-   * expedientes anteriores a la conversión del 19 de septiembre de 2026 que todavía no tienen
-   * categoría: son los únicos donde ese enum significa algo.</p>
-   */
-  protected categoryLabel(document: { readonly documentCategoryName: string | null; readonly documentType: string }): string {
-    return document.documentCategoryName ?? documentTypeLabel(document.documentType);
-  }
-
-  /**
-   * Cómo se nombra un documento en la lista.
-   *
-   * <p>Manda el nombre de la categoría del catálogo. El enum sólo se usa de respaldo, para los
-   * expedientes anteriores a la conversión del 19 de septiembre de 2026 que todavía no tienen
-   * categoría: son los únicos donde ese enum significa algo.</p>
-   */
-
+  // `categoryLabel` nombraba cada archivo de «Otros documentos» y se fue con el plegado. El
+  // nombre de la categoria lo sigue poniendo el expediente de abajo, que es quien lista archivos.
 
   protected readonly rows = computed(() =>
     employeeRequirementRows(
@@ -527,19 +480,6 @@ export class EmployeeDocuments {
    */
   protected readonly obligatorios = computed(() => this.rows().filter((fila) => fila.isRequired));
   protected readonly informativos = computed(() => this.rows().filter((fila) => !fila.isRequired));
-
-  /** Lo cargado que nadie exige. Se muestra aparte para que no se confunda con un requisito. */
-  protected readonly extras = computed(() => {
-    const exigidos = new Set(
-      this.requirements()
-        .map((item) => (item.requiredDocumentType ?? '').toLowerCase())
-        .filter(Boolean),
-    );
-
-    return this.documents().filter(
-      (document) => document.active && !exigidos.has(document.documentType.toLowerCase()),
-    );
-  });
 
   /**
    * Por qué el requisito está como está.

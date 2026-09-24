@@ -111,7 +111,7 @@
                   }
                   @if (canEdit(document)) {
                     <button class="gi-button gi-button--secondary" type="button" [disabled]="busy()" (click)="openEditor('edit', document)">Editar</button>
-                    @if (!simple()) {
+                    @if (!simple() && showReview()) {
                       <button class="gi-button gi-button--secondary" type="button" [disabled]="busy()" (click)="openEditor('review', document)"><app-icon name="coverage" /> Revisar</button>
                       <button class="gi-button gi-button--danger" type="button" [disabled]="busy()" (click)="openEditor('archive', document)">Archivar</button>
                     }

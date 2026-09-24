@@ -91,6 +91,17 @@ export class EntityDocuments implements OnDestroy {
    */
   readonly showAdd = input(true);
 
+  /**
+   * Si cada documento ofrece «Revisar» y «Archivar».
+   *
+   * <p>Personal las apagó el 24 de septiembre de 2026, por petición: ensuciaban la fila. <b>Y eso
+   * tiene consecuencia</b>, porque revisar es lo que valida o rechaza un documento, y esa decisión
+   * manda sobre la elegibilidad para cubrir un turno: con el botón apagado, un documento que está
+   * «Sin validar» no tiene desde dónde dejar de estarlo. Se apunta aquí para que quien lo
+   * reactive sepa qué se recupera.</p>
+   */
+  readonly showReview = input(true);
+
   /** Las categorias del catalogo, cuando la variante simple las usa en vez de texto libre. */
   readonly categories = input<readonly GiCatalogOption[]>([]);
   readonly createCategory = output<GiCatalogCreation>();

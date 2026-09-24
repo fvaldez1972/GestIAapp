@@ -226,18 +226,21 @@ describe('planningConflicts', () => {
     const huecos = conflictos.find((c) => c.id === 'coverage-gaps')!;
 
     expect(huecos.blocking).toBe(false);
-    expect(huecos.detail).toContain('Faltan 2 elementos');
-    expect(huecos.detail).toContain('No impide publicar');
+    // El párrafo salió el 24 de septiembre de 2026, por petición; lo que no puede salir con él es
+    // que esto no bloquee, que es la decisión de negocio. Por eso el título sigue nombrando el
+    // hueco y `blocking` sigue comprobándose aquí arriba.
+    expect(huecos.title).toBe('Un turno queda con menos gente de la que pide');
+    expect(huecos.detail).toBeUndefined();
   });
 
-  it('una posición sin nada declarado sí bloquea, y dice cómo salir', () => {
+  it('una posición sin nada declarado sí bloquea, y el título la nombra', () => {
     const filas = semana({ positions: [posicion('p-1', 'P-01')] });
 
     const conflicto = planningConflicts(filas).find((c) => c.id.startsWith('undeclared:'))!;
 
     expect(conflicto.blocking).toBe(true);
     expect(conflicto.title).toContain('P-01');
-    expect(conflicto.detail).toContain('desactívala si ya no opera');
+    expect(conflicto.detail).toBeUndefined();
   });
 
   /**

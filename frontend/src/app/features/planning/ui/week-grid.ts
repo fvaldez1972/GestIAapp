@@ -31,14 +31,20 @@ const ABREVIATURA: Record<string, string> = {
 /**
  * Cada estado con la palabra que lo nombra. El color va con la palabra, nunca solo.
  *
+ * <p><b>Las notas dicen que significa el estado, no como se calcula.</b> «Falta gente» llevaba
+ * «asignados &lt; requeridos», que es la formula de adentro y no le dice nada a quien planea; sin
+ * nota, la palabra se explica sola. «Sin turno» llevaba «el patron no declara segmento ese dia»,
+ * que nombra la causa tecnica; ahora dice <b>No requiere cobertura</b>, que es la consecuencia y es
+ * lo que hay que saber para decidir.</p>
+ *
  * <p><b>«Sin declarar» salio de la leyenda el 24 de septiembre de 2026, por peticion.</b> La celda
  * sigue diciendolo y sigue teniendo su color: lo que se retira es el renglon que lo explicaba
  * abajo. Si vuelve a hacer falta, es una linea.</p>
  */
 const LEYENDA = [
   { kind: 'covered', texto: 'Turno cubierto', nota: '' },
-  { kind: 'short', texto: 'Falta gente', nota: 'asignados < requeridos' },
-  { kind: 'noShift', texto: 'Sin turno', nota: 'el patrón no declara segmento ese día' },
+  { kind: 'short', texto: 'Falta gente', nota: '' },
+  { kind: 'noShift', texto: 'Sin turno', nota: 'No requiere cobertura' },
 ] as const;
 
 /**

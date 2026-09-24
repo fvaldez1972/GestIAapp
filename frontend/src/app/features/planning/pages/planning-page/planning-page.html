@@ -64,8 +64,12 @@
     />
 
     @if (canWrite() && shiftCount() === 0 && rows().length > 0) {
+      <!--
+        Queda la accion sola, sin la frase que la presentaba. El boton se conserva porque es el
+        unico sitio de la aplicacion desde donde se llama a `prepareWeek()`: quitarlo con el texto
+        habria dejado la semana sin forma de proyectarse desde los patrones.
+      -->
       <p class="planeacion__aviso planeacion__aviso--ok">
-        Esta semana todavía no tiene turnos proyectados.
         <button class="planeacion__accion" type="button" [disabled]="saving()" (click)="prepareWeek()">
           Proyectar desde los patrones
         </button>

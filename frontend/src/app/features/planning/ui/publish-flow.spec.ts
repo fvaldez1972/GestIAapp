@@ -4,18 +4,27 @@ import { PlanningConflict } from '../data-access/planning.models';
 import { ConflictList } from './conflict-list';
 import { PublishPanel } from './publish-panel';
 
+// Los dos que se quedaron sin párrafo el 24 de septiembre de 2026, por petición. Las copias de
+// aquí van sin `detail` porque así salen hoy de `planningConflicts`: una copia con un detalle
+// inventado probaría el listado contra datos que la aplicación ya no produce.
 const BLOQUEA: PlanningConflict = {
   id: 'undeclared:p-1',
   title: 'P-01 no tiene ningún turno declarado',
-  detail: 'Sin segmentos en su patrón, la posición no proyecta nada. Declara sus turnos o desactívala.',
   blocking: true,
 };
 
 const AVISA: PlanningConflict = {
   id: 'coverage-gaps',
   title: '3 turnos quedan con menos gente de la que piden',
-  detail: 'Faltan 4 elementos en total. No impide publicar: publicar es lo que deja a Cobertura resolverlos.',
   blocking: false,
+};
+
+/** Uno de los que sí conservan párrafo: es el control de que el listado lo sigue dibujando. */
+const CON_DETALLE: PlanningConflict = {
+  id: 'no-positions',
+  title: 'El servicio todavía no tiene ninguna posición',
+  detail: 'Declara la primera posición del servicio y sus turnos.',
+  blocking: true,
 };
 
 @Component({
@@ -62,6 +71,7 @@ function lista(conflicts: readonly PlanningConflict[]) {
   return {
     raiz,
     titulos: () => Array.from(raiz.querySelectorAll('.conf__nombre')).map((n) => n.textContent?.trim()),
+    detalles: () => Array.from(raiz.querySelectorAll('.conf__detalle')).map((d) => d.textContent?.trim()),
     pildoras: () => Array.from(raiz.querySelectorAll('.conf__pill')).map((p) => p.textContent?.trim()),
     resumen: () => raiz.querySelector('.conf__resumen')?.textContent?.trim() ?? null,
   };
@@ -107,6 +117,16 @@ describe('ConflictList', () => {
     expect(lista([BLOQUEA, BLOQUEA]).resumen()).toBe('2 impiden publicar');
   });
 
+  /**
+   * El párrafo es opcional, y las dos mitades de esta prueba se necesitan mutuamente: sin la
+   * segunda, «no dibuja párrafo» se cumpliría igual si el listado hubiera dejado de dibujarlos
+   * todos.
+   */
+  it('dibuja el párrafo sólo cuando el conflicto lo trae', () => {
+    expect(lista([BLOQUEA, AVISA]).detalles()).toEqual([]);
+    expect(lista([CON_DETALLE]).detalles()).toEqual([CON_DETALLE.detail]);
+  });
+
   /** Un cero aquí es información: se revisó y salió limpia, que no es lo mismo que no revisarla. */
   it('sin nada que revisar lo dice como un cero real', () => {
     const { raiz, resumen } = lista([]);
@@ -125,11 +145,17 @@ describe('PublishPanel', () => {
     );
   });
 
-  /** Publicar creyendo que se puede retocar después es la sorpresa que este aviso evita. */
-  it('avisa que lo publicado no se edita', () => {
+  /**
+   * El aviso de inmutabilidad salió del panel el 24 de septiembre de 2026, por petición. La regla
+   * no cambió —el servidor sigue rechazando editar lo publicado—; lo que se retiró es el anuncio.
+   * Esta prueba queda para que no vuelva a colarse sin que nadie lo decida.
+   */
+  it('ya no anuncia que lo publicado queda inmutable', () => {
     const { raiz } = panel();
 
-    expect(raiz.querySelector('.pub__aviso')!.textContent).toContain('no se edita');
+    expect(raiz.querySelector('.pub__aviso')).toBeNull();
+    expect(raiz.textContent).not.toContain('no se edita');
+    expect(raiz.textContent).not.toContain('inmutable');
   });
 
   it('publica cuando no hay nada que lo impida', () => {

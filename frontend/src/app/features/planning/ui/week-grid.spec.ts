@@ -75,6 +75,7 @@ function montar(configurar: (host: Anfitrion) => void = () => {}) {
     dias: () => Array.from(raiz.querySelectorAll('.rejilla__dia')).map((d) => d.textContent?.trim()),
     celdas: () => Array.from(raiz.querySelectorAll<HTMLButtonElement>('.celda')),
     leyenda: () => Array.from(raiz.querySelectorAll('.rejilla__texto')).map((t) => t.textContent?.trim()),
+    notas: () => Array.from(raiz.querySelectorAll('.rejilla__nota')).map((n) => n.textContent?.trim()),
   };
 }
 
@@ -104,6 +105,20 @@ describe('WeekGrid', () => {
     // sigue diciendo —eso se comprueba abajo, en las pruebas de la celda— y lo que se retiró es
     // el renglón que lo explicaba.
     expect(leyenda()).toEqual(['Turno cubierto', 'Falta gente', 'Sin turno']);
+  });
+
+  /**
+   * Las notas dicen qué significa el estado, no cómo se calcula. «asignados &lt; requeridos» era la
+   * fórmula de adentro, y «el patrón no declara segmento ese día» nombraba la causa técnica: las
+   * dos salieron el 24 de septiembre de 2026, por petición, y la segunda se cambió por lo que de
+   * verdad hay que saber para decidir.
+   */
+  it('sólo «Sin turno» lleva nota, y dice qué implica', () => {
+    const { notas, raiz } = montar();
+
+    expect(notas()).toEqual(['No requiere cobertura']);
+    expect(raiz.textContent).not.toContain('asignados <');
+    expect(raiz.textContent).not.toContain('declara segmento');
   });
 
   /**

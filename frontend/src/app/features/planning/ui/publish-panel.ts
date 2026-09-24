@@ -10,9 +10,9 @@ import { PlanningConflict } from '../data-access/planning.models';
  * Asistencia compara contra la versión publicada; Cobertura resuelve huecos de la versión
  * publicada. Por eso el panel dice qué se va a publicar antes de publicarlo, y no después.</p>
  *
- * <p><b>La versión publicada no se edita.</b> No es una regla de la pantalla: el servidor la hace
- * cumplir, y toda modificación posterior entra como incidencia trazable. Decirlo aquí evita la
- * sorpresa de publicar creyendo que se puede retocar.</p>
+ * <p><b>La versión publicada no se edita</b>, y el panel ya no lo dice. El servidor es quien hace
+ * cumplir esa regla —el aviso nunca fue lo que la sostenía—, así que retirarlo el 24 de septiembre
+ * de 2026, por petición, no cambia lo que pasa al publicar: sólo deja de anunciarlo aquí.</p>
  *
  * <p><b>Cuando no se puede publicar, el botón dice por qué.</b> Un botón apagado sin explicación
  * se lee como que la aplicación se rompió, y quien lo ve no tiene forma de saber qué le falta.</p>
@@ -31,11 +31,6 @@ import { PlanningConflict } from '../data-access/planning.models';
 
       <div class="pub__cuerpo">
         <p class="pub__resumen">{{ resumen() }}</p>
-
-        <p class="pub__aviso">
-          La versión queda publicada e inmutable. Toda modificación posterior entra como incidencia
-          trazable: el rol publicado no se edita.
-        </p>
 
         @if (razon()) {
           <p class="pub__porque" id="pub-porque">{{ razon() }}</p>
@@ -81,7 +76,6 @@ import { PlanningConflict } from '../data-access/planning.models';
     .pub__cuerpo { display: flex; flex-direction: column; gap: 0.5rem; padding: 0.85rem; }
 
     .pub__resumen { margin: 0; color: var(--gestia-text); font-size: 12.5px; font-weight: 600; }
-    .pub__aviso { margin: 0; color: var(--gestia-muted); font-size: 11.5px; line-height: 1.5; }
 
     .pub__porque {
       margin: 0;

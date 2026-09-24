@@ -51,7 +51,14 @@ export type PlanningRow = {
 export type PlanningConflict = {
   readonly id: string;
   readonly title: string;
-  readonly detail: string;
+  /**
+   * El parrafo que acompana al titulo, cuando lo hay.
+   *
+   * <p><b>Es opcional desde el 24 de septiembre de 2026.</b> Dos conflictos se quedaron sin el por
+   * peticion, y un `detail: ''` habria obligado al listado a distinguir entre «vacio» y «no hay»
+   * para no pintar un parrafo con margen y sin texto. Ausente es mas honesto que vacio.</p>
+   */
+  readonly detail?: string;
   readonly blocking: boolean;
 };
 
@@ -217,9 +224,6 @@ export function planningConflicts(rows: readonly PlanningRow[]): readonly Planni
     conflicts.push({
       id: `undeclared:${row.idPosition}`,
       title: `${row.codePosition} no tiene ningún turno declarado`,
-      detail:
-        'Sin segmentos en su patrón, la posición no proyecta nada y la semana publicada no la va a ' +
-        'incluir. Declara sus turnos o desactívala si ya no opera.',
       blocking: true,
     });
   }
@@ -244,21 +248,12 @@ export function planningConflicts(rows: readonly PlanningRow[]): readonly Planni
   );
 
   if (huecos.length > 0) {
-    const faltan = huecos.reduce(
-      (total, { cell }) => total + (cell.requiredWorkerCount - cell.assignedWorkerCount),
-      0,
-    );
-
     conflicts.push({
       id: 'coverage-gaps',
       title:
         huecos.length === 1
           ? 'Un turno queda con menos gente de la que pide'
           : `${huecos.length} turnos quedan con menos gente de la que piden`,
-      detail:
-        `Faltan ${faltan} ${faltan === 1 ? 'elemento' : 'elementos'} en total. No impide publicar: ` +
-        'una semana con huecos es una semana normal a la que le falta gente, y publicarla es lo que ' +
-        'deja a Cobertura resolverlos.',
       blocking: false,
     });
   }

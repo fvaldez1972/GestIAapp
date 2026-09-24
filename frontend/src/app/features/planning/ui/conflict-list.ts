@@ -42,7 +42,14 @@ import { PlanningConflict } from '../data-access/planning.models';
                 </span>
                 <span class="conf__nombre">{{ conflict.title }}</span>
               </span>
-              <p class="conf__detalle">{{ conflict.detail }}</p>
+              <!--
+                Sin detalle no hay parrafo. Dos conflictos se quedaron solo con su titulo, y un
+                <p> vacio seguiria ocupando su margen: el renglon se veria descuadrado respecto a
+                los que si lo tienen.
+              -->
+              @if (conflict.detail) {
+                <p class="conf__detalle">{{ conflict.detail }}</p>
+              }
             </li>
           }
         </ul>

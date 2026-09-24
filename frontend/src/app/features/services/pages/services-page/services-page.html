@@ -800,7 +800,10 @@
             />
               @if (errorDe('requiredWorkerCount')) { <small class="campo__error">{{ errorDe('requiredWorkerCount') }}</small> }
             </label>
-            <label class="wide"><span>Nombre *</span><input formControlName="name" /></label>
+            <label class="span-2"
+              ><span>Nombre *</span><input formControlName="name" [class.is-invalid]="errorDe('name')" />
+              @if (errorDe('name')) { <small class="campo__error">{{ errorDe('name') }}</small> }
+            </label>
             <!--
               El precio del puesto. Vive aqui desde que se retiro la configuracion del servicio:
               en seguridad privada se cotiza por puesto, no por servicio, y un servicio con caseta,
@@ -853,7 +856,7 @@
               cabia, y habia que volver a teclear el mismo horario en cada puesto. El catalogo se
               construye en Catalogos y aqui solo se elige.
             -->
-            <label class="span-2"
+            <label class="wide"
               ><span>Patrón de turno</span
               ><!--
                 Va con formControlName y no con [value]. Con [value] el patron guardado no se veia
@@ -934,7 +937,7 @@
               para ver cuales estaban marcadas. Ahora se elige de una lista y lo elegido queda a la
               vista como fichas, que es donde se lee sin buscar.
             -->
-            <div class="span-2">
+            <div class="wide">
               <span class="equipo__titulo">Equipo requerido</span>
               @if (equipmentCatalog().length) {
                 <div class="equipo__control">

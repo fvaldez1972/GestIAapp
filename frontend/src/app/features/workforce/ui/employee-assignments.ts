@@ -192,12 +192,12 @@ export class EmployeeAssignments {
   readonly canWrite = input(false);
 
   /**
-   * Llevar a donde se asigna, que es Servicios.
+   * Pedir el alta de una asignación, que se resuelve aquí mismo.
    *
-   * <p><b>No es Planeación, aunque antes llevara ahí.</b> Lo que esta pestaña enumera son
-   * asignaciones de servicio —persona ligada a una posición de un servicio— y ésas se crean en
-   * Servicios. En Planeación se cubre un turno concreto de una semana, que es otra cosa: el botón
-   * viejo dejaba a quien lo pulsaba en la rejilla semanal, sin la posición delante.</p>
+   * <p>El botón llevaba a otra pantalla —primero a Planeación, luego a Servicios—, y las dos veces
+   * dejaba a quien lo pulsaba con la persona en la cabeza y un formulario en blanco delante. Ahora
+   * abre la ventana de alta sobre el propio expediente. La asignación se sigue creando con el
+   * mismo endpoint y las mismas reglas; lo que cambió es desde dónde se pide.</p>
    */
   readonly assign = output<void>();
 

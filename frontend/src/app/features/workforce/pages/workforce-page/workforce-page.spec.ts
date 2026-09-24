@@ -104,6 +104,54 @@ describe('Personal · carga', () => {
     expect(pagina.panelTabs().find((t) => t.id === 'assignments')?.count).toBe(1);
   });
 
+  /**
+   * El alta de una asignación desde el expediente.
+   *
+   * <p>El botón llevaba a otra pantalla —primero a Planeación, luego a Servicios—, y las dos veces
+   * dejaba a quien lo pulsaba con la persona en la cabeza y un formulario en blanco delante. Ahora
+   * se resuelve aquí, con <b>el mismo endpoint y los mismos campos</b> que usa Servicios.</p>
+   *
+   * <p>Las tres afirmaciones se necesitan: a dónde va el alta, que la persona que viaja es la del
+   * expediente abierto —no la que se miró antes— y que después se vuelve a pedir el historial, que
+   * es lo único que hace aparecer la fila nueva con el nombre del cliente y del servicio que esta
+   * pantalla no tiene.</p>
+   */
+  it('asignar desde el expediente manda el alta al servicio y vuelve a pedir el historial', () => {
+    const { fixture, http, responder, responderLoDemas } = montar();
+    responder();
+    responderLoDemas();
+    fixture.detectChanges();
+
+    const pagina = fixture.componentInstance as unknown as {
+      open(employee: unknown, tab?: string): void;
+      saveAssignment(valor: Record<string, unknown>): void;
+    };
+
+    pagina.open({ idEmployee: 'emp-1', documentCount: 0 }, 'assignments');
+    http.match(() => true).forEach((r) => r.flush([]));
+    fixture.detectChanges();
+
+    pagina.saveAssignment({
+      idClient: 'c-1',
+      idService: 's-1',
+      idPosition: 'p-1',
+      assignmentType: 'Primary',
+      startDate: '2026-09-24',
+      isPrimary: true,
+    });
+
+    const alta = http.expectOne(
+      (r) => r.method === 'POST' && r.url === '/api/v1/clients/c-1/services/s-1/assignments',
+    );
+
+    expect(alta.request.body.idEmployee, 'la persona del expediente abierto').toBe('emp-1');
+    expect(alta.request.body.idPosition).toBe('p-1');
+    expect(alta.request.body.isPrimary).toBe(true);
+    alta.flush({ idServiceAssignment: 'sa-1' });
+
+    http.expectOne((r) => r.method === 'GET' && r.url === '/api/v1/employees/emp-1/assignments');
+  });
+
   it('buscar pide la lista una sola vez, no dos por tecla', () => {
     const { fixture, http, empleados, responder, responderLoDemas } = montar();
 

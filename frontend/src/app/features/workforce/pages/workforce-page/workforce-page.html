@@ -239,7 +239,7 @@
               [assignments]="assignments()"
               [loading]="detailLoading()"
               [canWrite]="canWrite()"
-              (assign)="goToServices()"
+              (assign)="openAssign()"
             />
           </ng-template>
 
@@ -300,5 +300,28 @@
     [confirmLabel]="pending.kind === 'leave' ? 'Registrar permiso' : 'Dar de baja'"
     (confirm)="confirmAction()"
     (cancel)="confirming.set(null)"
+  />
+}
+
+<!--
+  El alta de una asignación, sobre el propio expediente.
+  El botón de la pestaña llevaba a otra pantalla —primero a Planeación, luego a Servicios— y las
+  dos veces dejaba a quien lo pulsaba con la persona en la cabeza y un formulario en blanco
+  delante. Se crea con el mismo endpoint y las mismas reglas que en Servicios.
+-->
+@if (selected(); as persona) {
+  <app-employee-assign-dialog
+    [open]="assigning()"
+    [employeeName]="persona.fullName"
+    [clients]="assignClients()"
+    [services]="assignServices()"
+    [positions]="assignPositions()"
+    [operationalToday]="today()"
+    [saving]="savingAssignment()"
+    [problem]="assignProblem()"
+    (clientChange)="loadAssignServices($event)"
+    (serviceChange)="loadAssignPositions($event)"
+    (save)="saveAssignment($event)"
+    (cancel)="closeAssign()"
   />
 }

@@ -2,7 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { Router } from '@angular/router';
 import { forkJoin, of } from 'rxjs';
-import { catchError } from 'rxjs/operators';
+import { catchError, finalize } from 'rxjs/operators';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { SystemInfoService } from '../../../../core/system/system-info.service';
 import {
@@ -19,6 +19,7 @@ import {
   GiTabContent,
   GiTableState,
 } from '../../../../shared/ui/gi-ui';
+import { ClientApiService } from '../../../clients/data-access/client-api.service';
 import { CatalogApiService } from '../../../catalogs/data-access/catalog-api.service';
 import {
   EntityDocumentSaved,
@@ -62,6 +63,7 @@ import {
   EmployeeEvaluationFormValue,
   EmployeeEvaluations,
 } from '../../ui/employee-evaluations';
+import { AssignOption, EmployeeAssignDialog, EmployeeAssignValue } from '../../ui/employee-assign-dialog';
 import { EmployeeAssignments } from '../../ui/employee-assignments';
 import { EmployeeForm, EmployeeFormValue } from '../../ui/employee-form';
 import { EmployeeSkillFormValue, EmployeeSkills } from '../../ui/employee-skills';
@@ -95,6 +97,7 @@ const EMPTY_SUMMARY: EmployeeSummary = {
   selector: 'app-workforce-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    EmployeeAssignDialog,
     EmployeeAssignments,
     EmployeeData,
     EmployeeDocuments,
@@ -122,6 +125,7 @@ export class WorkforcePage {
   private readonly catalogApi = inject(CatalogApiService);
   private readonly systemInfo = inject(SystemInfoService);
   private readonly router = inject(Router);
+  private readonly clientApi = inject(ClientApiService);
 
   /** La organización se hereda de la barra de contexto. Esta pantalla no tiene selector propio. */
   protected readonly organizationId = this.auth.operationalOrganizationId;
@@ -289,6 +293,17 @@ export class WorkforcePage {
   protected readonly administrativeIncidents = signal<readonly AdministrativeIncident[]>([]);
   /** El historial de asignaciones de la persona abierta, con el turno en curso marcado. */
   protected readonly assignments = signal<readonly EmployeeAssignment[]>([]);
+
+  // ── El alta de una asignación, sin salir del expediente ──────────────────────────────────
+
+  protected readonly assigning = signal(false);
+  protected readonly savingAssignment = signal(false);
+  protected readonly assignProblem = signal('');
+  protected readonly assignClients = signal<readonly AssignOption[]>([]);
+  protected readonly assignServices = signal<readonly AssignOption[]>([]);
+  protected readonly assignPositions = signal<readonly AssignOption[]>([]);
+  /** El cliente elegido en la ventana. Las posiciones cuelgan de cliente **y** servicio. */
+  private readonly assignSelectedClient = signal('');
   protected readonly catalogEvaluationCategories = signal<readonly EmployeeJobPositionOption[]>([]);
 
   /** Los niveles de escolaridad, para ver y capturar hasta dónde estudió cada persona. */
@@ -1548,6 +1563,150 @@ export class WorkforcePage {
    */
   protected goToPlanning(): void {
     void this.router.navigate(['/planeacion']);
+  }
+
+  /**
+   * Abrir el alta de una asignación sobre el propio expediente.
+   *
+   * <p>Los clientes se piden al abrir y no al entrar a Personal: son una consulta a otro módulo que
+   * la inmensa mayoría de las visitas a esta pantalla no necesita.</p>
+   */
+  protected openAssign(): void {
+    const organizationId = this.organizationId();
+
+    if (!organizationId || !this.canWrite()) {
+      return;
+    }
+
+    this.assignProblem.set('');
+    this.assignServices.set([]);
+    this.assignPositions.set([]);
+    this.assigning.set(true);
+
+    this.clientApi
+      .listClientOptions(organizationId)
+      .pipe(catchError(() => of({ items: [] as readonly { idClient: string; legalName: string; tradeName: string | null }[] })))
+      .subscribe((page) => {
+        this.assignClients.set(
+          page.items.map((cliente) => ({
+            id: cliente.idClient,
+            // El nombre comercial es con el que se le conoce en la operación; el legal es el de
+            // los papeles. Se enseña el comercial cuando existe, como en el resto de la aplicación.
+            name: cliente.tradeName?.trim() || cliente.legalName,
+          })),
+        );
+      });
+  }
+
+  protected closeAssign(): void {
+    this.assigning.set(false);
+    this.assignProblem.set('');
+  }
+
+  /** Los servicios del cliente elegido. Sólo activos: `listServices` ya los filtra en el servidor. */
+  protected loadAssignServices(idClient: string): void {
+    const organizationId = this.organizationId();
+    this.assignServices.set([]);
+    this.assignPositions.set([]);
+
+    if (!organizationId || !idClient) {
+      return;
+    }
+
+    this.clientApi
+      .listServices(organizationId, idClient)
+      .pipe(catchError(() => of([])))
+      .subscribe((servicios) => {
+        this.assignServices.set(
+          servicios
+            .filter((servicio) => servicio.active)
+            .map((servicio) => ({ id: servicio.idService, name: servicio.name })),
+        );
+        this.assignSelectedClient.set(idClient);
+      });
+  }
+
+  /** Las posiciones del servicio elegido. */
+  protected loadAssignPositions(idService: string): void {
+    const organizationId = this.organizationId();
+    const idClient = this.assignSelectedClient();
+    this.assignPositions.set([]);
+
+    if (!organizationId || !idClient || !idService) {
+      return;
+    }
+
+    this.clientApi
+      .listPositions(organizationId, idClient, idService)
+      .pipe(catchError(() => of([])))
+      .subscribe((posiciones) => {
+        this.assignPositions.set(
+          posiciones
+            .filter((posicion) => posicion.active)
+            .map((posicion) => ({ id: posicion.idPosition, name: `${posicion.codePosition} · ${posicion.name}` })),
+        );
+      });
+  }
+
+  /**
+   * Guardar la asignación.
+   *
+   * <p><b>El mismo endpoint que usa Servicios</b>, con los mismos campos. Lo que esta pantalla no
+   * hace es juzgar la elegibilidad: si la persona no cumple el perfil o le falta un documento, lo
+   * dice el servidor y se enseña su mensaje. Comprobarlo aquí sería una regla de negocio viviendo
+   * en el frontend.</p>
+   */
+  protected saveAssignment(valor: EmployeeAssignValue): void {
+    const organizationId = this.organizationId();
+    const employee = this.selected();
+
+    if (!organizationId || !employee || !this.canWrite()) {
+      return;
+    }
+
+    this.savingAssignment.set(true);
+    this.assignProblem.set('');
+
+    this.clientApi
+      .createAssignment(valor.idClient, valor.idService, {
+        idOrganization: organizationId,
+        idClient: valor.idClient,
+        idService: valor.idService,
+        idPosition: valor.idPosition,
+        idEmployee: employee.idEmployee,
+        assignmentType: valor.assignmentType,
+        startDate: valor.startDate,
+        endDate: null,
+        isPrimary: valor.isPrimary,
+        notes: null,
+      })
+      .pipe(finalize(() => this.savingAssignment.set(false)))
+      .subscribe({
+        next: () => {
+          this.assigning.set(false);
+          this.message.set('La asignación quedó registrada.');
+          // El historial se vuelve a pedir: la fila nueva la arma el servidor, con el nombre del
+          // cliente y del servicio que esta pantalla no tiene.
+          this.loadAssignmentsOf(employee.idEmployee);
+        },
+        error: (error: HttpErrorResponse) =>
+          this.assignProblem.set(
+            readServerProblem(error, 'No se pudo registrar la asignación.').message,
+          ),
+      });
+  }
+
+  private loadAssignmentsOf(idEmployee: string): void {
+    const organizationId = this.organizationId();
+
+    if (!organizationId) {
+      return;
+    }
+
+    this.api
+      .listAssignments(organizationId, idEmployee)
+      .pipe(catchError(() => of([] as readonly EmployeeAssignment[])))
+      .subscribe((asignaciones) => this.assignments.set(asignaciones));
   }
 
   /**

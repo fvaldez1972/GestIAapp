@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
 import { AppIcon } from '../../../shared/ui/app-icon/app-icon';
-import { GiEmptyState } from '../../../shared/ui/gi-ui';
+import { GiEmptyState, GiSelect, GiSelectOption } from '../../../shared/ui/gi-ui';
 import { EligibilityRequirement } from '../../catalogs/data-access/catalog.models';
 import { EmployeeDocument } from '../data-access/workforce.models';
 import {
@@ -33,7 +33,7 @@ import {
 @Component({
   selector: 'app-employee-documents',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [AppIcon, GiEmptyState],
+  imports: [AppIcon, GiEmptyState, GiSelect],
   template: `
     <section class="docs">
       @if (requirements().length === 0) {
@@ -90,6 +90,38 @@ import {
           pestañas ya separan —lo que impide asignar de lo que solo deja constancia—.
         -->
         <!--
+          Buscar y filtrar, arriba y sobre la lista que se mira primero.
+          Vivia entre las dos listas, y ahi no servia: quedaba debajo de los requisitos y encima de
+          los archivos, sin pertenecer del todo a ninguna. Aqui filtra la lista de requisitos, que
+          es lo que la pestaña enseña; el tipo ya lo eligen las propias pestañas, asi que no se
+          repite en un desplegable.
+        -->
+        <div class="filtros">
+          <label class="filtros__campo" for="docs-buscar">
+            <span class="filtros__rotulo">Buscar</span>
+            <input
+              id="docs-buscar"
+              type="search"
+              maxlength="120"
+              placeholder="Nombre del documento"
+              [value]="busqueda()"
+              (input)="busqueda.set($any($event.target).value)"
+            />
+          </label>
+
+          <div class="filtros__campo">
+            <span class="filtros__rotulo">Estado</span>
+            <gi-select
+              label="Estado del requisito"
+              placeholder="Todos"
+              [options]="opcionesDeEstado"
+              [value]="estadoFiltro()"
+              (valueChange)="estadoFiltro.set($any($event))"
+            />
+          </div>
+        </div>
+
+        <!--
           Encabezado de la lista, con la salida a la derecha.
           El boton de «Agregar documento» vivia suelto mas abajo, dentro del expediente de
           archivos, lejos de la lista a la que se le suma algo. Aqui esta donde se mira.
@@ -115,7 +147,7 @@ import {
           }
         </header>
 
-        @let filas = vista() === 'obligatorios' ? obligatorios() : informativos();
+        @let filas = filtradas();
 
         @if (filas.length === 0) {
           <p class="docs__vacio">
@@ -275,6 +307,31 @@ import {
 
     .banda__texto { min-width: 0; }
     .banda__titulo { display: block; font-size: 12.5px; }
+
+    .filtros { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+
+    .filtros__campo { display: flex; flex: 1; flex-direction: column; gap: 0.15rem; min-width: 11rem; }
+
+    .filtros__rotulo {
+      color: var(--gestia-muted);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .filtros__campo input {
+      height: var(--gestia-control-height);
+      padding: 0 0.6rem;
+      border: 1px solid var(--gestia-border);
+      border-radius: var(--gestia-radius);
+      background: var(--gestia-surface);
+      color: var(--gestia-text);
+      font: inherit;
+      font-size: 12.5px;
+    }
+
+    .filtros__campo input:focus-visible { outline: 2px solid var(--gestia-cyan); outline-offset: 1px; }
 
     .seccion {
       display: flex;
@@ -445,6 +502,38 @@ export class EmployeeDocuments {
    * siempre viene a ver si la persona puede trabajar, no a repasar lo informativo.</p>
    */
   protected readonly vista = signal<'obligatorios' | 'informativos'>('obligatorios');
+
+  protected readonly busqueda = signal('');
+  protected readonly estadoFiltro = signal('');
+
+  /** Los estados que una fila puede tener, con la palabra que ya usa la propia fila. */
+  protected readonly opcionesDeEstado: readonly GiSelectOption[] = [
+    { value: '', label: 'Todos' },
+    { value: 'UpToDate', label: 'Al día' },
+    { value: 'Expiring', label: 'Por vencer' },
+    { value: 'Missing', label: 'Sin cargar' },
+    { value: 'Expired', label: 'Vencido' },
+    { value: 'Rejected', label: 'Rechazado' },
+    { value: 'Unvalidated', label: 'Sin validar' },
+  ];
+
+  /**
+   * Las filas de la pestaña que se está mirando, pasadas por el buscador y el estado.
+   *
+   * <p>El tipo no entra aquí: lo eligen las propias pestañas, y repetirlo en un desplegable
+   * dejaría dos controles diciendo lo mismo, con la posibilidad de contradecirse.</p>
+   */
+  protected readonly filtradas = computed(() => {
+    const base = this.vista() === 'obligatorios' ? this.obligatorios() : this.informativos();
+    const texto = this.busqueda().trim().toLowerCase();
+    const estado = this.estadoFiltro();
+
+    return base.filter(
+      (fila) =>
+        (!texto || fila.label.toLowerCase().includes(texto)) &&
+        (!estado || fila.state === estado),
+    );
+  });
 
   protected elegirVista(cual: 'obligatorios' | 'informativos'): void {
     this.vista.set(cual);

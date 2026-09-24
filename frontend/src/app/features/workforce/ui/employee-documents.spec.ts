@@ -56,6 +56,10 @@ function montar(configurar: (host: Anfitrion) => void = () => {}) {
     fixture,
     raiz,
     host: fixture.componentInstance,
+    componente: fixture.debugElement.children[0].componentInstance as unknown as {
+      busqueda: { set(valor: string): void };
+      estadoFiltro: { set(valor: string): void };
+    },
     filas: () => Array.from(raiz.querySelectorAll<HTMLElement>('.req')),
     acciones: () =>
       Array.from(raiz.querySelectorAll<HTMLButtonElement>('.req__accion')).map((b) =>
@@ -96,6 +100,49 @@ describe('La pestaña de documentos', () => {
    * las fechas de vencimiento y las frases que las explicaban. Lo que queda es qué pasa si falta un
    * obligatorio, que es la razón por la que la lista existe.</p>
    */
+  /**
+   * <b>Buscar y filtrar, arriba y sobre la lista que se mira primero.</b>
+   *
+   * <p>La barra vivía entre las dos listas —debajo de los requisitos y encima de los archivos—, y
+   * ahí no servía: no pertenecía del todo a ninguna. Ahora filtra la lista de requisitos, que es
+   * lo que la pestaña enseña.</p>
+   *
+   * <p>Las tres afirmaciones se necesitan: que el buscador acote, que el estado acote, y que sin
+   * nada puesto no se acote nada. Sin la tercera, «filtra» se cumpliría igual si la lista se
+   * hubiera quedado vacía por cualquier otro motivo.</p>
+   */
+  it('el buscador y el estado acotan la lista de requisitos', () => {
+    const { raiz, fixture, componente } = montar((host) =>
+      host.categorias.set([
+        { idCatalogItem: 'cat-antecedentes', name: 'Constancia de antecedentes', isRequired: true },
+        { idCatalogItem: 'cat-domicilio', name: 'Comprobante de domicilio', isRequired: true },
+        { idCatalogItem: 'cat-militar', name: 'Cartilla militar', isRequired: true },
+      ]),
+    );
+
+    expect(raiz.querySelectorAll('.req').length).toBe(3);
+
+    componente.busqueda.set('cartilla');
+    fixture.detectChanges();
+    expect(raiz.querySelectorAll('.req').length).toBe(1);
+
+    // Los tres están sin cargar, así que el estado se comprueba con los dos extremos: el que los
+    // tiene todos y uno que no tiene ninguno. Con un solo valor no se distinguiría filtrar de no
+    // filtrar.
+    componente.busqueda.set('');
+    componente.estadoFiltro.set('Missing');
+    fixture.detectChanges();
+    expect(raiz.querySelectorAll('.req').length).toBe(3);
+
+    componente.estadoFiltro.set('UpToDate');
+    fixture.detectChanges();
+    expect(raiz.querySelectorAll('.req').length).toBe(0);
+
+    componente.estadoFiltro.set('');
+    fixture.detectChanges();
+    expect(raiz.querySelectorAll('.req').length).toBe(3);
+  });
+
   /**
    * <b>La lista sale del catálogo, no de las reglas de elegibilidad.</b>
    *

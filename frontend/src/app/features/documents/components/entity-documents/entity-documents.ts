@@ -110,6 +110,9 @@ export class EntityDocuments implements OnDestroy {
    */
   readonly onlyCategories = input<readonly string[]>([]);
 
+  /** Si dibuja su propia barra de buscar y filtrar. Personal la apaga: la tiene arriba. */
+  readonly showFilters = input(true);
+
   /** Los tipos obligatorios y los informativos, para el filtro del desplegable. */
   readonly requiredCategories = input<readonly string[]>([]);
 

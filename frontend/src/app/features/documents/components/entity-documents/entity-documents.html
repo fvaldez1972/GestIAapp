@@ -36,7 +36,11 @@
   } @else if (!validContext()) {
     <p class="gi-empty-state" role="status">Guarda la entidad para consultar sus documentos.</p>
   } @else {
-    @if (mode() !== 'create' && mode() !== 'edit') {
+    <!--
+      La barra de filtros se apaga en Personal: alli vive arriba, debajo de las pestañas, porque
+      entre las dos listas no servia de nada —quedaba lejos de lo que se mira primero—.
+    -->
+    @if (showFilters() && mode() !== 'create' && mode() !== 'edit') {
     <form class="entity-filters" [formGroup]="filters" (ngSubmit)="applyFilters()">
       <label class="gi-field"><span>Buscar</span><input class="gi-input" type="search" formControlName="search" maxlength="180" /></label>
       <label class="gi-field"><span>Estado</span>

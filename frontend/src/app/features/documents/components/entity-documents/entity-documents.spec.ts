@@ -496,6 +496,27 @@ describe('EntityDocuments', () => {
   });
 
   /**
+   * <b>Personal apaga esta barra porque la tiene arriba.</b>
+   *
+   * <p>Vivía entre las dos listas —debajo de los requisitos y encima de los archivos— y ahí no
+   * servía: no pertenecía del todo a ninguna. La segunda mitad es el control: en las demás
+   * pantallas este componente vive solo y la barra es su única forma de buscar.</p>
+   */
+  it('con showFilters apagado no dibuja su barra de filtros, y encendido sí', () => {
+    flushList();
+
+    fixture.componentRef.setInput('showFilters', false);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.entity-filters')).toBeNull();
+
+    fixture.componentRef.setInput('showFilters', true);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.entity-filters')).not.toBeNull();
+  });
+
+  /**
    * <b>La lista se queda con los tipos que le digan.</b>
    *
    * <p>Personal la usa para que el expediente siga a la pestaña: enseñaba los archivos de los dos

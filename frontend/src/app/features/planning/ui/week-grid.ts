@@ -31,15 +31,15 @@ const ABREVIATURA: Record<string, string> = {
 /**
  * Cada estado con la palabra que lo nombra. El color va con la palabra, nunca solo.
  *
- * <p><b>Las notas dicen que significa el estado, no como se calcula.</b> «Falta gente» llevaba
- * «asignados &lt; requeridos», que es la formula de adentro y no le dice nada a quien planea; sin
- * nota, la palabra se explica sola. «Sin turno» llevaba «el patron no declara segmento ese dia»,
- * que nombra la causa tecnica; ahora dice <b>No requiere cobertura</b>, que es la consecuencia y es
+ * <p><b>Las notas dicen qué significa el estado, no cómo se calcula.</b> «Falta gente» llevaba
+ * «asignados &lt; requeridos», que es la fórmula de adentro y no le dice nada a quien planea; sin
+ * nota, la palabra se explica sola. «Sin turno» llevaba «el patrón no declara segmento ese día»,
+ * que nombra la causa técnica; ahora dice <b>No requiere cobertura</b>, que es la consecuencia y es
  * lo que hay que saber para decidir.</p>
  *
- * <p><b>«Sin declarar» salio de la leyenda el 24 de septiembre de 2026, por peticion.</b> La celda
- * sigue diciendolo y sigue teniendo su color: lo que se retira es el renglon que lo explicaba
- * abajo. Si vuelve a hacer falta, es una linea.</p>
+ * <p><b>«Sin declarar» salió de la leyenda el 24 de septiembre de 2026, por petición.</b> La celda
+ * sigue diciéndolo y sigue teniendo su color: lo que se retiró es el renglón que lo explicaba
+ * abajo. Si vuelve a hacer falta, es una línea.</p>
  */
 const LEYENDA = [
   { kind: 'covered', texto: 'Turno cubierto', nota: '' },
@@ -55,8 +55,19 @@ const LEYENDA = [
  * la vista: es lo que el modelo puede expresar. Cuando exista el patrón con ancla, un ciclo de tres
  * o seis días necesitará otra rejilla, y este componente no la va a fingir mientras tanto.</p>
  *
- * <p>La leyenda no es decorativa: es lo que hace que los cuatro estados se distingan sin color, y
- * por eso va dentro de la rejilla y no en un anexo que nadie abre.</p>
+ * <p><b>La cabecera dice cómo está la semana antes de que nadie lea una celda.</b> Con tres
+ * posiciones son veintiuna celdas, y saber si hay algo que resolver exigía recorrerlas una por
+ * una. El vistazo cuenta cada estado y sólo nombra los que existen: una semana sin huecos no
+ * enseña un cero, porque un cero también ocupa sitio y no dice nada.</p>
+ *
+ * <p><b>La acción de proyectar vive aquí</b>, en la cabecera de lo que modifica, y no en un aviso
+ * suelto debajo de la rejilla. Quedó huérfana el 24 de septiembre de 2026 al retirarse el texto
+ * que la presentaba: un enlace subrayado dentro de un recuadro vacío.</p>
+ *
+ * <p>La leyenda no es decorativa: es lo que hace que los estados se distingan sin color. Sus
+ * muestras eran cuadrados con borde, que a ese tamaño se leen como <b>casillas sin marcar</b>;
+ * ahora cada estado se enseña con su propia palabra pintada como la celda, que es lo que hay que
+ * reconocer en la rejilla.</p>
  */
 @Component({
   selector: 'app-week-grid',
@@ -67,6 +78,23 @@ const LEYENDA = [
       <header class="rejilla__head">
         <span class="rejilla__title">PROYECCIÓN DE LA SEMANA</span>
         <span class="rejilla__range">{{ rangeLabel() }}</span>
+
+        <span class="rejilla__vistazo">
+          @for (conteo of vistazo(); track conteo.kind) {
+            <span class="rejilla__conteo" [attr.data-kind]="conteo.kind">{{ conteo.texto }}</span>
+          }
+        </span>
+
+        @if (canProject()) {
+          <button
+            class="rejilla__accion"
+            type="button"
+            [disabled]="busy()"
+            (click)="project.emit()"
+          >
+            Proyectar desde los patrones
+          </button>
+        }
       </header>
 
       @if (rows().length === 0) {
@@ -96,10 +124,8 @@ const LEYENDA = [
         }
 
         <div class="rejilla__leyenda">
-          <span class="rejilla__title">LEYENDA</span>
           @for (item of leyenda; track item.kind) {
-            <span class="rejilla__item">
-              <span class="rejilla__muestra" [class]="'rejilla__muestra--' + item.kind"></span>
+            <span class="rejilla__item" [attr.data-kind]="item.kind">
               <span class="rejilla__texto">{{ item.texto }}</span>
               @if (item.nota) {
                 <span class="rejilla__nota">{{ item.nota }}</span>
@@ -122,20 +148,51 @@ const LEYENDA = [
 
     .rejilla__head {
       display: flex;
-      justify-content: space-between;
       align-items: center;
-      gap: 0.75rem;
-      padding: 0.65rem 0.85rem;
+      gap: 0.6rem;
+      padding: 0.5rem 0.75rem;
       border-bottom: 1px solid var(--gestia-border);
       background: var(--gestia-surface-soft);
     }
 
     .rejilla__title { color: var(--gestia-muted); font-size: 10.5px; font-weight: 600; letter-spacing: 0.07em; }
-    .rejilla__range { color: var(--gestia-muted); font-size: 11.5px; }
+    .rejilla__range { color: var(--gestia-muted); font-size: 11px; }
+
+    /* El vistazo empuja a la acción al extremo contrario y se queda pegado al rango que resume. */
+    .rejilla__vistazo { display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; margin-right: auto; }
+
+    .rejilla__conteo {
+      border-radius: var(--gestia-radius-pill);
+      padding: 0.05rem 0.4rem;
+      font-size: 10.5px;
+      font-weight: 600;
+    }
+
+    .rejilla__conteo[data-kind='covered'] { background: var(--gestia-success-soft); color: var(--gestia-success); }
+    .rejilla__conteo[data-kind='short'] { background: var(--gestia-danger-soft); color: var(--gestia-danger); }
+    .rejilla__conteo[data-kind='undeclared'] { background: var(--gestia-warning-soft); color: var(--gestia-warning); }
+
+    .rejilla__accion {
+      flex: none;
+      height: var(--gestia-control-height);
+      padding: 0 0.75rem;
+      border: 1px solid var(--gestia-border);
+      border-radius: var(--gestia-radius);
+      background: var(--gestia-surface);
+      color: var(--gestia-navy);
+      font: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .rejilla__accion:hover { border-color: var(--gestia-cyan-dark); }
+    .rejilla__accion[disabled] { opacity: 0.5; cursor: not-allowed; }
+    .rejilla__accion:focus-visible { outline: 2px solid var(--gestia-cyan); outline-offset: 1px; }
 
     .rejilla__dias {
       display: grid;
-      grid-template-columns: 14.5rem repeat(var(--dias), minmax(0, 1fr));
+      grid-template-columns: 13rem repeat(var(--dias), minmax(0, 1fr));
       border-bottom: 1px solid var(--gestia-border);
       background: var(--gestia-surface-soft);
     }
@@ -143,7 +200,7 @@ const LEYENDA = [
     .rejilla__hueco { border-right: 1px solid var(--gestia-border); }
 
     .rejilla__dia {
-      padding: 0.55rem 0.5rem;
+      padding: 0.4rem 0.5rem;
       color: var(--gestia-muted);
       font-size: 11px;
       font-weight: 600;
@@ -156,27 +213,38 @@ const LEYENDA = [
     .rejilla__leyenda {
       display: flex;
       align-items: center;
-      gap: 1.1rem;
+      gap: 0.75rem;
       flex-wrap: wrap;
-      padding: 0.75rem 0.85rem;
+      padding: 0.5rem 0.75rem;
+      background: var(--gestia-surface-soft);
     }
 
-    .rejilla__item { display: flex; align-items: center; gap: 0.4rem; }
+    .rejilla__item { display: flex; align-items: center; gap: 0.35rem; }
 
-    .rejilla__muestra {
-      width: 0.9rem;
-      height: 0.9rem;
-      border: 1px solid var(--gestia-border);
+    /* Cada palabra pintada como su celda: la muestra es el propio nombre del estado, y no un
+       cuadrito al lado que a este tamaño se leía como una casilla de formulario. */
+    .rejilla__texto {
+      border: 1px solid transparent;
       border-radius: var(--gestia-radius-pill);
-      background: var(--gestia-surface);
+      padding: 0.05rem 0.4rem;
+      font-size: 10.5px;
+      font-weight: 600;
     }
 
-    .rejilla__muestra--short { border-color: var(--gestia-danger); }
-    .rejilla__muestra--undeclared { border-color: var(--gestia-warning); }
-    .rejilla__muestra--noShift { background: var(--gestia-surface-soft); }
+    .rejilla__item[data-kind='covered'] .rejilla__texto {
+      border-color: var(--gestia-border);
+      background: var(--gestia-surface);
+      color: var(--gestia-text);
+    }
 
-    .rejilla__texto { color: var(--gestia-text); font-size: 11.5px; font-weight: 500; }
-    .rejilla__nota { color: var(--gestia-muted); font-size: 11.5px; }
+    .rejilla__item[data-kind='short'] .rejilla__texto {
+      background: var(--gestia-danger-soft);
+      color: var(--gestia-danger);
+    }
+
+    .rejilla__item[data-kind='noShift'] .rejilla__texto { color: var(--gestia-muted); font-weight: 400; }
+
+    .rejilla__nota { color: var(--gestia-muted); font-size: 10.5px; }
   `,
 })
 export class WeekGrid implements OnInit {
@@ -185,8 +253,14 @@ export class WeekGrid implements OnInit {
   readonly highlightDate = input('');
   readonly emptyActionLabel = input('Crear la primera posición');
 
+  /** Si se ofrece proyectar la semana desde los patrones de las posiciones. */
+  readonly canProject = input(false);
+  /** Hay una escritura en vuelo: la acción se apaga para no mandarla dos veces. */
+  readonly busy = input(false);
+
   readonly createPosition = output<void>();
   readonly cellSelect = output<PlanningCellPick>();
+  readonly project = output<void>();
 
   protected readonly leyenda = LEYENDA;
 
@@ -204,6 +278,33 @@ export class WeekGrid implements OnInit {
     const posiciones = this.rows().length;
 
     return `${posiciones} ${posiciones === 1 ? 'posición' : 'posiciones'} · ${formatOperationalDate(days[0])} – ${formatOperationalDate(days[days.length - 1])}`;
+  });
+
+  /**
+   * Cómo está la semana, contando celdas.
+   *
+   * <p><b>Un estado con cero celdas no se nombra.</b> Un «0 con falta» ocupa el mismo sitio que un
+   * «2 con falta» y obliga a leer el número para saber que no hay nada que hacer; callarlo deja
+   * que lo que sí existe se vea de lejos.</p>
+   *
+   * <p><b>«Sin turno» no se cuenta.</b> Es el estado que no pide nada de nadie, y en una semana
+   * normal es la mayoría de las celdas: contarlo pondría el número más grande junto a los dos que
+   * de verdad hay que mirar.</p>
+   */
+  protected readonly vistazo = computed(() => {
+    const celdas = this.rows().flatMap((row) => row.cells);
+
+    const cuenta = (kind: PlanningCell['kind']) => celdas.filter((cell) => cell.kind === kind).length;
+
+    const cubiertos = cuenta('covered');
+    const conFalta = cuenta('short');
+    const sinDeclarar = cuenta('undeclared');
+
+    return [
+      { kind: 'covered', n: cubiertos, texto: `${cubiertos} ${cubiertos === 1 ? 'cubierto' : 'cubiertos'}` },
+      { kind: 'short', n: conFalta, texto: `${conFalta} con falta` },
+      { kind: 'undeclared', n: sinDeclarar, texto: `${sinDeclarar} sin declarar` },
+    ].filter((conteo) => conteo.n > 0);
   });
 
   protected diaCorto(isoDate: string): string {

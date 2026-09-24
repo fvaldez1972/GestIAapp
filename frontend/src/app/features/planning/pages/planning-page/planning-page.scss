@@ -20,16 +20,9 @@
 
 .planeacion__hero {
   display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.planeacion__eyebrow {
-  margin: 0;
-  color: var(--gestia-muted);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.1em;
+  align-items: baseline;
+  gap: 0.6rem;
+  flex-wrap: wrap;
 }
 
 .planeacion__titulo {
@@ -42,7 +35,7 @@
 .planeacion__ayuda {
   margin: 0;
   color: var(--gestia-muted);
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .planeacion__aviso {
@@ -57,16 +50,13 @@
 .planeacion__aviso--ok { border-left: 3px solid var(--gestia-success); }
 .planeacion__aviso--mal { border-left: 3px solid var(--gestia-danger); }
 
-/* Los conflictos y la publicación se leen juntos: qué falta, y qué pasa si se publica igual. */
+/* Los conflictos y la publicación son un solo acto, así que son una sola tarjeta: la lista
+   arriba, y al pie lo que se va a publicar con su botón. */
 .planeacion__cierre {
-  display: grid;
-  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
-  gap: var(--gestia-page-gap);
-  align-items: start;
-}
-
-@media (max-width: 60rem) {
-  .planeacion__cierre { grid-template-columns: minmax(0, 1fr); }
+  border: 1px solid var(--gestia-border);
+  border-radius: var(--gestia-radius);
+  background: var(--gestia-surface);
+  overflow: hidden;
 }
 
 .planeacion__datos {

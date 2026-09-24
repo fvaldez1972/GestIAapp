@@ -1,6 +1,10 @@
 <section class="planeacion">
+<!--
+    El titulo y su frase, en un renglon. Encima de esta cabecera el armazon ya dibuja
+    «OPERACION / PLANEACION / Planeacion», asi que el rotulo «PLANEACION» que habia aqui era la
+    tercera vez que la pantalla decia su propio nombre antes de ensenar un dato.
+  -->
   <header class="planeacion__hero">
-    <p class="planeacion__eyebrow">PLANEACIÓN</p>
     <h1 class="planeacion__titulo">Planeación</h1>
     <p class="planeacion__ayuda">
       La semana que se publica es contra la que Asistencia mide y sobre la que Cobertura resuelve.
@@ -55,29 +59,29 @@
       </ul>
     }
 
+    <!--
+      Proyectar la semana se ofrece desde la cabecera de la rejilla, que es lo que modifica. Vivia
+      en un aviso suelto debajo, y al retirarse el texto que lo presentaba quedo un enlace
+      subrayado solo dentro de un recuadro vacio.
+    -->
     <app-week-grid
       [rows]="rows()"
       [days]="days()"
       [highlightDate]="date()"
+      [canProject]="canWrite() && shiftCount() === 0 && rows().length > 0"
+      [busy]="saving()"
       (createPosition)="openNewPosition()"
       (cellSelect)="onCellSelect($event)"
+      (project)="prepareWeek()"
     />
 
-    @if (canWrite() && shiftCount() === 0 && rows().length > 0) {
-      <!--
-        Queda la accion sola, sin la frase que la presentaba. El boton se conserva porque es el
-        unico sitio de la aplicacion desde donde se llama a `prepareWeek()`: quitarlo con el texto
-        habria dejado la semana sin forma de proyectarse desde los patrones.
-      -->
-      <p class="planeacion__aviso planeacion__aviso--ok">
-        <button class="planeacion__accion" type="button" [disabled]="saving()" (click)="prepareWeek()">
-          Proyectar desde los patrones
-        </button>
-      </p>
-    }
-
+    <!--
+      Una sola tarjeta para el cierre. Eran dos, lado a lado, y decian lo mismo dos veces: «2
+      impiden publicar · 1 aviso» a la izquierda y «2 cosas lo impiden» a la derecha, con medio
+      metro de blanco debajo de la segunda. Lo que falta y el boton de publicar son un solo acto.
+    -->
     <div class="planeacion__cierre">
-      <app-conflict-list [conflicts]="conflicts()" />
+      <app-conflict-list [conflicts]="conflicts()" [flat]="true" />
 
       <app-publish-panel
         [weekStart]="weekStart()"
@@ -87,6 +91,7 @@
         [conflicts]="conflicts()"
         [canWrite]="canWrite()"
         [publishedLabel]="publishedLabel()"
+        [flat]="true"
         (publish)="publish()"
       />
     </div>

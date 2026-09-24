@@ -48,8 +48,11 @@ const SEMANA_NORMAL = fila([
       [rows]="rows()"
       [days]="days()"
       [highlightDate]="highlightDate()"
+      [canProject]="canProject()"
+      [busy]="busy()"
       (createPosition)="creaciones.set(creaciones() + 1)"
       (cellSelect)="elegidas.set([...elegidas(), $event.idPosition + '@' + $event.cell.date])"
+      (project)="proyecciones.set(proyecciones() + 1)"
     />
   `,
 })
@@ -57,8 +60,11 @@ class Anfitrion {
   readonly rows = signal<readonly PlanningRow[]>([SEMANA_NORMAL]);
   readonly days = signal<readonly string[]>(DIAS);
   readonly highlightDate = signal('');
+  readonly canProject = signal(false);
+  readonly busy = signal(false);
   readonly creaciones = signal(0);
   readonly elegidas = signal<string[]>([]);
+  readonly proyecciones = signal(0);
 }
 
 function montar(configurar: (host: Anfitrion) => void = () => {}) {
@@ -76,6 +82,8 @@ function montar(configurar: (host: Anfitrion) => void = () => {}) {
     celdas: () => Array.from(raiz.querySelectorAll<HTMLButtonElement>('.celda')),
     leyenda: () => Array.from(raiz.querySelectorAll('.rejilla__texto')).map((t) => t.textContent?.trim()),
     notas: () => Array.from(raiz.querySelectorAll('.rejilla__nota')).map((n) => n.textContent?.trim()),
+    conteos: () => Array.from(raiz.querySelectorAll('.rejilla__conteo')).map((c) => c.textContent?.trim()),
+    proyectar: () => raiz.querySelector<HTMLButtonElement>('.rejilla__accion'),
   };
 }
 
@@ -84,6 +92,38 @@ describe('WeekGrid', () => {
     const { dias } = montar();
 
     expect(dias()).toEqual(['LUN 07', 'MAR 08', 'MIÉ 09', 'JUE 10', 'VIE 11', 'SÁB 12', 'DOM 13']);
+  });
+
+  /**
+   * Con tres posiciones son veintiuna celdas, y saber si hay algo que resolver exigía recorrerlas
+   * una por una. Las dos mitades se necesitan: sin la segunda, «no enseña sin declarar» se
+   * cumpliría igual si el vistazo no supiera contarlo.
+   */
+  it('la cabecera cuenta los estados que existen y calla los que no', () => {
+    expect(montar().conteos()).toEqual(['4 cubiertos', '1 con falta']);
+
+    const sinDeclarar = montar((h) =>
+      h.rows.set([fila(['undeclared', 'undeclared', 'undeclared', 'undeclared', 'undeclared', 'undeclared', 'undeclared'])]),
+    );
+
+    expect(sinDeclarar.conteos()).toEqual(['7 sin declarar']);
+  });
+
+  /**
+   * Proyectar vive en la cabecera de lo que modifica. Antes vivía en un aviso suelto debajo de la
+   * rejilla, y al retirarse el texto que lo presentaba quedó un enlace subrayado dentro de un
+   * recuadro vacío.
+   */
+  it('ofrece proyectar sólo cuando la pantalla lo permite, y no dos veces', () => {
+    expect(montar().proyectar()).toBeNull();
+
+    const { proyectar, host } = montar((h) => h.canProject.set(true));
+
+    proyectar()!.click();
+    expect(host.proyecciones()).toBe(1);
+
+    host.busy.set(true);
+    expect(montar((h) => { h.canProject.set(true); h.busy.set(true); }).proyectar()!.disabled).toBe(true);
   });
 
   it('resume cuántas posiciones y qué rango se está viendo', () => {
@@ -119,6 +159,19 @@ describe('WeekGrid', () => {
     expect(notas()).toEqual(['No requiere cobertura']);
     expect(raiz.textContent).not.toContain('asignados <');
     expect(raiz.textContent).not.toContain('declara segmento');
+  });
+
+  /**
+   * La muestra de cada estado era un cuadrado de 0.9 rem con borde, y a ese tamaño se lee como una
+   * casilla de formulario sin marcar. Ahora la muestra es la palabra misma, pintada como la celda.
+   * La segunda mitad es el control: sin ella, «no hay muestras» se cumpliría igual si la leyenda
+   * hubiera desaparecido entera.
+   */
+  it('la leyenda no dibuja cuadritos que parezcan casillas', () => {
+    const { raiz, leyenda } = montar();
+
+    expect(raiz.querySelector('.rejilla__muestra')).toBeNull();
+    expect(leyenda()).toEqual(['Turno cubierto', 'Falta gente', 'Sin turno']);
   });
 
   /**

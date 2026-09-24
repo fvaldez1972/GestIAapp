@@ -21,20 +21,32 @@ import { PlanningConflict } from '../data-access/planning.models';
   selector: 'app-publish-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <section class="pub">
-      <header class="pub__head">
-        <span class="pub__title">AL PUBLICAR</span>
-        @if (publishedLabel()) {
-          <span class="pub__estado">{{ publishedLabel() }}</span>
-        }
-      </header>
+    <section class="pub" [class.pub--flat]="flat()">
+      @if (!flat()) {
+        <header class="pub__head">
+          <span class="pub__title">AL PUBLICAR</span>
+          @if (publishedLabel()) {
+            <span class="pub__estado">{{ publishedLabel() }}</span>
+          }
+        </header>
+      }
 
       <div class="pub__cuerpo">
-        <p class="pub__resumen">{{ resumen() }}</p>
+        <div class="pub__texto">
+          <p class="pub__resumen">{{ resumen() }}</p>
 
-        @if (razon()) {
-          <p class="pub__porque" id="pub-porque">{{ razon() }}</p>
-        }
+          <!--
+            Plano, la versión publicada se dice aquí: la cabecera que la llevaba no se dibuja, y
+            perderla dejaría la pantalla sin decir contra qué versión se está comparando.
+          -->
+          @if (flat() && publishedLabel()) {
+            <span class="pub__estado">{{ publishedLabel() }}</span>
+          }
+
+          @if (razon()) {
+            <p class="pub__porque" id="pub-porque">{{ razon() }}</p>
+          }
+        </div>
 
         <div class="pub__acciones">
           <button
@@ -60,6 +72,26 @@ import { PlanningConflict } from '../data-access/planning.models';
       overflow: hidden;
     }
 
+    /* Plano es el pie de la tarjeta de cierre: sin contorno propio y con el botón a la derecha
+       del resumen, en un renglón, en vez de una columna con el botón debajo. */
+    .pub--flat {
+      border: none;
+      border-radius: 0;
+      border-top: 1px solid var(--gestia-border);
+      background: var(--gestia-surface-soft);
+    }
+
+    .pub--flat .pub__cuerpo {
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      padding: 0.6rem 0.85rem;
+    }
+
+    .pub--flat .pub__acciones { padding-top: 0; }
+
     .pub__head {
       display: flex;
       justify-content: space-between;
@@ -74,6 +106,8 @@ import { PlanningConflict } from '../data-access/planning.models';
     .pub__estado { color: var(--gestia-muted); font-size: 11.5px; }
 
     .pub__cuerpo { display: flex; flex-direction: column; gap: 0.5rem; padding: 0.85rem; }
+
+    .pub__texto { display: flex; flex-direction: column; gap: 0.3rem; min-width: 0; }
 
     .pub__resumen { margin: 0; color: var(--gestia-text); font-size: 12.5px; font-weight: 600; }
 
@@ -118,6 +152,9 @@ export class PublishPanel implements OnInit {
   /** Qué versión está publicada hoy, si hay alguna. Vacío significa que nadie ha publicado. */
   readonly publishedLabel = input('');
 
+  /** Sin contorno propio y en un renglón, para usarlo como pie de la tarjeta de cierre. */
+  readonly flat = input(false);
+
   readonly publish = output<void>();
 
   protected readonly resumen = computed(() => {
@@ -153,10 +190,7 @@ export class PublishPanel implements OnInit {
       return `No se puede publicar todavía: ${bloqueantes[0].title.toLowerCase()}.`;
     }
 
-    return (
-      `No se puede publicar todavía. ${bloqueantes.length} cosas lo impiden, y están arriba con ` +
-      'lo que hay que hacer en cada una.'
-    );
+    return `No se puede publicar todavía: ${bloqueantes.length} cosas lo impiden, y están en la lista de arriba.`;
   });
 
   ngOnInit(): void {

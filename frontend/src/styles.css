@@ -23,6 +23,14 @@
   --gestia-warning: #d97706;
   --gestia-danger: #dc2626;
   --gestia-info: #0284c7;
+  /* Los tres rellenos suaves de los estados, hermanos de --gestia-cyan-soft.
+     Existen porque una rejilla de estados dibujada solo con contornos pinta todas las celdas con
+     el mismo peso: la que hay que resolver grita igual que la que no pide nada. El relleno deja
+     que el color diga la jerarquia y el contorno deje de hacerlo. Viven aqui, con el resto de la
+     paleta, y no dentro de un componente: ahi serian un color decidido por cuenta propia. */
+  --gestia-success-soft: #e9f7ef;
+  --gestia-warning-soft: #fdf1e3;
+  --gestia-danger-soft: #fdecec;
   --gestia-sidebar-width: 17rem;
   --gestia-sidebar-condensed-width: 5rem;
   --gestia-topbar-height: 4.5rem;

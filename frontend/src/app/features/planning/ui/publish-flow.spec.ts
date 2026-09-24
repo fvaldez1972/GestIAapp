@@ -29,10 +29,11 @@ const CON_DETALLE: PlanningConflict = {
 
 @Component({
   imports: [ConflictList],
-  template: `<app-conflict-list [conflicts]="conflicts()" />`,
+  template: `<app-conflict-list [conflicts]="conflicts()" [flat]="flat()" />`,
 })
 class AnfitrionLista {
   readonly conflicts = signal<readonly PlanningConflict[]>([]);
+  readonly flat = signal(false);
 }
 
 @Component({
@@ -46,6 +47,7 @@ class AnfitrionLista {
       [conflicts]="conflicts()"
       [canWrite]="canWrite()"
       [publishedLabel]="publishedLabel()"
+      [flat]="flat()"
       (publish)="publicaciones.set(publicaciones() + 1)"
     />
   `,
@@ -58,12 +60,14 @@ class AnfitrionPanel {
   readonly conflicts = signal<readonly PlanningConflict[]>([]);
   readonly canWrite = signal(true);
   readonly publishedLabel = signal('');
+  readonly flat = signal(false);
   readonly publicaciones = signal(0);
 }
 
-function lista(conflicts: readonly PlanningConflict[]) {
+function lista(conflicts: readonly PlanningConflict[], flat = false) {
   const fixture = TestBed.createComponent(AnfitrionLista);
   fixture.componentInstance.conflicts.set(conflicts);
+  fixture.componentInstance.flat.set(flat);
   fixture.detectChanges();
 
   const raiz: HTMLElement = fixture.nativeElement;
@@ -127,6 +131,16 @@ describe('ConflictList', () => {
     expect(lista([CON_DETALLE]).detalles()).toEqual([CON_DETALLE.detail]);
   });
 
+  /**
+   * En Planeación el listado y el botón de publicar viven en una sola tarjeta: eran dos recuadros
+   * pegados, uno diciendo «2 impiden publicar» y el otro «2 cosas lo impiden». Plano, el listado
+   * renuncia a su contorno para no dibujar una frontera donde no la hay.
+   */
+  it('plano renuncia a su propio contorno, y sólo plano', () => {
+    expect(lista([BLOQUEA], true).raiz.querySelector('.conf--flat')).not.toBeNull();
+    expect(lista([BLOQUEA]).raiz.querySelector('.conf--flat')).toBeNull();
+  });
+
   /** Un cero aquí es información: se revisó y salió limpia, que no es lo mismo que no revisarla. */
   it('sin nada que revisar lo dice como un cero real', () => {
     const { raiz, resumen } = lista([]);
@@ -184,7 +198,7 @@ describe('PublishPanel', () => {
     const { porque } = panel((h) => h.conflicts.set([BLOQUEA, { ...BLOQUEA, id: 'otro' }]));
 
     expect(porque()).toContain('2 cosas lo impiden');
-    expect(porque()).toContain('están arriba');
+    expect(porque()).toContain('en la lista de arriba');
   });
 
   it('los avisos que no bloquean no apagan el botón', () => {
@@ -215,6 +229,23 @@ describe('PublishPanel', () => {
       'versión 2, publicada 07 sep 2026',
     );
     expect(boton().textContent!.trim()).toBe('Publicar una versión nueva');
+  });
+
+  /**
+   * Plano no dibuja la cabecera, y la cabecera era quien decía qué versión está publicada. Esta
+   * prueba existe porque perderla dejaría la pantalla sin decir contra qué se está comparando, y
+   * eso no se nota mirando: se nota cuando alguien publica una versión creyendo que es la primera.
+   */
+  it('plano se queda sin cabecera pero no sin la versión publicada', () => {
+    const { raiz } = panel((h) => {
+      h.flat.set(true);
+      h.publishedLabel.set('versión 2, publicada 07 sep 2026');
+    });
+
+    expect(raiz.querySelector('.pub__head')).toBeNull();
+    expect(raiz.querySelector('.pub__estado')!.textContent!.trim()).toBe(
+      'versión 2, publicada 07 sep 2026',
+    );
   });
 
   it('rompe en desarrollo si no sabe qué semana publica', () => {

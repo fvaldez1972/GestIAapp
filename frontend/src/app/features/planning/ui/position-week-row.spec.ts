@@ -119,11 +119,55 @@ describe('PositionWeekRow', () => {
     expect(textos()[2]).not.toContain('Descanso');
   });
 
-  it('una posición sin nada declarado deja la duda a la vista', () => {
-    const { textos } = montar();
+  /**
+   * La duda se dice una vez por fila, no siete veces por celda. «Turno o descanso» debajo de cada
+   * celda sin declarar gastaba siete renglones en repetir lo mismo; ahora lo dice la insignia de
+   * la fila. Lo que no puede perderse es la duda para quien no ve la rejilla, y por eso la tercera
+   * afirmación es la que sostiene a las otras dos.
+   */
+  it('una posición sin nada declarado deja la duda a la vista, sin repetirla siete veces', () => {
+    const { textos, raiz, celdas } = montar();
 
-    expect(textos()[3]).toContain('Sin declarar');
-    expect(textos()[3]).toContain('Turno o descanso');
+    expect(textos()[3]).toBe('Sin declarar');
+    expect(raiz.textContent).not.toContain('Turno o descanso');
+    expect(celdas()[3].getAttribute('aria-label')).toContain('no se sabe si es turno o descanso');
+  });
+
+  /**
+   * <b>Las dos mitades se necesitan.</b> Sin la segunda, «se apagan» se cumpliría igual si las
+   * celdas sin declarar hubieran perdido su color en todas partes, y con ello se perdería el
+   * único día distinto de una fila que declara seis y deja uno sin declarar.
+   */
+  it('una fila entera sin declarar apaga sus celdas; una suelta conserva su color', () => {
+    const todas = montar((h) =>
+      h.row.set(fila(['undeclared', 'undeclared', 'undeclared', 'undeclared', 'undeclared', 'undeclared', 'undeclared'])),
+    );
+
+    expect(todas.celdas().every((c) => c.classList.contains('celda--apagada'))).toBe(true);
+
+    // La fila por omisión declara turnos casi todos los días y deja el cuarto sin declarar.
+    expect(montar().celdas()[3].classList.contains('celda--apagada')).toBe(false);
+  });
+
+  /**
+   * <b>«Sin patrón» gana a contar huecos, y esta prueba es lo que lo fija.</b> Una fila sin nada
+   * declarado tiene cero celdas cortas, así que si el orden se invirtiera diría «Sin huecos»:
+   * afirmaría que está lista justo la única que impide publicar.
+   */
+  it('la fila resume su propio estado', () => {
+    expect(montar().raiz.querySelector('.fila__estado')!.textContent!.trim()).toBe('1 hueco');
+
+    const sinPatron = montar((h) =>
+      h.row.set(fila(['undeclared', 'undeclared', 'undeclared', 'undeclared', 'undeclared', 'undeclared', 'undeclared'])),
+    );
+
+    expect(sinPatron.raiz.querySelector('.fila__estado')!.textContent!.trim()).toBe('Sin patrón');
+
+    const lista = montar((h) =>
+      h.row.set(fila(['covered', 'covered', 'noShift', 'noShift', 'covered', 'covered', 'noShift'])),
+    );
+
+    expect(lista.raiz.querySelector('.fila__estado')!.textContent!.trim()).toBe('Sin huecos');
   });
 
   it('un día sin turno no inventa horario', () => {

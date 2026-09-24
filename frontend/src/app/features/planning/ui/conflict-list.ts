@@ -20,7 +20,7 @@ import { PlanningConflict } from '../data-access/planning.models';
   selector: 'app-conflict-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <section class="conf">
+    <section class="conf" [class.conf--flat]="flat()">
       <header class="conf__head">
         <span class="conf__title">ANTES DE PUBLICAR</span>
         <span class="conf__resumen">{{ resumen() }}</span>
@@ -65,6 +65,11 @@ import { PlanningConflict } from '../data-access/planning.models';
       background: var(--gestia-surface);
       overflow: hidden;
     }
+
+    /* Dentro de la tarjeta de cierre el listado no lleva contorno propio: eran dos recuadros
+       pegados diciendo lo mismo, y el de dentro sólo servía para marcar una frontera que no
+       existe —la lista y el botón de publicar son un solo acto—. */
+    .conf--flat { border: none; border-radius: 0; }
 
     .conf__head {
       display: flex;
@@ -123,6 +128,9 @@ import { PlanningConflict } from '../data-access/planning.models';
 })
 export class ConflictList {
   readonly conflicts = input.required<readonly PlanningConflict[]>();
+
+  /** Sin contorno propio, para componerlo dentro de la tarjeta de cierre de Planeación. */
+  readonly flat = input(false);
 
   /** Lo que bloquea va primero: si no, hay que leer la lista entera para saber si se puede publicar. */
   protected readonly ordenados = computed(() =>

@@ -14,7 +14,17 @@ Preguntado si alcanzaba al encabezado del listado, eligió **quitar las dos tarj
 vencido» y «Por vencer en 30 días»— y dejarlo en Personas y Activas. Sobre la pestaña de
 Asignaciones, eligió **quitarla** del panel.
 
-> **Corrección del 24 de septiembre de 2026.** La pestaña de Asignaciones **volvió**, a petición
+> **Corrección del 24 de septiembre de 2026 · el aviso de por vencer.** La pestaña de Datos
+> **vuelve a avisar** de los documentos que están por caducar, a petición del usuario: «Colocar un
+> aviso en Datos, de los documentos que están por vencerse». Vuelve **sólo el aviso**: dice cuántos
+> requisitos vencen dentro del plazo y lleva a Documentos, y **no escribe ninguna fecha**. Las
+> fechas en las filas de requisito, la píldora con detalle y los filtros siguen fuera.
+>
+> Va en ámbar y no en verde, aunque el usuario señaló la franja verde de elegibilidad como
+> referencia: la forma es la misma, y el color distingue la franja que dice que todo está bien del
+> aviso que pide hacer algo antes de que deje de estarlo.
+>
+> **Corrección del 24 de septiembre de 2026 · Asignaciones.** La pestaña de Asignaciones **volvió**, a petición
 > del usuario: «Agregar el historial de asignaciones, porque no se ve». Volvió **sólo como
 > historial**: el botón «Asignar a una posición» sigue fuera, y asignar se hace desde Servicios,
 > que es donde existe la posición que se va a cubrir.
@@ -31,7 +41,7 @@ Asignaciones, eligió **quitarla** del panel.
   Evaluaciones y Experiencia.
 - La nota de «no cuentan para la vigencia» de los otros documentos.
 - La píldora de estado y la línea de revisión del expediente —«lo de documento validado»—.
-- El aviso de documentos próximos a vencer que encabezaba la pestaña de Datos.
+- El aviso de documentos próximos a vencer que encabezaba la pestaña de Datos. (Volvió el 24, sin fechas; ver arriba.)
 - El pie con «Asignar a una posición». (La pestaña de Asignaciones también salió, y volvió el 24; ver arriba.)
 - Los filtros «Con algún vencido» y «Por vencer en N días».
 

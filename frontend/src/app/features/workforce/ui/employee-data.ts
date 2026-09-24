@@ -35,6 +35,40 @@ import { EmployeeJobPosition } from './employee-job-position';
         (openCatalog)="openCatalog.emit()"
       />
 
+      <!--
+        El aviso de lo que esta por vencer, con la misma forma que la franja de elegibilidad que
+        tiene encima.
+
+        Se retiro de esta pestana el 23 de septiembre de 2026, con todo lo de vigencias, y vuelve
+        el 24 por peticion. Va en ambar y no en verde a proposito: la franja de arriba es verde
+        cuando la noticia es buena, y esta avisa de algo que hay que atender antes de que pase. La
+        forma es la misma; el color dice cual de las dos es.
+
+        Solo aparece cuando hay algo que avisar. Un aviso que dice «0 por vencer» ocupa el mismo
+        sitio que uno de verdad y obliga a leer el numero para saber que no hay nada que hacer.
+      -->
+      @if (porVencer() > 0) {
+        <section class="porvencer">
+          <p class="porvencer__head">
+            <span class="porvencer__badge">Documentos por vencer</span>
+            <span class="porvencer__where">en los próximos {{ expiringWithinDays() }} días</span>
+          </p>
+
+          <p class="porvencer__detail">
+            {{ porVencer() }}
+            {{ porVencer() === 1 ? 'requisito de esta persona vence' : 'requisitos de esta persona vencen' }}
+            dentro del plazo. Hoy siguen cubriendo: conviene renovarlos antes de que dejen de
+            hacerlo.
+          </p>
+
+          <p class="porvencer__actions">
+            <button class="porvencer__action" type="button" (click)="openDocuments.emit()">
+              Ver los documentos
+            </button>
+          </p>
+        </section>
+      }
+
       @if (editingJobPosition()) {
         <app-employee-job-position
           [jobPositions]="jobPositions()"
@@ -255,6 +289,52 @@ import { EmployeeJobPosition } from './employee-job-position';
     </div>
   `,
   styles: `
+    /* El aviso de lo que está por vencer. Misma forma que la franja de elegibilidad de arriba
+       —recuadro, insignia con la palabra dentro y acción al pie—, en ámbar porque avisa de algo
+       que hay que atender y no de algo que ya está bien. */
+    .porvencer {
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+      padding: var(--gestia-card-padding);
+      border: 1px solid var(--gestia-warning);
+      border-radius: var(--gestia-radius);
+      background: var(--gestia-warning-soft);
+    }
+
+    .porvencer__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.5rem; margin: 0; }
+
+    /* El estado se lee: la palabra va dentro, no sólo el color del borde. */
+    .porvencer__badge {
+      padding: 0.1rem 0.4rem;
+      border: 1px solid var(--gestia-warning);
+      border-radius: var(--gestia-radius-pill);
+      color: var(--gestia-warning);
+      font-size: 10.5px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .porvencer__where { color: var(--gestia-muted); font-size: 12px; }
+    .porvencer__detail { margin: 0; color: var(--gestia-text); font-size: 12px; line-height: 1.5; }
+    .porvencer__actions { display: flex; flex-wrap: wrap; gap: 0.55rem; margin: 0; }
+
+    .porvencer__action {
+      height: var(--gestia-control-height);
+      padding: 0 0.8rem;
+      border: 1px solid var(--gestia-warning);
+      border-radius: var(--gestia-radius);
+      background: var(--gestia-surface);
+      color: var(--gestia-warning);
+      font: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .porvencer__action:focus-visible { outline: 2px solid var(--gestia-cyan); outline-offset: 1px; }
+
     :host { display: block; }
 
     .data { display: flex; flex-direction: column; gap: 0.55rem; }
@@ -491,6 +571,15 @@ export class EmployeeData {
 
   /** Cuántos días antes se considera «por vencer». Lo decide la organización. */
   readonly expiringWithinDays = input(30);
+
+  /**
+   * Cuántos requisitos de esta persona vencen dentro del plazo.
+   *
+   * <p>Sale del listado, que es quien lo recibe del servidor ya contado. <b>No se deriva de los
+   * documentos cargados</b>: el servidor cuenta requisitos y la ficha cuenta archivos, y son dos
+   * cosas distintas —una persona puede tener cinco archivos cubriendo un solo requisito—.</p>
+   */
+  protected readonly porVencer = computed(() => this.row().expiringDocuments);
 
   /** Llevar a la pestaña de Documentos desde el aviso, sin buscarla. */
   readonly openDocuments = output<void>();

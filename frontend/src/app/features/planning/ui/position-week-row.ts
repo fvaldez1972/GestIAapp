@@ -125,8 +125,8 @@ const TITULO: Record<PlanningCell['kind'], string> = {
       gap: 0.1rem;
       align-items: center;
       justify-content: center;
-      min-height: 3rem;
-      margin: 0.3rem;
+      min-height: 2.8rem;
+      margin: 0.25rem;
       padding: 0.35rem 0.3rem;
       border: 0;
       border-radius: var(--gestia-radius-lg);
@@ -154,7 +154,10 @@ const TITULO: Record<PlanningCell['kind'], string> = {
 
     .celda--undeclared .celda__titulo { color: var(--gestia-warning); font-size: 12px; }
 
-    /* «Sin turno» no pide nada: ni relleno ni peso. */
+    /* «Sin turno» no pide nada, así que pesa poco: relleno neutro y sin color. Pero **algo**
+       lleva, porque sin relleno no se distinguía de una celda apagada ni se podía enseñar en la
+       leyenda: un estado que no se puede señalar con el dedo no está en la pantalla. */
+    .celda--noShift { background: var(--gestia-surface-soft); }
     .celda--noShift .celda__titulo { color: var(--gestia-muted); font-size: 11.5px; font-weight: 400; }
 
     /* Siete veces lo mismo no es siete veces la información.

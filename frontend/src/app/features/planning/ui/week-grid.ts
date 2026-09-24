@@ -156,7 +156,7 @@ const LEYENDA = [
       display: flex;
       align-items: center;
       gap: 0.75rem;
-      padding: 0.85rem 1rem;
+      padding: 0.7rem 1rem;
     }
 
     .rejilla__id { display: flex; flex-direction: column; gap: 0.1rem; margin-right: auto; }
@@ -241,7 +241,7 @@ const LEYENDA = [
       align-items: center;
       gap: 0.6rem;
       flex-wrap: wrap;
-      padding: 0.7rem 1rem;
+      padding: 0.55rem 1rem;
     }
 
     .rejilla__item { display: flex; align-items: center; gap: 0.35rem; }
@@ -265,7 +265,15 @@ const LEYENDA = [
       color: var(--gestia-danger);
     }
 
-    .rejilla__item[data-kind='noShift'] .rejilla__texto { color: var(--gestia-muted); font-weight: 400; }
+    /* «Sin turno» tenía la muestra en texto pelado sobre el fondo de la tarjeta, así que no se
+       distinguía de la nota que lleva al lado: la leyenda enseñaba tres estados y sólo dos se
+       veían. Lleva el mismo relleno neutro que su celda, que es lo que hay que reconocer. */
+    .rejilla__item[data-kind='noShift'] .rejilla__texto {
+      border: 1px solid var(--gestia-border);
+      background: var(--gestia-surface-soft);
+      color: var(--gestia-muted);
+      font-weight: 400;
+    }
 
     .rejilla__nota { color: var(--gestia-muted); font-size: 11px; }
   `,

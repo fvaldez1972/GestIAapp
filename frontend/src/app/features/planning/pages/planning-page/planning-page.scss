@@ -18,6 +18,20 @@
   gap: var(--gestia-page-gap);
 }
 
+/* Con la columna abierta, la pantalla se estrecha en vez de quedar tapada.
+   La rejilla reparte sus siete días en `minmax(0, 1fr)`, así que al estrecharse los comprime y
+   siguen viéndose los siete. Sin esto, la columna se pintaba encima y tapaba de jueves a domingo:
+   justo la semana que se está mirando mientras se declara el patrón. */
+.planeacion--conLateral {
+  padding-right: calc(min(var(--gestia-panel-width), 100vw - 2rem) + var(--gestia-page-gap));
+}
+
+/* Por debajo de este ancho la columna ocupa casi toda la pantalla; estrechar el contenido lo
+   dejaría en una tira inservible, así que ahí sí se superpone. */
+@media (max-width: 75rem) {
+  .planeacion--conLateral { padding-right: 0; }
+}
+
 .planeacion__hero {
   display: flex;
   align-items: baseline;
@@ -96,7 +110,13 @@
   font-weight: 600;
 }
 
-.planeacion__cajon {
+/* La columna de la derecha: todo lo que se abre encima vive aquí.
+   La ficha de la posición caía antes al final del flujo de la página, porque `gi-detail-panel`
+   está pensado para vivir al costado de un listado y aquí la rejilla ocupa el ancho entero: había
+   que desplazarse hasta el fondo para ver lo que se acababa de abrir. Y el cajón de candidatos ya
+   estaba fijo a la derecha, así que puestos los dos en el mismo sitio se taparían —pulsar un hueco
+   abre los dos a la vez—. Se desplaza por dentro, de modo que la página no se mueve. */
+.planeacion__lateral {
   position: fixed;
   inset: var(--gestia-chrome-bottom, var(--gestia-topbar-height)) 0 0 auto;
   z-index: 20;
@@ -104,10 +124,26 @@
   flex-direction: column;
   gap: 0.75rem;
   width: min(var(--gestia-panel-width), calc(100vw - 2rem));
-  padding: 1rem;
+  padding: 0.75rem;
   border-left: 1px solid var(--gestia-border);
   background: var(--gestia-canvas);
-  overflow: auto;
+  overflow-y: auto;
+}
+
+.planeacion__lateral gi-detail-panel {
+  width: 100%;
+  min-width: 0;
+}
+
+.planeacion__cajon {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  flex: none;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--gestia-border);
+  border-radius: var(--gestia-radius-lg);
+  background: var(--gestia-surface);
 }
 
 .planeacion__cajon-head {
@@ -118,8 +154,8 @@
 }
 
 .planeacion__cajon-titulo {
-  color: var(--gestia-text);
-  font-size: 13px;
+  color: var(--gestia-navy);
+  font-size: 14px;
   font-weight: 600;
 }
 

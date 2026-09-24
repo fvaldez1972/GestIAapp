@@ -76,7 +76,7 @@ import { PlanningConflict } from '../data-access/planning.models';
       justify-content: space-between;
       align-items: baseline;
       gap: 0.75rem;
-      padding: 0.85rem 1rem;
+      padding: 0.7rem 1rem;
     }
 
     .conf__title { margin: 0; color: var(--gestia-navy); font-size: 16px; font-weight: 600; }
@@ -88,7 +88,7 @@ import { PlanningConflict } from '../data-access/planning.models';
       display: flex;
       flex-direction: column;
       gap: 0.25rem;
-      padding: 0.6rem 1rem;
+      padding: 0.5rem 1rem;
       border-top: 1px solid var(--gestia-border);
     }
 

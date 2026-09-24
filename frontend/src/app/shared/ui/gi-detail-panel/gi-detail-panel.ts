@@ -129,8 +129,9 @@ export class GiTabContent {
       display: flex;
       flex-direction: column;
       height: 100%;
+      min-height: 0;
       border: 1px solid var(--gestia-border);
-      border-radius: var(--gestia-radius);
+      border-radius: var(--gestia-radius-lg);
       background: var(--gestia-surface);
     }
 
@@ -147,8 +148,8 @@ export class GiTabContent {
     .gi-panel__title {
       margin: 0;
       color: var(--gestia-navy);
-      font-size: 13px;
-      font-weight: 700;
+      font-size: 16px;
+      font-weight: 600;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -157,7 +158,7 @@ export class GiTabContent {
     .gi-panel__subtitle {
       margin: 0.1rem 0 0;
       color: var(--gestia-muted);
-      font-size: 11.5px;
+      font-size: 12px;
       font-weight: 400;
     }
 

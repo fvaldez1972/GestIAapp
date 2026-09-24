@@ -1,4 +1,4 @@
-<section class="planeacion">
+<section class="planeacion" [class.planeacion--conLateral]="creatingPosition() || !!selectedPosition() || !!pendingCell()">
 <!--
     El titulo y su frase, en un renglon. Encima de esta cabecera el armazon ya dibuja
     «OPERACION / PLANEACION / Planeacion», asi que el rotulo «PLANEACION» que habia aqui era la
@@ -97,7 +97,40 @@
     </div>
   }
 
-  @if (creatingPosition()) {
+  <!--
+    Todo lo que se abre encima vive en la MISMA columna fija de la derecha.
+
+    La ficha de la posicion caia antes al final del flujo de la pagina —`gi-detail-panel` esta
+    pensado para vivir al costado de un listado, y aqui la rejilla ocupa el ancho entero—, asi que
+    habia que desplazar la pagina hasta el fondo para ver lo que se acababa de abrir. Y el cajon de
+    candidatos ya estaba fijo a la derecha: puestos los dos en el mismo sitio se taparian, porque
+    pulsar un hueco abre los dos a la vez.
+
+    Una sola columna los apila y se desplaza por dentro, de modo que la pagina no se mueve.
+  -->
+  @if (creatingPosition() || selectedPosition() || pendingCell()) {
+    <aside class="planeacion__lateral">
+
+    @if (pendingCell(); as cell) {
+      <section class="planeacion__cajon" aria-label="Quién cubre el turno">
+        <header class="planeacion__cajon-head">
+          <span class="planeacion__cajon-titulo">
+            Falta gente el {{ cell.date }} · {{ cell.assignedWorkerCount }} de
+            {{ cell.requiredWorkerCount }}
+          </span>
+          <button class="planeacion__cerrar" type="button" (click)="closeCandidates()">Cerrar</button>
+        </header>
+
+        <gi-candidate-picker
+          [candidates]="candidates()"
+          emptyActionLabel="Asignar personal al servicio"
+          (choose)="chooseCandidate($event)"
+          (resolveEmpty)="closeCandidates()"
+        />
+      </section>
+    }
+
+    @if (creatingPosition()) {
     <gi-detail-panel
       title="Nueva posición"
       subtitle="El puesto que hay que cubrir, con independencia de quién lo ocupe"
@@ -112,7 +145,7 @@
         />
       </ng-template>
     </gi-detail-panel>
-  } @else if (selectedPosition(); as position) {
+    } @else if (selectedPosition(); as position) {
     <gi-detail-panel
       [title]="position.codePosition"
       [subtitle]="position.name"
@@ -156,24 +189,8 @@
         />
       </ng-template>
     </gi-detail-panel>
-  }
+    }
 
-  @if (pendingCell(); as cell) {
-    <aside class="planeacion__cajon" aria-label="Quién cubre el turno">
-      <header class="planeacion__cajon-head">
-        <span class="planeacion__cajon-titulo">
-          Falta gente el {{ cell.date }} · {{ cell.assignedWorkerCount }} de
-          {{ cell.requiredWorkerCount }}
-        </span>
-        <button class="planeacion__cerrar" type="button" (click)="closeCandidates()">Cerrar</button>
-      </header>
-
-      <gi-candidate-picker
-        [candidates]="candidates()"
-        emptyActionLabel="Asignar personal al servicio"
-        (choose)="chooseCandidate($event)"
-        (resolveEmpty)="closeCandidates()"
-      />
     </aside>
   }
 </section>

@@ -45,7 +45,7 @@ export type SegmentDraft = {
   template: `
     <section class="patron">
       <header class="patron__head">
-        <span class="patron__title">TURNOS QUE DECLARA {{ positionCode() }}</span>
+        <h4 class="patron__title">Turnos que declara {{ positionCode() }}</h4>
         <span class="patron__resumen">{{ resumen() }}</span>
       </header>
 
@@ -151,17 +151,16 @@ export type SegmentDraft = {
           }
         </ul>
 
+        <!--
+          Las dos notas eran nueve renglones de prosa al pie de una tabla de siete filas: mas
+          texto que datos. Se dicen las mismas dos cosas en tres renglones, porque lo que hacia
+          falta era la razon, no el parrafo.
+        -->
         <p class="patron__nota">
-          <strong>Fase 1 declara patrones semanales.</strong> Un patrón guarda sus segmentos por día
-          de la semana, así que un ciclo de tres o seis días —un 24×48, un 4×2— no tiene dónde
-          guardarse todavía. No es que la pantalla no lo ofrezca: es que el modelo no lo puede
-          expresar, y fingirlo daría una semana que no se cumple.
-        </p>
-
-        <p class="patron__nota">
-          Un día sin segmento dice <strong>Sin turno</strong> y no «Descanso»: hoy la ausencia de un
-          segmento no distingue una decisión de un olvido, así que llamarlo descanso afirmaría algo
-          que nadie declaró.
+          <strong>Fase 1 declara patrones semanales.</strong> Un ciclo de tres o seis días —un
+          24×48— no tiene dónde guardarse: el modelo no lo puede expresar, y fingirlo daría una
+          semana que no se cumple. Un día sin segmento dice <strong>Sin turno</strong> y no
+          «Descanso», porque su ausencia no distingue una decisión de un olvido.
         </p>
       }
     </section>
@@ -171,7 +170,7 @@ export type SegmentDraft = {
 
     .patron {
       border: 1px solid var(--gestia-border);
-      border-radius: var(--gestia-radius);
+      border-radius: var(--gestia-radius-lg);
       background: var(--gestia-surface);
       overflow: hidden;
     }
@@ -179,15 +178,13 @@ export type SegmentDraft = {
     .patron__head {
       display: flex;
       justify-content: space-between;
-      align-items: center;
+      align-items: baseline;
       gap: 0.75rem;
-      padding: 0.65rem 0.85rem;
-      border-bottom: 1px solid var(--gestia-border);
-      background: var(--gestia-surface-soft);
+      padding: 0.75rem 1rem;
     }
 
-    .patron__title { color: var(--gestia-muted); font-size: 10.5px; font-weight: 600; letter-spacing: 0.07em; }
-    .patron__resumen { color: var(--gestia-muted); font-size: 11.5px; }
+    .patron__title { margin: 0; color: var(--gestia-navy); font-size: 14px; font-weight: 600; }
+    .patron__resumen { color: var(--gestia-muted); font-size: 12px; }
 
     .patron__dias { margin: 0; padding: 0; list-style: none; }
 
@@ -195,8 +192,8 @@ export type SegmentDraft = {
       display: flex;
       align-items: center;
       gap: 0.85rem;
-      padding: 0.6rem 0.85rem;
-      border-bottom: 1px solid var(--gestia-border);
+      padding: 0.5rem 1rem;
+      border-top: 1px solid var(--gestia-border);
       font-size: 12.5px;
     }
 
@@ -291,11 +288,12 @@ export type SegmentDraft = {
 
     .patron__nota {
       margin: 0;
-      padding: 0.7rem 0.85rem;
+      padding: 0.7rem 1rem;
       border-top: 1px solid var(--gestia-border);
+      background: var(--gestia-surface-soft);
       color: var(--gestia-muted);
       font-size: 11.5px;
-      line-height: 1.55;
+      line-height: 1.5;
     }
 
     .patron__nota strong { color: var(--gestia-text); }

@@ -73,8 +73,15 @@ footer {
   padding: 16px 0;
   border-block: 1px solid var(--gestia-border);
 }
+/* `align-content: start` y no el estirado por omision.
+   La etiqueta es una rejilla, y sus filas se repartian el alto de la celda. Dos etiquetas vecinas
+   con distinto numero de hijos —una con mensaje de error debajo del campo y otra sin el— daban
+   filas de distinto alto, asi que el campo de una quedaba trece pixeles mas abajo que el de al
+   lado aunque sus rotulos estuvieran a la misma altura. Empaquetadas arriba, los campos de un
+   mismo renglon se alinean siempre. */
 label {
   display: grid;
+  align-content: start;
   gap: 6px;
   min-width: 0;
   font-size: 13px;
@@ -396,7 +403,12 @@ fieldset {
 /* En el editor de posicion la casilla NO se lleva un renglon entero: con tres columnas cabe al
    lado del precio y del periodo, que es de lo que habla. En los demas modales, que siguen a dos
    columnas, se queda como estaba. */
-.modal--posicion .check--enLinea { grid-column: auto; align-self: end; padding-bottom: 6px; }
+.modal--posicion .check--enLinea {
+  grid-column: auto;
+  /* A la altura del campo de al lado, no del rotulo: 13px del rotulo mas los 6 del hueco. */
+  align-self: start;
+  margin-top: 25px;
+}
 
 /* La casilla ocupa su propio renglon.
    Compartiendo celda con los campos, «IVA incluido» empujaba «Vigente desde» a la columna derecha

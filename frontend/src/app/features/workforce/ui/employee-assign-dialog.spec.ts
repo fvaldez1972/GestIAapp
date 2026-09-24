@@ -152,6 +152,34 @@ describe('Asignar a una posición desde el expediente', () => {
   });
 
   /**
+   * <b>Elegir cierra la lista.</b>
+   *
+   * <p>Esto se rompió y se veía: al elegir, el valor se ponía pero la lista se quedaba abierta y
+   * había que pulsar en otra parte para quitarla. La causa no estaba en el desplegable —su
+   * <c>choose</c> cierra— sino en el envoltorio: cada campo era un <c>&lt;label&gt;</c> sin
+   * <c>for</c>, y el control asociado de un label sin <c>for</c> es su primer descendiente
+   * etiquetable, que aquí es el botón del desplegable. Pulsar una opción, que vive dentro del
+   * label, reenviaba un segundo clic a ese botón y lo volvía a abrir justo después de cerrarse.</p>
+   *
+   * <p>Por eso los campos con desplegable no son <c>&lt;label&gt;</c>. El que sí lo es —la fecha—
+   * apunta con <c>for</c> a su propio <c>input</c>, que es lo que un label debe hacer.</p>
+   */
+  it('elegir una opción la pone y cierra la lista, sin pulsar en otra parte', () => {
+    const t = montar();
+    const desplegable = t.raiz.querySelectorAll('gi-select')[0];
+
+    desplegable.querySelector<HTMLButtonElement>('button[role="combobox"]')!.click();
+    t.fixture.detectChanges();
+    expect(desplegable.querySelector('.gi-select__list')).not.toBeNull();
+
+    desplegable.querySelector<HTMLElement>('.gi-select__option')!.click();
+    t.fixture.detectChanges();
+
+    expect(desplegable.querySelector('.gi-select__value')!.textContent).toContain('Meridiano Cines');
+    expect(desplegable.querySelector('.gi-select__list'), 'la lista se queda abierta').toBeNull();
+  });
+
+  /**
    * <b>La cascada se limpia sola.</b>
    *
    * <p>Sin esto se puede guardar la posición de un servicio junto al servicio de otro: los tres

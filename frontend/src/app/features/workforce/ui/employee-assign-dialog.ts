@@ -75,8 +75,16 @@ const TIPOS: readonly { readonly value: EmployeeAssignValue['assignmentType']; r
         </button>
       </header>
 
+      <!--
+        Los campos con desplegable NO son <label>.
+        Un label sin atributo «for» asocia su primer descendiente etiquetable, que aqui es el
+        boton del desplegable, y pulsar una opcion —que vive dentro del label— reenviaba un
+        segundo clic a ese boton: la lista se volvia a abrir justo despues de cerrarse, y habia
+        que pulsar en otra parte para quitarla. El desplegable ya se nombra solo, con su entrada
+        «label».
+      -->
       <div class="asig__campos">
-        <label class="asig__campo">
+        <div class="asig__campo">
           <span class="asig__rotulo">Cliente</span>
           <gi-select
             label="Cliente"
@@ -86,9 +94,9 @@ const TIPOS: readonly { readonly value: EmployeeAssignValue['assignmentType']; r
             [disabled]="saving()"
             (valueChange)="elegirCliente($event)"
           />
-        </label>
+        </div>
 
-        <label class="asig__campo">
+        <div class="asig__campo">
           <span class="asig__rotulo">Servicio</span>
           <gi-select
             label="Servicio"
@@ -98,9 +106,9 @@ const TIPOS: readonly { readonly value: EmployeeAssignValue['assignmentType']; r
             [disabled]="saving() || !idClient()"
             (valueChange)="elegirServicio($event)"
           />
-        </label>
+        </div>
 
-        <label class="asig__campo">
+        <div class="asig__campo">
           <span class="asig__rotulo">Posición</span>
           <gi-select
             label="Posición"
@@ -110,9 +118,9 @@ const TIPOS: readonly { readonly value: EmployeeAssignValue['assignmentType']; r
             [disabled]="saving() || !idService()"
             (valueChange)="idPosition.set($event)"
           />
-        </label>
+        </div>
 
-        <label class="asig__campo">
+        <div class="asig__campo">
           <span class="asig__rotulo">Tipo</span>
           <gi-select
             label="Tipo de asignación"
@@ -121,7 +129,7 @@ const TIPOS: readonly { readonly value: EmployeeAssignValue['assignmentType']; r
             [disabled]="saving()"
             (valueChange)="elegirTipo($event)"
           />
-        </label>
+        </div>
 
         <label class="asig__campo" for="asig-desde">
           <span class="asig__rotulo">Desde</span>

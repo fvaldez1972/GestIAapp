@@ -37,6 +37,13 @@
   --gestia-page-gap: 1rem;
   --gestia-card-padding: 1rem;
   --gestia-radius: 6px;
+  /* Dos radios mas, del 24 de septiembre de 2026.
+     El sistema tenia 6 px para todo y 3 px para las pildoras, y con eso ninguna pantalla podia
+     dejar de parecer una hoja de calculo: un rectangulo de 6 px con borde de un pixel es
+     exactamente el aspecto de una celda de tabla. El grande es para tarjetas y celdas; el de
+     pildora completo es para insignias y contadores, que a 3 px se leian como cajitas. */
+  --gestia-radius-lg: 12px;
+  --gestia-radius-chip: 999px;
   /* Radio de píldoras y etiquetas pequeñas. El bosquejo lo usa veinte veces. */
   --gestia-radius-pill: 3px;
   --gestia-control-height: 2.5rem;

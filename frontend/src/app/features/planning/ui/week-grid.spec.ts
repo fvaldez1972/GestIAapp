@@ -67,6 +67,18 @@ class Anfitrion {
   readonly proyecciones = signal(0);
 }
 
+/**
+ * Lo que dice una columna de día, con sus dos partes juntas.
+ *
+ * <p>La cabecera dibuja la abreviatura arriba y el número debajo, como un calendario, así que el
+ * texto del elemento sale pegado —«LUN07»—. La prueba compara qué dice, no cómo se reparte.</p>
+ */
+const diaLegible = (dia: Element) =>
+  [
+    dia.querySelector('.rejilla__diaNombre')!.textContent!.trim(),
+    dia.querySelector('.rejilla__diaNumero')!.textContent!.trim(),
+  ].join(' ');
+
 function montar(configurar: (host: Anfitrion) => void = () => {}) {
   const fixture = TestBed.createComponent(Anfitrion);
   configurar(fixture.componentInstance);
@@ -78,7 +90,7 @@ function montar(configurar: (host: Anfitrion) => void = () => {}) {
     fixture,
     raiz,
     host: fixture.componentInstance,
-    dias: () => Array.from(raiz.querySelectorAll('.rejilla__dia')).map((d) => d.textContent?.trim()),
+    dias: () => Array.from(raiz.querySelectorAll('.rejilla__dia')).map(diaLegible),
     celdas: () => Array.from(raiz.querySelectorAll<HTMLButtonElement>('.celda')),
     leyenda: () => Array.from(raiz.querySelectorAll('.rejilla__texto')).map((t) => t.textContent?.trim()),
     notas: () => Array.from(raiz.querySelectorAll('.rejilla__nota')).map((n) => n.textContent?.trim()),
@@ -124,6 +136,19 @@ describe('WeekGrid', () => {
 
     host.busy.set(true);
     expect(montar((h) => { h.canProject.set(true); h.busy.set(true); }).proyectar()!.disabled).toBe(true);
+  });
+
+  /**
+   * Los rótulos en versalitas de 10.5 px —«PROYECCIÓN DE LA SEMANA»— eran lo que hacía que cada
+   * tarjeta se leyera como la cabecera de una tabla y no como una sección de la pantalla. Ahora
+   * son encabezados de verdad. La segunda afirmación es la que lo fija: sin ella, devolver el
+   * rótulo en mayúsculas seguiría pasando.
+   */
+  it('la rejilla se encabeza con un título legible, no con un rótulo en versalitas', () => {
+    const titulo = montar().raiz.querySelector('h2.rejilla__title')!;
+
+    expect(titulo.textContent!.trim()).toBe('Proyección de la semana');
+    expect(titulo.textContent).not.toBe(titulo.textContent!.toUpperCase());
   });
 
   it('resume cuántas posiciones y qué rango se está viendo', () => {
@@ -194,9 +219,7 @@ describe('WeekGrid', () => {
   it('marca la columna del día que la pantalla está mirando', () => {
     const { raiz } = montar((h) => h.highlightDate.set('2026-09-10'));
 
-    const marcados = Array.from(raiz.querySelectorAll('.rejilla__dia--marcado')).map((d) =>
-      d.textContent?.trim(),
-    );
+    const marcados = Array.from(raiz.querySelectorAll('.rejilla__dia--marcado')).map(diaLegible);
 
     expect(marcados).toEqual(['JUE 10']);
     expect(raiz.querySelectorAll('.celda--marcada')).toHaveLength(1);

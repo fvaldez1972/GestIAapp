@@ -40,9 +40,9 @@
 
 .planeacion__aviso {
   margin: 0;
-  padding: 0.6rem 0.75rem;
+  padding: 0.7rem 0.9rem;
   border: 1px solid var(--gestia-border);
-  border-radius: var(--gestia-radius);
+  border-radius: var(--gestia-radius-lg);
   background: var(--gestia-surface);
   font-size: 12.5px;
 }
@@ -54,9 +54,21 @@
    arriba, y al pie lo que se va a publicar con su botón. */
 .planeacion__cierre {
   border: 1px solid var(--gestia-border);
-  border-radius: var(--gestia-radius);
+  border-radius: var(--gestia-radius-lg);
   background: var(--gestia-surface);
   overflow: hidden;
+}
+
+/* Dar de baja la posición: el botón y su explicación se pegaban —«posiciónDeja de proyectar»—
+   porque el párrafo no tenía separación ninguna entre sus dos hijos. */
+.planeacion__baja {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin: 0 0 0.75rem;
+  color: var(--gestia-muted);
+  font-size: 12px;
 }
 
 .planeacion__datos {

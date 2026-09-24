@@ -80,32 +80,34 @@ const TITULO: Record<PlanningCell['kind'], string> = {
 
     .fila {
       display: grid;
-      grid-template-columns: 13rem repeat(var(--dias), minmax(0, 1fr));
-      border-bottom: 1px solid var(--gestia-border);
+      grid-template-columns: 14rem repeat(var(--dias), minmax(0, 1fr));
+      align-items: stretch;
+      border-top: 1px solid var(--gestia-border);
     }
 
     .fila:hover { background: var(--gestia-surface-soft); }
 
+    /* Sin línea vertical separando la posición de sus días: la rejilla se lee como una lista de
+       posiciones, no como una tabla con marco. */
     .fila__pos {
       display: flex;
       flex-direction: column;
-      gap: 0.2rem;
+      gap: 0.25rem;
       justify-content: center;
-      padding: 0.45rem 0.75rem;
-      border-right: 1px solid var(--gestia-border);
+      padding: 0.6rem 1rem;
     }
 
-    .fila__name { color: var(--gestia-text); font-size: 13px; font-weight: 600; }
+    .fila__name { color: var(--gestia-text); font-size: 14px; font-weight: 600; }
 
-    .fila__linea { display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; }
+    .fila__linea { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
 
     .fila__code,
     .fila__meta { color: var(--gestia-muted); font-size: 11px; }
 
     /* Cómo está la fila, de un vistazo y en la columna donde se decide. */
     .fila__estado {
-      border-radius: var(--gestia-radius-pill);
-      padding: 0.05rem 0.35rem;
+      border-radius: var(--gestia-radius-chip);
+      padding: 0.1rem 0.5rem;
       font-size: 10.5px;
       font-weight: 600;
     }
@@ -114,17 +116,20 @@ const TITULO: Record<PlanningCell['kind'], string> = {
     .fila__estado--huecos { background: var(--gestia-danger-soft); color: var(--gestia-danger); }
     .fila__estado--ok { background: var(--gestia-success-soft); color: var(--gestia-success); }
 
+    /* La celda es una ficha de color, no un rectángulo con borde. El contorno de un píxel en
+       catorce celdas era la otra mitad del aspecto de hoja de cálculo: el relleno dice el estado
+       con más claridad y deja de dibujar una cuadrícula. */
     .celda {
       display: flex;
       flex-direction: column;
-      gap: 0.05rem;
+      gap: 0.1rem;
       align-items: center;
       justify-content: center;
-      min-height: 2.6rem;
-      margin: 0.25rem;
-      padding: 0.25rem;
-      border: 1px solid transparent;
-      border-radius: var(--gestia-radius);
+      min-height: 3rem;
+      margin: 0.3rem;
+      padding: 0.35rem 0.3rem;
+      border: 0;
+      border-radius: var(--gestia-radius-lg);
       background: none;
       color: var(--gestia-text);
       font: inherit;
@@ -132,38 +137,38 @@ const TITULO: Record<PlanningCell['kind'], string> = {
       cursor: pointer;
     }
 
-    .celda:hover { border-color: var(--gestia-cyan-dark); }
+    .celda:hover { box-shadow: inset 0 0 0 1px var(--gestia-cyan-dark); }
     .celda:focus-visible { outline: 2px solid var(--gestia-cyan); outline-offset: 1px; }
 
-    .celda__titulo { font-size: 12px; font-weight: 600; }
+    .celda__titulo { font-size: 13px; font-weight: 600; }
     .celda__pie { color: var(--gestia-muted); font-size: 10.5px; }
 
-    .celda--covered { border-color: var(--gestia-border); background: var(--gestia-surface); }
+    .celda--covered { background: var(--gestia-success-soft); }
 
-    .celda--short { border-color: var(--gestia-danger); background: var(--gestia-danger-soft); }
+    .celda--short { background: var(--gestia-danger-soft); }
 
     .celda--short .celda__titulo,
     .celda--short .celda__pie { color: var(--gestia-danger); }
 
-    .celda--undeclared { border-color: var(--gestia-warning); background: var(--gestia-warning-soft); }
+    .celda--undeclared { background: var(--gestia-warning-soft); }
 
-    .celda--undeclared .celda__titulo { color: var(--gestia-warning); }
+    .celda--undeclared .celda__titulo { color: var(--gestia-warning); font-size: 12px; }
+
+    /* «Sin turno» no pide nada: ni relleno ni peso. */
+    .celda--noShift .celda__titulo { color: var(--gestia-muted); font-size: 11.5px; font-weight: 400; }
 
     /* Siete veces lo mismo no es siete veces la información.
        Cuando la fila entera está sin declarar, sus siete celdas dicen exactamente lo mismo y no
-       hay nada que comparar entre un día y otro: pintadas con relleno son catorce recuadros
-       ámbar gritando un dato que la insignia de la fila ya dio. Se apagan, y el aviso se queda
-       donde se decide. Una celda sin declarar suelta, dentro de una fila que sí declara otros
-       días, conserva su color: ahí el dato sí distingue un día del resto. */
-    .celda--apagada { border-color: transparent; background: none; }
-    .celda--apagada .celda__titulo { color: var(--gestia-muted); font-size: 11px; font-weight: 400; }
+       hay nada que comparar entre un día y otro: rellenas de ámbar son catorce fichas gritando un
+       dato que la insignia de la fila ya dio. Se apagan, y el aviso se queda donde se decide. Una
+       celda sin declarar suelta, dentro de una fila que sí declara otros días, conserva su color:
+       ahí el dato sí distingue un día del resto. */
+    .celda--apagada { background: none; }
+    .celda--apagada .celda__titulo { color: var(--gestia-muted); font-size: 11.5px; font-weight: 400; }
 
-    /* «Sin turno» no pide nada: ni contorno ni relleno. */
-    .celda--noShift .celda__titulo { color: var(--gestia-muted); font-size: 11px; font-weight: 400; }
-
-    /* El día que la pantalla está mirando. Se marca con fondo Y con borde: sólo con fondo se
-       pierde cuando la celda ya trae uno propio. */
-    .celda--marcada { border-color: var(--gestia-cyan-dark); background: var(--gestia-cyan-soft); }
+    /* El día que la pantalla está mirando, con un aro en vez de un fondo: el fondo tapaba el color
+       del propio estado, así que el día marcado dejaba de decir si estaba cubierto o corto. */
+    .celda--marcada { box-shadow: inset 0 0 0 1px var(--gestia-cyan); }
   `,
 })
 export class PositionWeekRow implements OnInit {

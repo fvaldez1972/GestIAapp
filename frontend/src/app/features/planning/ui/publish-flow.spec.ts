@@ -109,6 +109,14 @@ describe('ConflictList', () => {
     expect(pildoras()).toEqual(['Impide publicar', 'Conviene mirarlo']);
   });
 
+  /** Mismo motivo que en la rejilla: un encabezado, no un rótulo en versalitas de 10.5 px. */
+  it('el listado se encabeza con un título legible', () => {
+    const titulo = lista([]).raiz.querySelector('h2.conf__title')!;
+
+    expect(titulo.textContent!.trim()).toBe('Antes de publicar');
+    expect(titulo.textContent).not.toBe(titulo.textContent!.toUpperCase());
+  });
+
   it('lo que bloquea va primero, para no leer la lista entera', () => {
     const { titulos } = lista([AVISA, AVISA, BLOQUEA]);
 

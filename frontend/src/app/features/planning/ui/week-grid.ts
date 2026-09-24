@@ -76,8 +76,10 @@ const LEYENDA = [
   template: `
     <section class="rejilla">
       <header class="rejilla__head">
-        <span class="rejilla__title">PROYECCIÓN DE LA SEMANA</span>
-        <span class="rejilla__range">{{ rangeLabel() }}</span>
+        <span class="rejilla__id">
+          <h2 class="rejilla__title">Proyección de la semana</h2>
+          <span class="rejilla__range">{{ rangeLabel() }}</span>
+        </span>
 
         <span class="rejilla__vistazo">
           @for (conteo of vistazo(); track conteo.kind) {
@@ -110,7 +112,8 @@ const LEYENDA = [
           <span class="rejilla__hueco"></span>
           @for (day of days(); track day) {
             <span class="rejilla__dia" [class.rejilla__dia--marcado]="day === highlightDate()">
-              {{ diaCorto(day) }}
+              <span class="rejilla__diaNombre">{{ diaNombre(day) }}</span>
+              <span class="rejilla__diaNumero">{{ diaNumero(day) }}</span>
             </span>
           }
         </div>
@@ -141,30 +144,32 @@ const LEYENDA = [
 
     .rejilla {
       border: 1px solid var(--gestia-border);
-      border-radius: var(--gestia-radius);
+      border-radius: var(--gestia-radius-lg);
       background: var(--gestia-surface);
       overflow: hidden;
     }
 
+    /* Sin banda gris ni versalitas de 10 px: un encabezado de tarjeta con su nombre legible y el
+       rango debajo. El rótulo en versalitas diminutas era lo que hacía que la tarjeta se leyera
+       como la cabecera de una tabla y no como una sección de la pantalla. */
     .rejilla__head {
       display: flex;
       align-items: center;
-      gap: 0.6rem;
-      padding: 0.5rem 0.75rem;
-      border-bottom: 1px solid var(--gestia-border);
-      background: var(--gestia-surface-soft);
+      gap: 0.75rem;
+      padding: 0.85rem 1rem;
     }
 
-    .rejilla__title { color: var(--gestia-muted); font-size: 10.5px; font-weight: 600; letter-spacing: 0.07em; }
-    .rejilla__range { color: var(--gestia-muted); font-size: 11px; }
+    .rejilla__id { display: flex; flex-direction: column; gap: 0.1rem; margin-right: auto; }
 
-    /* El vistazo empuja a la acción al extremo contrario y se queda pegado al rango que resume. */
-    .rejilla__vistazo { display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; margin-right: auto; }
+    .rejilla__title { margin: 0; color: var(--gestia-navy); font-size: 16px; font-weight: 600; }
+    .rejilla__range { color: var(--gestia-muted); font-size: 12px; }
+
+    .rejilla__vistazo { display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; }
 
     .rejilla__conteo {
-      border-radius: var(--gestia-radius-pill);
-      padding: 0.05rem 0.4rem;
-      font-size: 10.5px;
+      border-radius: var(--gestia-radius-chip);
+      padding: 0.15rem 0.55rem;
+      font-size: 11px;
       font-weight: 600;
     }
 
@@ -175,13 +180,13 @@ const LEYENDA = [
     .rejilla__accion {
       flex: none;
       height: var(--gestia-control-height);
-      padding: 0 0.75rem;
+      padding: 0 0.9rem;
       border: 1px solid var(--gestia-border);
       border-radius: var(--gestia-radius);
       background: var(--gestia-surface);
       color: var(--gestia-navy);
       font: inherit;
-      font-size: 12px;
+      font-size: 12.5px;
       font-weight: 600;
       cursor: pointer;
     }
@@ -190,33 +195,53 @@ const LEYENDA = [
     .rejilla__accion[disabled] { opacity: 0.5; cursor: not-allowed; }
     .rejilla__accion:focus-visible { outline: 2px solid var(--gestia-cyan); outline-offset: 1px; }
 
+    /* Sin líneas verticales entre columnas. Las catorce rayas de la rejilla eran la mitad de lo
+       que la hacía parecer una hoja de cálculo; el relleno de cada celda ya separa los días. */
     .rejilla__dias {
       display: grid;
-      grid-template-columns: 13rem repeat(var(--dias), minmax(0, 1fr));
+      grid-template-columns: 14rem repeat(var(--dias), minmax(0, 1fr));
+      padding-bottom: 0.3rem;
       border-bottom: 1px solid var(--gestia-border);
-      background: var(--gestia-surface-soft);
     }
-
-    .rejilla__hueco { border-right: 1px solid var(--gestia-border); }
 
     .rejilla__dia {
-      padding: 0.4rem 0.5rem;
-      color: var(--gestia-muted);
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 0.07em;
-      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.15rem;
+      padding: 0.35rem 0.5rem;
     }
 
-    .rejilla__dia--marcado { color: var(--gestia-cyan-dark); background: var(--gestia-cyan-soft); }
+    .rejilla__diaNombre {
+      color: var(--gestia-muted);
+      font-size: 10.5px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+    }
+
+    .rejilla__diaNumero { color: var(--gestia-text); font-size: 16px; font-weight: 600; line-height: 1.2; }
+
+    /* El día que se está mirando, marcado como lo marca un calendario: el número dentro de un
+       círculo. Antes era un fondo cian que teñía la columna entera de la cabecera. */
+    .rejilla__dia--marcado .rejilla__diaNombre { color: var(--gestia-cyan-dark); }
+
+    .rejilla__dia--marcado .rejilla__diaNumero {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.7rem;
+      height: 1.7rem;
+      border-radius: 50%;
+      background: var(--gestia-cyan-dark);
+      color: var(--gestia-surface);
+    }
 
     .rejilla__leyenda {
       display: flex;
       align-items: center;
-      gap: 0.75rem;
+      gap: 0.6rem;
       flex-wrap: wrap;
-      padding: 0.5rem 0.75rem;
-      background: var(--gestia-surface-soft);
+      padding: 0.7rem 1rem;
     }
 
     .rejilla__item { display: flex; align-items: center; gap: 0.35rem; }
@@ -224,17 +249,15 @@ const LEYENDA = [
     /* Cada palabra pintada como su celda: la muestra es el propio nombre del estado, y no un
        cuadrito al lado que a este tamaño se leía como una casilla de formulario. */
     .rejilla__texto {
-      border: 1px solid transparent;
-      border-radius: var(--gestia-radius-pill);
-      padding: 0.05rem 0.4rem;
-      font-size: 10.5px;
+      border-radius: var(--gestia-radius-chip);
+      padding: 0.15rem 0.55rem;
+      font-size: 11px;
       font-weight: 600;
     }
 
     .rejilla__item[data-kind='covered'] .rejilla__texto {
-      border-color: var(--gestia-border);
-      background: var(--gestia-surface);
-      color: var(--gestia-text);
+      background: var(--gestia-success-soft);
+      color: var(--gestia-success);
     }
 
     .rejilla__item[data-kind='short'] .rejilla__texto {
@@ -244,7 +267,7 @@ const LEYENDA = [
 
     .rejilla__item[data-kind='noShift'] .rejilla__texto { color: var(--gestia-muted); font-weight: 400; }
 
-    .rejilla__nota { color: var(--gestia-muted); font-size: 10.5px; }
+    .rejilla__nota { color: var(--gestia-muted); font-size: 11px; }
   `,
 })
 export class WeekGrid implements OnInit {
@@ -307,10 +330,12 @@ export class WeekGrid implements OnInit {
     ].filter((conteo) => conteo.n > 0);
   });
 
-  protected diaCorto(isoDate: string): string {
-    const abreviatura = ABREVIATURA[serverDayOfWeek(isoDate)] ?? '';
+  protected diaNombre(isoDate: string): string {
+    return ABREVIATURA[serverDayOfWeek(isoDate)] ?? '';
+  }
 
-    return `${abreviatura} ${isoDate.slice(8)}`.trim();
+  protected diaNumero(isoDate: string): string {
+    return isoDate.slice(8);
   }
 
   ngOnInit(): void {

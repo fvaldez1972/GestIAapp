@@ -1,5 +1,5 @@
-import { ChangeDetectionStrategy, Component, effect, input, output, signal } from '@angular/core';
-import { GiCatalogCreation, GiCatalogPicker } from '../../../shared/ui/gi-ui';
+import { ChangeDetectionStrategy, Component, computed, effect, input, output, signal } from '@angular/core';
+import { GiSelect, GiSelectOption } from '../../../shared/ui/gi-ui';
 import { EmployeeJobPositionOption } from '../data-access/employee-list.models';
 
 /**
@@ -12,25 +12,29 @@ import { EmployeeJobPositionOption } from '../data-access/employee-list.models';
 @Component({
   selector: 'app-employee-job-position',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [GiCatalogPicker],
+  imports: [GiSelect],
   template: `
     <section class="editor">
       <!--
-        El catálogo vacío deja de mandar a otra pantalla: se escribe el puesto y se ofrece agregarlo.
-        Salir de aquí a Catálogos era abandonar la ficha a medias, y quien la abandona casi siempre
-        la deja incompleta, que es lo que este editor viene a evitar.
+        Un desplegable, no un campo donde escribir. Es el mismo campo que el alta, y se cambia con
+        ella: dejar uno de los dos como buscador sería que el mismo dato se capture de dos maneras
+        según por dónde se entre. Con el buscador se va su alta al vuelo, así que el catálogo vacío
+        vuelve a mandar a Catálogos; el vacío lo dice en vez de quedarse mudo.
       -->
-      <gi-catalog-picker
+      <gi-select
         label="Puesto del catálogo"
-        catalogLabel="el catálogo de puestos"
-        inputId="ejp-puesto"
-        [options]="jobPositions()"
+        placeholder="Elige el puesto"
+        [options]="opcionesDePuesto()"
         [value]="chosen()"
-        [canWrite]="canWrite()"
-        [disabled]="saving()"
+        [disabled]="saving() || !canWrite()"
         (valueChange)="chosen.set($event)"
-        (create)="createJobPosition.emit($event)"
       />
+
+      @if (jobPositions().length === 0) {
+        <p class="editor__hint">
+          Esta organización no tiene puestos en su catálogo. Se declaran en Catálogos · Puestos.
+        </p>
+      }
 
       @if (problem()) {
         <p class="editor__problem" role="alert">{{ problem() }}</p>
@@ -96,12 +100,18 @@ import { EmployeeJobPositionOption } from '../data-access/employee-list.models';
     .editor__button--primary:disabled { border-color: var(--gestia-border); background: var(--gestia-surface); }
 
     .editor__problem { margin: 0; color: var(--gestia-danger); font-size: 12px; }
+    .editor__hint { margin: 0; color: var(--gestia-muted); font-size: 11.5px; line-height: 1.5; }
 
     .editor__reason { margin: 0; color: var(--gestia-muted); font-size: 11.5px; }
   `,
 })
 export class EmployeeJobPosition {
   readonly jobPositions = input.required<readonly EmployeeJobPositionOption[]>();
+
+  /** El catálogo de puestos con la forma que pide `gi-select`. */
+  protected readonly opcionesDePuesto = computed<readonly GiSelectOption[]>(() =>
+    this.jobPositions().map((puesto) => ({ value: puesto.idCatalogItem, label: puesto.name })),
+  );
   /** El puesto que la persona tiene hoy. Vacío cuando no tiene ninguno. */
   readonly current = input('');
   readonly saving = input(false);
@@ -110,7 +120,6 @@ export class EmployeeJobPosition {
 
   readonly cancel = output<void>();
   readonly save = output<string>();
-  readonly createJobPosition = output<GiCatalogCreation>();
 
   protected readonly chosen = signal('');
 

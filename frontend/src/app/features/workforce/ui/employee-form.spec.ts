@@ -14,13 +14,11 @@ import { EmployeeForm, EmployeeFormValue } from './employee-form';
       [jobPositions]="jobPositions()"
       [canWrite]="true"
       [today]="hoy()"
-      (createJobPosition)="creados.set([...creados(), $event.name])"
       (save)="guardado.set($event)"
     />
   `,
 })
 class Anfitrion {
-  readonly creados = signal<string[]>([]);
   readonly jobPositions = signal<readonly EmployeeJobPositionOption[]>([
     { idCatalogItem: 'jp-1', name: 'Guardia intramuros' },
     { idCatalogItem: 'jp-2', name: 'Supervisor de zona' },
@@ -110,27 +108,34 @@ describe('El alta de una persona', () => {
   });
 
   /**
-   * <b>Esta prueba cambió de sentido el 7 de septiembre de 2026, y el cambio es el punto de la
-   * tanda.</b> Antes comprobaba que, sin puestos en el catálogo, el alta mandara a Catálogos: había
-   * que abandonar el formulario a medias, crear el puesto y volver a empezar. Ahora el catálogo
-   * vacío no es una pared: se escribe el puesto aquí y se ofrece agregarlo.
+   * <b>El puesto se elige de una lista cerrada.</b>
+   *
+   * <p>Era un buscador que además ofrecía dar de alta el puesto sin salir del formulario, y con el
+   * buscador se va esa alta: un desplegable no puede ofrecer un nombre que no existe. Un puesto
+   * escrito a mano tampoco servía para comprobar la elegibilidad, que se compara por
+   * identificador.</p>
+   *
+   * <p><b>Eso devuelve el callejón que aquella alta al vuelo vino a evitar</b>, así que la segunda
+   * mitad de esta prueba es la que importa: con el catálogo vacío el formulario tiene que decir
+   * dónde se declaran los puestos, en vez de enseñar un desplegable mudo que no lleva a ninguna
+   * parte.</p>
    */
-  it('sin puestos en el catálogo ofrece crear el primero sin salir del alta', () => {
-    const { raiz, fixture } = montar((host) => host.jobPositions.set([]));
+  it('el puesto se elige de una lista, y con el catálogo vacío dice dónde declararlos', () => {
+    const { raiz, fixture } = montar();
 
-    const input = raiz.querySelector<HTMLInputElement>('#empleado-puesto')!;
-    input.value = 'Jefe de turno';
-    input.dispatchEvent(new Event('input'));
+    raiz.querySelector<HTMLButtonElement>('gi-select button[role="combobox"]')!.click();
     fixture.detectChanges();
 
-    expect(raiz.textContent).toContain('No tienes «Jefe de turno» en el catálogo de puestos');
+    const opciones = Array.from(raiz.querySelectorAll('gi-select .gi-select__option-label')).map((o) =>
+      o.textContent!.trim(),
+    );
 
-    raiz.querySelector<HTMLButtonElement>('.pick__crear')!.click();
-    fixture.detectChanges();
+    expect(opciones.length).toBeGreaterThan(0);
+    expect(raiz.querySelector('gi-catalog-picker')).toBeNull();
 
-    // El formulario sólo dice qué se pidió: crearlo es escritura a otro módulo y la resuelve la
-    // pantalla, que además tiene que recargar el catálogo.
-    expect(fixture.componentInstance.creados()).toEqual(['Jefe de turno']);
+    const vacio = montar((host) => host.jobPositions.set([]));
+
+    expect(vacio.raiz.textContent).toContain('Catálogos · Puestos');
   });
 
   /** Todo campo lleva su etiqueta ligada: sin `for` el rótulo no pertenece a nada. */

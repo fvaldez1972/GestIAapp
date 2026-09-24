@@ -136,7 +136,6 @@
               [problem]="formProblem()"
               (cancel)="creating.set(false)"
               (save)="saveNew($event)"
-              (createJobPosition)="createJobPosition($event)"
             />
           </ng-template>
         </gi-detail-panel>
@@ -169,7 +168,6 @@
               (openCatalog)="goToCatalogs()"
               (cancelJobPosition)="editingJobPosition.set(false)"
               (saveJobPosition)="saveJobPosition($event)"
-              (createJobPosition)="createJobPosition($event)"
               [organizationId]="organizationId() ?? ''"
               [editingAddress]="editingAddress() && canWrite()"
               [savingAddress]="savingAddress()"

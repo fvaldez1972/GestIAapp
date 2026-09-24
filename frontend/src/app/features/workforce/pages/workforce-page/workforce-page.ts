@@ -1153,46 +1153,11 @@ export class WorkforcePage {
    * <p>Viajan el identificador y el nombre: el servidor guarda el primero, que es con el que se
    * compara la elegibilidad, y valida el segundo contra el catálogo de puestos.</p>
    */
-  /**
-   * Crear un puesto que no estaba en el catálogo, sin salir del alta.
-   *
-   * <p><b>Lo crea la pantalla y no el formulario</b> porque es una escritura a otro módulo: hay que
-   * recargar el catálogo y decir qué pasó. Al volver, el puesto queda elegido, que es lo que el
-   * usuario pidió al escribirlo.</p>
-   *
-   * <p>El 409 de nombre repetido no se pinta como error: significa que alguien más lo creó entre
-   * medias, y lo que corresponde es usar el que ya está.</p>
-   */
-  protected createJobPosition(creation: GiCatalogCreation): void {
-    const organizationId = this.organizationId();
-
-    if (!organizationId || !this.canWrite()) {
-      return;
-    }
-
-    this.catalogApi
-      .createItem({
-        idOrganization: organizationId,
-        type: 'JobPosition',
-        name: creation.name,
-        description: null,
-      })
-      .subscribe({
-        next: (creado) => {
-          this.catalogJobPositions.update((valores) => [
-            ...valores,
-            { idCatalogItem: creado.idCatalogItem, name: creado.name },
-          ]);
-          this.message.set(`«${creado.name}» quedó en el catálogo de puestos y se puede reutilizar.`);
-        },
-        error: (error: HttpErrorResponse) =>
-          this.error.set(
-            typeof error.error === 'object' && error.error !== null
-              ? String((error.error as Record<string, unknown>)['detail'] ?? 'No se pudo agregar el puesto al catálogo.')
-              : 'No se pudo agregar el puesto al catálogo.',
-          ),
-      });
-  }
+  // El alta al vuelo de un puesto del catálogo vivía aquí, y se retiró el 24 de septiembre de
+  // 2026 al volverse desplegable el campo de Puesto —en el alta y en la ficha—: un desplegable no
+  // puede ofrecer un nombre que no existe, así que ya no hay desde dónde dispararla. Declarar un
+  // puesto es una decisión del catálogo, y Catálogos · Puestos la sigue haciendo. Las dos
+  // pantallas avisan cuando el catálogo está vacío, para que el callejón no sea mudo.
 
   protected readonly savingEducation = signal(false);
 

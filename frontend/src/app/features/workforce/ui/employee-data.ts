@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
-import { GiAccordion, GiCatalogCreation, GiSelect, GiSelectOption } from '../../../shared/ui/gi-ui';
+import { GiAccordion, GiSelect, GiSelectOption } from '../../../shared/ui/gi-ui';
 import { formatOperationalDate } from '../../../shared/util/operational-date';
 import { Employee } from '../data-access/workforce.models';
 import {
@@ -44,7 +44,6 @@ import { EmployeeJobPosition } from './employee-job-position';
           [canWrite]="canWrite()"
           (cancel)="cancelJobPosition.emit()"
           (save)="saveJobPosition.emit($event)"
-          (createJobPosition)="createJobPosition.emit($event)"
         />
       }
 
@@ -497,7 +496,6 @@ export class EmployeeData {
   readonly openDocuments = output<void>();
   readonly cancelJobPosition = output<void>();
   readonly saveJobPosition = output<string>();
-  readonly createJobPosition = output<GiCatalogCreation>();
 
   protected readonly statusLabel = computed(() => employeeStatusLabel(this.row().status));
   protected readonly statusTone = computed(() => employeeStatusTone(this.row().status));

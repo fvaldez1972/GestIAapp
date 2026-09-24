@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CatalogSelect } from '../../../shared/ui/catalog-select/catalog-select';
-import { GiCatalogCreation, GiCatalogPicker } from '../../../shared/ui/gi-ui';
+import { GiSelect, GiSelectOption } from '../../../shared/ui/gi-ui';
 import { EmployeeJobPositionOption } from '../data-access/employee-list.models';
 
 /** Lo que el formulario devuelve. El puesto viaja por identificador y por nombre. */
@@ -31,7 +31,7 @@ export type EmployeeFormValue = {
 @Component({
   selector: 'app-employee-form',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CatalogSelect, FormsModule, GiCatalogPicker],
+  imports: [CatalogSelect, FormsModule, GiSelect],
   template: `
     <form class="form" (ngSubmit)="$event.preventDefault()">
       <section class="form__block">
@@ -85,24 +85,32 @@ export type EmployeeFormValue = {
         </h3>
 
         <!--
-          El catálogo vacío ya no es una pared: se escribe el puesto y se ofrece agregarlo. Antes
-          aquí salía un estado vacío que mandaba a Catálogos, y había que abandonar el alta a medias,
-          crear el puesto y volver a empezar.
+          Un desplegable, no un campo donde escribir.
+          Con el buscador se va su alta al vuelo, que estaba aqui para que el catalogo vacio no
+          fuera una pared. Vuelve a serlo: sin puestos en el catalogo hay que ir a Catalogos antes
+          de dar de alta a nadie, y por eso el vacio lo dice en vez de dejar un desplegable mudo.
+          Elegir de una lista cerrada es lo que pidio el usuario, y un nombre tecleado a mano no
+          sirve para comprobar la elegibilidad: esa se compara por identificador.
         -->
-        <gi-catalog-picker
+        <gi-select
           label="Puesto del catálogo"
-          catalogLabel="el catálogo de puestos"
-          inputId="empleado-puesto"
-          [options]="jobPositions()"
+          placeholder="Elige el puesto"
+          [options]="opcionesDePuesto()"
           [value]="idJobPositionCatalogItem()"
-          [canWrite]="canWrite()"
+          [disabled]="!canWrite()"
           (valueChange)="idJobPositionCatalogItem.set($event)"
-          (create)="createJobPosition.emit($event)"
         />
-        <p class="form__hint">
-          Los puestos salen del catálogo de esta organización. La elegibilidad se compara por
-          identificador, así que un puesto escrito a mano no sirve para comprobarla.
-        </p>
+        @if (jobPositions().length === 0) {
+          <p class="form__hint">
+            Esta organización no tiene puestos en su catálogo. Se declaran en Catálogos · Puestos, y
+            sin al menos uno no se puede dar de alta a nadie.
+          </p>
+        } @else {
+          <p class="form__hint">
+            Los puestos salen del catálogo de esta organización. La elegibilidad se compara por
+            identificador, así que un puesto escrito a mano no sirve para comprobarla.
+          </p>
+        }
       </section>
 
       <section class="form__block">
@@ -321,6 +329,11 @@ export class EmployeeForm {
   readonly organizationId = input('');
   readonly jobPositions = input.required<readonly EmployeeJobPositionOption[]>();
 
+  /** El catálogo de puestos con la forma que pide `gi-select`. */
+  protected readonly opcionesDePuesto = computed<readonly GiSelectOption[]>(() =>
+    this.jobPositions().map((puesto) => ({ value: puesto.idCatalogItem, label: puesto.name })),
+  );
+
   /** Sin esto, el alta al vuelo ofrecería crear algo que el servidor va a rechazar con 403. */
   readonly canWrite = input(false);
   /** El día operativo del servidor, para proponer el ingreso de hoy. */
@@ -338,7 +351,6 @@ export class EmployeeForm {
    * otro módulo, y quien la hace tiene que poder recargar la lista y contarlo. El formulario sólo
    * dice qué se pidió.</p>
    */
-  readonly createJobPosition = output<GiCatalogCreation>();
 
   /** Un objeto estable: creado en la plantilla se recrearía en cada ciclo de detección. */
   protected readonly sueltos = { standalone: true };

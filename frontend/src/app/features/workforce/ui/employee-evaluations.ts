@@ -204,15 +204,15 @@ const RESULTADOS = ['Approved', 'ApprovedWithObservations', 'Pending', 'Inconclu
                 <input type="date" formControlName="evaluatedDate" />
               </label>
               <label class="field">
-                <span class="field__label">VENCIMIENTO · OPCIONAL</span>
+                <span class="field__label">VENCIMIENTO</span>
                 <input type="date" formControlName="expiresDate" [min]="form.controls.evaluatedDate.value" />
               </label>
               <label class="field">
-                <span class="field__label">FOLIO O CERTIFICADO · OPCIONAL</span>
+                <span class="field__label">FOLIO O CERTIFICADO</span>
                 <input type="text" formControlName="certificateNumber" maxlength="80" />
               </label>
               <label class="field field--wide">
-                <span class="field__label">NOTAS · OPCIONAL</span>
+                <span class="field__label">NOTAS</span>
                 <textarea rows="2" formControlName="notes" maxlength="1000"></textarea>
               </label>
             </div>

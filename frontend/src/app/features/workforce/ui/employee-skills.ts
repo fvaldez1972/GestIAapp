@@ -179,15 +179,15 @@ export type EmployeeSkillFormValue = {
                 }
               </div>
               <label class="field">
-                <span class="field__label">ACREDITADA EL · OPCIONAL</span>
+                <span class="field__label">ACREDITADA EL</span>
                 <input type="date" formControlName="acquiredDate" />
               </label>
               <label class="field">
-                <span class="field__label">VENCIMIENTO · OPCIONAL</span>
+                <span class="field__label">VENCIMIENTO</span>
                 <input type="date" formControlName="expiresDate" [min]="form.controls.acquiredDate.value" />
               </label>
               <label class="field field--wide">
-                <span class="field__label">NOTAS · OPCIONAL</span>
+                <span class="field__label">NOTAS</span>
                 <textarea rows="2" formControlName="notes" maxlength="1000"></textarea>
               </label>
             </div>

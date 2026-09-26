@@ -32,7 +32,7 @@ export type EmployeeNameValue = {
     <section class="nom">
       <div class="nom__row">
         <label class="field" for="en-nombre">
-          <span class="field__label">NOMBRE(S)</span>
+          <span class="field__label">NOMBRE(S)<span class="field__req" aria-hidden="true">*</span></span>
           <input
             id="en-nombre"
             name="firstName"
@@ -45,7 +45,7 @@ export type EmployeeNameValue = {
           />
         </label>
         <label class="field" for="en-paterno">
-          <span class="field__label">APELLIDO PATERNO</span>
+          <span class="field__label">APELLIDO PATERNO<span class="field__req" aria-hidden="true">*</span></span>
           <input
             id="en-paterno"
             name="lastNamePaternal"
@@ -58,7 +58,7 @@ export type EmployeeNameValue = {
           />
         </label>
         <label class="field" for="en-materno">
-          <span class="field__label">APELLIDO MATERNO · OPCIONAL</span>
+          <span class="field__label">APELLIDO MATERNO</span>
           <input
             id="en-materno"
             name="lastNameMaternal"
@@ -100,6 +100,7 @@ export type EmployeeNameValue = {
     .nom__row { display: grid; gap: 0.7rem; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 
     .field { display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; }
+    .field__req { color: var(--gestia-danger); margin-left: 0.15rem; }
 
     .field__label {
       color: var(--gestia-muted);

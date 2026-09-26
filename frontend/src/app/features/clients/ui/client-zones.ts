@@ -68,7 +68,7 @@ export type NewZone = {
 
           <!-- RQ-03/RQ-04: el campo de ubicacion es el mapa. El Plus code se deriva del punto. -->
           <div class="new__mapa">
-            <span class="field__label">UBICACIÓN EN EL MAPA · OPCIONAL</span>
+            <span class="field__label">UBICACIÓN EN EL MAPA</span>
             <gi-map-picker [point]="punto()" (pointChange)="punto.set($event)" />
           </div>
 

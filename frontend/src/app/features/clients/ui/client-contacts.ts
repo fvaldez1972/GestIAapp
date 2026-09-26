@@ -113,7 +113,7 @@ export type NewContact = {
               todo el cliente, y obligar a elegir una zona lo obligaria a mentir.
             -->
             <div class="field">
-              <span class="field__label">ZONA · OPCIONAL</span>
+              <span class="field__label">ZONA</span>
               <gi-select
                 label="Zona"
                 placeholder="Todo el cliente"

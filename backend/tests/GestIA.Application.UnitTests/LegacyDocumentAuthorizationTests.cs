@@ -113,6 +113,16 @@ public sealed class LegacyDocumentAuthorizationTests
         public Employee Employee { get; } = Employee.Create(Guid.NewGuid(), "EMP-1", "Test", "Employee", null, null,
             new DateOnly(2026, 9, 3), Guid.NewGuid(), "Tester", DateTime.UtcNow);
         public int CollectionReads { get; private set; }
+        // El historial laboral no interviene en lo que esta prueba mira --la autorizacion sobre
+        // documentos heredados--, asi que estos cuatro no se usan.
+        public Task<Employee?> GetEmployeeWithPeriodsAsync(Guid idOrganization, Guid idEmployee, CancellationToken cancellationToken) =>
+            GetEmployeeAsync(idOrganization, idEmployee, cancellationToken);
+        public Task<IReadOnlyList<EmploymentPeriodResponse>> ListEmploymentPeriodsAsync(Guid idOrganization, Guid idEmployee, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<EmploymentPeriodResponse>>([]);
+        public Task<IReadOnlyList<ServiceAssignment>> ListOpenAssignmentsAsync(Guid idOrganization, Guid idEmployee, DateOnly onDate, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<ServiceAssignment>>([]);
+        public Task<(int Count, DateOnly? FirstDate, DateOnly? LastDate)> CountFutureShiftsAsync(Guid idOrganization, Guid idEmployee, DateOnly fromDate, CancellationToken cancellationToken) =>
+            Task.FromResult<(int, DateOnly?, DateOnly?)>((0, null, null));
         public Task<Employee?> GetEmployeeAsync(Guid idOrganization, Guid idEmployee, CancellationToken cancellationToken) =>
             Task.FromResult<Employee?>(Employee.IdOrganization == idOrganization && Employee.IdEmployee == idEmployee ? Employee : null);
         public Task<IReadOnlyList<EmployeeDocument>> ListDocumentsAsync(Guid idEmployee, CancellationToken cancellationToken)

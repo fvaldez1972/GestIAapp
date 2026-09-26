@@ -116,7 +116,11 @@ public sealed class OrganizationFilterModelTests
         // expediente y el equipo que requiere una posición. Las dos llevan su organización
         // denormalizada como el resto de las entidades de detalle, porque el filtro de un hijo no
         // puede depender del filtro de su padre.
-        Assert.Equal(32, ScopedEntityTypes(context).Count());
+        //
+        // Y desde RQ-07, una más: el periodo laboral. Lleva su organización denormalizada por la
+        // misma razón que las otras entidades de detalle, y además porque el historial laboral de
+        // una persona es exactamente el tipo de dato que no puede escaparse entre organizaciones.
+        Assert.Equal(33, ScopedEntityTypes(context).Count());
     }
 
     /// <summary>

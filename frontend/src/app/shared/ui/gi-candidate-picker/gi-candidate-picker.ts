@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnInit, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, input, output, signal } from '@angular/core';
 import { devAssert } from '../dev-assert';
 
 /**
@@ -32,6 +32,14 @@ export type GiCandidate = {
    * qué posición queda corta y en qué turno.</p>
    */
   readonly consequence?: string;
+
+  /**
+   * Si vive en el mismo municipio que la sede del servicio.
+   *
+   * <p>Es lo único que el domicilio permite hoy: guarda municipio y estado, no coordenadas, así que
+   * no hay distancia que medir. Nulo cuando no se sabe el municipio de alguno de los dos.</p>
+   */
+  readonly nearby?: boolean | null;
 };
 
 /**
@@ -80,6 +88,36 @@ const PILDORA: Record<GiCandidateStanding, string> = {
         <span class="gi-cand__count">{{ summary() }}</span>
       </div>
 
+      @if (candidates().length > 0 && splitByProximity()) {
+        <div class="gi-cand__tabs" role="tablist">
+          <button
+            class="gi-cand__tab"
+            type="button"
+            role="tab"
+            [class.is-active]="tab() === 'nearby'"
+            [attr.aria-selected]="tab() === 'nearby'"
+            (click)="tab.set('nearby')"
+          >
+            Cercanos disponibles ({{ cercanos().length }})
+          </button>
+          <button
+            class="gi-cand__tab"
+            type="button"
+            role="tab"
+            [class.is-active]="tab() === 'others'"
+            [attr.aria-selected]="tab() === 'others'"
+            (click)="tab.set('others')"
+          >
+            Otros disponibles ({{ otros().length }})
+          </button>
+        </div>
+
+        <p class="gi-cand__tab-nota">
+          Cercano quiere decir que vive en el mismo municipio que la sede. Es lo que el domicilio
+          permite decir hoy: no guarda coordenadas, así que no hay distancia que medir.
+        </p>
+      }
+
       @if (candidates().length === 0) {
         <div class="gi-cand__empty">
           <p class="gi-cand__empty-title">{{ emptyTitle() }}</p>
@@ -92,7 +130,7 @@ const PILDORA: Record<GiCandidateStanding, string> = {
         </div>
       } @else {
         <ul class="gi-cand__list">
-          @for (candidate of candidates(); track candidate.id) {
+          @for (candidate of visibles(); track candidate.id) {
             <!--
               La fila dice si es la elegida. Antes pulsar «Elegir» no cambiaba nada en pantalla
               —la elección viajaba al formulario y la lista seguía idéntica—, así que parecía que
@@ -234,10 +272,51 @@ const PILDORA: Record<GiCandidateStanding, string> = {
       cursor: pointer;
       text-decoration: underline;
     }
-  `,
+  
+    .gi-cand__tabs { display: flex; gap: 0.35rem; }
+
+    .gi-cand__tab {
+      padding: 0.2rem 0.6rem;
+      border: 1px solid var(--gestia-border);
+      border-radius: var(--gestia-radius-chip);
+      background: var(--gestia-surface);
+      color: var(--gestia-muted);
+      font: inherit;
+      font-size: 11.5px;
+      cursor: pointer;
+    }
+
+    .gi-cand__tab.is-active {
+      border-color: var(--gestia-navy);
+      background: var(--gestia-navy);
+      color: var(--gestia-surface);
+    }
+
+    .gi-cand__tab:focus-visible { outline: 2px solid var(--gestia-cyan); outline-offset: 1px; }
+
+    .gi-cand__tab-nota { margin: 0; color: var(--gestia-muted); font-size: 11px; }
+`,
 })
 export class GiCandidatePicker implements OnInit {
   readonly candidates = input.required<readonly GiCandidate[]>();
+
+  /** Las dos pestañas de RQ-11. Sólo aparecen cuando alguien trae el dato de cercanía. */
+  protected readonly tab = signal<'nearby' | 'others'>('nearby');
+
+  protected readonly splitByProximity = computed(() =>
+    this.candidates().some((candidate) => candidate.nearby !== undefined && candidate.nearby !== null),
+  );
+
+  protected readonly cercanos = computed(() => this.candidates().filter((c) => c.nearby === true));
+  protected readonly otros = computed(() => this.candidates().filter((c) => c.nearby !== true));
+
+  protected readonly visibles = computed(() => {
+    if (!this.splitByProximity()) {
+      return this.candidates();
+    }
+
+    return this.tab() === 'nearby' ? this.cercanos() : this.otros();
+  });
   readonly title = input('CANDIDATOS');
 
   readonly emptyTitle = input('Nadie puede tomar este turno todavía');

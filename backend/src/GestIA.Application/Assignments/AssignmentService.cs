@@ -358,6 +358,7 @@ public sealed class AssignmentService(
             assignment.IdEmployee,
             assignment.Employee.CodeEmployee,
             assignment.Employee.FullName,
+            assignment.Employee.Municipality,
             assignment.IdService,
             assignment.IdPosition,
             assignment.Position?.CodePosition,

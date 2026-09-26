@@ -303,7 +303,20 @@ export function buildCandidates(options: {
    * «Elegible». No es lo mismo no saber que saber que sí.</p>
    */
   readonly eligibility?: ReadonlyMap<string, CandidateEligibility>;
+
+  /**
+   * El municipio de la sede donde se presta el servicio.
+   *
+   * <p>Sin el, la lista no se parte en cercanos y otros: no hay contra que comparar, y partirla
+   * pondria a todos del lado equivocado.</p>
+   */
+  readonly siteMunicipality?: string | null;
 }): readonly GiCandidate[] {
+  const mismoMunicipio = (municipio: string | null | undefined): boolean | null => {
+    const sede = options.siteMunicipality?.trim().toLocaleLowerCase('es');
+    const persona = municipio?.trim().toLocaleLowerCase('es');
+    return sede && persona ? sede === persona : null;
+  };
   const delDia = options.shifts.filter((shift) => shift.shiftDate === options.date);
   const otroTurnoDe = new Map(
     delDia.filter((shift) => shift.idPosition !== options.idPosition).map((s) => [s.idEmployee, s]),
@@ -320,6 +333,7 @@ export function buildCandidates(options: {
       if (otro) {
         return {
           id: assignment.idEmployee,
+          nearby: mismoMunicipio(assignment.employeeMunicipality),
           name: assignment.employeeName,
           role: assignment.positionName ?? 'Sin puesto registrado',
           availability: `Cubre ${otro.positionCode} ese día, ${otro.startTime.slice(0, 5)}–${otro.endTime.slice(0, 5)}`,
@@ -331,6 +345,7 @@ export function buildCandidates(options: {
       if (!assignment.idPosition) {
         return {
           id: assignment.idEmployee,
+          nearby: mismoMunicipio(assignment.employeeMunicipality),
           name: assignment.employeeName,
           role: 'Sin puesto registrado',
           availability: 'Sin turno ese día',
@@ -346,6 +361,7 @@ export function buildCandidates(options: {
       if (!veredicto) {
         return {
           id: assignment.idEmployee,
+          nearby: mismoMunicipio(assignment.employeeMunicipality),
           name: assignment.employeeName,
           role: assignment.positionName ?? '',
           availability: 'Sin turno ese día',
@@ -356,6 +372,7 @@ export function buildCandidates(options: {
       if (!veredicto.isEligible) {
         return {
           id: assignment.idEmployee,
+          nearby: mismoMunicipio(assignment.employeeMunicipality),
           name: assignment.employeeName,
           role: assignment.positionName ?? '',
           availability: 'Sin turno ese día',

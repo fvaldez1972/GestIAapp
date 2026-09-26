@@ -162,6 +162,8 @@ public sealed record ServiceListItemResponse(
     string ClientName,
     Guid IdClientSite,
     string? ClientSiteName,
+    /// <summary>El municipio de la sede. Es lo que permite decir quién vive cerca (RQ-11).</summary>
+    string? ClientSiteMunicipality,
     Guid? IdServiceContract,
     string? ServiceContractCode,
     string CodeService,

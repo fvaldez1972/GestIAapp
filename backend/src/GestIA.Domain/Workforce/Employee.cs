@@ -118,6 +118,20 @@ public sealed class Employee : AuditableEntity, IOrganizationScopedEntity
     public Guid? IdEducationLevelCatalogItem { get; private set; }
 
     public string? JobTitle { get; private set; }
+
+    /// <summary>
+    /// La fecha de ingreso vigente.
+    ///
+    /// <para><b>Desde RQ-07 se deriva del periodo laboral más reciente</b> —abierto o cerrado— en vez
+    /// de capturarse suelta. Se conserva como columna porque la leen las listas, la búsqueda y los
+    /// reportes, y porque la antigüedad sale de restarle hoy; lo que cambia es que ya nadie la escribe
+    /// por su cuenta.</para>
+    ///
+    /// <para><b>La excepción es quien todavía no ha sido contratado.</b> Una persona en candidatura no
+    /// tiene periodo —el periodo se abre al contratarla—, así que su fecha de ingreso sigue siendo la
+    /// que se capturó en el alta: una fecha prevista, no un hecho. Hacerla nula para ese caso es lo
+    /// correcto y es otra tanda: la columna es <c>NOT NULL</c> y la leen quince puntos.</para>
+    /// </summary>
     public DateOnly HireDate { get; private set; }
     public DateOnly? BirthDate { get; private set; }
     public string? BirthPlace { get; private set; }
@@ -247,6 +261,151 @@ public sealed class Employee : AuditableEntity, IOrganizationScopedEntity
         RegisterUpdate(actorId, actorName, occurredAt);
     }
 
+    /// <summary>
+    /// Los periodos laborales de esta persona.
+    ///
+    /// <para>Están en el agregado y no sueltos porque las reglas que los gobiernan —como máximo un
+    /// periodo abierto, la antigüedad desde el último ingreso— son reglas <i>sobre el conjunto</i>, y
+    /// desde fuera nadie puede garantizarlas.</para>
+    /// </summary>
+    public IReadOnlyCollection<EmploymentPeriod> EmploymentPeriods => employmentPeriods;
+
+    private readonly List<EmploymentPeriod> employmentPeriods = [];
+
+    /// <summary>El periodo abierto, si la persona está contratada ahora mismo.</summary>
+    public EmploymentPeriod? OpenEmploymentPeriod =>
+        employmentPeriods.SingleOrDefault(periodo => periodo.IsOpen);
+
+    /// <summary>
+    /// Desde cuándo cuenta la antigüedad: el ingreso del periodo más reciente.
+    ///
+    /// <para>Los periodos anteriores <b>no suman</b>. Es la regla que el documento de la reunión marcó
+    /// como la buena, y la razón por la que existe esta tabla.</para>
+    /// </summary>
+    public DateOnly? SeniorityStartDate =>
+        employmentPeriods.Count == 0
+            ? null
+            : employmentPeriods.Max(periodo => periodo.StartDate);
+
+    /// <summary>
+    /// Abre el primer periodo de quien estaba en candidatura.
+    ///
+    /// <para>Es el acto que convierte una candidatura en una contratación, y hasta RQ-07 no existía:
+    /// la pantalla no tenía ninguna acción que llevara a alguien de candidata a activa.</para>
+    /// </summary>
+    public EmploymentPeriod Hire(DateOnly startDate, Guid actorId, string actorName, DateTime occurredAt)
+    {
+        if (employmentPeriods.Count > 0)
+        {
+            throw new DomainRuleException(
+                "Esta persona ya tiene historial laboral. Para volver a contratarla se registra un " +
+                "reingreso, no una contratación nueva.");
+        }
+
+        return OpenPeriod(startDate, actorId, actorName, occurredAt);
+    }
+
+    /// <summary>
+    /// Cierra el periodo abierto con su fecha de baja y su motivo, y deja a la persona dada de baja.
+    ///
+    /// <para>Un permiso <b>no</b> pasa por aquí: quien está en permiso sigue contratada y su antigüedad
+    /// no se interrumpe.</para>
+    /// </summary>
+    public EmploymentPeriod Terminate(
+        DateOnly endDate,
+        string terminationReason,
+        Guid actorId,
+        string actorName,
+        DateTime occurredAt)
+    {
+        var abierto = OpenEmploymentPeriod
+            ?? throw new DomainRuleException(
+                "Esta persona no tiene un periodo laboral abierto, así que no hay nada que dar de baja.");
+
+        abierto.Close(endDate, terminationReason, actorId, actorName, occurredAt);
+        Status = EmployeeStatus.Terminated;
+        RegisterUpdate(actorId, actorName, occurredAt);
+        return abierto;
+    }
+
+    /// <summary>
+    /// Abre un periodo nuevo para quien estaba dada de baja. Puede repetirse sin límite.
+    ///
+    /// <para>No se recaptura nada del expediente: la persona ya está aquí, con sus documentos, su
+    /// domicilio y su historial. Lo único nuevo es la fecha de ingreso de este periodo.</para>
+    /// </summary>
+    public EmploymentPeriod Rehire(DateOnly startDate, Guid actorId, string actorName, DateTime occurredAt)
+    {
+        if (Status != EmployeeStatus.Terminated)
+        {
+            throw new DomainRuleException("El reingreso sólo se registra sobre alguien dado de baja.");
+        }
+
+        if (OpenEmploymentPeriod is not null)
+        {
+            throw new DomainRuleException("Esta persona ya tiene un periodo laboral abierto.");
+        }
+
+        var ultimaBaja = employmentPeriods.Count == 0
+            ? null
+            : employmentPeriods.Max(periodo => periodo.EndDate);
+
+        if (ultimaBaja is not null && startDate < ultimaBaja)
+        {
+            throw new DomainRuleException(
+                "La fecha de reingreso no puede ser anterior a la baja que la precede.");
+        }
+
+        return OpenPeriod(startDate, actorId, actorName, occurredAt);
+    }
+
+    /// <summary>
+    /// Registra un periodo que la persona ya tenía cuando la tabla no existía.
+    ///
+    /// <para>Sólo lo usan la migración y el sembrador de datos demo: es la puerta para sembrar
+    /// historial sin pasar por las reglas de movimiento, que exigen un estado de partida que estos
+    /// expedientes ya traen puesto.</para>
+    /// </summary>
+    public EmploymentPeriod RegisterExistingPeriod(
+        DateOnly startDate,
+        DateOnly? endDate,
+        string? terminationReason,
+        Guid actorId,
+        string actorName,
+        DateTime occurredAt)
+    {
+        var periodo = EmploymentPeriod.Open(
+            IdOrganization, IdEmployee, startDate, actorId, actorName, occurredAt);
+
+        if (endDate is not null)
+        {
+            periodo.Close(endDate.Value, terminationReason ?? string.Empty, actorId, actorName, occurredAt);
+        }
+
+        employmentPeriods.Add(periodo);
+        HireDate = SeniorityStartDate ?? HireDate;
+        return periodo;
+    }
+
+    private EmploymentPeriod OpenPeriod(
+        DateOnly startDate,
+        Guid actorId,
+        string actorName,
+        DateTime occurredAt)
+    {
+        var periodo = EmploymentPeriod.Open(
+            IdOrganization, IdEmployee, startDate, actorId, actorName, occurredAt);
+
+        employmentPeriods.Add(periodo);
+
+        // La fecha de ingreso es un derivado del periodo mas reciente, igual que el nombre completo es
+        // un derivado de sus tres partes: un unico punto de escritura.
+        HireDate = SeniorityStartDate ?? startDate;
+        Status = EmployeeStatus.Active;
+        RegisterUpdate(actorId, actorName, occurredAt);
+        return periodo;
+    }
+
     public void ChangeStatus(
         EmployeeStatus status,
         Guid actorId,
@@ -281,7 +440,11 @@ public sealed class Employee : AuditableEntity, IOrganizationScopedEntity
         IdJobPositionCatalogItem = profile.IdJobPositionCatalogItem;
         IdEducationLevelCatalogItem = profile.IdEducationLevelCatalogItem;
         JobTitle = Normalize(profile.JobTitle);
-        HireDate = profile.HireDate;
+
+        // Mientras la persona no tenga periodo --esto es, mientras siga en candidatura-- la fecha de
+        // ingreso es la que se capturo. En cuanto hay periodo, manda el periodo: editar el expediente
+        // no puede mover una fecha que ya es un hecho registrado.
+        HireDate = SeniorityStartDate ?? profile.HireDate;
         BirthDate = profile.BirthDate;
         BirthPlace = Normalize(profile.BirthPlace);
         Sex = Normalize(profile.Sex);

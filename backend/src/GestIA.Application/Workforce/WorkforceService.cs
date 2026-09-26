@@ -118,6 +118,109 @@ public sealed class WorkforceService(
         return Map(employee);
     }
 
+    /// <summary>
+    /// Contrata a quien estaba en candidatura: abre su primer periodo laboral.
+    /// </summary>
+    public async Task<EmployeeResponse> HireEmployeeAsync(
+        Guid idEmployee,
+        HireEmployeeRequest request,
+        CancellationToken cancellationToken)
+    {
+        var employee = await EnsureEmployeeWithPeriodsAsync(request.IdOrganization, idEmployee, cancellationToken);
+        employee.Hire(request.StartDate, actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+        return Map(employee);
+    }
+
+    /// <summary>
+    /// Registra la baja: cierra el periodo abierto con su fecha y su motivo, cierra las asignaciones
+    /// que siguen vigentes, y cuenta los turnos ya proyectados que quedan a nombre de la persona.
+    ///
+    /// <para><b>Las tres cosas van en la misma transacción</b>, y ésa es la parte que importa: una baja
+    /// que cerrara el periodo y dejara las asignaciones abiertas describiría a alguien que ya no
+    /// trabaja y sigue cubriendo un servicio.</para>
+    ///
+    /// <para><b>Los turnos ya proyectados no se tocan.</b> Una versión publicada de la planeación es
+    /// inmutable por decisión del proyecto, y borrar turnos ajenos en silencio sería peor que dejarlos:
+    /// alguien tiene que cubrirlos, y para eso hay que verlos. Por eso se cuentan y se devuelven, en
+    /// vez de desaparecer.</para>
+    /// </summary>
+    public async Task<TerminateEmployeeResult> TerminateEmployeeAsync(
+        Guid idEmployee,
+        TerminateEmployeeRequest request,
+        CancellationToken cancellationToken)
+    {
+        var employee = await EnsureEmployeeWithPeriodsAsync(request.IdOrganization, idEmployee, cancellationToken);
+
+        employee.Terminate(
+            request.EndDate,
+            request.TerminationReason,
+            actorContext.ActorId,
+            actorContext.ActorName,
+            clock.UtcNow);
+
+        var asignaciones = await repository.ListOpenAssignmentsAsync(
+            request.IdOrganization, idEmployee, request.EndDate, cancellationToken);
+
+        foreach (var asignacion in asignaciones)
+        {
+            asignacion.Close(request.EndDate, actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
+        }
+
+        var turnos = await repository.CountFutureShiftsAsync(
+            request.IdOrganization, idEmployee, request.EndDate, cancellationToken);
+
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return new TerminateEmployeeResult(
+            Map(employee),
+            asignaciones.Count,
+            turnos.Count,
+            turnos.FirstDate,
+            turnos.LastDate);
+    }
+
+    /// <summary>
+    /// Registra un reingreso: abre un periodo nuevo. Puede repetirse sin límite y sin espera mínima.
+    /// </summary>
+    public async Task<EmployeeResponse> RehireEmployeeAsync(
+        Guid idEmployee,
+        RehireEmployeeRequest request,
+        CancellationToken cancellationToken)
+    {
+        var employee = await EnsureEmployeeWithPeriodsAsync(request.IdOrganization, idEmployee, cancellationToken);
+        employee.Rehire(request.StartDate, actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+        return Map(employee);
+    }
+
+    public async Task<IReadOnlyList<EmploymentPeriodResponse>> ListEmploymentPeriodsAsync(
+        Guid idOrganization,
+        Guid idEmployee,
+        CancellationToken cancellationToken)
+    {
+        await EnsureEmployeeAsync(idOrganization, idEmployee, cancellationToken);
+        return await repository.ListEmploymentPeriodsAsync(idOrganization, idEmployee, cancellationToken);
+    }
+
+    private async Task<Employee> EnsureEmployeeWithPeriodsAsync(
+        Guid idOrganization,
+        Guid idEmployee,
+        CancellationToken cancellationToken)
+    {
+        if (idOrganization == Guid.Empty || idEmployee == Guid.Empty)
+        {
+            throw new RequestValidationException(new Dictionary<string, string[]>
+            {
+                [nameof(idOrganization)] = ["La organización es obligatoria."],
+                [nameof(idEmployee)] = ["El empleado es obligatorio."]
+            });
+        }
+
+        return await repository.GetEmployeeWithPeriodsAsync(idOrganization, idEmployee, cancellationToken)
+            ?? throw new ResourceNotFoundException($"No existe el empleado '{idEmployee}'.");
+    }
+
     public async Task DeactivateEmployeeAsync(
         Guid idOrganization,
         Guid idEmployee,

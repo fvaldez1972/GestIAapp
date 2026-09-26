@@ -93,6 +93,48 @@ public sealed record UpdateEmployeeRequest(
 
 public sealed record ChangeEmployeeStatusRequest(Guid IdOrganization, EmployeeStatus Status);
 
+/// <summary>
+/// La contratación de quien estaba en candidatura: abre su primer periodo laboral.
+///
+/// <para>Hasta RQ-07 no existía ninguna acción que llevara a alguien de candidata a activa, así que
+/// los expedientes en candidatura no tenían salida. Ésta es esa salida.</para>
+/// </summary>
+public sealed record HireEmployeeRequest(Guid IdOrganization, DateOnly StartDate);
+
+/// <summary>
+/// La baja: cierra el periodo abierto con su fecha y su motivo.
+///
+/// <para><b>El motivo es obligatorio</b> y es el motivo del hecho —por qué la persona deja de
+/// trabajar—, no el motivo de una corrección. Va vacío en el formulario: nunca se prellena ni se
+/// sugiere.</para>
+/// </summary>
+public sealed record TerminateEmployeeRequest(
+    Guid IdOrganization,
+    DateOnly EndDate,
+    string TerminationReason);
+
+/// <summary>El reingreso: abre un periodo nuevo, con su propia fecha de ingreso.</summary>
+public sealed record RehireEmployeeRequest(Guid IdOrganization, DateOnly StartDate);
+
+/// <summary>
+/// Un periodo laboral, para pintar el historial de la ficha.
+///
+/// <para><c>TerminationReason</c> llega sólo en los periodos cerrados, y es texto que alguien
+/// escribió: se muestra tal cual.</para>
+/// </summary>
+public sealed record EmploymentPeriodResponse(
+    Guid IdEmploymentPeriod,
+    Guid IdEmployee,
+    DateOnly StartDate,
+    DateOnly? EndDate,
+    string? TerminationReason,
+    bool IsOpen,
+    bool Active,
+    DateTime CreatedAt,
+    string CreatedByName,
+    DateTime? UpdatedAt,
+    string? UpdatedByName);
+
 public sealed record EmployeeResponse(
     Guid IdEmployee,
     Guid IdOrganization,
@@ -263,3 +305,18 @@ public sealed record EmployeeListResult(
 {
     public PagedResult<EmployeeResponse> ToPagedResult() => new(Items, TotalCount, Page, PageSize);
 }
+
+/// <summary>
+/// Lo que deja una baja, además del expediente.
+///
+/// <para><b>Los turnos ya proyectados no se borran y hay que decirlo.</b> Una versión publicada de la
+/// planeación es inmutable, así que la baja no los cancela: los cuenta y los devuelve con su primer y
+/// último día, para que la pantalla avise de que hay huecos que cubrir. Callarlo dejaría turnos a
+/// nombre de alguien que ya no trabaja, y nadie se enteraría hasta el día del turno.</para>
+/// </summary>
+public sealed record TerminateEmployeeResult(
+    EmployeeResponse Employee,
+    int ClosedAssignments,
+    int FutureShifts,
+    DateOnly? FirstFutureShiftDate,
+    DateOnly? LastFutureShiftDate);

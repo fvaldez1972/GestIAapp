@@ -69,6 +69,12 @@ public sealed class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
             .HasForeignKey(entity => entity.IdEducationLevelCatalogItem)
             .OnDelete(DeleteBehavior.Restrict);
 
+        // La coleccion de periodos se lee del campo, no de la propiedad: la propiedad es de solo
+        // lectura a proposito, para que nadie agregue un periodo saltandose las reglas del agregado.
+        builder.Metadata
+            .FindNavigation(nameof(Employee.EmploymentPeriods))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
+
         builder.HasIndex(entity => new { entity.IdOrganization, entity.CodeEmployee }).IsUnique();
         builder.HasIndex(entity => new { entity.IdOrganization, entity.Rfc })
             .IsUnique()

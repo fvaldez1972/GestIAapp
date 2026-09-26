@@ -108,6 +108,81 @@ public static class WorkforceEndpoints
             .RequirePermission(SecurityPermissions.WorkforceWrite)
             .WithName("ChangeEmployeeStatus");
 
+        // Los tres movimientos del historial laboral. Van aparte del cambio de estado a proposito:
+        // cada uno escribe un periodo, y llamarlos "cambiar el estado a Terminated" escondia que lo
+        // que de verdad ocurre es que se cierra un periodo con su fecha y su motivo.
+        group.MapPost("/{idEmployee:guid}/hire", async (
+            HttpContext context,
+            Guid idEmployee,
+            HireEmployeeRequest request,
+            IWorkforceService service,
+            CancellationToken cancellationToken) =>
+        {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, request.IdOrganization) is { } forbidden)
+            {
+                return forbidden;
+            }
+
+            var result = await service.HireEmployeeAsync(idEmployee, request, cancellationToken);
+            return Results.Ok(result);
+        })
+            .RequirePermission(SecurityPermissions.WorkforceWrite)
+            .WithName("HireEmployee");
+
+        group.MapPost("/{idEmployee:guid}/terminate", async (
+            HttpContext context,
+            Guid idEmployee,
+            TerminateEmployeeRequest request,
+            IWorkforceService service,
+            CancellationToken cancellationToken) =>
+        {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, request.IdOrganization) is { } forbidden)
+            {
+                return forbidden;
+            }
+
+            var result = await service.TerminateEmployeeAsync(idEmployee, request, cancellationToken);
+            return Results.Ok(result);
+        })
+            .RequirePermission(SecurityPermissions.WorkforceWrite)
+            .WithName("TerminateEmployee");
+
+        group.MapPost("/{idEmployee:guid}/rehire", async (
+            HttpContext context,
+            Guid idEmployee,
+            RehireEmployeeRequest request,
+            IWorkforceService service,
+            CancellationToken cancellationToken) =>
+        {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, request.IdOrganization) is { } forbidden)
+            {
+                return forbidden;
+            }
+
+            var result = await service.RehireEmployeeAsync(idEmployee, request, cancellationToken);
+            return Results.Ok(result);
+        })
+            .RequirePermission(SecurityPermissions.WorkforceWrite)
+            .WithName("RehireEmployee");
+
+        group.MapGet("/{idEmployee:guid}/employment-periods", async (
+            HttpContext context,
+            Guid idEmployee,
+            Guid organizationId,
+            IWorkforceService service,
+            CancellationToken cancellationToken) =>
+        {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
+            var result = await service.ListEmploymentPeriodsAsync(organizationId, idEmployee, cancellationToken);
+            return Results.Ok(result);
+        })
+            .RequirePermission(SecurityPermissions.WorkforceRead)
+            .WithName("ListEmploymentPeriods");
+
         group.MapDelete("/{idEmployee:guid}", async (
             HttpContext context,
             Guid idEmployee,

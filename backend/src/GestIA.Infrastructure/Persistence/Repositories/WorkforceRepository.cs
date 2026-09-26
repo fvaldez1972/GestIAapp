@@ -49,6 +49,96 @@ public sealed partial class WorkforceRepository(GestIaDbContext dbContext) : IWo
             employee => employee.IdOrganization == idOrganization && employee.IdEmployee == idEmployee,
             cancellationToken);
 
+    /// <summary>
+    /// El expediente con sus periodos laborales cargados, para las operaciones que los gobiernan.
+    ///
+    /// <para>No es <c>AsNoTracking</c>: ingreso, baja y reingreso escriben.</para>
+    /// </summary>
+    public Task<Employee?> GetEmployeeWithPeriodsAsync(
+        Guid idOrganization,
+        Guid idEmployee,
+        CancellationToken cancellationToken) =>
+        dbContext.Employees
+            .Include(employee => employee.EmploymentPeriods)
+            .SingleOrDefaultAsync(
+                employee => employee.IdOrganization == idOrganization && employee.IdEmployee == idEmployee,
+                cancellationToken);
+
+    /// <summary>
+    /// El historial laboral, del más reciente al más antiguo: así se lee una ficha.
+    /// </summary>
+    public async Task<IReadOnlyList<EmploymentPeriodResponse>> ListEmploymentPeriodsAsync(
+        Guid idOrganization,
+        Guid idEmployee,
+        CancellationToken cancellationToken) =>
+        await dbContext.EmploymentPeriods
+            .AsNoTracking()
+            .Where(periodo => periodo.IdOrganization == idOrganization && periodo.IdEmployee == idEmployee)
+            .OrderByDescending(periodo => periodo.StartDate)
+            .Select(periodo => new EmploymentPeriodResponse(
+                periodo.IdEmploymentPeriod,
+                periodo.IdEmployee,
+                periodo.StartDate,
+                periodo.EndDate,
+                periodo.TerminationReason,
+                periodo.EndDate == null,
+                periodo.Active,
+                periodo.CreatedAt,
+                periodo.CreatedByName,
+                periodo.UpdatedAt,
+                periodo.UpdatedByName))
+            .ToArrayAsync(cancellationToken);
+
+    /// <summary>
+    /// Las asignaciones que siguen vigentes a la fecha de la baja.
+    ///
+    /// <para>Vigente es activa y sin fin, o con fin posterior a esa fecha. Una que ya terminó no se
+    /// toca: adelantarle el fin sería reescribir un hecho.</para>
+    /// </summary>
+    public async Task<IReadOnlyList<ServiceAssignment>> ListOpenAssignmentsAsync(
+        Guid idOrganization,
+        Guid idEmployee,
+        DateOnly onDate,
+        CancellationToken cancellationToken) =>
+        await dbContext.ServiceAssignments
+            .Where(asignacion =>
+                asignacion.IdOrganization == idOrganization &&
+                asignacion.IdEmployee == idEmployee &&
+                asignacion.Active &&
+                (asignacion.EndDate == null || asignacion.EndDate > onDate))
+            .ToArrayAsync(cancellationToken);
+
+    /// <summary>
+    /// Los turnos ya proyectados que quedan a nombre de la persona desde la fecha de la baja.
+    ///
+    /// <para>Se cuentan, no se borran: una versión publicada de la planeación es inmutable.</para>
+    /// </summary>
+    public async Task<(int Count, DateOnly? FirstDate, DateOnly? LastDate)> CountFutureShiftsAsync(
+        Guid idOrganization,
+        Guid idEmployee,
+        DateOnly fromDate,
+        CancellationToken cancellationToken)
+    {
+        var turnos = dbContext.ScheduledShifts
+            .AsNoTracking()
+            .Where(turno =>
+                turno.IdOrganization == idOrganization &&
+                turno.IdEmployee == idEmployee &&
+                turno.ShiftDate > fromDate);
+
+        var total = await turnos.CountAsync(cancellationToken);
+
+        if (total == 0)
+        {
+            return (0, null, null);
+        }
+
+        return (
+            total,
+            await turnos.MinAsync(turno => (DateOnly?)turno.ShiftDate, cancellationToken),
+            await turnos.MaxAsync(turno => (DateOnly?)turno.ShiftDate, cancellationToken));
+    }
+
     public Task<bool> OrganizationExistsAsync(Guid idOrganization, CancellationToken cancellationToken) =>
         dbContext.Organizations.AnyAsync(
             organization => organization.IdOrganization == idOrganization,

@@ -69,6 +69,49 @@ public interface IWorkforceRepository
         Guid idEmployee,
         CancellationToken cancellationToken);
 
+    /// <summary>
+    /// El expediente <b>con sus periodos laborales cargados</b>.
+    ///
+    /// <para>Existe aparte porque las reglas de ingreso, baja y reingreso son reglas sobre el conjunto
+    /// de periodos: sin la colección cargada, el agregado no puede comprobar que hay como máximo uno
+    /// abierto ni de cuándo cuenta la antigüedad. El resto de las operaciones no los necesita y no
+    /// paga por traerlos.</para>
+    /// </summary>
+    Task<Employee?> GetEmployeeWithPeriodsAsync(
+        Guid idOrganization,
+        Guid idEmployee,
+        CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<EmploymentPeriodResponse>> ListEmploymentPeriodsAsync(
+        Guid idOrganization,
+        Guid idEmployee,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Las asignaciones vigentes de una persona a una fecha, para cerrarlas al darla de baja.
+    ///
+    /// <para>Vigente quiere decir activa y sin fin, o con fin posterior a la fecha de la baja. Una
+    /// asignación que ya terminó no se toca.</para>
+    /// </summary>
+    Task<IReadOnlyList<ServiceAssignment>> ListOpenAssignmentsAsync(
+        Guid idOrganization,
+        Guid idEmployee,
+        DateOnly onDate,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Cuántos turnos ya proyectados quedan a nombre de una persona desde una fecha.
+    ///
+    /// <para>No se borran: una versión publicada de la planeación es inmutable, y cancelar turnos
+    /// ajenos en silencio sería peor que dejarlos. Se cuentan para <b>decirlo</b> al dar la baja, de
+    /// modo que alguien los cubra.</para>
+    /// </summary>
+    Task<(int Count, DateOnly? FirstDate, DateOnly? LastDate)> CountFutureShiftsAsync(
+        Guid idOrganization,
+        Guid idEmployee,
+        DateOnly fromDate,
+        CancellationToken cancellationToken);
+
     Task<bool> OrganizationExistsAsync(Guid idOrganization, CancellationToken cancellationToken);
 
     Task<bool> IsEmployeeCodeInUseAsync(

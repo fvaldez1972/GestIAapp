@@ -177,6 +177,22 @@ internal static class DemoCatalog
         "Yolanda", "Zacarías", "Ángela", "Íñigo"
     ];
 
+    /// <summary>
+    /// Motivos de baja para los datos demo. Texto libre, como en la vida real: no hay catálogo.
+    ///
+    /// <para>Se siembran variados a propósito. Con un solo motivo repetido, una pantalla que no
+    /// mostrara el motivo se vería igual de bien que una que sí lo muestra.</para>
+    /// </summary>
+    public static readonly string[] TerminationReasons =
+    [
+        "Renuncia voluntaria por cambio de residencia",
+        "Termino de contrato por obra determinada",
+        "Baja por incumplimiento reiterado de horario",
+        "Renuncia voluntaria por oferta en otra empresa",
+        "Baja por reestructura del servicio",
+        "Renuncia por motivos de salud familiar"
+    ];
+
     public static readonly string[] EmployeeLastNames =
     [
         "Aguilar", "Bautista", "Carrillo", "Delgado", "Escobar", "Fuentes", "Guerrero", "Herrera",

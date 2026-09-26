@@ -70,7 +70,6 @@ public sealed class ClientZoneServiceTests
             OrganizationId,
             client.IdClient,
             Guid.NewGuid(),
-            ClientContactScope.Zone,
             null,
             null,
             ClientContactPurpose.Operational,

@@ -3,7 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { GiEmptyState } from '../../../shared/ui/gi-ui';
 import { GiCatalogOption, GiCatalogCreation } from '../../../shared/ui/gi-catalog-picker/gi-catalog-picker';
 import { GiSelect, GiSelectOption } from '../../../shared/ui/gi-select/gi-select';
-import { ClientContact, ClientContactPurpose, ClientContactScope, ClientZone } from '../data-access/client.models';
+import { ClientContact, ClientContactPurpose, ClientZone } from '../data-access/client.models';
 
 /** Lo que hace falta para dar de alta un contacto. */
 export type NewContact = {
@@ -12,7 +12,6 @@ export type NewContact = {
   readonly idPurposeCatalogItem: string | null;
   /** El propósito heredado. Se sigue mandando mientras el servidor conserve la columna. */
   readonly purpose: ClientContactPurpose;
-  readonly scope: ClientContactScope;
   readonly idClientZone: string | null;
   readonly idContactJobPositionCatalogItem: string | null;
   readonly jobTitle: string;
@@ -110,45 +109,25 @@ export type NewContact = {
 
           <div class="new__row new__row--two">
             <!--
-              Sin zona es una opción legítima y va primero: un contacto comercial vale para todo el
-              cliente, y obligar a elegir una zona lo obligaría a mentir.
-
-              El rótulo va escrito: gi-select usa su «label» como aria-label y no lo dibuja, y sin
-              esa línea la fila se veía torcida contra el campo de al lado.
+              La zona es opcional y vacia es una opcion legitima: un contacto comercial vale para
+              todo el cliente, y obligar a elegir una zona lo obligaria a mentir.
             -->
             <div class="field">
-              <span class="field__label">A QUIÉN CUBRE</span>
+              <span class="field__label">ZONA · OPCIONAL</span>
               <gi-select
-                label="A quién cubre"
+                label="Zona"
+                placeholder="Todo el cliente"
                 [openDown]="true"
-                [options]="scopeOptions"
-                [value]="scope()"
-                (valueChange)="scope.set($any($event))"
+                [options]="zoneOptions()"
+                [value]="idClientZone()"
+                (valueChange)="idClientZone.set($event)"
               />
-              <!--
-                La ayuda existe porque el negocio pregunto para que sirve este campo. Que lo
-                preguntara es la senal de que la pantalla no lo estaba diciendo: el rotulo nombra
-                el dato y no su consecuencia, y la consecuencia es lo unico que ayuda a elegir.
-              -->
-              <span class="field__hint">{{ scopeHint() }}</span>
+              <span class="field__hint">
+                Vacía vale para todo el cliente. Con zona, la pestaña de Zonas mostrará este
+                contacto en esa zona.
+              </span>
             </div>
           </div>
-
-          @if (scope() === 'Zone') {
-            <div class="new__row">
-              <div class="field">
-                <span class="field__label">ZONA A LA QUE PERTENECE</span>
-                <gi-select
-                  label="Zona a la que pertenece"
-                  placeholder="Elige la zona"
-                  [openDown]="true"
-                  [options]="zoneOptions()"
-                  [value]="idClientZone()"
-                  (valueChange)="idClientZone.set($event)"
-                />
-              </div>
-            </div>
-          }
 
           <div class="new__row new__row--two">
             <label class="field" for="nc-correo">
@@ -325,10 +304,6 @@ export class ClientContacts {
    * <p>«Del cliente» va primero porque es el caso normal: veintitrés de los veintiséis contactos de
    * la base viva son del cliente, no de una zona.</p>
    */
-  protected readonly scopeOptions: readonly GiSelectOption[] = [
-    { value: 'General', label: 'A todo el cliente' },
-    { value: 'Zone', label: 'Sólo a una zona' },
-  ];
 
   /**
    * Que decide el alcance, dicho en la propia pantalla.
@@ -342,11 +317,6 @@ export class ClientContacts {
    * obliga a leer la que no se eligio para encontrar la que si; diciendo solo la consecuencia de
    * lo que esta puesto, se lee de un vistazo.</p>
    */
-  protected readonly scopeHint = computed(() =>
-    this.scope() === 'General'
-      ? 'Vale para todo el cliente: la pestaña de Zonas lo usará en las zonas que no tengan un contacto propio.'
-      : 'Vale sólo para la zona que elijas: la pestaña de Zonas mostrará este contacto en vez del general.',
-  );
 
   protected readonly purposeOptions = computed(() => this.purposes());
 
@@ -392,7 +362,6 @@ export class ClientContacts {
    * devuelve igual. El catálogo sigue en Catálogos y el renglón lo sigue mostrando.</p>
    */
   protected readonly idPurpose = signal('');
-  protected readonly scope = signal<ClientContactScope>('General');
   protected readonly idClientZone = signal('');
   protected readonly isPrimary = signal(false);
 
@@ -411,10 +380,7 @@ export class ClientContacts {
   protected readonly ready = computed(
     () =>
       !!this.fullName().trim() &&
-      (!!this.email().trim() || !!this.phone().trim()) &&
-      // Con alcance de zona hay que decir cuál. El servidor lo rechaza igual; decirlo aquí evita
-      // que el usuario mande una petición que ya se sabe que va a fallar.
-      (this.scope() === 'General' || !!this.idClientZone()),
+      (!!this.email().trim() || !!this.phone().trim()),
   );
 
   protected startAdd(): void {
@@ -441,7 +407,6 @@ export class ClientContacts {
     this.phone.set(contact.phone ?? '');
     this.purpose.set(contact.purpose);
     this.idPurpose.set(contact.idPurposeCatalogItem ?? '');
-    this.scope.set(contact.scope);
     this.idClientZone.set(contact.idClientZone ?? '');
     this.isPrimary.set(contact.isPrimary);
     // Por identificador, no por nombre: el contacto ya lo trae desde la conversión del catálogo, y
@@ -466,10 +431,9 @@ export class ClientContacts {
       fullName: this.fullName().trim(),
       idPurposeCatalogItem: this.idPurpose() || null,
       purpose: this.purpose(),
-      scope: this.scope(),
       // Con alcance general la zona no viaja, aunque haya quedado elegida antes de cambiar de
       // alcance: el servidor la descartaría igual, y mandarla haría creer que se guardó.
-      idClientZone: this.scope() === 'Zone' ? this.idClientZone() || null : null,
+      idClientZone: this.idClientZone() || null,
       idContactJobPositionCatalogItem: this.idContactJobPosition() || null,
       jobTitle: this.jobPositions().find((p) => p.idCatalogItem === this.idContactJobPosition())?.name ?? '',
       email: this.email().trim(),
@@ -510,7 +474,6 @@ export class ClientContacts {
     this.phone.set('');
     this.purpose.set('Operational');
     this.idPurpose.set('');
-    this.scope.set('General');
     this.idClientZone.set('');
     this.isPrimary.set(false);
   }

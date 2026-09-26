@@ -24,12 +24,6 @@ public sealed class ClientContactConfiguration : IEntityTypeConfiguration<Client
         // conocia esta columna; su INSERT no la mencionaba y habria fallado contra una columna
         // obligatoria sin default. «General» es ademas lo correcto para lo que ese binario crea:
         // sin alcance, un contacto vale para todo el cliente.
-        builder.Property(entity => entity.Scope)
-            .HasConversion<string>()
-            .HasMaxLength(20)
-            .IsUnicode(false)
-            .HasDefaultValue(ClientContactScope.General)
-            .IsRequired();
 
         builder.HasOne(entity => entity.PurposeCatalogItem)
             .WithMany()

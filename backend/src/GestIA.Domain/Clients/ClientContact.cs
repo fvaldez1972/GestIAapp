@@ -51,7 +51,6 @@ public sealed class ClientContact : AuditableEntity, IOrganizationScopedEntity
     /// además de deducirse porque D-02 cuenta contactos principales por alcance, y para contar
     /// hace falta que el alcance sea un dato y no una inferencia.</para>
     /// </summary>
-    public ClientContactScope Scope { get; private set; }
 
     /// <summary>Para qué se le llama, como enum. <b>Rastro heredado</b> desde la conversión a catálogo.</summary>
     public ClientContactPurpose Purpose { get; private set; }
@@ -105,8 +104,7 @@ public sealed class ClientContact : AuditableEntity, IOrganizationScopedEntity
             idClient,
             idClientSite,
             new ClientContactDetails(
-                purpose, fullName, null, email, phone, mobilePhone, isPrimary,
-                idClientSite.HasValue ? ClientContactScope.Zone : ClientContactScope.General),
+                purpose, fullName, null, email, phone, mobilePhone, isPrimary),
             actorId,
             actorName,
             occurredAt);
@@ -150,14 +148,8 @@ public sealed class ClientContact : AuditableEntity, IOrganizationScopedEntity
         }
 
         // El alcance y la zona dicen lo mismo, y no se les permite contradecirse.
-        if (details.Scope is ClientContactScope.Zone && idClientSite is null)
-        {
-            throw new DomainRuleException(
-                "Un contacto de zona tiene que decir de qué zona es.");
-        }
 
-        IdClientSite = details.Scope is ClientContactScope.Zone ? idClientSite : null;
-        Scope = details.Scope;
+        IdClientSite = idClientSite;
         Purpose = details.Purpose;
         IdPurposeCatalogItem = details.IdPurposeCatalogItem;
         IdContactJobPositionCatalogItem = details.IdContactJobPositionCatalogItem;
@@ -181,6 +173,5 @@ public sealed record ClientContactDetails(
     string? Phone,
     string? MobilePhone,
     bool IsPrimary,
-    ClientContactScope Scope = ClientContactScope.General,
     Guid? IdPurposeCatalogItem = null,
     Guid? IdContactJobPositionCatalogItem = null);

@@ -192,13 +192,11 @@ export type ClientContactPurpose =
  * puso no es lo mismo que uno que vale para todo el cliente a propósito, y la decisión D-02 —un
  * contacto principal por alcance— necesita contar de cada clase.</p>
  */
-export type ClientContactScope = 'General' | 'Zone';
 
 export type ClientContact = {
   readonly idClientContact: string;
   readonly idClient: string;
   readonly idClientZone: string | null;
-  readonly scope: ClientContactScope;
   readonly idPurposeCatalogItem: string | null;
   readonly idContactJobPositionCatalogItem: string | null;
   readonly clientZoneName: string | null;
@@ -220,7 +218,6 @@ export type ClientContactInput = {
   readonly idOrganization: string;
   readonly idClient: string;
   readonly idClientZone: string | null;
-  readonly scope: ClientContactScope;
   readonly idPurposeCatalogItem: string | null;
   readonly idContactJobPositionCatalogItem: string | null;
   readonly purpose: ClientContactPurpose;

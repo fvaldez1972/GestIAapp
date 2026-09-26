@@ -973,7 +973,6 @@ export class ClientsPage {
         idClientZone,
         // El contacto que se captura junto con la primera zona es de esa zona: es el que va a
         // atender ahi, y por eso el formulario de alta lo pide en el mismo bloque.
-        scope: 'Zone',
         idPurposeCatalogItem: null,
         idContactJobPositionCatalogItem: null,
         purpose: 'Operational',
@@ -1191,7 +1190,6 @@ No se borra: deja de poder elegirse para servicios `
         idOrganization: organizationId,
         idClient: client.idClient,
         idClientZone: event.datos.idClientZone,
-        scope: event.datos.scope,
         idPurposeCatalogItem: event.datos.idPurposeCatalogItem,
         idContactJobPositionCatalogItem: event.datos.idContactJobPositionCatalogItem,
         purpose: event.datos.purpose,
@@ -1233,7 +1231,6 @@ No se borra: deja de poder elegirse para servicios `
         idOrganization: organizationId,
         idClient: client.idClient,
         idClientZone: contact.idClientZone,
-        scope: contact.scope,
         idPurposeCatalogItem: contact.idPurposeCatalogItem,
         idContactJobPositionCatalogItem: contact.idContactJobPositionCatalogItem,
         purpose: contact.purpose,

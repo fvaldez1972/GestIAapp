@@ -290,9 +290,8 @@ public sealed class OrganizationIsolationTests(OperationalSqlDatabase database)
         var contact = ClientContact.Create(
             organizationId, client.IdClient, site.IdClientSite,
             // Con telefono: desde el 19 de septiembre de 2026 un contacto sin telefono ni correo
-            // no se puede guardar, y con alcance de zona tiene que decir de que zona es.
-            new(ClientContactPurpose.Operational, $"Contacto {prefix}", null, null, "5555555555", null, true,
-                ClientContactScope.Zone),
+            // no se puede guardar.
+            new(ClientContactPurpose.Operational, $"Contacto {prefix}", null, null, "5555555555", null, true),
             ActorId, ActorName, Now);
         var employeeDocument = EmployeeDocument.Create(
             organizationId, employee.IdEmployee,

@@ -74,7 +74,6 @@ export function contacto(extra: Partial<ClientContact> = {}): ClientContact {
     idClientContact: 'con-1',
     idClient: 'cli-1',
     idClientZone: 'sed-1',
-    scope: 'Zone',
     idPurposeCatalogItem: 'cat-operativo',
     idContactJobPositionCatalogItem: 'cat-jefa',
     clientZoneName: 'Torre Altavista',

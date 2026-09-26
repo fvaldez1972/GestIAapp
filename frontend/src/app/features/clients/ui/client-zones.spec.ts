@@ -254,6 +254,9 @@ describe('La pestaña de Zonas', () => {
       // El país viaja con la zona desde el 22 de septiembre de 2026. México por omisión: es donde
       // opera todo lo capturado, y así el campo no llega vacío a quien sólo iba a escribir la calle.
       countryCode: 'MX',
+      // Sin marcar el punto en el mapa, la ubicación va en nulo: o las dos coordenadas o ninguna.
+      latitude: null,
+      longitude: null,
     });
   });
 

@@ -172,11 +172,12 @@ describe('El listado de personal', () => {
   });
 
   /**
-   * Sobre alguien dada de baja no cabe ninguna de las tres, y se enseñan apagadas con el motivo en
-   * vez de desaparecer: un menú que cambia de tamaño según la fila deja a quien busca una acción
-   * sin saber si no la tiene o si se equivocó de renglón.
+   * Sobre alguien dada de baja la única acción que cabe es el reingreso, que RQ-07 trajo el 26 de
+   * septiembre de 2026. Asignar se enseña apagada con el motivo en vez de desaparecer: un menú que
+   * cambia de tamaño según la fila deja a quien busca una acción sin saber si no la tiene o si se
+   * equivocó de renglón.
    */
-  it('a quien está dada de baja le apaga las tres acciones y dice por qué', () => {
+  it('a quien está dada de baja le ofrece el reingreso y apaga asignar', () => {
     const { filas, fixture, host } = montar();
     host.employees.set([employeeFixture({ status: 'Terminated' })]);
     fixture.detectChanges();
@@ -187,9 +188,9 @@ describe('El listado de personal', () => {
 
     const opciones = Array.from(fila.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'));
 
-    expect(opciones).toHaveLength(3);
-    expect(opciones.every((boton) => boton.disabled)).toBe(true);
-    expect(fila.textContent).toContain('Ya está dada de baja');
+    expect(opciones).toHaveLength(2);
+    expect(opciones.map((boton) => boton.textContent!.trim())).toContain('Registrar reingreso');
+    expect(fila.textContent).toContain('Primero hay que registrar su reingreso');
   });
 
   /**

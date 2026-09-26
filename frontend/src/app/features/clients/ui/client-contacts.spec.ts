@@ -103,9 +103,8 @@ describe('Contactos del cliente', () => {
       // mientras el servidor conserve su columna, pero ya no decide nada.
       idPurposeCatalogItem: null,
       purpose: 'Operational',
-      // Sin elegir alcance, «a todo el cliente»: es el caso normal, veintitrés de los veintiséis
+      // Sin zona, «a todo el cliente»: es el caso normal, treinta y cinco de los cuarenta y tres
       // contactos de la base viva son del cliente y no de una zona.
-      scope: 'General',
       idClientZone: null,
       idContactJobPositionCatalogItem: null,
       // Sin puesto elegido va vacío. El puesto sale del catálogo, no de texto libre: el servidor
@@ -148,34 +147,24 @@ describe('Contactos del cliente', () => {
    * selector sólo aparece cuando el alcance es «sólo a una zona».
    */
   /**
-   * <b>El campo dice para qué sirve, porque el negocio preguntó justamente eso.</b>
+   * <b>El campo dice qué decide la zona.</b>
    *
-   * <p>«¿Para qué sirve lo del alcance del contacto? Si no sirve, quitarlo». Sirve —sostiene la
-   * regla de un contacto principal por alcance—, y que hiciera falta preguntarlo es la señal de
-   * que la pantalla no lo estaba diciendo: el rótulo nombraba el dato y no su consecuencia.</p>
-   *
-   * <p>Las dos mitades se necesitan: la ayuda cambia con lo elegido, así que comprobar una sola
-   * pasaría igual con un texto fijo que dijera siempre lo mismo.</p>
+   * <p>El negocio preguntó «¿para qué sirve lo del alcance del contacto? Si no sirve, quitarlo», y la
+   * respuesta acabó siendo que no servía: se retiró el 26 de septiembre de 2026 porque nunca decidió
+   * nada por sí mismo —se calculaba con si el contacto traía zona o no—. Lo que queda es la zona, y
+   * la ayuda dice su consecuencia en vez de nombrar el dato.</p>
    */
-  it('explica qué decide el alcance, y la explicación sigue a lo elegido', () => {
-    const { raiz, abrir, fixture } = montar();
+  it('la ayuda de la zona dice qué cambia al ponerla o dejarla vacía', () => {
+    const { raiz, abrir } = montar();
     abrir();
 
-    const ayuda = () => raiz.querySelector('.field__hint')!.textContent!.replace(/\s+/g, ' ').trim();
+    const ayuda = raiz.querySelector('.field__hint')!.textContent!.replace(/\s+/g, ' ').trim();
 
-    expect(ayuda()).toContain('todo el cliente');
-    expect(ayuda()).toContain('contacto principal');
-
-    const contactos = fixture.debugElement.children[0].componentInstance as {
-      scope: { set(v: string): void };
-    };
-    contactos.scope.set('Zone');
-    fixture.detectChanges();
-
-    expect(ayuda()).toContain('sólo para la zona');
+    expect(ayuda).toContain('Vacía vale para todo el cliente');
+    expect(ayuda).toContain('pestaña de Zonas');
   });
 
-  it('ofrece sólo las zonas activas, y sólo cuando el alcance es de zona', () => {
+  it('ofrece sólo las zonas activas', () => {
     const { raiz, abrir, fixture } = montar((host) => {
       host.zones.set([
         zona({ idClientZone: 's1', name: 'Planta Norte', active: true }),
@@ -183,11 +172,6 @@ describe('Contactos del cliente', () => {
       ]);
     });
     abrir();
-
-    const contactos = fixture.debugElement.children[0].componentInstance as {
-      scope: { set(v: string): void };
-    };
-    contactos.scope.set('Zone');
     fixture.detectChanges();
 
     const disparadores = Array.from(raiz.querySelectorAll('gi-select button[role="combobox"]'));
@@ -285,12 +269,15 @@ describe('Contactos del cliente', () => {
   });
 
   /**
-   * La fila de «Para qué se le llama» y «A quién cubre» va alineada.
+   * La fila de «Para qué se le llama» y «Zona» va alineada.
    *
    * <p>El desplegable quedaba medio campo más arriba que el de al lado, y la causa no era el
    * margen: <c>gi-select</c> usa su «label» como aria-label y <b>no lo dibuja</b>, así que el campo
    * de la izquierda empezaba debajo de su rótulo y el de la derecha no tenía ninguno. Sin rótulo
    * visible tampoco se sabía qué se estaba eligiendo.</p>
+   *
+   * <p>El rótulo comprobado era «A QUIÉN CUBRE», del alcance del contacto, que se retiró el 26 de
+   * septiembre de 2026 por ser un dato que no decidía nada. La zona ocupa su sitio.</p>
    */
   it('los desplegables de la edición llevan su rótulo visible', () => {
     const { raiz, abrir } = montar();
@@ -298,7 +285,7 @@ describe('Contactos del cliente', () => {
 
     const rotulos = Array.from(raiz.querySelectorAll('.field__label')).map((e) => e.textContent?.trim());
 
-    expect(rotulos).toContain('A QUIÉN CUBRE');
+    expect(rotulos).toContain('ZONA · OPCIONAL');
   });
 
 });

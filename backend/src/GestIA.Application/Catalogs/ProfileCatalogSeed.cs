@@ -105,14 +105,12 @@ public static class ProfileCatalogSeed
         // La psicometría NO entra como tipo de evaluación: desde RQ-08 es un registro propio del
         // expediente, con su check y su fecha. Los patrones de turno tampoco: son una entidad aparte
         // con su horario y su ciclo, y les toca su propia tanda.
+        //
+        // Tampoco entran los puestos ni los motivos de incidencia, aunque el Excel los traiga: el
+        // alta de una organizacion real no inventa configuracion que el administrador no eligio
+        // --decision del 3 de septiembre de 2026-- y CatalogMetadataTests lo hace cumplir. A las ocho
+        // organizaciones que ya existian si se les cargaron, por migracion.
 
-        new(BusinessCatalogItemType.JobPosition, "Gerencia de operaciones", 20),
-        new(BusinessCatalogItemType.JobPosition, "Coordinación de operaciones", 21),
-        new(BusinessCatalogItemType.JobPosition, "Supervisor", 22),
-        new(BusinessCatalogItemType.JobPosition, "Patrullero", 23),
-        new(BusinessCatalogItemType.JobPosition, "Trasladista", 24),
-        new(BusinessCatalogItemType.JobPosition, "Jefe de servicio", 25),
-        new(BusinessCatalogItemType.JobPosition, "Jefe de turno", 26),
 
         // Las tareas del puesto y las aptitudes comparten catálogo porque las dos son «experiencia
         // requerida» en el modelo, y el Excel las lista en dos columnas por comodidad de lectura.
@@ -136,13 +134,6 @@ public static class ProfileCatalogSeed
         new(BusinessCatalogItemType.EmployeeEvaluationCategory, "Antecedentes laborales", 22, false),
         new(BusinessCatalogItemType.EmployeeEvaluationCategory, "Antecedentes penales a petición del cliente", 23, false),
 
-        new(BusinessCatalogItemType.IncidentReason, "Ausentismo", 20),
-        new(BusinessCatalogItemType.IncidentReason, "Retardo", 21),
-        new(BusinessCatalogItemType.IncidentReason, "Permiso", 22),
-        new(BusinessCatalogItemType.IncidentReason, "Incapacidad", 23),
-        new(BusinessCatalogItemType.IncidentReason, "Paternidad", 24),
-        new(BusinessCatalogItemType.IncidentReason, "Maternidad", 25),
-        new(BusinessCatalogItemType.IncidentReason, "Vacaciones", 26),
 
         new(BusinessCatalogItemType.EmployeeDocumentCategory, "Cartas de recomendación de empleos anteriores", 20, false),
         new(BusinessCatalogItemType.EmployeeDocumentCategory, "Alta de IMSS", 21, false),

@@ -312,6 +312,7 @@ describe('buildCandidates', () => {
     idEmployee,
     employeeCode: 'EMP-1',
     employeeName,
+    employeeMunicipality: null,
     idService: 'srv-1',
     idPosition: 'p-1',
     positionCode: 'P-01',

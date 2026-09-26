@@ -344,8 +344,8 @@ export class ClientContacts {
    */
   protected readonly scopeHint = computed(() =>
     this.scope() === 'General'
-      ? 'Vale para todo el cliente, en cualquiera de sus zonas. Cada alcance lleva su propio contacto principal.'
-      : 'Vale sólo para la zona que elijas. Cada alcance lleva su propio contacto principal.',
+      ? 'Vale para todo el cliente: la pestaña de Zonas lo usará en las zonas que no tengan un contacto propio.'
+      : 'Vale sólo para la zona que elijas: la pestaña de Zonas mostrará este contacto en vez del general.',
   );
 
   protected readonly purposeOptions = computed(() => this.purposes());

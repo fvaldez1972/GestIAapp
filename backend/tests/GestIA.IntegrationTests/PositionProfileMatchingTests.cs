@@ -225,12 +225,12 @@ public sealed class PositionProfileMatchingTests(OperationalSqlDatabase database
         }
 
         var employee = Employee.Create(
-            organization.IdOrganization, $"{prefix}-E{sufijo}", "Adrián Escobar",
+            organization.IdOrganization, $"{prefix}-E{sufijo}", "Adrián", "Escobar", null,
             "Guardia", Day.AddDays(-200), TestActor.ActorId, TestActor.ActorName, Now);
 
         employee.UpdateProfile(
             new EmployeeProfile(
-                "Adrián Escobar", "Guardia", Day.AddDays(-200), new DateOnly(1994, 3, 1), null,
+                "Adrián", "Escobar", null, "Guardia", Day.AddDays(-200), new DateOnly(1994, 3, 1), null,
                 "Masculino", null, null, null, null, null, null, null, null, null, null, null, null,
                 null, null, null, null, null, null, null, null, null, null,
                 IdEducationLevelCatalogItem: tiene is null ? null : niveles[tiene]),

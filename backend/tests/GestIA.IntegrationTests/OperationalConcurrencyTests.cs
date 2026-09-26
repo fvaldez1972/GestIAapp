@@ -502,8 +502,8 @@ public sealed class OperationalConcurrencyTests : IClassFixture<OperationalSqlDa
         var site = ClientSite.Create(client.IdOrganization, client.IdClient, "SITE", "Site", "Street", "City", "State", "01000", Actor.ActorId, Actor.ActorName, Now);
         var service = Service.Create(organization.IdOrganization, client.IdClient, site.IdClientSite, null, "SERVICE", "Service", "Service", Day, Actor.ActorId, Actor.ActorName, Now);
         var position = Position.Create(organization.IdOrganization, service.IdService, "POSITION", new("Position", 1, null, null, Day), Actor.ActorId, Actor.ActorName, Now);
-        var employee = Employee.Create(organization.IdOrganization, "EMPLOYEE", "Employee", null, Day, Actor.ActorId, Actor.ActorName, Now);
-        var replacement = Employee.Create(organization.IdOrganization, "REPLACEMENT", "Replacement", null, Day, Actor.ActorId, Actor.ActorName, Now);
+        var employee = Employee.Create(organization.IdOrganization, "EMPLOYEE", "Employee", "Titular", null, null, Day, Actor.ActorId, Actor.ActorName, Now);
+        var replacement = Employee.Create(organization.IdOrganization, "REPLACEMENT", "Replacement", "Relevo", null, null, Day, Actor.ActorId, Actor.ActorName, Now);
         var version = Version(organization.IdOrganization, service.IdService);
         version.Publish(Actor.ActorId, Actor.ActorName, Now);
         var shift = Shift(organization.IdOrganization, version.IdScheduleVersion, position.IdPosition, employee.IdEmployee);

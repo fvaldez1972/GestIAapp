@@ -463,6 +463,50 @@ public sealed class EmployeeSearchTests(OperationalSqlDatabase database)
                 null),
             ActorId, ActorName, Now);
 
+    // ── El nombre en tres partes ─────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Desde RQ-06 el nombre vive en tres columnas y el nombre completo se deriva. La busqueda
+    /// tiene que encontrar por cualquiera de las tres.
+    ///
+    /// <para><b>Por que basta con una columna derivada.</b> La busqueda va contra
+    /// <c>FullName</c>, que contiene las tres partes, asi que no hace falta un OR por columna. Esta
+    /// prueba es lo que sostiene esa decision: si alguien recortara el derivado —por ejemplo
+    /// dejando solo los apellidos— dejaria de encontrarse por el nombre de pila.</para>
+    ///
+    /// <para><b>El control</b> es la cuarta busqueda: un apellido que nadie tiene devuelve cero.
+    /// Sin ella, una implementacion que ignorara el texto y devolviera las cuatro filas pasaria las
+    /// tres primeras.</para>
+    /// </summary>
+    [OperationalSqlFact]
+    public async Task SearchFindsAPersonByAnyOfTheThreeNameParts()
+    {
+        var seed = await SeedAsync("PAR");
+
+        await using (var context = database.Context())
+        {
+            database.Organization.SetAuthorizedOrganization(seed.OrganizationId);
+            context.Add(Empleado(
+                seed.OrganizationId, "PAR-EMP-TRES", "Herminia", seed.JobPositionId, "Zubieta", "Olmedo"));
+            await context.SaveChangesAsync(Token);
+        }
+
+        foreach (var parte in new[] { "Herminia", "Zubieta", "Olmedo" })
+        {
+            var (items, total) = await SearchAsync(Criterios(seed.OrganizationId) with { Search = parte });
+
+            var encontrada = Assert.Single(items);
+            Assert.Equal("PAR-EMP-TRES", encontrada.CodeEmployee);
+            Assert.Equal(1, total);
+        }
+
+        var (ninguna, ningunTotal) = await SearchAsync(
+            Criterios(seed.OrganizationId) with { Search = "Anacleto" });
+
+        Assert.Empty(ninguna);
+        Assert.Equal(0, ningunTotal);
+    }
+
     private static EmployeeSearchCriteria Criterios(Guid organizationId) =>
         new(organizationId, null, null, null, EmployeeDocumentFilter.Any, null, Day, Umbral, 0, 50);
 
@@ -649,15 +693,21 @@ public sealed class EmployeeSearchTests(OperationalSqlDatabase database)
         Assert.True(vencido.MissingDocuments > 0);
     }
 
-    private static Employee Empleado(Guid organizationId, string code, string nombre, Guid idPuesto)
+    private static Employee Empleado(
+        Guid organizationId,
+        string code,
+        string nombre,
+        Guid idPuesto,
+        string paterno = "Prueba",
+        string? materno = null)
     {
         var empleado = Employee.Create(
-            organizationId, code, nombre, "Guardia", Day.AddDays(-90), ActorId, ActorName, Now);
+            organizationId, code, nombre, paterno, materno, "Guardia", Day.AddDays(-90), ActorId, ActorName, Now);
 
         empleado.ChangeStatus(EmployeeStatus.Active, ActorId, ActorName, Now);
         empleado.UpdateProfile(
             new EmployeeProfile(
-                nombre, "Guardia", Day.AddDays(-90),
+                nombre, paterno, materno, "Guardia", Day.AddDays(-90),
                 null, null, null, null, null, null, null, null, null, null,
                 null, null, null, null, null, null, null, null, null, null, "Zapopan", "Jalisco", null, null, null,
                 null, idPuesto),

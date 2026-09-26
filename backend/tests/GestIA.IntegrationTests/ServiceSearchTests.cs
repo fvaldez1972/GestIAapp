@@ -353,7 +353,7 @@ public sealed class ServiceSearchTests(OperationalSqlDatabase database)
         for (var i = 0; i < first; i++)
         {
             var employee = Employee.Create(
-                seed.OrganizationId, $"EMP-{Guid.NewGuid():N}"[..12], $"Empleado {i}", null, Day, ActorId, ActorName, Now);
+                seed.OrganizationId, $"EMP-{Guid.NewGuid():N}"[..12], "Empleado", $"{i}", null, null, Day, ActorId, ActorName, Now);
             var assignment = ServiceAssignment.Create(
                 seed.OrganizationId,
                 employee.IdEmployee,

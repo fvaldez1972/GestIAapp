@@ -110,7 +110,7 @@ public sealed class LegacyDocumentAuthorizationTests
             DateOnly today,
             CancellationToken cancellationToken) =>
             Task.FromResult((IReadOnlyList<EmployeeAssignmentResponse>)[]);
-        public Employee Employee { get; } = Employee.Create(Guid.NewGuid(), "EMP-1", "Test Employee", null,
+        public Employee Employee { get; } = Employee.Create(Guid.NewGuid(), "EMP-1", "Test", "Employee", null, null,
             new DateOnly(2026, 9, 3), Guid.NewGuid(), "Tester", DateTime.UtcNow);
         public int CollectionReads { get; private set; }
         public Task<Employee?> GetEmployeeAsync(Guid idOrganization, Guid idEmployee, CancellationToken cancellationToken) =>

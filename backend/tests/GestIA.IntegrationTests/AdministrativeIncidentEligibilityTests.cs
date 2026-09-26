@@ -161,7 +161,7 @@ public sealed class AdministrativeIncidentEligibilityTests(OperationalSqlDatabas
         context.Add(organization);
 
         var employee = Employee.Create(
-            organization.IdOrganization, $"{prefix}-{Guid.NewGuid():N}"[..20], "Adrián Escobar",
+            organization.IdOrganization, $"{prefix}-{Guid.NewGuid():N}"[..20], "Adrián", "Escobar", null,
             "Guardia", Day.AddDays(-200), TestActor.ActorId, TestActor.ActorName, Now);
         context.Add(employee);
 

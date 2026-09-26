@@ -227,9 +227,9 @@ public sealed class OrganizationIsolationTests(OperationalSqlDatabase database)
             new(Day.DayOfWeek, new TimeOnly(8, 0), new TimeOnly(16, 0), false, 1, null),
             ActorId, ActorName, Now);
         var employee = Employee.Create(
-            organizationId, $"{prefix}-EMP", "Empleado", null, Day, ActorId, ActorName, Now);
+            organizationId, $"{prefix}-EMP", "Empleado", "Unico", null, null, Day, ActorId, ActorName, Now);
         var replacement = Employee.Create(
-            organizationId, $"{prefix}-REL", "Relevo", null, Day, ActorId, ActorName, Now);
+            organizationId, $"{prefix}-REL", "Relevo", "Unico", null, null, Day, ActorId, ActorName, Now);
         var version = ScheduleVersion.Create(
             organizationId, service.IdService, new("Versión", Day, Day.AddDays(1), null),
             ActorId, ActorName, Now);

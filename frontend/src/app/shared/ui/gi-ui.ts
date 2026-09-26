@@ -41,5 +41,6 @@ export { GiOperationDayBar } from './gi-operation-day-bar/gi-operation-day-bar';
 export { GiExceptionRow } from './gi-exception-row/gi-exception-row';
 export type { GiExceptionType } from './gi-exception-row/gi-exception-row';
 
+export { GiDate } from './gi-date/gi-date';
 export { GiCandidatePicker } from './gi-candidate-picker/gi-candidate-picker';
 export type { GiCandidate, GiCandidateStanding } from './gi-candidate-picker/gi-candidate-picker';

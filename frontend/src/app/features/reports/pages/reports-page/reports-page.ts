@@ -1,4 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
+import { GiDate } from '../../../../shared/ui/gi-date/gi-date';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal, linkedSignal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
@@ -20,7 +21,7 @@ import {
 
 @Component({
   selector: 'app-reports-page',
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, GiDate],
   templateUrl: './reports-page.html',
   styleUrl: './reports-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

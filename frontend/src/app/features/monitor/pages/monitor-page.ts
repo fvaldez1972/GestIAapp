@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, linkedSignal } from '@angular/core';
+import { GiDate } from '../../../shared/ui/gi-date/gi-date';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
@@ -10,7 +11,7 @@ import { OperationsServiceSummary, OperationsSummary, OrganizationGovernanceSumm
 
 @Component({
   selector: 'app-monitor-page',
-  imports: [FormsModule, RouterLink, AppIcon],
+  imports: [FormsModule, RouterLink, AppIcon, GiDate],
   templateUrl: './monitor-page.html',
   styleUrl: './monitor-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

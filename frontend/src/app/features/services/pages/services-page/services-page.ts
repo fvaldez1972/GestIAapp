@@ -26,22 +26,7 @@ import {
   takeUntil,
 } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
-import {
-  GiColumn,
-  GiDataTable,
-  GiCell,
-  GiDetailPanel,
-  GiTabContent,
-  GiFilterBar,
-  GiFilterGroup,
-  GiRowActions,
-  GiRowAction,
-  GiConfirmDialog,
-  GiSelect,
-  GiSelectOption,
-  GiTab,
-  GiTableState,
-} from '../../../../shared/ui/gi-ui';
+import { GiCell, GiColumn, GiConfirmDialog, GiDataTable, GiDate, GiDetailPanel, GiFilterBar, GiFilterGroup, GiRowAction, GiRowActions, GiSelect, GiSelectOption, GiTab, GiTabContent, GiTableState } from '../../../../shared/ui/gi-ui';
 import { formatOperationalDate } from '../../../../shared/util/operational-date';
 import { ServiceApiService } from '../../data-access/service-api.service';
 import {
@@ -125,7 +110,7 @@ import { dateRangeValidator, shiftIntervalValidator } from '../../ui/service-val
     GiCandidatePicker,
     PositionSkills,
     EntityDocuments,
-  ],
+   GiDate,],
   templateUrl: './services-page.html',
   styleUrl: './services-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

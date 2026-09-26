@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
+import { GiDate } from '../../../shared/ui/gi-date/gi-date';
 import { FormsModule } from '@angular/forms';
 import { PsychometricTest, TerminationExpirationGroup } from '../data-access/workforce.models';
 import { formatOperationalDate } from '../../../shared/util/operational-date';
@@ -6,7 +7,7 @@ import { formatOperationalDate } from '../../../shared/util/operational-date';
 @Component({
   selector: 'app-employee-psychometric',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule],
+  imports: [FormsModule, GiDate],
   template: `
     <section class="psi">
       @if (vigente(); as prueba) {
@@ -28,15 +29,7 @@ import { formatOperationalDate } from '../../../shared/util/operational-date';
           <div class="psi__alta">
             <label class="field" for="psi-fecha">
               <span class="field__label">FECHA EN QUE SE REALIZÓ Y APROBÓ</span>
-              <input
-                id="psi-fecha"
-                name="approvedDate"
-                type="date"
-                [max]="today()"
-                [ngModel]="approvedDate()"
-                (ngModelChange)="approvedDate.set($event)"
-                [ngModelOptions]="sueltos"
-              />
+              <gi-date inputId="psi-fecha" [max]="today()" [ngModel]="approvedDate()" (ngModelChange)="approvedDate.set($event)" [ngModelOptions]="sueltos" />
             </label>
             <button
               class="psi__boton"

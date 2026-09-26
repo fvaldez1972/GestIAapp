@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CatalogSelect } from '../../../shared/ui/catalog-select/catalog-select';
-import { GiSelect, GiSelectOption } from '../../../shared/ui/gi-ui';
+import { GiDate, GiSelect, GiSelectOption } from '../../../shared/ui/gi-ui';
 import { EmployeeJobPositionOption } from '../data-access/employee-list.models';
 
 /** Lo que el formulario devuelve. El puesto viaja por identificador y por nombre. */
@@ -33,7 +33,7 @@ export type EmployeeFormValue = {
 @Component({
   selector: 'app-employee-form',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CatalogSelect, FormsModule, GiSelect],
+  imports: [CatalogSelect, FormsModule, GiSelect, GiDate],
   template: `
     <form class="form" (ngSubmit)="$event.preventDefault()">
       <section class="form__block">
@@ -95,14 +95,7 @@ export type EmployeeFormValue = {
           </label>
           <label class="field" for="ef-ingreso">
             <span class="field__label">FECHA DE INGRESO<span class="field__req" aria-hidden="true">*</span></span>
-            <input
-              id="ef-ingreso"
-              name="hireDate"
-              type="date"
-              [ngModel]="hireDate()"
-              (ngModelChange)="hireDate.set($event)"
-              [ngModelOptions]="sueltos"
-            />
+            <gi-date inputId="ef-ingreso" [ngModel]="hireDate()" (ngModelChange)="hireDate.set($event)" [ngModelOptions]="sueltos" />
           </label>
         </div>
       </section>
@@ -204,7 +197,6 @@ export type EmployeeFormValue = {
           class="button"
           type="button"
           [disabled]="saving() || !personReady()"
-          [attr.aria-describedby]="personReady() ? null : 'ef-falta-persona'"
           (click)="submit()"
         >
           Guardar sin puesto
@@ -220,11 +212,6 @@ export type EmployeeFormValue = {
       </span>
     </div>
 
-    <!-- Las razones se escriben. Un botón gris sin motivo obliga a adivinar qué falta. -->
-    <p class="form__reason" id="ef-falta-persona" [hidden]="personReady()">
-      Faltan el nombre, el apellido paterno o la fecha de ingreso. El apellido materno es
-      opcional.
-    </p>
 
   `,
   styles: `

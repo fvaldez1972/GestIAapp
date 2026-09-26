@@ -2,10 +2,9 @@
   <header class="staff__heading">
     <div>
       <h1 class="staff__title">Personal</h1>
-      <p class="staff__subtitle">{{ subtitle() }}</p>
     </div>
     @if (canWrite()) {
-      <button class="button button--primary" type="button" (click)="startCreate()">Nueva persona</button>
+      <button class="button button--primary" type="button" (click)="startCreate()">Nuevo empleado</button>
     }
   </header>
 
@@ -53,7 +52,7 @@
       <div class="staff__list">
         <gi-filter-bar
           [search]="search()"
-          searchLabel="Buscar persona"
+          searchLabel="Buscar empleado"
           searchPlaceholder="Nombre, código o CURP"
           [groups]="filterGroups()"
           [resultCount]="total()"
@@ -122,7 +121,7 @@
 
       @if (creating()) {
         <gi-detail-panel
-          title="Nueva persona"
+          title=""
           (close)="creating.set(false)"
         >
           <ng-template giTab="">

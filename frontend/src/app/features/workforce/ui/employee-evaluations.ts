@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { GiAccordion, GiEmptyState, GiSelect, GiSelectOption } from '../../../shared/ui/gi-ui';
+import { GiAccordion, GiDate, GiEmptyState, GiSelect, GiSelectOption } from '../../../shared/ui/gi-ui';
 import { formatOperationalDate } from '../../../shared/util/operational-date';
 import { EligibilityRequirement } from '../../catalogs/data-access/catalog.models';
 import { EmployeeEvaluation } from '../data-access/workforce.models';
@@ -47,7 +47,7 @@ const RESULTADOS = ['Approved', 'ApprovedWithObservations', 'Pending', 'Inconclu
 @Component({
   selector: 'app-employee-evaluations',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [GiAccordion, ReactiveFormsModule, GiEmptyState, GiSelect],
+  imports: [GiAccordion, ReactiveFormsModule, GiEmptyState, GiSelect, GiDate],
   template: `
     <section class="evals">
       @if (requirements().length === 0) {
@@ -201,11 +201,11 @@ const RESULTADOS = ['Approved', 'ApprovedWithObservations', 'Pending', 'Inconclu
               </div>
               <label class="field">
                 <span class="field__label">FECHA DE EVALUACIÓN</span>
-                <input type="date" formControlName="evaluatedDate" />
+                <gi-date formControlName="evaluatedDate" />
               </label>
               <label class="field">
                 <span class="field__label">VENCIMIENTO</span>
-                <input type="date" formControlName="expiresDate" [min]="form.controls.evaluatedDate.value" />
+                <gi-date formControlName="expiresDate" [min]="form.controls.evaluatedDate.value" />
               </label>
               <label class="field">
                 <span class="field__label">FOLIO O CERTIFICADO</span>

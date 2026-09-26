@@ -189,14 +189,14 @@ export class EmployeeTable {
   protected readonly columns = computed<readonly GiColumn[]>(() =>
     this.compact()
       ? [
-          { key: 'name', label: 'Persona', kind: 'name' },
+          { key: 'name', label: 'Empleado', kind: 'name' },
           { key: 'job', label: 'Puesto', width: '140px' },
           { key: 'documents', label: 'Documentos', width: '130px' },
           { key: 'status', label: 'Estado', width: '110px' },
           { key: 'actions', label: '', width: '52px', align: 'end' },
         ]
       : [
-          { key: 'name', label: 'Persona', width: '260px', kind: 'name' },
+          { key: 'name', label: 'Empleado', width: '260px', kind: 'name' },
           { key: 'job', label: 'Puesto', width: '190px' },
           { key: 'location', label: 'Ubicación' },
           { key: 'hire', label: 'Ingreso', width: '130px' },

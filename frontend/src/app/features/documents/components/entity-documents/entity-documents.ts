@@ -1,4 +1,5 @@
 import { HttpErrorResponse, HttpResponse } from '@angular/common/http';
+import { GiDate } from '../../../../shared/ui/gi-date/gi-date';
 import {
   ChangeDetectionStrategy, Component, ElementRef, OnDestroy, computed, effect, inject,
   input, output, signal, untracked, viewChild,
@@ -43,7 +44,7 @@ export type EntityDocumentSaved = {
 
 @Component({
   selector: 'app-entity-documents',
-  imports: [ReactiveFormsModule, AppIcon, GiFileInput, GiCatalogPicker, GiSelect],
+  imports: [ReactiveFormsModule, AppIcon, GiFileInput, GiCatalogPicker, GiSelect, GiDate],
   templateUrl: './entity-documents.html',
   styleUrl: './entity-documents.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

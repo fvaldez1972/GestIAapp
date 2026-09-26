@@ -229,8 +229,8 @@
                 @if (form.controls.category.touched && form.controls.category.invalid) { <small class="field-error">El tipo de documento es obligatorio, hasta 80 caracteres.</small> }
               </label>
             }
-            <label class="gi-field"><span>Emision</span><input class="gi-input" type="date" formControlName="issuedDate" /></label>
-            <label class="gi-field"><span>Vencimiento *</span><input class="gi-input" type="date" formControlName="expiresDate" [min]="form.controls.issuedDate.value" [max]="vencimientoMaximo()" />
+            <label class="gi-field"><span>Emision</span><gi-date formControlName="issuedDate" /></label>
+            <label class="gi-field"><span>Vencimiento *</span><gi-date formControlName="expiresDate" [min]="form.controls.issuedDate.value" [max]="vencimientoMaximo()" />
               <small class="gi-field__hint">Obligatorio. Tres meses como máximo: hasta el {{ vencimientoMaximo() }}.</small>
             </label>
           }

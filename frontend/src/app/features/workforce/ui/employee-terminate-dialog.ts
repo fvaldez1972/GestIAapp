@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, effect, input, output, signal } from '@angular/core';
+import { GiDate } from '../../../shared/ui/gi-date/gi-date';
 import { FormsModule } from '@angular/forms';
 
 export type EmployeeTerminateValue = {
@@ -11,7 +12,7 @@ export const TERMINATION_REASON_MIN = 5;
 @Component({
   selector: 'app-employee-terminate-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule],
+  imports: [FormsModule, GiDate],
   template: `
     @if (open()) {
       <div class="baja__fondo">
@@ -25,15 +26,7 @@ export const TERMINATION_REASON_MIN = 5;
 
           <label class="field" for="tb-fecha">
             <span class="field__label">FECHA DE BAJA</span>
-            <input
-              id="tb-fecha"
-              name="endDate"
-              type="date"
-              [max]="today()"
-              [ngModel]="endDate()"
-              (ngModelChange)="endDate.set($event)"
-              [ngModelOptions]="sueltos"
-            />
+            <gi-date inputId="tb-fecha" [max]="today()" [ngModel]="endDate()" (ngModelChange)="endDate.set($event)" [ngModelOptions]="sueltos" />
           </label>
 
           <label class="field" for="tb-motivo">

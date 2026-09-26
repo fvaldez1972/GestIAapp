@@ -1,4 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
+import { GiDate } from '../../../../shared/ui/gi-date/gi-date';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -64,7 +65,7 @@ type DiaGrupo = FormGroup<{
  */
 @Component({
   selector: 'app-shift-pattern-templates',
-  imports: [ReactiveFormsModule, GiSelect],
+  imports: [ReactiveFormsModule, GiSelect, GiDate],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="pat" aria-label="Patrones de turno">
@@ -209,11 +210,11 @@ type DiaGrupo = FormGroup<{
           <div class="pat__fila pat__fila--dos">
             <label class="gi-field">
               <span>Vigente desde</span>
-              <input class="gi-input" type="date" formControlName="effectiveFromDate" />
+              <gi-date formControlName="effectiveFromDate" />
             </label>
             <label class="gi-field">
               <span>Vigente hasta</span>
-              <input class="gi-input" type="date" formControlName="effectiveToDate" />
+              <gi-date formControlName="effectiveToDate" />
             </label>
           </div>
 

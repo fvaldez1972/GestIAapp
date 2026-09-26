@@ -34,7 +34,6 @@ import {
   EmployeeListItem,
   EmployeeSummary,
   EMPLOYEE_STATUS_OPTIONS,
-  documentRequirementsNote,
   employeeDocumentBadge,
   employeeDocumentTypeOptions,
 } from '../../data-access/employee-list.models';
@@ -416,9 +415,6 @@ export class WorkforcePage {
    * pantalla. Y se dice de quién son los requisitos, porque «4 requisitos» sin autor se lee como
    * una regla del sistema que nadie sabe dónde cambiar.</p>
    */
-  protected readonly subtitle = computed(() =>
-    documentRequirementsNote(this.requiredDocuments()),
-  );
 
   /**
    * Las cuatro tarjetas del encabezado.
@@ -447,9 +443,9 @@ export class WorkforcePage {
     return [
       {
         key: 'total' as const,
-        label: 'Personas',
+        label: 'Empleados',
         value: resumen.total,
-        hint: 'Todo el personal registrado en esta organización.',
+        hint: '',
         tone: 'neutral' as const,
         pillLabel: '',
         filter: null,
@@ -458,10 +454,7 @@ export class WorkforcePage {
         key: 'active' as const,
         label: 'Activas',
         value: resumen.active,
-        hint:
-          resumen.candidates > 0
-            ? `${resumen.candidates} ${resumen.candidates === 1 ? 'candidata o candidato' : 'candidatas o candidatos'} sin dar de alta.`
-            : 'Sin candidaturas pendientes de alta.',
+        hint: '',
         tone: 'success' as const,
         pillLabel: 'En plantilla',
         filter: 'Active' as const,

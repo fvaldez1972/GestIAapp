@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { GiCatalogCreation, GiCatalogOption, GiCatalogPicker } from '../../../shared/ui/gi-catalog-picker/gi-catalog-picker';
-import { GiAccordion, GiEmptyState } from '../../../shared/ui/gi-ui';
+import { GiAccordion, GiDate, GiEmptyState } from '../../../shared/ui/gi-ui';
 import { AdministrativeIncident } from '../data-access/administrative-incident.models';
 
 /** Lo que hace falta para registrar una incidencia administrativa. */
@@ -25,7 +25,7 @@ export type NewAdministrativeIncident = {
 @Component({
   selector: 'app-employee-administrative-incidents',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [GiAccordion, FormsModule, GiCatalogPicker, GiEmptyState],
+  imports: [GiAccordion, FormsModule, GiCatalogPicker, GiEmptyState, GiDate],
   template: `
     <section class="inc">
       @if (visibles().length === 0 && !adding()) {
@@ -118,9 +118,7 @@ export type NewAdministrativeIncident = {
 
           <label class="field" for="ai-fecha">
             <span class="field__label">FECHA DE OCURRENCIA</span>
-            <input id="ai-fecha" name="occurredDate" type="date" [max]="today()"
-              [ngModel]="occurredDate()" (ngModelChange)="occurredDate.set($event)"
-              [ngModelOptions]="sueltos" />
+            <gi-date inputId="ai-fecha" [max]="today()" [ngModel]="occurredDate()" (ngModelChange)="occurredDate.set($event)" [ngModelOptions]="sueltos" />
           </label>
 
           <label class="field" for="ai-detalle">

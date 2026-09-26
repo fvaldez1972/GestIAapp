@@ -1,4 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
+import { GiDate } from '../../../../shared/ui/gi-date/gi-date';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -9,7 +10,7 @@ import { AuditEvent, AuditResult } from '../../data-access/audit.models';
 
 @Component({
   selector: 'app-audit-page',
-  imports: [FormsModule],
+  imports: [FormsModule, GiDate],
   host: { '(document:keydown.escape)': 'onEscape()' },
   templateUrl: './audit-page.html',
   styleUrl: './audit-page.scss',

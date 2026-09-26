@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { GiAccordion } from '../../../shared/ui/gi-ui';
+import { GiAccordion, GiDate } from '../../../shared/ui/gi-ui';
 import { GiCatalogOption } from '../../../shared/ui/gi-catalog-picker/gi-catalog-picker';
 import { GiSelect, GiSelectOption } from '../../../shared/ui/gi-select/gi-select';
 import { formatOperationalDate } from '../../../shared/util/operational-date';
@@ -40,7 +40,7 @@ export type EmployeeSkillFormValue = {
 @Component({
   selector: 'app-employee-skills',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [GiAccordion, ReactiveFormsModule, GiSelect],
+  imports: [GiAccordion, ReactiveFormsModule, GiSelect, GiDate],
   template: `
     <section class="skills">
       @if (requirements().length === 0) {
@@ -180,11 +180,11 @@ export type EmployeeSkillFormValue = {
               </div>
               <label class="field">
                 <span class="field__label">ACREDITADA EL</span>
-                <input type="date" formControlName="acquiredDate" />
+                <gi-date formControlName="acquiredDate" />
               </label>
               <label class="field">
                 <span class="field__label">VENCIMIENTO</span>
-                <input type="date" formControlName="expiresDate" [min]="form.controls.acquiredDate.value" />
+                <gi-date formControlName="expiresDate" [min]="form.controls.acquiredDate.value" />
               </label>
               <label class="field field--wide">
                 <span class="field__label">NOTAS</span>

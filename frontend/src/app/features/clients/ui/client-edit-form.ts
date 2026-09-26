@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, effect, input, output, signal, untracked } from '@angular/core';
+import { GiDate } from '../../../shared/ui/gi-date/gi-date';
 import { FormsModule } from '@angular/forms';
 import { GiSelect } from '../../../shared/ui/gi-select/gi-select';
 import { ServerProblem, fieldError } from '../../../shared/util/server-problem';
@@ -20,7 +21,7 @@ import { Client, ClientInput } from '../data-access/client.models';
 @Component({
   selector: 'app-client-edit-form',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, GiSelect],
+  imports: [FormsModule, GiSelect, GiDate],
   template: `
     <form class="edit" (ngSubmit)="guardar()">
       <p class="edit__ref">
@@ -117,8 +118,7 @@ import { Client, ClientInput } from '../data-access/client.models';
         <div class="edit__dos">
           <label class="field" for="ce-fconst">
             <span class="field__label">FECHA DE CONSTITUCIÓN</span>
-            <input id="ce-fconst" name="incorporationDate" type="date"
-              [ngModel]="incorporationDate()" (ngModelChange)="incorporationDate.set($event)" [ngModelOptions]="sueltos" />
+            <gi-date inputId="ce-fconst" [ngModel]="incorporationDate()" (ngModelChange)="incorporationDate.set($event)" [ngModelOptions]="sueltos" />
           </label>
           <label class="field" for="ce-escritura">
             <span class="field__label">NÚMERO DE ESCRITURA</span>
@@ -130,8 +130,7 @@ import { Client, ClientInput } from '../data-access/client.models';
         <div class="edit__dos">
           <label class="field" for="ce-fregistro">
             <span class="field__label">FECHA DEL REGISTRO PÚBLICO</span>
-            <input id="ce-fregistro" name="publicRegistryDate" type="date"
-              [ngModel]="publicRegistryDate()" (ngModelChange)="publicRegistryDate.set($event)" [ngModelOptions]="sueltos" />
+            <gi-date inputId="ce-fregistro" [ngModel]="publicRegistryDate()" (ngModelChange)="publicRegistryDate.set($event)" [ngModelOptions]="sueltos" />
           </label>
           <label class="field" for="ce-folio">
             <span class="field__label">FOLIO MERCANTIL</span>

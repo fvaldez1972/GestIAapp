@@ -34,10 +34,14 @@
    `auto-fit` con un minimo real es lo que evita la fila apretada: cuando no caben cuatro, bajan a
    dos y despues a una, en vez de encogerse hasta que el numero de 22 px no quepa. */
 .staff__metrics {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(13.5rem, 1fr));
-  gap: 0.75rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
   min-width: 0;
+}
+
+.staff__metrics .staff__metric {
+  flex: 0 1 11rem;
 }
 
 /* La tarjeta entera es el boton. Se quita el cromo del `button` para que no aparezca un control
@@ -93,6 +97,17 @@
 
 .staff__workspace--split {
   grid-template-columns: minmax(0, 1fr) var(--gestia-panel-width);
+}
+
+/* El panel se estiraba hasta el alto de la lista: con ciento veintinueve filas quedaba un cuadro
+   blanco enorme debajo del formulario. Ahora se acota a la pantalla y se queda a la vista mientras
+   la lista se desplaza, que es ademas como se usa: se lee una fila y se corrige en el panel. */
+.staff__workspace--split > gi-detail-panel {
+  position: sticky;
+  top: var(--gestia-page-gap);
+  align-self: start;
+  max-height: calc(100vh - var(--gestia-page-gap) * 2);
+  overflow: hidden;
 }
 
 .staff__list {

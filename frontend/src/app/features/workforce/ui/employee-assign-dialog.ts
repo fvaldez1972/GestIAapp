@@ -9,7 +9,7 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
-import { GiSelect, GiSelectOption } from '../../../shared/ui/gi-ui';
+import { GiDate, GiSelect, GiSelectOption } from '../../../shared/ui/gi-ui';
 
 /** Una opción de la cascada: lo que el desplegable enseña y el identificador con el que se guarda. */
 export type AssignOption = {
@@ -62,7 +62,7 @@ const TIPOS: readonly { readonly value: EmployeeAssignValue['assignmentType']; r
 @Component({
   selector: 'app-employee-assign-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [GiSelect],
+  imports: [GiSelect, GiDate],
   template: `
     <dialog #dialogo class="asig" aria-labelledby="asig-titulo" (close)="cancel.emit()">
       <header class="asig__head">
@@ -133,13 +133,7 @@ const TIPOS: readonly { readonly value: EmployeeAssignValue['assignmentType']; r
 
         <label class="asig__campo" for="asig-desde">
           <span class="asig__rotulo">Desde</span>
-          <input
-            id="asig-desde"
-            type="date"
-            [value]="startDate()"
-            [disabled]="saving()"
-            (input)="startDate.set($any($event.target).value)"
-          />
+          <gi-date inputId="asig-desde" [value]="startDate()" [disabled]="saving()" (input)="startDate.set($any($event.target).value)" />
         </label>
       </div>
 

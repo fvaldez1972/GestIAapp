@@ -232,11 +232,23 @@ export type ClientFormValue = {
     <p class="form__reason form__reason--oculta" id="cf-zona-falta">
       Para guardar con zona hacen falta su nombre, calle, municipio, estado y código postal.
     </p>
+
+    <!-- RQ-02: el alta se queda minima; los datos de constitucion se capturan en la ficha. -->
+    <p class="form__despues">
+      Los datos de constitución —fecha, escritura, folio mercantil y el instrumento del representante
+      legal— se capturan después, al editar la ficha del cliente.
+    </p>
   `,
   styles: `
     :host { display: flex; flex-direction: column; min-height: 0; }
 
     .form { display: flex; flex-direction: column; gap: 1.1rem; padding: var(--gestia-card-padding); }
+
+    .form__despues {
+      margin: 0 var(--gestia-card-padding) var(--gestia-card-padding);
+      color: var(--gestia-muted);
+      font-size: 11.5px;
+    }
 
     .form__block { display: flex; flex-direction: column; gap: 0.7rem; }
 

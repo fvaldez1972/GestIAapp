@@ -128,6 +128,7 @@ export class CatalogListPage {
     terminationExpiry: ['keeps' as 'expires' | 'keeps'],
     ownExpiry: ['own' as 'own' | 'none'],
     maxIssueAgeMonths: [''],
+    sensitive: ['no' as 'yes' | 'no'],
   });
 
   constructor() {
@@ -276,6 +277,14 @@ export class CatalogListPage {
     { value: 'informative', label: 'Informativa' },
   ];
 
+  protected readonly sensitiveOptions: readonly GiSelectOption[] = [
+    { value: 'no', label: 'No' },
+    { value: 'yes', label: 'Sí, lleva datos personales' },
+  ];
+
+  /** Queda puesta cuando el usuario acepta el aviso de desmarcado, y se apaga al guardar. */
+  private readonly confirmarDesmarcado = signal(false);
+
   protected readonly ownExpiryOptions: readonly GiSelectOption[] = [
     { value: 'own', label: 'Sí, se captura al cargarlo' },
     { value: 'none', label: 'No, vale mientras dure el ingreso' },
@@ -383,6 +392,7 @@ export class CatalogListPage {
       terminationExpiry: 'keeps',
       ownExpiry: 'own',
       maxIssueAgeMonths: '',
+      sensitive: 'no',
     });
     this.editor()?.nativeElement.showModal();
   }
@@ -403,6 +413,7 @@ export class CatalogListPage {
       terminationExpiry: item.isExpiredOnTermination === true ? 'expires' : 'keeps',
       ownExpiry: item.hasOwnExpiry === false ? 'none' : 'own',
       maxIssueAgeMonths: item.maxIssueAgeMonths ? String(item.maxIssueAgeMonths) : '',
+      sensitive: item.isSensitive === true ? 'yes' : 'no',
     });
     this.editor()?.nativeElement.showModal();
   }
@@ -440,6 +451,10 @@ export class CatalogListPage {
       isExpiredOnTermination: page.hasTerminationExpiry ? value.terminationExpiry === 'expires' : null,
       hasOwnExpiry: page.hasTerminationExpiry ? value.ownExpiry === 'own' : null,
       maxIssueAgeMonths: Number(value.maxIssueAgeMonths) > 0 ? Number(value.maxIssueAgeMonths) : null,
+      isSensitive: page.hasSensitivity ? value.sensitive === 'yes' : null,
+      // El servidor rechaza el desmarcado la primera vez, diciendo cuántos documentos deja sin
+      // proteger; esta bandera es la respuesta a esa pregunta.
+      confirmUnmarkSensitive: this.confirmarDesmarcado(),
     };
 
     const selected = this.selectedItemId();
@@ -450,13 +465,39 @@ export class CatalogListPage {
       .pipe(finalize(() => this.saving.set(false)), takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: () => {
+          this.confirmarDesmarcado.set(false);
           this.message.set(selected ? 'Valor actualizado.' : 'Valor creado.');
           this.selectedItemId.set('');
           this.closeEditor();
           this.loadData();
         },
-        error: (error: HttpErrorResponse) => this.setError(error),
+        error: (error: HttpErrorResponse) => {
+          // El 409 del desmarcado trae el número de documentos afectados. Se pregunta con ese
+          // número delante, y sólo si la respuesta es sí se vuelve a mandar con la confirmación.
+          const detalle = typeof error.error === 'object' ? error.error?.detail : null;
+
+          if (error.status === 409 && detalle?.includes('Confirma para continuar')) {
+            this.pendienteDesmarcar.set(detalle);
+            return;
+          }
+
+          this.setError(error);
+        },
       });
+  }
+
+  /** El aviso de desmarcado, con el número de documentos que el servidor contó. */
+  protected readonly pendienteDesmarcar = signal('');
+
+  protected confirmarYGuardar(): void {
+    this.pendienteDesmarcar.set('');
+    this.confirmarDesmarcado.set(true);
+    this.save();
+  }
+
+  protected cancelarDesmarcado(): void {
+    this.pendienteDesmarcar.set('');
+    this.confirmarDesmarcado.set(false);
   }
 
   protected toggleActive(item: CatalogItem): void {

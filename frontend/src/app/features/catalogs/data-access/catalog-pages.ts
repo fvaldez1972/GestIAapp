@@ -22,6 +22,8 @@ export type CatalogPage = {
   readonly hasNature?: boolean;
   /** Si sus valores pueden vencer al causar baja la persona. */
   readonly hasTerminationExpiry?: boolean;
+  /** Si sus valores declaran sensibilidad: los tipos de documento. */
+  readonly hasSensitivity?: boolean;
   /** De qué catálogo cuelgan sus valores, cuando cuelgan de alguno. */
   readonly parentType?: BusinessCatalogItemType;
 };
@@ -91,6 +93,7 @@ export const CATALOG_PAGE_GROUPS: readonly CatalogPageGroup[] = [
         example: 'Ej. INE',
         hasNature: true,
         hasTerminationExpiry: true,
+        hasSensitivity: true,
       },
       {
         slug: 'tipos-de-evaluacion',

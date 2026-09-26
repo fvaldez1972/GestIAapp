@@ -20,7 +20,16 @@ public sealed record CatalogItemInput(
     /// <summary>Si los papeles de este tipo traen su propia fecha de vencimiento.</summary>
     bool? HasOwnExpiry = null,
     /// <summary>Antigüedad máxima admitida en la fecha de emisión, en meses. Nulo: sin límite.</summary>
-    int? MaxIssueAgeMonths = null);
+    int? MaxIssueAgeMonths = null,
+    /// <summary>Si los papeles de este tipo llevan datos personales con trato especial.</summary>
+    bool? IsSensitive = null,
+    /// <summary>
+    /// Confirma desmarcar la sensibilidad de un tipo que ya tiene papeles guardados.
+    ///
+    /// <para>Sin esta confirmación, la petición se rechaza diciendo cuántos documentos dejarían de
+    /// estar protegidos. Es una pregunta, no un permiso: el permiso se comprueba aparte.</para>
+    /// </summary>
+    bool ConfirmUnmarkSensitive = false);
 
 public sealed record CatalogItemResponse(
     Guid IdCatalogItem,
@@ -40,7 +49,9 @@ public sealed record CatalogItemResponse(
     /// <summary>Si este catálogo admite el corte por baja: documentos y evaluaciones del personal.</summary>
     bool SupportsTerminationExpiry = false,
     bool? HasOwnExpiry = null,
-    int? MaxIssueAgeMonths = null);
+    int? MaxIssueAgeMonths = null,
+    bool? IsSensitive = null,
+    bool SupportsSensitiveMark = false);
 
 public sealed record EligibilityRequirementInput(
     Guid IdOrganization,

@@ -12,7 +12,8 @@ public sealed record BusinessCatalogItemProfile(
     bool? IsRequired = null,
     bool? IsExpiredOnTermination = null,
     bool? HasOwnExpiry = null,
-    int? MaxIssueAgeMonths = null);
+    int? MaxIssueAgeMonths = null,
+    bool? IsSensitive = null);
 
 public sealed class BusinessCatalogItem : AuditableEntity, IOrganizationScopedEntity
 {
@@ -109,6 +110,15 @@ public sealed class BusinessCatalogItem : AuditableEntity, IOrganizationScopedEn
     /// </summary>
     public int? MaxIssueAgeMonths { get; private set; }
 
+    /// <summary>
+    /// Si los papeles de este tipo llevan datos personales que piden trato especial.
+    ///
+    /// <para>La sensibilidad se hereda del tipo: un documento no la decide por su cuenta. Desmarcar un
+    /// tipo que ya tiene papeles guardados exige permiso sobre datos sensibles, porque deja de
+    /// proteger lo que ya estaba protegido.</para>
+    /// </summary>
+    public bool? IsSensitive { get; private set; }
+
     public Organization Organization { get; private set; } = null!;
 
     public static BusinessCatalogItem Create(
@@ -151,6 +161,7 @@ public sealed class BusinessCatalogItem : AuditableEntity, IOrganizationScopedEn
         IsExpiredOnTermination = profile.IsExpiredOnTermination;
         HasOwnExpiry = profile.HasOwnExpiry;
         MaxIssueAgeMonths = profile.MaxIssueAgeMonths;
+        IsSensitive = profile.IsSensitive;
         Name = profile.Name.Trim();
         Description = string.IsNullOrWhiteSpace(profile.Description) ? null : profile.Description.Trim();
         IdParentCatalogItem = profile.IdParentCatalogItem;
@@ -179,4 +190,9 @@ public sealed class BusinessCatalogItem : AuditableEntity, IOrganizationScopedEn
     public static bool SupportsTerminationExpiry(BusinessCatalogItemType type) => type is
         BusinessCatalogItemType.EmployeeDocumentCategory or
         BusinessCatalogItemType.EmployeeEvaluationCategory;
+
+    /// <summary>Qué catálogos declaran sensibilidad: los tipos de documento, de las dos entidades.</summary>
+    public static bool SupportsSensitiveMark(BusinessCatalogItemType type) => type is
+        BusinessCatalogItemType.EmployeeDocumentCategory or
+        BusinessCatalogItemType.ClientDocumentCategory;
 }

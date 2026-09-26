@@ -1,4 +1,5 @@
 using GestIA.Application.Common;
+using GestIA.Application.Documents;
 using GestIA.Domain.Catalogs;
 using GestIA.Domain.Workforce;
 
@@ -74,7 +75,41 @@ public sealed class CatalogService(
             idCatalogItem,
             cancellationToken);
 
+        // RQ-10: desmarcar la sensibilidad de un tipo deja de proteger papeles que ya estaban
+        // protegidos, asi que pide permiso y confirmacion con el numero de documentos afectados.
+        var desmarcaSensibilidad =
+            BusinessCatalogItem.SupportsSensitiveMark(item.Type) &&
+            item.IsSensitive == true &&
+            profile.IsSensitive == false;
+
+        if (desmarcaSensibilidad)
+        {
+            if (!actorContext.HasPermission(BusinessDocumentPermissions.SensitiveWrite))
+            {
+                throw new ResourceForbiddenException(
+                    "Quitar la sensibilidad de un tipo de documento necesita permiso sobre datos sensibles.");
+            }
+
+            var afectados = await repository.CountSensitiveDocumentsOfTypeAsync(
+                request.IdOrganization, idCatalogItem, cancellationToken);
+
+            if (afectados > 0 && !request.ConfirmUnmarkSensitive)
+            {
+                throw new ResourceConflictException(
+                    $"Al quitar la sensibilidad de «{item.Name}», {afectados} " +
+                    (afectados == 1 ? "documento ya guardado deja" : "documentos ya guardados dejan") +
+                    " de estar protegidos. Confirma para continuar.");
+            }
+        }
+
         item.UpdateProfile(profile, actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
+
+        if (BusinessCatalogItem.SupportsSensitiveMark(item.Type) && profile.IsSensitive.HasValue)
+        {
+            await repository.PropagateSensitivityAsync(
+                request.IdOrganization, idCatalogItem, profile.IsSensitive.Value, cancellationToken);
+        }
+
         if (request.Active.HasValue && request.Active.Value != item.Active)
         {
             if (request.Active.Value) item.Activate(actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
@@ -926,6 +961,12 @@ public sealed class CatalogService(
                 ["Sólo los documentos y las evaluaciones del personal manejan vigencia."];
         }
 
+        if (request.IsSensitive.HasValue && !BusinessCatalogItem.SupportsSensitiveMark(request.Type))
+        {
+            errors[nameof(request.IsSensitive)] =
+                ["Sólo los tipos de documento declaran sensibilidad."];
+        }
+
         if (request.MaxIssueAgeMonths is < 1 or > 120)
         {
             errors[nameof(request.MaxIssueAgeMonths)] =
@@ -963,9 +1004,13 @@ public sealed class CatalogService(
             ? request.HasOwnExpiry ?? existing?.HasOwnExpiry ?? true
             : null;
 
+        bool? esSensible = BusinessCatalogItem.SupportsSensitiveMark(request.Type)
+            ? request.IsSensitive ?? existing?.IsSensitive ?? false
+            : null;
+
         return new BusinessCatalogItemProfile(
             request.Type, name, description, order, request.IdParentCatalogItem, isBlocking, venceConLaBaja,
-            manejaVigencia, request.MaxIssueAgeMonths ?? existing?.MaxIssueAgeMonths);
+            manejaVigencia, request.MaxIssueAgeMonths ?? existing?.MaxIssueAgeMonths, esSensible);
     }
 
     /// <summary>
@@ -1081,7 +1126,8 @@ public sealed class CatalogService(
             item.Order, item.UpdatedAt ?? item.CreatedAt, item.IdParentCatalogItem,
             item.IsRequired, BusinessCatalogItem.SupportsRequiredMark(item.Type),
             item.IsExpiredOnTermination, BusinessCatalogItem.SupportsTerminationExpiry(item.Type),
-            item.HasOwnExpiry, item.MaxIssueAgeMonths);
+            item.HasOwnExpiry, item.MaxIssueAgeMonths,
+            item.IsSensitive, BusinessCatalogItem.SupportsSensitiveMark(item.Type));
 
     private static EligibilityRequirementResponse MapRequirement(EligibilityRequirement requirement) =>
         new(

@@ -75,6 +75,10 @@ export type CatalogItem = {
   readonly hasOwnExpiry?: boolean | null;
   /** Antigüedad máxima admitida en la emisión, en meses. Nula: sin límite. */
   readonly maxIssueAgeMonths?: number | null;
+
+  /** Si los papeles de este tipo llevan datos personales con trato especial. */
+  readonly isSensitive?: boolean | null;
+  readonly supportsSensitiveMark?: boolean;
 };
 
 export type CatalogItemInput = Omit<CatalogItem, 'idCatalogItem' | 'active' | 'updatedAt'> & { readonly active?: boolean };

@@ -190,6 +190,18 @@
           </div>
         }
 
+        @if (catalogo.hasSensitivity) {
+          <div class="gi-field">
+            <span>Documento sensible</span>
+            <gi-select
+              label="Documento sensible"
+              [options]="sensitiveOptions"
+              [value]="form.controls.sensitive.value"
+              (valueChange)="form.controls.sensitive.setValue($any($event))"
+            />
+          </div>
+        }
+
         @if (catalogo.hasTerminationExpiry) {
           <div class="gi-field">
             <span>Maneja vigencia</span>
@@ -244,6 +256,21 @@
       </footer>
     </form>
   </dialog>
+
+@if (pendienteDesmarcar(); as aviso) {
+  <div class="desmarcar__fondo">
+    <section class="desmarcar" role="alertdialog" aria-modal="true">
+      <h2 class="desmarcar__titulo">Quitar la sensibilidad</h2>
+      <p class="desmarcar__texto">{{ aviso }}</p>
+      <p class="desmarcar__acciones">
+        <button class="gi-button" type="button" (click)="cancelarDesmarcado()">Cancelar</button>
+        <button class="gi-button gi-button--primary" type="button" (click)="confirmarYGuardar()">
+          Quitar la sensibilidad
+        </button>
+      </p>
+    </section>
+  </div>
+}
 } @else {
   <!--
     Una dirección inventada o un catálogo que ya no existe. Se dice qué pasó en vez de dejar la

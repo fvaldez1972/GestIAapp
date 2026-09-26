@@ -95,5 +95,61 @@ public static class ProfileCatalogSeed
         new(BusinessCatalogItemType.AdministrativeIncidentType, "Queja del cliente", 6, IsRequired: false),
         new(BusinessCatalogItemType.AdministrativeIncidentType, "Extravío de equipo", 7, IsRequired: false),
         new(BusinessCatalogItemType.AdministrativeIncidentType, "Acta administrativa", 8, IsRequired: false),
+
+        // ── Los catálogos del Excel de CPPS, 26 de septiembre de 2026 ────────────────────────
+        //
+        // Vienen de la hoja CATALOGOS del archivo que el cliente entregó. Se siembran con los demás
+        // para que una organización nueva no arranque con los selectores vacíos, y la migración del
+        // mismo día los carga en las que ya existían.
+        //
+        // La psicometría NO entra como tipo de evaluación: desde RQ-08 es un registro propio del
+        // expediente, con su check y su fecha. Los patrones de turno tampoco: son una entidad aparte
+        // con su horario y su ciclo, y les toca su propia tanda.
+
+        new(BusinessCatalogItemType.JobPosition, "Gerencia de operaciones", 20),
+        new(BusinessCatalogItemType.JobPosition, "Coordinación de operaciones", 21),
+        new(BusinessCatalogItemType.JobPosition, "Supervisor", 22),
+        new(BusinessCatalogItemType.JobPosition, "Patrullero", 23),
+        new(BusinessCatalogItemType.JobPosition, "Trasladista", 24),
+        new(BusinessCatalogItemType.JobPosition, "Jefe de servicio", 25),
+        new(BusinessCatalogItemType.JobPosition, "Jefe de turno", 26),
+
+        // Las tareas del puesto y las aptitudes comparten catálogo porque las dos son «experiencia
+        // requerida» en el modelo, y el Excel las lista en dos columnas por comodidad de lectura.
+        new(BusinessCatalogItemType.Skill, "Llevar controles de entradas y salidas de mercancía", 20, false),
+        new(BusinessCatalogItemType.Skill, "Control de entradas y salidas de personas y vehículos", 21, false),
+        new(BusinessCatalogItemType.Skill, "Uso y manejo de teléfonos, radios y reportes escritos", 22, false),
+        new(BusinessCatalogItemType.Skill, "Manejo de circuito cerrado de televisión", 23, false),
+        new(BusinessCatalogItemType.Skill, "Elaboración de reportes y bitácoras de control", 24, false),
+        new(BusinessCatalogItemType.Skill, "Detección de condiciones y acciones inseguras", 25, false),
+        new(BusinessCatalogItemType.Skill, "Detección de situaciones de riesgo externas", 26, false),
+        new(BusinessCatalogItemType.Skill, "Disciplina", 27, false),
+        new(BusinessCatalogItemType.Skill, "Honestidad", 28, false),
+        new(BusinessCatalogItemType.Skill, "Responsabilidad", 29, false),
+        new(BusinessCatalogItemType.Skill, "Pulcritud", 30, false),
+        new(BusinessCatalogItemType.Skill, "Seguimiento de instrucciones", 31, false),
+        new(BusinessCatalogItemType.Skill, "Puntualidad", 32, false),
+        new(BusinessCatalogItemType.Skill, "Comunicación asertiva", 33, false),
+
+        new(BusinessCatalogItemType.EmployeeEvaluationCategory, "Antidoping", 20, true),
+        new(BusinessCatalogItemType.EmployeeEvaluationCategory, "Prueba poligráfica a petición del cliente", 21, false),
+        new(BusinessCatalogItemType.EmployeeEvaluationCategory, "Antecedentes laborales", 22, false),
+        new(BusinessCatalogItemType.EmployeeEvaluationCategory, "Antecedentes penales a petición del cliente", 23, false),
+
+        new(BusinessCatalogItemType.IncidentReason, "Ausentismo", 20),
+        new(BusinessCatalogItemType.IncidentReason, "Retardo", 21),
+        new(BusinessCatalogItemType.IncidentReason, "Permiso", 22),
+        new(BusinessCatalogItemType.IncidentReason, "Incapacidad", 23),
+        new(BusinessCatalogItemType.IncidentReason, "Paternidad", 24),
+        new(BusinessCatalogItemType.IncidentReason, "Maternidad", 25),
+        new(BusinessCatalogItemType.IncidentReason, "Vacaciones", 26),
+
+        new(BusinessCatalogItemType.EmployeeDocumentCategory, "Cartas de recomendación de empleos anteriores", 20, false),
+        new(BusinessCatalogItemType.EmployeeDocumentCategory, "Alta de IMSS", 21, false),
+        new(BusinessCatalogItemType.EmployeeDocumentCategory, "Currículum", 22, false),
+
+        new(BusinessCatalogItemType.ClientDocumentCategory, "Constancia de situación fiscal", 20),
+        new(BusinessCatalogItemType.ClientDocumentCategory, "Acta constitutiva", 21),
+        new(BusinessCatalogItemType.ClientDocumentCategory, "Comprobante de domicilio", 22),
     ];
 }

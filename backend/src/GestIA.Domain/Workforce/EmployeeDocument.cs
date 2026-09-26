@@ -137,6 +137,23 @@ public sealed class EmployeeDocument : AuditableEntity, IOrganizationScopedEntit
     /// hacer creer que esa restricción ya existe.</para>
     /// </summary>
     public bool IsSensitive { get; private set; }
+
+    /// <summary>
+    /// Alinea la sensibilidad con la de su tipo. Devuelve si hubo cambio.
+    ///
+    /// <para>La marca se hereda del tipo desde RQ-10: un documento no la decide por su cuenta, y
+    /// dejarla desalineada daria dos respuestas distintas a la misma pregunta.</para>
+    /// </summary>
+    public bool ApplyTypeSensitivity(bool isSensitive)
+    {
+        if (IsSensitive == isSensitive)
+        {
+            return false;
+        }
+
+        IsSensitive = isSensitive;
+        return true;
+    }
     public Employee Employee { get; private set; } = null!;
 
     public static EmployeeDocument Create(

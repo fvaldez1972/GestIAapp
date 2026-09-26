@@ -559,13 +559,26 @@ input[type="date"]::-webkit-inner-spin-button {
 }
 
 /*
-  Las tablas que no pasan por gi-data-table.
+  Las tablas que no pasan por gi-data-table: dieciséis repartidas en diez pantallas —auditoría,
+  monitor, catálogos, patrones de turno, operaciones, reportes, solicitudes, seguridad, servicios y
+  el historial de documentos—.
 
-  El encabezado se queda pegado arriba de su propio contenedor, así que al desplazar las filas se
-  sigue viendo de qué columna es cada valor. Donde el contenedor ya tenía desplazamiento propio,
-  esto es todo lo que hacía falta.
+  Su contenedor pasa a desplazarse por dentro y el encabezado se queda pegado a él. Sin esto, el
+  encabezado sólo se pegaba al borde de la ventana mientras la página entera se movía, que es justo
+  lo que había que quitar.
+
+  `:has()` evita tocar las diez plantillas una por una, y el alto se puede ajustar por pantalla con
+  la misma variable que usa gi-data-table.
 */
-.gi-table thead th {
+*:has(> table.gi-table),
+.request-table-shell {
+  overflow: auto;
+  max-height: var(--gi-table-max-height, calc(100vh - 20rem));
+  overscroll-behavior: contain;
+}
+
+.gi-table thead th,
+.request-table thead th {
   position: sticky;
   top: 0;
   z-index: 1;

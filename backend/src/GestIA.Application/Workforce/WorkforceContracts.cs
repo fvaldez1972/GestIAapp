@@ -13,7 +13,9 @@ public sealed record EmployeeQuery(
 public sealed record CreateEmployeeRequest(
     Guid IdOrganization,
     string CodeEmployee,
-    string FullName,
+    string FirstName,
+    string LastNamePaternal,
+    string? LastNameMaternal,
     string? JobTitle,
     DateOnly HireDate,
     DateOnly? BirthDate,
@@ -51,7 +53,9 @@ public sealed record CreateEmployeeRequest(
 
 public sealed record UpdateEmployeeRequest(
     Guid IdOrganization,
-    string FullName,
+    string FirstName,
+    string LastNamePaternal,
+    string? LastNameMaternal,
     string? JobTitle,
     DateOnly HireDate,
     DateOnly? BirthDate,
@@ -94,6 +98,10 @@ public sealed record EmployeeResponse(
     Guid IdOrganization,
     string CodeEmployee,
     EmployeeStatus Status,
+    string FirstName,
+    string LastNamePaternal,
+    string? LastNameMaternal,
+    /// <summary>Derivado de las tres partes. Sigue aquí porque lo leen listas, búsqueda y orden.</summary>
     string FullName,
     string? JobTitle,
     DateOnly HireDate,

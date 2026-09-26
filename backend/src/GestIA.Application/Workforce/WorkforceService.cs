@@ -384,7 +384,9 @@ public sealed class WorkforceService(
 
     private static EmployeeProfile Validate(CreateEmployeeRequest request) =>
         ValidateProfile(
-            request.FullName,
+            request.FirstName,
+            request.LastNamePaternal,
+            request.LastNameMaternal,
             request.JobTitle,
             request.HireDate,
             request.BirthDate,
@@ -417,7 +419,9 @@ public sealed class WorkforceService(
 
     private static EmployeeProfile Validate(UpdateEmployeeRequest request) =>
         ValidateProfile(
-            request.FullName,
+            request.FirstName,
+            request.LastNamePaternal,
+            request.LastNameMaternal,
             request.JobTitle,
             request.HireDate,
             request.BirthDate,
@@ -449,7 +453,9 @@ public sealed class WorkforceService(
             request.IdEducationLevelCatalogItem);
 
     private static EmployeeProfile ValidateProfile(
-        string fullName,
+        string firstName,
+        string lastNamePaternal,
+        string? lastNameMaternal,
         string? jobTitle,
         DateOnly hireDate,
         DateOnly? birthDate,
@@ -481,7 +487,9 @@ public sealed class WorkforceService(
         Guid? idEducationLevelCatalogItem)
     {
         var errors = new Dictionary<string, string[]>();
-        Required(fullName, nameof(fullName), 200, errors);
+        Required(firstName, nameof(firstName), EmployeeName.PartMaxLength, errors);
+        Required(lastNamePaternal, nameof(lastNamePaternal), EmployeeName.PartMaxLength, errors);
+        MaxLength(lastNameMaternal, nameof(lastNameMaternal), EmployeeName.PartMaxLength, errors);
         MaxLength(jobTitle, nameof(jobTitle), 120, errors);
         MaxLength(birthPlace, nameof(birthPlace), 150, errors);
         MaxLength(sex, nameof(sex), 30, errors);
@@ -510,7 +518,9 @@ public sealed class WorkforceService(
         ThrowIfInvalid(errors);
 
         return new EmployeeProfile(
-            fullName,
+            firstName,
+            lastNamePaternal,
+            lastNameMaternal,
             jobTitle,
             hireDate,
             birthDate,
@@ -727,6 +737,9 @@ public sealed class WorkforceService(
             employee.IdOrganization,
             employee.CodeEmployee,
             employee.Status,
+            employee.FirstName,
+            employee.LastNamePaternal,
+            employee.LastNameMaternal,
             employee.FullName,
             employee.JobTitle,
             employee.HireDate,

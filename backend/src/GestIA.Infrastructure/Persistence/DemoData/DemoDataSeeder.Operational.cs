@@ -100,7 +100,9 @@ public sealed partial class DemoDataSeeder
             organization.IdOrganization,
             $"EMP-{number:000}",
             new EmployeeProfile(
-                $"{first} {paternal} {maternal}",
+                first,
+                paternal,
+                maternal,
                 job,
                 hireDate,
                 hireDate.AddYears(-Rng.Next(20, 45)),

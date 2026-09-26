@@ -4,7 +4,9 @@ using GestIA.Domain.Organizations;
 namespace GestIA.Domain.Workforce;
 
 public sealed record EmployeeProfile(
-    string FullName,
+    string FirstName,
+    string LastNamePaternal,
+    string? LastNameMaternal,
     string? JobTitle,
     DateOnly HireDate,
     DateOnly? BirthDate,
@@ -49,7 +51,9 @@ public sealed class Employee : AuditableEntity, IOrganizationScopedEntity
         Guid idEmployee,
         Guid idOrganization,
         string codeEmployee,
-        string fullName,
+        string firstName,
+        string lastNamePaternal,
+        string? lastNameMaternal,
         string? jobTitle,
         DateOnly hireDate,
         Guid actorId,
@@ -58,12 +62,13 @@ public sealed class Employee : AuditableEntity, IOrganizationScopedEntity
         Guid? idJobPositionCatalogItem = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(codeEmployee);
-        ArgumentException.ThrowIfNullOrWhiteSpace(fullName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(firstName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(lastNamePaternal);
         IdEmployee = idEmployee;
         IdOrganization = idOrganization;
         CodeEmployee = codeEmployee.Trim();
         Status = EmployeeStatus.Active;
-        FullName = fullName.Trim();
+        SetName(firstName, lastNamePaternal, lastNameMaternal);
         JobTitle = string.IsNullOrWhiteSpace(jobTitle) ? null : jobTitle.Trim();
         IdJobPositionCatalogItem = idJobPositionCatalogItem;
         HireDate = hireDate;
@@ -74,6 +79,18 @@ public sealed class Employee : AuditableEntity, IOrganizationScopedEntity
     public Guid IdOrganization { get; private set; }
     public string CodeEmployee { get; private set; } = string.Empty;
     public EmployeeStatus Status { get; private set; }
+    public string FirstName { get; private set; } = string.Empty;
+    public string LastNamePaternal { get; private set; } = string.Empty;
+
+    /// <summary>Opcional: hay personas con un solo apellido.</summary>
+    public string? LastNameMaternal { get; private set; }
+
+    /// <summary>
+    /// El nombre completo, <b>derivado</b> de las tres partes.
+    ///
+    /// <para>No se captura desde RQ-06. Se conserva porque lo leen la búsqueda, el orden
+    /// alfabético y ciento y pico de proyecciones; lo que cambió es quién lo llena.</para>
+    /// </summary>
     public string FullName { get; private set; } = string.Empty;
     /// <summary>
     /// El puesto de la persona, por identificador contra el catálogo <c>JobPosition</c>.
@@ -174,7 +191,9 @@ public sealed class Employee : AuditableEntity, IOrganizationScopedEntity
     public static Employee Create(
         Guid idOrganization,
         string codeEmployee,
-        string fullName,
+        string firstName,
+        string lastNamePaternal,
+        string? lastNameMaternal,
         string? jobTitle,
         DateOnly hireDate,
         Guid actorId,
@@ -185,7 +204,9 @@ public sealed class Employee : AuditableEntity, IOrganizationScopedEntity
             Guid.NewGuid(),
             idOrganization,
             codeEmployee,
-            fullName,
+            firstName,
+            lastNamePaternal,
+            lastNameMaternal,
             jobTitle,
             hireDate,
             actorId,
@@ -204,7 +225,9 @@ public sealed class Employee : AuditableEntity, IOrganizationScopedEntity
         var employee = Create(
             idOrganization,
             codeEmployee,
-            profile.FullName,
+            profile.FirstName,
+            profile.LastNamePaternal,
+            profile.LastNameMaternal,
             profile.JobTitle,
             profile.HireDate,
             actorId,
@@ -234,11 +257,27 @@ public sealed class Employee : AuditableEntity, IOrganizationScopedEntity
         RegisterUpdate(actorId, actorName, occurredAt);
     }
 
+    /// <summary>
+    /// El único sitio donde se escribe el nombre.
+    ///
+    /// <para>Las tres partes se recortan y el completo se compone de ellas. Que sea un solo sitio
+    /// es lo que impide que existan un <c>FullName</c> y unas partes diciendo cosas distintas de
+    /// la misma persona: nadie puede escribir el completo por su cuenta.</para>
+    /// </summary>
+    private void SetName(string firstName, string lastNamePaternal, string? lastNameMaternal)
+    {
+        FirstName = firstName.Trim();
+        LastNamePaternal = lastNamePaternal.Trim();
+        LastNameMaternal = string.IsNullOrWhiteSpace(lastNameMaternal) ? null : lastNameMaternal.Trim();
+        FullName = EmployeeName.Compose(FirstName, LastNamePaternal, LastNameMaternal);
+    }
+
     private void ApplyProfile(EmployeeProfile profile)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(profile.FullName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(profile.FirstName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(profile.LastNamePaternal);
 
-        FullName = profile.FullName.Trim();
+        SetName(profile.FirstName, profile.LastNamePaternal, profile.LastNameMaternal);
         IdJobPositionCatalogItem = profile.IdJobPositionCatalogItem;
         IdEducationLevelCatalogItem = profile.IdEducationLevelCatalogItem;
         JobTitle = Normalize(profile.JobTitle);

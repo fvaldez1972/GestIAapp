@@ -1,7 +1,12 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { GiAccordion, GiSelect, GiSelectOption } from '../../../shared/ui/gi-ui';
 import { formatOperationalDate } from '../../../shared/util/operational-date';
-import { Employee, EmploymentPeriod } from '../data-access/workforce.models';
+import {
+  Employee,
+  EmploymentPeriod,
+  PsychometricTest,
+  TerminationExpirationGroup,
+} from '../data-access/workforce.models';
 import {
   EmployeeJobPositionOption,
   EmployeeListItem,
@@ -11,6 +16,7 @@ import {
 import { EmployeeAddress, EmployeeAddressValue } from './employee-address';
 import { EmployeeEmployment } from './employee-employment';
 import { EmployeeName, EmployeeNameValue } from './employee-name';
+import { EmployeePsychometric } from './employee-psychometric';
 import { EmployeeEligibilityBand } from './employee-eligibility';
 import { EmployeeJobPosition } from './employee-job-position';
 
@@ -33,6 +39,7 @@ import { EmployeeJobPosition } from './employee-job-position';
     EmployeeEmployment,
     EmployeeJobPosition,
     EmployeeName,
+    EmployeePsychometric,
     GiAccordion,
     GiSelect,
   ],
@@ -190,6 +197,16 @@ import { EmployeeJobPosition } from './employee-job-position';
         [toneLabel]="row().jobPositionName ? '' : 'Sin puesto'"
       >
         <app-employee-employment [periods]="employmentPeriods()" [today]="today()" />
+
+        <app-employee-psychometric
+          [tests]="psychometricTests()"
+          [groups]="terminationExpirations()"
+          [today]="today()"
+          [canWrite]="canWrite()"
+          [saving]="savingPsychometric()"
+          [problem]="psychometricProblem()"
+          (registrarPrueba)="registerPsychometric.emit($event)"
+        />
 
         <dl class="data__grid data__grid--two">
           <div class="data__field">
@@ -516,6 +533,11 @@ export class EmployeeData {
   readonly savingAddress = input(false);
   readonly addressProblem = input('');
   readonly employmentPeriods = input<readonly EmploymentPeriod[]>([]);
+  readonly psychometricTests = input<readonly PsychometricTest[]>([]);
+  readonly terminationExpirations = input<readonly TerminationExpirationGroup[]>([]);
+  readonly savingPsychometric = input(false);
+  readonly psychometricProblem = input('');
+  readonly registerPsychometric = output<string>();
   readonly today = input('');
   readonly editingName = input(false);
   readonly savingName = input(false);

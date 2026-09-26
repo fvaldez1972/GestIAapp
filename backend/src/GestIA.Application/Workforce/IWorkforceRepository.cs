@@ -87,6 +87,16 @@ public interface IWorkforceRepository
         Guid idEmployee,
         CancellationToken cancellationToken);
 
+    Task<IReadOnlyList<PsychometricTestResponse>> ListPsychometricTestsAsync(
+        Guid idOrganization,
+        Guid idEmployee,
+        CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<TerminationExpirationGroup>> ListTerminationExpirationsAsync(
+        Guid idOrganization,
+        Guid idEmployee,
+        CancellationToken cancellationToken);
+
     /// <summary>
     /// Las asignaciones vigentes de una persona a una fecha, para cerrarlas al darla de baja.
     ///

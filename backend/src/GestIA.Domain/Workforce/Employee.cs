@@ -272,6 +272,39 @@ public sealed class Employee : AuditableEntity, IOrganizationScopedEntity
 
     private readonly List<EmploymentPeriod> employmentPeriods = [];
 
+    /// <summary>Las pruebas psicométricas: la vigente, si hay, y las que vencieron con una baja.</summary>
+    public IReadOnlyCollection<EmployeePsychometricTest> PsychometricTests => psychometricTests;
+
+    private readonly List<EmployeePsychometricTest> psychometricTests = [];
+
+    public EmployeePsychometricTest? ValidPsychometricTest =>
+        psychometricTests.SingleOrDefault(prueba => prueba.IsValid);
+
+    /// <summary>
+    /// Registra una prueba psicométrica aprobada. Se puede desde la candidatura: se hace antes de
+    /// ingresar.
+    /// </summary>
+    public EmployeePsychometricTest RegisterPsychometricTest(
+        DateOnly approvedDate,
+        Guid actorId,
+        string actorName,
+        DateTime occurredAt)
+    {
+        if (ValidPsychometricTest is not null)
+        {
+            throw new DomainRuleException(
+                "Esta persona ya tiene una prueba psicométrica vigente. La anterior sólo se vence al " +
+                "causar baja.");
+        }
+
+        var prueba = EmployeePsychometricTest.Register(
+            IdOrganization, IdEmployee, approvedDate, actorId, actorName, occurredAt);
+
+        psychometricTests.Add(prueba);
+        RegisterUpdate(actorId, actorName, occurredAt);
+        return prueba;
+    }
+
     /// <summary>El periodo abierto, si la persona está contratada ahora mismo.</summary>
     public EmploymentPeriod? OpenEmploymentPeriod =>
         employmentPeriods.SingleOrDefault(periodo => periodo.IsOpen);
@@ -323,6 +356,7 @@ public sealed class Employee : AuditableEntity, IOrganizationScopedEntity
                 "Esta persona no tiene un periodo laboral abierto, así que no hay nada que dar de baja.");
 
         abierto.Close(endDate, terminationReason, actorId, actorName, occurredAt);
+        ValidPsychometricTest?.ExpireOnTermination(endDate, actorId, actorName, occurredAt);
         Status = EmployeeStatus.Terminated;
         RegisterUpdate(actorId, actorName, occurredAt);
         return abierto;

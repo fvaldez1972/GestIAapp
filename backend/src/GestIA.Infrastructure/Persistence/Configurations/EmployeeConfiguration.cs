@@ -75,6 +75,10 @@ public sealed class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
             .FindNavigation(nameof(Employee.EmploymentPeriods))!
             .SetPropertyAccessMode(PropertyAccessMode.Field);
 
+        builder.Metadata
+            .FindNavigation(nameof(Employee.PsychometricTests))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
+
         builder.HasIndex(entity => new { entity.IdOrganization, entity.CodeEmployee }).IsUnique();
         builder.HasIndex(entity => new { entity.IdOrganization, entity.Rfc })
             .IsUnique()

@@ -50,6 +50,8 @@ import {
   EmployeeEvaluationType,
   EmployeeStatus,
   EmploymentPeriod,
+  PsychometricTest,
+  TerminationExpirationGroup,
 } from '../../data-access/workforce.models';
 import { readServerProblem } from '../../../../shared/util/server-problem';
 import { AdministrativeIncident } from '../../data-access/administrative-incident.models';
@@ -399,6 +401,10 @@ export class WorkforcePage {
   protected readonly terminating = signal<EmployeeListItem | null>(null);
   protected readonly terminateProblem = signal('');
   protected readonly employmentPeriods = signal<readonly EmploymentPeriod[]>([]);
+  protected readonly psychometricTests = signal<readonly PsychometricTest[]>([]);
+  protected readonly terminationExpirations = signal<readonly TerminationExpirationGroup[]>([]);
+  protected readonly savingPsychometric = signal(false);
+  protected readonly psychometricProblem = signal('');
 
   protected readonly badge = employeeDocumentBadge;
 
@@ -835,6 +841,12 @@ export class WorkforcePage {
       employmentPeriods: this.workforceApi
         .listEmploymentPeriods(idEmployee, organizationId)
         .pipe(catchError(() => of([] as readonly EmploymentPeriod[]))),
+      psychometricTests: this.workforceApi
+        .listPsychometricTests(idEmployee, organizationId)
+        .pipe(catchError(() => of([] as readonly PsychometricTest[]))),
+      terminationExpirations: this.workforceApi
+        .listTerminationExpirations(idEmployee, organizationId)
+        .pipe(catchError(() => of([] as readonly TerminationExpirationGroup[]))),
     }).subscribe((data) => {
       this.detail.set(data.detail?.employee ?? null);
       this.documents.set(data.detail?.documents ?? []);
@@ -843,6 +855,8 @@ export class WorkforcePage {
       this.administrativeIncidents.set(data.administrativeIncidents);
       this.assignments.set(data.assignments);
       this.employmentPeriods.set(data.employmentPeriods);
+      this.psychometricTests.set(data.psychometricTests);
+      this.terminationExpirations.set(data.terminationExpirations);
       this.detailLoading.set(false);
     });
   }
@@ -1649,6 +1663,34 @@ export class WorkforcePage {
           this.saving.set(false);
           this.terminateProblem.set(
             readServerProblem(problema, 'No se pudo registrar la baja.').message,
+          );
+        },
+      });
+  }
+
+  protected registerPsychometric(approvedDate: string): void {
+    const organizationId = this.organizationId();
+    const employee = this.detail();
+
+    if (!organizationId || !employee || !this.canWrite()) {
+      return;
+    }
+
+    this.savingPsychometric.set(true);
+    this.psychometricProblem.set('');
+
+    this.workforceApi
+      .registerPsychometricTest(employee.idEmployee, organizationId, approvedDate)
+      .subscribe({
+        next: () => {
+          this.savingPsychometric.set(false);
+          this.message.set('La prueba psicométrica quedó registrada como aprobada.');
+          this.loadDetail(employee.idEmployee);
+        },
+        error: (problema) => {
+          this.savingPsychometric.set(false);
+          this.psychometricProblem.set(
+            readServerProblem(problema, 'No se pudo registrar la prueba psicométrica.').message,
           );
         },
       });

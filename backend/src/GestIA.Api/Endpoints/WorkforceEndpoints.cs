@@ -165,6 +165,60 @@ public static class WorkforceEndpoints
             .RequirePermission(SecurityPermissions.WorkforceWrite)
             .WithName("RehireEmployee");
 
+        group.MapPost("/{idEmployee:guid}/psychometric-test", async (
+            HttpContext context,
+            Guid idEmployee,
+            RegisterPsychometricTestRequest request,
+            IWorkforceService service,
+            CancellationToken cancellationToken) =>
+        {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, request.IdOrganization) is { } forbidden)
+            {
+                return forbidden;
+            }
+
+            var result = await service.RegisterPsychometricTestAsync(idEmployee, request, cancellationToken);
+            return Results.Ok(result);
+        })
+            .RequirePermission(SecurityPermissions.WorkforceWrite)
+            .WithName("RegisterPsychometricTest");
+
+        group.MapGet("/{idEmployee:guid}/psychometric-tests", async (
+            HttpContext context,
+            Guid idEmployee,
+            Guid organizationId,
+            IWorkforceService service,
+            CancellationToken cancellationToken) =>
+        {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
+            var result = await service.ListPsychometricTestsAsync(organizationId, idEmployee, cancellationToken);
+            return Results.Ok(result);
+        })
+            .RequirePermission(SecurityPermissions.WorkforceRead)
+            .WithName("ListPsychometricTests");
+
+        group.MapGet("/{idEmployee:guid}/termination-expirations", async (
+            HttpContext context,
+            Guid idEmployee,
+            Guid organizationId,
+            IWorkforceService service,
+            CancellationToken cancellationToken) =>
+        {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
+            var result = await service.ListTerminationExpirationsAsync(organizationId, idEmployee, cancellationToken);
+            return Results.Ok(result);
+        })
+            .RequirePermission(SecurityPermissions.WorkforceRead)
+            .WithName("ListTerminationExpirations");
+
         group.MapGet("/{idEmployee:guid}/employment-periods", async (
             HttpContext context,
             Guid idEmployee,

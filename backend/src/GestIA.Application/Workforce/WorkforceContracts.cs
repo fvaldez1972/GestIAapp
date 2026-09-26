@@ -116,6 +116,38 @@ public sealed record TerminateEmployeeRequest(
 /// <summary>El reingreso: abre un periodo nuevo, con su propia fecha de ingreso.</summary>
 public sealed record RehireEmployeeRequest(Guid IdOrganization, DateOnly StartDate);
 
+/// <summary>La prueba psicométrica realizada y aprobada. Se puede registrar desde la candidatura.</summary>
+public sealed record RegisterPsychometricTestRequest(Guid IdOrganization, DateOnly ApprovedDate);
+
+public sealed record PsychometricTestResponse(
+    Guid IdEmployeePsychometricTest,
+    Guid IdEmployee,
+    DateOnly ApprovedDate,
+    /// <summary>La fecha de la baja que la venció. Nula mientras siga vigente.</summary>
+    DateOnly? ExpiredOnDate,
+    bool IsValid,
+    DateTime CreatedAt,
+    string CreatedByName);
+
+/// <summary>
+/// Lo que una baja dejó vencido, agrupado por la baja que lo venció.
+///
+/// <para>Los documentos y las evaluaciones traen su vigencia original, que es la que tenían antes de
+/// que la baja la cortara.</para>
+/// </summary>
+public sealed record TerminationExpirationGroup(
+    DateOnly EndDate,
+    string? TerminationReason,
+    IReadOnlyList<TerminationExpirationItem> Documents,
+    IReadOnlyList<TerminationExpirationItem> Evaluations,
+    bool PsychometricTestExpired,
+    DateOnly? PsychometricTestApprovedDate);
+
+public sealed record TerminationExpirationItem(
+    Guid IdItem,
+    string Name,
+    DateOnly? OriginalExpiresDate);
+
 /// <summary>
 /// Un periodo laboral, para pintar el historial de la ficha.
 ///

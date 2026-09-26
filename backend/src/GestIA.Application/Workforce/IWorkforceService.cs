@@ -32,6 +32,22 @@ public interface IWorkforceService
         Guid idEmployee,
         CancellationToken cancellationToken);
 
+    Task<PsychometricTestResponse> RegisterPsychometricTestAsync(
+        Guid idEmployee,
+        RegisterPsychometricTestRequest request,
+        CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<PsychometricTestResponse>> ListPsychometricTestsAsync(
+        Guid idOrganization,
+        Guid idEmployee,
+        CancellationToken cancellationToken);
+
+    /// <summary>Lo que cada baja dejó vencido, para el historial de la ficha.</summary>
+    Task<IReadOnlyList<TerminationExpirationGroup>> ListTerminationExpirationsAsync(
+        Guid idOrganization,
+        Guid idEmployee,
+        CancellationToken cancellationToken);
+
     Task<EmployeeDetailResponse> GetEmployeeAsync(
         Guid idOrganization,
         Guid idEmployee,

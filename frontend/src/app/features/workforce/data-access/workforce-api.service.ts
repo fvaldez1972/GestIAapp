@@ -7,7 +7,9 @@ import {
   Employee,
   EmployeeDetail,
   EmploymentPeriod,
+  PsychometricTest,
   TerminateEmployeeResult,
+  TerminationExpirationGroup,
   EmployeeDocument,
   EmployeeDocumentInput,
   EmployeeEvaluation,
@@ -97,6 +99,28 @@ export class WorkforceApiService {
     return this.http.get<EmploymentPeriod[]>(`${this.baseUrl}/${idEmployee}/employment-periods`, {
       params,
     });
+  }
+
+  registerPsychometricTest(idEmployee: string, organizationId: string, approvedDate: string) {
+    return this.http.post<PsychometricTest>(`${this.baseUrl}/${idEmployee}/psychometric-test`, {
+      idOrganization: organizationId,
+      approvedDate,
+    });
+  }
+
+  listPsychometricTests(idEmployee: string, organizationId: string) {
+    const params = new HttpParams().set('organizationId', organizationId);
+    return this.http.get<PsychometricTest[]>(`${this.baseUrl}/${idEmployee}/psychometric-tests`, {
+      params,
+    });
+  }
+
+  listTerminationExpirations(idEmployee: string, organizationId: string) {
+    const params = new HttpParams().set('organizationId', organizationId);
+    return this.http.get<TerminationExpirationGroup[]>(
+      `${this.baseUrl}/${idEmployee}/termination-expirations`,
+      { params },
+    );
   }
 
   deactivateEmployee(organizationId: string, idEmployee: string) {

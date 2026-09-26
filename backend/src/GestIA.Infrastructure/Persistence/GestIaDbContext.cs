@@ -41,6 +41,7 @@ public sealed class GestIaDbContext(
     public DbSet<Service> Services => Set<Service>();
     public DbSet<Employee> Employees => Set<Employee>();
     public DbSet<EmploymentPeriod> EmploymentPeriods => Set<EmploymentPeriod>();
+    public DbSet<EmployeePsychometricTest> EmployeePsychometricTests => Set<EmployeePsychometricTest>();
     public DbSet<EmployeeDocument> EmployeeDocuments => Set<EmployeeDocument>();
     public DbSet<EmployeeEvaluation> EmployeeEvaluations => Set<EmployeeEvaluation>();
     public DbSet<AdministrativeIncident> AdministrativeIncidents => Set<AdministrativeIncident>();

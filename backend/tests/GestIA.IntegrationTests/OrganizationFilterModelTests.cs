@@ -120,7 +120,8 @@ public sealed class OrganizationFilterModelTests
         // Y desde RQ-07, una más: el periodo laboral. Lleva su organización denormalizada por la
         // misma razón que las otras entidades de detalle, y además porque el historial laboral de
         // una persona es exactamente el tipo de dato que no puede escaparse entre organizaciones.
-        Assert.Equal(33, ScopedEntityTypes(context).Count());
+        // Y la prueba psicometrica del expediente, que es el papel mas sensible de todos.
+        Assert.Equal(34, ScopedEntityTypes(context).Count());
     }
 
     /// <summary>

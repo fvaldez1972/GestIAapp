@@ -131,6 +131,33 @@ export type EmploymentPeriod = {
   readonly updatedByName: string | null;
 };
 
+/** La prueba psicométrica: aprobada en una fecha, sin vencimiento propio. */
+export type PsychometricTest = {
+  readonly idEmployeePsychometricTest: string;
+  readonly idEmployee: string;
+  readonly approvedDate: string;
+  readonly expiredOnDate: string | null;
+  readonly isValid: boolean;
+  readonly createdAt: string;
+  readonly createdByName: string;
+};
+
+export type TerminationExpirationItem = {
+  readonly idItem: string;
+  readonly name: string;
+  readonly originalExpiresDate: string | null;
+};
+
+/** Lo que una baja dejó vencido, agrupado por esa baja. */
+export type TerminationExpirationGroup = {
+  readonly endDate: string;
+  readonly terminationReason: string | null;
+  readonly documents: readonly TerminationExpirationItem[];
+  readonly evaluations: readonly TerminationExpirationItem[];
+  readonly psychometricTestExpired: boolean;
+  readonly psychometricTestApprovedDate: string | null;
+};
+
 /** Lo que deja una baja: los turnos futuros no se borran, se cuentan para poder cubrirlos. */
 export type TerminateEmployeeResult = {
   readonly employee: Employee;

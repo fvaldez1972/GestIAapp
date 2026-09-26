@@ -217,6 +217,46 @@ public sealed class WorkforceService(
         return await repository.ListEmploymentPeriodsAsync(idOrganization, idEmployee, cancellationToken);
     }
 
+    public async Task<PsychometricTestResponse> RegisterPsychometricTestAsync(
+        Guid idEmployee,
+        RegisterPsychometricTestRequest request,
+        CancellationToken cancellationToken)
+    {
+        var employee = await EnsureEmployeeWithPeriodsAsync(request.IdOrganization, idEmployee, cancellationToken);
+
+        var prueba = employee.RegisterPsychometricTest(
+            request.ApprovedDate, actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
+
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return new PsychometricTestResponse(
+            prueba.IdEmployeePsychometricTest,
+            prueba.IdEmployee,
+            prueba.ApprovedDate,
+            prueba.ExpiredOnDate,
+            prueba.IsValid,
+            prueba.CreatedAt,
+            prueba.CreatedByName);
+    }
+
+    public async Task<IReadOnlyList<PsychometricTestResponse>> ListPsychometricTestsAsync(
+        Guid idOrganization,
+        Guid idEmployee,
+        CancellationToken cancellationToken)
+    {
+        await EnsureEmployeeAsync(idOrganization, idEmployee, cancellationToken);
+        return await repository.ListPsychometricTestsAsync(idOrganization, idEmployee, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<TerminationExpirationGroup>> ListTerminationExpirationsAsync(
+        Guid idOrganization,
+        Guid idEmployee,
+        CancellationToken cancellationToken)
+    {
+        await EnsureEmployeeAsync(idOrganization, idEmployee, cancellationToken);
+        return await repository.ListTerminationExpirationsAsync(idOrganization, idEmployee, cancellationToken);
+    }
+
     private async Task<Employee> EnsureEmployeeWithPeriodsAsync(
         Guid idOrganization,
         Guid idEmployee,

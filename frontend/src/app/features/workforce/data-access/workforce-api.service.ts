@@ -6,6 +6,8 @@ import {
   CreateEmployee,
   Employee,
   EmployeeDetail,
+  EmploymentPeriod,
+  TerminateEmployeeResult,
   EmployeeDocument,
   EmployeeDocumentInput,
   EmployeeEvaluation,
@@ -61,6 +63,40 @@ export class WorkforceApiService {
 
   changeStatus(idEmployee: string, organizationId: string, status: EmployeeStatus) {
     return this.http.patch<Employee>(`${this.baseUrl}/${idEmployee}/status`, { idOrganization: organizationId, status });
+  }
+
+  hireEmployee(idEmployee: string, organizationId: string, startDate: string) {
+    return this.http.post<Employee>(`${this.baseUrl}/${idEmployee}/hire`, {
+      idOrganization: organizationId,
+      startDate,
+    });
+  }
+
+  terminateEmployee(
+    idEmployee: string,
+    organizationId: string,
+    endDate: string,
+    terminationReason: string,
+  ) {
+    return this.http.post<TerminateEmployeeResult>(`${this.baseUrl}/${idEmployee}/terminate`, {
+      idOrganization: organizationId,
+      endDate,
+      terminationReason,
+    });
+  }
+
+  rehireEmployee(idEmployee: string, organizationId: string, startDate: string) {
+    return this.http.post<Employee>(`${this.baseUrl}/${idEmployee}/rehire`, {
+      idOrganization: organizationId,
+      startDate,
+    });
+  }
+
+  listEmploymentPeriods(idEmployee: string, organizationId: string) {
+    const params = new HttpParams().set('organizationId', organizationId);
+    return this.http.get<EmploymentPeriod[]>(`${this.baseUrl}/${idEmployee}/employment-periods`, {
+      params,
+    });
   }
 
   deactivateEmployee(organizationId: string, idEmployee: string) {

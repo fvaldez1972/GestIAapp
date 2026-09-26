@@ -248,7 +248,31 @@ export class EmployeeTable {
       disabled: !this.canWrite(),
       disabledReason: 'Necesitas permiso de escritura sobre personal',
     };
-    const deBaja = employee.status === 'Terminated' || employee.status === 'Inactive';
+    if (employee.status === 'Terminated') {
+      return [
+        { id: 'rehire', label: 'Registrar reingreso', ...sinPermiso },
+        {
+          id: 'assign',
+          label: 'Asignar a una posición',
+          disabled: true,
+          disabledReason: 'Primero hay que registrar su reingreso',
+        },
+      ];
+    }
+
+    if (employee.status === 'Candidate') {
+      return [
+        { id: 'hire', label: 'Contratar', ...sinPermiso },
+        {
+          id: 'assign',
+          label: 'Asignar a una posición',
+          disabled: true,
+          disabledReason: 'Todavía no ha sido contratada',
+        },
+      ];
+    }
+
+    const deBaja = employee.status === 'Inactive';
 
     if (deBaja) {
       // Ninguna de las tres cabe sobre alguien que ya no está. Se enseñan apagadas y con el

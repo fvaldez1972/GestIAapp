@@ -116,6 +116,30 @@ export type Employee = {
  * <p><b>`fullName` queda fuera a proposito.</b> El servidor lo compone de las tres partes del
  * nombre, asi que mandarlo seria mandar un dato que no se respeta.</p>
  */
+/** Un periodo laboral: de un ingreso a su baja. Abierto mientras la persona siga contratada. */
+export type EmploymentPeriod = {
+  readonly idEmploymentPeriod: string;
+  readonly idEmployee: string;
+  readonly startDate: string;
+  readonly endDate: string | null;
+  readonly terminationReason: string | null;
+  readonly isOpen: boolean;
+  readonly active: boolean;
+  readonly createdAt: string;
+  readonly createdByName: string;
+  readonly updatedAt: string | null;
+  readonly updatedByName: string | null;
+};
+
+/** Lo que deja una baja: los turnos futuros no se borran, se cuentan para poder cubrirlos. */
+export type TerminateEmployeeResult = {
+  readonly employee: Employee;
+  readonly closedAssignments: number;
+  readonly futureShifts: number;
+  readonly firstFutureShiftDate: string | null;
+  readonly lastFutureShiftDate: string | null;
+};
+
 export type EmployeeInput = Omit<
   Employee,
   'idEmployee' | 'codeEmployee' | 'status' | 'active' | 'createdAt' | 'updatedAt' | 'fullName'

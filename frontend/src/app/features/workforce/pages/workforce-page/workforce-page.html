@@ -181,6 +181,8 @@
               (editName)="startNameEdit()"
               (cancelName)="editingName.set(false)"
               (saveName)="saveName($event)"
+              [employmentPeriods]="employmentPeriods()"
+              [today]="today()"
             />
           </ng-template>
 
@@ -310,16 +312,24 @@
 @if (confirming(); as pending) {
   <gi-confirm-dialog
     [open]="true"
-    [title]="pending.kind === 'leave' ? 'Registrar permiso' : 'Dar de baja'"
+    title="Registrar permiso"
     [subject]="pending.employee.fullName"
-    [consequence]="
-      pending.kind === 'leave'
-        ? 'Quedará en permiso y dejará de proponerse para cubrir turnos. Sus asignaciones y su expediente se conservan, y se puede reactivar.'
-        : 'Quedará dada de baja y dejará de proponerse para cubrir turnos. Su expediente se conserva completo, porque aquí los registros no se eliminan.'
-    "
-    [confirmLabel]="pending.kind === 'leave' ? 'Registrar permiso' : 'Dar de baja'"
+    consequence="Quedará en permiso y dejará de proponerse para cubrir turnos. Sus asignaciones y su expediente se conservan, y se puede reactivar."
+    confirmLabel="Registrar permiso"
     (confirm)="confirmAction()"
     (cancel)="confirming.set(null)"
+  />
+}
+
+@if (terminating(); as persona) {
+  <app-employee-terminate-dialog
+    [open]="true"
+    [employeeName]="persona.fullName"
+    [today]="today()"
+    [saving]="saving()"
+    [problem]="terminateProblem()"
+    (guardar)="saveTermination($event)"
+    (cancel)="terminating.set(null)"
   />
 }
 

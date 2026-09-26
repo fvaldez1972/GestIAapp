@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { GiAccordion, GiSelect, GiSelectOption } from '../../../shared/ui/gi-ui';
 import { formatOperationalDate } from '../../../shared/util/operational-date';
-import { Employee } from '../data-access/workforce.models';
+import { Employee, EmploymentPeriod } from '../data-access/workforce.models';
 import {
   EmployeeJobPositionOption,
   EmployeeListItem,
@@ -9,6 +9,7 @@ import {
   employeeStatusTone,
 } from '../data-access/employee-list.models';
 import { EmployeeAddress, EmployeeAddressValue } from './employee-address';
+import { EmployeeEmployment } from './employee-employment';
 import { EmployeeName, EmployeeNameValue } from './employee-name';
 import { EmployeeEligibilityBand } from './employee-eligibility';
 import { EmployeeJobPosition } from './employee-job-position';
@@ -29,6 +30,7 @@ import { EmployeeJobPosition } from './employee-job-position';
   imports: [
     EmployeeAddress,
     EmployeeEligibilityBand,
+    EmployeeEmployment,
     EmployeeJobPosition,
     EmployeeName,
     GiAccordion,
@@ -187,6 +189,8 @@ import { EmployeeJobPosition } from './employee-job-position';
         [tone]="row().jobPositionName ? 'neutral' : 'warning'"
         [toneLabel]="row().jobPositionName ? '' : 'Sin puesto'"
       >
+        <app-employee-employment [periods]="employmentPeriods()" [today]="today()" />
+
         <dl class="data__grid data__grid--two">
           <div class="data__field">
             <dt>Ingreso</dt>
@@ -511,6 +515,8 @@ export class EmployeeData {
   readonly editingAddress = input(false);
   readonly savingAddress = input(false);
   readonly addressProblem = input('');
+  readonly employmentPeriods = input<readonly EmploymentPeriod[]>([]);
+  readonly today = input('');
   readonly editingName = input(false);
   readonly savingName = input(false);
   readonly nameProblem = input('');

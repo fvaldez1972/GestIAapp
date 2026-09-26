@@ -49,6 +49,7 @@ import {
   EmployeeEvaluationResult,
   EmployeeEvaluationType,
   EmployeeStatus,
+  EmploymentPeriod,
 } from '../../data-access/workforce.models';
 import { readServerProblem } from '../../../../shared/util/server-problem';
 import { AdministrativeIncident } from '../../data-access/administrative-incident.models';
@@ -58,6 +59,7 @@ import {
 } from '../../ui/employee-administrative-incidents';
 import { EmployeeAddressValue } from '../../ui/employee-address';
 import { EmployeeNameValue } from '../../ui/employee-name';
+import { EmployeeTerminateDialog, EmployeeTerminateValue } from '../../ui/employee-terminate-dialog';
 import { EmployeeData } from '../../ui/employee-data';
 import { EmployeeDocuments } from '../../ui/employee-documents';
 import {
@@ -70,7 +72,7 @@ import { EmployeeForm, EmployeeFormValue } from '../../ui/employee-form';
 import { EmployeeSkillFormValue, EmployeeSkills } from '../../ui/employee-skills';
 import { EmployeeTable } from '../../ui/employee-table';
 
-type PendingAction = { readonly employee: EmployeeListItem; readonly kind: 'leave' | 'terminate' };
+type PendingAction = { readonly employee: EmployeeListItem; readonly kind: 'leave' };
 
 /** Los cinco ceros. Es el estado de partida y el de respaldo si el servidor no manda resumen. */
 const EMPTY_SUMMARY: EmployeeSummary = {
@@ -107,6 +109,7 @@ const EMPTY_SUMMARY: EmployeeSummary = {
     EmployeeForm,
     EmployeeSkills,
     EmployeeTable,
+    EmployeeTerminateDialog,
     EntityDocuments,
     GiConfirmDialog,
     GiDetailPanel,
@@ -393,6 +396,9 @@ export class WorkforcePage {
   protected readonly nameProblem = signal('');
 
   protected readonly confirming = signal<PendingAction | null>(null);
+  protected readonly terminating = signal<EmployeeListItem | null>(null);
+  protected readonly terminateProblem = signal('');
+  protected readonly employmentPeriods = signal<readonly EmploymentPeriod[]>([]);
 
   protected readonly badge = employeeDocumentBadge;
 
@@ -826,6 +832,9 @@ export class WorkforcePage {
       assignments: this.api
         .listAssignments(organizationId, idEmployee)
         .pipe(catchError(() => of([] as readonly EmployeeAssignment[]))),
+      employmentPeriods: this.workforceApi
+        .listEmploymentPeriods(idEmployee, organizationId)
+        .pipe(catchError(() => of([] as readonly EmploymentPeriod[]))),
     }).subscribe((data) => {
       this.detail.set(data.detail?.employee ?? null);
       this.documents.set(data.detail?.documents ?? []);
@@ -833,6 +842,7 @@ export class WorkforcePage {
       this.skills.set(data.skills);
       this.administrativeIncidents.set(data.administrativeIncidents);
       this.assignments.set(data.assignments);
+      this.employmentPeriods.set(data.employmentPeriods);
       this.detailLoading.set(false);
     });
   }
@@ -1483,10 +1493,17 @@ export class WorkforcePage {
         this.confirming.set({ employee: event.employee, kind: 'leave' });
         break;
       case 'terminate':
-        this.confirming.set({ employee: event.employee, kind: 'terminate' });
+        this.terminateProblem.set('');
+        this.terminating.set(event.employee);
         break;
       case 'reinstate':
         this.reinstate(event.employee);
+        break;
+      case 'hire':
+        this.hire(event.employee);
+        break;
+      case 'rehire':
+        this.rehire(event.employee);
         break;
     }
   }
@@ -1530,6 +1547,114 @@ export class WorkforcePage {
     });
   }
 
+  /** Contrata a quien estaba en candidatura: abre su primer periodo con el día operativo. */
+  protected hire(employee: EmployeeListItem): void {
+    const organizationId = this.organizationId();
+
+    if (!organizationId || !this.canWrite()) {
+      return;
+    }
+
+    this.saving.set(true);
+
+    this.workforceApi.hireEmployee(employee.idEmployee, organizationId, this.today()).subscribe({
+      next: (guardado) => {
+        this.saving.set(false);
+        this.message.set(`${guardado.fullName} quedó contratada desde hoy.`);
+        this.refreshAfterMovement(employee.idEmployee);
+      },
+      error: (problema) => {
+        this.saving.set(false);
+        this.error.set(readServerProblem(problema, 'No se pudo contratar a la persona.').message);
+      },
+    });
+  }
+
+  /** Reingreso: abre un periodo nuevo. Sólo sobre alguien dado de baja. */
+  protected rehire(employee: EmployeeListItem): void {
+    const organizationId = this.organizationId();
+
+    if (!organizationId || !this.canWrite()) {
+      return;
+    }
+
+    this.saving.set(true);
+
+    this.workforceApi.rehireEmployee(employee.idEmployee, organizationId, this.today()).subscribe({
+      next: (guardado) => {
+        this.saving.set(false);
+        this.message.set(
+          `${guardado.fullName} reingresó hoy. Su antigüedad cuenta desde esta fecha.`,
+        );
+        this.refreshAfterMovement(employee.idEmployee);
+      },
+      error: (problema) => {
+        this.saving.set(false);
+        this.error.set(readServerProblem(problema, 'No se pudo registrar el reingreso.').message);
+      },
+    });
+  }
+
+  protected saveTermination(valor: EmployeeTerminateValue): void {
+    const organizationId = this.organizationId();
+    const employee = this.terminating();
+
+    if (!organizationId || !employee || !this.canWrite()) {
+      return;
+    }
+
+    this.saving.set(true);
+    this.terminateProblem.set('');
+
+    this.workforceApi
+      .terminateEmployee(
+        employee.idEmployee,
+        organizationId,
+        valor.endDate,
+        valor.terminationReason,
+      )
+      .subscribe({
+        next: (resultado) => {
+          this.saving.set(false);
+          this.terminating.set(null);
+
+          const asignaciones =
+            resultado.closedAssignments === 0
+              ? 'No tenía asignaciones vigentes.'
+              : resultado.closedAssignments === 1
+                ? 'Se cerró su asignación vigente.'
+                : `Se cerraron sus ${resultado.closedAssignments} asignaciones vigentes.`;
+
+          // Los turnos ya publicados no se borran: hay que decir que quedan huecos por cubrir.
+          const turnos =
+            resultado.futureShifts === 0
+              ? ''
+              : ` Quedan ${resultado.futureShifts} turnos proyectados a su nombre, ` +
+                `del ${resultado.firstFutureShiftDate} al ${resultado.lastFutureShiftDate}: ` +
+                'hay que cubrirlos desde la operación.';
+
+          this.message.set(
+            `${resultado.employee.fullName} quedó dada de baja. ${asignaciones}${turnos}`,
+          );
+          this.refreshAfterMovement(employee.idEmployee);
+        },
+        error: (problema) => {
+          this.saving.set(false);
+          this.terminateProblem.set(
+            readServerProblem(problema, 'No se pudo registrar la baja.').message,
+          );
+        },
+      });
+  }
+
+  private refreshAfterMovement(idEmployee: string): void {
+    this.load();
+
+    if (this.selected()?.idEmployee === idEmployee) {
+      this.loadDetail(idEmployee);
+    }
+  }
+
   protected confirmAction(): void {
     const pending = this.confirming();
     const organizationId = this.organizationId();
@@ -1541,15 +1666,11 @@ export class WorkforcePage {
     this.confirming.set(null);
     this.saving.set(true);
 
-    const status: EmployeeStatus = pending.kind === 'leave' ? 'OnLeave' : 'Terminated';
-
-    this.workforceApi.changeStatus(pending.employee.idEmployee, organizationId, status).subscribe({
+    this.workforceApi.changeStatus(pending.employee.idEmployee, organizationId, 'OnLeave').subscribe({
       next: () => {
         this.saving.set(false);
         this.message.set(
-          pending.kind === 'leave'
-            ? `${pending.employee.fullName} quedó en permiso. Sus asignaciones y su expediente se conservan.`
-            : `${pending.employee.fullName} quedó dada de baja. Su expediente se conserva completo.`,
+          `${pending.employee.fullName} quedó en permiso. Sus asignaciones y su expediente se conservan.`,
         );
         this.load();
 

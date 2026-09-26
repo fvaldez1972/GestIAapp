@@ -1284,6 +1284,8 @@ No se borra: deja de poder elegirse para servicios `
         municipality: zone.municipality,
         state: zone.state,
         postalCode: zone.postalCode,
+        latitude: zone.latitude ?? null,
+        longitude: zone.longitude ?? null,
         countryCode: zone.countryCode,
         accessInstructions: null,
         timeZoneId: null,

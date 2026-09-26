@@ -135,6 +135,9 @@ export type ClientZone = {
   readonly municipality: string;
   readonly state: string;
   readonly postalCode: string;
+  /** Donde esta, en grados. Nulas mientras nadie la haya marcado en el mapa. */
+  readonly latitude?: number | null;
+  readonly longitude?: number | null;
   readonly countryCode: string;
   readonly accessInstructions: string | null;
   readonly timeZoneId: string | null;
@@ -160,6 +163,9 @@ export type ClientZoneInput = {
   readonly municipality: string;
   readonly state: string;
   readonly postalCode: string;
+  /** Donde esta, en grados. Nulas mientras nadie la haya marcado en el mapa. */
+  readonly latitude?: number | null;
+  readonly longitude?: number | null;
   readonly countryCode: string | null;
   readonly accessInstructions: string | null;
   readonly timeZoneId: string | null;
@@ -196,6 +202,7 @@ export type ClientContact = {
   readonly idPurposeCatalogItem: string | null;
   readonly idContactJobPositionCatalogItem: string | null;
   readonly clientZoneName: string | null;
+  readonly clientSiteMunicipality?: string | null;
   readonly purposeName: string | null;
   readonly contactJobPositionName: string | null;
   /** Para qué se le llama, como enum. <b>Rastro heredado</b> de antes de la conversión a catálogo. */
@@ -272,6 +279,7 @@ export type ManagedService = {
   readonly idClient: string;
   readonly idClientZone: string;
   readonly clientZoneName: string | null;
+  readonly clientSiteMunicipality?: string | null;
   readonly idServiceContract: string | null;
   readonly serviceContractCode: string | null;
   readonly codeService: string;
@@ -499,6 +507,8 @@ export type ServiceAssignment = {
   readonly idEmployee: string;
   readonly employeeCode: string;
   readonly employeeName: string;
+  /** El municipio del domicilio. Es lo que hoy permite decir si vive cerca de la sede. */
+  readonly employeeMunicipality: string | null;
   readonly idService: string;
   readonly idPosition: string | null;
   readonly positionCode: string | null;

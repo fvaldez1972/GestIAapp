@@ -127,6 +127,8 @@ public sealed class ClientZoneService(
             request.CountryCode,
             request.AccessInstructions,
             request.TimeZoneId,
+            request.Latitude,
+            request.Longitude,
             errors);
         InputValidation.ThrowIfInvalid(errors);
         return (code, address);
@@ -147,6 +149,8 @@ public sealed class ClientZoneService(
             request.CountryCode,
             request.AccessInstructions,
             request.TimeZoneId,
+            request.Latitude,
+            request.Longitude,
             errors);
         InputValidation.ThrowIfInvalid(errors);
         return address;
@@ -164,11 +168,28 @@ public sealed class ClientZoneService(
         string? countryCode,
         string? accessInstructions,
         string? timeZoneId,
-        IDictionary<string, string[]> errors)
+        decimal? latitude,
+        decimal? longitude,
+        Dictionary<string, string[]> errors)
     {
         var country = string.IsNullOrWhiteSpace(countryCode)
             ? "MX"
             : InputValidation.Optional(countryCode, nameof(countryCode), 2, errors) ?? "MX";
+
+        if (latitude is null != longitude is null)
+        {
+            errors[nameof(latitude)] = ["La ubicación necesita latitud y longitud, o ninguna de las dos."];
+        }
+
+        if (latitude is { } lat && (lat < -90m || lat > 90m))
+        {
+            errors[nameof(latitude)] = ["La latitud debe estar entre -90 y 90."];
+        }
+
+        if (longitude is { } lon && (lon < -180m || lon > 180m))
+        {
+            errors[nameof(longitude)] = ["La longitud debe estar entre -180 y 180."];
+        }
 
         return new ClientSiteAddress(
             InputValidation.Required(name, nameof(name), 150, errors),
@@ -181,7 +202,9 @@ public sealed class ClientZoneService(
             InputValidation.Required(postalCode, nameof(postalCode), 10, errors),
             country.ToUpperInvariant(),
             InputValidation.Optional(accessInstructions, nameof(accessInstructions), 1000, errors),
-            InputValidation.Optional(timeZoneId, nameof(timeZoneId), 100, errors));
+            InputValidation.Optional(timeZoneId, nameof(timeZoneId), 100, errors),
+            latitude,
+            longitude);
     }
 
     private static OrganizationClientZoneResponse Map(ClientSite site, string clientName) => new(
@@ -200,7 +223,9 @@ public sealed class ClientZoneService(
         site.CountryCode,
         site.AccessInstructions,
         site.TimeZoneId,
-        site.Active);
+        site.Active,
+        site.Latitude,
+        site.Longitude);
 
     private static ClientZoneResponse Map(ClientSite site) => new(
         site.IdClientSite,
@@ -217,5 +242,7 @@ public sealed class ClientZoneService(
         site.CountryCode,
         site.AccessInstructions,
         site.TimeZoneId,
-        site.Active);
+        site.Active,
+        site.Latitude,
+        site.Longitude);
 }

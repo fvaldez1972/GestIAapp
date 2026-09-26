@@ -3,6 +3,8 @@ import { FormsModule } from '@angular/forms';
 import { DireccionPorCodigoPostal } from '../../../shared/data-access/direccion-por-codigo-postal';
 import { CatalogSelect } from '../../../shared/ui/catalog-select/catalog-select';
 import { GiEmptyState, GiSelect, GiSelectOption } from '../../../shared/ui/gi-ui';
+import { GiMapPicker, GiMapPoint } from '../../../shared/ui/gi-map-picker/gi-map-picker';
+import { plusCode } from '../../../shared/util/plus-code';
 import { ClientContact, ClientZone } from '../data-access/client.models';
 
 /** Lo que hace falta para dar de alta una zona. Nada más: el código lo pone el sistema. */
@@ -15,6 +17,9 @@ export type NewZone = {
   readonly postalCode: string;
   /** El país, en clave. Iba fijo en «MX» hasta el 22 de septiembre de 2026. */
   readonly countryCode: string;
+  /** El punto marcado en el mapa. Nulo si nadie lo marcó. */
+  readonly latitude: number | null;
+  readonly longitude: number | null;
 };
 
 /**
@@ -30,7 +35,7 @@ export type NewZone = {
 @Component({
   selector: 'app-client-zones',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CatalogSelect, FormsModule, GiEmptyState, GiSelect],
+  imports: [CatalogSelect, FormsModule, GiEmptyState, GiMapPicker, GiSelect],
   // Una por formulario abierto: el domicilio a medio escribir es de esta pestaña, no de la
   // aplicación entera.
   providers: [DireccionPorCodigoPostal],
@@ -59,6 +64,12 @@ export type NewZone = {
                 <small class="field__nota" role="status">No está en el padrón. Elige el estado y el municipio abajo.</small>
               }
             </label>
+          </div>
+
+          <!-- RQ-03/RQ-04: el campo de ubicacion es el mapa. El Plus code se deriva del punto. -->
+          <div class="new__mapa">
+            <span class="field__label">UBICACIÓN EN EL MAPA · OPCIONAL</span>
+            <gi-map-picker [point]="punto()" (pointChange)="punto.set($event)" />
           </div>
 
           <!--
@@ -508,6 +519,13 @@ export class ClientZones {
   protected readonly zoneName = signal('');
   protected readonly street = signal('');
 
+  /** El punto del mapa. Es el campo de ubicación: el Plus code se deriva de él, no se captura. */
+  protected readonly punto = signal<GiMapPoint | null>(null);
+
+  protected plus(latitude: number | null | undefined, longitude: number | null | undefined): string {
+    return plusCode(latitude ?? null, longitude ?? null);
+  }
+
   /** El domicilio, con su código postal al mando. Compartido con el expediente de personal. */
   protected readonly direccion = inject(DireccionPorCodigoPostal);
 
@@ -572,6 +590,8 @@ export class ClientZones {
       municipality: this.direccion.municipality().trim(),
       state: this.direccion.state().trim(),
       postalCode: this.direccion.postalCode().trim(),
+      latitude: this.punto()?.latitude ?? null,
+      longitude: this.punto()?.longitude ?? null,
       countryCode: this.direccion.countryCode(),
     };
 

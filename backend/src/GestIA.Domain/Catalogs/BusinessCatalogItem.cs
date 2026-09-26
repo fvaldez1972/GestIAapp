@@ -9,7 +9,8 @@ public sealed record BusinessCatalogItemProfile(
     string? Description,
     int Order = 1,
     Guid? IdParentCatalogItem = null,
-    bool? IsRequired = null);
+    bool? IsRequired = null,
+    bool? IsExpiredOnTermination = null);
 
 public sealed class BusinessCatalogItem : AuditableEntity, IOrganizationScopedEntity
 {
@@ -75,6 +76,18 @@ public sealed class BusinessCatalogItem : AuditableEntity, IOrganizationScopedEn
     /// </summary>
     public bool? IsRequired { get; private set; }
 
+    /// <summary>
+    /// Si los documentos o evaluaciones de este tipo dejan de contar al causar baja la persona.
+    ///
+    /// <para>Un antidoping con vigencia de un año sigue siendo válido el día que alguien se va, pero
+    /// no sirve para un reingreso seis meses después. Marcado aquí, la baja sustituye su fecha de
+    /// vencimiento por la fecha de baja, y al reingresar se pide de nuevo. La vigencia original queda
+    /// guardada.</para>
+    ///
+    /// <para>Nulo en los catálogos donde no aplica.</para>
+    /// </summary>
+    public bool? IsExpiredOnTermination { get; private set; }
+
     public Organization Organization { get; private set; } = null!;
 
     public static BusinessCatalogItem Create(
@@ -114,6 +127,7 @@ public sealed class BusinessCatalogItem : AuditableEntity, IOrganizationScopedEn
 
         Type = profile.Type;
         IsRequired = profile.IsRequired;
+        IsExpiredOnTermination = profile.IsExpiredOnTermination;
         Name = profile.Name.Trim();
         Description = string.IsNullOrWhiteSpace(profile.Description) ? null : profile.Description.Trim();
         IdParentCatalogItem = profile.IdParentCatalogItem;
@@ -132,4 +146,14 @@ public sealed class BusinessCatalogItem : AuditableEntity, IOrganizationScopedEn
         BusinessCatalogItemType.EmployeeDocumentCategory or
         BusinessCatalogItemType.EmployeeEvaluationCategory or
         BusinessCatalogItemType.AdministrativeIncidentType;
+
+    /// <summary>
+    /// Qué catálogos admiten el corte por baja: sólo los papeles del expediente del personal.
+    ///
+    /// <para>Una experiencia o un tipo de acta no caducan porque alguien se vaya, así que la marca no
+    /// tendría significado ahí.</para>
+    /// </summary>
+    public static bool SupportsTerminationExpiry(BusinessCatalogItemType type) => type is
+        BusinessCatalogItemType.EmployeeDocumentCategory or
+        BusinessCatalogItemType.EmployeeEvaluationCategory;
 }

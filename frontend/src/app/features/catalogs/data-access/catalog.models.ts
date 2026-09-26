@@ -66,6 +66,10 @@ export type CatalogItem = {
    */
   readonly isRequired?: boolean | null;
   readonly supportsRequiredMark?: boolean;
+
+  /** Si los papeles de este tipo dejan de contar al causar baja la persona. */
+  readonly isExpiredOnTermination?: boolean | null;
+  readonly supportsTerminationExpiry?: boolean;
 };
 
 export type CatalogItemInput = Omit<CatalogItem, 'idCatalogItem' | 'active' | 'updatedAt'> & { readonly active?: boolean };

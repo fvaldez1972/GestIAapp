@@ -1633,8 +1633,15 @@ export class WorkforcePage {
                 `del ${resultado.firstFutureShiftDate} al ${resultado.lastFutureShiftDate}: ` +
                 'hay que cubrirlos desde la operación.';
 
+          const papeles =
+            resultado.expiredDocuments + resultado.expiredEvaluations === 0
+              ? ''
+              : ` Se cortó la vigencia de ${resultado.expiredDocuments} documentos y ` +
+                `${resultado.expiredEvaluations} evaluaciones que vencen con la baja: al reingresar ` +
+                'se piden de nuevo.';
+
           this.message.set(
-            `${resultado.employee.fullName} quedó dada de baja. ${asignaciones}${turnos}`,
+            `${resultado.employee.fullName} quedó dada de baja. ${asignaciones}${papeles}${turnos}`,
           );
           this.refreshAfterMovement(employee.idEmployee);
         },

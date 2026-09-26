@@ -106,6 +106,20 @@ public interface IWorkforceRepository
     /// ajenos en silencio sería peor que dejarlos. Se cuentan para <b>decirlo</b> al dar la baja, de
     /// modo que alguien los cubra.</para>
     /// </summary>
+    /// <summary>
+    /// Los documentos del expediente cuyo tipo está marcado como «vence al causar baja».
+    /// </summary>
+    Task<IReadOnlyList<EmployeeDocument>> ListDocumentsExpiringOnTerminationAsync(
+        Guid idOrganization,
+        Guid idEmployee,
+        CancellationToken cancellationToken);
+
+    /// <summary>Las evaluaciones del expediente cuyo tipo está marcado igual.</summary>
+    Task<IReadOnlyList<EmployeeEvaluation>> ListEvaluationsExpiringOnTerminationAsync(
+        Guid idOrganization,
+        Guid idEmployee,
+        CancellationToken cancellationToken);
+
     Task<(int Count, DateOnly? FirstDate, DateOnly? LastDate)> CountFutureShiftsAsync(
         Guid idOrganization,
         Guid idEmployee,

@@ -83,6 +83,28 @@ public sealed class EmployeeDocument : AuditableEntity, IOrganizationScopedEntit
     public DateOnly? ReceivedDate { get; private set; }
     public DateOnly? IssuedDate { get; private set; }
     public DateOnly? ExpiresDate { get; private set; }
+
+    /// <summary>La vigencia que tenía antes de que una baja la cortara. Nula si nunca se cortó.</summary>
+    public DateOnly? OriginalExpiresDate { get; private set; }
+
+    /// <summary>
+    /// Corta la vigencia en la fecha de baja, guardando la original.
+    ///
+    /// <para>Devuelve si hubo algo que cortar: una vigencia que ya había pasado antes de la baja no se
+    /// toca, porque el documento ya estaba vencido y mover su fecha reescribiría un hecho.</para>
+    /// </summary>
+    public bool ExpireOnTermination(DateOnly endDate, Guid actorId, string actorName, DateTime occurredAt)
+    {
+        if (ExpiresDate is not null && ExpiresDate <= endDate)
+        {
+            return false;
+        }
+
+        OriginalExpiresDate ??= ExpiresDate;
+        ExpiresDate = endDate;
+        RegisterUpdate(actorId, actorName, occurredAt);
+        return true;
+    }
     public string? StorageReference { get; private set; }
 
     /// <summary>

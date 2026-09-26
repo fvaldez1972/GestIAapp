@@ -138,6 +138,8 @@ export type TerminateEmployeeResult = {
   readonly futureShifts: number;
   readonly firstFutureShiftDate: string | null;
   readonly lastFutureShiftDate: string | null;
+  readonly expiredDocuments: number;
+  readonly expiredEvaluations: number;
 };
 
 export type EmployeeInput = Omit<

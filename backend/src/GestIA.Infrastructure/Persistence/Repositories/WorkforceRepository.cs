@@ -113,6 +113,36 @@ public sealed partial class WorkforceRepository(GestIaDbContext dbContext) : IWo
     ///
     /// <para>Se cuentan, no se borran: una versión publicada de la planeación es inmutable.</para>
     /// </summary>
+    public async Task<IReadOnlyList<EmployeeDocument>> ListDocumentsExpiringOnTerminationAsync(
+        Guid idOrganization,
+        Guid idEmployee,
+        CancellationToken cancellationToken) =>
+        await dbContext.EmployeeDocuments
+            .Where(documento =>
+                documento.IdOrganization == idOrganization &&
+                documento.IdEmployee == idEmployee &&
+                documento.Active &&
+                documento.IdDocumentCategoryCatalogItem != null &&
+                dbContext.BusinessCatalogItems.Any(tipo =>
+                    tipo.IdBusinessCatalogItem == documento.IdDocumentCategoryCatalogItem &&
+                    tipo.IsExpiredOnTermination == true))
+            .ToArrayAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<EmployeeEvaluation>> ListEvaluationsExpiringOnTerminationAsync(
+        Guid idOrganization,
+        Guid idEmployee,
+        CancellationToken cancellationToken) =>
+        await dbContext.EmployeeEvaluations
+            .Where(evaluacion =>
+                evaluacion.IdOrganization == idOrganization &&
+                evaluacion.IdEmployee == idEmployee &&
+                evaluacion.Active &&
+                evaluacion.IdEvaluationCategoryCatalogItem != null &&
+                dbContext.BusinessCatalogItems.Any(tipo =>
+                    tipo.IdBusinessCatalogItem == evaluacion.IdEvaluationCategoryCatalogItem &&
+                    tipo.IsExpiredOnTermination == true))
+            .ToArrayAsync(cancellationToken);
+
     public async Task<(int Count, DateOnly? FirstDate, DateOnly? LastDate)> CountFutureShiftsAsync(
         Guid idOrganization,
         Guid idEmployee,

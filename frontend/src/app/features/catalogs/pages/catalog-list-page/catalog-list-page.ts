@@ -125,6 +125,7 @@ export class CatalogListPage {
     status: ['active' as 'active' | 'inactive', [Validators.required]],
     idParentCatalogItem: [''],
     blockingMark: ['informative' as 'blocking' | 'informative'],
+    terminationExpiry: ['keeps' as 'expires' | 'keeps'],
   });
 
   constructor() {
@@ -273,6 +274,11 @@ export class CatalogListPage {
     { value: 'informative', label: 'Informativa' },
   ];
 
+  protected readonly terminationExpiryOptions: readonly GiSelectOption[] = [
+    { value: 'keeps', label: 'Conserva su vigencia' },
+    { value: 'expires', label: 'Vence con la baja' },
+  ];
+
   protected readonly statusOptions: readonly GiSelectOption[] = [
     { value: 'active', label: 'Activo' },
     { value: 'inactive', label: 'Inactivo' },
@@ -367,6 +373,7 @@ export class CatalogListPage {
       status: 'active',
       idParentCatalogItem: '',
       blockingMark: 'informative',
+      terminationExpiry: 'keeps',
     });
     this.editor()?.nativeElement.showModal();
   }
@@ -384,6 +391,7 @@ export class CatalogListPage {
       // Una entrada sin marca se dibuja informativa, que es lo que ya hace: los dos lugares que
       // consultan la marca resuelven el nulo como «no bloquea».
       blockingMark: item.isRequired === true ? 'blocking' : 'informative',
+      terminationExpiry: item.isExpiredOnTermination === true ? 'expires' : 'keeps',
     });
     this.editor()?.nativeElement.showModal();
   }
@@ -418,6 +426,7 @@ export class CatalogListPage {
       active: value.status === 'active',
       // Sólo viaja donde significa algo. En los demás catálogos el servidor la rechaza.
       isRequired: page.hasNature ? value.blockingMark === 'blocking' : null,
+      isExpiredOnTermination: page.hasTerminationExpiry ? value.terminationExpiry === 'expires' : null,
     };
 
     const selected = this.selectedItemId();

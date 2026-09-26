@@ -913,6 +913,13 @@ public sealed class CatalogService(
                 ["Este catálogo no participa en la elegibilidad, así que no lleva marca de bloqueo."];
         }
 
+        if (request.IsExpiredOnTermination.HasValue &&
+            !BusinessCatalogItem.SupportsTerminationExpiry(request.Type))
+        {
+            errors[nameof(request.IsExpiredOnTermination)] =
+                ["Sólo los documentos y las evaluaciones del personal pueden vencer al causar baja."];
+        }
+
         // Y donde la marca significa algo, es obligatoria al crear.
         //
         // Hasta el 21 de septiembre de 2026 podía nacer sin decidir, y ese tercer estado resultó
@@ -934,7 +941,14 @@ public sealed class CatalogService(
         // porque después de la migración compensatoria ninguna entrada de estos cuatro catálogos
         // está sin decidir, y ninguna puede volver a estarlo.
         bool? isBlocking = admiteMarca ? request.IsRequired ?? existing?.IsRequired ?? false : null;
-        return new BusinessCatalogItemProfile(request.Type, name, description, order, request.IdParentCatalogItem, isBlocking);
+
+        // Igual que la marca anterior: editar sin mandarla conserva la que habia.
+        bool? venceConLaBaja = BusinessCatalogItem.SupportsTerminationExpiry(request.Type)
+            ? request.IsExpiredOnTermination ?? existing?.IsExpiredOnTermination ?? false
+            : null;
+
+        return new BusinessCatalogItemProfile(
+            request.Type, name, description, order, request.IdParentCatalogItem, isBlocking, venceConLaBaja);
     }
 
     /// <summary>
@@ -1048,7 +1062,8 @@ public sealed class CatalogService(
     private static CatalogItemResponse MapCatalogItem(BusinessCatalogItem item) =>
         new(item.IdBusinessCatalogItem, item.IdOrganization, item.Type, item.Name, item.Description, item.Active,
             item.Order, item.UpdatedAt ?? item.CreatedAt, item.IdParentCatalogItem,
-            item.IsRequired, BusinessCatalogItem.SupportsRequiredMark(item.Type));
+            item.IsRequired, BusinessCatalogItem.SupportsRequiredMark(item.Type),
+            item.IsExpiredOnTermination, BusinessCatalogItem.SupportsTerminationExpiry(item.Type));
 
     private static EligibilityRequirementResponse MapRequirement(EligibilityRequirement requirement) =>
         new(

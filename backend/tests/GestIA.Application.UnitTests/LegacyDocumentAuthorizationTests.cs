@@ -121,6 +121,10 @@ public sealed class LegacyDocumentAuthorizationTests
             Task.FromResult<IReadOnlyList<EmploymentPeriodResponse>>([]);
         public Task<IReadOnlyList<ServiceAssignment>> ListOpenAssignmentsAsync(Guid idOrganization, Guid idEmployee, DateOnly onDate, CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<ServiceAssignment>>([]);
+        public Task<IReadOnlyList<EmployeeDocument>> ListDocumentsExpiringOnTerminationAsync(Guid idOrganization, Guid idEmployee, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<EmployeeDocument>>([]);
+        public Task<IReadOnlyList<EmployeeEvaluation>> ListEvaluationsExpiringOnTerminationAsync(Guid idOrganization, Guid idEmployee, CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<EmployeeEvaluation>>([]);
         public Task<(int Count, DateOnly? FirstDate, DateOnly? LastDate)> CountFutureShiftsAsync(Guid idOrganization, Guid idEmployee, DateOnly fromDate, CancellationToken cancellationToken) =>
             Task.FromResult<(int, DateOnly?, DateOnly?)>((0, null, null));
         public Task<Employee?> GetEmployeeAsync(Guid idOrganization, Guid idEmployee, CancellationToken cancellationToken) =>

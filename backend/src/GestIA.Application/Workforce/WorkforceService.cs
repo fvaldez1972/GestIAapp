@@ -167,6 +167,18 @@ public sealed class WorkforceService(
             asignacion.Close(request.EndDate, actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
         }
 
+        // RQ-08: los papeles cuyo tipo vence al causar baja quedan cortados a la fecha de la baja,
+        // conservando su vigencia original. Al reingresar se piden de nuevo.
+        var documentos = await repository.ListDocumentsExpiringOnTerminationAsync(
+            request.IdOrganization, idEmployee, cancellationToken);
+        var evaluaciones = await repository.ListEvaluationsExpiringOnTerminationAsync(
+            request.IdOrganization, idEmployee, cancellationToken);
+
+        var documentosCortados = documentos.Count(documento => documento.ExpireOnTermination(
+            request.EndDate, actorContext.ActorId, actorContext.ActorName, clock.UtcNow));
+        var evaluacionesCortadas = evaluaciones.Count(evaluacion => evaluacion.ExpireOnTermination(
+            request.EndDate, actorContext.ActorId, actorContext.ActorName, clock.UtcNow));
+
         var turnos = await repository.CountFutureShiftsAsync(
             request.IdOrganization, idEmployee, request.EndDate, cancellationToken);
 
@@ -177,7 +189,9 @@ public sealed class WorkforceService(
             asignaciones.Count,
             turnos.Count,
             turnos.FirstDate,
-            turnos.LastDate);
+            turnos.LastDate,
+            documentosCortados,
+            evaluacionesCortadas);
     }
 
     /// <summary>

@@ -20,6 +20,8 @@ export type CatalogPage = {
   readonly example: string;
   /** Si sus valores llevan naturaleza: obligatorio o informativa. */
   readonly hasNature?: boolean;
+  /** Si sus valores pueden vencer al causar baja la persona. */
+  readonly hasTerminationExpiry?: boolean;
   /** De qué catálogo cuelgan sus valores, cuando cuelgan de alguno. */
   readonly parentType?: BusinessCatalogItemType;
 };
@@ -88,6 +90,7 @@ export const CATALOG_PAGE_GROUPS: readonly CatalogPageGroup[] = [
         singular: 'tipo de documento',
         example: 'Ej. INE',
         hasNature: true,
+        hasTerminationExpiry: true,
       },
       {
         slug: 'tipos-de-evaluacion',
@@ -96,6 +99,7 @@ export const CATALOG_PAGE_GROUPS: readonly CatalogPageGroup[] = [
         singular: 'tipo de evaluación',
         example: 'Ej. Polígrafo',
         hasNature: true,
+        hasTerminationExpiry: true,
       },
     ],
   },

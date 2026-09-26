@@ -190,6 +190,18 @@
           </div>
         }
 
+        @if (catalogo.hasTerminationExpiry) {
+          <div class="gi-field">
+            <span>Al causar baja</span>
+            <gi-select
+              label="Al causar baja"
+              [options]="terminationExpiryOptions"
+              [value]="form.controls.terminationExpiry.value"
+              (valueChange)="form.controls.terminationExpiry.setValue($any($event))"
+            />
+          </div>
+        }
+
         <div class="gi-field">
           <span>Estatus</span>
           <gi-select

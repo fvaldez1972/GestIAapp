@@ -319,4 +319,6 @@ public sealed record TerminateEmployeeResult(
     int ClosedAssignments,
     int FutureShifts,
     DateOnly? FirstFutureShiftDate,
-    DateOnly? LastFutureShiftDate);
+    DateOnly? LastFutureShiftDate,
+    int ExpiredDocuments,
+    int ExpiredEvaluations);

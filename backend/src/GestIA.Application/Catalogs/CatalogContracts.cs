@@ -14,7 +14,9 @@ public sealed record CatalogItemInput(
     /// <summary>
     /// Sólo la aceptan los cuatro catálogos que participan en la elegibilidad; en los demás va nula.
     /// </summary>
-    bool? IsRequired = null);
+    bool? IsRequired = null,
+    /// <summary>Si los papeles de este tipo dejan de contar al causar baja la persona.</summary>
+    bool? IsExpiredOnTermination = null);
 
 public sealed record CatalogItemResponse(
     Guid IdCatalogItem,
@@ -29,7 +31,10 @@ public sealed record CatalogItemResponse(
     /// <summary>Nula en los catálogos que no participan en la elegibilidad.</summary>
     bool? IsRequired = null,
     /// <summary>Si este catálogo admite la marca. La pantalla decide con esto si la dibuja.</summary>
-    bool SupportsRequiredMark = false);
+    bool SupportsRequiredMark = false,
+    bool? IsExpiredOnTermination = null,
+    /// <summary>Si este catálogo admite el corte por baja: documentos y evaluaciones del personal.</summary>
+    bool SupportsTerminationExpiry = false);
 
 public sealed record EligibilityRequirementInput(
     Guid IdOrganization,

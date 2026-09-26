@@ -81,14 +81,15 @@ describe('El alta de una persona', () => {
     expect(boton('Guardar sin puesto').disabled).toBe(true);
     const motivo = raiz.querySelector<HTMLElement>('#ef-falta-persona')!;
     expect(motivo.hidden).toBe(false);
-    expect(motivo.textContent).toContain('nombre completo o la fecha de ingreso');
+    expect(motivo.textContent).toContain('el apellido paterno o la fecha de ingreso');
   });
 
   /** Sin fecha capturada vale la de hoy del servidor, nunca la del reloj del navegador. */
-  it('con nombre basta para guardar sin puesto, y toma el día operativo del servidor', () => {
+  it('con nombre y apellido basta para guardar sin puesto, y toma el día operativo del servidor', () => {
     const { escribir, boton, host } = montar();
 
-    escribir('ef-nombre', 'Renata Villaseñor Cortés');
+    escribir('ef-nombre', 'Renata');
+    escribir('ef-paterno', 'Villaseñor');
     expect(boton('Guardar sin puesto').disabled).toBe(false);
 
     boton('Guardar sin puesto').click();
@@ -97,11 +98,52 @@ describe('El alta de una persona', () => {
     expect(host.guardado()?.idJobPositionCatalogItem).toBe('');
   });
 
+  // ── El nombre en tres partes (RQ-06) ──────────────────────────────────────────────────────
+
+  /**
+   * El nombre se captura en tres campos y viaja en tres campos. <b>El alta no compone el nombre
+   * completo</b>: eso lo hace el servidor, y si el navegador lo armara existirian dos versiones del
+   * mismo dato.
+   */
+  it('manda las tres partes del nombre por separado, sin componer el nombre completo', () => {
+    const { escribir, boton, host } = montar();
+
+    escribir('ef-nombre', 'Renata');
+    escribir('ef-paterno', 'Villaseñor');
+    escribir('ef-materno', 'Cortés');
+
+    boton('Guardar sin puesto').click();
+
+    const guardado = host.guardado()!;
+    expect(guardado.firstName).toBe('Renata');
+    expect(guardado.lastNamePaternal).toBe('Villaseñor');
+    expect(guardado.lastNameMaternal).toBe('Cortés');
+    expect(guardado).not.toHaveProperty('fullName');
+  });
+
+  /**
+   * <b>El apellido materno es opcional y el paterno no.</b> Hay personas con un solo apellido, y
+   * exigir los dos las deja fuera del alta.
+   *
+   * <p>El control son las dos primeras aserciones: con el nombre solo, el boton sigue bloqueado.
+   * Sin ellas, un formulario que no exigiera nada pasaria la tercera igual.</p>
+   */
+  it('exige el apellido paterno y deja pasar sin el materno', () => {
+    const { escribir, boton } = montar();
+
+    escribir('ef-nombre', 'Renata');
+    expect(boton('Guardar sin puesto').disabled).toBe(true);
+
+    escribir('ef-paterno', 'Villaseñor');
+    expect(boton('Guardar sin puesto').disabled).toBe(false);
+  });
+
   /** «Guardar con puesto» exige el puesto, y lo dice. */
   it('sin puesto elegido, guardar con puesto queda bloqueado con su motivo', () => {
     const { escribir, boton, raiz } = montar();
 
-    escribir('ef-nombre', 'Renata Villaseñor Cortés');
+    escribir('ef-nombre', 'Renata');
+    escribir('ef-paterno', 'Villaseñor');
 
     expect(boton('Guardar con puesto').disabled).toBe(true);
     expect(raiz.querySelector<HTMLElement>('#ef-falta-puesto')!.hidden).toBe(false);

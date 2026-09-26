@@ -37,6 +37,21 @@ export type Employee = {
   readonly idOrganization: string;
   readonly codeEmployee: string;
   readonly status: EmployeeStatus;
+
+  /** Nombre o nombres de pila. Obligatorio. */
+  readonly firstName: string;
+  /** Apellido paterno. Obligatorio. */
+  readonly lastNamePaternal: string;
+  /** Apellido materno. Opcional: hay personas con un solo apellido. */
+  readonly lastNameMaternal: string | null;
+
+  /**
+   * Las tres partes en una sola cadena, como se muestra en listas, selectores y reportes.
+   *
+   * <p><b>Es un derivado del servidor y no se manda de vuelta.</b> Lo compone el dominio al
+   * guardar; si el navegador lo enviara, existirian dos versiones del mismo nombre y una de las dos
+   * estaria equivocada.</p>
+   */
   readonly fullName: string;
   readonly jobTitle: string | null;
   /** El puesto por identificador de catalogo. Es el que compara la elegibilidad. */
@@ -95,9 +110,15 @@ export type Employee = {
   readonly updatedAt: string | null;
 };
 
+/**
+ * Lo que se manda al guardar un expediente.
+ *
+ * <p><b>`fullName` queda fuera a proposito.</b> El servidor lo compone de las tres partes del
+ * nombre, asi que mandarlo seria mandar un dato que no se respeta.</p>
+ */
 export type EmployeeInput = Omit<
   Employee,
-  'idEmployee' | 'codeEmployee' | 'status' | 'active' | 'createdAt' | 'updatedAt'
+  'idEmployee' | 'codeEmployee' | 'status' | 'active' | 'createdAt' | 'updatedAt' | 'fullName'
 >;
 
 export type CreateEmployee = EmployeeInput & {

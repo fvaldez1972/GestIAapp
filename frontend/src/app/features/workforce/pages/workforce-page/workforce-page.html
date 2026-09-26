@@ -175,6 +175,12 @@
               (editAddress)="startAddressEdit()"
               (cancelAddress)="editingAddress.set(false)"
               (saveAddress)="saveAddress($event)"
+              [editingName]="editingName() && canWrite()"
+              [savingName]="savingName()"
+              [nameProblem]="nameProblem()"
+              (editName)="startNameEdit()"
+              (cancelName)="editingName.set(false)"
+              (saveName)="saveName($event)"
             />
           </ng-template>
 

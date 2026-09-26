@@ -57,6 +57,7 @@ import {
   NewAdministrativeIncident,
 } from '../../ui/employee-administrative-incidents';
 import { EmployeeAddressValue } from '../../ui/employee-address';
+import { EmployeeNameValue } from '../../ui/employee-name';
 import { EmployeeData } from '../../ui/employee-data';
 import { EmployeeDocuments } from '../../ui/employee-documents';
 import {
@@ -387,6 +388,9 @@ export class WorkforcePage {
   protected readonly editingAddress = signal(false);
   protected readonly savingAddress = signal(false);
   protected readonly addressProblem = signal('');
+  protected readonly editingName = signal(false);
+  protected readonly savingName = signal(false);
+  protected readonly nameProblem = signal('');
 
   protected readonly confirming = signal<PendingAction | null>(null);
 
@@ -1220,6 +1224,12 @@ export class WorkforcePage {
     this.activeTab.set('data');
   }
 
+  protected startNameEdit(): void {
+    this.nameProblem.set('');
+    this.editingName.set(true);
+    this.activeTab.set('data');
+  }
+
   protected startJobPositionEdit(): void {
     this.jobPositionProblem.set('');
     this.editingJobPosition.set(true);
@@ -1295,7 +1305,11 @@ export class WorkforcePage {
   private perfilDe(employee: Employee, organizationId: string) {
     return {
       idOrganization: organizationId,
-      fullName: employee.fullName,
+      // Las tres partes viajan; el nombre completo no. Lo compone el servidor, y mandarlo seria
+      // mandar un dato que no se respeta.
+      firstName: employee.firstName,
+      lastNamePaternal: employee.lastNamePaternal,
+      lastNameMaternal: employee.lastNameMaternal,
       jobTitle: employee.jobTitle,
       idJobPositionCatalogItem: employee.idJobPositionCatalogItem,
       idEducationLevelCatalogItem: employee.idEducationLevelCatalogItem,
@@ -1373,6 +1387,52 @@ export class WorkforcePage {
           this.savingAddress.set(false);
           this.addressProblem.set(
             readServerProblem(problema, 'No se pudo guardar el domicilio.').message);
+        },
+      });
+  }
+
+  /**
+   * Corrige el nombre de una persona.
+   *
+   * <p><b>Existe por la migración.</b> El reparto automático de los nombres viejos acierta en el
+   * caso frecuente y falla en el raro —un nombre compuesto queda con una palabra en el apellido—, y
+   * sin una pantalla donde corregirlo esos casos se quedarían mal para siempre. Es el mismo criterio
+   * que el editor de domicilio: decir que algo está incompleto sin ofrecer dónde arreglarlo obliga a
+   * buscar, y quien busca casi siempre lo deja así.</p>
+   *
+   * <p>El apellido materno vacío se guarda como nulo, que es un nombre con un solo apellido y no un
+   * campo pendiente. El nombre completo no se manda: lo compone el servidor.</p>
+   */
+  protected saveName(valor: EmployeeNameValue): void {
+    const organizationId = this.organizationId();
+    const employee = this.detail();
+
+    if (!organizationId || !employee || !this.canWrite()) {
+      return;
+    }
+
+    this.savingName.set(true);
+    this.nameProblem.set('');
+
+    this.workforceApi
+      .updateEmployee(employee.idEmployee, {
+        ...this.perfilDe(employee, organizationId),
+        firstName: valor.firstName,
+        lastNamePaternal: valor.lastNamePaternal,
+        lastNameMaternal: valor.lastNameMaternal || null,
+      })
+      .subscribe({
+        next: (guardado) => {
+          this.savingName.set(false);
+          this.editingName.set(false);
+          this.message.set(`El nombre quedó como ${guardado.fullName}.`);
+          this.load();
+          this.loadDetail(employee.idEmployee);
+        },
+        error: (problema) => {
+          this.savingName.set(false);
+          this.nameProblem.set(
+            readServerProblem(problema, 'No se pudo guardar el nombre.').message);
         },
       });
   }
@@ -1533,7 +1593,9 @@ export class WorkforcePage {
       .createEmployee({
         idOrganization: organizationId,
         codeEmployee: `EMP-${Date.now().toString(36).toUpperCase().slice(-6)}`,
-        fullName: value.fullName,
+        firstName: value.firstName,
+        lastNamePaternal: value.lastNamePaternal,
+        lastNameMaternal: value.lastNameMaternal || null,
         jobTitle: value.jobPositionName || null,
         idJobPositionCatalogItem: value.idJobPositionCatalogItem || null,
         // El alta se queda minima: la escolaridad se captura despues, en la ficha.
@@ -1571,8 +1633,8 @@ export class WorkforcePage {
           this.finishCreate(
             created.idEmployee,
             value.idJobPositionCatalogItem
-              ? `Se dio de alta a ${value.fullName} con el puesto ${value.jobPositionName ?? 'sin catalogar'}.`
-              : `Se dio de alta a ${value.fullName}, sin puesto del catálogo. Se le puede asignar una ` +
+              ? `Se dio de alta a ${created.fullName} con el puesto ${value.jobPositionName ?? 'sin catalogar'}.`
+              : `Se dio de alta a ${created.fullName}, sin puesto del catálogo. Se le puede asignar una ` +
                   'posición, pero nadie podrá comprobar que corresponde al perfil.',
           );
         },

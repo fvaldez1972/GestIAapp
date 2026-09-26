@@ -6,7 +6,9 @@ import { EmployeeJobPositionOption } from '../data-access/employee-list.models';
 
 /** Lo que el formulario devuelve. El puesto viaja por identificador y por nombre. */
 export type EmployeeFormValue = {
-  readonly fullName: string;
+  readonly firstName: string;
+  readonly lastNamePaternal: string;
+  readonly lastNameMaternal: string;
   readonly idJobPositionCatalogItem: string;
   readonly jobPositionName: string;
   readonly hireDate: string;
@@ -38,17 +40,44 @@ export type EmployeeFormValue = {
         <h3 class="form__kicker">IDENTIFICACIÓN</h3>
 
         <label class="field field--wide" for="ef-nombre">
-          <span class="field__label">NOMBRE COMPLETO</span>
+          <span class="field__label">NOMBRE(S)</span>
           <input
             id="ef-nombre"
-            name="fullName"
+            name="firstName"
             type="text"
-            [ngModel]="fullName()"
-            (ngModelChange)="fullName.set($event)"
+            [ngModel]="firstName()"
+            (ngModelChange)="firstName.set($event)"
             [ngModelOptions]="sueltos"
             autocomplete="off"
           />
         </label>
+
+        <div class="form__row form__row--two">
+          <label class="field" for="ef-paterno">
+            <span class="field__label">APELLIDO PATERNO</span>
+            <input
+              id="ef-paterno"
+              name="lastNamePaternal"
+              type="text"
+              [ngModel]="lastNamePaternal()"
+              (ngModelChange)="lastNamePaternal.set($event)"
+              [ngModelOptions]="sueltos"
+              autocomplete="off"
+            />
+          </label>
+          <label class="field" for="ef-materno">
+            <span class="field__label">APELLIDO MATERNO · OPCIONAL</span>
+            <input
+              id="ef-materno"
+              name="lastNameMaternal"
+              type="text"
+              [ngModel]="lastNameMaternal()"
+              (ngModelChange)="lastNameMaternal.set($event)"
+              [ngModelOptions]="sueltos"
+              autocomplete="off"
+            />
+          </label>
+        </div>
 
         <div class="form__row form__row--two">
           <label class="field" for="ef-curp">
@@ -206,7 +235,8 @@ export type EmployeeFormValue = {
 
     <!-- Las razones se escriben. Un botón gris sin motivo obliga a adivinar qué falta. -->
     <p class="form__reason" id="ef-falta-persona" [hidden]="personReady()">
-      Faltan el nombre completo o la fecha de ingreso.
+      Faltan el nombre, el apellido paterno o la fecha de ingreso. El apellido materno es
+      opcional.
     </p>
     <p class="form__reason" id="ef-falta-puesto" [hidden]="jobReady()">
       Para guardar con puesto hace falta elegir uno del catálogo, además del nombre y la fecha de
@@ -355,7 +385,9 @@ export class EmployeeForm {
   /** Un objeto estable: creado en la plantilla se recrearía en cada ciclo de detección. */
   protected readonly sueltos = { standalone: true };
 
-  protected readonly fullName = signal('');
+  protected readonly firstName = signal('');
+  protected readonly lastNamePaternal = signal('');
+  protected readonly lastNameMaternal = signal('');
   protected readonly idJobPositionCatalogItem = signal('');
   protected readonly hireDate = signal('');
   protected readonly curp = signal('');
@@ -365,7 +397,10 @@ export class EmployeeForm {
   protected readonly email = signal('');
 
   protected readonly personReady = computed(
-    () => !!this.fullName().trim() && !!this.effectiveHireDate(),
+    () =>
+      !!this.firstName().trim() &&
+      !!this.lastNamePaternal().trim() &&
+      !!this.effectiveHireDate(),
   );
 
   protected readonly jobReady = computed(() => this.personReady() && !!this.idJobPositionCatalogItem());
@@ -386,7 +421,9 @@ export class EmployeeForm {
     );
 
     this.save.emit({
-      fullName: this.fullName().trim(),
+      firstName: this.firstName().trim(),
+      lastNamePaternal: this.lastNamePaternal().trim(),
+      lastNameMaternal: this.lastNameMaternal().trim(),
       idJobPositionCatalogItem: elegido?.idCatalogItem ?? '',
       jobPositionName: elegido?.name ?? '',
       hireDate: this.effectiveHireDate(),

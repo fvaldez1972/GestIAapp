@@ -9,6 +9,7 @@ import {
   employeeStatusTone,
 } from '../data-access/employee-list.models';
 import { EmployeeAddress, EmployeeAddressValue } from './employee-address';
+import { EmployeeName, EmployeeNameValue } from './employee-name';
 import { EmployeeEligibilityBand } from './employee-eligibility';
 import { EmployeeJobPosition } from './employee-job-position';
 
@@ -25,7 +26,14 @@ import { EmployeeJobPosition } from './employee-job-position';
 @Component({
   selector: 'app-employee-data',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [EmployeeAddress, EmployeeEligibilityBand, EmployeeJobPosition, GiAccordion, GiSelect],
+  imports: [
+    EmployeeAddress,
+    EmployeeEligibilityBand,
+    EmployeeJobPosition,
+    EmployeeName,
+    GiAccordion,
+    GiSelect,
+  ],
   template: `
     <div class="data">
       <app-employee-eligibility
@@ -87,10 +95,41 @@ import { EmployeeJobPosition } from './employee-job-position';
       -->
       <section class="data__block data__block--principal">
         <h3 class="data__kicker">Identificación</h3>
+        @if (canWrite() && !editingName()) {
+          <p class="data__acciones">
+            <button class="data__editar" type="button" (click)="editName.emit()">
+              Editar nombre
+            </button>
+          </p>
+        }
+
+        @if (editingName()) {
+          <app-employee-name
+            [employee]="employee()"
+            [saving]="savingName()"
+            [problem]="nameProblem()"
+            (guardar)="saveName.emit($event)"
+            (cancelar)="cancelName.emit()"
+          />
+        }
+
         <dl class="data__grid data__grid--two">
-          <div class="data__field data__field--wide">
+          <!--
+            Las tres partes, no solo el nombre completo. El completo se deriva de ellas, y verlo
+            solo a el dejaria invisible un reparto equivocado: «Empleado con | perfil | ACENTO» se
+            lee igual de bien en una sola linea.
+          -->
+          <div class="data__field">
             <dt>Nombre</dt>
-            <dd>{{ row().fullName }}</dd>
+            <dd>{{ employee()?.firstName || row().fullName }}</dd>
+          </div>
+          <div class="data__field">
+            <dt>Apellido paterno</dt>
+            <dd>{{ delDetalle(employee()?.lastNamePaternal || 'Sin dato capturado') }}</dd>
+          </div>
+          <div class="data__field">
+            <dt>Apellido materno</dt>
+            <dd>{{ delDetalle(employee()?.lastNameMaternal || 'Sin apellido materno') }}</dd>
           </div>
           <div class="data__field">
             <dt>Código</dt>
@@ -472,10 +511,16 @@ export class EmployeeData {
   readonly editingAddress = input(false);
   readonly savingAddress = input(false);
   readonly addressProblem = input('');
+  readonly editingName = input(false);
+  readonly savingName = input(false);
+  readonly nameProblem = input('');
 
   readonly editAddress = output<void>();
   readonly cancelAddress = output<void>();
   readonly saveAddress = output<EmployeeAddressValue>();
+  readonly editName = output<void>();
+  readonly cancelName = output<void>();
+  readonly saveName = output<EmployeeNameValue>();
 
   /**
    * Si el domicilio está en blanco, para que el botón diga capturar en vez de editar.

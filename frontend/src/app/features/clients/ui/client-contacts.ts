@@ -298,26 +298,6 @@ export class ClientContacts {
 
   protected readonly sueltos = { standalone: true };
 
-  /**
-   * A quién cubre el contacto.
-   *
-   * <p>«Del cliente» va primero porque es el caso normal: veintitrés de los veintiséis contactos de
-   * la base viva son del cliente, no de una zona.</p>
-   */
-
-  /**
-   * Que decide el alcance, dicho en la propia pantalla.
-   *
-   * <p>El negocio pregunto «¿para que sirve lo del alcance del contacto?», y esa pregunta es el
-   * defecto: el campo lleva anios en el formulario sin decir que cambia al elegir una u otra
-   * opcion. Sirve, y de hecho sostiene la regla de un contacto principal por alcance, que es la
-   * que se rompe si alguien lo quita.</p>
-   *
-   * <p>La ayuda cambia con lo elegido a proposito. Una frase fija que explicara las dos opciones
-   * obliga a leer la que no se eligio para encontrar la que si; diciendo solo la consecuencia de
-   * lo que esta puesto, se lee de un vistazo.</p>
-   */
-
   protected readonly purposeOptions = computed(() => this.purposes());
 
   /**
@@ -431,8 +411,7 @@ export class ClientContacts {
       fullName: this.fullName().trim(),
       idPurposeCatalogItem: this.idPurpose() || null,
       purpose: this.purpose(),
-      // Con alcance general la zona no viaja, aunque haya quedado elegida antes de cambiar de
-      // alcance: el servidor la descartaría igual, y mandarla haría creer que se guardó.
+      // Vacia significa que el contacto vale para todo el cliente.
       idClientZone: this.idClientZone() || null,
       idContactJobPositionCatalogItem: this.idContactJobPosition() || null,
       jobTitle: this.jobPositions().find((p) => p.idCatalogItem === this.idContactJobPosition())?.name ?? '',

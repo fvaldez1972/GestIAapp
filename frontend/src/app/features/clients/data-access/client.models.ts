@@ -185,14 +185,6 @@ export type ClientContactPurpose =
   | 'Purchasing'
   | 'InternalSecurity';
 
-/**
- * A quién cubre un contacto.
- *
- * <p>Se podía deducir de si tiene zona, y aun así viaja: un contacto sin zona porque nadie se la
- * puso no es lo mismo que uno que vale para todo el cliente a propósito, y la decisión D-02 —un
- * contacto principal por alcance— necesita contar de cada clase.</p>
- */
-
 export type ClientContact = {
   readonly idClientContact: string;
   readonly idClient: string;

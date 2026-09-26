@@ -480,3 +480,80 @@ app-login-page [hidden]:not([hidden="until-found"]) {
     animation: none;
   }
 }
+
+/*
+  El campo de fecha, en toda la aplicación.
+
+  Son 35 campos repartidos en 17 pantallas, y el nativo se veía como un cuadro gris con un icono
+  diminuto pegado al borde. Se estiliza aquí, de una vez, en vez de tocar cada plantilla: cualquier
+  <input type="date"> nuevo nace ya con esta forma.
+
+  El selector nativo se conserva a propósito —teclado, lector de pantalla y el calendario del
+  teléfono salen gratis—; lo que se cambia es cómo se ve y que se abra al pulsar en cualquier parte
+  del campo, no sólo sobre el icono.
+*/
+input[type="date"] {
+  box-sizing: border-box;
+  width: 100%;
+  height: var(--gestia-control-height);
+  padding: 0 0.7rem;
+  border: 1px solid var(--gestia-border);
+  border-radius: var(--gestia-radius);
+  background: var(--gestia-surface);
+  color: var(--gestia-text);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+  position: relative;
+}
+
+input[type="date"]:hover:not(:disabled) {
+  border-color: var(--gestia-cyan);
+}
+
+input[type="date"]:focus-visible {
+  outline: 2px solid var(--gestia-cyan);
+  outline-offset: 1px;
+}
+
+input[type="date"]:disabled {
+  background: var(--gestia-surface-soft);
+  color: var(--gestia-muted);
+  cursor: not-allowed;
+}
+
+/* Un campo vacío se lee como un marcador de posición, no como un dato puesto. */
+input[type="date"]:not(:focus):invalid,
+input[type="date"]:not(:focus):placeholder-shown {
+  color: var(--gestia-muted);
+}
+
+/*
+  El icono nativo es minúsculo y se pega al borde. Se sustituye por uno propio, alineado con el
+  resto de los desplegables, y se estira sobre todo el campo para que pulsar en cualquier sitio
+  abra el calendario.
+*/
+input[type="date"]::-webkit-calendar-picker-indicator {
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+  padding: 0;
+  opacity: 0.55;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round'><rect x='3' y='5' width='18' height='16' rx='2'/><path d='M8 3v4M16 3v4M3 10h18'/></svg>");
+  background-repeat: no-repeat;
+  background-size: contain;
+}
+
+input[type="date"]:hover::-webkit-calendar-picker-indicator {
+  opacity: 1;
+}
+
+input[type="date"]::-webkit-datetime-edit {
+  padding: 0;
+}
+
+/* Sin las flechas de incremento, que aquí no aportan y roban ancho. */
+input[type="date"]::-webkit-inner-spin-button {
+  display: none;
+}

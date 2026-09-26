@@ -39,7 +39,7 @@ const GEOGRAFIA: readonly BusinessCatalogItemType[] = ['Country', 'State', 'City
       @for (option of options(); track option.value) { <option [value]="option.value" [selected]="option.value === value()">{{ option.label }}</option> }
     </select>
     @if (error()) { <small role="alert">No se pudieron cargar las opciones.</small><button type="button" (click)="load()">Reintentar</button> }
-    @else if (!loading() && !options().length) { <small>{{ vacio() }}</small> }
+    @else if (!loading() && !options().length && vacio()) { <small>{{ vacio() }}</small> }
   `,
   styles: [':host { display: block; min-width: 0; width: 100%; } select { width: 100%; } small { display: block; color: #65738a; font-size: .75rem; margin-top: .25rem; }'],
 })
@@ -93,8 +93,10 @@ export class CatalogSelect implements ControlValueAccessor, OnChanges {
    */
   readonly vacio = computed(() => {
     this.revision();
-    if (this.type === 'State' && !this.country) return 'Elige primero el país';
-    if (this.type === 'City' && !this.state) return 'Elige primero el estado';
+    // Los dos «elige primero» se retiraron el 26 de septiembre de 2026: el propio desplegable ya
+    // dice «Selecciona municipio» y queda vacio, asi que la linea de abajo solo anadia ruido.
+    if (this.type === 'State' && !this.country) return '';
+    if (this.type === 'City' && !this.state) return '';
     return 'Sin opciones activas';
   });
 

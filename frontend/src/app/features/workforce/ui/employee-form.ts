@@ -40,7 +40,7 @@ export type EmployeeFormValue = {
         <h3 class="form__kicker">IDENTIFICACIÓN</h3>
 
         <label class="field field--wide" for="ef-nombre">
-          <span class="field__label">NOMBRE(S)</span>
+          <span class="field__label">NOMBRE(S)<span class="field__req" aria-hidden="true">*</span></span>
           <input
             id="ef-nombre"
             name="firstName"
@@ -54,7 +54,7 @@ export type EmployeeFormValue = {
 
         <div class="form__row form__row--two">
           <label class="field" for="ef-paterno">
-            <span class="field__label">APELLIDO PATERNO</span>
+            <span class="field__label">APELLIDO PATERNO<span class="field__req" aria-hidden="true">*</span></span>
             <input
               id="ef-paterno"
               name="lastNamePaternal"
@@ -66,7 +66,7 @@ export type EmployeeFormValue = {
             />
           </label>
           <label class="field" for="ef-materno">
-            <span class="field__label">APELLIDO MATERNO · OPCIONAL</span>
+            <span class="field__label">APELLIDO MATERNO</span>
             <input
               id="ef-materno"
               name="lastNameMaternal"
@@ -81,7 +81,7 @@ export type EmployeeFormValue = {
 
         <div class="form__row form__row--two">
           <label class="field" for="ef-curp">
-            <span class="field__label">CURP · OPCIONAL</span>
+            <span class="field__label">CURP</span>
             <input
               id="ef-curp"
               name="curp"
@@ -94,7 +94,7 @@ export type EmployeeFormValue = {
             />
           </label>
           <label class="field" for="ef-ingreso">
-            <span class="field__label">FECHA DE INGRESO</span>
+            <span class="field__label">FECHA DE INGRESO<span class="field__req" aria-hidden="true">*</span></span>
             <input
               id="ef-ingreso"
               name="hireDate"
@@ -108,10 +108,7 @@ export type EmployeeFormValue = {
       </section>
 
       <section class="form__block">
-        <h3 class="form__kicker">
-          PUESTO · DEL CATÁLOGO DE LA ORGANIZACIÓN
-          <span class="form__warning">Sin puesto no se puede comprobar el perfil</span>
-        </h3>
+        <h3 class="form__kicker">PUESTO</h3>
 
         <!--
           Un desplegable, no un campo donde escribir.
@@ -133,11 +130,6 @@ export type EmployeeFormValue = {
           <p class="form__hint">
             Esta organización no tiene puestos en su catálogo. Se declaran en Catálogos · Puestos, y
             sin al menos uno no se puede dar de alta a nadie.
-          </p>
-        } @else {
-          <p class="form__hint">
-            Los puestos salen del catálogo de esta organización. La elegibilidad se compara por
-            identificador, así que un puesto escrito a mano no sirve para comprobarla.
           </p>
         }
       </section>
@@ -174,7 +166,7 @@ export type EmployeeFormValue = {
             />
           </label>
           <label class="field" for="ef-tel">
-            <span class="field__label">TELÉFONO · OPCIONAL</span>
+            <span class="field__label">TELÉFONO</span>
             <input
               id="ef-tel"
               name="mobilePhone"
@@ -186,7 +178,7 @@ export type EmployeeFormValue = {
             />
           </label>
           <label class="field" for="ef-correo">
-            <span class="field__label">CORREO · OPCIONAL</span>
+            <span class="field__label">CORREO</span>
             <input
               id="ef-correo"
               name="email"
@@ -198,10 +190,6 @@ export type EmployeeFormValue = {
             />
           </label>
         </div>
-        <p class="form__hint">
-          Estado y municipio se eligen del catálogo de direcciones. El servidor rechaza un texto
-          libre que no corresponda a un municipio activo del estado.
-        </p>
       </section>
 
       @if (problem()) {
@@ -225,7 +213,6 @@ export type EmployeeFormValue = {
           class="button button--primary"
           type="button"
           [disabled]="saving() || !jobReady()"
-          [attr.aria-describedby]="jobReady() ? null : 'ef-falta-puesto'"
           (click)="submit()"
         >
           Guardar con puesto
@@ -238,10 +225,7 @@ export type EmployeeFormValue = {
       Faltan el nombre, el apellido paterno o la fecha de ingreso. El apellido materno es
       opcional.
     </p>
-    <p class="form__reason" id="ef-falta-puesto" [hidden]="jobReady()">
-      Para guardar con puesto hace falta elegir uno del catálogo, además del nombre y la fecha de
-      ingreso.
-    </p>
+
   `,
   styles: `
     :host { display: flex; flex-direction: column; min-height: 0; }
@@ -251,6 +235,8 @@ export type EmployeeFormValue = {
     .form__block { display: flex; flex-direction: column; gap: 0.7rem; }
 
     .form__block + .form__block { border-top: 1px solid var(--gestia-border); padding-top: 1.1rem; }
+
+    .field__req { color: var(--gestia-danger); margin-left: 0.15rem; }
 
     .form__kicker {
       display: flex;
@@ -264,7 +250,6 @@ export type EmployeeFormValue = {
       letter-spacing: 0.08em;
     }
 
-    .form__warning { color: var(--gestia-warning); font-size: 11.5px; letter-spacing: 0; }
 
     .form__row { display: grid; gap: 0.7rem; }
     .form__row--two { grid-template-columns: repeat(2, minmax(0, 1fr)); }

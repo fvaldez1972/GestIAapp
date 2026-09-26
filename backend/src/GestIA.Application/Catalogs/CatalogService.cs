@@ -920,6 +920,18 @@ public sealed class CatalogService(
                 ["Sólo los documentos y las evaluaciones del personal pueden vencer al causar baja."];
         }
 
+        if (request.HasOwnExpiry.HasValue && !BusinessCatalogItem.SupportsTerminationExpiry(request.Type))
+        {
+            errors[nameof(request.HasOwnExpiry)] =
+                ["Sólo los documentos y las evaluaciones del personal manejan vigencia."];
+        }
+
+        if (request.MaxIssueAgeMonths is < 1 or > 120)
+        {
+            errors[nameof(request.MaxIssueAgeMonths)] =
+                ["La antigüedad máxima de emisión debe estar entre 1 y 120 meses."];
+        }
+
         // Y donde la marca significa algo, es obligatoria al crear.
         //
         // Hasta el 21 de septiembre de 2026 podía nacer sin decidir, y ese tercer estado resultó
@@ -947,8 +959,13 @@ public sealed class CatalogService(
             ? request.IsExpiredOnTermination ?? existing?.IsExpiredOnTermination ?? false
             : null;
 
+        bool? manejaVigencia = BusinessCatalogItem.SupportsTerminationExpiry(request.Type)
+            ? request.HasOwnExpiry ?? existing?.HasOwnExpiry ?? true
+            : null;
+
         return new BusinessCatalogItemProfile(
-            request.Type, name, description, order, request.IdParentCatalogItem, isBlocking, venceConLaBaja);
+            request.Type, name, description, order, request.IdParentCatalogItem, isBlocking, venceConLaBaja,
+            manejaVigencia, request.MaxIssueAgeMonths ?? existing?.MaxIssueAgeMonths);
     }
 
     /// <summary>
@@ -1063,7 +1080,8 @@ public sealed class CatalogService(
         new(item.IdBusinessCatalogItem, item.IdOrganization, item.Type, item.Name, item.Description, item.Active,
             item.Order, item.UpdatedAt ?? item.CreatedAt, item.IdParentCatalogItem,
             item.IsRequired, BusinessCatalogItem.SupportsRequiredMark(item.Type),
-            item.IsExpiredOnTermination, BusinessCatalogItem.SupportsTerminationExpiry(item.Type));
+            item.IsExpiredOnTermination, BusinessCatalogItem.SupportsTerminationExpiry(item.Type),
+            item.HasOwnExpiry, item.MaxIssueAgeMonths);
 
     private static EligibilityRequirementResponse MapRequirement(EligibilityRequirement requirement) =>
         new(

@@ -126,6 +126,8 @@ export class CatalogListPage {
     idParentCatalogItem: [''],
     blockingMark: ['informative' as 'blocking' | 'informative'],
     terminationExpiry: ['keeps' as 'expires' | 'keeps'],
+    ownExpiry: ['own' as 'own' | 'none'],
+    maxIssueAgeMonths: [''],
   });
 
   constructor() {
@@ -274,6 +276,11 @@ export class CatalogListPage {
     { value: 'informative', label: 'Informativa' },
   ];
 
+  protected readonly ownExpiryOptions: readonly GiSelectOption[] = [
+    { value: 'own', label: 'Sí, se captura al cargarlo' },
+    { value: 'none', label: 'No, vale mientras dure el ingreso' },
+  ];
+
   protected readonly terminationExpiryOptions: readonly GiSelectOption[] = [
     { value: 'keeps', label: 'Conserva su vigencia' },
     { value: 'expires', label: 'Vence con la baja' },
@@ -374,6 +381,8 @@ export class CatalogListPage {
       idParentCatalogItem: '',
       blockingMark: 'informative',
       terminationExpiry: 'keeps',
+      ownExpiry: 'own',
+      maxIssueAgeMonths: '',
     });
     this.editor()?.nativeElement.showModal();
   }
@@ -392,6 +401,8 @@ export class CatalogListPage {
       // consultan la marca resuelven el nulo como «no bloquea».
       blockingMark: item.isRequired === true ? 'blocking' : 'informative',
       terminationExpiry: item.isExpiredOnTermination === true ? 'expires' : 'keeps',
+      ownExpiry: item.hasOwnExpiry === false ? 'none' : 'own',
+      maxIssueAgeMonths: item.maxIssueAgeMonths ? String(item.maxIssueAgeMonths) : '',
     });
     this.editor()?.nativeElement.showModal();
   }
@@ -427,6 +438,8 @@ export class CatalogListPage {
       // Sólo viaja donde significa algo. En los demás catálogos el servidor la rechaza.
       isRequired: page.hasNature ? value.blockingMark === 'blocking' : null,
       isExpiredOnTermination: page.hasTerminationExpiry ? value.terminationExpiry === 'expires' : null,
+      hasOwnExpiry: page.hasTerminationExpiry ? value.ownExpiry === 'own' : null,
+      maxIssueAgeMonths: Number(value.maxIssueAgeMonths) > 0 ? Number(value.maxIssueAgeMonths) : null,
     };
 
     const selected = this.selectedItemId();

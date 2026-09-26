@@ -309,6 +309,8 @@ export type EmployeeDocumentTypeOption = {
   readonly code: string;
   readonly label: string;
   readonly isRequired: boolean;
+  readonly hasOwnExpiry?: boolean | null;
+  readonly maxIssueAgeMonths?: number | null;
 };
 
 /**
@@ -328,7 +330,12 @@ export function employeeDocumentTypeOptions(
     readonly idRequiredCatalogItem: string | null;
     readonly isRequiredEffective: boolean;
   }[],
-  categories: readonly { readonly idCatalogItem: string; readonly name: string }[],
+  categories: readonly {
+    readonly idCatalogItem: string;
+    readonly name: string;
+    readonly hasOwnExpiry?: boolean | null;
+    readonly maxIssueAgeMonths?: number | null;
+  }[],
 ): readonly EmployeeDocumentTypeOption[] {
   const exigidos = new Set(
     required
@@ -340,6 +347,8 @@ export function employeeDocumentTypeOptions(
     code: categoria.idCatalogItem,
     label: categoria.name,
     isRequired: exigidos.has(categoria.idCatalogItem),
+    hasOwnExpiry: categoria.hasOwnExpiry ?? null,
+    maxIssueAgeMonths: categoria.maxIssueAgeMonths ?? null,
   }));
 
   return [...tipos.filter((tipo) => tipo.isRequired), ...tipos.filter((tipo) => !tipo.isRequired)];

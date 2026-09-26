@@ -16,7 +16,11 @@ public sealed record CatalogItemInput(
     /// </summary>
     bool? IsRequired = null,
     /// <summary>Si los papeles de este tipo dejan de contar al causar baja la persona.</summary>
-    bool? IsExpiredOnTermination = null);
+    bool? IsExpiredOnTermination = null,
+    /// <summary>Si los papeles de este tipo traen su propia fecha de vencimiento.</summary>
+    bool? HasOwnExpiry = null,
+    /// <summary>Antigüedad máxima admitida en la fecha de emisión, en meses. Nulo: sin límite.</summary>
+    int? MaxIssueAgeMonths = null);
 
 public sealed record CatalogItemResponse(
     Guid IdCatalogItem,
@@ -34,7 +38,9 @@ public sealed record CatalogItemResponse(
     bool SupportsRequiredMark = false,
     bool? IsExpiredOnTermination = null,
     /// <summary>Si este catálogo admite el corte por baja: documentos y evaluaciones del personal.</summary>
-    bool SupportsTerminationExpiry = false);
+    bool SupportsTerminationExpiry = false,
+    bool? HasOwnExpiry = null,
+    int? MaxIssueAgeMonths = null);
 
 public sealed record EligibilityRequirementInput(
     Guid IdOrganization,

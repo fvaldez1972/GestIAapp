@@ -10,7 +10,9 @@ public sealed record BusinessCatalogItemProfile(
     int Order = 1,
     Guid? IdParentCatalogItem = null,
     bool? IsRequired = null,
-    bool? IsExpiredOnTermination = null);
+    bool? IsExpiredOnTermination = null,
+    bool? HasOwnExpiry = null,
+    int? MaxIssueAgeMonths = null);
 
 public sealed class BusinessCatalogItem : AuditableEntity, IOrganizationScopedEntity
 {
@@ -88,6 +90,25 @@ public sealed class BusinessCatalogItem : AuditableEntity, IOrganizationScopedEn
     /// </summary>
     public bool? IsExpiredOnTermination { get; private set; }
 
+    /// <summary>
+    /// Si los papeles de este tipo traen su propia fecha de vencimiento.
+    ///
+    /// <para>Cuando no la traen, el papel vale mientras dure el ingreso y sólo lo vence la baja: es el
+    /// caso del comprobante de domicilio. La fecha de vencimiento se pide al cargar sólo si este
+    /// atributo dice que sí.</para>
+    /// </summary>
+    public bool? HasOwnExpiry { get; private set; }
+
+    /// <summary>
+    /// Cuántos meses de antigüedad admite la fecha de emisión al cargar el papel. Nulo: sin límite.
+    ///
+    /// <para>Es la regla del comprobante de domicilio —«no mayores a tres meses»—, que hasta el
+    /// 26 de septiembre de 2026 se aplicaba al vencimiento de todos los documentos del personal. Vive
+    /// en el catálogo y no atada a un nombre, porque una regla que dependa del texto «Comprobante de
+    /// domicilio» se rompe el día que alguien lo renombre.</para>
+    /// </summary>
+    public int? MaxIssueAgeMonths { get; private set; }
+
     public Organization Organization { get; private set; } = null!;
 
     public static BusinessCatalogItem Create(
@@ -128,6 +149,8 @@ public sealed class BusinessCatalogItem : AuditableEntity, IOrganizationScopedEn
         Type = profile.Type;
         IsRequired = profile.IsRequired;
         IsExpiredOnTermination = profile.IsExpiredOnTermination;
+        HasOwnExpiry = profile.HasOwnExpiry;
+        MaxIssueAgeMonths = profile.MaxIssueAgeMonths;
         Name = profile.Name.Trim();
         Description = string.IsNullOrWhiteSpace(profile.Description) ? null : profile.Description.Trim();
         IdParentCatalogItem = profile.IdParentCatalogItem;

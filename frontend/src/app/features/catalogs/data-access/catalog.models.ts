@@ -70,6 +70,11 @@ export type CatalogItem = {
   /** Si los papeles de este tipo dejan de contar al causar baja la persona. */
   readonly isExpiredOnTermination?: boolean | null;
   readonly supportsTerminationExpiry?: boolean;
+
+  /** Si los papeles de este tipo traen su propia fecha de vencimiento. */
+  readonly hasOwnExpiry?: boolean | null;
+  /** Antigüedad máxima admitida en la emisión, en meses. Nula: sin límite. */
+  readonly maxIssueAgeMonths?: number | null;
 };
 
 export type CatalogItemInput = Omit<CatalogItem, 'idCatalogItem' | 'active' | 'updatedAt'> & { readonly active?: boolean };

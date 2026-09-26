@@ -192,6 +192,29 @@
 
         @if (catalogo.hasTerminationExpiry) {
           <div class="gi-field">
+            <span>Maneja vigencia</span>
+            <gi-select
+              label="Maneja vigencia"
+              [options]="ownExpiryOptions"
+              [value]="form.controls.ownExpiry.value"
+              (valueChange)="form.controls.ownExpiry.setValue($any($event))"
+            />
+          </div>
+
+          @if (form.controls.ownExpiry.value === 'none') {
+            <label class="gi-field" for="cat-emision">
+              <span>Antigüedad máxima de la emisión, en meses · opcional</span>
+              <input
+                id="cat-emision"
+                type="number"
+                min="1"
+                max="120"
+                [formControl]="form.controls.maxIssueAgeMonths"
+              />
+            </label>
+          }
+
+          <div class="gi-field">
             <span>Al causar baja</span>
             <gi-select
               label="Al causar baja"

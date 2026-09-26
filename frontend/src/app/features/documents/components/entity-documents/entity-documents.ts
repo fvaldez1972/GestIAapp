@@ -26,6 +26,10 @@ export type EntityDocumentTypeOption = {
   readonly code: string;
   readonly label: string;
   readonly isRequired: boolean;
+  /** Si el tipo trae su propia vigencia. Sin dato se asume que sí, como era antes de RQ-09. */
+  readonly hasOwnExpiry?: boolean | null;
+  /** Antigüedad máxima admitida en la emisión, en meses. */
+  readonly maxIssueAgeMonths?: number | null;
 };
 
 /** Lo que se guardo, para quien tenga que registrarlo en otro lado. */
@@ -299,6 +303,20 @@ export class EntityDocuments implements OnDestroy {
    * nativo, que también se dibuja con la zona horaria del equipo. Medirlo contra el servidor daría
    * un tope que el propio control podría no dejar elegir.</p>
    */
+  /** El tipo elegido en el formulario, para leer su política de vigencia. */
+  protected tipoElegido(): EntityDocumentTypeOption | null {
+    const code = this.form.controls.documentType.value;
+    return this.documentTypes().find((tipo) => tipo.code === code) ?? null;
+  }
+
+  protected emisionMinima(meses: number): string {
+    const hoy = new Date();
+    const tope = new Date(hoy.getFullYear(), hoy.getMonth() - meses, hoy.getDate());
+    const mes = String(tope.getMonth() + 1).padStart(2, '0');
+    const dia = String(tope.getDate()).padStart(2, '0');
+    return `${tope.getFullYear()}-${mes}-${dia}`;
+  }
+
   protected readonly vencimientoMaximo = computed(() => {
     const hoy = new Date();
     const tope = new Date(hoy.getFullYear(), hoy.getMonth() + 3, hoy.getDate());
@@ -633,16 +651,30 @@ export class EntityDocuments implements OnDestroy {
     // El vencimiento es **obligatorio y trimestral** en el expediente de personal, por decisión del
     // 23 de septiembre de 2026. En el expediente de cliente el campo ni siquiera se dibuja, así que
     // la regla se limita a donde el campo existe.
+    // Desde RQ-09 la política la decide el tipo, no la pantalla: el vencimiento se pide sólo si el
+    // tipo maneja vigencia, y el tope de tres meses pasó a la fecha de emisión de los tipos que no la
+    // manejan —el comprobante de domicilio—, que es como lo describe el documento de la reunión.
     if (!this.simple()) {
-      if (!value.expiresDate) {
-        this.actionError.set('Captura la fecha de vencimiento: es obligatoria.');
+      const tipo = this.tipoElegido();
+      const manejaVigencia = tipo?.hasOwnExpiry !== false;
+
+      if (manejaVigencia && !value.expiresDate) {
+        this.actionError.set('Captura la fecha de vencimiento: este tipo maneja vigencia.');
         return;
       }
 
-      if (value.expiresDate > this.vencimientoMaximo()) {
+      const mesesEmision = tipo?.maxIssueAgeMonths ?? null;
+
+      if (mesesEmision && value.issuedDate && value.issuedDate < this.emisionMinima(mesesEmision)) {
         this.actionError.set(
-          `El vencimiento no puede pasar de ${this.vencimientoMaximo()}: se aceptan tres meses como máximo.`,
+          `La emisión no puede ser anterior a ${this.emisionMinima(mesesEmision)}: ` +
+            `se aceptan ${mesesEmision} meses de antigüedad como máximo.`,
         );
+        return;
+      }
+
+      if (mesesEmision && !value.issuedDate) {
+        this.actionError.set('Captura la fecha de emisión: este tipo la exige reciente.');
         return;
       }
     }

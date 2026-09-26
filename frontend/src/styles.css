@@ -557,3 +557,16 @@ input[type="date"]::-webkit-datetime-edit {
 input[type="date"]::-webkit-inner-spin-button {
   display: none;
 }
+
+/*
+  Las tablas que no pasan por gi-data-table.
+
+  El encabezado se queda pegado arriba de su propio contenedor, así que al desplazar las filas se
+  sigue viendo de qué columna es cada valor. Donde el contenedor ya tenía desplazamiento propio,
+  esto es todo lo que hacía falta.
+*/
+.gi-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}

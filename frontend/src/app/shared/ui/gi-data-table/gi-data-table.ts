@@ -146,11 +146,21 @@ export class GiCell {
   styles: `
     :host { display: block; }
 
+    /*
+      La tabla se desplaza por dentro, no arrastrando la pagina.
+
+      Antes el scroll era el de la ventana: con ciento veintinueve filas, el encabezado se iba
+      arriba y quien bajaba dejaba de ver de que columna era cada valor, ademas de perder de vista
+      el panel y los filtros. Ahora el alto se acota a la pantalla, el encabezado se queda pegado y
+      lo unico que se mueve son las filas.
+    */
     .gi-table-shell {
-      overflow-x: auto;
+      overflow: auto;
+      max-height: var(--gi-table-max-height, calc(100vh - 20rem));
       border: 1px solid var(--gestia-border);
       border-radius: var(--gestia-radius);
       background: var(--gestia-surface);
+      overscroll-behavior: contain;
     }
 
     .gi-table {
@@ -160,6 +170,9 @@ export class GiCell {
     }
 
     .gi-table th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
       padding: 0.6rem 0.75rem;
       border-bottom: 1px solid var(--gestia-border);
       background: var(--gestia-surface-soft);

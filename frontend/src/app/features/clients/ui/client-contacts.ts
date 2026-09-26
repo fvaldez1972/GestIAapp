@@ -125,6 +125,12 @@ export type NewContact = {
                 [value]="scope()"
                 (valueChange)="scope.set($any($event))"
               />
+              <!--
+                La ayuda existe porque el negocio pregunto para que sirve este campo. Que lo
+                preguntara es la senal de que la pantalla no lo estaba diciendo: el rotulo nombra
+                el dato y no su consecuencia, y la consecuencia es lo unico que ayuda a elegir.
+              -->
+              <span class="field__hint">{{ scopeHint() }}</span>
             </div>
           </div>
 
@@ -251,6 +257,8 @@ export type NewContact = {
 
     .field { display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; }
 
+    .field__hint { color: var(--gestia-muted); font-size: 11px; line-height: 1.5; }
+
     .field__label {
       color: var(--gestia-muted);
       font-size: 11px;
@@ -321,6 +329,24 @@ export class ClientContacts {
     { value: 'General', label: 'A todo el cliente' },
     { value: 'Zone', label: 'Sólo a una zona' },
   ];
+
+  /**
+   * Que decide el alcance, dicho en la propia pantalla.
+   *
+   * <p>El negocio pregunto «¿para que sirve lo del alcance del contacto?», y esa pregunta es el
+   * defecto: el campo lleva anios en el formulario sin decir que cambia al elegir una u otra
+   * opcion. Sirve, y de hecho sostiene la regla de un contacto principal por alcance, que es la
+   * que se rompe si alguien lo quita.</p>
+   *
+   * <p>La ayuda cambia con lo elegido a proposito. Una frase fija que explicara las dos opciones
+   * obliga a leer la que no se eligio para encontrar la que si; diciendo solo la consecuencia de
+   * lo que esta puesto, se lee de un vistazo.</p>
+   */
+  protected readonly scopeHint = computed(() =>
+    this.scope() === 'General'
+      ? 'Vale para todo el cliente, en cualquiera de sus zonas. Cada alcance lleva su propio contacto principal.'
+      : 'Vale sólo para la zona que elijas. Cada alcance lleva su propio contacto principal.',
+  );
 
   protected readonly purposeOptions = computed(() => this.purposes());
 

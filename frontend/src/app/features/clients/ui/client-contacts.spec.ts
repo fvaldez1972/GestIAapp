@@ -147,6 +147,34 @@ describe('Contactos del cliente', () => {
    * El selector de zona ya no lleva una opción «sin zona»: eso ahora lo dice el alcance, y el
    * selector sólo aparece cuando el alcance es «sólo a una zona».
    */
+  /**
+   * <b>El campo dice para qué sirve, porque el negocio preguntó justamente eso.</b>
+   *
+   * <p>«¿Para qué sirve lo del alcance del contacto? Si no sirve, quitarlo». Sirve —sostiene la
+   * regla de un contacto principal por alcance—, y que hiciera falta preguntarlo es la señal de
+   * que la pantalla no lo estaba diciendo: el rótulo nombraba el dato y no su consecuencia.</p>
+   *
+   * <p>Las dos mitades se necesitan: la ayuda cambia con lo elegido, así que comprobar una sola
+   * pasaría igual con un texto fijo que dijera siempre lo mismo.</p>
+   */
+  it('explica qué decide el alcance, y la explicación sigue a lo elegido', () => {
+    const { raiz, abrir, fixture } = montar();
+    abrir();
+
+    const ayuda = () => raiz.querySelector('.field__hint')!.textContent!.replace(/\s+/g, ' ').trim();
+
+    expect(ayuda()).toContain('todo el cliente');
+    expect(ayuda()).toContain('contacto principal');
+
+    const contactos = fixture.debugElement.children[0].componentInstance as {
+      scope: { set(v: string): void };
+    };
+    contactos.scope.set('Zone');
+    fixture.detectChanges();
+
+    expect(ayuda()).toContain('sólo para la zona');
+  });
+
   it('ofrece sólo las zonas activas, y sólo cuando el alcance es de zona', () => {
     const { raiz, abrir, fixture } = montar((host) => {
       host.zones.set([

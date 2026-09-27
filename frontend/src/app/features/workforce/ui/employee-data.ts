@@ -65,25 +65,17 @@ import { EmployeeJobPosition } from './employee-job-position';
         sitio que uno de verdad y obliga a leer el numero para saber que no hay nada que hacer.
       -->
       @if (porVencer() > 0) {
-        <section class="porvencer">
-          <p class="porvencer__head">
-            <span class="porvencer__badge">Documentos por vencer</span>
-            <span class="porvencer__where">en los próximos {{ expiringWithinDays() }} días</span>
-          </p>
-
-          <p class="porvencer__detail">
+        <p class="porvencer">
+          <span class="porvencer__badge">Por vencer</span>
+          <span class="porvencer__detail">
             {{ porVencer() }}
-            {{ porVencer() === 1 ? 'requisito de esta persona vence' : 'requisitos de esta persona vencen' }}
-            dentro del plazo. Hoy siguen cubriendo: conviene renovarlos antes de que dejen de
-            hacerlo.
-          </p>
-
-          <p class="porvencer__actions">
-            <button class="porvencer__action" type="button" (click)="openDocuments.emit()">
-              Ver los documentos
-            </button>
-          </p>
-        </section>
+            {{ porVencer() === 1 ? 'requisito vence' : 'requisitos vencen' }}
+            en {{ expiringWithinDays() }} días; hoy siguen cubriendo.
+          </span>
+          <button class="porvencer__action" type="button" (click)="openDocuments.emit()">
+            Ver los documentos
+          </button>
+        </p>
       }
 
       @if (editingJobPosition()) {
@@ -103,14 +95,15 @@ import { EmployeeJobPosition } from './employee-job-position';
         ficha?», y plegarla obligaria a abrir algo para saber en que registro estas.
       -->
       <section class="data__block data__block--principal">
-        <h3 class="data__kicker">Identificación</h3>
-        @if (canWrite() && !editingName()) {
-          <p class="data__acciones">
+        <!-- El rotulo y su accion comparten renglon: en dos ocupaban el doble para decir menos. -->
+        <div class="data__cabeza">
+          <h3 class="data__kicker">Identificación</h3>
+          @if (canWrite() && !editingName()) {
             <button class="data__editar" type="button" (click)="editName.emit()">
               Editar nombre
             </button>
-          </p>
-        }
+          }
+        </div>
 
         @if (editingName()) {
           <app-employee-name
@@ -183,10 +176,7 @@ import { EmployeeJobPosition } from './employee-job-position';
           </div>
         </dl>
         @if (!canViewSensitive()) {
-          <p class="data__note">
-            CURP y RFC se muestran parciales: ver el dato completo necesita permiso sobre datos
-            personales.
-          </p>
+          <p class="data__note">CURP y RFC parciales: el dato completo necesita permiso.</p>
         }
       </section>
 
@@ -349,20 +339,20 @@ import { EmployeeJobPosition } from './employee-job-position';
     </div>
   `,
   styles: `
-    /* El aviso de lo que está por vencer. Misma forma que la franja de elegibilidad de arriba
-       —recuadro, insignia con la palabra dentro y acción al pie—, en ámbar porque avisa de algo
-       que hay que atender y no de algo que ya está bien. */
+    /* El aviso de lo que está por vencer, en una línea y con la misma forma que la franja del
+       puesto que tiene encima: insignia con la palabra dentro y la acción al final. En ámbar
+       porque avisa de algo que hay que atender y no de algo que ya está bien. */
     .porvencer {
       display: flex;
-      flex-direction: column;
-      gap: 0.6rem;
-      padding: var(--gestia-card-padding);
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.5rem;
+      margin: 0;
+      padding: 0.35rem 0.6rem;
       border: 1px solid var(--gestia-warning);
       border-radius: var(--gestia-radius);
       background: var(--gestia-warning-soft);
     }
-
-    .porvencer__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.5rem; margin: 0; }
 
     /* El estado se lee: la palabra va dentro, no sólo el color del borde. */
     .porvencer__badge {
@@ -376,13 +366,12 @@ import { EmployeeJobPosition } from './employee-job-position';
       text-transform: uppercase;
     }
 
-    .porvencer__where { color: var(--gestia-muted); font-size: 12px; }
-    .porvencer__detail { margin: 0; color: var(--gestia-text); font-size: 12px; line-height: 1.5; }
-    .porvencer__actions { display: flex; flex-wrap: wrap; gap: 0.55rem; margin: 0; }
+    .porvencer__detail { color: var(--gestia-text); font-size: 12px; }
 
     .porvencer__action {
-      height: var(--gestia-control-height);
-      padding: 0 0.8rem;
+      height: 1.6rem;
+      margin-left: auto;
+      padding: 0 0.55rem;
       border: 1px solid var(--gestia-warning);
       border-radius: var(--gestia-radius);
       background: var(--gestia-surface);
@@ -397,9 +386,20 @@ import { EmployeeJobPosition } from './employee-job-position';
 
     :host { display: block; }
 
-    .data { display: flex; flex-direction: column; gap: 0.55rem; }
+    .data { display: flex; flex-direction: column; gap: 0.45rem; }
 
-    .data__block { display: flex; flex-direction: column; gap: 0.6rem; }
+    .data__block { display: flex; flex-direction: column; gap: 0.45rem; }
+
+    /* La linea divisoria pasa del rotulo a la fila: puesta en el rotulo solo subrayaba la palabra
+       y dejaba el boton por fuera de la division. */
+    .data__cabeza {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.6rem;
+      padding-bottom: 0.3rem;
+      border-bottom: 1px solid var(--gestia-border);
+    }
 
     /* La identificacion ya no lleva separador superior: es la primera y la unica sin plegar, asi
        que no hay nada de lo que separarla. Los acordeones traen su propio borde. */
@@ -411,17 +411,15 @@ import { EmployeeJobPosition } from './employee-job-position';
        y en gris quedaba al mismo peso visual que las etiquetas de campo que encabeza. */
     .data__kicker {
       margin: 0;
-      padding-bottom: 0.35rem;
-      border-bottom: 1px solid var(--gestia-border);
       color: var(--gestia-cyan-dark);
       font-size: 11px;
       font-weight: 600;
       letter-spacing: 0.08em;
     }
 
-    .data__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.85rem 1.25rem; margin: 0; }
+    .data__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem 1.25rem; margin: 0; }
 
-    .data__field { display: flex; flex-direction: column; gap: 0.2rem; min-width: 0; }
+    .data__field { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
     .data__field--wide { grid-column: 1 / -1; }
 
     /* La etiqueta baja a 11.5 px sin mayúsculas forzadas y el valor sube a 13 px 600.

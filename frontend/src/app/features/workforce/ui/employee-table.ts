@@ -86,7 +86,10 @@ import {
     </gi-data-table>
   `,
   styles: `
-    :host { display: block; min-width: 0; }
+    :host { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+
+    /* Hereda el alto de la columna cuando la columna lo tiene; cuando no, se queda en auto. */
+    gi-data-table { height: 100%; min-height: 0; }
 
     .cell__person { display: flex; align-items: center; gap: 0.6rem; min-width: 0; }
     .cell__identity { display: flex; flex-direction: column; min-width: 0; }

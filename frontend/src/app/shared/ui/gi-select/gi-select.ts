@@ -1,8 +1,10 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   ElementRef,
   computed,
+  inject,
   input,
   output,
   signal,
@@ -43,10 +45,6 @@ let instances = 0;
   host: {
     '(keydown)': 'onKeydown($event)',
     '(focusout)': 'onFocusOut($event)',
-    // La lista flotante se dibuja donde estaba el campo cuando se abrio. Si algo se desplaza
-    // debajo, el campo se mueve y la lista se quedaria colgada en el aire, asi que se cierra.
-    // Va en captura para enterarse tambien del desplazamiento de la ventana emergente.
-    '(document:scroll)': 'alDesplazar()',
     '(window:resize)': 'alDesplazar()',
   },
   template: `
@@ -259,6 +257,18 @@ export class GiSelect {
 
   protected readonly open = signal(false);
   protected readonly abreHaciaArriba = signal(false);
+
+  constructor() {
+    // La lista flotante se dibuja donde estaba el campo cuando se abrio. Si algo se desplaza
+    // debajo, el campo se mueve y la lista se queda colgada en el aire, asi que se cierra.
+    //
+    // En captura, y no con un enlace de anfitrion a `document:scroll`: los eventos de
+    // desplazamiento no burbujean, de modo que el de una tabla o una ficha que se recorren por
+    // dentro nunca llegaria al documento.
+    const cerrar = (): void => this.alDesplazar();
+    document.addEventListener('scroll', cerrar, true);
+    inject(DestroyRef).onDestroy(() => document.removeEventListener('scroll', cerrar, true));
+  }
 
   /** Dónde se dibuja la lista flotante, medido al abrir. */
   protected readonly sitio = signal({ top: 0, left: 0, width: 0, alto: 0 });

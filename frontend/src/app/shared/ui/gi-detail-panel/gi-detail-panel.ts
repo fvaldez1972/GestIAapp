@@ -125,10 +125,16 @@ export class GiTabContent {
       align-self: stretch;
     }
 
+    /* Mide lo que ocupa, hasta donde le dejen.
+       Con height al cien llenaba siempre la columna que lo contiene, y cuando la ficha era corta
+       eso se veia como un cuadro blanco hasta el fondo. Con el tope, cuando el contenido pasa del
+       alto disponible es el cuerpo el que se desplaza, no la pagina. Donde el contenedor no tiene
+       alto propio —una ventana emergente, la columna de planeacion— el tope no aplica y se
+       comporta como siempre. */
     .gi-panel {
       display: flex;
       flex-direction: column;
-      height: 100%;
+      max-height: 100%;
       min-height: 0;
       border: 1px solid var(--gestia-border);
       border-radius: var(--gestia-radius-lg);
@@ -232,7 +238,9 @@ export class GiTabContent {
       font-weight: 600;
     }
 
-    .gi-panel__body { flex: 1; overflow-y: auto; padding: 0.9rem; font-size: 12.5px; }
+    /* El min-height de cero es lo que hace que el cuerpo se desplace por dentro: sin el, un hijo
+       de una columna flexible no encoge por debajo de su contenido y el panel entero se estira. */
+    .gi-panel__body { flex: 1; min-height: 0; overflow-y: auto; padding: 0.9rem; font-size: 12.5px; }
 
     .gi-panel__foot {
       display: flex;

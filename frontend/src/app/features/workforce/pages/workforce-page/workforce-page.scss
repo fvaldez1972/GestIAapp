@@ -99,15 +99,47 @@
   grid-template-columns: minmax(0, 1fr) var(--gestia-panel-width);
 }
 
-/* El panel se estiraba hasta el alto de la lista: con ciento veintinueve filas quedaba un cuadro
-   blanco enorme debajo del formulario. Ahora se acota a la pantalla y se queda a la vista mientras
-   la lista se desplaza, que es ademas como se usa: se lee una fila y se corrige en el panel. */
-.staff__workspace--split > gi-detail-panel {
-  position: sticky;
-  top: var(--gestia-page-gap);
-  align-self: start;
-  max-height: calc(100vh - var(--gestia-page-gap) * 2);
-  overflow: hidden;
+/* La pantalla cabe en la pantalla: nada de arrastrar la pagina para llegar al pie de la ficha.
+   El area de trabajo toma el alto que queda y cada columna se desplaza por dentro —las filas en la
+   tabla, la ficha en su propio cuerpo—, con el relleno inferior de `main` como margen final.
+   Solo a partir de 80rem, que es donde las dos columnas conviven; por debajo se apilan y vale el
+   desplazamiento de siempre. */
+@media (width >= 80rem) {
+  :host { height: 100%; }
+
+  .staff {
+    height: 100%;
+    min-height: 0;
+  }
+
+  /* La fila mide lo que queda de pantalla, no lo que miden las ciento veintinueve filas de la
+     tabla: `minmax(0, 1fr)` es lo que corta ese arrastre y deja un alto con el que las columnas
+     pueden acotarse por dentro. */
+  .staff__workspace {
+    flex: 1;
+    min-height: 0;
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .staff__workspace--split { align-items: stretch; }
+
+  .staff__list {
+    min-height: 0;
+    --gi-table-max-height: 100%;
+  }
+
+  .staff__list app-employee-table {
+    flex: 1;
+    min-height: 0;
+  }
+
+  /* El hueco de la ficha llega hasta el margen inferior; la ficha de dentro mide lo que ocupa y
+     se desplaza sola cuando no cabe. El hueco no se ve: el borde y el fondo los pone el panel. */
+  .staff__workspace--split > gi-detail-panel {
+    align-self: stretch;
+    min-height: 0;
+    overflow: hidden;
+  }
 }
 
 .staff__list {

@@ -144,7 +144,7 @@ export class GiCell {
     </div>
   `,
   styles: `
-    :host { display: block; }
+    :host { display: flex; flex-direction: column; min-height: 0; }
 
     /*
       La tabla se desplaza por dentro, no arrastrando la pagina.

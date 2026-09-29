@@ -3,8 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { DireccionPorCodigoPostal } from '../../../shared/data-access/direccion-por-codigo-postal';
 import { CatalogSelect } from '../../../shared/ui/catalog-select/catalog-select';
 import { GiEmptyState, GiSelect, GiSelectOption } from '../../../shared/ui/gi-ui';
-import { GiMapPoint } from '../../../shared/ui/gi-map-picker/gi-map-picker';
-import { plusCode } from '../../../shared/util/plus-code';
+import { GiMapPicker, GiMapPoint } from '../../../shared/ui/gi-map-picker/gi-map-picker';
 import { ClientContact, ClientZone } from '../data-access/client.models';
 
 /** Lo que hace falta para dar de alta una zona. Nada más: el código lo pone el sistema. */
@@ -35,7 +34,7 @@ export type NewZone = {
 @Component({
   selector: 'app-client-zones',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CatalogSelect, FormsModule, GiEmptyState, GiSelect],
+  imports: [CatalogSelect, FormsModule, GiEmptyState, GiMapPicker, GiSelect],
   // Una por formulario abierto: el domicilio a medio escribir es de esta pestaña, no de la
   // aplicación entera.
   providers: [DireccionPorCodigoPostal],
@@ -67,24 +66,19 @@ export type NewZone = {
           </div>
 
           <!--
-            Sin mapa, por decisión del 29 de septiembre de 2026.
+            RQ-03/RQ-04: el campo de ubicacion es el mapa. El Plus code se deriva del punto, y el
+            propio selector lo muestra debajo junto con las coordenadas.
 
-            El servidor público de OpenStreetMap bloquea los mosaicos de esta aplicación --responde
-            su imagen de «Access blocked»-- y un recuadro con cuatro avisos de error dentro del
-            formulario es peor que no tener mapa. El selector sigue en el repositorio, listo para
-            volver el día que haya un proveedor de mosaicos decidido.
-
-            Lo que ya estaba guardado NO se pierde: se enseña y se vuelve a enviar tal cual.
+            Estuvo retirado unas horas el 29 de septiembre de 2026, cuando el servidor publico de
+            OpenStreetMap respondia su imagen de «Access blocked» a esta aplicacion. El bloqueo era
+            temporal --lo provocaron las recargas de una sesion de pruebas-- y el requerimiento pide
+            el mapa, asi que vuelve. Lo que no vuelve es el silencio: si los mosaicos fallan, el
+            selector dice por que.
           -->
-          @if (punto(); as ubicacion) {
-            <div class="new__ubicacion">
-              <span class="field__label">UBICACIÓN GUARDADA</span>
-              <p class="new__coords">
-                {{ ubicacion.latitude.toFixed(6) }}, {{ ubicacion.longitude.toFixed(6) }}
-                <span class="new__plus">Plus code {{ plus(ubicacion.latitude, ubicacion.longitude) }}</span>
-              </p>
-            </div>
-          }
+          <div class="new__mapa">
+            <span class="field__label">UBICACIÓN EN EL MAPA</span>
+            <gi-map-picker [point]="punto()" (pointChange)="punto.set($event)" />
+          </div>
 
           <!--
             El país se elige, no se supone. Iba fijo en «MX» y los otros dos desplegables lo
@@ -392,10 +386,6 @@ export type NewZone = {
       letter-spacing: 0.06em;
     }
 
-    .new__ubicacion { display: grid; gap: 0.2rem; }
-    .new__coords { display: flex; flex-wrap: wrap; gap: 0.55rem; margin: 0; color: var(--gestia-text); font-size: 12px; font-weight: 600; }
-    .new__plus { color: var(--gestia-muted); font-weight: 400; }
-
     .field input {
       box-sizing: border-box;
       width: 100%;
@@ -539,10 +529,6 @@ export class ClientZones {
 
   /** El punto del mapa. Es el campo de ubicación: el Plus code se deriva de él, no se captura. */
   protected readonly punto = signal<GiMapPoint | null>(null);
-
-  protected plus(latitude: number | null | undefined, longitude: number | null | undefined): string {
-    return plusCode(latitude ?? null, longitude ?? null);
-  }
 
   /** El domicilio, con su código postal al mando. Compartido con el expediente de personal. */
   protected readonly direccion = inject(DireccionPorCodigoPostal);

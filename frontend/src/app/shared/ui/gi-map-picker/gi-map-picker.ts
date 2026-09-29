@@ -18,9 +18,10 @@ export type GiMapPoint = { readonly latitude: number; readonly longitude: number
 /**
  * El campo de ubicación: un mapa donde se marca el punto.
  *
- * <p>Los mosaicos son de OpenStreetMap, que no cobra y pide atribución visible; la atribución va
- * puesta y no se quita. Se carga Leaflet de forma diferida para que el resto de la aplicación no
- * cargue un mapa que casi ninguna pantalla usa.</p>
+ * <p>Los mosaicos piden atribución visible, que va puesta y no se quita. De dónde salen está
+ * explicado donde se configuran: no es el servidor público de OpenStreetMap, y la razón importa.
+ * Se carga Leaflet de forma diferida para que el resto de la aplicación no cargue un mapa que casi
+ * ninguna pantalla usa.</p>
  */
 @Component({
   selector: 'gi-map-picker',
@@ -131,10 +132,25 @@ export class GiMapPicker implements AfterViewInit, OnDestroy {
         inicial ? 17 : 5,
       );
 
-      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '© OpenStreetMap',
-      }).addTo(mapa);
+      // Los mosaicos NO salen del servidor publico de OpenStreetMap.
+      //
+      // Ese servidor lo sostienen voluntarios y su politica de uso prohibe apoyarse en el; el 29 de
+      // septiembre de 2026 empezo a responder su imagen de «Access blocked» a esta aplicacion, y lo
+      // siguio haciendo despues de recargar sin cache. Un mapa que a veces se ve y a veces no, no
+      // es un mapa.
+      //
+      // ATENCION, PREGUNTA ABIERTA QUE NO ES TECNICA: usar este servicio dentro de un producto que
+      // se vende depende de sus condiciones de uso, y eso lo resuelve BKT, no el equipo tecnico.
+      // Mientras tanto vive en los ambientes de desarrollo. La salida definitiva para produccion es
+      // un proveedor con clave --MapTiler, Stadia, Thunderforest-- o servir los mosaicos nosotros.
+      L.tileLayer(
+        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+        {
+          maxZoom: 19,
+          // La atribucion es obligatoria y no se quita.
+          attribution: 'Mosaicos © Esri — Esri, DeLorme, NAVTEQ, TomTom, Intermap, USGS',
+        },
+      ).addTo(mapa);
 
       mapa.on('click', (evento) => {
         if (this.disabled()) {

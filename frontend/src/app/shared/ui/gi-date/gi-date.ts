@@ -37,6 +37,7 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
   template: `
     <div class="gi-date" [class.is-disabled]="deshabilitado()">
       <input
+        #campo
         class="gi-date__text"
         type="text"
         inputmode="numeric"
@@ -174,6 +175,7 @@ export class GiDate implements ControlValueAccessor {
 
   protected readonly deshabilitado = () => this.disabled() || this.deshabilitadoPorForma();
 
+  private readonly campo = viewChild.required<ElementRef<HTMLInputElement>>('campo');
   private readonly nativo = viewChild.required<ElementRef<HTMLInputElement>>('nativo');
 
   private alCambiar: (valor: string | null) => void = () => {};
@@ -208,11 +210,31 @@ export class GiDate implements ControlValueAccessor {
     this.deshabilitadoPorForma.set(deshabilitado);
   }
 
-  /** Se escriben sólo dígitos y las barras se ponen solas. */
+  /**
+   * Se escriben sólo dígitos y las barras se ponen solas.
+   *
+   * <p><b>El campo se reescribe a mano, y es lo que hace que las letras no se queden.</b> El
+   * enlace <c>[value]</c> sólo repinta cuando la señal cambia, y al teclear una letra la señal
+   * vale lo mismo antes y después —el texto limpio no cambió—, así que Angular no tocaba el DOM y
+   * la letra seguía en pantalla aunque el valor nunca la hubiera aceptado.</p>
+   */
   protected escribir(entrada: string): void {
+    const campo = this.campo().nativeElement;
+    const cursor = campo.selectionStart ?? entrada.length;
+    // Los dígitos que hay antes del cursor son lo único que sobrevive al formateo, así que son la
+    // referencia para volver a colocarlo: sin esto, corregir en medio manda el cursor al final.
+    const digitosAntesDelCursor = entrada.slice(0, cursor).replace(/\D/g, '').length;
+
     const digitos = entrada.replace(/\D/g, '').slice(0, 8);
     const partes = [digitos.slice(0, 2), digitos.slice(2, 4), digitos.slice(4, 8)].filter(Boolean);
-    this.texto.set(partes.join('/'));
+    const formateado = partes.join('/');
+    this.texto.set(formateado);
+
+    if (campo.value !== formateado) {
+      campo.value = formateado;
+      const destino = trasElDigito(formateado, digitosAntesDelCursor);
+      campo.setSelectionRange(destino, destino);
+    }
 
     const iso = aIso(this.texto());
 
@@ -253,6 +275,29 @@ export class GiDate implements ControlValueAccessor {
     this.valueChange.emit(iso || '');
     this.alTocar();
   }
+}
+
+/** Dónde queda el cursor después de formatear: justo detrás del dígito número `cuantos`. */
+function trasElDigito(texto: string, cuantos: number): number {
+  if (cuantos <= 0) {
+    return 0;
+  }
+
+  let vistos = 0;
+
+  for (let i = 0; i < texto.length; i++) {
+    if (texto[i] >= '0' && texto[i] <= '9') {
+      vistos++;
+
+      if (vistos === cuantos) {
+        // Detrás de la barra cuando el dígito la precede: escribir el segundo número del día deja
+        // el cursor listo para el mes, no atrapado antes del separador.
+        return texto[i + 1] === '/' ? i + 2 : i + 1;
+      }
+    }
+  }
+
+  return texto.length;
 }
 
 /** De ISO a lo que se lee: `2026-09-26` → `26/09/2026`. */

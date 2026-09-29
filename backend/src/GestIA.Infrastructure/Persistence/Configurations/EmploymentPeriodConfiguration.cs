@@ -33,6 +33,16 @@ public sealed class EmploymentPeriodConfiguration : IEntityTypeConfiguration<Emp
 
         builder.HasKey(entity => entity.IdEmploymentPeriod);
 
+        // El identificador lo pone el dominio, no la base, y hay que decirlo.
+        //
+        // Por convención EF marca una clave Guid como generada al insertar, y entonces decide si
+        // una entidad es nueva mirando si su clave trae valor: con valor, da por hecho que la fila
+        // ya existe. Un periodo se crea con su Guid puesto y llega al contexto por la colección del
+        // empleado --no por un Add explícito--, así que EF emitía un UPDATE contra una fila que no
+        // existía todavía. Cero renglones afectados, y eso EF lo reporta como conflicto de
+        // concurrencia: el reingreso fallaba diciendo que otra persona había cambiado el registro.
+        builder.Property(entity => entity.IdEmploymentPeriod).ValueGeneratedNever();
+
         builder.Property(entity => entity.TerminationReason).HasMaxLength(EmploymentPeriod.ReasonMaxLength);
         builder.Property(entity => entity.RowVersion).IsRowVersion();
 

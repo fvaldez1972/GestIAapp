@@ -14,6 +14,12 @@ public sealed class EmployeePsychometricTestConfiguration : IEntityTypeConfigura
                 "[ExpiredOnDate] IS NULL OR [ExpiredOnDate] >= [ApprovedDate]"));
 
         builder.HasKey(entity => entity.IdEmployeePsychometricTest);
+
+        // El identificador lo pone el dominio. Sin esto EF lo trata como generado por la base y,
+        // al llegar la prueba por la coleccion del empleado con su clave ya puesta, da por hecho
+        // que la fila existe y emite un UPDATE en vez de un INSERT. Es el mismo defecto que
+        // rompia el reingreso.
+        builder.Property(entity => entity.IdEmployeePsychometricTest).ValueGeneratedNever();
         builder.Property(entity => entity.RowVersion).IsRowVersion();
 
         builder.HasOne(entity => entity.Employee)

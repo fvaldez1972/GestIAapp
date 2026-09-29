@@ -11,6 +11,8 @@ export type AssignmentCandidateSource = {
   readonly jobTitle: string | null;
   /** Cuántas asignaciones vigentes tiene, en cualquier servicio. Lo cuenta el servidor. */
   readonly assignmentCount: number;
+  /** El municipio de su domicilio. Es contra lo que se compara la sede para decir quién vive cerca. */
+  readonly municipality?: string | null;
 };
 
 /**
@@ -42,7 +44,23 @@ export function buildAssignmentCandidates(options: {
    * saber si esa persona podía tomar otro turno había que salir de la pantalla.</p>
    */
   readonly currentClients?: ReadonlyMap<string, readonly string[]>;
+
+  /**
+   * El municipio de la sede donde se presta el servicio.
+   *
+   * <p>Es lo que parte la lista en «cercanos» y «otros». Sin él no hay contra qué comparar y la
+   * división no aparece: partirla a ciegas pondría a todos del lado equivocado.</p>
+   */
+  readonly siteMunicipality?: string | null;
 }): readonly GiCandidate[] {
+  // La misma comparación que usa Planeación: el domicilio guarda municipio y estado, no
+  // coordenadas, así que no hay distancia que medir. Nulo cuando falta el municipio de cualquiera
+  // de los dos, y entonces la persona no cae en ninguna de las dos pestañas por suposición.
+  const mismoMunicipio = (municipio: string | null | undefined): boolean | null => {
+    const sede = options.siteMunicipality?.trim().toLocaleLowerCase('es');
+    const persona = municipio?.trim().toLocaleLowerCase('es');
+    return sede && persona ? sede === persona : null;
+  };
   const vigentes = options.assignments.filter((assignment) => assignment.active);
 
   const yaEnLaPosicion = new Set(
@@ -65,6 +83,7 @@ export function buildAssignmentCandidates(options: {
 
       return {
         id: employee.idEmployee,
+        nearby: mismoMunicipio(employee.municipality),
         name: `${employee.codeEmployee} · ${employee.fullName}`,
         // El puesto por catálogo. El texto libre heredado se dice como lo que es, para que nadie
         // suponga que sirve para comprobar el perfil: la comparación va por identificador.

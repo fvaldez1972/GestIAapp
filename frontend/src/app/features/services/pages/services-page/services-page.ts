@@ -269,6 +269,7 @@ export class ServicesPage implements OnInit, OnDestroy {
       idPosition: this.assignmentForm.controls.idPosition.value,
       eligibility: this.candidateEligibility(),
       currentClients: this.candidateCurrentClients(),
+      siteMunicipality: this.selectedService()?.clientSiteMunicipality ?? null,
     }),
   );
 
@@ -957,6 +958,8 @@ export class ServicesPage implements OnInit, OnDestroy {
             jobPositionName: item.jobPositionName,
             jobTitle: item.jobTitle,
             assignmentCount: item.assignmentCount,
+            // Para RQ-11: contra el municipio de la sede se decide quién vive cerca.
+            municipality: item.municipality,
           })),
         );
         this.loadCandidateEligibility();

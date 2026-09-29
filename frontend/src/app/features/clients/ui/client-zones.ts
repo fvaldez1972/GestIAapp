@@ -3,7 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { DireccionPorCodigoPostal } from '../../../shared/data-access/direccion-por-codigo-postal';
 import { CatalogSelect } from '../../../shared/ui/catalog-select/catalog-select';
 import { GiEmptyState, GiSelect, GiSelectOption } from '../../../shared/ui/gi-ui';
-import { GiMapPicker, GiMapPoint } from '../../../shared/ui/gi-map-picker/gi-map-picker';
+import { GiMapPoint } from '../../../shared/ui/gi-map-picker/gi-map-picker';
 import { plusCode } from '../../../shared/util/plus-code';
 import { ClientContact, ClientZone } from '../data-access/client.models';
 
@@ -35,7 +35,7 @@ export type NewZone = {
 @Component({
   selector: 'app-client-zones',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CatalogSelect, FormsModule, GiEmptyState, GiMapPicker, GiSelect],
+  imports: [CatalogSelect, FormsModule, GiEmptyState, GiSelect],
   // Una por formulario abierto: el domicilio a medio escribir es de esta pestaña, no de la
   // aplicación entera.
   providers: [DireccionPorCodigoPostal],
@@ -66,11 +66,25 @@ export type NewZone = {
             </label>
           </div>
 
-          <!-- RQ-03/RQ-04: el campo de ubicacion es el mapa. El Plus code se deriva del punto. -->
-          <div class="new__mapa">
-            <span class="field__label">UBICACIÓN EN EL MAPA</span>
-            <gi-map-picker [point]="punto()" (pointChange)="punto.set($event)" />
-          </div>
+          <!--
+            Sin mapa, por decisión del 29 de septiembre de 2026.
+
+            El servidor público de OpenStreetMap bloquea los mosaicos de esta aplicación --responde
+            su imagen de «Access blocked»-- y un recuadro con cuatro avisos de error dentro del
+            formulario es peor que no tener mapa. El selector sigue en el repositorio, listo para
+            volver el día que haya un proveedor de mosaicos decidido.
+
+            Lo que ya estaba guardado NO se pierde: se enseña y se vuelve a enviar tal cual.
+          -->
+          @if (punto(); as ubicacion) {
+            <div class="new__ubicacion">
+              <span class="field__label">UBICACIÓN GUARDADA</span>
+              <p class="new__coords">
+                {{ ubicacion.latitude.toFixed(6) }}, {{ ubicacion.longitude.toFixed(6) }}
+                <span class="new__plus">Plus code {{ plus(ubicacion.latitude, ubicacion.longitude) }}</span>
+              </p>
+            </div>
+          }
 
           <!--
             El país se elige, no se supone. Iba fijo en «MX» y los otros dos desplegables lo
@@ -378,6 +392,10 @@ export type NewZone = {
       letter-spacing: 0.06em;
     }
 
+    .new__ubicacion { display: grid; gap: 0.2rem; }
+    .new__coords { display: flex; flex-wrap: wrap; gap: 0.55rem; margin: 0; color: var(--gestia-text); font-size: 12px; font-weight: 600; }
+    .new__plus { color: var(--gestia-muted); font-weight: 400; }
+
     .field input {
       box-sizing: border-box;
       width: 100%;
@@ -552,6 +570,14 @@ export class ClientZones {
     this.zoneName.set(zone.name);
     this.street.set(zone.street ?? '');
     this.direccion.cargar(zone);
+
+    // El punto guardado entra al formulario. No se cargaba, y como el guardado manda lo que haya
+    // en la senal, editar el nombre de una zona con coordenadas las borraba sin decir nada.
+    const lat = zone.latitude;
+    const lon = zone.longitude;
+    this.punto.set(
+      typeof lat === 'number' && typeof lon === 'number' ? { latitude: lat, longitude: lon } : null,
+    );
   }
 
   protected cancelAdd(): void {

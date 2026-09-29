@@ -1108,6 +1108,10 @@ export class ClientsPage {
         municipality: event.datos.municipality,
         state: event.datos.state,
         postalCode: event.datos.postalCode,
+        // El punto viaja tambien al editar. No iba, y el servidor guarda lo que recibe: cambiar el
+        // nombre de una zona le borraba las coordenadas y su Plus code, sin decir nada.
+        latitude: event.datos.latitude ?? null,
+        longitude: event.datos.longitude ?? null,
         countryCode: event.datos.countryCode,
         accessInstructions: null,
         timeZoneId: null,

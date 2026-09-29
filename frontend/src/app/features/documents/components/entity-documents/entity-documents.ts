@@ -31,6 +31,8 @@ export type EntityDocumentTypeOption = {
   readonly hasOwnExpiry?: boolean | null;
   /** Antigüedad máxima admitida en la emisión, en meses. */
   readonly maxIssueAgeMonths?: number | null;
+  /** Si el tipo es sensible. La sensibilidad del documento sale de aquí, no de quien lo sube. */
+  readonly isSensitive?: boolean | null;
 };
 
 /** Lo que se guardo, para quien tenga que registrarlo en otro lado. */
@@ -290,7 +292,7 @@ export class EntityDocuments implements OnDestroy {
     title: ['', [Validators.pattern(/\S/), Validators.maxLength(180)]],
     category: ['', [Validators.required, Validators.pattern(/\S/), Validators.maxLength(80)]],
     documentType: [''],
-    issuedDate: [''], expiresDate: [''], isSensitive: [false], notes: ['', Validators.maxLength(1000)],
+    issuedDate: [''], expiresDate: [''], notes: ['', Validators.maxLength(1000)],
   });
 
   /** Con tipos declarados la categoria se elige; sin ellos se escribe, como hasta ahora. */
@@ -304,6 +306,18 @@ export class EntityDocuments implements OnDestroy {
    * nativo, que también se dibuja con la zona horaria del equipo. Medirlo contra el servidor daría
    * un tope que el propio control podría no dejar elegir.</p>
    */
+  /**
+   * Si lo que se está guardando queda sensible.
+   *
+   * <p>Sale del tipo elegido, y al editar también de lo que el documento ya era: un documento que
+   * nació sensible no deja de serlo porque alguien abra su formulario.</p>
+   */
+  protected sensibleAqui(): boolean {
+    // Método y no señal: el tipo vive en el formulario reactivo, que no es una señal. Se evalúa
+    // en cada ciclo de detección, y elegir tipo dispara uno.
+    return !!this.tipoElegido()?.isSensitive || !!this.selected()?.isSensitive;
+  }
+
   /** El tipo elegido en el formulario, para leer su política de vigencia. */
   protected tipoElegido(): EntityDocumentTypeOption | null {
     const code = this.form.controls.documentType.value;
@@ -568,7 +582,7 @@ export class EntityDocuments implements OnDestroy {
         // mejor que proponer un tipo que nadie escribio.
         documentType: this.documentTypes().find((tipo) => tipo.label === document.category)?.code ?? '',
         issuedDate: document.issuedDate ?? '',
-        expiresDate: document.expiresDate ?? '', isSensitive: document.isSensitive, notes: document.notes ?? '',
+        expiresDate: document.expiresDate ?? '', notes: document.notes ?? '',
       });
     }
 
@@ -633,12 +647,12 @@ export class EntityDocuments implements OnDestroy {
       return;
     }
     const selected = this.selected();
-    if (value.isSensitive && !this.canWriteSensitive()) {
-      this.actionError.set('No tienes permiso para guardar documentos sensibles.');
-      return;
-    }
-    if (selected?.isSensitive && !value.isSensitive) {
-      this.actionError.set('El documento debe conservar su clasificacion sensible.');
+
+    // La sensibilidad ya no se elige aqui, asi que no hay nada que impedir "desmarcar". Lo que
+    // queda es no dejar guardar un documento que el tipo hace sensible sin tener el permiso: el
+    // servidor lo rechazaria igual, y decirlo antes evita subir un archivo para nada.
+    if (this.sensibleAqui() && !this.canWriteSensitive()) {
+      this.actionError.set('Este tipo de documento es sensible y no tienes permiso para guardarlo.');
       return;
     }
     if (!selected && !this.file && !this.uploadedReference) {
@@ -689,7 +703,7 @@ export class EntityDocuments implements OnDestroy {
       const request: BusinessDocumentInput = {
         ...context, title: this.tituloAGuardar(), category: value.category.trim(),
         issuedDate: value.issuedDate || null, expiresDate: value.expiresDate || null,
-        isSensitive: value.isSensitive, notes: value.notes.trim() || null, status: 'PendingReview', storageReference,
+        isSensitive: this.sensibleAqui(), notes: value.notes.trim() || null, status: 'PendingReview', storageReference,
       };
       return selected ? this.api.updateDocument(selected.idBusinessDocument, request) : this.api.createDocument(request);
     })), 'Documento guardado. Pendiente de revision.', (guardado) => {

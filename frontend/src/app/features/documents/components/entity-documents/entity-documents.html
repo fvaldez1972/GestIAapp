@@ -241,12 +241,16 @@
             emptyLabel="Ningún archivo elegido"
             (fileSelected)="selectFile($event)"
           />
-          @if (!simple()) {
-            @if (selected()?.isSensitive) {
-              <p class="entity-wide"><app-icon name="security" /> Documento sensible</p>
-            } @else if (canWriteSensitive()) {
-              <label class="entity-check entity-wide"><input type="checkbox" formControlName="isSensitive" /><span>Documento sensible</span></label>
-            }
+          <!--
+            Sin casilla: la sensibilidad la decide el TIPO de documento, no quien sube el archivo.
+            Lo que queda es decirlo cuando toca, porque cambia quién podrá abrirlo después.
+          -->
+          @if (!simple() && sensibleAqui()) {
+            <p class="entity-sensible entity-wide">
+              <app-icon name="security" />
+              Documento sensible: su tipo lo es, así que sólo lo verá quien tenga permiso sobre
+              datos personales.
+            </p>
           }
           <label class="gi-field entity-wide"><span>Notas</span><textarea class="gi-input" formControlName="notes" rows="2" maxlength="1000"></textarea></label>
         </fieldset>

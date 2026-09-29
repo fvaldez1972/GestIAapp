@@ -307,7 +307,7 @@ public sealed class WorkforceService(
     {
         RequireSensitiveDocumentWrite();
         await EnsureEmployeeAsync(request.IdOrganization, request.IdEmployee, cancellationToken);
-        var profile = Validate(request);
+        var profile = await ConSensibilidadDelTipoAsync(request.IdOrganization, Validate(request), cancellationToken);
         ValidateDocumentStorage(request.IdOrganization, profile.StorageReference);
         var document = EmployeeDocument.Create(
             request.IdOrganization,
@@ -329,7 +329,7 @@ public sealed class WorkforceService(
     {
         RequireSensitiveDocumentWrite();
         await EnsureEmployeeAsync(request.IdOrganization, request.IdEmployee, cancellationToken);
-        var profile = Validate(request);
+        var profile = await ConSensibilidadDelTipoAsync(request.IdOrganization, Validate(request), cancellationToken);
         var document = await repository.GetDocumentAsync(request.IdEmployee, idEmployeeDocument, cancellationToken)
             ?? throw new ResourceNotFoundException("No se encontró el documento solicitado.");
 
@@ -747,6 +747,29 @@ public sealed class WorkforceService(
             request.StorageReference,
             request.Notes,
             request.IdBusinessDocument);
+
+    /// <summary>
+    /// La sensibilidad la pone el <b>tipo</b> del documento, no quien lo sube.
+    ///
+    /// <para>Antes venía en la petición, desde una casilla del formulario: el mismo tipo podía
+    /// quedar sensible en un expediente y no en el siguiente, según lo que recordara quien lo
+    /// capturó. La casilla se retiró de la pantalla y la decisión se toma aquí, que es donde no se
+    /// puede saltar.</para>
+    ///
+    /// <para>Un documento que ya era sensible <b>no deja de serlo</b> al editarlo, aunque su tipo
+    /// se haya desmarcado después: eso se decide en el catálogo, con permiso y confirmación, y
+    /// desde ahí se propaga.</para>
+    /// </summary>
+    private async Task<EmployeeDocumentProfile> ConSensibilidadDelTipoAsync(
+        Guid idOrganization,
+        EmployeeDocumentProfile profile,
+        CancellationToken cancellationToken) =>
+        profile with
+        {
+            IsSensitive = profile.IsSensitive
+                || await catalogs.IsSensitiveTypeAsync(
+                    idOrganization, profile.IdDocumentCategoryCatalogItem, cancellationToken),
+        };
 
     private static EmployeeDocumentProfile ValidateDocumentProfile(
         EmployeeDocumentType documentType,

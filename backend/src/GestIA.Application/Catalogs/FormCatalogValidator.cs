@@ -6,6 +6,17 @@ namespace GestIA.Application.Catalogs;
 
 public sealed class FormCatalogValidator(ICatalogRepository repository, IGeographyService geography)
 {
+    /// <summary>
+    /// Si el tipo del catálogo está marcado como sensible.
+    ///
+    /// <para>Es de donde hereda su sensibilidad un documento: no se elige al subirlo. Sin tipo
+    /// —los expedientes anteriores a la conversión del catálogo no lo tienen— responde que no,
+    /// que es lo que esos documentos ya eran.</para>
+    /// </summary>
+    public async Task<bool> IsSensitiveTypeAsync(Guid organization, Guid? idCatalogItem, CancellationToken token) =>
+        idCatalogItem.HasValue
+        && await repository.GetCatalogItemAsync(organization, idCatalogItem.Value, token) is { IsSensitive: true };
+
     public async Task ValueAsync(Guid organization, BusinessCatalogItemType type, string? value, string? previous, CancellationToken token)
     {
         if (string.IsNullOrWhiteSpace(value) || Same(value, previous)) return;

@@ -301,7 +301,12 @@ export class WorkforcePage {
    * reglas de elegibilidad —cuatro— en vez del catálogo entero.</p>
    */
   protected readonly catalogDocumentCategories = signal<
-    readonly { readonly idCatalogItem: string; readonly name: string; readonly isRequired?: boolean | null }[]
+    readonly {
+      readonly idCatalogItem: string;
+      readonly name: string;
+      readonly isRequired?: boolean | null;
+      readonly isSensitive?: boolean | null;
+    }[]
   >([]);
   protected readonly catalogIncidentTypes = signal<readonly EmployeeJobPositionOption[]>([]);
   protected readonly administrativeIncidents = signal<readonly AdministrativeIncident[]>([]);
@@ -747,6 +752,8 @@ export class WorkforcePage {
             idCatalogItem: item.idCatalogItem,
             name: item.name,
             isRequired: item.isRequired ?? false,
+            // De aqui hereda el documento su sensibilidad; ya no se marca al subirlo.
+            isSensitive: item.isSensitive ?? false,
           })),
       );
       this.catalogIncidentTypes.set(

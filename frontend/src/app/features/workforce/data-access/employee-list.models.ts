@@ -311,6 +311,7 @@ export type EmployeeDocumentTypeOption = {
   readonly isRequired: boolean;
   readonly hasOwnExpiry?: boolean | null;
   readonly maxIssueAgeMonths?: number | null;
+  readonly isSensitive?: boolean | null;
 };
 
 /**
@@ -335,6 +336,7 @@ export function employeeDocumentTypeOptions(
     readonly name: string;
     readonly hasOwnExpiry?: boolean | null;
     readonly maxIssueAgeMonths?: number | null;
+    readonly isSensitive?: boolean | null;
   }[],
 ): readonly EmployeeDocumentTypeOption[] {
   const exigidos = new Set(
@@ -349,6 +351,8 @@ export function employeeDocumentTypeOptions(
     isRequired: exigidos.has(categoria.idCatalogItem),
     hasOwnExpiry: categoria.hasOwnExpiry ?? null,
     maxIssueAgeMonths: categoria.maxIssueAgeMonths ?? null,
+    // La sensibilidad viaja con el tipo: es de donde la hereda el documento.
+    isSensitive: categoria.isSensitive ?? null,
   }));
 
   return [...tipos.filter((tipo) => tipo.isRequired), ...tipos.filter((tipo) => !tipo.isRequired)];

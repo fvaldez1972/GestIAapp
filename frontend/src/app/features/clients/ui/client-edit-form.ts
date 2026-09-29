@@ -285,10 +285,19 @@ export class ClientEditForm {
   protected readonly nationalityOptions = computed(() => {
     const catalogo = this.nationalities();
     const actual = this.nationality().trim();
-    const opciones = catalogo.map((nombre) => ({ value: nombre, label: nombre }));
+    // El vacío va como opción y no sólo como texto de relleno: es un campo opcional, y sin esto
+    // una nacionalidad puesta por error no se podía quitar.
+    const opciones = [
+      { value: '', label: 'Sin nacionalidad' },
+      ...catalogo.map((nombre) => ({ value: nombre, label: nombre })),
+    ];
 
     return actual && !catalogo.includes(actual)
-      ? [{ value: actual, label: actual, hint: 'Valor actual · ya no está en el catálogo' }, ...opciones]
+      ? [
+          opciones[0],
+          { value: actual, label: actual, hint: 'Valor actual · ya no está en el catálogo' },
+          ...opciones.slice(1),
+        ]
       : opciones;
   });
   protected readonly taxActivity = signal('');

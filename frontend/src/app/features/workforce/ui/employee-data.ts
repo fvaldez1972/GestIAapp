@@ -563,9 +563,17 @@ export class EmployeeData {
   /** La escolaridad elegida, resuelta a nombre. Vacía cuando no se ha registrado. */
   readonly saveEducation = output<string | null>();
 
-  protected readonly educationLevelOptions = computed<readonly GiSelectOption[]>(() =>
-    this.educationLevels().map((nivel) => ({ value: nivel.idCatalogItem, label: nivel.name })),
-  );
+  /**
+   * Los niveles, con «Sin registrar» como primera opción.
+   *
+   * <p>Vacía significa «no se sabe», y sin esa opción la lista sólo permitía ir en una dirección:
+   * una escolaridad puesta por error se quedaba puesta. El vacío tiene que poder elegirse, no sólo
+   * heredarse de no haber elegido nunca.</p>
+   */
+  protected readonly educationLevelOptions = computed<readonly GiSelectOption[]>(() => [
+    { value: '', label: 'Sin registrar' },
+    ...this.educationLevels().map((nivel) => ({ value: nivel.idCatalogItem, label: nivel.name })),
+  ]);
 
   protected educationLevelName(): string {
     const id = this.employee()?.idEducationLevelCatalogItem;

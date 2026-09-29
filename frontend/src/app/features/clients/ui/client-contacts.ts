@@ -380,7 +380,17 @@ export class ClientContacts {
   protected readonly idClientZone = signal('');
   protected readonly isPrimary = signal(false);
 
+  /**
+   * Las zonas, con «Todo el cliente» como primera opción.
+   *
+   * <p><b>Sin esa primera opción no había vuelta atrás.</b> El vacío era sólo el texto de relleno
+   * que se veía antes de elegir: en cuanto alguien elegía una zona, la lista sólo ofrecía zonas y
+   * el contacto se quedaba atado a ésa para siempre —había que borrarlo y capturarlo de nuevo—.
+   * Un campo opcional tiene que poder volver a estar vacío, y la única forma de decirlo en una
+   * lista es que el vacío sea una opción más.</p>
+   */
   protected readonly zoneOptions = computed<readonly GiSelectOption[]>(() => [
+    { value: '', label: 'Todo el cliente' },
     ...this.zones()
       .filter((zone) => zone.active)
       .map((zone) => ({ value: zone.idClientZone, label: zone.name })),

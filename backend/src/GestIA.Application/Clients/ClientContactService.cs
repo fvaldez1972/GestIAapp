@@ -33,6 +33,8 @@ public sealed partial class ClientContactService(
         await EnsureZoneAsync(request.IdClient, request.IdClientZone, cancellationToken);
         var details = Validate(request);
 
+        await EnsureSinglePrimaryAsync(request.IdClient, null, details.IsPrimary, cancellationToken);
+
         await catalogValidator.ValueAsync(request.IdOrganization, BusinessCatalogItemType.JobPosition, details.JobTitle, null, cancellationToken);
         var contact = ClientContact.Create(
             request.IdOrganization,
@@ -58,6 +60,8 @@ public sealed partial class ClientContactService(
         var details = Validate(request);
         var contact = await contactRepository.GetAsync(request.IdClient, idClientContact, cancellationToken)
             ?? throw new ResourceNotFoundException("No se encontró el contacto solicitado.");
+
+        await EnsureSinglePrimaryAsync(request.IdClient, idClientContact, details.IsPrimary, cancellationToken);
 
         await catalogValidator.ValueAsync(request.IdOrganization, BusinessCatalogItemType.JobPosition, details.JobTitle, contact.JobTitle, cancellationToken);
         contact.UpdateDetails(
@@ -101,6 +105,37 @@ public sealed partial class ClientContactService(
         if (await clientRepository.GetAsync(idOrganization, idClient, cancellationToken) is null)
         {
             throw new ResourceNotFoundException("No se encontró el cliente solicitado.");
+        }
+    }
+
+    /// <summary>
+    /// Un solo contacto principal por cliente.
+    ///
+    /// <para>La marca no se mueve sola: marcar a otro <b>no</b> desmarca al que la tiene, porque
+    /// eso cambiaría un dato del expediente sin que nadie lo pidiera y sin dejar claro qué pasó.
+    /// Hay que quitársela primero al actual, y el aviso dice a quién.</para>
+    ///
+    /// <para>Se comprueba aquí <b>y</b> en la base, con un índice único filtrado. Aquí para poder
+    /// decir el nombre; allá para que la regla siga siendo cierta si mañana otro camino guarda un
+    /// contacto sin pasar por este servicio.</para>
+    /// </summary>
+    private async Task EnsureSinglePrimaryAsync(
+        Guid idClient,
+        Guid? idClientContact,
+        bool isPrimary,
+        CancellationToken cancellationToken)
+    {
+        if (!isPrimary)
+        {
+            return;
+        }
+
+        var actual = await contactRepository.GetPrimaryAsync(idClient, idClientContact, cancellationToken);
+        if (actual is not null)
+        {
+            throw new ResourceConflictException(
+                $"Este cliente ya tiene un contacto principal: {actual.FullName}. "
+                + "Quítale la marca antes de dársela a otro.");
         }
     }
 

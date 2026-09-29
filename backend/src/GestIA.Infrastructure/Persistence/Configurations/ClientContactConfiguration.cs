@@ -17,13 +17,6 @@ public sealed class ClientContactConfiguration : IEntityTypeConfiguration<Client
         builder.Property(entity => entity.Email).HasMaxLength(254).IsUnicode(false);
         builder.Property(entity => entity.Phone).HasMaxLength(30).IsUnicode(false);
         builder.Property(entity => entity.MobilePhone).HasMaxLength(30).IsUnicode(false);
-        // Con valor por omision en la base, y no solo en la entidad.
-        //
-        // No es cortesia: es lo que impide que la base quede por delante del binario desplegado.
-        // El dia que la migracion se aplico, el backend en produccion era el de dos dias antes y no
-        // conocia esta columna; su INSERT no la mencionaba y habria fallado contra una columna
-        // obligatoria sin default. «General» es ademas lo correcto para lo que ese binario crea:
-        // sin alcance, un contacto vale para todo el cliente.
 
         builder.HasOne(entity => entity.PurposeCatalogItem)
             .WithMany()
@@ -58,5 +51,14 @@ public sealed class ClientContactConfiguration : IEntityTypeConfiguration<Client
 
         builder.HasIndex(entity => new { entity.IdClient, entity.Purpose });
         builder.HasIndex(entity => entity.IdClientSite);
+
+        // Un solo contacto principal por cliente, dicho en la base y no solo en el servicio.
+        //
+        // El filtro incluye Active porque un contacto dado de baja no debe seguir ocupando el
+        // puesto: es la excepcion razonada a que una clave unica siga ocupada aunque la fila este
+        // inactiva. Aqui la marca describe quien atiende hoy, no un codigo que identifique la fila.
+        builder.HasIndex(entity => entity.IdClient)
+            .IsUnique()
+            .HasFilter("[IsPrimary] = 1 AND [Active] = 1");
     }
 }

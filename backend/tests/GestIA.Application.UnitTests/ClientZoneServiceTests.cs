@@ -153,6 +153,9 @@ public sealed class ClientZoneServiceTests
         public Task<ClientContact?> GetAsync(Guid idClient, Guid idClientContact, CancellationToken cancellationToken) =>
             Task.FromResult<ClientContact?>(null);
 
+        public Task<ClientContact?> GetPrimaryAsync(Guid idClient, Guid? exceptIdClientContact, CancellationToken cancellationToken) =>
+            Task.FromResult<ClientContact?>(null);
+
         public Task AddAsync(ClientContact contact, CancellationToken cancellationToken) => Task.CompletedTask;
     }
 

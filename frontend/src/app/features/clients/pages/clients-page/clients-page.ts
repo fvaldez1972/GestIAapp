@@ -136,6 +136,14 @@ export class ClientsPage {
   protected readonly actionError = signal('');
 
   /**
+   * El error de guardar un contacto, aparte del de la pantalla.
+   *
+   * <p>`actionError` se pinta arriba del listado, que con la ficha abierta queda <b>detrás</b> de
+   * la ventana: el usuario ve que no se guardó y no ve por qué. Éste viaja al formulario.</p>
+   */
+  protected readonly contactProblem = signal('');
+
+  /**
    * Los puestos del catalogo, para el contacto.
    *
    * <p>El puesto de un contacto NO es texto libre: el servidor lo valida contra el catalogo de
@@ -1184,6 +1192,7 @@ No se borra: deja de poder elegirse para servicios `
 
     this.saving.set(true);
     this.error.set('');
+    this.contactProblem.set('');
 
     this.api
       .updateContact(client.idClient, event.contact.idClientContact, {
@@ -1210,7 +1219,7 @@ No se borra: deja de poder elegirse para servicios `
         },
         error: (problem) => {
           this.saving.set(false);
-          this.actionError.set(readServerProblem(problem, 'No se pudo guardar el contacto.').message);
+          this.contactProblem.set(readServerProblem(problem, 'No se pudo guardar el contacto.').message);
         },
       });
   }
@@ -1225,6 +1234,7 @@ No se borra: deja de poder elegirse para servicios `
 
     this.saving.set(true);
     this.error.set('');
+    this.contactProblem.set('');
 
     this.api
       .createContact(client.idClient, {
@@ -1252,7 +1262,7 @@ No se borra: deja de poder elegirse para servicios `
         },
         error: (problem) => {
           this.saving.set(false);
-          this.actionError.set(readServerProblem(problem, 'No se pudo guardar el contacto.').message);
+          this.contactProblem.set(readServerProblem(problem, 'No se pudo guardar el contacto.').message);
         },
       });
   }

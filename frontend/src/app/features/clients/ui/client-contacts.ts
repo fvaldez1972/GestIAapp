@@ -148,6 +148,22 @@ export type NewContact = {
             <span>Es el contacto principal</span>
           </label>
 
+          <!--
+            El aviso sale al marcar la casilla, no al guardar. El servidor tambien lo rechaza
+            —la regla vive ahi y en la base—, pero enterarse despues de llenar el formulario es
+            enterarse tarde: aqui se dice a quien hay que quitarsela primero.
+          -->
+          @if (principalOcupado(); as ocupado) {
+            <p class="new__conflicto" role="alert">
+              Este cliente ya tiene un contacto principal: <strong>{{ ocupado.fullName }}</strong>.
+              Quítale la marca a {{ ocupado.fullName }} antes de dársela a este.
+            </p>
+          }
+
+          @if (problem()) {
+            <p class="new__conflicto" role="alert">{{ problem() }}</p>
+          }
+
           @if (!ready()) {
             <p class="new__reason">Falta el nombre, y al menos un correo o un teléfono: un contacto
               al que no se puede llamar no sirve para lo que existe.</p>
@@ -156,7 +172,7 @@ export type NewContact = {
           <p class="new__footer">
             <button class="button" type="button" (click)="cancelAdd()">Cancelar</button>
             <button class="button button--primary" type="button"
-              [disabled]="saving() || !ready()" (click)="submit()">
+              [disabled]="saving() || !ready() || !!principalOcupado()" (click)="submit()">
               {{ saving() ? 'Guardando…' : editando() ? 'Guardar cambios' : 'Guardar contacto' }}
             </button>
           </p>
@@ -268,6 +284,17 @@ export type NewContact = {
 
     .new__reason { margin: 0; color: var(--gestia-muted); font-size: 11.5px; }
 
+    /* En ambar y con recuadro: no es una explicacion de lo que falta, es algo que impide guardar. */
+    .new__conflicto {
+      margin: 0;
+      padding: 0.45rem 0.6rem;
+      border: 1px solid var(--gestia-warning);
+      border-radius: var(--gestia-radius);
+      background: var(--gestia-warning-soft);
+      color: var(--gestia-text);
+      font-size: 12px;
+    }
+
     @media (max-width: 48rem) {
       .new__row--two { grid-template-columns: 1fr; }
     }
@@ -278,6 +305,14 @@ export class ClientContacts {
   readonly zones = input<readonly ClientZone[]>([]);
   readonly canWrite = input(false);
   readonly saving = input(false);
+
+  /**
+   * Lo que dijo el servidor al rechazar el guardado.
+   *
+   * <p>Llega hasta aquí porque el aviso de la pantalla se pinta detrás de la ventana de la ficha:
+   * un mensaje que nadie ve es un mensaje que no existe.</p>
+   */
+  readonly problem = input('');
 
   /** Abre el alta desde fuera, como hace la pestaña de Zonas. */
   readonly openAdd = input(false);
@@ -362,6 +397,27 @@ export class ClientContacts {
       !!this.fullName().trim() &&
       (!!this.email().trim() || !!this.phone().trim()),
   );
+
+  /**
+   * El contacto que ya tiene la marca de principal, cuando estorba.
+   *
+   * <p>Devuelve nulo mientras la casilla esté sin marcar, y también cuando el que la tiene es el
+   * contacto que se está editando: volver a guardarlo sin tocar la marca no puede quedar
+   * bloqueado por sí mismo.</p>
+   */
+  protected readonly principalOcupado = computed(() => {
+    if (!this.isPrimary()) {
+      return null;
+    }
+
+    const enEdicion = this.editando()?.idClientContact;
+    return (
+      this.contacts().find(
+        (contacto) =>
+          contacto.isPrimary && contacto.active && contacto.idClientContact !== enEdicion,
+      ) ?? null
+    );
+  });
 
   protected startAdd(): void {
     if (!this.canWrite()) return;

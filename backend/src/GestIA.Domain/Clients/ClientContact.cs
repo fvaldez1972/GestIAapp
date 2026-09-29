@@ -43,15 +43,6 @@ public sealed class ClientContact : AuditableEntity, IOrganizationScopedEntity
     public Guid IdClient { get; private set; }
     public Guid? IdClientSite { get; private set; }
 
-    /// <summary>
-    /// Si el contacto vale para todo el cliente o sólo para una zona.
-    ///
-    /// <para>Guarda lo mismo que dice <see cref="IdClientSite"/>, y por eso la entidad no deja que
-    /// se contradigan: con alcance de zona hay zona, y con alcance general no la hay. Se guarda
-    /// además de deducirse porque D-02 cuenta contactos principales por alcance, y para contar
-    /// hace falta que el alcance sea un dato y no una inferencia.</para>
-    /// </summary>
-
     /// <summary>Para qué se le llama, como enum. <b>Rastro heredado</b> desde la conversión a catálogo.</summary>
     public ClientContactPurpose Purpose { get; private set; }
 
@@ -78,6 +69,13 @@ public sealed class ClientContact : AuditableEntity, IOrganizationScopedEntity
     public string? Email { get; private set; }
     public string? Phone { get; private set; }
     public string? MobilePhone { get; private set; }
+    /// <summary>
+    /// A quién se le llama primero. <b>Uno por cliente, como máximo.</b>
+    ///
+    /// <para>La entidad no puede comprobarlo sola —necesita ver a los demás contactos del cliente,
+    /// que no tiene delante—, así que lo hacen el servicio, que además nombra a quien ya la tiene,
+    /// y un índice único filtrado en la base. Puede no haber ninguno: eso es legítimo.</para>
+    /// </summary>
     public bool IsPrimary { get; private set; }
     public Client Client { get; private set; } = null!;
     public ClientSite? ClientSite { get; private set; }
@@ -146,8 +144,6 @@ public sealed class ClientContact : AuditableEntity, IOrganizationScopedEntity
             throw new DomainRuleException(
                 "Un contacto necesita al menos un teléfono o un correo.");
         }
-
-        // El alcance y la zona dicen lo mismo, y no se les permite contradecirse.
 
         IdClientSite = idClientSite;
         Purpose = details.Purpose;

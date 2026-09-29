@@ -32,6 +32,10 @@ export type GiMapPoint = { readonly latitude: number; readonly longitude: number
       @if (fallo()) {
         <p class="mapa__fallo" role="status">
           No se pudo cargar el mapa. Se puede capturar la ubicación a mano.
+          <!-- El motivo, para que reportarlo no exija abrir la consola del navegador. -->
+          @if (motivo()) {
+            <small class="mapa__motivo">{{ motivo() }}</small>
+          }
         </p>
       }
 
@@ -59,6 +63,7 @@ export type GiMapPoint = { readonly latitude: number; readonly longitude: number
     }
 
     .mapa__fallo { margin: 0; color: var(--gestia-danger); font-size: 11.5px; }
+    .mapa__motivo { display: block; color: var(--gestia-muted); font-size: 11px; }
 
     .mapa__datos { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0.55rem; margin: 0; }
     .mapa__coords { color: var(--gestia-text); font-size: 12px; font-weight: 600; }
@@ -95,6 +100,9 @@ export class GiMapPicker implements AfterViewInit, OnDestroy {
   private marcador: unknown = null;
   private leaflet: typeof import('leaflet') | null = null;
 
+  /** Lo que dijo el error, para no tener que adivinarlo. */
+  protected readonly motivo = signal('');
+
   constructor() {
     effect(() => {
       const punto = this.point();
@@ -107,7 +115,14 @@ export class GiMapPicker implements AfterViewInit, OnDestroy {
 
   async ngAfterViewInit(): Promise<void> {
     try {
-      const L = await import('leaflet');
+      // Leaflet es CommonJS, y eso cambia la forma de lo que devuelve el import.
+      //
+      // El paquete no trae módulo ESM, así que el empaquetador lo envuelve y la API queda bajo
+      // `default` en vez de en la raíz. `L.map` era `undefined` y la llamada moría con «n.map is
+      // not a function», que el catch se tragaba: en pantalla sólo quedaba «no se pudo cargar el
+      // mapa». Se toma `default` cuando existe, y la raíz si algún día el paquete pasa a ESM.
+      const modulo = await import('leaflet');
+      const L = (modulo as unknown as { default?: typeof modulo }).default ?? modulo;
       this.leaflet = L;
 
       const inicial = this.point();
@@ -134,7 +149,11 @@ export class GiMapPicker implements AfterViewInit, OnDestroy {
 
       this.mapa = mapa;
       this.dibujar(inicial);
-    } catch {
+    } catch (error) {
+      // El motivo se dice en voz alta. Un catch mudo aqui costo una sesion entera de diagnostico:
+      // la pantalla decia "no se pudo cargar el mapa" y no habia forma de saber por que.
+      console.error('[gi-map-picker] el mapa no arranco:', error);
+      this.motivo.set(error instanceof Error ? error.message : String(error));
       this.fallo.set(true);
     }
   }

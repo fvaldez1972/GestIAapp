@@ -365,9 +365,16 @@ export class GiCatalogPicker {
   /** Dónde se dibuja la lista flotante, medido al abrir. */
   protected readonly sitio = signal({ top: 0, left: 0, width: 0, alto: 0 });
 
+  /**
+   * Abre la lista al entrar al campo, con el catálogo entero a la vista.
+   *
+   * <p>Se llamaba a sí misma en vez de abrir: la lista sólo aparecía al teclear, porque escribir sí
+   * la abre por su cuenta. Quien pulsaba el campo veía un cuadro de texto y ninguna pista de que
+   * hubiera un catálogo detrás.</p>
+   */
   protected abrir(): void {
     this.medirSitio();
-    this.abrir();
+    this.abierto.set(true);
   }
 
   /**

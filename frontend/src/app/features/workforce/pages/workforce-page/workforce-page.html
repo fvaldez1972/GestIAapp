@@ -260,11 +260,14 @@
           </ng-template>
 
           <ng-template giTab="assignments">
+            <!--
+              Solo el historial, por decision del 30 de septiembre de 2026. La accion de asignar
+              sigue en el menu de la fila del listado, que es de donde salia antes de que esta
+              pestaña la ofreciera.
+            -->
             <app-employee-assignments
               [assignments]="assignments()"
               [loading]="detailLoading()"
-              [canWrite]="canWrite()"
-              (assign)="openAssign()"
             />
           </ng-template>
 

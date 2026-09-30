@@ -96,7 +96,7 @@ public sealed class ServiceManagementService(
                 query.IdOrganization,
                 search,
                 query.IdClient,
-                query.IdClientSite,
+                query.IdClientZone,
                 query.IdServiceContract,
                 query.Status,
                 query.CoverageDate,
@@ -122,7 +122,7 @@ public sealed class ServiceManagementService(
         CancellationToken cancellationToken)
     {
         await EnsureClientAsync(request.IdOrganization, request.IdClient, cancellationToken);
-        await EnsureSiteAsync(request.IdClient, request.IdClientSite, cancellationToken);
+        await EnsureSiteAsync(request.IdClient, request.IdClientZone, cancellationToken);
         await EnsureContractAsync(request.IdClient, request.IdServiceContract, cancellationToken);
         var (capturado, profile) = Validate(request);
         var code = capturado ?? await NextServiceCodeAsync(request.IdClient, cancellationToken);
@@ -135,7 +135,7 @@ public sealed class ServiceManagementService(
         var service = ServiceEntity.Create(
             request.IdOrganization,
             request.IdClient,
-            request.IdClientSite,
+            request.IdClientZone,
             request.IdServiceContract,
             code,
             profile,
@@ -154,14 +154,14 @@ public sealed class ServiceManagementService(
         CancellationToken cancellationToken)
     {
         await EnsureClientAsync(request.IdOrganization, request.IdClient, cancellationToken);
-        await EnsureSiteAsync(request.IdClient, request.IdClientSite, cancellationToken);
+        await EnsureSiteAsync(request.IdClient, request.IdClientZone, cancellationToken);
         await EnsureContractAsync(request.IdClient, request.IdServiceContract, cancellationToken);
         var profile = Validate(request);
         var service = await repository.GetServiceAsync(request.IdClient, idService, cancellationToken)
             ?? throw new ResourceNotFoundException("No se encontró el servicio solicitado.");
 
         service.UpdateProfile(
-            request.IdClientSite,
+            request.IdClientZone,
             request.IdServiceContract,
             profile,
             actorContext.ActorId,

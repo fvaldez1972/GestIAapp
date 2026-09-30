@@ -192,7 +192,7 @@ export type ClientContact = {
   readonly idPurposeCatalogItem: string | null;
   readonly idContactJobPositionCatalogItem: string | null;
   readonly clientZoneName: string | null;
-  readonly clientSiteMunicipality?: string | null;
+  readonly clientZoneMunicipality?: string | null;
   readonly purposeName: string | null;
   readonly contactJobPositionName: string | null;
   /** Para qué se le llama, como enum. <b>Rastro heredado</b> de antes de la conversión a catálogo. */
@@ -268,7 +268,7 @@ export type ManagedService = {
   readonly idClient: string;
   readonly idClientZone: string;
   readonly clientZoneName: string | null;
-  readonly clientSiteMunicipality?: string | null;
+  readonly clientZoneMunicipality?: string | null;
   readonly idServiceContract: string | null;
   readonly serviceContractCode: string | null;
   readonly codeService: string;

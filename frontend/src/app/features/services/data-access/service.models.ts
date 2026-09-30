@@ -15,7 +15,7 @@ export type ServiceListItem = {
   readonly idClientZone: string;
   readonly clientZoneName: string | null;
   /** El municipio de la sede. Con el se dice quien vive cerca (RQ-11). */
-  readonly clientSiteMunicipality?: string | null;
+  readonly clientZoneMunicipality?: string | null;
   readonly idServiceContract: string | null;
   readonly serviceContractCode: string | null;
   readonly codeService: string;
@@ -78,7 +78,7 @@ export const serviceOptionLabel = (service: {
   readonly clientName?: string | null;
   readonly clientZoneName: string | null;
   /** El municipio de la sede. Con el se dice quien vive cerca (RQ-11). */
-  readonly clientSiteMunicipality?: string | null;
+  readonly clientZoneMunicipality?: string | null;
 }) =>
   [service.name, service.clientName, service.clientZoneName].filter(Boolean).join(' · ');
 

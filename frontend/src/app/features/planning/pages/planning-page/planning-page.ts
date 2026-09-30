@@ -224,7 +224,7 @@ export class PlanningPage {
           idPosition: this.selectedPositionId(),
           date: cell.date,
           eligibility: this.eligibility(),
-          siteMunicipality: this.selectedService()?.clientSiteMunicipality ?? null,
+          siteMunicipality: this.selectedService()?.clientZoneMunicipality ?? null,
         })
       : [];
   });

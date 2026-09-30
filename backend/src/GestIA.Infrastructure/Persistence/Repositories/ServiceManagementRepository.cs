@@ -81,7 +81,7 @@ public sealed class ServiceManagementRepository(GestIaDbContext dbContext) : ISe
             query = query.Where(service => service.IdClient == idClient);
         }
 
-        if (criteria.IdClientSite is { } idClientSite)
+        if (criteria.IdClientZone is { } idClientSite)
         {
             query = query.Where(service => service.IdClientSite == idClientSite);
         }

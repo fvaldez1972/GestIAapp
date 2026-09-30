@@ -269,7 +269,7 @@ export class ServicesPage implements OnInit, OnDestroy {
       idPosition: this.assignmentForm.controls.idPosition.value,
       eligibility: this.candidateEligibility(),
       currentClients: this.candidateCurrentClients(),
-      siteMunicipality: this.selectedService()?.clientSiteMunicipality ?? null,
+      siteMunicipality: this.selectedService()?.clientZoneMunicipality ?? null,
     }),
   );
 

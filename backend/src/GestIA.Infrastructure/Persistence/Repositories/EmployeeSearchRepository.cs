@@ -275,6 +275,40 @@ public sealed partial class WorkforceRepository
         var required = requiredDocuments.Distinct().Select(item => (Guid?)item).ToArray();
         var limite = criteria.Today.AddDays(criteria.ExpiringWithinDays);
 
+        // Sin requisitos definidos, las dos tarjetas de vigencia valen cero por definicion: no hay
+        // papel que pueda estar vencido si la organizacion no exige ninguno.
+        //
+        // Y hay que decirlo aqui, no dejar que lo calcule la consulta. EF traduce un `Contains`
+        // sobre una lista vacia como `SELECT NULL`, y contar eso --`COUNT([s].[value])` sobre
+        // `SELECT NULL`-- es invalido en SQL Server: error 8117, "Operand data type NULL is invalid
+        // for count operator". La consulta entera moria, asi que la pantalla de Personal respondia
+        // 500 y decia "no se pudo cargar la lista" en CUALQUIER organizacion que todavia no tuviera
+        // reglas documentales, con empleados o sin ellos. Agregar gente no lo arreglaba, porque el
+        // problema nunca fue la gente.
+        if (required.Length == 0)
+        {
+            var sinRequisitos = await dbContext.Employees
+                .AsNoTracking()
+                .Where(employee => employee.IdOrganization == criteria.IdOrganization)
+                .GroupBy(_ => 1)
+                .Select(grupo => new
+                {
+                    Total = grupo.Count(),
+                    Active = grupo.Count(employee => employee.Status == EmployeeStatus.Active),
+                    Candidates = grupo.Count(employee => employee.Status == EmployeeStatus.Candidate),
+                })
+                .FirstOrDefaultAsync(cancellationToken);
+
+            return sinRequisitos is null
+                ? new EmployeeSummaryResponse(0, 0, 0, 0, 0)
+                : new EmployeeSummaryResponse(
+                    sinRequisitos.Total,
+                    sinRequisitos.Active,
+                    sinRequisitos.Candidates,
+                    0,
+                    0);
+        }
+
         var resumen = await dbContext.Employees
             .AsNoTracking()
             .Where(employee => employee.IdOrganization == criteria.IdOrganization)

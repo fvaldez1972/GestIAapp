@@ -36,11 +36,20 @@ import {
   imports: [AppIcon, GiEmptyState, GiSelect],
   template: `
     <section class="docs">
-      @if (requirements().length === 0) {
+      <!--
+        Se rinde cuando no hay NADA que enseñar, no cuando faltan reglas.
+
+        Miraba las reglas de elegibilidad, y una organización con su
+        catálogo lleno --diecisiete tipos, ocho de ellos marcados obligatorios-- pero sin reglas
+        veía este recuadro y ni un solo renglón. La marca del catálogo clasifica y la regla
+        bloquea: son dos cosas, y la pestaña sabe pintar las dos. Lo que no puede es esconder el
+        catálogo porque falte lo otro.
+      -->
+      @if (rows().length === 0) {
         <gi-empty-state
           variant="missing-prerequisite"
-          title="Esta organización todavía no exige ningún documento"
-          description="Los requisitos documentales se definen en Catálogos, por organización. Mientras no haya ninguno, no se puede decir que un expediente esté completo ni incompleto."
+          title="Esta organización todavía no tiene tipos de documento"
+          description="Los tipos de documento del personal se definen en Catálogos, por organización. Mientras no haya ninguno, no se puede decir que un expediente esté completo ni incompleto."
           link="/catalogos"
           actionLabel="Ir a Catálogos"
         />

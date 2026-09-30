@@ -280,7 +280,10 @@ export class WorkforcePage {
 
   /** Las experiencias que exige la organización, y el catálogo del que salen. */
   protected readonly skillRequirements = signal<readonly EligibilityRequirement[]>([]);
-  protected readonly catalogSkills = signal<readonly EmployeeJobPositionOption[]>([]);
+  /** Las experiencias del catálogo, **con su marca de obligatorio**. */
+  protected readonly catalogSkills = signal<
+    readonly { readonly idCatalogItem: string; readonly name: string; readonly isRequired?: boolean | null }[]
+  >([]);
 
   /**
    * Los tipos que ofrece el alta de documento, con los que esta organización exige al principio.
@@ -745,7 +748,12 @@ export class WorkforcePage {
       this.catalogSkills.set(
         data.items
           .filter((item) => item.active && item.type === 'Skill')
-          .map((item) => ({ idCatalogItem: item.idCatalogItem, name: item.name })),
+          .map((item) => ({
+            idCatalogItem: item.idCatalogItem,
+            name: item.name,
+            // Sin esto, una experiencia marcada obligatoria salia como informativa.
+            isRequired: item.isRequired ?? false,
+          })),
       );
 
       this.catalogDocumentCategories.set(

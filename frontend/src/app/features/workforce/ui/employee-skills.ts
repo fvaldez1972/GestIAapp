@@ -43,15 +43,22 @@ export type EmployeeSkillFormValue = {
   imports: [GiAccordion, ReactiveFormsModule, GiSelect, GiDate],
   template: `
     <section class="skills">
-      @if (requirements().length === 0) {
+      <!--
+        Se rinde cuando no hay NADA que enseñar, no cuando faltan reglas. Mismo arreglo que en
+        Documentos y en Evaluaciones: el catálogo de la organización manda, y las reglas de
+        elegibilidad sólo dicen cuáles de esas experiencias además bloquean.
+      -->
+      @if (rows().length === 0) {
         <p class="skills__note">
-          Esta organización no exige ninguna experiencia. Las que se registren aquí no impiden
-          asignar a nadie, pero sirven para encontrar a quién puede cubrir un turno.
+          Esta organización todavía no tiene experiencias en su catálogo. Se definen en Catálogos,
+          y sirven para encontrar a quién puede cubrir un turno.
         </p>
       } @else {
         <p class="skills__note">
-          {{ requirements().length }}
-          {{ requirements().length === 1 ? 'experiencia exigida' : 'experiencias exigidas' }} por esta
+          {{ obligatorias().length }}
+          {{ obligatorias().length === 1 ? 'experiencia obligatoria' : 'experiencias obligatorias' }}
+          y {{ informativas().length }}
+          {{ informativas().length === 1 ? 'informativa' : 'informativas' }} en el catálogo de esta
           organización.
         </p>
 
@@ -71,7 +78,7 @@ export type EmployeeSkillFormValue = {
                 <li class="req" [class]="'req--' + tone(row.state)">
                   <span class="req__body">
                     <span class="req__name">{{ row.label }}</span>
-                    <span class="req__detail">{{ detail(row.state, row.expiresDate) }}</span>
+                    <span class="req__detail">{{ detail(row.state, row.expiresDate, row.withoutRule) }}</span>
                   </span>
                   <span class="req__state">{{ stateLabel(row.state) }}</span>
                 </li>
@@ -91,7 +98,7 @@ export type EmployeeSkillFormValue = {
                 <li class="req" [class]="'req--' + tone(row.state)">
                   <span class="req__body">
                     <span class="req__name">{{ row.label }}</span>
-                    <span class="req__detail">{{ detail(row.state, row.expiresDate) }}</span>
+                    <span class="req__detail">{{ detail(row.state, row.expiresDate, row.withoutRule) }}</span>
                   </span>
                   <span class="req__state">{{ stateLabel(row.state) }}</span>
                 </li>
@@ -371,7 +378,10 @@ export class EmployeeSkills {
   readonly requirements = input.required<readonly EligibilityRequirement[]>();
   readonly skills = input.required<readonly EmployeeSkill[]>();
   /** Las experiencias activas del catálogo de la organización. */
-  readonly catalogSkills = input.required<readonly GiCatalogOption[]>();
+  /** El catálogo de experiencias, con la marca que dice cuáles son obligatorias. */
+  readonly catalogSkills = input.required<
+    readonly (GiCatalogOption & { readonly isRequired?: boolean | null })[]
+  >();
 
   /** El catálogo de experiencias con la forma que pide `gi-select`. */
   protected readonly opcionesExperiencia = computed<readonly GiSelectOption[]>(() =>
@@ -413,6 +423,8 @@ export class EmployeeSkills {
       this.skills(),
       this.today(),
       this.expiringWithinDays(),
+      // El catálogo manda: es la lista completa, y cada entrada trae si es obligatoria.
+      this.catalogSkills(),
     ),
   );
 
@@ -488,9 +500,14 @@ export class EmployeeSkills {
     });
   }
 
-  protected detail(state: string, expires: string | null): string {
+  protected detail(state: string, expires: string | null, withoutRule = false): string {
     if (state === 'Missing') {
-      return 'Esta persona no tiene acreditada la experiencia que la regla exige.';
+      // Sin regla no se puede hablar de una regla. La experiencia esta en el catalogo y se puede
+      // acreditar, pero hoy no la exige nadie, y decir lo contrario prometeria un bloqueo que no
+      // existe.
+      return withoutRule
+        ? 'Esta persona no tiene acreditada esta experiencia del catálogo.'
+        : 'Esta persona no tiene acreditada la experiencia que la regla exige.';
     }
 
     if (!expires) {

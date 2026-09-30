@@ -742,6 +742,8 @@ export type EmployeeSkillRequirementRow = {
   readonly isRequired: boolean;
   readonly state: EmployeeRequirementState;
   readonly expiresDate: string | null;
+  /** El tipo está en el catálogo pero nadie le creó su regla: se pide, no bloquea. */
+  readonly withoutRule: boolean;
 };
 
 /**
@@ -766,12 +768,40 @@ export function employeeSkillRequirementRows(
   }[],
   today: string,
   expiringWithinDays: number,
+  /**
+   * Las experiencias del catálogo de la organización, con su marca.
+   *
+   * <p><b>Es la lista que manda</b>, igual que en documentos y en evaluaciones. Recorriendo sólo
+   * las reglas, un catálogo de catorce experiencias sin ninguna regla creada no enseñaba nada.</p>
+   *
+   * <p>Vacío deja el comportamiento anterior, que es el de las pruebas que sólo hablan de reglas.</p>
+   */
+  catalogTypes: readonly { readonly idCatalogItem: string; readonly name: string; readonly isRequired?: boolean | null }[] = [],
 ): readonly EmployeeSkillRequirementRow[] {
   const limite = shiftOperationalDate(today, expiringWithinDays);
 
-  return required.map((requisito) => {
+  const reglaPorTipo = new Map(
+    required.filter((regla) => regla.idRequiredCatalogItem).map((regla) => [regla.idRequiredCatalogItem!, regla]),
+  );
+
+  const entradas = catalogTypes.length
+    ? catalogTypes.map((tipo) => ({
+        code: tipo.idCatalogItem,
+        nombre: tipo.name,
+        regla: reglaPorTipo.get(tipo.idCatalogItem) ?? null,
+        delCatalogo: tipo.isRequired === true,
+      }))
+    : required.map((regla) => ({
+        code: regla.idRequiredCatalogItem ?? '',
+        nombre: '',
+        regla,
+        delCatalogo: regla.isRequiredEffective,
+      }));
+
+  return entradas.map((entrada) => {
+    const requisito = entrada.regla;
     const experiencia = skills.find(
-      (item) => item.active && item.idSkillCatalogItem === requisito.idRequiredCatalogItem,
+      (item) => item.active && item.idSkillCatalogItem === entrada.code,
     );
 
     const state: EmployeeRequirementState = !experiencia
@@ -783,11 +813,17 @@ export function employeeSkillRequirementRows(
           : 'UpToDate';
 
     return {
-      code: requisito.idRequiredCatalogItem ?? '',
-      label: requisito.requiredCatalogItemName || requisito.name,
-      isRequired: requisito.isRequiredEffective,
+      code: entrada.code,
+      label:
+        requisito?.requiredCatalogItemName ||
+        requisito?.name ||
+        entrada.nombre ||
+        'Experiencia sin nombre',
+      // La severidad sale de la regla cuando la hay, y del catálogo cuando nadie la creó.
+      isRequired: requisito ? requisito.isRequiredEffective : entrada.delCatalogo,
       state,
       expiresDate: experiencia?.expiresDate ?? null,
+      withoutRule: !requisito,
     };
   });
 }

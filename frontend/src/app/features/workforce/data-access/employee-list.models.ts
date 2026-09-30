@@ -608,6 +608,12 @@ export type EmployeeEvaluationRequirementRow = {
   readonly expiresDate: string | null;
   /** El resultado de la evaluación registrada, para poder decir por qué no cuenta. */
   readonly result: string | null;
+  /**
+   * El tipo está en el catálogo pero <b>nadie le creó su regla de elegibilidad</b>.
+   *
+   * <p>Igual que en documentos: la marca del catálogo clasifica y la regla es la que bloquea.</p>
+   */
+  readonly withoutRule: boolean;
 };
 
 /**
@@ -637,15 +643,45 @@ export function employeeEvaluationRequirementRows(
   }[],
   today: string,
   expiringWithinDays: number,
+  /**
+   * Los tipos de evaluación del catálogo de la organización, con su marca.
+   *
+   * <p><b>Es la lista que manda</b>, igual que en documentos. Recorriendo sólo las reglas, una
+   * organización con nueve tipos en su catálogo y ninguna regla enseñaba cero filas y un recuadro
+   * diciendo que no exige ninguna evaluación, con el catálogo lleno detrás.</p>
+   *
+   * <p>Vacío deja el comportamiento anterior, que es el que usan las pruebas que sólo hablan de
+   * reglas.</p>
+   */
+  catalogTypes: readonly { readonly idCatalogItem: string; readonly name: string; readonly isRequired?: boolean | null }[] = [],
 ): readonly EmployeeEvaluationRequirementRow[] {
   const limite = shiftOperationalDate(today, expiringWithinDays);
 
-  return required.map((requisito) => {
+  const reglaPorTipo = new Map(
+    required.filter((regla) => regla.idRequiredCatalogItem).map((regla) => [regla.idRequiredCatalogItem!, regla]),
+  );
+
+  const entradas = catalogTypes.length
+    ? catalogTypes.map((tipo) => ({
+        code: tipo.idCatalogItem,
+        nombre: tipo.name,
+        regla: reglaPorTipo.get(tipo.idCatalogItem) ?? null,
+        delCatalogo: tipo.isRequired === true,
+      }))
+    : required.map((regla) => ({
+        code: regla.idRequiredCatalogItem ?? '',
+        nombre: '',
+        regla,
+        delCatalogo: regla.isRequiredEffective,
+      }));
+
+  return entradas.map((entrada) => {
+    const requisito = entrada.regla;
     const evaluacion = evaluations.find(
       (item) =>
         item.active &&
         !!item.idEvaluationCategoryCatalogItem &&
-        item.idEvaluationCategoryCatalogItem === requisito.idRequiredCatalogItem,
+        item.idEvaluationCategoryCatalogItem === entrada.code,
     );
 
     const state: EmployeeRequirementState = !evaluacion
@@ -661,12 +697,18 @@ export function employeeEvaluationRequirementRows(
               : 'UpToDate';
 
     return {
-      code: requisito.idRequiredCatalogItem ?? '',
-      label: requisito.name || requisito.requiredCatalogItemName || 'Requisito sin nombre',
-      isRequired: requisito.isRequiredEffective,
+      code: entrada.code,
+      label:
+        requisito?.name ||
+        requisito?.requiredCatalogItemName ||
+        entrada.nombre ||
+        'Requisito sin nombre',
+      // La severidad sale de la regla cuando la hay, y del catálogo cuando nadie la creó.
+      isRequired: requisito ? requisito.isRequiredEffective : entrada.delCatalogo,
       state,
       expiresDate: evaluacion?.expiresDate ?? null,
       result: evaluacion?.result ?? null,
+      withoutRule: !requisito,
     };
   });
 }

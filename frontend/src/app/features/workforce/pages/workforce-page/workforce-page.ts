@@ -374,7 +374,10 @@ export class WorkforcePage {
   protected readonly assignPositions = signal<readonly AssignOption[]>([]);
   /** El cliente elegido en la ventana. Las posiciones cuelgan de cliente **y** servicio. */
   private readonly assignSelectedClient = signal('');
-  protected readonly catalogEvaluationCategories = signal<readonly EmployeeJobPositionOption[]>([]);
+  /** Los tipos de evaluación del catálogo, **con su marca de obligatorio**, como los de documento. */
+  protected readonly catalogEvaluationCategories = signal<
+    readonly { readonly idCatalogItem: string; readonly name: string; readonly isRequired?: boolean | null }[]
+  >([]);
 
   /** Los niveles de escolaridad, para ver y capturar hasta dónde estudió cada persona. */
   protected readonly catalogEducationLevels = signal<readonly EmployeeJobPositionOption[]>([]);
@@ -769,7 +772,12 @@ export class WorkforcePage {
       this.catalogEvaluationCategories.set(
         data.items
           .filter((item) => item.active && item.type === 'EmployeeEvaluationCategory')
-          .map((item) => ({ idCatalogItem: item.idCatalogItem, name: item.name })),
+          .map((item) => ({
+            idCatalogItem: item.idCatalogItem,
+            name: item.name,
+            // Sin esto, un tipo marcado obligatorio en Catalogos salia como informativo.
+            isRequired: item.isRequired ?? false,
+          })),
       );
     });
   }

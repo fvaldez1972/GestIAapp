@@ -50,18 +50,30 @@ const RESULTADOS = ['Approved', 'ApprovedWithObservations', 'Pending', 'Inconclu
   imports: [GiAccordion, ReactiveFormsModule, GiEmptyState, GiSelect, GiDate],
   template: `
     <section class="evals">
-      @if (requirements().length === 0) {
+      <!--
+        Se rinde cuando no hay NADA que enseñar, no cuando faltan reglas. Es el mismo arreglo que
+        la pestaña de Documentos: una organización puede tener su catálogo de tipos completo y
+        ninguna regla de elegibilidad, y entonces esto escondía el catálogo entero.
+      -->
+      @if (rows().length === 0) {
         <gi-empty-state
           variant="missing-prerequisite"
-          title="Esta organización todavía no exige ninguna evaluación"
-          description="Los requisitos de evaluación se definen en Catálogos, por organización. Mientras no haya ninguno, ninguna evaluación impide asignar a nadie."
+          title="Esta organización todavía no tiene tipos de evaluación"
+          description="Los tipos de evaluación se definen en Catálogos, por organización. Mientras no haya ninguno, no hay nada que pedirle a un expediente."
           link="/catalogos"
           actionLabel="Ir a Catálogos"
         />
       } @else {
+        <!--
+          Cuenta lo que se ve, no las reglas. Decia el numero de reglas de elegibilidad, y con
+          nueve tipos en pantalla y ninguna regla creada afirmaba "0 evaluaciones exigidas" encima
+          de una lista con una obligatoria: dos cosas ciertas que juntas no se entienden.
+        -->
         <p class="evals__note">
-          {{ requirements().length }}
-          {{ requirements().length === 1 ? 'evaluación exigida' : 'evaluaciones exigidas' }} por esta
+          {{ obligatorias().length }}
+          {{ obligatorias().length === 1 ? 'evaluación obligatoria' : 'evaluaciones obligatorias' }}
+          y {{ informativas().length }}
+          {{ informativas().length === 1 ? 'informativa' : 'informativas' }} en el catálogo de esta
           organización.
         </p>
 
@@ -406,7 +418,9 @@ export class EmployeeEvaluations {
    * <p>Entra como dato y no se descubre aquí porque la pantalla que la contiene ya las tiene
    * cargadas: pedirlas otra vez sería un viaje al servidor por cada pestaña que se abre.</p>
    */
-  readonly categories = input<readonly { readonly idCatalogItem: string; readonly name: string }[]>([]);
+  readonly categories = input<
+    readonly { readonly idCatalogItem: string; readonly name: string; readonly isRequired?: boolean | null }[]
+  >([]);
   readonly saving = input(false);
 
   readonly save = output<EmployeeEvaluationFormValue>();
@@ -451,6 +465,9 @@ export class EmployeeEvaluations {
       this.evaluations(),
       this.today(),
       this.expiringWithinDays(),
+      // El catálogo manda: es la lista completa de tipos, y cada uno trae si es obligatorio o
+      // informativo. Las reglas aportan el estado de los que la tienen.
+      this.categories(),
     ),
   );
 

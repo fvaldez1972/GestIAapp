@@ -226,6 +226,8 @@ export class ClientsPage {
         return 'Agregar contacto';
       case 'documents':
         return 'Agregar documento';
+      case 'services':
+        return 'Crear servicio de este cliente';
       default:
         return 'Editar cliente';
     }
@@ -241,6 +243,12 @@ export class ClientsPage {
         return;
       case 'documents':
         this.addingDocument.set(true);
+        return;
+      // Servicios faltaba, y por eso caia en el caso por omision: «Crear servicio de este cliente»
+      // abria el formulario de editar el cliente. La accion de esta pestaña es ir a Servicios con
+      // el cliente puesto, que es lo mismo que hace el boton del pie.
+      case 'services':
+        this.goToServices(client);
         return;
       default:
         this.startEdit(client);

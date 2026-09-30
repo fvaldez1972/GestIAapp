@@ -171,6 +171,9 @@ export class ClientsPage {
    * mandaria vacios y los borraria en silencio.</p>
    */
   protected readonly editingClient = signal<Client | null>(null);
+
+  /** El cliente abierto, con los campos que la fila del listado no trae. */
+  protected readonly clientDetail = signal<Client | null>(null);
   protected readonly loadingClient = signal(false);
 
   /**
@@ -751,6 +754,7 @@ export class ClientsPage {
     // después uno sin ellos dejaba el número del primero puesto en el segundo.
     this.documentCount.set(0);
     this.documentsLoaded.set(false);
+    this.clientDetail.set(null);
     this.clientServices.set([]);
     this.servicesLoaded = '';
     // Y lo mismo al abrir otro cliente: lo que estaba a medias era del anterior.
@@ -783,9 +787,16 @@ export class ClientsPage {
     forkJoin({
       zones: this.api.listZones(organizationId, client.idClient).pipe(catchError(() => of([]))),
       contacts: this.api.listContacts(organizationId, client.idClient).pipe(catchError(() => of([]))),
+      // El cliente completo. La fila del listado no trae los datos fiscales ni los de constitucion
+      // --son nueve campos que nadie necesita para pintar una lista--, y la ficha los muestra. Si
+      // falla, la ficha se queda con lo que ya tenia en vez de no abrirse.
+      completo: this.api
+        .getClient(organizationId, client.idClient)
+        .pipe(catchError(() => of(null))),
     }).subscribe((detail) => {
       this.zones.set(detail.zones);
       this.contacts.set(detail.contacts);
+      this.clientDetail.set(detail.completo);
       this.detailLoading.set(false);
     });
   }

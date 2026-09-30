@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { formatOperationalDate, formatOperationalInstant } from '../../../shared/util/operational-date';
-import { ClientListItem, ClientZone } from '../data-access/client.models';
+import { Client, ClientListItem, ClientZone } from '../data-access/client.models';
 
 /**
  * La pestaña de Datos.
@@ -117,6 +117,72 @@ import { ClientListItem, ClientZone } from '../data-access/client.models';
           </div>
         </dl>
       </section>
+
+      <!--
+        Los datos fiscales y los de constitución, que se capturan al editar y no se veían en
+        ninguna parte: se guardaban bien y la ficha no los enseñaba, así que quien los capturaba no
+        tenía forma de comprobar que habían quedado.
+
+        Cada tarjeta aparece sólo si tiene algo que decir. Diez renglones de «sin capturar» ocupan
+        media ficha para informar de que no hay nada; una línea lo dice igual y deja sitio.
+      -->
+      @if (detail(); as ficha) {
+        <section class="tarjeta">
+          <h4 class="tarjeta__kicker">Datos fiscales</h4>
+          @if (hayFiscales()) {
+            <dl class="campos campos--dos">
+              <div class="campo">
+                <dt>Nacionalidad</dt>
+                <dd>{{ ficha.nationality || 'Sin capturar' }}</dd>
+              </div>
+              <div class="campo">
+                <dt>Actividad fiscal</dt>
+                <dd>{{ ficha.taxActivity || 'Sin capturar' }}</dd>
+              </div>
+              <div class="campo campo--ancho">
+                <dt>Domicilio fiscal</dt>
+                <dd>{{ ficha.taxAddress || 'Sin capturar' }}</dd>
+              </div>
+              <div class="campo">
+                <dt>Registro patronal</dt>
+                <dd>{{ ficha.employerRegistrationNumber || 'Sin capturar' }}</dd>
+              </div>
+            </dl>
+          } @else {
+            <p class="falta">Sin datos fiscales. Se capturan en «Editar cliente».</p>
+          }
+        </section>
+
+        <section class="tarjeta">
+          <h4 class="tarjeta__kicker">Constitución y registro</h4>
+          @if (hayConstitucion()) {
+            <dl class="campos campos--dos">
+              <div class="campo">
+                <dt>Fecha de constitución</dt>
+                <dd>{{ fecha(ficha.incorporationDate) }}</dd>
+              </div>
+              <div class="campo">
+                <dt>Número de escritura</dt>
+                <dd>{{ ficha.incorporationDeedNumber || 'Sin capturar' }}</dd>
+              </div>
+              <div class="campo">
+                <dt>Fecha del registro público</dt>
+                <dd>{{ fecha(ficha.publicRegistryDate) }}</dd>
+              </div>
+              <div class="campo">
+                <dt>Folio mercantil</dt>
+                <dd>{{ ficha.commercialRegistryFolio || 'Sin capturar' }}</dd>
+              </div>
+              <div class="campo campo--ancho">
+                <dt>Instrumento del representante legal</dt>
+                <dd>{{ ficha.legalRepresentativeInstrumentNumber || 'Sin capturar' }}</dd>
+              </div>
+            </dl>
+          } @else {
+            <p class="falta">Sin datos de constitución. Se capturan en «Editar cliente».</p>
+          }
+        </section>
+      }
     </div>
   `,
   styles: `
@@ -230,6 +296,9 @@ import { ClientListItem, ClientZone } from '../data-access/client.models';
 
     .campo { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
 
+    /* Un domicilio o el numero de un instrumento no caben en media tarjeta. */
+    .campo--ancho { grid-column: 1 / -1; }
+
     .campo dt {
       color: var(--gestia-muted);
       font-size: 10.5px;
@@ -273,6 +342,35 @@ import { ClientListItem, ClientZone } from '../data-access/client.models';
 export class ClientData {
   readonly client = input.required<ClientListItem>();
   readonly zones = input<readonly ClientZone[]>([]);
+
+  /**
+   * El cliente completo, con lo que la fila del listado no trae.
+   *
+   * <p>Nulo mientras llega, o si la consulta falló: entonces las dos tarjetas no se dibujan, que es
+   * mejor que afirmar «sin capturar» sobre datos que nadie llegó a leer.</p>
+   */
+  readonly detail = input<Client | null>(null);
+
+  protected readonly hayFiscales = computed(() => {
+    const f = this.detail();
+    return !!(f?.nationality || f?.taxActivity || f?.taxAddress || f?.employerRegistrationNumber);
+  });
+
+  protected readonly hayConstitucion = computed(() => {
+    const f = this.detail();
+    return !!(
+      f?.incorporationDate ||
+      f?.incorporationDeedNumber ||
+      f?.publicRegistryDate ||
+      f?.commercialRegistryFolio ||
+      f?.legalRepresentativeInstrumentNumber
+    );
+  });
+
+  /** Las fechas de la ficha se leen como fechas, no como el ISO que viaja. */
+  protected fecha(valor: string | null): string {
+    return valor ? formatOperationalDate(valor.slice(0, 10)) : 'Sin capturar';
+  }
 
   protected readonly createdAt = computed(() =>
     formatOperationalInstant(this.client().createdAt).split(' a las ')[0] ||

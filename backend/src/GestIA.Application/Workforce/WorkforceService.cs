@@ -381,6 +381,7 @@ public sealed class WorkforceService(
         if (await repository.IsEvaluationInUseAsync(
                 request.IdEmployee,
                 profile.EvaluationType,
+                profile.IdEvaluationCategoryCatalogItem,
                 profile.EvaluatedDate,
                 null,
                 cancellationToken))
@@ -418,6 +419,7 @@ public sealed class WorkforceService(
         if (await repository.IsEvaluationInUseAsync(
                 request.IdEmployee,
                 profile.EvaluationType,
+                profile.IdEvaluationCategoryCatalogItem,
                 profile.EvaluatedDate,
                 idEmployeeEvaluation,
                 cancellationToken))

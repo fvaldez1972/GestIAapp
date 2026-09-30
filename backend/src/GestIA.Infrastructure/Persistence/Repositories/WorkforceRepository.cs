@@ -386,9 +386,21 @@ public sealed partial class WorkforceRepository(GestIaDbContext dbContext) : IWo
                 evaluation.IdEmployeeEvaluation == idEmployeeEvaluation,
             cancellationToken);
 
+    /// <summary>
+    /// Si ya hay una evaluación <b>de ese tipo</b> en esa fecha para esa persona.
+    ///
+    /// <para><b>El tipo es la categoría del catálogo cuando la hay</b>, no el enum heredado. La
+    /// pantalla manda <c>Other</c> en el enum desde que el tipo se elige del catálogo, así que
+    /// comparar por el enum hacía chocar entre sí a evaluaciones de tipos distintos: registrada una,
+    /// cualquier otra del mismo día se rechazaba con «ya existe una evaluación del mismo tipo».</para>
+    ///
+    /// <para>Sin categoría —los registros anteriores a la conversión del catálogo— se compara por el
+    /// enum, que es lo único que esos tienen.</para>
+    /// </summary>
     public Task<bool> IsEvaluationInUseAsync(
         Guid idEmployee,
         EmployeeEvaluationType evaluationType,
+        Guid? idEvaluationCategoryCatalogItem,
         DateOnly evaluatedDate,
         Guid? excludedEmployeeEvaluationId,
         CancellationToken cancellationToken) =>
@@ -397,7 +409,10 @@ public sealed partial class WorkforceRepository(GestIaDbContext dbContext) : IWo
             .AnyAsync(
                 evaluation =>
                     evaluation.IdEmployee == idEmployee &&
-                    evaluation.EvaluationType == evaluationType &&
+                    (idEvaluationCategoryCatalogItem.HasValue
+                        ? evaluation.IdEvaluationCategoryCatalogItem == idEvaluationCategoryCatalogItem
+                        : evaluation.IdEvaluationCategoryCatalogItem == null &&
+                            evaluation.EvaluationType == evaluationType) &&
                     evaluation.EvaluatedDate == evaluatedDate &&
                     (!excludedEmployeeEvaluationId.HasValue ||
                         evaluation.IdEmployeeEvaluation != excludedEmployeeEvaluationId.Value),

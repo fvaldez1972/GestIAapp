@@ -156,7 +156,7 @@ public sealed class LegacyDocumentAuthorizationTests
         public Task<EmployeeDocument?> GetDocumentAsync(Guid idEmployee, Guid idEmployeeDocument, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task AddDocumentAsync(EmployeeDocument document, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task<EmployeeEvaluation?> GetEvaluationAsync(Guid idEmployee, Guid idEmployeeEvaluation, CancellationToken cancellationToken) => throw new NotSupportedException();
-        public Task<bool> IsEvaluationInUseAsync(Guid idEmployee, EmployeeEvaluationType evaluationType, DateOnly evaluatedDate, Guid? excludedEmployeeEvaluationId, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public Task<bool> IsEvaluationInUseAsync(Guid idEmployee, EmployeeEvaluationType evaluationType, Guid? idEvaluationCategoryCatalogItem, DateOnly evaluatedDate, Guid? excludedEmployeeEvaluationId, CancellationToken cancellationToken) => throw new NotSupportedException();
         public Task AddEvaluationAsync(EmployeeEvaluation evaluation, CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 }

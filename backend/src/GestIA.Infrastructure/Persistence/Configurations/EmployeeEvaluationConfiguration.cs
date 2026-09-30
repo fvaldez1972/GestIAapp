@@ -39,7 +39,28 @@ public sealed class EmployeeEvaluationConfiguration : IEntityTypeConfiguration<E
 
         builder.HasIndex(entity => new { entity.IdOrganization, entity.EvaluationType });
 
-        builder.HasIndex(entity => new { entity.IdEmployee, entity.EvaluationType, entity.EvaluatedDate }).IsUnique();
+        // Una evaluacion de cada tipo por persona y fecha, y el TIPO es la categoria del catalogo.
+        //
+        // El indice iba sobre el enum heredado, y la pantalla manda `Other` en el enum desde que el
+        // tipo se elige del catalogo: registrada una evaluacion, cualquier otra de ese mismo dia
+        // --de otro tipo-- chocaba con la clave unica. La regla tenia sentido y estaba midiendo la
+        // cosa equivocada.
+        //
+        // Van dos indices porque hay dos mundos: los registros con categoria se comparan por ella,
+        // y los anteriores a la conversion del catalogo --que no la tienen-- siguen comparandose por
+        // el enum, que es lo unico que traen.
+        builder.HasIndex(entity => new
+            {
+                entity.IdEmployee,
+                entity.IdEvaluationCategoryCatalogItem,
+                entity.EvaluatedDate,
+            })
+            .IsUnique()
+            .HasFilter("[IdEvaluationCategoryCatalogItem] IS NOT NULL");
+
+        builder.HasIndex(entity => new { entity.IdEmployee, entity.EvaluationType, entity.EvaluatedDate })
+            .IsUnique()
+            .HasFilter("[IdEvaluationCategoryCatalogItem] IS NULL");
         builder.HasIndex(entity => new { entity.EvaluationType, entity.Result, entity.ExpiresDate });
     }
 }

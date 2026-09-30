@@ -183,6 +183,7 @@ public interface IWorkforceRepository
     Task<bool> IsEvaluationInUseAsync(
         Guid idEmployee,
         EmployeeEvaluationType evaluationType,
+        Guid? idEvaluationCategoryCatalogItem,
         DateOnly evaluatedDate,
         Guid? excludedEmployeeEvaluationId,
         CancellationToken cancellationToken);

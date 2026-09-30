@@ -17,6 +17,34 @@ public sealed class FormCatalogValidator(ICatalogRepository repository, IGeograp
         idCatalogItem.HasValue
         && await repository.GetCatalogItemAsync(organization, idCatalogItem.Value, token) is { IsSensitive: true };
 
+    /// <summary>
+    /// El valor elegido existe, es de <b>ese</b> catálogo y está activo.
+    ///
+    /// <para>Comprueba el identificador y no el texto. Es la diferencia que hacía falta: el texto
+    /// sólo dice cómo se llama, y dos catálogos distintos pueden tener el mismo nombre; el
+    /// identificador dice además de cuál es. Validar por texto contra el catálogo equivocado
+    /// rechazaba valores que sí estaban activos, en su catálogo.</para>
+    ///
+    /// <para>Nulo es legítimo —el campo es opcional— y repetir el que ya tenía también: un valor
+    /// que se desactivó después no impide corregir el teléfono de ese registro.</para>
+    /// </summary>
+    public async Task ItemAsync(
+        Guid organization,
+        BusinessCatalogItemType type,
+        Guid? idCatalogItem,
+        Guid? previous,
+        CancellationToken token)
+    {
+        if (!idCatalogItem.HasValue || idCatalogItem == previous) return;
+
+        var item = await repository.GetCatalogItemAsync(organization, idCatalogItem.Value, token);
+
+        if (item is null || item.Type != type || !item.Active)
+        {
+            throw new ResourceConflictException("Selecciona un valor activo del catalogo correspondiente.");
+        }
+    }
+
     public async Task ValueAsync(Guid organization, BusinessCatalogItemType type, string? value, string? previous, CancellationToken token)
     {
         if (string.IsNullOrWhiteSpace(value) || Same(value, previous)) return;

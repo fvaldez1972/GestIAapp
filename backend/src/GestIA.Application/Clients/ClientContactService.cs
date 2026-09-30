@@ -35,7 +35,19 @@ public sealed partial class ClientContactService(
 
         await EnsureSinglePrimaryAsync(request.IdClient, null, details.IsPrimary, cancellationToken);
 
-        await catalogValidator.ValueAsync(request.IdOrganization, BusinessCatalogItemType.JobPosition, details.JobTitle, null, cancellationToken);
+        // El puesto del contacto sale de ContactJobPosition, no del catalogo de puestos del
+        // PERSONAL. Se validaba el texto contra el catalogo equivocado, asi que elegir "Gerente de
+        // compras" --activo en Puestos de contacto-- se rechazaba con "selecciona un valor activo
+        // del catalogo correspondiente": el mensaje era cierto y hablaba de otro catalogo.
+        //
+        // Y se comprueba el identificador, que es lo que se guarda. El texto es rastro heredado.
+        await catalogValidator.ItemAsync(
+            request.IdOrganization,
+            BusinessCatalogItemType.ContactJobPosition,
+            details.IdContactJobPositionCatalogItem,
+            null,
+            cancellationToken);
+
         var contact = ClientContact.Create(
             request.IdOrganization,
             request.IdClient,
@@ -63,7 +75,12 @@ public sealed partial class ClientContactService(
 
         await EnsureSinglePrimaryAsync(request.IdClient, idClientContact, details.IsPrimary, cancellationToken);
 
-        await catalogValidator.ValueAsync(request.IdOrganization, BusinessCatalogItemType.JobPosition, details.JobTitle, contact.JobTitle, cancellationToken);
+        await catalogValidator.ItemAsync(
+            request.IdOrganization,
+            BusinessCatalogItemType.ContactJobPosition,
+            details.IdContactJobPositionCatalogItem,
+            contact.IdContactJobPositionCatalogItem,
+            cancellationToken);
         contact.UpdateDetails(
             request.IdClientZone,
             details,

@@ -45,6 +45,7 @@ let instances = 0;
   host: {
     '(keydown)': 'onKeydown($event)',
     '(focusout)': 'onFocusOut($event)',
+    '(mousedown)': 'punteroDentro = true',
     '(window:resize)': 'alDesplazar()',
   },
   template: `
@@ -267,7 +268,23 @@ export class GiSelect {
     // dentro nunca llegaria al documento.
     const cerrar = (): void => this.alDesplazar();
     document.addEventListener('scroll', cerrar, true);
-    inject(DestroyRef).onDestroy(() => document.removeEventListener('scroll', cerrar, true));
+
+    // Al soltar el raton dentro del control se le devuelve el foco al boton. Hace falta porque el
+    // navegador se lo quita al apretar sobre la barra de desplazamiento de la lista, y sin esto el
+    // foco se quedaria en el dialogo: el teclado dejaria de mover la seleccion y el siguiente clic
+    // fuera ya no cerraria la lista, porque no habria foco que perder.
+    const soltar = (): void => {
+      if (!this.punteroDentro) return;
+
+      this.punteroDentro = false;
+      if (this.open()) this.trigger().nativeElement.focus();
+    };
+    document.addEventListener('mouseup', soltar, true);
+
+    inject(DestroyRef).onDestroy(() => {
+      document.removeEventListener('scroll', cerrar, true);
+      document.removeEventListener('mouseup', soltar, true);
+    });
   }
 
   /** Dónde se dibuja la lista flotante, medido al abrir. */
@@ -414,8 +431,18 @@ export class GiSelect {
     }
   }
 
-  /** Cerrar al salir del componente cubre el clic fuera y el salto con Tab con un solo camino. */
+  /**
+   * Cerrar al salir del componente cubre el clic fuera y el salto con Tab con un solo camino.
+   *
+   * <p>Con una excepcion: apretar la barra de desplazamiento de la lista. El navegador trata esa
+   * barra como parte de la pagina y le quita el foco al boton, asi que llegaba aqui un focusout
+   * identico al de un clic fuera y la lista se cerraba en el instante de agarrarla --por eso no se
+   * podia desplazar con ella--. Mientras el puntero siga apretado dentro del control no se cierra;
+   * el foco se repone al soltar.</p>
+   */
   protected onFocusOut(event: FocusEvent) {
+    if (this.punteroDentro) return;
+
     const next = event.relatedTarget as Node | null;
     const host = this.trigger().nativeElement.parentElement;
 
@@ -423,4 +450,7 @@ export class GiSelect {
       this.open.set(false);
     }
   }
+
+  /** Verdadero entre el apretar y el soltar del raton dentro del control. */
+  protected punteroDentro = false;
 }

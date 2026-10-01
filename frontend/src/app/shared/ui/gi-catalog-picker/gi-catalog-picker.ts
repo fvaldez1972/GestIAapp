@@ -1,9 +1,11 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   ElementRef,
   computed,
   effect,
+  inject,
   input,
   output,
   signal,
@@ -70,6 +72,7 @@ export type GiCatalogCreation = {
     // Es lo mismo que hace `gi-select`; esta pieza no lo copió al nacer y quedaba abierta para
     // siempre, obligando a elegir algo aunque uno se hubiera arrepentido.
     '(focusout)': 'alSalirElFoco($event)',
+    '(mousedown)': 'punteroDentro = true',
     '(keydown.escape)': 'abierto.set(false)',
     // La lista flotante se dibuja donde estaba el campo al abrir. Si algo se desplaza debajo, el
     // campo se mueve y la lista se quedaria colgada, asi que se cierra.
@@ -297,6 +300,8 @@ export class GiCatalogPicker {
    * por ejemplo— no hay que cerrar; si sale, o si no va a ninguna parte, sí.</p>
    */
   protected alSalirElFoco(event: FocusEvent): void {
+    if (this.punteroDentro) return;
+
     const destino = event.relatedTarget as Node | null;
     const anfitrion = (event.currentTarget as HTMLElement | null) ?? null;
 
@@ -437,7 +442,21 @@ export class GiCatalogPicker {
    */
   private readonly pendienteDeCrear = signal('');
 
+  /** Verdadero entre el apretar y el soltar del raton dentro del control. */
+  protected punteroDentro = false;
+
   constructor() {
+    // Mismo arreglo que en `gi-select`: apretar la barra de desplazamiento de la lista le quita el
+    // foco al campo, y el focusout cerraba la lista justo al agarrarla.
+    const soltar = (): void => {
+      if (!this.punteroDentro) return;
+
+      this.punteroDentro = false;
+      if (this.abierto()) this.campo().nativeElement.focus();
+    };
+    document.addEventListener('mouseup', soltar, true);
+    inject(DestroyRef).onDestroy(() => document.removeEventListener('mouseup', soltar, true));
+
     /**
      * Selecciona el valor recien creado en cuanto aparece en el catalogo.
      *

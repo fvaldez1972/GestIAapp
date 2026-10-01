@@ -84,6 +84,7 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 
     .gi-date {
       display: flex;
+      position: relative;
       align-items: center;
       gap: 0.25rem;
       box-sizing: border-box;
@@ -146,11 +147,22 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
       stroke-linecap: round;
     }
 
-    /* Existe para abrir el calendario del sistema; no se ve ni recibe foco. */
+    /*
+      Existe para abrir el calendario del sistema; no se ve ni recibe foco.
+
+      Va calcado sobre el campo, y eso no es adorno: el calendario del navegador se ancla a este
+      input, no al que se ve. Sin posicion relativa en el contenedor, su bloque contenedor era un
+      ancestro de fuera del panel que se desplaza, asi que el ancla no acompanaba al campo: el
+      calendario abria tantos pixeles mas abajo como estuviera desplazado el panel. Medido en la
+      ficha de Personal, el desfase era exactamente el desplazamiento --120 px de recorrido, 120
+      px de desfase-- y por eso en una ficha larga el calendario salia lejos o fuera de la ventana.
+    */
     .gi-date__nativo {
       position: absolute;
-      width: 1px;
-      height: 1px;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      min-height: 0;
       padding: 0;
       border: 0;
       opacity: 0;

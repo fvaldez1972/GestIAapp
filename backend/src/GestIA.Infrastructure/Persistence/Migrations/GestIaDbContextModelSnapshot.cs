@@ -52,14 +52,26 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
 
+                    b.Property<bool?>("HasOwnExpiry")
+                        .HasColumnType("bit");
+
                     b.Property<Guid>("IdOrganization")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<Guid?>("IdParentCatalogItem")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<bool?>("IsBlocking")
+                    b.Property<bool?>("IsExpiredOnTermination")
                         .HasColumnType("bit");
+
+                    b.Property<bool?>("IsRequired")
+                        .HasColumnType("bit");
+
+                    b.Property<bool?>("IsSensitive")
+                        .HasColumnType("bit");
+
+                    b.Property<int?>("MaxIssueAgeMonths")
+                        .HasColumnType("int");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -70,7 +82,7 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("varchar(200)")
-                        .HasComputedColumnSql("CAST(UPPER(LTRIM(RTRIM(\r\n    REPLACE(\r\n        REPLACE(\r\n            REPLACE(\r\n                REPLACE(REPLACE(REPLACE([Name], CHAR(9), ' '), CHAR(10), ' '), CHAR(13), ' '),\r\n                ' ', CHAR(1) + CHAR(2)),\r\n            CHAR(2) + CHAR(1), ''),\r\n        CHAR(1) + CHAR(2), ' ')\r\n))) AS varchar(200))", true)
+                        .HasComputedColumnSql("CAST(UPPER(LTRIM(RTRIM(\n    REPLACE(\n        REPLACE(\n            REPLACE(\n                REPLACE(REPLACE(REPLACE([Name], CHAR(9), ' '), CHAR(10), ' '), CHAR(13), ' '),\n                ' ', CHAR(1) + CHAR(2)),\n            CHAR(2) + CHAR(1), ''),\n        CHAR(1) + CHAR(2), ' ')\n))) AS varchar(200))", true)
                         .UseCollation("Latin1_General_CI_AI");
 
                     b.Property<int>("Order")
@@ -153,7 +165,7 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("IdService")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<bool?>("IsBlocking")
+                    b.Property<bool?>("IsRequired")
                         .HasColumnType("bit");
 
                     b.Property<string>("Name")
@@ -479,14 +491,6 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                         .IsUnicode(false)
                         .HasColumnType("varchar(40)");
 
-                    b.Property<string>("Scope")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(20)
-                        .IsUnicode(false)
-                        .HasColumnType("varchar(20)")
-                        .HasDefaultValue("General");
-
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2(0)");
 
@@ -499,6 +503,11 @@ namespace GestIA.Infrastructure.Persistence.Migrations
 
                     b.HasKey("IdClientContact")
                         .HasName("PK_ClientContacts");
+
+                    b.HasIndex("IdClient")
+                        .IsUnique()
+                        .HasDatabaseName("UX_ClientContacts_IdClient")
+                        .HasFilter("[IsPrimary] = 1 AND [Active] = 1");
 
                     b.HasIndex("IdClientSite")
                         .HasDatabaseName("IX_ClientContacts_IdClientSite");
@@ -577,6 +586,14 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                         .HasMaxLength(30)
                         .HasColumnType("nvarchar(30)");
 
+                    b.Property<decimal?>("Latitude")
+                        .HasPrecision(9, 6)
+                        .HasColumnType("decimal(9,6)");
+
+                    b.Property<decimal?>("Longitude")
+                        .HasPrecision(9, 6)
+                        .HasColumnType("decimal(9,6)");
+
                     b.Property<string>("Municipality")
                         .IsRequired()
                         .HasMaxLength(120)
@@ -595,7 +612,7 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("varchar(200)")
-                        .HasComputedColumnSql("CAST(UPPER(LTRIM(RTRIM(\r\n    REPLACE(\r\n        REPLACE(\r\n            REPLACE(\r\n                REPLACE(REPLACE(REPLACE([Name], CHAR(9), ' '), CHAR(10), ' '), CHAR(13), ' '),\r\n                ' ', CHAR(1) + CHAR(2)),\r\n            CHAR(2) + CHAR(1), ''),\r\n        CHAR(1) + CHAR(2), ' ')\r\n))) AS varchar(200))", true)
+                        .HasComputedColumnSql("CAST(UPPER(LTRIM(RTRIM(\n    REPLACE(\n        REPLACE(\n            REPLACE(\n                REPLACE(REPLACE(REPLACE([Name], CHAR(9), ' '), CHAR(10), ' '), CHAR(13), ' '),\n                ' ', CHAR(1) + CHAR(2)),\n            CHAR(2) + CHAR(1), ''),\n        CHAR(1) + CHAR(2), ' ')\n))) AS varchar(200))", true)
                         .UseCollation("Latin1_General_CI_AI");
 
                     b.Property<string>("PostalCode")
@@ -851,6 +868,141 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("IX_BusinessDocumentEvents_IdOrganization_IdBusinessDocument_OccurredAt");
 
                     b.ToTable("BusinessDocumentEvents", "dbo");
+                });
+
+            modelBuilder.Entity("GestIA.Domain.Geography.GeoCountry", b =>
+                {
+                    b.Property<Guid>("IdGeoCountry")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Active")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(2)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(2)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.HasKey("IdGeoCountry")
+                        .HasName("PK_GeoCountries");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasDatabaseName("UX_GeoCountries_Code");
+
+                    b.ToTable("GeoCountries", (string)null);
+                });
+
+            modelBuilder.Entity("GestIA.Domain.Geography.GeoMunicipality", b =>
+                {
+                    b.Property<Guid>("IdGeoMunicipality")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Active")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(5)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(5)");
+
+                    b.Property<Guid>("IdGeoState")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.HasKey("IdGeoMunicipality")
+                        .HasName("PK_GeoMunicipalities");
+
+                    b.HasIndex("IdGeoState", "Code")
+                        .IsUnique()
+                        .HasDatabaseName("UX_GeoMunicipalities_IdGeoState_Code");
+
+                    b.HasIndex("IdGeoState", "Name")
+                        .HasDatabaseName("IX_GeoMunicipalities_IdGeoState_Name");
+
+                    b.ToTable("GeoMunicipalities", (string)null);
+                });
+
+            modelBuilder.Entity("GestIA.Domain.Geography.GeoPostalCode", b =>
+                {
+                    b.Property<Guid>("IdGeoPostalCode")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Active")
+                        .HasColumnType("bit");
+
+                    b.Property<Guid>("IdGeoMunicipality")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Neighborhood")
+                        .IsRequired()
+                        .HasMaxLength(180)
+                        .HasColumnType("nvarchar(180)");
+
+                    b.Property<string>("PostalCode")
+                        .IsRequired()
+                        .HasMaxLength(5)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(5)");
+
+                    b.Property<string>("SettlementType")
+                        .HasMaxLength(60)
+                        .HasColumnType("nvarchar(60)");
+
+                    b.HasKey("IdGeoPostalCode")
+                        .HasName("PK_GeoPostalCodes");
+
+                    b.HasIndex("PostalCode")
+                        .HasDatabaseName("IX_GeoPostalCodes_PostalCode");
+
+                    b.HasIndex("IdGeoMunicipality", "PostalCode", "Neighborhood")
+                        .IsUnique()
+                        .HasDatabaseName("UX_GeoPostalCodes_IdGeoMunicipality_PostalCode_Neighborhood");
+
+                    b.ToTable("GeoPostalCodes", (string)null);
+                });
+
+            modelBuilder.Entity("GestIA.Domain.Geography.GeoState", b =>
+                {
+                    b.Property<Guid>("IdGeoState")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Active")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(3)");
+
+                    b.Property<Guid>("IdGeoCountry")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.HasKey("IdGeoState")
+                        .HasName("PK_GeoStates");
+
+                    b.HasIndex("IdGeoCountry", "Code")
+                        .IsUnique()
+                        .HasDatabaseName("UX_GeoStates_IdGeoCountry_Code");
+
+                    b.ToTable("GeoStates", (string)null);
                 });
 
             modelBuilder.Entity("GestIA.Domain.History.OperationalEvent", b =>
@@ -2144,7 +2296,6 @@ namespace GestIA.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("GestIA.Domain.Planning.ShiftPatternTemplateDay", b =>
                 {
                     b.Property<Guid>("IdShiftPatternTemplateDay")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<bool>("Active")
@@ -3146,10 +3297,15 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                         .HasMaxLength(80)
                         .HasColumnType("nvarchar(80)");
 
+                    b.Property<string>("FirstName")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
                     b.Property<string>("FullName")
                         .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
+                        .HasMaxLength(250)
+                        .HasColumnType("nvarchar(250)");
 
                     b.Property<DateOnly>("HireDate")
                         .HasColumnType("date");
@@ -3175,6 +3331,15 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                     b.Property<string>("JobTitle")
                         .HasMaxLength(120)
                         .HasColumnType("nvarchar(120)");
+
+                    b.Property<string>("LastNameMaternal")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<string>("LastNamePaternal")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
 
                     b.Property<string>("MaritalStatus")
                         .HasMaxLength(40)
@@ -3349,6 +3514,9 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
 
+                    b.Property<DateOnly?>("OriginalExpiresDate")
+                        .HasColumnType("date");
+
                     b.Property<DateOnly?>("ReceivedDate")
                         .HasColumnType("date");
 
@@ -3452,6 +3620,9 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
 
+                    b.Property<DateOnly?>("OriginalExpiresDate")
+                        .HasColumnType("date");
+
                     b.Property<string>("Result")
                         .IsRequired()
                         .HasMaxLength(40)
@@ -3487,11 +3658,167 @@ namespace GestIA.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("IdEmployee", "EvaluationType", "EvaluatedDate")
                         .IsUnique()
-                        .HasDatabaseName("UX_EmployeeEvaluations_IdEmployee_EvaluationType_EvaluatedDate");
+                        .HasDatabaseName("UX_EmployeeEvaluations_IdEmployee_EvaluationType_EvaluatedDate")
+                        .HasFilter("[IdEvaluationCategoryCatalogItem] IS NULL");
+
+                    b.HasIndex("IdEmployee", "IdEvaluationCategoryCatalogItem", "EvaluatedDate")
+                        .IsUnique()
+                        .HasDatabaseName("UX_EmployeeEvaluations_IdEmployee_IdEvaluationCategoryCatalogItem_EvaluatedDate")
+                        .HasFilter("[IdEvaluationCategoryCatalogItem] IS NOT NULL");
 
                     b.ToTable("EmployeeEvaluations", "dbo", t =>
                         {
                             t.HasCheckConstraint("CK_EmployeeEvaluations_ExpiryDateRange", "[ExpiresDate] IS NULL OR [ExpiresDate] >= [EvaluatedDate]");
+                        });
+                });
+
+            modelBuilder.Entity("GestIA.Domain.Workforce.EmployeePsychometricTest", b =>
+                {
+                    b.Property<Guid>("IdEmployeePsychometricTest")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Active")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true)
+                        .HasColumnName("Active");
+
+                    b.Property<DateOnly>("ApprovedDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2(0)")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CreatedByName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateOnly?>("ExpiredOnDate")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("IdEmployee")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("IdOrganization")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2(0)");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("UpdatedByName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("IdEmployeePsychometricTest")
+                        .HasName("PK_EmployeePsychometricTests");
+
+                    b.HasIndex("IdEmployee")
+                        .IsUnique()
+                        .HasDatabaseName("UX_EmployeePsychometricTests_IdEmployee")
+                        .HasFilter("[ExpiredOnDate] IS NULL");
+
+                    b.HasIndex("IdOrganization")
+                        .HasDatabaseName("IX_EmployeePsychometricTests_IdOrganization");
+
+                    b.HasIndex("IdEmployee", "ApprovedDate")
+                        .HasDatabaseName("IX_EmployeePsychometricTests_IdEmployee_ApprovedDate");
+
+                    b.ToTable("EmployeePsychometricTests", "dbo", t =>
+                        {
+                            t.HasCheckConstraint("CK_EmployeePsychometricTests_ExpiredOnDate", "[ExpiredOnDate] IS NULL OR [ExpiredOnDate] >= [ApprovedDate]");
+                        });
+                });
+
+            modelBuilder.Entity("GestIA.Domain.Workforce.EmploymentPeriod", b =>
+                {
+                    b.Property<Guid>("IdEmploymentPeriod")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Active")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true)
+                        .HasColumnName("Active");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2(0)")
+                        .HasDefaultValueSql("SYSUTCDATETIME()");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CreatedByName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateOnly?>("EndDate")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("IdEmployee")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("IdOrganization")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<DateOnly>("StartDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("TerminationReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2(0)");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("UpdatedByName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("IdEmploymentPeriod")
+                        .HasName("PK_EmploymentPeriods");
+
+                    b.HasIndex("IdEmployee")
+                        .IsUnique()
+                        .HasDatabaseName("UX_EmploymentPeriods_IdEmployee")
+                        .HasFilter("[EndDate] IS NULL");
+
+                    b.HasIndex("IdOrganization")
+                        .HasDatabaseName("IX_EmploymentPeriods_IdOrganization");
+
+                    b.HasIndex("IdEmployee", "StartDate")
+                        .HasDatabaseName("IX_EmploymentPeriods_IdEmployee_StartDate");
+
+                    b.ToTable("EmploymentPeriods", "dbo", t =>
+                        {
+                            t.HasCheckConstraint("CK_EmploymentPeriods_DateRange", "[EndDate] IS NULL OR [EndDate] >= [StartDate]");
+
+                            t.HasCheckConstraint("CK_EmploymentPeriods_TerminationReason", "([EndDate] IS NULL AND [TerminationReason] IS NULL) OR ([EndDate] IS NOT NULL AND [TerminationReason] IS NOT NULL)");
                         });
                 });
 
@@ -3811,6 +4138,36 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("FK_BusinessDocumentEvents_BusinessDocuments_IdBusinessDocument");
+                });
+
+            modelBuilder.Entity("GestIA.Domain.Geography.GeoMunicipality", b =>
+                {
+                    b.HasOne("GestIA.Domain.Geography.GeoState", null)
+                        .WithMany()
+                        .HasForeignKey("IdGeoState")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_GeoMunicipalities_GeoStates_IdGeoState");
+                });
+
+            modelBuilder.Entity("GestIA.Domain.Geography.GeoPostalCode", b =>
+                {
+                    b.HasOne("GestIA.Domain.Geography.GeoMunicipality", null)
+                        .WithMany()
+                        .HasForeignKey("IdGeoMunicipality")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_GeoPostalCodes_GeoMunicipalities_IdGeoMunicipality");
+                });
+
+            modelBuilder.Entity("GestIA.Domain.Geography.GeoState", b =>
+                {
+                    b.HasOne("GestIA.Domain.Geography.GeoCountry", null)
+                        .WithMany()
+                        .HasForeignKey("IdGeoCountry")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_GeoStates_GeoCountries_IdGeoCountry");
                 });
 
             modelBuilder.Entity("GestIA.Domain.History.OperationalEvent", b =>
@@ -4439,6 +4796,44 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                     b.Navigation("EvaluationCategoryCatalogItem");
                 });
 
+            modelBuilder.Entity("GestIA.Domain.Workforce.EmployeePsychometricTest", b =>
+                {
+                    b.HasOne("GestIA.Domain.Workforce.Employee", "Employee")
+                        .WithMany("PsychometricTests")
+                        .HasForeignKey("IdEmployee")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_EmployeePsychometricTests_Employees_IdEmployee");
+
+                    b.HasOne("GestIA.Domain.Organizations.Organization", null)
+                        .WithMany()
+                        .HasForeignKey("IdOrganization")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_EmployeePsychometricTests_Organizations_IdOrganization");
+
+                    b.Navigation("Employee");
+                });
+
+            modelBuilder.Entity("GestIA.Domain.Workforce.EmploymentPeriod", b =>
+                {
+                    b.HasOne("GestIA.Domain.Workforce.Employee", "Employee")
+                        .WithMany("EmploymentPeriods")
+                        .HasForeignKey("IdEmployee")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_EmploymentPeriods_Employees_IdEmployee");
+
+                    b.HasOne("GestIA.Domain.Organizations.Organization", null)
+                        .WithMany()
+                        .HasForeignKey("IdOrganization")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_EmploymentPeriods_Organizations_IdOrganization");
+
+                    b.Navigation("Employee");
+                });
+
             modelBuilder.Entity("GestIA.Domain.Workforce.ServiceAssignment", b =>
                 {
                     b.HasOne("GestIA.Domain.Workforce.Employee", "Employee")
@@ -4508,7 +4903,11 @@ namespace GestIA.Infrastructure.Persistence.Migrations
                 {
                     b.Navigation("Documents");
 
+                    b.Navigation("EmploymentPeriods");
+
                     b.Navigation("Evaluations");
+
+                    b.Navigation("PsychometricTests");
                 });
 #pragma warning restore 612, 618
         }

@@ -333,16 +333,23 @@
                 Sin decirlo, este calendario se lee como una regla y no lo es.
               -->
               <p class="notice">
-                <strong>{{ plantilla.name }}</strong> · ciclo de {{ plantilla.cycleDays }} día(s) ·
+                <strong>{{ plantilla.name }}</strong> · {{ cicloTexto(plantilla.cycleDays) }} ·
                 {{ plantilla.weeklyHours }} h a la semana. Es la <strong>referencia</strong> del
                 patrón: la semana que de verdad se trabaja se decide al planear, y puede no
                 coincidir. Para cambiar la referencia, en Catálogos.
               </p>
+              @if (cicloNoEsSemanal(plantilla.cycleDays)) {
+                <p class="notice">
+                  El ciclo es de {{ plantilla.cycleDays }} días, así que no encaja con la semana: el
+                  día 1 no cae siempre en lunes. Por eso los días van numerados y no con nombre.
+                </p>
+              }
+
               <div class="schedule-grid">
                 @for (dia of plantilla.days; track dia.idShiftPatternTemplateDay) {
                   <article class="schedule-card">
                     <div>
-                      <span class="pill">Día {{ dia.cycleDayNumber }}</span>
+                      <span class="pill">{{ diaDelCiclo(dia.cycleDayNumber, plantilla.cycleDays) }}</span>
                       @if (dia.isRest) {
                         <strong>Descanso</strong>
                       } @else {
@@ -620,7 +627,10 @@
                     }
                   </select></label
                 >
-                <label class="wide"><span>Nombre *</span><input formControlName="name" /></label>
+                <label class="wide"
+              ><span>Nombre *</span><input formControlName="name" [class.is-invalid]="errorDe('name')" />
+              @if (errorDe('name')) { <small class="campo__error">{{ errorDe('name') }}</small> }
+            </label>
               </div>
             </section>
           } @else if (serviceWizardStep() === 2) {
@@ -644,9 +654,8 @@
               </div>
               <div class="form-grid">
                 <label
-                  ><span>Inicio *</span><input type="date" formControlName="startDate"
-                /></label>
-                <label><span>Fin</span><input type="date" formControlName="endDate" /></label>
+                  ><span>Inicio *</span><gi-date formControlName="startDate" /></label>
+                <label><span>Fin</span><gi-date formControlName="endDate" /></label>
               </div>
             </section>
           }
@@ -696,12 +705,70 @@
 }
 
 
+<!--
+  Quien quedo fuera del perfil al editar la posicion.
+
+  No deshace nada: enumera y lleva a Asignaciones, que es donde se resuelve. Quitarle la asignacion
+  a alguien por un cambio de perfil es decision de quien opera, no un efecto de guardar.
+-->
+@if (asignadosFuera().length) {
+  <div class="modal-backdrop" (click)="asignadosFuera.set([])">
+    <section
+      class="modal modal--aviso"
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="aviso-asignados-titulo"
+      (click)="$event.stopPropagation()"
+    >
+      <header>
+        <div>
+          <span class="eyebrow">Posición actualizada</span>
+          <h2 id="aviso-asignados-titulo">
+            {{ asignadosFuera().length === 1 ? 'Una persona asignada ya no cumple' : asignadosFuera().length + ' personas asignadas ya no cumplen' }}
+          </h2>
+        </div>
+      </header>
+
+      <p class="aviso__linea">
+        El cambio se guardó. Estas personas siguen asignadas a la posición, pero con el perfil
+        nuevo ya no la cubren:
+      </p>
+
+      <ul class="aviso__lista">
+        @for (persona of asignadosFuera(); track persona.nombre) {
+          <li>
+            <strong>{{ persona.nombre }}</strong>
+            <ul>
+              @for (motivo of persona.motivos; track motivo) {
+                <li>{{ motivo }}</li>
+              }
+            </ul>
+          </li>
+        }
+      </ul>
+
+      <footer>
+        <button class="gi-button gi-button--secondary" type="button" (click)="asignadosFuera.set([])">
+          Dejarlo así por ahora
+        </button>
+        <button
+          class="gi-button gi-button--primary"
+          type="button"
+          (click)="asignadosFuera.set([]); activeTab.set('assignments')"
+        >
+          Ver las asignaciones
+        </button>
+      </footer>
+    </section>
+  </div>
+}
+
 @if (positionEditorOpen() && canRead()) {
   <div class="modal-backdrop" (click)="closeEditors()">
     <section
       serviceDialog
       (dismiss)="closeEditors()"
-      class="modal"
+      class="modal modal--posicion"
       role="dialog"
       aria-modal="true"
       aria-labelledby="position-editor-title"
@@ -728,8 +795,14 @@
             <label
               ><span>Personas requeridas *</span
               ><input type="number" formControlName="requiredWorkerCount" min="1"
-            /></label>
-            <label class="wide"><span>Nombre *</span><input formControlName="name" /></label>
+              [class.is-invalid]="errorDe('requiredWorkerCount')"
+            />
+              @if (errorDe('requiredWorkerCount')) { <small class="campo__error">{{ errorDe('requiredWorkerCount') }}</small> }
+            </label>
+            <label class="span-2"
+              ><span>Nombre *</span><input formControlName="name" [class.is-invalid]="errorDe('name')" />
+              @if (errorDe('name')) { <small class="campo__error">{{ errorDe('name') }}</small> }
+            </label>
             <!--
               El precio del puesto. Vive aqui desde que se retiro la configuracion del servicio:
               en seguridad privada se cotiza por puesto, no por servicio, y un servicio con caseta,
@@ -738,7 +811,10 @@
             <label
               ><span>Precio *</span
               ><input type="number" formControlName="price" min="0" step="0.01"
-            /></label>
+              [class.is-invalid]="errorDe('price')"
+            />
+              @if (errorDe('price')) { <small class="campo__error">{{ errorDe('price') }}</small> }
+            </label>
             <!--
               El periodo va junto al importe porque un precio sin periodo no significa nada. Antes
               el campo decia «Precio mensual» y el mes estaba metido en el rotulo: al guardia se le
@@ -752,7 +828,7 @@
                 }
               </select>
             </label>
-            <label class="check"
+            <label class="check check--enLinea"
               ><input type="checkbox" formControlName="isTaxIncluded" /><span>IVA incluido</span></label
             >
             <!--
@@ -762,11 +838,13 @@
               capturadas antes de que el campo existiera.
             -->
             <label
-              ><span>Vigente desde</span><input type="date" formControlName="startDate"
-            /></label>
+              ><span>Vigente desde</span><gi-date formControlName="startDate" [class.is-invalid]="errorDe('startDate')" />
+              @if (errorDe('startDate')) { <small class="campo__error">{{ errorDe('startDate') }}</small> }
+            </label>
             <label
-              ><span>Vigente hasta</span><input type="date" formControlName="endDate"
-            /></label>
+              ><span>Vigente hasta</span><gi-date formControlName="endDate" [class.is-invalid]="errorDe('endDate')" />
+              @if (errorDe('endDate')) { <small class="campo__error">{{ errorDe('endDate') }}</small> }
+            </label>
             <!--
               El patron de turno sale del catalogo. Antes se capturaba dentro de cada posicion y sus
               dias se declaraban por dia de la semana, asi que un 24x48 —ciclo de tres dias— no
@@ -795,27 +873,21 @@
                   <option [value]="patron.idShiftPatternTemplate">{{ patronEtiqueta(patron) }}</option>
                 }
               </select>
-              @if (selectedShiftPatternTemplate(); as patron) {
-                <small>
-                  El puesto sigue el ciclo de {{ patron.cycleDays }}
-                  {{ patron.cycleDays === 1 ? 'día' : 'días' }} de este patrón:
-                  un promedio de {{ patron.weeklyHours }} horas por semana.
-                  @if (patron.compliance === 'Exceeds') {
-                    Excede la jornada legal por {{ patron.excessHours }} horas; se guarda igual y
-                    queda registrado.
-                  }
-                </small>
-              } @else if (!shiftPatternTemplates().length) {
+              <!--
+                Sin nota debajo del desplegable: repetia lo que la propia opcion ya dice.
+
+                `patronEtiqueta` escribe «de 12x12 · Nocturno · 6 dias · promedio 42 h/semana», y
+                cuando se pasa de la jornada legal añade «· excede por N h». La nota volvia a
+                contarlo en prosa dos renglones mas abajo, asi que el aviso de exceso no se pierde:
+                sigue en la etiqueta del patron elegido, que es donde se lee al elegirlo.
+              -->
+              @if (!shiftPatternTemplates().length) {
                 <small>
                   Todavía no hay patrones completos en el catálogo. Se construyen en Catálogos ·
                   Patrones de turno; mientras no haya ninguno, el puesto conserva el patrón que se le
                   capturó por dentro.
                 </small>
               } @else {
-                <small>
-                  Sin patrón del catálogo el puesto conserva el que se le capturó por dentro. Sólo
-                  se ofrecen los patrones con todos los días del ciclo declarados.
-                </small>
               }
             </label>
             <!--
@@ -852,24 +924,49 @@
               </select>
             </label>
 
+            <!--
+              El equipo, en desplegable.
+
+              Eran doce casillas en rejilla de tres columnas: ocupaban un tercio del formulario
+              para declarar algo que casi siempre son dos o tres cosas, y obligaban a leer las doce
+              para ver cuales estaban marcadas. Ahora se elige de una lista y lo elegido queda a la
+              vista como fichas, que es donde se lee sin buscar.
+            -->
             <div class="wide">
               <span class="equipo__titulo">Equipo requerido</span>
               @if (equipmentCatalog().length) {
-                <ul class="equipo">
-                  @for (equipo of equipmentCatalog(); track equipo.idCatalogItem) {
-                    <li>
-                      <label>
-                        <input
-                          type="checkbox"
-                          [checked]="selectedEquipment().includes(equipo.idCatalogItem)"
-                          [disabled]="!canWriteClients()"
-                          (change)="toggleEquipment(equipo.idCatalogItem)"
-                        />
-                        <span>{{ equipo.name }}</span>
-                      </label>
-                    </li>
+                <div class="equipo__control">
+                  <gi-select
+                    label="Agregar equipo requerido"
+                    placeholder="Elige el equipo que la posición exige"
+                    [openDown]="true"
+                    [options]="equipmentOptions()"
+                    [disabled]="!canWriteClients() || !equipmentOptions().length"
+                    value=""
+                    (valueChange)="addEquipment($event)"
+                  />
+                  @if (!equipmentOptions().length) {
+                    <small>Ya está declarado todo el equipo del catálogo.</small>
                   }
-                </ul>
+                </div>
+
+                @if (selectedEquipment().length) {
+                  <ul class="equipo__elegido">
+                    @for (equipo of selectedEquipmentItems(); track equipo.idCatalogItem) {
+                      <li>
+                        <span>{{ equipo.name }}</span>
+                        @if (canWriteClients()) {
+                          <button
+                            type="button"
+                            [attr.aria-label]="'Quitar ' + equipo.name"
+                            (click)="toggleEquipment(equipo.idCatalogItem)"
+                          >&times;</button>
+                        }
+                      </li>
+                    }
+                  </ul>
+                } @else {
+                }
               } @else {
                 <small>
                   El catálogo de equipo requerido está vacío. Se llena en Catálogos · Equipo
@@ -892,12 +989,17 @@
               (add)="addPositionSkill($event)"
               (remove)="removePositionSkill($event)"
               (removePending)="removePendingPositionSkill($event)"
-              (createSkill)="createSkillForProfile($event)"
             />
-            <label class="wide"
-              ><span>Perfil en palabras · nota, no se comprueba</span
-              ><textarea rows="2" formControlName="requiredSkillProfile"></textarea>
-            </label>
+            <!--
+              El «Perfil en palabras» sale de la vista el 24 de septiembre de 2026. Era una nota
+              que nadie comprobaba, al lado de la lista de experiencias que SI se comprueban.
+
+              **El control sigue en el formulario**, sin dibujarse. Quitarlo del grupo haria que al
+              guardar viajara vacio y borraria en silencio lo que ya hay escrito en las posiciones
+              que lo usaron; asi el texto viaja intacto y sigue leyendose en la tarjeta de la
+              posicion, que es donde se consulta.
+            -->
+
             <label class="wide"
               ><span>Notas</span><textarea rows="3" formControlName="notes"></textarea>
             </label>
@@ -983,8 +1085,8 @@
               </select>
               <small>Con qué calidad cubre <strong>esta posición</strong>.</small>
             </label>
-            <label><span>Inicio *</span><input type="date" formControlName="startDate" /></label>
-            <label><span>Fin</span><input type="date" formControlName="endDate" /></label>
+            <label><span>Inicio *</span><gi-date formControlName="startDate" /></label>
+            <label><span>Fin</span><gi-date formControlName="endDate" /></label>
             <!--
               El tipo y la asignación principal parecen lo mismo y responden preguntas distintas.
               Sin decirlo, quien captura marca la casilla porque eligió «Titular» arriba, y las dos

@@ -1,7 +1,9 @@
-import { ChangeDetectionStrategy, Component, computed, effect, input, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { DireccionPorCodigoPostal } from '../../../shared/data-access/direccion-por-codigo-postal';
 import { CatalogSelect } from '../../../shared/ui/catalog-select/catalog-select';
-import { GiEmptyState } from '../../../shared/ui/gi-ui';
+import { GiEmptyState, GiSelect, GiSelectOption } from '../../../shared/ui/gi-ui';
+import { GiMapPicker, GiMapPoint } from '../../../shared/ui/gi-map-picker/gi-map-picker';
 import { ClientContact, ClientZone } from '../data-access/client.models';
 
 /** Lo que hace falta para dar de alta una zona. Nada más: el código lo pone el sistema. */
@@ -12,6 +14,11 @@ export type NewZone = {
   readonly municipality: string;
   readonly state: string;
   readonly postalCode: string;
+  /** El país, en clave. Iba fijo en «MX» hasta el 22 de septiembre de 2026. */
+  readonly countryCode: string;
+  /** El punto marcado en el mapa. Nulo si nadie lo marcó. */
+  readonly latitude: number | null;
+  readonly longitude: number | null;
 };
 
 /**
@@ -27,7 +34,10 @@ export type NewZone = {
 @Component({
   selector: 'app-client-zones',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CatalogSelect, FormsModule, GiEmptyState],
+  imports: [CatalogSelect, FormsModule, GiEmptyState, GiMapPicker, GiSelect],
+  // Una por formulario abierto: el domicilio a medio escribir es de esta pestaña, no de la
+  // aplicación entera.
+  providers: [DireccionPorCodigoPostal],
   template: `
     <section class="zones">
       @if (adding()) {
@@ -46,14 +56,70 @@ export type NewZone = {
             </label>
             <label class="field" for="ns-cp">
               <span class="field__label">CÓDIGO POSTAL</span>
-              <input id="ns-cp" name="postalCode" type="text" [ngModel]="postalCode()" (ngModelChange)="postalCode.set($event)" [ngModelOptions]="sueltos" autocomplete="off" />
+              <input id="ns-cp" name="postalCode" type="text" inputmode="numeric" maxlength="5" [ngModel]="direccion.postalCode()" (ngModelChange)="direccion.onPostalCode($event)" [ngModelOptions]="sueltos" autocomplete="off" />
+              @if (direccion.buscando()) {
+                <small class="field__nota">Buscando…</small>
+              } @else if (direccion.sinPadron()) {
+                <small class="field__nota" role="status">No está en el padrón. Elige el estado y el municipio abajo.</small>
+              }
             </label>
           </div>
 
+          <!--
+            RQ-03/RQ-04: el campo de ubicacion es el mapa. El Plus code se deriva del punto, y el
+            propio selector lo muestra debajo junto con las coordenadas.
+
+            Estuvo retirado unas horas el 29 de septiembre de 2026, cuando el servidor publico de
+            OpenStreetMap respondia su imagen de «Access blocked» a esta aplicacion. El bloqueo era
+            temporal --lo provocaron las recargas de una sesion de pruebas-- y el requerimiento pide
+            el mapa, asi que vuelve. Lo que no vuelve es el silencio: si los mosaicos fallan, el
+            selector dice por que.
+          -->
+          <div class="new__mapa">
+            <span class="field__label">UBICACIÓN EN EL MAPA</span>
+            <gi-map-picker [point]="punto()" (pointChange)="punto.set($event)" />
+          </div>
+
+          <!--
+            El país se elige, no se supone. Iba fijo en «MX» y los otros dos desplegables lo
+            recibían como constante: una organización que opere fuera no podía capturar una zona, y
+            nada en la pantalla lo decía. Ahora encabeza la cascada —país, estado, municipio— y
+            cambiarlo invalida lo de abajo, que pertenecía al país anterior.
+          -->
           <div class="new__row new__row--three">
+            <label class="field" for="ns-pais">
+              <span class="field__label">PAÍS</span>
+              <app-catalog-select
+                id="ns-pais"
+                type="Country"
+                label="País"
+                [organizationId]="organizationId()"
+                [ngModel]="direccion.countryCode()"
+                (ngModelChange)="direccion.onCountry($event)"
+                [ngModelOptions]="sueltos"
+              />
+            </label>
+            <!--
+              La colonia es desplegable cuando el código postal la resolvió, y texto libre cuando
+              no. «Otra» está siempre: el padrón se publica cada tanto y los fraccionamientos
+              nuevos tardan en entrar, así que no puede impedir la captura.
+            -->
             <label class="field" for="ns-colonia">
               <span class="field__label">COLONIA</span>
-              <input id="ns-colonia" name="neighborhood" type="text" [ngModel]="neighborhood()" (ngModelChange)="neighborhood.set($event)" [ngModelOptions]="sueltos" autocomplete="off" />
+              @if (direccion.coloniaEnLista()) {
+                <gi-select
+                  id="ns-colonia"
+                  label="Colonia"
+                  placeholder="Selecciona la colonia"
+              [openDown]="true"
+                  [openDown]="true"
+                  [options]="direccion.opcionesDeColonia()"
+                  [value]="direccion.neighborhood()"
+                  (valueChange)="direccion.onColonia($event)"
+                />
+              } @else {
+                <input id="ns-colonia" name="neighborhood" type="text" [ngModel]="direccion.neighborhood()" (ngModelChange)="direccion.neighborhood.set($event)" [ngModelOptions]="sueltos" autocomplete="off" />
+              }
             </label>
             <label class="field" for="ns-estado">
               <span class="field__label">ESTADO</span>
@@ -61,10 +127,10 @@ export type NewZone = {
                 id="ns-estado"
                 type="State"
                 label="Estado"
-                country="MX"
+                [country]="direccion.countryCode()"
                 [organizationId]="organizationId()"
-                [ngModel]="state()"
-                (ngModelChange)="onState($event)"
+                [ngModel]="direccion.state()"
+                (ngModelChange)="direccion.onState($event)"
                 [ngModelOptions]="sueltos"
               />
             </label>
@@ -74,11 +140,11 @@ export type NewZone = {
                 id="ns-municipio"
                 type="City"
                 label="Municipio"
-                country="MX"
-                [state]="state()"
+                [country]="direccion.countryCode()"
+                [state]="direccion.state()"
                 [organizationId]="organizationId()"
-                [ngModel]="municipality()"
-                (ngModelChange)="municipality.set($event)"
+                [ngModel]="direccion.municipality()"
+                (ngModelChange)="direccion.municipality.set($event)"
                 [ngModelOptions]="sueltos"
               />
             </label>
@@ -95,8 +161,12 @@ export type NewZone = {
             >Guardar zona</button>
           </p>
 
-          <!-- La razón se escribe. Un botón gris sin explicación obliga a adivinar. -->
-          <p class="new__reason" id="ns-falta" [hidden]="ready()">
+          <!--
+            La razón sale de la vista pero no del documento: el botón desactivado la sigue nombrando
+            con aria-describedby, así que quien usa lector de pantalla sigue oyendo qué le falta.
+            Lo que se retira es el texto permanente, como en el alta.
+          -->
+          <p class="new__reason new__reason--oculta" id="ns-falta">
             Hacen falta el nombre, la calle, el municipio, el estado y el código postal.
           </p>
         </form>
@@ -131,7 +201,6 @@ export type NewZone = {
           existe para decir que falta la zona y como ponerla.
         -->
         <p class="zones__intro">
-          <span>Cada servicio se liga a una zona. Al crear el servicio se elige de esta lista.</span>
         </p>
 
         <ul class="zones__list">
@@ -305,7 +374,7 @@ export type NewZone = {
     }
 
     .new__row { display: grid; gap: 0.7rem; }
-    .new__row--three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .new__row--three { grid-template-columns: repeat(4, minmax(0, 1fr)); }
     .new__row--calle { grid-template-columns: 2fr 1fr; }
 
     .field { display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; }
@@ -332,7 +401,20 @@ export type NewZone = {
 
     .field input:focus-visible { outline: 2px solid var(--gestia-cyan); outline-offset: 1px; }
 
+    .field__nota { color: var(--gestia-muted); font-size: 11px; }
+
     .new__footer { display: flex; justify-content: flex-end; gap: 0.55rem; margin: 0; }
+
+    .new__reason--oculta {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      margin: -1px;
+      padding: 0;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
 
     .new__reason { margin: 0; color: var(--gestia-muted); font-size: 11.5px; }
 
@@ -444,35 +526,22 @@ export class ClientZones {
 
   protected readonly zoneName = signal('');
   protected readonly street = signal('');
-  protected readonly neighborhood = signal('');
-  protected readonly municipality = signal('');
-  protected readonly state = signal('');
-  protected readonly postalCode = signal('');
+
+  /** El punto del mapa. Es el campo de ubicación: el Plus code se deriva de él, no se captura. */
+  protected readonly punto = signal<GiMapPoint | null>(null);
+
+  /** El domicilio, con su código postal al mando. Compartido con el expediente de personal. */
+  protected readonly direccion = inject(DireccionPorCodigoPostal);
 
   /** Lo mínimo para que la zona sea una dirección y no un nombre suelto. */
   protected readonly ready = computed(
     () =>
       !!this.zoneName().trim() &&
       !!this.street().trim() &&
-      !!this.municipality().trim() &&
-      !!this.state().trim() &&
-      !!this.postalCode().trim(),
+      !!this.direccion.municipality().trim() &&
+      !!this.direccion.state().trim() &&
+      !!this.direccion.postalCode().trim(),
   );
-
-
-
-  /**
-   * El estado y el municipio salen del catálogo geográfico, no de texto libre.
-   *
-   * <p>El servidor los valida contra `State` y `City` y rechaza cualquier otra cosa con
-   * «Selecciona una ciudad o municipio activo del estado». Escribirlos a mano dejaba un formulario
-   * que se llenaba entero y fallaba al guardar, sin decir dónde.</p>
-   */
-  protected onState(valor: string): void {
-    this.state.set(valor);
-    // Cambiar de estado invalida el municipio elegido: pertenecía al estado anterior.
-    this.municipality.set('');
-  }
 
   protected startAdd(): void {
     this.editando.set(null);
@@ -486,10 +555,15 @@ export class ClientZones {
     this.editando.set(zone);
     this.zoneName.set(zone.name);
     this.street.set(zone.street ?? '');
-    this.neighborhood.set(zone.neighborhood ?? '');
-    this.municipality.set(zone.municipality ?? '');
-    this.state.set(zone.state ?? '');
-    this.postalCode.set(zone.postalCode ?? '');
+    this.direccion.cargar(zone);
+
+    // El punto guardado entra al formulario. No se cargaba, y como el guardado manda lo que haya
+    // en la senal, editar el nombre de una zona con coordenadas las borraba sin decir nada.
+    const lat = zone.latitude;
+    const lon = zone.longitude;
+    this.punto.set(
+      typeof lat === 'number' && typeof lon === 'number' ? { latitude: lat, longitude: lon } : null,
+    );
   }
 
   protected cancelAdd(): void {
@@ -524,10 +598,13 @@ export class ClientZones {
     const datos: NewZone = {
       name: this.zoneName().trim(),
       street: this.street().trim(),
-      neighborhood: this.neighborhood().trim(),
-      municipality: this.municipality().trim(),
-      state: this.state().trim(),
-      postalCode: this.postalCode().trim(),
+      neighborhood: this.direccion.neighborhood().trim(),
+      municipality: this.direccion.municipality().trim(),
+      state: this.direccion.state().trim(),
+      postalCode: this.direccion.postalCode().trim(),
+      latitude: this.punto()?.latitude ?? null,
+      longitude: this.punto()?.longitude ?? null,
+      countryCode: this.direccion.countryCode(),
     };
 
     const enEdicion = this.editando();
@@ -548,11 +625,9 @@ export class ClientZones {
   private limpiar(): void {
     this.zoneName.set('');
     this.street.set('');
-    this.neighborhood.set('');
-    this.municipality.set('');
-    this.state.set('');
-    this.postalCode.set('');
+    this.direccion.limpiar();
   }
+
 
   /** El primer contacto de la zona. La marca de principal no siempre está puesta. */
   /**

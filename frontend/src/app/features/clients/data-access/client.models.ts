@@ -135,11 +135,22 @@ export type ClientZone = {
   readonly municipality: string;
   readonly state: string;
   readonly postalCode: string;
+  /** Donde esta, en grados. Nulas mientras nadie la haya marcado en el mapa. */
+  readonly latitude?: number | null;
+  readonly longitude?: number | null;
   readonly countryCode: string;
   readonly accessInstructions: string | null;
   readonly timeZoneId: string | null;
   readonly active: boolean;
 };
+
+/**
+ * Una zona vista desde fuera de la ficha de su cliente.
+ *
+ * <p>Lleva el nombre del cliente porque sin él no se puede leer: hay cinco nombres de zona
+ * repetidos entre clientes distintos, y dos filas idénticas serían indistinguibles.</p>
+ */
+export type OrganizationClientZone = ClientZone & { readonly clientName: string };
 
 export type ClientZoneInput = {
   readonly idOrganization: string;
@@ -152,6 +163,9 @@ export type ClientZoneInput = {
   readonly municipality: string;
   readonly state: string;
   readonly postalCode: string;
+  /** Donde esta, en grados. Nulas mientras nadie la haya marcado en el mapa. */
+  readonly latitude?: number | null;
+  readonly longitude?: number | null;
   readonly countryCode: string | null;
   readonly accessInstructions: string | null;
   readonly timeZoneId: string | null;
@@ -171,23 +185,14 @@ export type ClientContactPurpose =
   | 'Purchasing'
   | 'InternalSecurity';
 
-/**
- * A quién cubre un contacto.
- *
- * <p>Se podía deducir de si tiene zona, y aun así viaja: un contacto sin zona porque nadie se la
- * puso no es lo mismo que uno que vale para todo el cliente a propósito, y la decisión D-02 —un
- * contacto principal por alcance— necesita contar de cada clase.</p>
- */
-export type ClientContactScope = 'General' | 'Zone';
-
 export type ClientContact = {
   readonly idClientContact: string;
   readonly idClient: string;
   readonly idClientZone: string | null;
-  readonly scope: ClientContactScope;
   readonly idPurposeCatalogItem: string | null;
   readonly idContactJobPositionCatalogItem: string | null;
   readonly clientZoneName: string | null;
+  readonly clientZoneMunicipality?: string | null;
   readonly purposeName: string | null;
   readonly contactJobPositionName: string | null;
   /** Para qué se le llama, como enum. <b>Rastro heredado</b> de antes de la conversión a catálogo. */
@@ -205,7 +210,6 @@ export type ClientContactInput = {
   readonly idOrganization: string;
   readonly idClient: string;
   readonly idClientZone: string | null;
-  readonly scope: ClientContactScope;
   readonly idPurposeCatalogItem: string | null;
   readonly idContactJobPositionCatalogItem: string | null;
   readonly purpose: ClientContactPurpose;
@@ -264,6 +268,7 @@ export type ManagedService = {
   readonly idClient: string;
   readonly idClientZone: string;
   readonly clientZoneName: string | null;
+  readonly clientZoneMunicipality?: string | null;
   readonly idServiceContract: string | null;
   readonly serviceContractCode: string | null;
   readonly codeService: string;
@@ -491,6 +496,8 @@ export type ServiceAssignment = {
   readonly idEmployee: string;
   readonly employeeCode: string;
   readonly employeeName: string;
+  /** El municipio del domicilio. Es lo que hoy permite decir si vive cerca de la sede. */
+  readonly employeeMunicipality: string | null;
   readonly idService: string;
   readonly idPosition: string | null;
   readonly positionCode: string | null;
@@ -982,10 +989,14 @@ export type ClientListItem = {
   readonly zoneCount: number;
   readonly zonesWithoutContact: number;
   readonly contactCount: number;
+  /** Documentos activos. Viaja con la fila para que la pestaña tenga contador sin abrirla. */
+  readonly documentCount: number;
   readonly serviceCount: number;
   readonly mainZoneName: string | null;
   readonly mainZoneMunicipality: string | null;
   readonly mainZoneState: string | null;
+  /** Cuántas ubicaciones distintas tienen sus zonas activas. Con más de una, no se afirma ninguna. */
+  readonly zoneLocationCount: number;
 };
 
 /** Los tres modos del listado. Coincide con el enum del servidor. */
@@ -1001,15 +1012,23 @@ export const clientDisplayName = (client: {
 }) => client.tradeName ?? client.legalName;
 
 /**
- * Dónde está el cliente, según su zona principal.
+ * Dónde está el cliente.
  *
- * <p>El bosquejo pedía «Zona · Municipio», y <b>la zona no existe en el modelo</b>: ni el cliente
- * ni la zona la tienen, y el catálogo <c>Zone</c> no lo referencia ninguna entidad. Lo que sí
- * existe, y es lo que se muestra, es el estado y el municipio de la zona.</p>
+ * <p><b>Con varias ubicaciones no se afirma una.</b> `mainZone*` es la primera zona por nombre, no
+ * una zona destacada: el modelo no tiene jerarquía entre zonas. Almacenes Reforma tiene zonas en
+ * Tijuana y en León, y la columna decía «Baja California · Tijuana» a secas, como si el cliente
+ * estuviera sólo ahí. Elegir una en silencio es peor que decir cuántas hay.</p>
+ *
+ * <p>Con una sola ubicación sí se dice, que es el caso de la mayoría y el que sirve para ubicar la
+ * fila de un vistazo.</p>
  */
 export function clientLocation(client: ClientListItem): string {
   if (!client.mainZoneMunicipality) {
     return 'Sin ubicación: no tiene zona';
+  }
+
+  if (client.zoneLocationCount > 1) {
+    return `${client.zoneLocationCount} ubicaciones`;
   }
 
   return client.mainZoneState

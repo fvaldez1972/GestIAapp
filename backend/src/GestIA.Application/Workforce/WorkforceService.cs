@@ -60,7 +60,7 @@ public sealed class WorkforceService(
         var code = NormalizeCode(request.CodeEmployee, nameof(request.CodeEmployee));
         var profile = Validate(request);
         await catalogs.ValueAsync(request.IdOrganization, BusinessCatalogItemType.JobPosition, profile.JobTitle, null, cancellationToken);
-        await catalogs.AddressAsync(request.IdOrganization, profile.CountryCode, profile.State, profile.Municipality, null, null, null, cancellationToken);
+        await catalogs.AddressAsync(profile.CountryCode, profile.State, profile.Municipality, null, null, null, cancellationToken);
         await EnsureUniqueIdentifiersAsync(
             request.IdOrganization,
             code,
@@ -91,7 +91,7 @@ public sealed class WorkforceService(
         var employee = await EnsureEmployeeAsync(request.IdOrganization, idEmployee, cancellationToken);
         var profile = Validate(request);
         await catalogs.ValueAsync(request.IdOrganization, BusinessCatalogItemType.JobPosition, profile.JobTitle, employee.JobTitle, cancellationToken);
-        await catalogs.AddressAsync(request.IdOrganization, profile.CountryCode, profile.State, profile.Municipality,
+        await catalogs.AddressAsync(profile.CountryCode, profile.State, profile.Municipality,
             employee.CountryCode, employee.State, employee.Municipality, cancellationToken);
         await EnsureUniqueIdentifiersAsync(
             request.IdOrganization,
@@ -116,6 +116,163 @@ public sealed class WorkforceService(
         employee.ChangeStatus(request.Status, actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return Map(employee);
+    }
+
+    /// <summary>
+    /// Contrata a quien estaba en candidatura: abre su primer periodo laboral.
+    /// </summary>
+    public async Task<EmployeeResponse> HireEmployeeAsync(
+        Guid idEmployee,
+        HireEmployeeRequest request,
+        CancellationToken cancellationToken)
+    {
+        var employee = await EnsureEmployeeWithPeriodsAsync(request.IdOrganization, idEmployee, cancellationToken);
+        employee.Hire(request.StartDate, actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+        return Map(employee);
+    }
+
+    /// <summary>
+    /// Registra la baja: cierra el periodo abierto con su fecha y su motivo, cierra las asignaciones
+    /// que siguen vigentes, y cuenta los turnos ya proyectados que quedan a nombre de la persona.
+    ///
+    /// <para><b>Las tres cosas van en la misma transacción</b>, y ésa es la parte que importa: una baja
+    /// que cerrara el periodo y dejara las asignaciones abiertas describiría a alguien que ya no
+    /// trabaja y sigue cubriendo un servicio.</para>
+    ///
+    /// <para><b>Los turnos ya proyectados no se tocan.</b> Una versión publicada de la planeación es
+    /// inmutable por decisión del proyecto, y borrar turnos ajenos en silencio sería peor que dejarlos:
+    /// alguien tiene que cubrirlos, y para eso hay que verlos. Por eso se cuentan y se devuelven, en
+    /// vez de desaparecer.</para>
+    /// </summary>
+    public async Task<TerminateEmployeeResult> TerminateEmployeeAsync(
+        Guid idEmployee,
+        TerminateEmployeeRequest request,
+        CancellationToken cancellationToken)
+    {
+        var employee = await EnsureEmployeeWithPeriodsAsync(request.IdOrganization, idEmployee, cancellationToken);
+
+        employee.Terminate(
+            request.EndDate,
+            request.TerminationReason,
+            actorContext.ActorId,
+            actorContext.ActorName,
+            clock.UtcNow);
+
+        var asignaciones = await repository.ListOpenAssignmentsAsync(
+            request.IdOrganization, idEmployee, request.EndDate, cancellationToken);
+
+        foreach (var asignacion in asignaciones)
+        {
+            asignacion.Close(request.EndDate, actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
+        }
+
+        // RQ-08: los papeles cuyo tipo vence al causar baja quedan cortados a la fecha de la baja,
+        // conservando su vigencia original. Al reingresar se piden de nuevo.
+        var documentos = await repository.ListDocumentsExpiringOnTerminationAsync(
+            request.IdOrganization, idEmployee, cancellationToken);
+        var evaluaciones = await repository.ListEvaluationsExpiringOnTerminationAsync(
+            request.IdOrganization, idEmployee, cancellationToken);
+
+        var documentosCortados = documentos.Count(documento => documento.ExpireOnTermination(
+            request.EndDate, actorContext.ActorId, actorContext.ActorName, clock.UtcNow));
+        var evaluacionesCortadas = evaluaciones.Count(evaluacion => evaluacion.ExpireOnTermination(
+            request.EndDate, actorContext.ActorId, actorContext.ActorName, clock.UtcNow));
+
+        var turnos = await repository.CountFutureShiftsAsync(
+            request.IdOrganization, idEmployee, request.EndDate, cancellationToken);
+
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return new TerminateEmployeeResult(
+            Map(employee),
+            asignaciones.Count,
+            turnos.Count,
+            turnos.FirstDate,
+            turnos.LastDate,
+            documentosCortados,
+            evaluacionesCortadas);
+    }
+
+    /// <summary>
+    /// Registra un reingreso: abre un periodo nuevo. Puede repetirse sin límite y sin espera mínima.
+    /// </summary>
+    public async Task<EmployeeResponse> RehireEmployeeAsync(
+        Guid idEmployee,
+        RehireEmployeeRequest request,
+        CancellationToken cancellationToken)
+    {
+        var employee = await EnsureEmployeeWithPeriodsAsync(request.IdOrganization, idEmployee, cancellationToken);
+        employee.Rehire(request.StartDate, actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+        return Map(employee);
+    }
+
+    public async Task<IReadOnlyList<EmploymentPeriodResponse>> ListEmploymentPeriodsAsync(
+        Guid idOrganization,
+        Guid idEmployee,
+        CancellationToken cancellationToken)
+    {
+        await EnsureEmployeeAsync(idOrganization, idEmployee, cancellationToken);
+        return await repository.ListEmploymentPeriodsAsync(idOrganization, idEmployee, cancellationToken);
+    }
+
+    public async Task<PsychometricTestResponse> RegisterPsychometricTestAsync(
+        Guid idEmployee,
+        RegisterPsychometricTestRequest request,
+        CancellationToken cancellationToken)
+    {
+        var employee = await EnsureEmployeeWithPeriodsAsync(request.IdOrganization, idEmployee, cancellationToken);
+
+        var prueba = employee.RegisterPsychometricTest(
+            request.ApprovedDate, actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
+
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return new PsychometricTestResponse(
+            prueba.IdEmployeePsychometricTest,
+            prueba.IdEmployee,
+            prueba.ApprovedDate,
+            prueba.ExpiredOnDate,
+            prueba.IsValid,
+            prueba.CreatedAt,
+            prueba.CreatedByName);
+    }
+
+    public async Task<IReadOnlyList<PsychometricTestResponse>> ListPsychometricTestsAsync(
+        Guid idOrganization,
+        Guid idEmployee,
+        CancellationToken cancellationToken)
+    {
+        await EnsureEmployeeAsync(idOrganization, idEmployee, cancellationToken);
+        return await repository.ListPsychometricTestsAsync(idOrganization, idEmployee, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<TerminationExpirationGroup>> ListTerminationExpirationsAsync(
+        Guid idOrganization,
+        Guid idEmployee,
+        CancellationToken cancellationToken)
+    {
+        await EnsureEmployeeAsync(idOrganization, idEmployee, cancellationToken);
+        return await repository.ListTerminationExpirationsAsync(idOrganization, idEmployee, cancellationToken);
+    }
+
+    private async Task<Employee> EnsureEmployeeWithPeriodsAsync(
+        Guid idOrganization,
+        Guid idEmployee,
+        CancellationToken cancellationToken)
+    {
+        if (idOrganization == Guid.Empty || idEmployee == Guid.Empty)
+        {
+            throw new RequestValidationException(new Dictionary<string, string[]>
+            {
+                [nameof(idOrganization)] = ["La organización es obligatoria."],
+                [nameof(idEmployee)] = ["El empleado es obligatorio."]
+            });
+        }
+
+        return await repository.GetEmployeeWithPeriodsAsync(idOrganization, idEmployee, cancellationToken)
+            ?? throw new ResourceNotFoundException($"No existe el empleado '{idEmployee}'.");
     }
 
     public async Task DeactivateEmployeeAsync(
@@ -150,7 +307,7 @@ public sealed class WorkforceService(
     {
         RequireSensitiveDocumentWrite();
         await EnsureEmployeeAsync(request.IdOrganization, request.IdEmployee, cancellationToken);
-        var profile = Validate(request);
+        var profile = await ConSensibilidadDelTipoAsync(request.IdOrganization, Validate(request), cancellationToken);
         ValidateDocumentStorage(request.IdOrganization, profile.StorageReference);
         var document = EmployeeDocument.Create(
             request.IdOrganization,
@@ -172,7 +329,7 @@ public sealed class WorkforceService(
     {
         RequireSensitiveDocumentWrite();
         await EnsureEmployeeAsync(request.IdOrganization, request.IdEmployee, cancellationToken);
-        var profile = Validate(request);
+        var profile = await ConSensibilidadDelTipoAsync(request.IdOrganization, Validate(request), cancellationToken);
         var document = await repository.GetDocumentAsync(request.IdEmployee, idEmployeeDocument, cancellationToken)
             ?? throw new ResourceNotFoundException("No se encontró el documento solicitado.");
 
@@ -224,6 +381,7 @@ public sealed class WorkforceService(
         if (await repository.IsEvaluationInUseAsync(
                 request.IdEmployee,
                 profile.EvaluationType,
+                profile.IdEvaluationCategoryCatalogItem,
                 profile.EvaluatedDate,
                 null,
                 cancellationToken))
@@ -261,6 +419,7 @@ public sealed class WorkforceService(
         if (await repository.IsEvaluationInUseAsync(
                 request.IdEmployee,
                 profile.EvaluationType,
+                profile.IdEvaluationCategoryCatalogItem,
                 profile.EvaluatedDate,
                 idEmployeeEvaluation,
                 cancellationToken))
@@ -384,7 +543,9 @@ public sealed class WorkforceService(
 
     private static EmployeeProfile Validate(CreateEmployeeRequest request) =>
         ValidateProfile(
-            request.FullName,
+            request.FirstName,
+            request.LastNamePaternal,
+            request.LastNameMaternal,
             request.JobTitle,
             request.HireDate,
             request.BirthDate,
@@ -417,7 +578,9 @@ public sealed class WorkforceService(
 
     private static EmployeeProfile Validate(UpdateEmployeeRequest request) =>
         ValidateProfile(
-            request.FullName,
+            request.FirstName,
+            request.LastNamePaternal,
+            request.LastNameMaternal,
             request.JobTitle,
             request.HireDate,
             request.BirthDate,
@@ -449,7 +612,9 @@ public sealed class WorkforceService(
             request.IdEducationLevelCatalogItem);
 
     private static EmployeeProfile ValidateProfile(
-        string fullName,
+        string firstName,
+        string lastNamePaternal,
+        string? lastNameMaternal,
         string? jobTitle,
         DateOnly hireDate,
         DateOnly? birthDate,
@@ -481,7 +646,9 @@ public sealed class WorkforceService(
         Guid? idEducationLevelCatalogItem)
     {
         var errors = new Dictionary<string, string[]>();
-        Required(fullName, nameof(fullName), 200, errors);
+        Required(firstName, nameof(firstName), EmployeeName.PartMaxLength, errors);
+        Required(lastNamePaternal, nameof(lastNamePaternal), EmployeeName.PartMaxLength, errors);
+        MaxLength(lastNameMaternal, nameof(lastNameMaternal), EmployeeName.PartMaxLength, errors);
         MaxLength(jobTitle, nameof(jobTitle), 120, errors);
         MaxLength(birthPlace, nameof(birthPlace), 150, errors);
         MaxLength(sex, nameof(sex), 30, errors);
@@ -510,7 +677,9 @@ public sealed class WorkforceService(
         ThrowIfInvalid(errors);
 
         return new EmployeeProfile(
-            fullName,
+            firstName,
+            lastNamePaternal,
+            lastNameMaternal,
             jobTitle,
             hireDate,
             birthDate,
@@ -580,6 +749,29 @@ public sealed class WorkforceService(
             request.StorageReference,
             request.Notes,
             request.IdBusinessDocument);
+
+    /// <summary>
+    /// La sensibilidad la pone el <b>tipo</b> del documento, no quien lo sube.
+    ///
+    /// <para>Antes venía en la petición, desde una casilla del formulario: el mismo tipo podía
+    /// quedar sensible en un expediente y no en el siguiente, según lo que recordara quien lo
+    /// capturó. La casilla se retiró de la pantalla y la decisión se toma aquí, que es donde no se
+    /// puede saltar.</para>
+    ///
+    /// <para>Un documento que ya era sensible <b>no deja de serlo</b> al editarlo, aunque su tipo
+    /// se haya desmarcado después: eso se decide en el catálogo, con permiso y confirmación, y
+    /// desde ahí se propaga.</para>
+    /// </summary>
+    private async Task<EmployeeDocumentProfile> ConSensibilidadDelTipoAsync(
+        Guid idOrganization,
+        EmployeeDocumentProfile profile,
+        CancellationToken cancellationToken) =>
+        profile with
+        {
+            IsSensitive = profile.IsSensitive
+                || await catalogs.IsSensitiveTypeAsync(
+                    idOrganization, profile.IdDocumentCategoryCatalogItem, cancellationToken),
+        };
 
     private static EmployeeDocumentProfile ValidateDocumentProfile(
         EmployeeDocumentType documentType,
@@ -727,6 +919,9 @@ public sealed class WorkforceService(
             employee.IdOrganization,
             employee.CodeEmployee,
             employee.Status,
+            employee.FirstName,
+            employee.LastNamePaternal,
+            employee.LastNameMaternal,
             employee.FullName,
             employee.JobTitle,
             employee.HireDate,

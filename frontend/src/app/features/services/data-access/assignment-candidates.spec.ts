@@ -16,6 +16,7 @@ const asignacion = (overrides: Partial<ServiceAssignment> = {}): ServiceAssignme
   idEmployee: 'e1',
   employeeCode: 'EMP-001',
   employeeName: 'Renata Villaseñor Cortés',
+  employeeMunicipality: null,
   idService: 's1',
   idPosition: 'p1',
   positionCode: 'P-01',

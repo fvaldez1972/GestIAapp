@@ -43,9 +43,9 @@ const TAMANO_POR_OMISION = 10;
  * el campo «Si a una persona le falta esto» y las opciones traían la explicación pegada.</p>
  *
  * <p>Se nombra por sus dos valores en vez de con una palabra que los agrupe: «Naturaleza» hay que
- * aprenderla, «Informativa/Bloqueante» dice lo que uno va a encontrar en la columna.</p>
+ * aprenderla, «Informativa/Obligatorio» dice lo que uno va a encontrar en la columna.</p>
  */
-const NATURALEZA = 'Informativa/Bloqueante';
+const NATURALEZA = 'Informativa/Obligatorio';
 
 /**
  * La página de un catálogo. **Una sola, para los dieciséis.**
@@ -125,6 +125,10 @@ export class CatalogListPage {
     status: ['active' as 'active' | 'inactive', [Validators.required]],
     idParentCatalogItem: [''],
     blockingMark: ['informative' as 'blocking' | 'informative'],
+    terminationExpiry: ['keeps' as 'expires' | 'keeps'],
+    ownExpiry: ['own' as 'own' | 'none'],
+    maxIssueAgeMonths: [''],
+    sensitive: ['no' as 'yes' | 'no'],
   });
 
   constructor() {
@@ -180,7 +184,7 @@ export class CatalogListPage {
         value: this.natureFilter(),
         allLabel: 'Toda naturaleza',
         options: [
-          { value: 'blocking', label: 'Bloqueante' },
+          { value: 'blocking', label: 'Obligatorio' },
           { value: 'informative', label: 'Informativa' },
         ],
       });
@@ -197,8 +201,8 @@ export class CatalogListPage {
     return this.items().filter((item) => {
       if (estado === 'active' && !item.active) return false;
       if (estado === 'inactive' && item.active) return false;
-      if (naturaleza === 'blocking' && item.isBlocking !== true) return false;
-      if (naturaleza === 'informative' && item.isBlocking === true) return false;
+      if (naturaleza === 'blocking' && item.isRequired !== true) return false;
+      if (naturaleza === 'informative' && item.isRequired === true) return false;
 
       if (!texto) return true;
 
@@ -259,8 +263,8 @@ export class CatalogListPage {
   /**
    * Las dos naturalezas, con el mismo nombre en todas partes.
    *
-   * <p><b>Dicen «Bloqueante» e «Informativa» y nada más.</b> Traían la explicación pegada
-   * —«Bloqueante: impide asignar y publicar»— y eso hacía que el desplegable, la columna de la
+   * <p><b>Dicen «Obligatorio» e «Informativa» y nada más.</b> Traían la explicación pegada
+   * —«Obligatorio: impide asignar y publicar»— y eso hacía que el desplegable, la columna de la
    * tabla y el filtro llamaran de tres maneras distintas a la misma cosa. Un valor se reconoce
    * mejor cuando se llama igual en todos los sitios donde aparece que cuando cada sitio lo
    * explica.</p>
@@ -269,8 +273,26 @@ export class CatalogListPage {
   protected readonly naturalezaLabel = NATURALEZA;
 
   protected readonly natureOptions: readonly GiSelectOption[] = [
-    { value: 'blocking', label: 'Bloqueante' },
+    { value: 'blocking', label: 'Obligatorio' },
     { value: 'informative', label: 'Informativa' },
+  ];
+
+  protected readonly sensitiveOptions: readonly GiSelectOption[] = [
+    { value: 'no', label: 'No' },
+    { value: 'yes', label: 'Sí, lleva datos personales' },
+  ];
+
+  /** Queda puesta cuando el usuario acepta el aviso de desmarcado, y se apaga al guardar. */
+  private readonly confirmarDesmarcado = signal(false);
+
+  protected readonly ownExpiryOptions: readonly GiSelectOption[] = [
+    { value: 'own', label: 'Sí, se captura al cargarlo' },
+    { value: 'none', label: 'No, vale mientras dure el ingreso' },
+  ];
+
+  protected readonly terminationExpiryOptions: readonly GiSelectOption[] = [
+    { value: 'keeps', label: 'Conserva su vigencia' },
+    { value: 'expires', label: 'Vence con la baja' },
   ];
 
   protected readonly statusOptions: readonly GiSelectOption[] = [
@@ -301,7 +323,7 @@ export class CatalogListPage {
   }
 
   protected natureLabel(item: CatalogItem): string {
-    return item.isBlocking === true ? 'Bloqueante' : 'Informativa';
+    return item.isRequired === true ? 'Obligatorio' : 'Informativa';
   }
 
   protected rowNumber(item: CatalogItem): number {
@@ -367,6 +389,10 @@ export class CatalogListPage {
       status: 'active',
       idParentCatalogItem: '',
       blockingMark: 'informative',
+      terminationExpiry: 'keeps',
+      ownExpiry: 'own',
+      maxIssueAgeMonths: '',
+      sensitive: 'no',
     });
     this.editor()?.nativeElement.showModal();
   }
@@ -383,7 +409,11 @@ export class CatalogListPage {
       idParentCatalogItem: item.idParentCatalogItem ?? '',
       // Una entrada sin marca se dibuja informativa, que es lo que ya hace: los dos lugares que
       // consultan la marca resuelven el nulo como «no bloquea».
-      blockingMark: item.isBlocking === true ? 'blocking' : 'informative',
+      blockingMark: item.isRequired === true ? 'blocking' : 'informative',
+      terminationExpiry: item.isExpiredOnTermination === true ? 'expires' : 'keeps',
+      ownExpiry: item.hasOwnExpiry === false ? 'none' : 'own',
+      maxIssueAgeMonths: item.maxIssueAgeMonths ? String(item.maxIssueAgeMonths) : '',
+      sensitive: item.isSensitive === true ? 'yes' : 'no',
     });
     this.editor()?.nativeElement.showModal();
   }
@@ -417,7 +447,14 @@ export class CatalogListPage {
       order: selectedItem?.order ?? this.siguienteOrden(),
       active: value.status === 'active',
       // Sólo viaja donde significa algo. En los demás catálogos el servidor la rechaza.
-      isBlocking: page.hasNature ? value.blockingMark === 'blocking' : null,
+      isRequired: page.hasNature ? value.blockingMark === 'blocking' : null,
+      isExpiredOnTermination: page.hasTerminationExpiry ? value.terminationExpiry === 'expires' : null,
+      hasOwnExpiry: page.hasTerminationExpiry ? value.ownExpiry === 'own' : null,
+      maxIssueAgeMonths: Number(value.maxIssueAgeMonths) > 0 ? Number(value.maxIssueAgeMonths) : null,
+      isSensitive: page.hasSensitivity ? value.sensitive === 'yes' : null,
+      // El servidor rechaza el desmarcado la primera vez, diciendo cuántos documentos deja sin
+      // proteger; esta bandera es la respuesta a esa pregunta.
+      confirmUnmarkSensitive: this.confirmarDesmarcado(),
     };
 
     const selected = this.selectedItemId();
@@ -428,13 +465,39 @@ export class CatalogListPage {
       .pipe(finalize(() => this.saving.set(false)), takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: () => {
+          this.confirmarDesmarcado.set(false);
           this.message.set(selected ? 'Valor actualizado.' : 'Valor creado.');
           this.selectedItemId.set('');
           this.closeEditor();
           this.loadData();
         },
-        error: (error: HttpErrorResponse) => this.setError(error),
+        error: (error: HttpErrorResponse) => {
+          // El 409 del desmarcado trae el número de documentos afectados. Se pregunta con ese
+          // número delante, y sólo si la respuesta es sí se vuelve a mandar con la confirmación.
+          const detalle = typeof error.error === 'object' ? error.error?.detail : null;
+
+          if (error.status === 409 && detalle?.includes('Confirma para continuar')) {
+            this.pendienteDesmarcar.set(detalle);
+            return;
+          }
+
+          this.setError(error);
+        },
       });
+  }
+
+  /** El aviso de desmarcado, con el número de documentos que el servidor contó. */
+  protected readonly pendienteDesmarcar = signal('');
+
+  protected confirmarYGuardar(): void {
+    this.pendienteDesmarcar.set('');
+    this.confirmarDesmarcado.set(true);
+    this.save();
+  }
+
+  protected cancelarDesmarcado(): void {
+    this.pendienteDesmarcar.set('');
+    this.confirmarDesmarcado.set(false);
   }
 
   protected toggleActive(item: CatalogItem): void {
@@ -469,7 +532,7 @@ export class CatalogListPage {
         idParentCatalogItem: item.idParentCatalogItem ?? null,
         order: item.order,
         active: true,
-        isBlocking: page?.hasNature ? item.isBlocking === true : null,
+        isRequired: page?.hasNature ? item.isRequired === true : null,
       })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({

@@ -24,7 +24,7 @@ const regla = (overrides: Partial<EligibilityRequirement> = {}): EligibilityRequ
   requiredEvaluationType: null,
   name: 'Experiencia de CCTV',
   description: null,
-  isBlockingEffective: true,
+  isRequiredEffective: true,
   active: true,
   ...overrides,
 });
@@ -70,14 +70,20 @@ function montar(configurar: (host: Anfitrion) => void = () => {}) {
     raiz: fixture.nativeElement as HTMLElement,
     host: fixture.componentInstance,
     componente: componente as unknown as {
-      agregar(): void;
+      agregar(idCatalogItem: string): void;
       bloquea: { set(valor: boolean): void };
-      elegida: { set(valor: string): void; (): string };
       available(): readonly GiCatalogOption[];
     },
-    boton: (texto: string) =>
-      Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('.skill button'))
-        .find((b) => b.textContent!.trim() === texto)!,
+    /**
+     * La tachita de una ficha, buscada por su nombre accesible.
+     *
+     * <p>Antes era un botón rotulado «Quitar» al otro extremo del renglón. Ahora es una equis
+     * pegada al nombre, y su nombre accesible es «Quitar {experiencia}»: buscarlo por ahí es lo
+     * que hace que esta prueba compruebe también que la equis no quedó muda para un lector.</p>
+     */
+    quitarDe: (experiencia: string) =>
+      Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('.skill__quitar'))
+        .find((b) => b.getAttribute('aria-label') === `Quitar ${experiencia}`)!,
     filas: () =>
       Array.from(
         (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('.skill'),
@@ -93,7 +99,9 @@ describe('El perfil requerido de una posición', () => {
   it('sin experiencias lo dice sin inventar un requisito', () => {
     const { raiz } = montar();
 
-    expect(raiz.textContent).toContain('Ninguna experiencia exigida');
+    // Ya no se explica el vacío: el propio desplegable de abajo es la invitación a llenarlo.
+    expect(raiz.querySelector('.skill')).toBeNull();
+    expect(raiz.textContent).toContain('AGREGAR UNA EXPERIENCIA');
   });
 
   it('lista las experiencias ya exigidas por su nombre de catálogo', () => {
@@ -101,22 +109,13 @@ describe('El perfil requerido de una posición', () => {
 
     expect(filas()).toHaveLength(1);
     expect(filas()[0].textContent).toContain('Manejo de CCTV');
-    expect(filas()[0].textContent).toContain('Impide asignar a quien no la tenga');
-  });
-
-  /** La distinción entre bloquear y dejar constancia se dice, porque el sistema la respeta. */
-  it('una experiencia informativa dice que sólo deja constancia', () => {
-    const { filas } = montar((host) => host.requirements.set([regla({ isBlockingEffective: false })]));
-
-    expect(filas()[0].textContent).toContain('Sólo deja constancia');
   });
 
   /** Agregar emite por identificador, y sin severidad: la decide el catálogo. */
-  it('al agregar emite la experiencia por identificador', () => {
+  it('elegir la experiencia la agrega, por identificador', () => {
     const { componente, host } = montar();
 
-    componente.elegida.set(CCTV);
-    componente.agregar();
+    componente.agregar(CCTV);
 
     expect(host.agregadas).toEqual([{ idSkillCatalogItem: CCTV, name: 'Manejo de CCTV' }]);
   });
@@ -125,34 +124,96 @@ describe('El perfil requerido de una posición', () => {
    * La pantalla de la posición no decide la severidad, y tiene que verse que no la decide.
    *
    * <p>Hasta el 19 de septiembre de 2026 había aquí una casilla «Que la nueva impida asignar si no
-   * la tiene», y con ella el mismo requisito podía quedar bloqueante en una posición e informativo
+   * la tiene», y con ella el mismo requisito podía quedar obligatorio en una posición e informativo
    * en otra. RF-POS-010 pidió una sola fuente: el catálogo dice qué tan grave es, la posición dice
    * cuáles pide. Esta prueba sujeta esa decisión donde se puede romper sin darse cuenta.</p>
    */
   it('no ofrece decidir si la experiencia bloquea: eso sale del catálogo', () => {
     const { raiz } = montar((host) => host.requirements.set([regla()]));
 
+    // La casilla es lo que importa: mientras no exista, la severidad no se decide aquí. La frase
+    // que antes lo explicaba se retiró el 24 de septiembre de 2026 —decía lo mismo en todas las
+    // filas— y el hecho no cambió.
     expect(raiz.querySelector('input[type=\"checkbox\"]')).toBeNull();
-    expect(raiz.textContent).toContain('lo decide el catálogo');
   });
 
-  /** Elegir del catálogo no crea nada por sí solo: hace falta el gesto de agregar. */
-  it('elegir la experiencia no la agrega todavía', () => {
+  /**
+   * **Un solo clic**, y ya no hay botón que confirmar.
+   *
+   * <p>Hasta el 24 de septiembre de 2026 elegir del catálogo no hacía nada: había que pulsar
+   * «Agregar». Ese segundo clic confirmaba algo que ya se había decidido con el primero, y su
+   * único efecto real era que alguien eligiera, se fuera, y la experiencia no quedara puesta.</p>
+   *
+   * <p>El control es la otra mitad: <b>sólo agrega lo que está en el catálogo</b>. El selector
+   * emite vacío al limpiarse, y eso no es una elección; un identificador que ya no existe tampoco.
+   * Sin esta comprobación, un manejador que agregara ante cualquier aviso pasaría igual y metería
+   * una fila fantasma cada vez que alguien borrara lo escrito.</p>
+   */
+  it('el vacío no agrega nada, y un identificador desconocido tampoco', () => {
     const { componente, host } = montar();
 
-    componente.elegida.set(CCTV);
+    componente.agregar('');
+    componente.agregar('no-existe-en-el-catalogo');
 
     expect(host.agregadas).toEqual([]);
+
+    // Y el control positivo: con un identificador real sí agrega.
+    componente.agregar(CCTV);
+    expect(host.agregadas).toHaveLength(1);
   });
 
-  /** El selector se limpia para poder sumar varias sin borrar a mano la anterior. */
-  it('el selector queda vacío después de agregar', () => {
-    const { componente } = montar();
+  /** Sin botón «Agregar»: el gesto es elegir. */
+  it('no dibuja un botón para confirmar la elección', () => {
+    const { raiz } = montar();
+    const botones = Array.from(raiz.querySelectorAll('button')).map((b) => b.textContent!.trim());
 
-    componente.elegida.set(CCTV);
-    componente.agregar();
+    expect(botones).not.toContain('Agregar');
+  });
 
-    expect(componente.elegida()).toBe('');
+
+  /**
+   * La experiencia se elige de un **desplegable**, no de un campo donde haya que teclear.
+   *
+   * <p>Antes era un buscador que mezclaba dos cosas en el mismo control: se escribía para filtrar
+   * y, si no aparecía nada, lo escrito se convertía en una entrada del catálogo. Para elegir de
+   * una lista cerrada —que es lo que se hace casi siempre— eso pedía teclear donde bastaba
+   * desplegar.</p>
+   */
+  it('la experiencia se elige de un desplegable, y no hay atajo para crear', () => {
+    const { raiz } = montar();
+
+    expect(raiz.querySelector('gi-select')).not.toBeNull();
+    expect(raiz.querySelector('gi-catalog-picker')).toBeNull();
+
+    // Crear experiencias se hace en Catálogos. El atajo que hubo aquí unas horas se retiró el 24
+    // de septiembre de 2026, con la nota que explicaba la severidad.
+    expect(raiz.textContent).not.toContain('Agrégala al catálogo');
+    expect(raiz.textContent).not.toContain('lo decide el catálogo');
+  });
+
+  /**
+   * La fila de una experiencia elegida dice **sólo su nombre**.
+   *
+   * <p>Llevaba debajo «Impide asignar a quien no la tenga · lo decide el catálogo», o su contrario.
+   * Esa severidad es del catálogo y vale para toda la organización: repetirla en cada fila de cada
+   * posición llenaba la lista de un dato que no se decide aquí y que era igual en todas.</p>
+   *
+   * <p>El control: lo <b>pendiente</b> sí se sigue diciendo, porque eso sí depende de esta
+   * pantalla —es lo que todavía no está guardado— y perderlo dejaría al usuario sin saber que le
+   * falta guardar.</p>
+   */
+  it('la fila dice el nombre, y sólo avisa de lo que falta guardar', () => {
+    const guardada = montar((host) => host.requirements.set([regla()]));
+
+    expect(guardada.filas()[0].textContent).toContain('Manejo de CCTV');
+    expect(guardada.filas()[0].textContent).not.toContain('Impide asignar');
+    expect(guardada.filas()[0].textContent).not.toContain('deja constancia');
+
+    const pendiente = montar((host) =>
+      host.pending.set([{ idSkillCatalogItem: CCTV, name: 'Manejo de CCTV' }]),
+    );
+
+    expect(pendiente.filas()[0].textContent).toContain('sin guardar');
   });
 
   /** Lo ya pedido no se vuelve a ofrecer: dos reglas de lo mismo dirían lo mismo dos veces. */
@@ -175,25 +236,26 @@ describe('El perfil requerido de una posición', () => {
       host.pending.set([{ idSkillCatalogItem: CCTV, name: 'Manejo de CCTV' }]),
     );
 
-    expect(filas()[0].textContent).toContain('Se guarda al guardar la posición');
+    expect(filas()[0].textContent).toContain('sin guardar');
+    expect(filas()[0].classList).toContain('skill--pendiente');
     expect(raiz.textContent).toContain('1 se guardarán con la posición');
   });
 
   it('quitar una guardada emite el identificador de la regla', () => {
-    const { boton, host } = montar((h) => h.requirements.set([regla()]));
+    const { quitarDe, host } = montar((h) => h.requirements.set([regla()]));
 
-    boton('Quitar').click();
+    quitarDe('Manejo de CCTV').click();
 
     expect(host.quitadas).toEqual(['r1']);
     expect(host.quitadasPendientes).toEqual([]);
   });
 
   it('quitar una pendiente emite el identificador de catálogo', () => {
-    const { boton, host } = montar((h) =>
+    const { quitarDe, host } = montar((h) =>
       h.pending.set([{ idSkillCatalogItem: CCTV, name: 'Manejo de CCTV' }]),
     );
 
-    boton('Quitar').click();
+    quitarDe('Manejo de CCTV').click();
 
     expect(host.quitadasPendientes).toEqual([CCTV]);
     expect(host.quitadas).toEqual([]);

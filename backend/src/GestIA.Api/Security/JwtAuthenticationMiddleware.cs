@@ -1,4 +1,6 @@
 using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Options;
 
@@ -42,7 +44,20 @@ public sealed class JwtAuthenticationMiddleware(
         var unsignedToken = $"{parts[0]}.{parts[1]}";
         var expectedSignature = JwtAccessTokenService.HmacSha256(unsignedToken, options.Secret);
 
-        if (!string.Equals(expectedSignature, parts[2], StringComparison.Ordinal))
+        // En tiempo constante, y no con `string.Equals`.
+        //
+        // `string.Equals` corta en el primer caracter distinto, asi que el tiempo de respuesta
+        // filtra cuantos caracteres de la firma acerto quien la mando. Explotarlo por red es muy
+        // dificil —el ruido de latencia supera de largo la diferencia—, pero el arreglo es una
+        // linea y **este proyecto ya lo hace bien en las contraseñas**:
+        // `Pbkdf2PasswordHashService.Verify` usa `FixedTimeEquals` desde siempre. Que la
+        // contraseña se compare en tiempo constante y la firma no, no era una decision.
+        //
+        // Se comparan los bytes en ASCII: las dos cadenas son base64url, asi que un caracter es un
+        // byte y `FixedTimeEquals` puede hacer su trabajo sin decodificar nada.
+        if (!CryptographicOperations.FixedTimeEquals(
+                Encoding.ASCII.GetBytes(expectedSignature),
+                Encoding.ASCII.GetBytes(parts[2])))
         {
             return null;
         }

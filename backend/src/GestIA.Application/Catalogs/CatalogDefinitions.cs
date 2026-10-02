@@ -78,7 +78,6 @@ public static class CatalogDefinitions
         Fixed<ScheduleVersionStatus>("Estados de planeacion", "Planeacion"),
         Fixed<EligibilityRequirementType>("Tipos de regla", "Catalogos"),
         Fixed<EligibilityRequirementTargetType>("Alcances de regla", "Catalogos"),
-        Fixed<ClientContactScope>("Alcances del contacto", "Clientes"),
         Fixed<OperationalEntityType>("Registros con historial", "Auditoria")
     ];
 

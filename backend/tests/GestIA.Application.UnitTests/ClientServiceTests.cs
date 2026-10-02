@@ -128,7 +128,7 @@ public sealed class ClientServiceTests
             new FakeOrganizationRepository(),
             unitOfWork,
             new FakeActorContext(),
-            new FakeClock(), new GestIA.Application.Catalogs.FormCatalogValidator(null!));
+            new FakeClock(), new GestIA.Application.Catalogs.FormCatalogValidator(null!, null!));
 
     private static CreateClientRequest Request(string code, string legalName, string rfc) => new(
         OrganizationId,
@@ -220,7 +220,7 @@ public sealed class ClientServiceTests
                 .Select(client => new ClientListItemResponse(
                     client.IdClient, client.IdOrganization, client.CodeClient, client.LegalName,
                     client.TradeName, client.Rfc, client.Active, client.CreatedAt,
-                    0, 0, 0, 0, null, null, null))
+                    0, 0, 0, 0, 0, null, null, null, 0))
                 .ToArray(), Items.Count));
 
         public Task<IReadOnlyList<string>> ListMunicipalitiesAsync(

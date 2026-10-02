@@ -111,7 +111,7 @@ public sealed record OperationalSnapshotCapture(
 ///
 /// <para>Tampoco lleva la descripción, que es texto libre: viaja si estaba llena o vacía.</para>
 ///
-/// <para>Lo que sí lleva es <c>IsBlocking</c>, que es la razón de que esta entrada tenga
+/// <para>Lo que sí lleva es <c>IsRequired</c>, que es la razón de que esta entrada tenga
 /// historial: es el campo cuyo cambio deja fuera a gente en la siguiente validación.</para>
 /// </summary>
 public sealed record BusinessCatalogItemSnapshot(
@@ -119,7 +119,7 @@ public sealed record BusinessCatalogItemSnapshot(
     Guid IdOrganization,
     BusinessCatalogItemType Type,
     Guid? IdParentCatalogItem,
-    bool? IsBlocking,
+    bool? IsRequired,
     int DisplayOrder,
     bool HasDescription,
     bool Active)
@@ -130,7 +130,7 @@ public sealed record BusinessCatalogItemSnapshot(
 
         return new(
             item.IdBusinessCatalogItem, item.IdOrganization, item.Type, item.IdParentCatalogItem,
-            item.IsBlocking, item.Order, !string.IsNullOrWhiteSpace(item.Description), item.Active);
+            item.IsRequired, item.Order, !string.IsNullOrWhiteSpace(item.Description), item.Active);
     }
 }
 

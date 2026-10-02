@@ -1,3 +1,4 @@
+@import "leaflet/dist/leaflet.css";
 @import "tailwindcss";
 
 @theme {
@@ -23,20 +24,39 @@
   --gestia-warning: #d97706;
   --gestia-danger: #dc2626;
   --gestia-info: #0284c7;
+  /* Los tres rellenos suaves de los estados, hermanos de --gestia-cyan-soft.
+     Existen porque una rejilla de estados dibujada solo con contornos pinta todas las celdas con
+     el mismo peso: la que hay que resolver grita igual que la que no pide nada. El relleno deja
+     que el color diga la jerarquia y el contorno deje de hacerlo. Viven aqui, con el resto de la
+     paleta, y no dentro de un componente: ahi serian un color decidido por cuenta propia. */
+  --gestia-success-soft: #e9f7ef;
+  --gestia-warning-soft: #fdf1e3;
+  --gestia-danger-soft: #fdecec;
   --gestia-sidebar-width: 17rem;
   --gestia-sidebar-condensed-width: 5rem;
   --gestia-topbar-height: 4.5rem;
   --gestia-page-gap: 1rem;
   --gestia-card-padding: 1rem;
   --gestia-radius: 6px;
+  /* Dos radios mas, del 24 de septiembre de 2026.
+     El sistema tenia 6 px para todo y 3 px para las pildoras, y con eso ninguna pantalla podia
+     dejar de parecer una hoja de calculo: un rectangulo de 6 px con borde de un pixel es
+     exactamente el aspecto de una celda de tabla. El grande es para tarjetas y celdas; el de
+     pildora completo es para insignias y contadores, que a 3 px se leian como cajitas. */
+  --gestia-radius-lg: 12px;
+  --gestia-radius-chip: 999px;
   /* Radio de píldoras y etiquetas pequeñas. El bosquejo lo usa veinte veces. */
   --gestia-radius-pill: 3px;
   --gestia-control-height: 2.5rem;
   --gestia-shadow-sm: none;
   --gestia-shadow-md: none;
   --gestia-shadow-action: none;
-  /* Ancho del panel de detalle. Escrito una sola vez para que nadie lo teclee otra vez. */
-  --gestia-panel-width: 620px;
+  /* Ancho del panel de detalle. Escrito una sola vez para que nadie lo teclee otra vez.
+     Subió de 620 px a 880 px el 23 de septiembre de 2026. En 620 los campos de la ficha de
+     Personal caían de dos en dos muy estrechos, las seis pestañas no cabían en una línea, y todo
+     lo que no fuera la identificación quedaba debajo del pliegue. El panel sigue siendo una
+     columna del contenido: la tabla se comprime a su lado, no se tapa. */
+  --gestia-panel-width: 880px;
   /* Fondo del esqueleto de carga. Antes era #eef3f9, un color que no salía de ningún token. */
   --gestia-skeleton: var(--gestia-surface-soft);
   /* El velo del diálogo: --gestia-navy al 28 %. Es el ÚNICO valor derivado de un token que el
@@ -459,4 +479,107 @@ app-login-page [hidden]:not([hidden="until-found"]) {
   body main :is([class*="skeleton"], [class*="skeleton"] span) {
     animation: none;
   }
+}
+
+/*
+  El campo de fecha, en toda la aplicación.
+
+  Son 35 campos repartidos en 17 pantallas, y el nativo se veía como un cuadro gris con un icono
+  diminuto pegado al borde. Se estiliza aquí, de una vez, en vez de tocar cada plantilla: cualquier
+  <input type="date"> nuevo nace ya con esta forma.
+
+  El selector nativo se conserva a propósito —teclado, lector de pantalla y el calendario del
+  teléfono salen gratis—; lo que se cambia es cómo se ve y que se abra al pulsar en cualquier parte
+  del campo, no sólo sobre el icono.
+*/
+input[type="date"] {
+  box-sizing: border-box;
+  width: 100%;
+  height: var(--gestia-control-height);
+  padding: 0 0.7rem;
+  border: 1px solid var(--gestia-border);
+  border-radius: var(--gestia-radius);
+  background: var(--gestia-surface);
+  color: var(--gestia-text);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+  position: relative;
+}
+
+input[type="date"]:hover:not(:disabled) {
+  border-color: var(--gestia-cyan);
+}
+
+input[type="date"]:focus-visible {
+  outline: 2px solid var(--gestia-cyan);
+  outline-offset: 1px;
+}
+
+input[type="date"]:disabled {
+  background: var(--gestia-surface-soft);
+  color: var(--gestia-muted);
+  cursor: not-allowed;
+}
+
+/* Un campo vacío se lee como un marcador de posición, no como un dato puesto. */
+input[type="date"]:not(:focus):invalid,
+input[type="date"]:not(:focus):placeholder-shown {
+  color: var(--gestia-muted);
+}
+
+/*
+  El icono nativo es minúsculo y se pega al borde. Se sustituye por uno propio, alineado con el
+  resto de los desplegables, y se estira sobre todo el campo para que pulsar en cualquier sitio
+  abra el calendario.
+*/
+input[type="date"]::-webkit-calendar-picker-indicator {
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+  padding: 0;
+  opacity: 0.55;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round'><rect x='3' y='5' width='18' height='16' rx='2'/><path d='M8 3v4M16 3v4M3 10h18'/></svg>");
+  background-repeat: no-repeat;
+  background-size: contain;
+}
+
+input[type="date"]:hover::-webkit-calendar-picker-indicator {
+  opacity: 1;
+}
+
+input[type="date"]::-webkit-datetime-edit {
+  padding: 0;
+}
+
+/* Sin las flechas de incremento, que aquí no aportan y roban ancho. */
+input[type="date"]::-webkit-inner-spin-button {
+  display: none;
+}
+
+/*
+  Las tablas que no pasan por gi-data-table: dieciséis repartidas en diez pantallas —auditoría,
+  monitor, catálogos, patrones de turno, operaciones, reportes, solicitudes, seguridad, servicios y
+  el historial de documentos—.
+
+  Su contenedor pasa a desplazarse por dentro y el encabezado se queda pegado a él. Sin esto, el
+  encabezado sólo se pegaba al borde de la ventana mientras la página entera se movía, que es justo
+  lo que había que quitar.
+
+  `:has()` evita tocar las diez plantillas una por una, y el alto se puede ajustar por pantalla con
+  la misma variable que usa gi-data-table.
+*/
+*:has(> table.gi-table),
+.request-table-shell {
+  overflow: auto;
+  max-height: var(--gi-table-max-height, calc(100vh - 20rem));
+  overscroll-behavior: contain;
+}
+
+.gi-table thead th,
+.request-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
 }

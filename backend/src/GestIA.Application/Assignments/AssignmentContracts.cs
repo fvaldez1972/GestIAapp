@@ -33,6 +33,13 @@ public sealed record ServiceAssignmentResponse(
     Guid IdEmployee,
     string EmployeeCode,
     string EmployeeName,
+    /// <summary>
+    /// El municipio del domicilio de la persona. Es lo que hoy permite decir si vive cerca.
+    ///
+    /// <para>Con municipio y estado no se puede medir distancia; se puede comparar contra el municipio
+    /// de la sede, y eso es exactamente lo que RQ-11 pide con los datos que hay.</para>
+    /// </summary>
+    string? EmployeeMunicipality,
     Guid IdService,
     Guid? IdPosition,
     string? PositionCode,

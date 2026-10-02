@@ -67,6 +67,18 @@ function montar(configurar: (host: Anfitrion) => void = () => {}) {
     estados: () => Array.from(raiz.querySelectorAll('.req__state')).map((n) => n.textContent!.trim()),
     filas: () => Array.from(raiz.querySelectorAll<HTMLElement>('.req')),
     registros: () => Array.from(raiz.querySelectorAll<HTMLElement>('.row')),
+
+    /**
+     * Despliega «Evaluaciones registradas».
+     *
+     * <p>Lo registrado vive detrás de un acordeón desde el 23 de septiembre de 2026, y el cuerpo
+     * se quita del árbol al estar cerrado —no se esconde con CSS—, así que una prueba que mire la
+     * lista tiene que abrirla primero, igual que un usuario.</p>
+     */
+    abrirRegistradas: () => {
+      raiz.querySelector<HTMLButtonElement>('gi-accordion .acc__toggle')!.click();
+      fixture.detectChanges();
+    },
   };
 }
 
@@ -142,9 +154,14 @@ describe('La pestaña de evaluaciones', () => {
   });
 
   it('lista las evaluaciones registradas con su resultado y su vencimiento', () => {
-    const { registros } = montar((host) =>
+    const { registros, abrirRegistradas } = montar((host) =>
       host.evaluations.set([evaluationFixture({ expiresDate: '2027-08-10' })]),
     );
+
+    // Plegado no hay lista: ése es el punto del acordeón, y este par lo comprueba.
+    expect(registros().length).toBe(0);
+
+    abrirRegistradas();
 
     expect(registros().length).toBe(1);
     expect(registros()[0].textContent).toContain('Polígrafo');
@@ -154,12 +171,18 @@ describe('La pestaña de evaluaciones', () => {
 
   /** Sin permiso de escritura no se dibuja el alta: el servidor la rechazaría de todas formas. */
   it('sin permiso de escritura no ofrece registrar ni editar', () => {
-    const { raiz } = montar((host) => {
+    const { raiz, abrirRegistradas } = montar((host) => {
       host.canWrite.set(false);
       host.evaluations.set([evaluationFixture()]);
     });
 
-    const botones = Array.from(raiz.querySelectorAll('button')).map((b) => b.textContent!.trim());
+    abrirRegistradas();
+
+    // El único botón que queda es el del propio acordeón, que sólo abre y cierra: no escribe nada.
+    const botones = Array.from(raiz.querySelectorAll('button'))
+      .filter((boton) => !boton.classList.contains('acc__toggle'))
+      .map((boton) => boton.textContent!.trim());
+
     expect(botones).toEqual([]);
   });
 
@@ -249,7 +272,9 @@ describe('La pestaña de evaluaciones', () => {
 
   /** Se desactiva, nunca se borra: una evaluación registrada es historia del expediente. */
   it('retirar emite el identificador, no borra en la pantalla', () => {
-    const { raiz, host } = montar((h) => h.evaluations.set([evaluationFixture()]));
+    const { raiz, host, abrirRegistradas } = montar((h) => h.evaluations.set([evaluationFixture()]));
+
+    abrirRegistradas();
 
     const quitar = Array.from(raiz.querySelectorAll('button')).find(
       (b) => b.textContent!.trim() === 'Quitar',

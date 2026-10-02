@@ -20,9 +20,9 @@ import { PlanningConflict } from '../data-access/planning.models';
   selector: 'app-conflict-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <section class="conf">
+    <section class="conf" [class.conf--flat]="flat()">
       <header class="conf__head">
-        <span class="conf__title">ANTES DE PUBLICAR</span>
+        <h2 class="conf__title">Antes de publicar</h2>
         <span class="conf__resumen">{{ resumen() }}</span>
       </header>
 
@@ -42,7 +42,14 @@ import { PlanningConflict } from '../data-access/planning.models';
                 </span>
                 <span class="conf__nombre">{{ conflict.title }}</span>
               </span>
-              <p class="conf__detalle">{{ conflict.detail }}</p>
+              <!--
+                Sin detalle no hay parrafo. Dos conflictos se quedaron solo con su titulo, y un
+                <p> vacio seguiria ocupando su margen: el renglon se veria descuadrado respecto a
+                los que si lo tienen.
+              -->
+              @if (conflict.detail) {
+                <p class="conf__detalle">{{ conflict.detail }}</p>
+              }
             </li>
           }
         </ul>
@@ -54,23 +61,26 @@ import { PlanningConflict } from '../data-access/planning.models';
 
     .conf {
       border: 1px solid var(--gestia-border);
-      border-radius: var(--gestia-radius);
+      border-radius: var(--gestia-radius-lg);
       background: var(--gestia-surface);
       overflow: hidden;
     }
 
+    /* Dentro de la tarjeta de cierre el listado no lleva contorno propio: eran dos recuadros
+       pegados diciendo lo mismo, y el de dentro sólo servía para marcar una frontera que no
+       existe —la lista y el botón de publicar son un solo acto—. */
+    .conf--flat { border: none; border-radius: 0; }
+
     .conf__head {
       display: flex;
       justify-content: space-between;
-      align-items: center;
+      align-items: baseline;
       gap: 0.75rem;
-      padding: 0.65rem 0.85rem;
-      border-bottom: 1px solid var(--gestia-border);
-      background: var(--gestia-surface-soft);
+      padding: 0.7rem 1rem;
     }
 
-    .conf__title { color: var(--gestia-muted); font-size: 10.5px; font-weight: 600; letter-spacing: 0.07em; }
-    .conf__resumen { color: var(--gestia-muted); font-size: 11.5px; }
+    .conf__title { margin: 0; color: var(--gestia-navy); font-size: 16px; font-weight: 600; }
+    .conf__resumen { color: var(--gestia-muted); font-size: 12px; }
 
     .conf__lista { margin: 0; padding: 0; list-style: none; }
 
@@ -78,44 +88,49 @@ import { PlanningConflict } from '../data-access/planning.models';
       display: flex;
       flex-direction: column;
       gap: 0.25rem;
-      padding: 0.7rem 0.85rem;
-      border-bottom: 1px solid var(--gestia-border);
+      padding: 0.5rem 1rem;
+      border-top: 1px solid var(--gestia-border);
     }
 
-    .conf__item:last-child { border-bottom: none; }
-    .conf__item--blocking { border-left: 3px solid var(--gestia-danger); }
+    /* Lo que impide publicar se marca en el costado del renglón, no sólo en la píldora. */
+    .conf__item--blocking { box-shadow: inset 3px 0 0 var(--gestia-danger); }
 
-    .conf__fila { display: flex; align-items: center; gap: 0.5rem; }
-    .conf__nombre { color: var(--gestia-text); font-size: 12.5px; font-weight: 600; }
-    .conf__detalle { margin: 0; color: var(--gestia-muted); font-size: 11.5px; line-height: 1.5; }
+    .conf__fila { display: flex; align-items: center; gap: 0.6rem; }
+    .conf__nombre { color: var(--gestia-text); font-size: 13px; font-weight: 600; }
+    .conf__detalle { margin: 0; color: var(--gestia-muted); font-size: 12px; line-height: 1.5; }
 
+    /* La píldora lleva el color en el relleno, no en un contorno de un píxel, y se acompaña de
+       una barra lateral en el renglón que sí impide publicar. */
     .conf__pill {
-      border: 1px solid currentcolor;
-      border-radius: var(--gestia-radius-pill);
-      padding: 0.1rem 0.45rem;
+      border: 0;
+      border-radius: var(--gestia-radius-chip);
+      padding: 0.15rem 0.55rem;
       font-size: 10.5px;
       font-weight: 600;
       flex: none;
     }
 
-    .conf__pill--stop { color: var(--gestia-danger); }
-    .conf__pill--warn { color: var(--gestia-warning); }
-    .conf__pill--ok { color: var(--gestia-success); }
+    .conf__pill--stop { background: var(--gestia-danger-soft); color: var(--gestia-danger); }
+    .conf__pill--warn { background: var(--gestia-warning-soft); color: var(--gestia-warning); }
+    .conf__pill--ok { background: var(--gestia-success-soft); color: var(--gestia-success); }
 
     .conf__limpio {
       display: flex;
-      align-items: baseline;
-      gap: 0.5rem;
+      align-items: center;
+      gap: 0.6rem;
       margin: 0;
-      padding: 0.85rem;
+      padding: 0.85rem 1rem;
       color: var(--gestia-muted);
-      font-size: 12px;
+      font-size: 12.5px;
       line-height: 1.5;
     }
   `,
 })
 export class ConflictList {
   readonly conflicts = input.required<readonly PlanningConflict[]>();
+
+  /** Sin contorno propio, para componerlo dentro de la tarjeta de cierre de Planeación. */
+  readonly flat = input(false);
 
   /** Lo que bloquea va primero: si no, hay que leer la lista entera para saber si se puede publicar. */
   protected readonly ordenados = computed(() =>

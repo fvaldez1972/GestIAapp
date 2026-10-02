@@ -95,9 +95,24 @@ describe('EntityDocuments', () => {
     // Ahora el control entrega el archivo, no el evento: el nativo queda dentro de gi-file-input.
     component['selectFile'](file);
   };
+  /**
+   * El vencimiento entra en el molde desde el 23 de septiembre de 2026.
+   *
+   * <p>En el expediente de personal es obligatorio y no puede pasar de tres meses desde hoy, así
+   * que se calcula —y no se escribe una fecha fija— para que la prueba no empiece a fallar sola el
+   * día que el tope la deje atrás.</p>
+   */
+  const dentroDelTope = () => {
+    const tope = new Date();
+    tope.setMonth(tope.getMonth() + 1);
+    return `${tope.getFullYear()}-${String(tope.getMonth() + 1).padStart(2, '0')}-${String(tope.getDate()).padStart(2, '0')}`;
+  };
+
   const createForm = () => {
     component['openEditor']('create');
-    component['form'].patchValue({ title: ' New document ', category: ' Contract ' });
+    // Sin titulo: desde el 24 de septiembre de 2026 no se captura, y el que se guarda es el
+    // nombre del tipo.
+    component['form'].patchValue({ category: ' Contract ', expiresDate: dentroDelTope() });
     chooseFile();
   };
 
@@ -263,8 +278,10 @@ describe('EntityDocuments', () => {
     upload.flush({ storageReference: 'business-documents/new.pdf', originalFileName: 'contract.pdf', size: 3, contentType: 'application/pdf' });
     const create = http.expectOne('/api/v1/documents');
     expect(create.request.method).toBe('POST');
+    // El titulo es el nombre del tipo. Se comprueba junto a `category` a proposito: son el mismo
+    // dato, y que lo sean es justo lo que se decidio al dejar de capturarlo.
     expect(create.request.body).toMatchObject({
-      idOrganization: 'org-1', ownerType: 'Client', ownerId: 'client-1', title: 'New document', category: 'Contract',
+      idOrganization: 'org-1', ownerType: 'Client', ownerId: 'client-1', title: 'Contract', category: 'Contract',
       status: 'PendingReview', storageReference: 'business-documents/new.pdf',
     });
     create.flush(document);
@@ -310,7 +327,9 @@ describe('EntityDocuments', () => {
   it('edits metadata preserving the owner and file without a second upload', () => {
     flushList();
     component['openEditor']('edit', document);
-    component['form'].patchValue({ title: 'Changed' });
+    // El molde del documento no trae vencimiento, y desde el 23 de septiembre de 2026 es
+    // obligatorio en el expediente de personal: sin el, guardar se detiene antes de la peticion.
+    component['form'].patchValue({ title: 'Changed', expiresDate: dentroDelTope() });
     component['save']();
     const update = http.expectOne('/api/v1/documents/document-1');
     expect(update.request.method).toBe('PUT');
@@ -360,10 +379,15 @@ describe('EntityDocuments', () => {
       afterSnapshot: JSON.stringify({ Title: 'New title', StorageReference: 'private/new-path' }),
     }]);
     fixture.detectChanges();
-    expect(fixture.nativeElement.querySelector('dialog').textContent).toContain('Reviewer');
-    expect(fixture.nativeElement.querySelector('dialog table').textContent).toContain('Old title');
-    expect(fixture.nativeElement.querySelector('dialog table').textContent).toContain('New title');
-    expect(fixture.nativeElement.querySelector('dialog').textContent).not.toContain('private/');
+    // Por clase y no por etiqueta: desde el 23 de septiembre de 2026 hay **dos** dialogos en este
+    // componente —el alta/edicion y el historial—, y `querySelector('dialog')` devolvia el primero
+    // del arbol, que es el otro.
+    const historial = () => fixture.nativeElement.querySelector('dialog.entity-history');
+
+    expect(historial().textContent).toContain('Reviewer');
+    expect(historial().querySelector('table').textContent).toContain('Old title');
+    expect(historial().querySelector('table').textContent).toContain('New title');
+    expect(historial().textContent).not.toContain('private/');
     component['closeHistory']();
     expect(component['history']()).toEqual([]);
   });
@@ -445,6 +469,135 @@ describe('EntityDocuments', () => {
     flushList();
 
     expect(botones().some((b) => b.includes('Agregar documento'))).toBe(false);
+  });
+
+  /**
+   * <b>Personal apaga este botón porque enseña el suyo arriba.</b>
+   *
+   * <p>Desde el 24 de septiembre de 2026 la lista de requisitos de Personal lleva su propio
+   * «Agregar documento» junto a su encabezado. Sin esta guarda saldrían los dos, uno encima del
+   * otro, que es el par duplicado que ya se quitó una vez.</p>
+   *
+   * <p>Las dos mitades se necesitan: sin la segunda, «no está el botón» se cumpliría igual si el
+   * componente hubiera dejado de ofrecerlo en todas partes, y Clientes, Servicios y Solicitudes
+   * se quedarían sin su única salida.</p>
+   */
+  it('con showAdd apagado no pone su «Agregar documento», y encendido sí', () => {
+    fixture.componentRef.setInput('showAdd', false);
+    fixture.detectChanges();
+    flushList();
+
+    expect(botones().some((b) => b.includes('Agregar documento'))).toBe(false);
+
+    fixture.componentRef.setInput('showAdd', true);
+    fixture.detectChanges();
+
+    expect(botones().some((b) => b.includes('Agregar documento'))).toBe(true);
+  });
+
+  /**
+   * <b>Las acciones pedidas desde fuera.</b>
+   *
+   * <p>Personal las usa para que cada fila de requisito ofrezca el historial o la corrección del
+   * papel que la cubre, sin bajar a esta lista. No se copian allá: las implementa este componente,
+   * que es quien habla con el servidor y quien tiene las ventanas.</p>
+   *
+   * <p>La segunda mitad es el control: un identificador que no está en la lista <b>no abre nada</b>.
+   * Sin ella, «abre» se cumpliría igual si el componente abriera lo primero que encontrara.</p>
+   */
+  it('abre el historial del documento que le piden, y no el de uno que no tiene', () => {
+    flushList();
+
+    fixture.componentRef.setInput('openHistoryFor', document.idBusinessDocument);
+    fixture.detectChanges();
+
+    expect(component['historyDocument']()?.idBusinessDocument).toBe(document.idBusinessDocument);
+    // Abrir el historial lo pide al servidor; se contesta para que la prueba no deje peticiones
+    // sueltas, que es lo que comprueba el `verify` del final.
+    http.expectOne((r) => r.url.endsWith(`/documents/${document.idBusinessDocument}/history`)).flush([]);
+
+    component['closeHistory']();
+    fixture.componentRef.setInput('openHistoryFor', 'no-existe');
+    fixture.detectChanges();
+
+    expect(component['historyDocument']()).toBeNull();
+  });
+
+  /**
+   * <b>Personal apaga esta barra porque la tiene arriba.</b>
+   *
+   * <p>Vivía entre las dos listas —debajo de los requisitos y encima de los archivos— y ahí no
+   * servía: no pertenecía del todo a ninguna. La segunda mitad es el control: en las demás
+   * pantallas este componente vive solo y la barra es su única forma de buscar.</p>
+   */
+  it('con showFilters apagado no dibuja su barra de filtros, y encendido sí', () => {
+    flushList();
+
+    fixture.componentRef.setInput('showFilters', false);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.entity-filters')).toBeNull();
+
+    fixture.componentRef.setInput('showFilters', true);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.entity-filters')).not.toBeNull();
+  });
+
+  /**
+   * <b>La lista se queda con los tipos que le digan.</b>
+   *
+   * <p>Personal la usa para que el expediente siga a la pestaña: enseñaba los archivos de los dos
+   * tipos a la vez, así que en obligatorios aparecían los informativos, mezclados y sin decirlo.
+   * El servidor no sabe filtrar por tipo, así que se resuelve aquí sobre lo cargado —y por eso
+   * Personal sube `pageSize`: filtrar sobre cinco filas habría callado documentos sin decirlo—.</p>
+   *
+   * <p>La segunda mitad es el control: sin lista, no se filtra nada.</p>
+   */
+  it('con onlyCategories se queda con esos tipos, y sin ella los enseña todos', () => {
+    flushList();
+
+    const todos = fixture.nativeElement.querySelectorAll('.entity-row').length;
+    expect(todos).toBeGreaterThan(0);
+
+    fixture.componentRef.setInput('onlyCategories', ['Otro tipo que no existe']);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelectorAll('.entity-row').length).toBe(0);
+
+    fixture.componentRef.setInput('onlyCategories', []);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelectorAll('.entity-row').length).toBe(todos);
+  });
+
+  /**
+   * <b>Personal apaga «Revisar» y «Archivar».</b>
+   *
+   * <p>Salieron de esa pantalla el 24 de septiembre de 2026, por petición: ensuciaban la fila.
+   * Descargar, Historial y Editar se quedan, así que la guarda no puede ser la de la variante
+   * simple, que se lleva las tres.</p>
+   *
+   * <p>La segunda mitad es el control: sin ella, «no están» se cumpliría igual si el componente
+   * hubiera dejado de ofrecerlas en todas partes.</p>
+   */
+  it('con showReview apagado no pone Revisar ni Archivar, y conserva Historial y Editar', () => {
+    fixture.componentRef.setInput('showReview', false);
+    fixture.detectChanges();
+    flushList();
+
+    const apagado = botones().join(' | ');
+    expect(apagado).not.toContain('Revisar');
+    expect(apagado).not.toContain('Archivar');
+    expect(apagado).toContain('Historial');
+    expect(apagado).toContain('Editar');
+
+    fixture.componentRef.setInput('showReview', true);
+    fixture.detectChanges();
+
+    const encendido = botones().join(' | ');
+    expect(encendido).toContain('Revisar');
+    expect(encendido).toContain('Archivar');
   });
 
   /** En Personal siguen las cinco: ahi el componente vive solo y la revision sostiene la vigencia. */
@@ -563,7 +716,9 @@ describe('EntityDocuments', () => {
 
     component['openEditor']('create');
     component['elegirTipo']('CriminalRecordCertificate');
-    component['form'].patchValue({ title: 'Carta', issuedDate: '2026-09-01', expiresDate: '2027-09-01' });
+    // Un año se pasa del tope de tres meses, que es la regla nueva del expediente de personal.
+    const vencimiento = dentroDelTope();
+    component['form'].patchValue({ title: 'Carta', issuedDate: '2026-09-01', expiresDate: vencimiento });
     chooseFile();
     component['save']();
 
@@ -577,7 +732,7 @@ describe('EntityDocuments', () => {
     expect(avisos).toEqual([{
       documentType: 'CriminalRecordCertificate',
       issuedDate: '2026-09-01',
-      expiresDate: '2027-09-01',
+      expiresDate: vencimiento,
       idBusinessDocument: 'document-1',
     }]);
   });

@@ -2,6 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import {
   EmployeeAssignment,
+  EmployeeCurrentAssignments,
   EmployeeDocumentFilter,
   EmployeeFilterOptions,
   EmployeeSearchResult,
@@ -67,6 +68,19 @@ export class EmployeeListApiService {
     return this.http.get<EmployeeFilterOptions>('/api/v1/employees/filters', {
       params: new HttpParams().set('organizationId', organizationId),
     });
+  }
+
+  /**
+   * Con qué clientes está ocupada cada persona hoy, para toda la organización.
+   *
+   * <p>Una petición para toda la lista de candidatos: preguntarlo por candidato serían tantas
+   * consultas como filas.</p>
+   */
+  listCurrentAssignments(organizationId: string) {
+    return this.http.get<readonly EmployeeCurrentAssignments[]>(
+      '/api/v1/employees/current-assignments',
+      { params: new HttpParams().set('organizationId', organizationId) },
+    );
   }
 
   /** Las asignaciones de una persona, con el turno en curso marcado. */

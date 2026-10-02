@@ -37,6 +37,21 @@ export type Employee = {
   readonly idOrganization: string;
   readonly codeEmployee: string;
   readonly status: EmployeeStatus;
+
+  /** Nombre o nombres de pila. Obligatorio. */
+  readonly firstName: string;
+  /** Apellido paterno. Obligatorio. */
+  readonly lastNamePaternal: string;
+  /** Apellido materno. Opcional: hay personas con un solo apellido. */
+  readonly lastNameMaternal: string | null;
+
+  /**
+   * Las tres partes en una sola cadena, como se muestra en listas, selectores y reportes.
+   *
+   * <p><b>Es un derivado del servidor y no se manda de vuelta.</b> Lo compone el dominio al
+   * guardar; si el navegador lo enviara, existirian dos versiones del mismo nombre y una de las dos
+   * estaria equivocada.</p>
+   */
   readonly fullName: string;
   readonly jobTitle: string | null;
   /** El puesto por identificador de catalogo. Es el que compara la elegibilidad. */
@@ -95,9 +110,68 @@ export type Employee = {
   readonly updatedAt: string | null;
 };
 
+/**
+ * Lo que se manda al guardar un expediente.
+ *
+ * <p><b>`fullName` queda fuera a proposito.</b> El servidor lo compone de las tres partes del
+ * nombre, asi que mandarlo seria mandar un dato que no se respeta.</p>
+ */
+/** Un periodo laboral: de un ingreso a su baja. Abierto mientras la persona siga contratada. */
+export type EmploymentPeriod = {
+  readonly idEmploymentPeriod: string;
+  readonly idEmployee: string;
+  readonly startDate: string;
+  readonly endDate: string | null;
+  readonly terminationReason: string | null;
+  readonly isOpen: boolean;
+  readonly active: boolean;
+  readonly createdAt: string;
+  readonly createdByName: string;
+  readonly updatedAt: string | null;
+  readonly updatedByName: string | null;
+};
+
+/** La prueba psicométrica: aprobada en una fecha, sin vencimiento propio. */
+export type PsychometricTest = {
+  readonly idEmployeePsychometricTest: string;
+  readonly idEmployee: string;
+  readonly approvedDate: string;
+  readonly expiredOnDate: string | null;
+  readonly isValid: boolean;
+  readonly createdAt: string;
+  readonly createdByName: string;
+};
+
+export type TerminationExpirationItem = {
+  readonly idItem: string;
+  readonly name: string;
+  readonly originalExpiresDate: string | null;
+};
+
+/** Lo que una baja dejó vencido, agrupado por esa baja. */
+export type TerminationExpirationGroup = {
+  readonly endDate: string;
+  readonly terminationReason: string | null;
+  readonly documents: readonly TerminationExpirationItem[];
+  readonly evaluations: readonly TerminationExpirationItem[];
+  readonly psychometricTestExpired: boolean;
+  readonly psychometricTestApprovedDate: string | null;
+};
+
+/** Lo que deja una baja: los turnos futuros no se borran, se cuentan para poder cubrirlos. */
+export type TerminateEmployeeResult = {
+  readonly employee: Employee;
+  readonly closedAssignments: number;
+  readonly futureShifts: number;
+  readonly firstFutureShiftDate: string | null;
+  readonly lastFutureShiftDate: string | null;
+  readonly expiredDocuments: number;
+  readonly expiredEvaluations: number;
+};
+
 export type EmployeeInput = Omit<
   Employee,
-  'idEmployee' | 'codeEmployee' | 'status' | 'active' | 'createdAt' | 'updatedAt'
+  'idEmployee' | 'codeEmployee' | 'status' | 'active' | 'createdAt' | 'updatedAt' | 'fullName'
 >;
 
 export type CreateEmployee = EmployeeInput & {

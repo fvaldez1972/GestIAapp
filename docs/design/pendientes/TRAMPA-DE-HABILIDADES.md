@@ -21,19 +21,19 @@ bloqueo se descubre al publicar la planeación de la semana, que es cuando ya no
 
 1. **Se puede crear la regla.** La pantalla de Catálogos permite dar de alta una regla de
    elegibilidad con `requirementType = 'Skill'`, apuntando por identificador a un valor del
-   catálogo de habilidades, y marcarla como bloqueante (`isBlocking`).
+   catálogo de habilidades, y marcarla como obligatoria (`isRequired`).
 
 2. **La regla se evalúa de verdad.** `CatalogService.EvaluateSkill` busca en las habilidades del
    empleado una fila activa cuyo `IdSkillCatalogItem` coincida con el
    `IdRequiredCatalogItem` de la regla y que no esté vencida. Si no la encuentra, devuelve
    `passed: false` con el mensaje «Falta habilidad requerida: …».
 
-3. **Una regla bloqueante que no pasa detiene la publicación.**
+3. **Una regla obligatoria que no pasa detiene la publicación.**
    `SchedulingService`, al publicar una versión de planeación, recorre los turnos y lanza
    `ResourceConflictException`:
 
    ```csharp
-   var reasons = eligibility.Reasons.Where(reason => reason.IsBlocking && !reason.Passed)...;
+   var reasons = eligibility.Reasons.Where(reason => reason.IsRequired && !reason.Passed)...;
    throw new ResourceConflictException($"No se puede publicar: {eligibility.EmployeeName}. {...}");
    ```
 
@@ -71,6 +71,6 @@ sus endpoints.
 ## Mientras tanto
 
 Hasta que la pestaña exista, **crear una regla de elegibilidad de tipo `Skill` con
-`isBlocking = true` deja la operación bloqueada**. Conviene decirlo en la propia pantalla de
+`isRequired = true` deja la operación bloqueada**. Conviene decirlo en la propia pantalla de
 Catálogos, junto a la casilla de bloqueo, antes de que alguien lo descubra un lunes por la
 mañana.

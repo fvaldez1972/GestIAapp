@@ -4,7 +4,9 @@ using GestIA.Domain.Organizations;
 namespace GestIA.Domain.Workforce;
 
 public sealed record EmployeeProfile(
-    string FullName,
+    string FirstName,
+    string LastNamePaternal,
+    string? LastNameMaternal,
     string? JobTitle,
     DateOnly HireDate,
     DateOnly? BirthDate,
@@ -49,7 +51,9 @@ public sealed class Employee : AuditableEntity, IOrganizationScopedEntity
         Guid idEmployee,
         Guid idOrganization,
         string codeEmployee,
-        string fullName,
+        string firstName,
+        string lastNamePaternal,
+        string? lastNameMaternal,
         string? jobTitle,
         DateOnly hireDate,
         Guid actorId,
@@ -58,12 +62,13 @@ public sealed class Employee : AuditableEntity, IOrganizationScopedEntity
         Guid? idJobPositionCatalogItem = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(codeEmployee);
-        ArgumentException.ThrowIfNullOrWhiteSpace(fullName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(firstName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(lastNamePaternal);
         IdEmployee = idEmployee;
         IdOrganization = idOrganization;
         CodeEmployee = codeEmployee.Trim();
         Status = EmployeeStatus.Active;
-        FullName = fullName.Trim();
+        SetName(firstName, lastNamePaternal, lastNameMaternal);
         JobTitle = string.IsNullOrWhiteSpace(jobTitle) ? null : jobTitle.Trim();
         IdJobPositionCatalogItem = idJobPositionCatalogItem;
         HireDate = hireDate;
@@ -74,6 +79,18 @@ public sealed class Employee : AuditableEntity, IOrganizationScopedEntity
     public Guid IdOrganization { get; private set; }
     public string CodeEmployee { get; private set; } = string.Empty;
     public EmployeeStatus Status { get; private set; }
+    public string FirstName { get; private set; } = string.Empty;
+    public string LastNamePaternal { get; private set; } = string.Empty;
+
+    /// <summary>Opcional: hay personas con un solo apellido.</summary>
+    public string? LastNameMaternal { get; private set; }
+
+    /// <summary>
+    /// El nombre completo, <b>derivado</b> de las tres partes.
+    ///
+    /// <para>No se captura desde RQ-06. Se conserva porque lo leen la búsqueda, el orden
+    /// alfabético y ciento y pico de proyecciones; lo que cambió es quién lo llena.</para>
+    /// </summary>
     public string FullName { get; private set; } = string.Empty;
     /// <summary>
     /// El puesto de la persona, por identificador contra el catálogo <c>JobPosition</c>.
@@ -101,6 +118,20 @@ public sealed class Employee : AuditableEntity, IOrganizationScopedEntity
     public Guid? IdEducationLevelCatalogItem { get; private set; }
 
     public string? JobTitle { get; private set; }
+
+    /// <summary>
+    /// La fecha de ingreso vigente.
+    ///
+    /// <para><b>Desde RQ-07 se deriva del periodo laboral más reciente</b> —abierto o cerrado— en vez
+    /// de capturarse suelta. Se conserva como columna porque la leen las listas, la búsqueda y los
+    /// reportes, y porque la antigüedad sale de restarle hoy; lo que cambia es que ya nadie la escribe
+    /// por su cuenta.</para>
+    ///
+    /// <para><b>La excepción es quien todavía no ha sido contratado.</b> Una persona en candidatura no
+    /// tiene periodo —el periodo se abre al contratarla—, así que su fecha de ingreso sigue siendo la
+    /// que se capturó en el alta: una fecha prevista, no un hecho. Hacerla nula para ese caso es lo
+    /// correcto y es otra tanda: la columna es <c>NOT NULL</c> y la leen quince puntos.</para>
+    /// </summary>
     public DateOnly HireDate { get; private set; }
     public DateOnly? BirthDate { get; private set; }
     public string? BirthPlace { get; private set; }
@@ -174,7 +205,9 @@ public sealed class Employee : AuditableEntity, IOrganizationScopedEntity
     public static Employee Create(
         Guid idOrganization,
         string codeEmployee,
-        string fullName,
+        string firstName,
+        string lastNamePaternal,
+        string? lastNameMaternal,
         string? jobTitle,
         DateOnly hireDate,
         Guid actorId,
@@ -185,7 +218,9 @@ public sealed class Employee : AuditableEntity, IOrganizationScopedEntity
             Guid.NewGuid(),
             idOrganization,
             codeEmployee,
-            fullName,
+            firstName,
+            lastNamePaternal,
+            lastNameMaternal,
             jobTitle,
             hireDate,
             actorId,
@@ -204,7 +239,9 @@ public sealed class Employee : AuditableEntity, IOrganizationScopedEntity
         var employee = Create(
             idOrganization,
             codeEmployee,
-            profile.FullName,
+            profile.FirstName,
+            profile.LastNamePaternal,
+            profile.LastNameMaternal,
             profile.JobTitle,
             profile.HireDate,
             actorId,
@@ -224,6 +261,185 @@ public sealed class Employee : AuditableEntity, IOrganizationScopedEntity
         RegisterUpdate(actorId, actorName, occurredAt);
     }
 
+    /// <summary>
+    /// Los periodos laborales de esta persona.
+    ///
+    /// <para>Están en el agregado y no sueltos porque las reglas que los gobiernan —como máximo un
+    /// periodo abierto, la antigüedad desde el último ingreso— son reglas <i>sobre el conjunto</i>, y
+    /// desde fuera nadie puede garantizarlas.</para>
+    /// </summary>
+    public IReadOnlyCollection<EmploymentPeriod> EmploymentPeriods => employmentPeriods;
+
+    private readonly List<EmploymentPeriod> employmentPeriods = [];
+
+    /// <summary>Las pruebas psicométricas: la vigente, si hay, y las que vencieron con una baja.</summary>
+    public IReadOnlyCollection<EmployeePsychometricTest> PsychometricTests => psychometricTests;
+
+    private readonly List<EmployeePsychometricTest> psychometricTests = [];
+
+    public EmployeePsychometricTest? ValidPsychometricTest =>
+        psychometricTests.SingleOrDefault(prueba => prueba.IsValid);
+
+    /// <summary>
+    /// Registra una prueba psicométrica aprobada. Se puede desde la candidatura: se hace antes de
+    /// ingresar.
+    /// </summary>
+    public EmployeePsychometricTest RegisterPsychometricTest(
+        DateOnly approvedDate,
+        Guid actorId,
+        string actorName,
+        DateTime occurredAt)
+    {
+        if (ValidPsychometricTest is not null)
+        {
+            throw new DomainRuleException(
+                "Esta persona ya tiene una prueba psicométrica vigente. La anterior sólo se vence al " +
+                "causar baja.");
+        }
+
+        var prueba = EmployeePsychometricTest.Register(
+            IdOrganization, IdEmployee, approvedDate, actorId, actorName, occurredAt);
+
+        psychometricTests.Add(prueba);
+        RegisterUpdate(actorId, actorName, occurredAt);
+        return prueba;
+    }
+
+    /// <summary>El periodo abierto, si la persona está contratada ahora mismo.</summary>
+    public EmploymentPeriod? OpenEmploymentPeriod =>
+        employmentPeriods.SingleOrDefault(periodo => periodo.IsOpen);
+
+    /// <summary>
+    /// Desde cuándo cuenta la antigüedad: el ingreso del periodo más reciente.
+    ///
+    /// <para>Los periodos anteriores <b>no suman</b>. Es la regla que el documento de la reunión marcó
+    /// como la buena, y la razón por la que existe esta tabla.</para>
+    /// </summary>
+    public DateOnly? SeniorityStartDate =>
+        employmentPeriods.Count == 0
+            ? null
+            : employmentPeriods.Max(periodo => periodo.StartDate);
+
+    /// <summary>
+    /// Abre el primer periodo de quien estaba en candidatura.
+    ///
+    /// <para>Es el acto que convierte una candidatura en una contratación, y hasta RQ-07 no existía:
+    /// la pantalla no tenía ninguna acción que llevara a alguien de candidata a activa.</para>
+    /// </summary>
+    public EmploymentPeriod Hire(DateOnly startDate, Guid actorId, string actorName, DateTime occurredAt)
+    {
+        if (employmentPeriods.Count > 0)
+        {
+            throw new DomainRuleException(
+                "Esta persona ya tiene historial laboral. Para volver a contratarla se registra un " +
+                "reingreso, no una contratación nueva.");
+        }
+
+        return OpenPeriod(startDate, actorId, actorName, occurredAt);
+    }
+
+    /// <summary>
+    /// Cierra el periodo abierto con su fecha de baja y su motivo, y deja a la persona dada de baja.
+    ///
+    /// <para>Un permiso <b>no</b> pasa por aquí: quien está en permiso sigue contratada y su antigüedad
+    /// no se interrumpe.</para>
+    /// </summary>
+    public EmploymentPeriod Terminate(
+        DateOnly endDate,
+        string terminationReason,
+        Guid actorId,
+        string actorName,
+        DateTime occurredAt)
+    {
+        var abierto = OpenEmploymentPeriod
+            ?? throw new DomainRuleException(
+                "Esta persona no tiene un periodo laboral abierto, así que no hay nada que dar de baja.");
+
+        abierto.Close(endDate, terminationReason, actorId, actorName, occurredAt);
+        ValidPsychometricTest?.ExpireOnTermination(endDate, actorId, actorName, occurredAt);
+        Status = EmployeeStatus.Terminated;
+        RegisterUpdate(actorId, actorName, occurredAt);
+        return abierto;
+    }
+
+    /// <summary>
+    /// Abre un periodo nuevo para quien estaba dada de baja. Puede repetirse sin límite.
+    ///
+    /// <para>No se recaptura nada del expediente: la persona ya está aquí, con sus documentos, su
+    /// domicilio y su historial. Lo único nuevo es la fecha de ingreso de este periodo.</para>
+    /// </summary>
+    public EmploymentPeriod Rehire(DateOnly startDate, Guid actorId, string actorName, DateTime occurredAt)
+    {
+        if (Status != EmployeeStatus.Terminated)
+        {
+            throw new DomainRuleException("El reingreso sólo se registra sobre alguien dado de baja.");
+        }
+
+        if (OpenEmploymentPeriod is not null)
+        {
+            throw new DomainRuleException("Esta persona ya tiene un periodo laboral abierto.");
+        }
+
+        var ultimaBaja = employmentPeriods.Count == 0
+            ? null
+            : employmentPeriods.Max(periodo => periodo.EndDate);
+
+        if (ultimaBaja is not null && startDate < ultimaBaja)
+        {
+            throw new DomainRuleException(
+                "La fecha de reingreso no puede ser anterior a la baja que la precede.");
+        }
+
+        return OpenPeriod(startDate, actorId, actorName, occurredAt);
+    }
+
+    /// <summary>
+    /// Registra un periodo que la persona ya tenía cuando la tabla no existía.
+    ///
+    /// <para>Sólo lo usan la migración y el sembrador de datos demo: es la puerta para sembrar
+    /// historial sin pasar por las reglas de movimiento, que exigen un estado de partida que estos
+    /// expedientes ya traen puesto.</para>
+    /// </summary>
+    public EmploymentPeriod RegisterExistingPeriod(
+        DateOnly startDate,
+        DateOnly? endDate,
+        string? terminationReason,
+        Guid actorId,
+        string actorName,
+        DateTime occurredAt)
+    {
+        var periodo = EmploymentPeriod.Open(
+            IdOrganization, IdEmployee, startDate, actorId, actorName, occurredAt);
+
+        if (endDate is not null)
+        {
+            periodo.Close(endDate.Value, terminationReason ?? string.Empty, actorId, actorName, occurredAt);
+        }
+
+        employmentPeriods.Add(periodo);
+        HireDate = SeniorityStartDate ?? HireDate;
+        return periodo;
+    }
+
+    private EmploymentPeriod OpenPeriod(
+        DateOnly startDate,
+        Guid actorId,
+        string actorName,
+        DateTime occurredAt)
+    {
+        var periodo = EmploymentPeriod.Open(
+            IdOrganization, IdEmployee, startDate, actorId, actorName, occurredAt);
+
+        employmentPeriods.Add(periodo);
+
+        // La fecha de ingreso es un derivado del periodo mas reciente, igual que el nombre completo es
+        // un derivado de sus tres partes: un unico punto de escritura.
+        HireDate = SeniorityStartDate ?? startDate;
+        Status = EmployeeStatus.Active;
+        RegisterUpdate(actorId, actorName, occurredAt);
+        return periodo;
+    }
+
     public void ChangeStatus(
         EmployeeStatus status,
         Guid actorId,
@@ -234,15 +450,35 @@ public sealed class Employee : AuditableEntity, IOrganizationScopedEntity
         RegisterUpdate(actorId, actorName, occurredAt);
     }
 
+    /// <summary>
+    /// El único sitio donde se escribe el nombre.
+    ///
+    /// <para>Las tres partes se recortan y el completo se compone de ellas. Que sea un solo sitio
+    /// es lo que impide que existan un <c>FullName</c> y unas partes diciendo cosas distintas de
+    /// la misma persona: nadie puede escribir el completo por su cuenta.</para>
+    /// </summary>
+    private void SetName(string firstName, string lastNamePaternal, string? lastNameMaternal)
+    {
+        FirstName = firstName.Trim();
+        LastNamePaternal = lastNamePaternal.Trim();
+        LastNameMaternal = string.IsNullOrWhiteSpace(lastNameMaternal) ? null : lastNameMaternal.Trim();
+        FullName = EmployeeName.Compose(FirstName, LastNamePaternal, LastNameMaternal);
+    }
+
     private void ApplyProfile(EmployeeProfile profile)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(profile.FullName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(profile.FirstName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(profile.LastNamePaternal);
 
-        FullName = profile.FullName.Trim();
+        SetName(profile.FirstName, profile.LastNamePaternal, profile.LastNameMaternal);
         IdJobPositionCatalogItem = profile.IdJobPositionCatalogItem;
         IdEducationLevelCatalogItem = profile.IdEducationLevelCatalogItem;
         JobTitle = Normalize(profile.JobTitle);
-        HireDate = profile.HireDate;
+
+        // Mientras la persona no tenga periodo --esto es, mientras siga en candidatura-- la fecha de
+        // ingreso es la que se capturo. En cuanto hay periodo, manda el periodo: editar el expediente
+        // no puede mover una fecha que ya es un hecho registrado.
+        HireDate = SeniorityStartDate ?? profile.HireDate;
         BirthDate = profile.BirthDate;
         BirthPlace = Normalize(profile.BirthPlace);
         Sex = Normalize(profile.Sex);

@@ -13,6 +13,7 @@ import { contacto, zona } from './client-fixtures';
       [jobPositions]="puestos()"
       [canWrite]="canWrite()"
       (create)="creado.set($event)"
+      (edit)="editado.set($event)"
     />
   `,
 })
@@ -22,6 +23,7 @@ class Anfitrion {
   readonly canWrite = signal(true);
   readonly puestos = signal<readonly { idCatalogItem: string; name: string }[]>([]);
   readonly creado = signal<NewContact | null>(null);
+  readonly editado = signal<{ contact: ClientContact; datos: NewContact } | null>(null);
 }
 
 function montar(configurar: (host: Anfitrion) => void = () => {}) {
@@ -101,9 +103,8 @@ describe('Contactos del cliente', () => {
       // mientras el servidor conserve su columna, pero ya no decide nada.
       idPurposeCatalogItem: null,
       purpose: 'Operational',
-      // Sin elegir alcance, «a todo el cliente»: es el caso normal, veintitrés de los veintiséis
+      // Sin zona, «a todo el cliente»: es el caso normal, treinta y cinco de los cuarenta y tres
       // contactos de la base viva son del cliente y no de una zona.
-      scope: 'General',
       idClientZone: null,
       idContactJobPositionCatalogItem: null,
       // Sin puesto elegido va vacío. El puesto sale del catálogo, no de texto libre: el servidor
@@ -145,7 +146,25 @@ describe('Contactos del cliente', () => {
    * El selector de zona ya no lleva una opción «sin zona»: eso ahora lo dice el alcance, y el
    * selector sólo aparece cuando el alcance es «sólo a una zona».
    */
-  it('ofrece sólo las zonas activas, y sólo cuando el alcance es de zona', () => {
+  /**
+   * <b>El campo dice qué decide la zona.</b>
+   *
+   * <p>El negocio preguntó «¿para qué sirve lo del alcance del contacto? Si no sirve, quitarlo», y la
+   * respuesta acabó siendo que no servía: se retiró el 26 de septiembre de 2026 porque nunca decidió
+   * nada por sí mismo —se calculaba con si el contacto traía zona o no—. Lo que queda es la zona, y
+   * la ayuda dice su consecuencia en vez de nombrar el dato.</p>
+   */
+  it('la ayuda de la zona dice qué cambia al ponerla o dejarla vacía', () => {
+    const { raiz, abrir } = montar();
+    abrir();
+
+    const ayuda = raiz.querySelector('.field__hint')!.textContent!.replace(/\s+/g, ' ').trim();
+
+    expect(ayuda).toContain('Vacía vale para todo el cliente');
+    expect(ayuda).toContain('pestaña de Zonas');
+  });
+
+  it('ofrece sólo las zonas activas', () => {
     const { raiz, abrir, fixture } = montar((host) => {
       host.zones.set([
         zona({ idClientZone: 's1', name: 'Planta Norte', active: true }),
@@ -153,11 +172,6 @@ describe('Contactos del cliente', () => {
       ]);
     });
     abrir();
-
-    const contactos = fixture.debugElement.children[0].componentInstance as {
-      scope: { set(v: string): void };
-    };
-    contactos.scope.set('Zone');
     fixture.detectChanges();
 
     const disparadores = Array.from(raiz.querySelectorAll('gi-select button[role="combobox"]'));
@@ -185,10 +199,50 @@ describe('Contactos del cliente', () => {
     });
     abrir();
 
-    // El campo existe, pero es el combobox del selector de catálogo, no una caja libre: por eso
-    // se comprueba el rol y no la mera presencia de un input.
-    expect(raiz.querySelector('gi-catalog-picker')).not.toBeNull();
-    expect(raiz.querySelector('#nc-puesto')?.getAttribute('role')).toBe('combobox');
+    // Es un desplegable desde el 23 de septiembre de 2026: antes era un selector con búsqueda que
+    // además ofrecía crear el valor, y su recuadro de sugerencias estorbaba. Lo que la prueba
+    // defiende no cambió: que NO haya una caja de texto donde escribir el puesto a mano.
+    expect(raiz.querySelector('gi-catalog-picker')).toBeNull();
+    expect(raiz.querySelector('input#nc-puesto')).toBeNull();
+
+    const desplegables = Array.from(raiz.querySelectorAll('gi-select button[role="combobox"]'));
+    expect(desplegables.length).toBeGreaterThan(0);
+  });
+
+  /**
+   * Editar un contacto <b>no borra</b> el propósito que ya tenía.
+   *
+   * <p>El campo «para qué se le llama» salió del formulario el 23 de septiembre de 2026 porque
+   * nada decidía nada con él. Pero el guardado manda el perfil entero, así que si el formulario
+   * dejara de llevar el propósito, cambiar un teléfono se lo llevaría por delante: 41 contactos de
+   * la base viva tienen uno guardado.</p>
+   *
+   * <p>Es la única razón por la que la señal sigue existiendo sin campo que la pinte, y sin esta
+   * prueba nada lo diría: la pantalla se ve igual con el dato y sin él.</p>
+   */
+  it('editar un contacto conserva el propósito, aunque ya no se capture', () => {
+    const guardado = contacto({
+      idClientContact: 'c1',
+      fullName: 'Sergio Rivera',
+      idPurposeCatalogItem: 'prop-operativo',
+    });
+
+    const { raiz, fixture, host } = montar((anfitrion) => anfitrion.lista.set([guardado]));
+
+    Array.from(raiz.querySelectorAll<HTMLButtonElement>('button'))
+      .find((boton) => boton.textContent?.trim() === 'Editar')!
+      .click();
+    fixture.detectChanges();
+
+    // No hay campo que lo pinte: eso es justo lo que se retiró.
+    expect(raiz.textContent).not.toContain('PARA QUÉ SE LE LLAMA');
+
+    Array.from(raiz.querySelectorAll<HTMLButtonElement>('button'))
+      .find((boton) => boton.textContent?.includes('Guardar cambios'))!
+      .click();
+    fixture.detectChanges();
+
+    expect(host.editado()?.datos.idPurposeCatalogItem).toBe('prop-operativo');
   });
 
   it('manda el nombre del puesto que corresponde al identificador elegido', () => {
@@ -213,4 +267,25 @@ describe('Contactos del cliente', () => {
     expect(host.creado()?.jobTitle).toBe('Jefa de seguridad');
     expect(raiz).toBeTruthy();
   });
+
+  /**
+   * La fila de «Para qué se le llama» y «Zona» va alineada.
+   *
+   * <p>El desplegable quedaba medio campo más arriba que el de al lado, y la causa no era el
+   * margen: <c>gi-select</c> usa su «label» como aria-label y <b>no lo dibuja</b>, así que el campo
+   * de la izquierda empezaba debajo de su rótulo y el de la derecha no tenía ninguno. Sin rótulo
+   * visible tampoco se sabía qué se estaba eligiendo.</p>
+   *
+   * <p>El rótulo comprobado era «A QUIÉN CUBRE», del alcance del contacto, que se retiró el 26 de
+   * septiembre de 2026 por ser un dato que no decidía nada. La zona ocupa su sitio.</p>
+   */
+  it('los desplegables de la edición llevan su rótulo visible', () => {
+    const { raiz, abrir } = montar();
+    abrir();
+
+    const rotulos = Array.from(raiz.querySelectorAll('.field__label')).map((e) => e.textContent?.trim());
+
+    expect(rotulos).toContain('ZONA · OPCIONAL');
+  });
+
 });

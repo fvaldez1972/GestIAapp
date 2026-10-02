@@ -98,9 +98,9 @@ const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', '
       align-items: center;
       gap: 0.85rem;
       flex-wrap: wrap;
-      padding: 0.75rem 0.85rem;
+      padding: 0.75rem 1rem;
       border: 1px solid var(--gestia-border);
-      border-radius: var(--gestia-radius);
+      border-radius: var(--gestia-radius-lg);
       background: var(--gestia-surface);
     }
 
@@ -124,7 +124,7 @@ const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', '
     .gi-bar__today:focus-visible,
     .gi-bar__resolve:focus-visible { outline: 2px solid var(--gestia-cyan); outline-offset: 1px; }
 
-    .gi-bar__current { color: var(--gestia-text); font-size: 13px; font-weight: 600; }
+    .gi-bar__current { color: var(--gestia-text); font-size: 14px; font-weight: 600; }
 
     .gi-bar__today,
     .gi-bar__resolve {
@@ -147,10 +147,13 @@ const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', '
 
     .gi-bar__missing { display: flex; align-items: center; gap: 0.5rem; }
 
+    /* Relleno suave en vez de un contorno de un píxel: a este tamaño el contorno se leía como
+       una cajita de formulario, que es justo lo que ninguna insignia debería parecer. */
     .gi-bar__pill {
-      border: 1px solid var(--gestia-warning);
-      border-radius: var(--gestia-radius-pill);
-      padding: 0.15rem 0.45rem;
+      border: 0;
+      border-radius: var(--gestia-radius-chip);
+      padding: 0.15rem 0.55rem;
+      background: var(--gestia-warning-soft);
       color: var(--gestia-warning);
       font-size: 10.5px;
       font-weight: 600;

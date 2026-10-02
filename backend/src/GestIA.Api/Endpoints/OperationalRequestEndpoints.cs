@@ -1,4 +1,5 @@
 using GestIA.Api.Security;
+using GestIA.Application.Common;
 using GestIA.Application.Requests;
 using GestIA.Application.Security;
 using GestIA.Domain.Requests;
@@ -35,7 +36,7 @@ public static class OperationalRequestEndpoints
                     requestType,
                     search,
                     page <= 0 ? 1 : page,
-                    pageSize <= 0 ? 20 : pageSize),
+                    PageSize.Clamp(pageSize)),
                 cancellationToken);
             return Results.Ok(result);
         })

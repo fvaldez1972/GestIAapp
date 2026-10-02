@@ -86,11 +86,50 @@ public static class WeeklyHoursRules
     /// nombre del cliente para el patrón y su matiz van en la descripción de la plantilla, que la
     /// escribe quien la captura.</para>
     /// </summary>
-    public static string DescribeRest(int restDays, int cycleDays)
+    private static readonly string[] Semana =
+        ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"];
+
+    /// <summary>
+    /// Cómo se lee el descanso de un patrón.
+    ///
+    /// <para><b>En un ciclo de siete días se dicen los días por su nombre</b> —«Descansa martes y
+    /// domingo»— en vez de contarlos. «5 días de descanso en ciclo de 7 días» obligaba a abrir el
+    /// patrón para saber cuáles, que es justo lo que la columna venía a ahorrar.</para>
+    ///
+    /// <para><b>El día 1 es lunes</b>, y hay que decirlo porque no está en el modelo: la plantilla
+    /// numera los días y no declara en qué fecha empieza a contar. Lunes es lo que dicen los
+    /// nombres de las plantillas —«Rol diurno lunes a sábado»— y es el ancla que usó la migración
+    /// que enlazó las posiciones. Si algún día el ciclo declara su inicio, esto lo lee de ahí.</para>
+    ///
+    /// <para><b>Fuera de los siete días se siguen contando</b>, y no es una limitación que valga la
+    /// pena quitar: un ciclo de seis cae en días distintos cada semana, así que no hay un «martes»
+    /// que nombrar. Decir «se corre respecto a la semana» es la única respuesta cierta.</para>
+    /// </summary>
+    public static string DescribeRest(int restDays, int cycleDays) =>
+        DescribeRest(restDays, cycleDays, []);
+
+    /// <param name="restDayNumbers">Qué días del ciclo son de descanso, empezando en 1.</param>
+    public static string DescribeRest(int restDays, int cycleDays, IReadOnlyCollection<int> restDayNumbers)
     {
         if (restDays == 0)
         {
             return "Sin descanso declarado";
+        }
+
+        if (cycleDays == 7 && restDayNumbers.Count > 0)
+        {
+            var nombres = restDayNumbers
+                .Where(numero => numero >= 1 && numero <= 7)
+                .OrderBy(numero => numero)
+                .Select(numero => Semana[numero - 1])
+                .ToArray();
+
+            if (nombres.Length > 0)
+            {
+                return nombres.Length == 1
+                    ? $"Descansa {nombres[0]}"
+                    : $"Descansa {string.Join(", ", nombres[..^1])} y {nombres[^1]}";
+            }
         }
 
         var dias = restDays == 1 ? "1 día de descanso" : $"{restDays} días de descanso";

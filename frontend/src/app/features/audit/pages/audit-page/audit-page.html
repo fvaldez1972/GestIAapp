@@ -100,12 +100,12 @@
 
     <label class="gi-field">
       Rango de fechas
-      <input class="gi-input" type="date" [ngModel]="fromDate()" (ngModelChange)="onFromDateChange($event)" />
+      <gi-date [ngModel]="fromDate()" (ngModelChange)="onFromDateChange($event)" />
     </label>
 
     <label class="gi-field">
       Hasta
-      <input class="gi-input" type="date" [ngModel]="toDate()" (ngModelChange)="onToDateChange($event)" />
+      <gi-date [ngModel]="toDate()" (ngModelChange)="onToDateChange($event)" />
     </label>
 
     <label class="gi-field">

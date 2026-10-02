@@ -5,6 +5,8 @@
  * que no está en esta lista no es una pieza del sistema, y una pantalla que necesite algo que no
  * esté aquí tiene que decir por qué antes de inventárselo.</p>
  */
+export { GiAccordion } from './gi-accordion/gi-accordion';
+
 export { GiCell, GiDataTable } from './gi-data-table/gi-data-table';
 export type { GiColumn, GiTableState } from './gi-data-table/gi-data-table';
 
@@ -39,5 +41,6 @@ export { GiOperationDayBar } from './gi-operation-day-bar/gi-operation-day-bar';
 export { GiExceptionRow } from './gi-exception-row/gi-exception-row';
 export type { GiExceptionType } from './gi-exception-row/gi-exception-row';
 
+export { GiDate } from './gi-date/gi-date';
 export { GiCandidatePicker } from './gi-candidate-picker/gi-candidate-picker';
 export type { GiCandidate, GiCandidateStanding } from './gi-candidate-picker/gi-candidate-picker';

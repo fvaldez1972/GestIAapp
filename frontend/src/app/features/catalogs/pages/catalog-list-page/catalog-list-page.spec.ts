@@ -182,11 +182,11 @@ describe('Página de un catálogo', () => {
     const enElDesplegable = pagina.natureOptions.map((opcion) => opcion.label);
     const filtro = pagina.filterGroups().find((grupo) => grupo.id === 'naturaleza')!;
     const enLaColumna = [
-      pagina.natureLabel(valor({ isBlocking: true })),
-      pagina.natureLabel(valor({ isBlocking: false })),
+      pagina.natureLabel(valor({ isRequired: true })),
+      pagina.natureLabel(valor({ isRequired: false })),
     ];
 
-    expect(enElDesplegable).toEqual(['Bloqueante', 'Informativa']);
+    expect(enElDesplegable).toEqual(['Obligatorio', 'Informativa']);
     expect(filtro.options.map((opcion) => opcion.label)).toEqual(enElDesplegable);
     expect(enLaColumna).toEqual(enElDesplegable);
 
@@ -194,7 +194,7 @@ describe('Página de un catálogo', () => {
     // me pasó la primera vez: cambié los valores y dejé la columna llamándose de otra manera.
     const columna = pagina.columns().find((c) => c.key === 'nature')!;
 
-    expect(columna.label).toBe('Informativa/Bloqueante');
+    expect(columna.label).toBe('Informativa/Obligatorio');
     expect(filtro.label).toBe(columna.label);
     expect(pagina.naturalezaLabel).toBe(columna.label);
   });
@@ -204,9 +204,9 @@ describe('Página de un catálogo', () => {
     const { pagina } = montar('tipos-de-evaluacion');
     responder([]);
 
-    expect(pagina.natureLabel(valor({ isBlocking: null }))).toBe('Informativa');
-    expect(pagina.natureLabel(valor({ isBlocking: false }))).toBe('Informativa');
-    expect(pagina.natureLabel(valor({ isBlocking: true }))).toBe('Bloqueante');
+    expect(pagina.natureLabel(valor({ isRequired: null }))).toBe('Informativa');
+    expect(pagina.natureLabel(valor({ isRequired: false }))).toBe('Informativa');
+    expect(pagina.natureLabel(valor({ isRequired: true }))).toBe('Obligatorio');
   });
 
   /**

@@ -1,9 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { GiEmptyState } from '../../../shared/ui/gi-ui';
-import { GiCatalogPicker, GiCatalogOption, GiCatalogCreation } from '../../../shared/ui/gi-catalog-picker/gi-catalog-picker';
+import { GiCatalogOption, GiCatalogCreation } from '../../../shared/ui/gi-catalog-picker/gi-catalog-picker';
 import { GiSelect, GiSelectOption } from '../../../shared/ui/gi-select/gi-select';
-import { ClientContact, ClientContactPurpose, ClientContactScope, ClientZone } from '../data-access/client.models';
+import { ClientContact, ClientContactPurpose, ClientZone } from '../data-access/client.models';
 
 /** Lo que hace falta para dar de alta un contacto. */
 export type NewContact = {
@@ -12,7 +12,6 @@ export type NewContact = {
   readonly idPurposeCatalogItem: string | null;
   /** El propósito heredado. Se sigue mandando mientras el servidor conserve la columna. */
   readonly purpose: ClientContactPurpose;
-  readonly scope: ClientContactScope;
   readonly idClientZone: string | null;
   readonly idContactJobPositionCatalogItem: string | null;
   readonly jobTitle: string;
@@ -36,7 +35,7 @@ export type NewContact = {
 @Component({
   selector: 'app-client-contacts',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, GiCatalogPicker, GiEmptyState, GiSelect],
+  imports: [FormsModule, GiEmptyState, GiSelect],
   template: `
     <section class="contacts">
       @if (contacts().length === 0 && !adding()) {
@@ -95,52 +94,40 @@ export type NewContact = {
               el catalogo de puestos y devuelve 409 con cualquier cosa escrita a mano. Es el mismo
               selector que usa Personal, con alta al vuelo para no obligar a salir a Catalogos.
             -->
-            <gi-catalog-picker
-              label="Puesto"
-              catalogLabel="el catálogo de puestos de contacto"
-              inputId="nc-puesto"
-              [options]="jobPositions()"
-              [value]="idContactJobPosition()"
-              [canWrite]="canWrite()"
-              (valueChange)="idContactJobPosition.set($event)"
-              (create)="createJobPosition.emit($event)"
-            />
+            <div class="field">
+              <span class="field__label">PUESTO</span>
+              <gi-select
+                label="Puesto"
+                placeholder="Elige el puesto"
+                [openDown]="true"
+                [options]="opcionesDePuesto()"
+                [value]="idContactJobPosition()"
+                (valueChange)="idContactJobPosition.set($event)"
+              />
+            </div>
           </div>
 
           <div class="new__row new__row--two">
-            <gi-catalog-picker
-              label="Para qué se le llama"
-              catalogLabel="el catálogo de propósitos de contacto"
-              inputId="nc-proposito"
-              [options]="purposeOptions()"
-              [value]="idPurpose()"
-              [canWrite]="canWrite()"
-              (valueChange)="idPurpose.set($event)"
-              (create)="createPurpose.emit($event)"
-            />
             <!--
-              Sin zona es una opción legítima y va primero: un contacto comercial vale para todo el
-              cliente, y obligar a elegir una zona lo obligaría a mentir.
+              La zona es opcional y vacia es una opcion legitima: un contacto comercial vale para
+              todo el cliente, y obligar a elegir una zona lo obligaria a mentir.
             -->
-            <gi-select
-              label="A quién cubre"
-              [options]="scopeOptions"
-              [value]="scope()"
-              (valueChange)="scope.set($any($event))"
-            />
-          </div>
-
-          @if (scope() === 'Zone') {
-            <div class="new__row">
+            <div class="field">
+              <span class="field__label">ZONA</span>
               <gi-select
-                label="Zona a la que pertenece"
-                placeholder="Elige la zona"
+                label="Zona"
+                placeholder="Todo el cliente"
+                [openDown]="true"
                 [options]="zoneOptions()"
                 [value]="idClientZone()"
                 (valueChange)="idClientZone.set($event)"
               />
+              <span class="field__hint">
+                Vacía vale para todo el cliente. Con zona, la pestaña de Zonas mostrará este
+                contacto en esa zona.
+              </span>
             </div>
-          }
+          </div>
 
           <div class="new__row new__row--two">
             <label class="field" for="nc-correo">
@@ -161,6 +148,22 @@ export type NewContact = {
             <span>Es el contacto principal</span>
           </label>
 
+          <!--
+            El aviso sale al marcar la casilla, no al guardar. El servidor tambien lo rechaza
+            —la regla vive ahi y en la base—, pero enterarse despues de llenar el formulario es
+            enterarse tarde: aqui se dice a quien hay que quitarsela primero.
+          -->
+          @if (principalOcupado(); as ocupado) {
+            <p class="new__conflicto" role="alert">
+              Este cliente ya tiene un contacto principal: <strong>{{ ocupado.fullName }}</strong>.
+              Quítale la marca a {{ ocupado.fullName }} antes de dársela a este.
+            </p>
+          }
+
+          @if (problem()) {
+            <p class="new__conflicto" role="alert">{{ problem() }}</p>
+          }
+
           @if (!ready()) {
             <p class="new__reason">Falta el nombre, y al menos un correo o un teléfono: un contacto
               al que no se puede llamar no sirve para lo que existe.</p>
@@ -169,7 +172,7 @@ export type NewContact = {
           <p class="new__footer">
             <button class="button" type="button" (click)="cancelAdd()">Cancelar</button>
             <button class="button button--primary" type="button"
-              [disabled]="saving() || !ready()" (click)="submit()">
+              [disabled]="saving() || !ready() || !!principalOcupado()" (click)="submit()">
               {{ saving() ? 'Guardando…' : editando() ? 'Guardar cambios' : 'Guardar contacto' }}
             </button>
           </p>
@@ -249,6 +252,8 @@ export type NewContact = {
 
     .field { display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; }
 
+    .field__hint { color: var(--gestia-muted); font-size: 11px; line-height: 1.5; }
+
     .field__label {
       color: var(--gestia-muted);
       font-size: 11px;
@@ -279,6 +284,17 @@ export type NewContact = {
 
     .new__reason { margin: 0; color: var(--gestia-muted); font-size: 11.5px; }
 
+    /* En ambar y con recuadro: no es una explicacion de lo que falta, es algo que impide guardar. */
+    .new__conflicto {
+      margin: 0;
+      padding: 0.45rem 0.6rem;
+      border: 1px solid var(--gestia-warning);
+      border-radius: var(--gestia-radius);
+      background: var(--gestia-warning-soft);
+      color: var(--gestia-text);
+      font-size: 12px;
+    }
+
     @media (max-width: 48rem) {
       .new__row--two { grid-template-columns: 1fr; }
     }
@@ -289,6 +305,14 @@ export class ClientContacts {
   readonly zones = input<readonly ClientZone[]>([]);
   readonly canWrite = input(false);
   readonly saving = input(false);
+
+  /**
+   * Lo que dijo el servidor al rechazar el guardado.
+   *
+   * <p>Llega hasta aquí porque el aviso de la pantalla se pinta detrás de la ventana de la ficha:
+   * un mensaje que nadie ve es un mensaje que no existe.</p>
+   */
+  readonly problem = input('');
 
   /** Abre el alta desde fuera, como hace la pestaña de Zonas. */
   readonly openAdd = input(false);
@@ -309,18 +333,26 @@ export class ClientContacts {
 
   protected readonly sueltos = { standalone: true };
 
-  /**
-   * A quién cubre el contacto.
-   *
-   * <p>«Del cliente» va primero porque es el caso normal: veintitrés de los veintiséis contactos de
-   * la base viva son del cliente, no de una zona.</p>
-   */
-  protected readonly scopeOptions: readonly GiSelectOption[] = [
-    { value: 'General', label: 'A todo el cliente' },
-    { value: 'Zone', label: 'Sólo a una zona' },
-  ];
-
   protected readonly purposeOptions = computed(() => this.purposes());
+
+  /**
+   * Los dos catálogos, como desplegable.
+   *
+   * <p>Eran un selector con búsqueda que además ofrecía crear el valor ahí mismo. Se cambió el 23
+   * de septiembre de 2026 a petición expresa: el recuadro de sugerencias aparecía debajo y
+   * estorbaba más de lo que ayudaba en un formulario de seis campos.</p>
+   *
+   * <p><b>Lo que se pierde:</b> un puesto o un propósito que no esté en el catálogo ya no se puede
+   * agregar desde aquí; hay que crearlo en Catálogos. Los eventos de creación siguen declarados
+   * porque la pantalla que los recibe no cambió.</p>
+   */
+  protected readonly opcionesDePuesto = computed<readonly GiSelectOption[]>(() =>
+    this.jobPositions().map((puesto) => ({ value: puesto.idCatalogItem, label: puesto.name })),
+  );
+
+  protected readonly opcionesDeProposito = computed<readonly GiSelectOption[]>(() =>
+    this.purposes().map((proposito) => ({ value: proposito.idCatalogItem, label: proposito.name })),
+  );
 
   private readonly addingByHand = signal(false);
   protected readonly adding = computed(() => this.canWrite() && (this.addingByHand() || this.openAdd()));
@@ -331,12 +363,34 @@ export class ClientContacts {
   protected readonly email = signal('');
   protected readonly phone = signal('');
   protected readonly purpose = signal<ClientContactPurpose>('Operational');
+  /**
+   * El propósito del contacto, que ya no se captura pero <b>sí se conserva</b>.
+   *
+   * <p>El campo salió del formulario el 23 de septiembre de 2026: tenía su catálogo con ocho
+   * valores y 41 contactos con propósito guardado, y <b>nada decidía nada con él</b>. Se leía en un
+   * solo sitio —el renglón del contacto en esta misma lista— y no filtraba, ni agrupaba, ni elegía
+   * a quién avisar. Pedir un dato que nadie usa es pedirlo dos veces: al capturarlo y al
+   * revisarlo.</p>
+   *
+   * <p><b>La señal se queda</b> porque editar un contacto manda el perfil entero: sin ella, guardar
+   * un cambio de teléfono le borraría el propósito que ya tenía. Se carga de lo guardado y se
+   * devuelve igual. El catálogo sigue en Catálogos y el renglón lo sigue mostrando.</p>
+   */
   protected readonly idPurpose = signal('');
-  protected readonly scope = signal<ClientContactScope>('General');
   protected readonly idClientZone = signal('');
   protected readonly isPrimary = signal(false);
 
+  /**
+   * Las zonas, con «Todo el cliente» como primera opción.
+   *
+   * <p><b>Sin esa primera opción no había vuelta atrás.</b> El vacío era sólo el texto de relleno
+   * que se veía antes de elegir: en cuanto alguien elegía una zona, la lista sólo ofrecía zonas y
+   * el contacto se quedaba atado a ésa para siempre —había que borrarlo y capturarlo de nuevo—.
+   * Un campo opcional tiene que poder volver a estar vacío, y la única forma de decirlo en una
+   * lista es que el vacío sea una opción más.</p>
+   */
   protected readonly zoneOptions = computed<readonly GiSelectOption[]>(() => [
+    { value: '', label: 'Todo el cliente' },
     ...this.zones()
       .filter((zone) => zone.active)
       .map((zone) => ({ value: zone.idClientZone, label: zone.name })),
@@ -351,11 +405,29 @@ export class ClientContacts {
   protected readonly ready = computed(
     () =>
       !!this.fullName().trim() &&
-      (!!this.email().trim() || !!this.phone().trim()) &&
-      // Con alcance de zona hay que decir cuál. El servidor lo rechaza igual; decirlo aquí evita
-      // que el usuario mande una petición que ya se sabe que va a fallar.
-      (this.scope() === 'General' || !!this.idClientZone()),
+      (!!this.email().trim() || !!this.phone().trim()),
   );
+
+  /**
+   * El contacto que ya tiene la marca de principal, cuando estorba.
+   *
+   * <p>Devuelve nulo mientras la casilla esté sin marcar, y también cuando el que la tiene es el
+   * contacto que se está editando: volver a guardarlo sin tocar la marca no puede quedar
+   * bloqueado por sí mismo.</p>
+   */
+  protected readonly principalOcupado = computed(() => {
+    if (!this.isPrimary()) {
+      return null;
+    }
+
+    const enEdicion = this.editando()?.idClientContact;
+    return (
+      this.contacts().find(
+        (contacto) =>
+          contacto.isPrimary && contacto.active && contacto.idClientContact !== enEdicion,
+      ) ?? null
+    );
+  });
 
   protected startAdd(): void {
     if (!this.canWrite()) return;
@@ -381,7 +453,6 @@ export class ClientContacts {
     this.phone.set(contact.phone ?? '');
     this.purpose.set(contact.purpose);
     this.idPurpose.set(contact.idPurposeCatalogItem ?? '');
-    this.scope.set(contact.scope);
     this.idClientZone.set(contact.idClientZone ?? '');
     this.isPrimary.set(contact.isPrimary);
     // Por identificador, no por nombre: el contacto ya lo trae desde la conversión del catálogo, y
@@ -406,10 +477,8 @@ export class ClientContacts {
       fullName: this.fullName().trim(),
       idPurposeCatalogItem: this.idPurpose() || null,
       purpose: this.purpose(),
-      scope: this.scope(),
-      // Con alcance general la zona no viaja, aunque haya quedado elegida antes de cambiar de
-      // alcance: el servidor la descartaría igual, y mandarla haría creer que se guardó.
-      idClientZone: this.scope() === 'Zone' ? this.idClientZone() || null : null,
+      // Vacia significa que el contacto vale para todo el cliente.
+      idClientZone: this.idClientZone() || null,
       idContactJobPositionCatalogItem: this.idContactJobPosition() || null,
       jobTitle: this.jobPositions().find((p) => p.idCatalogItem === this.idContactJobPosition())?.name ?? '',
       email: this.email().trim(),
@@ -450,7 +519,6 @@ export class ClientContacts {
     this.phone.set('');
     this.purpose.set('Operational');
     this.idPurpose.set('');
-    this.scope.set('General');
     this.idClientZone.set('');
     this.isPrimary.set(false);
   }

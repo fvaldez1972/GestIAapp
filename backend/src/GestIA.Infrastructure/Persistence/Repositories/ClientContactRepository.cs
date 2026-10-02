@@ -27,6 +27,20 @@ public sealed class ClientContactRepository(GestIaDbContext dbContext) : IClient
                 contact => contact.IdClient == idClient && contact.IdClientContact == idClientContact,
                 cancellationToken);
 
+    public Task<ClientContact?> GetPrimaryAsync(
+        Guid idClient,
+        Guid? exceptIdClientContact,
+        CancellationToken cancellationToken) =>
+        dbContext.ClientContacts
+            .AsNoTracking()
+            .Where(contact =>
+                contact.IdClient == idClient &&
+                contact.IsPrimary &&
+                contact.Active &&
+                (exceptIdClientContact == null || contact.IdClientContact != exceptIdClientContact))
+            .OrderBy(contact => contact.CreatedAt)
+            .FirstOrDefaultAsync(cancellationToken);
+
     public Task AddAsync(ClientContact contact, CancellationToken cancellationToken) =>
         dbContext.ClientContacts.AddAsync(contact, cancellationToken).AsTask();
 }

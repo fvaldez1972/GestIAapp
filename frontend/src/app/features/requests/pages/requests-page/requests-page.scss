@@ -513,7 +513,10 @@
 .request-table-shell {
   background: #fff;
   border: 1px solid #e0e8f2;
-  border-radius: 6px;  overflow: auto;
+  border-radius: 6px;
+  overflow: auto;
+  max-height: var(--gi-table-max-height, calc(100vh - 20rem));
+  overscroll-behavior: contain;
   transition: opacity .16s ease;
 }
 

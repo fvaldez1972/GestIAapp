@@ -94,6 +94,29 @@ public sealed class ServiceAssignment : AuditableEntity, IOrganizationScopedEnti
         RegisterUpdate(actorId, actorName, occurredAt);
     }
 
+    /// <summary>
+    /// Cierra la asignación en una fecha.
+    ///
+    /// <para><b>Existe para la baja del empleado</b>, que desde RQ-07 cierra en la misma transacción
+    /// las asignaciones que seguían vigentes: dejarlas abiertas describiría a alguien que ya no trabaja
+    /// y sigue cubriendo un servicio.</para>
+    ///
+    /// <para>Es distinto de <see cref="UpdateProfile"/> a propósito. Aquél reemplaza el perfil entero y
+    /// se usa cuando alguien edita la asignación; éste toca una sola fecha y no puede mover la posición
+    /// ni el tipo por accidente. Una asignación que ya terminaba antes de esa fecha se queda como
+    /// estaba: adelantar un fin que ya ocurrió no es cerrar, es reescribir.</para>
+    /// </summary>
+    public void Close(DateOnly endDate, Guid actorId, string actorName, DateTime occurredAt)
+    {
+        if (EndDate is not null && EndDate <= endDate)
+        {
+            return;
+        }
+
+        EndDate = endDate < StartDate ? StartDate : endDate;
+        RegisterUpdate(actorId, actorName, occurredAt);
+    }
+
     private void ApplyProfile(ServiceAssignmentProfile profile)
     {
         if (profile.IdPosition == Guid.Empty)

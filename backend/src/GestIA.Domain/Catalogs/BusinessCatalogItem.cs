@@ -9,7 +9,11 @@ public sealed record BusinessCatalogItemProfile(
     string? Description,
     int Order = 1,
     Guid? IdParentCatalogItem = null,
-    bool? IsBlocking = null);
+    bool? IsRequired = null,
+    bool? IsExpiredOnTermination = null,
+    bool? HasOwnExpiry = null,
+    int? MaxIssueAgeMonths = null,
+    bool? IsSensitive = null);
 
 public sealed class BusinessCatalogItem : AuditableEntity, IOrganizationScopedEntity
 {
@@ -59,15 +63,61 @@ public sealed class BusinessCatalogItem : AuditableEntity, IOrganizationScopedEn
     /// <para><b>Es el valor por omisión de la organización, no la única fuente.</b> La marca dice
     /// qué tan grave es que falte; quién lo exige —toda la organización, un cliente, un servicio o
     /// una posición— lo dice <c>EligibilityRequirement</c>, que puede afinarla. Los dos hechos se
-    /// parecen y no son el mismo: la propia matriz los separa cuando dice que una bloqueante
+    /// parecen y no son el mismo: la propia matriz los separa cuando dice que una obligatoria
     /// «impide asignar al personal a un servicio <b>que lo requiera</b>».</para>
     ///
     /// <para><b>Nulo significa que este catálogo no tiene severidad</b>, y es el caso de la mayoría:
     /// un país, un municipio o un puesto no son algo que se cumpla o se incumpla. Sólo la tienen los
     /// cuatro catálogos que participan en la elegibilidad: experiencia, categoría de documento,
     /// categoría de evaluación e incidencia administrativa.</para>
+    ///
+    /// <para><b>Se llamó <c>IsBlocking</c> hasta el 23 de septiembre de 2026</b>, y la columna
+    /// también. El rótulo de pantalla pasó a «Informativa/Obligatorio» y el modelo lo siguió, para
+    /// no dejar al proyecto con dos vocabularios para la misma marca. El renombre de la columna va
+    /// en <c>RenameBlockingMarkToRequired</c>; los eventos de bitácora anteriores conservan
+    /// <c>"IsBlocking"</c> dentro de su JSON, porque un historial no se reescribe.</para>
     /// </summary>
-    public bool? IsBlocking { get; private set; }
+    public bool? IsRequired { get; private set; }
+
+    /// <summary>
+    /// Si los documentos o evaluaciones de este tipo dejan de contar al causar baja la persona.
+    ///
+    /// <para>Un antidoping con vigencia de un año sigue siendo válido el día que alguien se va, pero
+    /// no sirve para un reingreso seis meses después. Marcado aquí, la baja sustituye su fecha de
+    /// vencimiento por la fecha de baja, y al reingresar se pide de nuevo. La vigencia original queda
+    /// guardada.</para>
+    ///
+    /// <para>Nulo en los catálogos donde no aplica.</para>
+    /// </summary>
+    public bool? IsExpiredOnTermination { get; private set; }
+
+    /// <summary>
+    /// Si los papeles de este tipo traen su propia fecha de vencimiento.
+    ///
+    /// <para>Cuando no la traen, el papel vale mientras dure el ingreso y sólo lo vence la baja: es el
+    /// caso del comprobante de domicilio. La fecha de vencimiento se pide al cargar sólo si este
+    /// atributo dice que sí.</para>
+    /// </summary>
+    public bool? HasOwnExpiry { get; private set; }
+
+    /// <summary>
+    /// Cuántos meses de antigüedad admite la fecha de emisión al cargar el papel. Nulo: sin límite.
+    ///
+    /// <para>Es la regla del comprobante de domicilio —«no mayores a tres meses»—, que hasta el
+    /// 26 de septiembre de 2026 se aplicaba al vencimiento de todos los documentos del personal. Vive
+    /// en el catálogo y no atada a un nombre, porque una regla que dependa del texto «Comprobante de
+    /// domicilio» se rompe el día que alguien lo renombre.</para>
+    /// </summary>
+    public int? MaxIssueAgeMonths { get; private set; }
+
+    /// <summary>
+    /// Si los papeles de este tipo llevan datos personales que piden trato especial.
+    ///
+    /// <para>La sensibilidad se hereda del tipo: un documento no la decide por su cuenta. Desmarcar un
+    /// tipo que ya tiene papeles guardados exige permiso sobre datos sensibles, porque deja de
+    /// proteger lo que ya estaba protegido.</para>
+    /// </summary>
+    public bool? IsSensitive { get; private set; }
 
     public Organization Organization { get; private set; } = null!;
 
@@ -96,10 +146,10 @@ public sealed class BusinessCatalogItem : AuditableEntity, IOrganizationScopedEn
         if (!Enum.IsDefined(profile.Type)) throw new ArgumentException("Unknown catalog type.");
         if (profile.Order < 1) throw new ArgumentOutOfRangeException(nameof(profile), "Order must be positive.");
 
-        // Marcar como bloqueante un municipio o una nacionalidad no querría decir nada, y guardarlo
+        // Marcar como obligatorio un municipio o una nacionalidad no querría decir nada, y guardarlo
         // dejaría un dato que alguien leería como si significara algo. Se descarta en la entidad y
         // no en la pantalla, para que no dependa de por dónde entre la fila.
-        if (profile.IsBlocking.HasValue && !SupportsBlockingMark(profile.Type))
+        if (profile.IsRequired.HasValue && !SupportsRequiredMark(profile.Type))
         {
             throw new ArgumentOutOfRangeException(
                 nameof(profile),
@@ -107,7 +157,11 @@ public sealed class BusinessCatalogItem : AuditableEntity, IOrganizationScopedEn
         }
 
         Type = profile.Type;
-        IsBlocking = profile.IsBlocking;
+        IsRequired = profile.IsRequired;
+        IsExpiredOnTermination = profile.IsExpiredOnTermination;
+        HasOwnExpiry = profile.HasOwnExpiry;
+        MaxIssueAgeMonths = profile.MaxIssueAgeMonths;
+        IsSensitive = profile.IsSensitive;
         Name = profile.Name.Trim();
         Description = string.IsNullOrWhiteSpace(profile.Description) ? null : profile.Description.Trim();
         IdParentCatalogItem = profile.IdParentCatalogItem;
@@ -121,9 +175,24 @@ public sealed class BusinessCatalogItem : AuditableEntity, IOrganizationScopedEn
     /// <para>Está aquí y no en una tabla de configuración porque no es una preferencia: es la lista
     /// de cosas que una regla de elegibilidad sabe comprobar. Crece cuando crece esa lista.</para>
     /// </summary>
-    public static bool SupportsBlockingMark(BusinessCatalogItemType type) => type is
+    public static bool SupportsRequiredMark(BusinessCatalogItemType type) => type is
         BusinessCatalogItemType.Skill or
         BusinessCatalogItemType.EmployeeDocumentCategory or
         BusinessCatalogItemType.EmployeeEvaluationCategory or
         BusinessCatalogItemType.AdministrativeIncidentType;
+
+    /// <summary>
+    /// Qué catálogos admiten el corte por baja: sólo los papeles del expediente del personal.
+    ///
+    /// <para>Una experiencia o un tipo de acta no caducan porque alguien se vaya, así que la marca no
+    /// tendría significado ahí.</para>
+    /// </summary>
+    public static bool SupportsTerminationExpiry(BusinessCatalogItemType type) => type is
+        BusinessCatalogItemType.EmployeeDocumentCategory or
+        BusinessCatalogItemType.EmployeeEvaluationCategory;
+
+    /// <summary>Qué catálogos declaran sensibilidad: los tipos de documento, de las dos entidades.</summary>
+    public static bool SupportsSensitiveMark(BusinessCatalogItemType type) => type is
+        BusinessCatalogItemType.EmployeeDocumentCategory or
+        BusinessCatalogItemType.ClientDocumentCategory;
 }

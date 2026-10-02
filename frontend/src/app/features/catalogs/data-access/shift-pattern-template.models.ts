@@ -8,21 +8,72 @@
  */
 
 /** Con qué luz se trabaja el turno. Decide, entre otras cosas, si aplica prima nocturna. */
-export type ShiftDaypart = 'Day' | 'Night' | 'Mixed' | 'Rotating';
+export type ShiftDaypart = 'Day' | 'Evening' | 'Night' | 'Mixed' | 'Rotating';
 
 export const SHIFT_DAYPART_LABELS: Readonly<Record<ShiftDaypart, string>> = {
   Day: 'Diurno',
+  Evening: 'Vespertino',
   Night: 'Nocturno',
   Mixed: 'Mixto',
   Rotating: 'Rotativo',
 };
 
+/**
+ * En el orden en que se ofrecen, que es el del día: mañana, tarde, noche, y los dos que no son una
+ * franja sino una forma de combinarlas.
+ */
 export const SHIFT_DAYPARTS: readonly { readonly value: ShiftDaypart; readonly label: string }[] = [
   { value: 'Day', label: 'Diurno' },
+  { value: 'Evening', label: 'Vespertino' },
   { value: 'Night', label: 'Nocturno' },
   { value: 'Mixed', label: 'Mixto' },
   { value: 'Rotating', label: 'Rotativo' },
 ];
+
+/**
+ * Cómo se llama cada día de un ciclo.
+ *
+ * <p><b>En un ciclo de siete días se usan los nombres de la semana, y el día 1 es lunes.</b> Hay
+ * que decirlo porque no está en el modelo: la plantilla numera los días y no declara en qué fecha
+ * empieza a contar. Lunes es lo que dicen los nombres de las plantillas —«Rol diurno lunes a
+ * sábado»— y el ancla que usó la migración que enlazó las posiciones.</p>
+ *
+ * <p>Fuera de los siete no hay semana que nombrar: un ciclo de seis cae en días distintos cada
+ * semana, así que se queda en «Día 3», que es lo único cierto.</p>
+ */
+const SEMANA = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'];
+
+/**
+ * Cómo se dice la longitud de un ciclo. **En una sola función, y por una razón.**
+ *
+ * <p>Estaba escrita en cuatro sitios —la tabla de patrones, el desplegable de la posición, el aviso
+ * del calendario y la nota del patrón elegido— y se separaron: la tabla decía «Semanal» y los
+ * otros tres «ciclo de 7 días». Dos vocabularios para el mismo dato se leen como dos cosas.</p>
+ *
+ * <p>Siete días es «Semanal» y no «7 días» porque es lo que la gente dice: nadie llama a una
+ * semana «un ciclo de siete días» salvo cuando quiere distinguirla de un 24x48.</p>
+ */
+export function cycleLabel(cycleDays: number): string {
+  if (cycleDays === 7) {
+    return 'Semanal';
+  }
+
+  return cycleDays === 1 ? '1 día' : `${cycleDays} días`;
+}
+
+/** La misma longitud dentro de una frase: «el ciclo semanal», «el ciclo de 3 días». */
+export function cyclePhrase(cycleDays: number): string {
+  return cycleDays === 7 ? 'semanal' : `de ${cycleLabel(cycleDays).toLowerCase()}`;
+}
+
+export function cycleDayLabel(dayNumber: number, cycleDays: number): string {
+  if (cycleDays === 7 && dayNumber >= 1 && dayNumber <= 7) {
+    const nombre = SEMANA[dayNumber - 1];
+    return nombre.charAt(0).toUpperCase() + nombre.slice(1);
+  }
+
+  return `Día ${dayNumber}`;
+}
 
 export const shiftDaypartLabel = (daypart: ShiftDaypart): string =>
   SHIFT_DAYPART_LABELS[daypart] ?? daypart;

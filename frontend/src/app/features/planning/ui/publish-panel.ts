@@ -10,9 +10,9 @@ import { PlanningConflict } from '../data-access/planning.models';
  * Asistencia compara contra la versión publicada; Cobertura resuelve huecos de la versión
  * publicada. Por eso el panel dice qué se va a publicar antes de publicarlo, y no después.</p>
  *
- * <p><b>La versión publicada no se edita.</b> No es una regla de la pantalla: el servidor la hace
- * cumplir, y toda modificación posterior entra como incidencia trazable. Decirlo aquí evita la
- * sorpresa de publicar creyendo que se puede retocar.</p>
+ * <p><b>La versión publicada no se edita</b>, y el panel ya no lo dice. El servidor es quien hace
+ * cumplir esa regla —el aviso nunca fue lo que la sostenía—, así que retirarlo el 24 de septiembre
+ * de 2026, por petición, no cambia lo que pasa al publicar: sólo deja de anunciarlo aquí.</p>
  *
  * <p><b>Cuando no se puede publicar, el botón dice por qué.</b> Un botón apagado sin explicación
  * se lee como que la aplicación se rompió, y quien lo ve no tiene forma de saber qué le falta.</p>
@@ -21,25 +21,32 @@ import { PlanningConflict } from '../data-access/planning.models';
   selector: 'app-publish-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <section class="pub">
-      <header class="pub__head">
-        <span class="pub__title">AL PUBLICAR</span>
-        @if (publishedLabel()) {
-          <span class="pub__estado">{{ publishedLabel() }}</span>
-        }
-      </header>
+    <section class="pub" [class.pub--flat]="flat()">
+      @if (!flat()) {
+        <header class="pub__head">
+          <h2 class="pub__title">Al publicar</h2>
+          @if (publishedLabel()) {
+            <span class="pub__estado">{{ publishedLabel() }}</span>
+          }
+        </header>
+      }
 
       <div class="pub__cuerpo">
-        <p class="pub__resumen">{{ resumen() }}</p>
+        <div class="pub__texto">
+          <p class="pub__resumen">{{ resumen() }}</p>
 
-        <p class="pub__aviso">
-          La versión queda publicada e inmutable. Toda modificación posterior entra como incidencia
-          trazable: el rol publicado no se edita.
-        </p>
+          <!--
+            Plano, la versión publicada se dice aquí: la cabecera que la llevaba no se dibuja, y
+            perderla dejaría la pantalla sin decir contra qué versión se está comparando.
+          -->
+          @if (flat() && publishedLabel()) {
+            <span class="pub__estado">{{ publishedLabel() }}</span>
+          }
 
-        @if (razon()) {
-          <p class="pub__porque" id="pub-porque">{{ razon() }}</p>
-        }
+          @if (razon()) {
+            <p class="pub__porque" id="pub-porque">{{ razon() }}</p>
+          }
+        </div>
 
         <div class="pub__acciones">
           <button
@@ -60,36 +67,56 @@ import { PlanningConflict } from '../data-access/planning.models';
 
     .pub {
       border: 1px solid var(--gestia-border);
-      border-radius: var(--gestia-radius);
+      border-radius: var(--gestia-radius-lg);
       background: var(--gestia-surface);
       overflow: hidden;
     }
 
-    .pub__head {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 0.75rem;
-      padding: 0.65rem 0.85rem;
-      border-bottom: 1px solid var(--gestia-border);
+    /* Plano es el pie de la tarjeta de cierre: sin contorno propio y con el botón a la derecha
+       del resumen, en un renglón, en vez de una columna con el botón debajo. */
+    .pub--flat {
+      border: none;
+      border-radius: 0;
+      border-top: 1px solid var(--gestia-border);
       background: var(--gestia-surface-soft);
     }
 
-    .pub__title { color: var(--gestia-muted); font-size: 10.5px; font-weight: 600; letter-spacing: 0.07em; }
-    .pub__estado { color: var(--gestia-muted); font-size: 11.5px; }
+    .pub--flat .pub__cuerpo {
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      padding: 0.8rem 1rem;
+    }
 
-    .pub__cuerpo { display: flex; flex-direction: column; gap: 0.5rem; padding: 0.85rem; }
+    .pub--flat .pub__acciones { padding-top: 0; }
 
-    .pub__resumen { margin: 0; color: var(--gestia-text); font-size: 12.5px; font-weight: 600; }
-    .pub__aviso { margin: 0; color: var(--gestia-muted); font-size: 11.5px; line-height: 1.5; }
+    .pub__head {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 0.75rem;
+      padding: 0.85rem 1rem;
+    }
 
+    .pub__title { margin: 0; color: var(--gestia-navy); font-size: 16px; font-weight: 600; }
+    .pub__estado { color: var(--gestia-muted); font-size: 12px; }
+
+    .pub__cuerpo { display: flex; flex-direction: column; gap: 0.6rem; padding: 1rem; }
+
+    .pub__texto { display: flex; flex-direction: column; gap: 0.35rem; min-width: 0; }
+
+    .pub__resumen { margin: 0; color: var(--gestia-text); font-size: 13px; font-weight: 600; }
+
+    /* El porqué del botón apagado, en una ficha de color y no con una raya al costado. */
     .pub__porque {
       margin: 0;
-      padding: 0.5rem 0.6rem;
-      border-left: 3px solid var(--gestia-danger);
-      background: var(--gestia-canvas);
-      color: var(--gestia-text);
-      font-size: 11.5px;
+      padding: 0.45rem 0.7rem;
+      border-radius: var(--gestia-radius);
+      background: var(--gestia-danger-soft);
+      color: var(--gestia-danger);
+      font-size: 12px;
       line-height: 1.5;
     }
 
@@ -97,17 +124,18 @@ import { PlanningConflict } from '../data-access/planning.models';
 
     .pub__boton {
       height: var(--gestia-control-height);
-      padding: 0 1rem;
+      padding: 0 1.2rem;
       border: 1px solid var(--gestia-navy);
       border-radius: var(--gestia-radius);
       background: var(--gestia-navy);
       color: var(--gestia-surface);
       font: inherit;
-      font-size: 12.5px;
+      font-size: 13px;
       font-weight: 600;
       cursor: pointer;
     }
 
+    .pub__boton:hover:not([disabled]) { background: var(--gestia-navy-soft); border-color: var(--gestia-navy-soft); }
     .pub__boton[disabled] { opacity: 0.5; cursor: not-allowed; }
     .pub__boton:focus-visible { outline: 2px solid var(--gestia-cyan); outline-offset: 1px; }
   `,
@@ -123,6 +151,9 @@ export class PublishPanel implements OnInit {
 
   /** Qué versión está publicada hoy, si hay alguna. Vacío significa que nadie ha publicado. */
   readonly publishedLabel = input('');
+
+  /** Sin contorno propio y en un renglón, para usarlo como pie de la tarjeta de cierre. */
+  readonly flat = input(false);
 
   readonly publish = output<void>();
 
@@ -159,10 +190,7 @@ export class PublishPanel implements OnInit {
       return `No se puede publicar todavía: ${bloqueantes[0].title.toLowerCase()}.`;
     }
 
-    return (
-      `No se puede publicar todavía. ${bloqueantes.length} cosas lo impiden, y están arriba con ` +
-      'lo que hay que hacer en cada una.'
-    );
+    return `No se puede publicar todavía: ${bloqueantes.length} cosas lo impiden, y están en la lista de arriba.`;
   });
 
   ngOnInit(): void {

@@ -197,7 +197,25 @@ export const GESTIA_NAVIGATION: readonly NavigationGroup[] = [
               { label: 'Categorías de documento', route: '/catalogos/categorias-de-documento-del-cliente' },
               { label: 'Puestos de contacto', route: '/catalogos/puestos-de-contacto' },
               { label: 'Propósitos de contacto', route: '/catalogos/propositos-de-contacto' },
+            ],
+          },
+          {
+            /**
+             * Geografía. Nacionalidades sale de Clientes, donde estaba por su lector —la solicitud
+             * de alta de un cliente persona física— y no por lo que es.
+             *
+             * <p><b>Zonas está aquí aunque no sea un catálogo</b>, y conviene decirlo: una zona es
+             * un lugar de un cliente concreto, con su propia dirección, y un servicio apunta a la
+             * del cliente que lo contrató. Lo que esta entrada resuelve es que hasta hoy sólo se
+             * podían ver desde la ficha de su cliente, una a una. Es una vista, no un catálogo.</p>
+             *
+             * <p>País, estado y municipio siguen fuera: vienen cargados del catálogo del INEGI
+             * —8, 258 y 19 826 filas— y nadie los administra a mano.</p>
+             */
+            label: 'Geografía',
+            items: [
               { label: 'Nacionalidades', route: '/catalogos/nacionalidades' },
+              { label: 'Zonas', route: '/catalogos/zonas' },
             ],
           },
           {

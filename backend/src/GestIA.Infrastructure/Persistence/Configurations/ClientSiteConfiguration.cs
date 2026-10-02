@@ -20,6 +20,12 @@ public sealed class ClientSiteConfiguration : IEntityTypeConfiguration<ClientSit
         builder.Property(entity => entity.Municipality).HasMaxLength(120).IsRequired();
         builder.Property(entity => entity.State).HasMaxLength(120).IsRequired();
         builder.Property(entity => entity.PostalCode).HasMaxLength(10).IsUnicode(false).IsRequired();
+
+        // decimal(9,6): seis decimales dan unos once centimetros, y nueve digitos cubren hasta 180
+        // grados. Nunca float: una coordenada se compara y se muestra, y un binario aproximado haria
+        // que el mismo punto se leyera distinto.
+        builder.Property(entity => entity.Latitude).HasPrecision(9, 6);
+        builder.Property(entity => entity.Longitude).HasPrecision(9, 6);
         builder.Property(entity => entity.CountryCode).HasMaxLength(2).IsUnicode(false).HasDefaultValue("MX").IsRequired();
         builder.Property(entity => entity.AccessInstructions).HasMaxLength(1000);
         builder.Property(entity => entity.TimeZoneId).HasMaxLength(100).IsUnicode(false);

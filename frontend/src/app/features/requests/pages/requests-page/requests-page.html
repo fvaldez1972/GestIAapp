@@ -64,11 +64,11 @@
       </label>
       <label class="gi-field">
         <span>Desde</span>
-        <input class="gi-input" type="date" [value]="filterDateFrom()" (input)="onDateFromChange($event)" />
+        <gi-date [value]="filterDateFrom()" (input)="onDateFromChange($event)" />
       </label>
       <label class="gi-field">
         <span>Hasta</span>
-        <input class="gi-input" type="date" [value]="filterDateTo()" (input)="onDateToChange($event)" />
+        <gi-date [value]="filterDateTo()" (input)="onDateToChange($event)" />
       </label>
       <label class="gi-field">
         <span>Responsable</span>
@@ -409,7 +409,7 @@
                   }
 
                   <label class="gi-field" [class.has-error]="shouldShowFieldError('priority')"><span>Prioridad</span><select class="gi-input" formControlName="priority">@for (priority of priorities; track priority.value) { <option [value]="priority.value">{{ priority.label }}</option> }</select><small>Selecciona una prioridad.</small></label>
-                  <label class="gi-field" [class.has-error]="shouldShowFieldError('neededByDate')"><span>Fecha requerida</span><input class="gi-input" type="date" formControlName="neededByDate" /><small>La fecha es obligatoria.</small></label>
+                  <label class="gi-field" [class.has-error]="shouldShowFieldError('neededByDate')"><span>Fecha requerida</span><gi-date formControlName="neededByDate" /><small>La fecha es obligatoria.</small></label>
 
                   @if (activeExecutionType() !== 'NewClient') {
                     <label class="gi-field form-span-2" [class.has-error]="attemptedNewRequestNext() && !requestForm.controls.idClient.value"><span>Cliente relacionado</span><select class="gi-input" formControlName="idClient" (change)="onRequestClientChange($event)"><option value="">Seleccionar cliente</option>@for (client of clients(); track client.idClient) { <option [value]="client.idClient">{{ client.tradeName || client.legalName }}</option> }</select><small>Selecciona el cliente relacionado.</small></label>
@@ -515,7 +515,7 @@
             <section class="execution-section">
               <header><div><span>03</span><h4>Servicio</h4></div><p>Datos comerciales y fecha de arranque.</p></header>
               <div class="form-grid">
-                <label class="gi-field"><span>Código de servicio</span><input class="gi-input" formControlName="serviceCode" /></label><label class="gi-field"><span>Fecha de inicio</span><input class="gi-input" type="date" formControlName="serviceStartDate" /></label>
+                <label class="gi-field"><span>Código de servicio</span><input class="gi-input" formControlName="serviceCode" /></label><label class="gi-field"><span>Fecha de inicio</span><gi-date formControlName="serviceStartDate" /></label>
                 <label class="gi-field form-span-2"><span>Nombre del servicio</span><input class="gi-input" formControlName="serviceName" /></label><label class="gi-field form-span-2"><span>Descripción</span><textarea class="gi-input" rows="2" formControlName="serviceDescription"></textarea></label>
               </div>
             </section>
@@ -550,7 +550,7 @@
               <div class="form-grid">
                 <label class="gi-field"><span>Empleado</span><select class="gi-input" formControlName="idEmployee"><option value="">Selecciona un empleado</option>@for (employee of employees(); track employee.idEmployee) { <option [value]="employee.idEmployee">{{ employee.codeEmployee }} · {{ employee.fullName }}</option> }</select></label>
                 <label class="gi-field"><span>Puesto del servicio</span><select class="gi-input" formControlName="idPosition"><option value="">Selecciona un puesto</option>@for (position of positions(); track position.idPosition) { <option [value]="position.idPosition">{{ position.codePosition }} · {{ position.name }}</option> }</select></label>
-                <label class="gi-field"><span>Tipo de asignación</span><select class="gi-input" formControlName="assignmentType"><option value="Primary">Titular</option><option value="Support">Apoyo</option><option value="Relief">Relevo</option><option value="TemporaryReplacement">Reemplazo temporal</option></select></label><label class="gi-field"><span>Fecha de inicio</span><input class="gi-input" type="date" formControlName="assignmentStartDate" /></label>
+                <label class="gi-field"><span>Tipo de asignación</span><select class="gi-input" formControlName="assignmentType"><option value="Primary">Titular</option><option value="Support">Apoyo</option><option value="Relief">Relevo</option><option value="TemporaryReplacement">Reemplazo temporal</option></select></label><label class="gi-field"><span>Fecha de inicio</span><gi-date formControlName="assignmentStartDate" /></label>
                 <label class="gi-check form-span-2"><input type="checkbox" formControlName="assignmentIsPrimary" /><span>Marcar como asignación principal</span></label><label class="gi-field form-span-2"><span>Notas</span><textarea class="gi-input" rows="3" formControlName="assignmentNotes"></textarea></label>
               </div>
             </section>

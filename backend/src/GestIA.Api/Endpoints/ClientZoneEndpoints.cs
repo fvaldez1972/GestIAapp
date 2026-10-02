@@ -8,6 +8,27 @@ public static class ClientZoneEndpoints
 {
     public static IEndpointRouteBuilder MapClientZoneEndpoints(this IEndpointRouteBuilder endpoints)
     {
+        // Fuera del grupo por cliente a propósito: esta lista NO cuelga de un cliente, las cruza
+        // todas. Colgarla de «/clients/{id}/zones» habría obligado a inventar un identificador de
+        // cliente que no significa nada.
+        endpoints.MapGet("/api/v1/client-zones", async (
+            HttpContext context,
+            Guid organizationId,
+            IClientZoneService service,
+            CancellationToken cancellationToken) =>
+        {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
+            var zones = await service.ListForOrganizationAsync(organizationId, cancellationToken);
+            return Results.Ok(zones);
+        })
+            .RequirePermission(SecurityPermissions.ClientsRead)
+            .WithTags("Client Zones")
+            .WithName("ListOrganizationClientZones");
+
         var group = endpoints.MapGroup("/api/v1/clients/{idClient:guid}/zones")
             .WithTags("Client Zones");
 

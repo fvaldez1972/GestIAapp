@@ -60,7 +60,7 @@
     <ng-template giCell="description" let-row>{{ row.description || '—' }}</ng-template>
 
     <ng-template giCell="nature" let-row>
-      <span class="gi-badge" [class.gi-badge--warning]="row.isBlocking === true" [class.gi-badge--muted]="row.isBlocking !== true">{{ natureLabel(row) }}</span>
+      <span class="gi-badge" [class.gi-badge--warning]="row.isRequired === true" [class.gi-badge--muted]="row.isRequired !== true">{{ natureLabel(row) }}</span>
     </ng-template>
 
     <ng-template giCell="state" let-row>
@@ -190,6 +190,53 @@
           </div>
         }
 
+        @if (catalogo.hasSensitivity) {
+          <div class="gi-field">
+            <span>Documento sensible</span>
+            <gi-select
+              label="Documento sensible"
+              [options]="sensitiveOptions"
+              [value]="form.controls.sensitive.value"
+              (valueChange)="form.controls.sensitive.setValue($any($event))"
+            />
+          </div>
+        }
+
+        @if (catalogo.hasTerminationExpiry) {
+          <div class="gi-field">
+            <span>Maneja vigencia</span>
+            <gi-select
+              label="Maneja vigencia"
+              [options]="ownExpiryOptions"
+              [value]="form.controls.ownExpiry.value"
+              (valueChange)="form.controls.ownExpiry.setValue($any($event))"
+            />
+          </div>
+
+          @if (form.controls.ownExpiry.value === 'none') {
+            <label class="gi-field" for="cat-emision">
+              <span>Antigüedad máxima de la emisión, en meses</span>
+              <input
+                id="cat-emision"
+                type="number"
+                min="1"
+                max="120"
+                [formControl]="form.controls.maxIssueAgeMonths"
+              />
+            </label>
+          }
+
+          <div class="gi-field">
+            <span>Al causar baja</span>
+            <gi-select
+              label="Al causar baja"
+              [options]="terminationExpiryOptions"
+              [value]="form.controls.terminationExpiry.value"
+              (valueChange)="form.controls.terminationExpiry.setValue($any($event))"
+            />
+          </div>
+        }
+
         <div class="gi-field">
           <span>Estatus</span>
           <gi-select
@@ -209,6 +256,21 @@
       </footer>
     </form>
   </dialog>
+
+@if (pendienteDesmarcar(); as aviso) {
+  <div class="desmarcar__fondo">
+    <section class="desmarcar" role="alertdialog" aria-modal="true">
+      <h2 class="desmarcar__titulo">Quitar la sensibilidad</h2>
+      <p class="desmarcar__texto">{{ aviso }}</p>
+      <p class="desmarcar__acciones">
+        <button class="gi-button" type="button" (click)="cancelarDesmarcado()">Cancelar</button>
+        <button class="gi-button gi-button--primary" type="button" (click)="confirmarYGuardar()">
+          Quitar la sensibilidad
+        </button>
+      </p>
+    </section>
+  </div>
+}
 } @else {
   <!--
     Una dirección inventada o un catálogo que ya no existe. Se dice qué pasó en vez de dejar la

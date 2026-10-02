@@ -64,13 +64,12 @@ public sealed class ClientZoneServiceTests
             new StubUnitOfWork(),
             new StubActorContext(),
             new StubClock(),
-            new GestIA.Application.Catalogs.FormCatalogValidator(null!));
+            new GestIA.Application.Catalogs.FormCatalogValidator(null!, null!));
 
         var request = new CreateClientContactRequest(
             OrganizationId,
             client.IdClient,
             Guid.NewGuid(),
-            ClientContactScope.Zone,
             null,
             null,
             ClientContactPurpose.Operational,
@@ -129,6 +128,11 @@ public sealed class ClientZoneServiceTests
         public Task<IReadOnlyList<ClientSite>> ListAsync(Guid idClient, CancellationToken cancellationToken) =>
             Task.FromResult((IReadOnlyList<ClientSite>)[]);
 
+        public Task<IReadOnlyList<(ClientSite Zone, string ClientName)>> ListForOrganizationAsync(
+            Guid idOrganization,
+            CancellationToken cancellationToken) =>
+            Task.FromResult((IReadOnlyList<(ClientSite, string)>)[]);
+
         public Task<ClientSite?> GetAsync(Guid idClient, Guid idClientSite, CancellationToken cancellationToken) =>
             Task.FromResult<ClientSite?>(null);
 
@@ -147,6 +151,9 @@ public sealed class ClientZoneServiceTests
             Task.FromResult((IReadOnlyList<ClientContact>)[]);
 
         public Task<ClientContact?> GetAsync(Guid idClient, Guid idClientContact, CancellationToken cancellationToken) =>
+            Task.FromResult<ClientContact?>(null);
+
+        public Task<ClientContact?> GetPrimaryAsync(Guid idClient, Guid? exceptIdClientContact, CancellationToken cancellationToken) =>
             Task.FromResult<ClientContact?>(null);
 
         public Task AddAsync(ClientContact contact, CancellationToken cancellationToken) => Task.CompletedTask;

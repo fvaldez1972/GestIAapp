@@ -33,6 +33,9 @@ import { CatalogApiService } from '../../../catalogs/data-access/catalog-api.ser
 import { GiCatalogOption, GiCatalogCreation } from '../../../../shared/ui/gi-catalog-picker/gi-catalog-picker';
 import { ServerProblem, readServerProblem } from '../../../../shared/util/server-problem';
 import { ClientContacts, NewContact } from '../../ui/client-contacts';
+import { ServiceApiService } from '../../../services/data-access/service-api.service';
+import { ServiceListItem } from '../../../services/data-access/service.models';
+import { ClientServices } from '../../ui/client-services';
 import { ClientZones, NewZone } from '../../ui/client-zones';
 import { ClientTable } from '../../ui/client-table';
 
@@ -54,6 +57,7 @@ import { ClientTable } from '../../ui/client-table';
     ClientData,
     ClientEditForm,
     ClientForm,
+    ClientServices,
     ClientZones,
     ClientTable,
     EntityDocuments,
@@ -132,6 +136,14 @@ export class ClientsPage {
   protected readonly actionError = signal('');
 
   /**
+   * El error de guardar un contacto, aparte del de la pantalla.
+   *
+   * <p>`actionError` se pinta arriba del listado, que con la ficha abierta queda <b>detrás</b> de
+   * la ventana: el usuario ve que no se guardó y no ve por qué. Éste viaja al formulario.</p>
+   */
+  protected readonly contactProblem = signal('');
+
+  /**
    * Los puestos del catalogo, para el contacto.
    *
    * <p>El puesto de un contacto NO es texto libre: el servidor lo valida contra el catalogo de
@@ -159,7 +171,19 @@ export class ClientsPage {
    * mandaria vacios y los borraria en silencio.</p>
    */
   protected readonly editingClient = signal<Client | null>(null);
+
+  /** El cliente abierto, con los campos que la fila del listado no trae. */
+  protected readonly clientDetail = signal<Client | null>(null);
   protected readonly loadingClient = signal(false);
+
+  /**
+   * La ficha desde la que se abrió el editor, para volver a ella al cerrarlo.
+   *
+   * <p>Antes el editor se abria ENCIMA de la ficha: dos velos superpuestos y dos cierres para
+   * volver a la lista. Ahora sólo hay una ventana a la vez, y cerrar el editor devuelve a donde se
+   * estaba: a la ficha si se entró desde ahí, y a la lista si se entró desde el menú de la fila.</p>
+   */
+  private readonly fichaDeDonde = signal<ClientListItem | null>(null);
 
   protected startEdit(client: ClientListItem): void {
     const organizationId = this.organizationId();
@@ -174,6 +198,9 @@ export class ClientsPage {
     this.api.getClient(organizationId, client.idClient).subscribe({
       next: (completo) => {
         this.loadingClient.set(false);
+        // Una ventana a la vez: la ficha se cierra y se recuerda para volver.
+        this.fichaDeDonde.set(this.selected());
+        this.selected.set(null);
         this.editingClient.set(completo);
       },
       error: (problem) => {
@@ -199,6 +226,8 @@ export class ClientsPage {
         return 'Agregar contacto';
       case 'documents':
         return 'Agregar documento';
+      case 'services':
+        return 'Crear servicio de este cliente';
       default:
         return 'Editar cliente';
     }
@@ -215,6 +244,12 @@ export class ClientsPage {
       case 'documents':
         this.addingDocument.set(true);
         return;
+      // Servicios faltaba, y por eso caia en el caso por omision: «Crear servicio de este cliente»
+      // abria el formulario de editar el cliente. La accion de esta pestaña es ir a Servicios con
+      // el cliente puesto, que es lo mismo que hace el boton del pie.
+      case 'services':
+        this.goToServices(client);
+        return;
       default:
         this.startEdit(client);
     }
@@ -228,6 +263,17 @@ export class ClientsPage {
     if (this.saving()) { return; }
     this.editingClient.set(null);
     this.formProblem.set(null);
+    this.volverALaFicha();
+  }
+
+  /** Si el editor se abrió desde una ficha, cerrarlo devuelve a ella. Si no, a la lista. */
+  private volverALaFicha(): void {
+    const ficha = this.fichaDeDonde();
+    this.fichaDeDonde.set(null);
+
+    if (ficha) {
+      this.open(ficha);
+    }
   }
 
   protected saveEdit(datos: ClientInput): void {
@@ -245,6 +291,9 @@ export class ClientsPage {
         this.saving.set(false);
         this.editingClient.set(null);
         this.load();
+        // Vuelve a la ficha con lo que se acaba de guardar, no a la lista: quien edita casi
+        // siempre quiere comprobar el cambio donde lo estaba mirando.
+        this.volverALaFicha();
       },
       error: (problem) => {
         this.saving.set(false);
@@ -276,6 +325,69 @@ export class ClientsPage {
    * fuera de este componente»— y esta pantalla simplemente no lo escuchaba.</p>
    */
   protected readonly documentCount = signal(0);
+
+  /**
+   * Si la pestaña de documentos ya publicó su propio conteo.
+   *
+   * <p>Sin esto no se podía distinguir «no hay documentos» de «todavía no he mirado»: los dos son
+   * cero. Con la pestaña abierta manda lo que ella cuenta, que incluye lo que se acaba de subir o
+   * retirar; con la pestaña cerrada manda lo que trajo la fila.</p>
+   */
+  protected readonly documentsLoaded = signal(false);
+
+  /**
+   * Los servicios del cliente abierto.
+   *
+   * <p><b>Se piden al entrar a su pestaña, no al abrir la ficha.</b> Abrir una ficha ya cuesta dos
+   * peticiones —zonas y contactos— y hay una prueba de la frontera entre Clientes y Servicios que
+   * dice que la ficha pide sólo lo que sus pestañas muestran. El contador de la pestaña no depende
+   * de esto: sale de la fila, que es la lección que dejó el contador de Documentos.</p>
+   */
+  private readonly servicesApi = inject(ServiceApiService);
+  protected readonly clientServices = signal<readonly ServiceListItem[]>([]);
+  protected readonly servicesLoading = signal(false);
+
+  /** El cliente cuyos servicios ya se pidieron, para no repetir la consulta al volver a la pestaña. */
+  private servicesLoaded = '';
+
+  protected onTabChange(tab: string): void {
+    this.activeTab.set(tab);
+    // Cambiar de pestaña cierra lo que estuviera abierto a medias en la anterior. Editar una zona,
+    // irse a Contactos y volver dejaba el formulario puesto sobre la lista: parecía que la zona
+    // seguía en edición y no se veían las demás.
+    this.cerrarEdiciones();
+
+    const client = this.selected();
+
+    if (tab === 'services' && client && this.servicesLoaded !== client.idClient) {
+      this.cargarServicios(client);
+    }
+  }
+
+  private cargarServicios(client: ClientListItem): void {
+    const organizationId = this.organizationId();
+
+    if (!organizationId) {
+      return;
+    }
+
+    this.servicesLoaded = client.idClient;
+
+    this.servicesLoading.set(true);
+    this.servicesApi
+      .searchServices({ organizationId, clientId: client.idClient, pageSize: 50 })
+      .subscribe({
+        next: (respuesta) => {
+          this.clientServices.set(respuesta.items);
+          this.servicesLoading.set(false);
+        },
+        // El fallo de una pestaña no puede tumbar la ficha: se queda vacía y se dice al entrar.
+        error: () => {
+          this.clientServices.set([]);
+          this.servicesLoading.set(false);
+        },
+      });
+  }
 
   protected createDocumentCategory(creation: GiCatalogCreation): void {
     const organizationId = this.organizationId();
@@ -492,10 +604,19 @@ export class ClientsPage {
     const cargando = this.detailLoading();
 
     return [
+      // «Datos» y no «Resumen», que es lo que pedía la maqueta: gi-detail-panel comprueba en
+      // tiempo de ejecución que la primera pestaña se llame así, y lo llama decisión cerrada del
+      // sistema para que el mismo sitio se llame igual en todos los módulos. Cambiarlo es un
+      // acuerdo del sistema de diseño, no de esta pantalla.
       { id: 'data', label: 'Datos' },
       { id: 'zones', label: 'Zonas', count: cargando ? (client?.zoneCount ?? 0) : this.zones().length },
       { id: 'contacts', label: 'Contactos', count: cargando ? (client?.contactCount ?? 0) : this.contacts().length },
-      { id: 'documents', label: 'Documentos', count: this.documentCount() },
+      // El conteo sale de la fila hasta que la pestaña se abre y publica el suyo. Antes empezaba
+      // en cero y sólo se corregía al entrar, que era justo lo que el contador venía a evitar:
+      // había que abrir la pestaña para saber si tenía algo.
+      { id: 'documents', label: 'Documentos',
+        count: this.documentsLoaded() ? this.documentCount() : (client?.documentCount ?? 0) },
+      { id: 'services', label: 'Servicios', count: client?.serviceCount ?? 0 },
     ];
   });
 
@@ -637,7 +758,24 @@ export class ClientsPage {
     this.activeTab.set(tab);
     this.zones.set([]);
     this.contacts.set([]);
+    // El conteo de la pestaña anterior era de otro cliente. Sin esto, abrir uno con documentos y
+    // después uno sin ellos dejaba el número del primero puesto en el segundo.
+    this.documentCount.set(0);
+    this.documentsLoaded.set(false);
+    this.clientDetail.set(null);
+    this.clientServices.set([]);
+    this.servicesLoaded = '';
+    // Y lo mismo al abrir otro cliente: lo que estaba a medias era del anterior.
+    this.cerrarEdiciones();
     this.loadDetail(client);
+  }
+
+  /** Cierra los formularios de las pestañas. No toca lo que ya se guardó. */
+  private cerrarEdiciones(): void {
+    this.editingZone.set(null);
+    this.addingZone.set(false);
+    this.addingContact.set(false);
+    this.addingDocument.set(false);
   }
 
   protected closePanel(): void {
@@ -657,9 +795,16 @@ export class ClientsPage {
     forkJoin({
       zones: this.api.listZones(organizationId, client.idClient).pipe(catchError(() => of([]))),
       contacts: this.api.listContacts(organizationId, client.idClient).pipe(catchError(() => of([]))),
+      // El cliente completo. La fila del listado no trae los datos fiscales ni los de constitucion
+      // --son nueve campos que nadie necesita para pintar una lista--, y la ficha los muestra. Si
+      // falla, la ficha se queda con lo que ya tenia en vez de no abrirse.
+      completo: this.api
+        .getClient(organizationId, client.idClient)
+        .pipe(catchError(() => of(null))),
     }).subscribe((detail) => {
       this.zones.set(detail.zones);
       this.contacts.set(detail.contacts);
+      this.clientDetail.set(detail.completo);
       this.detailLoading.set(false);
     });
   }
@@ -819,6 +964,8 @@ export class ClientsPage {
         municipality: value.zone.municipality,
         state: value.zone.state,
         postalCode: value.zone.postalCode,
+        // El alta del cliente captura su zona en el mismo formulario, y ese no pregunta el país:
+        // se queda en México, que es lo que hacía antes. El país se elige en la pestaña de Zonas.
         countryCode: 'MX',
         accessInstructions: null,
         timeZoneId: null,
@@ -853,7 +1000,6 @@ export class ClientsPage {
         idClientZone,
         // El contacto que se captura junto con la primera zona es de esa zona: es el que va a
         // atender ahi, y por eso el formulario de alta lo pide en el mismo bloque.
-        scope: 'Zone',
         idPurposeCatalogItem: null,
         idContactJobPositionCatalogItem: null,
         purpose: 'Operational',
@@ -981,7 +1127,11 @@ export class ClientsPage {
         municipality: event.datos.municipality,
         state: event.datos.state,
         postalCode: event.datos.postalCode,
-        countryCode: 'MX',
+        // El punto viaja tambien al editar. No iba, y el servidor guarda lo que recibe: cambiar el
+        // nombre de una zona le borraba las coordenadas y su Plus code, sin decir nada.
+        latitude: event.datos.latitude ?? null,
+        longitude: event.datos.longitude ?? null,
+        countryCode: event.datos.countryCode,
         accessInstructions: null,
         timeZoneId: null,
       })
@@ -1065,13 +1215,13 @@ No se borra: deja de poder elegirse para servicios `
 
     this.saving.set(true);
     this.error.set('');
+    this.contactProblem.set('');
 
     this.api
       .updateContact(client.idClient, event.contact.idClientContact, {
         idOrganization: organizationId,
         idClient: client.idClient,
         idClientZone: event.datos.idClientZone,
-        scope: event.datos.scope,
         idPurposeCatalogItem: event.datos.idPurposeCatalogItem,
         idContactJobPositionCatalogItem: event.datos.idContactJobPositionCatalogItem,
         purpose: event.datos.purpose,
@@ -1092,7 +1242,7 @@ No se borra: deja de poder elegirse para servicios `
         },
         error: (problem) => {
           this.saving.set(false);
-          this.actionError.set(readServerProblem(problem, 'No se pudo guardar el contacto.').message);
+          this.contactProblem.set(readServerProblem(problem, 'No se pudo guardar el contacto.').message);
         },
       });
   }
@@ -1107,13 +1257,13 @@ No se borra: deja de poder elegirse para servicios `
 
     this.saving.set(true);
     this.error.set('');
+    this.contactProblem.set('');
 
     this.api
       .createContact(client.idClient, {
         idOrganization: organizationId,
         idClient: client.idClient,
         idClientZone: contact.idClientZone,
-        scope: contact.scope,
         idPurposeCatalogItem: contact.idPurposeCatalogItem,
         idContactJobPositionCatalogItem: contact.idContactJobPositionCatalogItem,
         purpose: contact.purpose,
@@ -1135,7 +1285,7 @@ No se borra: deja de poder elegirse para servicios `
         },
         error: (problem) => {
           this.saving.set(false);
-          this.actionError.set(readServerProblem(problem, 'No se pudo guardar el contacto.').message);
+          this.contactProblem.set(readServerProblem(problem, 'No se pudo guardar el contacto.').message);
         },
       });
   }
@@ -1164,7 +1314,9 @@ No se borra: deja de poder elegirse para servicios `
         municipality: zone.municipality,
         state: zone.state,
         postalCode: zone.postalCode,
-        countryCode: 'MX',
+        latitude: zone.latitude ?? null,
+        longitude: zone.longitude ?? null,
+        countryCode: zone.countryCode,
         accessInstructions: null,
         timeZoneId: null,
       })

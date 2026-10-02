@@ -63,9 +63,14 @@ describe('GiDetailPanel', () => {
    * La decisión que separa este panel de un cajón: es una columna del contenido. La tabla se
    * comprime a su lado, no se tapa, así que no se pierde de vista dónde estabas.
    */
-  it('mide 620 px y es una columna, no una capa encima', () => {
+  it('mide 880 px y es una columna, no una capa encima', () => {
     // jsdom no resuelve variables CSS, así que la medida se comprueba donde está escrita: el
-    // componente toma el ancho del token y el token vale 620 px.
+    // componente toma el ancho del token y el token vale 880 px.
+    //
+    // Eran 620 hasta el 23 de septiembre de 2026. Lo que se fija aquí no es el número —ése se
+    // cambia cuando haga falta— sino que **el ancho salga del token**: escrito a mano en el
+    // componente, el panel y la columna que le deja sitio en cada pantalla se separarían y el
+    // panel quedaría desbordando o con un hueco al lado.
     const componente = readFileSync(
       resolve('src/app/shared/ui/gi-detail-panel/gi-detail-panel.ts'), 'utf8');
     const hoja = readFileSync(resolve('src/styles.css'), 'utf8');
@@ -73,7 +78,7 @@ describe('GiDetailPanel', () => {
     const host = componente.slice(componente.indexOf(':host {'), componente.indexOf('.gi-panel {'));
 
     expect(host).toContain('width: var(--gestia-panel-width)');
-    expect(hoja).toContain('--gestia-panel-width: 620px');
+    expect(hoja).toContain('--gestia-panel-width: 880px');
 
     // Y es columna: nada de posicionarlo encima de la tabla.
     expect(host).not.toMatch(/position:\s*(fixed|absolute)/);
@@ -101,24 +106,27 @@ describe('GiDetailPanel', () => {
   });
 
   /**
-   * La cabecera admite acciones sobre el registro abierto.
+   * El panel admite acciones sobre el registro abierto, y van <b>con las pestañas</b>.
    *
-   * <p>Antes sólo estaba la cruz y ese espacio quedaba vacío, así que la acción principal de una
-   * ficha —editarla— tenía que vivir en el menú de la fila del listado: otro sitio, y hay que
-   * cerrar la ficha para llegar.</p>
+   * <p>Vivían junto al título hasta el 23 de septiembre de 2026. La acción cambia con la pestaña
+   * —editar, agregar zona, agregar contacto, agregar documento— y arriba quedaba lejos de lo que
+   * afecta: se leía como una acción de la ficha entera cuando es de la pestaña que se está
+   * viendo.</p>
+   *
+   * <p>La cruz se queda arriba, que es donde se busca para cerrar.</p>
    */
-  it('deja poner acciones en la cabecera, junto a la cruz', () => {
+  it('las acciones van en la fila de pestañas, y la cruz se queda arriba', () => {
     const { raiz } = montar();
 
-    const acciones = raiz.querySelector('.gi-panel__acciones');
-    expect(acciones).not.toBeNull();
-
-    const editar = Array.from(acciones!.querySelectorAll('button')).find(
+    const editar = Array.from(raiz.querySelectorAll('button')).find(
       (b) => b.textContent?.trim() === 'Editar',
     );
     expect(editar).toBeDefined();
-    // Y la cruz sigue ahí, en el mismo grupo.
-    expect(acciones!.querySelector('.gi-panel__close')).not.toBeNull();
+    expect(editar!.closest('.gi-panel__tabs'), 'la acción va con las pestañas').not.toBeNull();
+    expect(editar!.closest('.gi-panel__head'), 'y ya no en la cabecera').toBeNull();
+
+    // La cruz sigue arriba: cerrar no es una acción de la pestaña.
+    expect(raiz.querySelector('.gi-panel__head .gi-panel__close')).not.toBeNull();
   });
 
   describe('con pestañas', () => {

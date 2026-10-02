@@ -1,4 +1,5 @@
 using GestIA.Application.Common;
+using GestIA.Application.Documents;
 using GestIA.Domain.Catalogs;
 using GestIA.Domain.Workforce;
 
@@ -74,7 +75,41 @@ public sealed class CatalogService(
             idCatalogItem,
             cancellationToken);
 
+        // RQ-10: desmarcar la sensibilidad de un tipo deja de proteger papeles que ya estaban
+        // protegidos, asi que pide permiso y confirmacion con el numero de documentos afectados.
+        var desmarcaSensibilidad =
+            BusinessCatalogItem.SupportsSensitiveMark(item.Type) &&
+            item.IsSensitive == true &&
+            profile.IsSensitive == false;
+
+        if (desmarcaSensibilidad)
+        {
+            if (!actorContext.HasPermission(BusinessDocumentPermissions.SensitiveWrite))
+            {
+                throw new ResourceForbiddenException(
+                    "Quitar la sensibilidad de un tipo de documento necesita permiso sobre datos sensibles.");
+            }
+
+            var afectados = await repository.CountSensitiveDocumentsOfTypeAsync(
+                request.IdOrganization, idCatalogItem, cancellationToken);
+
+            if (afectados > 0 && !request.ConfirmUnmarkSensitive)
+            {
+                throw new ResourceConflictException(
+                    $"Al quitar la sensibilidad de «{item.Name}», {afectados} " +
+                    (afectados == 1 ? "documento ya guardado deja" : "documentos ya guardados dejan") +
+                    " de estar protegidos. Confirma para continuar.");
+            }
+        }
+
         item.UpdateProfile(profile, actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
+
+        if (BusinessCatalogItem.SupportsSensitiveMark(item.Type) && profile.IsSensitive.HasValue)
+        {
+            await repository.PropagateSensitivityAsync(
+                request.IdOrganization, idCatalogItem, profile.IsSensitive.Value, cancellationToken);
+        }
+
         if (request.Active.HasValue && request.Active.Value != item.Active)
         {
             if (request.Active.Value) item.Activate(actorContext.ActorId, actorContext.ActorName, clock.UtcNow);
@@ -257,7 +292,7 @@ public sealed class CatalogService(
             employee.IdEmployee,
             employee.CodeEmployee,
             employee.FullName,
-            reasons.All(reason => reason.Passed || !reason.IsBlocking),
+            reasons.All(reason => reason.Passed || !reason.IsRequired),
             reasons);
     }
 
@@ -322,7 +357,7 @@ public sealed class CatalogService(
                 employee.IdEmployee,
                 employee.CodeEmployee,
                 employee.FullName,
-                reasons.All(reason => reason.Passed || !reason.IsBlocking),
+                reasons.All(reason => reason.Passed || !reason.IsRequired),
                 reasons));
         }
 
@@ -405,7 +440,7 @@ public sealed class CatalogService(
     /// El perfil que la posición pide, comparado contra la persona.
     ///
     /// <para><b>Ninguno de estos cuatro bloquea, y no es un descuido.</b> La matriz «Datos
-    /// necesarios para GestIA» marca con asterisco —el que define bloqueante e informativa— sólo
+    /// necesarios para GestIA» marca con asterisco —el que define obligatorio e informativa— sólo
     /// tres catálogos: experiencia requerida, tipo de documento y evaluación. Sexo, edad,
     /// escolaridad y equipo no lo llevan. Así que el sistema los compara, los enseña, y no excluye
     /// a nadie por ellos; con eso desaparece además el riesgo legal de excluir por sexo o por
@@ -598,7 +633,7 @@ public sealed class CatalogService(
     private static EligibilityReasonResponse EvaluateIncident(AdministrativeIncident incident)
     {
         var tipo = incident.IncidentTypeCatalogItem?.Name ?? "Incidencia administrativa";
-        var bloquea = incident.IncidentTypeCatalogItem?.IsBlocking ?? false;
+        var bloquea = incident.IncidentTypeCatalogItem?.IsRequired ?? false;
 
         return new EligibilityReasonResponse(
             "Expediente",
@@ -636,7 +671,7 @@ public sealed class CatalogService(
     /// Si incumplir la regla bloquea. <b>Lo dice el catálogo, y sólo el catálogo.</b>
     ///
     /// <para>Hasta el 19 de septiembre de 2026 la regla podía afinar la marca del catálogo, y eso
-    /// permitía configurar el mismo requisito como bloqueante en un sitio e informativo en otro.
+    /// permitía configurar el mismo requisito como obligatorio en un sitio e informativo en otro.
     /// Nadie lo había hecho —ninguna entrada del catálogo tenía dos severidades entre sus reglas—,
     /// pero el modelo lo consentía, y una contradicción que el sistema permite acaba ocurriendo.
     /// RF-POS-010 pidió una sola fuente y ésta es: el catálogo dice <b>qué tan grave</b>, la regla
@@ -659,7 +694,7 @@ public sealed class CatalogService(
     /// excepción.</para>
     /// </summary>
     private static bool Severity(EligibilityRequirement requirement) =>
-        requirement.RequiredCatalogItem?.IsBlocking ?? false;
+        requirement.RequiredCatalogItem?.IsRequired ?? false;
 
     private static EligibilityReasonResponse EvaluateSkill(
         EligibilityRequirement requirement,
@@ -906,11 +941,36 @@ public sealed class CatalogService(
         // La marca de bloqueo sólo la admiten los cuatro catálogos de la elegibilidad. Se avisa aquí
         // en vez de dejar que la entidad lance, porque desde aquí sale un 400 que nombra el campo y
         // desde allá saldría un error de argumento.
-        var admiteMarca = BusinessCatalogItem.SupportsBlockingMark(request.Type);
-        if (request.IsBlocking.HasValue && !admiteMarca)
+        var admiteMarca = BusinessCatalogItem.SupportsRequiredMark(request.Type);
+        if (request.IsRequired.HasValue && !admiteMarca)
         {
-            errors[nameof(request.IsBlocking)] =
+            errors[nameof(request.IsRequired)] =
                 ["Este catálogo no participa en la elegibilidad, así que no lleva marca de bloqueo."];
+        }
+
+        if (request.IsExpiredOnTermination.HasValue &&
+            !BusinessCatalogItem.SupportsTerminationExpiry(request.Type))
+        {
+            errors[nameof(request.IsExpiredOnTermination)] =
+                ["Sólo los documentos y las evaluaciones del personal pueden vencer al causar baja."];
+        }
+
+        if (request.HasOwnExpiry.HasValue && !BusinessCatalogItem.SupportsTerminationExpiry(request.Type))
+        {
+            errors[nameof(request.HasOwnExpiry)] =
+                ["Sólo los documentos y las evaluaciones del personal manejan vigencia."];
+        }
+
+        if (request.IsSensitive.HasValue && !BusinessCatalogItem.SupportsSensitiveMark(request.Type))
+        {
+            errors[nameof(request.IsSensitive)] =
+                ["Sólo los tipos de documento declaran sensibilidad."];
+        }
+
+        if (request.MaxIssueAgeMonths is < 1 or > 120)
+        {
+            errors[nameof(request.MaxIssueAgeMonths)] =
+                ["La antigüedad máxima de emisión debe estar entre 1 y 120 meses."];
         }
 
         // Y donde la marca significa algo, es obligatoria al crear.
@@ -921,20 +981,36 @@ public sealed class CatalogService(
         // decidir» veía un guardado correcto y ningún cambio. La matriz pide dos estados —«impide
         // asignar y publicar» o «sólo deja constancia»—, así que el tercero se retira en vez de
         // arreglarse.
-        if (admiteMarca && existing is null && !request.IsBlocking.HasValue)
+        if (admiteMarca && existing is null && !request.IsRequired.HasValue)
         {
-            errors[nameof(request.IsBlocking)] =
+            errors[nameof(request.IsRequired)] =
                 ["Di si su falta impide asignar y publicar, o si sólo deja constancia."];
         }
 
         InputValidation.ThrowIfInvalid(errors);
 
         // Al editar sin mandar la marca se conserva la que tenía: una pantalla que sólo corrige el
-        // nombre no debería convertir en informativa una entrada bloqueante. Ya no puede engañar,
+        // nombre no debería convertir en informativa una entrada obligatoria. Ya no puede engañar,
         // porque después de la migración compensatoria ninguna entrada de estos cuatro catálogos
         // está sin decidir, y ninguna puede volver a estarlo.
-        bool? isBlocking = admiteMarca ? request.IsBlocking ?? existing?.IsBlocking ?? false : null;
-        return new BusinessCatalogItemProfile(request.Type, name, description, order, request.IdParentCatalogItem, isBlocking);
+        bool? isBlocking = admiteMarca ? request.IsRequired ?? existing?.IsRequired ?? false : null;
+
+        // Igual que la marca anterior: editar sin mandarla conserva la que habia.
+        bool? venceConLaBaja = BusinessCatalogItem.SupportsTerminationExpiry(request.Type)
+            ? request.IsExpiredOnTermination ?? existing?.IsExpiredOnTermination ?? false
+            : null;
+
+        bool? manejaVigencia = BusinessCatalogItem.SupportsTerminationExpiry(request.Type)
+            ? request.HasOwnExpiry ?? existing?.HasOwnExpiry ?? true
+            : null;
+
+        bool? esSensible = BusinessCatalogItem.SupportsSensitiveMark(request.Type)
+            ? request.IsSensitive ?? existing?.IsSensitive ?? false
+            : null;
+
+        return new BusinessCatalogItemProfile(
+            request.Type, name, description, order, request.IdParentCatalogItem, isBlocking, venceConLaBaja,
+            manejaVigencia, request.MaxIssueAgeMonths ?? existing?.MaxIssueAgeMonths, esSensible);
     }
 
     /// <summary>
@@ -991,7 +1067,7 @@ public sealed class CatalogService(
         if (request.RequirementType is EligibilityRequirementType.Restriction)
         {
             errors[nameof(request.RequirementType)] =
-                ["La restricción bloqueante se retiró. Registra una incidencia administrativa, que deja constancia con su fecha y su motivo."];
+                ["La restricción obligatoria se retiró. Registra una incidencia administrativa, que deja constancia con su fecha y su motivo."];
         }
 
         // Se dice aqui, con el nombre del campo que falta, para que el formulario pueda senalarlo.
@@ -1048,7 +1124,10 @@ public sealed class CatalogService(
     private static CatalogItemResponse MapCatalogItem(BusinessCatalogItem item) =>
         new(item.IdBusinessCatalogItem, item.IdOrganization, item.Type, item.Name, item.Description, item.Active,
             item.Order, item.UpdatedAt ?? item.CreatedAt, item.IdParentCatalogItem,
-            item.IsBlocking, BusinessCatalogItem.SupportsBlockingMark(item.Type));
+            item.IsRequired, BusinessCatalogItem.SupportsRequiredMark(item.Type),
+            item.IsExpiredOnTermination, BusinessCatalogItem.SupportsTerminationExpiry(item.Type),
+            item.HasOwnExpiry, item.MaxIssueAgeMonths,
+            item.IsSensitive, BusinessCatalogItem.SupportsSensitiveMark(item.Type));
 
     private static EligibilityRequirementResponse MapRequirement(EligibilityRequirement requirement) =>
         new(

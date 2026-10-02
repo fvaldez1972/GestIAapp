@@ -1,4 +1,5 @@
 using GestIA.Api.Security;
+using GestIA.Application.Common;
 using GestIA.Application.Clients;
 using GestIA.Application.Security;
 
@@ -36,7 +37,7 @@ public static class ClientEndpoints
                     zonePresence ?? ClientZonePresenceFilter.Any,
                     municipality,
                     page ?? 1,
-                    pageSize ?? 20),
+                    PageSize.Clamp(pageSize)),
                 cancellationToken);
             return Results.Ok(result);
         })

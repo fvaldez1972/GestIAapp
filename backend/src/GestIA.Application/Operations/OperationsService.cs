@@ -764,7 +764,7 @@ public sealed class OperationsService(
                     idService, shift.IdPosition, date), cancellationToken);
             if (!eligibility.IsEligible)
             {
-                var reasons = eligibility.Reasons.Where(reason => reason.IsBlocking && !reason.Passed)
+                var reasons = eligibility.Reasons.Where(reason => reason.IsRequired && !reason.Passed)
                     .Select(reason => reason.Message);
                 throw new ResourceConflictException($"El sustituto no es elegible. {string.Join(" ", reasons)}");
             }

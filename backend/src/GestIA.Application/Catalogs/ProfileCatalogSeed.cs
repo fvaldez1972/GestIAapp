@@ -8,7 +8,7 @@ namespace GestIA.Application.Catalogs;
 /// <param name="Type">El catálogo al que pertenece.</param>
 /// <param name="Name">El nombre visible.</param>
 /// <param name="Order">El orden en que se enseña.</param>
-/// <param name="IsBlocking">
+/// <param name="IsRequired">
 /// La marca de bloqueo, sólo para los catálogos que la admiten. Nula en los demás, y nula también
 /// en los que la admiten pero cuya severidad no le toca decidir al sistema.
 /// </param>
@@ -16,7 +16,7 @@ public sealed record ProfileCatalogSeedValue(
     BusinessCatalogItemType Type,
     string Name,
     int Order,
-    bool? IsBlocking = null);
+    bool? IsRequired = null);
 
 /// <summary>
 /// Los valores con los que nacen los cinco catálogos de perfil.
@@ -87,13 +87,60 @@ public static class ProfileCatalogSeed
         // motivo para que nadie pueda cubrir un turno. Quien responda por la operación puede
         // cambiar cualquiera de las dos marcas, y el cambio aplica a la validación siguiente sin
         // tocar ningún expediente.
-        new(BusinessCatalogItemType.AdministrativeIncidentType, "Abandono de puesto", 1, IsBlocking: true),
-        new(BusinessCatalogItemType.AdministrativeIncidentType, "Suspensión vigente", 2, IsBlocking: true),
-        new(BusinessCatalogItemType.AdministrativeIncidentType, "Falta injustificada", 3, IsBlocking: false),
-        new(BusinessCatalogItemType.AdministrativeIncidentType, "Retardo", 4, IsBlocking: false),
-        new(BusinessCatalogItemType.AdministrativeIncidentType, "Incumplimiento del reglamento", 5, IsBlocking: false),
-        new(BusinessCatalogItemType.AdministrativeIncidentType, "Queja del cliente", 6, IsBlocking: false),
-        new(BusinessCatalogItemType.AdministrativeIncidentType, "Extravío de equipo", 7, IsBlocking: false),
-        new(BusinessCatalogItemType.AdministrativeIncidentType, "Acta administrativa", 8, IsBlocking: false),
+        new(BusinessCatalogItemType.AdministrativeIncidentType, "Abandono de puesto", 1, IsRequired: true),
+        new(BusinessCatalogItemType.AdministrativeIncidentType, "Suspensión vigente", 2, IsRequired: true),
+        new(BusinessCatalogItemType.AdministrativeIncidentType, "Falta injustificada", 3, IsRequired: false),
+        new(BusinessCatalogItemType.AdministrativeIncidentType, "Retardo", 4, IsRequired: false),
+        new(BusinessCatalogItemType.AdministrativeIncidentType, "Incumplimiento del reglamento", 5, IsRequired: false),
+        new(BusinessCatalogItemType.AdministrativeIncidentType, "Queja del cliente", 6, IsRequired: false),
+        new(BusinessCatalogItemType.AdministrativeIncidentType, "Extravío de equipo", 7, IsRequired: false),
+        new(BusinessCatalogItemType.AdministrativeIncidentType, "Acta administrativa", 8, IsRequired: false),
+
+        // ── Los catálogos del Excel de CPPS, 26 de septiembre de 2026 ────────────────────────
+        //
+        // Vienen de la hoja CATALOGOS del archivo que el cliente entregó. Se siembran con los demás
+        // para que una organización nueva no arranque con los selectores vacíos, y la migración del
+        // mismo día los carga en las que ya existían.
+        //
+        // La psicometría NO entra como tipo de evaluación: desde RQ-08 es un registro propio del
+        // expediente, con su check y su fecha. Los patrones de turno tampoco: son una entidad aparte
+        // con su horario y su ciclo, y les toca su propia tanda.
+        //
+        // Tampoco entran los puestos ni los motivos de incidencia, aunque el Excel los traiga: el
+        // alta de una organizacion real no inventa configuracion que el administrador no eligio
+        // --decision del 3 de septiembre de 2026-- y CatalogMetadataTests lo hace cumplir. A las ocho
+        // organizaciones que ya existian si se les cargaron, por migracion.
+
+
+        // Las tareas del puesto y las aptitudes comparten catálogo porque las dos son «experiencia
+        // requerida» en el modelo, y el Excel las lista en dos columnas por comodidad de lectura.
+        new(BusinessCatalogItemType.Skill, "Llevar controles de entradas y salidas de mercancía", 20, false),
+        new(BusinessCatalogItemType.Skill, "Control de entradas y salidas de personas y vehículos", 21, false),
+        new(BusinessCatalogItemType.Skill, "Uso y manejo de teléfonos, radios y reportes escritos", 22, false),
+        new(BusinessCatalogItemType.Skill, "Manejo de circuito cerrado de televisión", 23, false),
+        new(BusinessCatalogItemType.Skill, "Elaboración de reportes y bitácoras de control", 24, false),
+        new(BusinessCatalogItemType.Skill, "Detección de condiciones y acciones inseguras", 25, false),
+        new(BusinessCatalogItemType.Skill, "Detección de situaciones de riesgo externas", 26, false),
+        new(BusinessCatalogItemType.Skill, "Disciplina", 27, false),
+        new(BusinessCatalogItemType.Skill, "Honestidad", 28, false),
+        new(BusinessCatalogItemType.Skill, "Responsabilidad", 29, false),
+        new(BusinessCatalogItemType.Skill, "Pulcritud", 30, false),
+        new(BusinessCatalogItemType.Skill, "Seguimiento de instrucciones", 31, false),
+        new(BusinessCatalogItemType.Skill, "Puntualidad", 32, false),
+        new(BusinessCatalogItemType.Skill, "Comunicación asertiva", 33, false),
+
+        new(BusinessCatalogItemType.EmployeeEvaluationCategory, "Antidoping", 20, true),
+        new(BusinessCatalogItemType.EmployeeEvaluationCategory, "Prueba poligráfica a petición del cliente", 21, false),
+        new(BusinessCatalogItemType.EmployeeEvaluationCategory, "Antecedentes laborales", 22, false),
+        new(BusinessCatalogItemType.EmployeeEvaluationCategory, "Antecedentes penales a petición del cliente", 23, false),
+
+
+        new(BusinessCatalogItemType.EmployeeDocumentCategory, "Cartas de recomendación de empleos anteriores", 20, false),
+        new(BusinessCatalogItemType.EmployeeDocumentCategory, "Alta de IMSS", 21, false),
+        new(BusinessCatalogItemType.EmployeeDocumentCategory, "Currículum", 22, false),
+
+        new(BusinessCatalogItemType.ClientDocumentCategory, "Constancia de situación fiscal", 20),
+        new(BusinessCatalogItemType.ClientDocumentCategory, "Acta constitutiva", 21),
+        new(BusinessCatalogItemType.ClientDocumentCategory, "Comprobante de domicilio", 22),
     ];
 }

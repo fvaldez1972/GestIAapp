@@ -2,7 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { Router } from '@angular/router';
 import { forkJoin, of } from 'rxjs';
-import { catchError } from 'rxjs/operators';
+import { catchError, finalize } from 'rxjs/operators';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { SystemInfoService } from '../../../../core/system/system-info.service';
 import {
@@ -12,10 +12,14 @@ import {
   GiEmptyState,
   GiFilterBar,
   GiFilterGroup,
+  GiMetricCard,
+  GiSelect,
+  GiSelectOption,
   GiTab,
   GiTabContent,
   GiTableState,
 } from '../../../../shared/ui/gi-ui';
+import { ClientApiService } from '../../../clients/data-access/client-api.service';
 import { CatalogApiService } from '../../../catalogs/data-access/catalog-api.service';
 import {
   EntityDocumentSaved,
@@ -28,8 +32,8 @@ import {
   EmployeeDocumentFilter,
   EmployeeJobPositionOption,
   EmployeeListItem,
+  EmployeeSummary,
   EMPLOYEE_STATUS_OPTIONS,
-  documentRequirementsNote,
   employeeDocumentBadge,
   employeeDocumentTypeOptions,
 } from '../../data-access/employee-list.models';
@@ -44,6 +48,9 @@ import {
   EmployeeEvaluationResult,
   EmployeeEvaluationType,
   EmployeeStatus,
+  EmploymentPeriod,
+  PsychometricTest,
+  TerminationExpirationGroup,
 } from '../../data-access/workforce.models';
 import { readServerProblem } from '../../../../shared/util/server-problem';
 import { AdministrativeIncident } from '../../data-access/administrative-incident.models';
@@ -51,18 +58,31 @@ import {
   EmployeeAdministrativeIncidents,
   NewAdministrativeIncident,
 } from '../../ui/employee-administrative-incidents';
-import { EmployeeAssignments } from '../../ui/employee-assignments';
+import { EmployeeAddressValue } from '../../ui/employee-address';
+import { EmployeeNameValue } from '../../ui/employee-name';
+import { EmployeeTerminateDialog, EmployeeTerminateValue } from '../../ui/employee-terminate-dialog';
 import { EmployeeData } from '../../ui/employee-data';
 import { EmployeeDocuments } from '../../ui/employee-documents';
 import {
   EmployeeEvaluationFormValue,
   EmployeeEvaluations,
 } from '../../ui/employee-evaluations';
+import { AssignOption, EmployeeAssignDialog, EmployeeAssignValue } from '../../ui/employee-assign-dialog';
+import { EmployeeAssignments } from '../../ui/employee-assignments';
 import { EmployeeForm, EmployeeFormValue } from '../../ui/employee-form';
 import { EmployeeSkillFormValue, EmployeeSkills } from '../../ui/employee-skills';
 import { EmployeeTable } from '../../ui/employee-table';
 
-type PendingAction = { readonly employee: EmployeeListItem; readonly kind: 'leave' | 'terminate' };
+type PendingAction = { readonly employee: EmployeeListItem; readonly kind: 'leave' };
+
+/** Los cinco ceros. Es el estado de partida y el de respaldo si el servidor no manda resumen. */
+const EMPTY_SUMMARY: EmployeeSummary = {
+  total: 0,
+  active: 0,
+  candidates: 0,
+  withExpiredDocuments: 0,
+  withExpiringDocuments: 0,
+};
 
 /**
  * Personal.
@@ -81,6 +101,7 @@ type PendingAction = { readonly employee: EmployeeListItem; readonly kind: 'leav
   selector: 'app-workforce-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    EmployeeAssignDialog,
     EmployeeAssignments,
     EmployeeData,
     EmployeeDocuments,
@@ -89,11 +110,14 @@ type PendingAction = { readonly employee: EmployeeListItem; readonly kind: 'leav
     EmployeeForm,
     EmployeeSkills,
     EmployeeTable,
+    EmployeeTerminateDialog,
     EntityDocuments,
     GiConfirmDialog,
     GiDetailPanel,
     GiEmptyState,
     GiFilterBar,
+    GiMetricCard,
+    GiSelect,
     GiTabContent,
   ],
   templateUrl: './workforce-page.html',
@@ -106,6 +130,7 @@ export class WorkforcePage {
   private readonly catalogApi = inject(CatalogApiService);
   private readonly systemInfo = inject(SystemInfoService);
   private readonly router = inject(Router);
+  private readonly clientApi = inject(ClientApiService);
 
   /** La organización se hereda de la barra de contexto. Esta pantalla no tiene selector propio. */
   protected readonly organizationId = this.auth.operationalOrganizationId;
@@ -122,6 +147,73 @@ export class WorkforcePage {
   protected readonly error = signal('');
   protected readonly message = signal('');
   protected readonly expiringWithinDays = signal(30);
+
+  /**
+   * Los números del encabezado, tal como los manda el servidor.
+   *
+   * <p>No se derivan de `employees()`: ésa es la página a la vista. Ver `EmployeeSummary`.</p>
+   */
+  protected readonly summary = signal<EmployeeSummary>(EMPTY_SUMMARY);
+
+  /**
+   * El paginado del listado.
+   *
+   * <p>Traía 25 y no ofrecía pasar a la siguiente: con 128 personas, las 103 restantes no existían
+   * para esta pantalla. Ahora pagina de verdad, y lo hace <b>en el servidor</b> —la consulta ya
+   * aceptaba página y tamaño—, así que no se traen 128 fichas para enseñar diez.</p>
+   */
+  protected readonly currentPage = signal(1);
+
+  /**
+   * Diez por página.
+   *
+   * <p>Eran 25, que es lo que hacía la vista larga: con el panel abierto había que desplazar la
+   * página entera para llegar al final de la lista. Diez caben de una vez en una pantalla normal,
+   * y quien quiera más lo sube en el propio paginado.</p>
+   */
+  protected readonly pageSize = signal(10);
+
+  protected readonly pageSizeOptions: readonly GiSelectOption[] = [10, 25, 50, 100].map((tamano) => ({
+    value: String(tamano),
+    label: String(tamano),
+  }));
+
+  protected readonly totalPaginas = computed(() =>
+    Math.max(1, Math.ceil(this.total() / this.pageSize())),
+  );
+
+  /** Qué se está viendo de cuántos. Sin esto, «Página 2 de 6» no dice cuántas personas hay. */
+  protected readonly rango = computed(() => {
+    const total = this.total();
+    if (total === 0) return '0';
+
+    const desde = (this.currentPage() - 1) * this.pageSize() + 1;
+    const hasta = Math.min(total, this.currentPage() * this.pageSize());
+    return `${desde}–${hasta} de ${total}`;
+  });
+
+  protected goToPage(page: number): void {
+    const destino = Math.min(Math.max(1, page), this.totalPaginas());
+
+    if (destino !== this.currentPage()) {
+      this.currentPage.set(destino);
+      this.load();
+    }
+  }
+
+  protected setPageSize(tamano: string): void {
+    const valor = Number(tamano);
+
+    if (!Number.isFinite(valor) || valor === this.pageSize()) {
+      return;
+    }
+
+    // Cambiar el tamaño vuelve a la primera: quedarse en la página 6 con 100 por página dejaría la
+    // lista vacía y pareceria que se perdieron las personas.
+    this.pageSize.set(valor);
+    this.currentPage.set(1);
+    this.load();
+  }
   protected readonly requiredDocuments = signal(0);
 
   /**
@@ -188,7 +280,10 @@ export class WorkforcePage {
 
   /** Las experiencias que exige la organización, y el catálogo del que salen. */
   protected readonly skillRequirements = signal<readonly EligibilityRequirement[]>([]);
-  protected readonly catalogSkills = signal<readonly EmployeeJobPositionOption[]>([]);
+  /** Las experiencias del catálogo, **con su marca de obligatorio**. */
+  protected readonly catalogSkills = signal<
+    readonly { readonly idCatalogItem: string; readonly name: string; readonly isRequired?: boolean | null }[]
+  >([]);
 
   /**
    * Los tipos que ofrece el alta de documento, con los que esta organización exige al principio.
@@ -201,10 +296,91 @@ export class WorkforcePage {
   );
 
   /** Las categorias de documento y de evaluacion del catalogo de la organizacion. */
-  protected readonly catalogDocumentCategories = signal<readonly EmployeeJobPositionOption[]>([]);
+  /**
+   * Los tipos de documento del catálogo, **con su marca de obligatorio**.
+   *
+   * <p>La marca se descartaba al cargarlos, y era justo lo que hacía falta: el servidor ya la
+   * manda en cada entrada del catálogo, y sin ella la pestaña de Documentos sólo podía listar las
+   * reglas de elegibilidad —cuatro— en vez del catálogo entero.</p>
+   */
+  protected readonly catalogDocumentCategories = signal<
+    readonly {
+      readonly idCatalogItem: string;
+      readonly name: string;
+      readonly isRequired?: boolean | null;
+      readonly isSensitive?: boolean | null;
+    }[]
+  >([]);
   protected readonly catalogIncidentTypes = signal<readonly EmployeeJobPositionOption[]>([]);
   protected readonly administrativeIncidents = signal<readonly AdministrativeIncident[]>([]);
-  protected readonly catalogEvaluationCategories = signal<readonly EmployeeJobPositionOption[]>([]);
+  /** El historial de asignaciones de la persona abierta, con el turno en curso marcado. */
+  protected readonly assignments = signal<readonly EmployeeAssignment[]>([]);
+
+  // ── El alta de una asignación, sin salir del expediente ──────────────────────────────────
+
+  /**
+   * El alta de un documento pedida desde el encabezado de la lista, sin requisito detrás.
+   *
+   * <p>Va aparte de `cargandoRequisito` porque ésa lleva el tipo que hay que preseleccionar, y
+   * aquí no hay ninguno: se abre el formulario en blanco, que es lo que sirve para los documentos
+   * que la organización no exige.</p>
+   */
+  protected readonly agregandoDocumento = signal(false);
+
+  /**
+   * La acción que una fila de requisito pidió sobre su papel.
+   *
+   * <p>Viaja al expediente de archivos, que es quien las implementa, y se limpia en cuanto él avisa
+   * de que la resolvió: dejarla puesta volvería a dispararla al siguiente cambio de la pantalla.</p>
+   */
+  protected readonly documentoADescargar = signal('');
+  protected readonly documentoAVerHistorial = signal('');
+  protected readonly documentoAEditar = signal('');
+
+  protected limpiarAccionDeDocumento(): void {
+    this.documentoADescargar.set('');
+    this.documentoAVerHistorial.set('');
+    this.documentoAEditar.set('');
+  }
+
+  /** La pestaña de Documentos que se está mirando, para que el expediente de abajo la siga. */
+  protected readonly vistaDocumentos = signal<'obligatorios' | 'informativos'>('obligatorios');
+
+  /** Los nombres de tipo que el catálogo marca obligatorios. */
+  protected readonly tiposObligatorios = computed(() =>
+    this.catalogDocumentCategories()
+      .filter((tipo) => tipo.isRequired === true)
+      .map((tipo) => tipo.name),
+  );
+
+  /**
+   * Con qué tipos se queda el expediente de abajo, según la pestaña.
+   *
+   * <p>Enseñaba los archivos de los dos tipos a la vez: en obligatorios aparecían los informativos,
+   * mezclados y sin decirlo.</p>
+   */
+  protected readonly tiposDeLaVista = computed(() => {
+    const obligatorios = new Set(this.tiposObligatorios());
+
+    return this.vistaDocumentos() === 'obligatorios'
+      ? [...obligatorios]
+      : this.catalogDocumentCategories()
+          .map((tipo) => tipo.name)
+          .filter((nombre) => !obligatorios.has(nombre));
+  });
+
+  protected readonly assigning = signal(false);
+  protected readonly savingAssignment = signal(false);
+  protected readonly assignProblem = signal('');
+  protected readonly assignClients = signal<readonly AssignOption[]>([]);
+  protected readonly assignServices = signal<readonly AssignOption[]>([]);
+  protected readonly assignPositions = signal<readonly AssignOption[]>([]);
+  /** El cliente elegido en la ventana. Las posiciones cuelgan de cliente **y** servicio. */
+  private readonly assignSelectedClient = signal('');
+  /** Los tipos de evaluación del catálogo, **con su marca de obligatorio**, como los de documento. */
+  protected readonly catalogEvaluationCategories = signal<
+    readonly { readonly idCatalogItem: string; readonly name: string; readonly isRequired?: boolean | null }[]
+  >([]);
 
   /** Los niveles de escolaridad, para ver y capturar hasta dónde estudió cada persona. */
   protected readonly catalogEducationLevels = signal<readonly EmployeeJobPositionOption[]>([]);
@@ -215,7 +391,6 @@ export class WorkforcePage {
   protected readonly documents = signal<readonly EmployeeDocument[]>([]);
   protected readonly evaluations = signal<readonly EmployeeEvaluation[]>([]);
   protected readonly skills = signal<readonly EmployeeSkill[]>([]);
-  protected readonly assignments = signal<readonly EmployeeAssignment[]>([]);
   protected readonly detailLoading = signal(false);
 
   protected readonly creating = signal(false);
@@ -225,8 +400,21 @@ export class WorkforcePage {
   protected readonly editingJobPosition = signal(false);
   protected readonly savingJobPosition = signal(false);
   protected readonly jobPositionProblem = signal('');
+  protected readonly editingAddress = signal(false);
+  protected readonly savingAddress = signal(false);
+  protected readonly addressProblem = signal('');
+  protected readonly editingName = signal(false);
+  protected readonly savingName = signal(false);
+  protected readonly nameProblem = signal('');
 
   protected readonly confirming = signal<PendingAction | null>(null);
+  protected readonly terminating = signal<EmployeeListItem | null>(null);
+  protected readonly terminateProblem = signal('');
+  protected readonly employmentPeriods = signal<readonly EmploymentPeriod[]>([]);
+  protected readonly psychometricTests = signal<readonly PsychometricTest[]>([]);
+  protected readonly terminationExpirations = signal<readonly TerminationExpirationGroup[]>([]);
+  protected readonly savingPsychometric = signal(false);
+  protected readonly psychometricProblem = signal('');
 
   protected readonly badge = employeeDocumentBadge;
 
@@ -238,31 +426,67 @@ export class WorkforcePage {
    * pantalla. Y se dice de quién son los requisitos, porque «4 requisitos» sin autor se lee como
    * una regla del sistema que nadie sabe dónde cambiar.</p>
    */
-  protected readonly subtitle = computed(() => {
-    const total = this.total();
-    const requisitos = this.requiredDocuments();
 
-    if (!requisitos) {
-      return total
-        ? `${total} ${total === 1 ? 'persona' : 'personas'}. ` +
-            documentRequirementsNote(requisitos, this.expiringWithinDays())
-        : documentRequirementsNote(requisitos, this.expiringWithinDays());
+  /**
+   * Las cuatro tarjetas del encabezado.
+   *
+   * <p>Sustituyen al párrafo que llevaba el subtítulo, donde el total, la regla de vencimiento y
+   * cuánta gente tenía papeles caducados iban seguidos en una sola frase. Eran tres datos
+   * distintos escritos como prosa: para saber si la organización estaba bien había que leerla
+   * entera, y el último número además <b>estaba mal</b> —contaba las filas de la página—.</p>
+   *
+   * <p>Cada tarjeta lleva su filtro: tocarla es la forma corta de ver a quiénes cuenta. La de
+   * «Personas» limpia el filtro en vez de aplicar uno, porque el total no es un subconjunto.</p>
+   */
+  /**
+   * Las dos tarjetas del encabezado.
+   *
+   * <p>Eran cuatro. «Con algo vencido» y «Por vencer en 30 días» se retiraron el 23 de septiembre
+   * de 2026 con el resto de lo que mostraba vigencias: una pantalla que no dice fechas en ninguna
+   * ficha no puede encabezarse contando quién las tiene caducadas.</p>
+   *
+   * <p>Cada tarjeta lleva su filtro: tocarla es la forma corta de ver a quiénes cuenta. La de
+   * «Personas» limpia el filtro en vez de aplicar uno, porque el total no es un subconjunto.</p>
+   */
+  protected readonly metrics = computed(() => {
+    const resumen = this.summary();
+
+    return [
+      {
+        key: 'total' as const,
+        label: 'Empleados',
+        value: resumen.total,
+        hint: '',
+        tone: 'neutral' as const,
+        pillLabel: '',
+        filter: null,
+      },
+      {
+        key: 'active' as const,
+        label: 'Activas',
+        value: resumen.active,
+        hint: '',
+        tone: 'success' as const,
+        pillLabel: 'En plantilla',
+        filter: 'Active' as const,
+      },
+    ];
+  });
+
+  /** Aplica el filtro de una tarjeta, o lo quita cuando ya estaba puesto. */
+  protected onMetric(metric: { key: string; filter: 'Active' | null }): void {
+    if (metric.filter === null) {
+      this.clearFilters();
+      return;
     }
 
-    const base = `${total} ${total === 1 ? 'persona' : 'personas'}.`;
-    const regla =
-      `${requisitos} ${requisitos === 1 ? 'requisito documental definido' : 'requisitos documentales definidos'} ` +
-      `por esta organización; se considera «por vencer» lo que caduca en ${this.expiringWithinDays()} ` +
-      'días o menos.';
+    this.status.set(this.status() === 'Active' ? '' : 'Active');
+    this.currentPage.set(1);
+    this.load();
+  }
 
-    const conVencidos = this.employees().filter((employee) => employee.expiredDocuments > 0).length;
-    const vencidos =
-      conVencidos > 0
-        ? ` ${conVencidos} ${conVencidos === 1 ? 'tiene' : 'tienen'} algún documento vencido.`
-        : '';
-
-    return `${base} ${regla}${vencidos}`;
-  });
+  /** Qué tarjeta está mandando ahora, para marcarla. */
+  protected readonly activeMetric = computed(() => (this.status() === 'Active' ? 'active' : ''));
 
   protected readonly tableState = computed<GiTableState>(() => {
     if (this.error()) return 'error';
@@ -302,10 +526,10 @@ export class WorkforcePage {
         value: this.documentFilter() === 'Any' ? '' : this.documentFilter(),
         allLabel: 'Cualquiera',
         options: [
-          { value: 'Expired', label: 'Con algún vencido' },
-          { value: 'Expiring', label: `Por vencer en ${this.expiringWithinDays()} días` },
+          // Sin «Con algún vencido» ni «Por vencer»: la pantalla dejó de mostrar vigencias, y un
+          // filtro por un dato que no se ve en ninguna fila no se puede comprobar a ojo.
           { value: 'Missing', label: 'Con requisitos sin cargar' },
-          { value: 'UpToDate', label: 'Al día' },
+          { value: 'UpToDate', label: 'Con el expediente completo' },
         ],
       },
     ];
@@ -354,14 +578,24 @@ export class WorkforcePage {
       // retirada sigue en el expediente pero ya no cuenta para nada.
       {
         id: 'administrative-incidents',
-        label: 'Incidencias',
+        label: 'Actas administrativas',
         count: this.administrativeIncidents().filter((item) => item.active).length,
       },
-      { id: 'assignments', label: 'Asignaciones', count: employee?.assignmentCount ?? 0 },
+      // El historial de asignaciones vuelve al panel el 24 de septiembre de 2026, por petición.
+      // Se había retirado el 23 junto con lo de vigencias, y lo que se echó de menos no fue el
+      // botón de asignar —ése sigue fuera— sino poder ver dónde ha estado la persona.
+      { id: 'assignments', label: 'Asignaciones', count: this.assignments().length },
     ];
   });
 
-  /** El aviso del pie: un hecho, no una promesa sobre lo que el servidor va a impedir. */
+  /**
+   * El aviso del pie: un hecho, no una promesa sobre lo que el servidor va a impedir.
+   *
+   * <p><b>Se redacta como la razón del botón y no como una nota sobre la persona.</b> El pie es el
+   * mismo en las seis pestañas, así que en Evaluaciones y en Experiencia se leía como un comentario
+   * suelto sobre documentos —un tema del que esas pestañas no hablan—. Diciendo primero qué queda
+   * bloqueado, la frase explica el botón que tiene al lado esté donde esté.</p>
+   */
   protected readonly expiredNote = computed(() => {
     const employee = this.selected();
 
@@ -369,9 +603,12 @@ export class WorkforcePage {
       return '';
     }
 
-    return employee.expiredDocuments === 1
-      ? 'Tiene un documento vencido de los que exige esta organización.'
-      : `Tiene ${employee.expiredDocuments} documentos vencidos de los que exige esta organización.`;
+    const cuantos =
+      employee.expiredDocuments === 1
+        ? 'un documento vencido'
+        : `${employee.expiredDocuments} documentos vencidos`;
+
+    return `No se le puede asignar todavía: tiene ${cuantos} de los que exige esta organización.`;
   });
 
   constructor() {
@@ -455,7 +692,8 @@ export class WorkforcePage {
         idJobPositionCatalogItem: this.jobPosition(),
         documents: this.documentFilter(),
         municipality: this.municipality(),
-        pageSize: 25,
+        page: this.currentPage(),
+        pageSize: this.pageSize(),
       })
       .subscribe({
         next: (result) => {
@@ -463,6 +701,10 @@ export class WorkforcePage {
           this.total.set(result.page.totalCount);
           this.expiringWithinDays.set(result.expiringWithinDays);
           this.requiredDocuments.set(result.requiredDocuments);
+          // El `??` no es adorno: durante un despliegue el navegador puede tener el paquete nuevo
+          // y estar hablando todavia con el backend viejo, que no manda `summary`. Sin esto las
+          // tarjetas tumbaban la pantalla entera por un campo que falta.
+          this.summary.set(result.summary ?? EMPTY_SUMMARY);
           this.loading.set(false);
           this.refreshSelection(result.page.items);
         },
@@ -506,13 +748,24 @@ export class WorkforcePage {
       this.catalogSkills.set(
         data.items
           .filter((item) => item.active && item.type === 'Skill')
-          .map((item) => ({ idCatalogItem: item.idCatalogItem, name: item.name })),
+          .map((item) => ({
+            idCatalogItem: item.idCatalogItem,
+            name: item.name,
+            // Sin esto, una experiencia marcada obligatoria salia como informativa.
+            isRequired: item.isRequired ?? false,
+          })),
       );
 
       this.catalogDocumentCategories.set(
         data.items
           .filter((item) => item.active && item.type === 'EmployeeDocumentCategory')
-          .map((item) => ({ idCatalogItem: item.idCatalogItem, name: item.name })),
+          .map((item) => ({
+            idCatalogItem: item.idCatalogItem,
+            name: item.name,
+            isRequired: item.isRequired ?? false,
+            // De aqui hereda el documento su sensibilidad; ya no se marca al subirlo.
+            isSensitive: item.isSensitive ?? false,
+          })),
       );
       this.catalogIncidentTypes.set(
         data.items
@@ -527,7 +780,12 @@ export class WorkforcePage {
       this.catalogEvaluationCategories.set(
         data.items
           .filter((item) => item.active && item.type === 'EmployeeEvaluationCategory')
-          .map((item) => ({ idCatalogItem: item.idCatalogItem, name: item.name })),
+          .map((item) => ({
+            idCatalogItem: item.idCatalogItem,
+            name: item.name,
+            // Sin esto, un tipo marcado obligatorio en Catalogos salia como informativo.
+            isRequired: item.isRequired ?? false,
+          })),
       );
     });
   }
@@ -547,6 +805,8 @@ export class WorkforcePage {
     this.creating.set(false);
     this.editingJobPosition.set(false);
     this.jobPositionProblem.set('');
+    this.editingAddress.set(false);
+    this.addressProblem.set('');
     this.selected.set(employee);
     this.activeTab.set(tab);
     this.detail.set(null);
@@ -554,8 +814,8 @@ export class WorkforcePage {
     this.evaluations.set([]);
     this.skills.set([]);
     this.administrativeIncidents.set([]);
-    this.documentCount.set(employee.documentCount);
     this.assignments.set([]);
+    this.documentCount.set(employee.documentCount);
     this.loadDetail(employee.idEmployee);
   }
 
@@ -578,9 +838,6 @@ export class WorkforcePage {
       detail: this.workforceApi
         .getEmployee(organizationId, idEmployee)
         .pipe(catchError(() => of(null))),
-      assignments: this.api
-        .listAssignments(organizationId, idEmployee)
-        .pipe(catchError(() => of([] as readonly EmployeeAssignment[]))),
       // Las experiencias no vienen en el detalle del empleado: son del módulo de catálogos y se
       // piden aparte. Si fallan, la pestaña dice que no hay ninguna, no que no se pudieron leer.
       skills: this.catalogApi
@@ -591,6 +848,21 @@ export class WorkforcePage {
       administrativeIncidents: this.workforceApi
         .listAdministrativeIncidents(organizationId, idEmployee)
         .pipe(catchError(() => of([] as readonly AdministrativeIncident[]))),
+      // Y lo mismo con las asignaciones: viajan con el resto del expediente para que la pestaña
+      // no tenga que pedirlas al abrirse, y si fallan dicen que no hay ninguna en vez de dejar la
+      // ficha entera sin abrir.
+      assignments: this.api
+        .listAssignments(organizationId, idEmployee)
+        .pipe(catchError(() => of([] as readonly EmployeeAssignment[]))),
+      employmentPeriods: this.workforceApi
+        .listEmploymentPeriods(idEmployee, organizationId)
+        .pipe(catchError(() => of([] as readonly EmploymentPeriod[]))),
+      psychometricTests: this.workforceApi
+        .listPsychometricTests(idEmployee, organizationId)
+        .pipe(catchError(() => of([] as readonly PsychometricTest[]))),
+      terminationExpirations: this.workforceApi
+        .listTerminationExpirations(idEmployee, organizationId)
+        .pipe(catchError(() => of([] as readonly TerminationExpirationGroup[]))),
     }).subscribe((data) => {
       this.detail.set(data.detail?.employee ?? null);
       this.documents.set(data.detail?.documents ?? []);
@@ -598,6 +870,9 @@ export class WorkforcePage {
       this.skills.set(data.skills);
       this.administrativeIncidents.set(data.administrativeIncidents);
       this.assignments.set(data.assignments);
+      this.employmentPeriods.set(data.employmentPeriods);
+      this.psychometricTests.set(data.psychometricTests);
+      this.terminationExpirations.set(data.terminationExpirations);
       this.detailLoading.set(false);
     });
   }
@@ -690,12 +965,17 @@ export class WorkforcePage {
       return;
     }
 
+    // Nace informativa. Los cuatro catálogos de la elegibilidad exigen decir si la falta bloquea,
+    // y un alta al vuelo no puede preguntarlo: ocurre en medio de otro formulario y quien la usa no
+    // vino a administrar el catálogo. Informativa es el valor seguro —«sólo deja constancia»— y
+    // quien administre el catálogo la promueve después. Sin esto el servidor responde 400.
     this.catalogApi
       .createItem({
         idOrganization: organizationId,
         type: 'AdministrativeIncidentType',
         name: creation.name,
         description: null,
+        isRequired: false,
       })
       .subscribe({
         next: (creado) =>
@@ -799,7 +1079,7 @@ export class WorkforcePage {
    *
    * <p><b>Por qué esta pantalla no existía.</b> Las cuatro rutas y los tres métodos del cliente
    * llevaban semanas escritos sin que nadie los llamara, y mientras tanto una organización con una
-   * regla de evaluación bloqueante no podía asignar a nadie desde el portal. Era el mismo patrón de
+   * regla de evaluación obligatoria no podía asignar a nadie desde el portal. Era el mismo patrón de
    * los documentos y de las experiencias: el servidor listo y la interfaz sin conectar.</p>
    *
    * <p><b>El resultado no se toca aquí.</b> Se guarda tal como lo capturó quien evaluó, y es el
@@ -971,30 +1251,24 @@ export class WorkforcePage {
       });
   }
 
-  /** Alta al vuelo de una experiencia del catálogo, sin salir del expediente. */
-  protected createSkillCatalogItem(creation: GiCatalogCreation): void {
-    const organizationId = this.organizationId();
-
-    if (!organizationId || !this.auth.hasPermission('CATALOGS.WRITE')) {
-      this.error.set('No tienes permiso para crear valores de catálogo.');
-      return;
-    }
-
-    this.catalogApi
-      .createItem({ idOrganization: organizationId, type: 'Skill', name: creation.name, description: null })
-      .subscribe({
-        next: (creado) => {
-          this.catalogSkills.update((valores) => [
-            ...valores,
-            { idCatalogItem: creado.idCatalogItem, name: creado.name },
-          ]);
-          this.message.set(`«${creado.name}» se agregó al catálogo de experiencias.`);
-        },
-        error: () => this.error.set('No se pudo crear la experiencia en el catálogo.'),
-      });
-  }
+  // El alta al vuelo de una experiencia del catálogo vivía aquí, y se retiró el 24 de septiembre
+  // de 2026 al volverse desplegable el campo de Experiencia: un desplegable no puede ofrecer un
+  // nombre que no existe, así que ya no había desde dónde dispararla. Dar de alta una experiencia
+  // es una decisión del catálogo, y Catálogos la sigue haciendo con su propia pantalla.
 
   // ── El puesto del catálogo, que es la salida de la franja ─────────────────────────────────
+
+  protected startAddressEdit(): void {
+    this.addressProblem.set('');
+    this.editingAddress.set(true);
+    this.activeTab.set('data');
+  }
+
+  protected startNameEdit(): void {
+    this.nameProblem.set('');
+    this.editingName.set(true);
+    this.activeTab.set('data');
+  }
 
   protected startJobPositionEdit(): void {
     this.jobPositionProblem.set('');
@@ -1008,46 +1282,11 @@ export class WorkforcePage {
    * <p>Viajan el identificador y el nombre: el servidor guarda el primero, que es con el que se
    * compara la elegibilidad, y valida el segundo contra el catálogo de puestos.</p>
    */
-  /**
-   * Crear un puesto que no estaba en el catálogo, sin salir del alta.
-   *
-   * <p><b>Lo crea la pantalla y no el formulario</b> porque es una escritura a otro módulo: hay que
-   * recargar el catálogo y decir qué pasó. Al volver, el puesto queda elegido, que es lo que el
-   * usuario pidió al escribirlo.</p>
-   *
-   * <p>El 409 de nombre repetido no se pinta como error: significa que alguien más lo creó entre
-   * medias, y lo que corresponde es usar el que ya está.</p>
-   */
-  protected createJobPosition(creation: GiCatalogCreation): void {
-    const organizationId = this.organizationId();
-
-    if (!organizationId || !this.canWrite()) {
-      return;
-    }
-
-    this.catalogApi
-      .createItem({
-        idOrganization: organizationId,
-        type: 'JobPosition',
-        name: creation.name,
-        description: null,
-      })
-      .subscribe({
-        next: (creado) => {
-          this.catalogJobPositions.update((valores) => [
-            ...valores,
-            { idCatalogItem: creado.idCatalogItem, name: creado.name },
-          ]);
-          this.message.set(`«${creado.name}» quedó en el catálogo de puestos y se puede reutilizar.`);
-        },
-        error: (error: HttpErrorResponse) =>
-          this.error.set(
-            typeof error.error === 'object' && error.error !== null
-              ? String((error.error as Record<string, unknown>)['detail'] ?? 'No se pudo agregar el puesto al catálogo.')
-              : 'No se pudo agregar el puesto al catálogo.',
-          ),
-      });
-  }
+  // El alta al vuelo de un puesto del catálogo vivía aquí, y se retiró el 24 de septiembre de
+  // 2026 al volverse desplegable el campo de Puesto —en el alta y en la ficha—: un desplegable no
+  // puede ofrecer un nombre que no existe, así que ya no hay desde dónde dispararla. Declarar un
+  // puesto es una decisión del catálogo, y Catálogos · Puestos la sigue haciendo. Las dos
+  // pantallas avisan cuando el catálogo está vacío, para que el callejón no sea mudo.
 
   protected readonly savingEducation = signal(false);
 
@@ -1106,7 +1345,11 @@ export class WorkforcePage {
   private perfilDe(employee: Employee, organizationId: string) {
     return {
       idOrganization: organizationId,
-      fullName: employee.fullName,
+      // Las tres partes viajan; el nombre completo no. Lo compone el servidor, y mandarlo seria
+      // mandar un dato que no se respeta.
+      firstName: employee.firstName,
+      lastNamePaternal: employee.lastNamePaternal,
+      lastNameMaternal: employee.lastNameMaternal,
       jobTitle: employee.jobTitle,
       idJobPositionCatalogItem: employee.idJobPositionCatalogItem,
       idEducationLevelCatalogItem: employee.idEducationLevelCatalogItem,
@@ -1138,6 +1381,100 @@ export class WorkforcePage {
       housingType: employee.housingType,
       residenceSinceDate: employee.residenceSinceDate,
     };
+  }
+
+  /**
+   * El domicilio del expediente, que hasta hoy sólo se podía mirar.
+   *
+   * <p>Va por el mismo camino que el puesto y la escolaridad: la edición del personal es un solo
+   * reemplazo de perfil, así que se manda el perfil entero con el domicilio encima. Vacío se
+   * guarda como nulo, que significa «no se sabe» y no bloquea nada.</p>
+   *
+   * <p>El país sólo viaja cuando hay estado. Mandarlo suelto dejaría expedientes que dicen «México»
+   * sin nada debajo, que es más ruido que dato.</p>
+   */
+  protected saveAddress(valor: EmployeeAddressValue): void {
+    const organizationId = this.organizationId();
+    const employee = this.detail();
+
+    if (!organizationId || !employee || !this.canWrite()) {
+      return;
+    }
+
+    this.savingAddress.set(true);
+    this.addressProblem.set('');
+
+    this.workforceApi
+      .updateEmployee(employee.idEmployee, {
+        ...this.perfilDe(employee, organizationId),
+        street: valor.street || null,
+        streetNumber: valor.streetNumber || null,
+        neighborhood: valor.neighborhood || null,
+        postalCode: valor.postalCode || null,
+        state: valor.state || null,
+        municipality: valor.municipality || null,
+        countryCode: valor.state ? valor.countryCode || 'MX' : null,
+      })
+      .subscribe({
+        next: () => {
+          this.savingAddress.set(false);
+          this.editingAddress.set(false);
+          this.message.set(`Se guardó el domicilio de ${employee.fullName}.`);
+          this.load();
+          this.loadDetail(employee.idEmployee);
+        },
+        error: (problema) => {
+          this.savingAddress.set(false);
+          this.addressProblem.set(
+            readServerProblem(problema, 'No se pudo guardar el domicilio.').message);
+        },
+      });
+  }
+
+  /**
+   * Corrige el nombre de una persona.
+   *
+   * <p><b>Existe por la migración.</b> El reparto automático de los nombres viejos acierta en el
+   * caso frecuente y falla en el raro —un nombre compuesto queda con una palabra en el apellido—, y
+   * sin una pantalla donde corregirlo esos casos se quedarían mal para siempre. Es el mismo criterio
+   * que el editor de domicilio: decir que algo está incompleto sin ofrecer dónde arreglarlo obliga a
+   * buscar, y quien busca casi siempre lo deja así.</p>
+   *
+   * <p>El apellido materno vacío se guarda como nulo, que es un nombre con un solo apellido y no un
+   * campo pendiente. El nombre completo no se manda: lo compone el servidor.</p>
+   */
+  protected saveName(valor: EmployeeNameValue): void {
+    const organizationId = this.organizationId();
+    const employee = this.detail();
+
+    if (!organizationId || !employee || !this.canWrite()) {
+      return;
+    }
+
+    this.savingName.set(true);
+    this.nameProblem.set('');
+
+    this.workforceApi
+      .updateEmployee(employee.idEmployee, {
+        ...this.perfilDe(employee, organizationId),
+        firstName: valor.firstName,
+        lastNamePaternal: valor.lastNamePaternal,
+        lastNameMaternal: valor.lastNameMaternal || null,
+      })
+      .subscribe({
+        next: (guardado) => {
+          this.savingName.set(false);
+          this.editingName.set(false);
+          this.message.set(`El nombre quedó como ${guardado.fullName}.`);
+          this.load();
+          this.loadDetail(employee.idEmployee);
+        },
+        error: (problema) => {
+          this.savingName.set(false);
+          this.nameProblem.set(
+            readServerProblem(problema, 'No se pudo guardar el nombre.').message);
+        },
+      });
   }
 
   protected saveJobPosition(idCatalogItem: string): void {
@@ -1186,10 +1523,17 @@ export class WorkforcePage {
         this.confirming.set({ employee: event.employee, kind: 'leave' });
         break;
       case 'terminate':
-        this.confirming.set({ employee: event.employee, kind: 'terminate' });
+        this.terminateProblem.set('');
+        this.terminating.set(event.employee);
         break;
       case 'reinstate':
         this.reinstate(event.employee);
+        break;
+      case 'hire':
+        this.hire(event.employee);
+        break;
+      case 'rehire':
+        this.rehire(event.employee);
         break;
     }
   }
@@ -1233,6 +1577,149 @@ export class WorkforcePage {
     });
   }
 
+  /** Contrata a quien estaba en candidatura: abre su primer periodo con el día operativo. */
+  protected hire(employee: EmployeeListItem): void {
+    const organizationId = this.organizationId();
+
+    if (!organizationId || !this.canWrite()) {
+      return;
+    }
+
+    this.saving.set(true);
+
+    this.workforceApi.hireEmployee(employee.idEmployee, organizationId, this.today()).subscribe({
+      next: (guardado) => {
+        this.saving.set(false);
+        this.message.set(`${guardado.fullName} quedó contratada desde hoy.`);
+        this.refreshAfterMovement(employee.idEmployee);
+      },
+      error: (problema) => {
+        this.saving.set(false);
+        this.error.set(readServerProblem(problema, 'No se pudo contratar a la persona.').message);
+      },
+    });
+  }
+
+  /** Reingreso: abre un periodo nuevo. Sólo sobre alguien dado de baja. */
+  protected rehire(employee: EmployeeListItem): void {
+    const organizationId = this.organizationId();
+
+    if (!organizationId || !this.canWrite()) {
+      return;
+    }
+
+    this.saving.set(true);
+
+    this.workforceApi.rehireEmployee(employee.idEmployee, organizationId, this.today()).subscribe({
+      next: (guardado) => {
+        this.saving.set(false);
+        this.message.set(
+          `${guardado.fullName} reingresó hoy. Su antigüedad cuenta desde esta fecha.`,
+        );
+        this.refreshAfterMovement(employee.idEmployee);
+      },
+      error: (problema) => {
+        this.saving.set(false);
+        this.error.set(readServerProblem(problema, 'No se pudo registrar el reingreso.').message);
+      },
+    });
+  }
+
+  protected saveTermination(valor: EmployeeTerminateValue): void {
+    const organizationId = this.organizationId();
+    const employee = this.terminating();
+
+    if (!organizationId || !employee || !this.canWrite()) {
+      return;
+    }
+
+    this.saving.set(true);
+    this.terminateProblem.set('');
+
+    this.workforceApi
+      .terminateEmployee(
+        employee.idEmployee,
+        organizationId,
+        valor.endDate,
+        valor.terminationReason,
+      )
+      .subscribe({
+        next: (resultado) => {
+          this.saving.set(false);
+          this.terminating.set(null);
+
+          const asignaciones =
+            resultado.closedAssignments === 0
+              ? 'No tenía asignaciones vigentes.'
+              : resultado.closedAssignments === 1
+                ? 'Se cerró su asignación vigente.'
+                : `Se cerraron sus ${resultado.closedAssignments} asignaciones vigentes.`;
+
+          // Los turnos ya publicados no se borran: hay que decir que quedan huecos por cubrir.
+          const turnos =
+            resultado.futureShifts === 0
+              ? ''
+              : ` Quedan ${resultado.futureShifts} turnos proyectados a su nombre, ` +
+                `del ${resultado.firstFutureShiftDate} al ${resultado.lastFutureShiftDate}: ` +
+                'hay que cubrirlos desde la operación.';
+
+          const papeles =
+            resultado.expiredDocuments + resultado.expiredEvaluations === 0
+              ? ''
+              : ` Se cortó la vigencia de ${resultado.expiredDocuments} documentos y ` +
+                `${resultado.expiredEvaluations} evaluaciones que vencen con la baja: al reingresar ` +
+                'se piden de nuevo.';
+
+          this.message.set(
+            `${resultado.employee.fullName} quedó dada de baja. ${asignaciones}${papeles}${turnos}`,
+          );
+          this.refreshAfterMovement(employee.idEmployee);
+        },
+        error: (problema) => {
+          this.saving.set(false);
+          this.terminateProblem.set(
+            readServerProblem(problema, 'No se pudo registrar la baja.').message,
+          );
+        },
+      });
+  }
+
+  protected registerPsychometric(approvedDate: string): void {
+    const organizationId = this.organizationId();
+    const employee = this.detail();
+
+    if (!organizationId || !employee || !this.canWrite()) {
+      return;
+    }
+
+    this.savingPsychometric.set(true);
+    this.psychometricProblem.set('');
+
+    this.workforceApi
+      .registerPsychometricTest(employee.idEmployee, organizationId, approvedDate)
+      .subscribe({
+        next: () => {
+          this.savingPsychometric.set(false);
+          this.message.set('La prueba psicométrica quedó registrada como aprobada.');
+          this.loadDetail(employee.idEmployee);
+        },
+        error: (problema) => {
+          this.savingPsychometric.set(false);
+          this.psychometricProblem.set(
+            readServerProblem(problema, 'No se pudo registrar la prueba psicométrica.').message,
+          );
+        },
+      });
+  }
+
+  private refreshAfterMovement(idEmployee: string): void {
+    this.load();
+
+    if (this.selected()?.idEmployee === idEmployee) {
+      this.loadDetail(idEmployee);
+    }
+  }
+
   protected confirmAction(): void {
     const pending = this.confirming();
     const organizationId = this.organizationId();
@@ -1244,15 +1731,11 @@ export class WorkforcePage {
     this.confirming.set(null);
     this.saving.set(true);
 
-    const status: EmployeeStatus = pending.kind === 'leave' ? 'OnLeave' : 'Terminated';
-
-    this.workforceApi.changeStatus(pending.employee.idEmployee, organizationId, status).subscribe({
+    this.workforceApi.changeStatus(pending.employee.idEmployee, organizationId, 'OnLeave').subscribe({
       next: () => {
         this.saving.set(false);
         this.message.set(
-          pending.kind === 'leave'
-            ? `${pending.employee.fullName} quedó en permiso. Sus asignaciones y su expediente se conservan.`
-            : `${pending.employee.fullName} quedó dada de baja. Su expediente se conserva completo.`,
+          `${pending.employee.fullName} quedó en permiso. Sus asignaciones y su expediente se conservan.`,
         );
         this.load();
 
@@ -1296,7 +1779,9 @@ export class WorkforcePage {
       .createEmployee({
         idOrganization: organizationId,
         codeEmployee: `EMP-${Date.now().toString(36).toUpperCase().slice(-6)}`,
-        fullName: value.fullName,
+        firstName: value.firstName,
+        lastNamePaternal: value.lastNamePaternal,
+        lastNameMaternal: value.lastNameMaternal || null,
         jobTitle: value.jobPositionName || null,
         idJobPositionCatalogItem: value.idJobPositionCatalogItem || null,
         // El alta se queda minima: la escolaridad se captura despues, en la ficha.
@@ -1334,8 +1819,8 @@ export class WorkforcePage {
           this.finishCreate(
             created.idEmployee,
             value.idJobPositionCatalogItem
-              ? `Se dio de alta a ${value.fullName} con el puesto ${value.jobPositionName ?? 'sin catalogar'}.`
-              : `Se dio de alta a ${value.fullName}, sin puesto del catálogo. Se le puede asignar una ` +
+              ? `Se dio de alta a ${created.fullName} con el puesto ${value.jobPositionName ?? 'sin catalogar'}.`
+              : `Se dio de alta a ${created.fullName}, sin puesto del catálogo. Se le puede asignar una ` +
                   'posición, pero nadie podrá comprobar que corresponde al perfil.',
           );
         },
@@ -1390,6 +1875,162 @@ export class WorkforcePage {
    */
   protected goToPlanning(): void {
     void this.router.navigate(['/planeacion']);
+  }
+
+  /**
+   * Abrir el alta de una asignación sobre el propio expediente.
+   *
+   * <p>Los clientes se piden al abrir y no al entrar a Personal: son una consulta a otro módulo que
+   * la inmensa mayoría de las visitas a esta pantalla no necesita.</p>
+   */
+  protected openAssign(): void {
+    const organizationId = this.organizationId();
+
+    if (!organizationId || !this.canWrite()) {
+      return;
+    }
+
+    this.assignProblem.set('');
+    this.assignServices.set([]);
+    this.assignPositions.set([]);
+    this.assigning.set(true);
+
+    this.clientApi
+      .listClientOptions(organizationId)
+      .pipe(catchError(() => of({ items: [] as readonly { idClient: string; legalName: string; tradeName: string | null }[] })))
+      .subscribe((page) => {
+        this.assignClients.set(
+          page.items.map((cliente) => ({
+            id: cliente.idClient,
+            // El nombre comercial es con el que se le conoce en la operación; el legal es el de
+            // los papeles. Se enseña el comercial cuando existe, como en el resto de la aplicación.
+            name: cliente.tradeName?.trim() || cliente.legalName,
+          })),
+        );
+      });
+  }
+
+  protected closeAssign(): void {
+    this.assigning.set(false);
+    this.assignProblem.set('');
+  }
+
+  /** Los servicios del cliente elegido. Sólo activos: `listServices` ya los filtra en el servidor. */
+  protected loadAssignServices(idClient: string): void {
+    const organizationId = this.organizationId();
+    this.assignServices.set([]);
+    this.assignPositions.set([]);
+
+    if (!organizationId || !idClient) {
+      return;
+    }
+
+    this.clientApi
+      .listServices(organizationId, idClient)
+      .pipe(catchError(() => of([])))
+      .subscribe((servicios) => {
+        this.assignServices.set(
+          servicios
+            .filter((servicio) => servicio.active)
+            .map((servicio) => ({ id: servicio.idService, name: servicio.name })),
+        );
+        this.assignSelectedClient.set(idClient);
+      });
+  }
+
+  /** Las posiciones del servicio elegido. */
+  protected loadAssignPositions(idService: string): void {
+    const organizationId = this.organizationId();
+    const idClient = this.assignSelectedClient();
+    this.assignPositions.set([]);
+
+    if (!organizationId || !idClient || !idService) {
+      return;
+    }
+
+    this.clientApi
+      .listPositions(organizationId, idClient, idService)
+      .pipe(catchError(() => of([])))
+      .subscribe((posiciones) => {
+        this.assignPositions.set(
+          posiciones
+            .filter((posicion) => posicion.active)
+            .map((posicion) => ({ id: posicion.idPosition, name: `${posicion.codePosition} · ${posicion.name}` })),
+        );
+      });
+  }
+
+  /**
+   * Guardar la asignación.
+   *
+   * <p><b>El mismo endpoint que usa Servicios</b>, con los mismos campos. Lo que esta pantalla no
+   * hace es juzgar la elegibilidad: si la persona no cumple el perfil o le falta un documento, lo
+   * dice el servidor y se enseña su mensaje. Comprobarlo aquí sería una regla de negocio viviendo
+   * en el frontend.</p>
+   */
+  protected saveAssignment(valor: EmployeeAssignValue): void {
+    const organizationId = this.organizationId();
+    const employee = this.selected();
+
+    if (!organizationId || !employee || !this.canWrite()) {
+      return;
+    }
+
+    this.savingAssignment.set(true);
+    this.assignProblem.set('');
+
+    this.clientApi
+      .createAssignment(valor.idClient, valor.idService, {
+        idOrganization: organizationId,
+        idClient: valor.idClient,
+        idService: valor.idService,
+        idPosition: valor.idPosition,
+        idEmployee: employee.idEmployee,
+        assignmentType: valor.assignmentType,
+        startDate: valor.startDate,
+        endDate: null,
+        isPrimary: valor.isPrimary,
+        notes: null,
+      })
+      .pipe(finalize(() => this.savingAssignment.set(false)))
+      .subscribe({
+        next: () => {
+          this.assigning.set(false);
+          this.message.set('La asignación quedó registrada.');
+          // El historial se vuelve a pedir: la fila nueva la arma el servidor, con el nombre del
+          // cliente y del servicio que esta pantalla no tiene.
+          this.loadAssignmentsOf(employee.idEmployee);
+        },
+        error: (error: HttpErrorResponse) =>
+          this.assignProblem.set(
+            readServerProblem(error, 'No se pudo registrar la asignación.').message,
+          ),
+      });
+  }
+
+  private loadAssignmentsOf(idEmployee: string): void {
+    const organizationId = this.organizationId();
+
+    if (!organizationId) {
+      return;
+    }
+
+    this.api
+      .listAssignments(organizationId, idEmployee)
+      .pipe(catchError(() => of([] as readonly EmployeeAssignment[])))
+      .subscribe((asignaciones) => this.assignments.set(asignaciones));
+  }
+
+  /**
+   * A Servicios, que es donde se asigna a una posición.
+   *
+   * <p><b>No a Planeación, aunque el botón viejo llevara ahí.</b> Lo que la pestaña de Asignaciones
+   * enumera son asignaciones de servicio, y ésas se crean en Servicios; en Planeación se cubre un
+   * turno concreto de una semana, que es otra cosa. Llevar a la rejilla semanal dejaba a quien
+   * pulsaba el botón a dos pantallas de lo que venía a hacer.</p>
+   */
+  protected goToServices(): void {
+    void this.router.navigate(['/servicios']);
   }
 
   protected goToCatalogs(): void {

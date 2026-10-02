@@ -41,7 +41,19 @@ const RAICES = [
 ];
 
 /** Los siete tamaños de la escala. Ni uno más; el 13.5 px está prohibido por nombre. */
-const ESCALA = ['22px', '13px', '12.5px', '12px', '11.5px', '11px', '10.5px'];
+/**
+ * La escala.
+ *
+ * <p><b>El 16 y el 14 entraron el 24 de septiembre de 2026</b>, al rehacerse Planeación. La escala
+ * saltaba de 22 px —el título de la página— directo a 13 px, así que todo lo que no era el título
+ * cabía en un rango de dos puntos y medio: los encabezados de tarjeta, los nombres de las filas y
+ * las notas al pie pesaban prácticamente lo mismo. Sin jerarquía tipográfica ninguna pantalla deja
+ * de parecer una tabla, por bien organizada que esté.</p>
+ *
+ * <p>El 13.5 sigue prohibido por nombre, y por el mismo motivo por el que el 16 y el 14 hacían
+ * falta: está tan cerca del 13 que no distingue nada.</p>
+ */
+const ESCALA = ['22px', '16px', '14px', '13px', '12.5px', '12px', '11.5px', '11px', '10.5px'];
 
 /**
  * `catalog-select` es de la tanda de controles: sigue siendo un `<select>` nativo, como los otros
@@ -134,9 +146,19 @@ describe('El sistema se aplica en shared/ui y en las pantallas ya rehechas', () 
     expect(piezas.filter(({ texto }) => texto.includes('13.5px')).map(({ ruta }) => ruta)).toEqual([]);
   });
 
-  /** Radio general 6 px, píldoras 3 px, y el círculo de avatares y puntos. Nada más. */
+  /**
+   * Radio general 6 px, grande 12 px, píldoras 3 px, píldora completa, y el círculo de avatares y
+   * puntos. Nada más.
+   */
   it('ningún radio sale de los del sistema', () => {
-    const permitidos = ['var(--gestia-radius)', 'var(--gestia-radius-pill)', '50%', '0'];
+    const permitidos = [
+      'var(--gestia-radius)',
+      'var(--gestia-radius-lg)',
+      'var(--gestia-radius-pill)',
+      'var(--gestia-radius-chip)',
+      '50%',
+      '0',
+    ];
 
     const culpables = piezas
       .map(({ ruta, texto }) => ({

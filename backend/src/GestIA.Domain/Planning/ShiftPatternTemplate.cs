@@ -12,6 +12,16 @@ public enum ShiftDaypart
     /// <summary>Nocturno.</summary>
     Night,
 
+    /// <summary>
+    /// Vespertino: la tarde y el principio de la noche.
+    ///
+    /// <para>Agregado el 21 de septiembre de 2026. Va aquí y no al final de la lista porque el
+    /// valor se guarda como <b>texto</b> —lo convierte la configuración del contexto—, así que el
+    /// número que le toca no viaja a ninguna parte y el orden puede ser el que se lee mejor. Se
+    /// comprobó que nada convierte esta enumeración a entero ni ordena por ella.</para>
+    /// </summary>
+    Evening,
+
     /// <summary>Mixto: cruza la frontera entre día y noche.</summary>
     Mixed,
 

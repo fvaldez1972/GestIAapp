@@ -57,6 +57,10 @@ public sealed class ShiftPatternTemplateDayConfiguration : IEntityTypeConfigurat
                 + " OR ([IsRest] = CAST(0 AS bit) AND [StartTime] IS NOT NULL AND [EndTime] IS NOT NULL AND [DurationMinutes] > 0)");
         });
         builder.HasKey(entity => entity.IdShiftPatternTemplateDay);
+
+        // El identificador lo pone el dominio; el dia llega por la coleccion de la plantilla. Ver
+        // EmploymentPeriodConfiguration: sin esto EF emite un UPDATE contra una fila inexistente.
+        builder.Property(entity => entity.IdShiftPatternTemplateDay).ValueGeneratedNever();
         builder.Property(entity => entity.CycleDayNumber).IsRequired();
         builder.Property(entity => entity.StartTime).HasColumnType("time(0)");
         builder.Property(entity => entity.EndTime).HasColumnType("time(0)");

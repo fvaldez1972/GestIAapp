@@ -152,12 +152,12 @@ public sealed partial class DemoDataSeeder
 
         // 9. Empleado sin ningún documento, y 10. empleado con un documento vencido.
         var withoutDocuments = Employee.Create(
-            organizationId, $"{HardCasePrefix}-E-SINDOC", "Empleado sin documentos", "Guardia de seguridad",
+            organizationId, $"{HardCasePrefix}-E-SINDOC", "Empleado", "sin", "documentos", "Guardia de seguridad",
             Today.AddYears(-1), DemoActorId, DemoActorName, OccurredAt,
             ResolveJobPosition(jobPositions, "Guardia de seguridad"));
 
         var withExpired = Employee.Create(
-            organizationId, $"{HardCasePrefix}-E-VENCIDO", "Ñáñez Ibáñez Muñoz", "Guardia de seguridad",
+            organizationId, $"{HardCasePrefix}-E-VENCIDO", "Ñáñez", "Ibáñez", "Muñoz", "Guardia de seguridad",
             Today.AddYears(-2), DemoActorId, DemoActorName, OccurredAt,
             ResolveJobPosition(jobPositions, "Guardia de seguridad"));
 
@@ -176,7 +176,7 @@ public sealed partial class DemoDataSeeder
         foreach (var (suffix, profile) in HardCaseJobTitleVariants)
         {
             dbContext.Add(Employee.Create(
-                organizationId, $"{HardCasePrefix}-E-{suffix}", $"Empleado con perfil {suffix}", profile,
+                organizationId, $"{HardCasePrefix}-E-{suffix}", "Empleado con perfil", suffix, null, profile,
                 Today.AddYears(-1), DemoActorId, DemoActorName, OccurredAt,
                 ResolveJobPosition(jobPositions, profile)));
 
@@ -235,7 +235,7 @@ public sealed partial class DemoDataSeeder
         dbContext.Add(contact);
 
         var employee = Employee.Create(
-            organizationId, $"{HardCasePrefix}-E-INACTIVO", "Empleado dado de baja", "Guardia de seguridad",
+            organizationId, $"{HardCasePrefix}-E-INACTIVO", "Empleado", "dado", "de baja", "Guardia de seguridad",
             Today.AddYears(-3), DemoActorId, DemoActorName, OccurredAt,
             ResolveJobPosition(inactiveJobPositions, "Guardia de seguridad"));
         employee.Deactivate(DemoActorId, DemoActorName, OccurredAt);

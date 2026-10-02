@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, ElementRef, OnInit, computed, effect, input, output, signal, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, OnInit, computed, effect, inject, input, output, signal, viewChild } from '@angular/core';
 import { devAssert } from '../dev-assert';
 
 export type GiRowAction = {
@@ -193,6 +193,13 @@ export class GiRowActions implements OnInit {
         this.mostrar(elemento);
       }
     });
+
+    // El menú se mide al abrirse y vive en coordenadas de ventana. Cuando la tabla se recorre por
+    // dentro, la fila que lo abrió se va y el menú se quedaría flotando sobre otra, así que se
+    // cierra. En captura, porque el desplazamiento de un contenedor no burbujea.
+    const cerrar = (): void => this.abierto.set(false);
+    document.addEventListener('scroll', cerrar, true);
+    inject(DestroyRef).onDestroy(() => document.removeEventListener('scroll', cerrar, true));
   }
 
   /**

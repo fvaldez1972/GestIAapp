@@ -33,6 +33,7 @@ Un warning rompe el build.
 | TypeScript | `~6.0.2` | `package.json` |
 | RxJS | `~7.8.0` | `package.json` |
 | Tailwind CSS | `^4.1.18` + `@tailwindcss/postcss` `^4.1.18` | `package.json` |
+| Mapas | `leaflet` `^1.9.4` (+ `@types/leaflet` `^1.9.22`); mosaicos de Esri (`server.arcgisonline.com`, permitido en la CSP de `frontend/nginx.conf`) | `package.json` |
 | PostCSS | `^8.5.26` + `postcss-normalize-charset` `^7.0.1` | `package.json` |
 | Pruebas | Vitest `^4.0.8` sobre jsdom `^28.0.0`; builder `@angular/build:unit-test` | `package.json`, `angular.json`, `vitest.config.ts` |
 | Gestor de paquetes | `npm@11.16.0` (campo `packageManager`) | `package.json` |
@@ -75,15 +76,15 @@ esa forma cambia. Si agregas una `ProjectReference`, esa prueba te lo dirá.
 - **Domain y Application no referencian EF Core** ni tipos propios de SQL Server. Domain no
   tiene ninguna `PackageReference`; Application solo tiene las abstracciones de DI.
 - **La configuración física va con Fluent API en Infrastructure**, en
-  `Persistence/Configurations/*.cs` (hoy 43 clases `IEntityTypeConfiguration<T>`). No se usan
-  atributos de mapeo en las entidades de Domain.
+  `Persistence/Configurations/*.cs` (hoy 45 clases `IEntityTypeConfiguration<T>` en 41
+  archivos). No se usan atributos de mapeo en las entidades de Domain.
 - **Sin reglas de negocio protegibles en el frontend.** Ocultar una opción del menú no es
   autorización. Toda consulta multiempresa lleva el identificador de alcance autorizado desde
   el servidor: en la práctica, `OrganizationAccessGuard.ForbidIfUnauthorized(context, orgId)`
   al inicio de cada endpoint, más `.RequirePermission(...)`.
 - **El aislamiento entre organizaciones es un filtro global, no una condición que cada consulta
   repita.** El guard fija la organización autorizada en `IOrganizationContext` y un filtro con
-  nombre la aplica a las **35 entidades** que declaran `IOrganizationScopedEntity`. Falla
+  nombre la aplica a las **34 entidades** que declaran `IOrganizationScopedEntity`. Falla
   cerrado: sin organización fijada, la consulta devuelve **cero filas**, no todas. Apagarlo exige
   `IgnoreQueryFilters(["Organization"])`, que sólo pueden usar los archivos de la lista blanca de
   `OrganizationFilterBypassTests`; `IgnoreQueryFilters()` sin argumentos rompe el build.
@@ -139,7 +140,8 @@ activos de demostración, y dependencias de gráficas, mapas, calendarios o tabl
 **Entra:** patrones y piezas portadas selectivamente, adaptadas de Angular 21 a Angular 22 y a
 la identidad GestIA. Ya se portaron el layout vertical (sidebar, topbar, contenido, footer),
 navegación tipada, sidebar condensado y off-canvas móvil, persistencia de preferencia en
-`sessionStorage` y Tailwind 4 vía PostCSS.
+`sessionStorage` y Tailwind 4 vía PostCSS. Leaflet entró el 26 de septiembre con su caso funcional:
+las coordenadas de la zona del cliente (RQ-03/RQ-04).
 
 **Regla por componente:** cada pieza portada registra su archivo de origen, dependencias
 nuevas, adaptación visual, prueba y módulo de negocio consumidor. No se copian carpetas
@@ -181,7 +183,9 @@ docker compose down              # los datos quedan en el volumen gestia_mssql-d
 
 Puntos de verificación: web `http://localhost:4200`, API
 `http://localhost:8080/api/v1/system/info`, liveness `/health/live`, readiness (incluye SQL
-Server) `/health/ready`, SQL `localhost,1433`.
+Server) `/health/ready`, SQL `localhost,1433`. Ése es el stack `gestia`, el que sirve
+`dev.gestia-demo.com`. El stack `gestia-local` (`compose.local.yaml`) responde en `localhost:4400`,
+`localhost:8081` y `localhost,1434`.
 
 Pruebas de integración, contra un SQL Server **efímero** que se levanta y se desecha:
 
@@ -210,26 +214,33 @@ dotnet tool run dotnet-ef database update --project .\src\GestIA.Infrastructure 
 (ADR 0003, sección "Consecuencias"; reiterado en las restricciones heredadas del alcance
 vigente.)
 
-Esto no es teórico aquí. Hay **45 migraciones** en
-`backend/src/GestIA.Infrastructure/Persistence/Migrations/`, y desde el 6 de septiembre de 2026
-**la única base viva está al día con todas**:
+Esto no es teórico aquí. Hay **57 migraciones** en
+`backend/src/GestIA.Infrastructure/Persistence/Migrations/`, y **las dos bases vivas están al día
+con todas** (comprobado contra `__EFMigrationsHistory` el 1 de octubre de 2026):
 
-| Base | Migraciones aplicadas | Hasta |
-|---|---|---|
-| `db-gestia-dev` | **todas** | `20260923011611_RenameBlockingMarkToRequired` |
+| Base | Stack | Migraciones aplicadas | Hasta |
+|---|---|---|---|
+| `db-gestia-dev` | `gestia` (`compose.yaml`) | **todas** | `20260930234739_EvaluacionUnicaPorCategoriaDelCatalogo` |
+| `db-gestia-local` | `gestia-local` (`compose.local.yaml`) | **todas** | la misma |
 
 > El número exacto se comprueba contra `__EFMigrationsHistory`, no contra este documento: aquí
-> envejecía en silencio. Lo que sí se fija es la regla —la base viva está al día— y cuál es la
+> envejecía en silencio. Lo que sí se fija es la regla —las bases vivas están al día— y cuál es la
 > última migración del repositorio.
 
 `db-gestia-dev` es la base que sirve **`dev.gestia-demo.com`**, en el SQL Server del stack `gestia`
-(puerto 1433). Las cinco últimas migraciones —organización denormalizada, bitácora funcional,
+(puerto 1433). Las cinco migraciones del 6 de septiembre —organización denormalizada, bitácora funcional,
 organización en las entidades de detalle, puesto por catálogo y tokens de concurrencia— se le
 aplicaron el 6 de septiembre con respaldo `COPY_ONLY` verificado y **ensayo sobre una copia
 restaurada** antes de tocarla.
 
+`db-gestia-local` vive en el stack `gestia-local` (portal `4400`, API `8081`, SQL `1434`, volumen
+`gestia-local_mssql-data`, imágenes con etiqueta `:localhost`, usuario `sa`). Se migra y se publica
+**aparte** del stack del dominio: cada ambiente se migra y se publica en seguida, antes de pasar al
+siguiente.
+
 **`db-gestia-demo` ya no existe.** Vivía en el stack `gestia-pruebas`, que se retiró ese mismo día
-al quedarse el proyecto con un solo stack. Sus respaldos —los once previos a cada cambio de esquema,
+al quedarse el proyecto con un solo stack (el stack `gestia-local` se creó después, el 7 de
+septiembre, con su propia base). Sus respaldos —los once previos a cada cambio de esquema,
 más uno final— están fuera de Docker, en `C:\Users\danie\Backups\gestia\pruebas\`. La documentación
 que la describe como infraestructura viva es histórica.
 

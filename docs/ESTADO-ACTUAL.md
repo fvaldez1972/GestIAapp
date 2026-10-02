@@ -1,286 +1,220 @@
 # GestIA — estado actual
 
-**Corte del 16 de septiembre de 2026.** Sólo lectura: no se modificó código, esquema ni
-contenedores. Todo lo que sigue se leyó del árbol de trabajo, de la base viva y de una corrida
-real de las dos suites de prueba. Donde no pude comprobar algo, lo digo.
+**Corte del 1 de octubre de 2026.** Sólo lectura sobre código, esquema y datos: no se modificó
+nada. Lo que sigue se leyó del árbol de trabajo, de las dos bases vivas y de los contenedores en
+marcha. Donde no pude comprobar algo, lo digo.
 
-Referencia del corte: rama `s0/feature/gestIaProject/filtro-organizacion`, punta `fcd4ed9`.
+Referencia del corte: rama `s0/feature/gestIaProject/filtro-organizacion`, punta `445f32e`.
 
----
-
-## 1. Qué cambió desde `GESTIA-ARQUITECTURA-MODULOS-Y-ROLES.md`
-
-Ese documento es del **7 de septiembre a las 10:28** (commit `b5781af`). Desde entonces entraron
-**43 commits** en cinco jornadas: los veinte defectos del recorrido (7 sep), la tanda de Clientes,
-Personal, Seguridad y Auditoría (8 sep), dieciocho arreglos del recorrido del portal (10 sep), la
-pantalla de Organizaciones (11 sep) y el retiro de la configuración del servicio (12 sep).
-
-### Lo que ya no es cierto
-
-| Sección | Lo que dice | Lo que es hoy | Por qué cambió |
-|---|---|---|---|
-| Encabezado | `db-gestia-dev` con **27 migraciones**, la última `RetireUnreadCatalogsAndGroupSynonyms` | **31 migraciones**, la última `20260912071302_RetireServiceConfiguration` | Cuatro migraciones nuevas: nombre normalizado de sedes (8 sep), dos configuraciones el mismo día (10 sep), precio en el puesto y retiro de la configuración (12 sep) |
-| Encabezado | **373** pruebas de backend, **626** de frontend | **386** de backend, **720** de frontend | Cada tanda trajo sus pruebas |
-| §3.5 Stack | «Docker Compose, **un solo stack**» | **Dos stacks**: `gestia` (4200 / 8080 / 1433, sirve el dominio) y `gestia-local` (4400 / 8081 / 1434, con `db-gestia-local`) | El stack local se creó el 7 de septiembre a las 21:37, once horas después de escribirse el documento |
-| §5.3 Servicios | «vigencia, **precio**, posiciones, patrones de turno y sus segmentos» | El precio **ya no está en el servicio**: vive en cada puesto (`Position.MonthlyPrice`, con moneda e IVA incluido). La entidad `ServiceConfiguration` se retiró | Migración `RetireServiceConfiguration` del 12 sep: en seguridad privada se cotiza por puesto, no por servicio |
-| §6.2 Filas de catálogo | Puestos 14 · Habilidades 11 · Incidencia 25 · Cobertura 30 · Nacionalidades 5 · Geografía 5 + 162 + 12 392 | Puestos **29** · Habilidades **20** · Incidencia **28** · Cobertura **32** · Nacionalidades **9** · Geografía **8 + 258 + 19 826** | Ocho organizaciones ahora, cada una con su copia de la geografía |
-| §8 Lo que no hace | «Cada organización carga su propia copia de las mismas **12 559** filas de geografía» | **20 092** filas | El problema no se movió: creció |
-| §9.5 Entidades con alcance | «El `CLAUDE.md` dice 29; son **32**» | Son **28**, y lo afirma una prueba que pasa: `OrganizationFilterModelTests` línea 109, `Assert.Equal(28, …)` | El 32 del documento también estaba mal. `ServiceConfiguration` bajó una el 12 sep. **Y quedan dos comentarios en el código que siguen diciendo 29**, en `OrganizationIsolationTests` |
-
-### Lo que sigue siendo cierto, comprobado
-
-| Sección | Estado |
-|---|---|
-| §2 Los ocho principios y sus consecuencias | vigente |
-| §3.2 Aislamiento por filtro global que falla cerrado | vigente |
-| §3.3 Bitácora funcional | vigente |
-| §4.1 y §4.2 Los **23 permisos** y los cinco roles | vigente: 23 constantes en `SecurityPermissions.cs` |
-| §6.1 Lo que cambió en catálogos el 7 de septiembre | vigente |
-| §6.3 Los cuatro tipos de regla de elegibilidad | vigente: `Skill`, `Document`, `Evaluation`, `Restriction` |
-| §9.1 La trampa de las habilidades | vigente, y con matices nuevos — ver la sección 6 de este corte |
-| §9.3 Incidencia guarda el motivo por texto y cobertura por identificador | vigente |
-| §9.4 Tres pantallas con ruta y sin entrada de menú | vigente: `/documentos`, `/operacion/:section` y `/plataforma/clientes-gestia` siguen sin enlace |
-| §10 Las seis reglas de operación | vigentes |
+El corte anterior (16 de septiembre, punta `fcd4ed9`) queda superado: desde entonces entraron
+**228 commits**.
 
 ---
 
-## 2. Los números de hoy
+## 1. Lo publicado coincide con el repositorio
 
-### Esquema
-
-| Base | Migraciones aplicadas | Hasta |
+| | `gestia` (sirve `dev.gestia-demo.com`) | `gestia-local` |
 |---|---|---|
-| `db-gestia-dev` (sirve `dev.gestia-demo.com`) | **31** | `20260912071302_RetireServiceConfiguration` |
-| `db-gestia-local` (stack de pruebas) | **31** | la misma |
+| Base | `db-gestia-dev` | `db-gestia-local` |
+| Migraciones aplicadas | **57 de 57** | **57 de 57** |
+| Última migración | `20260930234739_EvaluacionUnicaPorCategoriaDelCatalogo` | la misma |
+| Imagen backend | `gestia/backend:local`, construida 30-sep 17:49 | `gestia/backend:localhost`, 30-sep 17:49 |
+| Imagen frontend | `gestia/frontend:local`, construida 30-sep 18:24 | `gestia/frontend:localhost`, 30-sep 18:24 |
 
-En el repositorio hay 31 archivos de migración, así que **código y las dos bases están
-alineados**. Consultado directo contra `__EFMigrationsHistory`, no deducido.
+Cómo se comprobó, con control:
 
-### Pruebas, corridas hoy
+- Migraciones: contadas en `__EFMigrationsHistory` de cada base, contra 57 archivos en el repositorio.
+- Backend: la cadena `20260930234739_EvaluacionUnica` está en `GestIA.Infrastructure.dll` de los dos
+  contenedores, y **no** está en la imagen `rollback-20260930-1752-local`.
+- Frontend: `punteroDentro`, del último commit (`445f32e`), está en dos archivos del paquete de los
+  dos contenedores y **también servido por el dominio**; no está en `rollback-20260930-1807-local`.
 
-| Suite | Total | Pasan | Se saltan | Fallan |
-|---|---|---|---|---|
-| `GestIA.Domain.UnitTests` | 53 | 53 | 0 | 0 |
-| `GestIA.Application.UnitTests` | 78 | 78 | 0 | 0 |
-| `GestIA.Architecture.Tests` | 52 | 52 | 0 | 0 |
-| `GestIA.IntegrationTests` | 203 | 86 | **117** | 0 |
-| **Backend** | **386** | **269** | **117** | **0** |
-| **Frontend** (Vitest, 75 archivos) | **720** | **720** | 0 | **0** |
+**Incidente al hacer este corte.** Al arrancar Docker, `gestia-frontend-1` se cerró con
+`host not found in upstream "backend"`: nginx arrancó antes de que el backend estuviera en la red.
+El dominio quedó caído hasta que se volvió a arrancar el contenedor, sin reconstruir nada. Es el
+hallazgo C de `deployment/ANALISIS-PUBLICACION-2026-09-28.md` (§6), que sigue sin corregirse.
 
-Compilación con **cero advertencias**, que en este repositorio es obligatorio porque una
-advertencia rompe el build.
+---
 
-**Las 117 saltadas no son un defecto, pero importan:** llevan `[OperationalSqlFact]` y necesitan un
-SQL Server con permiso de `CREATE DATABASE`. Sin la variable `GESTIA_OPERATIONAL_TEST_SQLSERVER` se
-saltan en silencio, y ahí está el aislamiento entre organizaciones, los tokens de concurrencia, el
-sembrador y las tres búsquedas. Para correrlas: `backend/pruebas-integracion.sh`, que levanta un SQL
-efímero en el puerto 1435 y lo desecha.
-
-### Rama y último commit
+## 2. Rama
 
 | | |
 |---|---|
 | Rama | `s0/feature/gestIaProject/filtro-organizacion` |
-| Último commit | `fcd4ed9` · 2026-09-12 06:57:18 -0600 · «Configuracion en modulosws» |
-| Contra su remoto | al día, 0 adelante / 0 atrás |
-| Contra `origin/…/v0`, que es `origin/HEAD` | **67 commits por delante**, 2 por detrás |
+| Último commit | `445f32e` · 2026-09-30 18:27 · «La lista de un desplegable ya no se cierra al agarrar su barra» |
+| Contra su remoto | al día |
+| Contra `origin/…/v0` (`origin/HEAD`) | **138 commits por delante**, 3 por detrás |
 
-Lo segundo conviene no perderlo de vista: `v0` recibió su último merge de esta rama el **6 de
-septiembre** (PR #6). Los nueve días siguientes de trabajo —y lo que sirve el dominio— viven sólo en
-la rama de feature.
-
-### Datos vivos en `db-gestia-dev`
-
-| Tabla | Filas |
-|---|---|
-| Organizaciones | 8 |
-| Clientes | 43 |
-| Servicios | 64 |
-| Posiciones | 64 |
-| Empleados | 268 |
-| Patrones de turno | 54 |
-| Segmentos de turno | 257 |
-| Habilidades de empleado | 478 |
-| Reglas de elegibilidad | 15 |
-| Eventos operativos | 3 |
+`v0` no recibe merge de esta rama desde el 6 de septiembre. Todo lo que sirve el dominio vive sólo
+en la rama de feature.
 
 ---
 
-## 3. Pantallas rehechas y pantallas con cuerpo viejo
+## 3. Qué entró desde el corte anterior
 
-El criterio no es una opinión: una pantalla está **rehecha** si entra en la lista que vigila
-`frontend/src/app/shared/ui/design-system.spec.ts`, que prohíbe hex a mano, tamaños fuera de la
-escala de siete y `<select>` nativos. Esa lista crece con cada pantalla que se rehace.
+| Fechas | Tanda |
+|---|---|
+| 16–19 sep | Evaluaciones y habilidades en el expediente; Sede pasa a Zona y Habilidades a Experiencia |
+| 21 sep | Rediseño de Catálogos y patrones de turno; la organización se muda al menú de la cuenta |
+| 22 sep | **Geografía compartida** (`GeoCountries`, `GeoStates`, `GeoMunicipalities`, `GeoPostalCodes`) con el código postal al mando; domicilio del personal; `IsBlocking` pasa a `IsRequired`; rediseño de Clientes |
+| 23–24 sep | Planeación rehecha; Documentos de Personal desde el catálogo; endurecimiento: freno de login (5/min), JWT en tiempo constante, techo de página 200, sembrador de seguridad apagado por omisión, modo estricto en el frontend |
+| 26 sep | **RQ-01 a RQ-11** de los ajustes del 26 (ver §4); pantalla que cabe en la pantalla, tablas con scroll propio |
+| 28–29 sep | Un solo contacto principal por cliente; mapa de la zona con Leaflet y mosaicos de Esri; identificador de tres entidades lo pone el dominio |
+| 30 sep | Crear servicio arreglado; ficha de cliente con datos fiscales y de constitución; Personal se abre sin reglas documentales; las pestañas de Documentos, Evaluaciones y Experiencia muestran el catálogo; evaluaciones únicas por categoría del catálogo |
 
-### Rehechas — siete
+---
+
+## 4. Requerimientos de los ajustes del 26 de septiembre
+
+Fuente: `ANALISIS-AJUSTES-2026-09-26.md`.
+
+| ID | Qué pide | Estado |
+|---|---|---|
+| RQ-01 | Catálogos del Excel | hecho (26 sep) |
+| RQ-02 | Instrumento del representante legal en el alta | hecho (26 sep) |
+| RQ-03 / RQ-04 | Coordenadas y mapa de la zona | hecho (26 y 29 sep); en dev sólo 2 de 60 zonas tienen coordenadas |
+| RQ-05 | Alcance del contacto | resuelto: se retiró el alcance (migración `RemoveClientContactScope`) |
+| RQ-06 | Nombre en tres partes | hecho, con migración ensayada |
+| RQ-07 | Historial de ingresos y bajas | hecho, con migración ensayada |
+| RQ-08 | La baja vence documentos marcados; prueba psicométrica | hecho |
+| RQ-09 | Política de vencimiento por tipo | hecho |
+| RQ-10 | Sensibilidad por tipo de documento | hecho; la casilla salió de la pantalla el 29 sep |
+| RQ-11 | Candidatos cercanos y otros disponibles | hecho, en Planeación y en el alta de asignación de Servicios |
+| **RQ-12** | **Rol de turnos por guardia** | **sin empezar.** La regla está decidida (manda el rol, el patrón es informativo); falta el diseño: descanso declarado, horarios de Día/Noche por servicio, etiqueta del patrón y rejilla guardia × día. Abierto: si hay ciclos de más de siete días |
+
+---
+
+## 5. La lista acordada (`design/pendientes/ORDEN-DE-LO-QUE-SIGUE.md`)
+
+| # | Punto | Estado |
+|---|---|---|
+| 1 | Pestaña de habilidades en el expediente | **hecho**: la pestaña Experiencia de Personal usa `EmployeeSkills` |
+| 2 | Geografía compartida | **hecho** (22 sep). Las 19 826 ciudades por organización quedaron desactivadas, no borradas |
+| 3 | `Incident.IncidentType` por identificador | **abierto**: sigue siendo `string` con `Trim()` |
+| 4 | Los nueve códigos de negocio | **abierto**: siguen los nueve, más `CodePermission` y `CodeRole` |
+
+---
+
+## 6. Los números de hoy
+
+### Esquema y modelo
+
+| | |
+|---|---|
+| Migraciones | 57 |
+| Configuraciones Fluent API | 45 clases `IEntityTypeConfiguration<T>` en 41 archivos |
+| Entidades con filtro de organización | 34 |
+| Entidades con historial funcional | 5: catálogo, asistencia, incidencia, cobertura, asignación |
+| Permisos | 23 |
+
+### Datos vivos
+
+| Tabla | `db-gestia-dev` | `db-gestia-local` |
+|---|---|---|
+| Organizaciones | 9 | 8 |
+| Clientes | 46 | 43 |
+| Zonas (`ClientSites`) | 60 | 56 |
+| Zonas con coordenadas | 2 | 0 |
+| Contactos | 46 | 43 |
+| Servicios | 68 | 70 |
+| Posiciones | 76 | 71 |
+| Empleados | 280 | 271 |
+| Periodos laborales | 256 | 240 |
+| Documentos de empleado | 1 465 | 1 451 |
+| Evaluaciones | 729 | 723 |
+| Pruebas psicométricas | 4 | 0 |
+| Habilidades de empleado | 483 | 478 |
+| Asignaciones | 176 | 168 |
+| Patrones de turno | 57 | 57 |
+| Reglas de elegibilidad | 51 | 29 |
+| Eventos operativos | 148 | 90 |
+| Filas de catálogo | 21 168 | 21 071 |
+| Geografía compartida (país / estado / municipio / CP) | 1 / 32 / 2 478 / 144 242 | igual |
+
+Los datos de las dos bases son de prueba.
+
+### Pruebas
+
+**No se corrieron en este corte**: está vigente el modo rápido (26 sep), que pide no ejecutarlas
+hasta nueva orden. El último dato es el del análisis de publicación del 28 sep: backend en verde,
+**19 pruebas de frontend desfasadas** con los cambios de pantalla, y por eso la integración continua
+en rojo. Desde entonces hubo más cambios de pantalla sin ajustar pruebas.
+
+---
+
+## 7. Pantallas
+
+Una pantalla está **rehecha** si su carpeta entra en la lista que vigila
+`frontend/src/app/shared/ui/design-system.spec.ts`.
+
+### Rehechas
+
+| Pantalla | Ruta | Líneas TS |
+|---|---|---|
+| Inicio | `/` | 373 |
+| Clientes | `/clientes` | 1 600 |
+| Personal | `/personal` | 2 475 |
+| Planeación | `/planeacion` | 888 |
+| Asistencia | `/operacion/asistencia` | 457 |
+| Incidencias / Cobertura | `/operacion/incidencias`, `/operacion/cobertura` | 749 |
+| Catálogos | `/catalogos`, `/catalogos/:catalogo`, zonas, patrones, reglas | 1 472 + 981 + 238 + 47 |
+
+### Con cuerpo viejo
 
 | Pantalla | Ruta | Líneas TS | `<select>` | Hex a mano |
 |---|---|---|---|---|
-| Inicio | `/` | 216 | 0 | 0 |
-| Clientes | `/clientes` | 1 069 | 0 | 0 |
-| Personal | `/personal` | 788 | 0 | 0 |
-| Planeación | `/planeacion` | 886 | 0 | 0 |
-| Asistencia | `/operacion/asistencia` | 457 | 0 | 0 |
-| Incidencias / Cobertura | `/operacion/incidencias`, `/operacion/cobertura` | 749 | 0 | 0 |
-| **Catálogos** | `/catalogos` | 1 054 | 0 | 0 |
-
-**Catálogos es la que se sumó** desde el mapa del 6 de septiembre: entonces tenía 19 `<select>`
-nativos y 134 colores a mano; hoy tiene cero de los dos.
-
-### Con cuerpo viejo — nueve
-
-No son defectos. Es lo que se ve distinto y todavía no se ha convertido.
-
-| Pantalla | Ruta | Líneas TS | `<select>` | Hex a mano |
-|---|---|---|---|---|
-| **Operación (vieja)** | `/operacion/:section` | **2 257** | 15 | 130 |
-| **Servicios** | `/servicios` | **1 796** | 6 | 29 |
-| **Solicitudes** | `/solicitudes` | 1 574 | 17 | 178 |
-| **Documentos** | `/documentos` | 1 216 | 8 | 112 |
-| **Seguridad** | `/seguridad`, `/usuarios` | 1 024 | 6 | 97 |
-| Reportes | `/reportes` | 670 | 2 | 93 |
-| Auditoría | `/auditoria` | 620 | 4 | 61 |
-| Plataforma | `/plataforma/organizaciones` | 496 | 0 | 23 |
+| **Servicios** | `/servicios` | **3 254** | 11 | 29 |
+| Operación (vieja) | `/operacion/:section` | 2 258 | 15 | 130 |
+| Solicitudes | `/solicitudes` | 1 667 | 17 | 178 |
+| Documentos | `/documentos` | 1 234 | 8 | 112 |
+| Seguridad | `/seguridad`, `/usuarios` | 1 023 | 6 | 97 |
+| Plataforma | `/plataforma/organizaciones` | 976 | 1 | 23 |
+| Auditoría | `/auditoria` | 774 | 4 | 61 |
+| Reportes | `/reportes` | 697 | 2 | 98 |
 | Login | `/login` | 50 | 0 | 27 |
 
-Dos notas:
-
-- **Servicios es la más grande de las que se van a tocar pronto**, y sigue con cuerpo viejo: cuatro
-  pestañas en una sola página de 1 796 líneas. Es donde vive el alta de posición.
-- **Plataforma tiene cero `<select>` nativos** desde la tanda del 11 de septiembre, pero conserva 23
-  colores a mano, así que todavía no entra a la lista vigilada.
+Servicios casi duplicó su tamaño desde el corte anterior (1 796 → 3 254) y sigue con cuerpo viejo.
 
 ### Fuera del menú
 
-Siete rutas existen y no se alcanzan desde la navegación: `/documentos`, `/operacion/:section` y
-`/plataforma/clientes-gestia` **no tienen entrada**; Solicitudes, Monitor, Reportes y Reglas
-documentales la tienen marcada `phase: 2` y por eso no se dibuja.
+Sin entrada: `/documentos`, `/operacion/:section`, `/plataforma/clientes-gestia`. Con entrada
+marcada `phase: 2`, que no se dibuja: Solicitudes, Monitor global, Reportes y Reglas documentales.
 
 ---
 
-## 4. Los 20 defectos del recorrido
+## 8. Publicación: hallazgos del 28 de septiembre
 
-**Los veinte están cerrados.** Verificado en el código, uno por uno, no por el mensaje del commit.
+Fuente: `deployment/ANALISIS-PUBLICACION-2026-09-28.md`.
 
-Primero la aritmética del propio plan, que conviene recordar: los **20 reportados** eran **18
-numerados** —el 3 y el 4 son un defecto contado dos veces, igual que el 5 y el 7— con **14 causas
-distintas**.
-
-| # | Defecto | Cerrado con | Comprobación de hoy |
-|---|---|---|---|
-| 1 | Cerraba sesión sin preguntar | `5f91d2e` | `askLogout()` abre `gi-confirm-dialog`; sólo `confirm` cierra la sesión |
-| 2 | «Datos inválidos» sin decir cuál | `d819443` | extractor compartido en `shared/util/server-problem.ts` |
-| 3 + 4 | El indicador decía un destino y llevaba a otro | `700fd32` | la ruta la manda el servidor |
-| 5 + 7 | El botón de nuevo servicio nacía muerto | `22991c9` | la guarda `hasActiveSite()` se quitó y la pantalla explica qué falta |
-| 6 | La acción del estado vacío cambiaba con el filtro | `22991c9` | **conviven las dos**, como se propuso: «Nuevo servicio» de primaria y «Quitar filtros» de secundaria cuando el vacío viene de un filtro |
-| 8 | «Agregar contacto» no hacía nada | `328526a`, `c8380a5` | `app-client-contacts` con `(create)`, `(edit)`, `(closeAdd)` y `[openAdd]` atados |
-| 9 | El menú de acciones quedaba recortado | `34f095e` | `gi-row-actions` con `position: fixed`, y el motivo escrito en el código |
-| 10 | El campo de archivo en inglés | `08a207c` | pieza propia `shared/ui/gi-file-input` |
-| 11 | El desplegable del alta al vuelo no cerraba | `0acb7d9` | `gi-catalog-picker` ya tiene `(focusout)`, como `gi-select` |
-| 12 | El mismo ejemplo en los cuatro catálogos | `0acb7d9` | el ejemplo sale de la ficha: `[placeholder]="openCatalog()?.example ?? ''"` |
-| 13 | La hora seis horas corrida en toda la aplicación | `16cae67` | `UtcInstantConverter` en Infrastructure, con `UtcInstantTests` detrás |
-| 14 | Estado y Municipio vacíos al crear cliente | `c8380a5` | `[organizationId]` atado en los cuatro sitios |
-| 15 | Sedes duplicadas sin control | `d1a8b70`, `5c18b13`, `d7b2d8a` | migración `AddClientSiteNormalizedName` con índice único, y las cuatro duplicadas ya resueltas |
-| 16 | La columna USO mentía siempre | `c8380a5` | `Map()` pasa `employee.IdJobPositionCatalogItem`, y el contrato de respuesta **ya no tiene valor por defecto**, que era la prevención propuesta |
-| 17 | «NULL» escrito en pantalla | `0acb7d9` | no queda ningún literal `NULL` en el código |
-| 18 | El parpadeo al abrir un empleado | `12718c1`, `6a5addf` | cubierto también al reabrir a alguien ya cargado, que era la mitad que faltaba |
-
-### Lo que pasó después, y no estaba en el plan
-
-- **El mismo 7 de septiembre a las 20:55**, `6a5addf` cerró **cuatro defectos introducidos al
-  arreglar los veinte** —el puesto del contacto validado contra catálogo, el error real que no
-  llegaba, un error de guardado que borraba la lista entera, y Servicios afirmando que el cliente no
-  tenía sedes cuando simplemente no se habían cargado— más los dos arreglos a medias.
-- **El 8 de septiembre** se validaron trece defectos de cuatro documentos: los trece confirmados
-  corregidos, y **cuatro más encontrados al validar**, tres de ellos invisibles leyendo el código.
-- **El 10 de septiembre**, dieciocho arreglos del recorrido del portal.
-- Los **dos hallazgos que ese recorrido dejó abiertos ya están cerrados**: el resumen de Auditoría
-  ahora rotula «en esta página, no en toda la consulta», y el botón que decía «Registrar incidencia»
-  y abría la corrección ahora dice «Corregir la asistencia».
-
-Sin cerrar del recorrido del 10 de septiembre quedan **tres verificaciones**, no tres defectos:
-guardar una incidencia de punta a punta, Cobertura, y publicar una semana en Planeación.
+| | Hallazgo | Estado |
+|---|---|---|
+| A | La CSP bloqueaba los mosaicos del mapa | **resuelto** (29 sep): mosaicos de Esri, permitidos en `frontend/nginx.conf` |
+| B | El freno de login no distingue visitantes detrás de nginx | abierto |
+| C | Nada vuelve solo tras un reinicio (`restart: "no"`, sin espera al backend) | abierto; **se presentó en este corte** (§1) |
+| D | Todo abierto a la red local | abierto |
+| E | Publicaciones sin etiqueta de retorno | ya hay etiquetas `rollback-20260930-*` de las publicaciones del 30 sep |
+| F | Integración continua en rojo | abierto |
+| G | Archivos subidos fuera de todo respaldo | abierto |
+| H | Sin respaldo automático | abierto |
+| I–K | Túnel fuera del repositorio, disco de Docker, local con `sa` | abiertos, prioridad baja |
 
 ---
 
-## 5. Qué hay sin commitear
-
-Dos archivos, ninguno de código:
+## 9. Sin commitear
 
 ```text
-?? docs/manual-rapido-admin-organizacion.pdf               128 KB   12 sep 07:00
-?? docs/manual-rapido-admin-organizacion-con-capturas.pdf   1.2 MB  12 sep 07:52
+?? docs/deployment/ANALISIS-PUBLICACION-2026-09-28.md
+?? docs/deployment/MANUAL-PUBLICAR-CON-TUNEL.md
+?? docs/deployment/Manual-publicar-con-tunel.pdf
 ```
 
-Son los manuales generados después del último commit, que fue a las 06:57 del mismo día. El resto
-del árbol está limpio: **cero archivos modificados**, cero en el índice.
-
-A este corte se suma este propio documento, `docs/ESTADO-ACTUAL.md`, también sin commitear.
+Más este documento y la actualización de `CLAUDE.md` de este corte.
 
 ---
 
-## 6. Los pendientes de la lista acordada
+## 10. Lo que no pude comprobar
 
-La lista es `docs/design/pendientes/ORDEN-DE-LO-QUE-SIGUE.md`, fijada el 7 de septiembre.
-**Ninguno de los cuatro se hizo.** Los cuatro siguen vivos, y en el mismo orden.
-
-### 1. La pestaña de habilidades en el expediente — sigue abierta
-
-Los cuatro métodos del cliente Angular existen en
-`features/catalogs/data-access/catalog-api.service.ts` —`listEmployeeSkills`,
-`createEmployeeSkill`, `updateEmployeeSkill`, `deactivateEmployeeSkill`— y **no hay una sola llamada
-a ninguno** desde ninguna pantalla. El API del backend está completo.
-
-Dos datos nuevos que cambian cómo leerla, y los dos salen de la base viva:
-
-- **Hay 478 habilidades de empleado registradas**, pero ninguna se capturó desde el portal: las puso
-  el sembrador demo. Dos organizaciones concentran 472 de las 478.
-- **Hoy no hay ni una regla de habilidad obligatoria activa** en las ocho organizaciones. O sea: **la
-  trampa está armada y nadie la ha pisado todavía.** El día que alguien cree una regla obligatoria de
-  habilidad, se bloquea la publicación sin forma de desbloquearla, y hay tres organizaciones con
-  empleados y cero habilidades donde eso pasaría de inmediato.
-
-Sigue siendo el punto 1 de la lista, y sigue sin necesitar cambio de esquema.
-
-### 2. La geografía — sigue abierta
-
-No existe `GeoPlace` en el código: **ni la entidad, ni la tabla, ni la migración.** La geografía
-sigue siendo `BusinessCatalogItem` por organización, y el costo creció: de las 12 559 filas que
-citaba el documento de arquitectura a **20 092** hoy (8 países, 258 estados, 19 826 ciudades), porque
-cada organización nueva carga su copia.
-
-Las tres decisiones siguen tomadas y sin ejecutar: tabla compartida sin organización, colonias como
-recurso incrustado, y el índice único por clave del INEGI y no por nombre.
-
-### 3. `Incident.IncidentType` por identificador — sigue abierta
-
-`Incident.IncidentType` sigue siendo `string` y se guarda con `Trim()`. La cobertura sigue guardando
-`IdCoverageReason`. Las dos hacen lo mismo y no se parecen: renombrar un motivo de incidencia no
-cambia las incidencias ya registradas, y nada avisa.
-
-### 4. Los nueve códigos de negocio — sigue abierta
-
-Los nueve están intactos: `CodeClient`, `CodeClientSite`, `CodeEmployee`, `CodeOperationalRequest`,
-`CodeOrganization`, `CodePosition`, `CodeService`, `CodeServiceContract` y `CodeShiftPattern`. Hay
-once `Code*` en el dominio; `CodePermission` y `CodeRole` son de seguridad y no entran en la
-discusión.
-
-El décimo, `BusinessCatalogItem.Code`, es el que sí se retiró, y fue el 7 de septiembre.
-
-### Lo que sí se hizo en su lugar
-
-Entre el 8 y el 12 de septiembre el trabajo fue a otro sitio, y vale decirlo para que no parezca
-tiempo perdido: dos tandas completas de defectos con verificación en el navegador, la pantalla de
-Organizaciones rehecha, y el **retiro de la configuración del servicio** con el precio mudado al
-puesto. Esa última no estaba en la lista de pendientes.
-
----
-
-## 7. Lo que no pude comprobar en este corte
-
-- **No abrí el navegador.** Las cifras de pantallas salen de medir los archivos; el estado funcional
-  de cada una sale de los documentos de recorrido del 8 y del 10 de septiembre.
-- **Las tres verificaciones que el recorrido del 10 dejó pendientes** siguen pendientes: guardar una
-  incidencia de punta a punta, Cobertura, y publicar una semana.
-- **No corrí las 117 pruebas que necesitan SQL.** Habría que lanzar
-  `backend/pruebas-integracion.sh`, que levanta su propio motor efímero. Las 269 restantes pasan.
+- **No abrí el navegador.** El estado funcional de cada pantalla sale de los commits, que dicen
+  dónde se comprobó cada cambio.
+- **No corrí pruebas** (modo rápido).
+- **No revisé la integración continua** en GitHub; el dato de las 19 en rojo es del 28 sep.

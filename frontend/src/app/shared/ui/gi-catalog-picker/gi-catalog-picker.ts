@@ -1,0 +1,512 @@
+import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  ElementRef,
+  computed,
+  effect,
+  inject,
+  input,
+  output,
+  signal,
+  untracked,
+  viewChild,
+} from '@angular/core';
+import { catalogNameDistance, normalizeCatalogName } from '../../util/catalog-name';
+
+/**
+ * Lo mínimo que la pieza necesita de un valor de catálogo.
+ *
+ * <p>Deliberadamente más estrecho que `CatalogItem`: así cada pantalla pasa la forma que ya tiene
+ * cargada —Personal tiene sus puestos, Incidencias sus motivos— sin traducirla a otra cosa.</p>
+ */
+export type GiCatalogOption = {
+  readonly idCatalogItem: string;
+  readonly name: string;
+};
+
+/** Lo que el usuario acaba de pedir crear. La pantalla decide cómo guardarlo. */
+export type GiCatalogCreation = {
+  readonly name: string;
+};
+
+/**
+ * Elegir un valor de catálogo, o crearlo sin salir del formulario.
+ *
+ * <p><b>Es el punto de la tanda: que el administrador no tenga que ir a Catálogos antes de
+ * trabajar.</b> Si el catálogo está vacío o no tiene lo que busca, lo escribe aquí y el sistema le
+ * ofrece guardarlo para reutilizarlo. Antes esta pieza decía «Sin opciones activas» y ahí se
+ * acababa: había que salir, ir a Catálogos, crearlo y volver a empezar el alta.</p>
+ *
+ * <p><b>Una sola llave: el identificador.</b> La pieza anterior tenía tres modos —por identificador,
+ * por código y por nombre— y el mismo tipo de catálogo se elegía de una forma en una pantalla y de
+ * otra en la siguiente. Un valor renombrado rompía a quien lo guardaba por nombre, y el código ya no
+ * existe.</p>
+ *
+ * <h4>Lo casi igual</h4>
+ *
+ * <p>Crear «Guardia» y «guardia» como dos entradas sería peor que no tener esta función, así que hay
+ * tres franjas, decididas sobre el nombre plegado:</p>
+ *
+ * <list type="number">
+ * <item><b>Colapsa exacto</b> con uno que ya existe: no se ofrece crear. Se selecciona el que hay y
+ * se dice. Sin error: el usuario pidió algo que ya está.</item>
+ * <item><b>Se parece mucho</b>: se ofrecen las dos salidas, y <b>la de usar el existente va
+ * primero</b>. El error que hay que evitar no es no poder crear, es crear un duplicado sin darse
+ * cuenta; poner las dos opciones al mismo peso convierte la decisión en un volado. Sugiere, no
+ * bloquea: dos puestos parecidos pueden ser legítimamente dos puestos.</item>
+ * <item><b>No se parece a nada</b>: se ofrece crear directamente.</item>
+ * </list>
+ *
+ * <p><b>La comprobación de verdad está en la base</b>, en el índice único sobre el nombre plegado.
+ * Esto es cortesía para no mandar al usuario contra un 409.</p>
+ *
+ * <p>Sin permiso de escritura la acción de crear <b>no se dibuja</b> —no se dibuja gris—, y en su
+ * lugar se dice qué falta. Es la misma forma de decir que no que usan las demás pantallas rehechas.</p>
+ */
+@Component({
+  selector: 'gi-catalog-picker',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: {
+    // Cerrar al salir del componente cubre el clic fuera y el salto con Tab con un solo camino.
+    // Es lo mismo que hace `gi-select`; esta pieza no lo copió al nacer y quedaba abierta para
+    // siempre, obligando a elegir algo aunque uno se hubiera arrepentido.
+    '(focusout)': 'alSalirElFoco($event)',
+    '(mousedown)': 'punteroDentro = true',
+    '(keydown.escape)': 'abierto.set(false)',
+    // La lista flotante se dibuja donde estaba el campo al abrir. Si algo se desplaza debajo, el
+    // campo se mueve y la lista se quedaria colgada, asi que se cierra.
+    '(document:scroll)': 'alDesplazar()',
+    '(window:resize)': 'alDesplazar()',
+  },
+  template: `
+    <div class="pick">
+      <label class="pick__label" [attr.for]="inputId()">{{ label() }}</label>
+
+      <input
+        #campo
+        class="pick__input"
+        type="text"
+        role="combobox"
+        autocomplete="off"
+        [id]="inputId()"
+        [value]="texto()"
+        [disabled]="disabled()"
+        [attr.aria-expanded]="abierto()"
+        [attr.aria-describedby]="inputId() + '-ayuda'"
+        [placeholder]="placeholder()"
+        (input)="escribir($any($event.target).value)"
+        (focus)="abrir()"
+      />
+
+      @if (abierto()) {
+        <ul
+          class="pick__lista"
+          role="listbox"
+          [style.top.px]="sitio().top"
+          [style.left.px]="sitio().left"
+          [style.width.px]="sitio().width"
+          [style.max-height.px]="sitio().alto"
+        >
+          @for (option of coincidencias(); track option.idCatalogItem) {
+            <li class="pick__opcion" role="option" [attr.aria-selected]="option.idCatalogItem === value()">
+              <button class="pick__elegir" type="button" (click)="elegir(option)">{{ option.name }}</button>
+            </li>
+          }
+
+          @if (yaExiste(); as existente) {
+            <li class="pick__aviso">
+              <span>«{{ existente.name }}» ya está en el catálogo.</span>
+              <button class="pick__elegir pick__elegir--sugerido" type="button" (click)="elegir(existente)">
+                Seleccionarlo
+              </button>
+            </li>
+          } @else if (parecido(); as similar) {
+            <li class="pick__aviso">
+              <span>¿Querías «{{ similar.name }}»?</span>
+              <button class="pick__elegir pick__elegir--sugerido" type="button" (click)="elegir(similar)">
+                Usar el que existe
+              </button>
+              @if (canWrite()) {
+                <button class="pick__crear pick__crear--discreto" type="button" (click)="crear()">
+                  Crear «{{ escrito() }}» como valor nuevo
+                </button>
+              }
+            </li>
+          } @else if (puedeCrear()) {
+            <li class="pick__aviso">
+              <span>No tienes «{{ escrito() }}» en {{ catalogLabel() }}.</span>
+              @if (canWrite()) {
+                <button class="pick__crear" type="button" (click)="crear()">
+                  Agregarlo para poder reutilizarlo
+                </button>
+              } @else {
+                <span class="pick__sinpermiso">
+                  Pídelo a quien administre los catálogos: aquí sólo puedes elegir de lo que ya hay.
+                </span>
+              }
+            </li>
+          } @else if (coincidencias().length === 0) {
+            <li class="pick__aviso">
+              <span>{{ catalogLabel() }} está vacío. Escribe el valor que necesitas.</span>
+            </li>
+          }
+        </ul>
+      }
+
+      @if (ayuda(); as texto) {
+        <small class="pick__ayuda" [id]="inputId() + '-ayuda'">{{ texto }}</small>
+      }
+    </div>
+  `,
+  styles: `
+    :host { display: block; min-width: 0; }
+
+    .pick { position: relative; display: flex; flex-direction: column; gap: 0.25rem; }
+
+    /* El mismo rótulo que .field__label de las pantallas: 11 px y 0.06em. Con 11.5 px y sin
+       espaciado, un selector de catálogo al lado de un campo normal se veía medio punto más grande
+       y la fila parecía torcida aunque estuviera alineada. */
+    .pick__label {
+      color: var(--gestia-muted);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+    }
+
+    .pick__input {
+      width: 100%;
+      height: var(--gestia-control-height);
+      padding: 0 0.6rem;
+      border: 1px solid var(--gestia-border);
+      border-radius: var(--gestia-radius);
+      background: var(--gestia-surface);
+      color: var(--gestia-text);
+      font: inherit;
+      font-size: 12.5px;
+    }
+
+    .pick__input:focus-visible { outline: 2px solid var(--gestia-cyan); outline-offset: 1px; }
+    .pick__input:disabled { background: var(--gestia-surface-soft); color: var(--gestia-muted); }
+
+    /*
+      Flotante y no pegada al campo: dentro de una ventana emergente con desplazamiento, una lista
+      posicionada respecto al campo la recorta el borde de la ventana, y hay que desplazar la
+      ventana para ver el resto mientras la lista tiene su propio desplazamiento. Dos
+      desplazamientos anidados para elegir un valor. Con posicion fija se dibuja sobre todo y su
+      alto sale de lo que queda hasta el pie de la pantalla.
+    */
+    .pick__lista {
+      position: fixed;
+      z-index: 40;
+      max-height: 16rem;
+      margin: 0.15rem 0 0;
+      padding: 0;
+      overflow-y: auto;
+      list-style: none;
+      border: 1px solid var(--gestia-border);
+      border-radius: var(--gestia-radius);
+      background: var(--gestia-surface);
+      box-shadow: var(--gestia-shadow);
+    }
+
+    .pick__opcion { border-bottom: 1px solid var(--gestia-border); }
+    .pick__opcion:last-child { border-bottom: none; }
+
+    .pick__elegir {
+      width: 100%;
+      padding: 0.5rem 0.6rem;
+      border: none;
+      background: none;
+      color: var(--gestia-text);
+      font: inherit;
+      font-size: 12.5px;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .pick__elegir:hover { background: var(--gestia-surface-soft); }
+    .pick__elegir:focus-visible { outline: 2px solid var(--gestia-cyan); outline-offset: -2px; }
+
+    /* La salida recomendada se lee primero y pesa más que la de crear. */
+    .pick__elegir--sugerido { font-weight: 600; }
+
+    .pick__aviso {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      padding: 0.6rem;
+      border-top: 1px solid var(--gestia-border);
+      background: var(--gestia-surface-soft);
+      color: var(--gestia-muted);
+      font-size: 11.5px;
+      line-height: 1.45;
+    }
+
+    .pick__crear {
+      align-self: flex-start;
+      height: 2.25rem;
+      padding: 0 0.7rem;
+      border: 1px solid var(--gestia-cyan);
+      border-radius: var(--gestia-radius);
+      background: var(--gestia-surface);
+      color: var(--gestia-cyan-dark);
+      font: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    /* Crear un valor nuevo habiendo uno parecido es la salida menos probable: se ofrece sin peso. */
+    .pick__crear--discreto {
+      border-color: var(--gestia-border);
+      color: var(--gestia-muted);
+      font-weight: 400;
+    }
+
+    .pick__crear:focus-visible { outline: 2px solid var(--gestia-cyan); outline-offset: 1px; }
+
+    .pick__sinpermiso { color: var(--gestia-muted); }
+
+    .pick__ayuda { color: var(--gestia-muted); font-size: 11px; }
+  `,
+})
+export class GiCatalogPicker {
+  /** Los valores activos del catálogo, ya cargados por la pantalla. */
+  readonly options = input.required<readonly GiCatalogOption[]>();
+
+  /** El identificador elegido, o cadena vacía. **Nunca un nombre ni un código.** */
+  readonly value = input('');
+
+  readonly label = input('Valor');
+
+  /** Cómo se llama el catálogo en la frase de crear: «No tienes X en el catálogo de puestos». */
+  readonly catalogLabel = input('el catálogo');
+
+  readonly canWrite = input(false);
+  readonly disabled = input(false);
+  readonly inputId = input('gi-catalog-picker');
+
+  readonly valueChange = output<string>();
+  readonly create = output<GiCatalogCreation>();
+
+  protected readonly escrito = signal('');
+  protected readonly abierto = signal(false);
+
+  /**
+   * Se cierra al salir del componente.
+   *
+   * <p>`relatedTarget` dice a dónde va el foco. Si sigue dentro —de la caja de texto a una opción,
+   * por ejemplo— no hay que cerrar; si sale, o si no va a ninguna parte, sí.</p>
+   */
+  protected alSalirElFoco(event: FocusEvent): void {
+    if (this.punteroDentro) return;
+
+    const destino = event.relatedTarget as Node | null;
+    const anfitrion = (event.currentTarget as HTMLElement | null) ?? null;
+
+    if (!destino || !anfitrion?.contains(destino)) {
+      this.abierto.set(false);
+    }
+  }
+
+  /** Lo que se ve en el campo: lo escrito manda; si no hay nada escrito, el nombre del elegido. */
+  protected readonly texto = computed(() => {
+    const escrito = this.escrito();
+
+    if (escrito) {
+      return escrito;
+    }
+
+    return this.options().find((item) => item.idCatalogItem === this.value())?.name ?? '';
+  });
+
+  protected readonly placeholder = computed(() =>
+    this.options().length === 0 ? 'Escribe el primero' : 'Escribe para buscar',
+  );
+
+  protected readonly coincidencias = computed(() => {
+    const buscado = normalizeCatalogName(this.escrito());
+
+    if (!buscado) {
+      return this.options();
+    }
+
+    return this.options().filter((item) => normalizeCatalogName(item.name).includes(buscado));
+  });
+
+  /** El que colapsa exacto con lo escrito. Si existe, no se ofrece crear nada. */
+  protected readonly yaExiste = computed(() => {
+    const buscado = normalizeCatalogName(this.escrito());
+
+    if (!buscado) {
+      return null;
+    }
+
+    return this.options().find((item) => normalizeCatalogName(item.name) === buscado) ?? null;
+  });
+
+  /** El más cercano dentro de la distancia que vale la pena preguntar. */
+  protected readonly parecido = computed(() => {
+    const buscado = normalizeCatalogName(this.escrito());
+
+    if (!buscado || this.yaExiste()) {
+      return null;
+    }
+
+    return (
+      this.options().find((item) => {
+        const otro = normalizeCatalogName(item.name);
+        return catalogNameDistance(buscado, otro) <= 2 || otro.includes(buscado) || buscado.includes(otro);
+      }) ?? null
+    );
+  });
+
+  /** Si se dibuja la invitación a crear el valor. Se apaga donde la ventana no da para más texto. */
+  readonly showInvitation = input(true);
+
+  private readonly campo = viewChild.required<ElementRef<HTMLInputElement>>('campo');
+
+  /** Dónde se dibuja la lista flotante, medido al abrir. */
+  protected readonly sitio = signal({ top: 0, left: 0, width: 0, alto: 0 });
+
+  /**
+   * Abre la lista al entrar al campo, con el catálogo entero a la vista.
+   *
+   * <p>Se llamaba a sí misma en vez de abrir: la lista sólo aparecía al teclear, porque escribir sí
+   * la abre por su cuenta. Quien pulsaba el campo veía un cuadro de texto y ninguna pista de que
+   * hubiera un catálogo detrás.</p>
+   */
+  protected abrir(): void {
+    this.medirSitio();
+    this.abierto.set(true);
+  }
+
+  /**
+   * Dónde cae la lista y cuánto puede crecer.
+   *
+   * <p>Se mide al abrir. Una lista que se recoloca mientras está abierta salta bajo el cursor justo
+   * cuando alguien va a elegir, así que si algo se desplaza debajo se cierra en vez de perseguir al
+   * campo.</p>
+   */
+  private medirSitio(): void {
+    const caja = this.campo().nativeElement.getBoundingClientRect();
+    const margen = 8;
+    const disponible = window.innerHeight - caja.bottom - margen * 2;
+
+    this.sitio.set({
+      top: caja.bottom + 4,
+      left: caja.left,
+      width: caja.width,
+      alto: Math.max(120, Math.min(256, disponible)),
+    });
+  }
+
+  protected alDesplazar(): void {
+    if (this.abierto()) {
+      this.abierto.set(false);
+    }
+  }
+
+  protected readonly puedeCrear = computed(() => !!normalizeCatalogName(this.escrito()) && !this.yaExiste());
+
+  protected readonly ayuda = computed(() => {
+    // Lo situacional se dice siempre: son respuestas a lo que se acaba de escribir.
+    if (this.yaExiste()) {
+      return 'Ya existe: selecciónalo en lugar de crear otro igual.';
+    }
+
+    if (!this.canWrite()) {
+      return 'Sólo puedes elegir de lo que ya está en el catálogo.';
+    }
+
+    // La invitación es permanente y no responde a nada, así que una pantalla apretada puede
+    // apagarla. Se apaga por campo y no para todos: en una pantalla con sitio, decirle a alguien
+    // que puede crear el valor ahí mismo es la diferencia entre capturarlo y salir a Catálogos.
+    return this.showInvitation() ? 'Si no está, escríbelo y se agrega al catálogo para reutilizarlo.' : '';
+  });
+
+  protected elegir(option: GiCatalogOption): void {
+    this.escrito.set('');
+    this.abierto.set(false);
+    this.valueChange.emit(option.idCatalogItem);
+  }
+
+  /**
+   * El nombre que se acaba de mandar a crear, mientras el catalogo lo devuelve.
+   *
+   * <p>Existe porque crear y seleccionar eran dos cosas y solo pasaba la primera. Quien escribia un
+   * puesto nuevo veia el mensaje de que habia quedado en el catalogo, el valor seguia vacio, y al
+   * guardar el puesto se descartaba en silencio: el contacto quedaba «sin puesto registrado» sin
+   * que nadie dijera nada. Pasaba en las seis pantallas que usan esta pieza.</p>
+   */
+  private readonly pendienteDeCrear = signal('');
+
+  /** Verdadero entre el apretar y el soltar del raton dentro del control. */
+  protected punteroDentro = false;
+
+  constructor() {
+    // Mismo arreglo que en `gi-select`: apretar la barra de desplazamiento de la lista le quita el
+    // foco al campo, y el focusout cerraba la lista justo al agarrarla.
+    const soltar = (): void => {
+      if (!this.punteroDentro) return;
+
+      this.punteroDentro = false;
+      if (this.abierto()) this.campo().nativeElement.focus();
+    };
+    document.addEventListener('mouseup', soltar, true);
+    inject(DestroyRef).onDestroy(() => document.removeEventListener('mouseup', soltar, true));
+
+    /**
+     * Selecciona el valor recien creado en cuanto aparece en el catalogo.
+     *
+     * <p>Se compara por nombre normalizado y no por posicion: quien lo crea lo agrega a su lista
+     * como quiere, y dar por hecho que es el ultimo seria atarse a ese detalle.</p>
+     */
+    effect(() => {
+      const buscado = normalizeCatalogName(this.pendienteDeCrear());
+      const opciones = this.options();
+
+      if (!buscado) {
+        return;
+      }
+
+      const creado = opciones.find((item) => normalizeCatalogName(item.name) === buscado);
+
+      if (!creado) {
+        return;
+      }
+
+      untracked(() => {
+        this.pendienteDeCrear.set('');
+        this.escrito.set('');
+        this.valueChange.emit(creado.idCatalogItem);
+      });
+    });
+  }
+
+  protected crear(): void {
+    const nombre = this.escrito().trim();
+
+    if (!nombre || !this.canWrite()) {
+      return;
+    }
+
+    this.abierto.set(false);
+    this.pendienteDeCrear.set(nombre);
+    this.create.emit({ name: nombre });
+  }
+
+  protected escribir(valor: string): void {
+    this.escrito.set(valor);
+    this.abierto.set(true);
+    // Seguir escribiendo cancela la creacion en curso: si el catalogo contestara despues, elegiria
+    // por su cuenta algo que ya no es lo que hay en el campo.
+    this.pendienteDeCrear.set('');
+
+    // Escribir deshace la selección: lo que se ve y lo que vale no pueden decir cosas distintas.
+    if (this.value()) {
+      this.valueChange.emit('');
+    }
+  }
+}

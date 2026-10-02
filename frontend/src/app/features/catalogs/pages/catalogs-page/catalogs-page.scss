@@ -1,0 +1,383 @@
+// Catálogos, rehecha el 7 de septiembre de 2026.
+//
+// La hoja anterior tenía 931 líneas y 134 colores escritos a mano. Aquí no hay ni un color propio:
+// todos salen de los tokens, que es lo que la prueba del sistema cerrado comprueba.
+
+.cat {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.cat__intro {
+  h1 {
+    margin: 0.25rem 0 0.4rem;
+    font-size: 22px;
+  }
+
+  p {
+    margin: 0;
+    max-width: 62ch;
+    color: var(--gestia-muted);
+    font-size: 12.5px;
+    line-height: 1.55;
+  }
+}
+
+.cat__zona {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.cat__nota {
+  margin: 0;
+  max-width: 78ch;
+  color: var(--gestia-muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.cat__error {
+  margin: 0;
+  color: var(--gestia-danger);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+.cat__oculto {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.cat__cargando {
+  display: grid;
+  gap: 0.5rem;
+
+  span {
+    height: 3.5rem;
+  }
+}
+
+// ── Un catálogo: cabecera siempre visible, lista al desplegar ─────────────────────────────────
+
+.cat__lista {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cat__catalogo {
+  border: 1px solid var(--gestia-border);
+  border-radius: var(--gestia-radius);
+  background: var(--gestia-surface);
+
+  &.is-open {
+    border-color: var(--gestia-cyan-dark);
+  }
+}
+
+.cat__catalogo-cabecera {
+  display: grid;
+  grid-template-columns: minmax(12rem, 1fr) minmax(14rem, 1.4fr) auto;
+  gap: 1rem;
+  align-items: center;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 0;
+  border-radius: var(--gestia-radius);
+  background: none;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--gestia-surface-soft);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--gestia-cyan);
+    outline-offset: -2px;
+  }
+
+  strong {
+    display: block;
+    color: var(--gestia-text);
+    font-size: 13px;
+  }
+
+  small {
+    display: block;
+    margin-top: 0.15rem;
+    color: var(--gestia-muted);
+    font-size: 11.5px;
+    line-height: 1.45;
+  }
+}
+
+.cat__catalogo-uso strong {
+  color: var(--gestia-navy);
+  font-size: 12px;
+}
+
+.cat__catalogo-cuenta {
+  text-align: right;
+
+  strong {
+    font-size: 22px;
+  }
+
+  small {
+    font-size: 11px;
+  }
+}
+
+.cat__catalogo-cuerpo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0 1rem 1rem;
+  border-top: 1px solid var(--gestia-border);
+  padding-top: 0.75rem;
+}
+
+// ── Plegables: geografía y listas del sistema ────────────────────────────────────────────────
+
+.cat__plegado {
+  border: 1px solid var(--gestia-border);
+  border-radius: var(--gestia-radius);
+  background: var(--gestia-surface);
+
+  > summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.15rem 0.75rem;
+    align-items: baseline;
+    padding: 0.7rem 1rem;
+    color: var(--gestia-text);
+    font-size: 13px;
+    cursor: pointer;
+
+    &:focus-visible {
+      outline: 2px solid var(--gestia-cyan);
+      outline-offset: -2px;
+    }
+
+    small {
+      color: var(--gestia-muted);
+      font-size: 11.5px;
+    }
+  }
+
+  > *:not(summary) {
+    margin: 0 1rem 0.85rem;
+  }
+}
+
+.cat__plegado--anidado {
+  background: var(--gestia-surface-soft);
+
+  > summary {
+    font-size: 12.5px;
+  }
+}
+
+// ── Filtros, tablas y acciones ───────────────────────────────────────────────────────────────
+
+.cat__filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: flex-end;
+
+  > * {
+    flex: 1 1 12rem;
+    min-width: 0;
+  }
+
+  > button {
+    flex: 0 0 auto;
+  }
+}
+
+.cat__acciones {
+  display: flex;
+  gap: 0.35rem;
+  justify-content: flex-end;
+  white-space: nowrap;
+}
+
+// ── Validador de elegibilidad ────────────────────────────────────────────────────────────────
+
+.cat__validador {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+
+  h3 {
+    margin: 0;
+    font-size: 13px;
+  }
+
+  > p {
+    margin: 0;
+    color: var(--gestia-muted);
+    font-size: 12px;
+  }
+}
+
+.cat__validador-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: flex-end;
+
+  > * {
+    flex: 1 1 11rem;
+    min-width: 0;
+  }
+
+  > button {
+    flex: 0 0 auto;
+  }
+}
+
+.cat__resultado {
+  padding: 0.75rem;
+  border: 1px solid var(--gestia-border);
+  border-radius: var(--gestia-radius);
+  background: var(--gestia-surface-soft);
+
+  &[data-estado='eligible'] {
+    border-color: var(--gestia-success);
+  }
+
+  &[data-estado='notEligible'] {
+    border-color: var(--gestia-danger);
+  }
+}
+
+.cat__resultado-cabecera {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin: 0 0 0.5rem;
+  font-size: 13px;
+}
+
+.cat__razones {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  li {
+    padding-left: 0.6rem;
+    border-left: 2px solid var(--gestia-success);
+
+    &.is-fail {
+      border-left-color: var(--gestia-danger);
+    }
+  }
+
+  strong {
+    display: block;
+    font-size: 12.5px;
+  }
+
+  small {
+    display: block;
+    color: var(--gestia-muted);
+    font-size: 11px;
+  }
+
+  p {
+    margin: 0.15rem 0 0;
+    font-size: 12px;
+  }
+}
+
+// ── Diálogos ─────────────────────────────────────────────────────────────────────────────────
+
+.cat__dialogo {
+  width: min(34rem, calc(100vw - 2rem));
+  padding: 0;
+  border: 1px solid var(--gestia-border);
+  border-radius: var(--gestia-radius);
+  background: var(--gestia-surface);
+  color: var(--gestia-text);
+
+  &::backdrop {
+    background: var(--gestia-dialog-veil);
+  }
+
+  form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 1rem;
+  }
+}
+
+.cat__dialogo--ancho {
+  width: min(44rem, calc(100vw - 2rem));
+}
+
+.cat__dialogo-cabecera {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  justify-content: space-between;
+
+  h2 {
+    margin: 0.15rem 0 0;
+    font-size: 13px;
+  }
+}
+
+.cat__dialogo-fila {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+
+  > * {
+    flex: 1 1 12rem;
+    min-width: 0;
+  }
+}
+
+.cat__dialogo-acciones {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.cat__casilla {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  font-size: 12.5px;
+
+  input:focus-visible {
+    outline: 2px solid var(--gestia-cyan);
+  }
+}
+
+@media (max-width: 60rem) {
+  .cat__catalogo-cabecera {
+    grid-template-columns: 1fr;
+    gap: 0.4rem;
+  }
+
+  .cat__catalogo-cuenta {
+    text-align: left;
+  }
+}

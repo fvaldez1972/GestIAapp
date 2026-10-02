@@ -1,0 +1,1221 @@
+<article class="page-hero operation-hero">
+  <div>
+    <span class="kicker">{{ operationScopeLabel() }} / {{ tabTitle() }}</span>
+    <h1>{{ tabTitle() }}</h1>
+    <p>{{ tabDescription() }}</p>
+  </div>
+  <div class="hero-status-card">
+    <span>{{ currentDayClosure() ? 'Día cerrado' : 'Día abierto' }}</span>
+    <strong>{{ openDailyIncidents() || pendingAttendanceCount() ? 'Requiere atención' : 'Bajo control' }}</strong>
+    <small>{{ pendingAttendanceCount() }} asistencia(s) pendiente(s) · {{ pendingApprovalCount() }} autorización(es)</small>
+  </div>
+</article>
+
+<section class="filters context-bar" aria-label="Contexto operativo fijo">
+
+  <label>
+    Cliente
+    <select [value]="selectedClientId()" (change)="onClientChange($event)">
+      @for (client of clients(); track client.idClient) {
+        <option [value]="client.idClient">{{ client.tradeName || client.legalName }}</option>
+      }
+    </select>
+  </label>
+
+  <label>
+    Servicio
+    <select [value]="selectedServiceId()" (change)="onServiceChange($event)">
+      @for (service of services(); track service.idService) {
+        <option [value]="service.idService">{{ service.name }}</option>
+      }
+    </select>
+  </label>
+
+  <label>
+    Fecha operativa
+    <gi-date inputId="operation-date-input" [value]="selectedOperationDate()" (input)="onOperationDateChange($event)" />
+  </label>
+
+  <button class="ghost-action" type="button" (click)="refresh()" [disabled]="loading() || !selectedServiceId()">
+    {{ loading() ? 'Actualizando…' : 'Actualizar' }}
+  </button>
+
+  <p class="context-notice">
+    <span>✓</span>
+    {{
+      activeSection() === 'incidencias'
+        ? 'Contexto aplicado a turnos, incidencias e historial'
+        : activeSection() === 'cobertura'
+          ? 'Contexto aplicado a turnos, sustitutos e historial'
+          : 'Contexto aplicado a resumen, turnos, historial y cierre'
+    }}
+  </p>
+</section>
+
+@if (error()) {
+  <p class="alert">{{ error() }}</p>
+}
+
+@if (message()) {
+  <p class="success">{{ message() }}</p>
+}
+
+<section class="summary-grid operation-kpis" aria-label="Resumen de operación de hoy">
+  @if (activeSection() === 'incidencias') {
+  <article>
+    <i aria-hidden="true">A</i>
+    <span>Abiertas</span>
+    <strong>{{ incidentKpis().open }}</strong>
+    <small>{{ incidentHistoryScope() === 'day' ? 'Día operativo' : 'Histórico del servicio' }}</small>
+  </article>
+  <article class="needs-attention">
+    <i aria-hidden="true">!</i>
+    <span>En atención</span>
+    <strong>{{ incidentKpis().inAttention }}</strong>
+    <small>Requieren seguimiento</small>
+  </article>
+  <article>
+    <i aria-hidden="true">✓</i>
+    <span>Resueltas</span>
+    <strong>{{ incidentKpis().resolved }}</strong>
+    <small>{{ incidentHistoryScope() === 'day' ? 'Hoy' : 'Alcance histórico' }}</small>
+  </article>
+  <article class="needs-attention">
+    <i aria-hidden="true">S</i>
+    <span>SLA vencido</span>
+    <strong>{{ incidentKpis().slaExpired }}</strong>
+    <small>Sin resolución en tiempo</small>
+  </article>
+  } @else if (activeSection() === 'cobertura') {
+  <article>
+    <i aria-hidden="true">C</i>
+    <span>Solicitadas</span>
+    <strong>{{ coverageKpis().requested }}</strong>
+    <small>{{ coverageHistoryScope() === 'day' ? 'Hoy' : 'Histórico del servicio' }}</small>
+  </article>
+  <article class="needs-attention">
+    <i aria-hidden="true">!</i>
+    <span>En revisión</span>
+    <strong>{{ coverageKpis().inReview }}</strong>
+    <small>Pendientes de confirmar</small>
+  </article>
+  <article>
+    <i aria-hidden="true">✓</i>
+    <span>Confirmadas</span>
+    <strong>{{ coverageKpis().confirmed }}</strong>
+    <small>Listas para cierre</small>
+  </article>
+  <article class="needs-attention">
+    <i aria-hidden="true">B</i>
+    <span>Bloqueadas</span>
+    <strong>{{ coverageKpis().blocked }}</strong>
+    <small>Requieren corrección</small>
+  </article>
+  } @else {
+  <article>
+    <i aria-hidden="true">T</i>
+    <span>Turnos esperados</span>
+    <strong>{{ expectedShiftCount() || '—' }}</strong>
+    <small>{{ expectedShiftCount() ? 'Según planeación publicada' : 'Sin datos' }}</small>
+  </article>
+  <article>
+    <i aria-hidden="true">✓</i>
+    <span>Presentes</span>
+    <strong>{{ expectedShiftCount() ? presentTodayCount() : '—' }}</strong>
+    <small>{{ expectedShiftCount() ? 'Confirmados en campo' : 'Sin datos' }}</small>
+  </article>
+  <article class="needs-attention">
+    <i aria-hidden="true">!</i>
+    <span>Ausentes</span>
+    <strong>{{ expectedShiftCount() ? absentTodayCount() : '—' }}</strong>
+    <small>{{ expectedShiftCount() ? 'Requieren seguimiento' : 'Sin datos' }}</small>
+  </article>
+  <article class="needs-attention">
+    <i aria-hidden="true">R</i>
+    <span>Retardos</span>
+    <strong>{{ expectedShiftCount() ? lateTodayCount() : '—' }}</strong>
+    <small>{{ expectedShiftCount() ? 'Llega tarde si minutos > 0' : 'Sin datos' }}</small>
+  </article>
+  }
+</section>
+
+@if (selectedServiceId()) {
+  <section class="daily-board" aria-label="Tablero diario de operación">
+    <header>
+      <div>
+        <span class="kicker">Tablero diario</span>
+        <h2>{{ selectedOperationDate() }}</h2>
+        <p>Vista rápida de turnos publicados, asistencia capturada, incidencias y coberturas del día.</p>
+      </div>
+      <div class="daily-actions">
+        <button type="button" [disabled]="saving() || pendingAttendanceCount() === 0 || !!currentDayClosure()" (click)="confirmDailyAttendance()">
+          Confirmar asistencia pendiente
+        </button>
+        <button type="button" [disabled]="saving() || !canCloseDay()" (click)="closeOperationDay()">
+          Cerrar día
+        </button>
+      </div>
+    </header>
+
+    <div class="daily-grid">
+      <article class="daily-kpi">
+        <span>Turnos del día</span>
+        <strong>{{ dailyBoard().length }}</strong>
+      </article>
+      <article class="daily-kpi">
+        <span>Asistencias pendientes</span>
+        <strong>{{ pendingAttendanceCount() }}</strong>
+      </article>
+      <article class="daily-kpi">
+        <span>Incidencias abiertas</span>
+        <strong>{{ openDailyIncidents() }}</strong>
+      </article>
+      <article class="daily-kpi">
+        <span>Estado del día</span>
+        <strong>{{ currentDayClosure() ? 'Cerrado' : 'Abierto' }}</strong>
+      </article>
+    </div>
+
+    <div class="daily-shifts">
+      @for (item of dailyBoard(); track item.shift.idScheduledShift) {
+        <article
+          class="daily-shift"
+          [class.needs-attendance]="!item.attendance"
+          [class.is-present]="shiftStatusClass(item) === 'is-present'"
+          [class.is-late]="shiftStatusClass(item) === 'is-late'"
+          [class.is-absent]="shiftStatusClass(item) === 'is-absent'"
+          [class.is-covered]="shiftStatusClass(item) === 'is-covered'"
+          [class.is-pending]="shiftStatusClass(item) === 'is-pending'"
+        >
+          <span>{{ item.shift.startTime }} — {{ item.shift.endTime }}</span>
+          <strong>{{ item.shift.positionCode }} · {{ item.shift.positionName }}</strong>
+          <small>Planeado: {{ item.shift.employeeCode }} · {{ item.shift.employeeName }}</small>
+          <small>Ocurrió: {{ actualEmployeeLabel(item) }}</small>
+          <footer>
+            <i>{{ effectiveAttendanceStatusLabel(item.attendance) }}</i>
+            @if (item.coverage) {
+              <i>Cobertura: {{ item.coverage.replacementEmployeeName }}</i>
+            }
+            @if (item.incidents.length) {
+              <i>{{ item.incidents.length }} incidencia(s)</i>
+            }
+          </footer>
+          @if (!item.attendance && !currentDayClosure()) {
+            <div class="quick-actions" aria-label="Acciones rápidas de asistencia">
+              <button type="button" [disabled]="saving()" (click)="quickAttendance(item, 'Present')">Presente</button>
+              <button type="button" [disabled]="saving()" (click)="quickAttendance(item, 'Late')">Retardo</button>
+              <button type="button" [disabled]="saving()" (click)="quickAttendance(item, 'Absent')">Falta</button>
+              <button type="button" [disabled]="saving()" (click)="quickAttendance(item, 'Excused')">Justificada</button>
+            </div>
+          }
+        </article>
+      } @empty {
+        <div class="empty-state empty-state--large">
+          <i aria-hidden="true">▣</i>
+          <strong>Sin turnos para esta fecha</strong>
+          <span>Selecciona otra fecha o publica una planeación que cubra el día operativo.</span>
+          <small>No hay turnos disponibles para {{ operationDateLabel() }}.</small>
+          <div class="empty-actions">
+            <a class="ghost-action" routerLink="/planeacion">Ir a Planeación</a>
+            <button class="button-reset" type="button" (click)="focusOperationDate()">Cambiar fecha</button>
+          </div>
+        </div>
+      }
+    </div>
+  </section>
+}
+
+@if (selectedService(); as service) {
+  <section class="service-context">
+    <span>{{ service.codeService }}</span>
+    <strong>{{ service.name }}</strong>
+    <small>
+      {{ service.clientZoneName || 'Sin zona asignada' }}
+      @if (publishedVersion(); as version) {
+        · Planeación publicada: {{ version.name }}
+      } @else {
+        · Sin planeación publicada
+      }
+    </small>
+  </section>
+}
+
+<section class="section-tabs operation-tabs" aria-label="Módulos de operación">
+  <a routerLink="/operacion/asistencia" [class.active]="activeTab() === 'asistencia'">
+    <span>Asistencia</span>
+    <strong>{{ attendanceCount() }}</strong>
+  </a>
+  <a routerLink="/operacion/incidencias" [class.active]="activeTab() === 'incidencias'">
+    <span>Incidencias</span>
+    <strong>{{ incidentCount() }}</strong>
+  </a>
+  <a routerLink="/operacion/cobertura" [class.active]="activeTab() === 'cobertura'">
+    <span>Cobertura</span>
+    <strong>{{ coverageCount() }}</strong>
+  </a>
+  <button class="tab-action" type="button" [class.active]="activeTab() === 'evidencias'" (click)="setActiveTab('evidencias')">
+    <span>Evidencias</span>
+    <strong>{{ evidenceList().length }}</strong>
+  </button>
+  <button class="tab-action" type="button" [class.active]="activeTab() === 'cierre'" (click)="setActiveTab('cierre')">
+    <span>Cierre diario</span>
+    <strong>{{ currentDayClosure() ? 'OK' : pendingAttendanceCount() }}</strong>
+  </button>
+</section>
+
+<section class="module-heading">
+  <span class="kicker">{{ tabTitle() }}</span>
+  <h2>{{ tabTitle() }}</h2>
+  <p>{{ tabDescription() }}</p>
+</section>
+
+@if (activeTab() === 'asistencia' || activeTab() === 'incidencias' || activeTab() === 'cobertura') {
+<section class="workspace-grid" aria-label="Captura operativa">
+  <div class="capture-column">
+  @if (activeSection() === 'asistencia') {
+  <form class="capture-card" [formGroup]="attendanceForm" (ngSubmit)="saveAttendance()">
+    <header>
+      <span>Captura de asistencia</span>
+      <h3>{{ selectedAttendance() ? 'Corregir asistencia' : 'Selecciona turno' }}</h3>
+      <p>
+        @if (selectedAttendance()) {
+          Estás corrigiendo un registro existente; captura quién autorizó o el motivo de corrección.
+        } @else {
+          Sólo aparecen turnos publicados para {{ operationDateLabel() }}.
+        }
+      </p>
+    </header>
+
+    <label>
+      Turno publicado
+      <select formControlName="idScheduledShift" [disabled]="!hasPublishedShifts() || !!currentDayClosure()">
+        @for (shift of dailyShifts(); track shift.idScheduledShift) {
+          <option [value]="shift.idScheduledShift">
+            Turno {{ shift.startTime }}-{{ shift.endTime }} · {{ operationDateLabel() }} · {{ shift.employeeName }}
+          </option>
+        } @empty {
+          <option value="">No hay turnos disponibles para {{ operationDateLabel() }}</option>
+        }
+      </select>
+    </label>
+
+    <p class="soft-info">
+      El estado se calcula automáticamente según minutos y tolerancia. Si registras retardo mayor a 0, se mostrará como Retardo.
+    </p>
+
+    <div class="form-row">
+      <label>
+        Estado sugerido
+        <select formControlName="status">
+          @for (status of attendanceStatuses; track status.value) {
+            <option [value]="status.value">{{ status.label }}</option>
+          }
+        </select>
+      </label>
+
+      <label>
+        Minutos de retardo
+        <input type="number" min="0" formControlName="minutesLate" />
+      </label>
+    </div>
+
+    <div class="form-row">
+      <label>
+        Entrada real
+        <input type="time" formControlName="actualStartTime" />
+      </label>
+
+      <label>
+        Salida real
+        <input type="time" formControlName="actualEndTime" />
+      </label>
+    </div>
+
+    <label>
+      Notas
+      <textarea rows="3" formControlName="notes" placeholder="Ej. llegó con 3 min de retardo"></textarea>
+    </label>
+
+    @if (selectedAttendance()) {
+      @if (approvedAttendanceApprovals().length) {
+        <label>
+          Autorización aprobada
+          <select formControlName="idApprovalRequest">
+            <option value="">Selecciona autorización</option>
+            @for (approval of approvedAttendanceApprovals(); track approval.idApprovalRequest) {
+              <option [value]="approval.idApprovalRequest">
+                {{ approval.requestedAt }} · {{ approval.reason }}
+              </option>
+            }
+          </select>
+        </label>
+      } @else {
+        <p class="soft-alert">
+          Esta asistencia ya fue capturada. Para corregirla, primero solicita y aprueba una autorización.
+        </p>
+      }
+
+      <label>
+        Comentario de corrección
+        <textarea rows="2" formControlName="correctionAuthorizationNotes" placeholder="Ej. Se corrige por error de captura validado con supervisor"></textarea>
+      </label>
+    }
+
+    <div class="form-actions">
+      <button type="submit" [disabled]="saving() || !hasPublishedShifts() || !attendanceCorrectionReady() || !!currentDayClosure()">
+        {{ selectedAttendance() ? 'Guardar corrección' : 'Guardar asistencia' }}
+      </button>
+      <button type="button" class="button-reset" [disabled]="saving() || !hasPublishedShifts() || pendingAttendanceCount() === 0 || !!currentDayClosure()" (click)="confirmDailyAttendance()">
+        Confirmar asistencia pendiente
+      </button>
+      @if (selectedAttendance()) {
+        <button class="button-reset" type="button" [disabled]="saving()" (click)="resetAttendanceForm()">Nueva asistencia</button>
+      }
+    </div>
+
+    @if (!hasPublishedShifts()) {
+      <small class="form-help">No hay turnos disponibles para {{ operationDateLabel() }}. Publica una planeación o cambia la fecha operativa.</small>
+    }
+  </form>
+  }
+
+  @if (activeSection() === 'incidencias') {
+  <form class="capture-card" [formGroup]="incidentForm" (ngSubmit)="saveIncident()">
+    <header>
+      <span>{{ selectedIncident() ? 'Detalle de incidencia' : 'Nueva incidencia' }}</span>
+      <h3>{{ selectedIncident() ? 'Atender incidencia' : 'Detectar y clasificar' }}</h3>
+      <p>
+        @if (selectedIncident()) {
+          Agrega seguimiento, solicita autorización o resuelve con evidencia.
+        } @else {
+          Registra la incidencia usando únicamente turnos de {{ operationDateLabel() }}.
+        }
+      </p>
+    </header>
+
+    <nav class="incident-flow" aria-label="Flujo de incidencia">
+      <span [class.is-done]="incidentStepDone('detectar')">1 Detectar</span>
+      <span [class.is-done]="incidentStepDone('clasificar')">2 Clasificar</span>
+      <span [class.is-done]="incidentStepDone('atender')">3 Atender</span>
+      <span [class.is-done]="incidentStepDone('resolver')">4 Resolver</span>
+    </nav>
+
+    @if (selectedIncident(); as incident) {
+      <section class="incident-detail-card">
+        <div>
+          <span>Folio</span>
+          <strong>{{ incident.idIncident.slice(0, 8) }}</strong>
+        </div>
+        <div>
+          <span>Turno</span>
+          <strong>{{ selectedIncidentShiftLabel() }}</strong>
+        </div>
+        <div>
+          <span>Empleado</span>
+          <strong>{{ incident.employeeName || 'Servicio' }}</strong>
+        </div>
+        <div>
+          <span>SLA</span>
+          <strong>{{ incidentSlaLabel(incident.severity) }}</strong>
+        </div>
+      </section>
+    }
+
+    <label>
+      Turno relacionado
+      <select formControlName="idScheduledShift" [disabled]="!hasPublishedShifts() || !!selectedIncident()">
+        @for (shift of dailyShifts(); track shift.idScheduledShift) {
+          <option [value]="shift.idScheduledShift">
+            Turno {{ shift.startTime }}-{{ shift.endTime }} · {{ operationDateLabel() }} · {{ shift.employeeName }}
+          </option>
+        } @empty {
+          <option value="">No hay turnos disponibles para {{ operationDateLabel() }}</option>
+        }
+      </select>
+      @if (!hasPublishedShifts()) {
+        <small class="form-help">No hay turnos disponibles para {{ operationDateLabel() }}.</small>
+      }
+    </label>
+
+    <div class="form-row">
+      <label>
+        Fecha operativa
+        <input type="text" [value]="operationDateLabel()" [disabled]="true" />
+      </label>
+
+      <label>
+        Tipo
+        <!-- Por nombre: es lo que Incident.IncidentType guarda de verdad. Antes iba por codigo del
+             catalogo y coincidia de casualidad, porque la colacion de SQL Server ignora mayusculas
+             y los dos textos eran iguales salvo la caja. -->
+        <app-catalog-select formControlName="incidentType" [organizationId]="selectedOrganizationId()" type="IncidentReason" label="Tipo de incidencia" />
+      </label>
+    </div>
+
+    <div class="form-row">
+      <label>
+        Severidad
+        <select formControlName="severity">
+          @for (severity of incidentSeverities; track severity.value) {
+            <option [value]="severity.value">{{ severity.label }}</option>
+          }
+        </select>
+      </label>
+
+      <label>
+        Estado
+        <select formControlName="status">
+          @for (status of (selectedIncident() ? incidentStatuses : incidentCreateStatuses); track status.value) {
+            <option [value]="status.value">{{ status.label }}</option>
+          }
+        </select>
+      </label>
+    </div>
+
+    <div class="form-row">
+      <label>
+        SLA objetivo
+        <input type="text" [value]="incidentSlaLabel(incidentForm.controls.severity.value)" [disabled]="true" />
+      </label>
+      <label>
+        Responsable
+        <input type="text" formControlName="responsibleName" placeholder="Responsable de atención" />
+      </label>
+    </div>
+
+    <label>
+      Evidencia requerida
+      <input type="text" value="Registro operativo, fotografía o testimonio del supervisor" [disabled]="true" />
+      <small class="form-help">La evidencia será solicitada en la etapa de atención.</small>
+    </label>
+
+    @if (selectedDailyShift(); as shift) {
+      <section class="incident-context-card">
+        <span>Empleado</span>
+        <strong>{{ shift.employeeName }}</strong>
+        <small>Puesto: {{ shift.positionName }} · Área: {{ selectedService()?.name || 'Servicio' }}</small>
+      </section>
+    }
+
+    <label>
+      Descripción
+      <textarea rows="3" formControlName="description" placeholder="Describe qué ocurrió"></textarea>
+    </label>
+
+    <label>
+      Seguimiento operativo
+      <textarea rows="2" formControlName="resolutionNotes" placeholder="Acciones tomadas o pendientes"></textarea>
+    </label>
+
+    @if (selectedIncident() && (incidentForm.controls.status.value === 'Resolved' || incidentForm.controls.status.value === 'Cancelled')) {
+      <section class="resolution-panel">
+        <h4>Resolución con requisitos</h4>
+        <div class="form-row">
+          <label>
+            Resultado *
+            <select formControlName="resolutionResult">
+              <option value="">Selecciona resultado</option>
+              @for (result of incidentResolutionResults; track result) {
+                <option [value]="result">{{ result }}</option>
+              }
+            </select>
+            @if (!incidentForm.controls.resolutionResult.value) {
+              <small class="field-error">La resolución es obligatoria.</small>
+            }
+          </label>
+          <label>
+            Motivo de resolución *
+            <select formControlName="resolutionReason">
+              <option value="">Selecciona motivo</option>
+              @for (reason of incidentResolutionReasons; track reason) {
+                <option [value]="reason">{{ reason }}</option>
+              }
+            </select>
+            @if (!incidentForm.controls.resolutionReason.value) {
+              <small class="field-error">El motivo de resolución es obligatorio.</small>
+            }
+          </label>
+        </div>
+
+        <label>
+          Acción tomada *
+          <textarea rows="2" formControlName="resolutionAction" placeholder="Describe la acción tomada"></textarea>
+          @if (!incidentForm.controls.resolutionAction.value.trim()) {
+            <small class="field-error">La acción tomada es obligatoria.</small>
+          }
+        </label>
+
+        <div class="form-row">
+          <label>
+            Evidencia o justificación *
+            <input type="text" formControlName="resolutionEvidenceOrJustification" placeholder="Evidencia de cierre o justificación auditable" />
+            @if (!incidentForm.controls.resolutionEvidenceOrJustification.value.trim()) {
+              <small class="field-error">Adjunta evidencia o justificación.</small>
+            }
+          </label>
+          <label>
+            Hora de resolución *
+            <input type="time" formControlName="resolutionTime" />
+            @if (!incidentForm.controls.resolutionTime.value) {
+              <small class="field-error">La hora de resolución es obligatoria.</small>
+            }
+          </label>
+        </div>
+      </section>
+    }
+
+    <div class="form-actions">
+      <button type="submit" [disabled]="saving() || !selectedServiceId() || !hasPublishedShifts() || (incidentForm.controls.status.value === 'Resolved' && !incidentResolutionReady()) || (incidentForm.controls.status.value === 'Cancelled' && !incidentResolutionReady())">
+        {{ selectedIncident() ? 'Guardar cambios' : 'Registrar incidencia' }}
+      </button>
+      @if (selectedIncident()) {
+        <button class="ghost-action" type="button" [disabled]="saving() || selectedIncident()?.status === 'Resolved' || !incidentResolutionReady()" (click)="resolveSelectedIncident()">
+          Resolver incidencia
+        </button>
+        <button class="button-reset" type="button" [disabled]="saving()" (click)="requestApprovalForSelection()">Solicitar autorización</button>
+        <button class="button-reset" type="button" [disabled]="saving()" (click)="resetIncidentForm()">Nueva incidencia</button>
+      }
+    </div>
+
+    @if (!hasPublishedShifts()) {
+      <aside class="empty-guide">
+        <strong>No hay turnos disponibles para {{ operationDateLabel() }}</strong>
+        <span>Aún no se han cargado turnos para esta fecha operativa.</span>
+        <a class="ghost-action" routerLink="/planeacion">Ir a Planeación</a>
+      </aside>
+    }
+  </form>
+  }
+
+  @if (activeSection() === 'cobertura') {
+  <form class="capture-card coverage-card" [formGroup]="coverageForm" (ngSubmit)="saveCoverage()">
+    <header>
+      <span>Operación / Cobertura</span>
+      <h3>{{ selectedCoverage() ? 'Detalle de cobertura' : 'Nueva cobertura' }}</h3>
+      <p>
+        @if (selectedCoverage()) {
+          Revisa estado, validación y confirmación de la cobertura seleccionada.
+        } @else {
+          Flujo: detectar necesidad, elegir sustituto, comprobar los requisitos y confirmar de forma auditable.
+        }
+      </p>
+    </header>
+
+    <nav class="coverage-flow" aria-label="Flujo de cobertura">
+      <span [class.is-done]="coverageStepDone('detectar')">1 Detectar</span>
+      <span [class.is-done]="coverageStepDone('sustituto')">2 Seleccionar sustituto</span>
+      <span [class.is-done]="coverageStepDone('validar')">3 Validar</span>
+      <span [class.is-done]="coverageStepDone('confirmar')">4 Confirmar</span>
+    </nav>
+
+    <section class="coverage-section">
+      <div class="form-row">
+        <label>
+          Turno a cubrir
+          <select formControlName="idScheduledShift" [disabled]="!hasPublishedShifts() || !!selectedCoverage()">
+            @for (shift of dailyShifts(); track shift.idScheduledShift) {
+              <option [value]="shift.idScheduledShift">
+                Turno {{ shift.startTime.slice(0, 5) }}-{{ shift.endTime.slice(0, 5) }} · {{ operationDateLabel() }}
+              </option>
+            } @empty {
+              <option value="">No hay turnos disponibles para {{ operationDateLabel() }}</option>
+            }
+          </select>
+        </label>
+
+        <label>
+          Motivo de cobertura
+          <app-catalog-select formControlName="coverageReason" [organizationId]="selectedOrganizationId()" type="CoverageReason" label="Motivo de cobertura" [useId]="true" />
+        </label>
+      </div>
+
+      @if (selectedDailyShift(); as shift) {
+        <article class="coverage-detail-card">
+          <div>
+            <span>Empleado original</span>
+            <strong>{{ shift.employeeCode }} · {{ shift.employeeName }}</strong>
+            <small>{{ shift.positionCode }} · {{ shift.positionName }}</small>
+          </div>
+          <p>No puede asignarse a sí mismo como sustituto.</p>
+        </article>
+      } @else {
+        <aside class="empty-guide">
+          <strong>No hay turnos disponibles para {{ operationDateLabel() }}</strong>
+          <span>Publica una planeación para esta fecha antes de solicitar cobertura.</span>
+          <a class="ghost-action" routerLink="/planeacion">Ir a Planeación</a>
+        </aside>
+      }
+    </section>
+
+    <section class="coverage-section">
+      <div class="section-line">
+        <div>
+          <span>Ranking de candidatos</span>
+          <strong>Selecciona un sustituto</strong>
+        </div>
+        <div class="quick-filter-row">
+          @for (filter of coverageCandidateFilters; track filter) {
+            <span>{{ filter }}</span>
+          }
+        </div>
+      </div>
+
+      <div class="coverage-candidates">
+        @for (candidate of coverageCandidates(); track candidate.employee.idEmployee) {
+          <button
+            type="button"
+            class="candidate-card"
+            [class.is-selected]="candidate.employee.idEmployee === coverageForm.controls.idReplacementEmployee.value"
+            [class.is-blocked]="candidate.blockingReasons.length"
+            (click)="selectCoverageCandidate(candidate)"
+          >
+            <strong>{{ candidate.employee.fullName }}</strong>
+            <small>{{ candidate.employee.codeEmployee }} · {{ candidate.employee.jobTitle || 'Personal operativo' }}</small>
+            <span>{{ candidate.availabilityLabel }}</span>
+            <span>{{ candidate.eligible ? 'Elegible' : 'No elegible' }}</span>
+            <span>{{ candidate.conflicts.length ? candidate.conflicts.length + ' conflicto(s)' : 'Sin conflictos' }}</span>
+            <span>{{ candidate.accumulatedHours }} h acumuladas</span>
+            <span>{{ candidate.distanceLabel }}</span>
+            <span>{{ candidate.serviceCompatible ? 'Servicio compatible' : 'Servicio no compatible' }}</span>
+            @if (candidate.blockingReasons.length) {
+              <em>{{ candidate.blockingReasons.join(' · ') }}</em>
+            }
+          </button>
+        } @empty {
+          <p class="soft-info">Selecciona un turno válido para ver sustitutos disponibles.</p>
+        }
+      </div>
+
+      <label>
+        Sustituto seleccionado
+        <select formControlName="idReplacementEmployee" [disabled]="!hasPublishedShifts()">
+          @for (candidate of coverageCandidates(); track candidate.employee.idEmployee) {
+            @if (candidate.employee.idEmployee !== selectedDailyShift()?.idEmployee) {
+              <option [value]="candidate.employee.idEmployee">
+                {{ candidate.employee.codeEmployee }} · {{ candidate.employee.fullName }}
+              </option>
+            }
+          }
+        </select>
+      </label>
+    </section>
+
+    <section class="coverage-section">
+      <div class="form-row">
+        <label>
+          Hora inicio
+          <input type="time" formControlName="coverageStartTime" />
+        </label>
+
+        <label>
+          Hora fin
+          <input type="time" formControlName="coverageEndTime" />
+        </label>
+      </div>
+
+      <label class="checkbox-label">
+        <input type="checkbox" formControlName="isOvernight" />
+        Cruza día
+      </label>
+
+      <label>
+        Observaciones
+        <textarea rows="3" formControlName="notes" placeholder="Agrega comentarios adicionales de la cobertura"></textarea>
+      </label>
+
+      <div class="coverage-validation">
+        <header>
+          <div>
+            <span>Validación antes de guardar</span>
+            <h4>{{ coverageBlockingCount() ? 'Resuelve lo que impide continuar' : 'Requisitos cumplidos' }}</h4>
+          </div>
+          <strong [class.is-danger]="coverageBlockingCount()">{{ coverageBlockingCount() }} {{ coverageBlockingCount() === 1 ? 'requisito sin cubrir' : 'requisitos sin cubrir' }}</strong>
+        </header>
+
+        @for (item of coverageValidation(); track item.label) {
+          <p [class.is-valid]="item.valid" [class.is-invalid]="!item.valid">
+            <span>{{ item.valid ? '✓' : '!' }}</span>
+            <strong>{{ item.label }}</strong>
+            <small>{{ item.detail }}</small>
+          </p>
+        }
+      </div>
+    </section>
+
+    <section class="coverage-section confirmation-panel">
+      <div class="form-row">
+        @if (selectedCoverage()) {
+          <label>
+            Estado
+            <select formControlName="status">
+              @for (status of coverageStatuses; track status.value) {
+                <option [value]="status.value">{{ status.label }}</option>
+              }
+            </select>
+          </label>
+        } @else {
+          <div class="locked-status">
+            <span>Estado inicial</span>
+            <strong>Solicitada</strong>
+            <small>La confirmación ocurre después de validar.</small>
+          </div>
+        }
+
+        <label>
+          Confirmado por
+          <input type="text" formControlName="confirmedByName" placeholder="Nombre del responsable" />
+        </label>
+      </div>
+
+      <div class="form-row">
+        <label>
+          Fecha de confirmación
+          <gi-date formControlName="confirmationDate" />
+        </label>
+        <label>
+          Hora
+          <input type="time" formControlName="confirmationTime" />
+        </label>
+      </div>
+
+      <label>
+        Motivo o justificación
+        <textarea rows="3" formControlName="confirmationReason" placeholder="Describe el motivo de la confirmación"></textarea>
+      </label>
+
+      <label>
+        Evidencia opcional
+        <input type="text" formControlName="confirmationEvidence" placeholder="Folio, archivo o referencia de evidencia" />
+      </label>
+
+      <p class="soft-info">La confirmación quedará registrada en historial.</p>
+    </section>
+
+    <div class="form-actions">
+      <button type="submit" [disabled]="saving() || !hasPublishedShifts() || coverageBlockingCount() > 0 || ((coverageForm.controls.status.value === 'Confirmed' || coverageForm.controls.status.value === 'Completed') && !coverageConfirmationReady() && selectedCoverage()?.status !== 'Confirmed' && selectedCoverage()?.status !== 'Completed')">
+        @if (!selectedCoverage()) {
+          Guardar cobertura
+        } @else if (coverageForm.controls.status.value === 'Confirmed') {
+          Confirmar cobertura
+        } @else {
+          Guardar cambios
+        }
+      </button>
+      @if (selectedCoverage()) {
+        <button class="button-reset" type="button" [disabled]="saving()" (click)="resetCoverageForm()">Nueva cobertura</button>
+      }
+    </div>
+  </form>
+  }
+
+  @if (!hasPublishedShifts() && activeSection() !== 'incidencias') {
+    <aside class="empty-guide">
+      <strong>Falta una planeación publicada</strong>
+      <span>Para capturar asistencia o cobertura primero debe existir al menos un turno publicado en el servicio.</span>
+    </aside>
+  }
+  </div>
+
+  <div class="history-column">
+  @if (activeSection() === 'asistencia') {
+  <article class="panel">
+    <header>
+      <div>
+        <span>Historial</span>
+        <h3>Historial sincronizado</h3>
+      </div>
+      <span>{{ attendanceCount() }}</span>
+    </header>
+
+    <div class="context-chips">
+      <span>{{ operationDateLabel() }}</span>
+      <span>{{ selectedService()?.name || 'Sin servicio' }}</span>
+      <span>{{ selectedService()?.clientZoneName || 'Sin zona asignada' }}</span>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Fecha operativa</th>
+            <th>Turno</th>
+            <th>Empleado</th>
+            <th>Estado</th>
+            <th>Entrada</th>
+            <th>Retardo</th>
+            <th>Capturado por</th>
+            <th>Última edición</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (record of dailyAttendance(); track record.idAttendanceRecord) {
+            <tr [class.is-selected]="record.idAttendanceRecord === selectedAttendanceId()" (click)="selectAttendance(record)">
+              <td>{{ operationDateLabel() }}</td>
+              <td>{{ attendanceShiftLabel(record) }}</td>
+              <td>{{ record.employeeCode }} · {{ record.employeeName }}</td>
+              <td><span class="status">{{ effectiveAttendanceStatusLabel(record) }}</span></td>
+              <td>{{ record.actualStartTime || '—' }}</td>
+              <td>{{ record.minutesLate }} min</td>
+              <td>Operación</td>
+              <td>Actualizado</td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="8" class="empty">
+                No hay registros de asistencia para esta fecha.
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </article>
+  }
+
+  @if (activeSection() === 'incidencias') {
+  <article class="panel">
+    <header>
+      <div>
+        <span>{{ incidentHistoryScope() === 'day' ? 'Día operativo' : 'Histórico del servicio' }}</span>
+        <h3>Incidencias registradas</h3>
+      </div>
+      <span>{{ visibleIncidentHistory().length }}</span>
+    </header>
+
+    <nav class="scope-tabs" aria-label="Alcance de historial de incidencias">
+      <button type="button" [class.is-active]="incidentHistoryScope() === 'day'" (click)="setIncidentHistoryScope('day')">
+        Día operativo
+      </button>
+      <button type="button" [class.is-active]="incidentHistoryScope() === 'service'" (click)="setIncidentHistoryScope('service')">
+        Histórico del servicio
+      </button>
+    </nav>
+
+    @if (incidentHistoryScope() === 'service') {
+      <p class="soft-info">Mostrando incidencias fuera del día operativo seleccionado. Las métricas del resumen cambian al alcance histórico.</p>
+    }
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Turno</th>
+            <th>Tipo</th>
+            <th>Severidad</th>
+            <th>Estado</th>
+            <th>SLA</th>
+            <th>Responsable</th>
+            <th>Resolución</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (incident of visibleIncidentHistory(); track incident.idIncident) {
+            <tr [class.is-selected]="incident.idIncident === selectedIncidentId()" [class.is-out-of-context]="incident.incidentDate !== selectedOperationDate()">
+              <td>{{ incident.incidentDate }}</td>
+              <td>{{ incidentShiftLabel(incident) }}</td>
+              <td>{{ incidentTypeLabel(incident.incidentType) }}</td>
+              <td><span class="status">{{ incidentSeverityLabel(incident.severity) }}</span></td>
+              <td>{{ incidentStatusLabel(incident.status) }}</td>
+              <td>{{ incidentSlaLabel(incident.severity) }}</td>
+              <td>{{ incident.employeeName || 'Operación' }}</td>
+              <td>{{ incident.resolutionNotes ? 'Documentada' : 'Pendiente' }}</td>
+              <td>
+                @if (incident.incidentDate === selectedOperationDate()) {
+                  <button class="table-action" type="button" (click)="selectIncident(incident)">Atender</button>
+                } @else {
+                  <span class="status status-warning">Fuera del contexto actual</span>
+                }
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="9" class="empty">Sin incidencias registradas para este alcance.</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </article>
+  }
+
+  @if (activeSection() === 'cobertura') {
+  <article class="panel is-wide">
+    <header>
+      <div>
+        <span>{{ coverageHistoryScope() === 'day' ? 'Día operativo' : 'Histórico del servicio' }}</span>
+        <h3>Coberturas</h3>
+      </div>
+      <span>{{ visibleCoverageHistory().length }}</span>
+    </header>
+
+    <nav class="scope-tabs" aria-label="Alcance de historial de coberturas">
+      <button type="button" [class.is-active]="coverageHistoryScope() === 'day'" (click)="setCoverageHistoryScope('day')">
+        Día operativo
+      </button>
+      <button type="button" [class.is-active]="coverageHistoryScope() === 'service'" (click)="setCoverageHistoryScope('service')">
+        Histórico del servicio
+      </button>
+    </nav>
+
+    @if (coverageHistoryScope() === 'service') {
+      <p class="soft-info">Mostrando coberturas fuera del día operativo seleccionado. Las métricas del resumen cambian al alcance histórico.</p>
+    }
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Turno</th>
+            <th>Original</th>
+            <th>Sustituto</th>
+            <th>Estado</th>
+            <th>Conflictos</th>
+            <th>Horas</th>
+            <th>Confirmado por</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (coverage of visibleCoverageHistory(); track coverage.idCoverageRecord) {
+            <tr [class.is-selected]="coverage.idCoverageRecord === selectedCoverageId()" [class.is-out-of-context]="coverageOutOfContext(coverage)">
+              <td>
+                {{ coverageShiftLabel(coverage).split(' · ')[1] || operationDateLabel() }}
+                @if (coverageOutOfContext(coverage)) {
+                  <span class="status status-warning">Fuera del día operativo seleccionado</span>
+                }
+              </td>
+              <td>{{ coverageShiftLabel(coverage).split(' · ')[0] }}</td>
+              <td>{{ coverage.originalEmployeeCode }} · {{ coverage.originalEmployeeName }}</td>
+              <td>{{ coverage.replacementEmployeeCode }} · {{ coverage.replacementEmployeeName }}</td>
+              <td>
+                <span
+                  class="status"
+                  [class.is-success]="coverageStatusClass(coverage.status) === 'is-success'"
+                  [class.is-warning]="coverageStatusClass(coverage.status) === 'is-warning'"
+                  [class.is-danger]="coverageStatusClass(coverage.status) === 'is-danger'"
+                >
+                  {{ coverageStatusLabel(coverage.status) }}
+                </span>
+              </td>
+              <td>{{ coverageConflictCount(coverage) }}</td>
+              <td>{{ coverage.durationMinutes }} min</td>
+              <td>{{ coverageConfirmedBy(coverage) }}</td>
+              <td>
+                @if (!coverageOutOfContext(coverage)) {
+                  <button class="table-action" type="button" (click)="selectCoverage(coverage)">
+                    {{ coverage.status === 'Requested' ? 'Confirmar' : 'Ver detalle' }}
+                  </button>
+                } @else {
+                  <span class="status status-warning">Sólo consulta</span>
+                }
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="9" class="empty">
+                Sin coberturas para este alcance.
+                @if (coverageHistoryScope() === 'day') {
+                  <span>Aún no hay solicitudes para {{ operationDateLabel() }}.</span>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </article>
+  }
+  </div>
+</section>
+}
+
+@if (selectedServiceId() && activeTab() === 'evidencias') {
+<section class="evidence-workspace" aria-label="Evidencias operativas">
+  <form class="capture-card evidence-card" [formGroup]="evidenceForm" (ngSubmit)="saveEvidence()">
+    <header>
+      <span>Evidencias</span>
+      <h3>{{ selectedEvidence() ? 'Editar evidencia' : 'Adjuntar evidencia' }}</h3>
+      <p>
+        @if (selectedDailyShift(); as shift) {
+          Evidencias del turno {{ shift.startTime }}-{{ shift.endTime }} · {{ operationDateLabel() }}.
+        } @else {
+          Primero selecciona un turno válido del día operativo.
+        }
+      </p>
+    </header>
+
+    <label>
+      Registro relacionado
+      <select formControlName="relatedRecordId" [disabled]="!selectedDailyShift() || evidenceRelatedOptions().length === 0">
+        @for (option of evidenceRelatedOptions(); track option.value) {
+          <option [value]="option.value">{{ option.label }}</option>
+        } @empty {
+          <option value="">Sin registros del turno seleccionado</option>
+        }
+      </select>
+    </label>
+
+    <div class="form-row">
+      <label>
+        Tipo
+        <select formControlName="evidenceType">
+          @for (type of evidenceTypes; track type.value) {
+            <option [value]="type.value">{{ type.label }}</option>
+          }
+        </select>
+      </label>
+
+      <label>
+        Título
+        <input type="text" formControlName="title" placeholder="Ej. Foto de acceso / reporte firmado" />
+      </label>
+    </div>
+
+    <gi-file-input
+      label="Archivo"
+      [disabled]="uploadingEvidenceFile() || !selectedDailyShift()"
+      emptyLabel="Ningún archivo elegido"
+      [hint]="uploadingEvidenceFile() ? 'Cargando archivo…' : 'Opcional: al cargarlo se guardará la referencia del respaldo.'"
+      (fileSelected)="onEvidenceFileSelected($event)"
+    />
+
+    <label>
+      Referencia del respaldo
+      <input type="text" formControlName="storageReference" placeholder="Liga, folio o referencia del archivo" />
+    </label>
+
+    <label>
+      Notas
+      <textarea rows="2" formControlName="notes" placeholder="Contexto adicional de la evidencia"></textarea>
+    </label>
+
+    <div class="form-actions">
+      <button type="submit" [disabled]="saving() || !selectedDailyShift() || evidenceRelatedOptions().length === 0">
+        {{ selectedEvidence() ? 'Guardar evidencia' : 'Adjuntar evidencia' }}
+      </button>
+      @if (selectedEvidence()) {
+        <button class="button-reset" type="button" [disabled]="saving()" (click)="resetEvidenceForm()">Nueva evidencia</button>
+      }
+    </div>
+
+    @if (evidenceRelatedOptions().length === 0) {
+      <small class="form-help">Primero selecciona un turno válido del día operativo y captura un registro asociado.</small>
+    }
+  </form>
+
+  <article class="panel evidence-list">
+    <header>
+      <div>
+        <span>Evidencias</span>
+        <h3>Respaldos del turno seleccionado</h3>
+      </div>
+      <span>{{ dailyEvidenceList().length }}</span>
+    </header>
+
+    <div class="evidence-items">
+      @for (evidence of evidenceList(); track evidence.idOperationEvidence) {
+        <button
+          class="evidence-item"
+          type="button"
+          [class.is-selected]="evidence.idOperationEvidence === selectedEvidenceId()"
+          (click)="selectEvidence(evidence)"
+        >
+          <span class="status">{{ evidenceTypeLabel(evidence.evidenceType) }}</span>
+          <strong>{{ evidence.title }}</strong>
+          <small [title]="evidence.storageReference">{{ compactReference(evidence.storageReference) }}</small>
+          @if (!evidence.active) {
+            <em>Inactiva</em>
+          }
+        </button>
+      } @empty {
+        <div class="empty-state">
+          <strong>Sin evidencias para este turno</strong>
+          <span>No se muestran evidencias de otras fechas ni de otros turnos.</span>
+        </div>
+      }
+    </div>
+
+    @if (selectedEvidence()) {
+      <footer class="evidence-footer">
+        <button class="button-reset" type="button" [disabled]="saving()" (click)="downloadEvidence(selectedEvidence()!)">
+          Descargar evidencia
+        </button>
+        <button class="button-danger" type="button" [disabled]="saving() || !selectedEvidence()?.active" (click)="deactivateEvidence(selectedEvidence()!)">
+          Desactivar evidencia
+        </button>
+      </footer>
+    }
+  </article>
+</section>
+}
+
+@if (selectedServiceId() && activeTab() === 'cierre') {
+<section class="closure-workspace" aria-label="Cierre diario sincronizado">
+  <article class="panel closure-checklist">
+    <header>
+      <div>
+        <span>Cierre diario</span>
+        <h3>Checklist de cierre diario</h3>
+      </div>
+      <span>{{ canCloseDay() ? 'Listo' : 'Bloqueado' }}</span>
+    </header>
+
+    <div class="closure-items">
+      @for (item of closureChecklist(); track item.label) {
+        <article class="closure-item" [class.is-complete]="item.complete">
+          <i>{{ item.complete ? '✓' : '!' }}</i>
+          <div>
+            <strong>{{ item.label }}</strong>
+            <small>{{ item.detail }}</small>
+          </div>
+          <span>{{ item.complete ? 'Completo' : 'Pendiente' }}</span>
+        </article>
+      }
+    </div>
+
+    @if (closeDayBlockReason()) {
+      <p class="soft-alert">{{ closeDayBlockReason() }}</p>
+    }
+  </article>
+
+  <article class="panel closure-summary">
+    <header>
+      <div>
+        <span>Resumen del día</span>
+        <h3>{{ currentDayClosure() ? 'Día cerrado' : 'Día abierto' }}</h3>
+      </div>
+      <span>{{ operationDateLabel() }}</span>
+    </header>
+
+    <div class="closure-metrics">
+      <span>Turnos esperados <strong>{{ expectedShiftCount() }}</strong></span>
+      <span>Presentes <strong>{{ presentTodayCount() }}</strong></span>
+      <span>Retardos <strong>{{ lateTodayCount() }}</strong></span>
+      <span>Ausentes <strong>{{ absentTodayCount() }}</strong></span>
+    </div>
+
+    <form class="day-closure-form" [formGroup]="dayClosureForm">
+      @if (currentDayClosure(); as closure) {
+        <label>
+          Motivo para reabrir
+          <textarea rows="3" formControlName="reopenReason" placeholder="Explica por qué se necesita corregir el cierre"></textarea>
+        </label>
+        <button type="button" class="button-reset" [disabled]="saving()" (click)="reopenOperationDay()">Reabrir día</button>
+        <small>Cerrado por {{ closure.closedByName }}. Asistencias: {{ closure.attendanceRecords }} / {{ closure.expectedShifts }}.</small>
+      } @else {
+        <label>
+          Nota de cierre
+          <textarea rows="3" formControlName="notes" placeholder="Resumen operativo del día"></textarea>
+        </label>
+        <button type="button" [disabled]="saving() || !canCloseDay()" (click)="closeOperationDay()">Cerrar día</button>
+        @if (!canCloseDay()) {
+          <small>No puedes cerrar el día hasta completar los requisitos pendientes.</small>
+        }
+      }
+    </form>
+  </article>
+</section>
+}

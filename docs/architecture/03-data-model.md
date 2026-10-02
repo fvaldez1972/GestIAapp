@@ -16,40 +16,51 @@ Este es un modelo conceptual y lógico de trabajo; no es todavía el diccionario
 ### Provisional
 
 - `Company`, `Client`, `Service`, `Position` y demás nombres en inglés son nombres de código de trabajo.
-- `GestIA_Dev` es sólo el nombre de la base local.
+- La base local se llama `db-gestia-dev`; los demás ambientes siguen `db-gestia-{ambiente}`.
 - Los esquemas y tablas listados pueden renombrarse, dividirse o consolidarse.
 - Catálogos, estados, obligatoriedad, longitudes y reglas de unicidad aún deben confirmarse.
-- No existe una migración inicial de negocio hasta validar el primer corte vertical.
+- Existe una primera migración del corte aprobado; los módulos y campos restantes siguen pendientes de validación.
 
-## Convenciones propuestas para SQL Server
+## Convenciones obligatorias para SQL Server
 
 | Concepto | Tipo o estrategia propuesta |
 | --- | --- |
 | Identificador | `uniqueidentifier`, generado por la aplicación |
 | Fecha de negocio | `date` |
-| Instante | `datetime2(7)` en UTC |
+| Instante | `datetime2(0)` en UTC |
 | Texto | `nvarchar(n)` con longitud explícita |
 | Importe | `decimal(19,4)`; escala por confirmar por caso |
 | Duración/horas | `decimal(9,4)` o intervalo derivado; validar por módulo |
 | Concurrencia | `rowversion` |
 | Datos flexibles auditables | JSON en `nvarchar(max)` sólo con justificación |
-| Borrado | Desactivación para maestros; histórico para operación |
+| Borrado lógico | `Active bit NOT NULL` con valor predeterminado `1` |
 
-Los nombres físicos usarán Fluent API. No dependeremos de convenciones implícitas de EF Core para elementos críticos como esquema, tabla, longitud, precisión, índice o relación.
+Los nombres físicos usarán Fluent API y las reglas ejecutables de `GestIaDatabaseStandards`. No dependeremos de convenciones implícitas de EF Core para elementos críticos como esquema, tabla, columna, longitud, precisión, índice o relación. La especificación normativa está en `docs/database/DATABASE_STANDARDS.md`.
 
 Campos transversales candidatos, sujetos a validación:
 
 ```text
-Id uniqueidentifier PK
-CompanyId uniqueidentifier        -- cuando aplique aislamiento
-CreatedAtUtc datetime2(7)
+Id{Entidad} uniqueidentifier PK
+IdOrganization uniqueidentifier   -- cuando aplique aislamiento
+CreatedAt datetime2(0)
 CreatedBy uniqueidentifier
-UpdatedAtUtc datetime2(7) null
+CreatedByName nvarchar(100)
+UpdatedAt datetime2(0) null
 UpdatedBy uniqueidentifier null
+UpdatedByName nvarchar(100) null
+Active bit NOT NULL DEFAULT (1)
 Version rowversion
 ```
 
-## Áreas conceptuales de etapa 1
+Aunque el sufijo físico es `At`, todos los instantes de auditoría se interpretan y almacenan en UTC; `CreatedAt` usa `SYSUTCDATETIME()` como valor predeterminado.
+
+## Primer corte físico
+
+Con la evidencia del contrato, la carta de inicio y la ficha técnica se aprobó un primer corte de 11 tablas: `Organizations`, `Clients`, `ClientSites`, `ClientContacts`, `ServiceContracts`, `Services`, `ServiceConfigurations`, `Employees`, `EmployeeDocuments`, `EmployeeEvaluations` y `ServiceAssignments`.
+
+El mapeo de fuentes, decisiones, datos sensibles y elementos diferidos se encuentra en `08-source-model-analysis.md`. Este corte permite comenzar el desarrollo sin afirmar todavía que turnos, posiciones, reclutamiento completo o expediente del cliente estén terminados.
+
+## Áreas conceptuales posteriores
 
 Los siguientes nombres describen responsabilidades, no tablas aprobadas.
 
@@ -113,13 +124,14 @@ erDiagram
 - Toda corrección operativa conserva antes, después, motivo, actor y fecha.
 - Toda consulta multiempresa aplica el alcance autorizado desde el servidor.
 
-## Primera materialización recomendada
+## Primera materialización implementada
 
-La primera migración se creará únicamente cuando esté validado un corte pequeño de extremo a extremo. El candidato es:
+La primera migración materializa el corte pequeño confirmado por las fuentes:
 
 1. Organización/empresa mínima.
-2. Cliente y sede mínimos.
-3. Empleado o persona operativa mínima.
-4. Auditoría y aislamiento requeridos por esas operaciones.
+2. Cliente, contactos y sedes.
+3. Contrato, servicio y configuración con vigencia.
+4. Empleado, documentos, evaluaciones y asignación a servicio.
+5. Auditoría, borrado lógico e índices de aislamiento.
 
-Antes de generarla se debe aprobar el glosario, las claves de negocio, datos obligatorios, longitudes, índices y reglas de eliminación. El proceso está definido en `07-model-evolution.md`.
+Los elementos diferidos sólo se incorporarán en migraciones posteriores después de validar el glosario, privacidad, obligatoriedad, catálogos y ciclo de vida. El proceso está definido en `07-model-evolution.md`.

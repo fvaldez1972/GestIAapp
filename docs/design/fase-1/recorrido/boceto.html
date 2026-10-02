@@ -1,0 +1,1179 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  body { margin:0; background:#e4e7ea; font-family:Archivo, system-ui, sans-serif; color:#2c3038; text-wrap:pretty; }
+  a { color:#3f4654; text-decoration:underline; }
+  a:hover { color:#12151b; }
+</style>
+</helmet>
+
+<div style="display:flex;flex-direction:column;gap:56px;padding:56px 64px 96px">
+
+  <section data-screen-label="Portada" id="p0" style="display:flex;gap:24px;align-items:flex-start;max-width:1600px">
+    <div style="flex:1;background:#fff;border:1px solid #b9bec6;padding:34px 38px;display:flex;flex-direction:column;gap:22px">
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div style="font:600 11px/1 'IBM Plex Mono',monospace;letter-spacing:.16em;color:#8b919b">BOCETO · TRAZO SIMPLE · SIN COLOR DE MARCA</div>
+        <div style="font:700 34px/1.1 Archivo,sans-serif">Recorrido completo de la fase 1</div>
+        <div style="font:400 15px/1.5 Archivo,sans-serif;color:#5f6b7a;max-width:70ch">Once pasos, doce marcos. Cada marco muestra qué encuentra el usuario al llegar, qué hace y cómo pasa al siguiente. Las nueve transiciones que hoy no existen van etiquetadas T1 a T9 entre marco y marco.</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:18px;border-top:1px solid #dce2e9;padding-top:20px;font:400 12.5px/1.5 'IBM Plex Mono',monospace;color:#4a5160">
+        <div><div style="color:#8b919b;padding-bottom:5px">CÓMO LEER EL MARCO</div>Barra de contexto (organización activa + fecha operativa), menú, encabezado con una sola acción y contenido. Barras grises = texto de relleno; no es contenido definitivo.</div>
+        <div><div style="color:#8b919b;padding-bottom:5px">CALLEJÓN SIN SALIDA</div>Todo recuadro de línea discontinua es un estado de «falta algo». Ninguno se queda en anunciar la falta: cada uno lleva la acción que la resuelve.</div>
+        <div><div style="color:#8b919b;padding-bottom:5px">SIN ESTÉTICA</div>Grises, un solo peso de línea. Navy, cian y los estados de color llegan después, cuando la lógica esté aprobada.</div>
+      </div>
+      <div style="border:1px solid #2c3038;padding:18px 20px;display:flex;gap:20px;align-items:flex-start">
+        <div style="font:600 11px/1 'IBM Plex Mono',monospace;letter-spacing:.12em;color:#2c3038;padding-top:3px;flex:none">REGLA CENTRAL</div>
+        <div style="font:500 15px/1.45 Archivo,sans-serif;max-width:80ch">El turno y el descanso pertenecen a la <strong>posición</strong>, no a la persona. Si alguien causa baja, la posición conserva su calendario y quien llega lo hereda. El paso 6 dedica un marco entero a demostrarlo.</div>
+      </div>
+    </div>
+    <aside style="width:330px;flex:none;background:#fff;border:1px solid #b9bec6;padding:24px;display:flex;flex-direction:column;gap:18px;font:400 12px/1.55 'IBM Plex Mono',monospace;color:#4a5160">
+      <div>
+        <div style="color:#8b919b;padding-bottom:6px">DECISIÓN TOMADA · ASIGNACIONES</div>
+        <div style="color:#2c3038;font-weight:600;padding-bottom:6px">Pestaña dentro de la ficha del servicio. No pantalla propia.</div>
+        El alcance asigna los pasos 5, 6 y 8 al módulo Servicios y hoy viven ahí. Asignar exige a la vista el cupo requerido y el patrón de la posición: separarlas obliga a cargar el mismo contexto dos veces y suma una entrada al menú de once. La ficha lleva cuatro pestañas: Datos · Configuración · Posiciones · Asignaciones.
+      </div>
+      <div style="border-top:1px solid #dce2e9;padding-top:16px">
+        <div style="color:#8b919b;padding-bottom:6px">MENÚ</div>
+        Once entradas del alcance. El admin de organización ve diez: Organizaciones es solo del super admin. Solicitudes, Reportes, Monitor global y Reglas documentales no aparecen.
+      </div>
+      <div style="border-top:1px solid #dce2e9;padding-top:16px">
+        <div style="color:#8b919b;padding-bottom:6px">SIN MODO SOPORTE</div>
+        El super admin entra a la organización directamente. La barra de contexto lleva organización activa y fecha operativa, nada más.
+      </div>
+    </aside>
+  </section>
+
+  <section data-screen-label="Paso 01" id="p1" style="display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;align-items:baseline;gap:14px">
+      <span style="font:600 12px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;color:#8b919b">PASO 01</span>
+      <span style="font:600 22px/1.1 Archivo,sans-serif">Crear organización y su usuario admin</span>
+      <span style="font:400 11.5px 'IBM Plex Mono',monospace;color:#5f6b7a;border:1px solid #cfd4da;padding:4px 8px">Super admin · Organizaciones</span>
+    </div>
+    <div style="display:flex;gap:22px;align-items:flex-start">
+      <div style="width:1240px;flex:none;border:1px solid #b9bec6;background:#fff">
+        <div style="height:48px;border-bottom:1px solid #b9bec6;background:#f2f3f5;display:flex;align-items:center;gap:14px;padding:0 14px;font:400 11.5px 'IBM Plex Mono',monospace;color:#4a5160">
+          <span style="border:1px solid #b9bec6;background:#fff;padding:5px 9px">Organización activa: — ninguna ▾</span>
+          <span>Fecha operativa: 04 sep 2026</span>
+        </div>
+        <div style="display:flex;min-height:600px">
+          <dc-import name="Nav" active="Organizaciones" role="super" hint-size="214px,600px"></dc-import>
+          <div style="flex:1;padding:20px;background:#eef0f2;display:flex;flex-direction:column;gap:16px">
+            <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px">
+              <div>
+                <div style="font:600 10.5px/1 'IBM Plex Mono',monospace;letter-spacing:.12em;color:#8b919b;padding-bottom:6px">ORGANIZACIONES</div>
+                <div style="font:600 20px/1.15 Archivo,sans-serif">Organizaciones</div>
+              </div>
+              <div style="border:1px solid #2c3038;background:#2c3038;color:#fff;padding:9px 14px;font:600 12.5px Archivo,sans-serif">Nueva organización</div>
+            </div>
+            <div style="display:flex;gap:16px;align-items:flex-start">
+              <div style="flex:1;background:#fff;border:1px solid #b9bec6;display:flex;flex-direction:column">
+                <div style="display:flex;gap:10px;padding:12px;border-bottom:1px solid #dce2e9;align-items:center">
+                  <div style="flex:1;border:1px solid #b9bec6;height:34px;display:flex;align-items:center;padding:0 10px;font:400 12px 'IBM Plex Mono',monospace;color:#a9afb8">Buscar organización</div>
+                  <div style="border:1px solid #b9bec6;height:34px;display:flex;align-items:center;padding:0 12px;font:400 12px 'IBM Plex Mono',monospace;color:#5f6b7a">Filtros</div>
+                  <div style="font:400 11.5px 'IBM Plex Mono',monospace;color:#8b919b">4 resultados</div>
+                </div>
+                <div style="display:flex;padding:9px 12px;background:#f7f9fb;border-bottom:1px solid #dce2e9;font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:#6d7480">
+                  <span style="flex:2">ORGANIZACIÓN</span><span style="flex:1">ADMIN</span><span style="flex:1">ALTA</span><span style="width:60px"></span>
+                </div>
+                <div style="display:flex;align-items:center;padding:13px 12px;border-bottom:1px solid #dce2e9;background:#dfe3e8">
+                  <span style="flex:2;font:600 13px Archivo,sans-serif">Seguridad Vanguardia S.A.</span>
+                  <span style="flex:1;height:8px;background:#d8dbe0;margin-right:24px"></span>
+                  <span style="flex:1;font:400 12px 'IBM Plex Mono',monospace;color:#5f6b7a">04 sep 2026</span>
+                  <span style="width:60px;text-align:right;font:400 14px 'IBM Plex Mono',monospace;color:#6d7480">⋯</span>
+                </div>
+                <div style="display:flex;align-items:center;padding:13px 12px;border-bottom:1px solid #dce2e9">
+                  <span style="flex:2;height:9px;background:#d8dbe0;margin-right:24px"></span><span style="flex:1;height:8px;background:#e3e6ea;margin-right:24px"></span><span style="flex:1;height:8px;background:#e3e6ea"></span><span style="width:60px;text-align:right;font:400 14px 'IBM Plex Mono',monospace;color:#a9afb8">⋯</span>
+                </div>
+                <div style="display:flex;align-items:center;padding:13px 12px;border-bottom:1px solid #dce2e9">
+                  <span style="flex:2;height:9px;background:#d8dbe0;margin-right:24px"></span><span style="flex:1;height:8px;background:#e3e6ea;margin-right:24px"></span><span style="flex:1;height:8px;background:#e3e6ea"></span><span style="width:60px;text-align:right;font:400 14px 'IBM Plex Mono',monospace;color:#a9afb8">⋯</span>
+                </div>
+                <div style="display:flex;align-items:center;padding:13px 12px">
+                  <span style="flex:2;height:9px;background:#d8dbe0;margin-right:24px"></span><span style="flex:1;height:8px;background:#e3e6ea;margin-right:24px"></span><span style="flex:1;height:8px;background:#e3e6ea"></span><span style="width:60px;text-align:right;font:400 14px 'IBM Plex Mono',monospace;color:#a9afb8">⋯</span>
+                </div>
+              </div>
+              <div style="width:400px;flex:none;background:#fff;border:1px solid #b9bec6;display:flex;flex-direction:column">
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:13px;border-bottom:1px solid #dce2e9">
+                  <span style="font:600 13.5px Archivo,sans-serif">Nueva organización</span>
+                  <span style="font:400 13px 'IBM Plex Mono',monospace;color:#6d7480">✕</span>
+                </div>
+                <div style="padding:14px;display:flex;flex-direction:column;gap:14px">
+                  <div style="font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.1em;color:#8b919b">DATOS DE LA ORGANIZACIÓN</div>
+                  <div style="display:flex;flex-direction:column;gap:5px"><span style="font:400 11.5px 'IBM Plex Mono',monospace;color:#5f6b7a">Razón social</span><span style="border:1px solid #b9bec6;height:32px;background:#fbfcfd"></span></div>
+                  <div style="display:flex;gap:10px">
+                    <div style="flex:1;display:flex;flex-direction:column;gap:5px"><span style="font:400 11.5px 'IBM Plex Mono',monospace;color:#5f6b7a">Estado</span><span style="border:1px solid #b9bec6;height:32px;background:#fbfcfd"></span></div>
+                    <div style="flex:1;display:flex;flex-direction:column;gap:5px"><span style="font:400 11.5px 'IBM Plex Mono',monospace;color:#5f6b7a">Municipio</span><span style="border:1px solid #b9bec6;height:32px;background:#fbfcfd"></span></div>
+                  </div>
+                  <div style="font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.1em;color:#8b919b;border-top:1px solid #dce2e9;padding-top:14px">USUARIO ADMINISTRADOR</div>
+                  <div style="display:flex;flex-direction:column;gap:5px"><span style="font:400 11.5px 'IBM Plex Mono',monospace;color:#5f6b7a">Nombre y correo</span><span style="border:1px solid #b9bec6;height:32px;background:#fbfcfd"></span></div>
+                  <div style="display:flex;flex-direction:column;gap:5px">
+                    <span style="font:400 11.5px 'IBM Plex Mono',monospace;color:#5f6b7a">Contraseña temporal — la teclea el super admin</span>
+                    <span style="border:1px solid #2c3038;height:32px;background:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 9px;font:400 12px 'IBM Plex Mono',monospace;color:#2c3038">Vg-2026-temporal<span style="color:#5f6b7a">copiar ⧉</span></span>
+                  </div>
+                  <div style="border:1px dashed #8b919b;padding:11px;font:400 11.5px/1.5 'IBM Plex Mono',monospace;color:#4a5160">Se comparte por fuera del sistema y el admin la cambia al primer ingreso. Un solo guardado crea organización, catálogos base y usuario.</div>
+                </div>
+                <div style="margin-top:auto;display:flex;justify-content:flex-end;gap:10px;padding:13px;border-top:1px solid #dce2e9">
+                  <span style="font:500 12.5px Archivo,sans-serif;color:#5f6b7a;padding:9px 12px">Cancelar</span>
+                  <span style="border:1px solid #2c3038;background:#2c3038;color:#fff;padding:9px 14px;font:600 12.5px Archivo,sans-serif">Crear y entregar acceso</span>
+                </div>
+              </div>
+            </div>
+            <div style="border:1px dashed #6d7480;background:#fff;padding:16px;display:flex;gap:18px;align-items:flex-start">
+              <div style="font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.1em;color:#6d7480;flex:none;padding-top:2px">DESPUÉS DE GUARDAR · T1</div>
+              <div style="display:flex;flex-direction:column;gap:9px;flex:1">
+                <div style="font:600 14px Archivo,sans-serif">Acceso creado para Seguridad Vanguardia S.A.</div>
+                <div style="display:flex;gap:22px;font:400 12px/1.5 'IBM Plex Mono',monospace;color:#4a5160">
+                  <span>Usuario: admin@vanguardia.mx <span style="color:#5f6b7a">copiar ⧉</span></span>
+                  <span>Contraseña temporal: Vg-2026-temporal <span style="color:#5f6b7a">copiar ⧉</span></span>
+                </div>
+                <div style="font:400 12px/1.5 Archivo,sans-serif;color:#5f6b7a">Entrega estas dos líneas al administrador por el medio que uses hoy. El sistema no las envía.</div>
+                <div style="display:flex;gap:10px;padding-top:2px">
+                  <span style="border:1px solid #2c3038;background:#2c3038;color:#fff;padding:8px 13px;font:600 12px Archivo,sans-serif">Entrar a la organización</span>
+                  <span style="border:1px solid #b9bec6;padding:8px 13px;font:500 12px Archivo,sans-serif;color:#4a5160">Volver al listado</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <aside style="width:320px;flex:none;display:flex;flex-direction:column;gap:14px;font:400 12px/1.55 'IBM Plex Mono',monospace;color:#4a5160">
+        <div><div style="color:#8b919b;padding-bottom:5px">LLEGA Y ENCUENTRA</div>Listado de organizaciones, buscador y filtros plegados, una sola acción principal. Sin franja ámbar y sin sesión de soporte.</div>
+        <div><div style="color:#8b919b;padding-bottom:5px">QUÉ HACE</div>Alta en panel lateral: organización y usuario admin en la misma unidad de guardado, con la contraseña temporal tecleada por él, como funciona hoy.</div>
+        <div><div style="color:#8b919b;padding-bottom:5px">CÓMO SALE</div>El guardado abre el bloque de acceso creado: credencial copiable y dos salidas. «Entrar a la organización» pasa al paso 2 sin modo soporte.</div>
+        <div style="border:1px dashed #8b919b;padding:12px"><div style="color:#8b919b;padding-bottom:5px">DECISIÓN ABIERTA</div>La entrega por fuera del sistema es la forma actual. Si más adelante se decide correo de invitación o primer ingreso con cambio forzado, cambia este bloque y nada más del recorrido.</div>
+      </aside>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;font:400 12.5px 'IBM Plex Mono',monospace;color:#2c3038">
+      <span style="border:1px solid #2c3038;padding:4px 9px;font-weight:600">T1</span><span style="width:26px;height:1px;background:#2c3038"></span><span>Crear organización → entregar acceso al admin. Hoy el super admin queda en la misma pantalla sin señal de qué sigue.</span>
+    </div>
+  </section>
+
+  <section data-screen-label="Paso 02" id="p2" style="display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;align-items:baseline;gap:14px">
+      <span style="font:600 12px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;color:#8b919b">PASO 02</span>
+      <span style="font:600 22px/1.1 Archivo,sans-serif">Primera entrada del admin de organización</span>
+      <span style="font:400 11.5px 'IBM Plex Mono',monospace;color:#5f6b7a;border:1px solid #cfd4da;padding:4px 8px">Admin org. · Inicio</span>
+    </div>
+    <div style="display:flex;gap:22px;align-items:flex-start">
+      <div style="width:1240px;flex:none;border:1px solid #b9bec6;background:#fff">
+        <div style="height:48px;border-bottom:1px solid #b9bec6;background:#f2f3f5;display:flex;align-items:center;gap:14px;padding:0 14px;font:400 11.5px 'IBM Plex Mono',monospace;color:#4a5160">
+          <span style="border:1px solid #b9bec6;background:#fff;padding:5px 9px">Organización activa: Seguridad Vanguardia S.A.</span>
+          <span>Fecha operativa: 04 sep 2026</span>
+        </div>
+        <div style="display:flex;min-height:560px">
+          <dc-import name="Nav" active="Inicio" hint-size="214px,560px"></dc-import>
+          <div style="flex:1;padding:20px;background:#eef0f2;display:flex;flex-direction:column;gap:16px">
+            <div>
+              <div style="font:600 10.5px/1 'IBM Plex Mono',monospace;letter-spacing:.12em;color:#8b919b;padding-bottom:6px">INICIO</div>
+              <div style="font:600 20px/1.15 Archivo,sans-serif">Configuración inicial de Seguridad Vanguardia S.A.</div>
+              <div style="font:400 12.5px/1.4 Archivo,sans-serif;color:#6d7480;padding-top:4px">Seis pasos para dejar la operación andando. Puedes salirte y volver: el avance se conserva.</div>
+            </div>
+            <div style="background:#fff;border:1px solid #b9bec6;display:flex;flex-direction:column">
+              <div style="display:flex;gap:14px;padding:15px;border-bottom:1px solid #dce2e9;background:#dfe3e8;align-items:center">
+                <span style="width:24px;height:24px;border:1px solid #2c3038;display:flex;align-items:center;justify-content:center;font:600 11.5px 'IBM Plex Mono',monospace;flex:none">1</span>
+                <div style="flex:1"><div style="font:600 13.5px Archivo,sans-serif">Catálogos mínimos</div><div style="font:400 11.5px 'IBM Plex Mono',monospace;color:#5f6b7a;padding-top:3px">5 pendientes · sin esto no puedes dar de alta empleados ni registrar incidencias</div></div>
+                <span style="border:1px solid #2c3038;background:#2c3038;color:#fff;padding:8px 13px;font:600 12px Archivo,sans-serif;flex:none">Empezar aquí</span>
+              </div>
+              <div style="display:flex;gap:14px;padding:15px;border-bottom:1px solid #dce2e9;align-items:center">
+                <span style="width:24px;height:24px;border:1px solid #b9bec6;display:flex;align-items:center;justify-content:center;font:600 11.5px 'IBM Plex Mono',monospace;color:#8b919b;flex:none">2</span>
+                <div style="flex:1"><div style="font:600 13.5px Archivo,sans-serif;color:#4a5160">Primer cliente con sede y contacto</div><div style="font:400 11.5px 'IBM Plex Mono',monospace;color:#8b919b;padding-top:3px">pendiente</div></div>
+                <span style="font:500 12px Archivo,sans-serif;color:#6d7480;flex:none">Ir a Clientes</span>
+              </div>
+              <div style="display:flex;gap:14px;padding:15px;border-bottom:1px solid #dce2e9;align-items:center">
+                <span style="width:24px;height:24px;border:1px solid #b9bec6;display:flex;align-items:center;justify-content:center;font:600 11.5px 'IBM Plex Mono',monospace;color:#8b919b;flex:none">3</span>
+                <div style="flex:1"><div style="font:600 13.5px Archivo,sans-serif;color:#4a5160">Servicio con su configuración</div><div style="font:400 11.5px 'IBM Plex Mono',monospace;color:#8b919b;padding-top:3px">requiere un cliente con sede</div></div>
+                <span style="font:500 12px Archivo,sans-serif;color:#a9afb8;flex:none">Ir a Servicios</span>
+              </div>
+              <div style="display:flex;gap:14px;padding:15px;border-bottom:1px solid #dce2e9;align-items:center">
+                <span style="width:24px;height:24px;border:1px solid #b9bec6;display:flex;align-items:center;justify-content:center;font:600 11.5px 'IBM Plex Mono',monospace;color:#8b919b;flex:none">4</span>
+                <div style="flex:1"><div style="font:600 13.5px Archivo,sans-serif;color:#4a5160">Posiciones con turno y descanso</div><div style="font:400 11.5px 'IBM Plex Mono',monospace;color:#8b919b;padding-top:3px">requiere un servicio</div></div>
+                <span style="font:500 12px Archivo,sans-serif;color:#a9afb8;flex:none">Ir a Servicios</span>
+              </div>
+              <div style="display:flex;gap:14px;padding:15px;border-bottom:1px solid #dce2e9;align-items:center">
+                <span style="width:24px;height:24px;border:1px solid #b9bec6;display:flex;align-items:center;justify-content:center;font:600 11.5px 'IBM Plex Mono',monospace;color:#8b919b;flex:none">5</span>
+                <div style="flex:1"><div style="font:600 13.5px Archivo,sans-serif;color:#4a5160">Empleados con expediente mínimo</div><div style="font:400 11.5px 'IBM Plex Mono',monospace;color:#8b919b;padding-top:3px">requiere el catálogo de puestos</div></div>
+                <span style="font:500 12px Archivo,sans-serif;color:#a9afb8;flex:none">Ir a Personal</span>
+              </div>
+              <div style="display:flex;gap:14px;padding:15px;align-items:center">
+                <span style="width:24px;height:24px;border:1px solid #b9bec6;display:flex;align-items:center;justify-content:center;font:600 11.5px 'IBM Plex Mono',monospace;color:#8b919b;flex:none">6</span>
+                <div style="flex:1"><div style="font:600 13.5px Archivo,sans-serif;color:#4a5160">Asignaciones y planeación de la semana</div><div style="font:400 11.5px 'IBM Plex Mono',monospace;color:#8b919b;padding-top:3px">requiere posiciones y empleados</div></div>
+                <span style="font:500 12px Archivo,sans-serif;color:#a9afb8;flex:none">Ir a Planeación</span>
+              </div>
+            </div>
+            <div style="border:1px dashed #8b919b;background:#fff;padding:14px;font:400 12px/1.5 'IBM Plex Mono',monospace;color:#4a5160;display:flex;gap:16px;align-items:center">
+              <span style="color:#8b919b;flex:none">EN LUGAR DEL TABLERO</span>
+              <span style="flex:1">Nada de cuatro indicadores en cero. El tablero de Inicio aparece cuando haya planeación publicada y asistencia registrada; hasta entonces, esta pantalla es el camino.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <aside style="width:320px;flex:none;display:flex;flex-direction:column;gap:14px;font:400 12px/1.55 'IBM Plex Mono',monospace;color:#4a5160">
+        <div><div style="color:#8b919b;padding-bottom:5px">LLEGA Y ENCUENTRA</div>El momento más frágil del recorrido: organización recién creada, sin clientes, servicios, empleados ni planeación. Encuentra el orden de dependencias, no un tablero vacío.</div>
+        <div><div style="color:#8b919b;padding-bottom:5px">QUÉ HACE</div>Lee qué falta y arranca por el único paso que no depende de nada: catálogos. Los pasos bloqueados dicen de qué dependen antes de que llegue a la pared.</div>
+        <div><div style="color:#8b919b;padding-bottom:5px">CÓMO SALE</div>«Empezar aquí» lo lleva a Catálogos con los cinco pendientes ya marcados.</div>
+        <div style="border:1px dashed #8b919b;padding:12px"><div style="color:#8b919b;padding-bottom:5px">NOTA</div>Los seis pasos de esta lista son los del recorrido del alcance agrupados; no son módulos nuevos. Cada uno apunta a una entrada del menú de once.</div>
+      </aside>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;font:400 12.5px 'IBM Plex Mono',monospace;color:#2c3038">
+      <span style="border:1px solid #2c3038;padding:4px 9px;font-weight:600">T2</span><span style="width:26px;height:1px;background:#2c3038"></span><span>Primera entrada del admin → guía de configuración inicial. El estado de cada paso se calcula del dato real, no de una casilla.</span>
+    </div>
+  </section>
+
+  <section data-screen-label="Paso 03" id="p3" style="display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;align-items:baseline;gap:14px">
+      <span style="font:600 12px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;color:#8b919b">PASO 03</span>
+      <span style="font:600 22px/1.1 Archivo,sans-serif">Configurar catálogos mínimos</span>
+      <span style="font:400 11.5px 'IBM Plex Mono',monospace;color:#5f6b7a;border:1px solid #cfd4da;padding:4px 8px">Admin org. · Catálogos</span>
+    </div>
+    <div style="display:flex;gap:22px;align-items:flex-start">
+      <div style="width:1240px;flex:none;border:1px solid #b9bec6;background:#fff">
+        <div style="height:48px;border-bottom:1px solid #b9bec6;background:#f2f3f5;display:flex;align-items:center;gap:14px;padding:0 14px;font:400 11.5px 'IBM Plex Mono',monospace;color:#4a5160">
+          <span style="border:1px solid #b9bec6;background:#fff;padding:5px 9px">Organización activa: Seguridad Vanguardia S.A.</span>
+          <span>Fecha operativa: 04 sep 2026</span>
+        </div>
+        <div style="display:flex;min-height:600px">
+          <dc-import name="Nav" active="Catálogos" hint-size="214px,600px"></dc-import>
+          <div style="flex:1;padding:20px;background:#eef0f2;display:flex;flex-direction:column;gap:16px">
+            <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px">
+              <div>
+                <div style="font:600 10.5px/1 'IBM Plex Mono',monospace;letter-spacing:.12em;color:#8b919b;padding-bottom:6px">CATÁLOGOS</div>
+                <div style="font:600 20px/1.15 Archivo,sans-serif">Catálogos</div>
+                <div style="font:400 12.5px/1.4 Archivo,sans-serif;color:#6d7480;padding-top:4px">Cinco bloquean el recorrido. Cada organización define sus valores; el sistema no propone ninguno.</div>
+              </div>
+              <div style="border:1px solid #2c3038;background:#2c3038;color:#fff;padding:9px 14px;font:600 12.5px Archivo,sans-serif">Nuevo valor</div>
+            </div>
+            <div style="display:flex;gap:16px;align-items:stretch">
+              <div style="width:300px;flex:none;background:#fff;border:1px solid #b9bec6;display:flex;flex-direction:column">
+                <div style="padding:11px 13px;border-bottom:1px solid #dce2e9;font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:#6d7480">BLOQUEAN EL RECORRIDO · 5</div>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 13px;border-bottom:1px solid #dce2e9;background:#dfe3e8"><span style="font:600 13px Archivo,sans-serif">Puestos</span><span style="font:400 11px 'IBM Plex Mono',monospace;color:#4a5160;border:1px dashed #8b919b;padding:2px 6px">vacío</span></div>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 13px;border-bottom:1px solid #dce2e9"><span style="font:500 13px Archivo,sans-serif">Habilidades</span><span style="font:400 11px 'IBM Plex Mono',monospace;color:#4a5160;border:1px dashed #8b919b;padding:2px 6px">vacío</span></div>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 13px;border-bottom:1px solid #dce2e9"><span style="font:500 13px Archivo,sans-serif">Zonas</span><span style="font:400 11px 'IBM Plex Mono',monospace;color:#4a5160;border:1px dashed #8b919b;padding:2px 6px">vacío</span></div>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 13px;border-bottom:1px solid #dce2e9"><span style="font:500 13px Archivo,sans-serif">Motivos de incidencia</span><span style="font:400 11px 'IBM Plex Mono',monospace;color:#4a5160;border:1px dashed #8b919b;padding:2px 6px">vacío</span></div>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 13px;border-bottom:1px solid #dce2e9"><span style="font:500 13px Archivo,sans-serif">Motivos de cobertura</span><span style="font:400 11px 'IBM Plex Mono',monospace;color:#4a5160;border:1px dashed #8b919b;padding:2px 6px">vacío</span></div>
+                <div style="padding:11px 13px;border-bottom:1px solid #dce2e9;font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:#6d7480;background:#f7f9fb">RESTO DE CATÁLOGOS ADMINISTRABLES</div>
+                <div style="padding:12px 13px;border-bottom:1px solid #dce2e9"><span style="display:block;height:8px;width:60%;background:#d8dbe0"></span></div>
+                <div style="padding:12px 13px;border-bottom:1px solid #dce2e9"><span style="display:block;height:8px;width:45%;background:#d8dbe0"></span></div>
+                <div style="padding:12px 13px;font:400 11.5px 'IBM Plex Mono',monospace;color:#8b919b">Geografía: 32 estados y 2,478 municipios ya cargados. No se configura.</div>
+              </div>
+              <div style="flex:1;background:#fff;border:1px solid #b9bec6;display:flex;flex-direction:column">
+                <div style="padding:13px;border-bottom:1px solid #dce2e9;display:flex;justify-content:space-between;align-items:center">
+                  <div><div style="font:600 14px Archivo,sans-serif">Puestos</div><div style="font:400 11.5px 'IBM Plex Mono',monospace;color:#5f6b7a;padding-top:3px">Bloquea: alta de empleados y perfil de la posición</div></div>
+                  <span style="border:1px solid #b9bec6;padding:7px 12px;font:500 12px Archivo,sans-serif;color:#2c3038">Agregar puesto</span>
+                </div>
+                <div style="padding:20px;display:flex;flex-direction:column;gap:12px">
+                  <div style="display:flex;align-items:center;gap:10px;border:1px solid #dce2e9;padding:11px 13px"><span style="width:11px;height:11px;border:1px solid #a9afb8"></span><span style="font:500 13px Archivo,sans-serif">Guardia intramuros</span><span style="margin-left:auto;font:400 11.5px 'IBM Plex Mono',monospace;color:#8b919b">agregado ahora</span></div>
+                  <div style="display:flex;align-items:center;gap:10px;border:1px solid #dce2e9;padding:11px 13px"><span style="width:11px;height:11px;border:1px solid #a9afb8"></span><span style="font:500 13px Archivo,sans-serif">Guardia de acceso</span><span style="margin-left:auto;font:400 11.5px 'IBM Plex Mono',monospace;color:#8b919b">agregado ahora</span></div>
+                  <div style="display:flex;align-items:center;gap:10px;border:1px dashed #8b919b;padding:11px 13px;color:#8b919b"><span style="width:11px;height:11px;border:1px dashed #8b919b"></span><span style="font:400 12.5px 'IBM Plex Mono',monospace">escribir el nombre del puesto…</span></div>
+                  <div style="font:400 11.5px/1.5 'IBM Plex Mono',monospace;color:#5f6b7a;padding-top:4px">Se escriben en línea, uno tras otro, sin abrir diálogo. Los cinco catálogos se llenan sin salir de esta pantalla.</div>
+                </div>
+                <div style="margin-top:auto;border-top:1px solid #dce2e9;padding:14px;display:flex;justify-content:space-between;align-items:center;background:#f7f9fb">
+                  <span style="font:400 12px 'IBM Plex Mono',monospace;color:#4a5160">2 de 5 catálogos que bloquean ya tienen valores</span>
+                  <span style="border:1px solid #2c3038;background:#2c3038;color:#fff;padding:9px 14px;font:600 12.5px Archivo,sans-serif">Siguiente: Clientes</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <aside style="width:320px;flex:none;display:flex;flex-direction:column;gap:14px;font:400 12px/1.55 'IBM Plex Mono',monospace;color:#4a5160">
+        <div><div style="color:#8b919b;padding-bottom:5px">LLEGA Y ENCUENTRA</div>Los cinco que bloquean, arriba y marcados como vacíos, cada uno diciendo qué bloquea. El resto de los administrables queda abajo, sin protagonismo.</div>
+        <div><div style="color:#8b919b;padding-bottom:5px">QUÉ HACE</div>Teclea sus valores en línea. Puestos, habilidades, zonas, motivos de incidencia y motivos de cobertura.</div>
+        <div><div style="color:#8b919b;padding-bottom:5px">CÓMO SALE</div>El pie lleva la cuenta y la salida a Clientes. Si sale antes, el paso 2 conserva el avance.</div>
+        <div style="border:1px dashed #8b919b;padding:12px"><div style="color:#8b919b;padding-bottom:5px">ESTADO: FALTA ALGO</div>Nunca un selector vacío. La misma lista sirve de destino cuando otro paso reclama un catálogo: llega con ese catálogo abierto.</div>
+        <div style="border:1px dashed #8b919b;padding:12px"><div style="color:#8b919b;padding-bottom:5px">PREGUNTA ABIERTA</div>Queda pendiente cuál de las dos rutas de Catálogos se conserva. El boceto asume una sola.</div>
+      </aside>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;font:400 12.5px 'IBM Plex Mono',monospace;color:#4a5160">
+      <span style="border:1px solid #b9bec6;padding:4px 9px">continuidad ya prevista</span><span style="width:26px;height:1px;background:#b9bec6"></span><span>Catálogos → Clientes.</span>
+    </div>
+  </section>
+
+  <section data-screen-label="Paso 04" id="p4" style="display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;align-items:baseline;gap:14px">
+      <span style="font:600 12px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;color:#8b919b">PASO 04</span>
+      <span style="font:600 22px/1.1 Archivo,sans-serif">Alta de cliente, sede y contacto</span>
+      <span style="font:400 11.5px 'IBM Plex Mono',monospace;color:#5f6b7a;border:1px solid #cfd4da;padding:4px 8px">Admin org. · Clientes</span>
+    </div>
+    <div style="display:flex;gap:22px;align-items:flex-start">
+      <div style="width:1240px;flex:none;border:1px solid #b9bec6;background:#fff">
+        <div style="height:48px;border-bottom:1px solid #b9bec6;background:#f2f3f5;display:flex;align-items:center;gap:14px;padding:0 14px;font:400 11.5px 'IBM Plex Mono',monospace;color:#4a5160">
+          <span style="border:1px solid #b9bec6;background:#fff;padding:5px 9px">Organización activa: Seguridad Vanguardia S.A.</span>
+          <span>Fecha operativa: 04 sep 2026</span>
+        </div>
+        <div style="display:flex;min-height:600px">
+          <dc-import name="Nav" active="Clientes" hint-size="214px,600px"></dc-import>
+          <div style="flex:1;padding:20px;background:#eef0f2;display:flex;flex-direction:column;gap:16px">
+            <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px">
+              <div>
+                <div style="font:600 10.5px/1 'IBM Plex Mono',monospace;letter-spacing:.12em;color:#8b919b;padding-bottom:6px">CLIENTES</div>
+                <div style="font:600 20px/1.15 Archivo,sans-serif">Clientes</div>
+              </div>
+              <div style="border:1px solid #2c3038;background:#2c3038;color:#fff;padding:9px 14px;font:600 12.5px Archivo,sans-serif">Nuevo cliente</div>
+            </div>
+            <div style="display:flex;gap:16px;align-items:flex-start">
+              <div style="flex:1;background:#fff;border:1px solid #b9bec6;display:flex;flex-direction:column">
+                <div style="display:flex;gap:10px;padding:12px;border-bottom:1px solid #dce2e9;align-items:center">
+                  <div style="flex:1;border:1px solid #b9bec6;height:34px;display:flex;align-items:center;padding:0 10px;font:400 12px 'IBM Plex Mono',monospace;color:#a9afb8">Buscar cliente</div>
+                  <div style="border:1px solid #b9bec6;height:34px;display:flex;align-items:center;padding:0 12px;font:400 12px 'IBM Plex Mono',monospace;color:#5f6b7a">Filtros</div>
+                  <div style="font:400 11.5px 'IBM Plex Mono',monospace;color:#8b919b">1 resultado</div>
+                </div>
+                <div style="display:flex;padding:9px 12px;background:#f7f9fb;border-bottom:1px solid #dce2e9;font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:#6d7480">
+                  <span style="flex:2">CLIENTE</span><span style="flex:1">SEDES</span><span style="flex:1">SERVICIOS</span><span style="width:50px"></span>
+                </div>
+                <div style="display:flex;align-items:center;padding:14px 12px;border-bottom:1px solid #dce2e9;background:#dfe3e8">
+                  <span style="flex:2;font:600 13px Archivo,sans-serif">Corporativo Altavista</span><span style="flex:1;font:400 12px 'IBM Plex Mono',monospace;color:#4a5160">1</span><span style="flex:1;font:400 12px 'IBM Plex Mono',monospace;color:#4a5160">0</span><span style="width:50px;text-align:right;font:400 14px 'IBM Plex Mono',monospace;color:#6d7480">⋯</span>
+                </div>
+                <div style="padding:26px 14px;display:flex;flex-direction:column;gap:8px;align-items:flex-start">
+                  <div style="font:400 11.5px/1.5 'IBM Plex Mono',monospace;color:#8b919b">El buscador y un panel de filtros plegado sustituyen los nueve filtros de hoy. Sin selector de organización: se hereda de la barra de contexto.</div>
+                </div>
+              </div>
+              <div style="width:420px;flex:none;background:#fff;border:1px solid #b9bec6;display:flex;flex-direction:column">
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:13px;border-bottom:1px solid #dce2e9">
+                  <span style="font:600 13.5px Archivo,sans-serif">Corporativo Altavista</span><span style="font:400 13px 'IBM Plex Mono',monospace;color:#6d7480">✕</span>
+                </div>
+                <div style="display:flex;gap:16px;padding:0 13px;border-bottom:1px solid #dce2e9;font:500 12px Archivo,sans-serif;color:#6d7480">
+                  <span style="padding:11px 0;border-bottom:2px solid #2c3038;color:#2c3038;font-weight:600">Datos</span><span style="padding:11px 0">Sedes</span><span style="padding:11px 0">Contactos</span><span style="padding:11px 0">Documentos</span>
+                </div>
+                <div style="padding:14px;display:flex;flex-direction:column;gap:13px">
+                  <div style="display:flex;flex-direction:column;gap:5px"><span style="font:400 11.5px 'IBM Plex Mono',monospace;color:#5f6b7a">Razón social · RFC</span><span style="border:1px solid #b9bec6;height:32px;background:#fbfcfd"></span></div>
+                  <div style="display:flex;gap:10px">
+                    <div style="flex:1;display:flex;flex-direction:column;gap:5px"><span style="font:400 11.5px 'IBM Plex Mono',monospace;color:#5f6b7a">Zona</span><span style="border:1px solid #b9bec6;height:32px;background:#fbfcfd"></span></div>
+                    <div style="flex:1;display:flex;flex-direction:column;gap:5px"><span style="font:400 11.5px 'IBM Plex Mono',monospace;color:#5f6b7a">Estado · Municipio</span><span style="border:1px solid #b9bec6;height:32px;background:#fbfcfd"></span></div>
+                  </div>
+                  <div style="border:1px dashed #6d7480;padding:13px;display:flex;flex-direction:column;gap:9px">
+                    <div style="font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.1em;color:#6d7480">ESTADO: FALTA ALGO</div>
+                    <div style="font:500 13px/1.4 Archivo,sans-serif">Este cliente no tiene sede. Es un expediente válido, pero no permite crear servicios: el servicio se liga a una sede.</div>
+                    <div style="display:flex;gap:9px"><span style="border:1px solid #2c3038;background:#2c3038;color:#fff;padding:8px 12px;font:600 12px Archivo,sans-serif">Agregar sede</span><span style="border:1px solid #b9bec6;padding:8px 12px;font:500 12px Archivo,sans-serif;color:#4a5160">Guardar sin sede</span></div>
+                  </div>
+                  <div style="display:flex;flex-direction:column;gap:9px;border:1px solid #dce2e9;padding:13px">
+                    <div style="font:600 12.5px Archivo,sans-serif">Sede · Torre Altavista</div>
+                    <div style="font:400 11.5px/1.5 'IBM Plex Mono',monospace;color:#5f6b7a">Dirección, estado y municipio desde la geografía cargada. Contacto: nombre, puesto, teléfono.</div>
+                  </div>
+                </div>
+                <div style="margin-top:auto;border-top:1px solid #dce2e9;padding:13px;display:flex;justify-content:space-between;align-items:center">
+                  <span style="font:400 11.5px 'IBM Plex Mono',monospace;color:#8b919b">1 sede · 1 contacto</span>
+                  <span style="border:1px solid #2c3038;background:#2c3038;color:#fff;padding:9px 14px;font:600 12.5px Archivo,sans-serif">Crear servicio de este cliente</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <aside style="width:320px;flex:none;display:flex;flex-direction:column;gap:14px;font:400 12px/1.55 'IBM Plex Mono',monospace;color:#4a5160">
+        <div><div style="color:#8b919b;padding-bottom:5px">LLEGA Y ENCUENTRA</div>Listado directo con buscador. Sin el selector de organización duplicado ni el botón que no pertenece a esta pantalla.</div>
+        <div><div style="color:#8b919b;padding-bottom:5px">QUÉ HACE</div>Alta del cliente y, en la misma ficha, su sede y su contacto. La ficha vive en el panel lateral, no apilada debajo de la tabla.</div>
+        <div><div style="color:#8b919b;padding-bottom:5px">CÓMO SALE</div>Con sede guardada, el pie ofrece crear el servicio de ese cliente sin volver al menú.</div>
+        <div style="border:1px dashed #8b919b;padding:12px"><div style="color:#8b919b;padding-bottom:5px">ESTADO: FALTA ALGO</div>La falta de sede se dice aquí, en el momento, con la acción para resolverla — no al fallar el paso 5.</div>
+      </aside>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;font:400 12.5px 'IBM Plex Mono',monospace;color:#2c3038">
+      <span style="border:1px solid #2c3038;padding:4px 9px;font-weight:600">T3</span><span style="width:26px;height:1px;background:#2c3038"></span><span>Crear cliente → crear su primer servicio, con cliente y sede ya elegidos.</span>
+    </div>
+  </section>
+
+  <section data-screen-label="Paso 05" id="p5" style="display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;align-items:baseline;gap:14px">
+      <span style="font:600 12px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;color:#8b919b">PASO 05</span>
+      <span style="font:600 22px/1.1 Archivo,sans-serif">Crear servicio con contrato y configuración</span>
+      <span style="font:400 11.5px 'IBM Plex Mono',monospace;color:#5f6b7a;border:1px solid #cfd4da;padding:4px 8px">Admin org. · Servicios</span>
+    </div>
+    <div style="display:flex;gap:22px;align-items:flex-start">
+      <div style="width:1240px;flex:none;border:1px solid #b9bec6;background:#fff">
+        <div style="height:48px;border-bottom:1px solid #b9bec6;background:#f2f3f5;display:flex;align-items:center;gap:14px;padding:0 14px;font:400 11.5px 'IBM Plex Mono',monospace;color:#4a5160">
+          <span style="border:1px solid #b9bec6;background:#fff;padding:5px 9px">Organización activa: Seguridad Vanguardia S.A.</span>
+          <span>Fecha operativa: 04 sep 2026</span>
+        </div>
+        <div style="display:flex;min-height:620px">
+          <dc-import name="Nav" active="Servicios" hint-size="214px,620px"></dc-import>
+          <div style="flex:1;padding:20px;background:#eef0f2;display:flex;flex-direction:column;gap:16px">
+            <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px">
+              <div>
+                <div style="font:600 10.5px/1 'IBM Plex Mono',monospace;letter-spacing:.12em;color:#8b919b;padding-bottom:6px">SERVICIOS</div>
+                <div style="font:600 20px/1.15 Archivo,sans-serif">Servicios</div>
+                <div style="font:400 12.5px/1.4 Archivo,sans-serif;color:#6d7480;padding-top:4px">Listado directo. La cascada organización → cliente → servicio se elimina.</div>
+              </div>
+              <div style="border:1px solid #2c3038;background:#2c3038;color:#fff;padding:9px 14px;font:600 12.5px Archivo,sans-serif">Nuevo servicio</div>
+            </div>
+            <div style="display:flex;gap:16px;align-items:flex-start">
+              <div style="flex:1;background:#fff;border:1px solid #b9bec6;display:flex;flex-direction:column">
+                <div style="display:flex;gap:10px;padding:12px;border-bottom:1px solid #dce2e9;align-items:center">
+                  <div style="flex:1;border:1px solid #b9bec6;height:34px;display:flex;align-items:center;padding:0 10px;font:400 12px 'IBM Plex Mono',monospace;color:#a9afb8">Buscar servicio, cliente o sede</div>
+                  <div style="border:1px solid #b9bec6;height:34px;display:flex;align-items:center;padding:0 12px;font:400 12px 'IBM Plex Mono',monospace;color:#5f6b7a">Filtros</div>
+                </div>
+                <div style="display:flex;padding:9px 12px;background:#f7f9fb;border-bottom:1px solid #dce2e9;font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:#6d7480">
+                  <span style="flex:2">SERVICIO</span><span style="flex:2">CLIENTE · SEDE</span><span style="flex:1">POSICIONES</span><span style="width:44px"></span>
+                </div>
+                <div style="display:flex;align-items:center;padding:14px 12px;border-bottom:1px solid #dce2e9;background:#dfe3e8">
+                  <span style="flex:2;font:600 13px Archivo,sans-serif">Vigilancia Torre Altavista</span><span style="flex:2;font:400 12px 'IBM Plex Mono',monospace;color:#4a5160">Corporativo Altavista · Torre Altavista</span><span style="flex:1;font:400 12px 'IBM Plex Mono',monospace;color:#4a5160">0</span><span style="width:44px;text-align:right;font:400 14px 'IBM Plex Mono',monospace;color:#6d7480">⋯</span>
+                </div>
+                <div style="display:flex;align-items:center;padding:14px 12px;border-bottom:1px solid #dce2e9"><span style="flex:2;height:9px;background:#d8dbe0;margin-right:20px"></span><span style="flex:2;height:8px;background:#e3e6ea;margin-right:20px"></span><span style="flex:1;height:8px;background:#e3e6ea"></span><span style="width:44px"></span></div>
+                <div style="display:flex;align-items:center;padding:14px 12px"><span style="flex:2;height:9px;background:#d8dbe0;margin-right:20px"></span><span style="flex:2;height:8px;background:#e3e6ea;margin-right:20px"></span><span style="flex:1;height:8px;background:#e3e6ea"></span><span style="width:44px"></span></div>
+              </div>
+              <div style="width:470px;flex:none;background:#fff;border:1px solid #b9bec6;display:flex;flex-direction:column">
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:13px;border-bottom:1px solid #dce2e9">
+                  <div><div style="font:600 13.5px Archivo,sans-serif">Vigilancia Torre Altavista</div><div style="font:400 11px 'IBM Plex Mono',monospace;color:#8b919b;padding-top:3px">Corporativo Altavista · Torre Altavista</div></div>
+                  <span style="font:400 13px 'IBM Plex Mono',monospace;color:#6d7480">✕</span>
+                </div>
+                <div style="display:flex;gap:16px;padding:0 13px;border-bottom:1px solid #dce2e9;font:500 12px Archivo,sans-serif;color:#6d7480">
+                  <span style="padding:11px 0">Datos</span><span style="padding:11px 0;border-bottom:2px solid #2c3038;color:#2c3038;font-weight:600">Configuración</span><span style="padding:11px 0">Posiciones</span><span style="padding:11px 0">Asignaciones</span>
+                </div>
+                <div style="padding:14px;display:flex;flex-direction:column;gap:13px">
+                  <div style="display:flex;justify-content:space-between;align-items:center;border:1px solid #dce2e9;padding:11px 13px;font:400 11.5px 'IBM Plex Mono',monospace;color:#4a5160"><span>Vigencia de esta configuración</span><span style="color:#2c3038">desde 04 sep 2026</span></div>
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:11px">
+                    <div style="display:flex;flex-direction:column;gap:5px"><span style="font:400 11.5px 'IBM Plex Mono',monospace;color:#5f6b7a">Elementos requeridos</span><span style="border:1px solid #b9bec6;height:32px;background:#fbfcfd;display:flex;align-items:center;padding:0 9px;font:400 12px 'IBM Plex Mono',monospace">4</span></div>
+                    <div style="display:flex;flex-direction:column;gap:5px"><span style="font:400 11.5px 'IBM Plex Mono',monospace;color:#5f6b7a">Días por semana</span><span style="border:1px solid #b9bec6;height:32px;background:#fbfcfd;display:flex;align-items:center;padding:0 9px;font:400 12px 'IBM Plex Mono',monospace">7</span></div>
+                    <div style="display:flex;flex-direction:column;gap:5px"><span style="font:400 11.5px 'IBM Plex Mono',monospace;color:#5f6b7a">Horas por turno</span><span style="border:1px solid #b9bec6;height:32px;background:#fbfcfd;display:flex;align-items:center;padding:0 9px;font:400 12px 'IBM Plex Mono',monospace">12</span></div>
+                    <div style="display:flex;flex-direction:column;gap:5px"><span style="font:400 11.5px 'IBM Plex Mono',monospace;color:#5f6b7a">Precio de servicio</span><span style="border:1px solid #b9bec6;height:32px;background:#fbfcfd"></span></div>
+                  </div>
+                  <div style="display:flex;flex-direction:column;gap:5px"><span style="font:400 11.5px 'IBM Plex Mono',monospace;color:#5f6b7a">Instrucciones de servicio</span><span style="border:1px solid #b9bec6;height:56px;background:#fbfcfd"></span></div>
+                  <div style="display:flex;justify-content:space-between;align-items:center;border:1px solid #dce2e9;padding:11px 13px"><span style="font:500 12.5px Archivo,sans-serif">Contrato</span><span style="font:400 11.5px 'IBM Plex Mono',monospace;color:#8b919b">opcional · adjuntar después</span></div>
+                  <div style="border:1px dashed #6d7480;padding:13px;display:flex;flex-direction:column;gap:9px">
+                    <div style="font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.1em;color:#6d7480">ESTADO: FALTA ALGO</div>
+                    <div style="font:500 13px/1.4 Archivo,sans-serif">Sin posiciones no hay planeación: la proyección de la semana se arma con el patrón de cada posición.</div>
+                    <span style="border:1px solid #2c3038;background:#2c3038;color:#fff;padding:8px 12px;font:600 12px Archivo,sans-serif;align-self:flex-start">Definir posiciones</span>
+                  </div>
+                </div>
+                <div style="margin-top:auto;border-top:1px solid #dce2e9;padding:13px;display:flex;justify-content:flex-end;gap:10px">
+                  <span style="font:500 12.5px Archivo,sans-serif;color:#5f6b7a;padding:9px 12px">Descartar</span>
+                  <span style="border:1px solid #2c3038;background:#2c3038;color:#fff;padding:9px 14px;font:600 12.5px Archivo,sans-serif">Guardar configuración</span>
+                </div>
+              </div>
+            </div>
+            <div style="border:1px dashed #8b919b;background:#fff;padding:14px;display:flex;gap:16px;align-items:center;font:400 12px/1.5 'IBM Plex Mono',monospace;color:#4a5160">
+              <span style="color:#8b919b;flex:none">SI EL CLIENTE NO TIENE SEDE</span>
+              <span style="flex:1">El campo Sede no aparece vacío: ofrece «Crear sede para Corporativo Altavista» en el mismo panel, y al guardarla vuelve al servicio con la sede puesta.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <aside style="width:320px;flex:none;display:flex;flex-direction:column;gap:14px;font:400 12px/1.55 'IBM Plex Mono',monospace;color:#4a5160">
+        <div><div style="color:#8b919b;padding-bottom:5px">LLEGA Y ENCUENTRA</div>Llega desde el cliente, con cliente y sede resueltos. La ficha abre en el panel derecho con cuatro pestañas y la fila seleccionada resaltada.</div>
+        <div><div style="color:#8b919b;padding-bottom:5px">QUÉ HACE</div>Configura la vigencia: elementos requeridos, horas, precio, días por semana e instrucciones. El contrato es opcional y no frena el recorrido.</div>
+        <div><div style="color:#8b919b;padding-bottom:5px">CÓMO SALE</div>«Definir posiciones» cambia a la tercera pestaña de la misma ficha. No se cambia de pantalla ni se pierde el contexto.</div>
+        <div style="border:1px dashed #8b919b;padding:12px"><div style="color:#8b919b;padding-bottom:5px">PREGUNTA ABIERTA</div>Corregir una configuración con vigencia pasada choca con conservar valor anterior, motivo, usuario y fecha. El boceto no decide: la vigencia se muestra, editable o no según se resuelva.</div>
+      </aside>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;font:400 12.5px 'IBM Plex Mono',monospace;color:#2c3038">
+      <span style="border:1px solid #2c3038;padding:4px 9px;font-weight:600">T4</span><span style="width:26px;height:1px;background:#2c3038"></span><span>Crear servicio → definir sus posiciones. Hoy el usuario queda parado en Servicios sin saber que las posiciones viven en una pestaña.</span>
+    </div>
+  </section>
+
+  <section data-screen-label="Paso 06" id="p6" style="display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;align-items:baseline;gap:14px">
+      <span style="font:600 12px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;color:#8b919b">PASO 06 · A</span>
+      <span style="font:600 22px/1.1 Archivo,sans-serif">Definir posiciones con turno y descanso</span>
+      <span style="font:400 11.5px 'IBM Plex Mono',monospace;color:#5f6b7a;border:1px solid #cfd4da;padding:4px 8px">Admin org. · Servicios › Posiciones</span>
+    </div>
+    <div style="display:flex;gap:22px;align-items:flex-start">
+      <div style="width:1240px;flex:none;border:1px solid #b9bec6;background:#fff">
+        <div style="height:48px;border-bottom:1px solid #b9bec6;background:#f2f3f5;display:flex;align-items:center;gap:14px;padding:0 14px;font:400 11.5px 'IBM Plex Mono',monospace;color:#4a5160">
+          <span style="border:1px solid #b9bec6;background:#fff;padding:5px 9px">Organización activa: Seguridad Vanguardia S.A.</span>
+          <span>Fecha operativa: 04 sep 2026</span>
+        </div>
+        <div style="display:flex;min-height:660px">
+          <dc-import name="Nav" active="Servicios" hint-size="214px,660px"></dc-import>
+          <div style="flex:1;padding:20px;background:#eef0f2;display:flex;flex-direction:column;gap:14px">
+            <div>
+              <div style="font:600 10.5px/1 'IBM Plex Mono',monospace;letter-spacing:.12em;color:#8b919b;padding-bottom:6px">SERVICIOS › VIGILANCIA TORRE ALTAVISTA</div>
+              <div style="font:600 20px/1.15 Archivo,sans-serif">Posiciones del servicio</div>
+            </div>
+            <div style="background:#fff;border:1px solid #b9bec6;display:flex;flex-direction:column">
+              <div style="display:flex;gap:16px;padding:0 14px;border-bottom:1px solid #dce2e9;font:500 12.5px Archivo,sans-serif;color:#6d7480">
+                <span style="padding:12px 0">Datos</span><span style="padding:12px 0">Configuración</span><span style="padding:12px 0;border-bottom:2px solid #2c3038;color:#2c3038;font-weight:600">Posiciones</span><span style="padding:12px 0">Asignaciones</span>
+                <span style="margin-left:auto;align-self:center;border:1px solid #2c3038;background:#2c3038;color:#fff;padding:8px 12px;font:600 12px Archivo,sans-serif">Nueva posición</span>
+              </div>
+              <div style="display:flex;align-items:stretch">
+                <div style="width:290px;flex:none;border-right:1px solid #dce2e9;display:flex;flex-direction:column">
+                  <div style="padding:10px 13px;background:#f7f9fb;border-bottom:1px solid #dce2e9;font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:#6d7480">3 POSICIONES · 4 ELEMENTOS REQUERIDOS</div>
+                  <div style="padding:12px 13px;border-bottom:1px solid #dce2e9;background:#dfe3e8">
+                    <div style="font:600 13px Archivo,sans-serif">P-01 · Acceso principal</div>
+                    <div style="font:400 11px 'IBM Plex Mono',monospace;color:#4a5160;padding-top:4px">semanal · 2 requeridos · patrón completo</div>
+                  </div>
+                  <div style="padding:12px 13px;border-bottom:1px solid #dce2e9">
+                    <div style="font:500 13px Archivo,sans-serif">P-02 · Rondín nocturno</div>
+                    <div style="font:400 11px 'IBM Plex Mono',monospace;color:#5f6b7a;padding-top:4px">cíclico 24x48 · 1 requerido</div>
+                  </div>
+                  <div style="padding:12px 13px;border-bottom:1px solid #dce2e9">
+                    <div style="font:500 13px Archivo,sans-serif">P-03 · Monitoreo CCTV</div>
+                    <div style="font:400 11px 'IBM Plex Mono',monospace;color:#4a5160;padding-top:4px;border:1px dashed #8b919b;display:inline-block;padding:2px 6px;margin-top:5px">patrón incompleto · 2 días sin declarar</div>
+                  </div>
+                  <div style="padding:12px 13px;font:400 11.5px/1.5 'IBM Plex Mono',monospace;color:#8b919b">El cupo de la posición se cuenta contra los elementos requeridos de la configuración vigente.</div>
+                </div>
+                <div style="flex:1;padding:16px;display:flex;flex-direction:column;gap:14px">
+                  <div style="display:flex;justify-content:space-between;align-items:flex-start">
+                    <div><div style="font:600 15px Archivo,sans-serif">P-01 · Acceso principal</div><div style="font:400 11.5px 'IBM Plex Mono',monospace;color:#5f6b7a;padding-top:4px">El calendario de esta posición no depende de quién la ocupe.</div></div>
+                    <span style="border:1px solid #b9bec6;padding:7px 11px;font:500 12px Archivo,sans-serif;color:#4a5160">Duplicar posición</span>
+                  </div>
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                    <div style="display:flex;flex-direction:column;gap:5px"><span style="font:400 11.5px 'IBM Plex Mono',monospace;color:#5f6b7a">Elementos requeridos (cupo)</span><span style="border:1px solid #b9bec6;height:32px;background:#fbfcfd;display:flex;align-items:center;padding:0 9px;font:400 12px 'IBM Plex Mono',monospace">2</span></div>
+                    <div style="display:flex;flex-direction:column;gap:5px"><span style="font:400 11.5px 'IBM Plex Mono',monospace;color:#5f6b7a">Perfil requerido</span><span style="border:1px solid #b9bec6;height:32px;background:#fbfcfd;display:flex;align-items:center;padding:0 9px;font:400 12px 'IBM Plex Mono',monospace">Guardia de acceso</span></div>
+                  </div>
+                  <div style="border:1px solid #dce2e9;display:flex;flex-direction:column">
+                    <div style="display:flex;align-items:center;gap:12px;padding:11px 13px;border-bottom:1px solid #dce2e9;background:#f7f9fb">
+                      <span style="font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:#6d7480">ANCLA DEL PATRÓN</span>
+                      <span style="border:1px solid #2c3038;background:#2c3038;color:#fff;padding:5px 11px;font:600 11.5px 'IBM Plex Mono',monospace">Semanal</span>
+                      <span style="border:1px solid #b9bec6;background:#fff;padding:5px 11px;font:400 11.5px 'IBM Plex Mono',monospace;color:#5f6b7a">Cíclico de N días</span>
+                      <span style="margin-left:auto;font:400 11px 'IBM Plex Mono',monospace;color:#8b919b">semanal = anclado al día de la semana</span>
+                    </div>
+                    <div style="display:grid;grid-template-columns:repeat(7,1fr);border-bottom:1px solid #dce2e9">
+                      <div style="border-right:1px solid #dce2e9;padding:9px;text-align:center;font:600 11px 'IBM Plex Mono',monospace;color:#6d7480">LUN</div>
+                      <div style="border-right:1px solid #dce2e9;padding:9px;text-align:center;font:600 11px 'IBM Plex Mono',monospace;color:#6d7480">MAR</div>
+                      <div style="border-right:1px solid #dce2e9;padding:9px;text-align:center;font:600 11px 'IBM Plex Mono',monospace;color:#6d7480">MIÉ</div>
+                      <div style="border-right:1px solid #dce2e9;padding:9px;text-align:center;font:600 11px 'IBM Plex Mono',monospace;color:#6d7480">JUE</div>
+                      <div style="border-right:1px solid #dce2e9;padding:9px;text-align:center;font:600 11px 'IBM Plex Mono',monospace;color:#6d7480">VIE</div>
+                      <div style="border-right:1px solid #dce2e9;padding:9px;text-align:center;font:600 11px 'IBM Plex Mono',monospace;color:#6d7480">SÁB</div>
+                      <div style="padding:9px;text-align:center;font:600 11px 'IBM Plex Mono',monospace;color:#6d7480">DOM</div>
+                    </div>
+                    <div style="display:grid;grid-template-columns:repeat(7,1fr)">
+                      <div style="border-right:1px solid #dce2e9;padding:14px 8px;display:flex;flex-direction:column;gap:6px;align-items:center"><span style="font:600 12px 'IBM Plex Mono',monospace">TURNO</span><span style="font:400 11px 'IBM Plex Mono',monospace;color:#5f6b7a">07–19</span></div>
+                      <div style="border-right:1px solid #dce2e9;padding:14px 8px;display:flex;flex-direction:column;gap:6px;align-items:center"><span style="font:600 12px 'IBM Plex Mono',monospace">TURNO</span><span style="font:400 11px 'IBM Plex Mono',monospace;color:#5f6b7a">07–19</span></div>
+                      <div style="border-right:1px solid #dce2e9;padding:14px 8px;display:flex;flex-direction:column;gap:6px;align-items:center"><span style="font:600 12px 'IBM Plex Mono',monospace">TURNO</span><span style="font:400 11px 'IBM Plex Mono',monospace;color:#5f6b7a">07–19</span></div>
+                      <div style="border-right:1px solid #dce2e9;padding:14px 8px;display:flex;flex-direction:column;gap:6px;align-items:center;background:#e7eaee"><span style="font:600 12px 'IBM Plex Mono',monospace">DESCANSO</span><span style="font:400 11px 'IBM Plex Mono',monospace;color:#5f6b7a">declarado</span></div>
+                      <div style="border-right:1px solid #dce2e9;padding:14px 8px;display:flex;flex-direction:column;gap:6px;align-items:center"><span style="font:600 12px 'IBM Plex Mono',monospace">TURNO</span><span style="font:400 11px 'IBM Plex Mono',monospace;color:#5f6b7a">07–19</span></div>
+                      <div style="border-right:1px solid #dce2e9;padding:14px 8px;display:flex;flex-direction:column;gap:6px;align-items:center"><span style="font:600 12px 'IBM Plex Mono',monospace">TURNO</span><span style="font:400 11px 'IBM Plex Mono',monospace;color:#5f6b7a">07–19</span></div>
+                      <div style="padding:14px 8px;display:flex;flex-direction:column;gap:6px;align-items:center;background:#e7eaee"><span style="font:600 12px 'IBM Plex Mono',monospace">DESCANSO</span><span style="font:400 11px 'IBM Plex Mono',monospace;color:#5f6b7a">declarado</span></div>
+                    </div>
+                    <div style="border-top:1px solid #dce2e9;padding:11px 13px;font:400 11.5px/1.5 'IBM Plex Mono',monospace;color:#4a5160">Cada día declara turno o descanso. «Descanso declarado» y «día sin declarar» son estados distintos: el segundo deja el patrón incompleto.</div>
+                  </div>
+                  <div style="border:1px dashed #6d7480;padding:13px;display:flex;gap:16px;align-items:center">
+                    <div style="flex:1"><div style="font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.1em;color:#6d7480;padding-bottom:5px">ESTADO: FALTA ALGO · P-03</div><div style="font:500 12.5px/1.4 Archivo,sans-serif">Patrón incompleto: sábado y domingo sin declarar. Señalado por día, no como aviso general.</div></div>
+                    <span style="border:1px solid #2c3038;background:#2c3038;color:#fff;padding:8px 12px;font:600 12px Archivo,sans-serif;flex:none">Declarar los 2 días</span>
+                  </div>
+                  <div style="margin-top:auto;display:flex;justify-content:space-between;align-items:center;border-top:1px solid #dce2e9;padding-top:13px">
+                    <span style="font:400 11.5px 'IBM Plex Mono',monospace;color:#8b919b">Cíclico: ciclo de N días anclado a una fecha, con vista de cómo cae en el calendario</span>
+                    <div style="display:flex;gap:10px">
+                      <span style="border:1px solid #b9bec6;padding:9px 13px;font:500 12.5px Archivo,sans-serif;color:#4a5160">Dar de alta empleados</span>
+                      <span style="border:1px solid #2c3038;background:#2c3038;color:#fff;padding:9px 13px;font:600 12.5px Archivo,sans-serif">Asignar personal</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <aside style="width:320px;flex:none;display:flex;flex-direction:column;gap:14px;font:400 12px/1.55 'IBM Plex Mono',monospace;color:#4a5160">
+        <div><div style="color:#8b919b;padding-bottom:5px">LLEGA Y ENCUENTRA</div>La tercera pestaña de la ficha del servicio: lista de posiciones a la izquierda, la posición abierta a la derecha con su cupo, su perfil y su patrón.</div>
+        <div><div style="color:#8b919b;padding-bottom:5px">QUÉ HACE</div>Elige el ancla —semanal o cíclica— y declara cada día como turno o descanso. Aquí vive la pieza nueva del alcance.</div>
+        <div><div style="color:#8b919b;padding-bottom:5px">CÓMO SALE</div>Dos salidas según el estado real: a Personal si no hay empleados, a Asignaciones si ya los hay.</div>
+        <div style="border:1px dashed #8b919b;padding:12px"><div style="color:#8b919b;padding-bottom:5px">PREGUNTAS ABIERTAS</div>Cuántos días de descanso tiene una posición típica, y qué pasa cuando un ciclo cae en festivo o en el corte de semana. El boceto muestra el patrón, no resuelve esas dos.</div>
+      </aside>
+    </div>
+  </section>
+
+  <section data-screen-label="Paso 06 baja" id="p6b" style="display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap">
+      <span style="font:600 12px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;color:#8b919b">PASO 06 · B</span>
+      <span style="font:600 22px/1.1 Archivo,sans-serif">La misma posición cuando el titular causa baja</span>
+      <span style="font:600 11.5px 'IBM Plex Mono',monospace;color:#2c3038;border:1px solid #2c3038;padding:4px 8px">VISTA CENTRAL DE LA ENTREGA</span>
+    </div>
+    <div style="width:1580px;border:1px solid #2c3038;background:#fff">
+      <div style="height:48px;border-bottom:1px solid #b9bec6;background:#f2f3f5;display:flex;align-items:center;gap:14px;padding:0 14px;font:400 11.5px 'IBM Plex Mono',monospace;color:#4a5160">
+        <span style="border:1px solid #b9bec6;background:#fff;padding:5px 9px">Organización activa: Seguridad Vanguardia S.A.</span>
+        <span>Fecha operativa: 04 sep 2026</span>
+      </div>
+      <div style="display:flex;min-height:700px">
+        <dc-import name="Nav" active="Servicios" hint-size="214px,700px"></dc-import>
+        <div style="flex:1;padding:22px;background:#eef0f2;display:flex;flex-direction:column;gap:16px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:20px">
+            <div>
+              <div style="font:600 10.5px/1 'IBM Plex Mono',monospace;letter-spacing:.12em;color:#8b919b;padding-bottom:6px">SERVICIOS › VIGILANCIA TORRE ALTAVISTA › P-01 ACCESO PRINCIPAL</div>
+              <div style="font:600 24px/1.15 Archivo,sans-serif">La posición conserva su calendario</div>
+              <div style="font:400 13px/1.45 Archivo,sans-serif;color:#5f6b7a;padding-top:5px;max-width:80ch">Miguel Ramos causó baja el 03 sep. La posición no perdió nada: su patrón, su cupo y su perfil siguen siendo los mismos. Lo único que cambió es que el lugar está vacante.</div>
+            </div>
+            <div style="border:1px solid #2c3038;background:#2c3038;color:#fff;padding:10px 15px;font:600 13px Archivo,sans-serif;flex:none">Asignar titular a P-01</div>
+          </div>
+          <div style="display:flex;gap:18px;align-items:stretch">
+            <div style="flex:1;background:#fff;border:1px solid #b9bec6;display:flex;flex-direction:column">
+              <div style="padding:12px 14px;border-bottom:1px solid #dce2e9;background:#f7f9fb;display:flex;justify-content:space-between;align-items:center">
+                <span style="font:600 11px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:#6d7480">ANTES · HASTA 03 SEP 2026</span>
+                <span style="font:400 11px 'IBM Plex Mono',monospace;color:#8b919b">patrón semanal · cupo 2</span>
+              </div>
+              <div style="padding:14px;display:flex;flex-direction:column;gap:12px">
+                <div style="border:1px solid #dce2e9;padding:12px 13px;display:flex;justify-content:space-between;align-items:center">
+                  <div><div style="font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:#8b919b;padding-bottom:4px">OCUPANTE</div><div style="font:600 13.5px Archivo,sans-serif">Miguel Ramos Delgado</div><div style="font:400 11px 'IBM Plex Mono',monospace;color:#5f6b7a;padding-top:3px">titular · Guardia de acceso</div></div>
+                  <span style="font:400 11px 'IBM Plex Mono',monospace;color:#5f6b7a;border:1px solid #b9bec6;padding:3px 7px">activo</span>
+                </div>
+                <div style="border:1px solid #2c3038">
+                  <div style="padding:9px 12px;border-bottom:1px solid #dce2e9;font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:#2c3038">CALENDARIO DE LA POSICIÓN</div>
+                  <div style="display:grid;grid-template-columns:repeat(7,1fr)">
+                    <div style="border-right:1px solid #dce2e9;padding:8px 4px;text-align:center;font:600 10px 'IBM Plex Mono',monospace;color:#6d7480">LUN</div><div style="border-right:1px solid #dce2e9;padding:8px 4px;text-align:center;font:600 10px 'IBM Plex Mono',monospace;color:#6d7480">MAR</div><div style="border-right:1px solid #dce2e9;padding:8px 4px;text-align:center;font:600 10px 'IBM Plex Mono',monospace;color:#6d7480">MIÉ</div><div style="border-right:1px solid #dce2e9;padding:8px 4px;text-align:center;font:600 10px 'IBM Plex Mono',monospace;color:#6d7480">JUE</div><div style="border-right:1px solid #dce2e9;padding:8px 4px;text-align:center;font:600 10px 'IBM Plex Mono',monospace;color:#6d7480">VIE</div><div style="border-right:1px solid #dce2e9;padding:8px 4px;text-align:center;font:600 10px 'IBM Plex Mono',monospace;color:#6d7480">SÁB</div><div style="padding:8px 4px;text-align:center;font:600 10px 'IBM Plex Mono',monospace;color:#6d7480">DOM</div>
+                  </div>
+                  <div style="display:grid;grid-template-columns:repeat(7,1fr);border-top:1px solid #dce2e9">
+                    <div style="border-right:1px solid #dce2e9;padding:16px 4px;text-align:center;font:600 11px 'IBM Plex Mono',monospace">T</div><div style="border-right:1px solid #dce2e9;padding:16px 4px;text-align:center;font:600 11px 'IBM Plex Mono',monospace">T</div><div style="border-right:1px solid #dce2e9;padding:16px 4px;text-align:center;font:600 11px 'IBM Plex Mono',monospace">T</div><div style="border-right:1px solid #dce2e9;padding:16px 4px;text-align:center;font:600 11px 'IBM Plex Mono',monospace;background:#e7eaee">D</div><div style="border-right:1px solid #dce2e9;padding:16px 4px;text-align:center;font:600 11px 'IBM Plex Mono',monospace">T</div><div style="border-right:1px solid #dce2e9;padding:16px 4px;text-align:center;font:600 11px 'IBM Plex Mono',monospace">T</div><div style="padding:16px 4px;text-align:center;font:600 11px 'IBM Plex Mono',monospace;background:#e7eaee">D</div>
+                  </div>
+                </div>
+                <div style="font:400 11.5px/1.5 'IBM Plex Mono',monospace;color:#5f6b7a">T = turno 07–19 · D = descanso declarado</div>
+              </div>
+            </div>
+            <div style="width:96px;flex:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px">
+              <div style="width:1px;flex:1;background:#b9bec6"></div>
+              <div style="border:1px solid #2c3038;background:#fff;padding:8px 6px;text-align:center;font:600 10.5px/1.35 'IBM Plex Mono',monospace;color:#2c3038">BAJA<br>03 SEP</div>
+              <div style="font:400 16px 'IBM Plex Mono',monospace;color:#2c3038">→</div>
+              <div style="width:1px;flex:1;background:#b9bec6"></div>
+            </div>
+            <div style="flex:1;background:#fff;border:1px solid #2c3038;display:flex;flex-direction:column">
+              <div style="padding:12px 14px;border-bottom:1px solid #dce2e9;background:#f7f9fb;display:flex;justify-content:space-between;align-items:center">
+                <span style="font:600 11px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:#2c3038">DESPUÉS · 04 SEP 2026</span>
+                <span style="font:400 11px 'IBM Plex Mono',monospace;color:#4a5160">patrón semanal · cupo 2 · sin cambios</span>
+              </div>
+              <div style="padding:14px;display:flex;flex-direction:column;gap:12px">
+                <div style="border:1px dashed #2c3038;padding:12px 13px;display:flex;justify-content:space-between;align-items:center">
+                  <div><div style="font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:#8b919b;padding-bottom:4px">OCUPANTE</div><div style="font:600 13.5px Archivo,sans-serif">Vacante</div><div style="font:400 11px 'IBM Plex Mono',monospace;color:#5f6b7a;padding-top:3px">baja de Miguel Ramos Delgado · 03 sep 2026</div></div>
+                  <span style="border:1px solid #2c3038;background:#2c3038;color:#fff;padding:7px 11px;font:600 11.5px Archivo,sans-serif">Asignar</span>
+                </div>
+                <div style="border:1px solid #2c3038">
+                  <div style="padding:9px 12px;border-bottom:1px solid #dce2e9;font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:#2c3038">CALENDARIO DE LA POSICIÓN · IDÉNTICO</div>
+                  <div style="display:grid;grid-template-columns:repeat(7,1fr)">
+                    <div style="border-right:1px solid #dce2e9;padding:8px 4px;text-align:center;font:600 10px 'IBM Plex Mono',monospace;color:#6d7480">LUN</div><div style="border-right:1px solid #dce2e9;padding:8px 4px;text-align:center;font:600 10px 'IBM Plex Mono',monospace;color:#6d7480">MAR</div><div style="border-right:1px solid #dce2e9;padding:8px 4px;text-align:center;font:600 10px 'IBM Plex Mono',monospace;color:#6d7480">MIÉ</div><div style="border-right:1px solid #dce2e9;padding:8px 4px;text-align:center;font:600 10px 'IBM Plex Mono',monospace;color:#6d7480">JUE</div><div style="border-right:1px solid #dce2e9;padding:8px 4px;text-align:center;font:600 10px 'IBM Plex Mono',monospace;color:#6d7480">VIE</div><div style="border-right:1px solid #dce2e9;padding:8px 4px;text-align:center;font:600 10px 'IBM Plex Mono',monospace;color:#6d7480">SÁB</div><div style="padding:8px 4px;text-align:center;font:600 10px 'IBM Plex Mono',monospace;color:#6d7480">DOM</div>
+                  </div>
+                  <div style="display:grid;grid-template-columns:repeat(7,1fr);border-top:1px solid #dce2e9">
+                    <div style="border-right:1px solid #dce2e9;padding:16px 4px;text-align:center;font:600 11px 'IBM Plex Mono',monospace">T</div><div style="border-right:1px solid #dce2e9;padding:16px 4px;text-align:center;font:600 11px 'IBM Plex Mono',monospace">T</div><div style="border-right:1px solid #dce2e9;padding:16px 4px;text-align:center;font:600 11px 'IBM Plex Mono',monospace">T</div><div style="border-right:1px solid #dce2e9;padding:16px 4px;text-align:center;font:600 11px 'IBM Plex Mono',monospace;background:#e7eaee">D</div><div style="border-right:1px solid #dce2e9;padding:16px 4px;text-align:center;font:600 11px 'IBM Plex Mono',monospace">T</div><div style="border-right:1px solid #dce2e9;padding:16px 4px;text-align:center;font:600 11px 'IBM Plex Mono',monospace">T</div><div style="padding:16px 4px;text-align:center;font:600 11px 'IBM Plex Mono',monospace;background:#e7eaee">D</div>
+                  </div>
+                </div>
+                <div style="font:500 12px/1.5 'IBM Plex Mono',monospace;color:#2c3038">El descanso del jueves y del domingo sigue ahí. No se fue con Miguel: nunca fue suyo.</div>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;gap:18px;align-items:stretch">
+            <div style="flex:1;border:1px solid #2c3038;background:#fff;padding:16px;display:flex;flex-direction:column;gap:12px">
+              <div style="font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.1em;color:#6d7480">DE QUIÉN ES CADA COSA</div>
+              <div style="display:flex;gap:14px;align-items:stretch">
+                <div style="flex:1;border:1px solid #2c3038;padding:13px">
+                  <div style="font:600 13px Archivo,sans-serif;padding-bottom:8px">La posición es dueña de</div>
+                  <div style="font:400 12px/1.75 'IBM Plex Mono',monospace;color:#2c3038">· ancla del patrón (semanal o cíclica)<br>· turno y descanso de cada día<br>· cupo de elementos requeridos<br>· perfil requerido</div>
+                </div>
+                <div style="width:34px;flex:none;display:flex;align-items:center;justify-content:center;font:400 15px 'IBM Plex Mono',monospace;color:#8b919b">≠</div>
+                <div style="flex:1;border:1px dashed #8b919b;padding:13px">
+                  <div style="font:600 13px Archivo,sans-serif;padding-bottom:8px">La persona solo aporta</div>
+                  <div style="font:400 12px/1.75 'IBM Plex Mono',monospace;color:#4a5160">· su ocupación de la posición, con fecha<br>· su tipo de asignación: titular o cubre-descansos<br>· nada del calendario</div>
+                </div>
+              </div>
+              <div style="font:400 11.5px/1.55 'IBM Plex Mono',monospace;color:#5f6b7a">Quien llega no configura nada: hereda el calendario que ya existía. Por eso la baja de una persona no obliga a rearmar el patrón, y por eso la vacante se puede ver sin abrir la ficha.</div>
+            </div>
+            <div style="width:430px;flex:none;background:#fff;border:1px solid #b9bec6;display:flex;flex-direction:column">
+              <div style="padding:11px 13px;border-bottom:1px solid #dce2e9;background:#f7f9fb;font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:#6d7480">EFECTO EN EL RESTO DEL RECORRIDO</div>
+              <div style="padding:13px;display:flex;flex-direction:column;gap:11px;font:400 12px/1.5 'IBM Plex Mono',monospace;color:#4a5160">
+                <div style="display:flex;gap:10px"><span style="border:1px solid #b9bec6;padding:2px 6px;font-weight:600;flex:none;height:fit-content">Paso 8</span><span>P-01 aparece con 1 de 2 asignados y la vacante marcada. La vacancia se calcula: requeridos menos asignaciones vigentes a la fecha.</span></div>
+                <div style="display:flex;gap:10px"><span style="border:1px solid #b9bec6;padding:2px 6px;font-weight:600;flex:none;height:fit-content">Paso 9</span><span>La planeación proyecta los turnos de la posición igual que antes, y el hueco entra como conflicto a resolver, no como turno inexistente.</span></div>
+                <div style="display:flex;gap:10px"><span style="border:1px solid #b9bec6;padding:2px 6px;font-weight:600;flex:none;height:fit-content">Paso 11</span><span>Si la baja ocurre con la semana ya publicada, el rol publicado no se edita: el cambio entra como incidencia y su cobertura.</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;font:400 12.5px 'IBM Plex Mono',monospace;color:#2c3038">
+      <span style="border:1px solid #2c3038;padding:4px 9px;font-weight:600">T5</span><span style="width:26px;height:1px;background:#2c3038"></span><span>Definir posiciones → dar de alta empleados, o asignar si ya los hay. La salida se decide por el estado real de Personal, no por adivinanza del usuario.</span>
+    </div>
+  </section>
+
+  <section data-screen-label="Paso 07" id="p7" style="display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;align-items:baseline;gap:14px">
+      <span style="font:600 12px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;color:#8b919b">PASO 07</span>
+      <span style="font:600 22px/1.1 Archivo,sans-serif">Alta de empleados con expediente mínimo</span>
+      <span style="font:400 11.5px 'IBM Plex Mono',monospace;color:#5f6b7a;border:1px solid #cfd4da;padding:4px 8px">Admin org. · Personal</span>
+    </div>
+    <div style="display:flex;gap:22px;align-items:flex-start">
+      <div style="width:1240px;flex:none;border:1px solid #b9bec6;background:#fff">
+        <div style="height:48px;border-bottom:1px solid #b9bec6;background:#f2f3f5;display:flex;align-items:center;gap:14px;padding:0 14px;font:400 11.5px 'IBM Plex Mono',monospace;color:#4a5160">
+          <span style="border:1px solid #b9bec6;background:#fff;padding:5px 9px">Organización activa: Seguridad Vanguardia S.A.</span>
+          <span>Fecha operativa: 04 sep 2026</span>
+        </div>
+        <div style="display:flex;min-height:600px">
+          <dc-import name="Nav" active="Personal" hint-size="214px,600px"></dc-import>
+          <div style="flex:1;padding:20px;background:#eef0f2;display:flex;flex-direction:column;gap:16px">
+            <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px">
+              <div>
+                <div style="font:600 10.5px/1 'IBM Plex Mono',monospace;letter-spacing:.12em;color:#8b919b;padding-bottom:6px">PERSONAL</div>
+                <div style="font:600 20px/1.15 Archivo,sans-serif">Personal</div>
+                <div style="font:400 12.5px/1.4 Archivo,sans-serif;color:#6d7480;padding-top:4px">Vienes de P-01 · Acceso principal, que necesita 2 elementos con perfil «Guardia de acceso».</div>
+              </div>
+              <div style="border:1px solid #2c3038;background:#2c3038;color:#fff;padding:9px 14px;font:600 12.5px Archivo,sans-serif">Nuevo empleado</div>
+            </div>
+            <div style="display:flex;gap:16px;align-items:flex-start">
+              <div style="flex:1;background:#fff;border:1px solid #b9bec6;display:flex;flex-direction:column">
+                <div style="display:flex;gap:10px;padding:12px;border-bottom:1px solid #dce2e9;align-items:center">
+                  <div style="flex:1;border:1px solid #b9bec6;height:34px;display:flex;align-items:center;padding:0 10px;font:400 12px 'IBM Plex Mono',monospace;color:#a9afb8">Buscar por nombre o puesto</div>
+                  <div style="border:1px solid #b9bec6;height:34px;display:flex;align-items:center;padding:0 12px;font:400 12px 'IBM Plex Mono',monospace;color:#5f6b7a">Filtros</div>
+                  <div style="font:400 11.5px 'IBM Plex Mono',monospace;color:#8b919b">3 resultados</div>
+                </div>
+                <div style="display:flex;padding:9px 12px;background:#f7f9fb;border-bottom:1px solid #dce2e9;font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:#6d7480">
+                  <span style="flex:2">EMPLEADO</span><span style="flex:1">PUESTO</span><span style="flex:1">ZONA</span><span style="flex:1">INGRESO</span>
+                </div>
+                <div style="display:flex;align-items:center;padding:13px 12px;border-bottom:1px solid #dce2e9;background:#dfe3e8"><span style="flex:2;font:600 12.5px Archivo,sans-serif">Laura Sánchez Pineda</span><span style="flex:1;font:400 11.5px 'IBM Plex Mono',monospace;color:#4a5160">Guardia de acceso</span><span style="flex:1;font:400 11.5px 'IBM Plex Mono',monospace;color:#4a5160">Poniente</span><span style="flex:1;font:400 11.5px 'IBM Plex Mono',monospace;color:#4a5160">01 sep 2026</span></div>
+                <div style="display:flex;align-items:center;padding:13px 12px;border-bottom:1px solid #dce2e9"><span style="flex:2;height:9px;background:#d8dbe0;margin-right:18px"></span><span style="flex:1;height:8px;background:#e3e6ea;margin-right:18px"></span><span style="flex:1;height:8px;background:#e3e6ea;margin-right:18px"></span><span style="flex:1;height:8px;background:#e3e6ea"></span></div>
+                <div style="display:flex;align-items:center;padding:13px 12px"><span style="flex:2;height:9px;background:#d8dbe0;margin-right:18px"></span><span style="flex:1;height:8px;background:#e3e6ea;margin-right:18px"></span><span style="flex:1;height:8px;background:#e3e6ea;margin-right:18px"></span><span style="flex:1;height:8px;background:#e3e6ea"></span></div>
+                <div style="padding:14px 12px;font:400 11.5px/1.5 'IBM Plex Mono',monospace;color:#8b919b;border-top:1px solid #dce2e9">Se quitan los filtros con una sola opción real. Queda buscador más panel plegable.</div>
+              </div>
+              <div style="width:430px;flex:none;background:#fff;border:1px solid #b9bec6;display:flex;flex-direction:column">
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:13px;border-bottom:1px solid #dce2e9">
+                  <span style="font:600 13.5px Archivo,sans-serif">Nuevo empleado</span><span style="font:400 13px 'IBM Plex Mono',monospace;color:#6d7480">✕</span>
+                </div>
+                <div style="padding:14px;display:flex;flex-direction:column;gap:13px">
+                  <div style="font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.1em;color:#8b919b">EXPEDIENTE MÍNIMO</div>
+                  <div style="display:flex;flex-direction:column;gap:5px"><span style="font:400 11.5px 'IBM Plex Mono',monospace;color:#5f6b7a">Nombre completo · CURP</span><span style="border:1px solid #b9bec6;height:32px;background:#fbfcfd"></span></div>
+                  <div style="display:flex;gap:10px">
+                    <div style="flex:1;display:flex;flex-direction:column;gap:5px"><span style="font:400 11.5px 'IBM Plex Mono',monospace;color:#5f6b7a">Teléfono</span><span style="border:1px solid #b9bec6;height:32px;background:#fbfcfd"></span></div>
+                    <div style="flex:1;display:flex;flex-direction:column;gap:5px"><span style="font:400 11.5px 'IBM Plex Mono',monospace;color:#5f6b7a">Fecha de ingreso</span><span style="border:1px solid #b9bec6;height:32px;background:#fbfcfd;display:flex;align-items:center;padding:0 9px;font:400 12px 'IBM Plex Mono',monospace;color:#5f6b7a">04 sep 2026</span></div>
+                  </div>
+                  <div style="display:flex;gap:10px">
+                    <div style="flex:1;display:flex;flex-direction:column;gap:5px"><span style="font:400 11.5px 'IBM Plex Mono',monospace;color:#5f6b7a">Zona</span><span style="border:1px solid #b9bec6;height:32px;background:#fbfcfd"></span></div>
+                    <div style="flex:1;display:flex;flex-direction:column;gap:5px"><span style="font:400 11.5px 'IBM Plex Mono',monospace;color:#5f6b7a">Puesto</span><span style="border:1px solid #b9bec6;height:32px;background:#fbfcfd"></span></div>
+                  </div>
+                  <div style="border:1px dashed #6d7480;padding:13px;display:flex;flex-direction:column;gap:9px">
+                    <div style="font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.1em;color:#6d7480">ESTADO: FALTA ALGO</div>
+                    <div style="font:500 12.5px/1.4 Archivo,sans-serif">El catálogo de puestos está vacío. En lugar de un selector sin opciones, se escribe el puesto aquí y se guarda en Catálogos con el empleado.</div>
+                    <div style="border:1px solid #b9bec6;height:32px;background:#fff;display:flex;align-items:center;padding:0 9px;font:400 12px 'IBM Plex Mono',monospace;color:#a9afb8">Escribir puesto nuevo…</div>
+                    <div style="display:flex;gap:9px"><span style="border:1px solid #2c3038;background:#2c3038;color:#fff;padding:8px 12px;font:600 12px Archivo,sans-serif">Crear puesto y usarlo</span><span style="border:1px solid #b9bec6;padding:8px 12px;font:500 12px Archivo,sans-serif;color:#4a5160">Ir a Catálogos y volver</span></div>
+                    <div style="font:400 11px/1.5 'IBM Plex Mono',monospace;color:#5f6b7a">Ir y volver conserva lo ya escrito en este formulario.</div>
+                  </div>
+                  <div style="display:flex;flex-direction:column;gap:7px;border:1px solid #dce2e9;padding:13px">
+                    <div style="font:600 12.5px Archivo,sans-serif">Documentos indispensables</div>
+                    <div style="font:400 11.5px/1.6 'IBM Plex Mono',monospace;color:#5f6b7a">Se adjuntan aquí. Antidoping, uniformes, psicometría, Infonavit y registro estatal quedan fuera de la fase 1.</div>
+                  </div>
+                </div>
+                <div style="margin-top:auto;border-top:1px solid #dce2e9;padding:13px;display:flex;justify-content:space-between;align-items:center">
+                  <span style="font:400 11.5px 'IBM Plex Mono',monospace;color:#8b919b">3 de 2 requeridos para P-01</span>
+                  <span style="border:1px solid #2c3038;background:#2c3038;color:#fff;padding:9px 14px;font:600 12.5px Archivo,sans-serif">Guardar y asignar</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <aside style="width:320px;flex:none;display:flex;flex-direction:column;gap:14px;font:400 12px/1.55 'IBM Plex Mono',monospace;color:#4a5160">
+        <div><div style="color:#8b919b;padding-bottom:5px">LLEGA Y ENCUENTRA</div>Listado con buscador y, en el encabezado, para qué posición viene: el recorrido no le hace olvidar de dónde salió.</div>
+        <div><div style="color:#8b919b;padding-bottom:5px">QUÉ HACE</div>Captura el expediente mínimo: identidad, contacto, zona, puesto, fecha de ingreso y documentos indispensables.</div>
+        <div><div style="color:#8b919b;padding-bottom:5px">CÓMO SALE</div>«Guardar y asignar» regresa a la pestaña Asignaciones del servicio del que vino.</div>
+        <div style="border:1px dashed #8b919b;padding:12px"><div style="color:#8b919b;padding-bottom:5px">ADVERTENCIA DEL ANEXO</div>Puesto y perfil son texto libre en ambos lados. Escribir «Guardia acceso» y «Guardia de acceso» produce el falso bloqueo del paso 8. El boceto lo hace visible ahí, no lo esconde.</div>
+      </aside>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;font:400 12.5px 'IBM Plex Mono',monospace;color:#4a5160">
+      <span style="border:1px solid #b9bec6;padding:4px 9px">continuidad ya prevista</span><span style="width:26px;height:1px;background:#b9bec6"></span><span>Personal → Asignaciones, de vuelta a la ficha del servicio.</span>
+    </div>
+  </section>
+
+  <section data-screen-label="Paso 08" id="p8" style="display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;align-items:baseline;gap:14px">
+      <span style="font:600 12px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;color:#8b919b">PASO 08</span>
+      <span style="font:600 22px/1.1 Archivo,sans-serif">Asignar titulares y cubre-descansos</span>
+      <span style="font:400 11.5px 'IBM Plex Mono',monospace;color:#5f6b7a;border:1px solid #cfd4da;padding:4px 8px">Admin org. · Servicios › Asignaciones</span>
+    </div>
+    <div style="display:flex;gap:22px;align-items:flex-start">
+      <div style="width:1240px;flex:none;border:1px solid #b9bec6;background:#fff">
+        <div style="height:48px;border-bottom:1px solid #b9bec6;background:#f2f3f5;display:flex;align-items:center;gap:14px;padding:0 14px;font:400 11.5px 'IBM Plex Mono',monospace;color:#4a5160">
+          <span style="border:1px solid #b9bec6;background:#fff;padding:5px 9px">Organización activa: Seguridad Vanguardia S.A.</span>
+          <span>Fecha operativa: 04 sep 2026</span>
+        </div>
+        <div style="display:flex;min-height:640px">
+          <dc-import name="Nav" active="Servicios" hint-size="214px,640px"></dc-import>
+          <div style="flex:1;padding:20px;background:#eef0f2;display:flex;flex-direction:column;gap:14px">
+            <div>
+              <div style="font:600 10.5px/1 'IBM Plex Mono',monospace;letter-spacing:.12em;color:#8b919b;padding-bottom:6px">SERVICIOS › VIGILANCIA TORRE ALTAVISTA</div>
+              <div style="font:600 20px/1.15 Archivo,sans-serif">Asignaciones del servicio</div>
+            </div>
+            <div style="background:#fff;border:1px solid #b9bec6;display:flex;flex-direction:column">
+              <div style="display:flex;gap:16px;padding:0 14px;border-bottom:1px solid #dce2e9;font:500 12.5px Archivo,sans-serif;color:#6d7480">
+                <span style="padding:12px 0">Datos</span><span style="padding:12px 0">Configuración</span><span style="padding:12px 0">Posiciones</span><span style="padding:12px 0;border-bottom:2px solid #2c3038;color:#2c3038;font-weight:600">Asignaciones</span>
+                <span style="margin-left:auto;align-self:center;font:400 11.5px 'IBM Plex Mono',monospace;color:#8b919b">4 requeridos · 3 asignados · 1 vacante</span>
+              </div>
+              <div style="display:flex;padding:10px 14px;background:#f7f9fb;border-bottom:1px solid #dce2e9;font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:#6d7480">
+                <span style="flex:1.4">POSICIÓN</span><span style="width:120px">REQ. / ASIG.</span><span style="flex:1.6">TITULAR</span><span style="flex:1.4">CUBRE-DESCANSOS</span><span style="width:120px">ESTADO</span>
+              </div>
+              <div style="display:flex;align-items:center;padding:14px;border-bottom:1px solid #dce2e9">
+                <div style="flex:1.4"><div style="font:600 13px Archivo,sans-serif">P-01 · Acceso principal</div><div style="font:400 11px 'IBM Plex Mono',monospace;color:#5f6b7a;padding-top:3px">semanal · descanso jue y dom</div></div>
+                <span style="width:120px;font:600 12.5px 'IBM Plex Mono',monospace">2 / 1</span>
+                <div style="flex:1.6;font:400 12px 'IBM Plex Mono',monospace;color:#4a5160">Laura Sánchez Pineda</div>
+                <div style="flex:1.4;font:400 12px 'IBM Plex Mono',monospace;color:#4a5160">— sin asignar</div>
+                <span style="width:120px"><span style="border:1px dashed #2c3038;padding:3px 8px;font:600 11px 'IBM Plex Mono',monospace;color:#2c3038">VACANTE 1</span></span>
+              </div>
+              <div style="display:flex;align-items:center;padding:14px;border-bottom:1px solid #dce2e9">
+                <div style="flex:1.4"><div style="font:600 13px Archivo,sans-serif">P-02 · Rondín nocturno</div><div style="font:400 11px 'IBM Plex Mono',monospace;color:#5f6b7a;padding-top:3px">cíclico 24x48</div></div>
+                <span style="width:120px;font:600 12.5px 'IBM Plex Mono',monospace">1 / 1</span>
+                <div style="flex:1.6;font:400 12px 'IBM Plex Mono',monospace;color:#4a5160">Jorge Iván Peña</div>
+                <div style="flex:1.4;font:400 12px 'IBM Plex Mono',monospace;color:#4a5160">Rubén Ortiz</div>
+                <span style="width:120px;font:400 11px 'IBM Plex Mono',monospace;color:#5f6b7a">completa</span>
+              </div>
+              <div style="display:flex;align-items:center;padding:14px">
+                <div style="flex:1.4"><div style="font:600 13px Archivo,sans-serif">P-03 · Monitoreo CCTV</div><div style="font:400 11px 'IBM Plex Mono',monospace;color:#5f6b7a;padding-top:3px">patrón incompleto</div></div>
+                <span style="width:120px;font:600 12.5px 'IBM Plex Mono',monospace">1 / 1</span>
+                <div style="flex:1.6;font:400 12px 'IBM Plex Mono',monospace;color:#4a5160">Ana Ruiz</div>
+                <div style="flex:1.4;font:400 12px 'IBM Plex Mono',monospace;color:#4a5160">— sin asignar</div>
+                <span style="width:120px"><span style="border:1px dashed #8b919b;padding:3px 8px;font:600 11px 'IBM Plex Mono',monospace;color:#4a5160">REVISAR</span></span>
+              </div>
+            </div>
+            <div style="display:flex;gap:16px;align-items:stretch">
+              <div style="flex:1;background:#fff;border:1px solid #b9bec6;padding:14px;display:flex;flex-direction:column;gap:11px">
+                <div style="font:600 13.5px Archivo,sans-serif">Asignar a P-01 · Acceso principal</div>
+                <div style="display:flex;gap:10px">
+                  <div style="flex:1;display:flex;flex-direction:column;gap:5px"><span style="font:400 11.5px 'IBM Plex Mono',monospace;color:#5f6b7a">Empleado</span><span style="border:1px solid #b9bec6;height:32px;background:#fbfcfd;display:flex;align-items:center;padding:0 9px;font:400 12px 'IBM Plex Mono',monospace;color:#4a5160">Laura Sánchez Pineda ▾</span></div>
+                  <div style="width:170px;display:flex;flex-direction:column;gap:5px"><span style="font:400 11.5px 'IBM Plex Mono',monospace;color:#5f6b7a">Tipo</span><span style="border:1px solid #b9bec6;height:32px;background:#fbfcfd;display:flex;align-items:center;padding:0 9px;font:400 12px 'IBM Plex Mono',monospace;color:#4a5160">Titular ▾</span></div>
+                  <div style="width:150px;display:flex;flex-direction:column;gap:5px"><span style="font:400 11.5px 'IBM Plex Mono',monospace;color:#5f6b7a">Vigente desde</span><span style="border:1px solid #b9bec6;height:32px;background:#fbfcfd;display:flex;align-items:center;padding:0 9px;font:400 12px 'IBM Plex Mono',monospace;color:#4a5160">04 sep 2026</span></div>
+                </div>
+                <div style="border:1px dashed #6d7480;padding:12px;display:flex;flex-direction:column;gap:7px">
+                  <div style="font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.1em;color:#6d7480">TRASLAPE DETECTADO · {{ traslapeModo }}</div>
+                  <div style="font:500 12.5px/1.45 Archivo,sans-serif">Rubén Ortiz ya tiene turno en P-02 el jueves 07–19. {{ traslapeTexto }}</div>
+                  <div style="display:flex;gap:9px"><span style="border:1px solid #b9bec6;padding:7px 11px;font:500 12px Archivo,sans-serif;color:#4a5160">Ver el turno en conflicto</span><span style="border:1px solid #b9bec6;padding:7px 11px;font:500 12px Archivo,sans-serif;color:#4a5160">Elegir otro empleado</span></div>
+                  <div style="font:400 11px/1.5 'IBM Plex Mono',monospace;color:#5f6b7a">Decisión pendiente del alcance: bloquear como hoy o advertir. El interruptor de la entrega muestra las dos.</div>
+                </div>
+                <div style="border:1px dashed #8b919b;padding:12px;display:flex;flex-direction:column;gap:7px">
+                  <div style="font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.1em;color:#6d7480">ELEGIBILIDAD POR TEXTO LIBRE</div>
+                  <div style="font:500 12.5px/1.45 Archivo,sans-serif">El puesto de este empleado dice «Guardia acceso» y el perfil de la posición «Guardia de acceso». No coinciden como texto.</div>
+                  <div style="display:flex;gap:9px"><span style="border:1px solid #2c3038;background:#2c3038;color:#fff;padding:7px 11px;font:600 12px Archivo,sans-serif">Asignar de todos modos</span><span style="border:1px solid #b9bec6;padding:7px 11px;font:500 12px Archivo,sans-serif;color:#4a5160">Corregir el puesto en Personal</span></div>
+                </div>
+              </div>
+              <div style="width:380px;flex:none;border:1px dashed #6d7480;background:#fff;padding:14px;display:flex;flex-direction:column;gap:10px">
+                <div style="font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.1em;color:#6d7480">ESTADO: FALTA ALGO · SIN EMPLEADOS DISPONIBLES</div>
+                <div style="font:500 13px/1.45 Archivo,sans-serif">Ningún empleado disponible para P-01. El selector no aparece vacío: dice por qué.</div>
+                <div style="font:400 11.5px/1.7 'IBM Plex Mono',monospace;color:#4a5160">· 0 empleados dados de alta, o<br>· 3 dados de alta y ninguno con puesto que coincida con el perfil, o<br>· 3 elegibles y todos con turno traslapado ese día</div>
+                <div style="display:flex;flex-direction:column;gap:8px;padding-top:2px">
+                  <span style="border:1px solid #2c3038;background:#2c3038;color:#fff;padding:8px 12px;font:600 12px Archivo,sans-serif;text-align:center">Dar de alta empleado para esta posición</span>
+                  <span style="border:1px solid #b9bec6;padding:8px 12px;font:500 12px Archivo,sans-serif;color:#4a5160;text-align:center">Revisar el perfil requerido de P-01</span>
+                </div>
+                <div style="margin-top:auto;display:flex;justify-content:flex-end;padding-top:10px;border-top:1px solid #dce2e9"><span style="border:1px solid #2c3038;background:#2c3038;color:#fff;padding:9px 14px;font:600 12.5px Archivo,sans-serif">Generar planeación de la semana</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <aside style="width:320px;flex:none;display:flex;flex-direction:column;gap:14px;font:400 12px/1.55 'IBM Plex Mono',monospace;color:#4a5160">
+        <div><div style="color:#8b919b;padding-bottom:5px">LLEGA Y ENCUENTRA</div>Cuarta pestaña de la misma ficha. Las posiciones con requeridos, asignados y la vacante marcada: el hueco se ve sin abrir nada.</div>
+        <div><div style="color:#8b919b;padding-bottom:5px">QUÉ HACE</div>Asigna titular y cubre-descansos con su tipo y su vigencia. Los dos avisos del anexo —traslape y elegibilidad por texto libre— aparecen en el momento de asignar.</div>
+        <div><div style="color:#8b919b;padding-bottom:5px">CÓMO SALE</div>«Generar planeación de la semana» lleva al paso 9 con este servicio ya en contexto.</div>
+        <div style="border:1px dashed #8b919b;padding:12px"><div style="color:#8b919b;padding-bottom:5px">POR QUÉ AQUÍ Y NO EN PANTALLA PROPIA</div>Asignar exige ver el cupo y el patrón de la posición. En la misma ficha están a una pestaña de distancia; separado, habría que volver a buscar servicio, cliente y posición.</div>
+      </aside>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;font:400 12.5px 'IBM Plex Mono',monospace;color:#2c3038">
+      <span style="border:1px solid #2c3038;padding:4px 9px;font-weight:600">T6</span><span style="width:26px;height:1px;background:#2c3038"></span><span>Asignar → generar planeación.</span>
+    </div>
+  </section>
+
+  <section data-screen-label="Paso 09" id="p9" style="display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;align-items:baseline;gap:14px">
+      <span style="font:600 12px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;color:#8b919b">PASO 09</span>
+      <span style="font:600 22px/1.1 Archivo,sans-serif">Generar y publicar la planeación</span>
+      <span style="font:400 11.5px 'IBM Plex Mono',monospace;color:#5f6b7a;border:1px solid #cfd4da;padding:4px 8px">Admin org. · Planeación</span>
+    </div>
+    <div style="display:flex;gap:22px;align-items:flex-start">
+      <div style="width:1240px;flex:none;border:1px solid #b9bec6;background:#fff">
+        <div style="height:48px;border-bottom:1px solid #b9bec6;background:#f2f3f5;display:flex;align-items:center;gap:14px;padding:0 14px;font:400 11.5px 'IBM Plex Mono',monospace;color:#4a5160">
+          <span style="border:1px solid #b9bec6;background:#fff;padding:5px 9px">Organización activa: Seguridad Vanguardia S.A.</span>
+          <span>Fecha operativa: 04 sep 2026</span>
+        </div>
+        <div style="display:flex;min-height:660px">
+          <dc-import name="Nav" active="Planeación" hint-size="214px,660px"></dc-import>
+          <div style="flex:1;padding:20px;background:#eef0f2;display:flex;flex-direction:column;gap:14px">
+            <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px">
+              <div>
+                <div style="font:600 10.5px/1 'IBM Plex Mono',monospace;letter-spacing:.12em;color:#8b919b;padding-bottom:6px">PLANEACIÓN</div>
+                <div style="font:600 20px/1.15 Archivo,sans-serif">Semana 07 – 13 sep 2026 · Vigilancia Torre Altavista</div>
+                <div style="font:400 12.5px/1.4 Archivo,sans-serif;color:#6d7480;padding-top:4px">Versión 1 · borrador generado del patrón de cada posición</div>
+              </div>
+              <div style="border:1px solid #2c3038;background:#2c3038;color:#fff;padding:9px 14px;font:600 12.5px Archivo,sans-serif">Resolver 2 conflictos</div>
+            </div>
+            <div style="border:1px solid #2c3038;background:#fff;display:flex;flex-direction:column">
+              <div style="padding:12px 14px;border-bottom:1px solid #dce2e9;display:flex;justify-content:space-between;align-items:center">
+                <span style="font:600 13.5px Archivo,sans-serif">Conflictos que impiden publicar</span>
+                <span style="font:400 11.5px 'IBM Plex Mono',monospace;color:#5f6b7a">2 de 2 sin resolver</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:14px;padding:14px;border-bottom:1px solid #dce2e9">
+                <span style="border:1px solid #2c3038;padding:3px 8px;font:600 11px 'IBM Plex Mono',monospace;flex:none">HUECO</span>
+                <div style="flex:1"><div style="font:500 13px Archivo,sans-serif">P-01 · Acceso principal: 1 de 2 elementos sin asignar, jueves 10 sep, turno 07–19</div><div style="font:400 11px 'IBM Plex Mono',monospace;color:#5f6b7a;padding-top:3px">se resuelve asignando en la ficha del servicio</div></div>
+                <span style="border:1px solid #2c3038;background:#2c3038;color:#fff;padding:8px 12px;font:600 12px Archivo,sans-serif;flex:none">Ir a asignar P-01</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:14px;padding:14px">
+                <span style="border:1px dashed #6d7480;padding:3px 8px;font:600 11px 'IBM Plex Mono',monospace;flex:none">PATRÓN</span>
+                <div style="flex:1"><div style="font:500 13px Archivo,sans-serif">P-03 · Monitoreo CCTV: sábado y domingo sin declarar, la proyección no sabe si son turno o descanso</div><div style="font:400 11px 'IBM Plex Mono',monospace;color:#5f6b7a;padding-top:3px">se resuelve en Posiciones, en el patrón de P-03</div></div>
+                <span style="border:1px solid #2c3038;background:#2c3038;color:#fff;padding:8px 12px;font:600 12px Archivo,sans-serif;flex:none">Ir al patrón de P-03</span>
+              </div>
+            </div>
+            <div style="background:#fff;border:1px solid #b9bec6;display:flex;flex-direction:column">
+              <div style="padding:11px 14px;border-bottom:1px solid #dce2e9;background:#f7f9fb;font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:#6d7480">PROYECCIÓN DE LA SEMANA</div>
+              <div style="display:grid;grid-template-columns:190px repeat(7,1fr);border-bottom:1px solid #dce2e9;font:600 10.5px 'IBM Plex Mono',monospace;color:#6d7480">
+                <div style="padding:9px 12px;border-right:1px solid #dce2e9">POSICIÓN</div>
+                <div style="padding:9px 4px;text-align:center;border-right:1px solid #dce2e9">LUN 07</div><div style="padding:9px 4px;text-align:center;border-right:1px solid #dce2e9">MAR 08</div><div style="padding:9px 4px;text-align:center;border-right:1px solid #dce2e9">MIÉ 09</div><div style="padding:9px 4px;text-align:center;border-right:1px solid #dce2e9">JUE 10</div><div style="padding:9px 4px;text-align:center;border-right:1px solid #dce2e9">VIE 11</div><div style="padding:9px 4px;text-align:center;border-right:1px solid #dce2e9">SÁB 12</div><div style="padding:9px 4px;text-align:center">DOM 13</div>
+              </div>
+              <div style="display:grid;grid-template-columns:190px repeat(7,1fr);border-bottom:1px solid #dce2e9;align-items:stretch">
+                <div style="padding:12px;border-right:1px solid #dce2e9;font:600 12px Archivo,sans-serif">P-01 Acceso principal</div>
+                <div style="padding:12px 4px;text-align:center;border-right:1px solid #dce2e9;font:400 11px 'IBM Plex Mono',monospace">Laura</div><div style="padding:12px 4px;text-align:center;border-right:1px solid #dce2e9;font:400 11px 'IBM Plex Mono',monospace">Laura</div><div style="padding:12px 4px;text-align:center;border-right:1px solid #dce2e9;font:400 11px 'IBM Plex Mono',monospace">Laura</div><div style="padding:12px 4px;text-align:center;border-right:1px solid #dce2e9;border:1px dashed #2c3038;font:600 11px 'IBM Plex Mono',monospace">hueco</div><div style="padding:12px 4px;text-align:center;border-right:1px solid #dce2e9;font:400 11px 'IBM Plex Mono',monospace">Laura</div><div style="padding:12px 4px;text-align:center;border-right:1px solid #dce2e9;font:400 11px 'IBM Plex Mono',monospace">Laura</div><div style="padding:12px 4px;text-align:center;background:#e7eaee;font:600 11px 'IBM Plex Mono',monospace">D</div>
+              </div>
+              <div style="display:grid;grid-template-columns:190px repeat(7,1fr);border-bottom:1px solid #dce2e9">
+                <div style="padding:12px;border-right:1px solid #dce2e9;font:600 12px Archivo,sans-serif">P-02 Rondín nocturno</div>
+                <div style="padding:12px 4px;text-align:center;border-right:1px solid #dce2e9;font:400 11px 'IBM Plex Mono',monospace">Jorge</div><div style="padding:12px 4px;text-align:center;border-right:1px solid #dce2e9;background:#e7eaee;font:600 11px 'IBM Plex Mono',monospace">D</div><div style="padding:12px 4px;text-align:center;border-right:1px solid #dce2e9;background:#e7eaee;font:600 11px 'IBM Plex Mono',monospace">D</div><div style="padding:12px 4px;text-align:center;border-right:1px solid #dce2e9;font:400 11px 'IBM Plex Mono',monospace">Jorge</div><div style="padding:12px 4px;text-align:center;border-right:1px solid #dce2e9;background:#e7eaee;font:600 11px 'IBM Plex Mono',monospace">D</div><div style="padding:12px 4px;text-align:center;border-right:1px solid #dce2e9;background:#e7eaee;font:600 11px 'IBM Plex Mono',monospace">D</div><div style="padding:12px 4px;text-align:center;font:400 11px 'IBM Plex Mono',monospace">Jorge</div>
+              </div>
+              <div style="display:grid;grid-template-columns:190px repeat(7,1fr)">
+                <div style="padding:12px;border-right:1px solid #dce2e9;font:600 12px Archivo,sans-serif">P-03 Monitoreo CCTV</div>
+                <div style="padding:12px 4px;text-align:center;border-right:1px solid #dce2e9;font:400 11px 'IBM Plex Mono',monospace">Ana</div><div style="padding:12px 4px;text-align:center;border-right:1px solid #dce2e9;font:400 11px 'IBM Plex Mono',monospace">Ana</div><div style="padding:12px 4px;text-align:center;border-right:1px solid #dce2e9;font:400 11px 'IBM Plex Mono',monospace">Ana</div><div style="padding:12px 4px;text-align:center;border-right:1px solid #dce2e9;font:400 11px 'IBM Plex Mono',monospace">Ana</div><div style="padding:12px 4px;text-align:center;border-right:1px solid #dce2e9;font:400 11px 'IBM Plex Mono',monospace">Ana</div><div style="padding:12px 4px;text-align:center;border-right:1px solid #dce2e9;border:1px dashed #8b919b;font:600 11px 'IBM Plex Mono',monospace;color:#4a5160">?</div><div style="padding:12px 4px;text-align:center;border:1px dashed #8b919b;font:600 11px 'IBM Plex Mono',monospace;color:#4a5160">?</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:16px;align-items:stretch">
+              <div style="flex:1;border:1px dashed #6d7480;background:#fff;padding:14px;display:flex;flex-direction:column;gap:9px">
+                <div style="font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.1em;color:#6d7480">ESTADO: FALTA ALGO · NADA QUE PROYECTAR</div>
+                <div style="font:500 12.5px/1.45 Archivo,sans-serif">Cuando no hay con qué generar, la pantalla dice qué falta y en qué módulo, con la acción de cada cosa: «El servicio no tiene posiciones» → Servicios › Posiciones. «Las posiciones no tienen a nadie asignado» → Servicios › Asignaciones.</div>
+              </div>
+              <div style="width:420px;flex:none;border:1px solid #b9bec6;background:#fff;padding:14px;display:flex;flex-direction:column;gap:10px">
+                <div style="font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.1em;color:#6d7480">AL PUBLICAR</div>
+                <div style="font:400 12px/1.55 'IBM Plex Mono',monospace;color:#4a5160">La versión queda publicada e inmutable. Todo cambio posterior entra como incidencia trazable: el rol publicado no se edita.</div>
+                <div style="display:flex;gap:9px;margin-top:auto">
+                  <span style="border:1px solid #b9bec6;padding:9px 13px;font:500 12.5px Archivo,sans-serif;color:#a9afb8">Publicar (2 conflictos)</span>
+                  <span style="border:1px solid #2c3038;background:#2c3038;color:#fff;padding:9px 13px;font:600 12.5px Archivo,sans-serif">Ir a la operación del día</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <aside style="width:320px;flex:none;display:flex;flex-direction:column;gap:14px;font:400 12px/1.55 'IBM Plex Mono',monospace;color:#4a5160">
+        <div><div style="color:#8b919b;padding-bottom:5px">LLEGA Y ENCUENTRA</div>El borrador generado y, con más peso que nada en la pantalla, los conflictos. La acción principal del encabezado es resolverlos, no publicar.</div>
+        <div><div style="color:#8b919b;padding-bottom:5px">QUÉ HACE</div>Genera, entra a cada conflicto por su propio botón —cada uno lleva a donde se resuelve— y publica cuando la lista queda en cero.</div>
+        <div><div style="color:#8b919b;padding-bottom:5px">CÓMO SALE</div>Publicado, aparece la salida a la operación del día.</div>
+        <div style="border:1px dashed #8b919b;padding:12px"><div style="color:#8b919b;padding-bottom:5px">NOTA DE TRAZO</div>La cuadrícula lleva nombre por día solo para que se lea el hueco. No es diseño final de la tabla de proyección.</div>
+      </aside>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;font:400 12.5px 'IBM Plex Mono',monospace;color:#2c3038">
+      <span style="border:1px solid #2c3038;padding:4px 9px;font-weight:600">T7</span><span style="width:26px;height:1px;background:#2c3038"></span><span>Publicar planeación → operación del día, con la fecha operativa de la barra de contexto.</span>
+    </div>
+  </section>
+
+  <section data-screen-label="Paso 10" id="p10" style="display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;align-items:baseline;gap:14px">
+      <span style="font:600 12px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;color:#8b919b">PASO 10</span>
+      <span style="font:600 22px/1.1 Archivo,sans-serif">Registrar la asistencia del día</span>
+      <span style="font:400 11.5px 'IBM Plex Mono',monospace;color:#5f6b7a;border:1px solid #cfd4da;padding:4px 8px">Operación · Asistencia</span>
+    </div>
+    <div style="display:flex;gap:22px;align-items:flex-start">
+      <div style="width:1240px;flex:none;border:1px solid #b9bec6;background:#fff">
+        <div style="height:48px;border-bottom:1px solid #b9bec6;background:#f2f3f5;display:flex;align-items:center;gap:14px;padding:0 14px;font:400 11.5px 'IBM Plex Mono',monospace;color:#4a5160">
+          <span style="border:1px solid #b9bec6;background:#fff;padding:5px 9px">Organización activa: Seguridad Vanguardia S.A.</span>
+          <span>Fecha operativa: 10 sep 2026</span>
+        </div>
+        <div style="display:flex;min-height:620px">
+          <dc-import name="Nav" active="Asistencia" hint-size="214px,620px"></dc-import>
+          <div style="flex:1;padding:20px;background:#eef0f2;display:flex;flex-direction:column;gap:14px">
+            <div>
+              <div style="font:600 10.5px/1 'IBM Plex Mono',monospace;letter-spacing:.12em;color:#8b919b;padding-bottom:6px">ASISTENCIA</div>
+              <div style="font:600 20px/1.15 Archivo,sans-serif">Excepciones del jueves 10 sep 2026</div>
+              <div style="font:400 12.5px/1.4 Archivo,sans-serif;color:#6d7480;padding-top:4px">18 turnos proyectados en la versión publicada. 3 se salieron de lo planeado.</div>
+            </div>
+            <div style="border:1px solid #2c3038;background:#fff;display:flex;flex-direction:column">
+              <div style="padding:12px 14px;border-bottom:1px solid #dce2e9;display:flex;justify-content:space-between;align-items:center">
+                <span style="font:600 13.5px Archivo,sans-serif">Lo que se salió de lo planeado</span><span style="font:400 11.5px 'IBM Plex Mono',monospace;color:#5f6b7a">3 turnos</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:14px;padding:14px;border-bottom:1px solid #dce2e9">
+                <span style="border:1px solid #2c3038;padding:3px 8px;font:600 11px 'IBM Plex Mono',monospace;flex:none">FALTA</span>
+                <div style="flex:1"><div style="font:500 13px Archivo,sans-serif">Laura Sánchez Pineda · P-01 Acceso principal · 07–19 · Corporativo Altavista</div><div style="font:400 11px 'IBM Plex Mono',monospace;color:#5f6b7a;padding-top:3px">no se presentó · sin registro de entrada</div></div>
+                <span style="border:1px solid #2c3038;background:#2c3038;color:#fff;padding:8px 12px;font:600 12px Archivo,sans-serif;flex:none">Registrar incidencia</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:14px;padding:14px;border-bottom:1px solid #dce2e9">
+                <span style="border:1px dashed #6d7480;padding:3px 8px;font:600 11px 'IBM Plex Mono',monospace;flex:none">RETARDO</span>
+                <div style="flex:1"><div style="font:500 13px Archivo,sans-serif">Jorge Iván Peña · P-02 Rondín nocturno · entrada 19:52 sobre 19:00</div></div>
+                <span style="border:1px solid #2c3038;background:#2c3038;color:#fff;padding:8px 12px;font:600 12px Archivo,sans-serif;flex:none">Registrar incidencia</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:14px;padding:14px">
+                <span style="border:1px dashed #6d7480;padding:3px 8px;font:600 11px 'IBM Plex Mono',monospace;flex:none">HUECO</span>
+                <div style="flex:1"><div style="font:500 13px Archivo,sans-serif">P-01 Acceso principal · segundo elemento · turno proyectado sin nadie asignado</div></div>
+                <span style="border:1px solid #b9bec6;padding:8px 12px;font:500 12px Archivo,sans-serif;color:#4a5160;flex:none">Ver en cobertura</span>
+              </div>
+            </div>
+            <div style="background:#fff;border:1px solid #b9bec6;display:flex;flex-direction:column">
+              <div style="padding:13px 14px;display:flex;justify-content:space-between;align-items:center">
+                <div><span style="font:600 13px Archivo,sans-serif">Asistencia normal · 15 turnos</span><span style="font:400 11.5px 'IBM Plex Mono',monospace;color:#8b919b;padding-left:10px">segundo plano, plegado por defecto</span></div>
+                <span style="font:400 12px 'IBM Plex Mono',monospace;color:#4a5160">desplegar ▾</span>
+              </div>
+              <div style="border-top:1px solid #dce2e9;padding:12px 14px;display:flex;flex-direction:column;gap:9px">
+                <div style="display:flex;gap:14px;align-items:center"><span style="width:130px;height:8px;background:#d8dbe0"></span><span style="width:180px;height:8px;background:#e3e6ea"></span><span style="font:400 11px 'IBM Plex Mono',monospace;color:#8b919b">asistió</span></div>
+                <div style="display:flex;gap:14px;align-items:center"><span style="width:150px;height:8px;background:#d8dbe0"></span><span style="width:160px;height:8px;background:#e3e6ea"></span><span style="font:400 11px 'IBM Plex Mono',monospace;color:#8b919b">asistió</span></div>
+                <div style="display:flex;gap:14px;align-items:center"><span style="width:120px;height:8px;background:#d8dbe0"></span><span style="width:200px;height:8px;background:#e3e6ea"></span><span style="font:400 11px 'IBM Plex Mono',monospace;color:#8b919b">asistió</span></div>
+              </div>
+            </div>
+            <div style="border:1px dashed #6d7480;background:#fff;padding:14px;display:flex;gap:16px;align-items:center">
+              <div style="flex:1"><div style="font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.1em;color:#6d7480;padding-bottom:5px">ESTADO: FALTA ALGO · SIN PLANEACIÓN PUBLICADA</div><div style="font:500 12.5px/1.45 Archivo,sans-serif">No hay contra qué comparar el día: la asistencia se registra sobre la versión publicada de la semana. La semana del 10 sep está en borrador con 2 conflictos.</div></div>
+              <span style="border:1px solid #2c3038;background:#2c3038;color:#fff;padding:8px 12px;font:600 12px Archivo,sans-serif;flex:none">Ir a publicar la semana</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <aside style="width:320px;flex:none;display:flex;flex-direction:column;gap:14px;font:400 12px/1.55 'IBM Plex Mono',monospace;color:#4a5160">
+        <div><div style="color:#8b919b;padding-bottom:5px">LLEGA Y ENCUENTRA</div>Primero las excepciones. La asistencia normal existe, cuenta y está a un clic, pero no compite por atención: quince filas iguales no son la operación del día.</div>
+        <div><div style="color:#8b919b;padding-bottom:5px">QUÉ HACE</div>Registra lo que cambia cobertura. Cada excepción trae su acción, no solo su etiqueta.</div>
+        <div><div style="color:#8b919b;padding-bottom:5px">CÓMO SALE</div>Falta o retardo abren el registro de incidencia del paso 11 con el turno ya en contexto.</div>
+      </aside>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;font:400 12.5px 'IBM Plex Mono',monospace;color:#2c3038">
+      <span style="border:1px solid #2c3038;padding:4px 9px;font-weight:600">T8</span><span style="width:26px;height:1px;background:#2c3038"></span><span>Falta o retardo en asistencia → registrar incidencia.</span>
+    </div>
+  </section>
+
+  <section data-screen-label="Paso 11" id="p11" style="display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;align-items:baseline;gap:14px">
+      <span style="font:600 12px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;color:#8b919b">PASO 11</span>
+      <span style="font:600 22px/1.1 Archivo,sans-serif">Registrar incidencia y cubrir el hueco</span>
+      <span style="font:400 11.5px 'IBM Plex Mono',monospace;color:#5f6b7a;border:1px solid #cfd4da;padding:4px 8px">Operación · Incidencias, Cobertura</span>
+    </div>
+    <div style="display:flex;gap:22px;align-items:flex-start">
+      <div style="width:1240px;flex:none;border:1px solid #b9bec6;background:#fff">
+        <div style="height:48px;border-bottom:1px solid #b9bec6;background:#f2f3f5;display:flex;align-items:center;gap:14px;padding:0 14px;font:400 11.5px 'IBM Plex Mono',monospace;color:#4a5160">
+          <span style="border:1px solid #b9bec6;background:#fff;padding:5px 9px">Organización activa: Seguridad Vanguardia S.A.</span>
+          <span>Fecha operativa: 10 sep 2026</span>
+        </div>
+        <div style="display:flex;min-height:680px">
+          <dc-import name="Nav" active="Incidencias" hint-size="214px,680px"></dc-import>
+          <div style="flex:1;padding:20px;background:#eef0f2;display:flex;flex-direction:column;gap:14px">
+            <div>
+              <div style="font:600 10.5px/1 'IBM Plex Mono',monospace;letter-spacing:.12em;color:#8b919b;padding-bottom:6px">INCIDENCIAS</div>
+              <div style="font:600 20px/1.15 Archivo,sans-serif">Incidencia del turno de Laura Sánchez Pineda</div>
+              <div style="font:400 12.5px/1.4 Archivo,sans-serif;color:#6d7480;padding-top:4px">Jueves 10 sep · 07–19 · P-01 Acceso principal · Corporativo Altavista, Torre Altavista</div>
+            </div>
+            <div style="display:flex;gap:16px;align-items:flex-start">
+              <div style="flex:1;background:#fff;border:1px solid #b9bec6;display:flex;flex-direction:column">
+                <div style="padding:12px 14px;border-bottom:1px solid #dce2e9;font:600 13px Archivo,sans-serif">1 · Incidencia</div>
+                <div style="padding:14px;display:flex;flex-direction:column;gap:13px">
+                  <div style="border:1px solid #dce2e9;padding:12px;display:flex;flex-direction:column;gap:6px;font:400 11.5px/1.6 'IBM Plex Mono',monospace;color:#4a5160">
+                    <span style="font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:#8b919b">DEL TURNO, YA EN CONTEXTO</span>
+                    Persona original: Laura Sánchez Pineda<br>Turno: jue 10 sep, 07–19<br>Cliente y sede: Corporativo Altavista · Torre Altavista<br>Posición: P-01 Acceso principal
+                  </div>
+                  <div style="display:flex;flex-direction:column;gap:5px"><span style="font:400 11.5px 'IBM Plex Mono',monospace;color:#5f6b7a">Motivo de incidencia — del catálogo del paso 3</span><span style="border:1px solid #b9bec6;height:32px;background:#fbfcfd;display:flex;align-items:center;padding:0 9px;font:400 12px 'IBM Plex Mono',monospace;color:#4a5160">Falta sin aviso ▾</span></div>
+                  <div style="display:flex;flex-direction:column;gap:5px"><span style="font:400 11.5px 'IBM Plex Mono',monospace;color:#5f6b7a">Detalle</span><span style="border:1px solid #b9bec6;height:48px;background:#fbfcfd"></span></div>
+                  <div style="border:1px dashed #8b919b;padding:11px;font:400 11.5px/1.5 'IBM Plex Mono',monospace;color:#4a5160">Si el catálogo de motivos está vacío: se escribe el motivo aquí y se guarda en Catálogos, igual que el puesto en el paso 7. Nunca un selector vacío.</div>
+                  <div style="display:flex;justify-content:flex-end"><span style="border:1px solid #2c3038;background:#2c3038;color:#fff;padding:9px 13px;font:600 12.5px Archivo,sans-serif">Guardar y cubrir el turno</span></div>
+                </div>
+              </div>
+              <div style="flex:1;background:#fff;border:1px solid #2c3038;display:flex;flex-direction:column">
+                <div style="padding:12px 14px;border-bottom:1px solid #dce2e9;display:flex;justify-content:space-between;align-items:center">
+                  <span style="font:600 13px Archivo,sans-serif">2 · Cobertura</span><span style="font:400 11px 'IBM Plex Mono',monospace;color:#5f6b7a">módulo Cobertura, mismo turno</span>
+                </div>
+                <div style="padding:14px;display:flex;flex-direction:column;gap:13px">
+                  <div style="display:flex;flex-direction:column;gap:5px"><span style="font:400 11.5px 'IBM Plex Mono',monospace;color:#5f6b7a">Persona que cubre</span><span style="border:1px solid #b9bec6;height:32px;background:#fbfcfd;display:flex;align-items:center;padding:0 9px;font:400 12px 'IBM Plex Mono',monospace;color:#4a5160">Rubén Ortiz · cubre-descansos de P-02 ▾</span></div>
+                  <div style="display:flex;flex-direction:column;gap:5px"><span style="font:400 11.5px 'IBM Plex Mono',monospace;color:#5f6b7a">Motivo de cobertura — del catálogo del paso 3</span><span style="border:1px solid #b9bec6;height:32px;background:#fbfcfd;display:flex;align-items:center;padding:0 9px;font:400 12px 'IBM Plex Mono',monospace;color:#4a5160">Sustitución por falta ▾</span></div>
+                  <div style="display:flex;flex-direction:column;gap:5px"><span style="font:400 11.5px 'IBM Plex Mono',monospace;color:#5f6b7a">Autorización</span><span style="border:1px solid #b9bec6;height:32px;background:#fbfcfd;display:flex;align-items:center;padding:0 9px;font:400 12px 'IBM Plex Mono',monospace;color:#4a5160">Quién autoriza ▾</span></div>
+                  <div style="border:1px solid #dce2e9;padding:12px;font:400 11.5px/1.6 'IBM Plex Mono',monospace;color:#4a5160">
+                    <span style="font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:#8b919b;display:block;padding-bottom:6px">QUEDA GUARDADO</span>
+                    persona original · causa · persona que cubre · turno · cliente · autorización
+                  </div>
+                  <div style="border:1px dashed #8b919b;padding:11px;font:400 11.5px/1.5 'IBM Plex Mono',monospace;color:#4a5160">Sin nadie disponible: la lista dice por qué —todos con turno ese día o ninguno elegible— y ofrece declarar el turno sin cubrir. No se queda vacía.</div>
+                </div>
+                <div style="margin-top:auto;border-top:1px solid #dce2e9;padding:13px;display:flex;justify-content:space-between;gap:10px">
+                  <span style="border:1px solid #b9bec6;padding:9px 13px;font:500 12.5px Archivo,sans-serif;color:#4a5160">Declarar turno sin cubrir</span>
+                  <span style="border:1px solid #2c3038;background:#2c3038;color:#fff;padding:9px 13px;font:600 12.5px Archivo,sans-serif">Registrar cobertura</span>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex;gap:16px;align-items:stretch">
+              <div style="flex:1;border:1px solid #2c3038;background:#fff;padding:14px;display:flex;flex-direction:column;gap:8px">
+                <div style="font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.1em;color:#6d7480">CIERRE A · HUECO CUBIERTO</div>
+                <div style="font:500 13px/1.45 Archivo,sans-serif">Jueves 10 sep, P-01 07–19: Rubén Ortiz cubre a Laura Sánchez Pineda. Autorizado.</div>
+                <div style="font:400 11.5px/1.5 'IBM Plex Mono',monospace;color:#5f6b7a">La versión publicada no se editó. El cambio vive como incidencia con su cobertura.</div>
+              </div>
+              <div style="flex:1;border:1px dashed #2c3038;background:#fff;padding:14px;display:flex;flex-direction:column;gap:8px">
+                <div style="font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.1em;color:#6d7480">CIERRE B · TURNO SIN CUBRIR</div>
+                <div style="font:500 13px/1.45 Archivo,sans-serif">Jueves 10 sep, P-01 07–19: declarado sin cubrir, con su motivo y quién lo declaró.</div>
+                <div style="font:400 11.5px/1.5 'IBM Plex Mono',monospace;color:#5f6b7a">Es un cierre, no un pendiente. No hay un tercer estado.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <aside style="width:320px;flex:none;display:flex;flex-direction:column;gap:14px;font:400 12px/1.55 'IBM Plex Mono',monospace;color:#4a5160">
+        <div><div style="color:#8b919b;padding-bottom:5px">LLEGA Y ENCUENTRA</div>El turno con la excepción ya cargada: persona original, horario, posición, cliente y sede. No vuelve a teclear nada de eso.</div>
+        <div><div style="color:#8b919b;padding-bottom:5px">QUÉ HACE</div>Elige motivo de incidencia, guarda, y en el mismo recorrido registra la cobertura con persona que cubre, motivo y autorización.</div>
+        <div><div style="color:#8b919b;padding-bottom:5px">CÓMO SALE</div>Cierra en uno de los dos estados. Ahí termina el recorrido de la fase 1.</div>
+        <div style="border:1px dashed #8b919b;padding:12px"><div style="color:#8b919b;padding-bottom:5px">POR CONFIRMAR EN EL MODELO</div>El alcance deja pendiente si incidencia y cobertura ya guardan persona original y persona que cubre. El boceto asume que sí o que se construye: sin esos dos campos, la conciliación con el cliente no existe.</div>
+      </aside>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;font:400 12.5px 'IBM Plex Mono',monospace;color:#2c3038">
+      <span style="border:1px solid #2c3038;padding:4px 9px;font-weight:600">T9</span><span style="width:26px;height:1px;background:#2c3038"></span><span>Incidencia → resolver cobertura, sin salir del turno.</span>
+    </div>
+  </section>
+
+  <section data-screen-label="Cierre" id="cierre" style="display:flex;flex-direction:column;gap:20px;max-width:1600px">
+    <div style="font:600 24px/1.15 Archivo,sans-serif">Cierre de la entrega</div>
+    <div style="display:flex;gap:20px;align-items:flex-start">
+      <div style="flex:1;background:#fff;border:1px solid #b9bec6;padding:20px;display:flex;flex-direction:column;gap:14px">
+        <div style="font:600 11px 'IBM Plex Mono',monospace;letter-spacing:.12em;color:#8b919b">LAS NUEVE TRANSICIONES, DÓNDE QUEDÓ CADA UNA</div>
+        <div style="display:flex;flex-direction:column;gap:0;font:400 12px/1.5 'IBM Plex Mono',monospace;color:#4a5160">
+          <div style="display:flex;gap:12px;padding:9px 0;border-bottom:1px solid #dce2e9"><span style="width:34px;font-weight:600;color:#2c3038;flex:none">T1</span><span style="flex:1">Bloque «Acceso creado» tras guardar, con credencial copiable y salida a la organización.</span></div>
+          <div style="display:flex;gap:12px;padding:9px 0;border-bottom:1px solid #dce2e9"><span style="width:34px;font-weight:600;color:#2c3038;flex:none">T2</span><span style="flex:1">Inicio como camino de seis pasos con estado calculado, y «Empezar aquí» en el único que no depende de nada.</span></div>
+          <div style="display:flex;gap:12px;padding:9px 0;border-bottom:1px solid #dce2e9"><span style="width:34px;font-weight:600;color:#2c3038;flex:none">T3</span><span style="flex:1">Pie de la ficha del cliente: «Crear servicio de este cliente», con cliente y sede resueltos.</span></div>
+          <div style="display:flex;gap:12px;padding:9px 0;border-bottom:1px solid #dce2e9"><span style="width:34px;font-weight:600;color:#2c3038;flex:none">T4</span><span style="flex:1">«Definir posiciones» dentro de la ficha, que cambia a la pestaña Posiciones.</span></div>
+          <div style="display:flex;gap:12px;padding:9px 0;border-bottom:1px solid #dce2e9"><span style="width:34px;font-weight:600;color:#2c3038;flex:none">T5</span><span style="flex:1">Dos salidas al pie de la posición, elegidas por el estado real de Personal.</span></div>
+          <div style="display:flex;gap:12px;padding:9px 0;border-bottom:1px solid #dce2e9"><span style="width:34px;font-weight:600;color:#2c3038;flex:none">T6</span><span style="flex:1">«Generar planeación de la semana» al pie de Asignaciones, con el servicio en contexto.</span></div>
+          <div style="display:flex;gap:12px;padding:9px 0;border-bottom:1px solid #dce2e9"><span style="width:34px;font-weight:600;color:#2c3038;flex:none">T7</span><span style="flex:1">«Ir a la operación del día» disponible al publicar.</span></div>
+          <div style="display:flex;gap:12px;padding:9px 0;border-bottom:1px solid #dce2e9"><span style="width:34px;font-weight:600;color:#2c3038;flex:none">T8</span><span style="flex:1">«Registrar incidencia» en cada excepción de la asistencia del día.</span></div>
+          <div style="display:flex;gap:12px;padding:9px 0"><span style="width:34px;font-weight:600;color:#2c3038;flex:none">T9</span><span style="flex:1">Incidencia y cobertura contiguas sobre el mismo turno, con dos cierres posibles.</span></div>
+        </div>
+      </div>
+      <div style="flex:1;background:#fff;border:1px solid #b9bec6;padding:20px;display:flex;flex-direction:column;gap:14px">
+        <div style="font:600 11px 'IBM Plex Mono',monospace;letter-spacing:.12em;color:#8b919b">LOS NUEVE «FALTA ALGO», Y SU SALIDA</div>
+        <div style="display:flex;flex-direction:column;font:400 12px/1.5 'IBM Plex Mono',monospace;color:#4a5160">
+          <div style="display:flex;gap:12px;padding:9px 0;border-bottom:1px solid #dce2e9"><span style="flex:1">Organización sin catálogos</span><span style="flex:1.2;color:#2c3038">Paso 2 · lista con los cinco pendientes y cuál bloquea qué</span></div>
+          <div style="display:flex;gap:12px;padding:9px 0;border-bottom:1px solid #dce2e9"><span style="flex:1">Empleado sin puestos</span><span style="flex:1.2;color:#2c3038">Paso 7 · escribir el puesto ahí, o ir y volver sin perder lo escrito</span></div>
+          <div style="display:flex;gap:12px;padding:9px 0;border-bottom:1px solid #dce2e9"><span style="flex:1">Cliente sin sede</span><span style="flex:1.2;color:#2c3038">Paso 4 · se dice al guardar, con «Agregar sede»; y en el paso 5 se crea desde el servicio</span></div>
+          <div style="display:flex;gap:12px;padding:9px 0;border-bottom:1px solid #dce2e9"><span style="flex:1">Servicio sin posiciones</span><span style="flex:1.2;color:#2c3038">Paso 5 · explica que sin posiciones no hay planeación, y lleva a crearlas</span></div>
+          <div style="display:flex;gap:12px;padding:9px 0;border-bottom:1px solid #dce2e9"><span style="flex:1">Patrón incompleto</span><span style="flex:1.2;color:#2c3038">Paso 6 · los días sin declarar, marcados uno por uno</span></div>
+          <div style="display:flex;gap:12px;padding:9px 0;border-bottom:1px solid #dce2e9"><span style="flex:1">Sin empleados disponibles</span><span style="flex:1.2;color:#2c3038">Paso 8 · tres razones posibles, cada una con su acción</span></div>
+          <div style="display:flex;gap:12px;padding:9px 0;border-bottom:1px solid #dce2e9"><span style="flex:1">Planeación sin nada que proyectar</span><span style="flex:1.2;color:#2c3038">Paso 9 · qué falta y en qué módulo, con la acción de cada cosa</span></div>
+          <div style="display:flex;gap:12px;padding:9px 0;border-bottom:1px solid #dce2e9"><span style="flex:1">Planeación con conflictos</span><span style="flex:1.2;color:#2c3038">Paso 9 · un botón por conflicto, al lugar donde se resuelve</span></div>
+          <div style="display:flex;gap:12px;padding:9px 0"><span style="flex:1">Asistencia sin planeación publicada</span><span style="flex:1.2;color:#2c3038">Paso 10 · dice que se registra contra la versión publicada, y lleva a publicar</span></div>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;gap:20px;align-items:flex-start">
+      <div style="flex:1.3;background:#fff;border:1px solid #2c3038;padding:20px;display:flex;flex-direction:column;gap:14px">
+        <div style="font:600 11px 'IBM Plex Mono',monospace;letter-spacing:.12em;color:#8b919b">LO QUE AGREGUÉ Y NO ESTÁ EN LOS DOCUMENTOS</div>
+        <div style="display:flex;flex-direction:column;font:400 12px/1.55 'IBM Plex Mono',monospace;color:#4a5160">
+          <div style="display:flex;gap:14px;padding:10px 0;border-bottom:1px solid #dce2e9"><span style="width:230px;flex:none;color:#2c3038;font-weight:600">Bloque «Acceso creado» con credencial copiable</span><span style="flex:1">T1 exige un puente y el anexo no dice cómo se ve. Muestra la forma actual: contraseña tecleada, copiada y entregada por fuera.</span></div>
+          <div style="display:flex;gap:14px;padding:10px 0;border-bottom:1px solid #dce2e9"><span style="width:230px;flex:none;color:#2c3038;font-weight:600">Los seis pasos del Inicio</span><span style="flex:1">Agrupación del recorrido del alcance para que quepa en una pantalla. No son módulos ni entidades nuevas; cada uno apunta a una entrada del menú.</span></div>
+          <div style="display:flex;gap:14px;padding:10px 0;border-bottom:1px solid #dce2e9"><span style="width:230px;flex:none;color:#2c3038;font-weight:600">Vista comparada antes / después de la baja</span><span style="flex:1">Recurso de boceto para demostrar la regla central. No es una pantalla del producto: es la misma ficha en dos momentos.</span></div>
+          <div style="display:flex;gap:14px;padding:10px 0;border-bottom:1px solid #dce2e9"><span style="width:230px;flex:none;color:#2c3038;font-weight:600">Cuadro «de quién es cada cosa»</span><span style="flex:1">Igual: material de validación del modelo, no interfaz a construir.</span></div>
+          <div style="display:flex;gap:14px;padding:10px 0;border-bottom:1px solid #dce2e9"><span style="width:230px;flex:none;color:#2c3038;font-weight:600">Etiqueta «VACANTE 1» y estado «REVISAR»</span><span style="flex:1">La vacancia consultable del alcance necesita forma visible en la tabla. En el boceto va con línea discontinua; el rojo llega con el color de marca.</span></div>
+          <div style="display:flex;gap:14px;padding:10px 0;border-bottom:1px solid #dce2e9"><span style="width:230px;flex:none;color:#2c3038;font-weight:600">Tipos de conflicto: HUECO y PATRÓN</span><span style="flex:1">El anexo pide que cada conflicto lleve a donde se resuelve; para eso hay que distinguirlos. Salen de dos faltas que el propio anexo ya nombra.</span></div>
+          <div style="display:flex;gap:14px;padding:10px 0;border-bottom:1px solid #dce2e9"><span style="width:230px;flex:none;color:#2c3038;font-weight:600">Tipos de excepción: FALTA, RETARDO, HUECO</span><span style="flex:1">El anexo nombra falta y retardo como disparadores del paso 11; hueco es la vacante ya existente vista en el día. No es un catálogo nuevo: el motivo sigue saliendo del catálogo del paso 3.</span></div>
+          <div style="display:flex;gap:14px;padding:10px 0;border-bottom:1px solid #dce2e9"><span style="width:230px;flex:none;color:#2c3038;font-weight:600">Escribir el motivo de incidencia en el momento</span><span style="flex:1">Extensión del remedio que el anexo da para puestos, aplicada al mismo problema en el paso 11.</span></div>
+          <div style="display:flex;gap:14px;padding:10px 0;border-bottom:1px solid #dce2e9"><span style="width:230px;flex:none;color:#2c3038;font-weight:600">Tres razones de «sin empleados disponibles»</span><span style="flex:1">El anexo pide explicar por qué ninguno es elegible. Las tres razones son las que el propio sistema puede distinguir: cero altas, sin coincidencia de perfil, traslape.</span></div>
+          <div style="display:flex;gap:14px;padding:10px 0;border-bottom:1px solid #dce2e9"><span style="width:230px;flex:none;color:#2c3038;font-weight:600">«Duplicar posición»</span><span style="flex:1">Un servicio con cuatro elementos repite la misma posición. Es acción secundaria, no entidad nueva. Si sobra, se quita sin tocar el recorrido.</span></div>
+          <div style="display:flex;gap:14px;padding:10px 0"><span style="width:230px;flex:none;color:#2c3038;font-weight:600">Datos de ejemplo</span><span style="flex:1">Nombres, sedes y puestos verosímiles. El alcance pide datos de demo realistas como requisito, no como preparativo.</span></div>
+        </div>
+      </div>
+      <div style="flex:1;background:#fff;border:1px dashed #2c3038;padding:20px;display:flex;flex-direction:column;gap:14px">
+        <div style="font:600 11px 'IBM Plex Mono',monospace;letter-spacing:.12em;color:#8b919b">PREGUNTAS QUE NO DISEÑÉ</div>
+        <div style="display:flex;flex-direction:column;font:400 12px/1.55 'IBM Plex Mono',monospace;color:#4a5160">
+          <div style="padding:10px 0;border-bottom:1px solid #dce2e9"><span style="color:#2c3038;font-weight:600">Quién registra la asistencia.</span> El alcance nombra el rol Operación, pero el menú de once no lleva una entrada distinta para ese rol. Los pasos 10 y 11 se dibujaron con el mismo menú.</div>
+          <div style="padding:10px 0;border-bottom:1px solid #dce2e9"><span style="color:#2c3038;font-weight:600">Cómo entra el super admin a una organización.</span> Sin modo soporte, el paso 1 ofrece «Entrar a la organización». Falta confirmar si eso cambia su sesión o abre otra.</div>
+          <div style="padding:10px 0;border-bottom:1px solid #dce2e9"><span style="color:#2c3038;font-weight:600">Quién autoriza una cobertura.</span> El anexo exige guardar la autorización. Dejé el campo sin resolver de dónde sale la lista.</div>
+          <div style="padding:10px 0;border-bottom:1px solid #dce2e9"><span style="color:#2c3038;font-weight:600">Alcance de la planeación.</span> La dibujé por servicio y semana. Si se publica por organización completa, la pantalla del paso 9 cambia.</div>
+          <div style="padding:10px 0;border-bottom:1px solid #dce2e9"><span style="color:#2c3038;font-weight:600">El cubre-descansos.</span> Sigue abierto si es fijo de la posición o se asigna cada vez. En el paso 8 aparece como columna de la posición, que es lo que soporta hoy el modelo.</div>
+          <div style="padding:10px 0"><span style="color:#2c3038;font-weight:600">Fecha operativa.</span> La puse en la barra de contexto como pide el brief. Falta definir si se puede mover a mano para ver otro día, y quién puede.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;traslape&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Bloquea&quot;,&quot;Advierte&quot;],&quot;default&quot;:&quot;Bloquea&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Decisiones pendientes&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const modo = this.props.traslape ?? 'Bloquea';
+    return {
+      traslapeModo: modo === 'Advierte' ? 'ADVIERTE' : 'BLOQUEA',
+      traslapeTexto: modo === 'Advierte'
+        ? 'Se puede guardar de todos modos; queda registrado el traslape.'
+        : 'La asignación no se guarda hasta que se resuelva.'
+    };
+  }
+}
+</script>
+</body>
+</html>

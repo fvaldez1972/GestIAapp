@@ -1,0 +1,363 @@
+<div class="staff">
+  <header class="staff__heading">
+    <div>
+      <h1 class="staff__title">Personal</h1>
+    </div>
+    @if (canWrite()) {
+      <button class="button button--primary" type="button" (click)="startCreate()">Nuevo empleado</button>
+    }
+  </header>
+
+  <!--
+    Las tarjetas sustituyen al parrafo que llevaba el subtitulo. Cada una es ademas el filtro que
+    la explica: tocar «Con algo vencido» es la forma corta de ver a quienes cuenta ese numero.
+  -->
+  @if (organizationId() && canRead()) {
+    <div class="staff__metrics">
+      @for (metric of metrics(); track metric.key) {
+        <button
+          type="button"
+          class="staff__metric"
+          [class.staff__metric--active]="activeMetric() === metric.key"
+          [attr.aria-pressed]="metric.filter ? activeMetric() === metric.key : null"
+          (click)="onMetric(metric)"
+        >
+          <gi-metric-card
+            [label]="metric.label"
+            [value]="metric.value"
+            [hint]="metric.hint"
+            [tone]="metric.tone"
+            [pillLabel]="metric.pillLabel"
+            [state]="loading() && total() === 0 ? 'loading' : 'ready'"
+          />
+        </button>
+      }
+    </div>
+  }
+
+  @if (!organizationId()) {
+    <gi-empty-state
+      variant="missing-prerequisite"
+      title="Elige una organización para ver su personal"
+      description="El personal pertenece a una organización. Elígela en la barra de contexto, arriba."
+    />
+  } @else if (!canRead()) {
+    <gi-empty-state variant="no-permission" />
+  } @else {
+    @if (message()) {
+      <p class="staff__note" role="status">{{ message() }}</p>
+    }
+
+    <div class="staff__workspace" [class.staff__workspace--split]="selected() || creating()">
+      <div class="staff__list">
+        <gi-filter-bar
+          [search]="search()"
+          searchLabel="Buscar empleado"
+          searchPlaceholder="Nombre, código o CURP"
+          [groups]="filterGroups()"
+          [resultCount]="total()"
+          (searchChange)="onSearch($event)"
+          (filterChange)="onFilter($event)"
+          (clearAll)="clearFilters()"
+        />
+
+        <!--
+          El paginado va ARRIBA de la tabla, no debajo.
+
+          Debajo quedaba al final de veinticinco filas: para cambiar de pagina habia que recorrer la
+          lista entera, y con el panel abierto la fila se estrechaba y sus tres controles se
+          apretaban unos contra otros. Arriba esta siempre a la vista y comparte sitio con el
+          recuento, que es el dato con el que se lee.
+        -->
+        @if (totalPaginas() > 1) {
+          <nav class="pers-pages" aria-label="Páginas de la lista">
+            <!--
+              Una sola forma de decir donde estas. Antes convivian «1-10 de 128» y «1 / 13»: dos
+              maneras del mismo dato, una al lado de la otra, y la segunda obligaba a dividir para
+              entender la primera.
+            -->
+            <span class="pers-pages__rango">
+              {{ rango() }}
+              <span class="pers-pages__pagina">· página {{ currentPage() }} de {{ totalPaginas() }}</span>
+            </span>
+
+            <div class="pers-pages__nav">
+              <gi-select
+                label="Personas por página"
+                [openDown]="true"
+                [options]="pageSizeOptions"
+                [value]="pageSize().toString()"
+                (valueChange)="setPageSize($any($event))"
+              />
+              <button
+                type="button"
+                class="gi-button gi-button--ghost"
+                [disabled]="currentPage() === 1"
+                (click)="goToPage(currentPage() - 1)"
+              >Anterior</button>
+              <button
+                type="button"
+                class="gi-button gi-button--ghost"
+                [disabled]="currentPage() === totalPaginas()"
+                (click)="goToPage(currentPage() + 1)"
+              >Siguiente</button>
+            </div>
+          </nav>
+        }
+
+        <app-employee-table
+          [employees]="employees()"
+          [state]="tableState()"
+          [selectedId]="selected()?.idEmployee ?? null"
+          [errorMessage]="error()"
+          [compact]="!!selected() || creating()"
+          [canWrite]="canWrite()"
+          (open)="open($event)"
+          (create)="startCreate()"
+          (retry)="load()"
+          (action)="onRowAction($event)"
+        />
+      </div>
+
+      @if (creating()) {
+        <gi-detail-panel
+          title=""
+          (close)="creating.set(false)"
+        >
+          <ng-template giTab="">
+            <app-employee-form
+              [organizationId]="organizationId()"
+              [jobPositions]="catalogJobPositions()"
+              [canWrite]="canWrite()"
+              [today]="today()"
+              [saving]="saving()"
+              [problem]="formProblem()"
+              (cancel)="creating.set(false)"
+              (save)="saveNew($event)"
+            />
+          </ng-template>
+        </gi-detail-panel>
+      } @else if (selected(); as employee) {
+        <gi-detail-panel
+          [title]="employee.fullName"
+          [subtitle]="employee.codeEmployee + ' · ' + badge(employee).label"
+          [tabs]="panelTabs()"
+          [activeTab]="activeTab()"
+          (tabChange)="activeTab.set($event)"
+          (close)="closePanel()"
+        >
+          <ng-template giTab="data">
+            <app-employee-data
+              [row]="employee"
+              [employee]="detail()"
+              [loading]="detailLoading()"
+              [expiringWithinDays]="expiringWithinDays()"
+              (openDocuments)="activeTab.set('documents')"
+              [canViewSensitive]="canViewSensitive()"
+              [jobPositions]="catalogJobPositions()"
+              [educationLevels]="catalogEducationLevels()"
+              [savingEducation]="savingEducation()"
+              (saveEducation)="saveEducation($event)"
+              [canWrite]="canWrite()"
+              [editingJobPosition]="editingJobPosition() && canWrite()"
+              [savingJobPosition]="savingJobPosition()"
+              [jobPositionProblem]="jobPositionProblem()"
+              (editJobPosition)="startJobPositionEdit()"
+              (openCatalog)="goToCatalogs()"
+              (cancelJobPosition)="editingJobPosition.set(false)"
+              (saveJobPosition)="saveJobPosition($event)"
+              [organizationId]="organizationId() ?? ''"
+              [editingAddress]="editingAddress() && canWrite()"
+              [savingAddress]="savingAddress()"
+              [addressProblem]="addressProblem()"
+              (editAddress)="startAddressEdit()"
+              (cancelAddress)="editingAddress.set(false)"
+              (saveAddress)="saveAddress($event)"
+              [editingName]="editingName() && canWrite()"
+              [savingName]="savingName()"
+              [nameProblem]="nameProblem()"
+              (editName)="startNameEdit()"
+              (cancelName)="editingName.set(false)"
+              (saveName)="saveName($event)"
+              [employmentPeriods]="employmentPeriods()"
+              [today]="today()"
+              [psychometricTests]="psychometricTests()"
+              [terminationExpirations]="terminationExpirations()"
+              [savingPsychometric]="savingPsychometric()"
+              [psychometricProblem]="psychometricProblem()"
+              (registerPsychometric)="registerPsychometric($event)"
+            />
+          </ng-template>
+
+          <ng-template giTab="documents">
+            <app-employee-documents
+              [requirements]="requirements()"
+              [documents]="documents()"
+              [categories]="catalogDocumentCategories()"
+              [today]="today()"
+              [expiringWithinDays]="expiringWithinDays()"
+              [canWrite]="canWrite()"
+              (cargar)="cargarRequisito($event)"
+              (agregar)="agregandoDocumento.set(true)"
+              (vistaChange)="vistaDocumentos.set($event)"
+              (descargar)="documentoADescargar.set($event)"
+              (historial)="documentoAVerHistorial.set($event)"
+              (editar)="documentoAEditar.set($event)"
+            />
+
+            <!--
+              El expediente de archivos, **siempre montado**.
+
+              Estuvo plegado unas horas del 23 de septiembre de 2026 y hubo que deshacerlo: el
+              acordeon quita su contenido del arbol al cerrarse, asi que «Cargar» y «Reemplazar»
+              —que abren el alta a traves de este componente— no tenian a quien avisar y el boton
+              de verdad no hacia nada. Era exactamente el defecto que se venia a corregir.
+
+              Lo que descongestiona la pestaña ahora es que el formulario vive en una ventana, no
+              debajo de la lista. Lo que queda aqui es el buscador y los archivos, que es poco.
+            -->
+            <app-entity-documents
+              [organizationId]="organizationId()"
+              ownerType="Employee"
+              [ownerId]="employee.idEmployee"
+              [ownerLabel]="employee.fullName"
+              [showHeading]="false"
+              [documentTypes]="documentTypeOptions()"
+              [showAdd]="false"
+              [showReview]="false"
+              [onlyCategories]="tiposDeLaVista()"
+              [showFilters]="false"
+              [pageSize]="100"
+              [openDownloadFor]="documentoADescargar()"
+              [openHistoryFor]="documentoAVerHistorial()"
+              [openEditFor]="documentoAEditar()"
+              (externalActionDone)="limpiarAccionDeDocumento()"
+              [openAdd]="cargandoRequisito() !== '' || agregandoDocumento()"
+              [presetDocumentType]="cargandoRequisito()"
+              (closeAdd)="cargandoRequisito.set(''); agregandoDocumento.set(false)"
+              (documentSaved)="registerEmployeeDocument($event)"
+              (totalChange)="documentCount.set($event)"
+            />
+          </ng-template>
+
+          <ng-template giTab="evaluations">
+            <!--
+              Arriba lo que la organización exige, abajo lo que la persona tiene. Igual que en
+              Documentos, porque el caso que importa —el requisito que nadie cubrió— no tiene
+              registro que lo represente y sólo se ve recorriendo los requisitos.
+            -->
+            <app-employee-evaluations
+              [requirements]="evaluationRequirements()"
+              [evaluations]="evaluations()"
+              [categories]="catalogEvaluationCategories()"
+              [today]="today()"
+              [expiringWithinDays]="expiringWithinDays()"
+              [canWrite]="canWrite()"
+              [saving]="saving()"
+              (save)="saveEvaluation($event)"
+              (deactivate)="deactivateEvaluation($event)"
+            />
+          </ng-template>
+
+          <ng-template giTab="assignments">
+            <!--
+              Solo el historial, por decision del 30 de septiembre de 2026. La accion de asignar
+              sigue en el menu de la fila del listado, que es de donde salia antes de que esta
+              pestaña la ofreciera.
+            -->
+            <app-employee-assignments
+              [assignments]="assignments()"
+              [loading]="detailLoading()"
+            />
+          </ng-template>
+
+          <ng-template giTab="administrative-incidents">
+            <!--
+              No son las incidencias de la operación diaria. Aquéllas describen lo que pasó en un
+              turno y viven atadas a un servicio; éstas describen un hecho de la relación laboral y
+              siguen en el expediente aunque la persona cambie de servicio.
+            -->
+            <app-employee-administrative-incidents
+              [incidents]="administrativeIncidents()"
+              [types]="catalogIncidentTypes()"
+              [today]="today()"
+              [canWrite]="canWrite()"
+              [saving]="saving()"
+              (create)="createAdministrativeIncident($event)"
+              (edit)="updateAdministrativeIncident($event)"
+              (retire)="retireAdministrativeIncident($event)"
+              (createType)="createIncidentType($event)"
+            />
+          </ng-template>
+
+          <ng-template giTab="skills">
+            <!--
+              Cierra la trampa: hasta ahora se podía exigir una experiencia que nadie podía otorgar.
+              El selector permite crearla al vuelo, porque quien acredita a una persona no tiene por
+              qué irse a Catálogos a medias.
+            -->
+            <app-employee-skills
+              [requirements]="skillRequirements()"
+              [skills]="skills()"
+              [catalogSkills]="catalogSkills()"
+              [today]="today()"
+              [expiringWithinDays]="expiringWithinDays()"
+              [canWrite]="canWrite()"
+              [saving]="saving()"
+              (save)="saveSkill($event)"
+              (deactivate)="deactivateSkill($event)"
+            />
+          </ng-template>
+
+        </gi-detail-panel>
+      }
+    </div>
+  }
+</div>
+
+@if (confirming(); as pending) {
+  <gi-confirm-dialog
+    [open]="true"
+    title="Registrar permiso"
+    [subject]="pending.employee.fullName"
+    consequence="Quedará en permiso y dejará de proponerse para cubrir turnos. Sus asignaciones y su expediente se conservan, y se puede reactivar."
+    confirmLabel="Registrar permiso"
+    (confirm)="confirmAction()"
+    (cancel)="confirming.set(null)"
+  />
+}
+
+@if (terminating(); as persona) {
+  <app-employee-terminate-dialog
+    [open]="true"
+    [employeeName]="persona.fullName"
+    [today]="today()"
+    [saving]="saving()"
+    [problem]="terminateProblem()"
+    (guardar)="saveTermination($event)"
+    (cancel)="terminating.set(null)"
+  />
+}
+
+<!--
+  El alta de una asignación, sobre el propio expediente.
+  El botón de la pestaña llevaba a otra pantalla —primero a Planeación, luego a Servicios— y las
+  dos veces dejaba a quien lo pulsaba con la persona en la cabeza y un formulario en blanco
+  delante. Se crea con el mismo endpoint y las mismas reglas que en Servicios.
+-->
+@if (selected(); as persona) {
+  <app-employee-assign-dialog
+    [open]="assigning()"
+    [employeeName]="persona.fullName"
+    [clients]="assignClients()"
+    [services]="assignServices()"
+    [positions]="assignPositions()"
+    [operationalToday]="today()"
+    [saving]="savingAssignment()"
+    [problem]="assignProblem()"
+    (clientChange)="loadAssignServices($event)"
+    (serviceChange)="loadAssignPositions($event)"
+    (save)="saveAssignment($event)"
+    (cancel)="closeAssign()"
+  />
+}

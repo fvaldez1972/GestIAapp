@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<style>
+  body { margin: 0; background: #f4f6fa; color: #253040; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+  a { color: #087f9c; text-decoration: none; }
+  a:hover { color: #10104e; }
+</style>
+</helmet>
+
+<section style="padding: 56px 64px 72px; display: flex; flex-direction: column; gap: 40px">
+
+  <header style="display: flex; flex-direction: column; gap: 12px; max-width: 1168px">
+    <span style="font: 600 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.12em; color: #5f6b7a">TURNO 2 · TRATAMIENTO DE LA FRANJA DE SOPORTE</span>
+    <h2 style="margin: 0; font: 600 24px/1.25 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #10104e">Saturación completa contra fondo tenue con borde</h2>
+    <p style="margin: 0; max-width: 62ch; font: 400 14px/1.6 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #5f6b7a; text-wrap: pretty">Mismo token en los dos casos. En <a href="#2b">2b</a> el ámbar pasa a fondo al 10% con borde sólido de 1px, más una barra de 3px arriba que sella la franja contra la barra; el peso tipográfico y el minutero invertido se conservan intactos.</p>
+  </header>
+
+  <div style="display: flex; gap: 40px; flex-wrap: nowrap; width: max-content; align-items: flex-start">
+
+    <div id="2a" style="display: flex; flex-direction: column; gap: 20px">
+      <div style="display: flex; align-items: center; gap: 12px">
+        <span style="font: 600 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.12em; color: #5f6b7a; border: 1px solid #dce2e9; background: #ffffff; padding: 6px 8px; border-radius: 6px">2a</span>
+        <span style="font: 600 15px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #253040">Saturación completa</span>
+        <span style="font: 400 13px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #5f6b7a">como en el turno 1</span>
+      </div>
+
+      <div style="width: 1168px; background: #ffffff; border: 1px solid #dce2e9; border-radius: 6px; overflow: hidden">
+        <div style="height: 4.5rem; display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 0 20px; border-bottom: 1px solid #dce2e9">
+          <div style="display: flex; align-items: center; gap: 12px; min-width: 0">
+            <span style="width: 8px; height: 8px; border-radius: 999px; background: #d97706; flex: none"></span>
+            <span style="font: 600 16px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #253040">GestIA Operadora Local</span>
+            <span style="font: 400 14px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #5f6b7a">Sesión de soporte</span>
+          </div>
+          <div role="button" tabindex="0" aria-label="Cambiar fecha operativa, 04 sep 2026" style="display: flex; align-items: center; gap: 10px; height: 2.5rem; padding: 0 12px; border: 1px solid #dce2e9; border-radius: 6px; background: #ffffff" style-focus="outline: 2px solid #22c6ee; outline-offset: 1px">
+            <span style="font: 400 11px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; letter-spacing: 0.06em; text-transform: uppercase; color: #5f6b7a">Fecha operativa</span>
+            <span style="font: 600 14px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #253040">04 sep 2026</span>
+            <span style="font: 400 10px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #5f6b7a">▾</span>
+          </div>
+        </div>
+        <div style="background: #d97706; padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; gap: 24px">
+          <div style="display: flex; align-items: center; gap: 12px; min-width: 0; flex-wrap: wrap">
+            <span style="font: 700 12px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; letter-spacing: 0.1em; text-transform: uppercase; color: #253040">Modo soporte</span>
+            <span style="width: 1px; height: 14px; background: #253040; opacity: 0.35"></span>
+            <span style="font: 400 14px/1.3 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #253040">Turnos duplicados en el servicio nocturno de la sede Norte</span>
+            <span style="width: 1px; height: 14px; background: #253040; opacity: 0.35"></span>
+            <span style="font: 600 14px/1.3 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #253040">Expira en 47 min</span>
+          </div>
+          <button type="button" style="height: 2rem; padding: 0 14px; border: 1px solid #253040; border-radius: 6px; background: transparent; color: #253040; font: 600 13px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; cursor: pointer; flex: none" style-hover="background: #253040; color: #d97706" style-focus="outline: 2px solid #10104e; outline-offset: 2px">Finalizar soporte</button>
+        </div>
+      </div>
+
+      <div style="width: 1168px; background: #ffffff; border: 1px solid #dce2e9; border-radius: 6px; overflow: hidden">
+        <div style="height: 4.5rem; display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 0 20px; border-bottom: 1px solid #dce2e9">
+          <div style="display: flex; align-items: center; gap: 12px; min-width: 0">
+            <span style="width: 8px; height: 8px; border-radius: 999px; background: #d97706; flex: none"></span>
+            <span style="font: 600 16px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #253040">GestIA Operadora Local</span>
+            <span style="font: 400 14px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #5f6b7a">Sesión de soporte</span>
+          </div>
+          <div role="button" tabindex="0" aria-label="Cambiar fecha operativa, 04 sep 2026" style="display: flex; align-items: center; gap: 10px; height: 2.5rem; padding: 0 12px; border: 1px solid #dce2e9; border-radius: 6px; background: #ffffff" style-focus="outline: 2px solid #22c6ee; outline-offset: 1px">
+            <span style="font: 400 11px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; letter-spacing: 0.06em; text-transform: uppercase; color: #5f6b7a">Fecha operativa</span>
+            <span style="font: 600 14px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #253040">04 sep 2026</span>
+            <span style="font: 400 10px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #5f6b7a">▾</span>
+          </div>
+        </div>
+        <div style="background: #d97706; padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; gap: 24px">
+          <div style="display: flex; align-items: center; gap: 12px; min-width: 0; flex-wrap: wrap">
+            <span style="font: 700 12px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; letter-spacing: 0.1em; text-transform: uppercase; color: #253040">Modo soporte</span>
+            <span style="width: 1px; height: 14px; background: #253040; opacity: 0.35"></span>
+            <span style="font: 400 14px/1.3 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #253040">Turnos duplicados en el servicio nocturno de la sede Norte</span>
+            <span style="display: inline-flex; align-items: center; height: 26px; padding: 0 10px; border-radius: 6px; background: #253040; color: #ffffff; font: 700 13px/1 'Helvetica Neue', Helvetica, Arial, sans-serif">Expira en 7 min</span>
+          </div>
+          <button type="button" style="height: 2rem; padding: 0 14px; border: 1px solid #253040; border-radius: 6px; background: transparent; color: #253040; font: 600 13px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; cursor: pointer; flex: none" style-hover="background: #253040; color: #d97706" style-focus="outline: 2px solid #10104e; outline-offset: 2px">Finalizar soporte</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="2b" style="display: flex; flex-direction: column; gap: 20px">
+      <div style="display: flex; align-items: center; gap: 12px">
+        <span style="font: 600 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.12em; color: #5f6b7a; border: 1px solid #dce2e9; background: #ffffff; padding: 6px 8px; border-radius: 6px">2b</span>
+        <span style="font: 600 15px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #253040">Fondo tenue con borde sólido</span>
+        <span style="font: 400 13px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #5f6b7a">como usa hoy el portal</span>
+      </div>
+
+      <div style="width: 1168px; background: #ffffff; border: 1px solid #dce2e9; border-radius: 6px; overflow: hidden">
+        <div style="height: 4.5rem; display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 0 20px">
+          <div style="display: flex; align-items: center; gap: 12px; min-width: 0">
+            <span style="width: 8px; height: 8px; border-radius: 999px; background: #d97706; flex: none"></span>
+            <span style="font: 600 16px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #253040">GestIA Operadora Local</span>
+            <span style="font: 400 14px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #5f6b7a">Sesión de soporte</span>
+          </div>
+          <div role="button" tabindex="0" aria-label="Cambiar fecha operativa, 04 sep 2026" style="display: flex; align-items: center; gap: 10px; height: 2.5rem; padding: 0 12px; border: 1px solid #dce2e9; border-radius: 6px; background: #ffffff" style-focus="outline: 2px solid #22c6ee; outline-offset: 1px">
+            <span style="font: 400 11px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; letter-spacing: 0.06em; text-transform: uppercase; color: #5f6b7a">Fecha operativa</span>
+            <span style="font: 600 14px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #253040">04 sep 2026</span>
+            <span style="font: 400 10px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #5f6b7a">▾</span>
+          </div>
+        </div>
+        <div style="background: rgba(217, 119, 6, 0.10); border-top: 3px solid #d97706; border-bottom: 1px solid #d97706; padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; gap: 24px">
+          <div style="display: flex; align-items: center; gap: 12px; min-width: 0; flex-wrap: wrap">
+            <span style="font: 700 12px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; letter-spacing: 0.1em; text-transform: uppercase; color: #d97706">Modo soporte</span>
+            <span style="width: 1px; height: 14px; background: #d97706; opacity: 0.5"></span>
+            <span style="font: 400 14px/1.3 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #253040">Turnos duplicados en el servicio nocturno de la sede Norte</span>
+            <span style="width: 1px; height: 14px; background: #d97706; opacity: 0.5"></span>
+            <span style="font: 600 14px/1.3 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #253040">Expira en 47 min</span>
+          </div>
+          <button type="button" style="height: 2rem; padding: 0 14px; border: 1px solid #d97706; border-radius: 6px; background: #ffffff; color: #253040; font: 600 13px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; cursor: pointer; flex: none" style-hover="background: #d97706; color: #ffffff" style-focus="outline: 2px solid #10104e; outline-offset: 2px">Finalizar soporte</button>
+        </div>
+      </div>
+
+      <div style="width: 1168px; background: #ffffff; border: 1px solid #dce2e9; border-radius: 6px; overflow: hidden">
+        <div style="height: 4.5rem; display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 0 20px">
+          <div style="display: flex; align-items: center; gap: 12px; min-width: 0">
+            <span style="width: 8px; height: 8px; border-radius: 999px; background: #d97706; flex: none"></span>
+            <span style="font: 600 16px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #253040">GestIA Operadora Local</span>
+            <span style="font: 400 14px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #5f6b7a">Sesión de soporte</span>
+          </div>
+          <div role="button" tabindex="0" aria-label="Cambiar fecha operativa, 04 sep 2026" style="display: flex; align-items: center; gap: 10px; height: 2.5rem; padding: 0 12px; border: 1px solid #dce2e9; border-radius: 6px; background: #ffffff" style-focus="outline: 2px solid #22c6ee; outline-offset: 1px">
+            <span style="font: 400 11px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; letter-spacing: 0.06em; text-transform: uppercase; color: #5f6b7a">Fecha operativa</span>
+            <span style="font: 600 14px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #253040">04 sep 2026</span>
+            <span style="font: 400 10px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #5f6b7a">▾</span>
+          </div>
+        </div>
+        <div style="background: rgba(217, 119, 6, 0.10); border-top: 3px solid #d97706; border-bottom: 1px solid #d97706; padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; gap: 24px">
+          <div style="display: flex; align-items: center; gap: 12px; min-width: 0; flex-wrap: wrap">
+            <span style="font: 700 12px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; letter-spacing: 0.1em; text-transform: uppercase; color: #d97706">Modo soporte</span>
+            <span style="width: 1px; height: 14px; background: #d97706; opacity: 0.5"></span>
+            <span style="font: 400 14px/1.3 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #253040">Turnos duplicados en el servicio nocturno de la sede Norte</span>
+            <span style="display: inline-flex; align-items: center; height: 26px; padding: 0 10px; border-radius: 6px; background: #d97706; color: #ffffff; font: 700 13px/1 'Helvetica Neue', Helvetica, Arial, sans-serif">Expira en 7 min</span>
+          </div>
+          <button type="button" style="height: 2rem; padding: 0 14px; border: 1px solid #d97706; border-radius: 6px; background: #ffffff; color: #253040; font: 600 13px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; cursor: pointer; flex: none" style-hover="background: #d97706; color: #ffffff" style-focus="outline: 2px solid #10104e; outline-offset: 2px">Finalizar soporte</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <p style="margin: 0; max-width: 88ch; font: 400 13px/1.6 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #5f6b7a; text-wrap: pretty">En 2b el fondo es --gestia-warning al 10% y el borde el mismo token al 100%; no entra ningún color nuevo. El minutero por expirar se invierte a ámbar sólido con texto blanco, así que sigue siendo el elemento de mayor peso y ahora además es el único elemento saturado de la franja. La barra superior pierde su borde inferior gris porque el borde ámbar de 3px ya hace esa separación.</p>
+
+</section>
+
+<section style="padding: 56px 64px 96px; display: flex; flex-direction: column; gap: 56px; border-top: 1px solid #dce2e9">
+
+  <header id="1a" style="display: flex; flex-direction: column; gap: 12px; max-width: 1168px">
+    <div style="display: flex; align-items: center; gap: 12px">
+      <span style="font: 600 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.12em; color: #5f6b7a; border: 1px solid #dce2e9; background: #ffffff; padding: 6px 8px; border-radius: 6px">1a</span>
+      <span style="font: 600 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.12em; color: #5f6b7a">COMPONENTE 1 · BARRA DE CONTEXTO</span>
+    </div>
+    <h1 style="margin: 0; font: 600 30px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #10104e; letter-spacing: -0.01em">El contexto de trabajo vive aquí y en ningún otro lugar</h1>
+    <p style="margin: 0; max-width: 62ch; font: 400 15px/1.6 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #5f6b7a; text-wrap: pretty">Una organización activa, una fecha operativa, un estado de soporte. Reemplaza once selectores de organización y los siete indicadores que hoy se contradicen. El super admin no tiene selector: entra a una organización solo abriendo una sesión de soporte. El admin de organización tampoco: la suya es un dato, no una elección.</p>
+    <p style="margin: 4px 0 0; font: 400 13px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; color: #5f6b7a">1440px · barra 4.5rem (--gestia-topbar-height) · sidebar 17rem · sin sombras, separación por borde</p>
+  </header>
+
+  <!-- Estado 1 -->
+  <div style="display: flex; flex-direction: column; gap: 16px">
+    <div style="display: flex; align-items: baseline; gap: 16px">
+      <span style="font: 600 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.1em; color: #10104e">ESTADO 1</span>
+      <span style="font: 600 15px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #253040">Super admin sin organización seleccionada</span>
+      <span style="font: 400 13px/1.5 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #5f6b7a">Estado normal de la plataforma. No es un error, no es un vacío que haya que llenar.</span>
+    </div>
+
+    <div style="width: 1168px; background: #ffffff; border: 1px solid #dce2e9; border-radius: 6px; overflow: hidden">
+      <div style="height: 4.5rem; display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 0 20px">
+        <div style="display: flex; align-items: center; gap: 12px; min-width: 0">
+          <span style="width: 8px; height: 8px; border-radius: 999px; border: 1px solid #dce2e9; background: #f7f9fb; flex: none"></span>
+          <span style="font: 600 16px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #253040">Plataforma</span>
+          <span style="font: 400 14px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #5f6b7a">Sin organización activa</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 12px">
+          <div role="button" tabindex="0" aria-label="Cambiar fecha operativa, 04 sep 2026" style="display: flex; align-items: center; gap: 10px; height: 2.5rem; padding: 0 12px; border: 1px solid #dce2e9; border-radius: 6px; background: #ffffff" style-focus="outline: 2px solid #22c6ee; outline-offset: 1px">
+            <span style="font: 400 11px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; letter-spacing: 0.06em; text-transform: uppercase; color: #5f6b7a">Fecha operativa</span>
+            <span style="font: 600 14px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #253040">04 sep 2026</span>
+            <span style="font: 400 10px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #5f6b7a">▾</span>
+          </div>
+          <button type="button" style="height: 2.5rem; padding: 0 16px; border: 1px solid #10104e; border-radius: 6px; background: #10104e; color: #ffffff; font: 600 14px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; cursor: pointer" style-hover="background: #1c1c66; border-color: #1c1c66" style-focus="outline: 2px solid #22c6ee; outline-offset: 2px">Iniciar sesión de soporte</button>
+        </div>
+      </div>
+    </div>
+
+    <p style="margin: 0; max-width: 88ch; font: 400 13px/1.6 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #5f6b7a; text-wrap: pretty">No hay selector de organización. La única forma de entrar a una es abrir una sesión de soporte con motivo y expiración, y ese es el botón. Tokens: --gestia-surface, --gestia-border, --gestia-text, --gestia-muted, --gestia-navy.</p>
+  </div>
+
+  <!-- Estado 2 -->
+  <div style="display: flex; flex-direction: column; gap: 16px">
+    <div style="display: flex; align-items: baseline; gap: 16px">
+      <span style="font: 600 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.1em; color: #10104e">ESTADO 2</span>
+      <span style="font: 600 15px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #253040">Sesión de soporte activa</span>
+      <span style="font: 400 13px/1.5 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #5f6b7a">La organización se nombra una sola vez, en la barra. La franja explica por qué estás dentro.</span>
+    </div>
+
+    <div style="width: 1168px; background: #ffffff; border: 1px solid #dce2e9; border-radius: 6px; overflow: hidden">
+      <div style="height: 4.5rem; display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 0 20px; border-bottom: 1px solid #dce2e9">
+        <div style="display: flex; align-items: center; gap: 12px; min-width: 0">
+          <span style="width: 8px; height: 8px; border-radius: 999px; background: #d97706; flex: none"></span>
+          <span style="font: 600 16px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #253040">GestIA Operadora Local</span>
+          <span style="font: 400 14px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #5f6b7a">Sesión de soporte</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 12px">
+          <div role="button" tabindex="0" aria-label="Cambiar fecha operativa, 04 sep 2026" style="display: flex; align-items: center; gap: 10px; height: 2.5rem; padding: 0 12px; border: 1px solid #dce2e9; border-radius: 6px; background: #ffffff" style-focus="outline: 2px solid #22c6ee; outline-offset: 1px">
+            <span style="font: 400 11px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; letter-spacing: 0.06em; text-transform: uppercase; color: #5f6b7a">Fecha operativa</span>
+            <span style="font: 600 14px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #253040">04 sep 2026</span>
+            <span style="font: 400 10px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #5f6b7a">▾</span>
+          </div>
+        </div>
+      </div>
+      <div style="background: #d97706; padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; gap: 24px">
+        <div style="display: flex; align-items: center; gap: 12px; min-width: 0; flex-wrap: wrap">
+          <span style="font: 700 12px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; letter-spacing: 0.1em; text-transform: uppercase; color: #253040">Modo soporte</span>
+          <span style="width: 1px; height: 14px; background: #253040; opacity: 0.35"></span>
+          <span style="font: 400 14px/1.3 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #253040">Turnos duplicados en el servicio nocturno de la sede Norte</span>
+          <span style="width: 1px; height: 14px; background: #253040; opacity: 0.35"></span>
+          <span style="font: 600 14px/1.3 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #253040">Expira en 47 min</span>
+        </div>
+        <button type="button" style="height: 2rem; padding: 0 14px; border: 1px solid #253040; border-radius: 6px; background: transparent; color: #253040; font: 600 13px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; cursor: pointer; flex: none" style-hover="background: #253040; color: #d97706" style-focus="outline: 2px solid #10104e; outline-offset: 2px">Finalizar soporte</button>
+      </div>
+    </div>
+
+    <p style="margin: 0; max-width: 88ch; font: 400 13px/1.6 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #5f6b7a; text-wrap: pretty">La franja ocupa el ancho completo bajo la barra: mientras esté ahí, todo lo que se ve abajo pertenece a esa organización. El motivo se muestra tal como lo escribió el actor. Motivo y expiración están en la franja porque son propiedades de la sesión, no de la organización. Tokens: --gestia-warning, --gestia-text, --gestia-border.</p>
+  </div>
+
+  <!-- Estado 3 -->
+  <div style="display: flex; flex-direction: column; gap: 16px">
+    <div style="display: flex; align-items: baseline; gap: 16px">
+      <span style="font: 600 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.1em; color: #10104e">ESTADO 3</span>
+      <span style="font: 600 15px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #253040">Por expirar · menos de diez minutos</span>
+      <span style="font: 400 13px/1.5 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #5f6b7a">Misma franja, sin color nuevo: el minutero se invierte en pastilla oscura y gana el peso.</span>
+    </div>
+
+    <div style="width: 1168px; background: #ffffff; border: 1px solid #dce2e9; border-radius: 6px; overflow: hidden">
+      <div style="height: 4.5rem; display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 0 20px; border-bottom: 1px solid #dce2e9">
+        <div style="display: flex; align-items: center; gap: 12px; min-width: 0">
+          <span style="width: 8px; height: 8px; border-radius: 999px; background: #d97706; flex: none"></span>
+          <span style="font: 600 16px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #253040">GestIA Operadora Local</span>
+          <span style="font: 400 14px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #5f6b7a">Sesión de soporte</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 12px">
+          <div role="button" tabindex="0" aria-label="Cambiar fecha operativa, 04 sep 2026" style="display: flex; align-items: center; gap: 10px; height: 2.5rem; padding: 0 12px; border: 1px solid #dce2e9; border-radius: 6px; background: #ffffff" style-focus="outline: 2px solid #22c6ee; outline-offset: 1px">
+            <span style="font: 400 11px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; letter-spacing: 0.06em; text-transform: uppercase; color: #5f6b7a">Fecha operativa</span>
+            <span style="font: 600 14px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #253040">04 sep 2026</span>
+            <span style="font: 400 10px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #5f6b7a">▾</span>
+          </div>
+        </div>
+      </div>
+      <div style="background: #d97706; padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; gap: 24px">
+        <div style="display: flex; align-items: center; gap: 12px; min-width: 0; flex-wrap: wrap">
+          <span style="font: 700 12px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; letter-spacing: 0.1em; text-transform: uppercase; color: #253040">Modo soporte</span>
+          <span style="width: 1px; height: 14px; background: #253040; opacity: 0.35"></span>
+          <span style="font: 400 14px/1.3 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #253040">Turnos duplicados en el servicio nocturno de la sede Norte</span>
+          <span style="display: inline-flex; align-items: center; height: 26px; padding: 0 10px; border-radius: 6px; background: #253040; color: #ffffff; font: 700 13px/1 'Helvetica Neue', Helvetica, Arial, sans-serif">Expira en 7 min</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px; flex: none">
+          <button type="button" style="height: 2rem; padding: 0 14px; border: 1px solid #253040; border-radius: 6px; background: transparent; color: #253040; font: 600 13px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; cursor: pointer" style-hover="background: #253040; color: #d97706" style-focus="outline: 2px solid #10104e; outline-offset: 2px">Finalizar soporte</button>
+      </div>
+      </div>
+    </div>
+
+    <p style="margin: 0; max-width: 88ch; font: 400 13px/1.6 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #5f6b7a; text-wrap: pretty">La sesión no se extiende: al expirar se cierra y se abre una nueva con su propio motivo. Por eso la urgencia se resuelve solo con contraste. Bajo diez minutos el minutero deja de ser un dato y pasa a ser el elemento de mayor peso de la franja, para que el usuario cierre lo que está haciendo antes de perder el contexto.</p>
+  </div>
+
+  <!-- Estado 4 -->
+  <div style="display: flex; flex-direction: column; gap: 16px">
+    <div style="display: flex; align-items: baseline; gap: 16px">
+      <span style="font: 600 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.1em; color: #10104e">ESTADO 4</span>
+      <span style="font: 600 15px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #253040">Admin de organización</span>
+      <span style="font: 400 13px/1.5 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #5f6b7a">Nunca cambia de contexto: la organización es texto, sin chevron y sin menú.</span>
+    </div>
+
+    <div style="width: 1168px; background: #ffffff; border: 1px solid #dce2e9; border-radius: 6px; overflow: hidden">
+      <div style="height: 4.5rem; display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 0 20px">
+        <div style="display: flex; align-items: center; gap: 12px; min-width: 0">
+          <span style="width: 8px; height: 8px; border-radius: 999px; background: #22c6ee; flex: none"></span>
+          <span style="font: 600 16px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #253040">Breakthrough Consulting Services</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 12px">
+          <div role="button" tabindex="0" aria-label="Cambiar fecha operativa, 04 sep 2026" style="display: flex; align-items: center; gap: 10px; height: 2.5rem; padding: 0 12px; border: 1px solid #dce2e9; border-radius: 6px; background: #ffffff" style-focus="outline: 2px solid #22c6ee; outline-offset: 1px">
+            <span style="font: 400 11px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; letter-spacing: 0.06em; text-transform: uppercase; color: #5f6b7a">Fecha operativa</span>
+            <span style="font: 600 14px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #253040">04 sep 2026</span>
+            <span style="font: 400 10px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #5f6b7a">▾</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p style="margin: 0; max-width: 88ch; font: 400 13px/1.6 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #5f6b7a; text-wrap: pretty">Un solo control en toda la barra: la fecha operativa. El punto en --gestia-cyan indica contexto propio y activo; el mismo lugar donde el super admin ve ámbar cuando está de visita.</p>
+  </div>
+
+  <!-- Estado 5 -->
+  <div style="display: flex; flex-direction: column; gap: 16px">
+    <div style="display: flex; align-items: baseline; gap: 16px">
+      <span style="font: 600 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.1em; color: #10104e">ESTADO 5</span>
+      <span style="font: 600 15px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #253040">Cargando</span>
+      <span style="font: 400 13px/1.5 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #5f6b7a">Esqueleto en las mismas posiciones, no spinner. La barra no cambia de alto ni salta.</span>
+    </div>
+
+    <div style="width: 1168px; background: #ffffff; border: 1px solid #dce2e9; border-radius: 6px; overflow: hidden">
+      <div style="height: 4.5rem; display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 0 20px" aria-busy="true" aria-label="Cargando contexto de trabajo">
+        <div style="display: flex; align-items: center; gap: 12px">
+          <span style="width: 8px; height: 8px; border-radius: 999px; background: #dce2e9"></span>
+          <span style="width: 208px; height: 14px; border-radius: 6px; background: #f7f9fb; border: 1px solid #dce2e9"></span>
+        </div>
+        <span style="width: 232px; height: 2.5rem; border-radius: 6px; background: #f7f9fb; border: 1px solid #dce2e9"></span>
+      </div>
+    </div>
+
+    <p style="margin: 0; max-width: 88ch; font: 400 13px/1.6 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #5f6b7a; text-wrap: pretty">Si al resolver hay sesión de soporte, la franja aparece bajo la barra y empuja el contenido; nunca se muestra un esqueleto de franja, porque insinuar modo soporte cuando no lo hay es peor que esperar. Tokens: --gestia-surface-soft, --gestia-border.</p>
+  </div>
+
+  <div style="border-top: 1px solid #dce2e9; padding-top: 24px; display: flex; flex-direction: column; gap: 10px; max-width: 88ch">
+    <span style="font: 600 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.1em; color: #10104e">LO QUE NO ESTÁ</span>
+    <p style="margin: 0; font: 400 14px/1.7 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #253040; text-wrap: pretty">Sin selector de organización para el super admin: se entra por sesión de soporte, así que el selector era un camino paralelo al permiso. Sin repetición del nombre de la organización entre barra y franja. Sin icono junto a etiquetas que ya se leen. Sin migas de pan, sin avatar, sin campana, sin buscador global: nada de eso es contexto de trabajo. Sin botón «Actualizar».</p>
+  </div>
+
+</section>
+
+</x-dc>
+</body>
+</html>

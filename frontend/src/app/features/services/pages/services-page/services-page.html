@@ -1,0 +1,1144 @@
+<div class="services-workspace">
+  <header class="page-heading">
+    <div>
+      <span class="eyebrow">Configuración</span>
+      <h1>Servicios</h1>
+      <p>{{ serviceCountNote() }}</p>
+    </div>
+    <!--
+      El botón ya no se apaga por no haber zona. Antes se deshabilitaba con `hasActiveZone()`, que
+      mira las zonas del cliente seleccionado, y sin cliente elegido eso es siempre falso: el botón
+      nacía apagado, sin decir por qué, y pulsarlo no hacía nada. Ahora se puede pulsar y es la
+      pantalla la que explica qué falta.
+    -->
+    <button
+      class="button button--primary"
+      type="button"
+      [disabled]="!puedeCrearServicios() || loading() || saving()"
+      (click)="openCreateService()"
+    >
+      Nuevo servicio
+    </button>
+  </header>
+
+  @if (platformAdmin() && !selectedOrganizationId()) {
+    <p class="notice">
+      Selecciona una organización en la barra de contexto para consultar sus servicios.
+    </p>
+  }
+
+  @if (aviso()) { <p class="gi-alert gi-alert--error" role="alert">{{ aviso() }}</p> }
+  @if (message()) { <p class="gi-alert gi-alert--success" role="status">{{ message() }}</p> }
+  @if (error()) { <p class="gi-alert gi-alert--error" role="alert">{{ error() }}</p> }
+
+  <!--
+    El conflicto de concurrencia no es un error cualquiera y por eso no va en la misma franja: no
+    se arregla reintentando. El servidor lo construye con la bitácora y dice quién corrigió el
+    registro y cuándo; lo único que se puede hacer es ver qué cambió la otra persona.
+  -->
+  @if (conflict(); as aviso) {
+    <div class="conflict" role="alert">
+      <p>{{ aviso }}</p>
+      <button class="button button--secondary" type="button" (click)="reloadAfterConflict()">
+        Volver a cargar
+      </button>
+    </div>
+  }
+
+  <div class="services-body">
+    <div class="services-list">
+      <!--
+        El enlace desde Clientes trae un cliente elegido. Se dice con todas sus letras y se puede
+        quitar: un filtro activo que no se ve es la forma más rápida de que alguien jure que faltan
+        servicios.
+      -->
+      @if (linkedClientId() && selectedClient(); as cliente) {
+        <p class="linked" role="status">
+          <span class="linked__label">Mostrando sólo los servicios de</span>
+          <span class="linked__name">{{ cliente.tradeName || cliente.legalName }}</span>
+          <button
+            class="linked__clear"
+            type="button"
+            [attr.aria-label]="'Quitar el filtro por ' + (cliente.tradeName || cliente.legalName)"
+            (click)="clearLinkedClient()"
+          >Ver todos los servicios</button>
+        </p>
+      }
+
+      <gi-filter-bar
+        [search]="search()"
+        searchPlaceholder="Buscar servicio, cliente o zona"
+        [groups]="statusGroups()"
+        [resultCount]="serviceList().totalCount"
+        (searchChange)="onSearch($event)"
+        (filterChange)="onStatusFilter($event.value)"
+        (clearAll)="clearFilters()"
+      />
+
+      <gi-data-table
+        label="Servicios de la organización"
+        [columns]="columns()"
+        [rows]="serviceList().items"
+        [rowId]="porId"
+        [state]="tableState()"
+        [selectedId]="selectedService()?.idService ?? null"
+        [errorMessage]="error()"
+        [emptyTitle]="tableState() === 'empty' ? 'Todavía no hay servicios' : 'Sin servicios con este filtro'"
+        [emptyDescription]="
+          tableState() === 'empty'
+            ? 'Registra el primero para empezar a planear su operación.'
+            : 'Ningún servicio coincide con el filtro. Puedes quitarlo o crear uno nuevo.'
+        "
+        emptyActionLabel="Nuevo servicio"
+        [emptySecondaryActionLabel]="tableState() === 'empty-filtered' ? 'Quitar filtros' : ''"
+        (rowSelect)="openService($event)"
+        (retry)="loadServices(serviceList().page)"
+        (emptyAction)="openCreateService()"
+        (emptySecondaryAction)="clearFilters()"
+      >
+        <ng-template giCell="clientZone" let-row>
+          {{ row.clientName }}@if (row.clientZoneName) { · {{ row.clientZoneName }} }
+        </ng-template>
+
+        <ng-template giCell="term" let-row>{{ vigencia(row) }}</ng-template>
+
+        <!--
+          Asignados sobre requeridos, para que el hueco se vea sin abrir la ficha. El excedente
+          se muestra en negativo: más gente que cupo revela una violación de control.
+        -->
+        <ng-template giCell="coverage" let-row>
+          <span class="coverage" [class.has-vacancy]="vacantes(row) > 0">
+            {{ row.assignedWorkerCount }} / {{ row.requiredWorkerCount }}
+          </span>
+          @if (vacantes(row) > 0) {
+            <span class="pill pill--danger">{{ vacantes(row) }} vacante@if (vacantes(row) !== 1) {s}</span>
+          } @else if (vacantes(row) < 0) {
+            <span class="pill pill--warning">{{ -vacantes(row) }} de más</span>
+          }
+        </ng-template>
+
+        <ng-template giCell="state" let-row>
+          <span class="pill" [class]="'pill--' + estado(row)">{{ estadoTexto(row) }}</span>
+        </ng-template>
+
+        <ng-template giCell="actions" let-row>
+          <!--
+            El clic del menú no puede burbujear a la fila: abrir las acciones abriría además la
+            ficha, y quien sólo quería ver el menú se encuentra el panel encima.
+          -->
+          <gi-row-actions
+            (click)="$event.stopPropagation()"
+            (keydown)="$event.stopPropagation()"
+            [actions]="rowActions()"
+            [label]="'Acciones de ' + row.name"
+            (select)="onRowAction(row, $event)"
+          />
+        </ng-template>
+      </gi-data-table>
+
+      @if (serviceList().totalPages > 1) {
+        <div class="pager">
+          <span>{{ serviceList().items.length }} de {{ serviceList().totalCount }} servicios</span>
+          <button
+            class="button button--secondary"
+            type="button"
+            [disabled]="serviceList().page <= 1 || loading()"
+            (click)="loadServices(serviceList().page - 1)"
+          >
+            Anterior
+          </button>
+          <button
+            class="button button--secondary"
+            type="button"
+            [disabled]="serviceList().page >= serviceList().totalPages || loading()"
+            (click)="loadServices(serviceList().page + 1)"
+          >
+            Siguiente
+          </button>
+        </div>
+      }
+    </div>
+
+    
+    @if (selectedService(); as service) {
+      <!--
+        La ficha va **al lado** de la tabla, no debajo: 620 px de columna. Antes se apilaba en el
+        mismo scroll, así que abrir un servicio empujaba la lista fuera de la pantalla.
+      -->
+      <gi-detail-panel
+        [title]="service.name"
+        [subtitle]="service.codeService + ' · ' + (selectedClient()?.legalName ?? '')"
+        [tabs]="panelTabs()"
+        [activeTab]="activeTab()"
+        (tabChange)="activeTab.set($event)"
+        (close)="closePanel()"
+      >
+        <!--
+          Editar vivia solo en el menu de tres puntos de la fila del listado: otro sitio, y habia
+          que cerrar la ficha que se estaba mirando para llegar. Aqui esta con las acciones de la
+          ficha, como en Clientes.
+        -->
+        @if (canWriteClients()) {
+          <button class="panel-accion" type="button" panelActions (click)="openEditService(service)">
+            Editar servicio
+          </button>
+        }
+
+        <ng-template giTab="data">
+          <dl class="ficha">
+            <div><dt>Cliente</dt><dd>{{ selectedClient()?.legalName || '—' }}</dd></div>
+            <div><dt>Zona</dt><dd>{{ service.clientZoneName || '—' }}</dd></div>
+            <div><dt>Vigencia</dt><dd>{{ vigencia(service) }}</dd></div>
+            <div><dt>Estado</dt><dd>{{ estadoTexto(service) }}</dd></div>
+            <div class="ficha__wide"><dt>Alcance</dt><dd>{{ service.description }}</dd></div>
+            <div>
+              <dt>Contrato</dt>
+              <dd>{{ service.serviceContractCode || 'Sin contrato' }}</dd>
+            </div>
+          </dl>
+
+          @if (contactoOperativo(); as contacto) {
+            <!--
+              El contacto es del cliente y su zona: se muestra en lectura para no ir a Clientes
+              durante la operación.
+            -->
+            <section class="contacto" aria-label="Contacto operativo en la zona">
+              <h3>Contacto operativo en la zona</h3>
+              <dl class="ficha">
+                <div><dt>Nombre</dt><dd>{{ contacto.fullName }}</dd></div>
+                <div><dt>Puesto</dt><dd>{{ contacto.jobTitle || '—' }}</dd></div>
+                <div><dt>Teléfono</dt><dd>{{ contacto.phone || contacto.mobilePhone || '—' }}</dd></div>
+              </dl>
+            </section>
+          }
+        </ng-template>
+
+        <!--
+          La pestaña de configuracion se retiro: el precio, el personal requerido y el impuesto
+          viven ahora en el puesto, y el horario lo declara el patron de turnos.
+        -->
+        <ng-template giTab="positions">
+        <!--
+          Sin cambios de contenido. Esta pestaña depende de tres decisiones de negocio que siguen
+          abiertas —si el traslape bloquea o advierte, cuántos descansos tiene una posición típica,
+          y si la fecha ancla lleva selector propio o entra una librería con su caso— y hasta que
+          se tomen, se queda como estaba.
+        -->
+        @if (canReadPlanning()) {
+          <section class="detail-section" [hidden]="activeTab() !== 'positions'">
+            <header>
+              <div>
+                <h3>Posiciones requeridas</h3>
+                <span>{{ selectedServiceName() }}</span>
+              </div>
+              <button
+                class="button button--secondary"
+                type="button"
+                [disabled]="!canWritePlanning() || saving() || loading() || !selectedService()"
+                (click)="openCreatePosition()"
+              >
+                Nueva posición
+              </button>
+            </header>
+
+            @if (!selectedService()) {
+              <div class="compact-state">Selecciona un servicio para configurar posiciones.</div>
+            } @else if (!positions().length) {
+              <div class="compact-state">Sin posiciones registradas para este servicio.</div>
+            } @else {
+              <div class="cards-list">
+                @for (position of positions(); track position.idPosition) {
+                  <article
+                    class="mini-card selectable"
+                    [class.is-active]="selectedPosition()?.idPosition === position.idPosition"
+                  >
+                    <button
+                      [disabled]="saving()"
+                      class="mini-card__main"
+                      type="button"
+                      (click)="selectPosition(position)"
+                    >
+                      <span class="code">{{ position.codePosition }}</span>
+                      <strong>{{ position.name }}</strong>
+                      <small>{{ position.requiredWorkerCount }} elemento(s) requeridos</small>
+                      <small>{{
+                        position.requiredSkillProfile ||
+                          position.notes ||
+                          'Sin perfil requerido capturado'
+                      }}</small>
+                      <!--
+                        La marca de revisión. Se ve aquí y no sólo en la evidencia de la
+                        migración: una posición sin patrón del catálogo no se puede planear, y eso
+                        tiene que verse donde alguien mira las posiciones, no en un registro que
+                        nadie abre.
+                      -->
+                      @if (!position.idShiftPatternTemplate) {
+                        <small class="warn">Sin patrón del catálogo · requiere revisión</small>
+                      }
+                    </button>
+                    <small>{{ position.active ? 'Activo' : 'Inactivo' }}</small>
+                    <div class="mini-actions">
+                      <button
+                        [disabled]="!canWritePlanning() || saving() || loading()"
+                        type="button"
+                        (click)="openEditPosition(position)"
+                      >
+                        Editar
+                      </button>
+                      <button
+                        [disabled]="
+                          !canWritePlanning() || saving() || loading() || !position.active
+                        "
+                        class="danger"
+                        type="button"
+                        (click)="deactivatePosition(position)"
+                      >
+                        Desactivar
+                      </button>
+                    </div>
+                  </article>
+                }
+              </div>
+            }
+          </section>
+        }
+        @if (canReadPlanning()) {
+          <section class="detail-section" [hidden]="activeTab() !== 'positions'">
+            <header>
+              <div>
+                <h3>Calendario del patrón</h3>
+                <span>{{ selectedPositionName() }}</span>
+              </div>
+            </header>
+
+            <!--
+              De sólo lectura, y es el cambio de fondo de esta pantalla: la posición ya no
+              configura su horario, lo consume. Antes tenía dos secciones editables —patrones
+              propios y segmentos semanales— que podían divergir del catálogo y de Planeación, que
+              es de donde salen los turnos de verdad. El horario se cambia ahora en Catálogos, una
+              vez, y todas las posiciones que usen ese patrón lo ven cambiado.
+            -->
+            @if (!selectedPosition()) {
+              <div class="compact-state">Selecciona una posición para ver su calendario.</div>
+            } @else if (!selectedPositionTemplate()) {
+              <div class="compact-state">
+                Esta posición no tiene patrón del catálogo, así que no se puede planear todavía.
+                Elígele uno al editarla.
+              </div>
+            } @else if (selectedPositionTemplate(); as plantilla) {
+              <!--
+                Dice «referencia» y no «horario», y la diferencia no es de estilo. Lo que se
+                trabaja cada semana lo decide la planeación: puede programarse un día que aquí
+                aparece como descanso, y puede no programarse uno que aquí aparece con horario.
+                Sin decirlo, este calendario se lee como una regla y no lo es.
+              -->
+              <p class="notice">
+                <strong>{{ plantilla.name }}</strong> · {{ cicloTexto(plantilla.cycleDays) }} ·
+                {{ plantilla.weeklyHours }} h a la semana. Es la <strong>referencia</strong> del
+                patrón: la semana que de verdad se trabaja se decide al planear, y puede no
+                coincidir. Para cambiar la referencia, en Catálogos.
+              </p>
+              @if (cicloNoEsSemanal(plantilla.cycleDays)) {
+                <p class="notice">
+                  El ciclo es de {{ plantilla.cycleDays }} días, así que no encaja con la semana: el
+                  día 1 no cae siempre en lunes. Por eso los días van numerados y no con nombre.
+                </p>
+              }
+
+              <div class="schedule-grid">
+                @for (dia of plantilla.days; track dia.idShiftPatternTemplateDay) {
+                  <article class="schedule-card">
+                    <div>
+                      <span class="pill">{{ diaDelCiclo(dia.cycleDayNumber, plantilla.cycleDays) }}</span>
+                      @if (dia.isRest) {
+                        <strong>Descanso</strong>
+                      } @else {
+                        <strong
+                          >{{ dia.startTime }} - {{ dia.endTime
+                          }}{{ dia.isOvernight ? ' (cruza medianoche)' : '' }}</strong
+                        >
+                        <small>{{ durationLabel(dia.durationMinutes) }}</small>
+                      }
+                    </div>
+                  </article>
+                }
+              </div>
+            }
+          </section>
+        }
+        </ng-template>
+
+        <ng-template giTab="documents">
+          @if (selectedService(); as servicio) {
+            <section class="detail-section" [hidden]="activeTab() !== 'documents'">
+              <header>
+                <div>
+                  <h3>Documentos del servicio</h3>
+                  <span>La cédula de servicio y lo que lo acompañe</span>
+                </div>
+              </header>
+              <app-entity-documents
+                [organizationId]="selectedOrganizationId()"
+                ownerType="Service"
+                [ownerId]="servicio.idService"
+                [ownerLabel]="servicio.name"
+                [simple]="true"
+                (totalChange)="serviceDocumentCount.set($event)"
+              />
+            </section>
+          } @else {
+            <div class="compact-state">Selecciona un servicio para ver sus documentos.</div>
+          }
+        </ng-template>
+
+        <ng-template giTab="assignments">
+        @if (canReadPlanning()) {
+          <section class="detail-section" [hidden]="activeTab() !== 'assignments'">
+            @if (!canReadEmployees()) {
+              <p class="notice">
+                La selección de personal requiere permiso de lectura de Personal.
+              </p>
+            }
+            <header>
+              <div>
+                <h3>Asignaciones de personal</h3>
+                <span>{{ selectedServiceName() }}</span>
+              </div>
+              <button
+                class="button button--secondary"
+                type="button"
+                [disabled]="
+                  !canWritePlanning() ||
+                  !canReadEmployees() ||
+                  saving() ||
+                  loading() ||
+                  !hasActivePosition() ||
+                  !activeEmployees().length
+                "
+                (click)="openCreateAssignment()"
+              >
+                Nueva asignación
+              </button>
+            </header>
+
+            @if (!selectedService()) {
+              <div class="compact-state">Selecciona un servicio para asignar personal.</div>
+            } @else if (!assignments().length) {
+              <div class="compact-state">Sin personal asignado a este servicio.</div>
+            } @else {
+              <div class="cards-list">
+                @for (assignment of assignments(); track assignment.idServiceAssignment) {
+                  <article class="mini-card">
+                    <div>
+                      <span class="pill"
+                        >{{ assignmentTypeLabel(assignment.assignmentType)
+                        }}{{ assignment.isPrimary ? ' · Principal' : '' }}</span
+                      >
+                      <strong>{{ assignment.employeeName }}</strong>
+                      <small
+                        >{{ assignment.employeeCode }} ·
+                        {{ assignment.positionCode || 'Sin posición' }}
+                        {{ assignment.positionName ? '· ' + assignment.positionName : '' }}</small
+                      >
+                      <small
+                        >Vigencia: {{ assignment.startDate }} -
+                        {{ assignment.endDate || 'sin fecha de término' }}</small
+                      >
+                      <small>{{ assignment.notes || 'Sin observaciones' }}</small>
+                    </div>
+                    <small>{{ assignment.active ? 'Activo' : 'Inactivo' }}</small>
+                    <div class="mini-actions">
+                      <button
+                        [disabled]="!canWritePlanning() || saving() || loading()"
+                        type="button"
+                        (click)="openEditAssignment(assignment)"
+                      >
+                        Editar
+                      </button>
+                      <button
+                        [disabled]="
+                          !canWritePlanning() || saving() || loading() || !assignment.active
+                        "
+                        class="danger"
+                        type="button"
+                        (click)="deactivateAssignment(assignment)"
+                      >
+                        Desactivar
+                      </button>
+                    </div>
+                  </article>
+                }
+              </div>
+            }
+          </section>
+        }
+
+          <!--
+            La cobertura por posición, al día operativo. El excedente va en negativo: si sobra
+            gente, se ve.
+          -->
+          @if (canReadPlanning() && positionVacancy().length) {
+            <section class="vacantes" aria-label="Cobertura por posición">
+              <h3>Cobertura al {{ operationDate() ? formatearFecha(operationDate()) : 'día operativo' }}</h3>
+              <table class="gi-table">
+                <thead>
+                  <tr><th scope="col">Posición</th><th scope="col">Req. / Asig.</th><th scope="col">Estado</th></tr>
+                </thead>
+                <tbody>
+                  @for (posicion of positionVacancy(); track posicion.idPosition) {
+                    <tr>
+                      <td>{{ posicion.codePosition }} {{ posicion.name }}</td>
+                      <td>{{ posicion.requiredWorkerCount }} / {{ posicion.assignedWorkerCount }}</td>
+                      <td>
+                        @if (vacantesDePosicion(posicion) > 0) {
+                          <span class="pill pill--danger">{{ vacantesDePosicion(posicion) }} vacante@if (vacantesDePosicion(posicion) !== 1) {s}</span>
+                        } @else if (vacantesDePosicion(posicion) < 0) {
+                          <span class="pill pill--warning">{{ -vacantesDePosicion(posicion) }} de más</span>
+                        } @else {
+                          <span class="pill pill--active">Completa</span>
+                        }
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </section>
+          }
+        </ng-template>
+
+        @if (canReadPlanning()) {
+          <a
+            panelFooter
+            class="button button--secondary"
+            routerLink="/planeacion"
+            [queryParams]="{ clientId: selectedClient()?.idClient, serviceId: service.idService }"
+            ><app-icon name="calendar" /> Ir a planeación</a
+          >
+        }
+      </gi-detail-panel>
+    }
+  </div>
+
+  <!--
+    El diálogo del sistema, en vez del `window.confirm` que sólo sabía decir «¿estás seguro?».
+    Nombra el servicio y explica qué deja de funcionar, que es lo que se lee antes de contestar.
+  -->
+  @if (serviceToDeactivate(); as porDesactivar) {
+    <gi-confirm-dialog
+      [open]="true"
+      [subject]="porDesactivar.codeService + ' · ' + porDesactivar.name"
+      consequence="Sus posiciones dejan de programarse y no se generarán turnos futuros. Lo ya registrado se conserva."
+      (confirm)="deactivateService(porDesactivar)"
+      (cancel)="cancelDeactivateService()"
+    />
+  }
+</div>
+@if (serviceEditorOpen() && canRead()) {
+  <div class="modal-backdrop" (click)="closeEditors()">
+    <section
+      serviceDialog
+      (dismiss)="closeEditors()"
+      class="modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="service-editor-title"
+      (click)="$event.stopPropagation()"
+    >
+      <header>
+        <div>
+          <span class="eyebrow">Servicio contratado</span>
+          <h2 id="service-editor-title">
+            {{ editingService() ? 'Editar servicio' : 'Nuevo servicio' }}
+          </h2>
+        </div>
+        <button type="button" [disabled]="saving()" aria-label="Cerrar" (click)="closeEditors()">
+          ×
+        </button>
+      </header>
+      <form [formGroup]="serviceForm" (ngSubmit)="saveService()">
+        @if (serviceForm.hasError('dateRange')) {
+          <p class="notice notice--error" role="alert">La fecha de fin debe ser igual o posterior al inicio.</p>
+        }
+        @if (error()) {
+          <p class="notice notice--error" role="alert">{{ error() }}</p>
+        }
+        <fieldset [disabled]="saving()">
+          <ol
+            class="wizard-steps wizard-steps--three"
+            aria-label="Progreso de configuración del servicio"
+          >
+            <li
+              [class.is-active]="serviceWizardStep() === 1"
+              [class.is-complete]="serviceWizardStep() > 1"
+            >
+              <span>1</span>Base
+            </li>
+            <li
+              [class.is-active]="serviceWizardStep() === 2"
+              [class.is-complete]="serviceWizardStep() > 2"
+            >
+              <span>2</span>Descripción
+            </li>
+            <li [class.is-active]="serviceWizardStep() === 3"><span>3</span>Vigencia</li>
+          </ol>
+
+          @if (serviceWizardStep() === 1) {
+            <section class="wizard-panel" aria-labelledby="service-step-base">
+              <div class="wizard-panel__heading">
+                <span>Paso 1 de 3</span>
+                <h3 id="service-step-base">Base del servicio</h3>
+              </div>
+              <!--
+                Sin campo de codigo: lo pone el servidor con la forma SRV-01, consecutivo por
+                cliente, igual que el de cliente y el de organizacion. Es un identificador de
+                conveniencia, no la clave del registro, y pedirselo a quien da de alta un servicio
+                le hacia inventar una convencion que el sistema ya tiene.
+              -->
+              <div class="form-grid">
+                <label
+                  ><span>Zona *</span
+                  ><select formControlName="idClientZone">
+                    @for (zone of zones(); track zone.idClientZone) {
+                      <option
+                        [disabled]="
+                          !zone.active && zone.idClientZone !== editingService()?.idClientZone
+                        "
+                        [value]="zone.idClientZone"
+                      >
+                        {{ zone.name }}
+                      </option>
+                    }
+                  </select></label
+                >
+                <label
+                  ><span>Contrato</span
+                  ><select formControlName="idServiceContract">
+                    <option value="">Sin contrato ligado</option>
+                    @for (contract of contracts(); track contract.idServiceContract) {
+                      <option
+                        [disabled]="
+                          !contract.active &&
+                          contract.idServiceContract !== editingService()?.idServiceContract
+                        "
+                        [value]="contract.idServiceContract"
+                      >
+                        {{ contract.codeServiceContract }}
+                      </option>
+                    }
+                  </select></label
+                >
+                <label class="wide"
+              ><span>Nombre *</span><input formControlName="name" [class.is-invalid]="errorDe('name')" />
+              @if (errorDe('name')) { <small class="campo__error">{{ errorDe('name') }}</small> }
+            </label>
+              </div>
+            </section>
+          } @else if (serviceWizardStep() === 2) {
+            <section class="wizard-panel" aria-labelledby="service-step-description">
+              <div class="wizard-panel__heading">
+                <span>Paso 2 de 3</span>
+                <h3 id="service-step-description">Alcance comercial</h3>
+              </div>
+              <div class="form-grid">
+                <label class="wide"
+                  ><span>Descripción *</span
+                  ><textarea rows="4" formControlName="description"></textarea>
+                </label>
+              </div>
+            </section>
+          } @else {
+            <section class="wizard-panel" aria-labelledby="service-step-term">
+              <div class="wizard-panel__heading">
+                <span>Paso 3 de 3</span>
+                <h3 id="service-step-term">Vigencia</h3>
+              </div>
+              <div class="form-grid">
+                <label
+                  ><span>Inicio *</span><gi-date formControlName="startDate" /></label>
+                <label><span>Fin</span><gi-date formControlName="endDate" /></label>
+              </div>
+            </section>
+          }
+          <footer>
+            <button class="button button--secondary" type="button" (click)="closeEditors()">
+              Cancelar
+            </button>
+            <div class="wizard-actions">
+              @if (serviceWizardStep() > 1) {
+                <button
+                  class="button button--secondary"
+                  type="button"
+                  (click)="previousServiceWizardStep()"
+                >
+                  Anterior
+                </button>
+              }
+              @if (serviceWizardStep() < 3) {
+                <button
+                  class="button button--primary"
+                  type="button"
+                  (click)="nextServiceWizardStep()"
+                >
+                  Siguiente
+                </button>
+              } @else {
+                <button
+                  class="button button--primary"
+                  type="submit"
+                  [disabled]="saving() || serviceForm.invalid"
+                >
+                  {{
+                    saving()
+                      ? 'Guardando…'
+                      : editingService()
+                        ? 'Guardar cambios'
+                        : 'Crear servicio'
+                  }}
+                </button>
+              }
+            </div>
+          </footer>
+        </fieldset>
+      </form>
+    </section>
+  </div>
+}
+
+
+<!--
+  Quien quedo fuera del perfil al editar la posicion.
+
+  No deshace nada: enumera y lleva a Asignaciones, que es donde se resuelve. Quitarle la asignacion
+  a alguien por un cambio de perfil es decision de quien opera, no un efecto de guardar.
+-->
+@if (asignadosFuera().length) {
+  <div class="modal-backdrop" (click)="asignadosFuera.set([])">
+    <section
+      class="modal modal--aviso"
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="aviso-asignados-titulo"
+      (click)="$event.stopPropagation()"
+    >
+      <header>
+        <div>
+          <span class="eyebrow">Posición actualizada</span>
+          <h2 id="aviso-asignados-titulo">
+            {{ asignadosFuera().length === 1 ? 'Una persona asignada ya no cumple' : asignadosFuera().length + ' personas asignadas ya no cumplen' }}
+          </h2>
+        </div>
+      </header>
+
+      <p class="aviso__linea">
+        El cambio se guardó. Estas personas siguen asignadas a la posición, pero con el perfil
+        nuevo ya no la cubren:
+      </p>
+
+      <ul class="aviso__lista">
+        @for (persona of asignadosFuera(); track persona.nombre) {
+          <li>
+            <strong>{{ persona.nombre }}</strong>
+            <ul>
+              @for (motivo of persona.motivos; track motivo) {
+                <li>{{ motivo }}</li>
+              }
+            </ul>
+          </li>
+        }
+      </ul>
+
+      <footer>
+        <button class="gi-button gi-button--secondary" type="button" (click)="asignadosFuera.set([])">
+          Dejarlo así por ahora
+        </button>
+        <button
+          class="gi-button gi-button--primary"
+          type="button"
+          (click)="asignadosFuera.set([]); activeTab.set('assignments')"
+        >
+          Ver las asignaciones
+        </button>
+      </footer>
+    </section>
+  </div>
+}
+
+@if (positionEditorOpen() && canRead()) {
+  <div class="modal-backdrop" (click)="closeEditors()">
+    <section
+      serviceDialog
+      (dismiss)="closeEditors()"
+      class="modal modal--posicion"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="position-editor-title"
+      (click)="$event.stopPropagation()"
+    >
+      <header>
+        <div>
+          <span class="eyebrow">Posición requerida</span>
+          <h2 id="position-editor-title">
+            {{ editingPosition() ? 'Editar posición' : 'Nueva posición' }}
+          </h2>
+        </div>
+        <button type="button" [disabled]="saving()" aria-label="Cerrar" (click)="closeEditors()">
+          ×
+        </button>
+      </header>
+      <form [formGroup]="positionForm" (ngSubmit)="savePosition()">
+        @if (error()) {
+          <p class="notice notice--error" role="alert">{{ error() }}</p>
+        }
+        <fieldset [disabled]="saving()">
+          <!-- Sin codigo: lo pone el servidor como P-01, consecutivo por servicio. -->
+          <div class="form-grid">
+            <label
+              ><span>Personas requeridas *</span
+              ><input type="number" formControlName="requiredWorkerCount" min="1"
+              [class.is-invalid]="errorDe('requiredWorkerCount')"
+            />
+              @if (errorDe('requiredWorkerCount')) { <small class="campo__error">{{ errorDe('requiredWorkerCount') }}</small> }
+            </label>
+            <label class="span-2"
+              ><span>Nombre *</span><input formControlName="name" [class.is-invalid]="errorDe('name')" />
+              @if (errorDe('name')) { <small class="campo__error">{{ errorDe('name') }}</small> }
+            </label>
+            <!--
+              El precio del puesto. Vive aqui desde que se retiro la configuracion del servicio:
+              en seguridad privada se cotiza por puesto, no por servicio, y un servicio con caseta,
+              rondin y monitorista tiene tres precios, no uno.
+            -->
+            <label
+              ><span>Precio *</span
+              ><input type="number" formControlName="price" min="0" step="0.01"
+              [class.is-invalid]="errorDe('price')"
+            />
+              @if (errorDe('price')) { <small class="campo__error">{{ errorDe('price') }}</small> }
+            </label>
+            <!--
+              El periodo va junto al importe porque un precio sin periodo no significa nada. Antes
+              el campo decia «Precio mensual» y el mes estaba metido en el rotulo: al guardia se le
+              cobra por semana y no habia forma de decirlo.
+            -->
+            <label
+              ><span>Periodo del precio *</span
+              ><select formControlName="priceFrequency">
+                @for (opcion of paymentFrequencies; track opcion.value) {
+                  <option [value]="opcion.value">{{ opcion.label }}</option>
+                }
+              </select>
+            </label>
+            <label class="check check--enLinea"
+              ><input type="checkbox" formControlName="isTaxIncluded" /><span>IVA incluido</span></label
+            >
+            <!--
+              La vigencia del puesto. No es la del servicio: un servicio vigente todo el año puede
+              tener un refuerzo de octubre a diciembre, y hasta hoy eso no se podia expresar.
+              Dejarlas vacias hereda la del servicio, que es lo que tenian las 69 posiciones
+              capturadas antes de que el campo existiera.
+            -->
+            <label
+              ><span>Vigente desde</span><gi-date formControlName="startDate" [class.is-invalid]="errorDe('startDate')" />
+              @if (errorDe('startDate')) { <small class="campo__error">{{ errorDe('startDate') }}</small> }
+            </label>
+            <label
+              ><span>Vigente hasta</span><gi-date formControlName="endDate" [class.is-invalid]="errorDe('endDate')" />
+              @if (errorDe('endDate')) { <small class="campo__error">{{ errorDe('endDate') }}</small> }
+            </label>
+            <!--
+              El patron de turno sale del catalogo. Antes se capturaba dentro de cada posicion y sus
+              dias se declaraban por dia de la semana, asi que un 24x48 —ciclo de tres dias— no
+              cabia, y habia que volver a teclear el mismo horario en cada puesto. El catalogo se
+              construye en Catalogos y aqui solo se elige.
+            -->
+            <label class="wide"
+              ><span>Patrón de turno</span
+              ><!--
+                Va con formControlName y no con [value]. Con [value] el patron guardado no se veia
+                al reabrir: las opciones llegan por HTTP despues del primer dibujado, un <select>
+                ignora un value que todavia no corresponde a ninguna opcion, y Angular no lo vuelve
+                a aplicar. El dato estaba bien guardado y la pantalla decia que no habia ninguno.
+              --><select
+                formControlName="idShiftPatternTemplate"
+                (change)="elegirPatronDeTurno($any($event.target).value)"
+              >
+                <!--
+                  Sigue existiendo porque retirarla dejaría sin planear a las 64 posiciones que
+                  hoy no tienen plantilla, y porque el catálogo sólo ofrece las plantillas
+                  completas: de diez activas, nueve tienen días del ciclo sin declarar. El rótulo
+                  dice lo que la opción significa de verdad, que es que queda pendiente.
+                -->
+                <option value="">Sin patrón del catálogo · queda pendiente de revisión</option>
+                @for (patron of shiftPatternTemplates(); track patron.idShiftPatternTemplate) {
+                  <option [value]="patron.idShiftPatternTemplate">{{ patronEtiqueta(patron) }}</option>
+                }
+              </select>
+              <!--
+                Sin nota debajo del desplegable: repetia lo que la propia opcion ya dice.
+
+                `patronEtiqueta` escribe «de 12x12 · Nocturno · 6 dias · promedio 42 h/semana», y
+                cuando se pasa de la jornada legal añade «· excede por N h». La nota volvia a
+                contarlo en prosa dos renglones mas abajo, asi que el aviso de exceso no se pierde:
+                sigue en la etiqueta del patron elegido, que es donde se lee al elegirlo.
+              -->
+              @if (!shiftPatternTemplates().length) {
+                <small>
+                  Todavía no hay patrones completos en el catálogo. Se construyen en Catálogos ·
+                  Patrones de turno; mientras no haya ninguno, el puesto conserva el patrón que se le
+                  capturó por dentro.
+                </small>
+              } @else {
+              }
+            </label>
+            <!--
+              Lo que el cliente pide para el puesto. Es del PUESTO y no de la persona: describe lo
+              contratado, y por eso el catálogo de sexo admite «Indistinto», que no describiría a
+              nadie. Nada de esto se compara contra el expediente de quien se asigne; eso son las
+              reglas de elegibilidad, que viven en Catálogos.
+            -->
+            <label
+              ><span>Sexo requerido</span
+              ><select formControlName="idSexCatalogItem">
+                <option value="">Sin declarar</option>
+                @for (valor of sexCatalog(); track valor.idCatalogItem) {
+                  <option [value]="valor.idCatalogItem">{{ valor.name }}</option>
+                }
+              </select>
+            </label>
+            <label
+              ><span>Rango de edad</span
+              ><select formControlName="idAgeRangeCatalogItem">
+                <option value="">Sin declarar</option>
+                @for (valor of ageRangeCatalog(); track valor.idCatalogItem) {
+                  <option [value]="valor.idCatalogItem">{{ valor.name }}</option>
+                }
+              </select>
+            </label>
+            <label
+              ><span>Escolaridad mínima</span
+              ><select formControlName="idEducationLevelCatalogItem">
+                <option value="">Sin declarar</option>
+                @for (valor of educationCatalog(); track valor.idCatalogItem) {
+                  <option [value]="valor.idCatalogItem">{{ valor.name }}</option>
+                }
+              </select>
+            </label>
+
+            <!--
+              El equipo, en desplegable.
+
+              Eran doce casillas en rejilla de tres columnas: ocupaban un tercio del formulario
+              para declarar algo que casi siempre son dos o tres cosas, y obligaban a leer las doce
+              para ver cuales estaban marcadas. Ahora se elige de una lista y lo elegido queda a la
+              vista como fichas, que es donde se lee sin buscar.
+            -->
+            <div class="wide">
+              <span class="equipo__titulo">Equipo requerido</span>
+              @if (equipmentCatalog().length) {
+                <div class="equipo__control">
+                  <gi-select
+                    label="Agregar equipo requerido"
+                    placeholder="Elige el equipo que la posición exige"
+                    [openDown]="true"
+                    [options]="equipmentOptions()"
+                    [disabled]="!canWriteClients() || !equipmentOptions().length"
+                    value=""
+                    (valueChange)="addEquipment($event)"
+                  />
+                  @if (!equipmentOptions().length) {
+                    <small>Ya está declarado todo el equipo del catálogo.</small>
+                  }
+                </div>
+
+                @if (selectedEquipment().length) {
+                  <ul class="equipo__elegido">
+                    @for (equipo of selectedEquipmentItems(); track equipo.idCatalogItem) {
+                      <li>
+                        <span>{{ equipo.name }}</span>
+                        @if (canWriteClients()) {
+                          <button
+                            type="button"
+                            [attr.aria-label]="'Quitar ' + equipo.name"
+                            (click)="toggleEquipment(equipo.idCatalogItem)"
+                          >&times;</button>
+                        }
+                      </li>
+                    }
+                  </ul>
+                } @else {
+                }
+              } @else {
+                <small>
+                  El catálogo de equipo requerido está vacío. Se llena en Catálogos · Equipo
+                  requerido, y hasta entonces la posición se guarda sin equipo declarado.
+                </small>
+              }
+            </div>
+
+            <!--
+              El perfil deja de ser una descripción y pasa a ser una lista comprobable. El texto
+              libre se queda como nota, porque lo que alguien escribió no se borra, pero la pantalla
+              dice lo que es: algo que se lee, no algo que el sistema compare con nadie.
+            -->
+            <app-position-skills
+              [catalogSkills]="catalogSkills()"
+              [requirements]="positionSkillRequirements()"
+              [pending]="pendingPositionSkills()"
+              [canWrite]="canWriteClients()"
+              [saving]="saving()"
+              (add)="addPositionSkill($event)"
+              (remove)="removePositionSkill($event)"
+              (removePending)="removePendingPositionSkill($event)"
+            />
+            <!--
+              El «Perfil en palabras» sale de la vista el 24 de septiembre de 2026. Era una nota
+              que nadie comprobaba, al lado de la lista de experiencias que SI se comprueban.
+
+              **El control sigue en el formulario**, sin dibujarse. Quitarlo del grupo haria que al
+              guardar viajara vacio y borraria en silencio lo que ya hay escrito en las posiciones
+              que lo usaron; asi el texto viaja intacto y sigue leyendose en la tarjeta de la
+              posicion, que es donde se consulta.
+            -->
+
+            <label class="wide"
+              ><span>Notas</span><textarea rows="3" formControlName="notes"></textarea>
+            </label>
+          </div>
+          <footer>
+            <button class="button button--secondary" type="button" (click)="closeEditors()">
+              Cancelar
+            </button>
+            <button class="button button--primary" type="submit" [disabled]="saving()">
+              {{ saving() ? 'Guardando…' : 'Guardar posición' }}
+            </button>
+          </footer>
+        </fieldset>
+      </form>
+    </section>
+  </div>
+}
+
+@if (assignmentEditorOpen() && canRead()) {
+  <div class="modal-backdrop" (click)="closeEditors()">
+    <section
+      serviceDialog
+      (dismiss)="closeEditors()"
+      class="modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="assignment-editor-title"
+      (click)="$event.stopPropagation()"
+    >
+      <header>
+        <div>
+          <span class="eyebrow">Planeación operativa</span>
+          <h2 id="assignment-editor-title">
+            {{ editingAssignment() ? 'Editar asignación' : 'Nueva asignación' }}
+          </h2>
+        </div>
+        <button type="button" [disabled]="saving()" aria-label="Cerrar" (click)="closeEditors()">
+          ×
+        </button>
+      </header>
+      <form [formGroup]="assignmentForm" (ngSubmit)="saveAssignment()">
+        @if (assignmentForm.hasError('dateRange')) {
+          <p class="notice notice--error" role="alert">La fecha de fin debe ser igual o posterior al inicio.</p>
+        }
+        @if (error()) {
+          <p class="notice notice--error" role="alert">{{ error() }}</p>
+        }
+        <fieldset [disabled]="saving()">
+          <div class="form-grid">
+            @if (editingAssignment(); as assignment) {
+              <!-- Editando no se cambia de persona: eso es retirar una asignación y crear otra. -->
+              <label class="wide">
+                <span>Empleado</span>
+                <select formControlName="idEmployee">
+                  <option [value]="assignment.idEmployee">{{ assignment.employeeName }}</option>
+                </select>
+              </label>
+            }
+            <label class="wide">
+              <span>Posición *</span>
+              <select
+                formControlName="idPosition"
+                (change)="onCandidatePositionChange($any($event.target).value)"
+              >
+                @for (position of positions(); track position.idPosition) {
+                  <option
+                    [disabled]="
+                      !position.active && position.idPosition !== editingAssignment()?.idPosition
+                    "
+                    [value]="position.idPosition"
+                  >
+                    {{ position.codePosition }} · {{ position.name }}
+                  </option>
+                }
+              </select>
+            </label>
+            <label>
+              <span>Tipo *</span>
+              <select formControlName="assignmentType">
+                @for (type of assignmentTypes; track type.value) {
+                  <option [value]="type.value">{{ type.label }}</option>
+                }
+              </select>
+              <small>Con qué calidad cubre <strong>esta posición</strong>.</small>
+            </label>
+            <label><span>Inicio *</span><gi-date formControlName="startDate" /></label>
+            <label><span>Fin</span><gi-date formControlName="endDate" /></label>
+            <!--
+              El tipo y la asignación principal parecen lo mismo y responden preguntas distintas.
+              Sin decirlo, quien captura marca la casilla porque eligió «Titular» arriba, y las dos
+              dejan de significar algo: hoy hay 112 asignaciones marcadas principales y 38 con tipo
+              distinto de titular, así que en los datos ya son cosas separadas.
+            -->
+            <label class="check"
+              ><input type="checkbox" formControlName="isPrimary" /><span
+                >Asignación principal</span
+              ></label
+            >
+            <p class="hint wide">
+              <strong>Tipo</strong> dice con qué calidad cubre esta posición.
+              <strong>Asignación principal</strong> dice si éste es el puesto base
+              <strong>de la persona</strong>, cuando cubre varios. Alguien puede ser titular de una
+              posición y tener su puesto base en otra.
+            </p>
+            <label class="wide"
+              ><span>Notas</span><textarea rows="3" formControlName="notes"></textarea>
+            </label>
+          </div>
+
+          @if (!editingAssignment()) {
+            <!--
+              La lista de candidatos con el estado antes de guardar. Antes ofrecía a todos los
+              empleados activos sin distinguir y el rechazo llegaba al guardar, que es donde se
+              atoraba quien asignaba. «Ocupado» no impide elegir: alguien puede estar cubriendo sólo
+              los domingos y hacer falta un miércoles.
+            -->
+            <gi-candidate-picker
+              [candidates]="assignmentCandidates()"
+              [selectedId]="assignmentForm.controls.idEmployee.value"
+              title="CANDIDATOS PARA ESTA POSICIÓN"
+              [emptyTitle]="candidatesEmptyTitle()"
+              [emptyBody]="candidatesEmptyBody()"
+              emptyActionLabel="Ir a Personal"
+              (choose)="chooseCandidate($event)"
+              (resolveEmpty)="goToWorkforce()"
+            />
+          }
+
+          <footer>
+            <button class="button button--secondary" type="button" (click)="closeEditors()">
+              Cancelar
+            </button>
+            <button class="button button--primary" type="submit" [disabled]="saving()">
+              {{ saving() ? 'Guardando…' : 'Guardar asignación' }}
+            </button>
+          </footer>
+        </fieldset>
+      </form>
+    </section>
+  </div>
+}
+

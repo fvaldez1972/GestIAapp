@@ -1,0 +1,195 @@
+import { Component, signal } from '@angular/core';
+import { TestBed } from '@angular/core/testing';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
+import { provideRouter } from '@angular/router';
+import { EmployeeJobPositionOption } from '../data-access/employee-list.models';
+import { EmployeeForm, EmployeeFormValue } from './employee-form';
+
+@Component({
+  imports: [EmployeeForm],
+  template: `
+    <app-employee-form
+      organizationId="o1"
+      [jobPositions]="jobPositions()"
+      [canWrite]="true"
+      [today]="hoy()"
+      (save)="guardado.set($event)"
+    />
+  `,
+})
+class Anfitrion {
+  readonly jobPositions = signal<readonly EmployeeJobPositionOption[]>([
+    { idCatalogItem: 'jp-1', name: 'Guardia intramuros' },
+    { idCatalogItem: 'jp-2', name: 'Supervisor de zona' },
+  ]);
+  readonly hoy = signal('2026-09-06');
+  readonly guardado = signal<EmployeeFormValue | null>(null);
+}
+
+function montar(configurar: (host: Anfitrion) => void = () => {}) {
+  const fixture = TestBed.createComponent(Anfitrion);
+  configurar(fixture.componentInstance);
+  fixture.detectChanges();
+
+  const raiz = fixture.nativeElement as HTMLElement;
+
+  const escribir = (id: string, valor: string) => {
+    const campo = raiz.querySelector<HTMLInputElement>(`#${id}`)!;
+    campo.value = valor;
+    campo.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+  };
+
+  const boton = (texto: string) =>
+    Array.from(raiz.querySelectorAll<HTMLButtonElement>('.button')).find(
+      (b) => b.textContent!.trim() === texto,
+    )!;
+
+  return { fixture, raiz, host: fixture.componentInstance, escribir, boton };
+}
+
+describe('El alta de una persona', () => {
+  beforeEach(() =>
+    TestBed.configureTestingModule({
+      imports: [Anfitrion],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
+    }));
+
+  afterEach(() => TestBed.resetTestingModule());
+
+  /** No se le pide al usuario que invente un identificador: es un problema del sistema. */
+  it('no pide código de empleado ni estado inicial', () => {
+    const { raiz } = montar();
+
+    expect(raiz.querySelector('#ef-codigo')).toBeNull();
+    expect(raiz.textContent).not.toContain('CÓDIGO');
+  });
+
+  /** Las dos salidas dicen qué deja cada una, en vez de un solo botón que decide en silencio. */
+  it('ofrece guardar con puesto y guardar sin puesto', () => {
+    const { boton } = montar();
+
+    expect(boton('Guardar con puesto')).toBeDefined();
+    expect(boton('Guardar sin puesto')).toBeDefined();
+  });
+
+  /** Un botón gris sin motivo obliga a adivinar qué falta. */
+  it('con el formulario vacío escribe por qué no se puede guardar', () => {
+    const { raiz, boton } = montar();
+
+    expect(boton('Guardar sin puesto').disabled).toBe(true);
+    const motivo = raiz.querySelector<HTMLElement>('#ef-falta-persona')!;
+    expect(motivo.hidden).toBe(false);
+    expect(motivo.textContent).toContain('el apellido paterno o la fecha de ingreso');
+  });
+
+  /** Sin fecha capturada vale la de hoy del servidor, nunca la del reloj del navegador. */
+  it('con nombre y apellido basta para guardar sin puesto, y toma el día operativo del servidor', () => {
+    const { escribir, boton, host } = montar();
+
+    escribir('ef-nombre', 'Renata');
+    escribir('ef-paterno', 'Villaseñor');
+    expect(boton('Guardar sin puesto').disabled).toBe(false);
+
+    boton('Guardar sin puesto').click();
+
+    expect(host.guardado()?.hireDate).toBe('2026-09-06');
+    expect(host.guardado()?.idJobPositionCatalogItem).toBe('');
+  });
+
+  // ── El nombre en tres partes (RQ-06) ──────────────────────────────────────────────────────
+
+  /**
+   * El nombre se captura en tres campos y viaja en tres campos. <b>El alta no compone el nombre
+   * completo</b>: eso lo hace el servidor, y si el navegador lo armara existirian dos versiones del
+   * mismo dato.
+   */
+  it('manda las tres partes del nombre por separado, sin componer el nombre completo', () => {
+    const { escribir, boton, host } = montar();
+
+    escribir('ef-nombre', 'Renata');
+    escribir('ef-paterno', 'Villaseñor');
+    escribir('ef-materno', 'Cortés');
+
+    boton('Guardar sin puesto').click();
+
+    const guardado = host.guardado()!;
+    expect(guardado.firstName).toBe('Renata');
+    expect(guardado.lastNamePaternal).toBe('Villaseñor');
+    expect(guardado.lastNameMaternal).toBe('Cortés');
+    expect(guardado).not.toHaveProperty('fullName');
+  });
+
+  /**
+   * <b>El apellido materno es opcional y el paterno no.</b> Hay personas con un solo apellido, y
+   * exigir los dos las deja fuera del alta.
+   *
+   * <p>El control son las dos primeras aserciones: con el nombre solo, el boton sigue bloqueado.
+   * Sin ellas, un formulario que no exigiera nada pasaria la tercera igual.</p>
+   */
+  it('exige el apellido paterno y deja pasar sin el materno', () => {
+    const { escribir, boton } = montar();
+
+    escribir('ef-nombre', 'Renata');
+    expect(boton('Guardar sin puesto').disabled).toBe(true);
+
+    escribir('ef-paterno', 'Villaseñor');
+    expect(boton('Guardar sin puesto').disabled).toBe(false);
+  });
+
+  /** «Guardar con puesto» exige el puesto, y lo dice. */
+  it('sin puesto elegido, guardar con puesto queda bloqueado con su motivo', () => {
+    const { escribir, boton, raiz } = montar();
+
+    escribir('ef-nombre', 'Renata');
+    escribir('ef-paterno', 'Villaseñor');
+
+    expect(boton('Guardar con puesto').disabled).toBe(true);
+    expect(raiz.querySelector<HTMLElement>('#ef-falta-puesto')!.hidden).toBe(false);
+  });
+
+  /**
+   * <b>El puesto se elige de una lista cerrada.</b>
+   *
+   * <p>Era un buscador que además ofrecía dar de alta el puesto sin salir del formulario, y con el
+   * buscador se va esa alta: un desplegable no puede ofrecer un nombre que no existe. Un puesto
+   * escrito a mano tampoco servía para comprobar la elegibilidad, que se compara por
+   * identificador.</p>
+   *
+   * <p><b>Eso devuelve el callejón que aquella alta al vuelo vino a evitar</b>, así que la segunda
+   * mitad de esta prueba es la que importa: con el catálogo vacío el formulario tiene que decir
+   * dónde se declaran los puestos, en vez de enseñar un desplegable mudo que no lleva a ninguna
+   * parte.</p>
+   */
+  it('el puesto se elige de una lista, y con el catálogo vacío dice dónde declararlos', () => {
+    const { raiz, fixture } = montar();
+
+    raiz.querySelector<HTMLButtonElement>('gi-select button[role="combobox"]')!.click();
+    fixture.detectChanges();
+
+    const opciones = Array.from(raiz.querySelectorAll('gi-select .gi-select__option-label')).map((o) =>
+      o.textContent!.trim(),
+    );
+
+    expect(opciones.length).toBeGreaterThan(0);
+    expect(raiz.querySelector('gi-catalog-picker')).toBeNull();
+
+    const vacio = montar((host) => host.jobPositions.set([]));
+
+    expect(vacio.raiz.textContent).toContain('Catálogos · Puestos');
+  });
+
+  /** Todo campo lleva su etiqueta ligada: sin `for` el rótulo no pertenece a nada. */
+  it('cada campo de texto tiene su etiqueta ligada', () => {
+    const { raiz } = montar();
+
+    const campos = Array.from(raiz.querySelectorAll<HTMLInputElement>('.field input'));
+
+    expect(campos.length).toBeGreaterThan(0);
+
+    for (const campo of campos) {
+      expect(raiz.querySelector(`label[for="${campo.id}"]`)).not.toBeNull();
+    }
+  });
+});

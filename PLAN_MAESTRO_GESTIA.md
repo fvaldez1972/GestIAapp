@@ -1,7 +1,7 @@
 # Plan maestro de GestIA
 
-- Versión: 1.0
-- Fecha de actualización: 2026-08-25
+- Versión: 1.4
+- Fecha de actualización: 2026-08-28
 - Estado: documento rector de planeación
 
 ## 1. Propósito
@@ -31,26 +31,52 @@ Los ADR dentro de `docs/adr` siguen siendo la evidencia de decisiones técnicas 
 - Shell visual adaptado de INSPINIA 5.
 - Navegación responsive y pantalla de inicio.
 - SQL Server configurado mediante EF Core 10.
-- `GestIaDbContext` y fábrica para futuras migraciones.
+- `GestIaDbContext`, convenciones obligatorias y fábrica de migraciones.
+- Análisis de contrato, carta de inicio y ficha técnica para clientes, servicios y empleados.
+- Primer modelo físico de 11 tablas con auditoría, borrado lógico, integridad e índices.
+- Primera migración SQL Server del modelo de negocio.
+- Módulo inicial de organizaciones con alta y consulta.
+- Primer recorrido vertical de clientes con alta, consulta paginada, búsqueda, edición y baja lógica.
+- DTO, validaciones de entrada, detección de duplicados y Problem Details en la API.
+- Pantalla Angular de clientes integrada con la API y el contexto de organización.
+- Autenticación JWT local para MVP con login, usuario administrador bootstrap, permisos base y rutas protegidas.
 - SQL Server 2025 Developer, API y frontend integrados con Docker Compose.
 - Health checks de proceso, SQL Server, API y frontend.
 - Nginx como servidor del frontend y proxy de `/api`.
 - Pipeline CI para pruebas, builds e imágenes de contenedor.
 - Documentos iniciales de arquitectura, despliegue y modelo.
+- Solicitudes operativas con aprobación y ejecución controlada para alta de cliente, servicio, cambio de configuración, cambio de personal y cobertura.
+- Servicios, contratos, configuraciones, posiciones, patrones de turno, asignaciones y planeación versionada.
+- Publicación de planeación con reemplazo formal de versiones publicadas traslapadas y estado `Superseded`.
+- Operación diaria con asistencia, incidencias, coberturas, evidencias reales, tablero diario y confirmación masiva.
+- Correcciones de asistencia con autorización obligatoria mediante nota operativa.
+- Módulo documental MVP con carga, consulta, edición, desactivación, descarga, vencimientos, sensibilidad y permisos.
+- Reportes operativos con filtros, exportación CSV y reporte de elegibilidad de personal.
+- Mejoras UX/UI transversales en navegación, estados activos, formularios, tarjetas, tablas y lenguaje de negocio.
+- Administración funcional de usuarios, roles, permisos, activación/baja lógica y accesos por organización.
+- Selector de organización activa en el shell para usuarios multiorganización.
+- Módulo de catálogos de negocio para habilidades, puestos, requisitos, restricciones, zonas y motivos.
+- Elegibilidad formal configurable por organización, cliente, servicio o posición.
+- Habilidades asignables al expediente del empleado y validación de elegibilidad antes de asignar personal.
+- Autorizaciones formales por servicio y registro operativo relacionado.
+- Cierre operativo diario con bloqueo por asistencia pendiente o incidencias abiertas.
+- Reapertura de día operativo con motivo obligatorio.
+- Comparativo visual de planeación turno por turno contra la versión publicada.
+- Correcciones de asistencia vinculables a una autorización aprobada validada por backend.
+- Migraciones `BusinessCatalogsAndEligibility` y `OperationControls` aplicadas en SQL Server local.
+- Docker Compose reconstruido y validado con backend, frontend y SQL Server saludables.
 
 ### Todavía no desarrollado
 
-- Autenticación real, recuperación de acceso y administración de sesión.
-- Usuarios, roles, permisos y alcance por empresa.
-- Entidades y primera migración de negocio.
-- Catálogos y CRUD funcionales.
-- Solicitudes, clientes, sedes y servicios.
-- Personal, perfiles, disponibilidad y documentos.
-- Posiciones, patrones de turno y asignaciones.
-- Planeación versionada y publicación.
-- Asistencia, incidencias, coberturas y evidencias.
-- Auditoría funcional consultable.
-- Dashboard y reportes con datos reales.
+- Recuperación de acceso, refresh token y administración completa de sesión.
+- Endurecimiento fino del alcance por empresa en recorridos edge-case.
+- Reglas geográficas reales y restricciones individualizadas por empleado, cliente o servicio.
+- Privacidad documental avanzada por tipo de archivo y perfil de usuario.
+- Flujo multiusuario de autorización/aprobación con bandejas por aprobador.
+- Comparativo visual histórico entre versiones reemplazadas antiguas.
+- Exportaciones formales Excel/PDF y reportes ejecutivos finales.
+- Auditoría funcional extendida para cada transición crítica de negocio.
+- Matriz operativa de elegibilidad empleado vs servicio/posición.
 - Importaciones, exportaciones e integraciones externas.
 - Observabilidad, respaldo y despliegue productivo.
 
@@ -127,6 +153,7 @@ Los nombres son provisionales hasta validar el glosario del negocio.
 - Clientes, razones sociales, sedes y contactos.
 - Solicitudes de servicio.
 - Conversión de solicitud a servicio aceptado.
+- Ejecución controlada MVP de solicitudes aprobadas.
 - Vigencias y condiciones necesarias para operar.
 
 ### Personal
@@ -164,6 +191,8 @@ Los nombres son provisionales hasta validar el glosario del negocio.
 
 ```text
 Solicitud de servicio
+  -> revisión y aprobación
+  -> ejecución controlada
   -> cliente y sede
   -> servicio aceptado
   -> posiciones requeridas
@@ -192,15 +221,15 @@ Está confirmado el motor SQL Server. Todavía son provisionales:
 - Longitudes, precisiones e índices finales.
 - Varias relaciones y reglas de eliminación.
 
-`GestIA_Dev` es únicamente el nombre de la base local. No se generará una migración masiva basándose sólo en este bosquejo.
+La nomenclatura de base ya está aprobada: `db-gestia-dev`, `db-gestia-qa`, `db-gestia-beta`, `db-gestia-staging` y `db-gestia` para producción. No se generará una migración masiva basándose sólo en este bosquejo.
 
-### 7.2 Convenciones propuestas
+### 7.2 Convenciones obligatorias
 
 | Uso | SQL Server propuesto | Nota |
 | --- | --- | --- |
 | Identificador técnico | `uniqueidentifier` | Generado por la aplicación |
 | Fecha de negocio | `date` | Sin zona horaria |
-| Instante | `datetime2(7)` | Almacenado en UTC |
+| Instante | `datetime2(0)` | Almacenado en UTC |
 | Texto | `nvarchar(n)` | Longitud explícita por dato |
 | Texto amplio | `nvarchar(max)` | Sólo cuando exista justificación |
 | Importe | `decimal(19,4)` | Precisión por confirmar |
@@ -212,30 +241,35 @@ Está confirmado el motor SQL Server. Todavía son provisionales:
 Campos transversales candidatos:
 
 ```text
-Id uniqueidentifier PK
-OrganizationId uniqueidentifier   -- cuando aplique aislamiento
-CreatedAtUtc datetime2(7)
+Id{Entidad} uniqueidentifier PK
+IdOrganization uniqueidentifier   -- cuando aplique aislamiento
+CreatedAt datetime2(0)
 CreatedBy uniqueidentifier
-UpdatedAtUtc datetime2(7) null
+CreatedByName nvarchar(100)
+UpdatedAt datetime2(0) null
 UpdatedBy uniqueidentifier null
+UpdatedByName nvarchar(100) null
+Active bit NOT NULL DEFAULT (1)
 Version rowversion
 ```
 
-`OrganizationId` también es provisional; podría terminar como `CompanyId` cuando el término sea validado.
+`Organization` sigue siendo un término funcional provisional, pero cualquier clave física seguirá el patrón `Id{Entidad}`. Todos los campos `At` de auditoría se almacenan en UTC. La norma completa y sus listas de revisión están en `docs/database/DATABASE_STANDARDS.md`.
 
 ### 7.3 Esquemas físicos candidatos
 
 | Esquema provisional | Responsabilidad |
 | --- | --- |
-| `Platform` | Empresas, usuarios, permisos, auditoría y outbox |
-| `Commercial` | Clientes, sedes, solicitudes y servicios |
-| `Workforce` | Personal, perfiles, disponibilidad y requisitos |
-| `Operations` | Posiciones, turnos, asignaciones, planeación y ejecución |
-| `Reporting` | Proyecciones de lectura reconstruibles |
+| `dbo` | Datos transaccionales mientras un módulo no justifique un esquema propio |
+| `audit` | Auditoría, trazabilidad e histórico técnico |
+| `config` | Configuración y catálogos administrables |
+| `report` | Vistas y proyecciones de lectura reconstruibles |
+| `archive` | Archivo histórico cuando exista una política aprobada |
 
-Los esquemas se confirmarán antes de la primera migración que los utilice.
+Los esquemas son minúsculos y sólo se ampliarán mediante una decisión de arquitectura antes de la migración que los utilice.
 
-### 7.4 Tablas candidatas
+### 7.4 Tablas implementadas y candidatas
+
+El primer corte físico implementa `Organizations`, `Clients`, `ClientSites`, `ClientContacts`, `ServiceContracts`, `Services`, `ServiceConfigurations`, `Employees`, `EmployeeDocuments`, `EmployeeEvaluations` y `ServiceAssignments`. Su justificación y mapeo a las fuentes están en `docs/architecture/08-source-model-analysis.md`. Las demás tablas de esta sección continúan como candidatas.
 
 #### Platform
 
@@ -276,21 +310,22 @@ Los esquemas se confirmarán antes de la primera migración que los utilice.
 
 | Tabla de trabajo | Datos candidatos | Estado |
 | --- | --- | --- |
-| `Positions` | Servicio, perfil, nombre/código, capacidad, vigencia, estado | Por validar |
-| `ShiftPatterns` | Organización, código, nombre, ciclo, estado | Por validar |
-| `ShiftSegments` | Patrón, día del ciclo, inicio, fin, trabajo/descanso | Por validar |
-| `Assignments` | Posición, persona, patrón, tipo, inicio, fin, origen | Por validar |
-| `ScheduleVersions` | Organización, periodo, versión, estado, publicación | Por validar |
-| `ScheduledShifts` | Versión, servicio, posición, persona esperada, inicio, fin | Por validar |
-| `AttendanceRecords` | Turno, persona esperada, persona real, entrada, salida, fuente, estado | Por validar |
-| `Incidents` | Turno, tipo, motivo, impacto, estado, seguimiento | Por validar |
-| `Coverages` | Incidencia, sustituto, inicio, fin, estado, autorización | Por validar |
+| `Positions` | Servicio, perfil, nombre/código, capacidad, vigencia, estado | Implementado MVP |
+| `ShiftPatterns` | Organización, código, nombre, ciclo, estado | Implementado MVP |
+| `ShiftSegments` | Patrón, día del ciclo, inicio, fin, trabajo/descanso | Implementado MVP |
+| `ServiceAssignments` | Posición, persona, patrón, tipo, inicio, fin, origen | Implementado MVP |
+| `ScheduleVersions` | Servicio, periodo, versión, estado, publicación | Implementado MVP |
+| `ScheduledShifts` | Versión, servicio, posición, persona esperada, inicio, fin | Implementado MVP |
+| `AttendanceRecords` | Turno, persona, fecha, estado, entrada, salida, retardo | Implementado MVP |
+| `Incidents` | Servicio, turno opcional, empleado opcional, tipo, severidad, estado, seguimiento | Implementado MVP |
+| `CoverageRecords` | Turno, empleado original, sustituto, inicio, fin, estado | Implementado MVP |
 | `EvidenceItems` | Propietario, tipo, hash, ubicación, actor, fecha, privacidad | Por validar |
 
 #### Reporting
 
 | Proyección de trabajo | Propósito | Estado |
 | --- | --- | --- |
+| `GET /api/v1/reports/operations-summary` | Resumen operativo calculado desde transacciones | Implementado MVP |
 | `DailyOperationSummary` | Indicadores diarios por organización/servicio | Posterior |
 | `ServiceCoverageSummary` | Cobertura por servicio y periodo | Posterior |
 | `EffectivePersonnel` | Persona que realmente cubrió un intervalo | Posterior |
@@ -351,18 +386,23 @@ No se usará `EnsureCreated` ni se aplicarán migraciones automáticamente al in
 - [x] Solución .NET y separación por capas.
 - [x] OpenAPI inicial.
 - [x] Health checks de proceso y SQL Server.
-- [x] EF Core SQL Server y contexto vacío evolutivo.
-- [ ] Manejo uniforme de errores con Problem Details.
-- [ ] Validación de comandos y contratos.
-- [ ] Autenticación y autorización.
-- [ ] Contexto de usuario, organización y correlación.
-- [ ] Auditoría automática y funcional.
-- [ ] Paginación, filtros y ordenamiento estándar.
+- [x] EF Core SQL Server y primer modelo físico evolutivo.
+- [x] Convenciones ejecutables de nomenclatura, auditoría y borrado lógico.
+- [x] Primera migración de clientes, servicios y empleados.
+- [x] Manejo uniforme de errores con Problem Details.
+- [x] Validación inicial de comandos y contratos.
+- [x] Autenticación JWT local y autorización inicial por permiso.
+- [x] Contexto de usuario autenticado para auditoría.
+- [x] Selector y alcance activo por organización.
+- [x] Correlación de solicitudes mediante ejecución controlada y trazabilidad de cambios.
+- [x] Auditoría funcional consultable MVP.
+- [x] Primer patrón de paginación, filtros y ordenamiento en clientes.
 - [ ] Control de concurrencia.
 - [ ] Idempotencia para operaciones sensibles.
 - [ ] Observabilidad con logs estructurados, métricas y trazas.
-- [ ] Almacenamiento de evidencias.
-- [ ] Exportaciones y trabajos en segundo plano cuando se requieran.
+- [x] Referencias de evidencias operativas.
+- [x] Almacenamiento físico de archivos de evidencia.
+- [x] Exportaciones CSV controladas desde backend para reportes y auditoría.
 
 ### API
 
@@ -386,19 +426,32 @@ No se usará `EnsureCreated` ni se aplicarán migraciones automáticamente al in
 
 ### Pendiente
 
-- [ ] Autenticación, sesión y rutas protegidas.
+- [x] Login JWT, sesión local y rutas protegidas.
+- [x] Manejo global de sesión expirada.
+- [ ] Renovación controlada de sesión.
 - [ ] Cliente TypeScript generado desde OpenAPI.
-- [ ] Manejo global de errores y estado de carga.
+- [x] Manejo global de errores y estado de carga MVP.
 - [ ] Sistema de notificaciones.
-- [ ] Componentes de tabla, filtros, paginación y formularios.
-- [ ] Catálogos de empresas, clientes, sedes y personal.
-- [ ] Flujos de solicitudes y servicios.
-- [ ] Planeación y visualización de turnos.
-- [ ] Captura de asistencia por excepción.
-- [ ] Incidencias, coberturas y evidencias.
-- [ ] Dashboard y reportes.
+- [x] Componentes/patrones de tabla, filtros, paginación y formularios MVP.
+- [x] Catálogos de empresas, clientes, sedes y personal.
+- [x] Flujos de solicitudes y servicios.
+- [x] Planeación y visualización de turnos.
+- [x] Captura de asistencia por excepción.
+- [x] Incidencias, coberturas y evidencias.
+- [x] Dashboard y reportes MVP.
 - [ ] Accesibilidad y navegación por teclado.
 - [ ] Pruebas de componentes y recorridos críticos.
+
+### Módulo de clientes implementado
+
+- [x] Selección y alta de organización operadora.
+- [x] Listado paginado y búsqueda de clientes.
+- [x] Alta y edición de perfil fiscal básico.
+- [x] Validación de RFC, longitudes y campos obligatorios.
+- [x] Prevención de códigos y RFC duplicados por organización.
+- [x] Baja lógica con conservación de auditoría.
+- [x] Estados de carga, vacío, éxito y error en la pantalla.
+- [x] Pruebas unitarias de dominio, aplicación y cliente HTTP Angular.
 
 Se usarán componentes standalone, formularios tipados, signals para estado local y RxJS para flujos asíncronos. El estado del servidor no se duplicará sin justificación.
 
@@ -460,18 +513,20 @@ Cada módulo debe incluir pruebas proporcionales al riesgo. Las reglas de negoci
 
 ### Entrega 1: acceso, empresas, clientes y personal
 
-- Confirmar glosario mínimo.
-- Definir autenticación.
-- Implementar empresa/organización y aislamiento.
-- Implementar clientes, sedes y contactos mínimos.
-- Implementar personal y perfiles mínimos.
-- Crear primera migración SQL Server revisada.
-- Construir pantallas, endpoints y pruebas.
+- [x] Analizar fuentes y confirmar un glosario/modelo mínimo de trabajo.
+- [x] Definir autenticación JWT local para MVP.
+- [x] Implementar el modelo de empresa/organización y alcance por identificador.
+- [x] Implementar el modelo de clientes, sedes y contactos mínimos.
+- [x] Implementar el modelo de personal, documentos y evaluaciones mínimas.
+- [x] Crear la primera migración SQL Server revisada.
+- [x] Construir el primer recorrido de organizaciones y clientes con pantallas, endpoints y pruebas.
+- Construir sedes, contactos y el expediente completo del cliente.
 
 ### Entrega 2: solicitudes, servicios, posiciones y turnos
 
-- Solicitud de servicio.
-- Conversión controlada a servicio.
+- [x] Solicitud de servicio.
+- [x] Ejecución controlada MVP de solicitudes aprobadas.
+- Conversión automática completa a cliente/servicio cuando el modelo fiscal/contractual esté cerrado.
 - Posiciones y capacidad.
 - Patrones y segmentos de turno.
 - Vigencias y estatus.
@@ -486,10 +541,11 @@ Cada módulo debe incluir pruebas proporcionales al riesgo. Las reglas de negoci
 
 ### Entrega 4: asistencia, incidencias y cobertura
 
-- Generación desde planeación publicada.
-- Confirmación masiva por excepción.
+- Registro de asistencia real por turno programado.
 - Registro y clasificación de incidencias.
 - Sustitutos e intervalos de cobertura.
+- Consultas API por servicio para asistencia, incidencias y coberturas.
+- Captura operativa MVP desde Angular para asistencia, incidencias y coberturas.
 - Evidencias y autorizaciones necesarias.
 
 ### Entrega 5: control, dashboard y reportes
@@ -542,12 +598,12 @@ Las respuestas deben incorporarse al glosario y al modelo antes de materializar 
 
 ## 16. Próximo trabajo recomendado
 
-1. Realizar sesión de glosario para empresa, cliente, sede, persona, servicio y posición.
-2. Recopilar ejemplos reales anonimizados de esos conceptos.
-3. Definir autenticación y matriz inicial de permisos.
-4. Aprobar el diccionario mínimo de la Entrega 1.
-5. Implementar el primer recorrido vertical completo.
-6. Generar entonces la primera migración de SQL Server.
+1. Validar con Oscar el glosario y las decisiones pendientes de `08-source-model-analysis.md`.
+2. Completar administracion de usuarios/roles y selector de organización activa.
+3. Continuar el expediente de cliente con sedes y contactos.
+4. Incorporar contrato, servicio y configuración versionada.
+5. Incorporar empleado, expediente documental, evaluaciones y asignación con permisos reforzados.
+6. Diseñar posiciones y turnos antes de modelar la planeación operativa.
 
 ## 17. Ejecución local
 

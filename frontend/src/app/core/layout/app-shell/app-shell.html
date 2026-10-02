@@ -1,48 +1,174 @@
 <div class="wrapper" [class.is-condensed]="layout.isCondensed()">
   <aside id="app-menu" class="app-menu" [class.is-open]="layout.mobileMenuOpen()" aria-label="Navegación principal">
     <a class="logo-box" routerLink="/" (click)="layout.closeMobileNavigation()" aria-label="Ir al inicio de GestIA">
-      <span class="logo-mark" aria-hidden="true">G</span>
-      <span class="logo-copy">
-        <strong>GestIA</strong>
-        <small>Gestión inteligente</small>
-      </span>
+      <img class="brand-logo brand-logo--full" src="brand/gestia-logo-negative.svg" alt="GESTIA" />
+      <img class="brand-logo brand-logo--compact" src="brand/gestia-app-icon.svg" alt="" aria-hidden="true" />
     </a>
 
     <nav class="side-nav">
-      @for (group of navigation; track group.label) {
-        <section class="menu-group">
-          <p class="menu-title">{{ group.label }}</p>
-          @for (item of group.items; track item.label) {
-            @if (item.route) {
-              <a
-                class="menu-link"
-                [routerLink]="item.route"
-                routerLinkActive="active"
-                [routerLinkActiveOptions]="{ exact: true }"
-                [title]="layout.isCondensed() ? item.label : ''"
-                (click)="layout.closeMobileNavigation()"
-              >
-                <span class="menu-icon"><app-icon [name]="item.icon" /></span>
-                <span class="menu-text">{{ item.label }}</span>
-              </a>
-            } @else {
-              <span class="menu-link is-disabled" [title]="layout.isCondensed() ? item.label : 'Módulo planificado'">
-                <span class="menu-icon"><app-icon [name]="item.icon" /></span>
-                <span class="menu-text">{{ item.label }}</span>
-                @if (item.planned) { <span class="menu-badge">Pronto</span> }
-              </span>
-            }
+      @for (group of navigation(); track group.label) {
+        <!--
+          El grupo es un rótulo, no un control: no se puede enfocar ni activar. Va como <h2> para
+          que el lector de pantalla pueda saltar de bloque en bloque, y `aria-labelledby` amarra
+          cada lista con el suyo. Condensado, el rótulo se oculta visualmente y queda la línea de
+          separación; el texto sigue ahí para quien no ve el menú.
+        -->
+        <h2 class="menu-group" [id]="'menu-group-' + $index">{{ group.label }}</h2>
+        <ul class="menu-list" [attr.aria-labelledby]="'menu-group-' + $index">
+          @for (item of group.items; track item.route) {
+            <li>
+              @if (item.children?.length && !layout.isCondensed()) {
+                <!--
+                  Con hijos, la entrada ES el interruptor: todo el renglón despliega y no navega.
+                  Antes llevaba a su página y el galón era un botón aparte, y se sentía como una
+                  trampa: quien pulsaba «Catálogos» para ver la lista se encontraba en otra pantalla.
+                  Se dibuja como un enlace del menú —misma altura, mismo icono, mismo activo— porque
+                  para quien lo usa es un renglón del menú, no un control distinto.
+                -->
+                <button
+                  type="button"
+                  class="menu-link menu-link--branch"
+                  [class.active]="isInside(item.route)"
+                  [attr.aria-expanded]="isSubmenuOpen(item.route)"
+                  [attr.aria-controls]="'submenu-' + $index"
+                  (click)="toggleSubmenu(item.route)"
+                >
+                  <span class="menu-icon"><app-icon [name]="item.icon" /></span>
+                  <span class="menu-text">{{ item.label }}</span>
+                  <span class="menu-chevron" [class.is-open]="isSubmenuOpen(item.route)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="m9 6 6 6-6 6" />
+                    </svg>
+                  </span>
+                </button>
+              } @else {
+                <a
+                  class="menu-link"
+                  [routerLink]="item.route"
+                  routerLinkActive="active"
+                  [routerLinkActiveOptions]="{ exact: item.route === '/' }"
+                  [title]="layout.isCondensed() ? item.label : ''"
+                  (click)="layout.closeMobileNavigation()"
+                >
+                  <span class="menu-icon"><app-icon [name]="item.icon" /></span>
+                  <span class="menu-text">{{ item.label }}</span>
+                </a>
+              }
+
+              <!--
+                Condensado no se dibuja: no caben dieciocho nombres en la franja de iconos, y un
+                submenú flotante sería otro componente con su propio comportamiento de teclado.
+              -->
+              @if (item.children?.length && !layout.isCondensed() && isSubmenuOpen(item.route)) {
+                <div class="submenu" [id]="'submenu-' + $index">
+                  @for (bloque of item.children; track bloque.label) {
+                    <!--
+                      Cada bloque despliega por su cuenta. Con dieciocho entradas, abrirlos todos
+                      devuelve la lista larga que el submenú venía a evitar; cerrados, los cinco
+                      rótulos son un índice que cabe de un vistazo. El del apartado en el que estás
+                      se abre solo.
+                    -->
+                    <button
+                      type="button"
+                      class="submenu-group"
+                      [class.is-open]="isGroupOpen(item.route, bloque.label)"
+                      [attr.aria-expanded]="isGroupOpen(item.route, bloque.label)"
+                      [attr.aria-controls]="'submenu-' + $index + '-' + $count"
+                      (click)="toggleGroup(item.route, bloque.label)"
+                    >
+                      <span class="submenu-group__text">{{ bloque.label }}</span>
+                      <span class="menu-chevron" [class.is-open]="isGroupOpen(item.route, bloque.label)">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                          <path d="m9 6 6 6-6 6" />
+                        </svg>
+                      </span>
+                    </button>
+
+                    @if (isGroupOpen(item.route, bloque.label)) {
+                      <ul class="submenu-list" [id]="'submenu-' + $index + '-' + $count">
+                        @for (hijo of bloque.items; track hijo.route) {
+                          <li>
+                            <a
+                              class="submenu-link"
+                              [routerLink]="hijo.route"
+                              routerLinkActive="active"
+                              (click)="layout.closeMobileNavigation()"
+                            >{{ hijo.label }}</a>
+                          </li>
+                        }
+                      </ul>
+                    }
+                  }
+                </div>
+              }
+            </li>
           }
-        </section>
+        </ul>
       }
     </nav>
 
-    <div class="sidebar-foot">
-      <span class="environment-dot" aria-hidden="true"></span>
-      <span class="sidebar-foot__copy">
-        <strong>Entorno local</strong>
-        <small>SQL Server · API · Web</small>
-      </span>
+    <!--
+      La cuenta vive abajo a la izquierda, al pie del menú, y su cuadro sube desde ahí. Estuvo unas
+      horas arriba a la derecha y el sitio no era el bueno: el nombre de quien está dentro no es una
+      acción de la página, es el ancla de la sesión, y donde se busca es al final de la navegación.
+    -->
+    <div class="sidebar-foot" #profileMenu>
+      @if (profileOpen()) {
+        <div class="account-menu" id="profile-menu" role="menu">
+          <div class="account-menu__who">
+            <span class="account-menu__avatar">{{ userInitials() }}</span>
+            <span class="account-menu__id">
+              <strong>{{ auth.displayName() || 'GestIA' }}</strong>
+              <small>{{ auth.email() }}</small>
+            </span>
+          </div>
+
+          <div class="account-menu__block">
+            <span class="account-menu__label">Organización</span>
+            @if (canSwitchOrganization()) {
+              <gi-select
+                label="Cambiar de organización"
+                [options]="organizationOptions()"
+                [value]="auth.activeOrganizationId()"
+                [placeholder]="emptyOrganizationLabel()"
+                (opened)="refrescarOrganizaciones()"
+                (valueChange)="auth.setActiveOrganization($event)"
+              />
+            } @else {
+              <strong class="account-menu__org">{{ organizationName() }}</strong>
+            }
+            <small class="account-menu__scope">{{ userScope() }}</small>
+          </div>
+
+          @if (canLeaveOrganization()) {
+            <button type="button" class="account-menu__action" (click)="salirDeLaOrganizacion()">
+              Salir de la organización
+            </button>
+          }
+
+          <button type="button" class="account-menu__action account-menu__action--danger" (click)="askLogout()">
+            Cerrar sesión
+          </button>
+        </div>
+      }
+
+      <button
+        type="button"
+        class="sidebar-account"
+        aria-haspopup="menu"
+        [attr.aria-expanded]="profileOpen()"
+        aria-controls="profile-menu"
+        [attr.aria-label]="'Cuenta de ' + (auth.displayName() || 'GestIA')"
+        [title]="layout.isCondensed() ? (auth.displayName() || 'GestIA') : ''"
+        (click)="toggleProfile()"
+      >
+        <span class="sidebar-avatar">{{ userInitials() }}</span>
+        <span class="sidebar-user">
+          <strong>{{ auth.displayName() || 'GestIA' }}</strong>
+          <small>{{ userScope() }}</small>
+        </span>
+        <span class="sidebar-account__chevron" [class.is-open]="profileOpen()" aria-hidden="true">⌄</span>
+      </button>
     </div>
   </aside>
 
@@ -51,7 +177,7 @@
   }
 
   <div class="page-content">
-    <header class="app-header">
+    <header class="app-header" #appHeader>
       <div class="topbar-start">
         <button
           class="menu-toggle"
@@ -64,28 +190,60 @@
           <span></span><span></span><span></span>
         </button>
         <div class="topbar-title">
-          <span>GestIA</span>
-          <strong>Consola operativa</strong>
+          <span>
+            @for (crumb of breadcrumbs(); track crumb; let last = $last) {
+              {{ crumb }}@if (!last) { <i aria-hidden="true">/</i> }
+            }
+          </span>
+          <strong>{{ pageTitle() }}</strong>
         </div>
       </div>
 
-      <div class="topbar-actions">
-        <span class="environment"><i></i> Entorno local</span>
-        <button class="profile" type="button" aria-label="Cuenta de usuario">
-          <span class="profile-avatar">GI</span>
-          <span class="profile-copy"><strong>Equipo GestIA</strong><small>Administrador</small></span>
-          <span class="profile-chevron" aria-hidden="true">⌄</span>
-        </button>
-      </div>
     </header>
 
+    <!--
+      Cerrar sesión pregunta antes. Pulsar el nombre estaba a un clic de tirar la sesión sin decir
+      nada, y el nombre del usuario no parece un botón de salida.
+
+      No dice si hay trabajo sin guardar porque hoy nadie lo sabe: no existe registro de formularios
+      a medias en ninguna parte de la aplicación. Prometerlo aquí sería mentir.
+    -->
+    <gi-confirm-dialog
+      [open]="confirmingLogout()"
+      title="Cerrar sesión"
+      [subject]="auth.displayName() || 'tu sesión'"
+      consequence="Se cerrará la sesión en este navegador. Lo que tengas a medias en un formulario y no hayas guardado se pierde."
+      confirmLabel="Cerrar sesión"
+      cancelLabel="Seguir trabajando"
+      (confirm)="logout()"
+      (cancel)="cancelLogout()"
+    />
+
     <main>
-      <router-outlet />
+      @if (requiresOrganization()) {
+        <section class="organization-required" aria-labelledby="organization-required-title">
+          <h1 id="organization-required-title">{{ pageTitle() }}</h1>
+          <p>Selecciona una organización en la barra de contexto para ver su operación.</p>
+        </section>
+      } @else {
+        <!--
+          La pantalla se vuelve a montar cuando cambia la organización. **Es el mecanismo, no un
+          atajo.**
+
+          Heredar de la barra arregla de dónde sale el identificador de organización, no cuándo se
+          piden los datos: las pantallas cargan en `ngOnInit` y nadie las vuelve a llamar. Sin
+          esto, cambiar de organización dejaría en pantalla la tabla de la anterior con la franja
+          diciendo otra cosa. Convertir cada pantalla a carga reactiva sería rediseñar su carga; el
+          remonte lo consigue en un sitio y para todas.
+
+          De paso descarta un formulario a medio llenar en la organización que se acaba de dejar,
+          que no debería poder enviarse a la nueva.
+        -->
+        @for (scope of [auth.activeOrganizationId()]; track scope) {
+          <router-outlet />
+        }
+      }
     </main>
 
-    <footer class="app-footer">
-      <span>GestIA · Gestión inteligente</span>
-      <span>.NET 10 · Angular 22 · SQL Server</span>
-    </footer>
   </div>
 </div>

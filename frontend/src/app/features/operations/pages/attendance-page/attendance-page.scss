@@ -1,0 +1,137 @@
+/* Sólo composición: color, radio y altura salen de los tokens. Ni un valor escrito a mano. */
+
+.asistencia {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gestia-page-gap);
+}
+
+.asistencia__hero {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.asistencia__eyebrow {
+  margin: 0;
+  color: var(--gestia-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+}
+
+.asistencia__titulo {
+  margin: 0;
+  color: var(--gestia-navy);
+  font-size: 22px;
+  line-height: 1.2;
+}
+
+.asistencia__ayuda {
+  margin: 0;
+  color: var(--gestia-muted);
+  font-size: 13px;
+}
+
+.asistencia__aviso {
+  margin: 0;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--gestia-border);
+  border-radius: var(--gestia-radius);
+  background: var(--gestia-surface);
+  font-size: 12.5px;
+}
+
+.asistencia__aviso--ok { border-left: 3px solid var(--gestia-success); }
+.asistencia__aviso--mal { border-left: 3px solid var(--gestia-danger); }
+
+.asistencia__pendientes {
+  border: 1px solid var(--gestia-border);
+  border-radius: var(--gestia-radius);
+  background: var(--gestia-surface);
+  overflow: hidden;
+}
+
+.asistencia__pendientes-head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 0.85rem;
+  border-bottom: 1px solid var(--gestia-border);
+  background: var(--gestia-surface-soft);
+}
+
+.asistencia__title {
+  color: var(--gestia-muted);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+}
+
+.asistencia__cuenta {
+  border: 1px solid var(--gestia-border);
+  border-radius: var(--gestia-radius-pill);
+  padding: 0.1rem 0.45rem;
+  background: var(--gestia-surface);
+  color: var(--gestia-muted);
+  font-size: 10.5px;
+  font-weight: 600;
+}
+
+.asistencia__nota {
+  margin-left: auto;
+  color: var(--gestia-muted);
+  font-size: 11.5px;
+}
+
+.asistencia__lista {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.asistencia__fila {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.7rem 0.85rem;
+  border-bottom: 1px solid var(--gestia-border);
+}
+
+.asistencia__fila:last-child { border-bottom: none; }
+
+.asistencia__quien {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+}
+
+.asistencia__quien strong { color: var(--gestia-text); }
+.asistencia__quien span { color: var(--gestia-muted); font-size: 11.5px; }
+
+.asistencia__planeado {
+  color: var(--gestia-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.asistencia__accion {
+  height: var(--gestia-control-height);
+  padding: 0 0.85rem;
+  border: 1px solid var(--gestia-navy);
+  border-radius: var(--gestia-radius);
+  background: var(--gestia-navy);
+  color: var(--gestia-surface);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.asistencia__accion:focus-visible {
+  outline: 2px solid var(--gestia-cyan);
+  outline-offset: 1px;
+}

@@ -2,49 +2,323 @@ export type NavigationIcon =
   | 'home'
   | 'request'
   | 'customer'
+  | 'document'
+  | 'catalog'
   | 'people'
   | 'calendar'
   | 'attendance'
   | 'incident'
   | 'coverage'
-  | 'report';
+  | 'report'
+  | 'audit'
+  | 'security';
+
+/**
+ * Una entrada de segundo nivel: cuelga de otra y no tiene icono propio.
+ *
+ * <p>No lo tiene a propósito. Un icono por hijo convertiría el submenú en una segunda lista de
+ * iconos compitiendo con la primera, y el hijo se lee por su sangría y por el padre bajo el que
+ * está, no por un símbolo que habría que inventar para «Rangos de edad».</p>
+ */
+export type NavigationChild = {
+  readonly label: string;
+  readonly route: string;
+  readonly permission?: string;
+};
+
+/**
+ * Un bloque del submenú con su rotulito.
+ *
+ * <p>Existe porque el submenú de Catálogos tiene dieciocho entradas, y dieciocho renglones seguidos
+ * se leen uno por uno. Agrupados por el módulo que los usa se encuentran por eliminación.</p>
+ */
+export type NavigationChildGroup = {
+  readonly label: string;
+  readonly items: readonly NavigationChild[];
+};
 
 export type NavigationItem = {
   readonly label: string;
   readonly icon: NavigationIcon;
-  readonly route?: string;
-  readonly planned?: boolean;
+  readonly route: string;
+  readonly permission?: string;
+
+  /**
+   * A quién pertenece la entrada, cuando no es de todos.
+   *
+   * `'platform'` sólo la ve el super administrador. `'organization'` sólo la ve quien **no** lo
+   * es: existe para la entrada de Seguridad, que apunta a `/seguridad` para la plataforma y a
+   * `/usuarios` dentro de una organización. Sin esta distinción, el super admin dentro de una
+   * organización veía las dos y el menú decía "Seguridad" dos veces.
+   */
+  readonly onlyFor?: 'platform' | 'organization';
+
+  /**
+   * La entrada sólo existe dentro de una organización.
+   *
+   * Antes esto se llamaba `hideForPlatformAdmin`, y el nombre mentía: no ocultaba al super admin,
+   * ocultaba mientras no hubiera organización activa. Con el nombre correcto, los tres estados del
+   * menú salen de una sola condición en vez de tres sueltas, y se ve de un vistazo cuáles son las
+   * entradas que el super admin no debe ver antes de entrar a una organización.
+   */
+  readonly needsOrganization?: boolean;
+
+  /**
+   * Fase del producto en la que la entrada se muestra. Las de fase 2 **no se borran**: su ruta
+   * sigue registrada y su pantalla sigue existiendo, sólo no aparecen en el menú. Volver a
+   * mostrarlas es quitar esta marca, y hay una prueba que comprueba que las rutas siguen ahí.
+   */
+  readonly phase?: 1 | 2;
+
+  /**
+   * Las entradas que cuelgan de ésta, agrupadas.
+   *
+   * <p><b>Una entrada con hijos sigue teniendo ruta propia</b>, y no es redundante: es a dónde va
+   * quien pulsa el padre. Lo que cambia es que además se puede desplegar.</p>
+   *
+   * <p>Los hijos se filtran con las mismas reglas que las entradas de primer nivel, y un padre
+   * cuyos hijos desaparezcan todos <b>no desaparece</b>: sigue siendo una entrada normal con su
+   * ruta. Es la diferencia con un grupo, que sí se esconde cuando se queda vacío.</p>
+   */
+  readonly children?: readonly NavigationChildGroup[];
 };
 
+/**
+ * Un encabezado del menú con sus entradas.
+ *
+ * El grupo **no** es una ruta ni un permiso: no se puede hacer clic en él y no decide nada sobre
+ * lo que el usuario puede ver. Es sólo el rótulo que separa bloques de entradas.
+ */
 export type NavigationGroup = {
   readonly label: string;
   readonly items: readonly NavigationItem[];
 };
 
+/**
+ * El menú lateral, en cuatro grupos.
+ *
+ * <b>Nota para quien compare con el bosquejo.</b> `docs/design/fase-1/pantallas/componentes/
+ * side-menu.html` dibuja una lista plana, y en la tanda 1 el menú se aplanó para seguirlo. Los
+ * grupos volvieron después por decisión explícita, ya con las once entradas en pantalla: una lista
+ * plana de diez o doce renglones obliga a leerlos todos para encontrar uno, y los cuatro rótulos
+ * cuestan menos altura que esa lectura. El bosquejo quedó atrás en este punto y no hay que
+ * "corregir" el código para volver a él.
+ *
+ * El orden dentro de cada grupo es el pedido, no el alfabético: Configuración empieza por
+ * Organizaciones y Clientes porque es el orden en que se configura una organización nueva.
+ */
 export const GESTIA_NAVIGATION: readonly NavigationGroup[] = [
   {
     label: 'Principal',
     items: [{ label: 'Inicio', icon: 'home', route: '/' }],
   },
-  {
-    label: 'Gestión',
-    items: [
-      { label: 'Solicitudes', icon: 'request', planned: true },
-      { label: 'Clientes y servicios', icon: 'customer', planned: true },
-      { label: 'Personal', icon: 'people', planned: true },
-      { label: 'Planeación', icon: 'calendar', planned: true },
-    ],
-  },
+
   {
     label: 'Operación',
     items: [
-      { label: 'Asistencia', icon: 'attendance', planned: true },
-      { label: 'Incidencias', icon: 'incident', planned: true },
-      { label: 'Cobertura', icon: 'coverage', planned: true },
+      { label: 'Planeación', icon: 'calendar', route: '/planeacion', permission: 'PLANNING.READ', needsOrganization: true },
+      { label: 'Asistencia', icon: 'attendance', route: '/operacion/asistencia', permission: 'OPERATIONS.READ', needsOrganization: true },
+      { label: 'Incidencias', icon: 'incident', route: '/operacion/incidencias', permission: 'OPERATIONS.READ', needsOrganization: true },
+      { label: 'Cobertura', icon: 'coverage', route: '/operacion/cobertura', permission: 'OPERATIONS.READ', needsOrganization: true },
+
+      // Fuera de fase 1. Oculta, no borrada.
+      { label: 'Solicitudes', icon: 'request', route: '/solicitudes', permission: 'REQUESTS.READ', needsOrganization: true, phase: 2 },
     ],
   },
+
   {
-    label: 'Control',
-    items: [{ label: 'Reportes', icon: 'report', planned: true }],
+    /**
+     * Hoy este grupo no tiene ninguna entrada visible: sus dos entradas están fuera de fase 1.
+     * El grupo entero desaparece del menú mientras eso siga así —ver `visibleNavigation`— y
+     * reaparece solo el día que a alguna se le quite la marca de fase 2.
+     */
+    label: 'Reportes y dashboards',
+    items: [
+      { label: 'Monitor global', icon: 'report', route: '/monitor', permission: 'REPORTS.READ', onlyFor: 'platform', phase: 2 },
+      { label: 'Reportes', icon: 'report', route: '/reportes', permission: 'REPORTS.READ', needsOrganization: true, phase: 2 },
+    ],
+  },
+
+  {
+    label: 'Configuración',
+    items: [
+      { label: 'Organizaciones', icon: 'security', route: '/plataforma/organizaciones', permission: 'PLATFORM.ADMIN', onlyFor: 'platform' },
+      { label: 'Clientes', icon: 'customer', route: '/clientes', permission: 'CLIENTS.READ', needsOrganization: true },
+      { label: 'Servicios', icon: 'coverage', route: '/servicios', permission: 'CLIENTS.READ', needsOrganization: true },
+      { label: 'Personal', icon: 'people', route: '/personal', permission: 'WORKFORCE.READ', needsOrganization: true },
+      {
+        label: 'Catálogos',
+        icon: 'catalog',
+        route: '/catalogos',
+        permission: 'CATALOGS.READ',
+        needsOrganization: true,
+        /**
+         * Los dieciocho catálogos, agrupados por el módulo que los usa.
+         *
+         * <p><b>Están escritos aquí y no importados de la definición del catálogo</b> para que el
+         * menú no dependa de una pantalla: el menú es cromo y vive en `core`, las pantallas viven
+         * en `features`, y esa dirección no se invierte por ahorrar dieciséis renglones. Lo que
+         * evita que las dos listas se separen es una prueba que las compara, no un import.</p>
+         *
+         * <p><b>La geografía no está.</b> Países, estados y ciudades vienen cargados y no se
+         * administran: son diecisiete mil filas que son las mismas para todas las organizaciones.
+         * Siguen siendo consultables desde la pantalla anterior.</p>
+         */
+        children: [
+          {
+            label: 'Personal',
+            items: [
+              { label: 'Puestos', route: '/catalogos/puestos' },
+              { label: 'Experiencia requerida', route: '/catalogos/experiencia' },
+              { label: 'Tipos de documento', route: '/catalogos/tipos-de-documento' },
+              { label: 'Tipos de evaluación', route: '/catalogos/tipos-de-evaluacion' },
+            ],
+          },
+          {
+            label: 'Posiciones',
+            items: [
+              { label: 'Sexo requerido', route: '/catalogos/sexo' },
+              { label: 'Rangos de edad', route: '/catalogos/rangos-de-edad' },
+              { label: 'Escolaridad', route: '/catalogos/escolaridad' },
+              { label: 'Equipo requerido', route: '/catalogos/equipo-requerido' },
+              { label: 'Patrones de turno', route: '/catalogos/patrones-de-turno' },
+            ],
+          },
+          {
+            label: 'Operación',
+            items: [
+              { label: 'Motivos de incidencia', route: '/catalogos/motivos-de-incidencia' },
+              { label: 'Motivos de cobertura', route: '/catalogos/motivos-de-cobertura' },
+            ],
+          },
+          {
+            label: 'Clientes',
+            items: [
+              { label: 'Categorías de documento', route: '/catalogos/categorias-de-documento-del-cliente' },
+              { label: 'Puestos de contacto', route: '/catalogos/puestos-de-contacto' },
+              { label: 'Propósitos de contacto', route: '/catalogos/propositos-de-contacto' },
+            ],
+          },
+          {
+            /**
+             * Geografía. Nacionalidades sale de Clientes, donde estaba por su lector —la solicitud
+             * de alta de un cliente persona física— y no por lo que es.
+             *
+             * <p><b>Zonas está aquí aunque no sea un catálogo</b>, y conviene decirlo: una zona es
+             * un lugar de un cliente concreto, con su propia dirección, y un servicio apunta a la
+             * del cliente que lo contrató. Lo que esta entrada resuelve es que hasta hoy sólo se
+             * podían ver desde la ficha de su cliente, una a una. Es una vista, no un catálogo.</p>
+             *
+             * <p>País, estado y municipio siguen fuera: vienen cargados del catálogo del INEGI
+             * —8, 258 y 19 826 filas— y nadie los administra a mano.</p>
+             */
+            label: 'Geografía',
+            items: [
+              { label: 'Nacionalidades', route: '/catalogos/nacionalidades' },
+              { label: 'Zonas', route: '/catalogos/zonas' },
+            ],
+          },
+          {
+            label: 'Reglas',
+            items: [{ label: 'Reglas de elegibilidad', route: '/catalogos/reglas-de-elegibilidad' }],
+          },
+        ],
+      },
+      { label: 'Auditoría', icon: 'audit', route: '/auditoria', permission: 'AUDIT.READ', needsOrganization: true },
+
+      // Las dos caras de la misma entrada. Nunca se muestran juntas: `onlyFor` las hace excluyentes.
+      { label: 'Seguridad', icon: 'security', route: '/seguridad', permission: 'PLATFORM.ADMIN', onlyFor: 'platform' },
+      { label: 'Seguridad', icon: 'security', route: '/usuarios', permission: 'USERS.READ', onlyFor: 'organization' },
+
+      // Fuera de fase 1. Oculta, no borrada.
+      { label: 'Reglas documentales', icon: 'document', route: '/configuracion/documentos', permission: 'CATALOGS.READ', needsOrganization: true, phase: 2 },
+    ],
   },
 ];
+
+/** Todas las entradas sin sus grupos, para lo que necesita recorrerlas y no dibujarlas. */
+export const GESTIA_NAVIGATION_ITEMS: readonly NavigationItem[] =
+  GESTIA_NAVIGATION.flatMap((group) => group.items);
+
+/** Con qué se decide si una entrada se muestra. Lo que el menú sabe del usuario, y nada más. */
+export type NavigationAudience = {
+  readonly isPlatformAdmin: boolean;
+  readonly hasActiveOrganization: boolean;
+  readonly hasPermission: (permission: string) => boolean;
+};
+
+/**
+ * Los grupos visibles para un usuario, cada uno ya con sus entradas visibles.
+ *
+ * <b>El menú dice a dónde puedes ir, no qué puedes hacer ahí.</b> Ocultar una entrada no es
+ * autorización: la autorización está en el servidor, en el guard y en el filtro de organización.
+ * Esta función sólo evita ofrecer puertas que no llevan a nada.
+ *
+ * <b>Un grupo sin entradas visibles no se dibuja.</b> Es la misma regla que ya gobierna las
+ * entradas, aplicada un nivel más arriba: un encabezado con nada debajo promete una sección que la
+ * aplicación no tiene, y el usuario no puede distinguir «todavía no existe» de «se rompió». Importa
+ * en los tres estados y no sólo con Reportes: el super admin fuera de una organización deja vacíos
+ * Operación y casi todo Configuración.
+ */
+export function visibleNavigation(
+  audience: NavigationAudience,
+  groups: readonly NavigationGroup[] = GESTIA_NAVIGATION,
+): readonly NavigationGroup[] {
+  return groups
+    .map((group) => ({
+      ...group,
+      items: group.items
+        .filter((item) => isVisible(item, audience))
+        .map((item) => (item.children ? { ...item, children: visibleChildren(item, audience) } : item)),
+    }))
+    .filter((group) => group.items.length > 0);
+}
+
+/** Las entradas visibles sin sus grupos, en el orden en que aparecen. */
+export function visibleNavigationItems(
+  audience: NavigationAudience,
+  groups: readonly NavigationGroup[] = GESTIA_NAVIGATION,
+): readonly NavigationItem[] {
+  return visibleNavigation(audience, groups).flatMap((group) => group.items);
+}
+
+/**
+ * Los bloques de hijos que le quedan a una entrada, ya sin los que el usuario no puede ver.
+ *
+ * <p>Un bloque sin hijos visibles se retira entero, por la misma razón que un grupo vacío: su
+ * rotulito prometería una sección que no está.</p>
+ *
+ * <p>Un hijo no hereda `needsOrganization` ni `onlyFor` del padre porque no le hacen falta: si el
+ * padre no se ve, no hay submenú que abrir. Lo único propio del hijo es su permiso.</p>
+ */
+function visibleChildren(
+  item: NavigationItem,
+  audience: NavigationAudience,
+): readonly NavigationChildGroup[] {
+  return (item.children ?? [])
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((child) => !child.permission || audience.hasPermission(child.permission)),
+    }))
+    .filter((group) => group.items.length > 0);
+}
+
+function isVisible(item: NavigationItem, audience: NavigationAudience): boolean {
+  if (item.phase === 2) {
+    return false;
+  }
+
+  if (item.onlyFor === 'platform' && !audience.isPlatformAdmin) {
+    return false;
+  }
+
+  if (item.onlyFor === 'organization' && audience.isPlatformAdmin) {
+    return false;
+  }
+
+  if (item.needsOrganization && !audience.hasActiveOrganization) {
+    return false;
+  }
+
+  return !item.permission || audience.hasPermission(item.permission);
+}

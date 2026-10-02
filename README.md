@@ -17,11 +17,17 @@ El documento rector del proyecto es [`PLAN_MAESTRO_GESTIA.md`](PLAN_MAESTRO_GEST
 - Pruebas: xUnit en backend y Vitest en frontend.
 - Contenedores: SQL Server, API y frontend coordinados localmente con Docker Compose.
 
+Nota de IDE: el backend apunta a `net10.0`. Para cargar y compilar la solución desde Visual Studio se requiere Visual Studio 2026 o una versión con MSBuild 18+. Visual Studio 2022 puede fallar al cargar los proyectos aunque `dotnet build` funcione desde terminal.
+
 ## Estructura
 
 ```text
 GestIAapp/
 |- backend/
+|  |- GestIA.sln
+|  |- Directory.Build.props
+|  |- global.json
+|  |- .config/dotnet-tools.json
 |  |- src/
 |  |  |- GestIA.Domain/
 |  |  |- GestIA.Application/
@@ -31,10 +37,10 @@ GestIAapp/
 |- frontend/
 |- docs/
 |  |- architecture/
+|  |- database/
 |  `- adr/
 |- PLAN_MAESTRO_GESTIA.md
-|- compose.yaml
-`- GestIA.slnx
+`- compose.yaml
 ```
 
 ## Principios
@@ -58,6 +64,10 @@ GestIAapp/
 - `docs/architecture/05-migration-plan.md`
 - `docs/architecture/06-dependency-map.md`
 - `docs/architecture/07-model-evolution.md`
+- `docs/architecture/08-source-model-analysis.md`
+- `docs/database/DATABASE_STANDARDS.md`
+- `docs/adr/0005-database-standards.md`
+- `docs/adr/0006-eliminacion-modo-soporte.md`
 - `docs/adr/0003-sql-server.md`
 - `docs/integrations/inspinia-5.md`
 - `docs/deployment/containers.md`
@@ -65,11 +75,13 @@ GestIAapp/
 ## Comandos
 
 ```powershell
-dotnet restore GestIA.slnx
-dotnet build GestIA.slnx
-dotnet test GestIA.slnx
+Set-Location backend
+dotnet tool restore
+dotnet restore GestIA.sln
+dotnet build GestIA.sln
+dotnet test GestIA.sln
 
-Set-Location frontend
+Set-Location ..\frontend
 npm ci
 npm start
 npm test

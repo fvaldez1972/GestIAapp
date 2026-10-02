@@ -4,6 +4,10 @@
 
 ```text
 backend/
+|- GestIA.sln
+|- Directory.Build.props
+|- global.json
+|- .config/dotnet-tools.json
 |- Dockerfile
 |- src/
 |  |- GestIA.Domain/

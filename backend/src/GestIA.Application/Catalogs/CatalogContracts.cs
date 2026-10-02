@@ -1,0 +1,147 @@
+using GestIA.Domain.Catalogs;
+using GestIA.Domain.Workforce;
+
+namespace GestIA.Application.Catalogs;
+
+public sealed record CatalogItemInput(
+    Guid IdOrganization,
+    BusinessCatalogItemType Type,
+    string Name,
+    string? Description,
+    int? Order = null,
+    bool? Active = null,
+    Guid? IdParentCatalogItem = null,
+    /// <summary>
+    /// Sólo la aceptan los cuatro catálogos que participan en la elegibilidad; en los demás va nula.
+    /// </summary>
+    bool? IsRequired = null,
+    /// <summary>Si los papeles de este tipo dejan de contar al causar baja la persona.</summary>
+    bool? IsExpiredOnTermination = null,
+    /// <summary>Si los papeles de este tipo traen su propia fecha de vencimiento.</summary>
+    bool? HasOwnExpiry = null,
+    /// <summary>Antigüedad máxima admitida en la fecha de emisión, en meses. Nulo: sin límite.</summary>
+    int? MaxIssueAgeMonths = null,
+    /// <summary>Si los papeles de este tipo llevan datos personales con trato especial.</summary>
+    bool? IsSensitive = null,
+    /// <summary>
+    /// Confirma desmarcar la sensibilidad de un tipo que ya tiene papeles guardados.
+    ///
+    /// <para>Sin esta confirmación, la petición se rechaza diciendo cuántos documentos dejarían de
+    /// estar protegidos. Es una pregunta, no un permiso: el permiso se comprueba aparte.</para>
+    /// </summary>
+    bool ConfirmUnmarkSensitive = false);
+
+public sealed record CatalogItemResponse(
+    Guid IdCatalogItem,
+    Guid IdOrganization,
+    BusinessCatalogItemType Type,
+    string Name,
+    string? Description,
+    bool Active,
+    int Order = 1,
+    DateTime? UpdatedAt = null,
+    Guid? IdParentCatalogItem = null,
+    /// <summary>Nula en los catálogos que no participan en la elegibilidad.</summary>
+    bool? IsRequired = null,
+    /// <summary>Si este catálogo admite la marca. La pantalla decide con esto si la dibuja.</summary>
+    bool SupportsRequiredMark = false,
+    bool? IsExpiredOnTermination = null,
+    /// <summary>Si este catálogo admite el corte por baja: documentos y evaluaciones del personal.</summary>
+    bool SupportsTerminationExpiry = false,
+    bool? HasOwnExpiry = null,
+    int? MaxIssueAgeMonths = null,
+    bool? IsSensitive = null,
+    bool SupportsSensitiveMark = false);
+
+public sealed record EligibilityRequirementInput(
+    Guid IdOrganization,
+    EligibilityRequirementTargetType TargetType,
+    Guid? IdClient,
+    Guid? IdService,
+    Guid? IdPosition,
+    EligibilityRequirementType RequirementType,
+    Guid? IdRequiredCatalogItem,
+    EmployeeDocumentType? RequiredDocumentType,
+    EmployeeEvaluationType? RequiredEvaluationType,
+    string Name,
+    string? Description);
+
+public sealed record EligibilityRequirementResponse(
+    Guid IdEligibilityRequirement,
+    Guid IdOrganization,
+    EligibilityRequirementTargetType TargetType,
+    Guid? IdClient,
+    string? ClientName,
+    Guid? IdService,
+    string? ServiceName,
+    Guid? IdPosition,
+    string? PositionName,
+    EligibilityRequirementType RequirementType,
+    Guid? IdRequiredCatalogItem,
+    string? RequiredCatalogItemName,
+    EmployeeDocumentType? RequiredDocumentType,
+    EmployeeEvaluationType? RequiredEvaluationType,
+    string Name,
+    string? Description,
+    /// <summary>
+    /// La severidad, que sale de la entrada del catálogo que la regla exige. La regla ya no la
+    /// afina: desde el 19 de septiembre de 2026 hay una sola fuente, que es RF-POS-010.
+    /// </summary>
+    bool IsRequiredEffective,
+    bool Active);
+
+public sealed record EmployeeSkillInput(
+    Guid IdOrganization,
+    Guid IdEmployee,
+    Guid IdSkillCatalogItem,
+    DateOnly? AcquiredDate,
+    DateOnly? ExpiresDate,
+    string? Notes);
+
+public sealed record EmployeeSkillResponse(
+    Guid IdEmployeeSkill,
+    Guid IdEmployee,
+    Guid IdSkillCatalogItem,
+    string SkillName,
+    DateOnly? AcquiredDate,
+    DateOnly? ExpiresDate,
+    string? Notes,
+    bool Active);
+
+public sealed record EligibilityCheckQuery(
+    Guid IdOrganization,
+    Guid IdEmployee,
+    Guid? IdClient,
+    Guid? IdService,
+    Guid? IdPosition,
+    DateOnly ReferenceDate);
+
+/// <summary>
+/// La misma comprobación, para varias personas y un solo contexto.
+///
+/// <para>Existe porque el selector de candidatos de Planeación enseña una lista, y una lista de
+/// diez personas no puede costar diez viajes al servidor. El contexto —cliente, servicio, posición
+/// y fecha— es el mismo para todas: es la posición la que pide los requisitos.</para>
+/// </summary>
+public sealed record EligibilityBatchQuery(
+    Guid IdOrganization,
+    IReadOnlyList<Guid> IdEmployees,
+    Guid? IdClient,
+    Guid? IdService,
+    Guid? IdPosition,
+    /// <summary>Sin fecha se usa el día operativo. La decide el servicio, que es quien tiene reloj.</summary>
+    DateOnly? ReferenceDate);
+
+public sealed record EligibilityCheckResponse(
+    Guid IdEmployee,
+    string EmployeeCode,
+    string EmployeeName,
+    bool IsEligible,
+    IReadOnlyList<EligibilityReasonResponse> Reasons);
+
+public sealed record EligibilityReasonResponse(
+    string Scope,
+    string Requirement,
+    bool IsRequired,
+    bool Passed,
+    string Message);

@@ -1,0 +1,506 @@
+using System.Globalization;
+using System.Text;
+using GestIA.Application.Catalogs;
+using GestIA.Domain.Catalogs;
+using GestIA.Domain.Organizations;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+
+namespace GestIA.Infrastructure.Persistence.DemoData;
+
+/// <summary>
+/// Siembra una organización demo con volumen suficiente para que las pantallas y las
+/// consultas se comporten como en operación real.
+///
+/// Reglas de esta pieza:
+/// <list type="bullet">
+/// <item>Sólo corre si <c>DemoData__Enabled=true</c>. Nunca automáticamente.</item>
+/// <item>Es idempotente: cada fase comprueba si ya existe antes de escribir, así que una
+/// corrida interrumpida se puede reanudar sin duplicar. La llave de esa comprobación es
+/// <see cref="DemoActorId"/>, no «la organización tiene alguna fila»: así el sembrador puede
+/// <b>complementar</b> una organización que ya tenga registros propios —un par de clientes
+/// capturados a mano, por ejemplo— en lugar de saltarse la fase entera y dejarla a medias.</item>
+/// <item>No toca la ruta de alta de organizaciones reales. Reutiliza
+/// <see cref="OrganizationCatalogDefaults"/> tal cual está para la geografía, y agrega
+/// puestos y reglas de elegibilidad SÓLO a la organización demo.</item>
+/// <item>No requiere ningún cambio de esquema: escribe filas sobre las tablas que ya
+/// materializaron las 19 migraciones existentes.</item>
+/// </list>
+/// </summary>
+/// <remarks>
+/// <b>Por qué el sembrador apaga también el filtro de organización.</b> Corre al arrancar la
+/// aplicación, fuera de cualquier petición, así que no hay guard que haya fijado una
+/// organización autorizada y el filtro global no encontraría ninguna fila. Sus lecturas de
+/// verificación —las que lo hacen idempotente— devolverían vacío y volvería a sembrar todo en
+/// cada arranque.
+///
+/// No cruza organizaciones: trabaja con la única que él mismo crea. Está en la lista blanca de
+/// <c>OrganizationFilterBypassTests</c>, que es lo que impide que el bypass se extienda en
+/// silencio a otros archivos.
+/// </remarks>
+public sealed partial class DemoDataSeeder(
+    GestIaDbContext dbContext,
+    OrganizationCatalogDefaults catalogDefaults,
+    IOptions<DemoDataOptions> options,
+    ILogger<DemoDataSeeder> logger)
+{
+    /// <summary>
+    /// Actor sintético. Distinto del bootstrap para poder filtrar auditoría demo, y además
+    /// <b>la llave de idempotencia de todas las fases</b>: una fila con este <c>CreatedBy</c> la
+    /// escribió este sembrador, y sólo esas cuentan para decidir si una fase ya corrió.
+    /// </summary>
+    private static readonly Guid DemoActorId = Guid.Parse("00000000-0000-0000-0000-0000000000de");
+
+    private const string DemoActorName = "GestIA Demo Seed";
+
+    private readonly DemoDataOptions options = options.Value;
+
+    private DateOnly Today => this.options.ReferenceDate ?? DateOnly.FromDateTime(DateTime.UtcNow);
+
+    private DateTime OccurredAt => Today.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+
+    private Random Rng { get; set; } = new(20260904);
+
+    public async Task<DemoSeedReport> SeedAsync(CancellationToken cancellationToken)
+    {
+        if (!this.options.Enabled)
+        {
+            DemoSeedLog.Disabled(logger);
+            return DemoSeedReport.Skipped;
+        }
+
+        Rng = new Random(this.options.RandomSeed);
+        var report = new DemoSeedReport();
+
+        var organization = await EnsureOrganizationAsync(cancellationToken);
+        report.IdOrganization = organization.IdOrganization;
+
+        await EnsureCatalogsAsync(organization, report, cancellationToken);
+        await EnsureEligibilityAsync(organization, report, cancellationToken);
+        await EnsureClientsAsync(organization, report, cancellationToken);
+        await EnsureServicesAsync(organization, report, cancellationToken);
+        await EnsurePositionsAndPatternsAsync(organization, report, cancellationToken);
+        await EnsureEmployeesAsync(organization, report, cancellationToken);
+        await EnsureAssignmentsAsync(organization, report, cancellationToken);
+        await EnsureSchedulesAsync(organization, report, cancellationToken);
+        await EnsureOperationsAsync(organization, report, cancellationToken);
+        await EnsureRequestsAsync(organization, report, cancellationToken);
+        await EnsureBusinessDocumentsAsync(organization, report, cancellationToken);
+        await EnsureHardCasesAsync(organization, report, cancellationToken);
+
+        var summary = report.ToString();
+        DemoSeedLog.Completed(logger, this.options.CodeOrganization, summary);
+
+        return report;
+    }
+
+    private async Task<Organization> EnsureOrganizationAsync(CancellationToken cancellationToken)
+    {
+        var code = this.options.CodeOrganization.ToUpperInvariant();
+        var existing = await dbContext.Organizations
+            .IgnoreQueryFilters(["Active", "Organization"])
+            .SingleOrDefaultAsync(item => item.CodeOrganization == code, cancellationToken);
+
+        if (existing is not null)
+        {
+            return existing;
+        }
+
+        var organization = Organization.Create(
+            code,
+            this.options.LegalName,
+            this.options.Rfc,
+            DemoActorId,
+            DemoActorName,
+            OccurredAt);
+
+        await dbContext.Organizations.AddAsync(organization, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        DemoSeedLog.OrganizationCreated(logger, code);
+        return organization;
+    }
+
+    /// <summary>
+    /// Siembra los catálogos del alta real usando exactamente la misma pieza que el alta real, y
+    /// encima agrega puestos y habilidades, que el alta real deliberadamente no inventa.
+    /// </summary>
+    private async Task EnsureCatalogsAsync(
+        Organization organization,
+        DemoSeedReport report,
+        CancellationToken cancellationToken)
+    {
+        // La señal de «aquí ya corrió el alta» es que la organización tenga algún valor de
+        // catálogo, y no que tenga uno de un tipo concreto.
+        //
+        // Hasta el 22 de septiembre de 2026 preguntaba si tenía estados. Ese día la geografía salió
+        // del catálogo por organización y el alta dejó de sembrarla, así que la pregunta pasó a
+        // responder «no» siempre y el sembrador volvía a sembrar encima: las tres pruebas de esta
+        // clase fallaron con clave duplicada. Un centinela atado a un tipo concreto vuelve a
+        // romperse el día que ese tipo se retire, y ya se retiraron varios.
+        var yaSembrada = await dbContext.BusinessCatalogItems
+            .IgnoreQueryFilters(["Active", "Organization"])
+            .AnyAsync(item => item.IdOrganization == organization.IdOrganization, cancellationToken);
+
+        if (!yaSembrada)
+        {
+            await catalogDefaults.StageAsync(organization.IdOrganization, cancellationToken);
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+
+        // Puestos y habilidades son dos catálogos distintos y se comprueban por separado. Colgar
+        // las habilidades de «¿ya hay puestos?» dejaba sin habilidades a cualquier organización
+        // que ya tuviera puestos capturados a mano, y entonces las reglas de elegibilidad que
+        // exigen una habilidad no encontraban cuál y el dominio las rechazaba.
+        await EnsureCatalogItemsAsync(
+            organization, BusinessCatalogItemType.JobPosition, DemoCatalog.JobPositions, cancellationToken);
+        await EnsureCatalogItemsAsync(
+            organization, BusinessCatalogItemType.Skill, DemoCatalog.Skills, cancellationToken);
+
+        // Las tres listas que dejaron de ser enums. Se comprueban aparte por la misma razon que los
+        // puestos: una organizacion demo sembrada antes del 19 de septiembre de 2026 ya tenia
+        // catalogos, asi que colgarlas del centinela las habria dejado sin categorias y las reglas
+        // de documento no encontrarian a que apuntar.
+        foreach (var grupo in EligibilityCatalogSeed.All.GroupBy(value => value.Type))
+        {
+            await EnsureCatalogItemsAsync(
+                organization, grupo.Key, grupo.Select(value => value.Name).ToArray(), cancellationToken);
+        }
+
+        report.CatalogItems = await dbContext.BusinessCatalogItems
+            .IgnoreQueryFilters(["Active", "Organization"])
+            .CountAsync(item => item.IdOrganization == organization.IdOrganization, cancellationToken);
+    }
+
+    /// <summary>
+    /// Los puestos del catálogo de la organización, por código.
+    ///
+    /// <para><b>Existe porque el sembrador tiene que escribir el identificador, no sólo el nombre.</b>
+    /// La elegibilidad se compara por identificador de catálogo; un empleado con el puesto puesto
+    /// sólo como texto es un expediente que nadie puede comprobar. En <c>db-gestia-demo</c> el enlace
+    /// apareció por accidente de orden —se sembró antes de aplicar la migración que rellena esa
+    /// columna, y fue su relleno quien lo hizo—, no porque el sembrador lo hiciera.</para>
+    /// </summary>
+    private Task<IReadOnlyDictionary<string, Guid>> JobPositionCatalogAsync(
+        Organization organization,
+        CancellationToken cancellationToken) =>
+        JobPositionCatalogAsync(organization.IdOrganization, cancellationToken);
+
+    private async Task<IReadOnlyDictionary<string, Guid>> JobPositionCatalogAsync(
+        Guid idOrganization,
+        CancellationToken cancellationToken)
+    {
+        var items = await dbContext.BusinessCatalogItems
+            .IgnoreQueryFilters(["Active", "Organization"])
+            .Where(item => item.IdOrganization == idOrganization &&
+                item.Type == BusinessCatalogItemType.JobPosition && item.Active)
+            .Select(item => new { item.Name, item.IdBusinessCatalogItem })
+            .ToListAsync(cancellationToken);
+
+        return items
+            .GroupBy(item => NormalizeJobPositionName(item.Name))
+            .ToDictionary(group => group.Key, group => group.First().IdBusinessCatalogItem);
+    }
+
+    /// <summary>
+    /// El puesto del catálogo que corresponde a un texto, o nulo si ninguno.
+    ///
+    /// <para>Tolerante a mayúsculas, acentos y espacios de sobra, <b>igual que el relleno de la
+    /// migración que introdujo la columna</b>. Así es como llegan los datos escritos a mano, y los
+    /// casos difíciles del sembrador existen para ejercitarlo. Lo que no corresponde a ninguna
+    /// entrada queda en nulo: es la condición «expediente incompleto», no un error.</para>
+    /// </summary>
+    private static Guid? ResolveJobPosition(IReadOnlyDictionary<string, Guid> catalog, string? jobTitle) =>
+        !string.IsNullOrWhiteSpace(jobTitle) &&
+        catalog.TryGetValue(NormalizeJobPositionName(jobTitle), out var id)
+            ? id
+            : null;
+
+    private static string NormalizeJobPositionName(string value) =>
+        new string(value
+                .Trim()
+                .Normalize(NormalizationForm.FormD)
+                .Where(character =>
+                    CharUnicodeInfo.GetUnicodeCategory(character) != UnicodeCategory.NonSpacingMark)
+                .ToArray())
+            .ToUpperInvariant();
+
+    /// <summary>
+    /// La entrada del catalogo que una regla demo exige, cualquiera que sea su tipo.
+    ///
+    /// <para>Hasta el 19 de septiembre de 2026 esto solo resolvia habilidades, porque documentos y
+    /// evaluaciones se exigian por enum. Desde que los tres salen del catalogo, la regla se resuelve
+    /// igual para los tres: el tipo de regla dice de que catalogo, y el nombre dice cual fila.</para>
+    /// </summary>
+    /// <summary>
+    /// Deja la marca de bloqueo en la entrada del catálogo que la regla exige.
+    ///
+    /// <para>Sólo si no la tiene: si alguien ya decidió la severidad de ese requisito, el sembrador
+    /// demo no es quién para cambiarla.</para>
+    /// </summary>
+    private async Task MarcarSeveridadAsync(
+        Guid? idCatalogItem,
+        bool isBlocking,
+        CancellationToken cancellationToken)
+    {
+        if (idCatalogItem is not { } id)
+        {
+            return;
+        }
+
+        var item = await dbContext.BusinessCatalogItems
+            .IgnoreQueryFilters(["Active", "Organization"])
+            .FirstOrDefaultAsync(entry => entry.IdBusinessCatalogItem == id, cancellationToken);
+
+        if (item is null || item.IsRequired.HasValue || !BusinessCatalogItem.SupportsRequiredMark(item.Type))
+        {
+            return;
+        }
+
+        item.UpdateProfile(
+            new BusinessCatalogItemProfile(
+                item.Type, item.Name, item.Description, item.Order, item.IdParentCatalogItem, isBlocking),
+            DemoActorId,
+            DemoActorName,
+            OccurredAt);
+    }
+
+    private async Task<Guid?> RequiredCatalogItemIdAsync(
+        Organization organization,
+        DemoCatalog.EligibilityRule rule,
+        CancellationToken cancellationToken)
+    {
+        var (type, name) = rule.RequirementType switch
+        {
+            EligibilityRequirementType.Skill =>
+                (BusinessCatalogItemType.Skill, rule.RequiredSkillName),
+            EligibilityRequirementType.Document when rule.RequiredDocumentType.HasValue =>
+                (BusinessCatalogItemType.EmployeeDocumentCategory,
+                 EligibilityCatalogSeed.NameFor(rule.RequiredDocumentType.Value)),
+            EligibilityRequirementType.Evaluation when rule.RequiredEvaluationType.HasValue =>
+                (BusinessCatalogItemType.EmployeeEvaluationCategory,
+                 EligibilityCatalogSeed.NameFor(rule.RequiredEvaluationType.Value)),
+            _ => (BusinessCatalogItemType.Skill, null)
+        };
+
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return null;
+        }
+
+        var plegado = CatalogName.Normalize(name);
+
+        return await dbContext.BusinessCatalogItems
+            .IgnoreQueryFilters(["Active", "Organization"])
+            .Where(item => item.IdOrganization == organization.IdOrganization &&
+                item.Type == type &&
+                item.NormalizedName == plegado)
+            .Select(item => (Guid?)item.IdBusinessCatalogItem)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Agrega de una lista de catálogo sólo los nombres que faltan.
+    ///
+    /// <para>Se compara por nombre plegado porque es la misma llave que hace único al valor
+    /// dentro de su tipo: volver a insertar uno que ya está —capturado a mano o por una corrida
+    /// anterior— chocaría contra esa unicidad. Y como los registros no se borran, un valor
+    /// desactivado sigue ocupando su nombre, así que también cuenta como presente.</para>
+    ///
+    /// <para><b>Los dos lados se pliegan con la misma función.</b> <c>NormalizedName</c> es una
+    /// columna calculada en T-SQL que sube a mayúsculas pero <b>conserva los acentos</b>; quien
+    /// ignora el acento es la colación <c>Latin1_General_CI_AI</c> de la columna, y por lo tanto
+    /// también el índice único. Comparar en memoria el valor guardado —«OPERACIÓN DE CCTV»—
+    /// contra el que produce <see cref="CatalogName.Normalize"/> —«OPERACION DE CCTV»— daba
+    /// distinto, se intentaba insertar de nuevo y el índice lo rechazaba por duplicado. Pasar el
+    /// valor guardado por la misma función deja a los dos lados en la misma forma.</para>
+    /// </summary>
+    private async Task EnsureCatalogItemsAsync(
+        Organization organization,
+        BusinessCatalogItemType type,
+        IReadOnlyList<string> names,
+        CancellationToken cancellationToken)
+    {
+        var presentes = await dbContext.BusinessCatalogItems
+            .IgnoreQueryFilters(["Active", "Organization"])
+            .Where(item => item.IdOrganization == organization.IdOrganization && item.Type == type)
+            .Select(item => item.NormalizedName)
+            .ToListAsync(cancellationToken);
+
+        var yaEstan = new HashSet<string>(presentes.Select(CatalogName.Normalize), StringComparer.Ordinal);
+        var agregados = 0;
+
+        foreach (var name in names)
+        {
+            if (!yaEstan.Add(CatalogName.Normalize(name)))
+            {
+                continue;
+            }
+
+            await AddCatalogItemAsync(organization, type, name, cancellationToken);
+            agregados++;
+        }
+
+        if (agregados > 0)
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+    }
+
+    private async Task AddCatalogItemAsync(
+        Organization organization,
+        BusinessCatalogItemType type,
+        string name,
+        CancellationToken cancellationToken)
+    {
+        var item = BusinessCatalogItem.Create(
+            organization.IdOrganization,
+            new BusinessCatalogItemProfile(type, name, null),
+            DemoActorId,
+            DemoActorName,
+            OccurredAt);
+        await dbContext.BusinessCatalogItems.AddAsync(item, cancellationToken);
+    }
+
+    /// <summary>
+    /// Reglas de elegibilidad de la organización demo. El alta real no las inventa; aquí sí,
+    /// porque sin ellas la validación de asignaciones no tiene nada que evaluar.
+    /// </summary>
+    private async Task EnsureEligibilityAsync(
+        Organization organization,
+        DemoSeedReport report,
+        CancellationToken cancellationToken)
+    {
+        var existing = await dbContext.EligibilityRequirements
+            .IgnoreQueryFilters(["Active", "Organization"])
+            .CountAsync(item => item.IdOrganization == organization.IdOrganization, cancellationToken);
+
+        if (existing == 0)
+        {
+            foreach (var rule in DemoCatalog.EligibilityRules)
+            {
+                var idCatalogo = await RequiredCatalogItemIdAsync(organization, rule, cancellationToken);
+
+                // La severidad se marca en el catalogo, que desde el 19 de septiembre de 2026 es
+                // su unica fuente. Marcarla en la regla ya no haria nada: nadie la lee.
+                await MarcarSeveridadAsync(idCatalogo, rule.IsRequired, cancellationToken);
+
+                var requirement = EligibilityRequirement.Create(
+                    organization.IdOrganization,
+                    new EligibilityRequirementProfile(
+                        EligibilityRequirementTargetType.Organization,
+                        null,
+                        null,
+                        null,
+                        rule.RequirementType,
+                        idCatalogo,
+                        rule.RequiredDocumentType,
+                        rule.RequiredEvaluationType,
+                        rule.Name,
+                        rule.Description),
+                    DemoActorId,
+                    DemoActorName,
+                    OccurredAt);
+                await dbContext.EligibilityRequirements.AddAsync(requirement, cancellationToken);
+            }
+
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+
+        report.EligibilityRules = await dbContext.EligibilityRequirements
+            .IgnoreQueryFilters(["Active", "Organization"])
+            .CountAsync(item => item.IdOrganization == organization.IdOrganization, cancellationToken);
+    }
+
+    private DateOnly Days(int offset) => Today.AddDays(offset);
+
+    private DateOnly Months(int offset) => Today.AddMonths(offset);
+
+    private T Pick<T>(IReadOnlyList<T> source) => source[Rng.Next(source.Count)];
+}
+
+/// <summary>Resumen de lo sembrado, para reportarlo sin volver a consultar la base.</summary>
+public sealed class DemoSeedReport
+{
+    public static DemoSeedReport Skipped { get; } = new() { WasSkipped = true };
+
+    public bool WasSkipped { get; init; }
+    public Guid IdOrganization { get; set; }
+    public int CatalogItems { get; set; }
+    public int EligibilityRules { get; set; }
+    public int Clients { get; set; }
+    public int ClientSites { get; set; }
+    public int ClientContacts { get; set; }
+    public int ServiceContracts { get; set; }
+    public int Services { get; set; }
+    public int ServiceConfigurations { get; set; }
+    public int Positions { get; set; }
+    public int ShiftPatterns { get; set; }
+    public int ShiftSegments { get; set; }
+    public int Employees { get; set; }
+    public int EmployeeDocuments { get; set; }
+    public int EmployeeEvaluations { get; set; }
+    public int EmployeeSkills { get; set; }
+    public int Assignments { get; set; }
+    public int ScheduleVersions { get; set; }
+    public int ScheduledShifts { get; set; }
+    public int AttendanceRecords { get; set; }
+    public int Incidents { get; set; }
+    public int CoverageRecords { get; set; }
+    public int OperationalRequests { get; set; }
+    public int BusinessDocuments { get; set; }
+
+    /// <summary>Los casos feos: los datos que rompen una pantalla mal hecha.</summary>
+    public int HardCaseClients { get; set; }
+
+    public int HardCaseServices { get; set; }
+
+    public override string ToString() =>
+        $"clientes={Clients} zonas={ClientSites} contactos={ClientContacts} contratos={ServiceContracts} " +
+        $"servicios={Services} configuraciones={ServiceConfigurations} posiciones={Positions} " +
+        $"patrones={ShiftPatterns} segmentos={ShiftSegments} empleados={Employees} " +
+        $"documentosEmpleado={EmployeeDocuments} evaluaciones={EmployeeEvaluations} habilidades={EmployeeSkills} " +
+        $"asignaciones={Assignments} versiones={ScheduleVersions} turnos={ScheduledShifts} " +
+        $"asistencia={AttendanceRecords} incidencias={Incidents} coberturas={CoverageRecords} " +
+        $"solicitudes={OperationalRequests} documentos={BusinessDocuments} catalogos={CatalogItems} " +
+        $"reglas={EligibilityRules} casosFeosClientes={HardCaseClients} casosFeosServicios={HardCaseServices}";
+}
+
+internal static partial class DemoSeedLog
+{
+    [LoggerMessage(
+        EventId = 4001,
+        Level = LogLevel.Information,
+        Message = "Demo data seeding is disabled. Set DemoData__Enabled=true to run it.")]
+    public static partial void Disabled(ILogger logger);
+
+    [LoggerMessage(
+        EventId = 4002,
+        Level = LogLevel.Warning,
+        Message = "Demo organization {CodeOrganization} was created. This data is synthetic and must never reach production.")]
+    public static partial void OrganizationCreated(ILogger logger, string codeOrganization);
+
+    [LoggerMessage(
+        EventId = 4003,
+        Level = LogLevel.Information,
+        Message = "Demo data seeding completed for {CodeOrganization}: {Summary}")]
+    public static partial void Completed(ILogger logger, string codeOrganization, string summary);
+
+    [LoggerMessage(
+        EventId = 4004,
+        Level = LogLevel.Information,
+        Message = "Demo phase {Phase} already present, skipped.")]
+    public static partial void PhaseSkipped(ILogger logger, string phase);
+
+    [LoggerMessage(
+        EventId = 5010,
+        Level = LogLevel.Information,
+        Message = "Demo seed: se omite {Kind} {Code} porque su codigo ya esta ocupado en la organizacion.")]
+    public static partial void CodeTaken(ILogger logger, string kind, string code);
+
+    [LoggerMessage(
+        EventId = 4005,
+        Level = LogLevel.Information,
+        Message = "Demo hard cases created: {Clients} clients and {Services} services with long names, accents, missing sites, expired terms and inactive rows.")]
+    public static partial void HardCasesCreated(ILogger logger, int clients, int services);
+}

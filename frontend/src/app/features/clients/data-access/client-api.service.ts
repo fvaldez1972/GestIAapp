@@ -1,0 +1,835 @@
+import { HttpClient, HttpParams } from '@angular/common/http';
+import { inject, Injectable } from '@angular/core';
+import { activeOptions } from '../../../shared/data-access/active-options';
+import {
+  ClientListItem,
+  ClientZonePresenceFilter,
+  ClientStatusFilter,
+  AttendanceRecord,
+  ApprovalRequest,
+  ApprovalRequestStatus,
+  CoverageCorrectionInput,
+  CoverageInput,
+  CoverageRecord,
+  Client,
+  ClientContact,
+  ClientContactInput,
+  ClientInput,
+  ClientZone,
+  ClientZoneInput,
+  CreateClient,
+  CreateClientZone,
+  CreateApprovalRequest,
+  CreateManagedService,
+  CreateServiceContract,
+  CreateOrganization,
+  CreateOrganizationWithAdmin,
+  UpdateOrganization,
+  CreateServicePosition,
+  CreateServiceAssignment,
+  CreateShiftPattern,
+  CloseOperationDay,
+  DecideApprovalRequest,
+  FileUploadResponse,
+  GenerateScheduledShiftsRequest,
+  GenerateScheduledShiftsResponse,
+  Incident,
+  IncidentCorrectionInput,
+  IncidentInput,
+  ManagedService,
+  ManagedServiceInput,
+  OperationsSummary,
+  OperationsServiceSummary,
+  OperationEvidence,
+  OperationEvidenceInput,
+  OperationDayClosure,
+  Organization,
+  OrganizationGovernanceSummary,
+  OrganizationProvisioningResult,
+  PagedResult,
+  ServiceAssignment,
+  ServiceAssignmentCorrectionInput,
+  ScheduledShift,
+  ScheduledShiftInput,
+  ScheduleVersion,
+  ScheduleVersionInput,
+  ServiceContract,
+  ServiceContractInput,
+  ServicePosition,
+  ServicePositionInput,
+  ReopenOperationDay,
+  ShiftPattern,
+  ShiftPatternInput,
+  ShiftSegment,
+  ShiftSegmentInput,
+  UpsertAttendanceRecord,
+  WorkforceEligibilityReport,
+  OrganizationClientZone,
+} from './client.models';
+
+@Injectable({ providedIn: 'root' })
+export class ClientApiService {
+  private readonly http = inject(HttpClient);
+  private readonly baseUrl = '/api/v1';
+
+  listOrganizations() {
+    return this.http.get<readonly Organization[]>(`${this.baseUrl}/organizations`);
+  }
+
+  listOrganizationGovernance() {
+    return this.http.get<readonly OrganizationGovernanceSummary[]>(`${this.baseUrl}/organizations/governance`);
+  }
+
+  createOrganization(request: CreateOrganization) {
+    return this.http.post<Organization>(`${this.baseUrl}/organizations`, request);
+  }
+
+  createOrganizationWithAdmin(request: CreateOrganizationWithAdmin) {
+    return this.http.post<OrganizationProvisioningResult>(`${this.baseUrl}/organizations/with-admin`, request);
+  }
+
+  updateOrganization(idOrganization: string, request: UpdateOrganization) {
+    return this.http.put<Organization>(`${this.baseUrl}/organizations/${idOrganization}`, request);
+  }
+
+  deactivateOrganization(idOrganization: string) {
+    return this.http.delete<void>(`${this.baseUrl}/organizations/${idOrganization}`);
+  }
+
+  activateOrganization(idOrganization: string) {
+    return this.http.patch<Organization>(`${this.baseUrl}/organizations/${idOrganization}/activate`, {});
+  }
+
+  /**
+   * El listado de clientes con sus conteos resueltos.
+   *
+   * <p>Los filtros viajan al servidor y no se aplican sobre la página ya traída: un filtro que
+   * sólo mira la página en pantalla miente en cuanto hay una segunda.</p>
+   */
+  searchClients(options: {
+    organizationId: string;
+    search?: string;
+    status?: ClientStatusFilter;
+    zonePresence?: ClientZonePresenceFilter;
+    municipality?: string;
+    page?: number;
+    pageSize?: number;
+  }) {
+    let params = new HttpParams()
+      .set('organizationId', options.organizationId)
+      .set('page', String(options.page ?? 1))
+      .set('pageSize', String(options.pageSize ?? 25));
+
+    if (options.search?.trim()) {
+      params = params.set('search', options.search.trim());
+    }
+
+    if (options.status) {
+      params = params.set('status', options.status);
+    }
+
+    if (options.zonePresence && options.zonePresence !== 'Any') {
+      params = params.set('zonePresence', options.zonePresence);
+    }
+
+    if (options.municipality) {
+      params = params.set('municipality', options.municipality);
+    }
+
+    return this.http.get<PagedResult<ClientListItem>>(`${this.baseUrl}/clients`, { params });
+  }
+
+  /** Las opciones reales del filtro de municipio, de todas las zonas y no sólo de la página. */
+  listClientMunicipalities(organizationId: string) {
+    return this.http.get<readonly string[]>(`${this.baseUrl}/clients/municipalities`, {
+      params: new HttpParams().set('organizationId', organizationId),
+    });
+  }
+
+  listClients(organizationId: string, search = '', page = 1, pageSize = 20) {
+    let params = new HttpParams()
+      .set('organizationId', organizationId)
+      .set('page', page)
+      .set('pageSize', pageSize);
+
+    if (search.trim()) {
+      params = params.set('search', search.trim());
+    }
+
+    return this.http.get<PagedResult<ClientListItem>>(`${this.baseUrl}/clients`, { params });
+  }
+
+  listClientOptions(organizationId: string) {
+    return activeOptions(page => this.listClients(organizationId, '', page, 100));
+  }
+
+  createClient(request: CreateClient) {
+    return this.http.post<Client>(`${this.baseUrl}/clients`, request);
+  }
+
+  /**
+   * La ficha completa de un cliente.
+   *
+   * <p>La del listado no trae los campos fiscales, y el <c>PUT</c> reemplaza el perfil entero: un
+   * formulario que se prellenara con la fila del listado los mandaria vacios y los borraria en
+   * silencio. Editar empieza por traer lo que hay.</p>
+   */
+  getClient(organizationId: string, idClient: string) {
+    const params = new HttpParams().set('organizationId', organizationId);
+    return this.http.get<Client>(`${this.baseUrl}/clients/${idClient}`, { params });
+  }
+
+  updateClient(idClient: string, request: ClientInput) {
+    return this.http.put<Client>(`${this.baseUrl}/clients/${idClient}`, request);
+  }
+
+  deactivateClient(organizationId: string, idClient: string) {
+    const params = new HttpParams().set('organizationId', organizationId);
+    return this.http.delete<void>(`${this.baseUrl}/clients/${idClient}`, { params });
+  }
+
+  /** Deshace la desactivación. PATCH, como la de organizaciones, usuarios y roles. */
+  activateClient(organizationId: string, idClient: string) {
+    const params = new HttpParams().set('organizationId', organizationId);
+    return this.http.patch<Client>(`${this.baseUrl}/clients/${idClient}/activate`, {}, { params });
+  }
+
+  listZones(organizationId: string, idClient: string) {
+    const params = new HttpParams().set('organizationId', organizationId);
+    return this.http.get<readonly ClientZone[]>(`${this.baseUrl}/clients/${idClient}/zones`, { params });
+  }
+
+  /** Todas las zonas de la organización, con su cliente. Para verlas juntas. */
+  listAllZones(organizationId: string) {
+    const params = new HttpParams().set('organizationId', organizationId);
+    return this.http.get<readonly OrganizationClientZone[]>(`${this.baseUrl}/client-zones`, { params });
+  }
+
+  createZone(idClient: string, request: CreateClientZone) {
+    return this.http.post<ClientZone>(`${this.baseUrl}/clients/${idClient}/zones`, request);
+  }
+
+  updateZone(idClient: string, idClientZone: string, request: ClientZoneInput) {
+    return this.http.put<ClientZone>(`${this.baseUrl}/clients/${idClient}/zones/${idClientZone}`, request);
+  }
+
+  deactivateZone(organizationId: string, idClient: string, idClientZone: string) {
+    const params = new HttpParams().set('organizationId', organizationId);
+    return this.http.delete<void>(`${this.baseUrl}/clients/${idClient}/zones/${idClientZone}`, { params });
+  }
+
+  listContacts(organizationId: string, idClient: string) {
+    const params = new HttpParams().set('organizationId', organizationId);
+    return this.http.get<readonly ClientContact[]>(`${this.baseUrl}/clients/${idClient}/contacts`, { params });
+  }
+
+  createContact(idClient: string, request: ClientContactInput) {
+    return this.http.post<ClientContact>(`${this.baseUrl}/clients/${idClient}/contacts`, request);
+  }
+
+  updateContact(idClient: string, idClientContact: string, request: ClientContactInput) {
+    return this.http.put<ClientContact>(`${this.baseUrl}/clients/${idClient}/contacts/${idClientContact}`, request);
+  }
+
+  deactivateContact(organizationId: string, idClient: string, idClientContact: string) {
+    const params = new HttpParams().set('organizationId', organizationId);
+    return this.http.delete<void>(`${this.baseUrl}/clients/${idClient}/contacts/${idClientContact}`, { params });
+  }
+
+  listContracts(organizationId: string, idClient: string) {
+    const params = new HttpParams().set('organizationId', organizationId);
+    return this.http.get<readonly ServiceContract[]>(`${this.baseUrl}/clients/${idClient}/contracts`, { params });
+  }
+
+  createContract(idClient: string, request: CreateServiceContract) {
+    return this.http.post<ServiceContract>(`${this.baseUrl}/clients/${idClient}/contracts`, request);
+  }
+
+  updateContract(idClient: string, idServiceContract: string, request: ServiceContractInput) {
+    return this.http.put<ServiceContract>(`${this.baseUrl}/clients/${idClient}/contracts/${idServiceContract}`, request);
+  }
+
+  deactivateContract(organizationId: string, idClient: string, idServiceContract: string) {
+    const params = new HttpParams().set('organizationId', organizationId);
+    return this.http.delete<void>(`${this.baseUrl}/clients/${idClient}/contracts/${idServiceContract}`, { params });
+  }
+
+  listServices(organizationId: string, idClient: string) {
+    const params = new HttpParams().set('organizationId', organizationId);
+    return this.http.get<readonly ManagedService[]>(`${this.baseUrl}/clients/${idClient}/services`, { params });
+  }
+
+  createService(idClient: string, request: CreateManagedService) {
+    return this.http.post<ManagedService>(`${this.baseUrl}/clients/${idClient}/services`, request);
+  }
+
+  updateService(idClient: string, idService: string, request: ManagedServiceInput) {
+    return this.http.put<ManagedService>(`${this.baseUrl}/clients/${idClient}/services/${idService}`, request);
+  }
+
+  deactivateService(organizationId: string, idClient: string, idService: string) {
+    const params = new HttpParams().set('organizationId', organizationId);
+    return this.http.delete<void>(`${this.baseUrl}/clients/${idClient}/services/${idService}`, { params });
+  }
+
+  listPositions(organizationId: string, idClient: string, idService: string) {
+    const params = new HttpParams().set('organizationId', organizationId);
+    return this.http.get<readonly ServicePosition[]>(
+      `${this.baseUrl}/clients/${idClient}/services/${idService}/positions`,
+      { params },
+    );
+  }
+
+  createPosition(idClient: string, idService: string, request: CreateServicePosition) {
+    return this.http.post<ServicePosition>(
+      `${this.baseUrl}/clients/${idClient}/services/${idService}/positions`,
+      request,
+    );
+  }
+
+  updatePosition(idClient: string, idService: string, idPosition: string, request: ServicePositionInput) {
+    return this.http.put<ServicePosition>(
+      `${this.baseUrl}/clients/${idClient}/services/${idService}/positions/${idPosition}`,
+      request,
+    );
+  }
+
+  deactivatePosition(organizationId: string, idClient: string, idService: string, idPosition: string) {
+    const params = new HttpParams().set('organizationId', organizationId);
+    return this.http.delete<void>(
+      `${this.baseUrl}/clients/${idClient}/services/${idService}/positions/${idPosition}`,
+      { params },
+    );
+  }
+
+  listShiftPatterns(organizationId: string, idClient: string, idService: string, idPosition: string) {
+    const params = new HttpParams().set('organizationId', organizationId);
+    return this.http.get<readonly ShiftPattern[]>(
+      `${this.baseUrl}/clients/${idClient}/services/${idService}/positions/${idPosition}/shift-patterns`,
+      { params },
+    );
+  }
+
+  createShiftPattern(idClient: string, idService: string, idPosition: string, request: CreateShiftPattern) {
+    return this.http.post<ShiftPattern>(
+      `${this.baseUrl}/clients/${idClient}/services/${idService}/positions/${idPosition}/shift-patterns`,
+      request,
+    );
+  }
+
+  updateShiftPattern(
+    idClient: string,
+    idService: string,
+    idPosition: string,
+    idShiftPattern: string,
+    request: ShiftPatternInput,
+  ) {
+    return this.http.put<ShiftPattern>(
+      `${this.baseUrl}/clients/${idClient}/services/${idService}/positions/${idPosition}/shift-patterns/${idShiftPattern}`,
+      request,
+    );
+  }
+
+  deactivateShiftPattern(
+    organizationId: string,
+    idClient: string,
+    idService: string,
+    idPosition: string,
+    idShiftPattern: string,
+  ) {
+    const params = new HttpParams().set('organizationId', organizationId);
+    return this.http.delete<void>(
+      `${this.baseUrl}/clients/${idClient}/services/${idService}/positions/${idPosition}/shift-patterns/${idShiftPattern}`,
+      { params },
+    );
+  }
+
+  listShiftSegments(
+    organizationId: string,
+    idClient: string,
+    idService: string,
+    idPosition: string,
+    idShiftPattern: string,
+  ) {
+    const params = new HttpParams().set('organizationId', organizationId);
+    return this.http.get<readonly ShiftSegment[]>(
+      `${this.baseUrl}/clients/${idClient}/services/${idService}/positions/${idPosition}/shift-patterns/${idShiftPattern}/segments`,
+      { params },
+    );
+  }
+
+  createShiftSegment(
+    idClient: string,
+    idService: string,
+    idPosition: string,
+    idShiftPattern: string,
+    request: ShiftSegmentInput,
+  ) {
+    return this.http.post<ShiftSegment>(
+      `${this.baseUrl}/clients/${idClient}/services/${idService}/positions/${idPosition}/shift-patterns/${idShiftPattern}/segments`,
+      request,
+    );
+  }
+
+  updateShiftSegment(
+    idClient: string,
+    idService: string,
+    idPosition: string,
+    idShiftPattern: string,
+    idShiftSegment: string,
+    request: ShiftSegmentInput,
+  ) {
+    return this.http.put<ShiftSegment>(
+      `${this.baseUrl}/clients/${idClient}/services/${idService}/positions/${idPosition}/shift-patterns/${idShiftPattern}/segments/${idShiftSegment}`,
+      request,
+    );
+  }
+
+  deactivateShiftSegment(
+    organizationId: string,
+    idClient: string,
+    idService: string,
+    idPosition: string,
+    idShiftPattern: string,
+    idShiftSegment: string,
+  ) {
+    const params = new HttpParams().set('organizationId', organizationId);
+    return this.http.delete<void>(
+      `${this.baseUrl}/clients/${idClient}/services/${idService}/positions/${idPosition}/shift-patterns/${idShiftPattern}/segments/${idShiftSegment}`,
+      { params },
+    );
+  }
+
+  listAssignments(organizationId: string, idClient: string, idService: string) {
+    const params = new HttpParams().set('organizationId', organizationId);
+    return this.http.get<readonly ServiceAssignment[]>(
+      `${this.baseUrl}/clients/${idClient}/services/${idService}/assignments`,
+      { params },
+    );
+  }
+
+  createAssignment(idClient: string, idService: string, request: CreateServiceAssignment) {
+    return this.http.post<ServiceAssignment>(
+      `${this.baseUrl}/clients/${idClient}/services/${idService}/assignments`,
+      request,
+    );
+  }
+
+  updateAssignment(
+    idClient: string,
+    idService: string,
+    idServiceAssignment: string,
+    request: ServiceAssignmentCorrectionInput,
+  ) {
+    return this.http.put<ServiceAssignment>(
+      `${this.baseUrl}/clients/${idClient}/services/${idService}/assignments/${idServiceAssignment}`,
+      request,
+    );
+  }
+
+  deactivateAssignment(
+    organizationId: string,
+    idClient: string,
+    idService: string,
+    idServiceAssignment: string,
+    rowVersion: string,
+  ) {
+    const params = new HttpParams().set('organizationId', organizationId).set('rowVersion', rowVersion);
+    return this.http.delete<void>(
+      `${this.baseUrl}/clients/${idClient}/services/${idService}/assignments/${idServiceAssignment}`,
+      { params },
+    );
+  }
+
+  listScheduleVersions(organizationId: string, idClient: string, idService: string) {
+    const params = new HttpParams().set('organizationId', organizationId);
+    return this.http.get<readonly ScheduleVersion[]>(
+      `${this.baseUrl}/clients/${idClient}/services/${idService}/schedule-versions`,
+      { params },
+    );
+  }
+
+  createScheduleVersion(idClient: string, idService: string, request: ScheduleVersionInput) {
+    return this.http.post<ScheduleVersion>(
+      `${this.baseUrl}/clients/${idClient}/services/${idService}/schedule-versions`,
+      request,
+    );
+  }
+
+  updateScheduleVersion(
+    idClient: string,
+    idService: string,
+    idScheduleVersion: string,
+    request: ScheduleVersionInput,
+  ) {
+    return this.http.put<ScheduleVersion>(
+      `${this.baseUrl}/clients/${idClient}/services/${idService}/schedule-versions/${idScheduleVersion}`,
+      request,
+    );
+  }
+
+  publishScheduleVersion(organizationId: string, idClient: string, idService: string, idScheduleVersion: string) {
+    const params = new HttpParams().set('organizationId', organizationId);
+    return this.http.post<ScheduleVersion>(
+      `${this.baseUrl}/clients/${idClient}/services/${idService}/schedule-versions/${idScheduleVersion}/publish`,
+      null,
+      { params },
+    );
+  }
+
+  generateScheduledShifts(
+    idClient: string,
+    idService: string,
+    idScheduleVersion: string,
+    request: GenerateScheduledShiftsRequest,
+  ) {
+    return this.http.post<GenerateScheduledShiftsResponse>(
+      `${this.baseUrl}/clients/${idClient}/services/${idService}/schedule-versions/${idScheduleVersion}/generate-from-patterns`,
+      request,
+    );
+  }
+
+  listScheduledShifts(organizationId: string, idClient: string, idService: string, idScheduleVersion: string) {
+    const params = new HttpParams().set('organizationId', organizationId);
+    return this.http.get<readonly ScheduledShift[]>(
+      `${this.baseUrl}/clients/${idClient}/services/${idService}/schedule-versions/${idScheduleVersion}/shifts`,
+      { params },
+    );
+  }
+
+  createScheduledShift(idClient: string, idService: string, idScheduleVersion: string, request: ScheduledShiftInput) {
+    return this.http.post<ScheduledShift>(
+      `${this.baseUrl}/clients/${idClient}/services/${idService}/schedule-versions/${idScheduleVersion}/shifts`,
+      request,
+    );
+  }
+
+  updateScheduledShift(
+    idClient: string,
+    idService: string,
+    idScheduleVersion: string,
+    idScheduledShift: string,
+    request: ScheduledShiftInput,
+  ) {
+    return this.http.put<ScheduledShift>(
+      `${this.baseUrl}/clients/${idClient}/services/${idService}/schedule-versions/${idScheduleVersion}/shifts/${idScheduledShift}`,
+      request,
+    );
+  }
+
+  deactivateScheduledShift(
+    organizationId: string,
+    idClient: string,
+    idService: string,
+    idScheduleVersion: string,
+    idScheduledShift: string,
+  ) {
+    const params = new HttpParams().set('organizationId', organizationId);
+    return this.http.delete<void>(
+      `${this.baseUrl}/clients/${idClient}/services/${idService}/schedule-versions/${idScheduleVersion}/shifts/${idScheduledShift}`,
+      { params },
+    );
+  }
+
+  listAttendanceRecords(organizationId: string, idClient: string, idService: string, date?: string) {
+    let params = new HttpParams().set('organizationId', organizationId);
+
+    if (date) {
+      params = params.set('date', date);
+    }
+
+    return this.http.get<readonly AttendanceRecord[]>(
+      `${this.baseUrl}/clients/${idClient}/services/${idService}/operations/attendance`,
+      { params },
+    );
+  }
+
+  upsertAttendanceRecord(idClient: string, idService: string, request: UpsertAttendanceRecord) {
+    return this.http.post<AttendanceRecord>(
+      `${this.baseUrl}/clients/${idClient}/services/${idService}/operations/attendance`,
+      request,
+    );
+  }
+
+  listIncidents(organizationId: string, idClient: string, idService: string) {
+    const params = new HttpParams().set('organizationId', organizationId);
+    return this.http.get<readonly Incident[]>(
+      `${this.baseUrl}/clients/${idClient}/services/${idService}/operations/incidents`,
+      { params },
+    );
+  }
+
+  createIncident(idClient: string, idService: string, request: IncidentInput) {
+    return this.http.post<Incident>(
+      `${this.baseUrl}/clients/${idClient}/services/${idService}/operations/incidents`,
+      request,
+    );
+  }
+
+  updateIncident(
+    idClient: string,
+    idService: string,
+    idIncident: string,
+    request: IncidentCorrectionInput,
+  ) {
+    return this.http.put<Incident>(
+      `${this.baseUrl}/clients/${idClient}/services/${idService}/operations/incidents/${idIncident}`,
+      request,
+    );
+  }
+
+  listCoverageRecords(organizationId: string, idClient: string, idService: string) {
+    const params = new HttpParams().set('organizationId', organizationId);
+    return this.http.get<readonly CoverageRecord[]>(
+      `${this.baseUrl}/clients/${idClient}/services/${idService}/operations/coverages`,
+      { params },
+    );
+  }
+
+  createCoverageRecord(idClient: string, idService: string, request: CoverageInput) {
+    return this.http.post<CoverageRecord>(
+      `${this.baseUrl}/clients/${idClient}/services/${idService}/operations/coverages`,
+      request,
+    );
+  }
+
+  updateCoverageRecord(
+    idClient: string,
+    idService: string,
+    idCoverageRecord: string,
+    request: CoverageCorrectionInput,
+  ) {
+    return this.http.put<CoverageRecord>(
+      `${this.baseUrl}/clients/${idClient}/services/${idService}/operations/coverages/${idCoverageRecord}`,
+      request,
+    );
+  }
+
+  listOperationEvidences(organizationId: string, idClient: string, idService: string, relatedRecordId?: string) {
+    let params = new HttpParams().set('organizationId', organizationId);
+
+    if (relatedRecordId) {
+      params = params.set('relatedRecordId', relatedRecordId);
+    }
+
+    return this.http.get<readonly OperationEvidence[]>(
+      `${this.baseUrl}/clients/${idClient}/services/${idService}/operations/evidences`,
+      { params },
+    );
+  }
+
+  createOperationEvidence(idClient: string, idService: string, request: OperationEvidenceInput) {
+    return this.http.post<OperationEvidence>(
+      `${this.baseUrl}/clients/${idClient}/services/${idService}/operations/evidences`,
+      request,
+    );
+  }
+
+  updateOperationEvidence(
+    idClient: string,
+    idService: string,
+    idOperationEvidence: string,
+    request: OperationEvidenceInput,
+  ) {
+    return this.http.put<OperationEvidence>(
+      `${this.baseUrl}/clients/${idClient}/services/${idService}/operations/evidences/${idOperationEvidence}`,
+      request,
+    );
+  }
+
+  deactivateOperationEvidence(organizationId: string, idClient: string, idService: string, idOperationEvidence: string) {
+    const params = new HttpParams().set('organizationId', organizationId);
+    return this.http.delete<void>(
+      `${this.baseUrl}/clients/${idClient}/services/${idService}/operations/evidences/${idOperationEvidence}`,
+      { params },
+    );
+  }
+
+  uploadOperationEvidenceFile(file: File, organizationId: string) {
+    const formData = new FormData();
+    formData.append('file', file, file.name);
+    const params = new HttpParams().set('organizationId', organizationId);
+    return this.http.post<FileUploadResponse>(`${this.baseUrl}/files/operation-evidence`, formData, { params });
+  }
+
+  downloadOperationEvidenceFile(organizationId: string, clientId: string, serviceId: string, evidenceId: string) {
+    const params = new HttpParams().set('organizationId', organizationId)
+      .set('clientId', clientId).set('serviceId', serviceId).set('evidenceId', evidenceId);
+    return this.http.get(`${this.baseUrl}/files/operation-evidence/download`, {
+      params,
+      observe: 'response',
+      responseType: 'blob',
+    });
+  }
+
+  listApprovalRequests(organizationId: string, serviceId = '', status: ApprovalRequestStatus | '' = '') {
+    let params = new HttpParams().set('organizationId', organizationId);
+
+    if (serviceId) {
+      params = params.set('serviceId', serviceId);
+    }
+
+    if (status) {
+      params = params.set('status', status);
+    }
+
+    return this.http.get<readonly ApprovalRequest[]>(`${this.baseUrl}/operations/approval-requests`, { params });
+  }
+
+  createApprovalRequest(request: CreateApprovalRequest) {
+    return this.http.post<ApprovalRequest>(`${this.baseUrl}/operations/approval-requests`, request);
+  }
+
+  decideApprovalRequest(idApprovalRequest: string, request: DecideApprovalRequest) {
+    return this.http.patch<ApprovalRequest>(
+      `${this.baseUrl}/operations/approval-requests/${idApprovalRequest}/decision`,
+      request,
+    );
+  }
+
+  listOperationDayClosures(
+    organizationId: string,
+    serviceId = '',
+    fromDate = '',
+    toDate = '',
+  ) {
+    let params = new HttpParams().set('organizationId', organizationId);
+
+    if (serviceId) {
+      params = params.set('serviceId', serviceId);
+    }
+
+    if (fromDate) {
+      params = params.set('fromDate', fromDate);
+    }
+
+    if (toDate) {
+      params = params.set('toDate', toDate);
+    }
+
+    return this.http.get<readonly OperationDayClosure[]>(`${this.baseUrl}/operations/day-closures`, { params });
+  }
+
+  closeOperationDay(idClient: string, idService: string, request: CloseOperationDay) {
+    return this.http.post<OperationDayClosure>(
+      `${this.baseUrl}/clients/${idClient}/services/${idService}/operations/day-closures`,
+      request,
+    );
+  }
+
+  reopenOperationDay(
+    idClient: string,
+    idService: string,
+    idOperationDayClosure: string,
+    request: ReopenOperationDay,
+  ) {
+    return this.http.patch<OperationDayClosure>(
+      `${this.baseUrl}/clients/${idClient}/services/${idService}/operations/day-closures/${idOperationDayClosure}/reopen`,
+      request,
+    );
+  }
+
+  getOperationsSummary(
+    organizationId: string,
+    clientId?: string,
+    serviceId?: string,
+    fromDate?: string,
+    toDate?: string,
+  ) {
+    let params = new HttpParams().set('organizationId', organizationId);
+
+    if (clientId) {
+      params = params.set('clientId', clientId);
+    }
+
+    if (serviceId) {
+      params = params.set('serviceId', serviceId);
+    }
+
+    if (fromDate) {
+      params = params.set('fromDate', fromDate);
+    }
+
+    if (toDate) {
+      params = params.set('toDate', toDate);
+    }
+
+    return this.http.get<OperationsSummary>(`${this.baseUrl}/reports/operations-summary`, { params });
+  }
+
+  getOperationsByService(
+    organizationId: string,
+    clientId?: string,
+    serviceId?: string,
+    fromDate?: string,
+    toDate?: string,
+  ) {
+    let params = new HttpParams().set('organizationId', organizationId);
+
+    if (clientId) {
+      params = params.set('clientId', clientId);
+    }
+
+    if (serviceId) {
+      params = params.set('serviceId', serviceId);
+    }
+
+    if (fromDate) {
+      params = params.set('fromDate', fromDate);
+    }
+
+    if (toDate) {
+      params = params.set('toDate', toDate);
+    }
+
+    return this.http.get<readonly OperationsServiceSummary[]>(`${this.baseUrl}/reports/operations-by-service`, { params });
+  }
+
+  getWorkforceEligibility(organizationId: string, referenceDate: string, search = '') {
+    let params = new HttpParams()
+      .set('organizationId', organizationId)
+      .set('referenceDate', referenceDate);
+
+    if (search.trim()) {
+      params = params.set('search', search.trim());
+    }
+
+    return this.http.get<readonly WorkforceEligibilityReport[]>(`${this.baseUrl}/reports/workforce-eligibility`, {
+      params,
+    });
+  }
+
+  exportOperationsReport(
+    organizationId: string,
+    clientId?: string,
+    serviceId?: string,
+    fromDate?: string,
+    toDate?: string,
+    format: 'csv' | 'xlsx' | 'pdf' = 'csv',
+  ) {
+    let params = new HttpParams().set('organizationId', organizationId);
+
+    if (clientId) {
+      params = params.set('clientId', clientId);
+    }
+
+    if (serviceId) {
+      params = params.set('serviceId', serviceId);
+    }
+
+    if (fromDate) {
+      params = params.set('fromDate', fromDate);
+    }
+
+    if (toDate) {
+      params = params.set('toDate', toDate);
+    }
+
+    const suffix = format === 'csv' ? '' : `.${format}`;
+
+    return this.http.get(`${this.baseUrl}/reports/operations-export${suffix}`, {
+      params,
+      responseType: 'blob',
+    });
+  }
+}

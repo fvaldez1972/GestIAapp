@@ -1,0 +1,291 @@
+import { Component, signal } from '@angular/core';
+import { TestBed } from '@angular/core/testing';
+import { ClientContact, ClientZone } from '../data-access/client.models';
+import { ClientContacts, NewContact } from './client-contacts';
+import { contacto, zona } from './client-fixtures';
+
+@Component({
+  imports: [ClientContacts],
+  template: `
+    <app-client-contacts
+      [contacts]="lista()"
+      [zones]="zones()"
+      [jobPositions]="puestos()"
+      [canWrite]="canWrite()"
+      (create)="creado.set($event)"
+      (edit)="editado.set($event)"
+    />
+  `,
+})
+class Anfitrion {
+  readonly lista = signal<readonly ClientContact[]>([]);
+  readonly zones = signal<readonly ClientZone[]>([]);
+  readonly canWrite = signal(true);
+  readonly puestos = signal<readonly { idCatalogItem: string; name: string }[]>([]);
+  readonly creado = signal<NewContact | null>(null);
+  readonly editado = signal<{ contact: ClientContact; datos: NewContact } | null>(null);
+}
+
+function montar(configurar: (host: Anfitrion) => void = () => {}) {
+  const fixture = TestBed.createComponent(Anfitrion);
+  configurar(fixture.componentInstance);
+  fixture.detectChanges();
+
+  const raiz = fixture.nativeElement as HTMLElement;
+
+  return {
+    fixture,
+    raiz,
+    host: fixture.componentInstance,
+    guardar: () => raiz.querySelector<HTMLButtonElement>('.button--primary'),
+    abrir: () => {
+      const boton = Array.from(raiz.querySelectorAll('button'))
+        .find((b) => b.textContent?.includes('Agregar contacto'))!;
+      boton.click();
+      fixture.detectChanges();
+    },
+    escribir: (id: string, valor: string) => {
+      const campo = raiz.querySelector<HTMLInputElement>(`#${id}`)!;
+      campo.value = valor;
+      campo.dispatchEvent(new Event('input'));
+      fixture.detectChanges();
+    },
+  };
+}
+
+describe('Contactos del cliente', () => {
+  afterEach(() => TestBed.resetTestingModule());
+
+  /**
+   * El defecto que cierra esta pieza.
+   *
+   * <p>El botón existía desde el principio y emitía una señal que la página no escuchaba, y detrás
+   * no había formulario. Desde fuera se veía como un botón que no responde, que es de los defectos
+   * que nadie diagnostica.</p>
+   */
+  it('el botón abre un formulario, no emite al vacío', () => {
+    const { raiz, abrir } = montar();
+
+    expect(raiz.querySelector('.new')).toBeNull();
+    abrir();
+    expect(raiz.querySelector('.new')).not.toBeNull();
+    expect(raiz.textContent).toContain('NUEVO CONTACTO');
+  });
+
+  /**
+   * Un contacto al que no se puede llamar no sirve para lo que existe, y la lista ya dice «Sin
+   * teléfono ni correo registrados» de los que llegaron así. No tiene sentido crear más.
+   */
+  it('no deja guardar sin nombre ni forma de contacto', () => {
+    const { abrir, escribir, guardar } = montar();
+    abrir();
+
+    expect(guardar()?.disabled).toBe(true);
+
+    escribir('nc-nombre', 'Laura Méndez');
+    expect(guardar()?.disabled).toBe(true);
+
+    escribir('nc-correo', 'laura@cliente.mx');
+    expect(guardar()?.disabled).toBe(false);
+  });
+
+  it('emite lo que se capturó, con la zona en nulo cuando es del cliente', () => {
+    const { abrir, escribir, guardar, host, fixture } = montar();
+    abrir();
+    escribir('nc-nombre', '  Laura Méndez  ');
+    escribir('nc-telefono', '3312345678');
+    guardar()!.click();
+    fixture.detectChanges();
+
+    expect(host.creado()).toEqual({
+      fullName: 'Laura Méndez',
+      // El propósito sale del catálogo desde el 19 de septiembre de 2026. El enum viaja igual
+      // mientras el servidor conserve su columna, pero ya no decide nada.
+      idPurposeCatalogItem: null,
+      purpose: 'Operational',
+      // Sin zona, «a todo el cliente»: es el caso normal, treinta y cinco de los cuarenta y tres
+      // contactos de la base viva son del cliente y no de una zona.
+      idClientZone: null,
+      idContactJobPositionCatalogItem: null,
+      // Sin puesto elegido va vacío. El puesto sale del catálogo, no de texto libre: el servidor
+      // lo valida contra el catálogo y rechaza con 409 cualquier cosa escrita a mano.
+      jobTitle: '',
+      email: '',
+      phone: '3312345678',
+      isPrimary: false,
+    });
+  });
+
+  /**
+   * Se vacía al cerrar, que es justo lo que falta en el alta de zonas y por lo que ahí se pueden
+   * crear duplicados sin darse cuenta: basta con volver a abrir y guardar.
+   */
+  it('se vacía al cancelar, para que no se guarde dos veces lo mismo', () => {
+    const { raiz, abrir, escribir, fixture } = montar();
+    abrir();
+    escribir('nc-nombre', 'Laura Méndez');
+
+    raiz.querySelector<HTMLButtonElement>('.button:not(.button--primary)')!.click();
+    fixture.detectChanges();
+    abrir();
+
+    expect(raiz.querySelector<HTMLInputElement>('#nc-nombre')!.value).toBe('');
+  });
+
+  it('sin permiso de escritura no ofrece agregar', () => {
+    const { raiz } = montar((host) => {
+      host.canWrite.set(false);
+      host.lista.set([contacto()]);
+    });
+
+    expect(raiz.textContent).not.toContain('Agregar contacto');
+  });
+
+  /** Sólo las zonas activas: ofrecer una dada de baja sería ofrecer un destino que ya no existe. */
+  /**
+   * El selector de zona ya no lleva una opción «sin zona»: eso ahora lo dice el alcance, y el
+   * selector sólo aparece cuando el alcance es «sólo a una zona».
+   */
+  /**
+   * <b>El campo dice qué decide la zona.</b>
+   *
+   * <p>El negocio preguntó «¿para qué sirve lo del alcance del contacto? Si no sirve, quitarlo», y la
+   * respuesta acabó siendo que no servía: se retiró el 26 de septiembre de 2026 porque nunca decidió
+   * nada por sí mismo —se calculaba con si el contacto traía zona o no—. Lo que queda es la zona, y
+   * la ayuda dice su consecuencia en vez de nombrar el dato.</p>
+   */
+  it('la ayuda de la zona dice qué cambia al ponerla o dejarla vacía', () => {
+    const { raiz, abrir } = montar();
+    abrir();
+
+    const ayuda = raiz.querySelector('.field__hint')!.textContent!.replace(/\s+/g, ' ').trim();
+
+    expect(ayuda).toContain('Vacía vale para todo el cliente');
+    expect(ayuda).toContain('pestaña de Zonas');
+  });
+
+  it('ofrece sólo las zonas activas', () => {
+    const { raiz, abrir, fixture } = montar((host) => {
+      host.zones.set([
+        zona({ idClientZone: 's1', name: 'Planta Norte', active: true }),
+        zona({ idClientZone: 's2', name: 'Bodega vieja', active: false }),
+      ]);
+    });
+    abrir();
+    fixture.detectChanges();
+
+    const disparadores = Array.from(raiz.querySelectorAll('gi-select button[role="combobox"]'));
+    const zonas = disparadores[disparadores.length - 1] as HTMLButtonElement;
+    zonas.click();
+    fixture.detectChanges();
+    const opciones = Array.from(raiz.querySelectorAll('gi-select .gi-select__option'))
+      .map((o) => o.textContent?.trim());
+
+    expect(opciones).toContain('Planta Norte');
+    expect(opciones).not.toContain('Bodega vieja');
+    expect(opciones).not.toContain('Del cliente, no de una zona');
+  });
+
+  /**
+   * El puesto NO es texto libre, y costó un viaje entero descubrirlo.
+   *
+   * <p>El servidor valida el puesto del contacto contra el catálogo de puestos y devuelve 409
+   * «Selecciona un valor activo del catálogo correspondiente» con cualquier cosa escrita a mano.
+   * La primera versión de este formulario puso una caja de texto y el guardado fallaba siempre.</p>
+   */
+  it('el puesto sale del catálogo, no de una caja de texto', () => {
+    const { raiz, abrir } = montar((host) => {
+      host.puestos.set([{ idCatalogItem: 'p1', name: 'Jefa de seguridad' }]);
+    });
+    abrir();
+
+    // Es un desplegable desde el 23 de septiembre de 2026: antes era un selector con búsqueda que
+    // además ofrecía crear el valor, y su recuadro de sugerencias estorbaba. Lo que la prueba
+    // defiende no cambió: que NO haya una caja de texto donde escribir el puesto a mano.
+    expect(raiz.querySelector('gi-catalog-picker')).toBeNull();
+    expect(raiz.querySelector('input#nc-puesto')).toBeNull();
+
+    const desplegables = Array.from(raiz.querySelectorAll('gi-select button[role="combobox"]'));
+    expect(desplegables.length).toBeGreaterThan(0);
+  });
+
+  /**
+   * Editar un contacto <b>no borra</b> el propósito que ya tenía.
+   *
+   * <p>El campo «para qué se le llama» salió del formulario el 23 de septiembre de 2026 porque
+   * nada decidía nada con él. Pero el guardado manda el perfil entero, así que si el formulario
+   * dejara de llevar el propósito, cambiar un teléfono se lo llevaría por delante: 41 contactos de
+   * la base viva tienen uno guardado.</p>
+   *
+   * <p>Es la única razón por la que la señal sigue existiendo sin campo que la pinte, y sin esta
+   * prueba nada lo diría: la pantalla se ve igual con el dato y sin él.</p>
+   */
+  it('editar un contacto conserva el propósito, aunque ya no se capture', () => {
+    const guardado = contacto({
+      idClientContact: 'c1',
+      fullName: 'Sergio Rivera',
+      idPurposeCatalogItem: 'prop-operativo',
+    });
+
+    const { raiz, fixture, host } = montar((anfitrion) => anfitrion.lista.set([guardado]));
+
+    Array.from(raiz.querySelectorAll<HTMLButtonElement>('button'))
+      .find((boton) => boton.textContent?.trim() === 'Editar')!
+      .click();
+    fixture.detectChanges();
+
+    // No hay campo que lo pinte: eso es justo lo que se retiró.
+    expect(raiz.textContent).not.toContain('PARA QUÉ SE LE LLAMA');
+
+    Array.from(raiz.querySelectorAll<HTMLButtonElement>('button'))
+      .find((boton) => boton.textContent?.includes('Guardar cambios'))!
+      .click();
+    fixture.detectChanges();
+
+    expect(host.editado()?.datos.idPurposeCatalogItem).toBe('prop-operativo');
+  });
+
+  it('manda el nombre del puesto que corresponde al identificador elegido', () => {
+    const { raiz, abrir, escribir, guardar, host, fixture } = montar((anfitrion) => {
+      anfitrion.puestos.set([{ idCatalogItem: 'p1', name: 'Jefa de seguridad' }]);
+    });
+    abrir();
+    escribir('nc-nombre', 'Laura Méndez');
+    escribir('nc-telefono', '3312345678');
+
+    // Se elige por identificador, que es lo que el selector entrega.
+    const contactos = fixture.debugElement.children[0].componentInstance as {
+      idContactJobPosition: { set(v: string): void };
+    };
+    contactos.idContactJobPosition.set('p1');
+    fixture.detectChanges();
+
+    guardar()!.click();
+    fixture.detectChanges();
+
+    // Y lo que viaja al servidor es el nombre del catálogo, no lo que alguien escribiera.
+    expect(host.creado()?.jobTitle).toBe('Jefa de seguridad');
+    expect(raiz).toBeTruthy();
+  });
+
+  /**
+   * La fila de «Para qué se le llama» y «Zona» va alineada.
+   *
+   * <p>El desplegable quedaba medio campo más arriba que el de al lado, y la causa no era el
+   * margen: <c>gi-select</c> usa su «label» como aria-label y <b>no lo dibuja</b>, así que el campo
+   * de la izquierda empezaba debajo de su rótulo y el de la derecha no tenía ninguno. Sin rótulo
+   * visible tampoco se sabía qué se estaba eligiendo.</p>
+   *
+   * <p>El rótulo comprobado era «A QUIÉN CUBRE», del alcance del contacto, que se retiró el 26 de
+   * septiembre de 2026 por ser un dato que no decidía nada. La zona ocupa su sitio.</p>
+   */
+  it('los desplegables de la edición llevan su rótulo visible', () => {
+    const { raiz, abrir } = montar();
+    abrir();
+
+    const rotulos = Array.from(raiz.querySelectorAll('.field__label')).map((e) => e.textContent?.trim());
+
+    expect(rotulos).toContain('ZONA · OPCIONAL');
+  });
+
+});

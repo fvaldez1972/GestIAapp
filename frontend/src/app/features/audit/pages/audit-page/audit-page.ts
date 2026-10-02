@@ -1,0 +1,716 @@
+import { HttpErrorResponse } from '@angular/common/http';
+import { GiDate } from '../../../../shared/ui/gi-date/gi-date';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
+import { AuthService } from '../../../../core/auth/auth.service';
+import { SystemInfoService } from '../../../../core/system/system-info.service';
+import { AuditApiService } from '../../data-access/audit-api.service';
+import { AuditEvent, AuditResult } from '../../data-access/audit.models';
+
+@Component({
+  selector: 'app-audit-page',
+  imports: [FormsModule, GiDate],
+  host: { '(document:keydown.escape)': 'onEscape()' },
+  templateUrl: './audit-page.html',
+  styleUrl: './audit-page.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+})
+export class AuditPage implements OnInit {
+  private readonly api = inject(AuditApiService);
+  private readonly router = inject(Router);
+  private readonly auth = inject(AuthService);
+  private readonly systemInfo = inject(SystemInfoService);
+
+  protected readonly events = signal<readonly AuditEvent[]>([]);
+  protected readonly entities = signal<readonly string[]>([]);
+  /** La organización de trabajo la fija la barra de contexto, y sólo ella. */
+  protected readonly selectedOrganizationId = this.auth.operationalOrganizationId;
+  protected readonly selectedEntity = signal('');
+  protected readonly selectedActor = signal('');
+  protected readonly selectedAction = signal('');
+  protected readonly selectedResult = signal<AuditResultFilter>('');
+  protected readonly selectedEventKey = signal('');
+  protected readonly showExportConfig = signal(false);
+  protected readonly selectedTimelineFilter = signal<TimelineFilter>('all');
+  protected readonly search = signal('');
+  protected readonly fromDate = signal('');
+  protected readonly toDate = signal('');
+  protected readonly page = signal(1);
+  protected readonly pageSize = signal(30);
+  protected readonly totalCount = signal(0);
+  protected readonly totalPages = signal(0);
+  protected readonly loading = signal(false);
+  protected readonly exporting = signal(false);
+  protected readonly error = signal('');
+
+  protected readonly latestEvent = computed(() => this.events()[0] ?? null);
+  protected readonly visibleEvents = computed(() => {
+    const search = this.search().trim().toLowerCase();
+
+    return this.events().filter((event) => {
+      const matchesSearch =
+        !search ||
+        [
+          event.entity,
+          event.entityName,
+          event.recordId,
+          event.actorName,
+          event.action,
+          event.details ?? '',
+        ].some((value) => this.translateText(value).toLowerCase().includes(search));
+      const matchesActor = !this.selectedActor() || event.actorName === this.selectedActor();
+      const matchesAction = !this.selectedAction() || this.actionLabel(event.action) === this.selectedAction();
+      const matchesResult = !this.selectedResult() || this.resultStatus(event) === this.selectedResult();
+
+      return matchesSearch && matchesActor && matchesAction && matchesResult;
+    });
+  });
+  protected readonly selectedEvent = computed(
+    () => this.events().find((event) => this.eventKey(event) === this.selectedEventKey()) ?? null,
+  );
+  protected readonly actorOptions = computed(() =>
+    [...new Set(this.events().map((event) => event.actorName).filter(Boolean))].sort((left, right) => left.localeCompare(right, 'es-MX')),
+  );
+  protected readonly actionOptions = computed(() =>
+    [...new Set(this.events().map((event) => this.actionLabel(event.action)))].sort((left, right) => left.localeCompare(right, 'es-MX')),
+  );
+  protected readonly createCount = computed(() =>
+    this.visibleEvents().filter((event) => this.actionLabel(event.action) === 'Alta').length,
+  );
+  protected readonly updateCount = computed(() =>
+    this.visibleEvents().filter((event) => this.actionLabel(event.action) === 'Actualización').length,
+  );
+  protected readonly deactivationCount = computed(() =>
+    this.visibleEvents().filter((event) => ['Baja', 'Baja lógica', 'Eliminación'].includes(this.actionLabel(event.action))).length,
+  );
+  protected readonly failedCount = computed(() =>
+    this.visibleEvents().filter((event) => this.resultStatus(event) === 'failed').length,
+  );
+  protected readonly selectedDiffRows = computed(() => {
+    const event = this.selectedEvent();
+    return event ? this.diffRows(event) : [];
+  });
+  protected readonly selectedTimeline = computed(() => {
+    const event = this.selectedEvent();
+
+    if (!event) {
+      return [];
+    }
+
+    return this.events()
+      .filter((item) => item.entity === event.entity && item.recordId === event.recordId)
+      .filter((item) => {
+        switch (this.selectedTimelineFilter()) {
+          case 'success':
+            return this.resultStatus(item) === 'success';
+          case 'failed':
+            return this.resultStatus(item) === 'failed';
+          case 'status':
+            return this.diffRows(item).some((row) => row.field.toLowerCase().includes('estado'));
+          default:
+            return true;
+        }
+      })
+      .sort((left, right) => new Date(right.occurredAt).getTime() - new Date(left.occurredAt).getTime());
+  });
+  protected readonly selectedOrganizationName = computed(
+    () => this.auth.activeOrganization()?.legalName ?? 'Sin organización',
+  );
+  protected readonly isPlatformAdmin = computed(() => this.auth.session()?.permissions.includes('PLATFORM.ADMIN') ?? false);
+  protected readonly heroCopy = computed(() =>
+    this.isPlatformAdmin()
+      ? {
+        eyebrow: 'Control plataforma',
+        title: 'Auditoría por organización',
+        description: 'Investiga cambios administrativos y operativos con trazabilidad por organización, entidad y registro.',
+      }
+      : {
+        eyebrow: 'Control / Auditoría',
+        title: 'Auditoría',
+        description: 'Investiga cambios del sistema con lenguaje de negocio, filtros claros y trazabilidad por registro.',
+      },
+  );
+  protected readonly auditScopeLabel = computed(
+    () => `${this.isPlatformAdmin() ? 'Organización administrada' : 'Organización actual'} · ${this.selectedOrganizationName()}`,
+  );
+  protected readonly exportingUserName = computed(() => this.auth.displayName() || 'Usuario actual');
+  protected readonly exportFileName = computed(() => `gestia-bitacora-${this.selectedEntity() || 'todas'}-${this.today()}.csv`);
+
+  ngOnInit() {
+    this.loadEventsForActiveOrganization();
+  }
+
+  protected onEntityChange(value: string) {
+    this.selectedEntity.set(value);
+    this.page.set(1);
+    this.loadEvents();
+  }
+
+  protected onActorChange(value: string) {
+    this.selectedActor.set(value);
+    this.selectedEventKey.set('');
+  }
+
+  protected onActionChange(value: string) {
+    this.selectedAction.set(value);
+    this.selectedEventKey.set('');
+  }
+
+  protected onResultChange(value: AuditResultFilter) {
+    this.selectedResult.set(value);
+    this.selectedEventKey.set('');
+  }
+
+  protected onSearchChange(value: string) {
+    this.search.set(value);
+  }
+
+  protected onFromDateChange(value: string) {
+    this.fromDate.set(value);
+    this.page.set(1);
+    this.loadEvents();
+  }
+
+  protected onToDateChange(value: string) {
+    this.toDate.set(value);
+    this.page.set(1);
+    this.loadEvents();
+  }
+
+  protected applySearch() {
+    this.page.set(1);
+    this.loadEvents();
+  }
+
+  protected clearFilters() {
+    this.selectedEntity.set('');
+    this.selectedActor.set('');
+    this.selectedAction.set('');
+    this.selectedResult.set('');
+    this.search.set('');
+    this.fromDate.set('');
+    this.toDate.set('');
+    this.selectedEventKey.set('');
+    this.page.set(1);
+    this.loadEvents();
+  }
+
+  protected goToPage(page: number) {
+    if (page < 1 || page > Math.max(this.totalPages(), 1)) {
+      return;
+    }
+
+    this.page.set(page);
+    this.loadEvents();
+  }
+
+  protected selectEvent(event: AuditEvent) {
+    this.selectedEventKey.set(this.eventKey(event));
+    this.selectedTimelineFilter.set('all');
+  }
+
+  protected closeEventDetail() {
+    this.selectedEventKey.set('');
+  }
+
+  /**
+   * Escape cierra lo que este encima, empezando por lo mas reciente.
+   *
+   * <p>«Ver detalle» abre una capa fija que se queda pegada mientras la pagina rueda por debajo. Sin
+   * una salida evidente, tapa la tabla que se queria leer; era la mitad del reporte sobre el scroll
+   * en Seguridad, que decia «esto tambien ocurre en Auditoria».</p>
+   */
+  protected onEscape() {
+    if (this.showExportConfig()) {
+      this.closeExportConfig();
+      return;
+    }
+
+    if (this.selectedEventKey()) {
+      this.closeEventDetail();
+    }
+  }
+
+  protected actionClass(action: string) {
+    const cleanAction = this.actionLabel(action);
+
+    if (cleanAction === 'Alta') {
+      return 'status-created';
+    }
+
+    if (['Baja', 'Baja lógica', 'Eliminación'].includes(cleanAction)) {
+      return 'status-deactivated';
+    }
+
+    return 'status-updated';
+  }
+
+  protected actionLabel(action: string) {
+    const labels: Record<string, string> = {
+      Create: 'Alta',
+      Created: 'Alta',
+      Insert: 'Alta',
+      Add: 'Alta',
+      Update: 'Actualización',
+      Updated: 'Actualización',
+      Edit: 'Actualización',
+      Publish: 'Publicación',
+      Published: 'Publicación',
+      StatusChange: 'Cambio de estado',
+      Delete: 'Eliminación',
+      Deactivate: 'Baja lógica',
+      Deactivated: 'Baja lógica',
+      Baja: 'Baja lógica',
+    };
+
+    return labels[action] ?? this.translateText(action);
+  }
+
+  protected entityLabel(entity: string) {
+    const labels: Record<string, string> = {
+      ApprovalRequests: 'Autorizaciones',
+      BusinessCatalogItems: 'Catálogos',
+      BusinessDocuments: 'Documentos',
+      Clients: 'Clientes',
+      ClientContacts: 'Contactos',
+      ClientSites: 'Zonas',
+      EligibilityRequirements: 'Reglas de elegibilidad',
+      EmployeeDocuments: 'Documentos de personal',
+      EmployeeEvaluations: 'Evaluaciones',
+      Employees: 'Personal',
+      EmployeeSkills: 'Experiencia del personal',
+      OperationDayClosures: 'Cierres diarios',
+      Organizations: 'Organizaciones',
+      ServiceAssignments: 'Asignaciones',
+      ServiceConfigurations: 'Configuraciones de servicio',
+      ServiceContracts: 'Contratos',
+      Services: 'Servicios',
+    };
+
+    return labels[entity] ?? this.humanizeToken(entity);
+  }
+
+  protected compactRecordId(recordId: string) {
+    if (!recordId) {
+      return '';
+    }
+
+    return recordId.length > 12 ? `${recordId.slice(0, 8)}…` : recordId;
+  }
+
+  protected formatDateTime(value: string) {
+    if (!value) {
+      value = new Date().toISOString();
+    }
+
+    return new Intl.DateTimeFormat('es-MX', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    }).format(new Date(value));
+  }
+
+  protected compactDetails(value: string | null) {
+    if (!value) {
+      return 'Sin detalle adicional';
+    }
+
+    const translated = this.translateText(value);
+    return translated.length > 120 ? `${translated.slice(0, 117)}…` : translated;
+  }
+
+  protected translateText(value: string | null | undefined) {
+    if (!value) {
+      return '';
+    }
+
+    return String(value)
+      .replaceAll('OperationalRequest', 'Solicitud operativa')
+      .replaceAll('BusinessDocument', 'Documento')
+      .replaceAll('AttendanceRecord', 'Registro de asistencia')
+      .replaceAll('CoverageRecord', 'Cobertura')
+      .replaceAll('ServiceConfiguration', 'Configuración de servicio')
+      .replaceAll('ScheduleVersion', 'Versión de planeación')
+      .replaceAll('Created', 'Creado')
+      .replaceAll('Create', 'Alta')
+      .replaceAll('Updated', 'Actualizado')
+      .replaceAll('Update', 'Actualización')
+      .replaceAll('Deleted', 'Eliminado')
+      .replaceAll('Delete', 'Eliminación')
+      .replaceAll('Published', 'Publicado')
+      .replaceAll('Draft', 'Borrador')
+      .replaceAll('Superseded', 'Reemplazado')
+      .replaceAll('Active', 'Activo')
+      .replaceAll('Inactive', 'Inactivo')
+      .replaceAll('Pending', 'Pendiente')
+      .replaceAll('Open', 'Abierto')
+      .replaceAll('Closed', 'Cerrado')
+      .replaceAll('Resolved', 'Resuelto')
+      .replaceAll('Cancelled', 'Cancelado')
+      .replaceAll('Canceled', 'Cancelado')
+      .replaceAll('Completed', 'Completado')
+      .replaceAll('Approved', 'Aprobado')
+      .replaceAll('Rejected', 'Rechazado')
+      .replaceAll('Critical', 'Crítico')
+      .replaceAll('High', 'Alta')
+      .replaceAll('Medium', 'Media')
+      .replaceAll('Low', 'Baja')
+      .replaceAll('Client', 'Cliente')
+      .replaceAll('Employee', 'Empleado')
+      .replaceAll('Service', 'Servicio')
+      .replaceAll('Contract', 'Contrato')
+      .replaceAll('Request', 'Solicitud')
+      .replaceAll('_', ' ')
+      .trim();
+  }
+
+  protected diffRows(event: AuditEvent): readonly AuditDiffRow[] {
+    const details = this.translateText(event.details);
+    const rows: AuditDiffRow[] = [];
+
+    if (this.actionLabel(event.action) === 'Alta') {
+      rows.push(
+        { field: 'Registro', before: null, after: this.translateText(event.entityName) },
+        { field: 'Estado', before: null, after: event.active ? 'Activo' : 'Inactivo' },
+      );
+    } else if (['Baja', 'Baja lógica', 'Eliminación'].includes(this.actionLabel(event.action))) {
+      rows.push(
+        { field: 'Estado', before: 'Activo', after: event.active ? 'Activo' : 'Inactivo', deleted: !event.active },
+        { field: 'Registro', before: this.translateText(event.entityName), after: event.active ? this.translateText(event.entityName) : 'Baja lógica' },
+      );
+    } else {
+      rows.push(
+        { field: 'Actualización', before: 'Valor anterior no enviado por la API', after: details || 'Cambio confirmado' },
+        { field: 'Estado actual', before: null, after: event.active ? 'Activo' : 'Inactivo' },
+      );
+    }
+
+    if (details && !rows.some((row) => row.after === details)) {
+      rows.push({ field: 'Detalle auditado', before: null, after: details });
+    }
+
+    if (this.resultStatus(event) === 'failed') {
+      rows.push({ field: 'Resultado', before: 'Pendiente', after: 'Fallido' });
+    }
+
+    return rows;
+  }
+
+  protected auditSentence(event: AuditEvent) {
+    const action = this.actionLabel(event.action).toLowerCase();
+    return `${event.actorName} registró ${action} sobre ${this.entityLabel(event.entity)}: ${event.entityName}.`;
+  }
+
+  protected resultLabel(event: AuditEvent) {
+    return this.resultStatus(event) === 'failed' ? 'Fallido' : 'Éxito';
+  }
+
+  protected resultDescription(event: AuditEvent) {
+    if (this.resultStatus(event) === 'failed') {
+      return this.compactDetails(event.details) || 'El evento no pudo completarse.';
+    }
+
+    return event.active ? 'Confirmado' : 'Registro inactivo después del evento';
+  }
+
+  protected resultStatus(event: AuditEvent): AuditResultFilter {
+    const text = `${event.action} ${event.details ?? ''}`.toLowerCase();
+    return /fall|error|failed|exception|no se pudo|rechaz/.test(text) ? 'failed' : 'success';
+  }
+
+  protected resultClass(event: AuditEvent) {
+    return this.resultStatus(event) === 'failed' ? 'result-failed' : 'result-success';
+  }
+
+  protected originLabel(event: AuditEvent) {
+    const text = `${event.details ?? ''} ${event.action}`.toLowerCase();
+
+    if (text.includes('import')) {
+      return 'Importación';
+    }
+
+    if (text.includes('api')) {
+      return 'API';
+    }
+
+    if (text.includes('autom')) {
+      return 'Proceso automático';
+    }
+
+    return 'Interfaz web';
+  }
+
+  protected correlationId(event: AuditEvent) {
+    let hash = 0;
+    const key = this.eventKey(event);
+
+    for (let index = 0; index < key.length; index += 1) {
+      hash = (hash * 31 + key.charCodeAt(index)) >>> 0;
+    }
+
+    return hash.toString(16).padStart(8, '0');
+  }
+
+  protected snapshotReference(event: AuditEvent) {
+    return `${this.entityLabel(event.entity).slice(0, 3).toUpperCase()}-${this.compactRecordId(event.recordId)}-${this.correlationId(event)}`;
+  }
+
+  protected currentObjectStatus(event: AuditEvent) {
+    return event.active ? 'Disponible para consulta' : 'Inactivo o eliminado lógicamente';
+  }
+
+  protected setTimelineFilter(filter: TimelineFilter) {
+    this.selectedTimelineFilter.set(filter);
+  }
+
+  protected openExportConfig() {
+    this.showExportConfig.set(true);
+  }
+
+  protected closeExportConfig() {
+    this.showExportConfig.set(false);
+  }
+
+  /**
+   * A qué pantalla lleva cada entidad de la bitácora.
+   *
+   * <p><b>Sólo las que existen.</b> El botón «Ver objeto actual» no tenía manejador: era un botón
+   * muerto, y pulsarlo no hacía nada sin decir por qué. Las entidades que no tienen pantalla propia
+   * —un segmento de turno, un cierre diario— no ganan un enlace inventado: el botón no se ofrece, y
+   * la tarjeta dice que el rastro es la referencia.</p>
+   *
+   * <p>Lleva a la pantalla del módulo, no a la ficha: la bitácora guarda el identificador del
+   * registro, pero ninguna de estas pantallas lee hoy un parámetro de ruta para abrir una ficha
+   * concreta. Mandarle uno que ignora sería el defecto que ya se corrigió en el enlace de Clientes
+   * a Servicios.</p>
+   */
+  /**
+   * De qué módulo es cada entidad, y a qué pantalla lleva.
+   *
+   * <p><b>La clave es lo que manda el servidor, que ya viene en español.</b> `AuditRepository`
+   * escribe la entidad como etiqueta —«Documentos», «Posiciones», «Segmentos»—, no como el nombre
+   * de la tabla. La primera versión de esta tabla usaba los nombres ingleses del modelo, así que no
+   * coincidía con nada y las treinta filas decían «Sin módulo». Es el defecto que QA reportó el 17
+   * de septiembre de 2026, y era mío.</p>
+   *
+   * <p>Módulo y ruta van juntos porque son la misma pregunta —de quién es esta entidad—, y en dos
+   * tablas separadas podían divergir sin que nada avisara. Una ruta vacía significa que la entidad
+   * no tiene pantalla propia: entonces no se ofrece el botón en lugar de ofrecer un enlace que no
+   * lleva a ninguna parte.</p>
+   *
+   * <p>Una entidad que no esté aquí sale como «Sin módulo» y no se le inventa uno: es la señal de
+   * que hay una bitácora nueva que nadie clasificó.</p>
+   */
+  private static readonly EntityOwners: Record<string, { readonly module: string; readonly route: string }> = {
+    Organizaciones: { module: 'Organizaciones', route: '' },
+    Clientes: { module: 'Clientes', route: '/clientes' },
+    Zonas: { module: 'Clientes', route: '/clientes' },
+    Contactos: { module: 'Clientes', route: '/clientes' },
+    Contratos: { module: 'Clientes', route: '/clientes' },
+    Servicios: { module: 'Servicios', route: '/servicios' },
+    Posiciones: { module: 'Servicios', route: '/servicios' },
+    Personal: { module: 'Personal', route: '/personal' },
+    Evaluaciones: { module: 'Personal', route: '/personal' },
+    Experiencia: { module: 'Personal', route: '/personal' },
+    Documentos: { module: 'Documentos', route: '/documentos' },
+    'Catálogos': { module: 'Catálogos', route: '/catalogos' },
+    'Reglas de elegibilidad': { module: 'Catálogos', route: '/catalogos' },
+    Patrones: { module: 'Planeación', route: '/planeacion' },
+    Segmentos: { module: 'Planeación', route: '/planeacion' },
+    Versiones: { module: 'Planeación', route: '/planeacion' },
+    Turnos: { module: 'Planeación', route: '/planeacion' },
+    Asistencia: { module: 'Asistencia', route: '/asistencia' },
+    Incidencias: { module: 'Incidencias', route: '/incidencias' },
+    Coberturas: { module: 'Cobertura', route: '/cobertura' },
+    Evidencias: { module: 'Operación', route: '' },
+    'Cierres diarios': { module: 'Operación', route: '' },
+    Autorizaciones: { module: 'Solicitudes', route: '/solicitudes' },
+    Solicitudes: { module: 'Solicitudes', route: '/solicitudes' },
+    'Sesiones de soporte': { module: 'Seguridad', route: '/seguridad' },
+    Usuarios: { module: 'Seguridad', route: '/seguridad' },
+    Accesos: { module: 'Seguridad', route: '/seguridad' },
+  };
+
+  protected moduleLabel(entity: string): string {
+    return AuditPage.EntityOwners[entity]?.module ?? 'Sin módulo';
+  }
+
+  protected currentObjectRoute(event: AuditEvent): string | null {
+    return AuditPage.EntityOwners[event.entity]?.route || null;
+  }
+
+  protected openCurrentObject(event: AuditEvent): void {
+    const ruta = this.currentObjectRoute(event);
+    if (!ruta) return;
+
+    void this.router.navigate([ruta]);
+  }
+
+  /**
+   * Copia la referencia y <b>lo dice</b>.
+   *
+   * <p>Copiaba en silencio, así que desde fuera no se distinguía de un botón muerto: la queja de
+   * QA fue que «no hace nada». Y si el navegador niega el portapapeles, ahora se entera, en lugar
+   * de creer que copió.</p>
+   */
+  protected copyReference() {
+    const event = this.selectedEvent();
+    if (!event) {
+      return;
+    }
+
+    const referencia = this.snapshotReference(event);
+
+    navigator.clipboard
+      ?.writeText(referencia)
+      .then(() => this.copyFeedback.set(`Referencia ${referencia} copiada.`))
+      .catch(() =>
+        this.copyFeedback.set(
+          `El navegador no dejó copiar. La referencia es ${referencia}.`,
+        ),
+      );
+  }
+
+  protected readonly copyFeedback = signal('');
+
+  protected valueLabel(value: string | null | undefined) {
+    if (!value || value === 'null' || value === 'undefined') {
+      return 'Sin valor anterior';
+    }
+
+    return this.translateText(String(value));
+  }
+
+  protected detailLines(value: string | null) {
+    if (!value) {
+      return ['Sin motivo o detalle adicional registrado.'];
+    }
+
+    return value
+      .split(/\r?\n|;|\|/g)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => this.translateText(line))
+      .slice(0, 8);
+  }
+
+  protected eventKey(event: AuditEvent) {
+    return `${event.entity}|${event.recordId}|${event.action}|${event.occurredAt}`;
+  }
+
+  protected exportCsv() {
+    const organizationId = this.selectedOrganizationId();
+    if (!organizationId || this.exporting()) {
+      return;
+    }
+
+    this.exporting.set(true);
+    this.error.set('');
+
+    this.api
+      .exportEvents(
+        organizationId,
+        this.selectedEntity(),
+        this.search(),
+        this.fromDate(),
+        this.toDate(),
+      )
+      .subscribe({
+        next: (blob) => {
+          this.downloadBlob(blob, this.exportFileName());
+          this.showExportConfig.set(false);
+        },
+        error: (error: HttpErrorResponse) => this.setError(error, 'No se pudo exportar la auditoría.'),
+        complete: () => this.exporting.set(false),
+      });
+  }
+
+  /**
+   * Ya no hay lista de organizaciones que cargar: la organización la da la barra de contexto. Si
+   * hay una, se piden sus eventos; si no, la pantalla espera a que se elija.
+   */
+  private loadEventsForActiveOrganization() {
+    if (this.selectedOrganizationId()) {
+      this.loadEvents();
+    }
+  }
+
+  protected loadEvents() {
+    const organizationId = this.selectedOrganizationId();
+
+    if (!organizationId) {
+      this.events.set([]);
+      this.totalCount.set(0);
+      this.totalPages.set(0);
+      return;
+    }
+
+    this.loading.set(true);
+    this.error.set('');
+
+    this.api
+      .listEvents(
+        organizationId,
+        this.selectedEntity(),
+        this.search(),
+        this.fromDate(),
+        this.toDate(),
+        this.page(),
+        this.pageSize(),
+      )
+      .subscribe({
+        next: (result: AuditResult) => {
+          this.events.set(result.events.items);
+          this.entities.set([...result.availableEntities].sort((left, right) => this.entityLabel(left).localeCompare(this.entityLabel(right), 'es-MX')));
+          this.totalCount.set(result.events.totalCount);
+          this.totalPages.set(result.events.totalPages);
+        },
+        error: (error: HttpErrorResponse) => this.setError(error, 'No se pudo cargar la auditoría.'),
+        complete: () => this.loading.set(false),
+      });
+  }
+
+  private setError(error: HttpErrorResponse, fallback: string) {
+    this.loading.set(false);
+    this.exporting.set(false);
+    this.error.set(error.error?.detail ?? error.error?.message ?? fallback);
+  }
+
+  private downloadBlob(blob: Blob, fileName: string) {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  private humanizeToken(value: string) {
+    if (!value) {
+      return 'Sin categoría';
+    }
+
+    return value
+      .replace(/([a-z])([A-Z])/g, '$1 $2')
+      .replaceAll('_', ' ')
+      .trim();
+  }
+
+  private today() {
+    // El día operativo lo dice el servidor. Calcularlo aquí con `toISOString()` daba el día UTC:
+    // a las 19:00 hora de Ciudad de México del 4 de septiembre devolvía el 5, y la pantalla
+    // proponía el día siguiente todas las tardes. Es el mismo defecto que el reloj operativo
+    // cerró en el servidor. Cadena vacía mientras no se sabe: vacío se nota, un día equivocado no.
+    return this.systemInfo.operationDate();
+  }
+}
+
+type AuditResultFilter = '' | 'success' | 'failed';
+type TimelineFilter = 'all' | 'success' | 'failed' | 'status';
+
+type AuditDiffRow = {
+  readonly field: string;
+  readonly before: string | null;
+  readonly after: string | null;
+  readonly deleted?: boolean;
+};

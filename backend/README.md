@@ -2,6 +2,8 @@
 
 API de GestIA construida con .NET 10 como monolito modular y persistencia SQL Server mediante EF Core 10.
 
+La solución oficial del backend es `GestIA.sln` y debe abrirse desde este directorio. Como el proyecto apunta a `net10.0`, Visual Studio necesita MSBuild 18+; con Visual Studio 2022 los proyectos pueden aparecer como no cargados por incompatibilidad del IDE, no por rutas rotas.
+
 ## Dependencias permitidas
 
 ```text
@@ -18,7 +20,7 @@ EF Core, `DbContext`, configuraciones físicas y migraciones permanecen en Infra
 La cadena no se almacena en Git. Antes de iniciar la API:
 
 ```powershell
-$env:ConnectionStrings__GestIa = 'Server=localhost,1433;Database=GestIA_Dev;User Id=sa;Password=<local>;Encrypt=True;TrustServerCertificate=True'
+$env:ConnectionStrings__GestIa = 'Server=localhost,1433;Database=db-gestia-dev;User Id=sa;Password=<local>;Encrypt=True;TrustServerCertificate=True'
 dotnet run --project .\src\GestIA.Api
 ```
 
@@ -26,10 +28,24 @@ Para crear migraciones, `GestIaDbContextFactory` exige una variable separada:
 
 ```powershell
 $env:GESTIA_SQL_CONNECTION = $env:ConnectionStrings__GestIa
-dotnet ef migrations add <Nombre> --project .\src\GestIA.Infrastructure --startup-project .\src\GestIA.Api
+dotnet tool restore
+dotnet tool run dotnet-ef migrations add <Nombre> `
+  --project .\src\GestIA.Infrastructure `
+  --startup-project .\src\GestIA.Infrastructure `
+  --output-dir Persistence\Migrations
 ```
 
-No debe crearse la primera migración de negocio hasta aprobar el corte correspondiente del modelo.
+Para aplicar migraciones en la base local:
+
+```powershell
+$env:GESTIA_SQL_CONNECTION = $env:ConnectionStrings__GestIa
+dotnet tool restore
+dotnet tool run dotnet-ef database update `
+  --project .\src\GestIA.Infrastructure `
+  --startup-project .\src\GestIA.Infrastructure
+```
+
+La migración `InitialBusinessModel` contiene el primer corte aprobado. Las migraciones no se aplican automáticamente al iniciar la API.
 
 ## Endpoints iniciales
 

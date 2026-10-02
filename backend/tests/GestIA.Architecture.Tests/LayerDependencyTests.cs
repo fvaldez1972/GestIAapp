@@ -35,7 +35,7 @@ public sealed class LayerDependencyTests
     private static string[] GetProjectReferences(string projectName)
     {
         var root = FindRepositoryRoot();
-        var projectFile = Path.Combine(root.FullName, "backend", "src", projectName, $"{projectName}.csproj");
+        var projectFile = Path.Combine(root.FullName, "src", projectName, $"{projectName}.csproj");
         var project = XDocument.Load(projectFile);
 
         return project
@@ -50,12 +50,12 @@ public sealed class LayerDependencyTests
     {
         for (var current = new DirectoryInfo(AppContext.BaseDirectory); current is not null; current = current.Parent)
         {
-            if (File.Exists(Path.Combine(current.FullName, "GestIA.slnx")))
+            if (File.Exists(Path.Combine(current.FullName, "GestIA.sln")))
             {
                 return current;
             }
         }
 
-        throw new DirectoryNotFoundException("Could not locate the GestIA repository root.");
+        throw new DirectoryNotFoundException("Could not locate the GestIA backend root.");
     }
 }

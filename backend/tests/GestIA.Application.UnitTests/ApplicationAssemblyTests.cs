@@ -7,7 +7,7 @@ public sealed class ApplicationProjectTests
     [Fact]
     public void ApplicationReferencesDomain()
     {
-        var project = LoadProject("backend", "src", "GestIA.Application", "GestIA.Application.csproj");
+        var project = LoadProject("src", "GestIA.Application", "GestIA.Application.csproj");
         var projectReferences = project
             .Descendants("ProjectReference")
             .Select(reference => reference.Attribute("Include")?.Value.Replace('\\', '/'))
@@ -28,12 +28,12 @@ public sealed class ApplicationProjectTests
     {
         for (var current = new DirectoryInfo(AppContext.BaseDirectory); current is not null; current = current.Parent)
         {
-            if (File.Exists(Path.Combine(current.FullName, "GestIA.slnx")))
+            if (File.Exists(Path.Combine(current.FullName, "GestIA.sln")))
             {
                 return current;
             }
         }
 
-        throw new DirectoryNotFoundException("Could not locate the GestIA repository root.");
+        throw new DirectoryNotFoundException("Could not locate the GestIA backend root.");
     }
 }

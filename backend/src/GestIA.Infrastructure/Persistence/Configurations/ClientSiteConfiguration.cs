@@ -1,0 +1,59 @@
+using GestIA.Domain.Clients;
+using GestIA.Domain.Organizations;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+
+namespace GestIA.Infrastructure.Persistence.Configurations;
+
+public sealed class ClientSiteConfiguration : IEntityTypeConfiguration<ClientSite>
+{
+    public void Configure(EntityTypeBuilder<ClientSite> builder)
+    {
+        builder.ToTable("ClientSites", "dbo");
+        builder.HasKey(entity => entity.IdClientSite);
+        builder.Property(entity => entity.CodeClientSite).HasMaxLength(30).IsUnicode(false).IsRequired();
+        builder.Property(entity => entity.Name).HasMaxLength(150).IsRequired();
+        builder.Property(entity => entity.Street).HasMaxLength(200).IsRequired();
+        builder.Property(entity => entity.ExteriorNumber).HasMaxLength(30);
+        builder.Property(entity => entity.InteriorNumber).HasMaxLength(30);
+        builder.Property(entity => entity.Neighborhood).HasMaxLength(120);
+        builder.Property(entity => entity.Municipality).HasMaxLength(120).IsRequired();
+        builder.Property(entity => entity.State).HasMaxLength(120).IsRequired();
+        builder.Property(entity => entity.PostalCode).HasMaxLength(10).IsUnicode(false).IsRequired();
+
+        // decimal(9,6): seis decimales dan unos once centimetros, y nueve digitos cubren hasta 180
+        // grados. Nunca float: una coordenada se compara y se muestra, y un binario aproximado haria
+        // que el mismo punto se leyera distinto.
+        builder.Property(entity => entity.Latitude).HasPrecision(9, 6);
+        builder.Property(entity => entity.Longitude).HasPrecision(9, 6);
+        builder.Property(entity => entity.CountryCode).HasMaxLength(2).IsUnicode(false).HasDefaultValue("MX").IsRequired();
+        builder.Property(entity => entity.AccessInstructions).HasMaxLength(1000);
+        builder.Property(entity => entity.TimeZoneId).HasMaxLength(100).IsUnicode(false);
+        builder.HasOne(entity => entity.Client)
+            .WithMany(client => client.Sites)
+            .HasForeignKey(entity => entity.IdClient)
+            .OnDelete(DeleteBehavior.Restrict);
+        // La organizacion vive en la propia fila desde la tanda E. El indice la lleva
+        // primero porque el filtro global la aplica a TODA consulta de esta tabla.
+        builder.HasOne<Organization>()
+            .WithMany()
+            .HasForeignKey(entity => entity.IdOrganization)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasIndex(entity => new { entity.IdOrganization, entity.CodeClientSite });
+
+        builder.HasIndex(entity => new { entity.IdClient, entity.CodeClientSite }).IsUnique();
+
+        builder.Property(entity => entity.NormalizedName)
+            .HasComputedColumnSql(BusinessCatalogItemConfiguration.NormalizedNameSql, stored: true)
+            .HasColumnType("varchar(200)")
+            .UseCollation("Latin1_General_CI_AI")
+            .ValueGeneratedOnAddOrUpdate();
+
+        // Dos zonas del mismo cliente no pueden llamarse igual. Entre clientes distintos sí: dos
+        // empresas pueden tener cada una su «Planta Norte».
+        builder.HasIndex(entity => new { entity.IdClient, entity.NormalizedName })
+            .IsUnique()
+            .HasDatabaseName("UX_ClientSites_IdClient_NormalizedName");
+    }
+}

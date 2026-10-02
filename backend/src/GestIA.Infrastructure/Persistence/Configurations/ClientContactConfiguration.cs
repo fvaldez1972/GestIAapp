@@ -1,0 +1,64 @@
+using GestIA.Domain.Clients;
+using GestIA.Domain.Organizations;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+
+namespace GestIA.Infrastructure.Persistence.Configurations;
+
+public sealed class ClientContactConfiguration : IEntityTypeConfiguration<ClientContact>
+{
+    public void Configure(EntityTypeBuilder<ClientContact> builder)
+    {
+        builder.ToTable("ClientContacts", "dbo");
+        builder.HasKey(entity => entity.IdClientContact);
+        builder.Property(entity => entity.Purpose).HasConversion<string>().HasMaxLength(40).IsUnicode(false).IsRequired();
+        builder.Property(entity => entity.FullName).HasMaxLength(200).IsRequired();
+        builder.Property(entity => entity.JobTitle).HasMaxLength(120);
+        builder.Property(entity => entity.Email).HasMaxLength(254).IsUnicode(false);
+        builder.Property(entity => entity.Phone).HasMaxLength(30).IsUnicode(false);
+        builder.Property(entity => entity.MobilePhone).HasMaxLength(30).IsUnicode(false);
+
+        builder.HasOne(entity => entity.PurposeCatalogItem)
+            .WithMany()
+            .HasForeignKey(entity => entity.IdPurposeCatalogItem)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne(entity => entity.ContactJobPositionCatalogItem)
+            .WithMany()
+            .HasForeignKey(entity => entity.IdContactJobPositionCatalogItem)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasIndex(entity => entity.IdPurposeCatalogItem)
+            .HasFilter("[IdPurposeCatalogItem] IS NOT NULL");
+        builder.HasIndex(entity => entity.IdContactJobPositionCatalogItem)
+            .HasFilter("[IdContactJobPositionCatalogItem] IS NOT NULL");
+
+        builder.HasOne(entity => entity.Client)
+            .WithMany(client => client.Contacts)
+            .HasForeignKey(entity => entity.IdClient)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne(entity => entity.ClientSite)
+            .WithMany()
+            .HasForeignKey(entity => entity.IdClientSite)
+            .OnDelete(DeleteBehavior.Restrict);
+        // La organizacion vive en la propia fila desde la tanda E. El indice la lleva
+        // primero porque el filtro global la aplica a TODA consulta de esta tabla.
+        builder.HasOne<Organization>()
+            .WithMany()
+            .HasForeignKey(entity => entity.IdOrganization)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasIndex(entity => new { entity.IdOrganization, entity.Purpose });
+
+        builder.HasIndex(entity => new { entity.IdClient, entity.Purpose });
+        builder.HasIndex(entity => entity.IdClientSite);
+
+        // Un solo contacto principal por cliente, dicho en la base y no solo en el servicio.
+        //
+        // El filtro incluye Active porque un contacto dado de baja no debe seguir ocupando el
+        // puesto: es la excepcion razonada a que una clave unica siga ocupada aunque la fila este
+        // inactiva. Aqui la marca describe quien atiende hoy, no un codigo que identifique la fila.
+        builder.HasIndex(entity => entity.IdClient)
+            .IsUnique()
+            .HasFilter("[IsPrimary] = 1 AND [Active] = 1");
+    }
+}

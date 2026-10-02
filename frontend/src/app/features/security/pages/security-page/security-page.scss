@@ -1,0 +1,863 @@
+/*
+  El anclaje va al borde real del cromo, no a la altura de la barra superior.
+
+  Encima de esa barra va la de organizacion, que rueda con la pagina: con la pagina arriba del
+  todo el cromo termina en 151 px y no en 72, y esos 79 px se comian la cabecera del panel. El
+  boton de cerrar quedaba DEBAJO de la barra —`elementFromPoint` devolvia el boton de perfil—, asi
+  que pulsar donde se veia «Cerrar» abria el dialogo de salir.
+
+  `--gestia-chrome-bottom` la publica el armazon midiendo, y se vuelve a medir al rodar la pagina.
+  El valor de reserva es el de antes, por si el armazon no llegara a publicarla.
+*/
+
+.security-page {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.security-hero {
+  align-items: center;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.security-hero p {
+  color: #5c6b8a;
+  margin: .75rem 0 0;
+  max-width: 52rem;
+}
+
+.security-summary,
+.security-grid,
+.security-admin-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.security-summary {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.security-grid {
+  grid-template-columns: minmax(20rem, .8fr) minmax(0, 1.2fr);
+}
+
+.security-admin-grid {
+  grid-template-columns: minmax(0, 1.2fr) minmax(20rem, .8fr);
+}
+
+.security-page {
+  position: relative;
+}
+
+.security-tabs {
+  display: grid;
+  gap: .7rem;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.security-tabs button {
+  min-height: 3.4rem;
+  border: 1px solid color-mix(in srgb, var(--gestia-border) 86%, white);
+  border-radius: 6px;  color: #06124a;
+  font-weight: 600;  background: #fff;
+  box-shadow: none;  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.security-tabs button:hover,
+.security-tabs button.is-active {
+  border-color: color-mix(in srgb, var(--gestia-cyan) 60%, var(--gestia-border));
+  box-shadow: none;  transform: none;}
+
+.security-tabs button.is-active {
+  background: var(--gestia-cyan-soft);}
+
+.security-workspace {
+  display: grid;
+  gap: 1rem;
+  align-items: start;
+  grid-template-columns: minmax(0, 1.35fr) minmax(20rem, .65fr);
+}
+
+.security-filters {
+  display: grid;
+  gap: .8rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.metric-card {
+  display: grid;
+  gap: .35rem;
+}
+
+.metric-card span,
+.section-heading span,
+.role-card span {
+  color: #6a7691;
+  font-size: .82rem;
+}
+
+.metric-card strong {
+  color: #06124a;
+  font-size: 1.75rem;  line-height: 1;
+}
+
+.metric-card small {
+  color: #71809b;
+}
+
+.danger-card strong {
+  color: #b42318;
+}
+
+.security-section {
+  display: grid;
+  gap: 1rem;
+}
+
+.section-heading,
+.role-card {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.form-row {
+  display: grid;
+  gap: .75rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.admin-form {
+  border-top: 1px solid #e4ecf6;
+  display: grid;
+  gap: .75rem;
+  padding-top: .9rem;
+}
+
+.admin-form h3 {
+  color: #06124a;
+  font-size: .95rem;
+  margin: 0;
+}
+
+.field-help {
+  color: #697792;
+  font-size: .78rem;
+  font-weight: 700;
+  line-height: 1.35;
+  margin-top: .25rem;
+}
+
+.field-help.is-warning,
+.security-note.is-warning {
+  color: #8a5a00;
+}
+
+.security-note {
+  background: #fff8e7;
+  border: 1px solid #ffe0a3;
+  border-radius: 6px;  font-size: .84rem;
+  font-weight: 600;  margin: 0;
+  padding: .75rem .85rem;
+}
+
+.section-heading h2 {
+  color: #06124a;
+  font-size: 1.15rem;
+  margin: .2rem 0 0;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+.security-table {
+  table-layout: auto;
+  min-width: 52rem;
+  width: 100%;
+}
+
+.security-table th,
+.security-table td {
+  white-space: normal;
+  word-break: normal;
+}
+
+.gi-table td strong,
+.gi-table td span {
+  display: block;
+}
+
+.gi-table tbody tr {
+  cursor: pointer;
+}
+
+.gi-table tbody tr:hover,
+.gi-table tbody tr.is-selected {
+  background: #effaff;
+}
+
+.gi-table tbody tr.is-selected {
+  outline: 2px solid #bcecff;
+  outline-offset: -2px;
+}
+
+.gi-table td span {
+  color: #64728f;
+  font-size: .82rem;
+  margin-top: .2rem;
+}
+
+.mini-pill {
+  background: #f1f6ff;
+  border: 1px solid #dbe7fb;
+  border-radius: 6px;  color: #34446a;
+  display: inline-flex;
+  font-size: .76rem;
+  margin: .1rem .25rem .1rem 0;
+  padding: .28rem .55rem;
+}
+
+/*
+  Las etiquetas de permiso del asistente. Se reporto que «los botones de Leer no funcionan»: no son
+  botones, son la lista de lo que concede el rol. Se dibujaban con `is-strong` —relleno solido y
+  negrita, el aspecto de un control— y por eso se pulsaban. Esta variante es plana y no se
+  selecciona con el cursor, para que se lea como lo que es.
+*/
+.mini-pill.is-readonly {
+  background: var(--gestia-surface-soft);
+  border-color: var(--gestia-border);
+  color: var(--gestia-muted);
+  cursor: default;
+  user-select: none;
+}
+
+.mini-pill.is-strong {
+  background: #eaf9ff;
+  border-color: #bdeefd;
+  color: #006c8d;
+  font-weight: 600;}
+
+.mini-pill.is-admin {
+  background: #fff7ed;
+  border-color: #fed7aa;
+  color: #9a3412;
+  font-weight: 600;}
+
+.mini-pill.is-danger,
+.gi-badge.is-muted {
+  background: #fff2f2;
+  border-color: #ffd4d4;
+  color: #9b1c1c;
+}
+
+.role-list,
+.permission-groups,
+.permission-checks {
+  display: grid;
+  gap: .75rem;
+}
+
+.role-card,
+.permission-group {
+  background: #fff;  border: 1px solid #e0e8f4;
+  border-radius: 6px;  padding: .9rem;
+}
+
+.role-card {
+  cursor: pointer;
+}
+
+.role-card.is-selected {
+  border-color: #13bce8;
+  box-shadow: none;}
+
+.role-card strong,
+.permission-group strong {
+  color: #06124a;
+}
+
+.role-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+}
+
+.link-danger {
+  background: transparent;
+  border: 0;
+  color: #b42318;
+  cursor: pointer;
+  font-size: .78rem;
+  font-weight: 600;  padding: .25rem;
+}
+
+.link-action {
+  background: transparent;
+  border: 0;
+  color: #006c8d;
+  cursor: pointer;
+  font-size: .78rem;
+  font-weight: 600;  padding: .25rem;
+}
+
+.access-row {
+  align-items: center;
+  background: #f8fbff;
+  border: 1px solid #e0e8f4;
+  border-radius: 6px;  display: flex;
+  justify-content: space-between;
+  padding: .65rem .75rem;
+}
+
+.link-danger:disabled {
+  cursor: not-allowed;
+  opacity: .6;
+}
+
+.permission-group {
+  display: grid;
+  gap: .65rem;
+}
+
+.permission-groups--wide {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.permission-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .35rem;
+}
+
+.permission-group.compact {
+  padding: .75rem;
+}
+
+.permission-checks {
+  max-height: 24rem;
+  overflow: auto;
+  padding-right: .2rem;
+}
+
+.permission-checks article {
+  background: #f7fbff;
+  border: 1px solid #e0e8f4;
+  border-radius: 6px;  display: grid;
+  gap: .55rem;
+  padding: .85rem;
+}
+
+.permission-checks article > strong {
+  color: #06124a;
+}
+
+.permission-checks label {
+  align-items: flex-start;
+  color: #4e5f7f;
+  cursor: pointer;
+  display: flex;
+  font-size: .82rem;
+  gap: .5rem;
+  line-height: 1.35;
+}
+
+.permission-checks input {
+  accent-color: #13bce8;
+  margin-top: .1rem;
+}
+
+.security-skeleton {
+  animation: pulse 1.3s ease-in-out infinite;
+  background: linear-gradient(90deg, #eef3fb, #f9fbff, #eef3fb);
+  border-radius: 6px;  height: 12rem;
+}
+
+.danger-action {
+  background: #fff0f0;
+  border: 1px solid #ffc3c3;
+  border-radius: 6px;  color: #9b1c1c;
+  cursor: pointer;
+  font-weight: 600;  padding: .85rem 1rem;
+}
+
+.danger-action:disabled {
+  cursor: wait;
+  opacity: .65;
+}
+
+.organization-grid {
+  display: grid;
+  gap: .85rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.organization-card {
+  display: grid;
+  gap: .35rem;
+  border: 1px solid color-mix(in srgb, var(--gestia-border) 84%, white);
+  border-radius: 6px;  padding: 1rem;
+  background: #fff;}
+
+.organization-card span {
+  color: var(--gestia-cyan-dark);
+  font-size: 0.75rem;  font-weight: 600;  letter-spacing: 0;  text-transform: uppercase;
+}
+
+.organization-card strong {
+  color: #06124a;
+  font-size: 1rem;
+}
+
+.organization-card small,
+.muted {
+  color: #71809b;
+}
+
+.hero-actions,
+.filter-actions,
+.row-actions,
+.drawer-badges,
+.sensitive-actions,
+.wizard-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .65rem;
+}
+
+.hero-actions,
+.filter-actions,
+.wizard-actions {
+  justify-content: flex-end;
+}
+
+.security-context {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: .8rem;
+  border: 1px solid #d8e8f7;
+  border-radius: 6px;  padding: .38rem .65rem;
+  color: #17406d;
+  font-size: .78rem;
+  font-weight: 600;  background: #f2f9ff;
+}
+
+.role-summary-grid,
+.review-grid,
+.detail-list {
+  display: grid;
+  gap: .75rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.role-summary-grid article,
+.review-grid article,
+.detail-list div {
+  display: grid;
+  gap: .25rem;
+  border: 1px solid #e0e8f4;
+  border-radius: 6px;  padding: .8rem;
+  background: #f8fbff;
+}
+
+.role-summary-grid span,
+.review-grid span,
+.detail-list span {
+  color: #6a7691;
+  font-size: 0.75rem;  font-weight: 600;  letter-spacing: 0;  text-transform: uppercase;
+}
+
+.role-summary-grid strong,
+.review-grid strong,
+.detail-list strong {
+  color: #06124a;
+}
+
+.permission-matrix {
+  display: grid;
+  overflow-x: auto;
+  border: 1px solid #dfe8f5;
+  border-radius: 6px;  background: #fff;
+}
+
+.matrix-head,
+.matrix-row {
+  display: grid;
+  align-items: center;
+  gap: .5rem;
+  grid-template-columns: minmax(8rem, 1.1fr) repeat(6, minmax(3.8rem, .5fr));
+  padding: .7rem .85rem;
+}
+
+.matrix-head {
+  color: #5f6f8f;
+  font-size: 0.75rem;  font-weight: 600;  text-transform: uppercase;
+  background: #f3f7fd;
+}
+
+.matrix-row {
+  border-top: 1px solid #edf2f8;
+}
+
+.matrix-row strong {
+  color: #06124a;
+}
+
+.matrix-row span {
+  display: inline-grid;
+  min-height: 1.75rem;
+  place-items: center;
+  border-radius: 6px;  color: #90a0ba;
+  font-weight: 600;  background: #f4f7fb;
+}
+
+.matrix-row span.is-on {
+  color: #047857;
+  background: #e9f8ef;
+}
+
+.security-wizard {
+  position: fixed;
+  top: var(--gestia-chrome-bottom, var(--gestia-topbar-height));
+  right: 0;
+  z-index: 34;
+  display: grid;
+  width: min(42rem, calc(100vw - 1rem));
+  /* La altura sigue al mismo borde que el anclaje; si no, el panel se pasa por abajo. */
+  max-height: calc(100vh - var(--gestia-chrome-bottom, var(--gestia-topbar-height)));
+  overflow-y: auto;
+  gap: 1rem;
+  border-left: 1px solid color-mix(in srgb, var(--gestia-border) 82%, white);
+  padding: 1.25rem;
+  background: #fff;  box-shadow: none;}
+
+.security-wizard header {
+  display: grid;
+  gap: .35rem;
+  padding-right: 2.5rem;
+}
+
+.security-wizard h2,
+.security-wizard h3 {
+  margin: 0;
+  color: #06124a;
+}
+
+.security-wizard p {
+  margin: 0;
+  color: #5f6f8f;
+  line-height: 1.5;
+}
+
+.wizard-steps {
+  display: grid;
+  gap: .45rem;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.wizard-steps span {
+  border: 1px solid #dfe8f5;
+  border-radius: 6px;  padding: .42rem .55rem;
+  color: #60708f;
+  font-size: 0.75rem;  font-weight: 600;  text-align: center;
+  background: #f8fbff;
+}
+
+.wizard-steps span.is-active {
+  border-color: var(--gestia-cyan);
+  color: #06124a;
+  background: color-mix(in srgb, var(--gestia-cyan) 16%, #fff);
+}
+
+.wizard-panel {
+  display: grid;
+  gap: .8rem;
+  border: 1px solid #e0e8f4;
+  border-radius: 6px;  padding: 1rem;
+  background: #fbfdff;
+}
+
+.scope-readonly {
+  border: 1px solid #d7eef6;
+  border-radius: 6px;  min-height: 2.85rem;
+  padding: .62rem .82rem;
+  background: #f4fcff;
+}
+
+.scope-readonly span {
+  color: #46536d;
+  display: block;
+  font-size: 0.75rem;  font-weight: 600;}
+
+.scope-readonly strong {
+  color: #050b4f;
+  font-size: .86rem;
+}
+
+.admin-confirmation {
+  display: grid;
+  gap: .75rem;
+  border: 1px solid #fed7aa;
+  border-radius: 6px;  padding: .9rem;
+  background: #fff7ed;
+}
+
+.admin-confirmation strong {
+  color: #9a3412;
+}
+
+.admin-confirmation label:not(.gi-field) {
+  display: flex;
+  gap: .55rem;
+  color: #713f12;
+  font-weight: 600;}
+
+.critical-protection {
+  display: grid;
+  gap: .35rem;
+  border: 1px solid #fecaca;
+  border-radius: 6px;  padding: .9rem;
+  color: #991b1b;
+  background: #fff1f2;
+}
+
+.critical-protection p {
+  color: #991b1b;
+}
+
+.critical-protection a {
+  color: #006c8d;
+  font-weight: 600;  text-decoration: none;
+}
+
+.field-help.is-error {
+  color: #b42318;
+}
+
+.compact-matrix .matrix-head,
+.compact-matrix .matrix-row {
+  grid-template-columns: minmax(7rem, 1fr) repeat(6, minmax(2.8rem, .35fr));
+  padding-inline: .65rem;
+}
+
+/*
+  El velo que hay detras del cajon y del asistente.
+
+  Los dos son capas fijas: se quedan pegadas mientras la pagina rueda por debajo, y eso fue lo que
+  se reporto como «el scroll de la pantalla no te permite ver bien». Un velo da la salida evidente
+  —clic en cualquier lado— y ademas separa visualmente lo que esta encima de lo que esta debajo.
+  Es un boton porque se pulsa; se le quita el aspecto de boton, no el comportamiento.
+*/
+.drawer-scrim {
+  position: fixed;
+  inset: var(--gestia-chrome-bottom, var(--gestia-topbar-height)) 0 0 0;
+  z-index: 29;
+  display: block;
+  width: 100%;
+  border: 0;
+  padding: 0;
+  background: color-mix(in srgb, var(--gestia-navy) 22%, transparent);
+  cursor: pointer;
+}
+
+/* El asistente se abre por encima del cajon (34), asi que su velo va justo debajo de el. */
+.drawer-scrim--wizard {
+  z-index: 33;
+}
+
+.security-drawer {
+  position: fixed;
+  top: var(--gestia-chrome-bottom, var(--gestia-topbar-height));
+  right: 0;
+  z-index: 30;
+  display: grid;
+  width: min(34rem, calc(100vw - 1rem));
+  /* La altura sigue al mismo borde que el anclaje; si no, el panel se pasa por abajo. */
+  max-height: calc(100vh - var(--gestia-chrome-bottom, var(--gestia-topbar-height)));
+  overflow-y: auto;
+  gap: 1rem;
+  border-left: 1px solid color-mix(in srgb, var(--gestia-border) 82%, white);
+  padding: 1.25rem;
+  background: #fff;  box-shadow: none;}
+
+.drawer-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border: 1px solid var(--gestia-border);
+  border-radius: 6px;  color: #06124a;
+  font-size: 1.2rem;
+  background: #fff;
+  cursor: pointer;
+}
+
+.security-drawer header,
+.drawer-block {
+  display: grid;
+  gap: .7rem;
+}
+
+.security-drawer header {
+  padding-right: 2.4rem;
+}
+
+.security-drawer h2,
+.drawer-block h3 {
+  margin: 0;
+  color: #06124a;
+}
+
+.security-drawer p {
+  margin: 0;
+}
+
+.drawer-block {
+  border-top: 1px solid #e4ecf6;
+  padding-top: 1rem;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: .6;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 980px) {
+  .security-hero,
+  .section-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .security-summary,
+  .security-grid,
+  .security-admin-grid,
+  .security-tabs,
+  .security-workspace,
+  .security-filters,
+  .permission-groups--wide,
+  .organization-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 1180px) {
+  .security-summary,
+  .security-workspace,
+  .security-filters,
+  .permission-groups--wide,
+  .organization-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .security-tabs {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+
+}
+
+@media (max-width: 640px) {
+  .form-row,
+  .role-summary-grid,
+  .review-grid,
+  .detail-list,
+  .wizard-steps {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Security polish: administration stays dense but gains clearer selectable
+   users, roles and permission groups. */
+.security-hero,
+.security-section,
+.metric-card,
+.role-card,
+.permission-group,
+.access-row,
+.security-note {
+  border-color: color-mix(in srgb, var(--gestia-border) 84%, white);
+  border-radius: 6px;}
+
+.security-hero,
+.security-section {
+  box-shadow: none;}
+
+.role-card,
+.permission-checks article,
+.organization-card,
+.access-row,
+.danger-action,
+.link-action,
+.link-danger {
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.role-card:hover,
+.role-card.is-selected,
+.permission-checks article:hover,
+.organization-card:hover,
+.access-row:hover {
+  border-color: color-mix(in srgb, var(--gestia-cyan) 46%, var(--gestia-border));
+  box-shadow: none;  transform: none;}
+
+@media (max-width: 760px) {
+  .security-drawer,
+  .security-wizard {
+    left: .5rem;
+    right: .5rem;
+    width: auto;
+    border-left: 1px solid var(--gestia-border);
+    border-radius: 6px 6px 0 0;  }
+}
+
+.security-hero.gi-card {
+  border: 0;
+  border-bottom: 1px solid var(--gestia-border);
+  border-radius: 0;
+  padding: 0 0 1rem;
+  background: transparent;
+  flex-wrap: wrap;
+}
+
+.security-hero h1 { font-size: 1.5rem; line-height: 1.3; }
+
+.permission-matrix { min-width: 0; max-width: 100%; }
+.matrix-head,
+.matrix-row { min-width: 38rem; }
+.compact-matrix .matrix-head,
+.compact-matrix .matrix-row { min-width: 31rem; }
+
+.role-summary-grid article,
+.review-grid article,
+.detail-list div,
+.wizard-panel {
+  border: 0;
+  border-bottom: 1px solid var(--gestia-border);
+  border-radius: 0;
+  background: transparent;
+}
+
+@media (max-width: 640px) {
+  .security-tabs { grid-template-columns: 1fr; }
+}

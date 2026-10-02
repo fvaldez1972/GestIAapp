@@ -1,3 +1,4 @@
+@import "leaflet/dist/leaflet.css";
 @import "tailwindcss";
 
 @theme {
@@ -12,22 +13,62 @@
   --gestia-navy-soft: #1c1c66;
   --gestia-cyan: #22c6ee;
   --gestia-cyan-dark: #087f9c;
+  --gestia-cyan-soft: #e9f7fa;
   --gestia-canvas: #f4f6fa;
   --gestia-surface: #ffffff;
-  --gestia-border: #e3e7ef;
-  --gestia-muted: #687083;
+  --gestia-surface-soft: #f7f9fb;
+  --gestia-border: #dce2e9;
+  --gestia-muted: #5f6b7a;
+  --gestia-text: #253040;
+  --gestia-success: #16a34a;
+  --gestia-warning: #d97706;
+  --gestia-danger: #dc2626;
+  --gestia-info: #0284c7;
+  /* Los tres rellenos suaves de los estados, hermanos de --gestia-cyan-soft.
+     Existen porque una rejilla de estados dibujada solo con contornos pinta todas las celdas con
+     el mismo peso: la que hay que resolver grita igual que la que no pide nada. El relleno deja
+     que el color diga la jerarquia y el contorno deje de hacerlo. Viven aqui, con el resto de la
+     paleta, y no dentro de un componente: ahi serian un color decidido por cuenta propia. */
+  --gestia-success-soft: #e9f7ef;
+  --gestia-warning-soft: #fdf1e3;
+  --gestia-danger-soft: #fdecec;
   --gestia-sidebar-width: 17rem;
   --gestia-sidebar-condensed-width: 5rem;
   --gestia-topbar-height: 4.5rem;
-  color: #1d2433;
+  --gestia-page-gap: 1rem;
+  --gestia-card-padding: 1rem;
+  --gestia-radius: 6px;
+  /* Dos radios mas, del 24 de septiembre de 2026.
+     El sistema tenia 6 px para todo y 3 px para las pildoras, y con eso ninguna pantalla podia
+     dejar de parecer una hoja de calculo: un rectangulo de 6 px con borde de un pixel es
+     exactamente el aspecto de una celda de tabla. El grande es para tarjetas y celdas; el de
+     pildora completo es para insignias y contadores, que a 3 px se leian como cajitas. */
+  --gestia-radius-lg: 12px;
+  --gestia-radius-chip: 999px;
+  /* Radio de píldoras y etiquetas pequeñas. El bosquejo lo usa veinte veces. */
+  --gestia-radius-pill: 3px;
+  --gestia-control-height: 2.5rem;
+  --gestia-shadow-sm: none;
+  --gestia-shadow-md: none;
+  --gestia-shadow-action: none;
+  /* Ancho del panel de detalle. Escrito una sola vez para que nadie lo teclee otra vez.
+     Subió de 620 px a 880 px el 23 de septiembre de 2026. En 620 los campos de la ficha de
+     Personal caían de dos en dos muy estrechos, las seis pestañas no cabían en una línea, y todo
+     lo que no fuera la identificación quedaba debajo del pliegue. El panel sigue siendo una
+     columna del contenido: la tabla se comprime a su lado, no se tapa. */
+  --gestia-panel-width: 880px;
+  /* Fondo del esqueleto de carga. Antes era #eef3f9, un color que no salía de ningún token. */
+  --gestia-skeleton: var(--gestia-surface-soft);
+  /* El velo del diálogo: --gestia-navy al 28 %. Es el ÚNICO valor derivado de un token que el
+     sistema autoriza, y queda escrito aquí justo para que nadie invente otro. */
+  --gestia-dialog-veil: rgb(16 16 78 / 28%);
+  color: var(--gestia-text);
   font-family: var(--font-sans);
   font-synthesis: none;
   background: var(--gestia-canvas);
 }
 
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
 html,
 body {
@@ -43,16 +84,502 @@ body {
 button,
 input,
 textarea,
-select {
-  font: inherit;
+select { font: inherit; }
+
+/*
+  Un <dialog> abierto con showModal() lo centra el navegador con el `margin: auto` de su hoja de
+  estilo por omision. El preflight de Tailwind 4 pone `margin: 0` en TODOS los elementos y se lo
+  borra, asi que el cuadro se va a la esquina superior izquierda, encima del menu, en vez de quedar
+  centrado. Le devolvemos el margen aqui, una sola vez, porque el defecto no era de una pantalla:
+  lo tenian los cinco dialogos de la aplicacion —Catalogos, sus requisitos, Documentos, la
+  confirmacion compartida y el cierre del dia operativo—.
+
+  `:modal` alcanza solo a los abiertos con showModal(), que son los que deben centrarse; un
+  <dialog> abierto con show() se queda donde lo pongan sus estilos, que es lo que se espera de el.
+*/
+dialog:modal {
+  margin: auto;
 }
 
 button,
-a {
-  -webkit-tap-highlight-color: transparent;
-}
+a { -webkit-tap-highlight-color: transparent; }
 
 :focus-visible {
-  outline: 3px solid color-mix(in srgb, var(--gestia-cyan) 70%, transparent);
+  outline: 2px solid var(--gestia-cyan-dark);
   outline-offset: 2px;
+}
+
+.gi-card {
+  min-width: 0;
+  border: 1px solid var(--gestia-border);
+  border-radius: var(--gestia-radius);
+  background: var(--gestia-surface);
+}
+
+.gi-card:not(:empty) { padding: var(--gestia-card-padding); }
+
+.gi-card--interactive {
+  transition: border-color 160ms ease, background-color 160ms ease;
+}
+
+.gi-card--interactive:hover { border-color: var(--gestia-cyan-dark); }
+.gi-card--hero { background: var(--gestia-surface); }
+
+.gi-button,
+.button,
+body main :is(.gi-button, .button)[class] {
+  --gi-button-background: #fff;
+  --gi-button-color: var(--gestia-text);
+  --gi-button-border: var(--gestia-border);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: var(--gestia-control-height);
+  max-width: 100%;
+  border: 1px solid var(--gestia-border);
+  border-radius: var(--gestia-radius);
+  padding: 0.5rem 0.8rem;
+  color: var(--gestia-text);
+  background: #fff;
+  box-shadow: none;
+  transform: none;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1.4;
+  text-align: center;
+  text-decoration: none;
+  white-space: normal;
+  cursor: pointer;
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+.gi-button:hover:not(:disabled):not([aria-disabled="true"]),
+.button:hover:not(:disabled):not([aria-disabled="true"]),
+body main :is(.gi-button, .button)[class]:hover:not(:disabled):not([aria-disabled="true"]) {
+  border-color: #a9b7c6;
+  background: var(--gestia-surface-soft);
+  box-shadow: none;
+  transform: none;
+}
+
+.gi-button--primary,
+.button--primary,
+body main :is(.gi-button--primary, .button--primary)[class] {
+  --gi-button-background: var(--gestia-navy);
+  --gi-button-color: #fff;
+  --gi-button-border: var(--gestia-navy);
+  border-color: var(--gestia-navy);
+  color: #fff;
+  background: var(--gestia-navy);
+}
+
+.gi-button--primary:hover:not(:disabled):not([aria-disabled="true"]),
+.button--primary:hover:not(:disabled):not([aria-disabled="true"]),
+body main :is(.gi-button--primary, .button--primary)[class]:hover:not(:disabled):not([aria-disabled="true"]) {
+  border-color: var(--gestia-navy-soft);
+  background: var(--gestia-navy-soft);
+}
+
+.gi-button--secondary,
+.button--secondary,
+.gi-button--ghost,
+body main :is(.gi-button--secondary, .button--secondary, .gi-button--ghost)[class] {
+  --gi-button-color: var(--gestia-navy);
+  border-color: var(--gestia-border);
+  color: var(--gestia-navy);
+  background: #fff;
+}
+
+.gi-button--danger,
+.button--danger,
+.gi-button--ghost-danger,
+.gi-button--ghost.danger,
+body main :is(.gi-button--danger, .button--danger, .gi-button--ghost-danger, .gi-button--ghost.danger)[class] {
+  --gi-button-background: #fff5f5;
+  --gi-button-color: #991b1b;
+  --gi-button-border: #efb9bd;
+  border-color: #efb9bd;
+  color: #991b1b;
+  background: #fff5f5;
+}
+
+.gi-button--danger:hover:not(:disabled),
+.button--danger:hover:not(:disabled),
+.gi-button--ghost-danger:hover:not(:disabled),
+.gi-button--ghost.danger:hover:not(:disabled),
+body main :is(.gi-button--danger, .button--danger, .gi-button--ghost-danger, .gi-button--ghost.danger)[class]:hover:not(:disabled):not([aria-disabled="true"]) {
+  border-color: #d78b92;
+  background: #fee2e2;
+}
+
+.gi-field {
+  display: grid;
+  min-width: 0;
+  gap: 0.35rem;
+}
+
+.gi-field > span {
+  color: var(--gestia-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.gi-input,
+body main .gi-input,
+body main :is(input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"], [type="hidden"], [type="button"], [type="submit"], [type="reset"]), select, textarea) {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  min-height: var(--gestia-control-height);
+  border: 1px solid #cbd4df;
+  border-radius: var(--gestia-radius);
+  padding: 0.5rem 0.7rem;
+  color: var(--gestia-text);
+  background-color: #fff;
+  font-size: 0.875rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 1.4;
+  transition: border-color 160ms ease, background-color 160ms ease;
+}
+
+/* Native arrows also work for multiple selects and forced-color themes. */
+select.gi-input,
+body main select {
+  appearance: auto;
+  background-image: none;
+  padding-right: 0.7rem;
+}
+
+textarea.gi-input {
+  min-height: 5rem;
+  resize: vertical;
+}
+
+.gi-input:focus,
+body main :is(input, select, textarea):focus {
+  border-color: var(--gestia-cyan-dark);
+}
+
+body main :is(input, textarea)::placeholder {
+  color: #717d8c;
+  opacity: 1;
+}
+
+body main :is(input[type="checkbox"], input[type="radio"]) {
+  accent-color: var(--gestia-cyan-dark);
+}
+
+/* These state rules intentionally outrank legacy component resets. */
+body main :is(button, a, input, select, textarea, [tabindex]):focus-visible,
+body main :is(.owner-type, .file-drop):focus-within {
+  outline: 2px solid var(--gestia-cyan-dark) !important;
+  outline-offset: 2px;
+}
+
+body main :is(input, select, textarea):is(.ng-invalid.ng-touched, .is-invalid, [aria-invalid="true"]),
+body main :is(.gi-field, label):is(.is-invalid, .has-error) :is(input, select, textarea),
+.gi-input.ng-invalid.ng-touched {
+  border-color: #c83b4b !important;
+  background-color: #fff8f8;
+}
+
+body main :is(input, select, textarea):disabled,
+body main :is(input, textarea)[readonly] {
+  color: #596575;
+  background-color: #f0f3f6;
+}
+
+.gi-button:disabled,
+.button:disabled,
+body main :is(button, input, select, textarea):disabled,
+body main :is(button, a)[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.65;
+  transform: none;
+}
+
+.gi-button:disabled,
+.button:disabled,
+body main :is(.gi-button, .button)[class]:is(:disabled, [aria-disabled="true"]) {
+  border-color: var(--gi-button-border);
+  color: var(--gi-button-color);
+  background: var(--gi-button-background);
+  box-shadow: none;
+  transform: none;
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.gi-badge {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  border-radius: 4px;
+  padding: 0.25rem 0.5rem;
+  color: var(--gestia-navy);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.35;
+  background: var(--gestia-cyan-soft);
+}
+
+.gi-badge--success { color: #166534; background: #dcfce7; }
+.gi-badge--warning { color: #92400e; background: #fef3c7; }
+.gi-badge--danger { color: #991b1b; background: #fee2e2; }
+.gi-badge--muted { color: var(--gestia-muted); background: #f0f3f6; }
+
+.gi-alert {
+  border-radius: var(--gestia-radius);
+  padding: 0.75rem 0.9rem;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.gi-alert--success { color: #12613e; border: 1px solid #bcead5; background: #ebfaf3; }
+.gi-alert--error { color: #a52e39; border: 1px solid #f2c1c6; background: #fff1f2; }
+
+/* Restrict shrink behavior to layout containers; table columns keep their minimums. */
+body main > :is(app-overview-page, app-clients-page, app-workforce-page, app-services-page, app-monitor-page, app-operations-page, app-planning-page, app-documents-page, app-requests-page, app-reports-page, app-audit-page, app-catalogs-page, app-security-page, app-platform-page) {
+  display: block;
+  min-width: 0;
+}
+
+body main :is(.gi-card, .table-card, .detail-card, .panel, .table-wrap, .matrix-wrap, .client-table-wrap, .employee-table-shell, .request-table-shell) {
+  min-width: 0;
+  max-width: 100%;
+}
+
+body main :is(h1, h2, h3, h4) {
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1.3;
+}
+
+body main h1 { font-size: 1.5rem; }
+body main h2 { font-size: 1.125rem; }
+body main h3 { font-size: 1rem; }
+body main strong { font-weight: 600; }
+
+/* Hidden panels and actions must stay hidden even when a control uses flex/grid. */
+body main [hidden]:not([hidden="until-found"]),
+app-login-page [hidden]:not([hidden="until-found"]) {
+  display: none !important;
+}
+
+.gi-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+.gi-table th,
+.gi-table td {
+  padding: 0.7rem 0.85rem;
+  border-bottom: 1px solid var(--gestia-border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.gi-table th {
+  color: var(--gestia-muted);
+  background: var(--gestia-surface-soft);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.gi-table tbody tr:hover { background: var(--gestia-surface-soft); }
+
+.gi-table td strong,
+.gi-table td small { display: block; }
+
+.gi-table td strong { font-weight: 600; }
+.gi-table td small { margin-top: 0.2rem; color: var(--gestia-muted); line-height: 1.4; }
+
+.table-wrap {
+  max-width: 100%;
+  min-width: 0;
+  overflow: auto;
+  border-top: 1px solid var(--gestia-border);
+  background: #fff;
+}
+
+.table-wrap > table { min-width: 44rem; }
+
+.gi-empty-state {
+  display: grid;
+  min-height: 8rem;
+  place-items: center;
+  gap: 0.4rem;
+  padding: 1rem;
+  color: var(--gestia-muted);
+  text-align: center;
+}
+
+.gi-empty-state strong { color: var(--gestia-navy); }
+
+.gi-toolbar,
+.gi-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.gi-toolbar {
+  align-items: center;
+  justify-content: space-between;
+}
+
+.eyebrow,
+.kicker {
+  color: var(--gestia-cyan-dark);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.gi-section-heading { display: grid; gap: 0.25rem; }
+.gi-section-heading :is(h2, h3) { margin: 0; color: var(--gestia-navy); }
+.gi-section-heading p { margin: 0; color: var(--gestia-muted); line-height: 1.5; }
+
+.gi-skeleton {
+  position: relative;
+  overflow: hidden;
+  min-height: 8rem;
+  border-radius: var(--gestia-radius);
+  background: var(--gestia-skeleton);
+}
+
+.gi-skeleton::after {
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 62%), transparent);
+  animation: gi-skeleton-shimmer 1.2s infinite;
+  content: '';
+}
+
+@keyframes gi-skeleton-shimmer {
+  100% { transform: translateX(100%); }
+}
+
+@media (max-width: 700px) {
+  :root { --gestia-page-gap: 0.85rem; --gestia-card-padding: 0.85rem; }
+  .gi-table th,
+  .gi-table td { padding: 0.65rem 0.75rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gi-skeleton::after,
+  body main :is([class*="skeleton"], [class*="skeleton"] span) {
+    animation: none;
+  }
+}
+
+/*
+  El campo de fecha, en toda la aplicación.
+
+  Son 35 campos repartidos en 17 pantallas, y el nativo se veía como un cuadro gris con un icono
+  diminuto pegado al borde. Se estiliza aquí, de una vez, en vez de tocar cada plantilla: cualquier
+  <input type="date"> nuevo nace ya con esta forma.
+
+  El selector nativo se conserva a propósito —teclado, lector de pantalla y el calendario del
+  teléfono salen gratis—; lo que se cambia es cómo se ve y que se abra al pulsar en cualquier parte
+  del campo, no sólo sobre el icono.
+*/
+input[type="date"] {
+  box-sizing: border-box;
+  width: 100%;
+  height: var(--gestia-control-height);
+  padding: 0 0.7rem;
+  border: 1px solid var(--gestia-border);
+  border-radius: var(--gestia-radius);
+  background: var(--gestia-surface);
+  color: var(--gestia-text);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+  position: relative;
+}
+
+input[type="date"]:hover:not(:disabled) {
+  border-color: var(--gestia-cyan);
+}
+
+input[type="date"]:focus-visible {
+  outline: 2px solid var(--gestia-cyan);
+  outline-offset: 1px;
+}
+
+input[type="date"]:disabled {
+  background: var(--gestia-surface-soft);
+  color: var(--gestia-muted);
+  cursor: not-allowed;
+}
+
+/* Un campo vacío se lee como un marcador de posición, no como un dato puesto. */
+input[type="date"]:not(:focus):invalid,
+input[type="date"]:not(:focus):placeholder-shown {
+  color: var(--gestia-muted);
+}
+
+/*
+  El icono nativo es minúsculo y se pega al borde. Se sustituye por uno propio, alineado con el
+  resto de los desplegables, y se estira sobre todo el campo para que pulsar en cualquier sitio
+  abra el calendario.
+*/
+input[type="date"]::-webkit-calendar-picker-indicator {
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+  padding: 0;
+  opacity: 0.55;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round'><rect x='3' y='5' width='18' height='16' rx='2'/><path d='M8 3v4M16 3v4M3 10h18'/></svg>");
+  background-repeat: no-repeat;
+  background-size: contain;
+}
+
+input[type="date"]:hover::-webkit-calendar-picker-indicator {
+  opacity: 1;
+}
+
+input[type="date"]::-webkit-datetime-edit {
+  padding: 0;
+}
+
+/* Sin las flechas de incremento, que aquí no aportan y roban ancho. */
+input[type="date"]::-webkit-inner-spin-button {
+  display: none;
+}
+
+/*
+  Las tablas que no pasan por gi-data-table: dieciséis repartidas en diez pantallas —auditoría,
+  monitor, catálogos, patrones de turno, operaciones, reportes, solicitudes, seguridad, servicios y
+  el historial de documentos—.
+
+  Su contenedor pasa a desplazarse por dentro y el encabezado se queda pegado a él. Sin esto, el
+  encabezado sólo se pegaba al borde de la ventana mientras la página entera se movía, que es justo
+  lo que había que quitar.
+
+  `:has()` evita tocar las diez plantillas una por una, y el alto se puede ajustar por pantalla con
+  la misma variable que usa gi-data-table.
+*/
+*:has(> table.gi-table),
+.request-table-shell {
+  overflow: auto;
+  max-height: var(--gi-table-max-height, calc(100vh - 20rem));
+  overscroll-behavior: contain;
+}
+
+.gi-table thead th,
+.request-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
 }

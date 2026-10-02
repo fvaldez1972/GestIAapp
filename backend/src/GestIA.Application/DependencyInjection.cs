@@ -1,0 +1,52 @@
+using GestIA.Application.Audit;
+using GestIA.Application.History;
+using GestIA.Application.Clients;
+using GestIA.Application.Assignments;
+using GestIA.Application.Catalogs;
+using GestIA.Application.Documents;
+using GestIA.Application.Operations;
+using GestIA.Application.Organizations;
+using GestIA.Application.Planning;
+using GestIA.Application.Overview;
+using GestIA.Application.Reports;
+using GestIA.Application.Requests;
+using GestIA.Application.Scheduling;
+using GestIA.Application.Security;
+using GestIA.Application.Services;
+using GestIA.Application.Workforce;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace GestIA.Application;
+
+public static class DependencyInjection
+{
+    public static IServiceCollection AddApplication(this IServiceCollection services)
+    {
+        services.AddScoped<IOrganizationService, OrganizationService>();
+        services.AddScoped<IOperationalHistoryService, OperationalHistoryService>();
+        services.AddScoped<IOrganizationProvisioningService, OrganizationProvisioningService>();
+        services.AddScoped<IClientService, ClientService>();
+        services.AddScoped<IClientZoneService, ClientZoneService>();
+        services.AddScoped<IClientContactService, ClientContactService>();
+        services.AddScoped<IBusinessDocumentService, BusinessDocumentService>();
+        services.AddScoped<IServiceManagementService, ServiceManagementService>();
+        services.AddScoped<IWorkforceService, WorkforceService>();
+        services.AddScoped<IAdministrativeIncidentService, AdministrativeIncidentService>();
+        services.AddScoped<IPlanningService, PlanningService>();
+        services.AddScoped<IShiftPatternTemplateService, ShiftPatternTemplateService>();
+        services.AddScoped<IAssignmentService, AssignmentService>();
+        services.AddScoped<ICatalogService, CatalogService>();
+        services.AddScoped<FormCatalogValidator>();
+        services.AddScoped<OrganizationCatalogDefaults>();
+        services.AddScoped<ISchedulingService, SchedulingService>();
+        services.AddScoped<IOperationsService, OperationsService>();
+        services.AddScoped<IReportsService, ReportsService>();
+        services.AddScoped<IOverviewService, OverviewService>();
+        services.AddScoped<IEmployeeSearchService, EmployeeSearchService>();
+        services.AddScoped<IOperationalRequestService, OperationalRequestService>();
+        services.AddScoped<IAuditService, AuditService>();
+        services.AddScoped<IAuthenticationService, AuthenticationService>();
+
+        return services;
+    }
+}

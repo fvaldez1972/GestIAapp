@@ -1,0 +1,62 @@
+<main class="login-shell">
+  <section class="login-panel" aria-labelledby="login-title">
+    <aside class="brand-story">
+      <div class="brand-introduction">
+        <img class="brand-logo brand-logo--negative" src="brand/gestia-logo-negative.svg" alt="GESTIA" />
+        <p>Plataforma operativa</p>
+      </div>
+
+      <div class="process-mark" aria-hidden="true">
+        <div class="process-row process-row--dispersed"><i></i><i></i><i></i></div>
+        <div class="process-row process-row--reconciled"><i></i><i></i></div>
+        <div class="process-row process-row--firm"><i></i></div>
+      </div>
+    </aside>
+
+    <form [formGroup]="form" (ngSubmit)="submit()" class="login-form" autocomplete="off">
+      <img class="brand-logo brand-logo--primary" src="brand/gestia-logo-horizontal.svg" alt="GESTIA" />
+
+      <div class="form-heading">
+        <p>Bienvenido</p>
+        <h1 id="login-title">Inicia sesión</h1>
+        <span>Ingresa tus datos para continuar a la plataforma.</span>
+      </div>
+
+      @if (error()) {
+        <p class="alert">{{ error() }}</p>
+      }
+
+      <label>
+        <span>Correo</span>
+        <input
+          type="email"
+          autocomplete="off"
+          autocapitalize="none"
+          spellcheck="false"
+          formControlName="email"
+          placeholder="correo@empresa.com"
+        />
+        @if (form.controls.email.touched && form.controls.email.invalid) {
+          <small class="field-error">Escribe un correo válido.</small>
+        }
+      </label>
+
+      <label>
+        <span>Contraseña</span>
+        <input
+          type="password"
+          autocomplete="new-password"
+          formControlName="password"
+          placeholder="Ingresa tu contraseña"
+        />
+        @if (form.controls.password.touched && form.controls.password.invalid) {
+          <small class="field-error">La contraseña es obligatoria.</small>
+        }
+      </label>
+
+      <button type="submit" [disabled]="!canSubmit()">
+        {{ loading() ? 'Validando acceso…' : 'Entrar a GestIA' }}
+      </button>
+    </form>
+  </section>
+</main>

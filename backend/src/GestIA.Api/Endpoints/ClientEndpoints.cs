@@ -1,0 +1,161 @@
+using GestIA.Api.Security;
+using GestIA.Application.Common;
+using GestIA.Application.Clients;
+using GestIA.Application.Security;
+
+namespace GestIA.Api.Endpoints;
+
+public static class ClientEndpoints
+{
+    public static IEndpointRouteBuilder MapClientEndpoints(this IEndpointRouteBuilder endpoints)
+    {
+        var group = endpoints.MapGroup("/api/v1/clients")
+            .WithTags("Clients");
+
+        group.MapGet("", async (
+            HttpContext context,
+            Guid organizationId,
+            string? search,
+            ClientStatusFilter? status,
+            ClientZonePresenceFilter? zonePresence,
+            string? municipality,
+            int? page,
+            int? pageSize,
+            IClientService service,
+            CancellationToken cancellationToken) =>
+        {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
+            var result = await service.ListAsync(
+                new ClientListQuery(
+                    organizationId,
+                    search,
+                    status ?? ClientStatusFilter.Active,
+                    zonePresence ?? ClientZonePresenceFilter.Any,
+                    municipality,
+                    page ?? 1,
+                    PageSize.Clamp(pageSize)),
+                cancellationToken);
+            return Results.Ok(result);
+        })
+            .RequirePermission(SecurityPermissions.ClientsRead)
+            .WithName("ListClients");
+
+        // Las opciones del filtro de municipio. Sacarlas de la página ya traída daría una lista
+        // distinta en cada página, que es la clase de filtro que miente.
+        group.MapGet("/municipalities", async (
+            HttpContext context,
+            Guid organizationId,
+            IClientService service,
+            CancellationToken cancellationToken) =>
+        {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
+            return Results.Ok(await service.ListMunicipalitiesAsync(organizationId, cancellationToken));
+        })
+            .RequirePermission(SecurityPermissions.ClientsRead)
+            .WithName("ListClientMunicipalities");
+
+        group.MapGet("/{idClient:guid}", async (
+            HttpContext context,
+            Guid idClient,
+            Guid organizationId,
+            IClientService service,
+            CancellationToken cancellationToken) =>
+        {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
+            var client = await service.GetAsync(organizationId, idClient, cancellationToken);
+            return Results.Ok(client);
+        })
+            .RequirePermission(SecurityPermissions.ClientsRead)
+            .WithName("GetClient");
+
+        group.MapPost("", async (
+            HttpContext context,
+            CreateClientRequest request,
+            IClientService service,
+            CancellationToken cancellationToken) =>
+        {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, request.IdOrganization) is { } forbidden)
+            {
+                return forbidden;
+            }
+
+            var client = await service.CreateAsync(request, cancellationToken);
+            return Results.Created(
+                $"/api/v1/clients/{client.IdClient}?organizationId={client.IdOrganization}",
+                client);
+        })
+            .RequirePermission(SecurityPermissions.ClientsWrite)
+            .WithName("CreateClient");
+
+        group.MapPut("/{idClient:guid}", async (
+            HttpContext context,
+            Guid idClient,
+            UpdateClientRequest request,
+            IClientService service,
+            CancellationToken cancellationToken) =>
+        {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, request.IdOrganization) is { } forbidden)
+            {
+                return forbidden;
+            }
+
+            var client = await service.UpdateAsync(idClient, request, cancellationToken);
+            return Results.Ok(client);
+        })
+            .RequirePermission(SecurityPermissions.ClientsWrite)
+            .WithName("UpdateClient");
+
+        group.MapDelete("/{idClient:guid}", async (
+            HttpContext context,
+            Guid idClient,
+            Guid organizationId,
+            IClientService service,
+            CancellationToken cancellationToken) =>
+        {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
+            await service.DeactivateAsync(organizationId, idClient, cancellationToken);
+            return Results.NoContent();
+        })
+            .RequirePermission(SecurityPermissions.ClientsWrite)
+            .WithName("DeactivateClient");
+
+        // PATCH y no POST: reactivar cambia un campo del cliente, no crea nada. Es el mismo verbo
+        // que ya usan la reactivación de organizaciones, de usuarios y de roles, y conviene que
+        // las cuatro se parezcan.
+        group.MapPatch("/{idClient:guid}/activate", async (
+            HttpContext context,
+            Guid idClient,
+            Guid organizationId,
+            IClientService service,
+            CancellationToken cancellationToken) =>
+        {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
+            var client = await service.ActivateAsync(organizationId, idClient, cancellationToken);
+            return Results.Ok(client);
+        })
+            .RequirePermission(SecurityPermissions.ClientsWrite)
+            .WithName("ActivateClient");
+
+        return endpoints;
+    }
+}

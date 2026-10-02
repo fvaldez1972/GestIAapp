@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<style>
+  body { margin: 0; background: #f4f6fa; color: #253040; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+  a { color: #087f9c; text-decoration: none; }
+  a:hover { color: #10104e; }
+</style>
+</helmet>
+
+<section style="padding: 56px 64px 96px; display: flex; flex-direction: column; gap: 48px; width: max-content">
+
+  <header id="4a" style="display: flex; flex-direction: column; gap: 12px; width: 1440px">
+    <div style="display: flex; align-items: center; gap: 12px">
+      <span style="font: 600 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.12em; color: #5f6b7a; border: 1px solid #dce2e9; background: #ffffff; padding: 6px 8px; border-radius: 6px">4a</span>
+      <span style="font: 600 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.12em; color: #5f6b7a">CLIENTES · TABLA Y PANEL CORREGIDOS · 1440px</span>
+    </div>
+    <h1 style="margin: 0; font: 600 30px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #10104e; letter-spacing: -0.01em">La información con peso desigual</h1>
+    <p style="margin: 0; max-width: 74ch; font: 400 15px/1.6 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #5f6b7a; text-wrap: pretty">Menú con la jerarquía acordada: Operación es asistencia, incidencias, coberturas, evidencias y cierre diario; Clientes, Servicios y Personal viven en Configuración. La fila tiene dos niveles tipográficos, un estado y una proporción. Al abrir el panel no se pierde nada: la tabla no suelta columnas, las condensa en la línea de apoyo, y las tarjetas de indicador se quedan.</p>
+  </header>
+
+  <!-- Vista 1 -->
+  <div style="display: flex; flex-direction: column; gap: 16px">
+    <div style="display: flex; align-items: baseline; gap: 16px">
+      <span style="font: 600 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.1em; color: #10104e">VISTA 1</span>
+      <span style="font: 600 15px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #253040">Sin cliente seleccionado</span>
+    </div>
+
+    <div style="width: 1440px; height: 940px; display: flex; background: #f4f6fa; border: 1px solid #dce2e9; border-radius: 6px; overflow: hidden">
+
+      <nav aria-label="Navegación principal" style="width: 17rem; flex: none; background: #10104e; display: flex; flex-direction: column">
+        <div style="height: 4.5rem; display: flex; align-items: center; padding: 0 20px; flex: none">
+          <span style="font: 700 18px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #ffffff; letter-spacing: -0.01em">Gest<span style="color: #22c6ee">IA</span></span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 2px; padding: 4px 12px 16px">
+          <span style="font: 600 10px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; letter-spacing: 0.12em; color: #ffffff; opacity: 0.5; padding: 12px 8px 6px">PLATAFORMA</span>
+          <a href="#" style="display: block; padding: 9px 12px; border-radius: 6px; font: 400 14px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #ffffff; opacity: 0.75" style-hover="background: #1c1c66; opacity: 1">Inicio</a>
+          <a href="#" style="display: block; padding: 9px 12px; border-radius: 6px; font: 400 14px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #ffffff; opacity: 0.75" style-hover="background: #1c1c66; opacity: 1">Monitor global</a>
+          <a href="#" style="display: block; padding: 9px 12px; border-radius: 6px; font: 400 14px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #ffffff; opacity: 0.75" style-hover="background: #1c1c66; opacity: 1">Organizaciones</a>
+
+          <span style="font: 600 10px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; letter-spacing: 0.12em; color: #ffffff; opacity: 0.5; padding: 16px 8px 6px">OPERACIÓN</span>
+          <a href="#" style="display: block; padding: 9px 12px; border-radius: 6px; font: 400 14px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #ffffff; opacity: 0.75" style-hover="background: #1c1c66; opacity: 1">Asistencia</a>
+          <a href="#" style="display: block; padding: 9px 12px; border-radius: 6px; font: 400 14px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #ffffff; opacity: 0.75" style-hover="background: #1c1c66; opacity: 1">Incidencias</a>
+          <a href="#" style="display: block; padding: 9px 12px; border-radius: 6px; font: 400 14px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #ffffff; opacity: 0.75" style-hover="background: #1c1c66; opacity: 1">Coberturas</a>
+          <a href="#" style="display: block; padding: 9px 12px; border-radius: 6px; font: 400 14px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #ffffff; opacity: 0.75" style-hover="background: #1c1c66; opacity: 1">Evidencias</a>
+          <a href="#" style="display: block; padding: 9px 12px; border-radius: 6px; font: 400 14px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #ffffff; opacity: 0.75" style-hover="background: #1c1c66; opacity: 1">Cierre diario</a>
+          <a href="#" style="display: block; padding: 9px 12px; border-radius: 6px; font: 400 14px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #ffffff; opacity: 0.75" style-hover="background: #1c1c66; opacity: 1">Planeación</a>
+          <a href="#" style="display: block; padding: 9px 12px; border-radius: 6px; font: 400 14px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #ffffff; opacity: 0.75" style-hover="background: #1c1c66; opacity: 1">Solicitudes</a>
+
+          <span style="font: 600 10px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; letter-spacing: 0.12em; color: #ffffff; opacity: 0.5; padding: 16px 8px 6px">ANÁLISIS</span>
+          <a href="#" style="display: block; padding: 9px 12px; border-radius: 6px; font: 400 14px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #ffffff; opacity: 0.75" style-hover="background: #1c1c66; opacity: 1">Reportes</a>
+          <a href="#" style="display: block; padding: 9px 12px; border-radius: 6px; font: 400 14px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #ffffff; opacity: 0.75" style-hover="background: #1c1c66; opacity: 1">Auditoría</a>
+
+          <span style="font: 600 10px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; letter-spacing: 0.12em; color: #ffffff; opacity: 0.5; padding: 16px 8px 6px">CONFIGURACIÓN</span>
+          <a href="#" aria-current="page" style="display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 6px; font: 600 14px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #ffffff; background: #1c1c66">
+            <span style="width: 3px; height: 16px; border-radius: 2px; background: #22c6ee"></span>Clientes</a>
+          <a href="#" style="display: block; padding: 9px 12px; border-radius: 6px; font: 400 14px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #ffffff; opacity: 0.75" style-hover="background: #1c1c66; opacity: 1">Servicios</a>
+          <a href="#" style="display: block; padding: 9px 12px; border-radius: 6px; font: 400 14px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #ffffff; opacity: 0.75" style-hover="background: #1c1c66; opacity: 1">Personal</a>
+          <a href="#" style="display: block; padding: 9px 12px; border-radius: 6px; font: 400 14px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #ffffff; opacity: 0.75" style-hover="background: #1c1c66; opacity: 1">Catálogos</a>
+          <a href="#" style="display: block; padding: 9px 12px; border-radius: 6px; font: 400 14px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #ffffff; opacity: 0.75" style-hover="background: #1c1c66; opacity: 1">Seguridad</a>
+        </div>
+      </nav>
+
+      <div style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+
+        <div style="flex: none; background: #ffffff">
+          <div style="height: 4.5rem; display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 0 24px">
+            <div style="display: flex; align-items: center; gap: 12px; min-width: 0">
+              <span style="width: 8px; height: 8px; border-radius: 999px; background: #d97706; flex: none"></span>
+              <span style="font: 600 16px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #253040">GestIA Operadora Local</span>
+              <span style="font: 400 14px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #5f6b7a">Sesión de soporte</span>
+            </div>
+            <div role="button" tabindex="0" aria-label="Cambiar fecha operativa, 04 sep 2026" style="display: flex; align-items: center; gap: 10px; height: 2.5rem; padding: 0 12px; border: 1px solid #dce2e9; border-radius: 6px; background: #ffffff" style-focus="outline: 2px solid #22c6ee; outline-offset: 1px">
+              <span style="font: 400 11px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; letter-spacing: 0.06em; text-transform: uppercase; color: #5f6b7a">Fecha operativa</span>
+              <span style="font: 600 14px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #253040">04 sep 2026</span>
+              <span style="font: 400 10px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #5f6b7a">▾</span>
+            </div>
+          </div>
+          <div style="background: rgba(217, 119, 6, 0.10); border-top: 3px solid #d97706; border-bottom: 1px solid #d97706; padding: 12px 24px; display: flex; align-items: center; justify-content: space-between; gap: 24px">
+            <div style="display: flex; align-items: center; gap: 12px; min-width: 0; flex-wrap: wrap">
+              <span style="font: 700 12px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; letter-spacing: 0.1em; text-transform: uppercase; color: #253040">Modo soporte</span>
+              <span style="width: 1px; height: 14px; background: #d97706; opacity: 0.5"></span>
+              <span style="font: 400 14px/1.3 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #253040">Turnos duplicados en el servicio nocturno de la sede Norte</span>
+              <span style="width: 1px; height: 14px; background: #d97706; opacity: 0.5"></span>
+              <span style="font: 600 14px/1.3 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #253040">Expira en 47 min</span>
+            </div>
+            <button type="button" style="height: 2rem; padding: 0 14px; border: 1px solid #d97706; border-radius: 6px; background: #ffffff; color: #253040; font: 600 13px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; cursor: pointer; flex: none" style-hover="background: #d97706; color: #ffffff" style-focus="outline: 2px solid #10104e; outline-offset: 2px">Finalizar soporte</button>
+          </div>
+        </div>
+
+        <div style="flex: 1; min-height: 0; overflow: hidden; padding: 24px; display: flex; flex-direction: column; gap: 16px">
+
+          <div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 24px">
+            <div style="display: flex; flex-direction: column; gap: 6px">
+              <span style="font: 600 11px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; letter-spacing: 0.1em; text-transform: uppercase; color: #5f6b7a">Configuración</span>
+              <h2 style="margin: 0; font: 600 24px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #10104e">Clientes</h2>
+            </div>
+            <button type="button" style="height: 2.5rem; padding: 0 16px; border: 1px solid #10104e; border-radius: 6px; background: #10104e; color: #ffffff; font: 600 14px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; cursor: pointer; flex: none" style-hover="background: #1c1c66; border-color: #1c1c66" style-focus="outline: 2px solid #22c6ee; outline-offset: 2px">Nuevo cliente</button>
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px">
+            <div style="background: #ffffff; border: 1px solid #dce2e9; border-radius: 6px; padding: 16px; display: flex; flex-direction: column; gap: 10px">
+              <span style="font: 600 11px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; letter-spacing: 0.1em; text-transform: uppercase; color: #5f6b7a">Turnos por semana</span>
+              <span style="font: 600 34px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #10104e; letter-spacing: -0.02em">1,284</span>
+              <div style="height: 6px; background: #f7f9fb; border: 1px solid #dce2e9; border-radius: 999px; overflow: hidden; display: flex">
+                <span style="width: 62%; background: #10104e"></span>
+                <span style="width: 24%; background: #22c6ee"></span>
+              </div>
+              <span style="font: 400 12px/1.4 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #5f6b7a">62% en tres clientes · 24% en los siguientes cinco</span>
+            </div>
+            <div style="background: #ffffff; border: 1px solid #dce2e9; border-radius: 6px; padding: 16px; display: flex; flex-direction: column; gap: 10px">
+              <span style="font: 600 11px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; letter-spacing: 0.1em; text-transform: uppercase; color: #5f6b7a">Clientes activos</span>
+              <span style="font: 600 34px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #10104e; letter-spacing: -0.02em">13<span style="font: 400 18px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #5f6b7a"> / 15</span></span>
+              <div style="height: 6px; background: #f7f9fb; border: 1px solid #dce2e9; border-radius: 999px; overflow: hidden; display: flex">
+                <span style="width: 87%; background: #16a34a"></span>
+              </div>
+              <span style="font: 400 12px/1.4 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #5f6b7a">2 inactivos · 3 sin contrato vigente</span>
+            </div>
+            <div style="background: #ffffff; border: 1px solid #dce2e9; border-radius: 6px; padding: 16px; display: flex; flex-direction: column; gap: 10px">
+              <span style="font: 600 11px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; letter-spacing: 0.1em; text-transform: uppercase; color: #5f6b7a">Cobertura documental</span>
+              <span style="font: 600 34px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #10104e; letter-spacing: -0.02em">78<span style="font: 400 18px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #5f6b7a">%</span></span>
+              <div style="height: 6px; background: #f7f9fb; border: 1px solid #dce2e9; border-radius: 999px; overflow: hidden; display: flex">
+                <span style="width: 78%; background: #10104e"></span>
+              </div>
+              <span style="font: 400 12px/1.4 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #5f6b7a">33 de 42 sedes con expediente completo</span>
+            </div>
+          </div>
+
+          <div style="background: #ffffff; border: 1px solid #dce2e9; border-radius: 6px; display: flex; flex-direction: column; min-height: 0; flex: 1">
+            <div style="flex: none; padding: 12px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #dce2e9">
+              <label style="flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; height: 2.5rem; padding: 0 12px; border: 1px solid #dce2e9; border-radius: 6px; background: #ffffff" style-focus-within="border-color: #22c6ee">
+                <span aria-hidden="true" style="font: 400 13px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #5f6b7a">Buscar</span>
+                <input type="text" placeholder="Cliente, sede o responsable" aria-label="Buscar cliente, sede o responsable" style="flex: 1; min-width: 0; border: 0; outline: none; background: transparent; font: 400 14px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #253040">
+              </label>
+              <span style="font: 400 13px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #5f6b7a; flex: none">15 clientes</span>
+              <button type="button" style="height: 2.5rem; padding: 0 14px; border: 1px solid #dce2e9; border-radius: 6px; background: #ffffff; color: #253040; font: 600 14px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; cursor: pointer; flex: none" style-hover="border-color: #10104e" style-focus="outline: 2px solid #22c6ee; outline-offset: 2px">Filtros</button>
+            </div>
+
+            <div style="flex: 1; min-height: 0; overflow: hidden">
+              <table style="width: 100%; border-collapse: collapse; table-layout: fixed">
+                <thead>
+                  <tr style="background: #f7f9fb">
+                    <th scope="col" style="text-align: left; padding: 9px 16px; font: 600 11px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; letter-spacing: 0.08em; text-transform: uppercase; color: #5f6b7a; border-bottom: 1px solid #dce2e9">Cliente</th>
+                    <th scope="col" style="text-align: left; padding: 9px 16px; width: 230px; font: 600 11px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; letter-spacing: 0.08em; text-transform: uppercase; color: #5f6b7a; border-bottom: 1px solid #dce2e9">Carga operativa</th>
+                    <th scope="col" style="text-align: left; padding: 9px 16px; width: 170px; font: 600 11px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; letter-spacing: 0.08em; text-transform: uppercase; color: #5f6b7a; border-bottom: 1px solid #dce2e9">Expediente</th>
+                    <th scope="col" style="text-align: left; padding: 9px 16px; width: 170px; font: 600 11px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; letter-spacing: 0.08em; text-transform: uppercase; color: #5f6b7a; border-bottom: 1px solid #dce2e9">Estado</th>
+                    <th scope="col" style="width: 52px; border-bottom: 1px solid #dce2e9"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Acciones</span></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <sc-for list="{{ clientes }}" as="c" hint-placeholder-count="15">
+                    <tr tabindex="0" style="border-bottom: 1px solid #dce2e9; cursor: pointer" style-hover="background: #f7f9fb" style-focus="outline: 2px solid #22c6ee; outline-offset: -2px">
+                      <td style="padding: 11px 16px">
+                        <div style="display: flex; flex-direction: column; gap: 3px; min-width: 0">
+                          <span style="font: 600 15px/1.3 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #253040">{{ c.nombre }}</span>
+                          <span style="font: 400 12px/1.3 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #5f6b7a">{{ c.apoyo }}</span>
+                        </div>
+                      </td>
+                      <td style="padding: 11px 16px">
+                        <div style="display: flex; align-items: center; gap: 10px">
+                          <div style="flex: 1; min-width: 0; height: 6px; background: #f7f9fb; border: 1px solid #dce2e9; border-radius: 999px; overflow: hidden">
+                            <span style="display: block; height: 100%; background: #10104e; width: {{ c.cargaPct }}"></span>
+                          </div>
+                          <span style="flex: none; width: 74px; font: 400 12px/1.3 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #5f6b7a">{{ c.turnos }} turnos</span>
+                        </div>
+                      </td>
+                      <td style="padding: 11px 16px">
+                        <div style="display: flex; align-items: center; gap: 10px">
+                          <div style="flex: 1; min-width: 0; height: 6px; background: #f7f9fb; border: 1px solid #dce2e9; border-radius: 999px; overflow: hidden">
+                            <span style="display: block; height: 100%; background: #22c6ee; width: {{ c.docsPct }}"></span>
+                          </div>
+                          <span style="flex: none; width: 46px; font: 400 12px/1.3 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #5f6b7a">{{ c.docs }}</span>
+                        </div>
+                      </td>
+                      <td style="padding: 11px 16px">
+                        <span style="display: inline-flex; align-items: center; gap: 9px; font: 400 13px/1.3 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #253040">
+                          <span aria-hidden="true" style="flex: none; width: 8px; height: 8px; background: {{ c.marcaFondo }}; border: 1.5px solid {{ c.marcaBorde }}; border-radius: {{ c.marcaRadio }}; transform: {{ c.marcaGiro }}"></span>{{ c.estado }}</span>
+                      </td>
+                      <td style="padding: 11px 16px; text-align: right">
+                        <button type="button" aria-label="Acciones del cliente" style="width: 24px; height: 24px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: #5f6b7a; font: 600 14px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; cursor: pointer" style-hover="border-color: #dce2e9; color: #253040" style-focus="outline: 2px solid #22c6ee; outline-offset: 1px">⋯</button>
+                      </td>
+                    </tr>
+                  </sc-for>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <p style="margin: 0; max-width: 100ch; font: 400 13px/1.6 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #5f6b7a; text-wrap: pretty">Un solo estado por fila, resuelto por precedencia: inactivo gana sobre sin contrato, y sin contrato gana sobre activo. La forma lo distingue sin depender del color: círculo lleno verde para activo, rombo ámbar para sin contrato vigente, círculo hueco gris para inactivo. Las dos barras comparten escala entre filas, así que la comparación se hace de un barrido vertical y no leyendo dígitos.</p>
+  </div>
+
+  <!-- Vista 2 -->
+  <div style="display: flex; flex-direction: column; gap: 16px">
+    <div style="display: flex; align-items: baseline; gap: 16px">
+      <span style="font: 600 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.1em; color: #10104e">VISTA 2</span>
+      <span style="font: 600 15px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #253040">Con el panel abierto, sin perder información</span>
+    </div>
+
+    <div style="width: 1440px; height: 940px; display: flex; background: #f4f6fa; border: 1px solid #dce2e9; border-radius: 6px; overflow: hidden">
+
+      <nav aria-label="Navegación principal" style="width: 17rem; flex: none; background: #10104e; display: flex; flex-direction: column">
+        <div style="height: 4.5rem; display: flex; align-items: center; padding: 0 20px; flex: none">
+          <span style="font: 700 18px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #ffffff; letter-spacing: -0.01em">Gest<span style="color: #22c6ee">IA</span></span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 2px; padding: 4px 12px 16px">
+          <span style="font: 600 10px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; letter-spacing: 0.12em; color: #ffffff; opacity: 0.5; padding: 12px 8px 6px">PLATAFORMA</span>
+          <a href="#" style="display: block; padding: 9px 12px; border-radius: 6px; font: 400 14px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #ffffff; opacity: 0.75" style-hover="background: #1c1c66; opacity: 1">Inicio</a>
+          <a href="#" style="display: block; padding: 9px 12px; border-radius: 6px; font: 400 14px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #ffffff; opacity: 0.75" style-hover="background: #1c1c66; opacity: 1">Monitor global</a>
+          <a href="#" style="display: block; padding: 9px 12px; border-radius: 6px; font: 400 14px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #ffffff; opacity: 0.75" style-hover="background: #1c1c66; opacity: 1">Organizaciones</a>
+
+          <span style="font: 600 10px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; letter-spacing: 0.12em; color: #ffffff; opacity: 0.5; padding: 16px 8px 6px">OPERACIÓN</span>
+          <a href="#" style="display: block; padding: 9px 12px; border-radius: 6px; font: 400 14px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #ffffff; opacity: 0.75" style-hover="background: #1c1c66; opacity: 1">Asistencia</a>
+          <a href="#" style="display: block; padding: 9px 12px; border-radius: 6px; font: 400 14px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #ffffff; opacity: 0.75" style-hover="background: #1c1c66; opacity: 1">Incidencias</a>
+          <a href="#" style="display: block; padding: 9px 12px; border-radius: 6px; font: 400 14px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #ffffff; opacity: 0.75" style-hover="background: #1c1c66; opacity: 1">Coberturas</a>
+          <a href="#" style="display: block; padding: 9px 12px; border-radius: 6px; font: 400 14px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #ffffff; opacity: 0.75" style-hover="background: #1c1c66; opacity: 1">Evidencias</a>
+          <a href="#" style="display: block; padding: 9px 12px; border-radius: 6px; font: 400 14px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #ffffff; opacity: 0.75" style-hover="background: #1c1c66; opacity: 1">Cierre diario</a>
+          <a href="#" style="display: block; padding: 9px 12px; border-radius: 6px; font: 400 14px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #ffffff; opacity: 0.75" style-hover="background: #1c1c66; opacity: 1">Planeación</a>
+          <a href="#" style="display: block; padding: 9px 12px; border-radius: 6px; font: 400 14px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #ffffff; opacity: 0.75" style-hover="background: #1c1c66; opacity: 1">Solicitudes</a>
+
+          <span style="font: 600 10px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; letter-spacing: 0.12em; color: #ffffff; opacity: 0.5; padding: 16px 8px 6px">ANÁLISIS</span>
+          <a href="#" style="display: block; padding: 9px 12px; border-radius: 6px; font: 400 14px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #ffffff; opacity: 0.75" style-hover="background: #1c1c66; opacity: 1">Reportes</a>
+          <a href="#" style="display: block; padding: 9px 12px; border-radius: 6px; font: 400 14px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #ffffff; opacity: 0.75" style-hover="background: #1c1c66; opacity: 1">Auditoría</a>
+
+          <span style="font: 600 10px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; letter-spacing: 0.12em; color: #ffffff; opacity: 0.5; padding: 16px 8px 6px">CONFIGURACIÓN</span>
+          <a href="#" aria-current="page" style="display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 6px; font: 600 14px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #ffffff; background: #1c1c66">
+            <span style="width: 3px; height: 16px; border-radius: 2px; background: #22c6ee"></span>Clientes</a>
+          <a href="#" style="display: block; padding: 9px 12px; border-radius: 6px; font: 400 14px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #ffffff; opacity: 0.75" style-hover="background: #1c1c66; opacity: 1">Servicios</a>
+          <a href="#" style="display: block; padding: 9px 12px; border-radius: 6px; font: 400 14px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #ffffff; opacity: 0.75" style-hover="background: #1c1c66; opacity: 1">Personal</a>
+          <a href="#" style="display: block; padding: 9px 12px; border-radius: 6px; font: 400 14px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #ffffff; opacity: 0.75" style-hover="background: #1c1c66; opacity: 1">Catálogos</a>
+          <a href="#" style="display: block; padding: 9px 12px; border-radius: 6px; font: 400 14px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #ffffff; opacity: 0.75" style-hover="background: #1c1c66; opacity: 1">Seguridad</a>
+        </div>
+      </nav>
+
+      <div style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+
+        <div style="flex: none; background: #ffffff">
+          <div style="height: 4.5rem; display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 0 24px">
+            <div style="display: flex; align-items: center; gap: 12px; min-width: 0">
+              <span style="width: 8px; height: 8px; border-radius: 999px; background: #d97706; flex: none"></span>
+              <span style="font: 600 16px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #253040">GestIA Operadora Local</span>
+              <span style="font: 400 14px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #5f6b7a">Sesión de soporte</span>
+            </div>
+            <div role="button" tabindex="0" aria-label="Cambiar fecha operativa, 04 sep 2026" style="display: flex; align-items: center; gap: 10px; height: 2.5rem; padding: 0 12px; border: 1px solid #dce2e9; border-radius: 6px; background: #ffffff" style-focus="outline: 2px solid #22c6ee; outline-offset: 1px">
+              <span style="font: 400 11px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; letter-spacing: 0.06em; text-transform: uppercase; color: #5f6b7a">Fecha operativa</span>
+              <span style="font: 600 14px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #253040">04 sep 2026</span>
+              <span style="font: 400 10px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #5f6b7a">▾</span>
+            </div>
+          </div>
+          <div style="background: rgba(217, 119, 6, 0.10); border-top: 3px solid #d97706; border-bottom: 1px solid #d97706; padding: 12px 24px; display: flex; align-items: center; justify-content: space-between; gap: 24px">
+            <div style="display: flex; align-items: center; gap: 12px; min-width: 0; flex-wrap: wrap">
+              <span style="font: 700 12px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; letter-spacing: 0.1em; text-transform: uppercase; color: #253040">Modo soporte</span>
+              <span style="width: 1px; height: 14px; background: #d97706; opacity: 0.5"></span>
+              <span style="font: 400 14px/1.3 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #253040">Turnos duplicados en el servicio nocturno de la sede Norte</span>
+              <span style="width: 1px; height: 14px; background: #d97706; opacity: 0.5"></span>
+              <span style="font: 600 14px/1.3 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #253040">Expira en 47 min</span>
+            </div>
+            <button type="button" style="height: 2rem; padding: 0 14px; border: 1px solid #d97706; border-radius: 6px; background: #ffffff; color: #253040; font: 600 13px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; cursor: pointer; flex: none" style-hover="background: #d97706; color: #ffffff" style-focus="outline: 2px solid #10104e; outline-offset: 2px">Finalizar soporte</button>
+          </div>
+        </div>
+
+        <div style="flex: 1; min-height: 0; overflow: hidden; padding: 24px; display: flex; flex-direction: column; gap: 16px">
+
+          <div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 24px">
+            <div style="display: flex; flex-direction: column; gap: 6px">
+              <span style="font: 600 11px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; letter-spacing: 0.1em; text-transform: uppercase; color: #5f6b7a">Configuración</span>
+              <h2 style="margin: 0; font: 600 24px/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #10104e">Clientes</h2>
+            </div>
+            <button type="button" style="height: 2.5rem; padding: 0 16px; border: 1px solid #10104e; border-radius: 6px; background: #10104e; color: #ffffff; font: 600 14px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; cursor: pointer; flex: none" style-hover="background: #1c1c66; border-color: #1c1c66" style-focus="outline: 2px solid #22c6ee; outline-offset: 2px">Nuevo cliente</button>
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px">
+            <div style="background: #ffffff; border: 1px solid #dce2e9; border-radius: 6px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; gap: 16px">
+              <div style="display: flex; flex-direction: column; gap: 4px; min-width: 0">
+                <span style="font: 600 11px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; letter-spacing: 0.1em; text-transform: uppercase; color: #5f6b7a">Turnos por semana</span>
+                <span style="font: 400 12px/1.3 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #5f6b7a">Muñoz aporta 168, el 13%</span>
+              </div>
+              <span style="font: 600 24px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #10104e; flex: none">1,284</span>
+            </div>
+            <div style="background: #ffffff; border: 1px solid #dce2e9; border-radius: 6px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; gap: 16px">
+              <div style="display: flex; flex-direction: column; gap: 4px; min-width: 0">
+                <span style="font: 600 11px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; letter-spacing: 0.1em; text-transform: uppercase; color: #5f6b7a">Clientes activos</span>
+                <span style="font: 400 12px/1.3 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #5f6b7a">2 inactivos · 3 sin contrato</span>
+              </div>
+              <span style="font: 600 24px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #10104e; flex: none">13 / 15</span>
+            </div>
+            <div style="background: #ffffff; border: 1px solid #dce2e9; border-radius: 6px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; gap: 16px">
+              <div style="display: flex; flex-direction: column; gap: 4px; min-width: 0">
+                <span style="font: 600 11px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; letter-spacing: 0.1em; text-transform: uppercase; color: #5f6b7a">Cobertura documental</span>
+                <span style="font: 400 12px/1.3 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #5f6b7a">Muñoz al 80%, sobre la media</span>
+              </div>
+              <span style="font: 600 24px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #10104e; flex: none">78%</span>
+            </div>
+          </div>
+
+          <div style="flex: 1; min-height: 0; display: flex; gap: 16px">
+
+            <div style="width: 560px; flex: none; background: #ffffff; border: 1px solid #dce2e9; border-radius: 6px; display: flex; flex-direction: column; min-height: 0">
+              <div style="flex: none; padding: 12px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #dce2e9">
+                <label style="flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; height: 2.5rem; padding: 0 12px; border: 1px solid #dce2e9; border-radius: 6px; background: #ffffff" style-focus-within="border-color: #22c6ee">
+                  <span aria-hidden="true" style="font: 400 13px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #5f6b7a">Buscar</span>
+                  <input type="text" placeholder="Cliente, sede o responsable" aria-label="Buscar cliente, sede o responsable" style="flex: 1; min-width: 0; border: 0; outline: none; background: transparent; font: 400 14px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #253040">
+                </label>
+                <button type="button" style="height: 2.5rem; padding: 0 14px; border: 1px solid #dce2e9; border-radius: 6px; background: #ffffff; color: #253040; font: 600 14px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; cursor: pointer; flex: none" style-hover="border-color: #10104e" style-focus="outline: 2px solid #22c6ee; outline-offset: 2px">Filtros</button>
+              </div>
+              <div style="flex: 1; min-height: 0; overflow: hidden">
+                <sc-for list="{{ clientes }}" as="c" hint-placeholder-count="15">
+                  <div tabindex="0" role="button" style="border-bottom: 1px solid #dce2e9; padding: 10px 16px; cursor: pointer; display: flex; align-items: center; gap: 12px; background: {{ c.filaFondo }}" style-hover="background: #f7f9fb" style-focus="outline: 2px solid #22c6ee; outline-offset: -2px">
+                    <span aria-hidden="true" style="flex: none; width: 8px; height: 8px; background: {{ c.marcaFondo }}; border: 1.5px solid {{ c.marcaBorde }}; border-radius: {{ c.marcaRadio }}; transform: {{ c.marcaGiro }}"></span>
+                    <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px">
+                      <span style="font: 600 14px/1.3 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #253040">{{ c.nombre }}</span>
+                      <span style="font: 400 12px/1.3 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #5f6b7a">{{ c.condensado }}</span>
+                    </div>
+                    <div style="flex: none; width: 92px; display: flex; flex-direction: column; gap: 4px; align-items: flex-end">
+                      <span style="font: 600 13px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #253040">{{ c.turnos }}</span>
+                      <div style="width: 92px; height: 5px; background: #f7f9fb; border: 1px solid #dce2e9; border-radius: 999px; overflow: hidden">
+                        <span style="display: block; height: 100%; background: #10104e; width: {{ c.cargaPct }}"></span>
+                      </div>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+
+            <aside aria-label="Detalle del cliente" style="flex: 1; min-width: 0; background: #ffffff; border: 1px solid #dce2e9; border-radius: 6px; display: flex; flex-direction: column; min-height: 0">
+              <div style="flex: none; padding: 16px; border-bottom: 1px solid #dce2e9; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px">
+                <div style="display: flex; flex-direction: column; gap: 6px; min-width: 0">
+                  <h3 style="margin: 0; font: 600 20px/1.25 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #10104e">Aeropuertos y Servicios Muñoz</h3>
+                  <span style="display: inline-flex; align-items: center; gap: 9px; font: 400 13px/1.3 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #5f6b7a">
+                    <span aria-hidden="true" style="width: 8px; height: 8px; border-radius: 999px; background: #16a34a; border: 1.5px solid #16a34a"></span>Activo · Cliente desde 12 feb 2023 · Contrato vigente al 31 ene 2027</span>
+                </div>
+                <button type="button" aria-label="Cerrar detalle" style="width: 2rem; height: 2rem; flex: none; border: 1px solid #dce2e9; border-radius: 6px; background: #ffffff; color: #5f6b7a; font: 400 14px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; cursor: pointer" style-hover="border-color: #10104e; color: #253040" style-focus="outline: 2px solid #22c6ee; outline-offset: 2px">✕</button>
+              </div>
+
+              <div style="flex: none; display: flex; gap: 4px; padding: 0 16px; border-bottom: 1px solid #dce2e9">
+                <button type="button" style="padding: 12px 4px; margin-right: 20px; border: 0; border-bottom: 2px solid #22c6ee; background: transparent; color: #10104e; font: 600 14px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; cursor: pointer">Ficha</button>
+                <button type="button" style="padding: 12px 4px; margin-right: 20px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: #5f6b7a; font: 400 14px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; cursor: pointer" style-hover="color: #253040">Sedes · 6</button>
+                <button type="button" style="padding: 12px 4px; margin-right: 20px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: #5f6b7a; font: 400 14px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; cursor: pointer" style-hover="color: #253040">Servicios · 12</button>
+                <button type="button" style="padding: 12px 4px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: #5f6b7a; font: 400 14px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; cursor: pointer" style-hover="color: #253040">Documentos · 8/10</button>
+              </div>
+
+              <div style="flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column">
+
+                <div style="flex: none; padding: 20px 16px; border-bottom: 1px solid #dce2e9; display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px">
+                  <div style="display: flex; flex-direction: column; gap: 8px">
+                    <span style="font: 600 11px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; letter-spacing: 0.08em; text-transform: uppercase; color: #5f6b7a">Turnos por semana</span>
+                    <span style="font: 600 40px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #10104e; letter-spacing: -0.02em">168</span>
+                    <div style="height: 6px; background: #f7f9fb; border: 1px solid #dce2e9; border-radius: 999px; overflow: hidden">
+                      <span style="display: block; height: 100%; width: 13%; background: #10104e"></span>
+                    </div>
+                    <span style="font: 400 12px/1.4 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #5f6b7a">13% de los 1,284 de la organización</span>
+                  </div>
+                  <div style="display: flex; flex-direction: column; gap: 8px">
+                    <span style="font: 600 11px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; letter-spacing: 0.08em; text-transform: uppercase; color: #5f6b7a">Servicios activos</span>
+                    <span style="font: 600 40px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #10104e; letter-spacing: -0.02em">12</span>
+                    <div style="height: 6px; background: #f7f9fb; border: 1px solid #dce2e9; border-radius: 999px; overflow: hidden; display: flex">
+                      <span style="width: 75%; background: #10104e"></span>
+                      <span style="width: 25%; background: #22c6ee"></span>
+                    </div>
+                    <span style="font: 400 12px/1.4 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #5f6b7a">9 con planeación publicada · 3 sin publicar</span>
+                  </div>
+                  <div style="display: flex; flex-direction: column; gap: 8px">
+                    <span style="font: 600 11px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; letter-spacing: 0.08em; text-transform: uppercase; color: #5f6b7a">Cobertura documental</span>
+                    <span style="font: 600 40px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #10104e; letter-spacing: -0.02em">8<span style="font: 400 20px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #5f6b7a"> / 10</span></span>
+                    <div style="height: 6px; background: #f7f9fb; border: 1px solid #dce2e9; border-radius: 999px; overflow: hidden">
+                      <span style="display: block; height: 100%; width: 80%; background: #22c6ee"></span>
+                    </div>
+                    <span style="font: 400 12px/1.4 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #5f6b7a">Faltan póliza vigente y acta constitutiva</span>
+                  </div>
+                </div>
+
+                <div style="flex: 1; min-height: 0; overflow: hidden; padding: 16px; display: flex; flex-direction: column; gap: 16px">
+
+                  <div style="display: flex; flex-direction: column; gap: 10px">
+                    <span style="font: 600 11px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; letter-spacing: 0.08em; text-transform: uppercase; color: #5f6b7a">Turnos por sede</span>
+                    <sc-for list="{{ sedes }}" as="s" hint-placeholder-count="5">
+                      <div style="display: flex; align-items: center; gap: 12px">
+                        <span style="flex: none; width: 210px; font: 400 13px/1.4 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #253040; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{ s.nombre }}</span>
+                        <div style="flex: 1; min-width: 0; height: 14px; background: #f7f9fb; border: 1px solid #dce2e9; border-radius: 3px; overflow: hidden">
+                          <span style="display: block; height: 100%; background: #10104e; width: {{ s.pct }}"></span>
+                        </div>
+                        <span style="flex: none; width: 72px; text-align: right; font: 600 13px/1.4 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #253040">{{ s.turnos }}</span>
+                        <span style="flex: none; width: 86px; font: 400 12px/1.4 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #5f6b7a">{{ s.servicios }}</span>
+                      </div>
+                    </sc-for>
+                  </div>
+
+                  <div style="border-top: 1px solid #dce2e9; padding-top: 16px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px">
+                    <div style="display: flex; flex-direction: column; gap: 4px">
+                      <span style="font: 600 11px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; letter-spacing: 0.08em; text-transform: uppercase; color: #5f6b7a">Razón social</span>
+                      <span style="font: 400 13px/1.4 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #253040">Aeropuertos y Servicios Muñoz, S.A. de C.V.</span>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 4px">
+                      <span style="font: 600 11px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; letter-spacing: 0.08em; text-transform: uppercase; color: #5f6b7a">RFC</span>
+                      <span style="font: 400 13px/1.4 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #253040">ASM230212QX4</span>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 4px">
+                      <span style="font: 600 11px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; letter-spacing: 0.08em; text-transform: uppercase; color: #5f6b7a">Actividad</span>
+                      <span style="font: 400 13px/1.4 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #253040">Servicios aeroportuarios</span>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 4px">
+                      <span style="font: 600 11px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; letter-spacing: 0.08em; text-transform: uppercase; color: #5f6b7a">Responsable</span>
+                      <span style="font: 400 13px/1.4 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #253040">Adriana Rentería Solís</span>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 4px">
+                      <span style="font: 600 11px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; letter-spacing: 0.08em; text-transform: uppercase; color: #5f6b7a">Contacto</span>
+                      <span style="font: 400 13px/1.4 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #253040">contacto@asmunoz.mx · 55 4821 0093</span>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 4px">
+                      <span style="font: 600 11px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; letter-spacing: 0.08em; text-transform: uppercase; color: #5f6b7a">Nacionalidad</span>
+                      <span style="font: 400 13px/1.4 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #253040">Mexicana</span>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+
+              <div style="flex: none; padding: 12px 16px; border-top: 1px solid #dce2e9; display: flex; align-items: center; justify-content: space-between; gap: 12px">
+                <button type="button" aria-label="Más acciones del cliente" style="width: 2.5rem; height: 2.5rem; border: 1px solid #dce2e9; border-radius: 6px; background: #ffffff; color: #5f6b7a; font: 600 14px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; cursor: pointer" style-hover="border-color: #10104e; color: #253040" style-focus="outline: 2px solid #22c6ee; outline-offset: 2px">⋯</button>
+                <button type="button" style="height: 2.5rem; padding: 0 16px; border: 1px solid #10104e; border-radius: 6px; background: #10104e; color: #ffffff; font: 600 14px/1 'Helvetica Neue', Helvetica, Arial, sans-serif; cursor: pointer" style-hover="background: #1c1c66; border-color: #1c1c66" style-focus="outline: 2px solid #22c6ee; outline-offset: 2px">Editar ficha</button>
+              </div>
+            </aside>
+
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p style="margin: 0; max-width: 100ch; font: 400 13px/1.6 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #5f6b7a; text-wrap: pretty">Al abrir el panel la tabla no suelta columnas: se convierte en lista de comparación. Cada renglón conserva estado, servicios, contrato, responsable y carga —los tres primeros condensados en la línea de apoyo, la carga en su barra a la misma escala que en la vista 1—, y las tarjetas de indicador siguen arriba, ahora en una línea con el dato del cliente abierto contra el total de la organización. El panel da la lectura: 168 turnos grandes, y debajo cuánto de eso es cada sede.</p>
+  </div>
+
+  <!-- Decisión de patrón -->
+  <div style="width: 1440px; display: flex; flex-direction: column; gap: 16px; border-top: 1px solid #dce2e9; padding-top: 28px">
+    <span style="font: 600 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.1em; color: #10104e">DECISIÓN · DÓNDE VIVEN LOS FORMULARIOS</span>
+    <p style="margin: 0; max-width: 92ch; font: 400 14px/1.7 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #253040; text-wrap: pretty">Un solo patrón: <strong>todo se edita en el panel lateral</strong>, en el mismo lugar donde se lee. El panel ya es el contenedor del cliente; abrir un diálogo encima de él o navegar a una página propia rompe la comparación con la lista, que es justo lo que el usuario está haciendo. El panel pasa de lectura a edición en sitio: los valores se vuelven campos, el pie cambia a «Guardar cambios» y «Descartar», y la pestaña activa marca cambios sin guardar. Alta de sede, de contrato, de contacto y carga de documento ocurren dentro de su pestaña, no en ventanas nuevas.</p>
+    <p style="margin: 0; max-width: 92ch; font: 400 14px/1.7 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #253040; text-wrap: pretty">Dos excepciones, ambas justificadas: <strong>nuevo cliente</strong> abre el panel vacío en modo alta —no hay fila que comparar todavía, y el panel evita una página que solo existiría para siete campos—; y <strong>desactivar cliente</strong> es diálogo modal, porque la confirmación destructiva necesita bloquear todo lo demás y no puede compartir pantalla con la acción que confirma. Ninguna operación de esta pantalla usa página propia.</p>
+    <p style="margin: 0; max-width: 92ch; font: 400 13px/1.6 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #5f6b7a; text-wrap: pretty">Tokens de esta ronda: --gestia-navy, --gestia-navy-soft, --gestia-cyan, --gestia-cyan-soft, --gestia-canvas, --gestia-surface, --gestia-surface-soft, --gestia-border, --gestia-text, --gestia-muted, --gestia-success, --gestia-warning, --gestia-sidebar-width, --gestia-topbar-height, --gestia-radius, --gestia-control-height. Las barras son divs con borde y relleno en navy o cian; sin librería de gráficas.</p>
+  </div>
+
+</section>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+const MAX_TURNOS = 168;
+
+function cliente(nombre, sedes, servicios, turnos, docsHechos, docsTotal, contrato, responsable, estado, sel) {
+  const marca = {
+    activo:   { fondo: "#16a34a", borde: "#16a34a", radio: "999px", giro: "none" },
+    contrato: { fondo: "#d97706", borde: "#d97706", radio: "1px",   giro: "rotate(45deg)" },
+    inactivo: { fondo: "transparent", borde: "#5f6b7a", radio: "999px", giro: "none" }
+  }[estado];
+  const etiqueta = { activo: "Activo", contrato: "Sin contrato vigente", inactivo: "Inactivo" }[estado];
+  const sedeTexto = sedes === 0 ? "Sin sede capturada" : sedes + (sedes === 1 ? " sede" : " sedes");
+  return {
+    nombre,
+    apoyo: sedeTexto + " · " + servicios + " servicios · " + responsable,
+    condensado: sedeTexto + " · " + servicios + " serv. · " + contrato + " · " + responsable,
+    turnos,
+    cargaPct: Math.round((turnos / MAX_TURNOS) * 100) + "%",
+    docs: docsHechos + "/" + docsTotal,
+    docsPct: Math.round((docsHechos / docsTotal) * 100) + "%",
+    estado: etiqueta,
+    marcaFondo: marca.fondo,
+    marcaBorde: marca.borde,
+    marcaRadio: marca.radio,
+    marcaGiro: marca.giro,
+    filaFondo: sel ? "#e9f7fa" : "transparent"
+  };
+}
+
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      clientes: [
+        cliente("Corporativo Peñaloza y Asociados", 4, 7, 96, 9, 10, "Vigente al 31 dic 2026", "Mariana Ortíz", "activo"),
+        cliente("Grupo Industrial Zúñiga", 2, 3, 42, 7, 10, "Vigente al 15 mar 2027", "Luis Fernando Cázares", "activo"),
+        cliente("Textiles La Ñora", 1, 1, 14, 4, 10, "Sin contrato vigente", "Sin responsable", "contrato"),
+        cliente("Clínica Santa Bárbara del Bajío", 3, 5, 70, 10, 10, "Vigente al 30 jun 2027", "Óscar Villaseñor", "activo"),
+        cliente("Aeropuertos y Servicios Muñoz", 6, 12, 168, 8, 10, "Vigente al 31 ene 2027", "Adriana Rentería", "activo", true),
+        cliente("CEDIS Norte", 1, 2, 28, 6, 10, "Vigente al 28 feb 2027", "Mariana Ortíz", "activo"),
+        cliente("Universidad Tecnológica de Iztapalapa", 5, 9, 126, 9, 10, "Vigente al 31 jul 2027", "Jorge Iriarte", "activo"),
+        cliente("Laboratorios Farmacéuticos Bañuelos", 2, 4, 56, 5, 10, "Sin contrato vigente", "Adriana Rentería", "contrato"),
+        cliente("Plaza Comercial Río Verde", 0, 0, 0, 2, 10, "Vigente al 31 oct 2026", "Sin responsable", "activo"),
+        cliente("Constructora Ibáñez Hermanos", 3, 6, 84, 8, 10, "Vigente al 30 abr 2027", "Luis Fernando Cázares", "activo"),
+        cliente("Ágora Servicios Corporativos", 1, 1, 7, 6, 10, "Venció el 31 ago 2026", "Óscar Villaseñor", "inactivo"),
+        cliente("Minera Peña Blanca", 8, 15, 154, 10, 10, "Vigente al 31 dic 2027", "Óscar Villaseñor", "activo"),
+        cliente("Súper Abarrotes Doña Chuy", 0, 1, 14, 3, 10, "Sin contrato vigente", "Mariana Ortíz", "contrato"),
+        cliente("Autotransportes Yáñez del Pacífico", 4, 8, 112, 7, 10, "Vigente al 15 sep 2027", "Jorge Iriarte", "activo"),
+        cliente("Residencial Bosques de Chapultepec", 0, 2, 21, 5, 10, "Vigente al 31 may 2027", "Adriana Rentería", "inactivo")
+      ],
+      sedes: [
+        { nombre: "Terminal de carga Poniente", turnos: 56, pct: "100%", servicios: "4 servicios" },
+        { nombre: "Almacén fiscal Km 14", turnos: 42, pct: "75%", servicios: "3 servicios" },
+        { nombre: "Oficinas corporativas Reforma", turnos: 28, pct: "50%", servicios: "2 servicios" },
+        { nombre: "Patio de maniobras Sur", turnos: 28, pct: "50%", servicios: "2 servicios" },
+        { nombre: "Hangar de mantenimiento", turnos: 14, pct: "25%", servicios: "1 servicio" }
+      ]
+    };
+  }
+}
+
+</script>
+</body>
+</html>

@@ -1,4 +1,26 @@
+using GestIA.Application.Audit;
+using GestIA.Application.Clients;
+using GestIA.Application.Geography;
+using GestIA.Application.Assignments;
+using GestIA.Application.Catalogs;
+using GestIA.Application.Common;
+using GestIA.Application.Documents;
+using GestIA.Application.History;
+using GestIA.Application.Operations;
+using GestIA.Application.Organizations;
+using GestIA.Application.Planning;
+using GestIA.Application.Overview;
+using GestIA.Application.Reports;
+using GestIA.Application.Requests;
+using GestIA.Application.Scheduling;
+using GestIA.Application.Security;
+using GestIA.Application.Services;
+using GestIA.Application.Workforce;
 using GestIA.Infrastructure.Persistence;
+using GestIA.Infrastructure.Persistence.DemoData;
+using GestIA.Infrastructure.Persistence.History;
+using GestIA.Infrastructure.Persistence.Repositories;
+using GestIA.Infrastructure.Security;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -25,6 +47,43 @@ public static class DependencyInjection
 
         services.AddDbContext<GestIaDbContext>(options =>
             SqlServerDbContextOptions.Configure(options, connectionString));
+
+        services.AddScoped<IConcurrencyGuard, EfConcurrencyGuard>();
+        services.AddScoped<IOperationalHistoryRecorder, OperationalHistoryRecorder>();
+        services.AddScoped<IOperationalHistoryRepository, OperationalHistoryRepository>();
+        services.AddScoped<IUnitOfWork, EfUnitOfWork>();
+        // La geografia compartida. Vive en Infrastructure porque lee tablas, no porque tenga
+        // reglas: su unica regla --que nadie le pase una organizacion-- esta en el contrato.
+        services.AddScoped<IGeographyService, GeographyService>();
+        services.AddScoped<IOrganizationRepository, OrganizationRepository>();
+        services.AddScoped<IOrganizationGovernanceRepository, OrganizationGovernanceRepository>();
+        services.AddScoped<IOrganizationAdminProvisioningRepository, OrganizationAdminProvisioningRepository>();
+        services.AddScoped<IClientRepository, ClientRepository>();
+        services.AddScoped<IClientSiteRepository, ClientSiteRepository>();
+        services.AddScoped<IClientContactRepository, ClientContactRepository>();
+        services.AddScoped<IBusinessDocumentRepository, BusinessDocumentRepository>();
+        services.AddScoped<IServiceManagementRepository, ServiceManagementRepository>();
+        services.AddScoped<IWorkforceRepository, WorkforceRepository>();
+        services.AddScoped<IAdministrativeIncidentRepository, AdministrativeIncidentRepository>();
+        services.AddScoped<IPlanningRepository, PlanningRepository>();
+        services.AddScoped<IShiftPatternTemplateRepository, ShiftPatternTemplateRepository>();
+        services.AddScoped<IAssignmentRepository, AssignmentRepository>();
+        services.AddScoped<ICatalogRepository, CatalogRepository>();
+        services.AddScoped<ISchedulingRepository, SchedulingRepository>();
+        services.AddScoped<IOperationsRepository, OperationsRepository>();
+        services.AddScoped<IReportsRepository, ReportsRepository>();
+        services.AddScoped<IOverviewRepository, OverviewRepository>();
+        services.AddScoped<IOperationalRequestRepository, OperationalRequestRepository>();
+        services.AddScoped<IAuditRepository, AuditRepository>();
+        services.AddScoped<IUserAccessRepository, UserAccessRepository>();
+        services.AddSingleton<IPasswordHashService, Pbkdf2PasswordHashService>();
+        services.AddScoped<SecurityDataSeeder>();
+
+        // El sembrador demo se registra siempre pero no hace nada sin DemoData__Enabled=true.
+        services.Configure<DemoDataOptions>(options => DemoDataOptions.Bind(
+            configuration.GetSection(DemoDataOptions.SectionName),
+            options));
+        services.AddScoped<DemoDataSeeder>();
 
         services
             .AddHealthChecks()

@@ -1,0 +1,259 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.clients {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gestia-page-gap);
+  min-width: 0;
+}
+
+.clients__heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.clients__eyebrow {
+  margin: 0;
+  color: var(--gestia-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+}
+
+.clients__title {
+  margin: 0;
+  color: var(--gestia-navy);
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.clients__subtitle {
+  margin: 0.2rem 0 0;
+  color: var(--gestia-muted);
+  font-size: 13px;
+}
+
+.clients__note {
+  margin: 0;
+  padding: var(--gestia-card-padding);
+  border: 1px solid var(--gestia-border);
+  border-radius: var(--gestia-radius);
+  background: var(--gestia-surface);
+  color: var(--gestia-text);
+  font-size: 12.5px;
+}
+
+/* El aviso de «guardado sin sede». Lleva su barra a la izquierda y la salida a la derecha: se
+   resuelve desde aquí, sin ir a buscar dónde. */
+.warning {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: var(--gestia-card-padding);
+  border: 1px solid var(--gestia-warning);
+  border-radius: var(--gestia-radius);
+  background: var(--gestia-surface);
+}
+
+.warning__bar {
+  flex: none;
+  align-self: stretch;
+  width: 3px;
+  border-radius: var(--gestia-radius-pill);
+  background: var(--gestia-warning);
+}
+
+.warning__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.warning__title {
+  color: var(--gestia-text);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.warning__detail {
+  color: var(--gestia-muted);
+  font-size: 12px;
+}
+
+/* El ancho lo absorbe la tabla por dentro. Sin esto, el panel de 620 px empuja la rejilla y la
+   página entera se desplaza a lo ancho, que es lo que el sistema prohíbe. */
+.clients__workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+  min-width: 0;
+}
+
+/* La ficha ya no parte el espacio: va en ventana. Por debajo de 80 rem la columna lateral caia
+   debajo del listado y la ficha desaparecia de la vista. */
+
+.clients__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.panel-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: auto;
+  padding: var(--gestia-card-padding);
+  border-top: 1px solid var(--gestia-border);
+}
+
+.panel-footer__reason {
+  color: var(--gestia-warning);
+  font-size: 11.5px;
+  font-weight: 600;
+  max-width: 30ch;
+}
+
+.panel-footer__summary {
+  color: var(--gestia-muted);
+  font-size: 11.5px;
+}
+
+.button {
+  flex: none;
+  height: var(--gestia-control-height);
+  padding: 0 1rem;
+  border: 1px solid var(--gestia-border);
+  border-radius: var(--gestia-radius);
+  background: var(--gestia-surface);
+  color: var(--gestia-text);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.button:focus-visible {
+  outline: 2px solid var(--gestia-cyan);
+  outline-offset: 2px;
+}
+
+.button:disabled {
+  color: var(--gestia-muted);
+  cursor: not-allowed;
+}
+
+.button--primary {
+  border-color: var(--gestia-navy);
+  background: var(--gestia-navy);
+  color: var(--gestia-surface);
+}
+
+.button--primary:disabled {
+  border-color: var(--gestia-border);
+  background: var(--gestia-surface-soft);
+}
+
+
+
+/* ── Ventana emergente ─────────────────────────────────────────────────────────────────────
+   El alta va encima y no en el panel lateral. El panel comprime la tabla para no perder de vista
+   donde estabas, y eso sirve al abrir un registro que ya existe: se compara con la lista. Un alta
+   no se compara con nada, y ahi la lista comprimida solo le quitaba sitio a un formulario que lo
+   necesita. Todo sale de tokens: la pantalla esta en la lista que el sistema de diseño vigila. */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  background: var(--gestia-dialog-veil);
+}
+
+.modal {
+  width: min(760px, 100%);
+  max-height: calc(100dvh - 2.5rem);
+  overflow-y: auto;
+  border-radius: var(--gestia-radius);
+  padding: var(--gestia-card-padding);
+  background: var(--gestia-surface);
+  box-shadow: var(--gestia-shadow-md);
+}
+
+/* La ficha necesita mas ancho que un formulario: lleva pestañas con tablas dentro.
+
+   Y va sin relleno, al reves que los formularios. Lo que lleva dentro es `gi-detail-panel`, que ya
+   trae su propio borde, su radio y su fondo: con el relleno del modal se veia un marco blanco de
+   1 rem entre dos bordes redondeados, uno dentro del otro.
+
+   VA DESPUES DE `.modal` A PROPOSITO. Las dos son un solo nombre de clase, asi que pesan igual y
+   decide el orden: escrita antes, `.modal` le devolvia el relleno y el marco seguia ahi con la
+   clase puesta. Es el mismo defecto que tuvo `gi-select__list--up`. */
+.modal--ficha {
+  width: min(var(--gestia-panel-width-wide, 1040px), 100%);
+  padding: 0;
+  overflow: hidden;
+}
+
+/* El panel nacio lateral y lleva 620 px fijos en su `:host`. Dentro de una ventana de 1040 px eso
+   dejaba 400 px de blanco a la derecha, que es el espacio desperdiciado que se reporto. Aqui llena
+   lo que se le da; en los modulos donde sigue siendo panel lateral conserva su ancho. */
+.modal--ficha gi-detail-panel { width: 100%; }
+
+/* El editor tiene tres secciones apiladas y no cabia de alto en una ventana de 760 px de ancho:
+   habia que desplazar para llegar a "Guardar cambios". Con mas ancho las secciones respiran y la
+   ventana cabe de una vez en una pantalla normal. */
+.modal--edicion { width: min(var(--gestia-panel-width-wide, 1040px), 100%); }
+
+.modal__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.modal__head h2 { margin: 0.1rem 0 0.2rem; font-size: 13px; }
+.modal__head p { margin: 0; color: var(--gestia-muted); font-size: 11.5px; }
+
+.modal-close {
+  border: 0;
+  background: transparent;
+  color: var(--gestia-muted);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.modal-close:hover:not([disabled]) { color: var(--gestia-text); }
+.modal-close[disabled] { opacity: 0.5; cursor: not-allowed; }
+
+/* La acción de la ficha, en su cabecera. Editar estaba sólo en el menú de la fila del listado, y
+   para llegar había que cerrar la ficha que se estaba mirando. */
+.panel-accion {
+  border: 1px solid var(--gestia-border);
+  border-radius: var(--gestia-radius);
+  padding: 0.2rem 0.6rem;
+  background: var(--gestia-surface);
+  color: var(--gestia-navy);
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.panel-accion:hover { border-color: var(--gestia-cyan-dark); }
+.panel-accion:focus-visible { outline: 2px solid var(--gestia-cyan); outline-offset: 1px; }

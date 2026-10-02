@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<div style="width:214px;border-right:1px solid #b9bec6;background:#f7f8f9;padding:12px 0;display:flex;flex-direction:column;gap:1px;font-family:Archivo,sans-serif;flex:none">
+  <div style="padding:0 14px 10px;font:600 11px/1 'IBM Plex Mono',monospace;letter-spacing:.1em;color:#8b919b">GestIA · {{ roleLabel }}</div>
+  <sc-for list="{{ items }}" as="it" hint-placeholder-count="10">
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 14px;font-size:13.5px;color:#2c3038;background:{{ it.bg }};font-weight:{{ it.weight }}">
+      <span style="width:11px;height:11px;border:1px solid #a9afb8;background:{{ it.dot }};flex:none"></span>
+      <span>{{ it.name }}</span>
+    </div>
+  </sc-for>
+  <div style="margin-top:auto;padding:10px 14px 0;font:400 10.5px/1.4 'IBM Plex Mono',monospace;color:#a9afb8">{{ conteo }}</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:214,&quot;height&quot;:560},&quot;active&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Clientes&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;role&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;admin&quot;,&quot;super&quot;],&quot;default&quot;:&quot;admin&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const todos = ['Inicio','Organizaciones','Catálogos','Clientes','Servicios','Personal','Planeación','Asistencia','Incidencias','Cobertura','Seguridad'];
+    const esSuper = this.props.role === 'super';
+    const base = esSuper ? ['Inicio','Organizaciones','Seguridad'] : todos.filter(m => m !== 'Organizaciones');
+    const active = this.props.active || '';
+    return {
+      items: base.map(name => ({
+        name,
+        bg: name === active ? '#dfe3e8' : 'transparent',
+        dot: name === active ? '#6d7480' : '#ffffff',
+        weight: name === active ? 600 : 400
+      })),
+      roleLabel: esSuper ? 'SUPER ADMIN' : 'ADMIN ORG.',
+      conteo: esSuper ? '3 entradas visibles al super admin' : '10 entradas (Organizaciones no aplica)'
+    };
+  }
+}
+</script>
+</body>
+</html>

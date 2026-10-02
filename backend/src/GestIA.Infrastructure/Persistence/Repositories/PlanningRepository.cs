@@ -1,0 +1,242 @@
+using GestIA.Application.Planning;
+using GestIA.Domain.Catalogs;
+using GestIA.Domain.Planning;
+using Microsoft.EntityFrameworkCore;
+using ServiceEntity = GestIA.Domain.Services.Service;
+
+namespace GestIA.Infrastructure.Persistence.Repositories;
+
+public sealed class PlanningRepository(GestIaDbContext dbContext) : IPlanningRepository
+{
+    public Task<ServiceEntity?> GetServiceAsync(
+        Guid idOrganization,
+        Guid idClient,
+        Guid idService,
+        CancellationToken cancellationToken) =>
+        dbContext.Services.SingleOrDefaultAsync(
+            service =>
+                service.IdService == idService &&
+                service.IdClient == idClient &&
+                service.IdOrganization == idOrganization,
+            cancellationToken);
+
+    public async Task<IReadOnlyList<PositionVacancyResponse>> ListPositionVacancyAsync(
+        Guid idService,
+        DateOnly operationDate,
+        CancellationToken cancellationToken) =>
+        // El orden va sobre las posiciones y no sobre la proyección: ordenar por una propiedad
+        // del registro proyectado no se traduce a SQL, y el Select conserva el orden de entrada.
+        await PositionVacancy
+            .Project(
+                dbContext.Positions
+                    .AsNoTracking()
+                    .Where(position => position.IdService == idService)
+                    .OrderBy(position => position.CodePosition),
+                dbContext.ServiceAssignments.AsNoTracking(),
+                operationDate)
+            .ToArrayAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<Position>> ListPositionsAsync(
+        Guid idService,
+        CancellationToken cancellationToken) =>
+        await dbContext.Positions
+            .AsNoTracking()
+            // El equipo viene resuelto con su nombre: la pantalla lo enseña por nombre, y sin esto
+            // cada posicion del listado costaria una consulta mas.
+            .Include(position => position.RequiredEquipment)
+                .ThenInclude(equipment => equipment.EquipmentCatalogItem)
+            .Where(position => position.IdService == idService)
+            .OrderBy(position => position.CodePosition)
+            .ToArrayAsync(cancellationToken);
+
+    public Task<Position?> GetPositionAsync(
+        Guid idService,
+        Guid idPosition,
+        CancellationToken cancellationToken) =>
+        dbContext.Positions
+            .Include(position => position.RequiredEquipment)
+                .ThenInclude(equipment => equipment.EquipmentCatalogItem)
+            .SingleOrDefaultAsync(
+                position => position.IdService == idService && position.IdPosition == idPosition,
+                cancellationToken);
+
+    public async Task<IReadOnlyList<PositionRequiredEquipment>> ListPositionEquipmentAsync(
+        Guid idPosition,
+        CancellationToken cancellationToken) =>
+        await dbContext.PositionRequiredEquipments
+            .IgnoreQueryFilters(["Active"])
+            .Where(equipment => equipment.IdPosition == idPosition)
+            .ToArrayAsync(cancellationToken);
+
+    public Task AddPositionEquipmentAsync(PositionRequiredEquipment equipment, CancellationToken cancellationToken) =>
+        dbContext.PositionRequiredEquipments.AddAsync(equipment, cancellationToken).AsTask();
+
+    public async Task<bool> AreEquipmentCatalogItemsUsableAsync(
+        Guid idOrganization,
+        IReadOnlyCollection<Guid> idCatalogItems,
+        CancellationToken cancellationToken)
+    {
+        if (idCatalogItems.Count == 0)
+        {
+            return true;
+        }
+
+        var encontrados = await dbContext.BusinessCatalogItems
+            .AsNoTracking()
+            .CountAsync(
+                item => item.IdOrganization == idOrganization &&
+                    item.Type == BusinessCatalogItemType.RequiredEquipment &&
+                    item.Active &&
+                    idCatalogItems.Contains(item.IdBusinessCatalogItem),
+                cancellationToken);
+
+        return encontrados == idCatalogItems.Distinct().Count();
+    }
+
+    public async Task<int> HighestPositionCodeNumberAsync(Guid idService, CancellationToken cancellationToken)
+    {
+        // Se parsea en memoria, como los demas consecutivos: SQL Server no tiene un TryParse que EF
+        // pueda traducir, y son pocas posiciones por servicio. Cuenta tambien las inactivas, porque
+        // el codigo sigue ocupado aunque la posicion este dada de baja.
+        var codes = await dbContext.Positions
+            .AsNoTracking()
+            .IgnoreQueryFilters(["Active"])
+            .Where(position => position.IdService == idService && position.CodePosition.StartsWith("P-"))
+            .Select(position => position.CodePosition)
+            .ToArrayAsync(cancellationToken);
+
+        return codes
+            .Select(code => int.TryParse(code.AsSpan(2), out var number) ? number : 0)
+            .DefaultIfEmpty(0)
+            .Max();
+    }
+
+    public async Task<int> HighestShiftPatternCodeNumberAsync(Guid idPosition, CancellationToken cancellationToken)
+    {
+        var codes = await dbContext.ShiftPatterns
+            .AsNoTracking()
+            .IgnoreQueryFilters(["Active"])
+            .Where(pattern => pattern.IdPosition == idPosition && pattern.CodeShiftPattern.StartsWith("PAT-"))
+            .Select(pattern => pattern.CodeShiftPattern)
+            .ToArrayAsync(cancellationToken);
+
+        return codes
+            .Select(code => int.TryParse(code.AsSpan(4), out var number) ? number : 0)
+            .DefaultIfEmpty(0)
+            .Max();
+    }
+
+    public Task<bool> IsPositionCodeInUseAsync(
+        Guid idService,
+        string codePosition,
+        Guid? excludedPositionId,
+        CancellationToken cancellationToken) =>
+        dbContext.Positions
+            .IgnoreQueryFilters(["Active"])
+            .AnyAsync(
+                position =>
+                    position.IdService == idService &&
+                    position.CodePosition == codePosition &&
+                    (!excludedPositionId.HasValue || position.IdPosition != excludedPositionId.Value),
+                cancellationToken);
+
+    public Task AddPositionAsync(Position position, CancellationToken cancellationToken) =>
+        dbContext.Positions.AddAsync(position, cancellationToken).AsTask();
+
+    public async Task<IReadOnlyList<ShiftPattern>> ListShiftPatternsAsync(
+        Guid idPosition,
+        CancellationToken cancellationToken) =>
+        await dbContext.ShiftPatterns
+            .AsNoTracking()
+            .Where(pattern => pattern.IdPosition == idPosition)
+            .OrderByDescending(pattern => pattern.EffectiveFromDate)
+            .ThenBy(pattern => pattern.CodeShiftPattern)
+            .ToArrayAsync(cancellationToken);
+
+    public Task<ShiftPattern?> GetShiftPatternAsync(
+        Guid idPosition,
+        Guid idShiftPattern,
+        CancellationToken cancellationToken) =>
+        dbContext.ShiftPatterns.SingleOrDefaultAsync(
+            pattern => pattern.IdPosition == idPosition && pattern.IdShiftPattern == idShiftPattern,
+            cancellationToken);
+
+    public Task<bool> IsShiftPatternCodeInUseAsync(
+        Guid idPosition,
+        string codeShiftPattern,
+        Guid? excludedShiftPatternId,
+        CancellationToken cancellationToken) =>
+        dbContext.ShiftPatterns
+            .IgnoreQueryFilters(["Active"])
+            .AnyAsync(
+                pattern =>
+                    pattern.IdPosition == idPosition &&
+                    pattern.CodeShiftPattern == codeShiftPattern &&
+                    (!excludedShiftPatternId.HasValue || pattern.IdShiftPattern != excludedShiftPatternId.Value),
+                cancellationToken);
+
+    public Task AddShiftPatternAsync(ShiftPattern shiftPattern, CancellationToken cancellationToken) =>
+        dbContext.ShiftPatterns.AddAsync(shiftPattern, cancellationToken).AsTask();
+
+    public async Task<IReadOnlyList<ShiftSegment>> ListShiftSegmentsAsync(
+        Guid idShiftPattern,
+        CancellationToken cancellationToken) =>
+        await dbContext.ShiftSegments
+            .AsNoTracking()
+            .Where(segment => segment.IdShiftPattern == idShiftPattern)
+            .OrderBy(segment => segment.DayOfWeek)
+            .ThenBy(segment => segment.StartTime)
+            .ToArrayAsync(cancellationToken);
+
+    public Task<ShiftSegment?> GetShiftSegmentAsync(
+        Guid idShiftPattern,
+        Guid idShiftSegment,
+        CancellationToken cancellationToken) =>
+        dbContext.ShiftSegments.SingleOrDefaultAsync(
+            segment => segment.IdShiftPattern == idShiftPattern && segment.IdShiftSegment == idShiftSegment,
+            cancellationToken);
+
+    public async Task<bool> HasSegmentOverlapAsync(
+        Guid idShiftPattern,
+        DayOfWeek dayOfWeek,
+        TimeOnly startTime,
+        TimeOnly endTime,
+        bool crossesMidnight,
+        Guid? excludedShiftSegmentId,
+        CancellationToken cancellationToken)
+    {
+        var newStart = Minutes(startTime);
+        var newEnd = newStart + DurationMinutes(startTime, endTime, crossesMidnight);
+        var existingSegments = await dbContext.ShiftSegments
+            .AsNoTracking()
+            .Where(segment =>
+                segment.IdShiftPattern == idShiftPattern &&
+                segment.DayOfWeek == dayOfWeek &&
+                (!excludedShiftSegmentId.HasValue || segment.IdShiftSegment != excludedShiftSegmentId.Value))
+            .Select(segment => new
+            {
+                segment.StartTime,
+                segment.DurationMinutes
+            })
+            .ToArrayAsync(cancellationToken);
+
+        return existingSegments.Any(segment =>
+        {
+            var existingStart = Minutes(segment.StartTime);
+            var existingEnd = existingStart + segment.DurationMinutes;
+            return newStart < existingEnd && existingStart < newEnd;
+        });
+    }
+
+    public Task AddShiftSegmentAsync(ShiftSegment shiftSegment, CancellationToken cancellationToken) =>
+        dbContext.ShiftSegments.AddAsync(shiftSegment, cancellationToken).AsTask();
+
+    private static int Minutes(TimeOnly time) => time.Hour * 60 + time.Minute;
+
+    private static int DurationMinutes(TimeOnly startTime, TimeOnly endTime, bool crossesMidnight)
+    {
+        var start = Minutes(startTime);
+        var end = Minutes(endTime);
+        return crossesMidnight ? (1440 - start) + end : end - start;
+    }
+}

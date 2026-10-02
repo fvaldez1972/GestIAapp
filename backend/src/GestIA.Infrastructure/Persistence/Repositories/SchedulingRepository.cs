@@ -1,0 +1,213 @@
+using GestIA.Application.Common;
+using GestIA.Application.Scheduling;
+using GestIA.Domain.Planning;
+using GestIA.Domain.Operations;
+using GestIA.Domain.Workforce;
+using Microsoft.EntityFrameworkCore;
+using ServiceEntity = GestIA.Domain.Services.Service;
+
+namespace GestIA.Infrastructure.Persistence.Repositories;
+
+public sealed class SchedulingRepository(GestIaDbContext dbContext, IClock clock) : ISchedulingRepository
+{
+    public Task<T> ExecuteAtomicAsync<T>(Func<CancellationToken, Task<T>> action, CancellationToken cancellationToken) =>
+        OperationalTransaction.ExecuteAsync(dbContext, clock.OperationalTimeZone, action, cancellationToken);
+
+    public Task<ServiceEntity?> GetServiceAsync(Guid idOrganization, Guid idClient, Guid idService, CancellationToken cancellationToken) =>
+        dbContext.Services.SingleOrDefaultAsync(
+            service =>
+                service.IdService == idService &&
+                service.IdClient == idClient &&
+                service.IdOrganization == idOrganization,
+            cancellationToken);
+
+    public Task<Position?> GetPositionAsync(Guid idService, Guid idPosition, CancellationToken cancellationToken) =>
+        dbContext.Positions.SingleOrDefaultAsync(
+            position => position.IdService == idService && position.IdPosition == idPosition,
+            cancellationToken);
+
+    public Task<Employee?> GetEmployeeAsync(Guid idOrganization, Guid idEmployee, CancellationToken cancellationToken) =>
+        dbContext.Employees.SingleOrDefaultAsync(
+            employee => employee.IdOrganization == idOrganization && employee.IdEmployee == idEmployee,
+            cancellationToken);
+
+    public Task<ScheduleVersion?> GetScheduleVersionAsync(Guid idService, Guid idScheduleVersion, CancellationToken cancellationToken) =>
+        dbContext.ScheduleVersions.SingleOrDefaultAsync(
+            version => version.IdService == idService && version.IdScheduleVersion == idScheduleVersion,
+            cancellationToken);
+
+    public async Task<IReadOnlyList<ScheduleVersion>> ListScheduleVersionsAsync(Guid idService, CancellationToken cancellationToken) =>
+        await dbContext.ScheduleVersions
+            .AsNoTracking()
+            .Where(version => version.IdService == idService)
+            .OrderByDescending(version => version.PeriodStartDate)
+            .ThenBy(version => version.Name)
+            .ToArrayAsync(cancellationToken);
+
+    public Task AddScheduleVersionAsync(ScheduleVersion scheduleVersion, CancellationToken cancellationToken) =>
+        dbContext.ScheduleVersions.AddAsync(scheduleVersion, cancellationToken).AsTask();
+
+    public async Task<IReadOnlyList<ShiftPattern>> ListShiftPatternsForServiceAsync(
+        Guid idService,
+        DateOnly periodStartDate,
+        DateOnly periodEndDate,
+        CancellationToken cancellationToken) =>
+        await dbContext.ShiftPatterns
+            .AsNoTracking()
+            .Include(pattern => pattern.Position)
+            .Include(pattern => pattern.Segments.Where(segment => segment.Active))
+            .Where(pattern =>
+                pattern.Position.IdService == idService &&
+                pattern.Position.Active &&
+                pattern.Active &&
+                pattern.EffectiveFromDate <= periodEndDate &&
+                (pattern.EffectiveToDate == null || pattern.EffectiveToDate >= periodStartDate))
+            .OrderBy(pattern => pattern.Position.CodePosition)
+            .ThenByDescending(pattern => pattern.EffectiveFromDate)
+            .ThenBy(pattern => pattern.CodeShiftPattern)
+            .ToArrayAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<ServiceAssignment>> ListAssignmentsForServiceAsync(
+        Guid idService,
+        DateOnly periodStartDate,
+        DateOnly periodEndDate,
+        CancellationToken cancellationToken) =>
+        await dbContext.ServiceAssignments
+            .AsNoTracking()
+            .Include(assignment => assignment.Employee)
+            .Include(assignment => assignment.Position)
+            .Where(assignment =>
+                assignment.IdService == idService &&
+                assignment.StartDate <= periodEndDate &&
+                (assignment.EndDate == null || assignment.EndDate >= periodStartDate) &&
+                assignment.Employee.Status == EmployeeStatus.Active)
+            .OrderByDescending(assignment => assignment.IsPrimary)
+            .ThenBy(assignment => assignment.AssignmentType)
+            .ThenBy(assignment => assignment.Employee.FullName)
+            .ToArrayAsync(cancellationToken);
+
+    public Task<ScheduledShift?> GetScheduledShiftAsync(
+        Guid idScheduleVersion,
+        Guid idScheduledShift,
+        CancellationToken cancellationToken) =>
+        dbContext.ScheduledShifts
+            .Include(shift => shift.Position)
+            .Include(shift => shift.Employee)
+            .SingleOrDefaultAsync(
+                shift =>
+                    shift.IdScheduleVersion == idScheduleVersion &&
+                    shift.IdScheduledShift == idScheduledShift,
+                cancellationToken);
+
+    public async Task<IReadOnlyList<ScheduledShift>> ListScheduledShiftsAsync(
+        Guid idScheduleVersion,
+        CancellationToken cancellationToken) =>
+        await dbContext.ScheduledShifts
+            .AsNoTracking()
+            .Include(shift => shift.Position)
+            .Include(shift => shift.Employee)
+            .Where(shift => shift.IdScheduleVersion == idScheduleVersion)
+            .OrderBy(shift => shift.ShiftDate)
+            .ThenBy(shift => shift.StartTime)
+            .ThenBy(shift => shift.Employee.FullName)
+            .ToArrayAsync(cancellationToken);
+
+    public async Task<bool> HasEmployeeShiftOverlapAsync(
+        Guid idOrganization,
+        Guid idScheduleVersion,
+        Guid idEmployee,
+        DateOnly shiftDate,
+        TimeOnly startTime,
+        int durationMinutes,
+        Guid? excludedScheduledShiftId,
+        CancellationToken cancellationToken)
+    {
+        var version = await dbContext.ScheduleVersions.AsNoTracking().SingleAsync(
+            item => item.IdScheduleVersion == idScheduleVersion &&
+                item.IdOrganization == idOrganization, cancellationToken);
+        var interval = new ShiftInterval(shiftDate, startTime, durationMinutes);
+        var firstDate = shiftDate.AddDays(-1);
+        var lastDate = shiftDate.AddDays(1);
+        var existingShifts = await dbContext.ScheduledShifts
+            .AsNoTracking()
+            .Where(shift =>
+                shift.IdEmployee == idEmployee &&
+                shift.IdOrganization == idOrganization &&
+                shift.ShiftDate >= firstDate && shift.ShiftDate <= lastDate &&
+                (shift.IdScheduleVersion == idScheduleVersion ||
+                    (shift.ScheduleVersion.Status == ScheduleVersionStatus.Published &&
+                        !(shift.ScheduleVersion.IdService == version.IdService &&
+                            shift.ScheduleVersion.PeriodStartDate <= version.PeriodEndDate &&
+                            shift.ScheduleVersion.PeriodEndDate >= version.PeriodStartDate))) &&
+                (!excludedScheduledShiftId.HasValue || shift.IdScheduledShift != excludedScheduledShiftId.Value))
+            .Select(shift => new
+            {
+                shift.ShiftDate,
+                shift.StartTime,
+                shift.DurationMinutes
+            })
+            .ToArrayAsync(cancellationToken);
+
+        if (existingShifts.Any(shift => interval.Overlaps(new ShiftInterval(shift.ShiftDate, shift.StartTime, shift.DurationMinutes))))
+        {
+            return true;
+        }
+
+        // Generation stages multiple shifts before saving; database queries do not include those rows.
+        if (dbContext.ChangeTracker.Entries<ScheduledShift>().Any(entry =>
+            entry.State == EntityState.Added && entry.Entity.Active &&
+            entry.Entity.IdScheduleVersion == idScheduleVersion &&
+            entry.Entity.IdEmployee == idEmployee &&
+            interval.Overlaps(new ShiftInterval(entry.Entity.ShiftDate, entry.Entity.StartTime, entry.Entity.DurationMinutes))))
+        {
+            return true;
+        }
+
+        return await CoverageConflicts.HasOverlapAsync(
+            dbContext, idOrganization, idEmployee, interval, null, null, cancellationToken);
+    }
+
+    public async Task<bool> HasOperationalActivityAsync(Guid idScheduleVersion, CancellationToken cancellationToken) =>
+        await dbContext.AttendanceRecords.AnyAsync(
+            record => record.ScheduledShift.IdScheduleVersion == idScheduleVersion, cancellationToken) ||
+        await dbContext.CoverageRecords.AnyAsync(
+            record => record.ScheduledShift.IdScheduleVersion == idScheduleVersion &&
+                record.Status != CoverageStatus.Cancelled, cancellationToken) ||
+        await dbContext.Incidents.AnyAsync(
+            record => record.ScheduledShift != null &&
+                record.ScheduledShift.IdScheduleVersion == idScheduleVersion, cancellationToken);
+
+    public Task<bool> HasPublishedVersionOverlapAsync(
+        Guid idService,
+        DateOnly periodStartDate,
+        DateOnly periodEndDate,
+        Guid? excludedScheduleVersionId,
+        CancellationToken cancellationToken) =>
+        dbContext.ScheduleVersions.AnyAsync(
+            version =>
+                version.IdService == idService &&
+                version.Status == ScheduleVersionStatus.Published &&
+                (!excludedScheduleVersionId.HasValue || version.IdScheduleVersion != excludedScheduleVersionId.Value) &&
+                version.PeriodStartDate <= periodEndDate &&
+                version.PeriodEndDate >= periodStartDate,
+            cancellationToken);
+
+    public async Task<IReadOnlyList<ScheduleVersion>> ListOverlappingPublishedVersionsAsync(
+        Guid idService,
+        DateOnly periodStartDate,
+        DateOnly periodEndDate,
+        Guid excludedScheduleVersionId,
+        CancellationToken cancellationToken) =>
+        await dbContext.ScheduleVersions
+            .Where(version =>
+                version.IdService == idService &&
+                version.Status == ScheduleVersionStatus.Published &&
+                version.IdScheduleVersion != excludedScheduleVersionId &&
+                version.PeriodStartDate <= periodEndDate &&
+                version.PeriodEndDate >= periodStartDate)
+            .ToArrayAsync(cancellationToken);
+
+    public Task AddScheduledShiftAsync(ScheduledShift scheduledShift, CancellationToken cancellationToken) =>
+        dbContext.ScheduledShifts.AddAsync(scheduledShift, cancellationToken).AsTask();
+
+}

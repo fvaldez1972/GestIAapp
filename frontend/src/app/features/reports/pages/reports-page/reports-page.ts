@@ -1,0 +1,697 @@
+import { HttpErrorResponse } from '@angular/common/http';
+import { GiDate } from '../../../../shared/ui/gi-date/gi-date';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal, linkedSignal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { ActivatedRoute, RouterLink } from '@angular/router';
+import { forkJoin, of, switchMap } from 'rxjs';
+import { AuthService } from '../../../../core/auth/auth.service';
+import { firstDayOfOperationalMonth } from '../../../../shared/util/operational-date';
+import { wholePercentage } from '../../../../shared/util/percentage';
+import { SystemInfoService } from '../../../../core/system/system-info.service';
+import { ClientApiService } from '../../../clients/data-access/client-api.service';
+import {
+  Client,
+  ManagedService,
+  OperationsServiceSummary,
+  OperationsSummary,
+  Organization,
+  WorkforceEligibilityReport,
+  ClientListItem,
+} from '../../../clients/data-access/client.models';
+
+@Component({
+  selector: 'app-reports-page',
+  imports: [FormsModule, RouterLink, GiDate],
+  templateUrl: './reports-page.html',
+  styleUrl: './reports-page.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+})
+export class ReportsPage implements OnInit {
+  private readonly api = inject(ClientApiService);
+  private readonly auth = inject(AuthService);
+  private readonly systemInfo = inject(SystemInfoService);
+  private readonly route = inject(ActivatedRoute);
+
+  protected readonly clients = signal<readonly ClientListItem[]>([]);
+  protected readonly services = signal<readonly ManagedService[]>([]);
+  protected readonly summary = signal<OperationsSummary | null>(null);
+  protected readonly serviceSummaries = signal<readonly OperationsServiceSummary[]>([]);
+  protected readonly workforceEligibility = signal<readonly WorkforceEligibilityReport[]>([]);
+  /** La organización de trabajo la fija la barra de contexto, y sólo ella. */
+  protected readonly selectedOrganizationId = this.auth.operationalOrganizationId;
+  protected readonly selectedClientId = signal('');
+  protected readonly selectedServiceId = signal('');
+  protected readonly selectedReportType = signal<ReportType>('resumen');
+  protected readonly selectedExportFormat = signal<ReportExportFormat>('xlsx');
+  protected readonly showDefinitions = signal(false);
+  /**
+   * Filtro de fecha con el día operativo por omisión. Es un `linkedSignal` y no un `signal` porque
+   * el día llega del servidor y puede no estar todavía cuando se construye la pantalla: así el
+   * filtro se llena solo en cuanto se sabe, y sigue pudiendo cambiarlo quien la usa.
+   */
+  protected readonly fromDate = linkedSignal(() => this.firstDayOfMonth());
+  protected readonly toDate = linkedSignal(() => this.today());
+  protected readonly lastUpdatedAt = signal('');
+  protected readonly loading = signal(false);
+  protected readonly exporting = signal(false);
+  protected readonly error = signal('');
+  protected readonly isPlatformAdmin = computed(() => this.auth.session()?.permissions.includes('PLATFORM.ADMIN') ?? false);
+  protected readonly isMonitorMode = this.route.snapshot.data['reportMode'] === 'monitor';
+  protected readonly selectedOrganization = this.auth.activeOrganization;
+  protected readonly heroCopy = computed(() =>
+    this.isMonitorMode
+      ? {
+        eyebrow: 'Operación / Plataforma',
+        title: 'Monitor global',
+        description: 'Supervisa el estado operativo por organización y abre el contexto que requiere soporte.',
+      }
+      : this.isPlatformAdmin()
+      ? {
+        eyebrow: 'Control plataforma',
+        title: 'Reportes por organización',
+        description: 'Consulta indicadores operativos por cliente y organización sin convertir Documentos en un repositorio global.',
+      }
+      : {
+        eyebrow: 'Control / Reportes',
+        title: 'Reportes',
+        description: 'Consulta resultados operativos con métricas trazables, alcance claro y definiciones visibles.',
+      },
+  );
+
+  protected readonly attendanceRate = computed(() => {
+    const summary = this.summary();
+    if (!summary || !this.hasTurnDenominator()) {
+      return null;
+    }
+
+    return wholePercentage(summary.presentAttendance, summary.attendanceRecords);
+  });
+
+  protected readonly absenceRate = computed(() => {
+    const summary = this.summary();
+    if (!summary || !this.hasTurnDenominator()) {
+      return null;
+    }
+
+    return wholePercentage(summary.absentAttendance, summary.attendanceRecords);
+  });
+
+  protected readonly tardinessRate = computed(() => {
+    const summary = this.summary();
+    if (!summary || !this.hasTurnDenominator()) {
+      return null;
+    }
+
+    return wholePercentage(summary.lateAttendance, summary.attendanceRecords);
+  });
+
+  /**
+   * El denominador de las tres tasas de asistencia.
+   *
+   * <p>Cuenta <b>turnos con asistencia capturada</b>, que es lo que el servidor devuelve en
+   * <c>attendanceRecords</c>: un conteo de registros de asistencia del periodo. Durante un tiempo
+   * la pantalla lo llamó «turnos esperados» en diez lugares, incluido el panel de definiciones que
+   * publicaba la fórmula «Presentes / turnos esperados». No es lo mismo, y la diferencia no es
+   * cosmética: <b>los turnos planeados a los que nadie les capturó nada no entran en el
+   * denominador</b>, así que un servicio con cuarenta turnos planeados y treinta capturados, los
+   * treinta presentes, reportaba «Asistencia 100%» cuando diez turnos no tienen ni un registro.
+   * Nombrarlo por lo que cuenta es lo que deja ver ese hueco en vez de taparlo.</p>
+   *
+   * <p>El concepto «turnos esperados» sí existe —<c>ExpectedShifts</c>, en el cierre del día
+   * operativo— pero este reporte no lo consulta. Cambiar el denominador a ése es una decisión de
+   * definición, no una corrección, y no se toma desde aquí.</p>
+   */
+  protected readonly hasTurnDenominator = computed(() => (this.summary()?.attendanceRecords ?? 0) > 0);
+  protected readonly turnDenominatorLabel = computed(() =>
+    this.hasTurnDenominator()
+      ? `${this.summary()?.attendanceRecords ?? 0} turnos con asistencia capturada`
+      : 'Sin asistencia capturada',
+  );
+  protected readonly coveredHours = computed(() =>
+    Math.round(((this.summary()?.coveredMinutes ?? 0) / 60) * 10) / 10,
+  );
+  protected readonly pendingCoverages = computed(() => {
+    const summary = this.summary();
+    if (!summary) {
+      return 0;
+    }
+
+    return Math.max(summary.coverageRecords - summary.confirmedCoverages - summary.completedCoverages, 0);
+  });
+  protected readonly eligibleEmployees = computed(
+    () => this.eligibilityRows().filter((employee) => employee.status === 'Elegible').length,
+  );
+  protected readonly nonEligibleEmployees = computed(
+    () => this.eligibilityRows().filter((employee) => employee.status === 'No elegible').length,
+  );
+  protected readonly insufficientRulesEmployees = computed(
+    () => this.eligibilityRows().filter((employee) => employee.status === 'Sin reglas suficientes').length,
+  );
+  protected readonly reportTypes: readonly { value: ReportType; label: string; description: string }[] = [
+    { value: 'resumen', label: 'Resumen ejecutivo', description: 'Vista ejecutiva del periodo' },
+    { value: 'servicios', label: 'Operación por servicio', description: 'Comparativo por cliente y servicio' },
+    { value: 'elegibilidad', label: 'Incumplimientos', description: 'Quién incumple qué, y por qué' },
+    { value: 'alertas', label: 'Alertas y distribución', description: 'Riesgos y severidades del periodo' },
+    { value: 'exportacion', label: 'Exportación operativa', description: 'Salida para dirección o administración' },
+  ];
+  protected readonly selectedReport = computed(
+    () => this.reportTypes.find((report) => report.value === this.selectedReportType()) ?? this.reportTypes[0],
+  );
+
+  protected readonly reportCards = computed(() => {
+    const summary = this.summary();
+
+    return [
+      {
+        label: 'Asistencia',
+        value: this.rateDisplay(this.attendanceRate()),
+        detail: this.hasTurnDenominator() ? `${summary?.presentAttendance ?? 0} presentes` : 'Sin asistencia capturada',
+      },
+      {
+        label: 'Ausentismo',
+        value: this.rateDisplay(this.absenceRate()),
+        detail: this.hasTurnDenominator() ? `${summary?.absentAttendance ?? 0} faltas` : 'Sin asistencia capturada',
+      },
+      {
+        label: 'Retardos',
+        value: this.rateDisplay(this.tardinessRate()),
+        detail: this.hasTurnDenominator() ? `${summary?.lateAttendance ?? 0} registros tarde` : 'Sin asistencia capturada',
+      },
+      {
+        label: 'Coberturas',
+        value: summary?.coverageRecords ?? 0,
+        detail: `${this.coveredHours()} h cubiertas`,
+      },
+      {
+        label: 'Incidencias abiertas',
+        value: summary?.openIncidents ?? 0,
+        detail: `${summary?.criticalIncidents ?? 0} críticas`,
+      },
+      {
+        label: 'Coberturas pendientes',
+        value: this.pendingCoverages(),
+        detail: 'Sin confirmar o completar',
+      },
+      {
+        label: 'Servicios activos',
+        value: this.services().filter((service) => service.active).length,
+        detail: 'Con operación en el alcance',
+      },
+      {
+        label: 'Autorizaciones pendientes',
+        value: summary?.pendingApprovals ?? 0,
+        detail: 'Requieren supervisor',
+      },
+      {
+        label: 'Días cerrados',
+        value: summary?.closedOperationDays ?? 0,
+        detail: 'Cierres operativos del periodo',
+      },
+    ];
+  });
+
+  protected readonly highestRiskServices = computed(() =>
+    [...this.serviceSummaries()]
+      .filter((service) => service.openIncidents > 0 || service.absentAttendance > 0 || service.lateAttendance > 0)
+      .sort((left, right) => this.riskScore(right) - this.riskScore(left))
+      .slice(0, 5),
+  );
+  protected readonly attendanceDistribution = computed(() => {
+    const summary = this.summary();
+    const total = summary?.attendanceRecords ?? 0;
+
+    return [
+      { label: 'Presentes', value: summary?.presentAttendance ?? 0, className: 'is-ok' },
+      { label: 'Retardos', value: summary?.lateAttendance ?? 0, className: 'is-warning' },
+      { label: 'Faltas', value: summary?.absentAttendance ?? 0, className: 'is-danger' },
+      { label: 'Justificadas', value: summary?.excusedAttendance ?? 0, className: 'is-info' },
+    ].map((item) => ({
+      ...item,
+      percentage: wholePercentage(item.value, total),
+    }));
+  });
+  protected readonly donutStyle = computed(() => {
+    if (!this.hasTurnDenominator()) {
+      return 'conic-gradient(#e7edf7 0 100%)';
+    }
+
+    const distribution = this.attendanceDistribution();
+    const present = distribution.find((item) => item.label === 'Presentes')?.percentage ?? 0;
+    const late = distribution.find((item) => item.label === 'Retardos')?.percentage ?? 0;
+    const absent = distribution.find((item) => item.label === 'Faltas')?.percentage ?? 0;
+    const presentEnd = present;
+    const lateEnd = presentEnd + late;
+    const absentEnd = lateEnd + absent;
+
+    return `conic-gradient(#20b56b 0 ${presentEnd}%, #f59e0b ${presentEnd}% ${lateEnd}%, #ef4444 ${lateEnd}% ${absentEnd}%, #38bdf8 ${absentEnd}% 100%)`;
+  });
+  protected readonly alertSeverityCards = computed(() => {
+    const summary = this.summary();
+    return [
+      { label: 'Críticas', value: summary?.criticalIncidents ?? 0, detail: 'Requiere acción inmediata', className: 'is-critical' },
+      { label: 'Altas', value: Math.max((summary?.openIncidents ?? 0) - (summary?.criticalIncidents ?? 0), 0), detail: 'Atención prioritaria', className: 'is-high' },
+      { label: 'Medias', value: summary?.lateAttendance ?? 0, detail: 'Monitoreo recomendado', className: 'is-medium' },
+      { label: 'Bajas', value: summary?.excusedAttendance ?? 0, detail: 'Sin impacto crítico', className: 'is-low' },
+    ];
+  });
+  /**
+   * Si la tabla enseña a todos o sólo a quien incumple.
+   *
+   * <p><b>Arranca enseñando sólo los incumplimientos, y por eso la pantalla se llama así.</b> Quien
+   * la abre viene a corregir, no a contemplar: con 271 personas, una lista donde la mayoría cumple
+   * obliga a buscar los pocos casos que importan. Los que cumplen siguen a un clic, porque a veces
+   * la pregunta es «¿por qué éste sí pasa?».</p>
+   */
+  protected readonly onlyNonCompliant = signal(true);
+
+  protected toggleOnlyNonCompliant(): void {
+    this.onlyNonCompliant.update((valor) => !valor);
+  }
+
+  /** Las filas que la tabla enseña, según el filtro. */
+  protected readonly complianceRows = computed(() =>
+    this.onlyNonCompliant()
+      ? this.eligibilityRows().filter((employee) => employee.status !== 'Elegible')
+      : this.eligibilityRows(),
+  );
+
+  protected readonly eligibilityRows = computed(() =>
+    this.workforceEligibility().map((employee) => {
+      const reasons = employee.reasons.length ? employee.reasons : employee.isEligible ? ['Cumple requisitos actuales'] : ['Requiere revisión'];
+
+      return {
+        ...employee,
+        // Lo dice el servidor, no una expresión regular sobre el texto del motivo. Cuando lo
+        // adivinaba aquí buscaba «regla» en los motivos, y el de quien cumple dice «Elegible con
+        // las reglas actuales»: toda persona elegible salía como «Sin reglas suficientes» y el
+        // filtro de incumplimientos las mostraba a todas.
+        status: employee.hasNoApplicableRules
+          ? 'Sin reglas suficientes'
+          : employee.isEligible ? 'Elegible' : 'No elegible',
+        fileStatus: employee.rejectedDocuments || employee.expiredDocuments ? 'Incompleto' : 'Completo',
+        documentStatus: employee.rejectedDocuments || employee.expiredDocuments ? 'Pendiente' : 'Completo',
+        skillStatus: reasons.some((reason) => /experiencia/i.test(reason)) ? 'Faltante' : 'Completo',
+        reasons,
+      } satisfies EligibilityReportRow;
+    }),
+  );
+  protected readonly metricDefinitions: readonly MetricDefinition[] = [
+    { label: 'Asistencia', formula: 'Presentes / turnos con asistencia capturada' },
+    { label: 'Ausentismo', formula: 'Faltas / turnos con asistencia capturada' },
+    { label: 'Retardos', formula: 'Registros de retardo / turnos con asistencia capturada' },
+    { label: 'Cobertura', formula: 'Turnos cubiertos / turnos requeridos' },
+    { label: 'N/D', formula: 'No existe denominador suficiente para calcular la métrica' },
+    {
+      label: 'Turnos con asistencia capturada',
+      formula:
+        'Registros de asistencia del periodo. No incluye los turnos planeados a los que nadie les ' +
+        'capturó asistencia: ésos no entran en ninguna tasa.',
+    },
+  ];
+  protected readonly exportOptions: readonly string[] = [
+    'Incluir alcance de filtros',
+    'Incluir fecha de actualización',
+    'Incluir zona horaria',
+    'Incluir definiciones de métricas',
+    'Incluir datos N/D',
+    'Incluir auditoría de generación',
+  ];
+  protected readonly exportFormats: readonly ReportExportFormat[] = ['csv', 'xlsx', 'pdf'];
+  protected readonly suggestedFileName = computed(
+    () => `reporte-operativo-${this.toDate()}.${this.selectedExportFormat() === 'xlsx' ? 'xlsx' : this.selectedExportFormat()}`,
+  );
+  protected readonly filterScopeLabel = computed(() => {
+    const organization = this.selectedOrganization()?.legalName ?? 'Sin organización';
+    const client = this.clients().find((item) => item.idClient === this.selectedClientId());
+    const service = this.services().find((item) => item.idService === this.selectedServiceId());
+    return [
+      `${this.isPlatformAdmin() ? 'Organización administrada' : 'Organización'}: ${organization}`,
+      `Cliente: ${client ? client.tradeName || client.legalName : 'Todos los clientes'}`,
+      `Servicio: ${service ? service.name : 'Todos los servicios'}`,
+    ].join(' · ');
+  });
+  protected readonly periodLabel = computed(() => `${this.fromDate()} - ${this.toDate()}`);
+  /**
+   * El huso del reporte es el **operativo**, no el del navegador de quien lo abre. Antes decía
+   * el huso que el navegador declara tener: un supervisor en Tijuana veía el mismo
+   * reporte rotulado con otro huso que uno en Mérida, y ninguno de los dos era el que el servidor
+   * usó para calcular los números.
+   */
+  protected readonly timezoneLabel = computed(() => this.systemInfo.timeZoneId() || 'Sin huso');
+  protected readonly lastUpdatedLabel = computed(() =>
+    this.lastUpdatedAt() ? new Intl.DateTimeFormat('es-MX', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(this.lastUpdatedAt())) : 'Sin actualizar',
+  );
+  protected readonly executiveNotes = computed(() => {
+    const summary = this.summary();
+
+    if (!summary) {
+      return ['Selecciona una organización para generar el corte operativo.'];
+    }
+
+    const notes = [
+      this.hasTurnDenominator()
+        ? `Asistencia general del ${this.rateDisplay(this.attendanceRate())} entre ${this.fromDate()} y ${this.toDate()}.`
+        : 'No hay asistencia capturada en el periodo seleccionado. Las métricas se muestran como N/D para evitar interpretaciones erróneas.',
+      `${summary.openIncidents} incidencia(s) abierta(s), ${summary.criticalIncidents} crítica(s) y ${summary.pendingApprovals} autorización(es) pendiente(s).`,
+      `${this.coveredHours()} hora(s) cubiertas en sustituciones registradas.`,
+    ];
+
+    if (this.nonEligibleEmployees() > 0) {
+      notes.push(`${this.nonEligibleEmployees()} empleado(s) requieren revisión de elegibilidad.`);
+    }
+
+    return notes;
+  });
+
+  ngOnInit() {
+    this.loadForActiveOrganization();
+  }
+
+  protected onClientChange(value: string) {
+    this.selectedClientId.set(value);
+    this.selectedServiceId.set('');
+    this.services.set([]);
+    this.loadServices();
+  }
+
+  protected onServiceChange(value: string) {
+    this.selectedServiceId.set(value);
+    this.loadReport();
+  }
+
+  protected onFromDateChange(value: string) {
+    this.fromDate.set(value);
+    this.loadReport();
+  }
+
+  protected onToDateChange(value: string) {
+    this.toDate.set(value);
+    this.loadReport();
+  }
+
+  protected clearScope() {
+    this.selectedClientId.set('');
+    this.selectedServiceId.set('');
+    this.services.set([]);
+    this.loadReport();
+  }
+
+  protected refresh() {
+    this.loadReport();
+  }
+
+  protected selectReportType(type: ReportType) {
+    this.selectedReportType.set(type);
+  }
+
+  protected selectExportFormat(format: ReportExportFormat) {
+    this.selectedExportFormat.set(format);
+  }
+
+  protected toggleDefinitions() {
+    this.showDefinitions.update((value) => !value);
+  }
+
+  protected exportReport(format: ReportExportFormat = this.selectedExportFormat()) {
+    const organizationId = this.selectedOrganizationId();
+    if (!organizationId || this.exporting()) {
+      return;
+    }
+
+    this.exporting.set(true);
+    this.error.set('');
+
+    this.api
+      .exportOperationsReport(
+        organizationId,
+        this.selectedClientId() || undefined,
+        this.selectedServiceId() || undefined,
+        this.fromDate(),
+        this.toDate(),
+        format,
+      )
+      .subscribe({
+        next: (blob) => this.downloadBlob(blob, this.suggestedFileName()),
+        error: (error: HttpErrorResponse) => this.setError(error, 'No se pudo exportar el reporte.'),
+        complete: () => this.exporting.set(false),
+      });
+  }
+
+  protected exportCsv() {
+    this.exportReport('csv');
+  }
+
+  /**
+   * Ya no se carga una lista de organizaciones para elegir: la organización la fija la barra de
+   * contexto. Si hay una, se cargan sus datos; si no, la pantalla espera a que se elija. Cuando
+   * cambia, el shell vuelve a montar la pantalla y esto corre de nuevo.
+   */
+  private loadForActiveOrganization() {
+    if (this.selectedOrganizationId()) {
+      this.loadClients();
+    }
+  }
+
+  private loadClients() {
+    const organizationId = this.selectedOrganizationId();
+
+    if (!organizationId) {
+      return;
+    }
+
+    this.loading.set(true);
+    this.error.set('');
+
+    this.api
+      .listClientOptions(organizationId)
+      .pipe(
+        switchMap((clients) => {
+          this.clients.set(clients.items);
+          const serviceRequests = clients.items.map((client) => this.api.listServices(organizationId, client.idClient));
+
+          return forkJoin({
+            report: this.api.getOperationsSummary(
+              organizationId,
+              this.selectedClientId() || undefined,
+              this.selectedServiceId() || undefined,
+              this.fromDate(),
+              this.toDate(),
+            ),
+            serviceSummaries: this.api.getOperationsByService(
+              organizationId,
+              this.selectedClientId() || undefined,
+              this.selectedServiceId() || undefined,
+              this.fromDate(),
+              this.toDate(),
+            ),
+            workforceEligibility: this.api.getWorkforceEligibility(organizationId, this.toDate()),
+            services: serviceRequests.length > 0 ? forkJoin(serviceRequests) : of([] as readonly ManagedService[][]),
+          });
+        }),
+      )
+      .subscribe({
+        next: ({ report, serviceSummaries, workforceEligibility, services }) => {
+          this.summary.set(report);
+          this.serviceSummaries.set(serviceSummaries);
+          this.workforceEligibility.set(workforceEligibility);
+          this.services.set(services.flat());
+          this.lastUpdatedAt.set(new Date().toISOString());
+        },
+        error: (error: HttpErrorResponse) => this.setError(error, 'No se pudo cargar el reporte operativo.'),
+        complete: () => this.loading.set(false),
+      });
+  }
+
+  private loadServices() {
+    const organizationId = this.selectedOrganizationId();
+    const clientId = this.selectedClientId();
+
+    if (!organizationId || !clientId) {
+      this.services.set([]);
+      this.loadReport();
+      return;
+    }
+
+    this.loading.set(true);
+    this.error.set('');
+
+    this.api.listServices(organizationId, clientId).subscribe({
+      next: (services) => {
+        this.services.set(services);
+        this.loadReport();
+      },
+      error: (error: HttpErrorResponse) => this.setError(error, 'No se pudieron cargar los servicios.'),
+      complete: () => this.loading.set(false),
+    });
+  }
+
+  private loadReport() {
+    const organizationId = this.selectedOrganizationId();
+
+    if (!organizationId) {
+      return;
+    }
+
+    this.loading.set(true);
+    this.error.set('');
+
+    this.api
+      .getOperationsSummary(
+        organizationId,
+        this.selectedClientId() || undefined,
+        this.selectedServiceId() || undefined,
+        this.fromDate(),
+        this.toDate(),
+      )
+      .pipe(
+        switchMap((summary) =>
+          forkJoin({
+            summary: of(summary),
+            serviceSummaries: this.api.getOperationsByService(
+              organizationId,
+              this.selectedClientId() || undefined,
+              this.selectedServiceId() || undefined,
+              this.fromDate(),
+              this.toDate(),
+            ),
+            workforceEligibility: this.api.getWorkforceEligibility(organizationId, this.toDate()),
+          }),
+        ),
+      )
+      .subscribe({
+        next: ({ summary, serviceSummaries, workforceEligibility }) => {
+          this.summary.set(summary);
+          this.serviceSummaries.set(serviceSummaries);
+          this.workforceEligibility.set(workforceEligibility);
+          this.lastUpdatedAt.set(new Date().toISOString());
+        },
+        error: (error: HttpErrorResponse) => this.setError(error, 'No se pudo actualizar el reporte.'),
+        complete: () => this.loading.set(false),
+      });
+  }
+
+  protected serviceAttendanceRate(service: OperationsServiceSummary) {
+    if (service.attendanceRecords === 0) {
+      return 'N/D';
+    }
+
+    return `${wholePercentage(service.presentAttendance, service.attendanceRecords)}%`;
+  }
+
+  protected serviceAbsenceRate(service: OperationsServiceSummary) {
+    if (service.attendanceRecords === 0) {
+      return 'N/D';
+    }
+
+    return `${wholePercentage(service.absentAttendance, service.attendanceRecords)}%`;
+  }
+
+  protected serviceTardinessRate(service: OperationsServiceSummary) {
+    if (service.attendanceRecords === 0) {
+      return 'N/D';
+    }
+
+    return `${wholePercentage(service.lateAttendance, service.attendanceRecords)}%`;
+  }
+
+  protected serviceOperationalStatus(service: OperationsServiceSummary) {
+    if (service.attendanceRecords === 0) {
+      return 'Sin datos';
+    }
+
+    if (service.criticalIncidents > 0 || service.openIncidents > 1) {
+      return 'Riesgo';
+    }
+
+    if (service.openIncidents > 0 || service.absentAttendance > 0 || service.pendingApprovals > 0) {
+      return 'Revisar';
+    }
+
+    return 'Estable';
+  }
+
+  protected rateDisplay(value: number | null) {
+    return value === null ? 'N/D' : `${value}%`;
+  }
+
+  protected barWidth(percentage: number | null) {
+    return percentage ?? 0;
+  }
+
+  protected eligibilityStatusClass(status: EligibilityStatus) {
+    switch (status) {
+      case 'Elegible':
+        return 'ok';
+      case 'Sin reglas suficientes':
+        return 'neutral';
+      default:
+        return 'warning';
+    }
+  }
+
+  protected exportFormatLabel(format: ReportExportFormat) {
+    switch (format) {
+      case 'csv':
+        return 'CSV';
+      case 'pdf':
+        return 'PDF';
+      default:
+        return 'Excel';
+    }
+  }
+
+  protected serviceCoveredHours(service: OperationsServiceSummary) {
+    return Math.round((service.coveredMinutes / 60) * 10) / 10;
+  }
+
+  private riskScore(service: OperationsServiceSummary) {
+    return service.criticalIncidents * 5 + service.openIncidents * 3 + service.absentAttendance * 2 + service.lateAttendance;
+  }
+
+  private setError(error: HttpErrorResponse, fallback: string) {
+    this.loading.set(false);
+    this.exporting.set(false);
+    this.error.set(error.error?.detail ?? error.error?.message ?? fallback);
+  }
+
+  private downloadBlob(blob: Blob, fileName: string) {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  private today() {
+    // El día operativo lo dice el servidor. Calcularlo aquí con `toISOString()` daba el día UTC:
+    // a las 19:00 hora de Ciudad de México del 4 de septiembre devolvía el 5, y la pantalla
+    // proponía el día siguiente todas las tardes. Es el mismo defecto que el reloj operativo
+    // cerró en el servidor. Cadena vacía mientras no se sabe: vacío se nota, un día equivocado no.
+    return this.systemInfo.operationDate();
+  }
+
+  /** El primer día del mes operativo, no del mes del navegador. */
+  private firstDayOfMonth() {
+    return firstDayOfOperationalMonth(this.today());
+  }
+}
+
+type ReportExportFormat = 'csv' | 'xlsx' | 'pdf';
+
+type ReportType = 'resumen' | 'servicios' | 'elegibilidad' | 'alertas' | 'exportacion';
+
+type MetricDefinition = {
+  readonly label: string;
+  readonly formula: string;
+};
+
+type EligibilityStatus = 'Elegible' | 'No elegible' | 'Sin reglas suficientes';
+
+type EligibilityReportRow = WorkforceEligibilityReport & {
+  readonly status: EligibilityStatus;
+  readonly fileStatus: string;
+  readonly documentStatus: string;
+  readonly skillStatus: string;
+  readonly reasons: readonly string[];
+};

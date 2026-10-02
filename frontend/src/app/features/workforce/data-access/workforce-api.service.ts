@@ -1,0 +1,203 @@
+import { HttpClient, HttpParams } from '@angular/common/http';
+import { inject, Injectable } from '@angular/core';
+import { activeOptions } from '../../../shared/data-access/active-options';
+import { AdministrativeIncident, AdministrativeIncidentInput } from './administrative-incident.models';
+import {
+  CreateEmployee,
+  Employee,
+  EmployeeDetail,
+  EmploymentPeriod,
+  PsychometricTest,
+  TerminateEmployeeResult,
+  TerminationExpirationGroup,
+  EmployeeDocument,
+  EmployeeDocumentInput,
+  EmployeeEvaluation,
+  EmployeeEvaluationInput,
+  EmployeeInput,
+  EmployeeStatus,
+  PagedResult,
+} from './workforce.models';
+
+@Injectable({ providedIn: 'root' })
+export class WorkforceApiService {
+  private readonly http = inject(HttpClient);
+  private readonly baseUrl = '/api/v1/employees';
+
+  listEmployees(organizationId: string, search = '', status: EmployeeStatus | '' = '', page = 1, pageSize = 20) {
+    let params = new HttpParams()
+      .set('organizationId', organizationId)
+      .set('page', page)
+      .set('pageSize', pageSize);
+
+    if (search.trim()) {
+      params = params.set('search', search.trim());
+    }
+
+    if (status) {
+      params = params.set('status', status);
+    }
+
+    return this.http.get<PagedResult<Employee>>(this.baseUrl, { params });
+  }
+
+  getEmployee(organizationId: string, idEmployee: string) {
+    const params = new HttpParams().set('organizationId', organizationId);
+    return this.http.get<EmployeeDetail>(`${this.baseUrl}/${idEmployee}`, { params });
+  }
+
+  listEmployeeOptions(organizationId: string) {
+    return activeOptions(page => this.listEmployees(organizationId, '', 'Active', page, 100));
+  }
+
+  downloadFile(organizationId: string, employeeId: string, kind: 'documents' | 'evaluations', recordId: string) {
+    const params = new HttpParams().set('organizationId', organizationId);
+    return this.http.get(`${this.baseUrl}/${employeeId}/${kind}/${recordId}/download`, { params, responseType: 'blob' });
+  }
+
+  createEmployee(request: CreateEmployee) {
+    return this.http.post<Employee>(this.baseUrl, request);
+  }
+
+  updateEmployee(idEmployee: string, request: EmployeeInput) {
+    return this.http.put<Employee>(`${this.baseUrl}/${idEmployee}`, request);
+  }
+
+  changeStatus(idEmployee: string, organizationId: string, status: EmployeeStatus) {
+    return this.http.patch<Employee>(`${this.baseUrl}/${idEmployee}/status`, { idOrganization: organizationId, status });
+  }
+
+  hireEmployee(idEmployee: string, organizationId: string, startDate: string) {
+    return this.http.post<Employee>(`${this.baseUrl}/${idEmployee}/hire`, {
+      idOrganization: organizationId,
+      startDate,
+    });
+  }
+
+  terminateEmployee(
+    idEmployee: string,
+    organizationId: string,
+    endDate: string,
+    terminationReason: string,
+  ) {
+    return this.http.post<TerminateEmployeeResult>(`${this.baseUrl}/${idEmployee}/terminate`, {
+      idOrganization: organizationId,
+      endDate,
+      terminationReason,
+    });
+  }
+
+  rehireEmployee(idEmployee: string, organizationId: string, startDate: string) {
+    return this.http.post<Employee>(`${this.baseUrl}/${idEmployee}/rehire`, {
+      idOrganization: organizationId,
+      startDate,
+    });
+  }
+
+  listEmploymentPeriods(idEmployee: string, organizationId: string) {
+    const params = new HttpParams().set('organizationId', organizationId);
+    return this.http.get<EmploymentPeriod[]>(`${this.baseUrl}/${idEmployee}/employment-periods`, {
+      params,
+    });
+  }
+
+  registerPsychometricTest(idEmployee: string, organizationId: string, approvedDate: string) {
+    return this.http.post<PsychometricTest>(`${this.baseUrl}/${idEmployee}/psychometric-test`, {
+      idOrganization: organizationId,
+      approvedDate,
+    });
+  }
+
+  listPsychometricTests(idEmployee: string, organizationId: string) {
+    const params = new HttpParams().set('organizationId', organizationId);
+    return this.http.get<PsychometricTest[]>(`${this.baseUrl}/${idEmployee}/psychometric-tests`, {
+      params,
+    });
+  }
+
+  listTerminationExpirations(idEmployee: string, organizationId: string) {
+    const params = new HttpParams().set('organizationId', organizationId);
+    return this.http.get<TerminationExpirationGroup[]>(
+      `${this.baseUrl}/${idEmployee}/termination-expirations`,
+      { params },
+    );
+  }
+
+  deactivateEmployee(organizationId: string, idEmployee: string) {
+    const params = new HttpParams().set('organizationId', organizationId);
+    return this.http.delete<void>(`${this.baseUrl}/${idEmployee}`, { params });
+  }
+
+  createDocument(idEmployee: string, request: EmployeeDocumentInput) {
+    return this.http.post<EmployeeDocument>(`${this.baseUrl}/${idEmployee}/documents`, request);
+  }
+
+  updateDocument(idEmployee: string, idEmployeeDocument: string, request: EmployeeDocumentInput) {
+    return this.http.put<EmployeeDocument>(`${this.baseUrl}/${idEmployee}/documents/${idEmployeeDocument}`, request);
+  }
+
+  deactivateDocument(organizationId: string, idEmployee: string, idEmployeeDocument: string) {
+    const params = new HttpParams().set('organizationId', organizationId);
+    return this.http.delete<void>(`${this.baseUrl}/${idEmployee}/documents/${idEmployeeDocument}`, { params });
+  }
+
+  createEvaluation(idEmployee: string, request: EmployeeEvaluationInput) {
+    return this.http.post<EmployeeEvaluation>(`${this.baseUrl}/${idEmployee}/evaluations`, request);
+  }
+
+  updateEvaluation(idEmployee: string, idEmployeeEvaluation: string, request: EmployeeEvaluationInput) {
+    return this.http.put<EmployeeEvaluation>(
+      `${this.baseUrl}/${idEmployee}/evaluations/${idEmployeeEvaluation}`,
+      request,
+    );
+  }
+
+  deactivateEvaluation(organizationId: string, idEmployee: string, idEmployeeEvaluation: string) {
+    const params = new HttpParams().set('organizationId', organizationId);
+    return this.http.delete<void>(`${this.baseUrl}/${idEmployee}/evaluations/${idEmployeeEvaluation}`, { params });
+  }
+
+  // ── Incidencias administrativas ──────────────────────────────────────────────────────────
+  //
+  // Ruta propia y no colgada de las incidencias de la operacion: son dos cosas distintas que se
+  // consultan, se filtran y se autorizan distinto, y compartir ruta habria hecho que un filtro por
+  // servicio arrastrara actas administrativas.
+
+  listAdministrativeIncidents(organizationId: string, idEmployee: string) {
+    const params = new HttpParams().set('organizationId', organizationId);
+    return this.http.get<readonly AdministrativeIncident[]>(
+      `${this.baseUrl}/${idEmployee}/administrative-incidents`,
+      { params },
+    );
+  }
+
+  createAdministrativeIncident(idEmployee: string, request: AdministrativeIncidentInput) {
+    return this.http.post<AdministrativeIncident>(
+      `${this.baseUrl}/${idEmployee}/administrative-incidents`,
+      request,
+    );
+  }
+
+  updateAdministrativeIncident(
+    idEmployee: string,
+    idAdministrativeIncident: string,
+    request: AdministrativeIncidentInput,
+  ) {
+    return this.http.put<AdministrativeIncident>(
+      `${this.baseUrl}/${idEmployee}/administrative-incidents/${idAdministrativeIncident}`,
+      request,
+    );
+  }
+
+  deactivateAdministrativeIncident(
+    organizationId: string,
+    idEmployee: string,
+    idAdministrativeIncident: string,
+  ) {
+    const params = new HttpParams().set('organizationId', organizationId);
+    return this.http.delete<void>(
+      `${this.baseUrl}/${idEmployee}/administrative-incidents/${idAdministrativeIncident}`,
+      { params },
+    );
+  }
+}

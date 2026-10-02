@@ -1,0 +1,88 @@
+using GestIA.Domain.Planning;
+using ServiceEntity = GestIA.Domain.Services.Service;
+
+namespace GestIA.Application.Planning;
+
+public interface IPlanningRepository
+{
+    Task<ServiceEntity?> GetServiceAsync(
+        Guid idOrganization,
+        Guid idClient,
+        Guid idService,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Vacancia de las posiciones de un servicio a una fecha. Ver <see cref="PositionVacancy"/>.
+    /// </summary>
+    Task<IReadOnlyList<PositionVacancyResponse>> ListPositionVacancyAsync(
+        Guid idService,
+        DateOnly operationDate,
+        CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<Position>> ListPositionsAsync(Guid idService, CancellationToken cancellationToken);
+
+    Task<Position?> GetPositionAsync(
+        Guid idService,
+        Guid idPosition,
+        CancellationToken cancellationToken);
+
+    /// <summary>El numero mas alto ya usado en los codigos <c>P-NN</c> de ese servicio.</summary>
+    Task<int> HighestPositionCodeNumberAsync(Guid idService, CancellationToken cancellationToken);
+
+    /// <summary>El numero mas alto ya usado en los codigos <c>PAT-NN</c> de esa posicion.</summary>
+    Task<int> HighestShiftPatternCodeNumberAsync(Guid idPosition, CancellationToken cancellationToken);
+
+    Task<bool> IsPositionCodeInUseAsync(
+        Guid idService,
+        string codePosition,
+        Guid? excludedPositionId,
+        CancellationToken cancellationToken);
+
+    Task AddPositionAsync(Position position, CancellationToken cancellationToken);
+
+    /// <summary>El equipo que una posicion ya tiene registrado, activo o no.</summary>
+    Task<IReadOnlyList<PositionRequiredEquipment>> ListPositionEquipmentAsync(
+        Guid idPosition,
+        CancellationToken cancellationToken);
+
+    Task AddPositionEquipmentAsync(PositionRequiredEquipment equipment, CancellationToken cancellationToken);
+
+    /// <summary>Que las piezas elegidas existan, esten activas y sean del catalogo de equipo.</summary>
+    Task<bool> AreEquipmentCatalogItemsUsableAsync(
+        Guid idOrganization,
+        IReadOnlyCollection<Guid> idCatalogItems,
+        CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<ShiftPattern>> ListShiftPatternsAsync(Guid idPosition, CancellationToken cancellationToken);
+
+    Task<ShiftPattern?> GetShiftPatternAsync(
+        Guid idPosition,
+        Guid idShiftPattern,
+        CancellationToken cancellationToken);
+
+    Task<bool> IsShiftPatternCodeInUseAsync(
+        Guid idPosition,
+        string codeShiftPattern,
+        Guid? excludedShiftPatternId,
+        CancellationToken cancellationToken);
+
+    Task AddShiftPatternAsync(ShiftPattern shiftPattern, CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<ShiftSegment>> ListShiftSegmentsAsync(Guid idShiftPattern, CancellationToken cancellationToken);
+
+    Task<ShiftSegment?> GetShiftSegmentAsync(
+        Guid idShiftPattern,
+        Guid idShiftSegment,
+        CancellationToken cancellationToken);
+
+    Task<bool> HasSegmentOverlapAsync(
+        Guid idShiftPattern,
+        DayOfWeek dayOfWeek,
+        TimeOnly startTime,
+        TimeOnly endTime,
+        bool crossesMidnight,
+        Guid? excludedShiftSegmentId,
+        CancellationToken cancellationToken);
+
+    Task AddShiftSegmentAsync(ShiftSegment shiftSegment, CancellationToken cancellationToken);
+}

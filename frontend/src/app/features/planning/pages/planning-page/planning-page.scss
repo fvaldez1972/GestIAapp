@@ -1,0 +1,205 @@
+/*
+  El anclaje va al borde real del cromo, no a la altura de la barra superior.
+
+  Encima de esa barra va la de organizacion, que rueda con la pagina: con la pagina arriba del
+  todo el cromo termina en 151 px y no en 72, y esos 79 px se comian la cabecera del panel. El
+  boton de cerrar quedaba DEBAJO de la barra —`elementFromPoint` devolvia el boton de perfil—, asi
+  que pulsar donde se veia «Cerrar» abria el dialogo de salir.
+
+  `--gestia-chrome-bottom` la publica el armazon midiendo, y se vuelve a medir al rodar la pagina.
+  El valor de reserva es el de antes, por si el armazon no llegara a publicarla.
+*/
+
+/* Sólo composición: color, radio y altura salen de los tokens. Ni un valor escrito a mano. */
+
+.planeacion {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gestia-page-gap);
+}
+
+/* Con la columna abierta, la pantalla se estrecha en vez de quedar tapada.
+   La rejilla reparte sus siete días en `minmax(0, 1fr)`, así que al estrecharse los comprime y
+   siguen viéndose los siete. Sin esto, la columna se pintaba encima y tapaba de jueves a domingo:
+   justo la semana que se está mirando mientras se declara el patrón. */
+.planeacion--conLateral {
+  padding-right: calc(min(var(--gestia-panel-width), 100vw - 2rem) + var(--gestia-page-gap));
+}
+
+/* Por debajo de este ancho la columna ocupa casi toda la pantalla; estrechar el contenido lo
+   dejaría en una tira inservible, así que ahí sí se superpone. */
+@media (max-width: 75rem) {
+  .planeacion--conLateral { padding-right: 0; }
+}
+
+.planeacion__hero {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.planeacion__titulo {
+  margin: 0;
+  color: var(--gestia-navy);
+  font-size: 22px;
+  line-height: 1.2;
+}
+
+.planeacion__ayuda {
+  margin: 0;
+  color: var(--gestia-muted);
+  font-size: 12px;
+}
+
+.planeacion__aviso {
+  margin: 0;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--gestia-border);
+  border-radius: var(--gestia-radius-lg);
+  background: var(--gestia-surface);
+  font-size: 12.5px;
+}
+
+.planeacion__aviso--ok { border-left: 3px solid var(--gestia-success); }
+.planeacion__aviso--mal { border-left: 3px solid var(--gestia-danger); }
+
+/* Los conflictos y la publicación son un solo acto, así que son una sola tarjeta: la lista
+   arriba, y al pie lo que se va a publicar con su botón. */
+.planeacion__cierre {
+  border: 1px solid var(--gestia-border);
+  border-radius: var(--gestia-radius-lg);
+  background: var(--gestia-surface);
+  overflow: hidden;
+}
+
+/* Dar de baja la posición: el botón y su explicación se pegaban —«posiciónDeja de proyectar»—
+   porque el párrafo no tenía separación ninguna entre sus dos hijos. */
+.planeacion__baja {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin: 0 0 0.75rem;
+  color: var(--gestia-muted);
+  font-size: 12px;
+}
+
+.planeacion__datos {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.planeacion__datos div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 12.5px;
+}
+
+.planeacion__datos dt {
+  margin: 0;
+  color: var(--gestia-muted);
+}
+
+.planeacion__datos dd {
+  margin: 0;
+  color: var(--gestia-text);
+  font-weight: 600;
+}
+
+/* La columna de la derecha: todo lo que se abre encima vive aquí.
+   La ficha de la posición caía antes al final del flujo de la página, porque `gi-detail-panel`
+   está pensado para vivir al costado de un listado y aquí la rejilla ocupa el ancho entero: había
+   que desplazarse hasta el fondo para ver lo que se acababa de abrir. Y el cajón de candidatos ya
+   estaba fijo a la derecha, así que puestos los dos en el mismo sitio se taparían —pulsar un hueco
+   abre los dos a la vez—. Se desplaza por dentro, de modo que la página no se mueve. */
+.planeacion__lateral {
+  position: fixed;
+  inset: var(--gestia-chrome-bottom, var(--gestia-topbar-height)) 0 0 auto;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: min(var(--gestia-panel-width), calc(100vw - 2rem));
+  padding: 0.75rem;
+  border-left: 1px solid var(--gestia-border);
+  background: var(--gestia-canvas);
+  overflow-y: auto;
+}
+
+.planeacion__lateral gi-detail-panel {
+  width: 100%;
+  min-width: 0;
+}
+
+.planeacion__cajon {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  flex: none;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--gestia-border);
+  border-radius: var(--gestia-radius-lg);
+  background: var(--gestia-surface);
+}
+
+.planeacion__cajon-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.planeacion__cajon-titulo {
+  color: var(--gestia-navy);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.planeacion__cerrar {
+  border: 1px solid var(--gestia-border);
+  border-radius: var(--gestia-radius);
+  padding: 0 0.7rem;
+  height: 2.25rem;
+  background: var(--gestia-surface);
+  color: var(--gestia-text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.planeacion__cerrar:focus-visible {
+  outline: 2px solid var(--gestia-cyan);
+  outline-offset: 1px;
+}
+
+.planeacion__accion {
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--gestia-cyan-dark);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.planeacion__accion[disabled] { opacity: 0.5; cursor: not-allowed; }
+
+.planeacion__accion:focus-visible {
+  outline: 2px solid var(--gestia-cyan);
+  outline-offset: 1px;
+}
+
+.planeacion__aviso--ojo {
+  border-left: 3px solid var(--gestia-warning);
+  margin: 0;
+  padding-left: 1.75rem;
+  color: var(--gestia-muted);
+  line-height: 1.5;
+}

@@ -1,0 +1,196 @@
+<section class="planeacion" [class.planeacion--conLateral]="creatingPosition() || !!selectedPosition() || !!pendingCell()">
+<!--
+    El titulo y su frase, en un renglon. Encima de esta cabecera el armazon ya dibuja
+    «OPERACION / PLANEACION / Planeacion», asi que el rotulo «PLANEACION» que habia aqui era la
+    tercera vez que la pantalla decia su propio nombre antes de ensenar un dato.
+  -->
+  <header class="planeacion__hero">
+    <h1 class="planeacion__titulo">Planeación</h1>
+    <p class="planeacion__ayuda">
+      La semana que se publica es contra la que Asistencia mide y sobre la que Cobertura resuelve.
+    </p>
+  </header>
+
+  @if (!canRead()) {
+    <gi-empty-state variant="no-permission" />
+  } @else if (!organizationId()) {
+    <gi-empty-state
+      variant="missing-prerequisite"
+      title="Elige una organización"
+      description="Planeación trabaja dentro de una organización. Selecciónala en la barra de contexto."
+      link="/plataforma/organizaciones"
+      actionLabel="Ver organizaciones"
+    />
+  } @else if (services().length === 0) {
+    <gi-empty-state
+      variant="missing-prerequisite"
+      title="Esta organización no tiene servicios activos"
+      description="Un servicio es lo que se planea. Sin servicios no hay semana que proyectar."
+      link="/servicios"
+      actionLabel="Ir a Servicios"
+    />
+  } @else {
+    <gi-operation-day-bar
+      [date]="date()"
+      [operationalToday]="today()"
+      [services]="serviceOptions()"
+      [idService]="idService()"
+      [zoneLabel]="selectedService()?.clientName ?? ''"
+      [publishedVersionLabel]="publishedLabel()"
+      prerequisiteActionLabel="Publicar la semana"
+      (dateChange)="onDateChange($event)"
+      (serviceChange)="onServiceChange($event)"
+      (resolvePrerequisite)="publish()"
+    />
+
+    @if (message()) {
+      <p class="planeacion__aviso planeacion__aviso--ok" role="status">{{ message() }}</p>
+    }
+
+    @if (error()) {
+      <p class="planeacion__aviso planeacion__aviso--mal" role="alert">{{ error() }}</p>
+    }
+
+    @if (warnings().length > 0) {
+      <ul class="planeacion__aviso planeacion__aviso--ojo" aria-label="Observaciones al proyectar">
+        @for (warning of warnings(); track warning) {
+          <li>{{ warning }}</li>
+        }
+      </ul>
+    }
+
+    <!--
+      Proyectar la semana se ofrece desde la cabecera de la rejilla, que es lo que modifica. Vivia
+      en un aviso suelto debajo, y al retirarse el texto que lo presentaba quedo un enlace
+      subrayado solo dentro de un recuadro vacio.
+    -->
+    <app-week-grid
+      [rows]="rows()"
+      [days]="days()"
+      [highlightDate]="date()"
+      [canProject]="canWrite() && shiftCount() === 0 && rows().length > 0"
+      [busy]="saving()"
+      (createPosition)="openNewPosition()"
+      (cellSelect)="onCellSelect($event)"
+      (project)="prepareWeek()"
+    />
+
+    <!--
+      Una sola tarjeta para el cierre. Eran dos, lado a lado, y decian lo mismo dos veces: «2
+      impiden publicar · 1 aviso» a la izquierda y «2 cosas lo impiden» a la derecha, con medio
+      metro de blanco debajo de la segunda. Lo que falta y el boton de publicar son un solo acto.
+    -->
+    <div class="planeacion__cierre">
+      <app-conflict-list [conflicts]="conflicts()" [flat]="true" />
+
+      <app-publish-panel
+        [weekStart]="weekStart()"
+        [weekEnd]="weekEnd()"
+        [shiftCount]="shiftCount()"
+        [positionCount]="rows().length"
+        [conflicts]="conflicts()"
+        [canWrite]="canWrite()"
+        [publishedLabel]="publishedLabel()"
+        [flat]="true"
+        (publish)="publish()"
+      />
+    </div>
+  }
+
+  <!--
+    Todo lo que se abre encima vive en la MISMA columna fija de la derecha.
+
+    La ficha de la posicion caia antes al final del flujo de la pagina —`gi-detail-panel` esta
+    pensado para vivir al costado de un listado, y aqui la rejilla ocupa el ancho entero—, asi que
+    habia que desplazar la pagina hasta el fondo para ver lo que se acababa de abrir. Y el cajon de
+    candidatos ya estaba fijo a la derecha: puestos los dos en el mismo sitio se taparian, porque
+    pulsar un hueco abre los dos a la vez.
+
+    Una sola columna los apila y se desplaza por dentro, de modo que la pagina no se mueve.
+  -->
+  @if (creatingPosition() || selectedPosition() || pendingCell()) {
+    <aside class="planeacion__lateral">
+
+    @if (pendingCell(); as cell) {
+      <section class="planeacion__cajon" aria-label="Quién cubre el turno">
+        <header class="planeacion__cajon-head">
+          <span class="planeacion__cajon-titulo">
+            Falta gente el {{ cell.date }} · {{ cell.assignedWorkerCount }} de
+            {{ cell.requiredWorkerCount }}
+          </span>
+          <button class="planeacion__cerrar" type="button" (click)="closeCandidates()">Cerrar</button>
+        </header>
+
+        <gi-candidate-picker
+          [candidates]="candidates()"
+          emptyActionLabel="Asignar personal al servicio"
+          (choose)="chooseCandidate($event)"
+          (resolveEmpty)="closeCandidates()"
+        />
+      </section>
+    }
+
+    @if (creatingPosition()) {
+    <gi-detail-panel
+      title="Nueva posición"
+      subtitle="El puesto que hay que cubrir, con independencia de quién lo ocupe"
+      (close)="closePosition()"
+    >
+      <ng-template giTab="datos">
+        <app-position-form
+          [saving]="saving()"
+          [usedCodes]="usedPositionCodes()"
+          (save)="savePosition($event)"
+          (cancel)="closePosition()"
+        />
+      </ng-template>
+    </gi-detail-panel>
+    } @else if (selectedPosition(); as position) {
+    <gi-detail-panel
+      [title]="position.codePosition"
+      [subtitle]="position.name"
+      [tabs]="positionTabs"
+      [activeTab]="activePositionTab()"
+      (tabChange)="activePositionTab.set($event)"
+      (close)="closePosition()"
+    >
+      <ng-template giTab="datos">
+        <dl class="planeacion__datos">
+          <div><dt>Código</dt><dd>{{ position.codePosition }}</dd></div>
+          <div><dt>Nombre</dt><dd>{{ position.name }}</dd></div>
+          <div>
+            <dt>Elementos que pide</dt>
+            <dd>{{ position.requiredWorkerCount }}</dd>
+          </div>
+          @if (position.notes) {
+            <div><dt>Notas</dt><dd>{{ position.notes }}</dd></div>
+          }
+        </dl>
+      </ng-template>
+
+      <ng-template giTab="patron">
+        @if (canWrite()) {
+          <p class="planeacion__baja">
+            <button class="planeacion__accion" type="button" [disabled]="saving()" (click)="deactivatePosition()">
+              Dar de baja esta posición
+            </button>
+            <span>Deja de proyectar turnos. Lo ya registrado contra ella se conserva.</span>
+          </p>
+        }
+
+        <app-pattern-editor
+          [positionCode]="position.codePosition"
+          [segments]="selectedSegments()"
+          [hasPattern]="selectedSegments().length > 0"
+          [canWrite]="canWrite()"
+          (save)="saveSegment($event)"
+          (removeSegment)="removeSegment($event)"
+          (createPattern)="activePositionTab.set('patron')"
+        />
+      </ng-template>
+    </gi-detail-panel>
+    }
+
+    </aside>
+  }
+</section>

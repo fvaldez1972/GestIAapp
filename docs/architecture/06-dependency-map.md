@@ -11,7 +11,7 @@
 | Readiness de datos | `Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore` | Aprobado |
 | Validación | FluentValidation o validadores propios | Evaluar por incremento |
 | Observabilidad | OpenTelemetry | Antes del primer entorno compartido |
-| Pruebas reales de persistencia | SQL Server/Testcontainers | Con primera migración aprobada |
+| Pruebas reales de persistencia | SQL Server/Testcontainers | Pendiente de automatizar sobre `InitialBusinessModel` |
 | Arquitectura | Pruebas de referencias y namespaces | Configurado |
 | Runtime contenedor | `mcr.microsoft.com/dotnet/aspnet:10.0-alpine-extra` | Aprobado; ICU requerido por SqlClient |
 

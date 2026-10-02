@@ -33,7 +33,21 @@ public sealed partial class ClientContactService(
         await EnsureZoneAsync(request.IdClient, request.IdClientZone, cancellationToken);
         var details = Validate(request);
 
-        await catalogValidator.ValueAsync(request.IdOrganization, BusinessCatalogItemType.JobPosition, details.JobTitle, null, cancellationToken);
+        await EnsureSinglePrimaryAsync(request.IdClient, null, details.IsPrimary, cancellationToken);
+
+        // El puesto del contacto sale de ContactJobPosition, no del catalogo de puestos del
+        // PERSONAL. Se validaba el texto contra el catalogo equivocado, asi que elegir "Gerente de
+        // compras" --activo en Puestos de contacto-- se rechazaba con "selecciona un valor activo
+        // del catalogo correspondiente": el mensaje era cierto y hablaba de otro catalogo.
+        //
+        // Y se comprueba el identificador, que es lo que se guarda. El texto es rastro heredado.
+        await catalogValidator.ItemAsync(
+            request.IdOrganization,
+            BusinessCatalogItemType.ContactJobPosition,
+            details.IdContactJobPositionCatalogItem,
+            null,
+            cancellationToken);
+
         var contact = ClientContact.Create(
             request.IdOrganization,
             request.IdClient,
@@ -59,7 +73,14 @@ public sealed partial class ClientContactService(
         var contact = await contactRepository.GetAsync(request.IdClient, idClientContact, cancellationToken)
             ?? throw new ResourceNotFoundException("No se encontró el contacto solicitado.");
 
-        await catalogValidator.ValueAsync(request.IdOrganization, BusinessCatalogItemType.JobPosition, details.JobTitle, contact.JobTitle, cancellationToken);
+        await EnsureSinglePrimaryAsync(request.IdClient, idClientContact, details.IsPrimary, cancellationToken);
+
+        await catalogValidator.ItemAsync(
+            request.IdOrganization,
+            BusinessCatalogItemType.ContactJobPosition,
+            details.IdContactJobPositionCatalogItem,
+            contact.IdContactJobPositionCatalogItem,
+            cancellationToken);
         contact.UpdateDetails(
             request.IdClientZone,
             details,
@@ -104,6 +125,37 @@ public sealed partial class ClientContactService(
         }
     }
 
+    /// <summary>
+    /// Un solo contacto principal por cliente.
+    ///
+    /// <para>La marca no se mueve sola: marcar a otro <b>no</b> desmarca al que la tiene, porque
+    /// eso cambiaría un dato del expediente sin que nadie lo pidiera y sin dejar claro qué pasó.
+    /// Hay que quitársela primero al actual, y el aviso dice a quién.</para>
+    ///
+    /// <para>Se comprueba aquí <b>y</b> en la base, con un índice único filtrado. Aquí para poder
+    /// decir el nombre; allá para que la regla siga siendo cierta si mañana otro camino guarda un
+    /// contacto sin pasar por este servicio.</para>
+    /// </summary>
+    private async Task EnsureSinglePrimaryAsync(
+        Guid idClient,
+        Guid? idClientContact,
+        bool isPrimary,
+        CancellationToken cancellationToken)
+    {
+        if (!isPrimary)
+        {
+            return;
+        }
+
+        var actual = await contactRepository.GetPrimaryAsync(idClient, idClientContact, cancellationToken);
+        if (actual is not null)
+        {
+            throw new ResourceConflictException(
+                $"Este cliente ya tiene un contacto principal: {actual.FullName}. "
+                + "Quítale la marca antes de dársela a otro.");
+        }
+    }
+
     private async Task EnsureZoneAsync(
         Guid idClient,
         Guid? idClientZone,
@@ -122,7 +174,6 @@ public sealed partial class ClientContactService(
 
     private static ClientContactDetails Validate(CreateClientContactRequest request) =>
         Validate(
-            request.Scope,
             request.IdPurposeCatalogItem,
             request.IdContactJobPositionCatalogItem,
             request.IdClientZone,
@@ -136,7 +187,6 @@ public sealed partial class ClientContactService(
 
     private static ClientContactDetails Validate(UpdateClientContactRequest request) =>
         Validate(
-            request.Scope,
             request.IdPurposeCatalogItem,
             request.IdContactJobPositionCatalogItem,
             request.IdClientZone,
@@ -149,7 +199,6 @@ public sealed partial class ClientContactService(
             request.IsPrimary);
 
     private static ClientContactDetails Validate(
-        ClientContactScope scope,
         Guid? idPurposeCatalogItem,
         Guid? idContactJobPositionCatalogItem,
         Guid? idClientZone,
@@ -168,12 +217,8 @@ public sealed partial class ClientContactService(
             errors[nameof(purpose)] = ["El propósito del contacto no es válido."];
         }
 
-        // La regla de la matriz, dicha en el servidor: con alcance de zona hay que decir cuál. Que
-        // esa zona sea del cliente lo comprueba EnsureZoneAsync antes de llegar aquí.
-        if (scope is ClientContactScope.Zone && idClientZone is null)
-        {
-            errors[nameof(scope)] = ["Un contacto de zona tiene que decir de qué zona es."];
-        }
+        // La zona es opcional: vacia significa que el contacto vale para todo el cliente. Que la
+        // zona, cuando viene, sea de ese cliente lo comprueba EnsureZoneAsync antes de llegar aqui.
 
         var normalizedEmail = InputValidation.Optional(email, nameof(email), 254, errors);
         if (normalizedEmail is not null && !EmailRegex().IsMatch(normalizedEmail))
@@ -197,7 +242,6 @@ public sealed partial class ClientContactService(
             normalizedPhone,
             normalizedMobile,
             isPrimary,
-            scope,
             idPurposeCatalogItem,
             idContactJobPositionCatalogItem);
         InputValidation.ThrowIfInvalid(errors);
@@ -208,7 +252,6 @@ public sealed partial class ClientContactService(
         contact.IdClientContact,
         contact.IdClient,
         contact.IdClientSite,
-        contact.Scope,
         contact.IdPurposeCatalogItem,
         contact.IdContactJobPositionCatalogItem,
         contact.ClientSite?.Name,

@@ -1,12 +1,14 @@
 import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CatalogSelect } from '../../../shared/ui/catalog-select/catalog-select';
-import { GiCatalogCreation, GiCatalogPicker } from '../../../shared/ui/gi-ui';
+import { GiDate, GiSelect, GiSelectOption } from '../../../shared/ui/gi-ui';
 import { EmployeeJobPositionOption } from '../data-access/employee-list.models';
 
 /** Lo que el formulario devuelve. El puesto viaja por identificador y por nombre. */
 export type EmployeeFormValue = {
-  readonly fullName: string;
+  readonly firstName: string;
+  readonly lastNamePaternal: string;
+  readonly lastNameMaternal: string;
   readonly idJobPositionCatalogItem: string;
   readonly jobPositionName: string;
   readonly hireDate: string;
@@ -31,28 +33,55 @@ export type EmployeeFormValue = {
 @Component({
   selector: 'app-employee-form',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CatalogSelect, FormsModule, GiCatalogPicker],
+  imports: [CatalogSelect, FormsModule, GiSelect, GiDate],
   template: `
     <form class="form" (ngSubmit)="$event.preventDefault()">
       <section class="form__block">
         <h3 class="form__kicker">IDENTIFICACIÓN</h3>
 
         <label class="field field--wide" for="ef-nombre">
-          <span class="field__label">NOMBRE COMPLETO</span>
+          <span class="field__label">NOMBRE(S)<span class="field__req" aria-hidden="true">*</span></span>
           <input
             id="ef-nombre"
-            name="fullName"
+            name="firstName"
             type="text"
-            [ngModel]="fullName()"
-            (ngModelChange)="fullName.set($event)"
+            [ngModel]="firstName()"
+            (ngModelChange)="firstName.set($event)"
             [ngModelOptions]="sueltos"
             autocomplete="off"
           />
         </label>
 
         <div class="form__row form__row--two">
+          <label class="field" for="ef-paterno">
+            <span class="field__label">APELLIDO PATERNO<span class="field__req" aria-hidden="true">*</span></span>
+            <input
+              id="ef-paterno"
+              name="lastNamePaternal"
+              type="text"
+              [ngModel]="lastNamePaternal()"
+              (ngModelChange)="lastNamePaternal.set($event)"
+              [ngModelOptions]="sueltos"
+              autocomplete="off"
+            />
+          </label>
+          <label class="field" for="ef-materno">
+            <span class="field__label">APELLIDO MATERNO</span>
+            <input
+              id="ef-materno"
+              name="lastNameMaternal"
+              type="text"
+              [ngModel]="lastNameMaternal()"
+              (ngModelChange)="lastNameMaternal.set($event)"
+              [ngModelOptions]="sueltos"
+              autocomplete="off"
+            />
+          </label>
+        </div>
+
+        <div class="form__row form__row--two">
           <label class="field" for="ef-curp">
-            <span class="field__label">CURP · OPCIONAL</span>
+            <span class="field__label">CURP</span>
             <input
               id="ef-curp"
               name="curp"
@@ -65,44 +94,37 @@ export type EmployeeFormValue = {
             />
           </label>
           <label class="field" for="ef-ingreso">
-            <span class="field__label">FECHA DE INGRESO</span>
-            <input
-              id="ef-ingreso"
-              name="hireDate"
-              type="date"
-              [ngModel]="hireDate()"
-              (ngModelChange)="hireDate.set($event)"
-              [ngModelOptions]="sueltos"
-            />
+            <span class="field__label">FECHA DE INGRESO<span class="field__req" aria-hidden="true">*</span></span>
+            <gi-date inputId="ef-ingreso" [ngModel]="hireDate()" (ngModelChange)="hireDate.set($event)" [ngModelOptions]="sueltos" />
           </label>
         </div>
       </section>
 
       <section class="form__block">
-        <h3 class="form__kicker">
-          PUESTO · DEL CATÁLOGO DE LA ORGANIZACIÓN
-          <span class="form__warning">Sin puesto no se puede comprobar el perfil</span>
-        </h3>
+        <h3 class="form__kicker">PUESTO</h3>
 
         <!--
-          El catálogo vacío ya no es una pared: se escribe el puesto y se ofrece agregarlo. Antes
-          aquí salía un estado vacío que mandaba a Catálogos, y había que abandonar el alta a medias,
-          crear el puesto y volver a empezar.
+          Un desplegable, no un campo donde escribir.
+          Con el buscador se va su alta al vuelo, que estaba aqui para que el catalogo vacio no
+          fuera una pared. Vuelve a serlo: sin puestos en el catalogo hay que ir a Catalogos antes
+          de dar de alta a nadie, y por eso el vacio lo dice en vez de dejar un desplegable mudo.
+          Elegir de una lista cerrada es lo que pidio el usuario, y un nombre tecleado a mano no
+          sirve para comprobar la elegibilidad: esa se compara por identificador.
         -->
-        <gi-catalog-picker
+        <gi-select
           label="Puesto del catálogo"
-          catalogLabel="el catálogo de puestos"
-          inputId="empleado-puesto"
-          [options]="jobPositions()"
+          placeholder="Elige el puesto"
+          [options]="opcionesDePuesto()"
           [value]="idJobPositionCatalogItem()"
-          [canWrite]="canWrite()"
+          [disabled]="!canWrite()"
           (valueChange)="idJobPositionCatalogItem.set($event)"
-          (create)="createJobPosition.emit($event)"
         />
-        <p class="form__hint">
-          Los puestos salen del catálogo de esta organización. La elegibilidad se compara por
-          identificador, así que un puesto escrito a mano no sirve para comprobarla.
-        </p>
+        @if (jobPositions().length === 0) {
+          <p class="form__hint">
+            Esta organización no tiene puestos en su catálogo. Se declaran en Catálogos · Puestos, y
+            sin al menos uno no se puede dar de alta a nadie.
+          </p>
+        }
       </section>
 
       <section class="form__block">
@@ -137,7 +159,7 @@ export type EmployeeFormValue = {
             />
           </label>
           <label class="field" for="ef-tel">
-            <span class="field__label">TELÉFONO · OPCIONAL</span>
+            <span class="field__label">TELÉFONO</span>
             <input
               id="ef-tel"
               name="mobilePhone"
@@ -149,7 +171,7 @@ export type EmployeeFormValue = {
             />
           </label>
           <label class="field" for="ef-correo">
-            <span class="field__label">CORREO · OPCIONAL</span>
+            <span class="field__label">CORREO</span>
             <input
               id="ef-correo"
               name="email"
@@ -161,10 +183,6 @@ export type EmployeeFormValue = {
             />
           </label>
         </div>
-        <p class="form__hint">
-          Estado y municipio se eligen del catálogo de direcciones. El servidor rechaza un texto
-          libre que no corresponda a un municipio activo del estado.
-        </p>
       </section>
 
       @if (problem()) {
@@ -179,7 +197,6 @@ export type EmployeeFormValue = {
           class="button"
           type="button"
           [disabled]="saving() || !personReady()"
-          [attr.aria-describedby]="personReady() ? null : 'ef-falta-persona'"
           (click)="submit()"
         >
           Guardar sin puesto
@@ -188,7 +205,6 @@ export type EmployeeFormValue = {
           class="button button--primary"
           type="button"
           [disabled]="saving() || !jobReady()"
-          [attr.aria-describedby]="jobReady() ? null : 'ef-falta-puesto'"
           (click)="submit()"
         >
           Guardar con puesto
@@ -196,14 +212,7 @@ export type EmployeeFormValue = {
       </span>
     </div>
 
-    <!-- Las razones se escriben. Un botón gris sin motivo obliga a adivinar qué falta. -->
-    <p class="form__reason" id="ef-falta-persona" [hidden]="personReady()">
-      Faltan el nombre completo o la fecha de ingreso.
-    </p>
-    <p class="form__reason" id="ef-falta-puesto" [hidden]="jobReady()">
-      Para guardar con puesto hace falta elegir uno del catálogo, además del nombre y la fecha de
-      ingreso.
-    </p>
+
   `,
   styles: `
     :host { display: flex; flex-direction: column; min-height: 0; }
@@ -213,6 +222,8 @@ export type EmployeeFormValue = {
     .form__block { display: flex; flex-direction: column; gap: 0.7rem; }
 
     .form__block + .form__block { border-top: 1px solid var(--gestia-border); padding-top: 1.1rem; }
+
+    .field__req { color: var(--gestia-danger); margin-left: 0.15rem; }
 
     .form__kicker {
       display: flex;
@@ -226,7 +237,6 @@ export type EmployeeFormValue = {
       letter-spacing: 0.08em;
     }
 
-    .form__warning { color: var(--gestia-warning); font-size: 11.5px; letter-spacing: 0; }
 
     .form__row { display: grid; gap: 0.7rem; }
     .form__row--two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -321,6 +331,11 @@ export class EmployeeForm {
   readonly organizationId = input('');
   readonly jobPositions = input.required<readonly EmployeeJobPositionOption[]>();
 
+  /** El catálogo de puestos con la forma que pide `gi-select`. */
+  protected readonly opcionesDePuesto = computed<readonly GiSelectOption[]>(() =>
+    this.jobPositions().map((puesto) => ({ value: puesto.idCatalogItem, label: puesto.name })),
+  );
+
   /** Sin esto, el alta al vuelo ofrecería crear algo que el servidor va a rechazar con 403. */
   readonly canWrite = input(false);
   /** El día operativo del servidor, para proponer el ingreso de hoy. */
@@ -338,12 +353,13 @@ export class EmployeeForm {
    * otro módulo, y quien la hace tiene que poder recargar la lista y contarlo. El formulario sólo
    * dice qué se pidió.</p>
    */
-  readonly createJobPosition = output<GiCatalogCreation>();
 
   /** Un objeto estable: creado en la plantilla se recrearía en cada ciclo de detección. */
   protected readonly sueltos = { standalone: true };
 
-  protected readonly fullName = signal('');
+  protected readonly firstName = signal('');
+  protected readonly lastNamePaternal = signal('');
+  protected readonly lastNameMaternal = signal('');
   protected readonly idJobPositionCatalogItem = signal('');
   protected readonly hireDate = signal('');
   protected readonly curp = signal('');
@@ -353,7 +369,10 @@ export class EmployeeForm {
   protected readonly email = signal('');
 
   protected readonly personReady = computed(
-    () => !!this.fullName().trim() && !!this.effectiveHireDate(),
+    () =>
+      !!this.firstName().trim() &&
+      !!this.lastNamePaternal().trim() &&
+      !!this.effectiveHireDate(),
   );
 
   protected readonly jobReady = computed(() => this.personReady() && !!this.idJobPositionCatalogItem());
@@ -374,7 +393,9 @@ export class EmployeeForm {
     );
 
     this.save.emit({
-      fullName: this.fullName().trim(),
+      firstName: this.firstName().trim(),
+      lastNamePaternal: this.lastNamePaternal().trim(),
+      lastNameMaternal: this.lastNameMaternal().trim(),
       idJobPositionCatalogItem: elegido?.idCatalogItem ?? '',
       jobPositionName: elegido?.name ?? '',
       hireDate: this.effectiveHireDate(),

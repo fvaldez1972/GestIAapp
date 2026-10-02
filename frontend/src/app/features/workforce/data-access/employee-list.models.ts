@@ -50,12 +50,34 @@ export type EmployeeListItem = {
   readonly documentHealth: EmployeeDocumentHealth;
 };
 
+/**
+ * Los números del encabezado, de **toda la organización**.
+ *
+ * <p>Los manda el servidor ya resueltos. Antes se calculaban aquí sobre `employees()`, que es la
+ * página a la vista: «10 tienen algún documento vencido» con diez filas por página decía diez
+ * siempre, porque estaba contando la página y no la organización.</p>
+ */
+export type EmployeeSummary = {
+  readonly total: number;
+  readonly active: number;
+  readonly candidates: number;
+  readonly withExpiredDocuments: number;
+  readonly withExpiringDocuments: number;
+};
+
 export type EmployeeSearchResult = {
   readonly page: PagedResult<EmployeeListItem>;
   /** Cuántos días antes de caducar cuenta como «por vencer». Se escribe en la pantalla. */
   readonly expiringWithinDays: number;
   /** Cuántos requisitos documentales exige esta organización. */
   readonly requiredDocuments: number;
+  readonly summary: EmployeeSummary;
+};
+
+/** Con qué clientes está ocupada una persona hoy. Lo resuelve el servidor. */
+export type EmployeeCurrentAssignments = {
+  readonly idEmployee: string;
+  readonly clientNames: readonly string[];
 };
 
 export type EmployeeJobPositionOption = { readonly idCatalogItem: string; readonly name: string };
@@ -122,46 +144,26 @@ export function employeeDocumentBadge(employee: EmployeeListItem): EmployeeDocum
     return { label: 'Sin requisitos', tone: 'muted' };
   }
 
-  if (employee.expiredDocuments > 0) {
-    return {
-      label: employee.expiredDocuments === 1 ? '1 vencido' : `${employee.expiredDocuments} vencidos`,
-      tone: 'danger',
-    };
-  }
+  // **Un vencido cuenta como sin cubrir, aunque la columna ya no diga por qué.**
+  //
+  // Es la trampa de haber retirado las fechas: si «vencido» sólo dejara de nombrarse, la persona
+  // con la CURP caducada saldría «Completo» mientras el servidor le niega la asignación por ese
+  // mismo documento. Lo que se quitó es la fecha, no el hecho de que el requisito no está cubierto.
+  const sinCubrir =
+    employee.expiredDocuments > 0 ||
+    employee.notValidDocuments > 0 ||
+    employee.missingDocuments > 0;
 
-  // Antes de «sin cargar»: un documento rechazado está más cerca de bloquear que uno que falta, y
-  // decir «sin cargar» de un archivo que sí está manda a subirlo otra vez en lugar de a revisarlo.
-  if (employee.notValidDocuments > 0) {
-    return {
-      label:
-        employee.notValidDocuments === 1
-          ? '1 sin validar'
-          : `${employee.notValidDocuments} sin validar`,
-      tone: 'danger',
-    };
-  }
-
-  if (employee.missingDocuments > 0) {
-    return {
-      label:
-        employee.missingDocuments === 1 ? '1 sin cargar' : `${employee.missingDocuments} sin cargar`,
-      tone: 'warning',
-    };
-  }
-
-  if (employee.expiringDocuments > 0) {
-    return {
-      label:
-        employee.expiringDocuments === 1 ? '1 por vencer' : `${employee.expiringDocuments} por vencer`,
-      tone: 'warning',
-    };
-  }
-
-  return { label: 'Al día', tone: 'success' };
+  // Sin número: los tres conteos miden cosas distintas —uno cuenta archivos y dos cuentan
+  // requisitos—, así que sumarlos daría una cifra que no corresponde a nada. Decir «Incompleto»
+  // es menos de lo que se decía antes, pero es cierto.
+  return sinCubrir
+    ? { label: 'Incompleto', tone: 'danger' }
+    : { label: 'Completo', tone: 'success' };
 }
 
 /** De dónde salen los requisitos, dicho con precisión. */
-export function documentRequirementsNote(requiredDocuments: number, expiringWithinDays: number): string {
+export function documentRequirementsNote(requiredDocuments: number): string {
   if (requiredDocuments === 0) {
     return 'Esta organización todavía no exige ningún documento. Los requisitos se definen en Catálogos.';
   }
@@ -172,7 +174,7 @@ export function documentRequirementsNote(requiredDocuments: number, expiringWith
   // Se dice completo a propósito: la organización elige **cuáles**, no inventa tipos nuevos.
   return (
     `${cuantos} definidos por esta organización, sobre los tipos de documento que el sistema ` +
-    `reconoce. Por vencer: ${expiringWithinDays} días o menos.`
+    'reconoce.'
   );
 }
 
@@ -307,6 +309,9 @@ export type EmployeeDocumentTypeOption = {
   readonly code: string;
   readonly label: string;
   readonly isRequired: boolean;
+  readonly hasOwnExpiry?: boolean | null;
+  readonly maxIssueAgeMonths?: number | null;
+  readonly isSensitive?: boolean | null;
 };
 
 /**
@@ -324,13 +329,19 @@ export type EmployeeDocumentTypeOption = {
 export function employeeDocumentTypeOptions(
   required: readonly {
     readonly idRequiredCatalogItem: string | null;
-    readonly isBlockingEffective: boolean;
+    readonly isRequiredEffective: boolean;
   }[],
-  categories: readonly { readonly idCatalogItem: string; readonly name: string }[],
+  categories: readonly {
+    readonly idCatalogItem: string;
+    readonly name: string;
+    readonly hasOwnExpiry?: boolean | null;
+    readonly maxIssueAgeMonths?: number | null;
+    readonly isSensitive?: boolean | null;
+  }[],
 ): readonly EmployeeDocumentTypeOption[] {
   const exigidos = new Set(
     required
-      .filter((regla) => regla.isBlockingEffective && regla.idRequiredCatalogItem)
+      .filter((regla) => regla.isRequiredEffective && regla.idRequiredCatalogItem)
       .map((regla) => regla.idRequiredCatalogItem!),
   );
 
@@ -338,6 +349,10 @@ export function employeeDocumentTypeOptions(
     code: categoria.idCatalogItem,
     label: categoria.name,
     isRequired: exigidos.has(categoria.idCatalogItem),
+    hasOwnExpiry: categoria.hasOwnExpiry ?? null,
+    maxIssueAgeMonths: categoria.maxIssueAgeMonths ?? null,
+    // La sensibilidad viaja con el tipo: es de donde la hereda el documento.
+    isSensitive: categoria.isSensitive ?? null,
   }));
 
   return [...tipos.filter((tipo) => tipo.isRequired), ...tipos.filter((tipo) => !tipo.isRequired)];
@@ -369,12 +384,30 @@ export type EmployeeRequirementRow = {
   readonly code: string;
   readonly label: string;
   /** Un requisito que no bloquea se pide igual, pero no impide asignar. Se dice cuál es cuál. */
-  readonly isBlocking: boolean;
+  readonly isRequired: boolean;
   readonly state: EmployeeRequirementState;
   readonly expiresDate: string | null;
   readonly documentNumber: string | null;
   /** El estado del documento cargado, para poder decir por qué no cuenta. Nulo si no hay ninguno. */
   readonly documentStatus: string | null;
+  /**
+   * El tipo está en el catálogo pero **nadie le creó su regla de elegibilidad**.
+   *
+   * <p>Importa porque la marca del catálogo <b>clasifica</b> y la regla es la que <b>bloquea</b>.
+   * Un tipo marcado obligatorio sin regla se pide igual, pero hoy no impide asignar a nadie, y la
+   * pantalla lo dice en vez de prometer un bloqueo que no existe.</p>
+   */
+  readonly withoutRule: boolean;
+  /**
+   * El documento de negocio al que apunta el papel que cubre el requisito, si lo hay.
+   *
+   * <p>Es lo que permite descargarlo, ver su historial o corregirlo <b>desde la propia fila</b>.
+   * Los dos almacenes conviven: el expediente del empleado guarda el estado del requisito, y el
+   * documento de negocio guarda el archivo con sus acciones. La columna que los une se agregó
+   * justo para esto, y todo lo que se carga desde la pantalla queda enlazado; lo sembrado antes
+   * puede tenerla en nulo, y entonces desde la fila sólo se puede reemplazar.</p>
+   */
+  readonly idBusinessDocument: string | null;
 };
 
 /**
@@ -394,7 +427,7 @@ export function employeeRequirementRows(
     readonly idRequiredCatalogItem: string | null;
     readonly requiredCatalogItemName: string | null;
     readonly name: string;
-    readonly isBlockingEffective: boolean;
+    readonly isRequiredEffective: boolean;
   }[],
   documents: readonly {
     readonly idDocumentCategoryCatalogItem: string | null;
@@ -403,47 +436,99 @@ export function employeeRequirementRows(
     readonly expiresDate: string | null;
     readonly documentNumber: string | null;
     readonly active: boolean;
+    readonly idBusinessDocument?: string | null;
   }[],
   today: string,
   expiringWithinDays: number,
+  /**
+   * Los tipos de documento del catálogo de la organización, con su marca.
+   *
+   * <p><b>Es la lista que manda.</b> Antes se recorrían las reglas de elegibilidad, así que un
+   * catálogo de catorce tipos enseñaba cuatro filas y los otros diez no aparecían en ninguna
+   * pestaña: sus archivos sólo asomaban en el expediente de abajo, todos juntos. La marca de
+   * obligatorio o informativo ya venía del catálogo —el servidor la resuelve así desde el 19 de
+   * septiembre de 2026—; lo que faltaba era listar el catálogo entero.</p>
+   *
+   * <p>Vacío deja el comportamiento anterior, que es lo que usan las pruebas que sólo hablan de
+   * reglas.</p>
+   */
+  catalogTypes: readonly { readonly idCatalogItem: string; readonly name: string; readonly isRequired?: boolean | null }[] = [],
 ): readonly EmployeeRequirementRow[] {
   const limite = shiftOperationalDate(today, expiringWithinDays);
 
-  return required.map((requisito) => {
+  const reglaPorTipo = new Map(
+    required.filter((regla) => regla.idRequiredCatalogItem).map((regla) => [regla.idRequiredCatalogItem!, regla]),
+  );
+
+  // El catálogo manda cuando lo hay. Si no llega, se recorren las reglas como siempre.
+  const entradas = catalogTypes.length
+    ? catalogTypes.map((tipo) => ({
+        code: tipo.idCatalogItem,
+        nombre: tipo.name,
+        regla: reglaPorTipo.get(tipo.idCatalogItem) ?? null,
+        delCatalogo: tipo.isRequired === true,
+      }))
+    : required.map((regla) => ({
+        code: regla.idRequiredCatalogItem ?? '',
+        nombre: '',
+        regla,
+        delCatalogo: regla.isRequiredEffective,
+      }));
+
+  return entradas.map((entrada) => {
+    const requisito = entrada.regla;
     // Por identificador, que es como los compara el servidor. Un documento anterior a la conversión
     // del catálogo todavía puede no tenerlo; ése no cubre el requisito, y es correcto que no lo
     // cubra, porque tampoco lo cubre para el servidor.
     const documento = documents.find(
       (item) => item.active &&
         !!item.idDocumentCategoryCatalogItem &&
-        item.idDocumentCategoryCatalogItem === requisito.idRequiredCatalogItem,
+        item.idDocumentCategoryCatalogItem === entrada.code,
     );
 
-    // El mismo orden que usa el servidor para decidir si el requisito está cubierto: primero el
-    // estado del documento, y sólo después las fechas. Al revés, un rechazado con vencimiento
-    // futuro se leía «Al día» mientras el servidor lo rechazaba al asignar.
+    // El orden importa, y dos reglas lo fijan.
+    //
+    // 1. El rechazo manda sobre todo lo demás. Un rechazado con vencimiento futuro se leía
+    //    «Al día» mientras el servidor lo rechazaba al asignar.
+    //
+    // 2. **Haber caducado manda sobre estar sin validar.** La caducidad es un hecho del documento;
+    //    la validación es un hecho de la revisión. Un papel que caducó hace año y medio y además
+    //    está pendiente de validar se decía «Sin validar», que manda a pedir una revisión cuando
+    //    lo que hace falta es un documento nuevo.
+    //
+    //    Y había una consecuencia visible: el contador de la fila —que el servidor calcula como
+    //    «estado vencido **o** fecha pasada»— lo contaba como vencido mientras esta lista lo
+    //    llamaba otra cosa. La ficha decía «2 vencidos» y la pestaña enseñaba uno.
+    const caducado = !!documento?.expiresDate && documento.expiresDate < today;
+
     const state: EmployeeRequirementState = !documento
       ? 'Missing'
       : documento.status === 'Rejected'
         ? 'Rejected'
-        : documento.status === 'Expired'
+        : documento.status === 'Expired' || caducado
           ? 'Expired'
           : documento.status !== 'Received' && documento.status !== 'Validated'
             ? 'Unvalidated'
-            : documento.expiresDate && documento.expiresDate < today
-              ? 'Expired'
-              : documento.expiresDate && documento.expiresDate <= limite
-                ? 'Expiring'
-                : 'UpToDate';
+            : documento.expiresDate && documento.expiresDate <= limite
+              ? 'Expiring'
+              : 'UpToDate';
 
     return {
-      code: requisito.idRequiredCatalogItem ?? '',
-      label: requisito.name || requisito.requiredCatalogItemName || 'Requisito sin nombre',
-      isBlocking: requisito.isBlockingEffective,
+      code: entrada.code,
+      label:
+        requisito?.name ||
+        requisito?.requiredCatalogItemName ||
+        entrada.nombre ||
+        'Requisito sin nombre',
+      // La severidad sale de la regla cuando la hay, porque ahí ya viene resuelta contra el
+      // catálogo; y del catálogo directamente cuando nadie creó la regla.
+      isRequired: requisito ? requisito.isRequiredEffective : entrada.delCatalogo,
       state,
       expiresDate: documento?.expiresDate ?? null,
       documentNumber: documento?.documentNumber ?? null,
       documentStatus: documento?.status ?? null,
+      withoutRule: !requisito,
+      idBusinessDocument: documento?.idBusinessDocument ?? null,
     };
   });
 }
@@ -495,13 +580,13 @@ export const evaluationResultLabel = (result: string): string =>
 export function evaluationTypeOptions(
   required: readonly {
     readonly idRequiredCatalogItem: string | null;
-    readonly isBlockingEffective: boolean;
+    readonly isRequiredEffective: boolean;
   }[],
   categories: readonly { readonly idCatalogItem: string; readonly name: string }[],
 ): readonly EmployeeDocumentTypeOption[] {
   const exigidos = new Set(
     required
-      .filter((regla) => regla.isBlockingEffective && regla.idRequiredCatalogItem)
+      .filter((regla) => regla.isRequiredEffective && regla.idRequiredCatalogItem)
       .map((regla) => regla.idRequiredCatalogItem!),
   );
 
@@ -518,11 +603,17 @@ export function evaluationTypeOptions(
 export type EmployeeEvaluationRequirementRow = {
   readonly code: string;
   readonly label: string;
-  readonly isBlocking: boolean;
+  readonly isRequired: boolean;
   readonly state: EmployeeRequirementState;
   readonly expiresDate: string | null;
   /** El resultado de la evaluación registrada, para poder decir por qué no cuenta. */
   readonly result: string | null;
+  /**
+   * El tipo está en el catálogo pero <b>nadie le creó su regla de elegibilidad</b>.
+   *
+   * <p>Igual que en documentos: la marca del catálogo clasifica y la regla es la que bloquea.</p>
+   */
+  readonly withoutRule: boolean;
 };
 
 /**
@@ -541,7 +632,7 @@ export function employeeEvaluationRequirementRows(
     readonly idRequiredCatalogItem: string | null;
     readonly requiredCatalogItemName: string | null;
     readonly name: string;
-    readonly isBlockingEffective: boolean;
+    readonly isRequiredEffective: boolean;
   }[],
   evaluations: readonly {
     readonly idEvaluationCategoryCatalogItem: string | null;
@@ -552,15 +643,45 @@ export function employeeEvaluationRequirementRows(
   }[],
   today: string,
   expiringWithinDays: number,
+  /**
+   * Los tipos de evaluación del catálogo de la organización, con su marca.
+   *
+   * <p><b>Es la lista que manda</b>, igual que en documentos. Recorriendo sólo las reglas, una
+   * organización con nueve tipos en su catálogo y ninguna regla enseñaba cero filas y un recuadro
+   * diciendo que no exige ninguna evaluación, con el catálogo lleno detrás.</p>
+   *
+   * <p>Vacío deja el comportamiento anterior, que es el que usan las pruebas que sólo hablan de
+   * reglas.</p>
+   */
+  catalogTypes: readonly { readonly idCatalogItem: string; readonly name: string; readonly isRequired?: boolean | null }[] = [],
 ): readonly EmployeeEvaluationRequirementRow[] {
   const limite = shiftOperationalDate(today, expiringWithinDays);
 
-  return required.map((requisito) => {
+  const reglaPorTipo = new Map(
+    required.filter((regla) => regla.idRequiredCatalogItem).map((regla) => [regla.idRequiredCatalogItem!, regla]),
+  );
+
+  const entradas = catalogTypes.length
+    ? catalogTypes.map((tipo) => ({
+        code: tipo.idCatalogItem,
+        nombre: tipo.name,
+        regla: reglaPorTipo.get(tipo.idCatalogItem) ?? null,
+        delCatalogo: tipo.isRequired === true,
+      }))
+    : required.map((regla) => ({
+        code: regla.idRequiredCatalogItem ?? '',
+        nombre: '',
+        regla,
+        delCatalogo: regla.isRequiredEffective,
+      }));
+
+  return entradas.map((entrada) => {
+    const requisito = entrada.regla;
     const evaluacion = evaluations.find(
       (item) =>
         item.active &&
         !!item.idEvaluationCategoryCatalogItem &&
-        item.idEvaluationCategoryCatalogItem === requisito.idRequiredCatalogItem,
+        item.idEvaluationCategoryCatalogItem === entrada.code,
     );
 
     const state: EmployeeRequirementState = !evaluacion
@@ -576,12 +697,18 @@ export function employeeEvaluationRequirementRows(
               : 'UpToDate';
 
     return {
-      code: requisito.idRequiredCatalogItem ?? '',
-      label: requisito.name || requisito.requiredCatalogItemName || 'Requisito sin nombre',
-      isBlocking: requisito.isBlockingEffective,
+      code: entrada.code,
+      label:
+        requisito?.name ||
+        requisito?.requiredCatalogItemName ||
+        entrada.nombre ||
+        'Requisito sin nombre',
+      // La severidad sale de la regla cuando la hay, y del catálogo cuando nadie la creó.
+      isRequired: requisito ? requisito.isRequiredEffective : entrada.delCatalogo,
       state,
       expiresDate: evaluacion?.expiresDate ?? null,
       result: evaluacion?.result ?? null,
+      withoutRule: !requisito,
     };
   });
 }
@@ -612,9 +739,11 @@ export type EmployeeSkillRequirementRow = {
   /** El identificador del valor de catálogo que la regla exige. */
   readonly code: string;
   readonly label: string;
-  readonly isBlocking: boolean;
+  readonly isRequired: boolean;
   readonly state: EmployeeRequirementState;
   readonly expiresDate: string | null;
+  /** El tipo está en el catálogo pero nadie le creó su regla: se pide, no bloquea. */
+  readonly withoutRule: boolean;
 };
 
 /**
@@ -630,7 +759,7 @@ export function employeeSkillRequirementRows(
     readonly idRequiredCatalogItem: string | null;
     readonly requiredCatalogItemName: string | null;
     readonly name: string;
-    readonly isBlockingEffective: boolean;
+    readonly isRequiredEffective: boolean;
   }[],
   skills: readonly {
     readonly idSkillCatalogItem: string;
@@ -639,12 +768,40 @@ export function employeeSkillRequirementRows(
   }[],
   today: string,
   expiringWithinDays: number,
+  /**
+   * Las experiencias del catálogo de la organización, con su marca.
+   *
+   * <p><b>Es la lista que manda</b>, igual que en documentos y en evaluaciones. Recorriendo sólo
+   * las reglas, un catálogo de catorce experiencias sin ninguna regla creada no enseñaba nada.</p>
+   *
+   * <p>Vacío deja el comportamiento anterior, que es el de las pruebas que sólo hablan de reglas.</p>
+   */
+  catalogTypes: readonly { readonly idCatalogItem: string; readonly name: string; readonly isRequired?: boolean | null }[] = [],
 ): readonly EmployeeSkillRequirementRow[] {
   const limite = shiftOperationalDate(today, expiringWithinDays);
 
-  return required.map((requisito) => {
+  const reglaPorTipo = new Map(
+    required.filter((regla) => regla.idRequiredCatalogItem).map((regla) => [regla.idRequiredCatalogItem!, regla]),
+  );
+
+  const entradas = catalogTypes.length
+    ? catalogTypes.map((tipo) => ({
+        code: tipo.idCatalogItem,
+        nombre: tipo.name,
+        regla: reglaPorTipo.get(tipo.idCatalogItem) ?? null,
+        delCatalogo: tipo.isRequired === true,
+      }))
+    : required.map((regla) => ({
+        code: regla.idRequiredCatalogItem ?? '',
+        nombre: '',
+        regla,
+        delCatalogo: regla.isRequiredEffective,
+      }));
+
+  return entradas.map((entrada) => {
+    const requisito = entrada.regla;
     const experiencia = skills.find(
-      (item) => item.active && item.idSkillCatalogItem === requisito.idRequiredCatalogItem,
+      (item) => item.active && item.idSkillCatalogItem === entrada.code,
     );
 
     const state: EmployeeRequirementState = !experiencia
@@ -656,11 +813,17 @@ export function employeeSkillRequirementRows(
           : 'UpToDate';
 
     return {
-      code: requisito.idRequiredCatalogItem ?? '',
-      label: requisito.requiredCatalogItemName || requisito.name,
-      isBlocking: requisito.isBlockingEffective,
+      code: entrada.code,
+      label:
+        requisito?.requiredCatalogItemName ||
+        requisito?.name ||
+        entrada.nombre ||
+        'Experiencia sin nombre',
+      // La severidad sale de la regla cuando la hay, y del catálogo cuando nadie la creó.
+      isRequired: requisito ? requisito.isRequiredEffective : entrada.delCatalogo,
       state,
       expiresDate: experiencia?.expiresDate ?? null,
+      withoutRule: !requisito,
     };
   });
 }

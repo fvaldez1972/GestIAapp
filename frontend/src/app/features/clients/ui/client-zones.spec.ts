@@ -52,31 +52,84 @@ function montar(configurar: (host: Anfitrion) => void = () => {}) {
       campo.value = valor;
       campo.dispatchEvent(new Event('input'));
       fixture.detectChanges();
+      // Escribir el código postal sale a preguntar por él. Se contesta aquí para que ninguna
+      // prueba deje una petición colgando, que es como aparecen los «Unhandled Error».
+      surtirGeografia(TestBed.inject(HttpTestingController), fixture);
     },
   };
 }
 
 /**
- * El catálogo geográfico que el selector pide.
+ * La geografía que el selector pide.
  *
- * <p>Estado y municipio no son texto libre: el servidor los valida contra `State` y `City`, y la
- * ciudad cuelga del estado, que cuelga del país. La prueba monta esa jerarquía porque es la que
- * hace que el municipio aparezca sólo cuando su estado está elegido.</p>
+ * <p><b>Ya no viene con el catálogo de la organización.</b> Desde el 22 de septiembre de 2026 son
+ * tablas compartidas con sus propios endpoints, y la cascada —país, estado, municipio— la resuelve
+ * el servidor. Por eso este doble responde por dirección en vez de devolver un árbol entero para
+ * que el navegador lo recorra, que es lo que hacía cuando la geografía era un catálogo por
+ * empresa.</p>
  */
-const GEOGRAFIA = [
-  { idCatalogItem: 'mx', type: 'Country', name: 'México', active: true, idParentCatalogItem: null },
-  { idCatalogItem: 'jal', type: 'State', name: 'Jalisco', active: true, idParentCatalogItem: 'mx' },
-  { idCatalogItem: 'nl', type: 'State', name: 'Nuevo León', active: true, idParentCatalogItem: 'mx' },
-  { idCatalogItem: 'tlaq', type: 'City', name: 'Tlaquepaque', active: true, idParentCatalogItem: 'jal' },
-  { idCatalogItem: 'snic', type: 'City', name: 'San Nicolás de los Garza', active: true, idParentCatalogItem: 'nl' },
-];
+const PAISES = [{ code: 'MX', name: 'México' }];
+const ESTADOS = [{ code: '14', name: 'Jalisco' }, { code: '19', name: 'Nuevo León' }];
+const MUNICIPIOS: Record<string, readonly { code: string; name: string }[]> = {
+  Jalisco: [{ code: '14098', name: 'Tlaquepaque' }],
+  'Nuevo León': [{ code: '19046', name: 'San Nicolás de los Garza' }],
+};
 
-/** Responde la única petición del catálogo y deja los selectores con sus opciones. */
-function surtirCatalogo(http: HttpTestingController, fixture: { detectChanges(): void }) {
-  for (const peticion of http.match((r) => r.url.endsWith('/catalogs/options'))) {
-    peticion.flush(GEOGRAFIA);
+/**
+ * El padrón de códigos postales, del que la prueba sólo necesita uno.
+ *
+ * <p>Los demás responden 404, que es lo que responde el servidor cuando el código no está en el
+ * padrón. No es un atajo de la prueba: es el caso que mantiene vivos los tres desplegables.</p>
+ */
+const CODIGOS: Record<string, unknown> = {
+  '64000': {
+    postalCode: '64000',
+    countryCode: 'MX',
+    state: { code: '19', name: 'Nuevo León' },
+    municipality: { code: '19039', name: 'Monterrey' },
+    neighborhoods: [
+      { name: 'Monterrey Centro', settlementType: 'Colonia' },
+      { name: 'La Finca', settlementType: 'Colonia' },
+    ],
+  },
+};
+
+/** Responde lo que la geografía tenga pendiente, que cambia conforme se elige en la cascada. */
+function surtirGeografia(http: HttpTestingController, fixture: { detectChanges(): void }) {
+  for (const peticion of http.match((r) => r.url.includes('/geography/'))) {
+    // Una consulta cancelada no se contesta: al escribir otro codigo se cancela la anterior, y
+    // responderle revienta con «Cannot flush a cancelled request».
+    if (peticion.cancelled) {
+      continue;
+    }
+
+    const url = peticion.request.url;
+
+    if (url.endsWith('/countries')) {
+      peticion.flush(PAISES);
+    } else if (url.endsWith('/states')) {
+      peticion.flush(ESTADOS);
+    } else if (url.includes('/postal-codes/')) {
+      const codigo = url.split('/').pop() ?? '';
+      const encontrado = CODIGOS[codigo];
+      if (encontrado) {
+        peticion.flush(encontrado);
+      } else {
+        peticion.flush(null, { status: 404, statusText: 'Not Found' });
+      }
+    } else {
+      peticion.flush(MUNICIPIOS[peticion.request.params.get('state') ?? ''] ?? []);
+    }
   }
   fixture.detectChanges();
+}
+
+/** Responde la petición del catálogo de la organización y la de la geografía. */
+function surtirCatalogo(http: HttpTestingController, fixture: { detectChanges(): void }) {
+  for (const peticion of http.match((r) => r.url.endsWith('/catalogs/options'))) {
+    peticion.flush([]);
+  }
+  surtirGeografia(http, fixture);
 }
 
 /** Elige un valor en un `app-catalog-select`, que por dentro es el `<select>` de la excepción. */
@@ -88,6 +141,37 @@ function elegir(raiz: HTMLElement, id: string, valor: string, fixture: { detectC
   select.value = valor;
   select.dispatchEvent(new Event('change'));
   fixture.detectChanges();
+  // Elegir el estado hace que el municipio pida los suyos: la cascada ahora la resuelve el servidor.
+  surtirGeografia(TestBed.inject(HttpTestingController), fixture);
+}
+
+/** Escribe el código postal y contesta la consulta que dispara. */
+function escribirCp(raiz: HTMLElement, fixture: { detectChanges(): void }, codigo: string) {
+  const campo = raiz.querySelector<HTMLInputElement>('#ns-cp')!;
+  campo.value = codigo;
+  campo.dispatchEvent(new Event('input'));
+  fixture.detectChanges();
+  surtirGeografia(TestBed.inject(HttpTestingController), fixture);
+}
+
+/**
+ * El domicilio de la pestaña, para leer lo que el código postal dejó en él.
+ *
+ * <p>Vive en un servicio provisto por el componente y no en el componente: el mismo comportamiento
+ * lo usa el expediente de personal, y duplicarlo habría garantizado que las dos pantallas se
+ * separaran.</p>
+ */
+function obtenerDireccion(fixture: { debugElement: { children: { componentInstance: unknown }[] } }) {
+  return (
+    fixture.debugElement.children[0].componentInstance as {
+      direccion: {
+        countryCode(): string;
+        state: { (): string; set(v: string): void };
+        municipality: { (): string; set(v: string): void };
+        onCountry(v: string): void;
+      };
+    }
+  ).direccion;
 }
 
 describe('La pestaña de Zonas', () => {
@@ -167,10 +251,84 @@ describe('La pestaña de Zonas', () => {
       municipality: 'San Nicolás de los Garza',
       state: 'Nuevo León',
       postalCode: '66450',
+      // El país viaja con la zona desde el 22 de septiembre de 2026. México por omisión: es donde
+      // opera todo lo capturado, y así el campo no llega vacío a quien sólo iba a escribir la calle.
+      countryCode: 'MX',
+      // Sin marcar el punto en el mapa, la ubicación va en nulo: o las dos coordenadas o ninguna.
+      latitude: null,
+      longitude: null,
     });
   });
 
   /** Una zona sin contacto funciona, pero nadie responde por ella, y eso se dice. */
+  /**
+   * El código postal manda en la dirección: cinco dígitos y se resuelve el resto.
+   *
+   * <p>Es la forma en que se escribe una dirección en México, y es lo que evita encadenar cuatro
+   * desplegables para capturar una zona.</p>
+   */
+  it('el código postal resuelve el estado, el municipio y la lista de colonias', () => {
+    const { raiz, fixture } = montar((anfitrion) => anfitrion.openAdd.set(true));
+
+    escribirCp(raiz, fixture, '64000');
+
+    const direccion = obtenerDireccion(fixture);
+    expect(direccion.state()).toBe('Nuevo León');
+    expect(direccion.municipality()).toBe('Monterrey');
+
+    raiz.querySelector<HTMLButtonElement>('#ns-colonia button[role="combobox"]')!.click();
+    fixture.detectChanges();
+
+    const opciones = Array.from(raiz.querySelectorAll('#ns-colonia .gi-select__option'))
+      .map((opcion) => opcion.textContent?.trim());
+
+    expect(opciones).toContain('Monterrey Centro');
+    expect(opciones).toContain('La Finca');
+    // La salida va siempre: el padrón no trae los fraccionamientos nuevos.
+    expect(opciones).toContain('Otra: escribirla');
+  });
+
+  /**
+   * El control de la prueba anterior, y el que justifica que los desplegables se queden.
+   *
+   * <p>Un código que no está en el padrón no puede dejar la pantalla sin forma de contestar, y
+   * tampoco puede borrar lo que alguien ya había elegido por teclear mal un dígito.</p>
+   */
+  it('un código fuera del padrón conserva la dirección y deja los desplegables', () => {
+    const { raiz, fixture } = montar((anfitrion) => anfitrion.openAdd.set(true));
+
+    escribirCp(raiz, fixture, '64000');
+    escribirCp(raiz, fixture, '99999');
+
+    const direccion = obtenerDireccion(fixture);
+    expect(direccion.state()).toBe('Nuevo León');
+    expect(direccion.municipality()).toBe('Monterrey');
+    expect(raiz.textContent).toContain('No está en el padrón');
+
+    // Y la colonia vuelve a ser texto libre, porque no hay lista que ofrecer.
+    expect(raiz.querySelector('#ns-colonia button[role="combobox"]')).toBeNull();
+    expect(raiz.querySelector('input#ns-colonia')).not.toBeNull();
+  });
+
+  /** «Otra» no elige una colonia: devuelve el campo de texto. */
+  it('«Otra» devuelve el campo de texto de la colonia', () => {
+    const { raiz, fixture } = montar((anfitrion) => anfitrion.openAdd.set(true));
+
+    escribirCp(raiz, fixture, '64000');
+    expect(raiz.querySelector('input#ns-colonia')).toBeNull();
+
+    raiz.querySelector<HTMLButtonElement>('#ns-colonia button[role="combobox"]')!.click();
+    fixture.detectChanges();
+    Array.from(raiz.querySelectorAll<HTMLElement>('#ns-colonia .gi-select__option'))
+      .find((opcion) => opcion.textContent?.includes('Otra'))!
+      .click();
+    fixture.detectChanges();
+
+    const campo = raiz.querySelector<HTMLInputElement>('input#ns-colonia');
+    expect(campo).not.toBeNull();
+    expect(campo!.value).toBe('');
+  });
+
   it('una zona sin contacto lo dice, con palabras y no sólo con color', () => {
     const { raiz } = montar((host) => host.lista.set([zona()]));
 
@@ -412,5 +570,28 @@ describe('La pestaña de Zonas · editar', () => {
 
     expect(host.editing()).toBeNull();
     expect(abierta(raiz)).toBe(false);
+  });
+
+  /**
+   * Cambiar de país invalida el estado y el municipio.
+   *
+   * <p>Pertenecían al país anterior. Sin esto se puede guardar una zona con un estado de México y
+   * un país que no es México, y nada en la pantalla lo dice: los dos desplegables se quedan con lo
+   * que tenían y parecen correctos.</p>
+   *
+   * <p>Es la misma regla que ya tenía estado sobre municipio, un escalón más arriba.</p>
+   */
+  it('cambiar de país vacía el estado y el municipio', () => {
+    const { fixture } = montar();
+    const pestana = obtenerDireccion(fixture);
+
+    pestana.state.set('Nuevo León');
+    pestana.municipality.set('San Nicolás de los Garza');
+
+    pestana.onCountry('US');
+
+    expect(pestana.countryCode()).toBe('US');
+    expect(pestana.state(), 'el estado era de otro país').toBe('');
+    expect(pestana.municipality()).toBe('');
   });
 });

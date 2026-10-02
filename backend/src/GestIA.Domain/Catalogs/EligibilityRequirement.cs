@@ -43,7 +43,7 @@ public sealed record EligibilityRequirementProfile(
 /// se conservan como rastro de lo que había, no deciden nada, y se retiran cuando no queden
 /// identificadores sin rellenar.</para>
 ///
-/// <para><b>Qué tan grave es que falte ya no vive sólo aquí.</b> <see cref="IsBlocking"/> pasó a ser
+/// <para><b>Qué tan grave es que falte ya no vive sólo aquí.</b> <see cref="IsRequired"/> pasó a ser
 /// nulable: un nulo hereda la marca de la entrada del catálogo, y un valor la afina para este
 /// alcance. La razón está en los datos: de las 29 reglas vivas el día de la decisión, trece eran por
 /// posición, y una marca de catálogo —que vale para toda la organización— no puede expresar lo que
@@ -95,7 +95,7 @@ public sealed class EligibilityRequirement : AuditableEntity, IOrganizationScope
     /// <summary>
     /// Si incumplir esta regla impide asignar y publicar. <b>Nulo hereda la marca del catálogo.</b>
     /// </summary>
-    public bool? IsBlocking { get; private set; }
+    public bool? IsRequired { get; private set; }
     public Organization Organization { get; private set; } = null!;
     public Client? Client { get; private set; }
     public Service? Service { get; private set; }

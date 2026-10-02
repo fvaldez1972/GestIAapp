@@ -128,3 +128,28 @@
     align-items: stretch;
   }
 }
+
+// El aviso de quitar la sensibilidad: pregunta con el numero de documentos delante.
+.desmarcar__fondo {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgb(15 23 42 / 45%);
+}
+
+.desmarcar {
+  display: grid;
+  gap: 0.7rem;
+  width: min(30rem, 100%);
+  padding: 1.1rem;
+  border: 1px solid var(--gestia-border);
+  border-radius: var(--gestia-radius-lg);
+  background: var(--gestia-surface);
+}
+
+.desmarcar__titulo { margin: 0; color: var(--gestia-text); font-size: 16px; }
+.desmarcar__texto { margin: 0; color: var(--gestia-muted); font-size: 12.5px; }
+.desmarcar__acciones { display: flex; justify-content: flex-end; gap: 0.55rem; margin: 0; }

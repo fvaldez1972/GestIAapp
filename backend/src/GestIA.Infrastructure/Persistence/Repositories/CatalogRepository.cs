@@ -10,6 +10,35 @@ namespace GestIA.Infrastructure.Persistence.Repositories;
 
 public sealed class CatalogRepository(GestIaDbContext dbContext) : ICatalogRepository
 {
+    public Task<int> CountSensitiveDocumentsOfTypeAsync(
+        Guid idOrganization,
+        Guid idCatalogItem,
+        CancellationToken cancellationToken) =>
+        dbContext.EmployeeDocuments
+            .Where(documento =>
+                documento.IdOrganization == idOrganization &&
+                documento.IdDocumentCategoryCatalogItem == idCatalogItem &&
+                documento.Active &&
+                documento.IsSensitive)
+            .CountAsync(cancellationToken);
+
+    public async Task<int> PropagateSensitivityAsync(
+        Guid idOrganization,
+        Guid idCatalogItem,
+        bool isSensitive,
+        CancellationToken cancellationToken)
+    {
+        var documentos = await dbContext.EmployeeDocuments
+            .Where(documento =>
+                documento.IdOrganization == idOrganization &&
+                documento.IdDocumentCategoryCatalogItem == idCatalogItem &&
+                documento.Active &&
+                documento.IsSensitive != isSensitive)
+            .ToArrayAsync(cancellationToken);
+
+        return documentos.Count(documento => documento.ApplyTypeSensitivity(isSensitive));
+    }
+
     public Task<bool> OrganizationExistsAsync(Guid idOrganization, CancellationToken cancellationToken) =>
         dbContext.Organizations.AnyAsync(
             organization => organization.IdOrganization == idOrganization,
@@ -197,7 +226,7 @@ public sealed class CatalogRepository(GestIaDbContext dbContext) : ICatalogRepos
         await dbContext.AdministrativeIncidents
             .AsNoTracking()
             // El tipo viene resuelto porque de el sale la marca de bloqueo y el nombre que va en el
-            // mensaje. Sin este Include, una incidencia bloqueante se evaluaria como informativa
+            // mensaje. Sin este Include, una incidencia obligatoria se evaluaria como informativa
             // por no haber cargado la fila que lo dice.
             .Include(incident => incident.IncidentTypeCatalogItem)
             .Where(incident =>

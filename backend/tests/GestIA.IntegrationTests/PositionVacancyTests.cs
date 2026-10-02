@@ -161,7 +161,7 @@ public sealed class PositionVacancyTests(OperationalSqlDatabase database)
         for (var index = 0; index < count; index++)
         {
             var employee = Employee.Create(
-                seed.OrganizationId, $"{seed.Prefix}-E{index}", $"Empleado {index}", null,
+                seed.OrganizationId, $"{seed.Prefix}-E{index}", "Empleado", $"{index}", null, null,
                 Today.AddYears(-1), ActorId, ActorName, Now);
 
             context.Add(employee);

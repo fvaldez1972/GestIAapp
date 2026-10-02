@@ -28,24 +28,14 @@
       </ul>
 
       <!--
-        La geografía se pliega. Son más de doce mil filas por organización que en realidad son las
-        mismas para todas, y ocupaban la mitad de la pantalla sin que nadie las configure.
+        La geografía ya no se edita aquí. Desde el 22 de septiembre de 2026 vive en tablas
+        compartidas por todas las organizaciones, así que no hay nada que configurar por empresa:
+        dejar la sección editable habría dejado crear países que ningún desplegable lee.
       -->
-      <details class="cat__plegado">
-        <summary>
-          <span>Geografía</span>
-          <small>Países, estados y ciudades · {{ geographyCount() }} valores activos</small>
-        </summary>
-        <p class="cat__nota">
-          Esta lista es la misma para todas las organizaciones y se va a un catálogo compartido en su
-          propia tanda. Hasta entonces sigue aquí, editable.
-        </p>
-        <ul class="cat__lista">
-          @for (catalogo of geographyCatalogs; track catalogo.type) {
-            <li><ng-container *ngTemplateOutlet="fila; context: { $implicit: catalogo }" /></li>
-          }
-        </ul>
-      </details>
+      <p class="cat__nota">
+        Países, estados y municipios ya no se configuran por organización: son los mismos para
+        todas y se leen de un catálogo compartido, que los domicilios usan directamente.
+      </p>
     }
   </section>
 
@@ -53,14 +43,14 @@
   <section class="cat__zona" #rulesSection aria-labelledby="cat-zona-reglas">
     <h2 class="gi-section-heading" id="cat-zona-reglas">Reglas de elegibilidad</h2>
     <p class="cat__nota">
-      Qué se exige para que una persona pueda cubrir un servicio. Una regla bloqueante impide la
+      Qué se exige para que una persona pueda cubrir un servicio. Una regla obligatoria impide la
       asignación y la publicación de la planeación; una informativa sólo deja constancia.
     </p>
 
     @if (unfulfillableSkillRules() > 0) {
       <div class="gi-alert gi-alert--error" role="alert">
         <strong>{{ unfulfillableSkillRules() }}</strong>
-        regla(s) de experiencia bloqueantes que hoy nadie puede cumplir: todavía no existe pantalla
+        regla(s) de experiencia obligatorias que hoy nadie puede cumplir: todavía no existe pantalla
         para otorgarle una experiencia a una persona. Mientras eso siga así, cada una de ellas detiene
         la publicación de la planeación de quien no la tenga.
       </div>
@@ -116,7 +106,7 @@
               <td>{{ requirementTypeLabel(regla.requirementType) }}</td>
               <td>{{ requirementScopeLabel(regla) }}</td>
               <td>
-                <span class="gi-badge" [class.gi-badge--warning]="regla.isBlockingEffective" [class.gi-badge--muted]="!regla.isBlockingEffective">
+                <span class="gi-badge" [class.gi-badge--warning]="regla.isRequiredEffective" [class.gi-badge--muted]="!regla.isRequiredEffective">
                   {{ requirementSeverityLabel(regla) }}
                 </span>
               </td>
@@ -246,9 +236,9 @@
                         -->
                         <span
                           class="gi-badge"
-                          [class.gi-badge--warning]="valor.isBlocking === true"
-                          [class.gi-badge--muted]="valor.isBlocking !== true"
-                        >{{ blockingMarkLabel(valor.isBlocking) }}</span>
+                          [class.gi-badge--warning]="valor.isRequired === true"
+                          [class.gi-badge--muted]="valor.isRequired !== true"
+                        >{{ blockingMarkLabel(valor.isRequired) }}</span>
                       </td>
                     }
                     <td>
@@ -456,7 +446,7 @@
           />
           <p class="cat__error">
             Hoy no hay pantalla para otorgarle una experiencia a una persona. Si marcas esta regla como
-            bloqueante, detendrá la publicación de la planeación sin forma de desbloquearla.
+            obligatoria, detendrá la publicación de la planeación sin forma de desbloquearla.
           </p>
         }
         @case ('Document') {

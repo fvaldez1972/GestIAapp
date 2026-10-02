@@ -380,9 +380,13 @@ a.submenu-link:focus-visible {
   font-size: 0.6rem;
 }
 
+/* El alto de la ventana es el marco, no un minimo.
+   Con `min-height` la pagina crecia hacia abajo y el unico scroll era el de la ventana: abrir una
+   ficha larga obligaba a arrastrar la pantalla entera. Con alto fijo, lo que se desplaza es el
+   contenido de cada pantalla, y el relleno inferior de `main` queda como margen final. */
 .page-content {
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
   margin-left: var(--gestia-sidebar-width);
   flex-direction: column;
   transition: margin-left 220ms ease;
@@ -590,6 +594,8 @@ main {
   max-width: 112rem;
   margin: 0 auto;
   flex: 1;
+  min-height: 0;
+  overflow-y: auto;
   padding: clamp(1.4rem, 2.3vw, 2.65rem);
 }
 

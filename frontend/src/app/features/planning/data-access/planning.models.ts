@@ -51,7 +51,14 @@ export type PlanningRow = {
 export type PlanningConflict = {
   readonly id: string;
   readonly title: string;
-  readonly detail: string;
+  /**
+   * El parrafo que acompana al titulo, cuando lo hay.
+   *
+   * <p><b>Es opcional desde el 24 de septiembre de 2026.</b> Dos conflictos se quedaron sin el por
+   * peticion, y un `detail: ''` habria obligado al listado a distinguir entre «vacio» y «no hay»
+   * para no pintar un parrafo con margen y sin texto. Ausente es mas honesto que vacio.</p>
+   */
+  readonly detail?: string;
   readonly blocking: boolean;
 };
 
@@ -217,9 +224,6 @@ export function planningConflicts(rows: readonly PlanningRow[]): readonly Planni
     conflicts.push({
       id: `undeclared:${row.idPosition}`,
       title: `${row.codePosition} no tiene ningún turno declarado`,
-      detail:
-        'Sin segmentos en su patrón, la posición no proyecta nada y la semana publicada no la va a ' +
-        'incluir. Declara sus turnos o desactívala si ya no opera.',
       blocking: true,
     });
   }
@@ -244,21 +248,12 @@ export function planningConflicts(rows: readonly PlanningRow[]): readonly Planni
   );
 
   if (huecos.length > 0) {
-    const faltan = huecos.reduce(
-      (total, { cell }) => total + (cell.requiredWorkerCount - cell.assignedWorkerCount),
-      0,
-    );
-
     conflicts.push({
       id: 'coverage-gaps',
       title:
         huecos.length === 1
           ? 'Un turno queda con menos gente de la que pide'
           : `${huecos.length} turnos quedan con menos gente de la que piden`,
-      detail:
-        `Faltan ${faltan} ${faltan === 1 ? 'elemento' : 'elementos'} en total. No impide publicar: ` +
-        'una semana con huecos es una semana normal a la que le falta gente, y publicarla es lo que ' +
-        'deja a Cobertura resolverlos.',
       blocking: false,
     });
   }
@@ -308,7 +303,20 @@ export function buildCandidates(options: {
    * «Elegible». No es lo mismo no saber que saber que sí.</p>
    */
   readonly eligibility?: ReadonlyMap<string, CandidateEligibility>;
+
+  /**
+   * El municipio de la sede donde se presta el servicio.
+   *
+   * <p>Sin el, la lista no se parte en cercanos y otros: no hay contra que comparar, y partirla
+   * pondria a todos del lado equivocado.</p>
+   */
+  readonly siteMunicipality?: string | null;
 }): readonly GiCandidate[] {
+  const mismoMunicipio = (municipio: string | null | undefined): boolean | null => {
+    const sede = options.siteMunicipality?.trim().toLocaleLowerCase('es');
+    const persona = municipio?.trim().toLocaleLowerCase('es');
+    return sede && persona ? sede === persona : null;
+  };
   const delDia = options.shifts.filter((shift) => shift.shiftDate === options.date);
   const otroTurnoDe = new Map(
     delDia.filter((shift) => shift.idPosition !== options.idPosition).map((s) => [s.idEmployee, s]),
@@ -325,6 +333,7 @@ export function buildCandidates(options: {
       if (otro) {
         return {
           id: assignment.idEmployee,
+          nearby: mismoMunicipio(assignment.employeeMunicipality),
           name: assignment.employeeName,
           role: assignment.positionName ?? 'Sin puesto registrado',
           availability: `Cubre ${otro.positionCode} ese día, ${otro.startTime.slice(0, 5)}–${otro.endTime.slice(0, 5)}`,
@@ -336,6 +345,7 @@ export function buildCandidates(options: {
       if (!assignment.idPosition) {
         return {
           id: assignment.idEmployee,
+          nearby: mismoMunicipio(assignment.employeeMunicipality),
           name: assignment.employeeName,
           role: 'Sin puesto registrado',
           availability: 'Sin turno ese día',
@@ -351,6 +361,7 @@ export function buildCandidates(options: {
       if (!veredicto) {
         return {
           id: assignment.idEmployee,
+          nearby: mismoMunicipio(assignment.employeeMunicipality),
           name: assignment.employeeName,
           role: assignment.positionName ?? '',
           availability: 'Sin turno ese día',
@@ -361,6 +372,7 @@ export function buildCandidates(options: {
       if (!veredicto.isEligible) {
         return {
           id: assignment.idEmployee,
+          nearby: mismoMunicipio(assignment.employeeMunicipality),
           name: assignment.employeeName,
           role: assignment.positionName ?? '',
           availability: 'Sin turno ese día',

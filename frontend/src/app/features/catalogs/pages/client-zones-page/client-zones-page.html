@@ -1,0 +1,86 @@
+<header class="zonas-head gi-card">
+  <h1>Zonas</h1>
+</header>
+
+<gi-filter-bar
+  [search]="search()"
+  searchLabel="Buscar"
+  searchPlaceholder="Buscar por zona, cliente o dirección…"
+  [groups]="filterGroups()"
+  [resultCount]="filtradas().length"
+  (searchChange)="onSearch($event)"
+  (filterChange)="onFilter($event)"
+  (clearAll)="clearFilters()"
+/>
+
+<gi-data-table
+  label="Zonas de la organización"
+  [columns]="columns"
+  [rows]="paginadas()"
+  [rowId]="porId"
+  [state]="tableState()"
+  [selectable]="false"
+  [errorMessage]="error()"
+  [emptyTitle]="tableState() === 'empty' ? 'Todavía no hay zonas' : 'Ninguna zona con este filtro'"
+  [emptyDescription]="
+    tableState() === 'empty'
+      ? 'Una zona es un lugar de un cliente, así que se da de alta desde la ficha del cliente al que pertenece.'
+      : 'Ninguna coincide con lo que buscas. Puedes quitar los filtros.'
+  "
+  [emptySecondaryActionLabel]="tableState() === 'empty-filtered' ? 'Quitar filtros' : ''"
+  (retry)="loadData()"
+  (emptySecondaryAction)="clearFilters()"
+>
+  <ng-template giCell="fila" let-row>{{ rowNumber(row) }}</ng-template>
+  <ng-template giCell="address" let-row>{{ direccion(row) }}</ng-template>
+  <ng-template giCell="place" let-row>{{ lugar(row) }}</ng-template>
+
+  <ng-template giCell="state" let-row>
+    <span class="gi-badge" [class.gi-badge--success]="row.active" [class.gi-badge--muted]="!row.active">
+      {{ row.active ? 'Activa' : 'Inactiva' }}
+    </span>
+  </ng-template>
+
+  <!--
+    «Editar» lleva a la ficha del cliente, que es donde vive el formulario de la zona con su cascada
+    de estado y municipio. Copiarlo aquí habría dejado dos formularios para lo mismo.
+  -->
+  <ng-template giCell="actions" let-row>
+    <button type="button" class="gi-button gi-button--ghost" (click)="editar(row)">
+      {{ canWrite() ? 'Editar' : 'Ver' }}
+    </button>
+  </ng-template>
+</gi-data-table>
+
+@if (filtradas().length) {
+  <nav class="zonas-pages" aria-label="Páginas de la lista">
+    <div class="zonas-pages__size">
+      <span>Mostrar</span>
+      <gi-select
+        label="Registros por página"
+        [options]="pageSizeOptions"
+        [value]="pageSize().toString()"
+        (valueChange)="setPageSize($any($event))"
+      />
+      <span>de {{ rango() }}</span>
+    </div>
+
+    <div class="zonas-pages__nav">
+      <button
+        type="button"
+        class="gi-button gi-button--ghost"
+        [disabled]="currentPage() === 1"
+        (click)="goToPage(currentPage() - 1)"
+      >Anterior</button>
+
+      <span class="zonas-pages__count">Página {{ currentPage() }} de {{ totalPaginas() }}</span>
+
+      <button
+        type="button"
+        class="gi-button gi-button--ghost"
+        [disabled]="currentPage() === totalPaginas()"
+        (click)="goToPage(currentPage() + 1)"
+      >Siguiente</button>
+    </div>
+  </nav>
+}

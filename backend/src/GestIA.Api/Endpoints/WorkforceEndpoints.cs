@@ -1,4 +1,5 @@
 using GestIA.Api.Security;
+using GestIA.Application.Common;
 using GestIA.Application.Documents;
 using GestIA.Application.Security;
 using GestIA.Application.Workforce;
@@ -29,7 +30,7 @@ public static class WorkforceEndpoints
             }
 
             var result = await service.ListEmployeesAsync(
-                new EmployeeQuery(organizationId, search, status, page <= 0 ? 1 : page, pageSize <= 0 ? 20 : pageSize),
+                new EmployeeQuery(organizationId, search, status, page <= 0 ? 1 : page, PageSize.Clamp(pageSize)),
                 cancellationToken);
             return Results.Ok(result);
         })
@@ -107,6 +108,135 @@ public static class WorkforceEndpoints
             .RequirePermission(SecurityPermissions.WorkforceWrite)
             .WithName("ChangeEmployeeStatus");
 
+        // Los tres movimientos del historial laboral. Van aparte del cambio de estado a proposito:
+        // cada uno escribe un periodo, y llamarlos "cambiar el estado a Terminated" escondia que lo
+        // que de verdad ocurre es que se cierra un periodo con su fecha y su motivo.
+        group.MapPost("/{idEmployee:guid}/hire", async (
+            HttpContext context,
+            Guid idEmployee,
+            HireEmployeeRequest request,
+            IWorkforceService service,
+            CancellationToken cancellationToken) =>
+        {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, request.IdOrganization) is { } forbidden)
+            {
+                return forbidden;
+            }
+
+            var result = await service.HireEmployeeAsync(idEmployee, request, cancellationToken);
+            return Results.Ok(result);
+        })
+            .RequirePermission(SecurityPermissions.WorkforceWrite)
+            .WithName("HireEmployee");
+
+        group.MapPost("/{idEmployee:guid}/terminate", async (
+            HttpContext context,
+            Guid idEmployee,
+            TerminateEmployeeRequest request,
+            IWorkforceService service,
+            CancellationToken cancellationToken) =>
+        {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, request.IdOrganization) is { } forbidden)
+            {
+                return forbidden;
+            }
+
+            var result = await service.TerminateEmployeeAsync(idEmployee, request, cancellationToken);
+            return Results.Ok(result);
+        })
+            .RequirePermission(SecurityPermissions.WorkforceWrite)
+            .WithName("TerminateEmployee");
+
+        group.MapPost("/{idEmployee:guid}/rehire", async (
+            HttpContext context,
+            Guid idEmployee,
+            RehireEmployeeRequest request,
+            IWorkforceService service,
+            CancellationToken cancellationToken) =>
+        {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, request.IdOrganization) is { } forbidden)
+            {
+                return forbidden;
+            }
+
+            var result = await service.RehireEmployeeAsync(idEmployee, request, cancellationToken);
+            return Results.Ok(result);
+        })
+            .RequirePermission(SecurityPermissions.WorkforceWrite)
+            .WithName("RehireEmployee");
+
+        group.MapPost("/{idEmployee:guid}/psychometric-test", async (
+            HttpContext context,
+            Guid idEmployee,
+            RegisterPsychometricTestRequest request,
+            IWorkforceService service,
+            CancellationToken cancellationToken) =>
+        {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, request.IdOrganization) is { } forbidden)
+            {
+                return forbidden;
+            }
+
+            var result = await service.RegisterPsychometricTestAsync(idEmployee, request, cancellationToken);
+            return Results.Ok(result);
+        })
+            .RequirePermission(SecurityPermissions.WorkforceWrite)
+            .WithName("RegisterPsychometricTest");
+
+        group.MapGet("/{idEmployee:guid}/psychometric-tests", async (
+            HttpContext context,
+            Guid idEmployee,
+            Guid organizationId,
+            IWorkforceService service,
+            CancellationToken cancellationToken) =>
+        {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
+            var result = await service.ListPsychometricTestsAsync(organizationId, idEmployee, cancellationToken);
+            return Results.Ok(result);
+        })
+            .RequirePermission(SecurityPermissions.WorkforceRead)
+            .WithName("ListPsychometricTests");
+
+        group.MapGet("/{idEmployee:guid}/termination-expirations", async (
+            HttpContext context,
+            Guid idEmployee,
+            Guid organizationId,
+            IWorkforceService service,
+            CancellationToken cancellationToken) =>
+        {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
+            var result = await service.ListTerminationExpirationsAsync(organizationId, idEmployee, cancellationToken);
+            return Results.Ok(result);
+        })
+            .RequirePermission(SecurityPermissions.WorkforceRead)
+            .WithName("ListTerminationExpirations");
+
+        group.MapGet("/{idEmployee:guid}/employment-periods", async (
+            HttpContext context,
+            Guid idEmployee,
+            Guid organizationId,
+            IWorkforceService service,
+            CancellationToken cancellationToken) =>
+        {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
+            var result = await service.ListEmploymentPeriodsAsync(organizationId, idEmployee, cancellationToken);
+            return Results.Ok(result);
+        })
+            .RequirePermission(SecurityPermissions.WorkforceRead)
+            .WithName("ListEmploymentPeriods");
+
         group.MapDelete("/{idEmployee:guid}", async (
             HttpContext context,
             Guid idEmployee,
@@ -155,7 +285,7 @@ public static class WorkforceEndpoints
                     documents ?? EmployeeDocumentFilter.Any,
                     municipality,
                     page ?? 1,
-                    pageSize ?? 25),
+                    PageSize.Clamp(pageSize, 25)),
                 cancellationToken));
         })
             .RequirePermission(SecurityPermissions.WorkforceRead)
@@ -178,6 +308,27 @@ public static class WorkforceEndpoints
         })
             .RequirePermission(SecurityPermissions.WorkforceRead)
             .WithName("ListEmployeeFilterOptions");
+
+        // Con qué clientes está ocupada cada persona hoy. Lo pide la lista de candidatos de una
+        // asignación, que decía «Ocupado · con una asignación vigente» sin nombrar a nadie.
+        //
+        // De toda la organización y en una petición: preguntarlo por candidato serían tantas
+        // consultas como filas tenga la lista.
+        group.MapGet("/current-assignments", async (
+            HttpContext context,
+            Guid organizationId,
+            IEmployeeSearchService service,
+            CancellationToken cancellationToken) =>
+        {
+            if (OrganizationAccessGuard.ForbidIfUnauthorized(context, organizationId) is { } forbidden)
+            {
+                return forbidden;
+            }
+
+            return Results.Ok(await service.ListCurrentAssignmentsAsync(organizationId, cancellationToken));
+        })
+            .RequirePermission(SecurityPermissions.WorkforceRead)
+            .WithName("ListEmployeeCurrentAssignments");
 
         // Las asignaciones de una persona. Antes sólo se alcanzaban por cliente y servicio, así que
         // la pestaña habría tenido que recorrer todos los servicios de la organización.

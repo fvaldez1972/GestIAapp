@@ -227,9 +227,9 @@ public sealed class OrganizationIsolationTests(OperationalSqlDatabase database)
             new(Day.DayOfWeek, new TimeOnly(8, 0), new TimeOnly(16, 0), false, 1, null),
             ActorId, ActorName, Now);
         var employee = Employee.Create(
-            organizationId, $"{prefix}-EMP", "Empleado", null, Day, ActorId, ActorName, Now);
+            organizationId, $"{prefix}-EMP", "Empleado", "Unico", null, null, Day, ActorId, ActorName, Now);
         var replacement = Employee.Create(
-            organizationId, $"{prefix}-REL", "Relevo", null, Day, ActorId, ActorName, Now);
+            organizationId, $"{prefix}-REL", "Relevo", "Unico", null, null, Day, ActorId, ActorName, Now);
         var version = ScheduleVersion.Create(
             organizationId, service.IdService, new("Versión", Day, Day.AddDays(1), null),
             ActorId, ActorName, Now);
@@ -290,9 +290,8 @@ public sealed class OrganizationIsolationTests(OperationalSqlDatabase database)
         var contact = ClientContact.Create(
             organizationId, client.IdClient, site.IdClientSite,
             // Con telefono: desde el 19 de septiembre de 2026 un contacto sin telefono ni correo
-            // no se puede guardar, y con alcance de zona tiene que decir de que zona es.
-            new(ClientContactPurpose.Operational, $"Contacto {prefix}", null, null, "5555555555", null, true,
-                ClientContactScope.Zone),
+            // no se puede guardar.
+            new(ClientContactPurpose.Operational, $"Contacto {prefix}", null, null, "5555555555", null, true),
             ActorId, ActorName, Now);
         var employeeDocument = EmployeeDocument.Create(
             organizationId, employee.IdEmployee,

@@ -36,6 +36,19 @@ references/inspinia/
 .containers/
 mssql-data/
 
-# Los archivos que se suben probando en el stack local. Son de usar y tirar; el stack que sirve
-# el dominio guarda los suyos en storage/, que si esta versionado.
+# Los archivos que suben los usuarios. NINGUNO de los dos se versiona.
+#
+# `storage/` estuvo versionado hasta el 23 de septiembre de 2026, con veinte expedientes dentro.
+# Se sacó por lo que son: documentos de personal —identificaciones, actas, comprobantes—. El
+# sistema los protege con un permiso propio, `DOCUMENTS.SENSITIVE.READ`, y ese control vive en la
+# base de datos. En Git no hay control ninguno: quien clona, los tiene todos. Y un archivo que
+# entra a Git no sale: borrarlo en un commit posterior lo deja en la historia.
+#
+# Los archivos siguen en disco y los dos stacks los montan como volumen, así que nada de lo
+# desplegado cambia. Lo que cambia es que a partir de aquí no entran más.
+#
+# Los veinte que YA están en la historia siguen ahí. Sacarlos exige reescribirla, y eso es una
+# decisión con consecuencias para cualquiera que tenga un clon: no se hace de paso.
+storage/*
+!storage/.gitkeep
 storage-local/

@@ -1,4 +1,5 @@
 import { HttpErrorResponse, HttpResponse } from '@angular/common/http';
+import { GiDate } from '../../../../shared/ui/gi-date/gi-date';
 import { CatalogSelect } from '../../../../shared/ui/catalog-select/catalog-select';
 import { GiFileInput } from '../../../../shared/ui/gi-file-input/gi-file-input';
 import { ChangeDetectionStrategy, Component, viewChild, OnInit, computed, inject, signal, linkedSignal } from '@angular/core';
@@ -35,7 +36,7 @@ import { Employee } from '../../../workforce/data-access/workforce.models';
 
 @Component({
   selector: 'app-operations-page',
-  imports: [ReactiveFormsModule, RouterLink, CatalogSelect, GiFileInput],
+  imports: [ReactiveFormsModule, RouterLink, CatalogSelect, GiFileInput, GiDate],
   templateUrl: './operations-page.html',
   styleUrl: './operations-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -984,7 +985,7 @@ export class OperationsPage implements OnInit {
 
     const blockingItems = this.coverageValidation().filter((item) => !item.valid);
     if (blockingItems.length > 0) {
-      this.error.set('Resuelve los bloqueos para continuar.');
+      this.error.set('Resuelve lo que impide continuar: hay requisitos sin cubrir.');
       return;
     }
 

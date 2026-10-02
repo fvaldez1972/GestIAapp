@@ -16,6 +16,32 @@ public sealed class ClientSiteRepository(GestIaDbContext dbContext) : IClientSit
             .ThenBy(site => site.CodeClientSite)
             .ToArrayAsync(cancellationToken);
 
+    /// <summary>
+    /// Todas las zonas de la organización, ordenadas por cliente.
+    ///
+    /// <para>No lleva <c>Where</c> por organización: lo pone el filtro global, que alcanza a
+    /// <c>ClientSites</c> porque declara <c>IOrganizationScopedEntity</c>. Repetirlo aquí daría la
+    /// impresión de que sin esa línea la consulta se escaparía, y la regla del proyecto es la
+    /// contraria: sin organización fijada devuelve cero filas, no todas.</para>
+    /// </summary>
+    public async Task<IReadOnlyList<(ClientSite Zone, string ClientName)>> ListForOrganizationAsync(
+        Guid idOrganization,
+        CancellationToken cancellationToken)
+    {
+        var filas = await dbContext.ClientSites
+            .AsNoTracking()
+            .Join(
+                dbContext.Clients.AsNoTracking(),
+                site => site.IdClient,
+                client => client.IdClient,
+                (site, client) => new { Zone = site, ClientName = client.LegalName })
+            .OrderBy(fila => fila.ClientName)
+            .ThenBy(fila => fila.Zone.Name)
+            .ToArrayAsync(cancellationToken);
+
+        return [.. filas.Select(fila => (fila.Zone, fila.ClientName))];
+    }
+
     public Task<ClientSite?> GetAsync(
         Guid idClient,
         Guid idClientSite,

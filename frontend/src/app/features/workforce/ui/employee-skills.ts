@@ -1,6 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { GiCatalogCreation, GiCatalogOption, GiCatalogPicker } from '../../../shared/ui/gi-catalog-picker/gi-catalog-picker';
+import { GiAccordion, GiDate } from '../../../shared/ui/gi-ui';
+import { GiCatalogOption } from '../../../shared/ui/gi-catalog-picker/gi-catalog-picker';
+import { GiSelect, GiSelectOption } from '../../../shared/ui/gi-select/gi-select';
 import { formatOperationalDate } from '../../../shared/util/operational-date';
 import { EligibilityRequirement, EmployeeSkill } from '../../catalogs/data-access/catalog.models';
 import {
@@ -23,7 +25,7 @@ export type EmployeeSkillFormValue = {
  *
  * <p><b>Cierra una trampa, no agrega una función.</b> Desde el 7 de septiembre de 2026 se podía
  * crear una regla de elegibilidad de tipo experiencia —que el servidor evalúa de verdad y que, si es
- * bloqueante, detiene la publicación de una semana entera— sin que existiera ninguna pantalla para
+ * obligatoria, detiene la publicación de una semana entera— sin que existiera ninguna pantalla para
  * otorgarle la experiencia a una persona. Quien caía en ella sólo podía salir desactivando la regla,
  * que es lo contrario de lo que quería al crearla, y lo descubría al publicar, cuando ya no hay
  * tiempo.</p>
@@ -38,49 +40,91 @@ export type EmployeeSkillFormValue = {
 @Component({
   selector: 'app-employee-skills',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, GiCatalogPicker],
+  imports: [GiAccordion, ReactiveFormsModule, GiSelect, GiDate],
   template: `
     <section class="skills">
-      @if (requirements().length === 0) {
+      <!--
+        Se rinde cuando no hay NADA que enseñar, no cuando faltan reglas. Mismo arreglo que en
+        Documentos y en Evaluaciones: el catálogo de la organización manda, y las reglas de
+        elegibilidad sólo dicen cuáles de esas experiencias además bloquean.
+      -->
+      @if (rows().length === 0) {
         <p class="skills__note">
-          Esta organización no exige ninguna experiencia. Las que se registren aquí no impiden
-          asignar a nadie, pero sirven para encontrar a quién puede cubrir un turno.
+          Esta organización todavía no tiene experiencias en su catálogo. Se definen en Catálogos,
+          y sirven para encontrar a quién puede cubrir un turno.
         </p>
       } @else {
         <p class="skills__note">
-          {{ requirements().length }}
-          {{ requirements().length === 1 ? 'experiencia exigida' : 'experiencias exigidas' }} por esta
-          organización. Se considera «por vencer» lo que caduca en {{ expiringWithinDays() }} días o
-          menos.
+          {{ obligatorias().length }}
+          {{ obligatorias().length === 1 ? 'experiencia obligatoria' : 'experiencias obligatorias' }}
+          y {{ informativas().length }}
+          {{ informativas().length === 1 ? 'informativa' : 'informativas' }} en el catálogo de esta
+          organización.
         </p>
 
-        <ul class="skills__list">
-          @for (row of rows(); track row.code) {
-            <li class="req" [class]="'req--' + tone(row.state)">
-              <span class="req__body">
-                <span class="req__name">
-                  {{ row.label }}
-                  @if (!row.isBlocking) {
-                    <span class="req__soft">no bloquea</span>
-                  }
-                </span>
-                <span class="req__detail">{{ detail(row.state, row.expiresDate) }}</span>
-              </span>
-              <span class="req__state">{{ stateLabel(row.state) }}</span>
-            </li>
-          }
-        </ul>
+        <!--
+          Obligatorias arriba, informativas abajo. Antes compartian lista y se distinguian por una
+          etiqueta pequeña pegada al nombre, que habia que leer fila por fila. Es la misma
+          correccion que ya se hizo en Documentos y en Evaluaciones.
+        -->
+        @if (obligatorias().length) {
+          <section class="grupo grupo--obligatorias">
+            <h3 class="grupo__titulo">Experiencia obligatoria</h3>
+            <p class="grupo__nota">
+              Si falta una, no se puede asignar a esta persona a un servicio que la pida.
+            </p>
+            <ul class="skills__list">
+              @for (row of obligatorias(); track row.code) {
+                <li class="req" [class]="'req--' + tone(row.state)">
+                  <span class="req__body">
+                    <span class="req__name">{{ row.label }}</span>
+                    <span class="req__detail">{{ detail(row.state, row.expiresDate, row.withoutRule) }}</span>
+                  </span>
+                  <span class="req__state">{{ stateLabel(row.state) }}</span>
+                </li>
+              }
+            </ul>
+          </section>
+        }
+
+        @if (informativas().length) {
+          <section class="grupo grupo--informativas">
+            <h3 class="grupo__titulo">Experiencia informativa</h3>
+            <p class="grupo__nota">
+              No impide asignar; sirve para encontrar a quién puede cubrir un turno.
+            </p>
+            <ul class="skills__list">
+              @for (row of informativas(); track row.code) {
+                <li class="req" [class]="'req--' + tone(row.state)">
+                  <span class="req__body">
+                    <span class="req__name">{{ row.label }}</span>
+                    <span class="req__detail">{{ detail(row.state, row.expiresDate, row.withoutRule) }}</span>
+                  </span>
+                  <span class="req__state">{{ stateLabel(row.state) }}</span>
+                </li>
+              }
+            </ul>
+          </section>
+        }
       }
 
-      <div class="skills__block">
-        <header class="skills__head">
-          <h3 class="skills__kicker">EXPERIENCIA ACREDITADAS</h3>
-          @if (canWrite() && !editorOpen()) {
+      <!--
+        Lo acreditado va plegado; los requisitos de arriba, no. Los requisitos dicen si la persona
+        puede trabajar, que es lo que se mira siempre; el historial se consulta de vez en cuando.
+      -->
+      <gi-accordion
+        label="Experiencia acreditada"
+        [count]="activas().length"
+        [summary]="resumenAcreditadas()"
+        [open]="editorOpen()"
+      >
+        @if (canWrite() && !editorOpen()) {
+          <p class="skills__acciones">
             <button class="gi-button" type="button" [disabled]="saving()" (click)="openCreate()">
               Acreditar experiencia
             </button>
-          }
-        </header>
+          </p>
+        }
 
         @if (activas().length === 0) {
           <p class="skills__note">
@@ -95,8 +139,6 @@ export type EmployeeSkillFormValue = {
                   <span class="row__name">{{ item.skillName }}</span>
                   <span class="row__detail">
                     {{ item.acquiredDate ? 'acreditada el ' + formatDate(item.acquiredDate) : 'sin fecha de acreditación' }}
-                    ·
-                    {{ item.expiresDate ? 'vence el ' + formatDate(item.expiresDate) : 'sin vencimiento' }}
                   </span>
                 </span>
                 @if (canWrite()) {
@@ -126,37 +168,36 @@ export type EmployeeSkillFormValue = {
                 @if (editing()) {
                   <p class="field__fixed">{{ editing()!.skillName }}</p>
                 } @else {
-                  <gi-catalog-picker
+                  <!--
+                    Un desplegable, no un campo donde escribir.
+                    El buscador pedia teclear el nombre de algo que ya existe y esta en una lista
+                    corta, y de paso ofrecia darla de alta en el catalogo desde aqui. Elegir de una
+                    lista cerrada no deja escribir un nombre que no existe, que es lo que hacia
+                    falta: dar de alta una experiencia es una decision del catalogo, y ahi se hace.
+                  -->
+                  <gi-select
                     label="Experiencia"
-                    catalogLabel="el catálogo de experiencias"
-                    inputId="es-experiencia"
-                    [options]="catalogSkills()"
+                    placeholder="Elige la experiencia"
+                    [options]="opcionesExperiencia()"
                     [value]="form.controls.idSkillCatalogItem.value"
-                    [canWrite]="canWrite()"
                     [disabled]="saving()"
                     (valueChange)="form.controls.idSkillCatalogItem.setValue($event)"
-                    (create)="createSkill.emit($event)"
                   />
                 }
               </div>
               <label class="field">
-                <span class="field__label">ACREDITADA EL · OPCIONAL</span>
-                <input type="date" formControlName="acquiredDate" />
+                <span class="field__label">ACREDITADA EL</span>
+                <gi-date formControlName="acquiredDate" />
               </label>
               <label class="field">
-                <span class="field__label">VENCIMIENTO · OPCIONAL</span>
-                <input type="date" formControlName="expiresDate" [min]="form.controls.acquiredDate.value" />
+                <span class="field__label">VENCIMIENTO</span>
+                <gi-date formControlName="expiresDate" [min]="form.controls.acquiredDate.value" />
               </label>
               <label class="field field--wide">
-                <span class="field__label">NOTAS · OPCIONAL</span>
+                <span class="field__label">NOTAS</span>
                 <textarea rows="2" formControlName="notes" maxlength="1000"></textarea>
               </label>
             </div>
-
-            <p class="skills__note">
-              Una experiencia vencida deja de cubrir su requisito el día siguiente al vencimiento. Sin
-              fecha, se considera que no caduca.
-            </p>
 
             @if (problem()) {
               <p class="form__problem" role="alert">{{ problem() }}</p>
@@ -172,13 +213,31 @@ export type EmployeeSkillFormValue = {
             </footer>
           </form>
         }
-      </div>
+      </gi-accordion>
     </section>
   `,
   styles: `
     :host { display: block; }
 
-    .skills { display: flex; flex-direction: column; gap: 0.85rem; }
+    /* Mismo lenguaje que los grupos de Documentos y Evaluaciones: el borde izquierdo dice sin leer
+       si lo que falta impide trabajar o solo deja constancia. */
+    .grupo {
+      margin: 0 0 0.6rem;
+      border: 1px solid var(--gestia-border);
+      border-radius: var(--gestia-radius);
+      padding: 0.6rem 0.75rem;
+      background: var(--gestia-surface);
+    }
+
+    .grupo--obligatorias { border-left: 3px solid var(--gestia-danger); }
+    .grupo--informativas { border-left: 3px solid var(--gestia-cyan); }
+
+    .grupo__titulo { margin: 0; color: var(--gestia-navy); font-size: 13px; font-weight: 700; }
+    .grupo__nota { margin: 0.15rem 0 0.5rem; color: var(--gestia-muted); font-size: 11.5px; }
+
+    .skills { display: flex; flex-direction: column; gap: 0.55rem; }
+
+    .skills__acciones { margin: 0 0 0.6rem; }
 
     .skills__note { margin: 0; color: var(--gestia-muted); font-size: 11.5px; }
 
@@ -319,7 +378,15 @@ export class EmployeeSkills {
   readonly requirements = input.required<readonly EligibilityRequirement[]>();
   readonly skills = input.required<readonly EmployeeSkill[]>();
   /** Las experiencias activas del catálogo de la organización. */
-  readonly catalogSkills = input.required<readonly GiCatalogOption[]>();
+  /** El catálogo de experiencias, con la marca que dice cuáles son obligatorias. */
+  readonly catalogSkills = input.required<
+    readonly (GiCatalogOption & { readonly isRequired?: boolean | null })[]
+  >();
+
+  /** El catálogo de experiencias con la forma que pide `gi-select`. */
+  protected readonly opcionesExperiencia = computed<readonly GiSelectOption[]>(() =>
+    this.catalogSkills().map((opcion) => ({ value: opcion.idCatalogItem, label: opcion.name })),
+  );
   /** El día operativo del servidor. No se lee del reloj del navegador. */
   readonly today = input.required<string>();
   readonly expiringWithinDays = input(30);
@@ -328,7 +395,6 @@ export class EmployeeSkills {
 
   readonly save = output<EmployeeSkillFormValue>();
   readonly deactivate = output<string>();
-  readonly createSkill = output<GiCatalogCreation>();
 
   protected readonly stateLabel = skillStateLabel;
   protected readonly tone = skillStateTone;
@@ -345,16 +411,43 @@ export class EmployeeSkills {
     notes: ['', [Validators.maxLength(1000)]],
   });
 
+  /** Las que impiden asignar, arriba. */
+  protected readonly obligatorias = computed(() => this.rows().filter((row) => row.isRequired));
+
+  /** Las que sólo sirven para buscar, abajo. */
+  protected readonly informativas = computed(() => this.rows().filter((row) => !row.isRequired));
+
   protected readonly rows = computed(() =>
     employeeSkillRequirementRows(
       this.requirements(),
       this.skills(),
       this.today(),
       this.expiringWithinDays(),
+      // El catálogo manda: es la lista completa, y cada entrada trae si es obligatoria.
+      this.catalogSkills(),
     ),
   );
 
   protected readonly activas = computed(() => this.skills().filter((item) => item.active));
+
+  /** Lo que la sección dice sin abrirse: cuántas y la más reciente. */
+  protected readonly resumenAcreditadas = computed(() => {
+    const items = this.activas();
+
+    if (items.length === 0) {
+      return 'Ninguna acreditada';
+    }
+
+    // Sin fecha de acreditación al final: una experiencia sin fecha no compite por ser «la última».
+    const conFecha = items.filter((item) => !!item.acquiredDate);
+
+    if (conFecha.length === 0) {
+      return `${items.length} sin fecha de acreditación`;
+    }
+
+    const ultima = [...conFecha].sort((a, b) => b.acquiredDate!.localeCompare(a.acquiredDate!))[0]!;
+    return `Última: ${ultima.skillName} · ${formatOperationalDate(ultima.acquiredDate!)}`;
+  });
 
   protected openCreate(): void {
     this.editing.set(null);
@@ -407,9 +500,14 @@ export class EmployeeSkills {
     });
   }
 
-  protected detail(state: string, expires: string | null): string {
+  protected detail(state: string, expires: string | null, withoutRule = false): string {
     if (state === 'Missing') {
-      return 'Esta persona no tiene acreditada la experiencia que la regla exige.';
+      // Sin regla no se puede hablar de una regla. La experiencia esta en el catalogo y se puede
+      // acreditar, pero hoy no la exige nadie, y decir lo contrario prometeria un bloqueo que no
+      // existe.
+      return withoutRule
+        ? 'Esta persona no tiene acreditada esta experiencia del catálogo.'
+        : 'Esta persona no tiene acreditada la experiencia que la regla exige.';
     }
 
     if (!expires) {

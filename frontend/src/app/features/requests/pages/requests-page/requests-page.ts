@@ -1,4 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
+import { GiDate } from '../../../../shared/ui/gi-date/gi-date';
 import { CatalogSelect } from '../../../../shared/ui/catalog-select/catalog-select';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal, linkedSignal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -25,7 +26,7 @@ import {
 
 @Component({
   selector: 'app-requests-page',
-  imports: [ReactiveFormsModule, RouterLink, EntityDocuments, CatalogSelect],
+  imports: [ReactiveFormsModule, RouterLink, EntityDocuments, CatalogSelect, GiDate],
   templateUrl: './requests-page.html',
   styleUrl: './requests-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

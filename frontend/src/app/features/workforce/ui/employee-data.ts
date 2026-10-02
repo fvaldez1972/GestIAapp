@@ -1,13 +1,22 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
-import { GiCatalogCreation, GiSelect, GiSelectOption } from '../../../shared/ui/gi-ui';
+import { GiAccordion, GiSelect, GiSelectOption } from '../../../shared/ui/gi-ui';
 import { formatOperationalDate } from '../../../shared/util/operational-date';
-import { Employee } from '../data-access/workforce.models';
+import {
+  Employee,
+  EmploymentPeriod,
+  PsychometricTest,
+  TerminationExpirationGroup,
+} from '../data-access/workforce.models';
 import {
   EmployeeJobPositionOption,
   EmployeeListItem,
   employeeStatusLabel,
   employeeStatusTone,
 } from '../data-access/employee-list.models';
+import { EmployeeAddress, EmployeeAddressValue } from './employee-address';
+import { EmployeeEmployment } from './employee-employment';
+import { EmployeeName, EmployeeNameValue } from './employee-name';
+import { EmployeePsychometric } from './employee-psychometric';
 import { EmployeeEligibilityBand } from './employee-eligibility';
 import { EmployeeJobPosition } from './employee-job-position';
 
@@ -24,7 +33,16 @@ import { EmployeeJobPosition } from './employee-job-position';
 @Component({
   selector: 'app-employee-data',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [EmployeeEligibilityBand, EmployeeJobPosition, GiSelect],
+  imports: [
+    EmployeeAddress,
+    EmployeeEligibilityBand,
+    EmployeeEmployment,
+    EmployeeJobPosition,
+    EmployeeName,
+    EmployeePsychometric,
+    GiAccordion,
+    GiSelect,
+  ],
   template: `
     <div class="data">
       <app-employee-eligibility
@@ -33,6 +51,32 @@ import { EmployeeJobPosition } from './employee-job-position';
         (fixJobPosition)="editJobPosition.emit()"
         (openCatalog)="openCatalog.emit()"
       />
+
+      <!--
+        El aviso de lo que esta por vencer, con la misma forma que la franja de elegibilidad que
+        tiene encima.
+
+        Se retiro de esta pestana el 23 de septiembre de 2026, con todo lo de vigencias, y vuelve
+        el 24 por peticion. Va en ambar y no en verde a proposito: la franja de arriba es verde
+        cuando la noticia es buena, y esta avisa de algo que hay que atender antes de que pase. La
+        forma es la misma; el color dice cual de las dos es.
+
+        Solo aparece cuando hay algo que avisar. Un aviso que dice «0 por vencer» ocupa el mismo
+        sitio que uno de verdad y obliga a leer el numero para saber que no hay nada que hacer.
+      -->
+      @if (porVencer() > 0) {
+        <p class="porvencer">
+          <span class="porvencer__badge">Por vencer</span>
+          <span class="porvencer__detail">
+            {{ porVencer() }}
+            {{ porVencer() === 1 ? 'requisito vence' : 'requisitos vencen' }}
+            en {{ expiringWithinDays() }} días; hoy siguen cubriendo.
+          </span>
+          <button class="porvencer__action" type="button" (click)="openDocuments.emit()">
+            Ver los documentos
+          </button>
+        </p>
+      }
 
       @if (editingJobPosition()) {
         <app-employee-job-position
@@ -43,23 +87,58 @@ import { EmployeeJobPosition } from './employee-job-position';
           [canWrite]="canWrite()"
           (cancel)="cancelJobPosition.emit()"
           (save)="saveJobPosition.emit($event)"
-          (createJobPosition)="createJobPosition.emit($event)"
         />
       }
 
-      <section class="data__block">
-        <h3 class="data__kicker">IDENTIFICACIÓN</h3>
+      <!--
+        Identificacion: la unica seccion que NO se pliega. Es lo que contesta «¿de quien es esta
+        ficha?», y plegarla obligaria a abrir algo para saber en que registro estas.
+      -->
+      <section class="data__block data__block--principal">
+        <!-- El rotulo y su accion comparten renglon: en dos ocupaban el doble para decir menos. -->
+        <div class="data__cabeza">
+          <h3 class="data__kicker">Identificación</h3>
+          @if (canWrite() && !editingName()) {
+            <button class="data__editar" type="button" (click)="editName.emit()">
+              Editar nombre
+            </button>
+          }
+        </div>
+
+        @if (editingName()) {
+          <app-employee-name
+            [employee]="employee()"
+            [saving]="savingName()"
+            [problem]="nameProblem()"
+            (guardar)="saveName.emit($event)"
+            (cancelar)="cancelName.emit()"
+          />
+        }
+
         <dl class="data__grid data__grid--two">
-          <div class="data__field data__field--wide">
-            <dt>NOMBRE</dt>
-            <dd>{{ row().fullName }}</dd>
+          <!--
+            Las tres partes, no solo el nombre completo. El completo se deriva de ellas, y verlo
+            solo a el dejaria invisible un reparto equivocado: «Empleado con | perfil | ACENTO» se
+            lee igual de bien en una sola linea.
+          -->
+          <div class="data__field">
+            <dt>Nombre</dt>
+            <dd>{{ employee()?.firstName || row().fullName }}</dd>
           </div>
           <div class="data__field">
-            <dt>CÓDIGO</dt>
+            <dt>Apellido paterno</dt>
+            <dd>{{ delDetalle(employee()?.lastNamePaternal || 'Sin dato capturado') }}</dd>
+          </div>
+          <div class="data__field">
+            <dt>Apellido materno</dt>
+            <dd>{{ delDetalle(employee()?.lastNameMaternal || 'Sin apellido materno') }}</dd>
+          </div>
+          <div class="data__field">
+            <dt>Código</dt>
             <dd>{{ row().codeEmployee }}</dd>
           </div>
           <div class="data__field">
-            <dt>ESTADO</dt>
+            <dt>Estado</dt>
             <dd class="data__status">
               <span class="data__dot" [class]="'data__dot--' + statusTone()" aria-hidden="true"></span>
               {{ statusLabel() }}
@@ -79,7 +158,7 @@ import { EmployeeJobPosition } from './employee-job-position';
             cumple»: la columna nacio el 19 de septiembre de 2026 y ningun expediente la traia.
           -->
           <div class="data__field">
-            <dt>ESCOLARIDAD</dt>
+            <dt>Escolaridad</dt>
             <dd>
               @if (canWrite()) {
                 <gi-select
@@ -97,18 +176,39 @@ import { EmployeeJobPosition } from './employee-job-position';
           </div>
         </dl>
         @if (!canViewSensitive()) {
-          <p class="data__note">
-            CURP y RFC se muestran parciales: ver el dato completo necesita permiso sobre datos
-            personales.
-          </p>
+          <p class="data__note">CURP y RFC parciales: el dato completo necesita permiso.</p>
         }
       </section>
 
-      <section class="data__block">
-        <h3 class="data__kicker">PUESTO</h3>
+      <gi-accordion
+        label="Relación laboral"
+        [summary]="resumenLaboral()"
+        [tone]="row().jobPositionName ? 'neutral' : 'warning'"
+        [toneLabel]="row().jobPositionName ? '' : 'Sin puesto'"
+      >
+        <app-employee-employment [periods]="employmentPeriods()" [today]="today()" />
+
+        <app-employee-psychometric
+          [tests]="psychometricTests()"
+          [groups]="terminationExpirations()"
+          [today]="today()"
+          [canWrite]="canWrite()"
+          [saving]="savingPsychometric()"
+          [problem]="psychometricProblem()"
+          (registrarPrueba)="registerPsychometric.emit($event)"
+        />
+
         <dl class="data__grid data__grid--two">
           <div class="data__field">
-            <dt>PUESTO DEL CATÁLOGO</dt>
+            <dt>Ingreso</dt>
+            <dd>{{ hired() }}</dd>
+          </div>
+          <div class="data__field">
+            <dt>Asignaciones</dt>
+            <dd>{{ row().assignmentCount === 0 ? 'Ninguna' : row().assignmentCount }}</dd>
+          </div>
+          <div class="data__field">
+            <dt>Puesto</dt>
             <dd [class.data__warning]="!row().jobPositionName">
               {{ row().jobPositionName || 'Sin puesto del catálogo' }}
               <!--
@@ -121,10 +221,20 @@ import { EmployeeJobPosition } from './employee-job-position';
               }
             </dd>
           </div>
-          <div class="data__field">
-            <dt>PUESTO CAPTURADO ANTES</dt>
-            <dd>{{ row().jobTitle || 'Sin texto capturado' }}</dd>
-          </div>
+          <!--
+            El texto heredado sale de la vista cuando coincide con el puesto del catalogo.
+
+            Antes se enseñaban siempre los dos campos, uno al lado del otro. En la inmensa mayoria
+            de las fichas dicen exactamente lo mismo —«Auxiliar de intendencia» y «Auxiliar de
+            intendencia»—, asi que el usuario leia dos veces el mismo dato y tenia que decidir cual
+            de los dos era el bueno. Cuando difieren si importa, y entonces se muestra.
+          -->
+          @if (textoHeredadoDistinto()) {
+            <div class="data__field">
+              <dt>Texto capturado antes del catálogo</dt>
+              <dd>{{ row().jobTitle }}</dd>
+            </div>
+          }
         </dl>
         @if (row().jobTitle && !row().jobPositionName) {
           <p class="data__note">
@@ -132,10 +242,39 @@ import { EmployeeJobPosition } from './employee-job-position';
             contra el perfil de una posición, porque la comparación es por identificador.
           </p>
         }
-      </section>
+      </gi-accordion>
 
-      <section class="data__block">
-        <h3 class="data__kicker">UBICACIÓN Y CONTACTO</h3>
+      <gi-accordion
+        label="Domicilio"
+        [summary]="resumenDomicilio()"
+        [tone]="domicilioVacio() ? 'warning' : 'neutral'"
+        [toneLabel]="domicilioVacio() ? 'Sin capturar' : ''"
+      >
+        @if (canWrite() && !editingAddress()) {
+          <p class="data__acciones">
+            <button class="data__editar" type="button" (click)="editAddress.emit()">
+              {{ domicilioVacio() ? 'Capturar domicilio' : 'Editar domicilio' }}
+            </button>
+          </p>
+        }
+
+        <!--
+          El domicilio se podía ver y no se podía escribir. Las columnas existían en la base desde
+          antes, la ficha las pintaba con «Sin colonia registrada», y no había ninguna pantalla
+          donde capturarlas: 0 de 271 expedientes tenían colonia. El editor va aquí por lo mismo
+          que el del puesto, un bloque más arriba: decir que falta algo sin ofrecer dónde
+          completarlo obliga a buscar, y quien busca casi siempre lo deja así.
+        -->
+        @if (editingAddress()) {
+          <app-employee-address
+            [organizationId]="organizationId()"
+            [employee]="employee()"
+            [saving]="savingAddress()"
+            [problem]="addressProblem()"
+            (guardar)="saveAddress.emit($event)"
+            (cancelar)="cancelAddress.emit()"
+          />
+        } @else {
         <dl class="data__grid data__grid--two">
           <!--
             Calle y número aparte desde el 19 de septiembre de 2026. Los expedientes anteriores
@@ -144,92 +283,161 @@ import { EmployeeJobPosition } from './employee-job-position';
             así en vez de fingir que falta el domicilio entero.
           -->
           <div class="data__field">
-            <dt>CALLE</dt>
+            <dt>Calle</dt>
             <dd>{{ delDetalle(employee()?.street || 'Sin calle registrada') }}</dd>
           </div>
           <div class="data__field">
-            <dt>NÚMERO</dt>
+            <dt>Número</dt>
             <dd>{{ delDetalle(employee()?.streetNumber || 'Sin número registrado') }}</dd>
           </div>
           <div class="data__field">
-            <dt>COLONIA</dt>
+            <dt>Colonia</dt>
             <dd>{{ delDetalle(employee()?.neighborhood || 'Sin colonia registrada') }}</dd>
           </div>
           <div class="data__field">
-            <dt>CÓDIGO POSTAL</dt>
+            <dt>Código postal</dt>
             <dd>{{ delDetalle(employee()?.postalCode || 'Sin código postal') }}</dd>
           </div>
           <div class="data__field">
-            <dt>ESTADO</dt>
+            <dt>Estado</dt>
             <dd>{{ row().state || 'Sin estado registrado' }}</dd>
           </div>
           <div class="data__field">
-            <dt>MUNICIPIO</dt>
+            <dt>Municipio</dt>
             <dd>{{ row().municipality || 'Sin municipio registrado' }}</dd>
           </div>
+        </dl>
+        }
+      </gi-accordion>
+
+      <!--
+        Contacto va aparte del domicilio. Son dos cosas que se consultan en momentos distintos —una
+        para ubicar a la persona y otra para localizarla—, y juntas hacian un bloque de nueve
+        campos que era el mas largo de la ficha.
+      -->
+      <gi-accordion
+        label="Contacto"
+        [summary]="resumenContacto()"
+        [tone]="tieneContactoEmergencia() ? 'neutral' : 'warning'"
+        [toneLabel]="tieneContactoEmergencia() ? '' : 'Sin contacto de emergencia'"
+      >
+        <dl class="data__grid data__grid--two">
           <div class="data__field">
-            <dt>TELÉFONO</dt>
+            <dt>Teléfono</dt>
             <dd>{{ delDetalle(employee()?.mobilePhone || employee()?.homePhone || 'Sin teléfono') }}</dd>
           </div>
           <div class="data__field">
-            <dt>CORREO</dt>
+            <dt>Correo</dt>
             <dd>{{ delDetalle(employee()?.email || 'Sin correo') }}</dd>
           </div>
           <div class="data__field data__field--wide">
-            <dt>CONTACTO DE EMERGENCIA</dt>
+            <dt>Contacto de emergencia</dt>
             <dd>{{ emergency() }}</dd>
           </div>
         </dl>
-      </section>
-
-      <section class="data__block">
-        <h3 class="data__kicker">RELACIÓN LABORAL</h3>
-        <dl class="data__grid data__grid--two">
-          <div class="data__field">
-            <dt>INGRESO</dt>
-            <dd>{{ hired() }}</dd>
-          </div>
-          <div class="data__field">
-            <dt>ASIGNACIONES</dt>
-            <dd>{{ row().assignmentCount === 0 ? 'Ninguna' : row().assignmentCount }}</dd>
-          </div>
-        </dl>
-      </section>
+      </gi-accordion>
     </div>
   `,
   styles: `
+    /* El aviso de lo que está por vencer, en una línea y con la misma forma que la franja del
+       puesto que tiene encima: insignia con la palabra dentro y la acción al final. En ámbar
+       porque avisa de algo que hay que atender y no de algo que ya está bien. */
+    .porvencer {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.5rem;
+      margin: 0;
+      padding: 0.35rem 0.6rem;
+      border: 1px solid var(--gestia-warning);
+      border-radius: var(--gestia-radius);
+      background: var(--gestia-warning-soft);
+    }
+
+    /* El estado se lee: la palabra va dentro, no sólo el color del borde. */
+    .porvencer__badge {
+      padding: 0.1rem 0.4rem;
+      border: 1px solid var(--gestia-warning);
+      border-radius: var(--gestia-radius-pill);
+      color: var(--gestia-warning);
+      font-size: 10.5px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .porvencer__detail { color: var(--gestia-text); font-size: 12px; }
+
+    .porvencer__action {
+      height: 1.6rem;
+      margin-left: auto;
+      padding: 0 0.55rem;
+      border: 1px solid var(--gestia-warning);
+      border-radius: var(--gestia-radius);
+      background: var(--gestia-surface);
+      color: var(--gestia-warning);
+      font: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .porvencer__action:focus-visible { outline: 2px solid var(--gestia-cyan); outline-offset: 1px; }
+
     :host { display: block; }
 
-    .data { display: flex; flex-direction: column; gap: 1.1rem; }
+    .data { display: flex; flex-direction: column; gap: 0.45rem; }
 
-    .data__block { display: flex; flex-direction: column; gap: 0.6rem; }
+    .data__block { display: flex; flex-direction: column; gap: 0.45rem; }
 
-    .data__block + .data__block { border-top: 1px solid var(--gestia-border); padding-top: 1.1rem; }
+    /* La linea divisoria pasa del rotulo a la fila: puesta en el rotulo solo subrayaba la palabra
+       y dejaba el boton por fuera de la division. */
+    .data__cabeza {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.6rem;
+      padding-bottom: 0.3rem;
+      border-bottom: 1px solid var(--gestia-border);
+    }
 
+    /* La identificacion ya no lleva separador superior: es la primera y la unica sin plegar, asi
+       que no hay nada de lo que separarla. Los acordeones traen su propio borde. */
+    .data__block--principal { gap: 0.5rem; }
+
+    .data__acciones { margin: 0 0 0.6rem; }
+
+    /* El rótulo de bloque va en cian y con una línea debajo: es lo que divide la ficha en partes,
+       y en gris quedaba al mismo peso visual que las etiquetas de campo que encabeza. */
     .data__kicker {
       margin: 0;
-      color: var(--gestia-muted);
+      color: var(--gestia-cyan-dark);
       font-size: 11px;
       font-weight: 600;
       letter-spacing: 0.08em;
     }
 
-    .data__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem 1rem; margin: 0; }
+    .data__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem 1.25rem; margin: 0; }
 
-    .data__field { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
+    .data__field { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
     .data__field--wide { grid-column: 1 / -1; }
 
+    /* La etiqueta baja a 11.5 px sin mayúsculas forzadas y el valor sube a 13 px 600.
+       Antes la etiqueta iba en versalitas grises de 11 px y el valor en 12.5 px, tan cerca que
+       ninguno de los dos mandaba: la ficha se leía como una lista de pares del mismo peso en vez
+       de como datos con su rótulo. El dato es lo que se viene a leer, así que es lo que pesa. */
     .data__field dt {
       color: var(--gestia-muted);
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 0.06em;
+      font-size: 11.5px;
+      font-weight: 500;
+      letter-spacing: 0;
+      text-transform: none;
     }
 
     .data__field dd {
       margin: 0;
       color: var(--gestia-text);
-      font-size: 12.5px;
+      font-size: 13px;
       font-weight: 600;
       overflow-wrap: anywhere;
     }
@@ -248,6 +456,54 @@ import { EmployeeJobPosition } from './employee-job-position';
     .data__inactivo { display: block; color: var(--gestia-warning); font-size: 11px; }
 
     .data__note { margin: 0; color: var(--gestia-muted); font-size: 11.5px; }
+
+    .aviso {
+      grid-column: 1 / -1;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.75rem;
+      border: 1px solid var(--gestia-border);
+      border-left: 3px solid var(--gestia-cyan);
+      border-radius: var(--gestia-radius);
+      padding: 0.7rem 0.85rem;
+      background: var(--gestia-surface-soft);
+    }
+
+    .aviso__texto { flex: 1; min-width: 0; }
+    .aviso__titulo { margin: 0; color: var(--gestia-navy); font-size: 12.5px; font-weight: 700; }
+    .aviso__linea { margin: 0.15rem 0 0; color: var(--gestia-text); font-size: 11.5px; }
+
+    .aviso__accion {
+      flex: none;
+      height: var(--gestia-control-height);
+      padding: 0 0.8rem;
+      border: 1px solid var(--gestia-border);
+      border-radius: var(--gestia-radius);
+      background: var(--gestia-surface);
+      color: var(--gestia-text);
+      font: inherit;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .aviso__accion:focus-visible { outline: 2px solid var(--gestia-cyan); outline-offset: 1px; }
+
+    .data__editar {
+      margin-left: 0.6rem;
+      padding: 0.1rem 0.5rem;
+      border: 1px solid var(--gestia-border);
+      border-radius: var(--gestia-radius);
+      background: var(--gestia-surface);
+      color: var(--gestia-text);
+      font: inherit;
+      font-size: 11px;
+      letter-spacing: normal;
+      text-transform: none;
+      cursor: pointer;
+    }
+
+    .data__editar:focus-visible { outline: 2px solid var(--gestia-cyan); outline-offset: 1px; }
 
     @media (width < 45rem) {
       .data__grid { grid-template-columns: minmax(0, 1fr); }
@@ -269,13 +525,55 @@ export class EmployeeData {
   readonly educationLevels = input<readonly EmployeeJobPositionOption[]>([]);
   readonly savingEducation = input(false);
   readonly canWrite = input(false);
+  /** La organización que pide el desplegable de catálogo; la geografía ya no la usa. */
+  readonly organizationId = input('');
+  readonly editingAddress = input(false);
+  readonly savingAddress = input(false);
+  readonly addressProblem = input('');
+  readonly employmentPeriods = input<readonly EmploymentPeriod[]>([]);
+  readonly psychometricTests = input<readonly PsychometricTest[]>([]);
+  readonly terminationExpirations = input<readonly TerminationExpirationGroup[]>([]);
+  readonly savingPsychometric = input(false);
+  readonly psychometricProblem = input('');
+  readonly registerPsychometric = output<string>();
+  readonly today = input('');
+  readonly editingName = input(false);
+  readonly savingName = input(false);
+  readonly nameProblem = input('');
+
+  readonly editAddress = output<void>();
+  readonly cancelAddress = output<void>();
+  readonly saveAddress = output<EmployeeAddressValue>();
+  readonly editName = output<void>();
+  readonly cancelName = output<void>();
+  readonly saveName = output<EmployeeNameValue>();
+
+  /**
+   * Si el domicilio está en blanco, para que el botón diga capturar en vez de editar.
+   *
+   * <p>No mira la calle sola: un expediente traído de antes puede tener la dirección en una línea
+   * y nada más, y eso ya es algo capturado.</p>
+   */
+  protected domicilioVacio(): boolean {
+    const expediente = this.employee();
+    return !expediente?.street && !expediente?.neighborhood && !expediente?.postalCode
+      && !this.row().state && !this.row().municipality;
+  }
 
   /** La escolaridad elegida, resuelta a nombre. Vacía cuando no se ha registrado. */
   readonly saveEducation = output<string | null>();
 
-  protected readonly educationLevelOptions = computed<readonly GiSelectOption[]>(() =>
-    this.educationLevels().map((nivel) => ({ value: nivel.idCatalogItem, label: nivel.name })),
-  );
+  /**
+   * Los niveles, con «Sin registrar» como primera opción.
+   *
+   * <p>Vacía significa «no se sabe», y sin esa opción la lista sólo permitía ir en una dirección:
+   * una escolaridad puesta por error se quedaba puesta. El vacío tiene que poder elegirse, no sólo
+   * heredarse de no haber elegido nunca.</p>
+   */
+  protected readonly educationLevelOptions = computed<readonly GiSelectOption[]>(() => [
+    { value: '', label: 'Sin registrar' },
+    ...this.educationLevels().map((nivel) => ({ value: nivel.idCatalogItem, label: nivel.name })),
+  ]);
 
   protected educationLevelName(): string {
     const id = this.employee()?.idEducationLevelCatalogItem;
@@ -313,19 +611,107 @@ export class EmployeeData {
       && !opciones.some((opcion) => opcion.idCatalogItem === id);
   });
 
+  /**
+   * Si el texto heredado dice algo que el puesto del catálogo no diga ya.
+   *
+   * <p>Se compara sin acentos ni mayúsculas porque la conversión al catálogo normalizó la
+   * escritura: «Auxiliar de Intendencia» y «Auxiliar de intendencia» son el mismo puesto escrito
+   * dos veces, y enseñarlos como campos distintos sugiere una diferencia que no existe.</p>
+   */
+  protected readonly textoHeredadoDistinto = computed(() => {
+    const heredado = this.row().jobTitle?.trim();
+
+    if (!heredado) {
+      return false;
+    }
+
+    const catalogo = this.row().jobPositionName?.trim();
+
+    if (!catalogo) {
+      // Sin puesto de catálogo el texto heredado es lo único que hay: se enseña siempre.
+      return true;
+    }
+
+    const normalizar = (valor: string) =>
+      valor
+        .normalize('NFD')
+        .replace(/[̀-ͯ]/g, '')
+        .toLocaleLowerCase('es');
+
+    return normalizar(heredado) !== normalizar(catalogo);
+  });
+
   protected delDetalle(valor: string): string {
     return this.loading() ? '…' : valor;
   }
 
   readonly editJobPosition = output<void>();
   readonly openCatalog = output<void>();
+
+  /** Cuántos días antes se considera «por vencer». Lo decide la organización. */
+  readonly expiringWithinDays = input(30);
+
+  /**
+   * Cuántos requisitos de esta persona vencen dentro del plazo.
+   *
+   * <p>Sale del listado, que es quien lo recibe del servidor ya contado. <b>No se deriva de los
+   * documentos cargados</b>: el servidor cuenta requisitos y la ficha cuenta archivos, y son dos
+   * cosas distintas —una persona puede tener cinco archivos cubriendo un solo requisito—.</p>
+   */
+  protected readonly porVencer = computed(() => this.row().expiringDocuments);
+
+  /** Llevar a la pestaña de Documentos desde el aviso, sin buscarla. */
+  readonly openDocuments = output<void>();
   readonly cancelJobPosition = output<void>();
   readonly saveJobPosition = output<string>();
-  readonly createJobPosition = output<GiCatalogCreation>();
 
   protected readonly statusLabel = computed(() => employeeStatusLabel(this.row().status));
   protected readonly statusTone = computed(() => employeeStatusTone(this.row().status));
   protected readonly hired = computed(() => formatOperationalDate(this.row().hireDate));
+
+  /**
+   * Lo que cada acordeón dice sin abrirse.
+   *
+   * <p>Es lo que hace que plegar no cueste nada: una sección cerrada que sólo dice «Domicilio»
+   * obliga a abrirla para saber si hay algo dentro, y entonces plegar sólo ha añadido un clic.</p>
+   */
+  protected readonly resumenLaboral = computed(() => {
+    const puesto = this.row().jobPositionName || 'Sin puesto del catálogo';
+    return `${puesto} · desde ${this.hired()}`;
+  });
+
+  protected readonly resumenDomicilio = computed(() => {
+    const employee = this.employee();
+
+    if (this.loading()) {
+      return '…';
+    }
+
+    // Municipio y estado primero: es lo que se pregunta de un domicilio cuando no se va a ir a él.
+    const lugar = [this.row().municipality, this.row().state].filter(Boolean).join(', ');
+    const calle = [employee?.street, employee?.streetNumber].filter(Boolean).join(' ');
+
+    if (!lugar && !calle) {
+      return 'Sin domicilio capturado';
+    }
+
+    return [lugar, calle].filter(Boolean).join(' · ');
+  });
+
+  protected readonly resumenContacto = computed(() => {
+    const employee = this.employee();
+
+    if (this.loading()) {
+      return '…';
+    }
+
+    const telefono = employee?.mobilePhone || employee?.homePhone;
+    return telefono || employee?.email || 'Sin datos de contacto';
+  });
+
+  protected readonly tieneContactoEmergencia = computed(
+    () => !!this.employee()?.emergencyContactName,
+  );
 
   protected readonly emergency = computed(() => {
     const employee = this.employee();

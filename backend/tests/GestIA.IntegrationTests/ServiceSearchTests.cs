@@ -40,7 +40,7 @@ public sealed class ServiceSearchTests(OperationalSqlDatabase database)
         var withPositions = Assert.Single(items, item => item.CodeService == "UNA-SER-A");
         Assert.Equal("Comercial UNA", withPositions.ClientName);
         Assert.Equal(2, withPositions.PositionsCount);
-        Assert.Equal("Sede UNA", withPositions.ClientSiteName);
+        Assert.Equal("Sede UNA", withPositions.ClientZoneName);
 
         var withoutPositions = Assert.Single(items, item => item.CodeService == "UNA-SER-B");
         Assert.Equal(0, withoutPositions.PositionsCount);
@@ -353,7 +353,7 @@ public sealed class ServiceSearchTests(OperationalSqlDatabase database)
         for (var i = 0; i < first; i++)
         {
             var employee = Employee.Create(
-                seed.OrganizationId, $"EMP-{Guid.NewGuid():N}"[..12], $"Empleado {i}", null, Day, ActorId, ActorName, Now);
+                seed.OrganizationId, $"EMP-{Guid.NewGuid():N}"[..12], "Empleado", $"{i}", null, null, Day, ActorId, ActorName, Now);
             var assignment = ServiceAssignment.Create(
                 seed.OrganizationId,
                 employee.IdEmployee,

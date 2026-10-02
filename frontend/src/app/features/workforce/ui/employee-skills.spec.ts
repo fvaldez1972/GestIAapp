@@ -1,7 +1,7 @@
 import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { EligibilityRequirement, EmployeeSkill } from '../../catalogs/data-access/catalog.models';
-import { GiCatalogCreation, GiCatalogOption } from '../../../shared/ui/gi-catalog-picker/gi-catalog-picker';
+import { GiCatalogOption } from '../../../shared/ui/gi-catalog-picker/gi-catalog-picker';
 import { EmployeeSkillFormValue, EmployeeSkills } from './employee-skills';
 import { requirementFixture } from './employee-fixtures';
 
@@ -43,7 +43,6 @@ const experiencia = (overrides: Partial<EmployeeSkill> = {}): EmployeeSkill => (
       [saving]="saving()"
       (save)="guardadas.push($event)"
       (deactivate)="retiradas.push($event)"
-      (createSkill)="creadas.push($event)"
     />
   `,
 })
@@ -59,7 +58,6 @@ class Anfitrion {
   readonly saving = signal(false);
   readonly guardadas: EmployeeSkillFormValue[] = [];
   readonly retiradas: string[] = [];
-  readonly creadas: GiCatalogCreation[] = [];
 }
 
 function montar(configurar: (host: Anfitrion) => void = () => {}) {
@@ -84,6 +82,19 @@ function montar(configurar: (host: Anfitrion) => void = () => {}) {
     estados: () => Array.from(raiz.querySelectorAll('.req__state')).map((n) => n.textContent!.trim()),
     filas: () => Array.from(raiz.querySelectorAll<HTMLElement>('.req')),
     registros: () => Array.from(raiz.querySelectorAll<HTMLElement>('.row')),
+
+    /**
+     * Despliega «Experiencia acreditada».
+     *
+     * <p>Lo acreditado vive detrás de un acordeón desde el 23 de septiembre de 2026, y el cuerpo
+     * se quita del árbol al estar cerrado —no se esconde con CSS— para que no siga en el orden de
+     * tabulación. Así que una prueba que mire la lista tiene que abrirla primero, igual que un
+     * usuario.</p>
+     */
+    abrirAcreditadas: () => {
+      raiz.querySelector<HTMLButtonElement>('gi-accordion .acc__toggle')!.click();
+      fixture.detectChanges();
+    },
   };
 }
 
@@ -92,7 +103,7 @@ describe('La pestaña de experiencias', () => {
   afterEach(() => TestBed.resetTestingModule());
 
   /**
-   * La trampa que esta pestaña cierra: una regla de experiencia bloqueante que nadie podía cumplir,
+   * La trampa que esta pestaña cierra: una regla de experiencia obligatoria que nadie podía cumplir,
    * porque ninguna pantalla otorgaba experiencias.
    */
   it('una experiencia exigida y no acreditada aparece como hueco', () => {
@@ -138,9 +149,14 @@ describe('La pestaña de experiencias', () => {
   });
 
   it('lista lo acreditado con su fecha', () => {
-    const { registros } = montar((host) =>
+    const { registros, abrirAcreditadas } = montar((host) =>
       host.skills.set([experiencia({ expiresDate: '2027-01-15' })]),
     );
+
+    // Plegado no hay lista: ése es el punto del acordeón, y lo comprueba el control de abajo.
+    expect(registros().length).toBe(0);
+
+    abrirAcreditadas();
 
     expect(registros().length).toBe(1);
     expect(registros()[0].textContent).toContain('Manejo de CCTV');
@@ -148,12 +164,19 @@ describe('La pestaña de experiencias', () => {
   });
 
   it('sin permiso de escritura no ofrece acreditar ni editar', () => {
-    const { raiz } = montar((host) => {
+    const { raiz, abrirAcreditadas } = montar((host) => {
       host.canWrite.set(false);
       host.skills.set([experiencia()]);
     });
 
-    expect(Array.from(raiz.querySelectorAll('button')).map((b) => b.textContent!.trim())).toEqual([]);
+    abrirAcreditadas();
+
+    // El único botón que queda es el del propio acordeón, que sólo abre y cierra: no escribe nada.
+    const botones = Array.from(raiz.querySelectorAll('button'))
+      .filter((boton) => !boton.classList.contains('acc__toggle'))
+      .map((boton) => boton.textContent!.trim());
+
+    expect(botones).toEqual([]);
   });
 
   it('el alta emite la experiencia por identificador y las fechas', () => {
@@ -207,6 +230,33 @@ describe('La pestaña de experiencias', () => {
     expect(componente.problem()).toContain('no puede ser anterior');
   });
 
+  /**
+   * <b>Un desplegable, no un campo donde escribir.</b>
+   *
+   * <p>El buscador pedía teclear el nombre de algo que ya existe y está en una lista corta, y de
+   * paso ofrecía darla de alta en el catálogo desde aquí. Las tres afirmaciones se necesitan: la
+   * primera dice que hay una lista cerrada, la segunda que la lista es el catálogo de verdad —sin
+   * ella, un desplegable vacío pasaría igual—, y la tercera que el alta al vuelo se fue con el
+   * buscador, que es lo que hace que no se pueda escribir un nombre que no existe.</p>
+   */
+  it('la experiencia se elige de una lista cerrada, y ya no se da de alta desde aquí', () => {
+    const { componente, fixture, raiz } = montar();
+
+    componente.openCreate();
+    fixture.detectChanges();
+
+    raiz.querySelector<HTMLButtonElement>('gi-select button[role="combobox"]')!.click();
+    fixture.detectChanges();
+
+    const opciones = Array.from(raiz.querySelectorAll('gi-select .gi-select__option-label')).map((o) =>
+      o.textContent!.trim(),
+    );
+
+    expect(opciones).toEqual(['Manejo de CCTV']);
+    expect(raiz.querySelector('gi-catalog-picker')).toBeNull();
+    expect(raiz.textContent).not.toContain('se agrega al catálogo');
+  });
+
   /** Al editar no se cambia cuál es la experiencia: eso convertiría su historial en el de otra. */
   it('editar conserva la experiencia y manda su identificador', () => {
     const { componente, host, fixture, raiz } = montar((h) => h.skills.set([experiencia()]));
@@ -215,7 +265,7 @@ describe('La pestaña de experiencias', () => {
     fixture.detectChanges();
 
     expect(raiz.querySelector('.field__fixed')!.textContent).toContain('Manejo de CCTV');
-    expect(raiz.querySelector('gi-catalog-picker')).toBeNull();
+    expect(raiz.querySelector('gi-select')).toBeNull();
 
     componente.form.patchValue({ expiresDate: '2028-01-01' });
     componente.submit();
@@ -225,7 +275,9 @@ describe('La pestaña de experiencias', () => {
   });
 
   it('retirar emite el identificador, no borra en la pantalla', () => {
-    const { raiz, host } = montar((h) => h.skills.set([experiencia()]));
+    const { raiz, host, abrirAcreditadas } = montar((h) => h.skills.set([experiencia()]));
+
+    abrirAcreditadas();
 
     Array.from(raiz.querySelectorAll('button'))
       .find((b) => b.textContent!.trim() === 'Quitar')!

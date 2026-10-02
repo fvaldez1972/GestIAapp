@@ -182,9 +182,6 @@
   background: var(--gestia-dialog-veil);
 }
 
-/* La ficha necesita mas ancho que un formulario: lleva pestañas con tablas dentro. */
-.modal--ficha { width: min(var(--gestia-panel-width-wide, 1040px), 100%); }
-
 .modal {
   width: min(760px, 100%);
   max-height: calc(100dvh - 2.5rem);
@@ -194,6 +191,31 @@
   background: var(--gestia-surface);
   box-shadow: var(--gestia-shadow-md);
 }
+
+/* La ficha necesita mas ancho que un formulario: lleva pestañas con tablas dentro.
+
+   Y va sin relleno, al reves que los formularios. Lo que lleva dentro es `gi-detail-panel`, que ya
+   trae su propio borde, su radio y su fondo: con el relleno del modal se veia un marco blanco de
+   1 rem entre dos bordes redondeados, uno dentro del otro.
+
+   VA DESPUES DE `.modal` A PROPOSITO. Las dos son un solo nombre de clase, asi que pesan igual y
+   decide el orden: escrita antes, `.modal` le devolvia el relleno y el marco seguia ahi con la
+   clase puesta. Es el mismo defecto que tuvo `gi-select__list--up`. */
+.modal--ficha {
+  width: min(var(--gestia-panel-width-wide, 1040px), 100%);
+  padding: 0;
+  overflow: hidden;
+}
+
+/* El panel nacio lateral y lleva 620 px fijos en su `:host`. Dentro de una ventana de 1040 px eso
+   dejaba 400 px de blanco a la derecha, que es el espacio desperdiciado que se reporto. Aqui llena
+   lo que se le da; en los modulos donde sigue siendo panel lateral conserva su ancho. */
+.modal--ficha gi-detail-panel { width: 100%; }
+
+/* El editor tiene tres secciones apiladas y no cabia de alto en una ventana de 760 px de ancho:
+   habia que desplazar para llegar a "Guardar cambios". Con mas ancho las secciones respiran y la
+   ventana cabe de una vez en una pantalla normal. */
+.modal--edicion { width: min(var(--gestia-panel-width-wide, 1040px), 100%); }
 
 .modal__head {
   display: flex;

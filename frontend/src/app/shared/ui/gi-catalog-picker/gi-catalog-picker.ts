@@ -1,12 +1,16 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
+  ElementRef,
   computed,
   effect,
+  inject,
   input,
   output,
   signal,
   untracked,
+  viewChild,
 } from '@angular/core';
 import { catalogNameDistance, normalizeCatalogName } from '../../util/catalog-name';
 
@@ -68,13 +72,19 @@ export type GiCatalogCreation = {
     // Es lo mismo que hace `gi-select`; esta pieza no lo copió al nacer y quedaba abierta para
     // siempre, obligando a elegir algo aunque uno se hubiera arrepentido.
     '(focusout)': 'alSalirElFoco($event)',
+    '(mousedown)': 'punteroDentro = true',
     '(keydown.escape)': 'abierto.set(false)',
+    // La lista flotante se dibuja donde estaba el campo al abrir. Si algo se desplaza debajo, el
+    // campo se mueve y la lista se quedaria colgada, asi que se cierra.
+    '(document:scroll)': 'alDesplazar()',
+    '(window:resize)': 'alDesplazar()',
   },
   template: `
     <div class="pick">
       <label class="pick__label" [attr.for]="inputId()">{{ label() }}</label>
 
       <input
+        #campo
         class="pick__input"
         type="text"
         role="combobox"
@@ -86,11 +96,18 @@ export type GiCatalogCreation = {
         [attr.aria-describedby]="inputId() + '-ayuda'"
         [placeholder]="placeholder()"
         (input)="escribir($any($event.target).value)"
-        (focus)="abierto.set(true)"
+        (focus)="abrir()"
       />
 
       @if (abierto()) {
-        <ul class="pick__lista" role="listbox">
+        <ul
+          class="pick__lista"
+          role="listbox"
+          [style.top.px]="sitio().top"
+          [style.left.px]="sitio().left"
+          [style.width.px]="sitio().width"
+          [style.max-height.px]="sitio().alto"
+        >
           @for (option of coincidencias(); track option.idCatalogItem) {
             <li class="pick__opcion" role="option" [attr.aria-selected]="option.idCatalogItem === value()">
               <button class="pick__elegir" type="button" (click)="elegir(option)">{{ option.name }}</button>
@@ -137,7 +154,9 @@ export type GiCatalogCreation = {
         </ul>
       }
 
-      <small class="pick__ayuda" [id]="inputId() + '-ayuda'">{{ ayuda() }}</small>
+      @if (ayuda(); as texto) {
+        <small class="pick__ayuda" [id]="inputId() + '-ayuda'">{{ texto }}</small>
+      }
     </div>
   `,
   styles: `
@@ -145,7 +164,15 @@ export type GiCatalogCreation = {
 
     .pick { position: relative; display: flex; flex-direction: column; gap: 0.25rem; }
 
-    .pick__label { color: var(--gestia-muted); font-size: 11.5px; font-weight: 600; }
+    /* El mismo rótulo que .field__label de las pantallas: 11 px y 0.06em. Con 11.5 px y sin
+       espaciado, un selector de catálogo al lado de un campo normal se veía medio punto más grande
+       y la fila parecía torcida aunque estuviera alineada. */
+    .pick__label {
+      color: var(--gestia-muted);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+    }
 
     .pick__input {
       width: 100%;
@@ -162,11 +189,16 @@ export type GiCatalogCreation = {
     .pick__input:focus-visible { outline: 2px solid var(--gestia-cyan); outline-offset: 1px; }
     .pick__input:disabled { background: var(--gestia-surface-soft); color: var(--gestia-muted); }
 
+    /*
+      Flotante y no pegada al campo: dentro de una ventana emergente con desplazamiento, una lista
+      posicionada respecto al campo la recorta el borde de la ventana, y hay que desplazar la
+      ventana para ver el resto mientras la lista tiene su propio desplazamiento. Dos
+      desplazamientos anidados para elegir un valor. Con posicion fija se dibuja sobre todo y su
+      alto sale de lo que queda hasta el pie de la pantalla.
+    */
     .pick__lista {
-      position: absolute;
-      top: 100%;
-      z-index: 20;
-      width: 100%;
+      position: fixed;
+      z-index: 40;
       max-height: 16rem;
       margin: 0.15rem 0 0;
       padding: 0;
@@ -268,6 +300,8 @@ export class GiCatalogPicker {
    * por ejemplo— no hay que cerrar; si sale, o si no va a ninguna parte, sí.</p>
    */
   protected alSalirElFoco(event: FocusEvent): void {
+    if (this.punteroDentro) return;
+
     const destino = event.relatedTarget as Node | null;
     const anfitrion = (event.currentTarget as HTMLElement | null) ?? null;
 
@@ -328,9 +362,56 @@ export class GiCatalogPicker {
     );
   });
 
+  /** Si se dibuja la invitación a crear el valor. Se apaga donde la ventana no da para más texto. */
+  readonly showInvitation = input(true);
+
+  private readonly campo = viewChild.required<ElementRef<HTMLInputElement>>('campo');
+
+  /** Dónde se dibuja la lista flotante, medido al abrir. */
+  protected readonly sitio = signal({ top: 0, left: 0, width: 0, alto: 0 });
+
+  /**
+   * Abre la lista al entrar al campo, con el catálogo entero a la vista.
+   *
+   * <p>Se llamaba a sí misma en vez de abrir: la lista sólo aparecía al teclear, porque escribir sí
+   * la abre por su cuenta. Quien pulsaba el campo veía un cuadro de texto y ninguna pista de que
+   * hubiera un catálogo detrás.</p>
+   */
+  protected abrir(): void {
+    this.medirSitio();
+    this.abierto.set(true);
+  }
+
+  /**
+   * Dónde cae la lista y cuánto puede crecer.
+   *
+   * <p>Se mide al abrir. Una lista que se recoloca mientras está abierta salta bajo el cursor justo
+   * cuando alguien va a elegir, así que si algo se desplaza debajo se cierra en vez de perseguir al
+   * campo.</p>
+   */
+  private medirSitio(): void {
+    const caja = this.campo().nativeElement.getBoundingClientRect();
+    const margen = 8;
+    const disponible = window.innerHeight - caja.bottom - margen * 2;
+
+    this.sitio.set({
+      top: caja.bottom + 4,
+      left: caja.left,
+      width: caja.width,
+      alto: Math.max(120, Math.min(256, disponible)),
+    });
+  }
+
+  protected alDesplazar(): void {
+    if (this.abierto()) {
+      this.abierto.set(false);
+    }
+  }
+
   protected readonly puedeCrear = computed(() => !!normalizeCatalogName(this.escrito()) && !this.yaExiste());
 
   protected readonly ayuda = computed(() => {
+    // Lo situacional se dice siempre: son respuestas a lo que se acaba de escribir.
     if (this.yaExiste()) {
       return 'Ya existe: selecciónalo en lugar de crear otro igual.';
     }
@@ -339,7 +420,10 @@ export class GiCatalogPicker {
       return 'Sólo puedes elegir de lo que ya está en el catálogo.';
     }
 
-    return 'Si no está, escríbelo y se agrega al catálogo para reutilizarlo.';
+    // La invitación es permanente y no responde a nada, así que una pantalla apretada puede
+    // apagarla. Se apaga por campo y no para todos: en una pantalla con sitio, decirle a alguien
+    // que puede crear el valor ahí mismo es la diferencia entre capturarlo y salir a Catálogos.
+    return this.showInvitation() ? 'Si no está, escríbelo y se agrega al catálogo para reutilizarlo.' : '';
   });
 
   protected elegir(option: GiCatalogOption): void {
@@ -358,7 +442,21 @@ export class GiCatalogPicker {
    */
   private readonly pendienteDeCrear = signal('');
 
+  /** Verdadero entre el apretar y el soltar del raton dentro del control. */
+  protected punteroDentro = false;
+
   constructor() {
+    // Mismo arreglo que en `gi-select`: apretar la barra de desplazamiento de la lista le quita el
+    // foco al campo, y el focusout cerraba la lista justo al agarrarla.
+    const soltar = (): void => {
+      if (!this.punteroDentro) return;
+
+      this.punteroDentro = false;
+      if (this.abierto()) this.campo().nativeElement.focus();
+    };
+    document.addEventListener('mouseup', soltar, true);
+    inject(DestroyRef).onDestroy(() => document.removeEventListener('mouseup', soltar, true));
+
     /**
      * Selecciona el valor recien creado en cuanto aparece en el catalogo.
      *

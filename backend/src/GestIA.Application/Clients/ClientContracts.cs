@@ -127,10 +127,26 @@ public sealed record ClientListItemResponse(
     int ZoneCount,
     int ZonesWithoutContact,
     int ContactCount,
+    /// <summary>
+    /// Cuántos documentos activos tiene el cliente.
+    ///
+    /// <para>Viaja con la fila por la misma razón que las zonas y los contactos: la pestaña dibuja
+    /// su contador antes de que nadie la abra. Sin esto decía «Documentos» a secas hasta que se
+    /// entraba, que es justo lo que el contador venía a evitar.</para>
+    /// </summary>
+    int DocumentCount,
     int ServiceCount,
     string? MainZoneName,
     string? MainZoneMunicipality,
-    string? MainZoneState);
+    string? MainZoneState,
+    /// <summary>
+    /// Cuántas ubicaciones distintas —estado más municipio— tienen las zonas activas del cliente.
+    ///
+    /// <para>Existe para que la lista deje de afirmar una. <c>MainZone*</c> es la primera zona por
+    /// nombre, no una zona destacada: el modelo no tiene jerarquía. Con dos ubicaciones distintas,
+    /// enseñar sólo la primera dice que el cliente está en Tijuana cuando también está en León.</para>
+    /// </summary>
+    int ZoneLocationCount);
 
 public sealed record ClientSearchResult(
     IReadOnlyList<ClientResponse> Items,

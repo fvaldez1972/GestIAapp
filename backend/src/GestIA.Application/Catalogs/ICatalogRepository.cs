@@ -8,6 +8,23 @@ namespace GestIA.Application.Catalogs;
 
 public interface ICatalogRepository
 {
+    /// <summary>Cuántos documentos vivos cuelgan de un tipo y están marcados como sensibles.</summary>
+    Task<int> CountSensitiveDocumentsOfTypeAsync(
+        Guid idOrganization,
+        Guid idCatalogItem,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Propaga la sensibilidad del tipo a sus documentos, y devuelve cuántos cambiaron.
+    ///
+    /// <para>La sensibilidad se hereda del tipo, así que los papeles ya guardados tienen que seguirla:
+    /// dejarlos con la marca vieja daría dos respuestas distintas a la misma pregunta.</para>
+    /// </summary>
+    Task<int> PropagateSensitivityAsync(
+        Guid idOrganization,
+        Guid idCatalogItem,
+        bool isSensitive,
+        CancellationToken cancellationToken);
     Task<bool> OrganizationExistsAsync(Guid idOrganization, CancellationToken cancellationToken);
     Task<IReadOnlyList<BusinessCatalogItem>> ListCatalogItemsAsync(Guid idOrganization, BusinessCatalogItemType? type, CancellationToken cancellationToken);
     Task<BusinessCatalogItem?> GetCatalogItemAsync(Guid idOrganization, Guid idCatalogItem, CancellationToken cancellationToken);

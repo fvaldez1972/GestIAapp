@@ -367,14 +367,14 @@ public sealed class OverviewTests(OperationalSqlDatabase database)
         if (level >= Level.Employees)
         {
             var employee = Employee.Create(
-                organizationId, $"{prefix}-EMP", $"Persona {prefix}", "Guardia", Day.AddDays(-90),
+                organizationId, $"{prefix}-EMP", "Persona", prefix, null, "Guardia", Day.AddDays(-90),
                 ActorId, ActorName, Now);
             employee.ChangeStatus(EmployeeStatus.Active, ActorId, ActorName, Now);
 
             if (jobPositionId is not null)
             {
                 employee.UpdateProfile(
-                    ProfileFor($"Persona {prefix}", jobPositionId.Value), ActorId, ActorName, Now);
+                    ProfileFor("Persona", prefix, jobPositionId.Value), ActorId, ActorName, Now);
             }
 
             context.Add(employee);
@@ -398,8 +398,8 @@ public sealed class OverviewTests(OperationalSqlDatabase database)
     /// El perfil de empleado tiene veintitantos campos opcionales y aquí sólo importan dos. Se
     /// aísla en un método para que las pruebas no se lean como una lista de nulos.
     /// </summary>
-    private static EmployeeProfile ProfileFor(string fullName, Guid jobPositionId) =>
-        new(fullName, "Guardia", Day.AddDays(-90),
+    private static EmployeeProfile ProfileFor(string firstName, string lastNamePaternal, Guid jobPositionId) =>
+        new(firstName, lastNamePaternal, null, "Guardia", Day.AddDays(-90),
             null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null,
             null, jobPositionId);
 

@@ -14,7 +14,22 @@ public sealed record CatalogItemInput(
     /// <summary>
     /// Sólo la aceptan los cuatro catálogos que participan en la elegibilidad; en los demás va nula.
     /// </summary>
-    bool? IsBlocking = null);
+    bool? IsRequired = null,
+    /// <summary>Si los papeles de este tipo dejan de contar al causar baja la persona.</summary>
+    bool? IsExpiredOnTermination = null,
+    /// <summary>Si los papeles de este tipo traen su propia fecha de vencimiento.</summary>
+    bool? HasOwnExpiry = null,
+    /// <summary>Antigüedad máxima admitida en la fecha de emisión, en meses. Nulo: sin límite.</summary>
+    int? MaxIssueAgeMonths = null,
+    /// <summary>Si los papeles de este tipo llevan datos personales con trato especial.</summary>
+    bool? IsSensitive = null,
+    /// <summary>
+    /// Confirma desmarcar la sensibilidad de un tipo que ya tiene papeles guardados.
+    ///
+    /// <para>Sin esta confirmación, la petición se rechaza diciendo cuántos documentos dejarían de
+    /// estar protegidos. Es una pregunta, no un permiso: el permiso se comprueba aparte.</para>
+    /// </summary>
+    bool ConfirmUnmarkSensitive = false);
 
 public sealed record CatalogItemResponse(
     Guid IdCatalogItem,
@@ -27,9 +42,16 @@ public sealed record CatalogItemResponse(
     DateTime? UpdatedAt = null,
     Guid? IdParentCatalogItem = null,
     /// <summary>Nula en los catálogos que no participan en la elegibilidad.</summary>
-    bool? IsBlocking = null,
+    bool? IsRequired = null,
     /// <summary>Si este catálogo admite la marca. La pantalla decide con esto si la dibuja.</summary>
-    bool SupportsBlockingMark = false);
+    bool SupportsRequiredMark = false,
+    bool? IsExpiredOnTermination = null,
+    /// <summary>Si este catálogo admite el corte por baja: documentos y evaluaciones del personal.</summary>
+    bool SupportsTerminationExpiry = false,
+    bool? HasOwnExpiry = null,
+    int? MaxIssueAgeMonths = null,
+    bool? IsSensitive = null,
+    bool SupportsSensitiveMark = false);
 
 public sealed record EligibilityRequirementInput(
     Guid IdOrganization,
@@ -65,7 +87,7 @@ public sealed record EligibilityRequirementResponse(
     /// La severidad, que sale de la entrada del catálogo que la regla exige. La regla ya no la
     /// afina: desde el 19 de septiembre de 2026 hay una sola fuente, que es RF-POS-010.
     /// </summary>
-    bool IsBlockingEffective,
+    bool IsRequiredEffective,
     bool Active);
 
 public sealed record EmployeeSkillInput(
@@ -120,6 +142,6 @@ public sealed record EligibilityCheckResponse(
 public sealed record EligibilityReasonResponse(
     string Scope,
     string Requirement,
-    bool IsBlocking,
+    bool IsRequired,
     bool Passed,
     string Message);

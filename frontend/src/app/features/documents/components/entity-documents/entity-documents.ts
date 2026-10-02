@@ -1,4 +1,5 @@
 import { HttpErrorResponse, HttpResponse } from '@angular/common/http';
+import { GiDate } from '../../../../shared/ui/gi-date/gi-date';
 import {
   ChangeDetectionStrategy, Component, ElementRef, OnDestroy, computed, effect, inject,
   input, output, signal, untracked, viewChild,
@@ -26,6 +27,12 @@ export type EntityDocumentTypeOption = {
   readonly code: string;
   readonly label: string;
   readonly isRequired: boolean;
+  /** Si el tipo trae su propia vigencia. Sin dato se asume que sí, como era antes de RQ-09. */
+  readonly hasOwnExpiry?: boolean | null;
+  /** Antigüedad máxima admitida en la emisión, en meses. */
+  readonly maxIssueAgeMonths?: number | null;
+  /** Si el tipo es sensible. La sensibilidad del documento sale de aquí, no de quien lo sube. */
+  readonly isSensitive?: boolean | null;
 };
 
 /** Lo que se guardo, para quien tenga que registrarlo en otro lado. */
@@ -39,7 +46,7 @@ export type EntityDocumentSaved = {
 
 @Component({
   selector: 'app-entity-documents',
-  imports: [ReactiveFormsModule, AppIcon, GiFileInput, GiCatalogPicker, GiSelect],
+  imports: [ReactiveFormsModule, AppIcon, GiFileInput, GiCatalogPicker, GiSelect, GiDate],
   templateUrl: './entity-documents.html',
   styleUrl: './entity-documents.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -73,6 +80,65 @@ export class EntityDocuments implements OnDestroy {
    * ver el archivo. Por eso esto es una variante y no un recorte del componente.</p>
    */
   readonly simple = input(false);
+
+  /**
+   * Si el componente dibuja su propio encabezado.
+   *
+   * <p>Se apaga donde ya hay uno encima. En Personal la pestaña se llama Documentos, el panel lleva
+   * el nombre de la persona y el apartado de requisitos tiene su propio título: el encabezado del
+   * componente era el tercero para lo mismo. El botón de agregar se queda.</p>
+   */
+  readonly showHeading = input(true);
+
+  /**
+   * Si este componente dibuja su propio «Agregar documento».
+   *
+   * <p>Personal lo apaga porque enseña el suyo arriba, junto al encabezado de la lista de
+   * requisitos. Las demás pantallas lo dejan encendido: ahí ésta es la única salida.</p>
+   */
+  readonly showAdd = input(true);
+
+  /**
+   * Si cada documento ofrece «Revisar» y «Archivar».
+   *
+   * <p>Personal las apagó el 24 de septiembre de 2026, por petición: ensuciaban la fila. <b>Y eso
+   * tiene consecuencia</b>, porque revisar es lo que valida o rechaza un documento, y esa decisión
+   * manda sobre la elegibilidad para cubrir un turno: con el botón apagado, un documento que está
+   * «Sin validar» no tiene desde dónde dejar de estarlo. Se apunta aquí para que quien lo
+   * reactive sepa qué se recupera.</p>
+   */
+  readonly showReview = input(true);
+
+  /**
+   * Con que tipos se queda la lista. Vacio no filtra nada.
+   *
+   * <p>Son nombres de categoria y no identificadores porque el documento guarda su categoria por
+   * nombre, que es la columna que ya existe.</p>
+   */
+  readonly onlyCategories = input<readonly string[]>([]);
+
+  /** Si dibuja su propia barra de buscar y filtrar. Personal la apaga: la tiene arriba. */
+  readonly showFilters = input(true);
+
+  /**
+   * Abrir una accion sobre un documento desde fuera, por identificador.
+   *
+   * <p>Personal lo usa para que cada fila de requisito ofrezca descargar, ver el historial o
+   * corregir el papel que la cubre, sin bajar a esta lista. Las acciones no se copian alla: las
+   * implementa este componente, que es quien habla con el servidor y quien tiene las ventanas.</p>
+   *
+   * <p>Es el mismo camino que ya usaba el alta con <c>openAdd</c>, y con las mismas guardas: una
+   * entrada desde fuera no puede ser una puerta con menos comprobaciones que la de dentro.</p>
+   */
+  readonly openDownloadFor = input('');
+  readonly openHistoryFor = input('');
+  readonly openEditFor = input('');
+
+  /** Se avisa al resolverlas, para que quien las pidio limpie su señal. */
+  readonly externalActionDone = output<void>();
+
+  /** Los tipos obligatorios y los informativos, para el filtro del desplegable. */
+  readonly requiredCategories = input<readonly string[]>([]);
 
   /** Las categorias del catalogo, cuando la variante simple las usa en vez de texto libre. */
   readonly categories = input<readonly GiCatalogOption[]>([]);
@@ -131,6 +197,7 @@ export class EntityDocuments implements OnDestroy {
   private readonly auth = inject(AuthService);
   private readonly fb = inject(FormBuilder);
   private readonly historyDialog = viewChild<ElementRef<HTMLDialogElement>>('historyDialog');
+  private readonly editorDialog = viewChild<ElementRef<HTMLDialogElement>>('editorDialog');
   private readonly selectorDeArchivo = viewChild(GiFileInput);
   private requests = new Subscription();
   private listRequest?: Subscription;
@@ -151,6 +218,40 @@ export class EntityDocuments implements OnDestroy {
   protected readonly canWriteSensitive = computed(() => this.canWrite() && this.canAccessSensitive()
     && this.auth.hasPermission('DOCUMENTS.SENSITIVE.WRITE'));
   protected readonly documents = signal<readonly BusinessDocument[]>([]);
+
+  /**
+   * Lo que la lista enseña: lo cargado, pasado por el filtro de tipo.
+   *
+   * <p>Se resuelve aqui y no en el servidor porque el endpoint no sabe filtrar por categoria. Por
+   * eso Personal sube `pageSize`: filtrar sobre cinco filas habria callado documentos sin
+   * decirlo.</p>
+   */
+  protected readonly visibles = computed(() => {
+    const permitidas = new Set(this.onlyCategories().map((nombre) => nombre.toLowerCase()));
+    const porTipo = this.filtroDeTipo();
+    const obligatorias = new Set(this.requiredCategories().map((nombre) => nombre.toLowerCase()));
+
+    return this.documents().filter((documento) => {
+      const categoria = (documento.category ?? '').toLowerCase();
+
+      if (permitidas.size && !permitidas.has(categoria)) {
+        return false;
+      }
+
+      if (porTipo === 'required') {
+        return obligatorias.has(categoria);
+      }
+
+      if (porTipo === 'informative') {
+        return !obligatorias.has(categoria);
+      }
+
+      return true;
+    });
+  });
+
+  /** El filtro de obligatorio o informativo del desplegable. Vacio no filtra. */
+  protected readonly filtroDeTipo = signal<'' | 'required' | 'informative'>('');
   protected readonly loading = signal(false);
   protected readonly listError = signal('');
   protected readonly actionError = signal('');
@@ -166,7 +267,15 @@ export class EntityDocuments implements OnDestroy {
    * documento ocupa cuatro renglones y cinco botones, así que la lista crecía hasta empujar el
    * navegador de páginas fuera de la vista y parecía que los documentos se acumulaban sin fin.</p>
    */
-  protected readonly pageSize = 5;
+  /**
+   * Cuantos archivos se piden por pagina.
+   *
+   * <p>Personal sube este numero a proposito. Su lista se filtra ademas por tipo —obligatorios o
+   * informativos— y ese filtro se resuelve aqui, sobre lo cargado, porque el servidor no sabe
+   * filtrar por tipo: con cinco por pagina, «obligatorios» habria enseñado los que cayeran en la
+   * pagina que tocara y habria callado el resto sin decirlo.</p>
+   */
+  readonly pageSize = input(5);
 
   /** Cuántos documentos hay, para quien dibuje un contador fuera de este componente. */
   readonly totalChange = output<number>();
@@ -183,11 +292,55 @@ export class EntityDocuments implements OnDestroy {
     title: ['', [Validators.pattern(/\S/), Validators.maxLength(180)]],
     category: ['', [Validators.required, Validators.pattern(/\S/), Validators.maxLength(80)]],
     documentType: [''],
-    issuedDate: [''], expiresDate: [''], isSensitive: [false], notes: ['', Validators.maxLength(1000)],
+    issuedDate: [''], expiresDate: [''], notes: ['', Validators.maxLength(1000)],
   });
 
   /** Con tipos declarados la categoria se elige; sin ellos se escribe, como hasta ahora. */
   protected readonly typed = computed(() => this.documentTypes().length > 0);
+
+  /**
+   * El vencimiento más lejano que se acepta: hoy más tres meses.
+   *
+   * <p>Se cuenta desde hoy y no desde la emisión, por decisión del usuario. Sale del reloj del
+   * navegador y no del día operativo del servidor a propósito: es el tope de un campo de captura
+   * nativo, que también se dibuja con la zona horaria del equipo. Medirlo contra el servidor daría
+   * un tope que el propio control podría no dejar elegir.</p>
+   */
+  /**
+   * Si lo que se está guardando queda sensible.
+   *
+   * <p>Sale del tipo elegido, y al editar también de lo que el documento ya era: un documento que
+   * nació sensible no deja de serlo porque alguien abra su formulario.</p>
+   */
+  protected sensibleAqui(): boolean {
+    // Método y no señal: el tipo vive en el formulario reactivo, que no es una señal. Se evalúa
+    // en cada ciclo de detección, y elegir tipo dispara uno.
+    return !!this.tipoElegido()?.isSensitive || !!this.selected()?.isSensitive;
+  }
+
+  /** El tipo elegido en el formulario, para leer su política de vigencia. */
+  protected tipoElegido(): EntityDocumentTypeOption | null {
+    const code = this.form.controls.documentType.value;
+    return this.documentTypes().find((tipo) => tipo.code === code) ?? null;
+  }
+
+  protected emisionMinima(meses: number): string {
+    const hoy = new Date();
+    const tope = new Date(hoy.getFullYear(), hoy.getMonth() - meses, hoy.getDate());
+    const mes = String(tope.getMonth() + 1).padStart(2, '0');
+    const dia = String(tope.getDate()).padStart(2, '0');
+    return `${tope.getFullYear()}-${mes}-${dia}`;
+  }
+
+  protected readonly vencimientoMaximo = computed(() => {
+    const hoy = new Date();
+    const tope = new Date(hoy.getFullYear(), hoy.getMonth() + 3, hoy.getDate());
+
+    // Sin `toISOString`, que pasa por UTC y en México adelanta o atrasa un día.
+    const mes = String(tope.getMonth() + 1).padStart(2, '0');
+    const dia = String(tope.getDate()).padStart(2, '0');
+    return `${tope.getFullYear()}-${mes}-${dia}`;
+  });
 
   /** El obligatorio se marca en el renglon secundario del selector, que ya existe para eso. */
   protected readonly typeOptions = computed<readonly GiSelectOption[]>(() =>
@@ -251,13 +404,19 @@ export class EntityDocuments implements OnDestroy {
     this.form.controls.category.setValue(nombre);
   }
 
+  /**
+   * El titulo, que ya no se captura.
+   *
+   * <p><b>Es el nombre del tipo, siempre.</b> Se pedia aparte y la pantalla lo proponia con el
+   * nombre del tipo, asi que en la practica era la misma captura dos veces: quien cargaba un
+   * documento aceptaba la propuesta y seguia. La columna sigue existiendo y sigue siendo lo que la
+   * lista enseña; lo que cambia es quien la llena.</p>
+   *
+   * <p>Al corregir un documento viejo que si tenga un titulo escrito a mano, ese titulo pasa a ser
+   * el del tipo. Es la consecuencia de dejar de capturarlo, y se prefiere a que la lista mezcle
+   * nombres de dos epocas.</p>
+   */
   protected tituloAGuardar(): string {
-    const titulo = this.form.controls.title.value.trim();
-
-    if (titulo) {
-      return titulo;
-    }
-
     return this.form.controls.category.value.trim();
   }
   protected readonly reviewForm = this.fb.nonNullable.group({
@@ -312,6 +471,50 @@ export class EntityDocuments implements OnDestroy {
     });
   });
 
+  /**
+   * Las tres acciones pedidas desde fuera.
+   *
+   * <p>Se resuelven contra la lista ya cargada: el documento tiene que estar a la vista para poder
+   * descargarlo, y quien lo pide —la fila del requisito— sabe su identificador porque la propia
+   * fila lo trae. Si no aparece, no se hace nada: es preferible a inventar una peticion suelta.</p>
+   */
+  private readonly accionesDesdeFuera = effect(() => {
+    const descargar = this.openDownloadFor();
+    const historial = this.openHistoryFor();
+    const editar = this.openEditFor();
+
+    untracked(() => {
+      if (!descargar && !historial && !editar) {
+        return;
+      }
+
+      const buscar = (id: string) => this.documents().find((d) => d.idBusinessDocument === id);
+
+      if (descargar) {
+        const documento = buscar(descargar);
+        if (documento && this.canAccess(documento)) {
+          this.download(documento);
+        }
+      }
+
+      if (historial) {
+        const documento = buscar(historial);
+        if (documento && this.canAccess(documento)) {
+          this.openHistory(documento);
+        }
+      }
+
+      if (editar) {
+        const documento = buscar(editar);
+        if (documento && this.canEdit(documento)) {
+          this.openEditor('edit', documento);
+        }
+      }
+
+      this.externalActionDone.emit();
+    });
+  });
+
   protected load(page = this.page()) {
     this.listRequest?.unsubscribe();
     this.documents.set([]);
@@ -328,7 +531,7 @@ export class EntityDocuments implements OnDestroy {
     const filters = this.filters.getRawValue();
     this.listRequest = this.api.listDocuments(
       context.idOrganization, context.ownerType, context.ownerId,
-      filters.status, filters.search, this.page(), this.pageSize,
+      filters.status, filters.search, this.page(), this.pageSize(),
     ).pipe(finalize(() => this.loading.set(false))).subscribe({
       next: result => {
         const lastPage = Math.max(1, result.totalPages);
@@ -379,13 +582,23 @@ export class EntityDocuments implements OnDestroy {
         // mejor que proponer un tipo que nadie escribio.
         documentType: this.documentTypes().find((tipo) => tipo.label === document.category)?.code ?? '',
         issuedDate: document.issuedDate ?? '',
-        expiresDate: document.expiresDate ?? '', isSensitive: document.isSensitive, notes: document.notes ?? '',
+        expiresDate: document.expiresDate ?? '', notes: document.notes ?? '',
       });
+    }
+
+    // Sólo el alta y la edición viven en ventana. Revisar y archivar siguen en la lista: son dos
+    // botones y una confirmación, y encerrarlos en un diálogo costaría más de lo que resuelve.
+    if (mode === 'create' || mode === 'edit') {
+      this.editorDialog()?.nativeElement.showModal();
     }
   }
 
   protected closeEditor() {
     if (this.busy()) return;
+    // Cerrar siempre, sin mirar el modo: `openEditor` empieza llamando aquí, y si el diálogo
+    // quedara abierto de una edición anterior el velo taparía la pantalla sin nada dentro.
+    const dialogo = this.editorDialog()?.nativeElement;
+    if (dialogo?.open) dialogo.close();
     if (this.abiertoDesdeFuera) {
       this.abiertoDesdeFuera = false;
       this.closeAdd.emit();
@@ -434,17 +647,51 @@ export class EntityDocuments implements OnDestroy {
       return;
     }
     const selected = this.selected();
-    if (value.isSensitive && !this.canWriteSensitive()) {
-      this.actionError.set('No tienes permiso para guardar documentos sensibles.');
-      return;
-    }
-    if (selected?.isSensitive && !value.isSensitive) {
-      this.actionError.set('El documento debe conservar su clasificacion sensible.');
+
+    // La sensibilidad ya no se elige aqui, asi que no hay nada que impedir "desmarcar". Lo que
+    // queda es no dejar guardar un documento que el tipo hace sensible sin tener el permiso: el
+    // servidor lo rechazaria igual, y decirlo antes evita subir un archivo para nada.
+    if (this.sensibleAqui() && !this.canWriteSensitive()) {
+      this.actionError.set('Este tipo de documento es sensible y no tienes permiso para guardarlo.');
       return;
     }
     if (!selected && !this.file && !this.uploadedReference) {
       this.actionError.set('Selecciona un archivo.');
       return;
+    }
+    // Va al final de la cadena a propósito: es la regla más nueva y la menos específica, así que
+    // adelantarse a «falta el archivo» o «falta el tipo» cambiaría el mensaje que el usuario ve por
+    // uno que no nombra su problema real.
+    //
+    // El vencimiento es **obligatorio y trimestral** en el expediente de personal, por decisión del
+    // 23 de septiembre de 2026. En el expediente de cliente el campo ni siquiera se dibuja, así que
+    // la regla se limita a donde el campo existe.
+    // Desde RQ-09 la política la decide el tipo, no la pantalla: el vencimiento se pide sólo si el
+    // tipo maneja vigencia, y el tope de tres meses pasó a la fecha de emisión de los tipos que no la
+    // manejan —el comprobante de domicilio—, que es como lo describe el documento de la reunión.
+    if (!this.simple()) {
+      const tipo = this.tipoElegido();
+      const manejaVigencia = tipo?.hasOwnExpiry !== false;
+
+      if (manejaVigencia && !value.expiresDate) {
+        this.actionError.set('Captura la fecha de vencimiento: este tipo maneja vigencia.');
+        return;
+      }
+
+      const mesesEmision = tipo?.maxIssueAgeMonths ?? null;
+
+      if (mesesEmision && value.issuedDate && value.issuedDate < this.emisionMinima(mesesEmision)) {
+        this.actionError.set(
+          `La emisión no puede ser anterior a ${this.emisionMinima(mesesEmision)}: ` +
+            `se aceptan ${mesesEmision} meses de antigüedad como máximo.`,
+        );
+        return;
+      }
+
+      if (mesesEmision && !value.issuedDate) {
+        this.actionError.set('Captura la fecha de emisión: este tipo la exige reciente.');
+        return;
+      }
     }
     const context = { ...this.editorContext! };
     const reference$ = this.file && !this.uploadedReference
@@ -456,7 +703,7 @@ export class EntityDocuments implements OnDestroy {
       const request: BusinessDocumentInput = {
         ...context, title: this.tituloAGuardar(), category: value.category.trim(),
         issuedDate: value.issuedDate || null, expiresDate: value.expiresDate || null,
-        isSensitive: value.isSensitive, notes: value.notes.trim() || null, status: 'PendingReview', storageReference,
+        isSensitive: this.sensibleAqui(), notes: value.notes.trim() || null, status: 'PendingReview', storageReference,
       };
       return selected ? this.api.updateDocument(selected.idBusinessDocument, request) : this.api.createDocument(request);
     })), 'Documento guardado. Pendiente de revision.', (guardado) => {

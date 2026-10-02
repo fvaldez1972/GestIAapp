@@ -82,6 +82,17 @@ public sealed class ClientSite : AuditableEntity, IOrganizationScopedEntity
     public string CountryCode { get; private set; } = "MX";
     public string? AccessInstructions { get; private set; }
     public string? TimeZoneId { get; private set; }
+
+    /// <summary>
+    /// Dónde está la sede, en grados. Nulas mientras nadie la haya marcado en el mapa.
+    ///
+    /// <para>Seis decimales dan alrededor de once centímetros, que es mucho más de lo que hace falta
+    /// para localizar una entrada; el tipo es <c>decimal</c> y no <c>float</c> porque una coordenada se
+    /// compara y se muestra, y un binario aproximado haría que el mismo punto se leyera distinto.</para>
+    /// </summary>
+    public decimal? Latitude { get; private set; }
+
+    public decimal? Longitude { get; private set; }
     public Client Client { get; private set; } = null!;
 
     public static ClientSite Create(
@@ -147,6 +158,26 @@ public sealed class ClientSite : AuditableEntity, IOrganizationScopedEntity
         Municipality = Required(address.Municipality, nameof(address.Municipality));
         State = Required(address.State, nameof(address.State));
         PostalCode = Required(address.PostalCode, nameof(address.PostalCode));
+
+        if (address.Latitude is { } lat && (lat < -90m || lat > 90m))
+        {
+            throw new ArgumentOutOfRangeException(nameof(address), "La latitud está fuera de rango.");
+        }
+
+        if (address.Longitude is { } lon && (lon < -180m || lon > 180m))
+        {
+            throw new ArgumentOutOfRangeException(nameof(address), "La longitud está fuera de rango.");
+        }
+
+        // Media coordenada no localiza nada, y guardarla haría que un mapa dibujara un punto en el
+        // meridiano cero. O las dos, o ninguna.
+        if (address.Latitude is null != address.Longitude is null)
+        {
+            throw new ArgumentException("La ubicación necesita latitud y longitud, o ninguna de las dos.", nameof(address));
+        }
+
+        Latitude = address.Latitude;
+        Longitude = address.Longitude;
         CountryCode = Required(address.CountryCode, nameof(address.CountryCode)).ToUpperInvariant();
         AccessInstructions = Optional(address.AccessInstructions);
         TimeZoneId = Optional(address.TimeZoneId);
@@ -173,4 +204,6 @@ public sealed record ClientSiteAddress(
     string PostalCode,
     string CountryCode,
     string? AccessInstructions,
-    string? TimeZoneId);
+    string? TimeZoneId,
+    decimal? Latitude = null,
+    decimal? Longitude = null);

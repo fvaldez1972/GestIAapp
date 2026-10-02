@@ -126,7 +126,11 @@ export function metricPill(metric: OverviewMetric): string {
     case 'UncoveredShiftsYesterday':
       return metric.value > 0 ? 'Al descubierto' : 'Todo cubierto';
     case 'ExpiredDocuments':
-      return metric.value > 0 ? 'Bloquea asignación' : '';
+      // «No se puede asignar» y no «Bloquea asignación»: desde el 23 de septiembre de 2026 la
+      // marca del catálogo se llama obligatoria, no bloqueante, y dejar «bloquea» aquí mantenía
+      // vivo el vocabulario viejo en la primera pantalla que se abre. Además dice qué pasa en vez
+      // de nombrar el mecanismo, que es lo que el usuario necesita.
+      return metric.value > 0 ? 'No se puede asignar' : '';
     default:
       return '';
   }

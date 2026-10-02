@@ -224,6 +224,7 @@ export class PlanningPage {
           idPosition: this.selectedPositionId(),
           date: cell.date,
           eligibility: this.eligibility(),
+          siteMunicipality: this.selectedService()?.clientZoneMunicipality ?? null,
         })
       : [];
   });
@@ -444,7 +445,7 @@ export class PlanningPage {
               {
                 isEligible: respuesta.isEligible,
                 blockingReasons: respuesta.reasons
-                  .filter((reason) => reason.isBlocking && !reason.passed)
+                  .filter((reason) => reason.isRequired && !reason.passed)
                   .map((reason) => reason.message),
               },
             ]),

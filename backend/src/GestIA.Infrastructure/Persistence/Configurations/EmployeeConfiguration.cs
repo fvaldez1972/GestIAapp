@@ -13,7 +13,16 @@ public sealed class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
         builder.HasKey(entity => entity.IdEmployee);
         builder.Property(entity => entity.CodeEmployee).HasMaxLength(30).IsUnicode(false).IsRequired();
         builder.Property(entity => entity.Status).HasConversion<string>().HasMaxLength(30).IsUnicode(false).IsRequired();
-        builder.Property(entity => entity.FullName).HasMaxLength(200).IsRequired();
+        // El nombre en sus tres partes, que es lo que se captura desde RQ-06. Tres partes de 80
+        // mas dos espacios dan 242, que es lo que hace segura la longitud del derivado: un nombre
+        // valido en cada parte siempre cabe en FullName.
+        builder.Property(entity => entity.FirstName).HasMaxLength(EmployeeName.PartMaxLength).IsRequired();
+        builder.Property(entity => entity.LastNamePaternal).HasMaxLength(EmployeeName.PartMaxLength).IsRequired();
+        builder.Property(entity => entity.LastNameMaternal).HasMaxLength(EmployeeName.PartMaxLength);
+
+        // FullName se conserva porque la busqueda, el orden alfabetico y las listas van contra
+        // ella, pero ya no se captura: el dominio la compone de las tres partes.
+        builder.Property(entity => entity.FullName).HasMaxLength(EmployeeName.FullMaxLength).IsRequired();
         builder.Property(entity => entity.JobTitle).HasMaxLength(120);
         builder.Property(entity => entity.BirthPlace).HasMaxLength(150);
         builder.Property(entity => entity.Sex).HasMaxLength(30);
@@ -59,6 +68,16 @@ public sealed class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
             .WithMany()
             .HasForeignKey(entity => entity.IdEducationLevelCatalogItem)
             .OnDelete(DeleteBehavior.Restrict);
+
+        // La coleccion de periodos se lee del campo, no de la propiedad: la propiedad es de solo
+        // lectura a proposito, para que nadie agregue un periodo saltandose las reglas del agregado.
+        builder.Metadata
+            .FindNavigation(nameof(Employee.EmploymentPeriods))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
+
+        builder.Metadata
+            .FindNavigation(nameof(Employee.PsychometricTests))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
 
         builder.HasIndex(entity => new { entity.IdOrganization, entity.CodeEmployee }).IsUnique();
         builder.HasIndex(entity => new { entity.IdOrganization, entity.Rfc })

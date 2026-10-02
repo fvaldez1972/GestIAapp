@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, effect, input, output, signal, untracked } from '@angular/core';
+import { GiDate } from '../../../shared/ui/gi-date/gi-date';
 import { FormsModule } from '@angular/forms';
 import { GiSelect } from '../../../shared/ui/gi-select/gi-select';
 import { ServerProblem, fieldError } from '../../../shared/util/server-problem';
@@ -20,12 +21,11 @@ import { Client, ClientInput } from '../data-access/client.models';
 @Component({
   selector: 'app-client-edit-form',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, GiSelect],
+  imports: [FormsModule, GiSelect, GiDate],
   template: `
     <form class="edit" (ngSubmit)="guardar()">
       <p class="edit__ref">
         <span>{{ client().codeClient }}</span>
-        <small>El código y la fecha de alta los pone el sistema.</small>
       </p>
 
       <fieldset class="edit__grupo">
@@ -118,8 +118,7 @@ import { Client, ClientInput } from '../data-access/client.models';
         <div class="edit__dos">
           <label class="field" for="ce-fconst">
             <span class="field__label">FECHA DE CONSTITUCIÓN</span>
-            <input id="ce-fconst" name="incorporationDate" type="date"
-              [ngModel]="incorporationDate()" (ngModelChange)="incorporationDate.set($event)" [ngModelOptions]="sueltos" />
+            <gi-date inputId="ce-fconst" [ngModel]="incorporationDate()" (ngModelChange)="incorporationDate.set($event)" [ngModelOptions]="sueltos" />
           </label>
           <label class="field" for="ce-escritura">
             <span class="field__label">NÚMERO DE ESCRITURA</span>
@@ -131,8 +130,7 @@ import { Client, ClientInput } from '../data-access/client.models';
         <div class="edit__dos">
           <label class="field" for="ce-fregistro">
             <span class="field__label">FECHA DEL REGISTRO PÚBLICO</span>
-            <input id="ce-fregistro" name="publicRegistryDate" type="date"
-              [ngModel]="publicRegistryDate()" (ngModelChange)="publicRegistryDate.set($event)" [ngModelOptions]="sueltos" />
+            <gi-date inputId="ce-fregistro" [ngModel]="publicRegistryDate()" (ngModelChange)="publicRegistryDate.set($event)" [ngModelOptions]="sueltos" />
           </label>
           <label class="field" for="ce-folio">
             <span class="field__label">FOLIO MERCANTIL</span>
@@ -167,7 +165,15 @@ import { Client, ClientInput } from '../data-access/client.models';
   styles: `
     :host { display: block; }
 
-    .edit { display: grid; gap: 1rem; }
+    /* Dos columnas cuando hay sitio: las tres secciones apiladas no cabian de alto y obligaban a
+       desplazar para llegar al boton de guardar. */
+    .edit { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; align-content: start; }
+
+    .edit__ref, .edit__error { grid-column: 1 / -1; }
+
+    @media (width < 60rem) {
+      .edit { grid-template-columns: minmax(0, 1fr); }
+    }
 
     .edit__ref {
       display: flex;
@@ -279,10 +285,19 @@ export class ClientEditForm {
   protected readonly nationalityOptions = computed(() => {
     const catalogo = this.nationalities();
     const actual = this.nationality().trim();
-    const opciones = catalogo.map((nombre) => ({ value: nombre, label: nombre }));
+    // El vacío va como opción y no sólo como texto de relleno: es un campo opcional, y sin esto
+    // una nacionalidad puesta por error no se podía quitar.
+    const opciones = [
+      { value: '', label: 'Sin nacionalidad' },
+      ...catalogo.map((nombre) => ({ value: nombre, label: nombre })),
+    ];
 
     return actual && !catalogo.includes(actual)
-      ? [{ value: actual, label: actual, hint: 'Valor actual · ya no está en el catálogo' }, ...opciones]
+      ? [
+          opciones[0],
+          { value: actual, label: actual, hint: 'Valor actual · ya no está en el catálogo' },
+          ...opciones.slice(1),
+        ]
       : opciones;
   });
   protected readonly taxActivity = signal('');

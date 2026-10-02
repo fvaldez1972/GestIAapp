@@ -81,7 +81,9 @@ public sealed class BusinessDocumentPagingTests(OperationalSqlDatabase database)
         var empleado = Employee.Create(
             organization.IdOrganization,
             $"PAG-{Guid.NewGuid():N}"[..12],
-            "Persona con expediente",
+            "Persona",
+            "con expediente",
+            null,
             "Guardia",
             DateOnly.FromDateTime(Now).AddDays(-90),
             ActorId,

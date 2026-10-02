@@ -446,18 +446,24 @@ sobre poner a alguien en dos sitios a la vez.
 
 ### 2.5 Qué hace que un empleado no sea elegible
 
+> **Nota de vocabulario.** Lo que aquí se llama «obligatoria» se llamó **«bloqueante»** hasta el 23
+> de septiembre de 2026, en la pantalla y en el código: la marca era `IsBlocking` y la columna
+> también. Hoy la pantalla dice «Informativa/Obligatorio» y el modelo dice `IsRequired`. Los
+> documentos con fecha anterior —los de `docs/requerimientos/`, entre otros— conservan la palabra
+> vieja a propósito: son acta de lo que se decidió ese día y no se reescriben.
+
 `CatalogService.EvaluateEligibilityAsync`. Se evalúa contra una **fecha de referencia**.
 
-- **Estatus distinto de `Active`** → bloqueante siempre: `El empleado tiene estatus Inactive.`
+- **Estatus distinto de `Active`** → obligatorio siempre: `El empleado tiene estatus Inactive.`
 - **Reglas de `EligibilityRequirements`** activas cuyo alcance aplique (organización, cliente,
-  servicio o posición). Cada regla dice si es bloqueante:
+  servicio o posición). Cada regla dice si es obligatoria:
   - `Skill`: exige una habilidad del catálogo, activa y **no vencida** a la fecha. Falla con
     `Falta habilidad requerida: XXX.`
   - `Document`: exige un documento del tipo pedido, activo, en estado **`Validated` o `Received`** y
     **no vencido**. Falla con `Falta documento vigente o validado: XXX.`
   - `Evaluation`: exige una evaluación del tipo pedido, activa y vigente.
   - `Restriction`: **siempre falla**. Es una prohibición configurada.
-- **Si no hay ninguna regla configurada**, se devuelve una razón informativa no bloqueante:
+- **Si no hay ninguna regla configurada**, se devuelve una razón informativa, no obligatoria:
   `No hay reglas configuradas que bloqueen al empleado.` — es decir, **por omisión todo el mundo es
   elegible**.
 
@@ -861,7 +867,7 @@ El frontend construye el conflicto de huecos con `blocking: false` y este texto 
 > «Faltan 3 elementos en total. **No impide publicar**: una semana con huecos es una semana normal a
 > la que le falta gente, y publicarla es lo que deja a Cobertura resolverlos.»
 
-Como no es bloqueante, `publish-panel.ts` **deja el botón habilitado** y no da ninguna razón.
+Como no es obligatoria, `publish-panel.ts` **deja el botón habilitado** y no da ninguna razón.
 
 El servidor hace lo contrario (`SchedulingService.PublishScheduleVersionCoreAsync`, línea 95):
 
@@ -923,7 +929,7 @@ las otras cuatro. Hoy no es ninguna de las dos cosas.
 La cadena:
 
 1. En **Catálogos** se puede crear una `EligibilityRequirement` de tipo **`Skill`** o **`Evaluation`**,
-   marcada como bloqueante. La pantalla lo permite: `catalog-api.service.ts` tiene el alta y
+   marcada como obligatoria. La pantalla lo permite: `catalog-api.service.ts` tiene el alta y
    `catalogs-page.ts` la usa.
 2. `CatalogService.EvaluateEligibilityAsync` la evalúa: exige una `EmployeeSkill` activa y vigente
    —o una `EmployeeEvaluation`— con el código pedido.

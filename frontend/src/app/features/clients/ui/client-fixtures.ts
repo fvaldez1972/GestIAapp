@@ -21,10 +21,12 @@ export function cliente(extra: Partial<ClientListItem> = {}): ClientListItem {
     zoneCount: 3,
     zonesWithoutContact: 0,
     contactCount: 4,
+    documentCount: 2,
     serviceCount: 5,
     mainZoneName: 'Torre Altavista',
     mainZoneMunicipality: 'Zapopan',
     mainZoneState: 'Jalisco',
+    zoneLocationCount: 1,
     ...extra,
   };
 }
@@ -72,7 +74,6 @@ export function contacto(extra: Partial<ClientContact> = {}): ClientContact {
     idClientContact: 'con-1',
     idClient: 'cli-1',
     idClientZone: 'sed-1',
-    scope: 'Zone',
     idPurposeCatalogItem: 'cat-operativo',
     idContactJobPositionCatalogItem: 'cat-jefa',
     clientZoneName: 'Torre Altavista',

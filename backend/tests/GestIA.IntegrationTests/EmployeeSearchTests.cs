@@ -45,6 +45,74 @@ public sealed class EmployeeSearchTests(OperationalSqlDatabase database)
     /// </summary>
     private readonly Dictionary<EmployeeDocumentType, Guid> categorias = [];
 
+    // ── Los números del encabezado ───────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// El resumen cuenta la organización entera, y lo hace <b>en SQL</b>.
+    ///
+    /// <para>Las dos mitades de la prueba importan por separado. La primera es que exista: el
+    /// resumen usa un <c>GroupBy</c> constante con subconsultas correlacionadas dentro, y eso o
+    /// traduce a SQL o revienta al ejecutarse —nunca al compilar—. Sin una prueba contra un motor
+    /// de verdad, el error aparecería al abrir la pantalla.</para>
+    ///
+    /// <para>La segunda es el control que le da sentido: se pide con <c>Take = 1</c>, así que la
+    /// página trae <b>una</b> fila mientras el resumen dice cuatro. Ése es exactamente el defecto
+    /// que el resumen vino a arreglar —el subtítulo contaba las filas a la vista—, y con una sola
+    /// fila en la página ninguno de estos números se puede sacar de ella.</para>
+    /// </summary>
+    [OperationalSqlFact]
+    public async Task TheSummaryCountsTheWholeOrganizationAndNotThePage()
+    {
+        var seed = await SeedAsync("SUM");
+
+        var unaSolaFila = Criterios(seed.OrganizationId) with { Take = 1 };
+        var (items, total) = await SearchAsync(unaSolaFila);
+        var resumen = await SummarizeAsync(unaSolaFila);
+
+        // El control: la página es de una, el conjunto es de cuatro.
+        Assert.Single(items);
+        Assert.Equal(4, total);
+
+        Assert.Equal(4, resumen.Total);
+
+        // Tres activas y una candidata —«Persona sin papeles», que el sembrado deja como
+        // candidatura—. Que los dos números difieran es lo que hace la prueba útil: con cuatro y
+        // cero, una implementación que contara todas las filas pasaría igual.
+        Assert.Equal(3, resumen.Active);
+        Assert.Equal(1, resumen.Candidates);
+
+        // Una con un documento vencido, y una que caduca dentro del umbral. Cuenta personas, no
+        // documentos: quien ya tiene algo vencido no vuelve a contarse en «por vencer».
+        Assert.Equal(1, resumen.WithExpiredDocuments);
+        Assert.Equal(1, resumen.WithExpiringDocuments);
+    }
+
+    /// <summary>
+    /// Una organización sin personal da cinco ceros, no una excepción.
+    ///
+    /// <para>El <c>GroupBy</c> no produce ningún grupo cuando no hay filas, así que
+    /// <c>FirstOrDefault</c> devuelve nulo. Una organización recién creada entra por ese camino la
+    /// primera vez que alguien abre Personal.</para>
+    /// </summary>
+    [OperationalSqlFact]
+    public async Task TheSummaryOfAnEmptyOrganizationIsZeroAndNotAnError()
+    {
+        var seed = await SeedAsync("VAC");
+        var otra = Guid.NewGuid();
+
+        var resumen = await SummarizeAsync(Criterios(otra));
+
+        Assert.Equal(0, resumen.Total);
+        Assert.Equal(0, resumen.Active);
+        Assert.Equal(0, resumen.Candidates);
+        Assert.Equal(0, resumen.WithExpiredDocuments);
+        Assert.Equal(0, resumen.WithExpiringDocuments);
+
+        // Y el control de que la prueba no está mirando al vacío por accidente: la organización
+        // sembrada, en el mismo motor y la misma corrida, sí tiene cuatro.
+        Assert.Equal(4, (await SummarizeAsync(Criterios(seed.OrganizationId))).Total);
+    }
+
     // ── El resumen documental ────────────────────────────────────────────────────────────────
 
     [OperationalSqlFact]
@@ -395,6 +463,50 @@ public sealed class EmployeeSearchTests(OperationalSqlDatabase database)
                 null),
             ActorId, ActorName, Now);
 
+    // ── El nombre en tres partes ─────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Desde RQ-06 el nombre vive en tres columnas y el nombre completo se deriva. La busqueda
+    /// tiene que encontrar por cualquiera de las tres.
+    ///
+    /// <para><b>Por que basta con una columna derivada.</b> La busqueda va contra
+    /// <c>FullName</c>, que contiene las tres partes, asi que no hace falta un OR por columna. Esta
+    /// prueba es lo que sostiene esa decision: si alguien recortara el derivado —por ejemplo
+    /// dejando solo los apellidos— dejaria de encontrarse por el nombre de pila.</para>
+    ///
+    /// <para><b>El control</b> es la cuarta busqueda: un apellido que nadie tiene devuelve cero.
+    /// Sin ella, una implementacion que ignorara el texto y devolviera las cuatro filas pasaria las
+    /// tres primeras.</para>
+    /// </summary>
+    [OperationalSqlFact]
+    public async Task SearchFindsAPersonByAnyOfTheThreeNameParts()
+    {
+        var seed = await SeedAsync("PAR");
+
+        await using (var context = database.Context())
+        {
+            database.Organization.SetAuthorizedOrganization(seed.OrganizationId);
+            context.Add(Empleado(
+                seed.OrganizationId, "PAR-EMP-TRES", "Herminia", seed.JobPositionId, "Zubieta", "Olmedo"));
+            await context.SaveChangesAsync(Token);
+        }
+
+        foreach (var parte in new[] { "Herminia", "Zubieta", "Olmedo" })
+        {
+            var (items, total) = await SearchAsync(Criterios(seed.OrganizationId) with { Search = parte });
+
+            var encontrada = Assert.Single(items);
+            Assert.Equal("PAR-EMP-TRES", encontrada.CodeEmployee);
+            Assert.Equal(1, total);
+        }
+
+        var (ninguna, ningunTotal) = await SearchAsync(
+            Criterios(seed.OrganizationId) with { Search = "Anacleto" });
+
+        Assert.Empty(ninguna);
+        Assert.Equal(0, ningunTotal);
+    }
+
     private static EmployeeSearchCriteria Criterios(Guid organizationId) =>
         new(organizationId, null, null, null, EmployeeDocumentFilter.Any, null, Day, Umbral, 0, 50);
 
@@ -404,6 +516,14 @@ public sealed class EmployeeSearchTests(OperationalSqlDatabase database)
         database.Organization.SetAuthorizedOrganization(criteria.IdOrganization);
         await using var context = database.Context();
         return await new WorkforceRepository(context).SearchEmployeesAsync(
+            criteria, Requeridos.Select(tipo => categorias[tipo]).ToArray(), Token);
+    }
+
+    private async Task<EmployeeSummaryResponse> SummarizeAsync(EmployeeSearchCriteria criteria)
+    {
+        database.Organization.SetAuthorizedOrganization(criteria.IdOrganization);
+        await using var context = database.Context();
+        return await new WorkforceRepository(context).SummarizeEmployeesAsync(
             criteria, Requeridos.Select(tipo => categorias[tipo]).ToArray(), Token);
     }
 
@@ -573,15 +693,21 @@ public sealed class EmployeeSearchTests(OperationalSqlDatabase database)
         Assert.True(vencido.MissingDocuments > 0);
     }
 
-    private static Employee Empleado(Guid organizationId, string code, string nombre, Guid idPuesto)
+    private static Employee Empleado(
+        Guid organizationId,
+        string code,
+        string nombre,
+        Guid idPuesto,
+        string paterno = "Prueba",
+        string? materno = null)
     {
         var empleado = Employee.Create(
-            organizationId, code, nombre, "Guardia", Day.AddDays(-90), ActorId, ActorName, Now);
+            organizationId, code, nombre, paterno, materno, "Guardia", Day.AddDays(-90), ActorId, ActorName, Now);
 
         empleado.ChangeStatus(EmployeeStatus.Active, ActorId, ActorName, Now);
         empleado.UpdateProfile(
             new EmployeeProfile(
-                nombre, "Guardia", Day.AddDays(-90),
+                nombre, paterno, materno, "Guardia", Day.AddDays(-90),
                 null, null, null, null, null, null, null, null, null, null,
                 null, null, null, null, null, null, null, null, null, null, "Zapopan", "Jalisco", null, null, null,
                 null, idPuesto),

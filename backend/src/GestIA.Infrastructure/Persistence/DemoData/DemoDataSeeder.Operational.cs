@@ -100,7 +100,9 @@ public sealed partial class DemoDataSeeder
             organization.IdOrganization,
             $"EMP-{number:000}",
             new EmployeeProfile(
-                $"{first} {paternal} {maternal}",
+                first,
+                paternal,
+                maternal,
                 job,
                 hireDate,
                 hireDate.AddYears(-Rng.Next(20, 45)),
@@ -145,6 +147,29 @@ public sealed partial class DemoDataSeeder
         // La baja se expresa con EmployeeStatus.Terminated, NO con el borrado lógico
         // transversal. Desactivar además al empleado lo saca del filtro global de EF y
         // desaparece de la pantalla de Personal, que es justo donde se quiere ver la baja.
+
+        // El historial laboral, desde RQ-07.
+        //
+        // Quien está en candidatura NO lleva periodo: el periodo se abre al contratarla, y sembrar
+        // uno diría que ya fue contratada. Quien está dada de baja lleva su periodo cerrado, con
+        // fecha y motivo, porque una baja sin motivo no se puede guardar ni aquí. Y el resto
+        // --activos, en permiso e inactivos-- lleva un periodo abierto: un permiso no interrumpe la
+        // contratación, y el estado Inactive no es una baja laboral.
+        if (status != EmployeeStatus.Candidate)
+        {
+            var baja = status == EmployeeStatus.Terminated
+                ? hireDate.AddDays(Rng.Next(90, 1500))
+                : (DateOnly?)null;
+
+            employee.RegisterExistingPeriod(
+                hireDate,
+                baja > Today ? Today : baja,
+                baja is null ? null : Pick(DemoCatalog.TerminationReasons),
+                DemoActorId,
+                DemoActorName,
+                OccurredAt);
+        }
+
         return employee;
     }
 

@@ -11,6 +11,8 @@ export type AssignmentCandidateSource = {
   readonly jobTitle: string | null;
   /** Cuántas asignaciones vigentes tiene, en cualquier servicio. Lo cuenta el servidor. */
   readonly assignmentCount: number;
+  /** El municipio de su domicilio. Es contra lo que se compara la sede para decir quién vive cerca. */
+  readonly municipality?: string | null;
 };
 
 /**
@@ -35,7 +37,30 @@ export function buildAssignmentCandidates(options: {
   readonly assignments: readonly ServiceAssignment[];
   readonly idPosition: string;
   readonly eligibility?: ReadonlyMap<string, CandidateEligibility>;
+  /**
+   * Con qué clientes está ocupada cada persona hoy, según el servidor.
+   *
+   * <p>Sin esto la fila decía «Ocupado · con una asignación vigente» sin nombrar a nadie, y para
+   * saber si esa persona podía tomar otro turno había que salir de la pantalla.</p>
+   */
+  readonly currentClients?: ReadonlyMap<string, readonly string[]>;
+
+  /**
+   * El municipio de la sede donde se presta el servicio.
+   *
+   * <p>Es lo que parte la lista en «cercanos» y «otros». Sin él no hay contra qué comparar y la
+   * división no aparece: partirla a ciegas pondría a todos del lado equivocado.</p>
+   */
+  readonly siteMunicipality?: string | null;
 }): readonly GiCandidate[] {
+  // La misma comparación que usa Planeación: el domicilio guarda municipio y estado, no
+  // coordenadas, así que no hay distancia que medir. Nulo cuando falta el municipio de cualquiera
+  // de los dos, y entonces la persona no cae en ninguna de las dos pestañas por suposición.
+  const mismoMunicipio = (municipio: string | null | undefined): boolean | null => {
+    const sede = options.siteMunicipality?.trim().toLocaleLowerCase('es');
+    const persona = municipio?.trim().toLocaleLowerCase('es');
+    return sede && persona ? sede === persona : null;
+  };
   const vigentes = options.assignments.filter((assignment) => assignment.active);
 
   const yaEnLaPosicion = new Set(
@@ -58,25 +83,46 @@ export function buildAssignmentCandidates(options: {
 
       return {
         id: employee.idEmployee,
+        nearby: mismoMunicipio(employee.municipality),
         name: `${employee.codeEmployee} · ${employee.fullName}`,
         // El puesto por catálogo. El texto libre heredado se dice como lo que es, para que nadie
         // suponga que sirve para comprobar el perfil: la comparación va por identificador.
         role:
           employee.jobPositionName ??
           (employee.jobTitle ? `${employee.jobTitle} · sin catalogar` : 'Sin puesto registrado'),
-        availability: disponibilidad(employee, otra),
+        availability: disponibilidad(employee, otra, options.currentClients?.get(employee.idEmployee)),
         ...veredictoDelServidor(veredicto),
       };
     });
 }
 
+/**
+ * Qué dice la línea de disponibilidad.
+ *
+ * <p><b>Ocupado nombra al cliente.</b> Decir «con una asignación vigente» obligaba a salir de la
+ * pantalla para saber si esa persona podía tomar otro turno: con el cliente delante, quien asigna
+ * decide sin moverse.</p>
+ *
+ * <p>Los nombres los manda el servidor. Si no llegan —un backend anterior a este endpoint— se cae
+ * al conteo de siempre en lugar de dejar la línea vacía.</p>
+ */
 function disponibilidad(
   employee: AssignmentCandidateSource,
   otra: ServiceAssignment | undefined,
+  clientes: readonly string[] | undefined,
 ): string {
   if (otra) {
     const posicion = otra.positionName ?? otra.positionCode ?? 'otra posición';
     return `Ocupado · ya cubre ${posicion} en este servicio`;
+  }
+
+  if (clientes?.length) {
+    // Tres y «y N más»: con ocho clientes la línea se volvía más larga que la fila.
+    const visibles = clientes.slice(0, 3).join(', ');
+    const resto = clientes.length - 3;
+    return resto > 0
+      ? `Ocupado · con ${visibles} y ${resto} ${resto === 1 ? 'cliente' : 'clientes'} más`
+      : `Ocupado · con ${visibles}`;
   }
 
   if (employee.assignmentCount > 0) {

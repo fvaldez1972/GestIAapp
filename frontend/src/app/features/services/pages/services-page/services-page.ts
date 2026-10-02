@@ -1,4 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
+import { ServerProblem, fieldError, readServerProblem } from '../../../../shared/util/server-problem';
 import { toSignal } from '@angular/core/rxjs-interop';
 import {
   ChangeDetectionStrategy,
@@ -25,20 +26,7 @@ import {
   takeUntil,
 } from 'rxjs';
 import { AuthService } from '../../../../core/auth/auth.service';
-import {
-  GiColumn,
-  GiDataTable,
-  GiCell,
-  GiDetailPanel,
-  GiTabContent,
-  GiFilterBar,
-  GiFilterGroup,
-  GiRowActions,
-  GiRowAction,
-  GiConfirmDialog,
-  GiTab,
-  GiTableState,
-} from '../../../../shared/ui/gi-ui';
+import { GiCell, GiColumn, GiConfirmDialog, GiDataTable, GiDate, GiDetailPanel, GiFilterBar, GiFilterGroup, GiRowAction, GiRowActions, GiSelect, GiSelectOption, GiTab, GiTabContent, GiTableState } from '../../../../shared/ui/gi-ui';
 import { formatOperationalDate } from '../../../../shared/util/operational-date';
 import { ServiceApiService } from '../../data-access/service-api.service';
 import {
@@ -57,6 +45,9 @@ import { CatalogApiService } from '../../../catalogs/data-access/catalog-api.ser
 import {
   ShiftPatternTemplate,
   ShiftPatternTemplateOption,
+  cycleDayLabel,
+  cycleLabel,
+  cyclePhrase,
   shiftDaypartLabel,
 } from '../../../catalogs/data-access/shift-pattern-template.models';
 import { PAYMENT_FREQUENCY_LABELS, PaymentFrequency } from '../../../clients/data-access/client.models';
@@ -115,10 +106,11 @@ import { dateRangeValidator, shiftIntervalValidator } from '../../ui/service-val
     GiTabContent,
     GiRowActions,
     GiConfirmDialog,
+    GiSelect,
     GiCandidatePicker,
     PositionSkills,
     EntityDocuments,
-  ],
+   GiDate,],
   templateUrl: './services-page.html',
   styleUrl: './services-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -276,7 +268,19 @@ export class ServicesPage implements OnInit, OnDestroy {
       assignments: this.assignments(),
       idPosition: this.assignmentForm.controls.idPosition.value,
       eligibility: this.candidateEligibility(),
+      currentClients: this.candidateCurrentClients(),
+      siteMunicipality: this.selectedService()?.clientZoneMunicipality ?? null,
     }),
+  );
+
+  /**
+   * Con qué clientes está ocupado cada candidato hoy, indexado por persona.
+   *
+   * <p>Se pide una vez por organización cuando se abre el alta de asignación: preguntarlo por
+   * candidato serían tantas consultas como filas tenga la lista.</p>
+   */
+  protected readonly candidateCurrentClients = signal<ReadonlyMap<string, readonly string[]>>(
+    new Map(),
   );
   /**
    * El listado de la organización. **Antes esto era la lista de clientes**, y no se veía un solo
@@ -293,6 +297,22 @@ export class ServicesPage implements OnInit, OnDestroy {
   protected readonly loading = computed(() => this.pending() > 0);
   protected readonly saving = signal(false);
   protected readonly error = signal('');
+
+  /**
+   * Lo que el servidor dijo del último guardado, **con el detalle por campo**.
+   *
+   * <p>Existe porque `setError` leía `detail`, que en una validación trae siempre la misma frase:
+   * «La solicitud contiene datos inválidos.». El servidor sí manda qué campo falló —va en
+   * `errors`— y esta pantalla lo estaba tirando. Quien lo veía tenía que adivinar cuál de los
+   * quince campos del formulario era.</p>
+   */
+  protected readonly problem = signal<ServerProblem | null>(null);
+
+  /** El mensaje del servidor para un campo, o vacío si ese campo no falló. */
+  protected errorDe(campo: string): string {
+    const problema = this.problem();
+    return problema ? fieldError(problema, campo) : '';
+  }
   protected readonly message = signal('');
   protected readonly search = signal('');
   protected readonly statusFilter = signal<ServiceStatusFilter>('Active');
@@ -462,6 +482,7 @@ export class ServicesPage implements OnInit, OnDestroy {
     if (!this.canRead()) return;
     this.listChanges.next();
     this.error.set('');
+    this.problem.set(null);
     this.read(
       this.serviceApi
         .searchServices({
@@ -796,6 +817,7 @@ export class ServicesPage implements OnInit, OnDestroy {
   protected refresh(): void {
     if (this.saving()) return;
     this.error.set('');
+    this.problem.set(null);
     const service = this.selectedService();
     if (service) this.loadServiceDetail(service);
     this.loadServices(this.serviceList().page);
@@ -803,6 +825,11 @@ export class ServicesPage implements OnInit, OnDestroy {
 
   protected loadPositions(service = this.selectedService()): void {
     if (!service || !this.canReadPlanning()) return;
+
+    // El calendario de la posición vive en esta misma pestaña y se dibuja con estos días, así que
+    // viajan con las posiciones y no con el editor.
+    this.loadShiftPatternTemplateDetails();
+
     this.read(
       this.api.listPositions(this.selectedOrganizationId(), service.idClient, service.idService),
       2,
@@ -905,6 +932,15 @@ export class ServicesPage implements OnInit, OnDestroy {
     this.candidatesLoaded.set(false);
     this.candidateRows.set([]);
     this.candidateEligibility.set(new Map());
+    this.candidateCurrentClients.set(new Map());
+
+    // Con qué clientes está ocupado cada quien. Va aparte del listado y sin bloquearlo: si falla,
+    // la fila cae al conteo de siempre en vez de dejar la lista sin candidatos.
+    this.read(this.employeeListApi.listCurrentAssignments(org), 2, (filas) =>
+      this.candidateCurrentClients.set(
+        new Map(filas.map((fila) => [fila.idEmployee, fila.clientNames])),
+      ),
+    );
 
     this.read(
       // Cien es el maximo del servidor. Con doscientos esta consulta contestaba 400, la lista de
@@ -922,6 +958,8 @@ export class ServicesPage implements OnInit, OnDestroy {
             jobPositionName: item.jobPositionName,
             jobTitle: item.jobTitle,
             assignmentCount: item.assignmentCount,
+            // Para RQ-11: contra el municipio de la sede se decide quién vive cerca.
+            municipality: item.municipality,
           })),
         );
         this.loadCandidateEligibility();
@@ -936,6 +974,64 @@ export class ServicesPage implements OnInit, OnDestroy {
    * consulta no impide asignar —el servidor vuelve a decidir al guardar—, y bloquear la pantalla
    * por no poder adelantar el veredicto sería peor que no adelantarlo.</p>
    */
+  /**
+   * Quien sigue asignado a esta posicion y ya no cumple, despues de editarla.
+   *
+   * <p><b>Por que va despues de guardar y no antes.</b> Lo que se edita en ese formulario y puede
+   * dejar a alguien fuera son <b>las experiencias que pide la posicion</b>, que son reglas de
+   * elegibilidad y se guardan como parte de la misma accion. El resto del perfil —escolaridad,
+   * sexo, rango de edad, equipo— el servidor lo devuelve siempre como informativo: dice «no impide
+   * asignar», asi que cambiarlo no puede descalificar a nadie. Preguntar antes de guardar habria
+   * obligado a evaluar un conjunto de reglas que todavia no existe.</p>
+   *
+   * <p>El aviso no deshace nada: enumera a quien quedo fuera y lleva a Asignaciones, que es donde
+   * se resuelve. Quitarle la asignacion a alguien por un cambio de perfil es una decision de quien
+   * opera, no un efecto colateral de guardar.</p>
+   */
+  private revisarAsignadosTrasEditar(idPosition: string): void {
+    const org = this.selectedOrganizationId();
+    const service = this.selectedService();
+
+    const asignados = this.assignments()
+      .filter((assignment) => assignment.active && assignment.idPosition === idPosition)
+      .map((assignment) => assignment.idEmployee);
+
+    if (!org || !service || asignados.length === 0) return;
+
+    this.catalogApi
+      .checkEligibilityBatch({
+        organizationId: org,
+        employeeIds: [...new Set(asignados)],
+        clientId: service.idClient,
+        serviceId: service.idService,
+        positionId: idPosition,
+        referenceDate: this.today(),
+      })
+      .pipe(takeUntil(this.destroyed))
+      .subscribe({
+        next: (checks) => {
+          const fuera = checks
+            .filter((check) => !check.isEligible)
+            .map((check) => ({
+              nombre: check.employeeName,
+              motivos: check.reasons
+                .filter((reason) => reason.isRequired && !reason.passed)
+                .map((reason) => reason.message),
+            }));
+
+          this.asignadosFuera.set(fuera);
+        },
+        // En silencio: el aviso es una cortesia, y no poder darlo no puede tapar el «posicion
+        // actualizada» que el usuario si necesita leer.
+        error: () => this.asignadosFuera.set([]),
+      });
+  }
+
+  /** Quien quedo fuera del perfil tras la ultima edicion. Vacio mientras no haya nada que avisar. */
+  protected readonly asignadosFuera = signal<
+    readonly { readonly nombre: string; readonly motivos: readonly string[] }[]
+  >([]);
+
   private loadCandidateEligibility(): void {
     const org = this.selectedOrganizationId();
     const service = this.selectedService();
@@ -963,7 +1059,7 @@ export class ServicesPage implements OnInit, OnDestroy {
                 {
                   isEligible: check.isEligible,
                   blockingReasons: check.reasons
-                    .filter((reason) => reason.isBlocking && !reason.passed)
+                    .filter((reason) => reason.isRequired && !reason.passed)
                     .map((reason) => reason.message),
                 },
               ]),
@@ -1012,6 +1108,7 @@ export class ServicesPage implements OnInit, OnDestroy {
     this.positionEditorOpen.set(false);
     this.assignmentEditorOpen.set(false);
     this.error.set('');
+    this.problem.set(null);
   }
 
   private allowWrite(planning = false): boolean {
@@ -1111,6 +1208,32 @@ export class ServicesPage implements OnInit, OnDestroy {
   protected readonly sexCatalog = signal<readonly GiCatalogOption[]>([]);
   protected readonly ageRangeCatalog = signal<readonly GiCatalogOption[]>([]);
   protected readonly educationCatalog = signal<readonly GiCatalogOption[]>([]);
+
+  /**
+   * Lo que el desplegable ofrece: lo del catálogo que **todavía no** está elegido.
+   *
+   * <p>Dejar dentro lo ya elegido obligaría a distinguir a ojo entre lo que se puede agregar y lo
+   * que ya está, y elegirlo por descuido lo quitaría —porque el alta comparte método con la
+   * baja—, que es exactamente el clic que nadie entiende.</p>
+   */
+  protected readonly equipmentOptions = computed<readonly GiSelectOption[]>(() =>
+    this.equipmentCatalog()
+      .filter((equipo) => !this.selectedEquipment().includes(equipo.idCatalogItem))
+      .map((equipo) => ({ value: equipo.idCatalogItem, label: equipo.name })),
+  );
+
+  /** Lo elegido, resuelto a nombres para las fichas. En el orden en que se fue eligiendo. */
+  protected readonly selectedEquipmentItems = computed<readonly GiCatalogOption[]>(() =>
+    this.selectedEquipment()
+      .map((id) => this.equipmentCatalog().find((equipo) => equipo.idCatalogItem === id))
+      .filter((equipo): equipo is GiCatalogOption => !!equipo),
+  );
+
+  /** Agrega desde el desplegable. Vacío no hace nada: es el marcador de posición, no una opción. */
+  protected addEquipment(idCatalogItem: string): void {
+    if (!idCatalogItem || this.selectedEquipment().includes(idCatalogItem)) return;
+    this.selectedEquipment.update((actuales) => [...actuales, idCatalogItem]);
+  }
 
   /** Alterna una pieza de equipo. Elegir dos veces la misma la quita, que es lo que espera quien la pulsa. */
   protected toggleEquipment(idCatalogItem: string): void {
@@ -1227,6 +1350,7 @@ export class ServicesPage implements OnInit, OnDestroy {
     if (!this.allowWrite(false)) return;
     this.closeEditors();
     this.error.set('');
+    this.problem.set(null);
     this.editingService.set(service);
     this.serviceWizardStep.set(1);
     this.serviceForm.reset({
@@ -1265,6 +1389,7 @@ export class ServicesPage implements OnInit, OnDestroy {
   protected saveService(): void {
     if (!this.allowWrite(false)) return;
     this.error.set('');
+    this.problem.set(null);
     const client = this.selectedClient();
     if (!client || this.serviceForm.invalid) {
       this.serviceForm.markAllAsTouched();
@@ -1329,6 +1454,7 @@ export class ServicesPage implements OnInit, OnDestroy {
   protected deactivateService(service: ManagedService): void {
     if (!this.allowWrite(false)) return;
     this.error.set('');
+    this.problem.set(null);
     this.serviceToDeactivate.set(null);
     const client = this.selectedClient();
     if (!client) {
@@ -1361,6 +1487,7 @@ export class ServicesPage implements OnInit, OnDestroy {
     if (!this.allowWrite(true)) return;
     this.closeEditors();
     this.error.set('');
+    this.problem.set(null);
     if (!this.selectedClient() || !this.selectedService() || !this.positions().length) {
       return;
     }
@@ -1392,6 +1519,7 @@ export class ServicesPage implements OnInit, OnDestroy {
     if (!this.allowWrite(true)) return;
     this.closeEditors();
     this.error.set('');
+    this.problem.set(null);
     this.editingAssignment.set(assignment);
     this.assignmentForm.reset({
       idEmployee: assignment.idEmployee,
@@ -1409,6 +1537,7 @@ export class ServicesPage implements OnInit, OnDestroy {
   protected saveAssignment(): void {
     if (!this.allowWrite(true)) return;
     this.error.set('');
+    this.problem.set(null);
     const client = this.selectedClient();
     const service = this.selectedService();
     if (!client || !service || this.assignmentForm.invalid) {
@@ -1477,6 +1606,7 @@ export class ServicesPage implements OnInit, OnDestroy {
   protected deactivateAssignment(assignment: ServiceAssignment): void {
     if (!this.allowWrite(true)) return;
     this.error.set('');
+    this.problem.set(null);
     const client = this.selectedClient();
     const service = this.selectedService();
     if (
@@ -1520,6 +1650,7 @@ export class ServicesPage implements OnInit, OnDestroy {
     if (!this.allowWrite(true)) return;
     this.closeEditors();
     this.error.set('');
+    this.problem.set(null);
     if (!this.selectedClient() || !this.selectedService()) {
       return;
     }
@@ -1552,6 +1683,7 @@ export class ServicesPage implements OnInit, OnDestroy {
     if (!this.allowWrite(true)) return;
     this.closeEditors();
     this.error.set('');
+    this.problem.set(null);
     this.editingPosition.set(position);
     this.positionForm.reset({
       name: position.name,
@@ -1631,8 +1763,29 @@ export class ServicesPage implements OnInit, OnDestroy {
     this.read(this.catalogApi.listShiftPatternTemplateOptions(org), 2, (opciones) =>
       this.shiftPatternTemplates.set(opciones),
     );
-    // Con las inactivas incluidas: una posición puede seguir apuntando a una plantilla retirada, y
-    // el calendario tiene que poder decir qué horario está siguiendo hoy.
+    this.loadShiftPatternTemplateDetails();
+  }
+
+  /**
+   * Los días de cada plantilla, que son los que pinta el calendario de la posición.
+   *
+   * <p><b>Se piden con las posiciones, no al abrir el editor.</b> Estaban dentro de
+   * <c>loadShiftPatternTemplates</c>, que sólo corre al abrir «Nueva posición» o «Editar»: entrar a
+   * la pestaña dejaba la lista vacía, así que <c>selectedPositionTemplate()</c> devolvía nulo y el
+   * calendario afirmaba «esta posición no tiene patrón del catálogo» sobre una que sí lo tenía.
+   * Había que entrar al editor y salir —o recargar— para que apareciera.</p>
+   *
+   * <p>El desplegable sigue siendo perezoso, y ahí el razonamiento original se mantiene: sale de
+   * <c>/options</c>, sólo lo mira quien abre el editor, y la mayoría de las visitas no lo abre.
+   * Estos días son otra cosa: se ven nada más entrar.</p>
+   *
+   * <p>Con las inactivas incluidas: una posición puede seguir apuntando a una plantilla retirada, y
+   * el calendario tiene que poder decir qué horario está siguiendo hoy.</p>
+   */
+  private loadShiftPatternTemplateDetails(): void {
+    const org = this.selectedOrganizationId();
+    if (!org) return;
+
     this.read(this.catalogApi.listShiftPatternTemplates(org, true), 2, (plantillas) =>
       this.shiftPatternTemplateDetails.set(plantillas),
     );
@@ -1640,9 +1793,39 @@ export class ServicesPage implements OnInit, OnDestroy {
 
   /** La etiqueta de un patrón en el desplegable: el nombre, y el ciclo y las horas al lado. */
   protected patronEtiqueta(patron: ShiftPatternTemplateOption): string {
-    const dias = patron.cycleDays === 1 ? '1 día' : `${patron.cycleDays} días`;
     const exceso = patron.compliance === 'Exceeds' ? ` · excede por ${patron.excessHours} h` : '';
-    return `${patron.name} · ${shiftDaypartLabel(patron.daypart)} · ciclo de ${dias} · promedio ${patron.weeklyHours} h/semana${exceso}`;
+    return `${patron.name} · ${shiftDaypartLabel(patron.daypart)} · ${cycleLabel(patron.cycleDays)} · promedio ${patron.weeklyHours} h/semana${exceso}`;
+  }
+
+  /**
+   * La longitud del ciclo, con las mismas palabras que el catálogo.
+   *
+   * <p>Salen de <c>cycleLabel</c> y <c>cyclePhrase</c>, compartidas con la pantalla de patrones.
+   * Escritas aparte se separaron: allá decía «Semanal» y aquí «ciclo de 7 días».</p>
+   */
+  /**
+   * Cómo se rotula cada día del calendario del patrón.
+   *
+   * <p><b>Con ciclo de siete días son los días de la semana; con cualquier otro, «Día N».</b> No es
+   * una concesión: un ciclo de seis días no encaja con la semana —el día 1 cae lunes una semana y
+   * domingo la siguiente—, así que llamarlo «lunes» afirmaría algo que el patrón no dice. Es la
+   * misma función que usa la pantalla de Catálogos, para que los dos sitios digan lo mismo.</p>
+   */
+  protected diaDelCiclo(dayNumber: number, cycleDays: number): string {
+    return cycleDayLabel(dayNumber, cycleDays);
+  }
+
+  /** Si el ciclo no cuadra con la semana, hay que decirlo donde se ven los días. */
+  protected cicloNoEsSemanal(cycleDays: number): boolean {
+    return cycleDays !== 7;
+  }
+
+  protected cicloTexto(cycleDays: number): string {
+    return cycleLabel(cycleDays);
+  }
+
+  protected cicloEnFrase(cycleDays: number): string {
+    return cyclePhrase(cycleDays);
   }
 
   /**
@@ -1733,29 +1916,9 @@ export class ServicesPage implements OnInit, OnDestroy {
     );
   }
 
-  /** Alta al vuelo de una experiencia del catálogo, sin abandonar el alta de la posición. */
-  protected createSkillForProfile(creation: GiCatalogCreation): void {
-    const org = this.selectedOrganizationId();
-
-    if (!org || !this.auth.hasPermission('CATALOGS.WRITE')) {
-      this.error.set('No tienes permiso para crear valores de catálogo.');
-      return;
-    }
-
-    this.catalogApi
-      .createItem({ idOrganization: org, type: 'Skill', name: creation.name, description: null })
-      .pipe(this.withScope(2))
-      .subscribe({
-        next: (creado) => {
-          this.catalogSkills.update((valores) => [
-            ...valores,
-            { idCatalogItem: creado.idCatalogItem, name: creado.name },
-          ]);
-          this.message.set(`«${creado.name}» se agregó al catálogo de experiencias.`);
-        },
-        error: (error: HttpErrorResponse) => this.setError(error),
-      });
-  }
+  // `createSkillForProfile` se retiro el 24 de septiembre de 2026 con el enlace que lo llamaba.
+  // Crear una experiencia del catalogo se hace en Catalogos; aqui la posicion solo elige de lo que
+  // ya existe. El endpoint sigue estando, asi que devolverlo es volver a engancharlo.
 
   /**
    * Crea las reglas que quedaron esperando a que la posición existiera.
@@ -1808,6 +1971,7 @@ export class ServicesPage implements OnInit, OnDestroy {
   protected savePosition(): void {
     if (!this.allowWrite(true)) return;
     this.error.set('');
+    this.problem.set(null);
     const client = this.selectedClient();
     const service = this.selectedService();
     if (!client || !service || this.positionForm.invalid) {
@@ -1862,6 +2026,11 @@ export class ServicesPage implements OnInit, OnDestroy {
           );
           this.selectedPosition.set(position);
           this.savePendingPositionSkills(position.idPosition);
+
+          // Al editar, comprobar a quien ya esta asignado contra el perfil que acaba de quedar.
+          if (editing) {
+            this.revisarAsignadosTrasEditar(position.idPosition);
+          }
           // Ficha y listado, los dos.
           //
           // El panel se refrescaba solo, y de la lista salen los contadores de la fila —Posiciones,
@@ -1877,6 +2046,7 @@ export class ServicesPage implements OnInit, OnDestroy {
   protected deactivatePosition(position: ServicePosition): void {
     if (!this.allowWrite(true)) return;
     this.error.set('');
+    this.problem.set(null);
     const client = this.selectedClient();
     const service = this.selectedService();
     if (
@@ -1970,15 +2140,16 @@ export class ServicesPage implements OnInit, OnDestroy {
    * vacío: un motivo prellenado deja de ser un motivo.</p>
    */
   private setError(error: HttpErrorResponse): void {
-    const detail =
-      typeof error.error === 'object' && error.error !== null
-        ? (error.error as Record<string, unknown>)['detail']
-        : null;
     const title =
       typeof error.error === 'object' && error.error !== null
         ? (error.error as Record<string, unknown>)['title']
         : null;
-    const mensaje = typeof detail === 'string' ? detail : 'No fue posible completar la operación.';
+
+    // `readServerProblem` pone lo específico por delante de lo genérico: si el servidor dijo qué
+    // campo falló, eso es lo que se lee arriba en vez de «La solicitud contiene datos inválidos».
+    const problema = readServerProblem(error, 'No fue posible completar la operación.');
+    this.problem.set(problema);
+    const mensaje = problema.message;
 
     // **No todo 409 es concurrencia.** Un código repetido también lo es, y se arregla cambiando el
     // código. El de concurrencia no se arregla reintentando, y el servidor lo distingue por el

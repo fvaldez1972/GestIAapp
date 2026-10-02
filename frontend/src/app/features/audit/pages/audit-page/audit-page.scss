@@ -90,7 +90,9 @@
 }
 
 .table-wrap {
-  overflow-x: auto;
+  overflow: auto;
+  max-height: calc(100vh - 24rem);
+  overscroll-behavior: contain;
 }
 
 .gi-table td:nth-child(5) {

@@ -17,25 +17,62 @@
   gap: 1rem;
 }
 
-.staff__eyebrow {
-  margin: 0;
-  color: var(--gestia-muted);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-}
-
 .staff__title {
   margin: 0;
   color: var(--gestia-navy);
   font-size: 22px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .staff__subtitle {
   margin: 0.2rem 0 0;
   color: var(--gestia-muted);
-  font-size: 13px;
+  font-size: 12.5px;
+}
+
+/* Las cuatro tarjetas del encabezado.
+   `auto-fit` con un minimo real es lo que evita la fila apretada: cuando no caben cuatro, bajan a
+   dos y despues a una, en vez de encogerse hasta que el numero de 22 px no quepa. */
+.staff__metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.staff__metrics .staff__metric {
+  flex: 0 1 11rem;
+}
+
+/* La tarjeta entera es el boton. Se quita el cromo del `button` para que no aparezca un control
+   dentro de otro, y el foco se marca en el borde de la tarjeta. */
+.staff__metric {
+  display: block;
+  padding: 0;
+  border: 0;
+  border-radius: var(--gestia-radius);
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  min-width: 0;
+}
+
+.staff__metric gi-metric-card {
+  display: block;
+  border-radius: var(--gestia-radius);
+  transition: border-color 120ms ease;
+}
+
+.staff__metric:hover gi-metric-card,
+.staff__metric--active gi-metric-card {
+  box-shadow: inset 0 0 0 1px var(--gestia-cyan);
+}
+
+.staff__metric:focus-visible {
+  outline: 2px solid var(--gestia-cyan);
+  outline-offset: 2px;
 }
 
 .staff__note {
@@ -60,6 +97,49 @@
 
 .staff__workspace--split {
   grid-template-columns: minmax(0, 1fr) var(--gestia-panel-width);
+}
+
+/* La pantalla cabe en la pantalla: nada de arrastrar la pagina para llegar al pie de la ficha.
+   El area de trabajo toma el alto que queda y cada columna se desplaza por dentro —las filas en la
+   tabla, la ficha en su propio cuerpo—, con el relleno inferior de `main` como margen final.
+   Solo a partir de 80rem, que es donde las dos columnas conviven; por debajo se apilan y vale el
+   desplazamiento de siempre. */
+@media (width >= 80rem) {
+  :host { height: 100%; }
+
+  .staff {
+    height: 100%;
+    min-height: 0;
+  }
+
+  /* La fila mide lo que queda de pantalla, no lo que miden las ciento veintinueve filas de la
+     tabla: `minmax(0, 1fr)` es lo que corta ese arrastre y deja un alto con el que las columnas
+     pueden acotarse por dentro. */
+  .staff__workspace {
+    flex: 1;
+    min-height: 0;
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .staff__workspace--split { align-items: stretch; }
+
+  .staff__list {
+    min-height: 0;
+    --gi-table-max-height: 100%;
+  }
+
+  .staff__list app-employee-table {
+    flex: 1;
+    min-height: 0;
+  }
+
+  /* El hueco de la ficha llega hasta el margen inferior; la ficha de dentro mide lo que ocupa y
+     se desplaza sola cuando no cabe. El hueco no se ve: el borde y el fondo los pone el panel. */
+  .staff__workspace--split > gi-detail-panel {
+    align-self: stretch;
+    min-height: 0;
+    overflow: hidden;
+  }
 }
 
 .staff__list {
@@ -131,3 +211,24 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Paginado, arriba de la tabla y en una sola fila.
+
+   Debajo quedaba al final de veinticinco filas y con el panel abierto se apretaba. Aqui comparte
+   renglon con el recuento, y cuando no cabe se parte en dos lineas en vez de encogerse. */
+.pers-pages {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 0.75rem;
+  color: var(--gestia-muted);
+  font-size: 12px;
+}
+
+.pers-pages__nav { display: flex; align-items: center; gap: 0.4rem; }
+.pers-pages__nav gi-select { width: 4.75rem; }
+.pers-pages__rango { white-space: nowrap; color: var(--gestia-text); font-weight: 600; }
+
+/* El numero de pagina es apoyo del rango, no un dato al mismo nivel. */
+.pers-pages__pagina { color: var(--gestia-muted); font-weight: 400; }

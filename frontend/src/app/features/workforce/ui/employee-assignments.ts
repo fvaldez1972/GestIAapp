@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { GiEmptyState } from '../../../shared/ui/gi-ui';
 import { formatOperationalDate } from '../../../shared/util/operational-date';
 import { EmployeeAssignment } from '../data-access/employee-list.models';
@@ -34,8 +34,6 @@ const TIPOS: Record<EmployeeAssignment['assignmentType'], string> = {
           variant="no-data"
           title="Esta persona no tiene asignaciones"
           description="Una asignación liga a la persona con una posición de un servicio. Sin ella no aparece en el rol ni en la cobertura."
-          [actionLabel]="canWrite() ? 'Asignar a una posición' : ''"
-          (action)="assign.emit()"
         />
       } @else {
         @if (inProgress(); as turno) {
@@ -150,15 +148,22 @@ const TIPOS: Record<EmployeeAssignment['assignmentType'], string> = {
     }
 
     .row__state--info { border-color: var(--gestia-info); color: var(--gestia-info); }
+
     .row__state--success { border-color: var(--gestia-success); color: var(--gestia-success); }
   `,
 })
 export class EmployeeAssignments {
   readonly assignments = input.required<readonly EmployeeAssignment[]>();
   readonly loading = input(false);
-  readonly canWrite = input(false);
 
-  readonly assign = output<void>();
+  /**
+   * Pedir el alta de una asignación, que se resuelve aquí mismo.
+   *
+   * <p>El botón llevaba a otra pantalla —primero a Planeación, luego a Servicios—, y las dos veces
+   * dejaba a quien lo pulsaba con la persona en la cabeza y un formulario en blanco delante. Ahora
+   * abre la ventana de alta sobre el propio expediente. La asignación se sigue creando con el
+   * mismo endpoint y las mismas reglas; lo que cambió es desde dónde se pide.</p>
+   */
 
   protected readonly inProgress = computed(() =>
     this.assignments().find((item) => item.hasShiftInProgress) ?? null,

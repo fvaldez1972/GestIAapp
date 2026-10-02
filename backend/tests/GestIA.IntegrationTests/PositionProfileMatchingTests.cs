@@ -55,7 +55,7 @@ public sealed class PositionProfileMatchingTests(OperationalSqlDatabase database
         var motivo = await EducationReasonAsync(seed);
 
         Assert.Contains("No alcanza el mínimo", motivo.Message, StringComparison.Ordinal);
-        Assert.False(motivo.IsBlocking);
+        Assert.False(motivo.IsRequired);
         Assert.True((await CheckAsync(seed)).IsEligible);
     }
 
@@ -94,7 +94,7 @@ public sealed class PositionProfileMatchingTests(OperationalSqlDatabase database
         var perfil = check.Reasons.Where(reason => reason.Scope == "Perfil del puesto").ToArray();
 
         Assert.Equal(4, perfil.Length);
-        Assert.All(perfil, reason => Assert.False(reason.IsBlocking));
+        Assert.All(perfil, reason => Assert.False(reason.IsRequired));
         Assert.True(check.IsEligible);
     }
 
@@ -225,12 +225,12 @@ public sealed class PositionProfileMatchingTests(OperationalSqlDatabase database
         }
 
         var employee = Employee.Create(
-            organization.IdOrganization, $"{prefix}-E{sufijo}", "Adrián Escobar",
+            organization.IdOrganization, $"{prefix}-E{sufijo}", "Adrián", "Escobar", null,
             "Guardia", Day.AddDays(-200), TestActor.ActorId, TestActor.ActorName, Now);
 
         employee.UpdateProfile(
             new EmployeeProfile(
-                "Adrián Escobar", "Guardia", Day.AddDays(-200), new DateOnly(1994, 3, 1), null,
+                "Adrián", "Escobar", null, "Guardia", Day.AddDays(-200), new DateOnly(1994, 3, 1), null,
                 "Masculino", null, null, null, null, null, null, null, null, null, null, null, null,
                 null, null, null, null, null, null, null, null, null, null,
                 IdEducationLevelCatalogItem: tiene is null ? null : niveles[tiene]),

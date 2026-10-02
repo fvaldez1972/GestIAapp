@@ -36,6 +36,12 @@ export class GiTabContent {
  * comprime; no se tapa. Es la diferencia entre seguir viendo dónde estabas y perder la lista al
  * abrir un registro. Tampoco se apila debajo de la tabla.</p>
  *
+ * <p><b>Las acciones del registro —<c>panelActions</c>— se dibujan en la fila de pestañas</b>, no
+ * junto al título. La acción cambia con la pestaña —editar, agregar zona, agregar contacto— y
+ * arriba quedaba lejos de lo que afecta. <b>Consecuencia a tener en cuenta:</b> un panel SIN
+ * pestañas no dibuja las acciones, porque la fila donde viven no existe. Hoy los dos paneles que
+ * las usan tienen pestañas; si hace falta en uno sin ellas, hay que darle sitio propio primero.</p>
+ *
  * <p><b>Lleva pestañas cuando hay varios destinos independientes.</b> Cuando es un solo propósito
  * con una continuación —el registro de asistencia, que sigue a incidencia— va sin pestañas y el
  * pie lleva al siguiente paso: dos pestañas donde la segunda es la consecuencia de la primera
@@ -55,13 +61,7 @@ export class GiTabContent {
             <p class="gi-panel__subtitle">{{ subtitle() }}</p>
           }
         </div>
-        <!--
-          Acciones sobre el registro abierto, junto al titulo. Antes solo estaba la cruz y ese
-          espacio quedaba vacio: la accion principal de la ficha —editarla— vivia escondida en el
-          menu de la fila del listado, que es otro sitio y hay que cerrarla para llegar.
-        -->
         <div class="gi-panel__acciones">
-          <ng-content select="[panelActions]" />
           <button class="gi-panel__close" type="button" aria-label="Cerrar el detalle" (click)="close.emit()">
             <span aria-hidden="true">×</span>
           </button>
@@ -88,6 +88,16 @@ export class GiTabContent {
               }
             </button>
           }
+
+          <!--
+            La accion del registro abierto va al final de la fila de pestañas, no junto al titulo.
+            Cambia con la pestaña —editar, agregar zona, agregar contacto, agregar documento— y
+            arriba quedaba lejos de lo que afecta: se leia como una accion de la ficha entera
+            cuando en realidad es de la pestaña que se esta viendo.
+          -->
+          <div class="gi-panel__tabsAccion">
+            <ng-content select="[panelActions]" />
+          </div>
         </div>
       }
 
@@ -115,12 +125,19 @@ export class GiTabContent {
       align-self: stretch;
     }
 
+    /* Mide lo que ocupa, hasta donde le dejen.
+       Con height al cien llenaba siempre la columna que lo contiene, y cuando la ficha era corta
+       eso se veia como un cuadro blanco hasta el fondo. Con el tope, cuando el contenido pasa del
+       alto disponible es el cuerpo el que se desplaza, no la pagina. Donde el contenedor no tiene
+       alto propio —una ventana emergente, la columna de planeacion— el tope no aplica y se
+       comporta como siempre. */
     .gi-panel {
       display: flex;
       flex-direction: column;
-      height: 100%;
+      max-height: 100%;
+      min-height: 0;
       border: 1px solid var(--gestia-border);
-      border-radius: var(--gestia-radius);
+      border-radius: var(--gestia-radius-lg);
       background: var(--gestia-surface);
     }
 
@@ -137,8 +154,8 @@ export class GiTabContent {
     .gi-panel__title {
       margin: 0;
       color: var(--gestia-navy);
-      font-size: 13px;
-      font-weight: 700;
+      font-size: 16px;
+      font-weight: 600;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -147,7 +164,7 @@ export class GiTabContent {
     .gi-panel__subtitle {
       margin: 0.1rem 0 0;
       color: var(--gestia-muted);
-      font-size: 11.5px;
+      font-size: 12px;
       font-weight: 400;
     }
 
@@ -172,13 +189,21 @@ export class GiTabContent {
     .gi-panel__close:hover { border-color: var(--gestia-border); color: var(--gestia-text); }
     .gi-panel__close:focus-visible { outline: 2px solid var(--gestia-cyan); outline-offset: 2px; }
 
+    /* Las pestañas se parten en dos líneas; no se desplazan a lo ancho.
+       Con seis destinos —Personal los tiene— la fila no cabía en 620 px y aparecía una barra de
+       desplazamiento horizontal: las últimas pestañas quedaban fuera de la vista, y una pestaña
+       que no se ve es una pestaña que nadie abre. Partidas ocupan un renglón más y se ven todas. */
     .gi-panel__tabs {
       display: flex;
+      flex-wrap: wrap;
+      align-items: center;
       gap: 0.15rem;
       padding: 0 0.9rem;
       border-bottom: 1px solid var(--gestia-border);
-      overflow-x: auto;
     }
+
+    /* Al final de la fila, pegada a la derecha, y sin encogerse cuando las pestañas no caben. */
+    .gi-panel__tabsAccion { flex: none; margin-left: auto; padding-left: 0.75rem; }
 
     .gi-panel__tab {
       display: inline-flex;
@@ -213,7 +238,9 @@ export class GiTabContent {
       font-weight: 600;
     }
 
-    .gi-panel__body { flex: 1; overflow-y: auto; padding: 0.9rem; font-size: 12.5px; }
+    /* El min-height de cero es lo que hace que el cuerpo se desplace por dentro: sin el, un hijo
+       de una columna flexible no encoge por debajo de su contenido y el panel entero se estira. */
+    .gi-panel__body { flex: 1; min-height: 0; overflow-y: auto; padding: 0.9rem; font-size: 12.5px; }
 
     .gi-panel__foot {
       display: flex;

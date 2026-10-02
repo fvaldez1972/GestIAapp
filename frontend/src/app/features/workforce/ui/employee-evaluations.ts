@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { GiEmptyState, GiSelect, GiSelectOption } from '../../../shared/ui/gi-ui';
+import { GiAccordion, GiDate, GiEmptyState, GiSelect, GiSelectOption } from '../../../shared/ui/gi-ui';
 import { formatOperationalDate } from '../../../shared/util/operational-date';
 import { EligibilityRequirement } from '../../catalogs/data-access/catalog.models';
 import { EmployeeEvaluation } from '../data-access/workforce.models';
@@ -32,7 +32,7 @@ const RESULTADOS = ['Approved', 'ApprovedWithObservations', 'Pending', 'Inconclu
  * <p><b>Por qué existe, y por qué faltaba.</b> El servidor exige evaluaciones aprobadas para
  * asignar a alguien a una posición, y las cuatro rutas del expediente existían desde el principio
  * —con sus métodos en el cliente Angular— sin que ninguna pantalla las llamara. El resultado era
- * que una organización con una regla de evaluación bloqueante no podía asignar a nadie, y no había
+ * que una organización con una regla de evaluación obligatoria no podía asignar a nadie, y no había
  * forma de arreglarlo desde el portal. En los datos de la base viva eso dejaba a 100 de 156
  * personas sin poder cubrir un turno.</p>
  *
@@ -47,52 +47,106 @@ const RESULTADOS = ['Approved', 'ApprovedWithObservations', 'Pending', 'Inconclu
 @Component({
   selector: 'app-employee-evaluations',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, GiEmptyState, GiSelect],
+  imports: [GiAccordion, ReactiveFormsModule, GiEmptyState, GiSelect, GiDate],
   template: `
     <section class="evals">
-      @if (requirements().length === 0) {
+      <!--
+        Se rinde cuando no hay NADA que enseñar, no cuando faltan reglas. Es el mismo arreglo que
+        la pestaña de Documentos: una organización puede tener su catálogo de tipos completo y
+        ninguna regla de elegibilidad, y entonces esto escondía el catálogo entero.
+      -->
+      @if (rows().length === 0) {
         <gi-empty-state
           variant="missing-prerequisite"
-          title="Esta organización todavía no exige ninguna evaluación"
-          description="Los requisitos de evaluación se definen en Catálogos, por organización. Mientras no haya ninguno, ninguna evaluación impide asignar a nadie."
+          title="Esta organización todavía no tiene tipos de evaluación"
+          description="Los tipos de evaluación se definen en Catálogos, por organización. Mientras no haya ninguno, no hay nada que pedirle a un expediente."
           link="/catalogos"
           actionLabel="Ir a Catálogos"
         />
       } @else {
+        <!--
+          Cuenta lo que se ve, no las reglas. Decia el numero de reglas de elegibilidad, y con
+          nueve tipos en pantalla y ninguna regla creada afirmaba "0 evaluaciones exigidas" encima
+          de una lista con una obligatoria: dos cosas ciertas que juntas no se entienden.
+        -->
         <p class="evals__note">
-          {{ requirements().length }}
-          {{ requirements().length === 1 ? 'evaluación exigida' : 'evaluaciones exigidas' }} por esta
-          organización. Se considera «por vencer» lo que caduca en {{ expiringWithinDays() }} días o
-          menos.
+          {{ obligatorias().length }}
+          {{ obligatorias().length === 1 ? 'evaluación obligatoria' : 'evaluaciones obligatorias' }}
+          y {{ informativas().length }}
+          {{ informativas().length === 1 ? 'informativa' : 'informativas' }} en el catálogo de esta
+          organización.
         </p>
 
-        <ul class="evals__list">
-          @for (row of rows(); track row.code) {
-            <li class="req" [class]="'req--' + tone(row.state)">
-              <span class="req__body">
-                <span class="req__name">
-                  {{ row.label }}
-                  @if (!row.isBlocking) {
-                    <span class="req__soft">no bloquea</span>
-                  }
-                </span>
-                <span class="req__detail">{{ detail(row.state, row.expiresDate, row.result) }}</span>
-              </span>
-              <span class="req__state">{{ stateLabel(row.state) }}</span>
-            </li>
-          }
-        </ul>
+        <!--
+          Obligatorias arriba, informativas abajo, cada grupo con su rotulo y con la frase de que
+          pasa si falta.
+
+          Antes iban en una sola lista y se distinguian por una etiqueta pequeña —«no bloquea»—
+          pegada al nombre: con varias reglas habia que leer fila por fila para saber cuales
+          impiden asignar a la persona. Es la misma correccion que ya se hizo en Documentos.
+        -->
+        @if (obligatorias().length) {
+          <section class="grupo grupo--obligatorias">
+            <h3 class="grupo__titulo">Evaluaciones obligatorias</h3>
+            <p class="grupo__nota">
+              Si falta una o no la cubre el resultado, no se puede asignar a esta persona.
+            </p>
+            <ul class="evals__list">
+              @for (row of obligatorias(); track row.code) {
+                <li class="req" [class]="'req--' + tone(row.state)">
+                  <span class="req__body">
+                    <span class="req__name">{{ row.label }}</span>
+                    <span class="req__detail">{{ detail(row.state, row.expiresDate, row.result) }}</span>
+                  </span>
+                  <span class="req__state">{{ stateLabel(row.state) }}</span>
+                </li>
+              }
+            </ul>
+          </section>
+        }
+
+        @if (informativas().length) {
+          <section class="grupo grupo--informativas">
+            <h3 class="grupo__titulo">Evaluaciones informativas</h3>
+            <p class="grupo__nota">
+              No impiden asignar; sólo dejan constancia.
+            </p>
+            <ul class="evals__list">
+              @for (row of informativas(); track row.code) {
+                <li class="req" [class]="'req--' + tone(row.state)">
+                  <span class="req__body">
+                    <span class="req__name">{{ row.label }}</span>
+                    <span class="req__detail">{{ detail(row.state, row.expiresDate, row.result) }}</span>
+                  </span>
+                  <span class="req__state">{{ stateLabel(row.state) }}</span>
+                </li>
+              }
+            </ul>
+          </section>
+        }
       }
 
-      <div class="evals__block">
-        <header class="evals__head">
-          <h3 class="evals__kicker">EVALUACIONES REGISTRADAS</h3>
-          @if (canWrite() && !editorOpen()) {
+      <!--
+        Lo registrado va plegado, y los requisitos de arriba no.
+
+        Son dos preguntas distintas: «¿puede trabajar esta persona?» la contestan los requisitos,
+        y «¿que se le ha practicado?» la contesta esta lista. La primera se mira siempre y la
+        segunda se consulta de vez en cuando, asi que abrir las dos a la vez hacia scroll por algo
+        que casi nadie estaba leyendo.
+      -->
+      <gi-accordion
+        label="Evaluaciones registradas"
+        [count]="activas().length"
+        [summary]="resumenRegistradas()"
+        [open]="editorOpen()"
+      >
+        @if (canWrite() && !editorOpen()) {
+          <p class="evals__acciones">
             <button class="gi-button" type="button" [disabled]="saving()" (click)="openCreate()">
               Registrar evaluación
             </button>
-          }
-        </header>
+          </p>
+        }
 
         @if (activas().length === 0) {
           <p class="evals__note">
@@ -107,8 +161,7 @@ const RESULTADOS = ['Approved', 'ApprovedWithObservations', 'Pending', 'Inconclu
                   <span class="row__name">{{ categoryLabel(item) }}</span>
                   <span class="row__detail">
                     {{ resultLabel(item.result) }} · evaluada el
-                    {{ formatDate(item.evaluatedDate) }} ·
-                    {{ item.expiresDate ? 'vence el ' + formatDate(item.expiresDate) : 'sin vencimiento' }}
+                    {{ formatDate(item.evaluatedDate) }}
                     @if (item.certificateNumber) {
                       · folio {{ item.certificateNumber }}
                     }
@@ -160,18 +213,18 @@ const RESULTADOS = ['Approved', 'ApprovedWithObservations', 'Pending', 'Inconclu
               </div>
               <label class="field">
                 <span class="field__label">FECHA DE EVALUACIÓN</span>
-                <input type="date" formControlName="evaluatedDate" />
+                <gi-date formControlName="evaluatedDate" />
               </label>
               <label class="field">
-                <span class="field__label">VENCIMIENTO · OPCIONAL</span>
-                <input type="date" formControlName="expiresDate" [min]="form.controls.evaluatedDate.value" />
+                <span class="field__label">VENCIMIENTO</span>
+                <gi-date formControlName="expiresDate" [min]="form.controls.evaluatedDate.value" />
               </label>
               <label class="field">
-                <span class="field__label">FOLIO O CERTIFICADO · OPCIONAL</span>
+                <span class="field__label">FOLIO O CERTIFICADO</span>
                 <input type="text" formControlName="certificateNumber" maxlength="80" />
               </label>
               <label class="field field--wide">
-                <span class="field__label">NOTAS · OPCIONAL</span>
+                <span class="field__label">NOTAS</span>
                 <textarea rows="2" formControlName="notes" maxlength="1000"></textarea>
               </label>
             </div>
@@ -195,11 +248,27 @@ const RESULTADOS = ['Approved', 'ApprovedWithObservations', 'Pending', 'Inconclu
             </footer>
           </form>
         }
-      </div>
+      </gi-accordion>
     </section>
   `,
   styles: `
     :host { display: block; }
+
+    /* El borde de la izquierda es lo que se ve sin leer: rojo, lo que impide trabajar; cian, lo
+       que solo deja constancia. Mismo lenguaje que los grupos de Documentos. */
+    .grupo {
+      margin: 0 0 0.6rem;
+      border: 1px solid var(--gestia-border);
+      border-radius: var(--gestia-radius);
+      padding: 0.6rem 0.75rem;
+      background: var(--gestia-surface);
+    }
+
+    .grupo--obligatorias { border-left: 3px solid var(--gestia-danger); }
+    .grupo--informativas { border-left: 3px solid var(--gestia-cyan); }
+
+    .grupo__titulo { margin: 0; color: var(--gestia-navy); font-size: 13px; font-weight: 700; }
+    .grupo__nota { margin: 0.15rem 0 0.5rem; color: var(--gestia-muted); font-size: 11.5px; }
 
     .evals { display: flex; flex-direction: column; gap: 0.85rem; }
 
@@ -349,7 +418,9 @@ export class EmployeeEvaluations {
    * <p>Entra como dato y no se descubre aquí porque la pantalla que la contiene ya las tiene
    * cargadas: pedirlas otra vez sería un viaje al servidor por cada pestaña que se abre.</p>
    */
-  readonly categories = input<readonly { readonly idCatalogItem: string; readonly name: string }[]>([]);
+  readonly categories = input<
+    readonly { readonly idCatalogItem: string; readonly name: string; readonly isRequired?: boolean | null }[]
+  >([]);
   readonly saving = input(false);
 
   readonly save = output<EmployeeEvaluationFormValue>();
@@ -382,16 +453,37 @@ export class EmployeeEvaluations {
     notes: ['', [Validators.maxLength(1000)]],
   });
 
+  /** Las que impiden asignar, arriba. */
+  protected readonly obligatorias = computed(() => this.rows().filter((row) => row.isRequired));
+
+  /** Las que sólo dejan constancia, abajo. */
+  protected readonly informativas = computed(() => this.rows().filter((row) => !row.isRequired));
+
   protected readonly rows = computed(() =>
     employeeEvaluationRequirementRows(
       this.requirements(),
       this.evaluations(),
       this.today(),
       this.expiringWithinDays(),
+      // El catálogo manda: es la lista completa de tipos, y cada uno trae si es obligatorio o
+      // informativo. Las reglas aportan el estado de los que la tienen.
+      this.categories(),
     ),
   );
 
   protected readonly activas = computed(() => this.evaluations().filter((item) => item.active));
+
+  /** Lo que la sección dice sin abrirse: la última practicada, que es lo que se suele buscar. */
+  protected readonly resumenRegistradas = computed(() => {
+    const items = this.activas();
+
+    if (items.length === 0) {
+      return 'Ninguna registrada';
+    }
+
+    const ultima = [...items].sort((a, b) => b.evaluatedDate.localeCompare(a.evaluatedDate))[0]!;
+    return `Última: ${this.categoryLabel(ultima)} · ${formatOperationalDate(ultima.evaluatedDate)}`;
+  });
 
   /** Los tipos, con los que esta organización exige al principio y marcados. */
   protected readonly typeOptions = computed<readonly GiSelectOption[]>(() =>

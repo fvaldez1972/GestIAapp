@@ -1,4 +1,5 @@
 import { HttpErrorResponse, HttpResponse } from '@angular/common/http';
+import { GiDate } from '../../../../shared/ui/gi-date/gi-date';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
@@ -27,7 +28,7 @@ import {
 
 @Component({
   selector: 'app-documents-page',
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, GiDate],
   templateUrl: './documents-page.html',
   styleUrl: './documents-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -37,7 +37,7 @@ const regla = (parcial: Partial<EligibilityRequirement>): EligibilityRequirement
   requiredEvaluationType: null,
   name: 'Requiere arma corta',
   description: null,
-  isBlockingEffective: true,
+  isRequiredEffective: true,
   active: true,
   ...parcial,
 });
@@ -119,16 +119,22 @@ describe('Catálogos', () => {
     expect(texto).toContain('renombrar un motivo no cambia las incidencias ya registradas');
   });
 
-  /** La geografía sale de la vista principal: son doce mil filas que nadie configura. */
-  it('deja la geografía plegada y fuera de la lista principal', () => {
+  /**
+   * La geografía ya no se edita por organización, y la pantalla lo dice en vez de callarlo.
+   *
+   * <p>Antes estaba aquí, plegada. Desde el 22 de septiembre de 2026 vive en tablas compartidas,
+   * así que dejar la sección editable habría dejado crear países que ningún desplegable lee: el
+   * alta parecería funcionar y no tendría efecto en ningún domicilio.</p>
+   */
+  it('no ofrece editar la geografía, y explica por qué', () => {
     const { raiz } = montar();
 
     const plegado = Array.from(raiz.querySelectorAll('details')).find(
       (elemento) => elemento.querySelector('summary')?.textContent?.includes('Geografía'),
     );
 
-    expect(plegado).toBeTruthy();
-    expect(plegado?.open).toBe(false);
+    expect(plegado).toBeUndefined();
+    expect(raiz.textContent).toContain('ya no se configuran por organización');
   });
 
   /**
@@ -183,18 +189,18 @@ describe('Catálogos', () => {
   });
 
   /**
-   * La trampa: una regla de experiencia bloqueante no se puede cumplir porque no hay pantalla para
+   * La trampa: una regla de experiencia obligatoria no se puede cumplir porque no hay pantalla para
    * otorgar experiencias. La pantalla lo dice donde se crean las reglas, no en un documento.
    */
-  it('avisa de las reglas de experiencia bloqueantes que hoy nadie puede cumplir', () => {
-    const { raiz } = montar({ requirements: [regla({ isBlockingEffective: true, requirementType: 'Skill' })] });
+  it('avisa de las reglas de experiencia obligatorias que hoy nadie puede cumplir', () => {
+    const { raiz } = montar({ requirements: [regla({ isRequiredEffective: true, requirementType: 'Skill' })] });
 
     expect(raiz.textContent).toContain('todavía no existe pantalla');
     expect(raiz.textContent).toContain('detiene la publicación de la planeación');
   });
 
   it('no avisa cuando la regla de experiencia es sólo informativa', () => {
-    const { raiz } = montar({ requirements: [regla({ isBlockingEffective: false })] });
+    const { raiz } = montar({ requirements: [regla({ isRequiredEffective: false })] });
 
     expect(raiz.textContent).not.toContain('todavía no existe pantalla');
   });
@@ -230,7 +236,7 @@ describe('Catálogos', () => {
    * La marca de bloqueo tiene dos opciones, no tres.
    *
    * <p>Hubo un «Sin decidir» y se retiró el 21 de septiembre de 2026: no lo pedía la matriz —que
-   * habla de bloqueante o informativa—, no se podía guardar, y en el servidor ya se comportaba
+   * habla de obligatorio o informativa—, no se podía guardar, y en el servidor ya se comportaba
    * igual que informativa. Esta prueba existe para que no vuelva.</p>
    */
   it('ofrece dos marcas de bloqueo y ninguna de ellas es «Sin decidir»', () => {
@@ -277,7 +283,7 @@ describe('Catálogos', () => {
     });
 
     pagina.openCatalogType.set('EmployeeEvaluationCategory');
-    pagina.editCatalogItem(valor({ idCatalogItem: 'z', name: 'Polígrafo', isBlocking: null }));
+    pagina.editCatalogItem(valor({ idCatalogItem: 'z', name: 'Polígrafo', isRequired: null }));
     fixture.detectChanges();
 
     expect(pagina.catalogForm.value.blockingMark).toBe('informative');

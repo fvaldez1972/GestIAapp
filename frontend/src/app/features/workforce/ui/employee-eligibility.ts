@@ -22,6 +22,34 @@ import {
   selector: 'app-employee-eligibility',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
+    <!--
+      Sin posicion contra la que comparar, la franja es una sola linea.
+
+      En la ficha de Personal no hay posicion: nadie le pasa ni el puesto que pide ni su nombre.
+      Aun asi se dibujaba el recuadro entero —insignia, los dos puestos y una frase— y la frase
+      decia «corresponde con el que la posicion pide», hablando de una posicion que no existe ahi.
+      Era medio panel de alto para decir el puesto de la persona, y ademas lo decia mal. El
+      recuadro completo se conserva para cuando si haya posicion, que es para lo que se hizo.
+    -->
+    @if (sinPosicion()) {
+      <p class="band band--linea" [class]="'band band--linea band--' + state()">
+        <span class="band__badge">{{ etiquetaCorta() }}</span>
+
+        @if (employeeJobPosition()) {
+          <span class="band__puesto">{{ employeeJobPosition() }}</span>
+        } @else {
+          <span class="band__puesto band__missing">
+            Nadie puede comprobar que su perfil corresponde
+          </span>
+          <button class="band__action" type="button" (click)="fixJobPosition.emit()">
+            Asignar un puesto
+          </button>
+          <button class="band__action" type="button" (click)="openCatalog.emit()">
+            Ver el catálogo
+          </button>
+        }
+      </p>
+    } @else {
     <section class="band" [class]="'band--' + state()">
       <p class="band__head">
         <span class="band__badge">{{ title() }}</span>
@@ -58,6 +86,7 @@ import {
         </p>
       }
     </section>
+    }
   `,
   styles: `
     :host { display: block; }
@@ -71,6 +100,20 @@ import {
       border-radius: var(--gestia-radius);
       background: var(--gestia-surface-soft);
     }
+
+    /* La version de una linea: misma insignia y mismo color, sin el recuadro alto. */
+    .band--linea {
+      flex-direction: row;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.35rem 0.6rem;
+      margin: 0;
+    }
+
+    .band__puesto { color: var(--gestia-text); font-size: 12.5px; font-weight: 600; }
+
+    .band--linea .band__action { height: 1.6rem; padding: 0 0.55rem; font-size: 11.5px; }
 
     .band--blocked { border-color: var(--gestia-danger); }
     .band--incomplete { border-color: var(--gestia-warning); }
@@ -151,6 +194,15 @@ export class EmployeeEligibilityBand {
   );
 
   protected readonly title = computed(() => eligibilityTitle(this.state()));
+
+  /** No hay posicion contra la que comparar: la franja se reduce a una linea. */
+  protected readonly sinPosicion = computed(
+    () => !this.positionJobPositionId() && !this.positionJobPosition() && !this.positionName(),
+  );
+
+  protected readonly etiquetaCorta = computed(() =>
+    this.employeeJobPosition() ? 'Puesto del catálogo' : 'Sin puesto del catálogo',
+  );
 
   protected readonly detail = computed(() =>
     eligibilityDetail(this.state(), this.employeeJobPosition(), this.positionJobPosition()),

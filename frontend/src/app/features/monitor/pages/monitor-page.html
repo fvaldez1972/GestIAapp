@@ -30,7 +30,7 @@
 </section>
 <section class="monitor-operations" aria-labelledby="monitor-operations-title">
   <header class="monitor-heading"><div><h2 id="monitor-operations-title">Operacion de la organizacion abierta</h2><p>{{ auth.activeOrganization()?.legalName || 'Ninguna organizacion abierta' }}</p></div>
-    @if (auth.activeOrganization()) { <label>Fecha operativa<input type="date" class="gi-input" [ngModel]="operationDate()" (ngModelChange)="operationDate.set($event)" /></label> }
+    @if (auth.activeOrganization()) { <label>Fecha operativa<gi-date [ngModel]="operationDate()" (ngModelChange)="operationDate.set($event)" /></label> }
   </header>
   @if (!auth.activeOrganization()) { <p>Entra a una organizacion para consultar sus datos operativos.</p> }
   @else if (operationsLoading()) { <p role="status">Cargando operacion...</p> }
